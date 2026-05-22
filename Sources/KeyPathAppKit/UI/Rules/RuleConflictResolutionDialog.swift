@@ -117,7 +117,7 @@ struct RuleConflictResolutionDialog: View {
                 onCancel()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(.secondary)
                     .frame(width: 22, height: 22)
                     .background(

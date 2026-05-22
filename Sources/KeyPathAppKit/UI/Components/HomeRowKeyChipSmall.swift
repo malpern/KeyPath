@@ -9,10 +9,10 @@ struct HomeRowKeyChipSmall: View {
     var body: some View {
         VStack(spacing: 2) {
             Text(letter)
-                .font(.system(size: 14, weight: .medium))
+                .font(.body.weight(.medium))
             if !symbol.isEmpty {
                 Text(symbol)
-                    .font(.system(size: 12))
+                    .font(.callout)
                     .foregroundColor(isHovered ? Color(NSColor.windowBackgroundColor).opacity(0.8) : Color.secondary)
             }
         }

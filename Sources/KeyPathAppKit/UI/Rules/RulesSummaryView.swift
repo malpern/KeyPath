@@ -625,7 +625,7 @@ struct RulesTabView: View {
                             case let .header(category):
                                 HStack(spacing: 6) {
                                     Text(category.displayName.uppercased())
-                                        .font(.system(size: 11, weight: .semibold))
+                                        .font(.subheadline.weight(.semibold))
                                         .foregroundStyle(.secondary)
                                         .tracking(0.8)
 

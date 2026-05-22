@@ -49,12 +49,12 @@ struct RecommendedRulesSection: View {
                 // Title + reason
                 VStack(alignment: .leading, spacing: 3) {
                     Text(pack?.name ?? item.collection.name)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
 
                     Text(item.reason)
-                        .font(.system(size: 11))
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -84,20 +84,20 @@ struct RecommendedRulesSection: View {
         if let secondary = pack?.iconSecondarySymbol {
             HStack(spacing: 6) {
                 Image(systemName: symbol)
-                    .font(.system(size: 24, weight: .semibold))
+                    .font(.title.weight(.semibold))
                     .foregroundStyle(.tint)
                     .symbolRenderingMode(.hierarchical)
                 Image(systemName: "arrow.right")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Image(systemName: secondary)
-                    .font(.system(size: 24, weight: .semibold))
+                    .font(.title.weight(.semibold))
                     .foregroundStyle(.tint)
                     .symbolRenderingMode(.hierarchical)
             }
         } else {
             Image(systemName: symbol)
-                .font(.system(size: 30, weight: .semibold))
+                .font(.largeTitle.weight(.semibold))
                 .foregroundStyle(.tint)
                 .symbolRenderingMode(.hierarchical)
         }

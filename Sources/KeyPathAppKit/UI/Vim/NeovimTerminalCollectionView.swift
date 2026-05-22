@@ -181,7 +181,7 @@ struct NeovimTerminalCollectionView: View {
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
 
                 Image(systemName: selectedTopics.contains(category.rawValue) ? "checkmark.square.fill" : "square")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.title2.weight(.semibold))
                     .foregroundColor(selectedTopics.contains(category.rawValue) ? category.accentColor : .secondary)
                     .padding(10)
             }

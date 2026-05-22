@@ -57,7 +57,7 @@ struct KindaVimInsightsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 sectionHeader("Arrow-key reliance · last 30 days")
                 Text("Lower is better — less reaching for the arrow keys.")
-                    .font(.system(size: 11))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             if series.count < 2 {
@@ -66,7 +66,7 @@ struct KindaVimInsightsView: View {
                 chart(for: series)
                     .frame(height: 110)
                 Text(chartSubtitle(series: series))
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.primary)
             }
         }
@@ -74,7 +74,7 @@ struct KindaVimInsightsView: View {
 
     private var emptyChartCard: some View {
         Text("Use vim for a few days and a chart will appear here.")
-            .font(.system(size: 12))
+            .font(.callout)
             .foregroundStyle(.secondary)
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity, alignment: .center)
@@ -154,7 +154,7 @@ struct KindaVimInsightsView: View {
                 AxisValueLabel {
                     if let percent = value.as(Int.self) {
                         Text("\(percent)%")
-                            .font(.system(size: 9))
+                            .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -233,7 +233,7 @@ struct KindaVimInsightsView: View {
             sectionHeader("What you're using")
             if all.isEmpty {
                 Text("No commands recorded yet.")
-                    .font(.system(size: 12))
+                    .font(.callout)
                     .foregroundStyle(.secondary)
             } else {
                 let maxCount = all.first?.count ?? 1
@@ -247,7 +247,7 @@ struct KindaVimInsightsView: View {
                         }
                     } label: {
                         Text(showAllCommands ? "Show less" : "Show more (\(all.count - 8) more)")
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
@@ -333,7 +333,7 @@ struct KindaVimInsightsView: View {
     private func usageRow(entry: UsageEntry, maxCount: Int) -> some View {
         HStack(spacing: 10) {
             Text(entry.displayLabel)
-                .font(.system(size: 13, weight: .heavy, design: .monospaced))
+                .font(.body.weight(.heavy).monospaced())
                 .frame(width: 36, alignment: .leading)
             GeometryReader { geo in
                 let fraction = CGFloat(entry.count) / CGFloat(max(maxCount, 1))
@@ -356,13 +356,13 @@ struct KindaVimInsightsView: View {
             .frame(height: 6)
             .animation(.spring(response: 0.55, dampingFraction: 0.8), value: entry.count)
             Text("\(entry.count)")
-                .font(.system(size: 11, design: .monospaced))
+                .font(.subheadline.monospaced())
                 .foregroundStyle(.secondary)
                 .frame(width: 44, alignment: .trailing)
                 .contentTransition(.numericText())
                 .animation(.easeOut(duration: 0.4), value: entry.count)
             Text(entry.tier.rawValue)
-                .font(.system(size: 10, weight: .medium))
+                .font(.caption.weight(.medium))
                 .foregroundStyle(tierColor(entry.tier))
                 .frame(width: 80, alignment: .leading)
         }
@@ -398,7 +398,7 @@ struct KindaVimInsightsView: View {
             sectionHeader("What to try next")
             if insights.isEmpty {
                 Text("No suggestions yet — keep using the pack and tips will appear here.")
-                    .font(.system(size: 12))
+                    .font(.callout)
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(insights) { insight in
@@ -411,12 +411,12 @@ struct KindaVimInsightsView: View {
     private func insightCard(_ insight: VimInsight) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Text(insight.glyph.rawValue)
-                .font(.system(size: 14))
+                .font(.body)
             VStack(alignment: .leading, spacing: 2) {
                 Text(insight.title)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.callout.weight(.semibold))
                 Text(insight.body)
-                    .font(.system(size: 11))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -455,10 +455,10 @@ struct KindaVimInsightsView: View {
     private func statChip(label: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
-                .font(.system(size: 10))
+                .font(.caption)
                 .foregroundStyle(.secondary)
             Text(value)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.callout.weight(.semibold))
         }
     }
 
@@ -466,7 +466,7 @@ struct KindaVimInsightsView: View {
 
     private func sectionHeader(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11, weight: .semibold))
+            .font(.subheadline.weight(.semibold))
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
             .tracking(0.6)

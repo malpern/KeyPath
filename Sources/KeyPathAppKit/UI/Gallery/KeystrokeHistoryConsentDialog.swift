@@ -7,7 +7,7 @@ struct KeystrokeHistoryConsentDialog: View {
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "clock.arrow.trianglehead.counterclockwise.rotate.90")
-                .font(.system(size: 36))
+                .font(.largeTitle)
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
 

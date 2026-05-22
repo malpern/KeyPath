@@ -82,7 +82,7 @@ struct SystemActionGridView: View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(groups) { group in
                 Text(group.title)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: minWidth))], spacing: 4) {
                     ForEach(group.actions) { action in
@@ -101,9 +101,9 @@ struct SystemActionGridView: View {
         } label: {
             HStack(spacing: 3) {
                 Image(systemName: action.sfSymbol)
-                    .font(.system(size: 9))
+                    .font(.caption2)
                 Text(action.name)
-                    .font(.system(size: 10))
+                    .font(.caption)
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity)

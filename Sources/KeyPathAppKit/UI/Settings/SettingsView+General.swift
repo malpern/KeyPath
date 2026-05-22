@@ -231,9 +231,9 @@ struct LayerIndicatorToggle: View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Layer change notification")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.body.weight(.medium))
                 Text("Shows a banner and plays a sound when switching layers.")
-                    .font(.system(size: 11))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             Spacer()

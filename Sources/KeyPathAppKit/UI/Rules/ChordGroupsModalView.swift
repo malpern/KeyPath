@@ -595,7 +595,7 @@ struct ChordEditorDialog: View {
                 // Keys
                 HStack(alignment: .center) {
                     Text("Keys")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.callout.weight(.medium))
                         .foregroundStyle(.secondary)
                         .frame(width: 56, alignment: .trailing)
 
@@ -605,7 +605,7 @@ struct ChordEditorDialog: View {
                                 Button { keys.remove(at: index) } label: {
                                     HStack(spacing: 3) {
                                         Text(key.uppercased())
-                                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                            .font(.callout.weight(.semibold).monospaced())
                                         Image(systemName: "xmark")
                                             .font(.system(size: 8, weight: .bold))
                                             .foregroundStyle(.secondary)
@@ -620,7 +620,7 @@ struct ChordEditorDialog: View {
                         if keys.filter({ !$0.isEmpty }).count < 4 {
                             TextField("key", text: $newKeyInput)
                                 .textFieldStyle(.roundedBorder)
-                                .font(.system(size: 12, design: .monospaced))
+                                .font(.callout.monospaced())
                                 .frame(width: 60)
                                 .onSubmit {
                                     let trimmed = newKeyInput.trimmingCharacters(in: .whitespaces).lowercased()
@@ -637,7 +637,7 @@ struct ChordEditorDialog: View {
                 // Output type picker
                 HStack(alignment: .top) {
                     Text("Action")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.callout.weight(.medium))
                         .foregroundStyle(.secondary)
                         .frame(width: 56, alignment: .trailing)
                         .padding(.top, 4)
@@ -658,13 +658,13 @@ struct ChordEditorDialog: View {
                 // Note
                 HStack(alignment: .firstTextBaseline) {
                     Text("Note")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.callout.weight(.medium))
                         .foregroundStyle(.secondary)
                         .frame(width: 56, alignment: .trailing)
 
                     TextField("Optional description", text: $description)
                         .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 13))
+                        .font(.body)
                 }
             }
             .padding(.horizontal, 24)
@@ -718,7 +718,7 @@ struct ChordEditorDialog: View {
         case .appLaunch:
             VStack(alignment: .leading, spacing: 6) {
                 Text("Enter app name or bundle ID:")
-                    .font(.system(size: 11))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                 TextField("Safari", text: Binding(
                     get: {
@@ -728,17 +728,17 @@ struct ChordEditorDialog: View {
                     set: { selectedAction = .launchApp(name: $0, bundleId: nil) }
                 ))
                 .textFieldStyle(.roundedBorder)
-                .font(.system(size: 13))
+                .font(.body)
             }
 
         case .custom:
             VStack(alignment: .leading, spacing: 6) {
                 Text("Kanata expression:")
-                    .font(.system(size: 11))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                 TextField("C-x", text: $customOutput)
                     .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 13, design: .monospaced))
+                    .font(.body.monospaced())
                     .onChange(of: customOutput) { _, newValue in
                         if !newValue.isEmpty {
                             selectedAction = .rawKanata(newValue)
@@ -777,7 +777,7 @@ struct ChordEditorDialog: View {
 
     private func keycap(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 16, weight: .semibold, design: .monospaced))
+            .font(.title3.weight(.semibold).monospaced())
             .foregroundStyle(Self.keycapText)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
@@ -793,7 +793,7 @@ struct ChordEditorDialog: View {
 
     private func placeholderKeycap(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 16, weight: .semibold, design: .monospaced))
+            .font(.title3.weight(.semibold).monospaced())
             .foregroundStyle(.secondary.opacity(0.4))
             .padding(.horizontal, 14)
             .padding(.vertical, 10)

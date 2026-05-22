@@ -122,7 +122,7 @@ struct MappingTableContent: View {
 
     private func actionCell(_ text: String) -> some View {
         StandardKeyBadge(key: text, color: .secondary, uppercase: false)
-            .font(.system(size: 15, weight: .semibold, design: .monospaced))
+            .font(.title3.weight(.semibold).monospaced())
             .fixedSize(horizontal: true, vertical: false)
             .frame(maxWidth: .infinity)
     }

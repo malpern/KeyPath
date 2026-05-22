@@ -81,9 +81,9 @@ struct ExperimentalSettingsSection: View {
                                         .frame(width: 16)
                                     VStack(alignment: .leading, spacing: 1) {
                                         Text(appDisplayName(for: bundleID))
-                                            .font(.system(size: 12, weight: .medium))
+                                            .font(.callout.weight(.medium))
                                         Text(bundleID)
-                                            .font(.system(size: 10, design: .monospaced))
+                                            .font(.caption.monospaced())
                                             .foregroundStyle(.secondary)
                                     }
                                     Spacer()
@@ -116,7 +116,7 @@ struct ExperimentalSettingsSection: View {
                             addAppViaPicker()
                         } label: {
                             Label("Add App…", systemImage: "plus")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.callout.weight(.medium))
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)

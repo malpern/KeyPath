@@ -8,7 +8,7 @@ struct VimKeyBadge: View {
 
     var body: some View {
         Text(key)
-            .font(.system(size: 14, weight: .semibold, design: .monospaced))
+            .font(.body.weight(.semibold).monospaced())
             .foregroundColor(isHovered ? .white : color)
             .frame(width: 28, height: 28)
             .background(

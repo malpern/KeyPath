@@ -7,7 +7,7 @@ struct StandardKeyBadge: View {
 
     var body: some View {
         Text(uppercase ? key.uppercased() : key)
-            .font(.system(size: 14, weight: .semibold, design: .monospaced))
+            .font(.body.weight(.semibold).monospaced())
             .foregroundColor(color)
             .frame(minWidth: 26, minHeight: 26)
             .padding(.horizontal, 4)

@@ -71,10 +71,10 @@ struct KindaVimStatusBlock: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.caption2.weight(.semibold))
                         .rotationEffect(.degrees(showTerminalInfo ? 90 : 0))
                     Text("Setting up vim mode in Terminal")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.subheadline.weight(.medium))
                     Spacer()
                 }
                 .foregroundStyle(.secondary)
@@ -85,7 +85,7 @@ struct KindaVimStatusBlock: View {
 
             if showTerminalInfo {
                 Text("Terminal apps are usually in KindaVim's ignore list. To practice vim motions there, add `bindkey -v` to your ~/.zshrc to enable zsh's built-in vi mode, then turn on \"Show vim hints in terminal apps\" above.")
-                    .font(.system(size: 11))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.leading, 15)
@@ -96,7 +96,7 @@ struct KindaVimStatusBlock: View {
             Text(
                 "This pack adds no remappings. KindaVim itself handles every keypress; KeyPath just shows you the current mode in the overlay."
             )
-            .font(.system(size: 12))
+            .font(.callout)
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
         }
@@ -136,7 +136,7 @@ struct KindaVimStatusBlock: View {
                 showClearTelemetryConfirmation = true
             } label: {
                 Label("Clear all usage data…", systemImage: "trash")
-                    .font(.system(size: 11))
+                    .font(.subheadline)
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -153,9 +153,9 @@ struct KindaVimStatusBlock: View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.callout.weight(.medium))
                 Text(subtitle)
-                    .font(.system(size: 11))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -173,11 +173,11 @@ struct KindaVimStatusBlock: View {
     private func row(label: String, value: String, tint: Color) -> some View {
         HStack {
             Text(label)
-                .font(.system(size: 12))
+                .font(.callout)
                 .foregroundStyle(.secondary)
             Spacer()
             Text(value)
-                .font(.system(size: 12, weight: .medium))
+                .font(.callout.weight(.medium))
                 .foregroundStyle(tint)
         }
     }

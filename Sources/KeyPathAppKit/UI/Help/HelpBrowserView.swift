@@ -222,7 +222,7 @@ struct HelpBrowserView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "chevron.left")
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.callout.weight(.semibold))
                             Text("Help")
                                 .font(.callout)
                         }
@@ -239,7 +239,7 @@ struct HelpBrowserView: View {
                     // Prev / Next
                     Button { navigateBack() } label: {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.callout.weight(.medium))
                             .frame(width: 28, height: 24)
                             .contentShape(Rectangle())
                     }
@@ -251,7 +251,7 @@ struct HelpBrowserView: View {
 
                     Button { navigateForward() } label: {
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.callout.weight(.medium))
                             .frame(width: 28, height: 24)
                             .contentShape(Rectangle())
                     }
@@ -380,7 +380,7 @@ struct HelpBrowserView: View {
                 // Number hint, vertically aligned with title
                 if number <= 9 {
                     Text("\(number)")
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .font(.caption.weight(.medium).width(.condensed))
                         .foregroundColor(Color(nsColor: .init(red: 0.55, green: 0.45, blue: 0.35, alpha: 0.4)))
                 }
             }

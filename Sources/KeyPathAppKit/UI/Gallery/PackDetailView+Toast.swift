@@ -54,7 +54,7 @@ extension PackDetailView {
             Image(systemName: icon)
                 .foregroundStyle(iconColor)
             Text(message)
-                .font(.system(size: 12))
+                .font(.callout)
                 .foregroundStyle(.primary)
             if let action {
                 Button(action.label, action: action.handler)

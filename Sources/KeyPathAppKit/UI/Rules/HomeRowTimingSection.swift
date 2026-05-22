@@ -140,7 +140,7 @@ struct HomeRowTimingSection: View {
                 .overlay(alignment: .top) {
                     if isEditingHoldDuration {
                         Text("\(config.timing.holdDelay)ms")
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .font(.caption.weight(.semibold).width(.condensed))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -233,7 +233,7 @@ struct HomeRowTimingSection: View {
                             .overlay(alignment: .top) {
                                 if isEditingIdleWindow {
                                     Text("\(config.timing.requirePriorIdleMs)ms")
-                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                        .font(.caption.weight(.semibold).width(.condensed))
                                         .foregroundStyle(.white)
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)

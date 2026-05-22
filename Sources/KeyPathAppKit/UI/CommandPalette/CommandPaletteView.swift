@@ -89,12 +89,12 @@ struct CommandPaletteView: View {
     private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "command")
-                .font(.system(size: 14, weight: .medium))
+                .font(.body.weight(.medium))
                 .foregroundStyle(.secondary)
 
             TextField("Type a command\u{2026}", text: $searchText)
                 .textFieldStyle(.plain)
-                .font(.system(size: 15))
+                .font(.title3)
                 .focused($isSearchFocused)
                 .onSubmit {
                     if selectedIndex < filtered.count {
@@ -170,7 +170,7 @@ struct CommandPaletteView: View {
                             }
                         } header: {
                             Text(group.group)
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 16)
                                 .padding(.top, groupIdx == 0 ? 6 : 12)
@@ -229,17 +229,17 @@ private struct CommandPaletteRow: View {
         Button(action: onSelect) {
             HStack(spacing: 10) {
                 Image(systemName: item.icon)
-                    .font(.system(size: 14))
+                    .font(.body)
                     .foregroundStyle(isSelected ? .white : .secondary)
                     .frame(width: 22, alignment: .center)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(item.title)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.body.weight(.medium))
                         .foregroundStyle(isSelected ? .white : .primary)
                     if let subtitle = item.subtitle {
                         Text(subtitle)
-                            .font(.system(size: 11))
+                            .font(.subheadline)
                             .foregroundStyle(isSelected ? .white.opacity(0.7) : .secondary)
                     }
                 }
@@ -248,7 +248,7 @@ private struct CommandPaletteRow: View {
 
                 if let shortcut = item.shortcut {
                     Text(shortcut)
-                        .font(.system(size: 11, design: .rounded))
+                        .font(.subheadline.monospaced())
                         .foregroundColor(isSelected ? .white.opacity(0.6) : .secondary.opacity(0.5))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)

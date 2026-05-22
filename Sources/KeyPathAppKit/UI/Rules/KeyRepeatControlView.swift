@@ -88,13 +88,13 @@ struct KeyRepeatControlView: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(heroHeadline)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.body.weight(.medium))
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
                     .contentTransition(.numericText())
 
                 Text(heroSubhead)
-                    .font(.system(size: 11))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -136,7 +136,7 @@ struct KeyRepeatControlView: View {
 
     private func heroKeycap(_ label: String) -> some View {
         Text(label)
-            .font(.system(size: 20, weight: .medium))
+            .font(.title2.weight(.medium))
             .frame(width: 42, height: 38)
             .background(
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
@@ -231,11 +231,11 @@ struct KeyRepeatControlView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("All keys")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
                 Text("\(globalDelayMs)ms delay · \(KeyRepeatControlConfig.keysPerSecond(fromIntervalMs: globalIntervalMs))")
-                    .font(.system(size: 10, design: .monospaced))
+                    .font(.caption.monospaced())
                     .foregroundStyle(.tertiary)
             }
             cleanSlider(label: "Delay", value: $globalDelayMs, range: 50...2000, snap: 10, id: "global-delay")
@@ -247,13 +247,13 @@ struct KeyRepeatControlView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Toggle("Arrow keys", isOn: $arrowEnabled)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .toggleStyle(.checkbox)
                     .accessibilityIdentifier("key-repeat-arrow-toggle")
                 Spacer()
                 if arrowEnabled {
                     Text("\(arrowDelayMs)ms · \(KeyRepeatControlConfig.keysPerSecond(fromIntervalMs: arrowIntervalMs))")
-                        .font(.system(size: 10, design: .monospaced))
+                        .font(.caption.monospaced())
                         .foregroundStyle(.tertiary)
                 }
             }
@@ -267,7 +267,7 @@ struct KeyRepeatControlView: View {
     private var deleteSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle("Delete ⌫", isOn: $deleteEnabled)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .toggleStyle(.checkbox)
                 .accessibilityIdentifier("key-repeat-delete-toggle")
             if deleteEnabled {
@@ -281,7 +281,7 @@ struct KeyRepeatControlView: View {
     private var fwdDeleteSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle("Fwd Delete ⌦", isOn: $fwdDeleteEnabled)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .toggleStyle(.checkbox)
                 .accessibilityIdentifier("key-repeat-fwd-delete-toggle")
             if fwdDeleteEnabled {
@@ -299,7 +299,7 @@ struct KeyRepeatControlView: View {
             ForEach(Array(customOverrides.enumerated()), id: \.element.id) { index, entry in
                 HStack(alignment: .top, spacing: 8) {
                     Text(entry.key)
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .font(.subheadline.weight(.semibold).monospaced())
                         .padding(.horizontal, 6).padding(.vertical, 3)
                         .background(RoundedRectangle(cornerRadius: 4).fill(Color.accentColor.opacity(0.1)))
                         .foregroundStyle(Color.accentColor)
@@ -316,7 +316,7 @@ struct KeyRepeatControlView: View {
                     }
 
                     Button { customOverrides.remove(at: index) } label: {
-                        Image(systemName: "xmark.circle.fill").font(.system(size: 11)).foregroundStyle(.tertiary)
+                        Image(systemName: "xmark.circle.fill").font(.subheadline).foregroundStyle(.tertiary)
                     }.buttonStyle(.plain)
                     .accessibilityIdentifier("key-repeat-remove-custom-\(entry.key)")
                 }
@@ -329,7 +329,7 @@ struct KeyRepeatControlView: View {
             if showingAddCustom {
                 HStack(spacing: 8) {
                     TextField("Key name (e.g. a, spc)", text: $newKeyText)
-                        .textFieldStyle(.roundedBorder).font(.system(size: 11)).frame(maxWidth: 160)
+                        .textFieldStyle(.roundedBorder).font(.subheadline).frame(maxWidth: 160)
                         .onSubmit { commitCustomKey() }
                         .accessibilityIdentifier("key-repeat-custom-key-field")
                     Button("Add") { commitCustomKey() }
@@ -341,7 +341,7 @@ struct KeyRepeatControlView: View {
             } else {
                 Button { showingAddCustom = true } label: {
                     Label("Add custom key", systemImage: "plus.circle")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.subheadline.weight(.medium))
                 }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
                 .accessibilityIdentifier("key-repeat-add-custom-key-button")
             }
@@ -361,11 +361,11 @@ struct KeyRepeatControlView: View {
     private var testArea: some View {
         VStack(alignment: .leading, spacing: 5) {
             Text("Test area")
-                .font(.system(size: 11, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.tertiary)
 
             TextEditor(text: $testText)
-                .font(.system(size: 12))
+                .font(.callout)
                 .frame(height: 56)
                 .scrollContentBackground(.hidden)
                 .padding(8)
@@ -384,7 +384,7 @@ struct KeyRepeatControlView: View {
             : "\(value.wrappedValue) \(unit)"
         return HStack(spacing: 8) {
             Text(label)
-                .font(.system(size: 10))
+                .font(.caption)
                 .foregroundStyle(.tertiary)
                 .frame(width: 36, alignment: .trailing)
             Slider(value: Binding(

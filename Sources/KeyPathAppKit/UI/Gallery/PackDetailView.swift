@@ -178,9 +178,9 @@ struct PackDetailView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "chevron.left")
-                                .font(.system(size: 10, weight: .semibold))
+                                .font(.caption.weight(.semibold))
                             Text("All Rules")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.callout.weight(.medium))
                         }
                         .foregroundStyle(.secondary)
                         .padding(.vertical, 4)
@@ -196,7 +196,7 @@ struct PackDetailView: View {
                 if showBackToRules {
                     Button(action: { PackDetailWindowController.shared.closeWindow() }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 16))
+                            .font(.title3)
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
@@ -211,7 +211,7 @@ struct PackDetailView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(displayName)
-                            .font(.system(size: 20, weight: .semibold))
+                            .font(.title2.weight(.semibold))
                         if helpResourceName != nil {
                             Button {
                                 if helpResourceName != nil {
@@ -219,7 +219,7 @@ struct PackDetailView: View {
                                 }
                             } label: {
                                 Image(systemName: "questionmark.circle")
-                                    .font(.system(size: 14))
+                                    .font(.body)
                                     .foregroundStyle(.secondary)
                             }
                             .buttonStyle(.plain)
@@ -230,14 +230,14 @@ struct PackDetailView: View {
                     }
                     if let managingPackName {
                         Text("Part of \(managingPackName)")
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
                             .background(Capsule().fill(Color.accentColor))
                     }
                     Text(pack.tagline)
-                        .font(.system(size: 13))
+                        .font(.body)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     currentConfigRow
@@ -285,10 +285,10 @@ struct PackDetailView: View {
         if let summary = currentConfigSummary {
             HStack(spacing: 6) {
                 Image(systemName: "hand.point.up.left.fill")
-                    .font(.system(size: 10))
+                    .font(.caption)
                     .foregroundStyle(Color.accentColor)
                 Text(summary)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(Color.accentColor)
             }
             .padding(.top, 2)
@@ -330,20 +330,20 @@ struct PackDetailView: View {
             if let secondary = pack.iconSecondarySymbol {
                 HStack(spacing: 3) {
                     Image(systemName: pack.iconSymbol)
-                        .font(.system(size: 22, weight: .semibold))
+                        .font(.title.weight(.semibold))
                         .foregroundStyle(.tint)
                         .symbolRenderingMode(.hierarchical)
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Image(systemName: secondary)
-                        .font(.system(size: 22, weight: .semibold))
+                        .font(.title.weight(.semibold))
                         .foregroundStyle(.tint)
                         .symbolRenderingMode(.hierarchical)
                 }
             } else {
                 Image(systemName: pack.iconSymbol)
-                    .font(.system(size: 30, weight: .semibold))
+                    .font(.largeTitle.weight(.semibold))
                     .foregroundStyle(.tint)
                     .symbolRenderingMode(.hierarchical)
             }
@@ -483,7 +483,7 @@ struct PackDetailView: View {
 
     var descriptionBlock: some View {
         Text(pack.shortDescription)
-            .font(.system(size: 13))
+            .font(.body)
             .foregroundStyle(.primary)
             .fixedSize(horizontal: false, vertical: true)
             .lineSpacing(2)
@@ -557,7 +557,7 @@ struct PackDetailView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(label, systemImage: icon)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(tint)
 
             ForEach(items, id: \.pack.id) { item in
@@ -569,17 +569,17 @@ struct PackDetailView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: item.pack.iconSymbol)
-                            .font(.system(size: 11))
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .frame(width: 16)
 
                         VStack(alignment: .leading, spacing: 1) {
                             Text(item.pack.name)
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.callout.weight(.medium))
                                 .foregroundStyle(.primary)
                             if !item.description.isEmpty {
                                 Text(item.description)
-                                    .font(.system(size: 10))
+                                    .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
                             }
@@ -588,7 +588,7 @@ struct PackDetailView: View {
                         Spacer(minLength: 0)
 
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 9, weight: .semibold))
+                            .font(.caption2.weight(.semibold))
                             .foregroundStyle(.tertiary)
                     }
                     .padding(.horizontal, 10)
@@ -645,7 +645,7 @@ struct PackDetailView: View {
         case let .slider(_, min: lo, max: hi, step: step, unitSuffix: suffix):
             HStack(spacing: 8) {
                 Text(setting.label)
-                    .font(.system(size: 12))
+                    .font(.callout)
                 Slider(
                     value: sliderBinding(for: setting.id),
                     in: Double(lo) ... Double(hi),
@@ -655,7 +655,7 @@ struct PackDetailView: View {
                 .accessibilityLabel(setting.label)
                 .accessibilityValue("\(quickSettingValues[setting.id] ?? 0)\(suffix)")
                 Text("\(quickSettingValues[setting.id] ?? 0)\(suffix)")
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(.subheadline.monospaced())
                     .foregroundStyle(.secondary)
                     .frame(width: 50, alignment: .trailing)
             }
