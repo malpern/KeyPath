@@ -13,6 +13,11 @@ What must be true at each phase boundary. The agent's job is to make these true 
 - [ ] `swift test` passes (all tests, zero failures)
 - [ ] Changes are committed with descriptive messages
 
+## After Thermonuclear Review
+
+- [ ] `/thermo-nuclear-swift-review` run against the branch diff
+- [ ] All CONFIRMED and PLAUSIBLE findings addressed or explicitly justified
+
 ## After PR Creation
 
 - [ ] Single squashed commit on the branch

@@ -14,6 +14,10 @@ End-to-end process for shepherding code from initial request through to a clean 
 5. **Test** — `swift test` must pass (all 532+ tests). Never commit code that breaks tests.
 6. **Commit** — commit frequently as you work. Use descriptive messages. Include `Co-Authored-By` tag.
 
+## Phase 2.5: Thermonuclear Review
+
+6b. **Run `/thermo-nuclear-swift-review`** — before creating the PR, run the thermonuclear review skill against the branch diff. Address all CONFIRMED and PLAUSIBLE findings before proceeding. This is not optional — no PR goes out without passing the thermonuclear bar.
+
 ## Phase 3: PR Creation
 
 7. **Squash commits** — `git reset --soft master && git commit` with a comprehensive message covering all changes.
