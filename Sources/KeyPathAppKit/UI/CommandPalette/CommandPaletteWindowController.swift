@@ -7,6 +7,7 @@ final class CommandPaletteWindowController {
 
     private var panel: NSPanel?
     private let recencyKey = "CommandPalette.Recency"
+    private let panelDelegate = PanelDelegate()
 
     private init() {}
 
@@ -84,6 +85,7 @@ final class CommandPaletteWindowController {
         panel.isMovableByWindowBackground = false
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = true
+        panel.delegate = panelDelegate
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.animationBehavior = .utilityWindow
 
@@ -394,5 +396,13 @@ final class CommandPaletteWindowController {
                 }
             },
         ]
+    }
+}
+
+private class PanelDelegate: NSObject, NSWindowDelegate {
+    func windowDidResignKey(_ notification: Notification) {
+        Task { @MainActor in
+            CommandPaletteWindowController.shared.dismiss()
+        }
     }
 }

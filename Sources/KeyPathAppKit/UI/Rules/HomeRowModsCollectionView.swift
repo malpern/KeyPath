@@ -16,6 +16,7 @@ struct HomeRowModsCollectionView: View {
     var holdTimingRange: ClosedRange<Double> = 120...300
     var holdTimingStep: Double = 20
     var onResetHoldTiming: (() -> Void)?
+    var isCollectionEnabled: Bool = true
 
     @AppStorage(KeymapPreferences.keymapIdKey) private var selectedKeymapId: String = LogicalKeymap.defaultId
     @State private var showingCustomizeWindow = false
@@ -67,7 +68,15 @@ struct HomeRowModsCollectionView: View {
                     step: holdTimingStep,
                     suffix: " ms",
                     currentValue: holdTimingValue,
-                    onSliderReleased: { startTimingPreview() }
+                    onSliderReleased: { startTimingPreview() },
+                    onValueChanged: { newHoldMs in
+                        let lo = holdTimingRange.lowerBound
+                        let hi = holdTimingRange.upperBound
+                        let fraction = (newHoldMs - lo) / (hi - lo)
+                        let idleMs = Int(50 + fraction * 200)
+                        config.timing.requirePriorIdleMs = idleMs
+                        onConfigChanged(config)
+                    }
                 )
                 .padding(.horizontal, 10)
                 .padding(.bottom, 16)
@@ -84,6 +93,7 @@ struct HomeRowModsCollectionView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+                    .disabled(!isCollectionEnabled)
                     .accessibilityIdentifier("home-row-mods-reset-defaults")
                 }
 
@@ -92,6 +102,7 @@ struct HomeRowModsCollectionView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .disabled(!isCollectionEnabled)
                 .accessibilityIdentifier("home-row-mods-customize-button")
                 .accessibilityLabel("Home row mods settings")
             }
@@ -278,8 +289,7 @@ struct HomeRowModsCollectionView: View {
             HomeRowTimingSection(
                 config: $config,
                 showsHrmInsights: true,
-                onConfigChanged: onConfigChanged,
-                hideTypingFeelSlider: holdTimingBinding != nil
+                onConfigChanged: onConfigChanged
             )
             .frame(maxWidth: 500)
         }
