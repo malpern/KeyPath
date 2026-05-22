@@ -38,9 +38,11 @@ extension OverlayKeycapView {
                 layerKeyContent(label: key.label)
             } else {
                 let displayText = effectiveLabel.isEmpty ? key.label : effectiveLabel
+                let hasSubtitle = zoneSubtitle != nil && !isLayerMode && !isLauncherMode
                 Text(isNumpadKey ? displayText : displayText.uppercased())
                     .font(.system(size: isNumpadKey ? 14 * scale : 12 * scale, weight: .medium))
                     .foregroundStyle(foregroundColor)
+                    .offset(y: hasSubtitle ? -2.5 * scale : 0)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -77,6 +79,7 @@ extension OverlayKeycapView {
     func dualSymbolContent(main: String, shift: String) -> some View {
         let shiftAdj = OpticalAdjustments.forLabel(shift)
         let mainAdj = OpticalAdjustments.forLabel(main)
+        let hasSubtitle = zoneSubtitle != nil && !isLayerMode && !isLauncherMode
 
         VStack(spacing: dualSymbolSpacing(for: main)) {
             Text(shift)
@@ -94,6 +97,7 @@ extension OverlayKeycapView {
                 .offset(y: mainAdj.verticalOffset * scale)
                 .foregroundStyle(foregroundColor)
         }
+        .offset(y: hasSubtitle ? -2.5 * scale : 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
