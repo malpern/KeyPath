@@ -3,6 +3,27 @@ import KeyPathCore
 import XCTest
 
 final class VallackSystemPackTests: XCTestCase {
+    private var originalInstalledPacks: [InstalledPackRecord] = []
+
+    override func setUp() async throws {
+        try await super.setUp()
+        originalInstalledPacks = await InstalledPackTracker.shared.allInstalled()
+    }
+
+    override func tearDown() async throws {
+        let current = await InstalledPackTracker.shared.allInstalled()
+        for record in current {
+            if !originalInstalledPacks.contains(where: { $0.packID == record.packID }) {
+                try await InstalledPackTracker.shared.remove(packID: record.packID)
+            }
+        }
+        for record in originalInstalledPacks {
+            if await !(InstalledPackTracker.shared.isInstalled(packID: record.packID)) {
+                try await InstalledPackTracker.shared.upsert(record)
+            }
+        }
+        try await super.tearDown()
+    }
 
     // MARK: - Nav Layer Collection
 
@@ -12,37 +33,37 @@ final class VallackSystemPackTests: XCTestCase {
         XCTAssertNotNil(collection, "Vallack Navigation collection must exist in catalog")
     }
 
-    func testVallackNavigationHas18Mappings() {
+    func testVallackNavigationHas18Mappings() throws {
         let catalog = RuleCollectionCatalog().defaultCollections()
-        let collection = catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation }!
+        let collection = try XCTUnwrap(catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation })
         XCTAssertEqual(collection.mappings.count, 18, "Should have 18 key mappings (10 right hand + 8 left hand)")
     }
 
-    func testVallackNavigationTargetsCustomLayer() {
+    func testVallackNavigationTargetsCustomLayer() throws {
         let catalog = RuleCollectionCatalog().defaultCollections()
-        let collection = catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation }!
+        let collection = try XCTUnwrap(catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation })
         XCTAssertEqual(collection.targetLayer, .custom("vallack-nav"))
     }
 
-    func testVallackNavigationHasNoMomentaryActivator() {
+    func testVallackNavigationHasNoMomentaryActivator() throws {
         let catalog = RuleCollectionCatalog().defaultCollections()
-        let collection = catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation }!
+        let collection = try XCTUnwrap(catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation })
         XCTAssertNil(
             collection.momentaryActivator,
             "Activation is handled by homeRowLayerToggles (F/J), not a momentaryActivator"
         )
     }
 
-    func testVallackNavigationIsDisabledByDefault() {
+    func testVallackNavigationIsDisabledByDefault() throws {
         let catalog = RuleCollectionCatalog().defaultCollections()
-        let collection = catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation }!
+        let collection = try XCTUnwrap(catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation })
         XCTAssertFalse(collection.isEnabled)
         XCTAssertFalse(collection.isSystemDefault)
     }
 
-    func testVallackNavigationContainsExpectedArrowMappings() {
+    func testVallackNavigationContainsExpectedArrowMappings() throws {
         let catalog = RuleCollectionCatalog().defaultCollections()
-        let collection = catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation }!
+        let collection = try XCTUnwrap(catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation })
         let mappingsByInput = Dictionary(uniqueKeysWithValues: collection.mappings.map { ($0.input, $0) })
 
         XCTAssertEqual(mappingsByInput["h"]?.action, .keystroke(key: "left"))
@@ -51,9 +72,9 @@ final class VallackSystemPackTests: XCTestCase {
         XCTAssertEqual(mappingsByInput["l"]?.action, .keystroke(key: "right"))
     }
 
-    func testVallackNavigationContainsClipboardAndEditing() {
+    func testVallackNavigationContainsClipboardAndEditing() throws {
         let catalog = RuleCollectionCatalog().defaultCollections()
-        let collection = catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation }!
+        let collection = try XCTUnwrap(catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation })
         let mappingsByInput = Dictionary(uniqueKeysWithValues: collection.mappings.map { ($0.input, $0) })
 
         XCTAssertEqual(mappingsByInput["y"]?.action, .keystroke(key: "M-c"), "y should be Copy")
@@ -62,9 +83,9 @@ final class VallackSystemPackTests: XCTestCase {
         XCTAssertEqual(mappingsByInput["i"]?.action, .keystroke(key: "ret"), "i should be Enter")
     }
 
-    func testVallackNavigationInputKeysAreUnique() {
+    func testVallackNavigationInputKeysAreUnique() throws {
         let catalog = RuleCollectionCatalog().defaultCollections()
-        let collection = catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation }!
+        let collection = try XCTUnwrap(catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation })
         let inputs = collection.mappings.map(\.input)
         XCTAssertEqual(Set(inputs).count, inputs.count, "No duplicate input keys")
     }
@@ -78,12 +99,12 @@ final class VallackSystemPackTests: XCTestCase {
 
     func testVallackTwoRowSplitUsesTopRowKeys() {
         let preset = HomeRowModsConfig.vallackTwoRowSplit
-        let expectedKeys: Set<String> = ["q", "w", "e", "u", "i", "o"]
+        let expectedKeys: Set = ["q", "w", "e", "u", "i", "o"]
         XCTAssertEqual(Set(preset.keys), expectedKeys)
     }
 
     func testVallackTwoRowSplitMapsToValidModifiers() {
-        let validModifiers: Set<String> = ["lctl", "lalt", "lmet", "lsft", "rctl", "ralt", "rmet", "rsft"]
+        let validModifiers: Set = ["lctl", "lalt", "lmet", "lsft", "rctl", "ralt", "rmet", "rsft"]
         for (key, modifier) in HomeRowModsConfig.vallackTwoRowSplit {
             XCTAssertTrue(
                 validModifiers.contains(modifier),
@@ -265,6 +286,10 @@ final class VallackSystemPackTests: XCTestCase {
         let (manager, tempDir) = try makeTestManager()
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
+        // Temporarily remove vallack-system from tracker so the direct
+        // toggleCollection call below isn't blocked by the ownership check.
+        try? await InstalledPackTracker.shared.remove(packID: PackRegistry.vallackSystem.id)
+
         // Manually enable the nav collection without going through the installer
         // (simulates a corrupted state where snapshot file is missing)
         _ = await manager.toggleCollection(
@@ -273,14 +298,11 @@ final class VallackSystemPackTests: XCTestCase {
             autoResolveConflicts: true
         )
 
-        // Register as installed in the tracker
+        // Register as installed in the tracker (tearDown restores original state)
         try await InstalledPackTracker.shared.upsert(InstalledPackRecord(
             packID: PackRegistry.vallackSystem.id,
             version: PackRegistry.vallackSystem.version
         ))
-        defer {
-            Task { try? await InstalledPackTracker.shared.remove(packID: PackRegistry.vallackSystem.id) }
-        }
 
         // Ensure no snapshot file exists
         let snapshotURL = FileManager.default.homeDirectoryForCurrentUser
