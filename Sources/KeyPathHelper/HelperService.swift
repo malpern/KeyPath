@@ -235,12 +235,13 @@ private let logger = Logger(subsystem: "com.keypath.helper", category: "service"
                 guard FileManager.default.fileExists(atPath: pkgPath) else {
                     throw HelperError.operationFailed("Bundled VHID driver pkg not found at: \(pkgPath)")
                 }
-                // Security: Only allow .pkg files from KeyPath.app bundle
-                guard pkgPath.contains("/KeyPath.app/"), pkgPath.hasSuffix(".pkg") else {
+                // Security: Canonicalize path to prevent traversal (e.g. /../) then validate
+                let canonicalPath = URL(fileURLWithPath: pkgPath).standardized.path
+                guard canonicalPath.contains("/KeyPath.app/"), canonicalPath.hasSuffix(".pkg") else {
                     throw HelperError.operationFailed("Invalid pkg path - must be within KeyPath.app bundle")
                 }
-                NSLog("[KeyPathHelper] Installing VHID driver from bundled pkg: %@", pkgPath)
-                let i = Self.run("/usr/sbin/installer", ["-pkg", pkgPath, "-target", "/"])
+                NSLog("[KeyPathHelper] Installing VHID driver from bundled pkg: %@", canonicalPath)
+                let i = Self.run("/usr/sbin/installer", ["-pkg", canonicalPath, "-target", "/"])
                 if i.status != 0 { throw HelperError.operationFailed("Installer failed: \(i.out)") }
                 // Activate after install
                 let a = Self.run(Self.vhidManagerPath, ["activate"])
