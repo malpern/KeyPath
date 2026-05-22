@@ -11,14 +11,18 @@ struct HoldTimingSliderRow: View {
     let suffix: String
     let currentValue: Int
     var onSliderReleased: (() -> Void)?
+    var onValueChanged: ((Double) -> Void)?
 
     @State private var isEditing = false
 
-    // Invert so dragging right = lower ms = prefer modifiers
     private var invertedBinding: Binding<Double> {
         Binding(
             get: { range.upperBound + range.lowerBound - value },
-            set: { value = range.upperBound + range.lowerBound - $0 }
+            set: { newInverted in
+                let raw = range.upperBound + range.lowerBound - newInverted
+                value = raw
+                onValueChanged?(raw)
+            }
         )
     }
 
@@ -42,7 +46,6 @@ struct HoldTimingSliderRow: View {
             .overlay(alignment: .top) {
                 if isEditing {
                     GeometryReader { geo in
-                        // Inverted: high value = left, low value = right
                         let fraction = (range.upperBound + range.lowerBound - value - range.lowerBound) / (range.upperBound - range.lowerBound)
                         let trackInset: CGFloat = 10
                         let trackWidth = geo.size.width - trackInset * 2

@@ -14,23 +14,22 @@ struct HomeRowTimingSection: View {
     @Binding var config: HomeRowModsConfig
     let showsHrmInsights: Bool
     let onConfigChanged: (HomeRowModsConfig) -> Void
-    var hideTypingFeelSlider: Bool = false
 
     @Environment(\.services) private var services
     @State private var sliderDebounceTask: Task<Void, Never>?
     @State private var showPerFinger: Bool
+    @State private var isEditingHoldDuration = false
+    @State private var isEditingIdleWindow = false
     private var hrmObservability = HrmObservabilityService.shared
 
     init(
         config: Binding<HomeRowModsConfig>,
         showsHrmInsights: Bool = false,
-        onConfigChanged: @escaping (HomeRowModsConfig) -> Void,
-        hideTypingFeelSlider: Bool = false
+        onConfigChanged: @escaping (HomeRowModsConfig) -> Void
     ) {
         _config = config
         self.showsHrmInsights = showsHrmInsights
         self.onConfigChanged = onConfigChanged
-        self.hideTypingFeelSlider = hideTypingFeelSlider
         let timing = config.wrappedValue.timing
         _showPerFinger = State(initialValue: !timing.tapOffsets.isEmpty || !timing.holdOffsets.isEmpty)
     }
@@ -111,101 +110,149 @@ struct HomeRowTimingSection: View {
                 }
             }
 
-            // MARK: - Typing Feel (slider or raw fields)
+            // MARK: - Composite Timing Slider
+            HStack(spacing: 8) {
+                Label("Prefer letters", systemImage: "character.cursor.ibeam")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
 
-            if !hideTypingFeelSlider {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Typing Feel")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                if config.showExpertTiming {
-                    // Raw text fields replace the slider
-                    HStack(spacing: 16) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Tap window")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            HStack(spacing: 4) {
-                                TextField("", value: Binding(
-                                    get: { config.timing.tapWindow },
-                                    set: { newValue in
-                                        config.timing.tapWindow = newValue
-                                        updateConfig()
-                                    }
-                                ), format: .number)
-                                    .textFieldStyle(.roundedBorder)
-                                    .frame(width: 70)
-                                    .accessibilityIdentifier("home-row-mods-tap-window-field")
-                                Text("ms")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
+                Slider(
+                    value: Binding(
+                        get: { 1.0 - effectiveSliderPosition },
+                        set: { inverted in
+                            let pos = 1.0 - inverted
+                            let values = TypingFeelMapping.timingValues(forSliderPosition: pos)
+                            config.timing.tapWindow = values.tapWindow
+                            config.timing.holdDelay = values.holdDelay
+                            let idleFraction = 1.0 - pos
+                            config.timing.requirePriorIdleMs = max(0, Int(50 + idleFraction * 200))
+                            debouncedUpdateConfig()
                         }
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Hold delay")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            HStack(spacing: 4) {
-                                TextField("", value: Binding(
-                                    get: { config.timing.holdDelay },
-                                    set: { newValue in
-                                        config.timing.holdDelay = newValue
-                                        updateConfig()
-                                    }
-                                ), format: .number)
-                                    .textFieldStyle(.roundedBorder)
-                                    .frame(width: 70)
-                                    .accessibilityIdentifier("home-row-mods-hold-delay-field")
-                                Text("ms")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-
-                    Text("Values are set manually. Disable Raw Values to use the slider.")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                } else {
-                    // Feel slider
-                    HStack(spacing: 8) {
-                        Text("More Letters")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 80, alignment: .trailing)
-
-                        Slider(
-                            value: Binding(
-                                get: { effectiveSliderPosition },
-                                set: { newPosition in
-                                    let values = TypingFeelMapping.timingValues(forSliderPosition: newPosition)
-                                    config.timing.tapWindow = values.tapWindow
-                                    config.timing.holdDelay = values.holdDelay
-                                    debouncedUpdateConfig()
-                                }
-                            ),
-                            in: 0 ... 1,
-                            step: 0.05
-                        )
-                        .accessibilityIdentifier("home-row-mods-feel-slider")
-                        .accessibilityLabel("Typing feel")
-                        .accessibilityValue("\(TypingFeelMapping.helperText(forSliderPosition: effectiveSliderPosition)), tap \(config.timing.tapWindow)ms, hold \(config.timing.holdDelay)ms")
-
-                        Text("More Modifiers")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 90, alignment: .leading)
-                    }
-
-                    Text("\(TypingFeelMapping.helperText(forSliderPosition: effectiveSliderPosition)) (tap: \(config.timing.tapWindow)ms, hold: \(config.timing.holdDelay)ms)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.leading, 88)
+                    ),
+                    in: 0 ... 1,
+                    step: 0.05
+                ) { editing in
+                    isEditingHoldDuration = editing
                 }
+                .frame(maxWidth: 250)
+                .accessibilityIdentifier("home-row-mods-feel-slider")
+                .overlay(alignment: .top) {
+                    if isEditingHoldDuration {
+                        Text("\(config.timing.holdDelay)ms")
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.accentColor))
+                            .offset(y: -18)
+                            .allowsHitTesting(false)
+                            .transition(.opacity)
+                    }
+                }
+
+                Label("Prefer modifiers", systemImage: "command")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            } // hideTypingFeelSlider
+            .animation(.easeInOut(duration: 0.15), value: isEditingHoldDuration)
+
+            // MARK: - Advanced: Independent Sliders
+            DisclosureGroup("Adjust independently") {
+                VStack(alignment: .leading, spacing: 12) {
+                    // Hold duration
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Text("Hold duration")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            InfoTip("How long you hold a key before the modifier activates.")
+                        }
+                        if config.showExpertTiming {
+                            HStack(spacing: 16) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Tap window").font(.caption).foregroundColor(.secondary)
+                                    HStack(spacing: 4) {
+                                        TextField("", value: Binding(
+                                            get: { config.timing.tapWindow },
+                                            set: { config.timing.tapWindow = $0; updateConfig() }
+                                        ), format: .number)
+                                        .textFieldStyle(.roundedBorder).frame(width: 70)
+                                        .accessibilityIdentifier("home-row-mods-tap-window-field")
+                                        Text("ms").font(.caption).foregroundColor(.secondary)
+                                    }
+                                }
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Hold delay").font(.caption).foregroundColor(.secondary)
+                                    HStack(spacing: 4) {
+                                        TextField("", value: Binding(
+                                            get: { config.timing.holdDelay },
+                                            set: { config.timing.holdDelay = $0; updateConfig() }
+                                        ), format: .number)
+                                        .textFieldStyle(.roundedBorder).frame(width: 70)
+                                        .accessibilityIdentifier("home-row-mods-hold-delay-field")
+                                        Text("ms").font(.caption).foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                        } else {
+                            HStack(spacing: 8) {
+                                Text("Letters feel snappy").font(.caption2).foregroundStyle(.secondary)
+                                Slider(value: Binding(
+                                    get: { 1.0 - effectiveSliderPosition },
+                                    set: { let v = TypingFeelMapping.timingValues(forSliderPosition: 1.0 - $0); config.timing.tapWindow = v.tapWindow; config.timing.holdDelay = v.holdDelay; debouncedUpdateConfig() }
+                                ), in: 0...1, step: 0.05)
+                                .accessibilityIdentifier("home-row-mods-hold-duration-advanced")
+                                Text("Modifiers feel snappy").font(.caption2).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    // Fast typing protection
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Toggle("Fast typing protection", isOn: Binding(
+                                get: { config.timing.requirePriorIdleMs > 0 },
+                                set: { config.timing.requirePriorIdleMs = $0 ? TimingConfig.defaultPriorIdleMs : 0; updateConfig() }
+                            ))
+                            .toggleStyle(.checkbox)
+                            .font(.subheadline)
+                            InfoTip("How long you must pause after typing before holds are allowed. Prevents accidental modifiers mid-word.")
+                        }
+                        if config.timing.requirePriorIdleMs > 0 {
+                        HStack(spacing: 8) {
+                            Text("Modifiers work mid-typing").font(.caption2).foregroundStyle(.secondary)
+                            Slider(value: Binding(
+                                get: { 350.0 - Double(max(config.timing.requirePriorIdleMs, 50)) },
+                                set: { config.timing.requirePriorIdleMs = Int(350.0 - $0); debouncedUpdateConfig() }
+                            ), in: 50...300, step: 10) { editing in
+                                isEditingIdleWindow = editing
+                            }
+                            .accessibilityIdentifier("home-row-mods-prior-idle-advanced")
+                            .overlay(alignment: .top) {
+                                if isEditingIdleWindow {
+                                    Text("\(config.timing.requirePriorIdleMs)ms")
+                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Capsule().fill(Color.accentColor))
+                                        .offset(y: -18)
+                                        .allowsHitTesting(false)
+                                        .transition(.opacity)
+                                }
+                            }
+                            Text("No misfires while typing").font(.caption2).foregroundStyle(.secondary)
+                        }
+                        .animation(.easeInOut(duration: 0.15), value: isEditingIdleWindow)
+                        } // requirePriorIdleMs > 0
+                    }
+                }
+                .padding(.top, 6)
+            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
 
             // MARK: - Opposite-Hand Activation
 
@@ -233,52 +280,7 @@ struct HomeRowTimingSection: View {
                 )
             }
 
-            // MARK: - Fast Typing Protection
 
-            HStack(spacing: 4) {
-                Toggle("Fast typing protection", isOn: Binding(
-                    get: { config.timing.requirePriorIdleMs > 0 },
-                    set: { newValue in
-                        config.timing.requirePriorIdleMs = newValue ? TimingConfig.defaultPriorIdleMs : 0
-                        updateConfig()
-                    }
-                ))
-                .toggleStyle(.checkbox)
-                .accessibilityIdentifier("home-row-mods-prior-idle-toggle")
-                .accessibilityLabel("Fast typing protection")
-
-                InfoTip("During fast typing, keys always produce letters — never accidental modifiers. This is the single most effective way to prevent home row mod misfires.")
-            }
-
-            if config.timing.requirePriorIdleMs > 0 {
-                HStack(spacing: 8) {
-                    Text("Strict")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 80, alignment: .trailing)
-
-                    Slider(value: Binding(
-                        get: { Double(config.timing.requirePriorIdleMs) },
-                        set: { newValue in
-                            config.timing.requirePriorIdleMs = Int(newValue)
-                            debouncedUpdateConfig()
-                        }
-                    ), in: 50 ... 300, step: 10)
-                        .accessibilityIdentifier("home-row-mods-prior-idle-slider")
-                        .accessibilityLabel("Fast typing protection threshold")
-                        .accessibilityValue("\(config.timing.requirePriorIdleMs) ms")
-
-                    Text("Forgiving")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 90, alignment: .leading)
-                }
-
-                Text("Keys pressed within \(config.timing.requirePriorIdleMs)ms of your last keystroke skip hold detection entirely.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 88)
-            }
 
             // MARK: - Quick Tap
 
@@ -295,10 +297,10 @@ struct HomeRowTimingSection: View {
 
             if config.timing.quickTapEnabled {
                 HStack(spacing: 8) {
-                    Text("Strict")
+                    Text("Faster modifiers")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                        .frame(width: 80, alignment: .trailing)
+                        .frame(width: 90, alignment: .trailing)
 
                     Slider(value: Binding(
                         get: { Double(config.timing.quickTapTermMs) },
@@ -311,7 +313,7 @@ struct HomeRowTimingSection: View {
                         .accessibilityLabel("Quick tap extra time")
                         .accessibilityValue("\(config.timing.quickTapTermMs) ms")
 
-                    Text("Forgiving")
+                    Text("Fewer misfires")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .frame(width: 90, alignment: .leading)
@@ -325,26 +327,25 @@ struct HomeRowTimingSection: View {
 
             // MARK: - Per-Finger Sensitivity
 
+            Divider()
+                .padding(.vertical, 4)
+
             HStack(spacing: 4) {
-                Toggle("Adjust per-finger sensitivity", isOn: $showPerFinger)
-                    .toggleStyle(.checkbox)
-                    .accessibilityIdentifier("home-row-mods-per-finger-toggle")
-                    .accessibilityLabel("Adjust per-finger sensitivity")
+                Text("Per-finger sensitivity")
+                    .font(.body)
 
                 InfoTip("Add extra delay for slower fingers to prevent accidental holds.")
             }
 
-            if showPerFinger {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(TypingFeelMapping.FingerGroup.allCases, id: \.self) { finger in
-                        fingerSliderRow(finger: finger)
-                    }
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(TypingFeelMapping.FingerGroup.allCases, id: \.self) { finger in
+                    fingerSliderRow(finger: finger)
+                }
 
-                    if config.showExpertTiming, hasAnyPerKeyOffsets {
-                        Divider()
-                            .padding(.vertical, 2)
-                        perKeyOffsetFields
-                    }
+                if config.showExpertTiming, hasAnyPerKeyOffsets {
+                    Divider()
+                        .padding(.vertical, 2)
+                    perKeyOffsetFields
                 }
             }
 

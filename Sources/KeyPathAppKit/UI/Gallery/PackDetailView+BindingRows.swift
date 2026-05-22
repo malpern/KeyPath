@@ -50,7 +50,8 @@ extension PackDetailView {
                     holdTimingDefault: holdTimingDefaultValue,
                     holdTimingRange: holdTimingQuickSettingRange,
                     holdTimingStep: holdTimingQuickSettingStep,
-                    onResetHoldTiming: { quickSettingValues["holdTimeout"] = holdTimingDefaultValue }
+                    onResetHoldTiming: { quickSettingValues["holdTimeout"] = holdTimingDefaultValue },
+                    isCollectionEnabled: isInstalled
                 )
             }
         } else if let singleKeyCollection = associatedSingleKeyCollection {

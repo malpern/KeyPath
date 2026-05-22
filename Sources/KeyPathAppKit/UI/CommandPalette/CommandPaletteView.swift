@@ -6,6 +6,8 @@ struct CommandPaletteView: View {
 
     @State private var searchText = ""
     @State private var selectedIndex = 0
+    @State private var scrollAccumulator: CGFloat = 0
+    @State private var scrollMonitor: Any?
     @FocusState private var isSearchFocused: Bool
 
     private var filtered: [CommandPaletteItem] {
@@ -44,6 +46,16 @@ struct CommandPaletteView: View {
             searchText = ""
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 isSearchFocused = true
+            }
+            scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+                handleScrollWheel(event.scrollingDeltaY)
+                return nil
+            }
+        }
+        .onDisappear {
+            if let monitor = scrollMonitor {
+                NSEvent.removeMonitor(monitor)
+                scrollMonitor = nil
             }
         }
         .onChange(of: searchText) { _, _ in
@@ -122,6 +134,18 @@ struct CommandPaletteView: View {
         return result
     }
 
+    private func handleScrollWheel(_ delta: CGFloat) {
+        scrollAccumulator += delta
+        let threshold: CGFloat = 3
+        if scrollAccumulator <= -threshold {
+            if selectedIndex < filtered.count - 1 { selectedIndex += 1 }
+            scrollAccumulator = 0
+        } else if scrollAccumulator >= threshold {
+            if selectedIndex > 0 { selectedIndex -= 1 }
+            scrollAccumulator = 0
+        }
+    }
+
     private var resultsList: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -135,13 +159,14 @@ struct CommandPaletteView: View {
                                     item: entry.item,
                                     isSelected: entry.globalIndex == selectedIndex
                                 ) {
+                                    selectedIndex = entry.globalIndex
+                                    let action = entry.item.action
                                     onDismiss()
-                                    entry.item.action()
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                                        action()
+                                    }
                                 }
                                 .id(entry.item.id)
-                                .onHover { hovering in
-                                    if hovering { selectedIndex = entry.globalIndex }
-                                }
                             }
                         } header: {
                             Text(group.group)
@@ -155,6 +180,7 @@ struct CommandPaletteView: View {
                 }
                 .padding(.bottom, 4)
             }
+            .scrollDisabled(true)
             .onChange(of: selectedIndex) { _, newIndex in
                 let flatItems = filtered
                 if newIndex < flatItems.count {
