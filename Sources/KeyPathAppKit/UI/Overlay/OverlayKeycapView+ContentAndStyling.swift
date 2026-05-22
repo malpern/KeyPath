@@ -64,9 +64,9 @@ extension OverlayKeycapView {
                 VStack(spacing: 0) {
                     Spacer()
                     Text(subtitle)
-                        .font(.system(size: 7 * scale, weight: .medium))
+                        .font(.system(size: 9 * scale, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.45))
-                        .padding(.bottom, 1 * scale)
+                        .padding(.bottom, 2.5 * scale)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
