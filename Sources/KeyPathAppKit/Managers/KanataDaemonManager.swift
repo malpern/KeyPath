@@ -193,26 +193,12 @@ public class KanataDaemonManager {
         return newState
     }
 
-    /// Legacy static method alias for compatibility (deprecated)
-    @available(*, unavailable, message: "Use shared.refreshManagementStateInternal()")
-    nonisolated static func determineServiceManagementState() async -> ServiceManagementState {
-        await shared.refreshManagementStateInternal()
-    }
-
-    /// Helper function to check if Kanata process is running
-    /// This is used as a fallback when state is ambiguous
     private nonisolated func pgrepKanataProcessAsync() async -> Bool {
         let pids = await subprocessRunner.pgrep("kanata.*--cfg")
         return !pids.isEmpty
     }
 
-    /// Legacy synchronous helper (deprecated)
-    @available(*, unavailable, message: "Use async version")
-    private nonisolated static func pgrepKanataProcess() -> Bool {
-        false
-    }
-
-    // MARK: - Status Checking (Legacy - kept for compatibility)
+    // MARK: - Status Checking
 
     /// Check if Kanata daemon is installed and registered via SMAppService
     /// - Returns: true if SMAppService reports `.enabled` OR launchctl has the job

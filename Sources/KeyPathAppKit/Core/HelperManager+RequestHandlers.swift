@@ -1,16 +1,16 @@
 import Foundation
 import KeyPathCore
+import os
 
-private final class HelperXPCCallCompletionState: @unchecked Sendable {
-    private var completed = false
-    private let lock = NSLock()
+private final class HelperXPCCallCompletionState: Sendable {
+    private let state = OSAllocatedUnfairLock(initialState: false)
 
     func tryComplete() -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        if completed { return false }
-        completed = true
-        return true
+        state.withLock { completed in
+            if completed { return false }
+            completed = true
+            return true
+        }
     }
 }
 

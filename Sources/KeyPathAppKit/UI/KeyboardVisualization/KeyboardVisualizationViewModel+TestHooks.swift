@@ -4,24 +4,23 @@ import Foundation
 import KeyPathCore
 import SwiftUI
 
+#if DEBUG
 extension KeyboardVisualizationViewModel {
-    // MARK: - Test hooks (DEBUG only)
-
-    /// Simulate a HoldActivated TCP event (used by unit tests).
     func simulateHoldActivated(key: String, action: String) {
         handleHoldActivated(key: key, action: action)
     }
 
-    /// Simulate a TapActivated TCP event (used by unit tests).
     func simulateTapActivated(key: String, action: String) {
         handleTapActivated(key: key, action: action)
     }
 
-    /// Simulate a TCP KeyInput event (used by unit tests).
     func simulateTcpKeyInput(key: String, action: String) {
         handleTcpKeyInput(key: key, action: action)
     }
+}
+#endif
 
+extension KeyboardVisualizationViewModel {
     /// Maps Kanata key names (e.g., "h", "j", "space") to macOS key codes
     /// This is the inverse of OverlayKeyboardView.keyCodeToKanataName()
     nonisolated static func kanataNameToKeyCode(_ name: String) -> UInt16? {

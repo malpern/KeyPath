@@ -581,13 +581,3 @@ public struct CleanupStep: View {
         }
     }
 }
-
-// MARK: - Preview
-
-#if false
-    struct WizardInputMonitoringPage_Previews: PreviewProvider {
-        static var previews: some View {
-            EmptyView()
-        }
-    }
-#endif
