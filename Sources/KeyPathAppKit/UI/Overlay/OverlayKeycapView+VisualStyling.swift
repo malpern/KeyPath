@@ -131,7 +131,7 @@ extension OverlayKeycapView {
         if isPressed, isHoldActive {
             Color(red: 0.85, green: 0.45, blue: 0.15) // Orange for hold-active
         } else if isPressed, let zc = zoneColor {
-            zc // Pressed key with zone color stays in-palette instead of jarring blue
+            zc // Pressed activator/zone key stays in-palette
         } else if isPressed {
             Color.accentColor
         } else if isOneShot {
@@ -152,7 +152,9 @@ extension OverlayKeycapView {
         else if isLauncherMode {
             Color(red: 56 / 255, green: 56 / 255, blue: 57 / 255)
         }
-        // Layer mode: collection-specific color for keys owned by a pack/collection
+        // Layer mode: collection-specific color for mapped keys that belong to a collection
+        // or have a zone color (zone-colored keys already handled above, so this catches
+        // collection-owned keys like vim nav that don't use zone coloring)
         else if isLayerMode, layerKeyInfo?.collectionId != nil, hasLayerMapping || isNavIdentityMapping {
             collectionColor(for: layerKeyInfo?.collectionId)
         }
