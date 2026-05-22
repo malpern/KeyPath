@@ -232,6 +232,11 @@ struct OverlayKeyboardView: View {
         return mappedLabel != normalizedLabel
     }
 
+    private func hasZoneSubtitle(for label: String) -> Bool {
+        guard let keyCode = labelToKeyCode[label.uppercased()] else { return false }
+        return activeZoneSubtitles[keyCode] != nil
+    }
+
     var keyboardAccessibilityLabel: String {
         "Keyboard overlay, \(layout.name), layer \(currentLayerName)"
     }
@@ -294,7 +299,8 @@ struct OverlayKeyboardView: View {
                                 && !Self.isSpecialLabel(label)
                                 && !isLauncherMode
                                 && !isLayerMode
-                                && !isRemappedLabel(label),
+                                && !isRemappedLabel(label)
+                                && !hasZoneSubtitle(for: label),
                             scale: scale,
                             colorway: activeColorway,
                             // Enable animation after initial render (prevents animation on drawer open)

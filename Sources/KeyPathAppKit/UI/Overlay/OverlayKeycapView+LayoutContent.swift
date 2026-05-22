@@ -9,7 +9,8 @@ extension OverlayKeycapView {
 
     @ViewBuilder
     var centeredContent: some View {
-        if useFloatingLabels, !hasSpecialLabel, !isRemappedKey {
+        let hasActiveSubtitle = zoneSubtitle != nil && !isLayerMode && !isLauncherMode
+        if useFloatingLabels, !hasSpecialLabel, !isRemappedKey, !hasActiveSubtitle {
             if let navSymbol = navOverlaySymbol {
                 navOverlayArrowOnly(arrow: navSymbol)
             } else {
@@ -151,7 +152,6 @@ extension OverlayKeycapView {
         guard zoneSubtitle != nil, !isLayerMode, !isLauncherMode else { return false }
         guard colorway.legendStyle == .standard else { return false }
         guard key.layoutRole == .centered else { return false }
-        guard !(useFloatingLabels && !hasSpecialLabel && !isRemappedKey) else { return false }
         guard navigationSFSymbol == nil else { return false }
         guard navOverlaySymbol == nil else { return false }
         guard metadata.shiftSymbol == nil || isNumpadKey else { return false }
