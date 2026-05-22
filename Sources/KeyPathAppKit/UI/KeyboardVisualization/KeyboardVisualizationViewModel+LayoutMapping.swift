@@ -25,9 +25,13 @@ extension KeyboardVisualizationViewModel {
 
         // Set layer name immediately so computed properties (isLauncherModeActive,
         // layer indicators) update without waiting for the async mapping rebuild.
-        // The key map refreshes in the background — a brief stale-label window is
-        // far less noticeable than a 500ms+ frozen overlay.
         currentLayerName = targetLayerName
+
+        // Clear stale layer mappings so keys without zone colors don't briefly
+        // render with the previous layer's collection color and icons (e.g.,
+        // F1-F12 flashing orange when entering a nav layer).
+        layerKeyMap = [:]
+        remapOutputMap = [:]
 
         // Clear tap-hold sources on layer change to prevent stale suppressions
         // (e.g., user switches layers while holding a tap-hold key)
