@@ -37,6 +37,7 @@ struct PackDetailView: View {
     @State var packConflict: PackConflictState?
     @State var quickSettingValues: [String: Int] = [:]
     @State var lastUndoSnapshot: UndoSnapshot?
+    @State var showKeystrokeHistoryConsent = false
 
     /// Live tap/hold selection mirrored from the embedded picker. Drives
     /// the blue "Tap: X · Hold: Y" status line so it updates the moment
@@ -116,6 +117,18 @@ struct PackDetailView: View {
         .overlay(toastOverlay, alignment: .bottom)
         .sheet(isPresented: $showingHomeRowModsHelp) {
             MarkdownHelpSheet(resource: "home-row-mods", title: "Home Row Mods")
+        }
+        .sheet(isPresented: $showKeystrokeHistoryConsent) {
+            KeystrokeHistoryConsentDialog(
+                onConfirm: {
+                    showKeystrokeHistoryConsent = false
+                    toggleTask = Task { await install() }
+                },
+                onCancel: {
+                    showKeystrokeHistoryConsent = false
+                    isInstalled = false
+                }
+            )
         }
         .sheet(item: $packConflict) { conflict in
             PackConflictResolutionDialog(

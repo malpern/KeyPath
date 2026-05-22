@@ -132,6 +132,7 @@ struct OverlayInspectorPanel: View {
                         healthIndicatorState: healthIndicatorState,
                         hasCustomRules: hasCustomRules,
                         isLauncherEnabled: isLauncherCollectionEnabled,
+                        isKeystrokeHistoryEnabled: KeystrokeHistoryService.shared.isRecording,
                         isSettingsShelfActive: isSettingsShelfActive,
                         onToggleSettingsShelf: onToggleSettingsShelf
                     )

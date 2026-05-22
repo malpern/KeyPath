@@ -8,6 +8,10 @@ extension PackDetailView {
         guard newValue != isInstalled else { return }
         isInstalled = newValue
         toggleTask?.cancel()
+        if newValue, pack.id == PackRegistry.keystrokeHistory.id {
+            showKeystrokeHistoryConsent = true
+            return
+        }
         toggleTask = Task { newValue ? await install() : await uninstall() }
     }
 
@@ -23,6 +27,9 @@ extension PackDetailView {
                 skipFinalReload: skipFinalReload
             )
             kanataManager.underlyingManager.notifyStateChanged()
+            if pack.id == PackRegistry.keystrokeHistory.id {
+                KeystrokeHistoryService.shared.isRecording = true
+            }
             lastUndoSnapshot = .init(quickSettingValues: quickSettingValues)
             await refreshInstallState()
             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
@@ -58,6 +65,10 @@ extension PackDetailView {
             let manager = kanataManager.underlyingManager.ruleCollectionsManager
             try await PackInstaller.shared.uninstall(packID: pack.id, manager: manager)
             kanataManager.underlyingManager.notifyStateChanged()
+            if pack.id == PackRegistry.keystrokeHistory.id {
+                KeystrokeHistoryService.shared.isRecording = false
+                KeystrokeHistoryService.shared.clearEvents()
+            }
             await refreshInstallState()
             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                 justUninstalled = true
