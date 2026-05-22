@@ -130,6 +130,8 @@ extension OverlayKeycapView {
     var backgroundColor: Color {
         if isPressed, isHoldActive {
             Color(red: 0.85, green: 0.45, blue: 0.15) // Orange for hold-active
+        } else if isPressed, let zc = zoneColor {
+            zc // Pressed key with zone color stays in-palette instead of jarring blue
         } else if isPressed {
             Color.accentColor
         } else if isOneShot {
@@ -150,8 +152,8 @@ extension OverlayKeycapView {
         else if isLauncherMode {
             Color(red: 56 / 255, green: 56 / 255, blue: 57 / 255)
         }
-        // Layer mode: collection-specific color for mapped keys
-        else if isLayerMode, hasLayerMapping || isNavIdentityMapping {
+        // Layer mode: collection-specific color for keys owned by a pack/collection
+        else if isLayerMode, layerKeyInfo?.collectionId != nil, hasLayerMapping || isNavIdentityMapping {
             collectionColor(for: layerKeyInfo?.collectionId)
         }
         // Layer mode: dark gray for unmapped keys (same as launcher)
