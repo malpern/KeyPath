@@ -437,6 +437,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                 ruleCollectionsManager.startEventMonitoring(port: PreferencesService.shared.tcpServerPort)
             }
             HrmObservabilityService.shared.startMonitoring(port: PreferencesService.shared.tcpServerPort)
+            _ = KeystrokeHistoryService.shared
         } else {
             AppLogger.shared.log("🧪 [RuntimeCoordinator] One-shot probe mode - skipping bootstrap and event monitoring")
         }

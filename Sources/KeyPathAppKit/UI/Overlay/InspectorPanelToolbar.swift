@@ -240,6 +240,14 @@ struct InspectorPanelToolbar: View {
                 onHover: { isHoveringHistory = $0 },
                 action: { onSelectSection(.history) }
             )
+            .overlay(alignment: .topTrailing) {
+                if KeystrokeHistoryService.shared.isRecording {
+                    Circle()
+                        .fill(.red)
+                        .frame(width: 5, height: 5)
+                        .offset(x: -2, y: 4)
+                }
+            }
             .accessibilityIdentifier("inspector-tab-history")
             .accessibilityLabel("Keystroke History")
             .help("Keystroke History")
