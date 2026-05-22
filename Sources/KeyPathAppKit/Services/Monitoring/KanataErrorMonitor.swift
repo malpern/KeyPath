@@ -105,7 +105,12 @@ struct ErrorPattern {
     let toastThreshold: Int // Show toast after this many occurrences
 
     init(pattern: String, severity: KanataErrorSeverity, userMessage: String, patternName: String, toastThreshold: Int = 1) {
-        regex = try! NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
+        do {
+            regex = try NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
+        } catch {
+            assertionFailure("Invalid regex pattern '\(patternName)': \(error)")
+            regex = (try? NSRegularExpression(pattern: "(?!x)x")) ?? NSRegularExpression()
+        }
         self.severity = severity
         self.userMessage = userMessage
         self.patternName = patternName

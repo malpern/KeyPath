@@ -387,7 +387,7 @@ final class PreferencesService: @unchecked Sendable {
 
     private enum Defaults {
         static let communicationProtocol = CommunicationProtocol.tcp // TCP is only protocol
-        static let tcpServerPort = 37001 // Default port for Kanata TCP server
+        static let tcpServerPort = KeyPathConstants.Networking.defaultTCPPort
         static let notificationsEnabled = true
         static let applyMappingsDuringRecording = true
         static let isSequenceMode = true

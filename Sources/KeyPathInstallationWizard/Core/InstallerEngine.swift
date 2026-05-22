@@ -569,7 +569,7 @@ public final class InstallerEngine {
     }
 
     /// Check Kanata service health (running + TCP responsive)
-    public func checkKanataServiceHealth(tcpPort: Int = 37001) async -> KanataHealthSnapshot {
+    public func checkKanataServiceHealth(tcpPort: Int = KeyPathConstants.Networking.defaultTCPPort) async -> KanataHealthSnapshot {
         let runtimeSnapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot(
             tcpPort: tcpPort
         )

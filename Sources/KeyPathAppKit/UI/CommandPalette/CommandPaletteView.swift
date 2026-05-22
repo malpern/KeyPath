@@ -22,7 +22,7 @@ struct CommandPaletteView: View {
             if groups[item.group] == nil { seen.append(item.group) }
             groups[item.group, default: []].append(item)
         }
-        return seen.map { CommandPaletteGroup(id: $0, items: groups[$0]!) }
+        return seen.map { CommandPaletteGroup(id: $0, items: groups[$0] ?? []) }
     }
 
     var body: some View {

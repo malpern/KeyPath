@@ -455,13 +455,3 @@ public struct WizardAccessibilityPage: View {
         WizardPermissionFinderHelper.copyPathToClipboard()
     }
 }
-
-// MARK: - Preview
-
-#if false
-    struct WizardAccessibilityPage_Previews: PreviewProvider {
-        static var previews: some View {
-            EmptyView()
-        }
-    }
-#endif

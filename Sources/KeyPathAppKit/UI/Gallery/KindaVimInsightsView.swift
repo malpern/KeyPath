@@ -189,10 +189,15 @@ struct KindaVimInsightsView: View {
         var id: Date { date }
     }
 
+    private static let chartDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
     private var chartSeries: [ChartPoint] {
         let last30 = snapshot.dailySnapshots.suffix(30)
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
+        let formatter = Self.chartDateFormatter
         return last30.compactMap { day in
             let total = day.nonVimNavigationCount + day.hjklCount
             guard total > 0 else { return nil }

@@ -127,9 +127,10 @@ final class InstallationCoordinator {
         let rootOnlyPath = KeyPathConstants.VirtualHID.rootOnlyTmp
         let tmpPath = KeyPathConstants.VirtualHID.tmpDir
 
-        // Use AppleScript to run commands with admin privileges
+        // Shell-escape username to prevent injection in privileged AppleScript
+        let escapedUser = NSUserName().replacingOccurrences(of: "'", with: "'\\''")
         let createDirScript = """
-        do shell script "mkdir -p '\(rootOnlyPath)' && chown -R \(NSUserName()) '\(tmpPath)' && chmod -R 755 '\(tmpPath)'"
+        do shell script "mkdir -p '\(rootOnlyPath)' && chown -R '\(escapedUser)' '\(tmpPath)' && chmod -R 755 '\(tmpPath)'"
         with administrator privileges
         with prompt "KeyPath needs to prepare system directories for the virtual keyboard."
         """

@@ -9,7 +9,9 @@ extension PhysicalLayout {
         if let layout = PhysicalLayoutLoader.loadFromBundle(filename: "macbook-us") {
             return layout
         }
+        #if DEBUG
         print("PhysicalLayout: Failed to load MacBook US from JSON, using fallback")
+        #endif
         return PhysicalLayout(id: "macbook-us", name: "MacBook US", keys: [], totalWidth: 15.54, totalHeight: 6.05)
     }()
 
@@ -22,7 +24,9 @@ extension PhysicalLayout {
         if let layout = PhysicalLayoutLoader.loadFromBundle(filename: "macbook-jis") {
             return layout
         }
+        #if DEBUG
         print("PhysicalLayout: Failed to load MacBook JIS from JSON, using fallback")
+        #endif
         return PhysicalLayout(id: "macbook-jis", name: "MacBook JIS", keys: [], totalWidth: 15.54, totalHeight: 6.05)
     }()
 
@@ -36,7 +40,9 @@ extension PhysicalLayout {
         if let layout = PhysicalLayoutLoader.loadFromBundle(filename: "macbook-iso") {
             return layout
         }
+        #if DEBUG
         print("PhysicalLayout: Failed to load MacBook ISO from JSON, using fallback")
+        #endif
         return PhysicalLayout(id: "macbook-iso", name: "MacBook ISO", keys: [], totalWidth: 15.54, totalHeight: 6.05)
     }()
 
@@ -52,7 +58,9 @@ extension PhysicalLayout {
         if let layout = PhysicalLayoutLoader.loadFromBundle(filename: "macbook-abnt2") {
             return layout
         }
+        #if DEBUG
         print("PhysicalLayout: Failed to load MacBook ABNT2 from JSON, using fallback")
+        #endif
         return PhysicalLayout(id: "macbook-abnt2", name: "MacBook ABNT2", keys: [], totalWidth: 15.54, totalHeight: 6.05)
     }()
 
@@ -65,7 +73,9 @@ extension PhysicalLayout {
         if let layout = PhysicalLayoutLoader.loadFromBundle(filename: "macbook-korean") {
             return layout
         }
+        #if DEBUG
         print("PhysicalLayout: Failed to load MacBook Korean from JSON, using fallback")
+        #endif
         return PhysicalLayout(id: "macbook-korean", name: "MacBook Korean", keys: [], totalWidth: 15.54, totalHeight: 6.05)
     }()
 
@@ -132,7 +142,9 @@ extension PhysicalLayout {
 
         // Fallback to a minimal layout if JSON parsing fails
         // This should never happen in production, but provides graceful degradation
+        #if DEBUG
         print("PhysicalLayout: Failed to load Kinesis 360 from JSON, using fallback")
+        #endif
         return PhysicalLayout(
             id: "kinesis-360",
             name: "Kinesis Advantage 360",
@@ -153,7 +165,9 @@ extension PhysicalLayout {
             return layout
         }
 
+        #if DEBUG
         print("PhysicalLayout: Failed to load Kinesis mWave from JSON, using fallback")
+        #endif
         return PhysicalLayout(
             id: "kinesis-mwave",
             name: "Kinesis mWave",
@@ -176,7 +190,9 @@ extension PhysicalLayout {
         ) {
             return layout
         }
+        #if DEBUG
         print("PhysicalLayout: Failed to load 40% ANSI from JSON, using fallback")
+        #endif
         return PhysicalLayout(
             id: "ansi-40",
             name: "40% ANSI",
@@ -197,7 +213,9 @@ extension PhysicalLayout {
         ) {
             return layout
         }
+        #if DEBUG
         print("PhysicalLayout: Failed to load 60% ANSI from JSON, using fallback")
+        #endif
         return PhysicalLayout(
             id: "ansi-60",
             name: "60% ANSI",
@@ -218,7 +236,9 @@ extension PhysicalLayout {
         ) {
             return layout
         }
+        #if DEBUG
         print("PhysicalLayout: Failed to load 65% ANSI from JSON, using fallback")
+        #endif
         return PhysicalLayout(
             id: "ansi-65",
             name: "65% ANSI",
@@ -239,7 +259,9 @@ extension PhysicalLayout {
         ) {
             return layout
         }
+        #if DEBUG
         print("PhysicalLayout: Failed to load 75% ANSI from JSON, using fallback")
+        #endif
         return PhysicalLayout(
             id: "ansi-75",
             name: "75% ANSI",
@@ -260,7 +282,9 @@ extension PhysicalLayout {
         ) {
             return layout
         }
+        #if DEBUG
         print("PhysicalLayout: Failed to load 80% ANSI from JSON, using fallback")
+        #endif
         return PhysicalLayout(
             id: "ansi-80",
             name: "80% ANSI (TKL)",
@@ -281,7 +305,9 @@ extension PhysicalLayout {
         ) {
             return layout
         }
+        #if DEBUG
         print("PhysicalLayout: Failed to load 100% ANSI from JSON, using fallback")
+        #endif
         return PhysicalLayout(
             id: "ansi-100",
             name: "100% ANSI (Full Size)",
@@ -304,7 +330,9 @@ extension PhysicalLayout {
         ) {
             return layout
         }
+        #if DEBUG
         print("PhysicalLayout: Failed to load HHKB from JSON, using fallback")
+        #endif
         return PhysicalLayout(
             id: "hhkb",
             name: "HHKB (Happy Hacking Keyboard)",
@@ -326,7 +354,9 @@ extension PhysicalLayout {
         ) {
             return layout
         }
+        #if DEBUG
         print("PhysicalLayout: Failed to load Corne from JSON, using fallback")
+        #endif
         return PhysicalLayout(
             id: "corne",
             name: "Corne (crkbd)",
@@ -348,7 +378,9 @@ extension PhysicalLayout {
         ) {
             return layout
         }
+        #if DEBUG
         print("PhysicalLayout: Failed to load Sofle from JSON, using fallback")
+        #endif
         return PhysicalLayout(
             id: "sofle",
             name: "Sofle",
@@ -370,7 +402,9 @@ extension PhysicalLayout {
         ) {
             return layout
         }
+        #if DEBUG
         print("PhysicalLayout: Failed to load Ferris Sweep from JSON, using fallback")
+        #endif
         return PhysicalLayout(
             id: "ferris-sweep",
             name: "Ferris Sweep",
@@ -392,7 +426,9 @@ extension PhysicalLayout {
         ) {
             return layout
         }
+        #if DEBUG
         print("PhysicalLayout: Failed to load Cornix from JSON, using fallback")
+        #endif
         return PhysicalLayout(
             id: "cornix",
             name: "Cornix LP Split Wireless",

@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// Pure decision logic for whether to install/reinstall LaunchDaemon services.
 /// Extracted from PrivilegedOperationsCoordinator so it survives refactoring
@@ -90,7 +91,7 @@ enum KanataReadinessResult: Equatable {
         case .launchctlNotFoundPersistent:
             "launchctl repeatedly reported the Kanata service as not found"
         case .tcpPortInUse:
-            "TCP port 37001 is already in use by an existing Kanata runtime"
+            "TCP port \(KeyPathConstants.Networking.defaultTCPPort) is already in use by an existing Kanata runtime"
         case .timedOut:
             "Kanata did not become running + TCP responsive within readiness timeout"
         }

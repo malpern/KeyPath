@@ -577,13 +577,3 @@ public struct WizardKanataServicePage: View {
         refreshTimer = nil
     }
 }
-
-// MARK: - Preview
-
-#if false
-struct WizardKanataServicePage_Previews: PreviewProvider {
-    static var previews: some View {
-        EmptyView()
-    }
-}
-#endif

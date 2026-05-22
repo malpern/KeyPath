@@ -462,7 +462,7 @@ public final class WindowManager {
             return nil
         }
 
-        // AXUIElement is a CoreFoundation type — as! is safe here (CF bridging always succeeds)
+        // CF bridging — compiler guarantees this cast always succeeds
         let axWindow = window as! AXUIElement
 
         // Get current position and size
@@ -490,6 +490,7 @@ public final class WindowManager {
         }
 
         var position = CGPoint.zero
+        // CF bridging — compiler guarantees this cast always succeeds
         AXValueGetValue(positionValue as! AXValue, .cgPoint, &position)
         return position
     }
@@ -503,6 +504,7 @@ public final class WindowManager {
         }
 
         var size = CGSize.zero
+        // CF bridging — compiler guarantees this cast always succeeds
         AXValueGetValue(sizeValue as! AXValue, .cgSize, &size)
         return size
     }

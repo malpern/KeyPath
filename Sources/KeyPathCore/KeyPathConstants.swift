@@ -74,7 +74,11 @@ public enum KeyPathConstants {
         public static let launchDaemonsDir = "/Library/LaunchDaemons"
     }
 
-public enum URLs {
+    public enum Networking {
+        public static let defaultTCPPort = 37001
+    }
+
+    public enum URLs {
         public static let inputMonitoringPrivacy = "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
         public static let accessibilityPrivacy = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
     }
