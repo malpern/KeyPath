@@ -66,6 +66,13 @@ public final class ActionDispatcher {
     /// Parameter: callback to open settings
     public var onScriptExecutionDisabled: ((@escaping () -> Void) -> Void)?
 
+    // MARK: - Active Tasks
+
+    private var fakeKeyTask: Task<Void, Never>?
+    private var notifyTask: Task<Void, Never>?
+    private var scriptTask: Task<Void, Never>?
+    private var repairHelperTask: Task<Void, Never>?
+
     // MARK: - Initialization
 
     private init() {}
@@ -237,8 +244,8 @@ public final class ActionDispatcher {
 
         AppLogger.shared.log("🔔 [ActionDispatcher] Notify: \(title) - \(body)")
 
-        // Use UserNotificationService if available, otherwise just log
-        Task {
+        notifyTask?.cancel()
+        notifyTask = Task {
             await showNotification(title: title, body: body, sound: sound)
         }
 
@@ -323,8 +330,8 @@ public final class ActionDispatcher {
         // Get TCP port from preferences
         let port = PreferencesService.shared.tcpServerPort
 
-        // Fire-and-forget the TCP command (create client on-demand like other services)
-        Task {
+        fakeKeyTask?.cancel()
+        fakeKeyTask = Task {
             let client = KanataTCPClient(port: port, timeout: 3.0)
 
             // Quick check if server is reachable
@@ -402,7 +409,8 @@ public final class ActionDispatcher {
                 || useAppleScriptFallbackRaw == "true"
                 || useAppleScriptFallbackRaw == "yes"
 
-            Task { @MainActor in
+            repairHelperTask?.cancel()
+            repairHelperTask = Task { @MainActor in
                 let repaired = await HelperMaintenance.shared.runCleanupAndRepair(
                     useAppleScriptFallback: useAppleScriptFallback
                 )
@@ -734,16 +742,14 @@ public final class ActionDispatcher {
         let isAppleScriptFile = securityService.isAppleScript(path)
         let isInterpretedScript = securityService.isInterpretedScript(path)
 
-        Task { [weak self] in
+        scriptTask?.cancel()
+        scriptTask = Task { [weak self] in
             do {
                 if isAppleScriptFile {
-                    // Execute AppleScript
                     try await self?.executeAppleScript(at: path)
                 } else if isInterpretedScript {
-                    // Execute interpreted script (Python, Ruby, Perl, Lua)
                     try await self?.executeInterpretedScript(at: path)
                 } else {
-                    // Execute shell script or executable
                     try await self?.executeShellScript(at: path)
                 }
 

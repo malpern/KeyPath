@@ -13,7 +13,8 @@ extension RuleCollectionsManager {
             return
         }
 
-        Task.detached(priority: .background) { [weak self] in
+        eventMonitoringTask?.cancel()
+        eventMonitoringTask = Task.detached(priority: .background) { [weak self] in
             guard let self else { return }
             await eventListener.start(
                 port: port,
@@ -229,6 +230,14 @@ extension RuleCollectionsManager {
         let payloadStart = message.index(message.startIndex, offsetBy: 5)
         let payload = String(message[payloadStart...]).trimmingCharacters(in: .whitespacesAndNewlines)
         return payload.isEmpty ? nil : payload
+    }
+
+    /// Stop the event monitoring task and its underlying listener
+    func stopEventMonitoring() async {
+        eventMonitoringTask?.cancel()
+        eventMonitoringTask = nil
+        await eventListener.stop()
+        AppLogger.shared.log("🌐 [RuleCollectionsManager] Stopped event monitoring")
     }
 
     /// Deprecated: Use startEventMonitoring instead
