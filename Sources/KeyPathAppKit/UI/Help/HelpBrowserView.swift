@@ -12,7 +12,7 @@ struct HelpTopic: Identifiable, Hashable {
     static let baseURL = "https://malpern.github.io/KeyPath"
 
     var webURL: URL {
-        URL(string: "\(Self.baseURL)/guides/\(resource)/")!
+        URL(string: "\(Self.baseURL)/guides/\(resource)/") ?? URL(string: Self.baseURL)!
     }
 }
 
