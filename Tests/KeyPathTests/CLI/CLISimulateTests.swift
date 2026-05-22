@@ -239,7 +239,7 @@ final class CLISimulateIntegrationTests: XCTestCase {
         do {
             return try await block()
         } catch let error as SimulatorError {
-            if case let .processFailedWithCode(_, msg) = error, msg.contains("Unknown defcfg option") {
+            if case let .processFailedWithCode(_, msg) = error, msg.contains("Unknown defcfg option") || msg.contains("unexpected argument") {
                 throw XCTSkip("kanata-simulator too old for current config format")
             }
             throw error
