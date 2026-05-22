@@ -68,8 +68,12 @@ public enum PIDFileManager {
             return record
         } catch {
             AppLogger.shared.log("❌ [PIDFile] Failed to read PID file: \(error)")
-            // Corrupted PID file, remove it
-            try? removePID()
+            // Corrupted PID file — best-effort removal; log if that also fails
+            do {
+                try removePID()
+            } catch {
+                AppLogger.shared.log("❌ [PIDFile] Failed to remove corrupted PID file: \(error)")
+            }
             return nil
         }
     }
@@ -100,7 +104,11 @@ public enum PIDFileManager {
         // Check if the process is still running
         if !isProcessRunning(pid: record.pid) {
             AppLogger.shared.log("💀 [PIDFile] Process \(record.pid) is dead - cleaning up PID file")
-            try? removePID()
+            do {
+                try removePID()
+            } catch {
+                AppLogger.shared.log("❌ [PIDFile] Failed to remove stale PID file: \(error)")
+            }
             return (false, nil)
         }
 
@@ -118,7 +126,7 @@ public enum PIDFileManager {
     }
 
     /// Kill orphaned process and clean up
-    public static func killOrphanedProcess() async {
+    public static func killOrphanedProcess() async throws {
         guard let record = readPID() else { return }
 
         if isProcessRunning(pid: record.pid) {
@@ -128,7 +136,7 @@ public enum PIDFileManager {
             kill(record.pid, SIGTERM)
 
             // Wait a moment
-            try? await Task.sleep(for: .milliseconds(500)) // 0.5 seconds
+            try await Task.sleep(for: .milliseconds(500))
 
             // Force kill if still running
             if isProcessRunning(pid: record.pid) {
@@ -136,18 +144,22 @@ public enum PIDFileManager {
             }
         }
 
-        try? removePID()
+        try removePID()
     }
 
     // MARK: - Private Helpers
 
-    private static func ensureDirectoryExists() {
+    static func ensureDirectoryExists() {
         if !FileManager.default.fileExists(atPath: pidDirectory) {
-            try? FileManager.default.createDirectory(
-                atPath: pidDirectory,
-                withIntermediateDirectories: true,
-                attributes: [.posixPermissions: 0o755]
-            )
+            do {
+                try FileManager.default.createDirectory(
+                    atPath: pidDirectory,
+                    withIntermediateDirectories: true,
+                    attributes: [.posixPermissions: 0o755]
+                )
+            } catch {
+                AppLogger.shared.log("❌ [PIDFile] Failed to create PID directory: \(error)")
+            }
         }
     }
 }

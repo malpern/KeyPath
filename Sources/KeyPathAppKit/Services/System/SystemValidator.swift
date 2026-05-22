@@ -444,12 +444,18 @@ public class SystemValidator {
         var allConflicts: [SystemConflict] = []
 
         // Check for external kanata processes
-        let conflictResolution = await processLifecycleManager.detectConflicts()
-        allConflicts.append(
-            contentsOf: conflictResolution.externalProcesses.map { process in
-                .kanataProcessRunning(pid: Int(process.pid), command: process.command)
-            }
-        )
+        let conflictResolution: ProcessLifecycleManager.ConflictResolution
+        do {
+            conflictResolution = try await processLifecycleManager.detectConflicts()
+            allConflicts.append(
+                contentsOf: conflictResolution.externalProcesses.map { process in
+                    .kanataProcessRunning(pid: Int(process.pid), command: process.command)
+                }
+            )
+        } catch {
+            AppLogger.shared.log("❌ [SystemValidator] Process conflict detection failed: \(error)")
+            conflictResolution = .init(externalProcesses: [], managedProcesses: [], canAutoResolve: true)
+        }
 
         // Check for Karabiner-Elements conflicts
         if let manager = kanataManager {

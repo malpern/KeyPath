@@ -310,7 +310,11 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         if !TestEnvironment.isRunningTests, !isOneShotProbeMode {
             Task { [weak self] in
                 // Clean up any orphaned processes first
-                await self?.processLifecycleManager.cleanupOrphanedProcesses()
+                do {
+                    try await self?.processLifecycleManager.cleanupOrphanedProcesses()
+                } catch {
+                    AppLogger.shared.log("❌ [RuntimeCoordinator] Orphaned process cleanup failed: \(error)")
+                }
                 await self?.performInitialization()
             }
         } else {
@@ -620,14 +624,22 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         )
 
         // Clean up PID file
-        try? PIDFileManager.removePID()
+        do {
+            try PIDFileManager.removePID()
+        } catch {
+            AppLogger.shared.log("❌ [Cleanup] Failed to remove PID file: \(error)")
+        }
         AppLogger.shared.info("✅ [Cleanup] Synchronous cleanup complete")
     }
 
     private func checkExternalKanataProcess() async -> Bool {
-        // Delegate to ProcessLifecycleManager for conflict detection
-        let conflicts = await processLifecycleManager.detectConflicts()
-        return !conflicts.externalProcesses.isEmpty
+        do {
+            let conflicts = try await processLifecycleManager.detectConflicts()
+            return !conflicts.externalProcesses.isEmpty
+        } catch {
+            AppLogger.shared.log("❌ [RuntimeCoordinator] Process detection failed: \(error)")
+            return false
+        }
     }
 
     // MARK: - Installation and Permissions (delegates to SystemRequirementsChecker)
