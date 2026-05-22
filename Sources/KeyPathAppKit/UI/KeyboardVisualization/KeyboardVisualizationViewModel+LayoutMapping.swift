@@ -186,13 +186,14 @@ extension KeyboardVisualizationViewModel {
                 }
 
                 // Build mapping for target layer
-                var mapping = try await layerKeyMapper.getMapping(
+                let (rawMapping, simReport) = try await layerKeyMapper.getMapping(
                     for: targetLayerName,
                     configPath: configPath,
                     layout: layout,
                     collections: scopedRuleCollections,
                     cacheKeySuffix: "neovim-scope-\(isApprovedNeovimTerminal ? "approved" : "fallback")"
                 )
+                var mapping = rawMapping
 
                 // DEBUG: Log what simulator returned
                 AppLogger.shared.info("🗺️ [KeyboardViz] Simulator returned \(mapping.count) entries for '\(targetLayerName)'")
@@ -241,6 +242,15 @@ extension KeyboardVisualizationViewModel {
                 // Log a few sample mappings for debugging
                 for (keyCode, info) in mapping.prefix(5) {
                     AppLogger.shared.debug("  keyCode \(keyCode) -> '\(info.displayLabel)'")
+                }
+
+                // Show alert if simulator had significant failures on a non-base layer
+                if let report = simReport, report.hasSignificantFailures,
+                   targetLayerName.lowercased() != "base"
+                {
+                    await MainActor.run {
+                        Self.showSimulationFailureAlert(report)
+                    }
                 }
             } catch {
                 AppLogger.shared.error("❌ [KeyboardViz] Failed to build layer mapping: \(error)")
@@ -616,6 +626,29 @@ extension KeyboardVisualizationViewModel {
             )
 
             AppLogger.shared.info("🗺️ [KeyboardViz] Background prebuild complete")
+        }
+    }
+
+    /// Layers that have already shown the simulation failure alert (don't repeat)
+    private static var alertedLayers: Set<String> = []
+
+    @MainActor
+    private static func showSimulationFailureAlert(_ report: SimulationReport) {
+        let layer = report.layerName
+        guard !alertedLayers.contains(layer) else { return }
+        alertedLayers.insert(layer)
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Simulator failed for '\(layer)' layer"
+        alert.informativeText = "\(report.failureCount)/\(report.totalKeys) keys could not be resolved. Overlay icons may be missing.\n\nClick \"Copy Error\" and paste into Claude Code to debug."
+        alert.addButton(withTitle: "Copy Error")
+        alert.addButton(withTitle: "Dismiss")
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(report.copyableText(), forType: .string)
         }
     }
 

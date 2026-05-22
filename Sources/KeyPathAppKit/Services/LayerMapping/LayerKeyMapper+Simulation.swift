@@ -73,8 +73,9 @@ extension LayerKeyMapper {
         keyToCollection: [String: UUID] = [:],
         activatorKeys: Set<String> = [],
         keyToVimLabel: [String: String] = [:]
-    ) async throws -> [UInt16: LayerKeyInfo] {
+    ) async throws -> (mapping: [UInt16: LayerKeyInfo], report: SimulationReport) {
         var mapping: [UInt16: LayerKeyInfo] = [:]
+        var failedKeys: [SimulationReport.FailedSimKey] = []
 
         // Get all physical keys from the provided layout
         let physicalKeys = layout.keys
@@ -144,7 +145,7 @@ extension LayerKeyMapper {
                     mapping[keyCode] = .layerSwitch(displayLabel: fallbackLabel, collectionId: collectionId)
                     continue
                 }
-                // Simulation failed - use physical label
+                failedKeys.append(.init(keyCode: keyCode, kanataName: simName))
                 mapping[keyCode] = LayerKeyInfo(
                     displayLabel: fallbackLabel,
                     outputKey: nil,
@@ -299,8 +300,17 @@ extension LayerKeyMapper {
             }
         }
 
+        let report = SimulationReport(
+            layerName: layer,
+            totalKeys: physicalKeys.count,
+            failedKeys: failedKeys,
+            configPath: configPath
+        )
+        if !failedKeys.isEmpty {
+            AppLogger.shared.info("⚠️ [LayerKeyMapper] \(failedKeys.count)/\(physicalKeys.count) keys failed simulation on '\(layer)'")
+        }
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Built mapping: \(mapping.count) keys")
-        return mapping
+        return (mapping, report)
     }
 
     /// Derive the hold-action display label for a specific physical key by simulating a long press.

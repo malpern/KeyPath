@@ -356,7 +356,7 @@ final class ContextHUDController {
                         AppLogger.shared.info("🎯 [ContextHUD] Precomputed launcher icons")
                     } else {
                         // Warm the simulator cache
-                        let keyMap = try await layerKeyMapper.getMapping(
+                        let (keyMap, _) = try await layerKeyMapper.getMapping(
                             for: layerName,
                             configPath: configPath,
                             layout: layout,
@@ -449,7 +449,7 @@ final class ContextHUDController {
                         layout: layout,
                         collections: scopedEnabledCollections,
                         cacheKeySuffix: "neovim-scope-\(isApprovedNeovimTerminal ? "approved" : "fallback")"
-                    )
+                    ).mapping
                 }
 
                 guard !Task.isCancelled else { return }

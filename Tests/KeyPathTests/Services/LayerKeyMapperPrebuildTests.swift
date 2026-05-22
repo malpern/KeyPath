@@ -56,7 +56,7 @@ final class LayerKeyMapperPrebuildTests: XCTestCase {
 
         let prebuiltCount = await mapper.cache.count
 
-        let mapping = try await mapper.getMapping(
+        let (mapping, _) = try await mapper.getMapping(
             for: "nav",
             configPath: configPath,
             layout: .macBookUS,

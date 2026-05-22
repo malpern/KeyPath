@@ -135,7 +135,7 @@ final class LayerKeyMapperCollectionTests: XCTestCase {
         let collections = [vim, window]
 
         // Test navigation layer
-        let navMapping = try await mapper.getMapping(
+        let (navMapping, _) = try await mapper.getMapping(
             for: "nav",
             configPath: configPath,
             layout: PhysicalLayout.macBookUS,
@@ -155,7 +155,7 @@ final class LayerKeyMapperCollectionTests: XCTestCase {
         XCTAssertTrue(wKey?.isLayerSwitch ?? false, "W key should be detected as layer switch")
 
         // Test window layer
-        let windowMapping = try await mapper.getMapping(
+        let (windowMapping, _) = try await mapper.getMapping(
             for: "window",
             configPath: configPath,
             layout: PhysicalLayout.macBookUS,
@@ -186,7 +186,7 @@ final class LayerKeyMapperCollectionTests: XCTestCase {
         let mapper = LayerKeyMapper(simulatorService: simulatorService)
 
         // Call with empty collections array
-        let mapping = try await mapper.getMapping(
+        let (mapping, _) = try await mapper.getMapping(
             for: "base",
             configPath: configPath,
             layout: PhysicalLayout.macBookUS,
@@ -220,7 +220,7 @@ final class LayerKeyMapperCollectionTests: XCTestCase {
         var vim = makeVimCollection()
         vim.isEnabled = false
 
-        let mapping = try await mapper.getMapping(
+        let (mapping, _) = try await mapper.getMapping(
             for: "nav",
             configPath: configPath,
             layout: PhysicalLayout.macBookUS,
@@ -253,7 +253,7 @@ final class LayerKeyMapperCollectionTests: XCTestCase {
         let vim = makeVimCollection()
         let custom = makeCustomCollection()
 
-        let mapping = try await mapper.getMapping(
+        let (mapping, _) = try await mapper.getMapping(
             for: "nav",
             configPath: configPath,
             layout: PhysicalLayout.macBookUS,
