@@ -38,12 +38,27 @@ extension OverlayKeycapView {
                 layerKeyContent(label: key.label)
             } else {
                 let displayText = effectiveLabel.isEmpty ? key.label : effectiveLabel
-                let hasSubtitle = zoneSubtitle != nil && !isLayerMode && !isLauncherMode
-                Text(isNumpadKey ? displayText : displayText.uppercased())
-                    .font(.system(size: isNumpadKey ? 14 * scale : 12 * scale, weight: .medium))
-                    .foregroundStyle(foregroundColor)
-                    .offset(y: hasSubtitle ? -2 * scale : 0)
+                if let subtitle = zoneSubtitle, !isLayerMode, !isLauncherMode {
+                    let adj = OpticalAdjustments.forLabel(displayText)
+                    VStack(spacing: dualSymbolSpacing(for: displayText)) {
+                        Text(displayText.uppercased())
+                            .font(.system(
+                                size: 12.5 * scale * adj.fontScale,
+                                weight: adj.fontWeight ?? .medium
+                            ))
+                            .offset(y: adj.verticalOffset * scale)
+                            .foregroundStyle(foregroundColor)
+                        Text(subtitle)
+                            .font(.system(size: 8.5 * scale, weight: .light))
+                            .foregroundStyle(foregroundColor.opacity(isSmallSize ? 0 : 0.65))
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    Text(isNumpadKey ? displayText : displayText.uppercased())
+                        .font(.system(size: isNumpadKey ? 14 * scale : 12 * scale, weight: .medium))
+                        .foregroundStyle(foregroundColor)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
     }
@@ -79,7 +94,6 @@ extension OverlayKeycapView {
     func dualSymbolContent(main: String, shift: String) -> some View {
         let shiftAdj = OpticalAdjustments.forLabel(shift)
         let mainAdj = OpticalAdjustments.forLabel(main)
-        let hasSubtitle = zoneSubtitle != nil && !isLayerMode && !isLauncherMode
 
         VStack(spacing: dualSymbolSpacing(for: main)) {
             Text(shift)
@@ -97,7 +111,6 @@ extension OverlayKeycapView {
                 .offset(y: mainAdj.verticalOffset * scale)
                 .foregroundStyle(foregroundColor)
         }
-        .offset(y: hasSubtitle ? -2 * scale : 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -132,6 +145,17 @@ extension OverlayKeycapView {
             .foregroundStyle(Color.white.opacity(isPressed ? 1.0 : 0.9))
             .shadow(color: Color.black.opacity(0.25), radius: 1.5 * scale, y: 1 * scale)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    var zoneSubtitleRenderedInline: Bool {
+        guard zoneSubtitle != nil, !isLayerMode, !isLauncherMode else { return false }
+        guard colorway.legendStyle == .standard else { return false }
+        guard key.layoutRole == .centered else { return false }
+        guard !(useFloatingLabels && !hasSpecialLabel && !isRemappedKey) else { return false }
+        guard navigationSFSymbol == nil else { return false }
+        guard navOverlaySymbol == nil else { return false }
+        guard metadata.shiftSymbol == nil || isNumpadKey else { return false }
+        return true
     }
 
     func dualSymbolSpacing(for label: String) -> CGFloat {
