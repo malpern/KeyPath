@@ -123,7 +123,7 @@ extension OverlayKeycapView {
 
         if isNavIdentityMapping {
             navIdentityContent
-        } else if hasLayerMapping {
+        } else if hasLayerMapping || zoneSubtitle != nil {
             // Special case: fn key should always show globe + "fn" even when mapped
             if key.label == "fn" {
                 fnKeyContent
