@@ -148,7 +148,6 @@ struct VallackSystemPackContent: View {
                 )
             }
 
-            // Quick start guide
             vallackQuickStart
 
             // How it works
@@ -238,7 +237,7 @@ struct VallackSystemPackContent: View {
                     .fill(Color(NSColor.controlBackgroundColor).opacity(0.3))
                     .overlay(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
+                            .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
                     )
             )
         }
@@ -248,7 +247,7 @@ struct VallackSystemPackContent: View {
         HStack(alignment: .top, spacing: 10) {
             Text(emoji)
                 .font(.body)
-                .frame(width: 24)
+                .frame(width: 28)
             Text(markdown)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
