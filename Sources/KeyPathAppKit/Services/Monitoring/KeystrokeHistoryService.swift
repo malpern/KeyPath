@@ -77,14 +77,16 @@ final class KeystrokeHistoryService {
         observers.observe(.kanataLayerChanged, center: notificationCenter) { [weak self] notification in
             guard let self else { return }
             guard let layerName = notification.userInfo?["layerName"] as? String else { return }
-            let event = KeystrokeTimelineEvent(
-                id: UUID(),
-                timestamp: Date(),
-                kind: .layerChanged(LayerChangePayload(layerName: layerName))
-            )
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                let normalized = layerName.lowercased()
+                if normalized == currentLayer.lowercased() { return }
                 currentLayer = layerName
+                let event = KeystrokeTimelineEvent(
+                    id: UUID(),
+                    timestamp: Date(),
+                    kind: .layerChanged(LayerChangePayload(layerName: layerName))
+                )
                 ingest(event)
             }
         }
