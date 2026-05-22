@@ -1402,8 +1402,17 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         pendingRuleConflict = context
         notifyStateChanged()
 
-        return await withCheckedContinuation { continuation in
-            conflictResolutionContinuation = continuation
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                conflictResolutionContinuation = continuation
+            }
+        } onCancel: {
+            Task { @MainActor in
+                self.conflictResolutionContinuation?.resume(returning: nil)
+                self.conflictResolutionContinuation = nil
+                self.pendingRuleConflict = nil
+                self.notifyStateChanged()
+            }
         }
     }
 
