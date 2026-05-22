@@ -16,7 +16,7 @@
 5. **[High] Hardcoded font sizes breaking accessibility** — §8.2 — `.font(.system(size: N))` in 20+ files instead of semantic styles
 6. ~~**[High] Force-unwrap of URL(string:) in UI components** — §5.2~~ ✅ Fixed (dynamic URL; hardcoded literals safe)
 7. ~~**[High] Static `try!` regex compilation** — §5.3~~ ✅ Fixed (ErrorPattern init; static lets are safe)
-8. **[Medium] Port 37001 hardcoded in 10+ locations** — §9.1 — no single source of truth
+8. ~~**[Medium] Port 37001 hardcoded in 10+ locations** — §9.1~~ ✅ Fixed
 9. ~~**[Medium] 30+ unguarded `print()` calls in production** — §2.2~~ ✅ Fixed
 10. **[Medium] Fire-and-forget Tasks without cancellation** — §3.3 — scattered across ActionDispatcher, TCP client, event monitoring
 
@@ -84,7 +84,7 @@
 - **Action:** Store task references (`private var activeTask: Task<Void, Never>?`); cancel in deinit or on new operations. Propagate errors from TCP listener back to coordinator.
 - **Severity:** Medium
 
-### 3.4 Actor reentrancy hazard in RuntimeCoordinator warning expiry
+### 3.4 Actor reentrancy hazard in RuntimeCoordinator warning expiry ✅
 - **Location:** `Sources/KeyPathAppKit/Managers/RuntimeCoordinator.swift:410-420`
 - **What:** `onWarning` sets `lastWarning` then schedules a `Task.sleep()` to clear it after delay; if a second warning arrives before the first expires, the first Task clears the second warning.
 - **Why:** Warning display flickers or disappears prematurely under rapid error conditions.
@@ -194,7 +194,7 @@
 - **Action:** No action needed — well-implemented. Consider adding audit-token-based validation as an additional layer for future hardening.
 - **Severity:** _Verified — no issue_
 
-### 6.3 TCP port not validated on read from preferences
+### 6.3 TCP port not validated on read from preferences ✅ (already implemented — isValidPort validates on init)
 - **Location:** `Sources/KeyPathAppKit/Services/Configuration/PreferencesService.swift` (tcpServerPort)
 - **What:** TCP port number read from user preferences without range validation.
 - **Why:** Invalid port (0, >65535, or privileged <1024) could cause bind failures or security issues.
@@ -219,7 +219,7 @@
 - **Action:** Add content hash or last-modified timestamp check; skip parse if unchanged.
 - **Severity:** Medium
 
-### 7.2 DateFormatter created in computed property
+### 7.2 DateFormatter created in computed property ✅
 - **Location:** `Sources/KeyPathAppKit/UI/Gallery/KindaVimInsightsView.swift:192-203`
 - **What:** `chartSeries` computed property creates a new DateFormatter per iteration; recalculated on every view redraw.
 - **Why:** DateFormatter is expensive to create; causing potential jank in chart rendering.
@@ -304,7 +304,7 @@
 
 ## 9. Dead code / duplication / refactor
 
-### 9.1 Port 37001 hardcoded in 10+ locations
+### 9.1 Port 37001 hardcoded in 10+ locations ✅
 - **Location:** `Sources/KeyPathAppKit/UI/SimpleModsView.swift:260`, `Core/ServiceInstallGuard.swift:93`, `Services/Configuration/PreferencesService.swift:390`, `KeyPathInstallationWizard/Core/ServiceHealthChecker.swift:442,474,504`, `KeyPathInstallationWizard/Core/PlistGenerator.swift:45,73`, and others
 - **What:** TCP port 37001 appears as a magic number in 10+ files without a single named constant.
 - **Why:** Port changes require find-and-replace across the entire codebase; easy to miss a site.
