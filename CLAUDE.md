@@ -58,6 +58,8 @@ Follow the invariants in [`docs/agent-pr-invariants.md`](docs/agent-pr-invariant
 
 **Key rule:** After merging a PR, always pull master and deploy from master before reporting done.
 
+**Mandatory review gate:** Before creating any PR, run `/thermo-nuclear-swift-review` against the branch diff and address all findings. See Phase 2.5 in the workflow doc.
+
 Git guardrail hooks in `.claude/settings.json` block: commits on master, force-push to master, `reset --hard`, `clean -f`.
 
 **Kanata fork safety:** The kanata submodule (`External/kanata`) tracks `keypath/bundled` on `malpern/kanata`. Treat `keypath/bundled` like master — **never force-push** to it. Before pushing to any remote branch in the fork, verify the push is a fast-forward: `git log --oneline <source>..<target>`. If commits would be lost, cherry-pick instead. The `main` branch in kanata-pr may diverge from `keypath/bundled` — they are NOT interchangeable.
