@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import KeyPathCore
 import Observation
@@ -20,6 +21,8 @@ final class KeystrokeHistoryService {
     @ObservationIgnored private var pendingEvents: [KeystrokeTimelineEvent] = []
     @ObservationIgnored private var batchTimer: Timer?
     @ObservationIgnored private let observers = NotificationObserverManager()
+    @ObservationIgnored private let workspaceObservers = NotificationObserverManager()
+    @ObservationIgnored private var lastBundleIdentifier: String?
     @ObservationIgnored private let notificationCenter: NotificationCenter
     @ObservationIgnored var thresholdLookup: (() -> (baseMs: Int, offsets: [String: Int]))?
 
@@ -191,6 +194,28 @@ final class KeystrokeHistoryService {
             )
             Task { @MainActor [weak self] in
                 self?.ingest(event)
+            }
+        }
+
+        workspaceObservers.observe(
+            NSWorkspace.didActivateApplicationNotification,
+            center: NSWorkspace.shared.notificationCenter
+        ) { [weak self] notification in
+            guard let self else { return }
+            guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  let bundleId = app.bundleIdentifier
+            else { return }
+            let appName = app.localizedName ?? bundleId
+            Task { @MainActor [weak self] in
+                guard let self, isRecording else { return }
+                guard bundleId != lastBundleIdentifier else { return }
+                lastBundleIdentifier = bundleId
+                let event = KeystrokeTimelineEvent(
+                    id: UUID(),
+                    timestamp: Date(),
+                    kind: .appChanged(AppChangedPayload(appName: appName, bundleIdentifier: bundleId))
+                )
+                ingest(event)
             }
         }
 

@@ -112,6 +112,8 @@ struct KeystrokeHistoryView: View {
             EventCardView(segment: card, isDark: isDark)
         case let .layerDivider(divider):
             LayerDividerView(segment: divider)
+        case let .appChanged(app):
+            AppChangedView(segment: app)
         }
     }
 }
