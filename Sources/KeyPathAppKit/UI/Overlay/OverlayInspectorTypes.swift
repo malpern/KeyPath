@@ -14,6 +14,7 @@ enum DrawerPanel {
 enum InspectorSection: String, CaseIterable {
     case mapper
     case customRules // Only shown when custom rules exist
+    case history
     case keyboard
     case layout
     case keycaps
@@ -27,7 +28,7 @@ extension InspectorSection {
         switch self {
         case .keycaps, .sounds, .keyboard, .layout, .devices:
             true
-        case .mapper, .customRules, .launchers:
+        case .mapper, .customRules, .launchers, .history:
             false
         }
     }

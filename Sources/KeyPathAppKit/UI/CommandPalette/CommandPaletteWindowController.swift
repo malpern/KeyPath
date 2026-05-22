@@ -290,6 +290,7 @@ final class CommandPaletteWindowController {
             (.sounds, "Sounds", "Typing sounds", "speaker.wave.2"),
             (.launchers, "Launchers", "App and website launchers", "arrow.up.forward.app"),
             (.devices, "Devices", "Keyboard device selection", "desktopcomputer"),
+            (.history, "Keystroke History", "Timeline of key events and tap-hold decisions", "clock.arrow.trianglehead.counterclockwise.rotate.90"),
         ]
 
         return tabs.map { tab in

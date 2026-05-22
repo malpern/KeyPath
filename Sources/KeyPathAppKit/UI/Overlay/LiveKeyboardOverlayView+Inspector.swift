@@ -159,6 +159,10 @@ struct OverlayInspectorPanel: View {
                         devicesContent
                             .padding(.horizontal, 12)
                             .padding(.bottom, 6)
+                    } else if selectedSection == .history {
+                        historyContent
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 6)
                     } else {
                         ScrollView {
                             VStack(alignment: .leading, spacing: 16) {
@@ -178,6 +182,8 @@ struct OverlayInspectorPanel: View {
                                 case .customRules:
                                     EmptyView() // Handled above
                                 case .devices:
+                                    EmptyView() // Handled above
+                                case .history:
                                     EmptyView() // Handled above
                                 }
                             }
