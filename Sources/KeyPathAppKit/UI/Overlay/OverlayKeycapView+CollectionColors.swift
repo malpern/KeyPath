@@ -5,20 +5,13 @@ extension OverlayKeycapView {
 
     /// Color palette for collection-specific key backgrounds in layer mode
     private enum LayerColors {
-        /// Default orange for layer mode keys (Vim, unknown collections)
-        static let defaultLayer = Color(red: 0.85, green: 0.45, blue: 0.15)
-        /// Vim navigation collection keys
-        static let vim = Color(red: 0.85, green: 0.45, blue: 0.15)
-        /// Window snapping collection keys
+        static let defaultLayer = KeyPathColors.layerOrange
+        static let vim = KeyPathColors.layerOrange
         static let windowSnapping = Color.purple
-        /// Symbol layer collection keys (future)
         static let symbols = Color.blue
-        /// Launcher collection keys (future)
         static let launcher = Color.cyan
-        /// Neovim Terminal collection keys
-        static let neovimTerminal = Color(red: 0.3, green: 0.6, blue: 0.9)
-        /// Vallack Navigation collection keys (green to match zone color)
-        static let vallackNav = Color(red: 0.2, green: 0.7, blue: 0.4)
+        static let neovimTerminal = KeyPathColors.layerBlue
+        static let vallackNav = KeyPathColors.layerGreen
     }
 
     /// Determine key color based on collection ownership

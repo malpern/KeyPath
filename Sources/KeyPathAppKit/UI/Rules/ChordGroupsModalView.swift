@@ -577,7 +577,7 @@ struct ChordEditorDialog: View {
         }
     }
 
-    private static let keycapText = Color(red: 0.88, green: 0.93, blue: 1.0)
+    private static let keycapText = KeyPathColors.keycapText
     private static let keycapBg = Color(white: 0.12)
 
 

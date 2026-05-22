@@ -142,7 +142,7 @@ private struct KeyChip: View {
     let text: String
 
     /// Text color matching overlay keycaps (light blue-white)
-    private static let textColor = Color(red: 0.88, green: 0.93, blue: 1.0)
+    private static let textColor = KeyPathColors.keycapText
     /// Background color matching overlay keycaps (dark gray)
     private static let backgroundColor = Color(white: 0.12)
 
@@ -298,7 +298,7 @@ private struct GlobalKeyChip: View {
     let text: String
 
     /// Text color matching overlay keycaps (light blue-white)
-    private static let textColor = Color(red: 0.88, green: 0.93, blue: 1.0)
+    private static let textColor = KeyPathColors.keycapText
     /// Background color matching overlay keycaps (dark gray)
     private static let backgroundColor = Color(white: 0.12)
 
@@ -343,7 +343,7 @@ private struct DrawerLayerChip: View {
             // Layer name (e.g., "Nav Layer")
             Text(displayName)
                 .font(.body.weight(.semibold))
-                .foregroundColor(Color(red: 0.85, green: 0.92, blue: 1.0))
+                .foregroundColor(KeyPathColors.keycapText)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)

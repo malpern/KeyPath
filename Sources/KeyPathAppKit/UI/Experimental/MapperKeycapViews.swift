@@ -11,8 +11,8 @@ struct TextGlowModifier: ViewModifier {
     func body(content: Content) -> some View {
         if fadeAmount > 0.1 {
             content
-                .shadow(color: Color(red: 0.6, green: 0.8, blue: 1.0).opacity(Double(fadeAmount) * 0.8), radius: 8)
-                .shadow(color: Color(red: 0.6, green: 0.8, blue: 1.0).opacity(Double(fadeAmount) * 0.4), radius: 16)
+                .shadow(color: KeyPathColors.keycapGlow.opacity(Double(fadeAmount) * 0.8), radius: 8)
+                .shadow(color: KeyPathColors.keycapGlow.opacity(Double(fadeAmount) * 0.4), radius: 16)
         } else {
             content
         }
@@ -151,7 +151,7 @@ struct BehaviorSlotKeycap: View {
     // MARK: - Styling
 
     private var foregroundColor: Color {
-        Color(red: 0.88, green: 0.93, blue: 1.0)
+        KeyPathColors.keycapText
             .opacity(isPressed ? 1.0 : 0.88)
     }
 
@@ -423,7 +423,7 @@ struct MapperKeycapView: View {
     // MARK: - Styling (matching OverlayKeycapView dark style)
 
     private var foregroundColor: Color {
-        Color(red: 0.88, green: 0.93, blue: 1.0)
+        KeyPathColors.keycapText
             .opacity(isPressed ? 1.0 : 0.88)
     }
 
@@ -738,7 +738,7 @@ struct MapperInputKeycap: View {
     // MARK: - Styling
 
     private var foregroundColor: Color {
-        let base = Color(red: 0.88, green: 0.93, blue: 1.0)
+        let base = KeyPathColors.keycapText
         let brightness = fadeAmount > 0 ? 1.0 : (isPressed ? 1.0 : 0.88)
         return base.opacity(brightness)
     }

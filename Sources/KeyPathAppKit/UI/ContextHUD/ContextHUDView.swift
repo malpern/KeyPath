@@ -124,6 +124,6 @@ struct ContextHUDView: View {
         if let firstGroup = viewModel.groups.first {
             return firstGroup.color
         }
-        return Color(red: 0.85, green: 0.45, blue: 0.15)
+        return KeyPathColors.layerOrange
     }
 }
