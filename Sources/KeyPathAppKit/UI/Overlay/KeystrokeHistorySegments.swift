@@ -68,8 +68,8 @@ struct EventCardView: View {
                 chordCard(data)
             case let .tapDance(data):
                 tapDanceCard(data)
-            case let .nonPrintableKey(key, count):
-                nonPrintableCard(key: key, count: count)
+            case let .nonPrintableKeys(keys):
+                nonPrintableCard(keys: keys)
             }
         }
         .padding(.vertical, 2)
@@ -239,16 +239,19 @@ struct EventCardView: View {
 
     // MARK: - Non-Printable Key Card
 
-    private func nonPrintableCard(key: String, count: Int) -> some View {
-        let displayName = TimelineGrouper.nonPrintableDisplayNames[key.lowercased()] ?? key
-        return HStack(spacing: 2) {
-            Text(displayName)
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundStyle(.secondary)
-            if count > 1 {
-                Text("\u{00D7}\(count)")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.tertiary)
+    private func nonPrintableCard(keys: [(key: String, count: Int)]) -> some View {
+        HStack(spacing: 4) {
+            ForEach(Array(keys.enumerated()), id: \.offset) { _, entry in
+                HStack(spacing: 1) {
+                    Text(TimelineGrouper.nonPrintableDisplayNames[entry.key.lowercased()] ?? entry.key)
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                    if entry.count > 1 {
+                        Text("\u{00D7}\(entry.count)")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
             }
         }
         .padding(.horizontal, 5)
