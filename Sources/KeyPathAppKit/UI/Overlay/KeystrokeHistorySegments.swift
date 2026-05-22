@@ -7,6 +7,10 @@ struct TextRunView: View {
     let segment: TextRunSegment
     let isDark: Bool
     @State private var hoveredCharId: UUID?
+    @State private var activePopoverCharId: UUID?
+    @State private var hoverTimer: Timer?
+
+    private let hoverDelay: TimeInterval = 0.35
 
     var body: some View {
         FlowLayout(spacing: 0) {
@@ -15,6 +19,13 @@ struct TextRunView: View {
             }
         }
         .padding(.vertical, 2)
+        .background(
+            RoundedRectangle(cornerRadius: 3)
+                .fill(activePopoverCharId != nil
+                    ? Color.accentColor.opacity(0.06)
+                    : Color.clear)
+        )
+        .animation(.easeInOut(duration: 0.15), value: activePopoverCharId)
     }
 
     private func characterView(_ char: TextRunCharacter) -> some View {
@@ -24,16 +35,35 @@ struct TextRunView: View {
             .padding(.horizontal, 0.5)
             .background(
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(hoveredCharId == char.id
+                    .fill(activePopoverCharId == char.id
                         ? Color.accentColor.opacity(0.15)
                         : Color.clear)
             )
             .onHover { isHovering in
-                hoveredCharId = isHovering ? char.id : nil
+                if isHovering {
+                    hoveredCharId = char.id
+                    hoverTimer?.invalidate()
+                    hoverTimer = Timer.scheduledTimer(withTimeInterval: hoverDelay, repeats: false) { _ in
+                        Task { @MainActor in
+                            if hoveredCharId == char.id {
+                                activePopoverCharId = char.id
+                            }
+                        }
+                    }
+                } else {
+                    if hoveredCharId == char.id {
+                        hoveredCharId = nil
+                    }
+                    hoverTimer?.invalidate()
+                    hoverTimer = nil
+                }
             }
             .popover(isPresented: Binding(
-                get: { hoveredCharId == char.id },
-                set: { if !$0 { hoveredCharId = nil } }
+                get: { activePopoverCharId == char.id },
+                set: { if !$0 {
+                    activePopoverCharId = nil
+                    hoveredCharId = nil
+                } }
             )) {
                 KeystrokeCharacterPopover(
                     char: char,
@@ -71,6 +101,8 @@ struct EventCardView: View {
                 tapDanceCard(data)
             case let .nonPrintableKeys(keys):
                 nonPrintableCard(keys: keys)
+            case let .actionDispatched(data):
+                actionDispatchedCard(data)
             }
         }
         .padding(.vertical, 2)
@@ -236,6 +268,48 @@ struct EventCardView: View {
             RoundedRectangle(cornerRadius: 5)
                 .fill(cardBackground(for: .teal))
         )
+    }
+
+    // MARK: - Action Dispatched Card
+
+    private func actionDispatchedCard(_ data: ActionDispatchedPayload) -> some View {
+        HStack(spacing: 4) {
+            let icon = actionIcon(for: data.action)
+            Image(systemName: icon)
+                .font(.system(size: 9))
+                .foregroundStyle(.mint)
+
+            Text(data.action.uppercased())
+                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1)
+                .background(
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.mint)
+                )
+
+            if let target = data.target, !target.isEmpty {
+                Text(target.localizedCapitalized)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(isDark ? .white : .primary)
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(
+            RoundedRectangle(cornerRadius: 5)
+                .fill(cardBackground(for: .mint))
+        )
+    }
+
+    private func actionIcon(for action: String) -> String {
+        switch action {
+        case "launch": "arrow.up.forward.app"
+        case "open": "link"
+        case "notify": "bell"
+        default: "bolt"
+        }
     }
 
     // MARK: - Non-Printable Key Card
