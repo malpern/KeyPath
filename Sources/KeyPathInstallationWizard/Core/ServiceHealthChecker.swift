@@ -439,7 +439,7 @@ public final class ServiceHealthChecker: @unchecked Sendable {
     ///   - timeoutMs: TCP connection timeout in milliseconds (default: 300)
     /// - Returns: `KanataHealthSnapshot` with running and responding status
     public nonisolated func checkKanataServiceHealth(
-        tcpPort: Int = 37001,
+        tcpPort: Int = KeyPathConstants.Networking.defaultTCPPort,
         timeoutMs: Int = 300
     ) async -> KanataHealthSnapshot {
         if TestEnvironment.shouldSkipAdminOperations {
@@ -471,7 +471,7 @@ public final class ServiceHealthChecker: @unchecked Sendable {
     }
 
     public nonisolated func checkKanataServiceRuntimeSnapshot(
-        tcpPort: Int = 37001,
+        tcpPort: Int = KeyPathConstants.Networking.defaultTCPPort,
         timeoutMs: Int = 300
     ) async -> KanataServiceRuntimeSnapshot {
         #if DEBUG
@@ -501,7 +501,7 @@ public final class ServiceHealthChecker: @unchecked Sendable {
     public nonisolated func checkKanataServiceRuntimeSnapshot(
         managementState: WizardServiceManagementState,
         staleEnabledRegistration: Bool,
-        tcpPort: Int = 37001,
+        tcpPort: Int = KeyPathConstants.Networking.defaultTCPPort,
         timeoutMs: Int = 300
     ) async -> KanataServiceRuntimeSnapshot {
         #if DEBUG

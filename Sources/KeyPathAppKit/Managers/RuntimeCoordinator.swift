@@ -94,6 +94,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     // Core status tracking
     public var lastError: String?
     var lastWarning: String?
+    private var warningExpiryTask: Task<Void, Never>?
     var keyMappings: [KeyMapping] = []
     var currentLayerName: String = RuleCollectionLayer.base.displayName
 
@@ -410,11 +411,11 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         ruleCollectionsManager.onWarning = { [weak self] warning in
             self?.lastWarning = warning
             self?.notifyStateChanged()
-            // Play warning sound
             SoundManager.shared.playWarningSound()
-            // Clear warning after it's been delivered to prevent re-triggering
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(100)) // 100ms delay
+            self?.warningExpiryTask?.cancel()
+            self?.warningExpiryTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(100))
+                guard !Task.isCancelled, self?.lastWarning == warning else { return }
                 self?.lastWarning = nil
             }
         }

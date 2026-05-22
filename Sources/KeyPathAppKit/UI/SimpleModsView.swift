@@ -1,3 +1,4 @@
+import KeyPathCore
 import SwiftUI
 
 /// View for managing simple key mappings
@@ -257,7 +258,7 @@ struct SimpleModsView: View {
             if newCount > oldCount, selectedTab == .available {
                 selectedTab = .installed
                 Task {
-                    let client = KanataTCPClient(port: 37001)
+                    let client = KanataTCPClient(port: KeyPathConstants.Networking.defaultTCPPort)
                     let status = try? await client.getStatus()
                     await client.cancelInflightAndCloseConnection()
 

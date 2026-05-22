@@ -42,7 +42,7 @@ public enum PlistGenerator {
     public static func buildKanataPlistArguments(
         binaryPath: String,
         configPath: String,
-        tcpPort: Int = 37001,
+        tcpPort: Int = KeyPathConstants.Networking.defaultTCPPort,
         verboseLogging: Bool = false
     ) -> [String] {
         KanataRuntimeLaunchRequest(
@@ -70,7 +70,7 @@ public enum PlistGenerator {
     public static func generateKanataPlist(
         binaryPath: String,
         configPath: String,
-        tcpPort: Int = 37001,
+        tcpPort: Int = KeyPathConstants.Networking.defaultTCPPort,
         verboseLogging: Bool = false
     ) -> String {
         let arguments = buildKanataPlistArguments(

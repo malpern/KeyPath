@@ -498,7 +498,7 @@ public final class PrivilegedOperationsRouter {
         let result: ProcessResult
         do {
             result = try await subprocessRunner.run(
-                "/usr/sbin/lsof", args: ["-nP", "-iTCP:37001", "-sTCP:LISTEN"], timeout: 2.0
+                "/usr/sbin/lsof", args: ["-nP", "-iTCP:\(KeyPathConstants.Networking.defaultTCPPort)", "-sTCP:LISTEN"], timeout: 2.0
             )
         } catch { return false }
         guard result.exitCode == 0 else { return false }
