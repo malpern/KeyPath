@@ -15,7 +15,7 @@ final class KeystrokeHistoryService {
     private(set) var segments: [TimelineSegment] = []
     private(set) var currentLayer: String = "base"
     private(set) var eventCount: Int = 0
-    var isRecording: Bool = true
+    var isRecording: Bool = false
 
     @ObservationIgnored private var rawEvents: [KeystrokeTimelineEvent] = []
     @ObservationIgnored private var pendingEvents: [KeystrokeTimelineEvent] = []
@@ -31,13 +31,20 @@ final class KeystrokeHistoryService {
     private init(notificationCenter: NotificationCenter = .default) {
         self.notificationCenter = notificationCenter
         setupObservers()
+        Task { @MainActor in
+            self.isRecording = await InstalledPackTracker.shared.isInstalled(
+                packID: PackRegistry.keystrokeHistory.id
+            )
+        }
     }
 
     #if DEBUG
         static func makeTestInstance(
             notificationCenter: NotificationCenter = NotificationCenter()
         ) -> KeystrokeHistoryService {
-            KeystrokeHistoryService(notificationCenter: notificationCenter)
+            let instance = KeystrokeHistoryService(notificationCenter: notificationCenter)
+            instance.isRecording = true
+            return instance
         }
     #endif
 

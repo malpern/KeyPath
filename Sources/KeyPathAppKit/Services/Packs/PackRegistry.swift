@@ -26,7 +26,8 @@ public enum PackRegistry {
         keyRepeatControl,
         chordGroups,
         vallackSystem,
-        kindaVim
+        kindaVim,
+        keystrokeHistory
     ]
 
     /// Look up a pack by id. Returns nil if unknown.
@@ -626,5 +627,22 @@ public enum PackRegistry {
             "i", "esc",
             "w", "b", "d", "y", "p", "u", "v",
         ]
+    )
+
+    // MARK: - Pack: Keystroke History
+
+    public static let keystrokeHistory = Pack(
+        id: "com.keypath.pack.keystroke-history",
+        version: "1.0.0",
+        name: "Keystroke History",
+        tagline: "See what your keyboard is actually doing",
+        shortDescription:
+            "Watch every keypress, tap-hold decision, and layer change in real time. Helps you understand, refine, and debug your keymaps.\n\nPrivacy: keystroke data is kept in memory only — nothing is saved to disk and nothing ever leaves your machine. Data disappears when you quit.",
+        longDescription: "",
+        category: "Debug",
+        iconSymbol: "clock.arrow.trianglehead.counterclockwise.rotate.90",
+        quickSettings: [],
+        bindings: [],
+        visualOnly: true
     )
 }

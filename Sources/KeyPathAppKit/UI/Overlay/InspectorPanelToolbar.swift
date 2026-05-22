@@ -26,6 +26,7 @@ struct InspectorPanelToolbar: View {
     let healthIndicatorState: HealthIndicatorState
     let hasCustomRules: Bool
     let isLauncherEnabled: Bool
+    let isKeystrokeHistoryEnabled: Bool
     let isSettingsShelfActive: Bool
     let onToggleSettingsShelf: () -> Void
     private let buttonSize: CGFloat = 32
@@ -232,25 +233,26 @@ struct InspectorPanelToolbar: View {
                 .help("Quick Launcher")
             }
 
-            // Keystroke History
-            toolbarButton(
-                systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90",
-                isSelected: selectedSection == .history,
-                isHovering: isHoveringHistory,
-                onHover: { isHoveringHistory = $0 },
-                action: { onSelectSection(.history) }
-            )
-            .overlay(alignment: .topTrailing) {
-                if KeystrokeHistoryService.shared.isRecording {
-                    Circle()
-                        .fill(.red)
-                        .frame(width: 5, height: 5)
-                        .offset(x: -2, y: 4)
+            if isKeystrokeHistoryEnabled {
+                toolbarButton(
+                    systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90",
+                    isSelected: selectedSection == .history,
+                    isHovering: isHoveringHistory,
+                    onHover: { isHoveringHistory = $0 },
+                    action: { onSelectSection(.history) }
+                )
+                .overlay(alignment: .topTrailing) {
+                    if KeystrokeHistoryService.shared.isRecording {
+                        Circle()
+                            .fill(.red)
+                            .frame(width: 5, height: 5)
+                            .offset(x: -2, y: 4)
+                    }
                 }
+                .accessibilityIdentifier("inspector-tab-history")
+                .accessibilityLabel("Keystroke History")
+                .help("Keystroke History")
             }
-            .accessibilityIdentifier("inspector-tab-history")
-            .accessibilityLabel("Keystroke History")
-            .help("Keystroke History")
         }
     }
 
