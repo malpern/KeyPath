@@ -195,7 +195,7 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
             XCTFail("Expected text run at index 0")
         }
         if case let .eventCard(card) = service.segments[1],
-           case let .nonPrintableKey(key, _) = card.cardKind
+           case let .nonPrintableKey(key, _count) = card.cardKind
         {
             XCTAssertEqual(key, "bspc")
         } else {
