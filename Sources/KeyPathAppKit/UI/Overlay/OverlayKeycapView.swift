@@ -172,11 +172,16 @@ struct OverlayKeycapView: View {
             return true
         }
 
+        // Zone subtitle as primary label in layer mode (e.g., nav icons from pack zone maps)
+        if isLayerMode, zoneSubtitle != nil {
+            return true
+        }
+
         // Otherwise, content is Color.clear (floating labels handle it)
         return false
     }
 
-    /// The effective label to display (hold label > layer mapping > keymap/physical)
+    /// The effective label to display (hold label > zone subtitle (layer mode) > layer mapping > keymap/physical)
     var effectiveLabel: String {
         // When key is pressed with a hold label, show the hold label
         if isPressed, let holdLabel {
@@ -185,6 +190,11 @@ struct OverlayKeycapView: View {
 
         if !isPressed, let tapHoldIdleLabel, shouldShowTapHoldIdleLabel {
             return tapHoldIdleLabel
+        }
+
+        // In layer mode, zone subtitles become the primary label (e.g., nav icons)
+        if isLayerMode, let subtitle = zoneSubtitle {
+            return subtitle
         }
 
         guard let info = layerKeyInfo else {
