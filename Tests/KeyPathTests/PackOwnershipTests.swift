@@ -18,7 +18,7 @@ final class PackOwnershipTests: XCTestCase {
             }
         }
         for record in originalInstalledPacks {
-            if !(await InstalledPackTracker.shared.isInstalled(packID: record.packID)) {
+            if await !(InstalledPackTracker.shared.isInstalled(packID: record.packID)) {
                 try await InstalledPackTracker.shared.upsert(record)
             }
         }
@@ -27,13 +27,13 @@ final class PackOwnershipTests: XCTestCase {
 
     // MARK: - managedCollectionIDs
 
-    func testManagedCollectionIDsSinglePack() {
-        let pack = PackRegistry.pack(id: "com.keypath.pack.home-row-mods")!
+    func testManagedCollectionIDsSinglePack() throws {
+        let pack = try XCTUnwrap(PackRegistry.pack(id: "com.keypath.pack.home-row-mods"))
         XCTAssertEqual(pack.managedCollectionIDs, [RuleCollectionIdentifier.homeRowMods])
     }
 
-    func testManagedCollectionIDsVallack() {
-        let pack = PackRegistry.pack(id: "com.keypath.pack.vallack-system")!
+    func testManagedCollectionIDsVallack() throws {
+        let pack = try XCTUnwrap(PackRegistry.pack(id: "com.keypath.pack.vallack-system"))
         let ids = Set(pack.managedCollectionIDs)
         XCTAssertEqual(ids.count, 3)
         XCTAssertTrue(ids.contains(RuleCollectionIdentifier.vallackNavigation))
@@ -41,14 +41,17 @@ final class PackOwnershipTests: XCTestCase {
         XCTAssertTrue(ids.contains(RuleCollectionIdentifier.homeRowLayerToggles))
     }
 
-    func testManagedCollectionIDsVisualOnly() {
-        let pack = PackRegistry.pack(id: "com.keypath.pack.kindavim")!
+    func testManagedCollectionIDsVisualOnly() throws {
+        let pack = try XCTUnwrap(PackRegistry.pack(id: "com.keypath.pack.kindavim"))
         XCTAssertTrue(pack.managedCollectionIDs.isEmpty)
     }
 
     // MARK: - packManagingCollection
 
     func testPackManagingCollectionWhenInstalled() async throws {
+        // Ensure vallack-system is not installed so HRM is self-managed
+        try? await InstalledPackTracker.shared.remove(packID: "com.keypath.pack.vallack-system")
+
         let record = InstalledPackRecord(
             packID: "com.keypath.pack.home-row-mods",
             version: "1.0.0"
@@ -90,9 +93,9 @@ final class PackOwnershipTests: XCTestCase {
             RuleCollectionIdentifier.homeRowLayerToggles
         )
 
-        XCTAssertEqual(navOwner?.packName, "Ben Vallack Approach")
-        XCTAssertEqual(hrmOwner?.packName, "Ben Vallack Approach")
-        XCTAssertEqual(togglesOwner?.packName, "Ben Vallack Approach")
+        XCTAssertEqual(navOwner?.packName, "Ben Vallack Nav")
+        XCTAssertEqual(hrmOwner?.packName, "Ben Vallack Nav")
+        XCTAssertEqual(togglesOwner?.packName, "Ben Vallack Nav")
     }
 
     // MARK: - Self-managed badge filtering
@@ -106,7 +109,7 @@ final class PackOwnershipTests: XCTestCase {
         let owner = await InstalledPackTracker.shared.packManagingCollection(collectionID)
         XCTAssertNotNil(owner, "Pack should report owning its collection")
 
-        let pack = PackRegistry.pack(id: owner!.packID)
+        let pack = try PackRegistry.pack(id: XCTUnwrap(owner?.packID))
         XCTAssertEqual(
             pack?.associatedCollectionID, collectionID,
             "Fast Navigation's associatedCollectionID should match its own collection — badge must be hidden"
@@ -125,17 +128,17 @@ final class PackOwnershipTests: XCTestCase {
         )
         XCTAssertNotNil(owner)
 
-        let pack = PackRegistry.pack(id: owner!.packID)!
+        let pack = try XCTUnwrap(try PackRegistry.pack(id: XCTUnwrap(owner?.packID)))
         XCTAssertNotEqual(
             pack.associatedCollectionID, RuleCollectionIdentifier.homeRowMods,
             "Vallack's associatedCollectionID is vallackNavigation, not homeRowMods — badge should show"
         )
     }
 
-    func testAllPacksWithAssociatedCollectionAreSelfManaged() {
+    func testAllPacksWithAssociatedCollectionAreSelfManaged() throws {
         for pack in PackRegistry.starterKit where pack.associatedCollectionID != nil {
             XCTAssertTrue(
-                pack.managedCollectionIDs.contains(pack.associatedCollectionID!),
+                try pack.managedCollectionIDs.contains(XCTUnwrap(pack.associatedCollectionID)),
                 "\(pack.name) manages collections \(pack.managedCollectionIDs) but its associatedCollectionID \(pack.associatedCollectionID!) is missing"
             )
         }
