@@ -637,7 +637,7 @@ public enum PackRegistry {
         name: "Keystroke History",
         tagline: "See what your keyboard is actually doing",
         shortDescription:
-            "Watch every keypress, tap-hold decision, and layer change in real time. Helps you understand, refine, and debug your keymaps.\n\nPrivacy: keystroke data is kept in memory only — nothing is saved to disk and nothing ever leaves your machine. Data disappears when you quit.",
+            "A live timeline of every keypress, tap-hold decision, and layer change. Great for tuning timing and debugging remaps.",
         longDescription: "",
         category: "Debug",
         iconSymbol: "clock.arrow.trianglehead.counterclockwise.rotate.90",

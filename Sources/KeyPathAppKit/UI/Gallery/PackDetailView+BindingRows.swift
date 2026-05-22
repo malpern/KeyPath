@@ -200,6 +200,23 @@ extension PackDetailView {
             }
         } else if pack.id == PackRegistry.kindaVim.id {
             embeddedEditor { KindaVimStatusBlock() }
+        } else if pack.id == PackRegistry.keystrokeHistory.id {
+            embeddedEditor {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Preview")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    KeystrokeHistoryPreview()
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "lock.shield")
+                            .font(.system(size: 10))
+                        Text("Keystroke data stays in memory only — nothing saved to disk, nothing leaves your machine.")
+                            .font(.system(size: 11))
+                    }
+                    .foregroundStyle(.tertiary)
+                }
+            }
         } else {
             VStack(alignment: .leading, spacing: 8) {
                 Divider()
