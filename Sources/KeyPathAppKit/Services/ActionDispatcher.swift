@@ -167,22 +167,22 @@ public final class ActionDispatcher {
 
         // Try each URL (fire-and-forget since openApplication is async)
         for appURL in urlsToTry {
-            let config = NSWorkspace.OpenConfiguration()
-            let capturedAppIdentifier = appIdentifier
-            let capturedPath = appURL.path
-            workspace.openApplication(at: appURL, configuration: config) { [weak self] app, error in
-                Task { @MainActor in
-                    if let error {
-                        AppLogger.shared.log("⚠️ [ActionDispatcher] Failed to launch from \(capturedPath): \(error)")
-                        self?.onError?("Failed to launch \(capturedAppIdentifier): \(error.localizedDescription)")
-                    } else if app != nil {
-                        AppLogger.shared.log("✅ [ActionDispatcher] Launched \(capturedAppIdentifier) from \(capturedPath)")
+            if !TestEnvironment.isRunningTests {
+                let config = NSWorkspace.OpenConfiguration()
+                let capturedAppIdentifier = appIdentifier
+                let capturedPath = appURL.path
+                workspace.openApplication(at: appURL, configuration: config) { [weak self] app, error in
+                    Task { @MainActor in
+                        if let error {
+                            AppLogger.shared.log("⚠️ [ActionDispatcher] Failed to launch from \(capturedPath): \(error)")
+                            self?.onError?("Failed to launch \(capturedAppIdentifier): \(error.localizedDescription)")
+                        } else if app != nil {
+                            AppLogger.shared.log("✅ [ActionDispatcher] Launched \(capturedAppIdentifier) from \(capturedPath)")
+                        }
                     }
                 }
+                LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
             }
-            // Return success optimistically - the app will launch async
-            // First URL in list is most likely to succeed (bundle ID match)
-            LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
             return .success
         }
 

@@ -790,6 +790,7 @@ public class KeyboardCapture {
 
     /// Public method to explicitly request permissions (for use in wizard)
     func requestPermissionsExplicitly() {
+        guard !TestEnvironment.isRunningTests else { return }
         if let url = URL(
             string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
         ) {
