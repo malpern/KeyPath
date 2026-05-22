@@ -129,12 +129,11 @@ extension OverlayKeycapView {
 
     var backgroundColor: Color {
         if isPressed, isHoldActive {
-            Color(red: 0.85, green: 0.45, blue: 0.15) // Orange for hold-active
+            KeyPathColors.layerOrange
         } else if isPressed {
             Color.accentColor
         } else if isOneShot {
-            // One-shot modifier active: cyan/teal glow to indicate waiting for next key
-            Color(red: 0.2, green: 0.7, blue: 0.8)
+            KeyPathColors.layerTeal
         } else if isEmphasized {
             Color.orange
         }
@@ -144,11 +143,11 @@ extension OverlayKeycapView {
         }
         // Launcher mode: blue/teal background for mapped keys
         else if isLauncherMode, hasLauncherMapping {
-            Color(red: 0.15, green: 0.35, blue: 0.45)
+            KeyPathColors.keycapMapped
         }
-        // Launcher mode: dark gray for ALL unmapped keys including modifiers/fn (RGB 56, 56, 57 - 10% lighter)
+        // Launcher mode: dark gray for ALL unmapped keys including modifiers/fn
         else if isLauncherMode {
-            Color(red: 56 / 255, green: 56 / 255, blue: 57 / 255)
+            KeyPathColors.keycapDark
         }
         // Layer mode: collection-specific color for mapped keys
         else if isLayerMode, hasLayerMapping || isNavIdentityMapping {
@@ -156,7 +155,7 @@ extension OverlayKeycapView {
         }
         // Layer mode: dark gray for unmapped keys (same as launcher)
         else if isLayerMode {
-            Color(red: 56 / 255, green: 56 / 255, blue: 57 / 255)
+            KeyPathColors.keycapDark
         } else if isModifierKey {
             colorway.modBaseColor
         } else if isAccentKey {

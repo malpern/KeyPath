@@ -465,7 +465,7 @@ struct OverlayKeyboardView: View {
             holdLabel: holdLabels[key.keyCode],
             isHoldActive: holdLabels[key.keyCode] != nil,
             releaseFadeFromColor: holdReleaseFadeKeyCodes.contains(key.keyCode)
-                ? Color(red: 0.85, green: 0.45, blue: 0.15) : .accentColor,
+                ? KeyPathColors.layerOrange : .accentColor,
             tapHoldIdleLabel: tapHoldIdleLabels[key.keyCode],
             onKeyClick: onKeyClick,
             colorway: activeColorway,

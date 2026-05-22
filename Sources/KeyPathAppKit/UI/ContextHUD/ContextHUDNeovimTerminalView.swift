@@ -18,7 +18,7 @@ struct ContextHUDNeovimTerminalView: View {
         HStack(spacing: 7) {
             Image(systemName: "terminal")
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(Color(red: 0.3, green: 0.6, blue: 0.9))
+                .foregroundStyle(KeyPathColors.layerBlue)
             Text("Neovim Quick Reference")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.85))

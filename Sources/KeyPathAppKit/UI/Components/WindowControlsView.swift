@@ -4,13 +4,13 @@ import SwiftUI
 struct WindowControlsView: View {
     var body: some View {
         HStack(spacing: 8) {
-            controlCircle(color: Color(red: 0.99, green: 0.35, blue: 0.31)) {
+            controlCircle(color: KeyPathColors.windowClose) {
                 NSApp.keyWindow?.performClose(nil)
             }
-            controlCircle(color: Color(red: 0.99, green: 0.77, blue: 0.26)) {
+            controlCircle(color: KeyPathColors.windowMinimize) {
                 NSApp.keyWindow?.performMiniaturize(nil)
             }
-            controlCircle(color: Color(red: 0.30, green: 0.85, blue: 0.39)) {
+            controlCircle(color: KeyPathColors.windowZoom) {
                 NSApp.keyWindow?.performZoom(nil)
             }
         }

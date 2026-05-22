@@ -66,7 +66,7 @@ struct MiniActionKeycap: View {
     }
 
     private var foregroundColor: Color {
-        Color(red: 0.88, green: 0.93, blue: 1.0)
+        KeyPathColors.keycapText
             .opacity(isPressed ? 1.0 : 0.88)
     }
 
