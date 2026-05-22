@@ -425,7 +425,13 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
 
     func checkProcessConflicts() async -> [KanataDiagnostic] {
         var diagnostics: [KanataDiagnostic] = []
-        let conflicts = await processLifecycleManager.detectConflicts()
+        let conflicts: ProcessLifecycleManager.ConflictResolution
+        do {
+            conflicts = try await processLifecycleManager.detectConflicts()
+        } catch {
+            AppLogger.shared.log("❌ [Diagnostics] Process conflict detection failed: \(error)")
+            return diagnostics
+        }
 
         // Show managed processes (informational)
         if !conflicts.managedProcesses.isEmpty {

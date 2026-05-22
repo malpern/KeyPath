@@ -97,33 +97,23 @@ public final class ProcessLifecycleManager {
     // MARK: - Public API
 
     /// Register that we started a kanata process
-    public func registerStartedProcess(pid: pid_t, command: String) async {
-        do {
-            try PIDFileManager.writePID(pid, command: command)
-            ownedPID = pid
-            // Invalidate cache since we changed process state
-            await pidCache.invalidateCache()
-            AppLogger.shared.log("📝 [ProcessLifecycleManager] Registered process PID: \(pid)")
-        } catch {
-            AppLogger.shared.log("❌ [ProcessLifecycleManager] Failed to register process: \(error)")
-        }
+    public func registerStartedProcess(pid: pid_t, command: String) async throws {
+        try PIDFileManager.writePID(pid, command: command)
+        ownedPID = pid
+        await pidCache.invalidateCache()
+        AppLogger.shared.log("📝 [ProcessLifecycleManager] Registered process PID: \(pid)")
     }
 
     /// Unregister our process (on stop or cleanup)
-    public func unregisterProcess() async {
-        do {
-            try PIDFileManager.removePID()
-            ownedPID = nil
-            // Invalidate cache since we changed process state
-            await pidCache.invalidateCache()
-            AppLogger.shared.log("🗑️ [ProcessLifecycleManager] Unregistered process")
-        } catch {
-            AppLogger.shared.log("❌ [ProcessLifecycleManager] Failed to unregister process: \(error)")
-        }
+    public func unregisterProcess() async throws {
+        try PIDFileManager.removePID()
+        ownedPID = nil
+        await pidCache.invalidateCache()
+        AppLogger.shared.log("🗑️ [ProcessLifecycleManager] Unregistered process")
     }
 
     /// Check for conflicts (external kanata processes)
-    public func detectConflicts() async -> ConflictResolution {
+    public func detectConflicts() async throws -> ConflictResolution {
         AppLogger.shared.log("🔍 [ProcessLifecycleManager] Detecting conflicts...")
 
         // Skip process detection in test environment
@@ -143,7 +133,7 @@ public final class ProcessLifecycleManager {
         ownedPID = ownership.pid
 
         // Get all running kanata processes
-        let allProcesses = await detectKanataProcesses()
+        let allProcesses = try await detectKanataProcesses()
 
         // Separate managed processes from external conflicts
         var managedProcesses: [ProcessInfo] = []
@@ -189,7 +179,7 @@ public final class ProcessLifecycleManager {
 
     /// Kill all external kanata processes
     public func terminateExternalProcesses() async throws {
-        let conflicts = await detectConflicts()
+        let conflicts = try await detectConflicts()
 
         for process in conflicts.externalProcesses {
             AppLogger.shared.log(
@@ -204,7 +194,7 @@ public final class ProcessLifecycleManager {
         try? await Task.sleep(for: .seconds(1)) // 1 second
 
         // Force kill any remaining
-        let remainingConflicts = await detectConflicts()
+        let remainingConflicts = try await detectConflicts()
         for process in remainingConflicts.externalProcesses {
             AppLogger.shared.log("💀 [ProcessLifecycleManager] Force killing process PID: \(process.pid)")
             Foundation.kill(process.pid, SIGKILL)
@@ -212,7 +202,7 @@ public final class ProcessLifecycleManager {
     }
 
     /// Clean up orphaned processes on app startup
-    public func cleanupOrphanedProcesses() async {
+    public func cleanupOrphanedProcesses() async throws {
         AppLogger.shared.log("🧹 [ProcessLifecycleManager] Checking for orphaned processes...")
 
         // Check if we have a PID file from a previous run
@@ -223,12 +213,12 @@ public final class ProcessLifecycleManager {
                 )
 
                 // Kill the orphaned process
-                await PIDFileManager.killOrphanedProcess()
+                try await PIDFileManager.killOrphanedProcess()
                 // Invalidate cache since we changed process state
                 await pidCache.invalidateCache()
             } else {
                 // Process is dead, just clean up the PID file
-                try? PIDFileManager.removePID()
+                try PIDFileManager.removePID()
             }
         }
     }
@@ -243,30 +233,26 @@ public final class ProcessLifecycleManager {
     // MARK: - Process Detection
 
     /// Detect all kanata processes currently running
-    private func detectKanataProcesses() async -> [ProcessInfo] {
+    private func detectKanataProcesses() async throws -> [ProcessInfo] {
         AppLogger.shared.log("🔍 [ProcessLifecycleManager] Detecting kanata processes...")
 
         var processes: [ProcessInfo] = []
 
-        do {
-            let result = try await SubprocessRunner.shared.run("/usr/bin/pgrep", args: ["-fl", "kanata"])
-            if result.exitCode == 0 {
-                let lines = result.stdout.components(separatedBy: "\n").filter { !$0.isEmpty }
-                for line in lines {
-                    let components = line.components(separatedBy: " ")
-                    guard let pidString = components.first,
-                          let pid = pid_t(pidString),
-                          components.count > 1
-                    else { continue }
-                    let command = components.dropFirst().joined(separator: " ")
-                    if isKanataBinary(command) {
-                        processes.append(ProcessInfo(pid: pid, command: command))
-                        AppLogger.shared.log("🔍 [ProcessLifecycleManager] Found kanata process: PID=\(pid)")
-                    }
+        let result = try await SubprocessRunner.shared.run("/usr/bin/pgrep", args: ["-fl", "kanata"])
+        if result.exitCode == 0 {
+            let lines = result.stdout.components(separatedBy: "\n").filter { !$0.isEmpty }
+            for line in lines {
+                let components = line.components(separatedBy: " ")
+                guard let pidString = components.first,
+                      let pid = pid_t(pidString),
+                      components.count > 1
+                else { continue }
+                let command = components.dropFirst().joined(separator: " ")
+                if isKanataBinary(command) {
+                    processes.append(ProcessInfo(pid: pid, command: command))
+                    AppLogger.shared.log("🔍 [ProcessLifecycleManager] Found kanata process: PID=\(pid)")
                 }
             }
-        } catch {
-            AppLogger.shared.log("❌ [ProcessLifecycleManager] Error detecting processes: \(error)")
         }
 
         AppLogger.shared.log("🔍 [ProcessLifecycleManager] Found \(processes.count) kanata processes")
