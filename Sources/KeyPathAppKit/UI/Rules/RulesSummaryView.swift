@@ -28,6 +28,7 @@ struct RulesTabView: View {
     @State private var sequencesEditState: SequencesEditState?
     @State private var appKeymaps: [AppKeymap] = []
     @State private var isKindaVimInstalled = false
+    @State private var isKeystrokeHistoryInstalled = false
     /// Dependency resolution: pack awaiting enable confirmation
     @State private var pendingEnablePack: Pack?
     @State private var pendingEnableUnmetDeps: [UnmetDependency] = []
@@ -652,6 +653,9 @@ struct RulesTabView: View {
                             }
                         }
 
+                        keystrokeHistoryRow
+                            .padding(.vertical, 4)
+
                         if isSearching, !hasSearchResults {
                             VStack(spacing: 10) {
                                 Text("No matching rules")
@@ -699,10 +703,12 @@ struct RulesTabView: View {
             }
             // Load app-specific keymaps
             loadAppKeymaps()
-            // Check KindaVim pack install state + collection ownership
             Task {
                 isKindaVimInstalled = await InstalledPackTracker.shared.isInstalled(
                     packID: PackRegistry.kindaVim.id
+                )
+                isKeystrokeHistoryInstalled = await InstalledPackTracker.shared.isInstalled(
+                    packID: PackRegistry.keystrokeHistory.id
                 )
                 await refreshCollectionOwnership()
             }
@@ -988,6 +994,46 @@ struct RulesTabView: View {
                             AppLogger.shared.log("⚠️ [Rules] KindaVim toggle failed: \(error.localizedDescription)")
                             isKindaVimInstalled = !newValue
                             settingsToastManager.showError("Failed to \(newValue ? "enable" : "disable") KindaVim")
+                        }
+                    }
+                },
+                onTapRow: {
+                    PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: kanataManager)
+                }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var keystrokeHistoryRow: some View {
+        let pack = PackRegistry.keystrokeHistory
+        if !isSearching || pack.name.localizedCaseInsensitiveContains(trimmedSearchQuery)
+            || "keystroke history".contains(trimmedSearchQuery.lowercased())
+            || "debug".contains(trimmedSearchQuery.lowercased())
+        {
+            ExpandableKeystrokeHistoryRow(
+                isPackEnabled: isKeystrokeHistoryInstalled,
+                onToggle: { newValue in
+                    isKeystrokeHistoryInstalled = newValue
+                    Task {
+                        do {
+                            if newValue {
+                                let record = InstalledPackRecord(
+                                    packID: pack.id,
+                                    version: pack.version,
+                                    installedAt: Date(),
+                                    quickSettingValues: [:]
+                                )
+                                try await InstalledPackTracker.shared.upsert(record)
+                                KeystrokeHistoryService.shared.isRecording = true
+                            } else {
+                                try await InstalledPackTracker.shared.remove(packID: pack.id)
+                                KeystrokeHistoryService.shared.isRecording = false
+                                KeystrokeHistoryService.shared.clearEvents()
+                            }
+                        } catch {
+                            AppLogger.shared.log("⚠️ [Rules] Keystroke History toggle failed: \(error.localizedDescription)")
+                            isKeystrokeHistoryInstalled = !newValue
                         }
                     }
                 },
