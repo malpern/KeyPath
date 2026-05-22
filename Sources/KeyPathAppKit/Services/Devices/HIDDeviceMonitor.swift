@@ -7,6 +7,22 @@ import KeyPathCore
 ///
 /// Publishes `connectedKeyboards` as keyboards are plugged in and removed.
 /// Filters out VirtualHID devices and devices with VID:PID 0:0 (BLE with no identity).
+///
+/// ## Thread safety
+///
+/// This class is `@MainActor` for its published UI state. IOKit callbacks arrive on a
+/// dedicated `Thread` (not GCD — GCD can reclaim threads, killing the run loop).
+/// The boundary works as follows:
+///
+/// - `monitorThread`, `trackedDeviceIDs`, `connectedKeyboards`, `lastConnectedKeyboard`
+///   are MainActor-isolated and only accessed from MainActor code.
+/// - `_monitorRunLoop` is shared between MainActor (`stopMonitoring`) and the IOKit
+///   thread (`setupHIDManager`). Access is serialized by `runLoopLock`.
+///   `CFRunLoopStop` is documented as cross-thread safe.
+/// - `setupHIDManager` runs entirely on the IOKit thread. Its local `manager` stays
+///   alive while `CFRunLoopRun()` blocks.
+/// - `handleDeviceConnected`/`handleDeviceRemoved` run on the IOKit thread, extract
+///   Sendable data, then hop to MainActor via `Task { @MainActor }`.
 @MainActor
 final class HIDDeviceMonitor: ObservableObject {
     static let shared = HIDDeviceMonitor()
@@ -21,7 +37,6 @@ final class HIDDeviceMonitor: ObservableObject {
             "\(vendorID):\(productID):\(productName)"
         }
 
-        /// Formatted VID:PID key for index lookup, e.g. "4653:0001"
         var vidPidKey: String {
             String(format: "%04X:%04X", vendorID, productID)
         }
@@ -29,20 +44,19 @@ final class HIDDeviceMonitor: ObservableObject {
 
     @Published private(set) var connectedKeyboards: [HIDKeyboardEvent] = []
 
-    /// The most recently connected keyboard (for toast display)
     @Published private(set) var lastConnectedKeyboard: HIDKeyboardEvent?
 
-    /// Dedicated thread for the IOKit run loop — GCD queues can reclaim threads,
-    /// which would silently kill the run loop and stop all IOKit callbacks.
-    /// Also serves as the liveness guard: non-nil means monitoring is active.
-    private nonisolated(unsafe) var monitorThread: Thread?
-    /// Guard for `_monitorRunLoop` — CFRunLoop is not Sendable so we can't use Mutex/OSAllocatedUnfairLock.
-    /// Safety: only accessed under `runLoopLock`; CFRunLoopStop is cross-thread safe per Apple docs.
-    private let runLoopLock = NSLock()
-    private nonisolated(unsafe) var _monitorRunLoop: CFRunLoop?
-    private nonisolated(unsafe) var hidManager: IOHIDManager?
+    /// Dedicated thread for the IOKit run loop. Non-nil means monitoring is active.
+    /// Only accessed from MainActor (startMonitoring/stopMonitoring).
+    private var monitorThread: Thread?
 
-    /// Track devices by opaque pointer value (avoids sending IOHIDDevice across isolation)
+    /// Protects `_monitorRunLoop` across the MainActor ↔ IOKit thread boundary.
+    /// CFRunLoop is not Sendable so we can't use Mutex/OSAllocatedUnfairLock.
+    private let runLoopLock = NSLock()
+    /// The IOKit thread's CFRunLoop. Written by the IOKit thread in setupHIDManager,
+    /// read by MainActor in stopMonitoring. All access is under `runLoopLock`.
+    private nonisolated(unsafe) var _monitorRunLoop: CFRunLoop?
+
     private var trackedDeviceIDs: [UInt: HIDKeyboardEvent] = [:]
 
     static func currentKeyboardSnapshot() -> [HIDKeyboardEvent] {
@@ -112,26 +126,24 @@ final class HIDDeviceMonitor: ObservableObject {
         let runLoop = _monitorRunLoop
         runLoopLock.unlock()
         if let runLoop {
-            CFRunLoopStop(runLoop) // Cross-thread safe per Apple docs
+            CFRunLoopStop(runLoop)
         }
         monitorThread = nil
 
         AppLogger.shared.log("🔌 [HIDDeviceMonitor] Stopped monitoring keyboard connections")
     }
 
-    // MARK: - IOKit Setup
+    // MARK: - IOKit Setup (runs entirely on the dedicated IOKit thread)
 
     private nonisolated func setupHIDManager() {
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
 
-        // Match keyboard devices
         let matching: [String: Any] = [
             kIOHIDDeviceUsagePageKey as String: kHIDPage_GenericDesktop,
             kIOHIDDeviceUsageKey as String: kHIDUsage_GD_Keyboard,
         ]
         IOHIDManagerSetDeviceMatching(manager, matching as CFDictionary)
 
-        // Register callbacks
         // SAFETY: passUnretained is safe because HIDDeviceMonitor is a singleton
         // (static let shared) — it is never deallocated during app lifetime.
         let context = Unmanaged.passUnretained(self).toOpaque()
@@ -148,32 +160,27 @@ final class HIDDeviceMonitor: ObservableObject {
             monitor.handleDeviceRemoved(device)
         }, context)
 
-        // Store references before entering the run loop
         let runLoop = CFRunLoopGetCurrent()!
         runLoopLock.lock()
         _monitorRunLoop = runLoop
         runLoopLock.unlock()
-        hidManager = manager
 
-        // Schedule on the dedicated thread's run loop
         IOHIDManagerScheduleWithRunLoop(manager, runLoop, CFRunLoopMode.defaultMode.rawValue)
         IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
 
-        // Run the run loop to receive callbacks (blocks until CFRunLoopStop)
+        // Blocks until CFRunLoopStop is called from stopMonitoring.
+        // The local `manager` stays alive on the stack for the duration.
         CFRunLoopRun()
 
-        // Cleanup after run loop stops
         IOHIDManagerClose(manager, IOOptionBits(kIOHIDOptionsTypeNone))
         runLoopLock.lock()
         _monitorRunLoop = nil
         runLoopLock.unlock()
-        hidManager = nil
     }
 
-    // MARK: - Device Callbacks
+    // MARK: - Device Callbacks (called on IOKit thread, hop to MainActor)
 
     private nonisolated func handleDeviceConnected(_ device: IOHIDDevice) {
-        // Extract all data from IOHIDDevice on the callback thread (before crossing isolation)
         guard let event = extractEvent(from: device, isConnected: true) else { return }
         let deviceID = UInt(bitPattern: ObjectIdentifier(device))
 
@@ -181,7 +188,6 @@ final class HIDDeviceMonitor: ObservableObject {
             guard let self else { return }
             trackedDeviceIDs[deviceID] = event
 
-            // Avoid duplicates
             if !connectedKeyboards.contains(where: { $0.id == event.id }) {
                 connectedKeyboards.append(event)
                 lastConnectedKeyboard = event
@@ -202,7 +208,7 @@ final class HIDDeviceMonitor: ObservableObject {
         }
     }
 
-    // MARK: - Device Info Extraction
+    // MARK: - Device Info Extraction (called on IOKit thread, returns Sendable value)
 
     private nonisolated func extractEvent(from device: IOHIDDevice, isConnected: Bool) -> HIDKeyboardEvent? {
         let vendorID = IOHIDDeviceGetProperty(device, kIOHIDVendorIDKey as CFString) as? Int ?? 0
@@ -212,11 +218,7 @@ final class HIDDeviceMonitor: ObservableObject {
         let lowerName = productName.lowercased()
         let isAppleInternalKeyboard = lowerName.contains("apple internal keyboard")
 
-        // Filter out VID:PID 0:0 devices unless they are the built-in Apple keyboard,
-        // which some systems report through a composite internal keyboard/trackpad node.
         guard vendorID != 0 || productID != 0 || isAppleInternalKeyboard else { return nil }
-
-        // Filter out VirtualHID devices
         guard !productName.contains("VirtualHID") else { return nil }
 
         return HIDKeyboardEvent(
