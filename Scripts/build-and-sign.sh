@@ -478,40 +478,17 @@ else
     create_sparkle_archive
 fi
 
-echo "📂 Deploying to /Applications..."
-SYSTEM_APPS_DIR="/Applications"
-APP_DEST="$SYSTEM_APPS_DIR/${APP_NAME}.app"
-rm -rf "$APP_DEST"
-if ditto "$APP_BUNDLE" "$APP_DEST"; then
-    echo "✅ Deployed latest $APP_NAME to $APP_DEST"
-else
-    echo "⚠️ WARNING: Failed to copy $APP_NAME to $APP_DEST" >&2
-    echo "💡 TIP: You may need to manually copy dist/${APP_NAME}.app to /Applications/" >&2
-fi
-
-# Restart kanata service so it picks up the new binary.
-# The daemon runs as root via LaunchDaemon and auto-restarts on kill.
-if pgrep -x "kanata" > /dev/null; then
-    echo "🔄 Restarting kanata service..."
-    KANATA_PID=$(pgrep -x "kanata")
-    sudo kill "$KANATA_PID" 2>/dev/null || true
-    sleep 2
-    if pgrep -x "kanata" > /dev/null; then
-        NEW_KANATA_PID=$(pgrep -x "kanata")
-        echo "   ✅ Kanata restarted (PID: $KANATA_PID → $NEW_KANATA_PID)"
-    else
-        echo "   ⚠️  Kanata did not auto-restart. KeyPath will start it on launch."
-    fi
-fi
-
-echo "🚪 Restarting app..."
-
-# Force quit old app process and wait for it to actually die
+# Stop running KeyPath and kanata BEFORE replacing the app bundle.
+# Replacing binaries while the process is live causes macOS to detect
+# code page mismatches and kill the process with:
+#   SIGKILL (Code Signature Invalid) / CODESIGNING / Invalid Page
+# If kanata is killed mid-keystroke, the virtual HID holds the key down
+# and the character repeats infinitely.
 if pgrep -x "KeyPath" > /dev/null; then
-    echo "   Stopping existing KeyPath process..."
+    echo "🛑 Stopping running KeyPath before deploy..."
     killall KeyPath 2>/dev/null || true
 
-    # Wait up to 5 seconds for process to die
+    # Wait up to 5 seconds for graceful shutdown
     for i in {1..10}; do
         if ! pgrep -x "KeyPath" > /dev/null; then
             break
@@ -530,10 +507,30 @@ fi
 # Verify no KeyPath process remains
 if pgrep -x "KeyPath" > /dev/null; then
     echo "   ❌ ERROR: Failed to stop KeyPath process" >&2
-    echo "   Please manually quit KeyPath and run: open $APP_DEST" >&2
+    echo "   Please manually quit KeyPath and run the deploy manually." >&2
     exit 1
 fi
 
+# Stop kanata so it doesn't get killed by the bundle replacement.
+if pgrep -x "kanata" > /dev/null; then
+    echo "🛑 Stopping kanata service..."
+    KANATA_PID=$(pgrep -x "kanata")
+    sudo kill "$KANATA_PID" 2>/dev/null || true
+    sleep 1
+fi
+
+echo "📂 Deploying to /Applications..."
+SYSTEM_APPS_DIR="/Applications"
+APP_DEST="$SYSTEM_APPS_DIR/${APP_NAME}.app"
+rm -rf "$APP_DEST"
+if ditto "$APP_BUNDLE" "$APP_DEST"; then
+    echo "✅ Deployed latest $APP_NAME to $APP_DEST"
+else
+    echo "⚠️ WARNING: Failed to copy $APP_NAME to $APP_DEST" >&2
+    echo "💡 TIP: You may need to manually copy dist/${APP_NAME}.app to /Applications/" >&2
+fi
+
+echo "🚪 Restarting app..."
 echo "   Starting new KeyPath..."
 open "$APP_DEST"
 
