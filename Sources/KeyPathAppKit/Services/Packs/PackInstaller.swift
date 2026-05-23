@@ -13,6 +13,13 @@ import KeyPathCore
 public final class PackInstaller {
     public static let shared = PackInstaller()
 
+    #if DEBUG
+        /// Test-only overrides for dialog responses. When set, bypasses NSAlert
+        /// and returns this value instead.
+        static var testOverrideApplyDefault: Bool?
+        static var testOverrideRestore: Bool?
+    #endif
+
     private init() {}
 
     // MARK: - Errors
@@ -602,6 +609,9 @@ public final class PackInstaller {
         }
 
         if TestEnvironment.isRunningTests {
+            #if DEBUG
+                if let override = Self.testOverrideApplyDefault { return override }
+            #endif
             return true
         }
 
@@ -650,21 +660,27 @@ public final class PackInstaller {
             }
         }
 
-        let shouldRestore: Bool = if !userModified {
-            true
+        let shouldRestore: Bool
+        if !userModified {
+            shouldRestore = true
         } else if TestEnvironment.isRunningTests {
-            true
+            #if DEBUG
+                shouldRestore = Self.testOverrideRestore ?? true
+            #else
+                shouldRestore = true
+            #endif
         } else {
-            await withCheckedContinuation { continuation in
-                let alert = NSAlert()
-                alert.messageText = "Restore Previous Settings?"
-                alert.informativeText = "You modified settings after installing \(pack.name). Restore your previous configuration, or keep the current settings?"
-                alert.alertStyle = .informational
-                alert.addButton(withTitle: "Restore Previous")
-                alert.addButton(withTitle: "Keep Current")
-                let response = alert.runModal()
-                continuation.resume(returning: response == .alertFirstButtonReturn)
-            }
+            shouldRestore =
+                await withCheckedContinuation { continuation in
+                    let alert = NSAlert()
+                    alert.messageText = "Restore Previous Settings?"
+                    alert.informativeText = "You modified settings after installing \(pack.name). Restore your previous configuration, or keep the current settings?"
+                    alert.alertStyle = .informational
+                    alert.addButton(withTitle: "Restore Previous")
+                    alert.addButton(withTitle: "Keep Current")
+                    let response = alert.runModal()
+                    continuation.resume(returning: response == .alertFirstButtonReturn)
+                }
         }
 
         if shouldRestore {
