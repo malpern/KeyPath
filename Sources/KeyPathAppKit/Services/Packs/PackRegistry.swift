@@ -83,7 +83,7 @@ public enum PackRegistry {
         name: "Caps Lock Remap",
         tagline: "Make Caps Lock actually useful with tap and hold actions",
         shortDescription:
-            "Tap Caps Lock for a quick action (Escape, Backspace, or Hyper). Hold it for a modifier (Hyper, Control, Shift, or Meh). One key, two jobs — pick your combo below.",
+        "Tap Caps Lock for a quick action (Escape, Backspace, or Hyper). Hold it for a modifier (Hyper, Control, Shift, or Meh). One key, two jobs — pick your combo below.",
         longDescription: "",
         category: "Productivity",
         iconSymbol: "capslock",
@@ -110,7 +110,7 @@ public enum PackRegistry {
         name: "Home Row Mods",
         tagline: "Every shortcut under your fingers — no reaching for modifier keys",
         shortDescription:
-            "Tap home row keys normally. Hold them for ⌘ ⇧ ⌥ ⌃ — every shortcut stays under your fingers. Adjust the hold timing to match your typing speed.",
+        "Tap home row keys normally. Hold them for ⌘ ⇧ ⌥ ⌃ — every shortcut stays under your fingers. Adjust the hold timing to match your typing speed.",
         longDescription: "",
         category: "Ergonomics",
         iconSymbol: "keyboard",
@@ -162,7 +162,7 @@ public enum PackRegistry {
         name: "Escape Remap",
         tagline: "Move Escape to a closer key like Caps Lock or Backtick",
         shortDescription:
-            "Remap Escape to something you'll use more — Caps Lock, Backtick, or Tab. Pairs naturally with Caps Lock Remap so both keys stay useful.",
+        "Remap Escape to something you'll use more — Caps Lock, Backtick, or Tab. Pairs naturally with Caps Lock Remap so both keys stay useful.",
         longDescription: "",
         category: "Productivity",
         iconSymbol: "escape",
@@ -181,7 +181,7 @@ public enum PackRegistry {
         name: "Delete Enhancement",
         tagline: "Forward-delete, delete word, and delete line without reaching",
         shortDescription:
-            "Hold your Leader key + Delete for forward delete, delete word, or delete to line start. Regular Delete still works normally.\n\nRequires Vim Navigation or another Leader pack.",
+        "Hold your Leader key + Delete for forward delete, delete word, or delete to line start. Regular Delete still works normally.\n\nRequires Vim Navigation or another Leader pack.",
         longDescription: "",
         category: "Productivity",
         iconSymbol: "delete.left",
@@ -207,7 +207,7 @@ public enum PackRegistry {
         name: "Backup Caps Lock",
         tagline: "Press both Shift keys together to toggle Caps Lock",
         shortDescription:
-            "Get Caps Lock back by pressing both Shift keys together. Useful when Caps Lock Remap gives that key a new job.",
+        "Get Caps Lock back by pressing both Shift keys together. Useful when Caps Lock Remap gives that key a new job.",
         longDescription: "",
         category: "Productivity",
         iconSymbol: "shift",
@@ -240,7 +240,7 @@ public enum PackRegistry {
         name: "Vim Navigation",
         tagline: "Hold Space for hjkl arrows and Vim motions",
         shortDescription:
-            "Hold Space for Vim-style navigation: H/J/K/L for arrows, Y/P for copy/paste, U for undo, / for find. Release Space to type normally.",
+        "Hold Space for Vim-style navigation: H/J/K/L for arrows, Y/P for copy/paste, U for undo, / for find. Release Space to type normally.",
         longDescription: "",
         category: "Navigation",
         iconSymbol: "arrow.up.and.down.and.arrow.left.and.right",
@@ -269,7 +269,7 @@ public enum PackRegistry {
         name: "Window Snapping",
         tagline: "Snap, move, and tile windows with Leader → w",
         shortDescription:
-            "Snap windows to halves, corners, or full screen — all from the keyboard. Hold Space → W, then pick a position.\n\nRequires Vim Navigation and Accessibility permission.",
+        "Snap windows to halves, corners, or full screen — all from the keyboard. Hold Space → W, then pick a position.\n\nRequires Vim Navigation and Accessibility permission.",
         longDescription: "",
         category: "Navigation",
         iconSymbol: "rectangle.split.2x2",
@@ -298,7 +298,7 @@ public enum PackRegistry {
         name: "Mission Control",
         tagline: "Leader + single key for Exposé, Desktops, Notifications",
         shortDescription:
-            "Mission Control, Exposé, Show Desktop, and Notification Center — each one key away. Switch desktops with , and . keys.\n\nRequires Vim Navigation or another Leader pack.",
+        "Mission Control, Exposé, Show Desktop, and Notification Center — each one key away. Switch desktops with , and . keys.\n\nRequires Vim Navigation or another Leader pack.",
         longDescription: "",
         category: "Navigation",
         iconSymbol: "rectangle.3.group",
@@ -332,7 +332,7 @@ public enum PackRegistry {
         name: "Auto Shift Symbols",
         tagline: "Type shifted symbols without pressing Shift — just hold the key",
         shortDescription:
-            "Hold any symbol key slightly longer to type its shifted variant — no Shift key needed. Tap for the symbol, hold for the shifted version.",
+        "Hold any symbol key slightly longer to type its shifted variant — no Shift key needed. Tap for the symbol, hold for the shifted version.",
         longDescription: "",
         category: "Ergonomics",
         iconSymbol: "arrow.up.square",
@@ -363,7 +363,7 @@ public enum PackRegistry {
         name: "Numpad",
         tagline: "Turn your right hand into a numpad",
         shortDescription:
-            "Your right hand becomes a numpad, left hand gets operators. Hold Space → ; to activate.\n\nRequires Vim Navigation or another Leader pack.",
+        "Your right hand becomes a numpad, left hand gets operators. Hold Space → ; to activate.\n\nRequires Vim Navigation or another Leader pack.",
         longDescription: "",
         category: "Layers",
         iconSymbol: "number.square",
@@ -398,7 +398,7 @@ public enum PackRegistry {
         name: "Symbol",
         tagline: "Programming symbols under your home row",
         shortDescription:
-            "Brackets, operators, and shifted symbols all under your home row. Hold Space → S to activate. Choose from preset layouts.\n\nRequires Vim Navigation or another Leader pack.",
+        "Brackets, operators, and shifted symbols all under your home row. Hold Space → S to activate. Choose from preset layouts.\n\nRequires Vim Navigation or another Leader pack.",
         longDescription: "",
         category: "Layers",
         iconSymbol: "textformat.abc.dottedunderline",
@@ -440,7 +440,7 @@ public enum PackRegistry {
         name: "Function",
         tagline: "Right hand becomes F-keys, left hand is media/brightness",
         shortDescription:
-            "F-keys on your right hand, media controls on your left — play/pause, volume, brightness. Hold Space → F to activate.\n\nRequires Vim Navigation or another Leader pack.",
+        "F-keys on your right hand, media controls on your left — play/pause, volume, brightness. Hold Space → F to activate.\n\nRequires Vim Navigation or another Leader pack.",
         longDescription: "",
         category: "Layers",
         iconSymbol: "f.cursive",
@@ -474,7 +474,7 @@ public enum PackRegistry {
         name: "Quick Launcher",
         tagline: "Hold Hyper, press a key to launch an app or website",
         shortDescription:
-            "Launch any app or open any URL with a single key. Hold Hyper, press the key. Drag apps onto keys to assign them.",
+        "Launch any app or open any URL with a single key. Hold Hyper, press the key. Drag apps onto keys to assign them.",
         longDescription: "",
         category: "Productivity",
         iconSymbol: "arrow.up.forward.app",
@@ -483,15 +483,72 @@ public enum PackRegistry {
         associatedCollectionID: RuleCollectionIdentifier.launcher,
         dependencies: [
             PackDependency(
-                packID: "com.keypath.pack.caps-lock-to-escape",
-                kind: .enhancedBy,
-                configPredicate: .holdOutput("C-S-M-A-"),
-                description: "Hyper mode works best with Caps Lock Remap hold set to Hyper"
-            ),
-            PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
                 kind: .enhancedBy,
                 description: "Required when using Leader → L activation mode"
+            ),
+        ],
+        managedDefaults: [
+            ManagedCollectionDefault(
+                collectionID: RuleCollectionIdentifier.capsLockRemap,
+                defaultConfiguration: .tapHoldPicker(TapHoldPickerConfig(
+                    inputKey: "caps",
+                    tapOptions: [
+                        SingleKeyPreset(
+                            output: "esc",
+                            label: "⎋ Escape",
+                            description: "Popular for Vim users - quick access to Escape",
+                            icon: "escape"
+                        ),
+                        SingleKeyPreset(
+                            output: "caps",
+                            label: "⇪ Caps Lock",
+                            description: "Keep original Caps Lock function on tap",
+                            icon: "capslock"
+                        ),
+                        SingleKeyPreset(
+                            output: "bspc",
+                            label: "⌫ Delete",
+                            description: "Easy access to Delete without reaching",
+                            icon: "delete.left"
+                        ),
+                        SingleKeyPreset(
+                            output: "hyper",
+                            label: "✦ Hyper",
+                            description: "Tap for Hyper (⌃⌥⇧⌘) - useful when hold is something else",
+                            icon: "bolt.circle"
+                        ),
+                    ],
+                    holdOptions: [
+                        SingleKeyPreset(
+                            output: "hyper",
+                            label: "✦ Hyper",
+                            description: "All four modifiers (⌃⌥⇧⌘) - ultimate shortcut prefix",
+                            icon: "bolt.circle"
+                        ),
+                        SingleKeyPreset(
+                            output: "meh",
+                            label: "◇ Meh",
+                            description: "Three modifiers (⌃⌥⇧) - Hyper without Command",
+                            icon: "diamond"
+                        ),
+                        SingleKeyPreset(
+                            output: "lctl",
+                            label: "⌃ Control",
+                            description: "Control modifier (common on Unix systems)",
+                            icon: "control"
+                        ),
+                        SingleKeyPreset(
+                            output: "lsft",
+                            label: "⇧ Shift",
+                            description: "Shift modifier",
+                            icon: "shift"
+                        ),
+                    ],
+                    selectedTapOutput: "esc",
+                    selectedHoldOutput: "hyper"
+                )),
+                displayName: "Caps Lock Remap"
             ),
         ]
     )
@@ -515,7 +572,7 @@ public enum PackRegistry {
         name: "Leader Key",
         tagline: "Pick which key activates the navigation layer",
         shortDescription:
-            "Choose which key activates all your layers — Space, Caps Lock, Tab, or Backtick. Applies to Vim Nav, Window Snapping, and every other layer pack.",
+        "Choose which key activates all your layers — Space, Caps Lock, Tab, or Backtick. Applies to Vim Nav, Window Snapping, and every other layer pack.",
         longDescription: "",
         category: "Productivity",
         iconSymbol: "hand.point.up.left",
@@ -540,7 +597,7 @@ public enum PackRegistry {
         name: "Fast Navigation",
         tagline: "Arrow keys and delete at 3x speed",
         shortDescription:
-            "Your arrow keys move through text at the same sluggish speed as every other key. Fast Navigation makes them 3× faster — jump through code, scroll spreadsheets, edit text at the speed your brain actually works.\n\nDelete gets faster too. Regular typing stays steady so you don't get accidental repeats.",
+        "Your arrow keys move through text at the same sluggish speed as every other key. Fast Navigation makes them 3× faster — jump through code, scroll spreadsheets, edit text at the speed your brain actually works.\n\nDelete gets faster too. Regular typing stays steady so you don't get accidental repeats.",
         longDescription: "",
         category: "Navigation",
         iconSymbol: "hare",
@@ -557,13 +614,35 @@ public enum PackRegistry {
         name: "Ben Vallack Nav",
         tagline: "Your fingers stay put, the keyboard changes",
         shortDescription:
-            "Navigate, copy, paste, and switch tabs without your fingers leaving the home row. Inspired by [Ben Vallack](https://www.youtube.com/@BenVallacksKeyboards) — hold an index finger to transform your keyboard into a navigation surface, with modifiers on the top row so nothing competes for space.",
+        "Navigate, copy, paste, and switch tabs without your fingers leaving the home row. Inspired by [Ben Vallack](https://www.youtube.com/@BenVallacksKeyboards) — hold an index finger to transform your keyboard into a navigation surface, with modifiers on the top row so nothing competes for space.",
         longDescription: "",
         category: "Navigation",
         iconSymbol: "rectangle.stack.badge.play",
         quickSettings: [],
         bindings: [],
-        associatedCollectionID: RuleCollectionIdentifier.vallackNavigation
+        associatedCollectionID: RuleCollectionIdentifier.vallackNavigation,
+        managedDefaults: [
+            ManagedCollectionDefault(
+                collectionID: RuleCollectionIdentifier.vallackNavigation,
+                displayName: "Vallack Navigation"
+            ),
+            ManagedCollectionDefault(
+                collectionID: RuleCollectionIdentifier.homeRowMods,
+                defaultConfiguration: .homeRowMods(HomeRowModsConfig.vallackDefault),
+                displayName: "Ben's Modifiers"
+            ),
+            ManagedCollectionDefault(
+                collectionID: RuleCollectionIdentifier.homeRowLayerToggles,
+                defaultConfiguration: .homeRowLayerToggles(HomeRowLayerTogglesConfig(
+                    enabledKeys: Set(["f", "j"]),
+                    layerAssignments: HomeRowLayerTogglesConfig.vallackLayerAssignments,
+                    keySelection: .custom,
+                    toggleMode: .whileHeld,
+                    oppositeHandMode: .press
+                )),
+                displayName: "Vallack Layer Toggles"
+            ),
+        ]
     )
 
     // MARK: - Pack 16: KindaVim (visual-only companion)
@@ -591,7 +670,7 @@ public enum PackRegistry {
         name: "Chord Groups",
         tagline: "Press two keys at once for instant actions",
         shortDescription:
-            "Multi-key chords let you trigger actions by pressing adjacent keys simultaneously — no modifier keys needed. Includes Ben Vallack's home row navigation and editing presets.",
+        "Multi-key chords let you trigger actions by pressing adjacent keys simultaneously — no modifier keys needed. Includes Ben Vallack's home row navigation and editing presets.",
         longDescription: "",
         category: "Productivity",
         iconSymbol: "keyboard.badge.ellipsis",
@@ -615,7 +694,7 @@ public enum PackRegistry {
         name: "KindaVim",
         tagline: "Vim-style navigation for any macOS app via KindaVim.app",
         shortDescription:
-            "Shows your KindaVim mode (Normal, Insert, Visual) in the overlay header. The overlay adapts — Vim hints in Normal mode, clean keyboard in Insert.\n\nDisplay only — no key remapping. Requires KindaVim.app.",
+        "Shows your KindaVim mode (Normal, Insert, Visual) in the overlay header. The overlay adapts — Vim hints in Normal mode, clean keyboard in Insert.\n\nDisplay only — no key remapping. Requires KindaVim.app.",
         longDescription: "",
         category: "Navigation",
         iconSymbol: "keyboard.macwindow",
@@ -637,7 +716,7 @@ public enum PackRegistry {
         name: "Keystroke History",
         tagline: "See what your keyboard is actually doing",
         shortDescription:
-            "A live timeline of every keypress, tap-hold decision, and layer change. Great for tuning timing and debugging remaps.",
+        "A live timeline of every keypress, tap-hold decision, and layer change. Great for tuning timing and debugging remaps.",
         longDescription: "",
         category: "Debug",
         iconSymbol: "clock.arrow.trianglehead.counterclockwise.rotate.90",

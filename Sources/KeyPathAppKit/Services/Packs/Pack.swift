@@ -3,6 +3,32 @@
 
 import Foundation
 
+/// A collection a pack manages atomically on install/uninstall.
+/// The installer snapshots the collection's state before applying defaults
+/// and offers to restore it when the pack is removed.
+public struct ManagedCollectionDefault: Equatable, Sendable {
+    /// The collection to manage
+    public let collectionID: UUID
+    /// Whether to enable this collection on install
+    public let enableOnInstall: Bool
+    /// Configuration to apply on install (nil = just toggle, don't change config)
+    public let defaultConfiguration: RuleCollectionConfiguration?
+    /// Human-readable name for override/restore dialogs
+    public let displayName: String
+
+    public init(
+        collectionID: UUID,
+        enableOnInstall: Bool = true,
+        defaultConfiguration: RuleCollectionConfiguration? = nil,
+        displayName: String
+    ) {
+        self.collectionID = collectionID
+        self.enableOnInstall = enableOnInstall
+        self.defaultConfiguration = defaultConfiguration
+        self.displayName = displayName
+    }
+}
+
 /// A **Pack** is a named, versioned collection of mappings distributed as a
 /// unit. Users install packs from the Gallery; each installed pack contributes
 /// one or more `CustomRule`s tagged with the pack's id so uninstall can
@@ -69,6 +95,11 @@ public struct Pack: Identifiable, Equatable, Sendable {
     /// Dependencies on other packs (requires + suggests).
     public let dependencies: [PackDependency]
 
+    /// Collections this pack manages atomically on install/uninstall.
+    /// Non-empty → system pack: the installer snapshots, applies defaults,
+    /// and offers restore on uninstall. Empty → standard pack behavior.
+    public let managedDefaults: [ManagedCollectionDefault]
+
     /// Keys that should trigger this pack's merchandising card when selected,
     /// independent of bindings. Used for packs like Leader Key whose input
     /// key is configurable rather than hardcoded in bindings.
@@ -90,7 +121,8 @@ public struct Pack: Identifiable, Equatable, Sendable {
         associatedCollectionID: UUID? = nil,
         visualOnly: Bool = false,
         suggestedForKeys: [String] = [],
-        dependencies: [PackDependency] = []
+        dependencies: [PackDependency] = [],
+        managedDefaults: [ManagedCollectionDefault] = []
     ) {
         self.id = id
         self.version = version
@@ -107,6 +139,7 @@ public struct Pack: Identifiable, Equatable, Sendable {
         self.associatedCollectionID = associatedCollectionID
         self.visualOnly = visualOnly
         self.dependencies = dependencies
+        self.managedDefaults = managedDefaults
         self.suggestedForKeys = suggestedForKeys
     }
 
@@ -116,25 +149,29 @@ public struct Pack: Identifiable, Equatable, Sendable {
         Array(Set(bindings.map(\.input)))
     }
 
+    /// True if this pack manages collections atomically via `managedDefaults`.
+    public var isSystemPack: Bool {
+        !managedDefaults.isEmpty
+    }
+
     /// All rule collection UUIDs this pack manages when installed.
-    /// Most packs manage their single `associatedCollectionID`.
-    /// The Vallack system pack manages three collections atomically.
-    /// Visual-only packs manage none.
+    /// System packs list their managed defaults; other packs list their
+    /// single `associatedCollectionID`. Visual-only packs manage none.
     public var managedCollectionIDs: [UUID] {
         if visualOnly { return [] }
-        if id == "com.keypath.pack.vallack-system" {
-            return [
-                RuleCollectionIdentifier.vallackNavigation,
-                RuleCollectionIdentifier.homeRowMods,
-                RuleCollectionIdentifier.homeRowLayerToggles,
-            ]
+        if !managedDefaults.isEmpty {
+            var ids = managedDefaults.map(\.collectionID)
+            if let associated = associatedCollectionID, !ids.contains(associated) {
+                ids.insert(associated, at: 0)
+            }
+            return ids
         }
         return [associatedCollectionID].compactMap { $0 }
     }
 
     /// Preferred width for Pack Detail presentation (window or sheet).
     public var preferredDetailWidth: CGFloat {
-        let widePacks: Set<String> = [
+        let widePacks: Set = [
             "com.keypath.pack.vim-navigation",
             "com.keypath.pack.window-snapping",
             "com.keypath.pack.mission-control",
