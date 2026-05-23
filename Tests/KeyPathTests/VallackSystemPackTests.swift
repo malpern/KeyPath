@@ -158,6 +158,24 @@ final class VallackSystemPackTests: XCTestCase {
         XCTAssertFalse(PackRegistry.vallackSystem.visualOnly)
     }
 
+    func testVallackSystemPackIsSystemPack() {
+        XCTAssertTrue(PackRegistry.vallackSystem.isSystemPack)
+        XCTAssertEqual(PackRegistry.vallackSystem.managedDefaults.count, 3)
+    }
+
+    func testManagedCollectionIDsDerivedFromDefaults() {
+        let ids = PackRegistry.vallackSystem.managedCollectionIDs
+        XCTAssertTrue(ids.contains(RuleCollectionIdentifier.vallackNavigation))
+        XCTAssertTrue(ids.contains(RuleCollectionIdentifier.homeRowMods))
+        XCTAssertTrue(ids.contains(RuleCollectionIdentifier.homeRowLayerToggles))
+    }
+
+    func testNonSystemPackIsNotSystemPack() {
+        let pack = PackRegistry.pack(id: "com.keypath.pack.caps-lock-to-escape")
+        XCTAssertNotNil(pack)
+        XCTAssertFalse(pack?.isSystemPack ?? true)
+    }
+
     // MARK: - PackInstaller Snapshot/Restore
 
     @MainActor
@@ -215,7 +233,7 @@ final class VallackSystemPackTests: XCTestCase {
         )
 
         let snapshotURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/keypath/vallack-system-snapshot.json")
+            .appendingPathComponent(".config/keypath/pack-snapshots/com.keypath.pack.vallack-system.json")
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: snapshotURL.path),
             "Snapshot file should exist after install"
@@ -236,7 +254,7 @@ final class VallackSystemPackTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let snapshotURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/keypath/vallack-system-snapshot.json")
+            .appendingPathComponent(".config/keypath/pack-snapshots/com.keypath.pack.vallack-system.json")
         defer { try? FileManager.default.removeItem(at: snapshotURL) }
 
         // Capture pre-install state
@@ -306,7 +324,7 @@ final class VallackSystemPackTests: XCTestCase {
 
         // Ensure no snapshot file exists
         let snapshotURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/keypath/vallack-system-snapshot.json")
+            .appendingPathComponent(".config/keypath/pack-snapshots/com.keypath.pack.vallack-system.json")
         try? FileManager.default.removeItem(at: snapshotURL)
 
         // Uninstall should not crash — just skip the revert
