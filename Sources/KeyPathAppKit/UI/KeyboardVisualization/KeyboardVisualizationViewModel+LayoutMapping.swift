@@ -68,45 +68,61 @@ extension KeyboardVisualizationViewModel {
         rebuildLayerMappingForLayer(targetLayerName)
     }
 
-    /// Load launcher mappings from the Quick Launcher rule collection
+    /// Load launcher mappings, using pre-warmed cache if available.
     func loadLauncherMappings() {
-        Task { @MainActor in
-            let collections = await RuleCollectionStore.shared.loadCollections()
-
-            // Find the launcher collection and extract its mappings
-            guard let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
-                  let config = launcherCollection.configuration.launcherGridConfig
-            else {
-                AppLogger.shared.debug("🚀 [KeyboardViz] No launcher config found")
-                return
-            }
-
-            // Build key -> mapping dictionary (lowercase key names)
-            // Filter out apps that aren't installed on this system
-            let enabledMappings = config.mappings.filter { mapping in
-                guard mapping.isEnabled else { return false }
-
-                // URLs are always included (browser handles them)
-                if case .openURL = mapping.action { return true }
-
-                // Apps: check if installed
-                if case let .launchApp(name, bundleId) = mapping.action {
-                    let isInstalled = Self.isAppInstalled(name: name, bundleId: bundleId)
-                    if !isInstalled {
-                        AppLogger.shared.debug("🚀 [KeyboardViz] Skipping \(name) - not installed")
-                    }
-                    return isInstalled
-                }
-
-                return true
-            }
-
-            launcherMappings = Dictionary(
-                uniqueKeysWithValues: enabledMappings.map { ($0.key.lowercased(), $0) }
-            )
-
-            AppLogger.shared.info("🚀 [KeyboardViz] Loaded \(launcherMappings.count) launcher mappings (filtered for installed apps)")
+        if let cached = cachedLauncherMappings {
+            launcherMappings = cached
+            AppLogger.shared.info("🚀 [KeyboardViz] Loaded \(cached.count) launcher mappings from cache (instant)")
+            return
         }
+
+        Task { @MainActor in
+            let mappings = await Self.buildLauncherMappings()
+            launcherMappings = mappings
+            cachedLauncherMappings = mappings
+        }
+    }
+
+    /// Pre-warm launcher mappings cache at startup so layer switch is instant.
+    func prewarmLauncherMappings() {
+        Task {
+            let mappings = await Self.buildLauncherMappings()
+            await MainActor.run {
+                cachedLauncherMappings = mappings
+                AppLogger.shared.info("🚀 [KeyboardViz] Pre-warmed \(mappings.count) launcher mappings")
+            }
+
+            for (_, mapping) in mappings {
+                AppIconResolver.prewarmIcon(for: mapping.action)
+            }
+        }
+    }
+
+    /// Build launcher mappings from rule collections (shared by load and prewarm).
+    private static func buildLauncherMappings() async -> [String: LauncherMapping] {
+        let collections = await RuleCollectionStore.shared.loadCollections()
+
+        guard let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
+              let config = launcherCollection.configuration.launcherGridConfig
+        else {
+            AppLogger.shared.debug("🚀 [KeyboardViz] No launcher config found")
+            return [:]
+        }
+
+        let enabledMappings = config.mappings.filter { mapping in
+            guard mapping.isEnabled else { return false }
+            if case .openURL = mapping.action { return true }
+            if case let .launchApp(name, bundleId) = mapping.action {
+                return isAppInstalled(name: name, bundleId: bundleId)
+            }
+            return true
+        }
+
+        let result = Dictionary(
+            uniqueKeysWithValues: enabledMappings.map { ($0.key.lowercased(), $0) }
+        )
+        AppLogger.shared.info("🚀 [KeyboardViz] Built \(result.count) launcher mappings (filtered for installed apps)")
+        return result
     }
 
     /// Check if an app is installed on the system
@@ -246,8 +262,7 @@ extension KeyboardVisualizationViewModel {
 
                 // Show alert if simulator had significant failures on a non-base layer
                 if let report = simReport, report.hasSignificantFailures,
-                   targetLayerName.lowercased() != "base"
-                {
+                   targetLayerName.lowercased() != "base" {
                     await MainActor.run {
                         Self.showSimulationFailureAlert(report)
                     }
@@ -355,8 +370,7 @@ extension KeyboardVisualizationViewModel {
                 } else {
                     let outputKey = keyMapping.action.outputString.lowercased()
                     if let description = keyMapping.description,
-                       let outputKeyCode = Self.kanataNameToKeyCode(outputKey)
-                    {
+                       let outputKeyCode = Self.kanataNameToKeyCode(outputKey) {
                         actionByInput[input] = .mapped(
                             displayLabel: description,
                             outputKey: outputKey,
@@ -656,12 +670,14 @@ extension KeyboardVisualizationViewModel {
     func invalidateLayerMappings() {
         AppLogger.shared.info("🔔 [KeyboardViz] invalidateLayerMappings called - will rebuild layer mapping for '\(currentLayerName)'")
         AppLogger.shared.info("🔔 [KeyboardViz] Current layerKeyMap has \(layerKeyMap.count) entries, keyCode 0 = '\(layerKeyMap[0]?.displayLabel ?? "nil")'")
+        cachedLauncherMappings = nil
         Task {
             await layerKeyMapper.invalidateCache()
             AppLogger.shared.info("🔔 [KeyboardViz] Cache invalidated, now calling rebuildLayerMapping()")
 
             rebuildLayerMapping()
             prebuildLayerMappingsInBackground()
+            prewarmLauncherMappings()
         }
     }
 }

@@ -76,8 +76,9 @@ class KeyboardVisualizationViewModel {
     // MARK: - Launcher Mode State
 
     /// Launcher mappings for overlay display (key -> LauncherMapping)
-    /// Loaded when entering launcher layer
     var launcherMappings: [String: LauncherMapping] = [:]
+    /// Pre-computed launcher mappings cache, ready before layer switch
+    @ObservationIgnored var cachedLauncherMappings: [String: LauncherMapping]?
 
     // MARK: - Optional Feature Collections
 

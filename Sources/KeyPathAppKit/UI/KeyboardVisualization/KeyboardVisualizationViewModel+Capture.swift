@@ -31,6 +31,7 @@ extension KeyboardVisualizationViewModel {
         loadFeatureCollectionStates() // Load optional feature collection states
         preloadAllIcons() // Pre-cache launcher and layer icons
         prebuildLayerMappingsInBackground() // Warm cache for all layers
+        prewarmLauncherMappings() // Pre-cache launcher mappings + icons for instant layer switch
 
         AppLogger.shared.info("✅ [KeyboardViz] TCP-based key capture started")
     }
