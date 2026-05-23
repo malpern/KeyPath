@@ -93,8 +93,7 @@ func openPreferencesTab(_ notification: Notification.Name) {
         for item in appMenu.items {
             // Look for the "Settings..." menu item (standard name on macOS)
             if item.title.contains("Settings") || item.title.contains("Preferences"),
-               let action = item.action
-            {
+               let action = item.action {
                 AppLogger.shared.log("✅ [App] Found Settings menu item, triggering it")
                 NSApp.activate(ignoringOtherApps: true)
                 NSApp.sendAction(action, to: item.target, from: item)
@@ -119,8 +118,7 @@ func openPreferencesTab(_ notification: Notification.Name) {
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     static func isOneShotProbeEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment)
-        -> Bool
-    {
+        -> Bool {
         OneShotProbeEnvironment.isActive(environment)
     }
 
@@ -186,6 +184,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Start investigation event tap if duplicate key investigation is enabled
         InvestigationEventTapService.shared.startIfNeeded()
 
+        // Wire up stuck key recovery: AutorepeatMismatch → kanata restart
+        StuckKeyRecoveryService.shared.restartKanata = { [weak self] reason in
+            await self?.kanataManager?.restartKanata(reason: reason) ?? false
+        }
+
         // Set smart default keyboard layout on first launch
         setSmartKeyboardLayoutDefault()
 
@@ -199,8 +202,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
            let bundleIdentifier = Bundle.main.bundleIdentifier,
            SingleInstanceCoordinator.activateExistingAndTerminateIfNeeded(
                bundleIdentifier: bundleIdentifier
-           )
-        {
+           ) {
             AppLogger.shared.info("🪟 [AppDelegate] Duplicate normal app launch detected; exiting early")
             return
         }
@@ -402,8 +404,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func handleSubsequentActivation() {
         if !LiveKeyboardOverlayController.shared.isVisible,
-           LiveKeyboardOverlayController.shared.canAutoShow
-        {
+           LiveKeyboardOverlayController.shared.canAutoShow {
             LiveKeyboardOverlayController.shared.showForStartup()
             AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - showing overlay")
         } else if !LiveKeyboardOverlayController.shared.isVisible {
