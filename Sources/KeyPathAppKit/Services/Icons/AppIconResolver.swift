@@ -6,9 +6,16 @@ import UniformTypeIdentifiers
 /// Uses `NSWorkspace` to locate apps and retrieve their icons.
 /// Falls back to generic icons if actions cannot be found.
 enum AppIconResolver {
-    /// Get icon for any key action type
+    private nonisolated(unsafe) static var iconCache: [String: NSImage] = [:]
+
+    /// Get icon for any key action type, using cache when available.
     static func icon(for action: KeyAction) -> NSImage? {
-        switch action {
+        let cacheKey = Self.cacheKey(for: action)
+        if let cacheKey, let cached = iconCache[cacheKey] {
+            return cached
+        }
+
+        let image: NSImage? = switch action {
         case let .launchApp(name, bundleId):
             appIcon(name: name, bundleId: bundleId)
         case .openURL:
@@ -20,6 +27,31 @@ enum AppIconResolver {
         default:
             nil
         }
+
+        if let cacheKey, let image {
+            iconCache[cacheKey] = image
+        }
+        return image
+    }
+
+    /// Pre-warm the icon cache for a key action (called at startup).
+    static func prewarmIcon(for action: KeyAction) {
+        _ = icon(for: action)
+    }
+
+    private static func cacheKey(for action: KeyAction) -> String? {
+        switch action {
+        case let .launchApp(name, bundleId):
+            "app:\(bundleId ?? name)"
+        case let .openURL(url):
+            "url:\(url)"
+        case let .openFolder(path, _):
+            "folder:\(path)"
+        case let .runScript(path, _):
+            "script:\(path)"
+        default:
+            nil
+        }
     }
 
     // MARK: - App Icons
@@ -28,8 +60,7 @@ enum AppIconResolver {
     private static func appIcon(name: String, bundleId: String?) -> NSImage? {
         // Try bundle ID first (most reliable)
         if let bundleId,
-           let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId)
-        {
+           let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
             return NSWorkspace.shared.icon(forFile: appURL.path)
         }
 
