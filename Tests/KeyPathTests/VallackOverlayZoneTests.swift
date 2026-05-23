@@ -57,6 +57,32 @@ final class VallackOverlayZoneTests: XCTestCase {
         XCTAssertEqual(zones?[4], .navMapping)
     }
 
+    func testZonesForLayerReturnsNilOnLauncherLayer() {
+        let zones = VallackZoneMap.zones(forLayer: "launcher")
+        XCTAssertNil(zones, "Launcher layer should not get Vallack zone colors")
+    }
+
+    func testZonesForLayerReturnsNilOnArbitraryLayer() {
+        let zones = VallackZoneMap.zones(forLayer: "vim")
+        XCTAssertNil(zones, "Non-base, non-nav layers should not get Vallack zone colors")
+    }
+
+    func testResolverReturnsNoColorsOnLauncherLayer() {
+        let colors = PackZoneResolver.activeZoneColors(
+            installedPackIDs: [PackRegistry.vallackSystem.id],
+            layerName: "launcher"
+        )
+        XCTAssertTrue(colors.isEmpty, "Launcher layer should have no zone colors")
+    }
+
+    func testResolverReturnsNoSubtitlesOnLauncherLayer() {
+        let subs = PackZoneResolver.activeZoneSubtitles(
+            installedPackIDs: [PackRegistry.vallackSystem.id],
+            layerName: "launcher"
+        )
+        XCTAssertTrue(subs.isEmpty, "Launcher layer should have no zone subtitles")
+    }
+
     // MARK: - PackZoneResolver (generic overlay interface)
 
     func testResolverReturnsColorsWhenVallackInstalled() {
