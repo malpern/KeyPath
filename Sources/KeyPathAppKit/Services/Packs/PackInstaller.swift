@@ -608,6 +608,14 @@ public final class PackInstaller {
             return true
         }
 
+        // If the collection still has its catalog default config, the user
+        // never customized it — apply the pack's config silently.
+        let catalogDefault = RuleCollectionCatalog().defaultCollections()
+            .first { $0.id == managed.collectionID }
+        if let catalogDefault, existingCollection.configuration == catalogDefault.configuration {
+            return true
+        }
+
         if TestEnvironment.isRunningTests {
             #if DEBUG
                 if let override = Self.testOverrideApplyDefault { return override }
