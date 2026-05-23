@@ -52,7 +52,8 @@ enum PackZoneResolver {
         case PackRegistry.vallackSystem.id:
             let lower = layerName.lowercased()
             if lower.contains("vallack-nav") { return VallackZoneMap.navSubtitles }
-            return VallackZoneMap.homeSubtitles
+            if lower == "base" { return VallackZoneMap.homeSubtitles }
+            return nil
         default:
             return nil
         }

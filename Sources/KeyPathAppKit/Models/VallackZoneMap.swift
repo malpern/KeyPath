@@ -42,6 +42,9 @@ enum VallackZoneMap {
         if lower.contains("vallack-nav") {
             return navZones()
         }
-        return homeZones()
+        if lower == "base" {
+            return homeZones()
+        }
+        return nil
     }
 }
