@@ -569,6 +569,57 @@ final class GenericPackConfigTests: XCTestCase {
         XCTAssertFalse(launcherCollection?.isEnabled ?? true, "Launcher should be disabled after uninstall")
     }
 
+    // MARK: - Display Settings Diff
+
+    func testTapHoldPickerDisplaySettingsDiff() {
+        let current = RuleCollectionConfiguration.tapHoldPicker(TapHoldPickerConfig(
+            inputKey: "caps",
+            tapOptions: [
+                SingleKeyPreset(output: "hyper", label: "✦ Hyper", description: "", icon: ""),
+                SingleKeyPreset(output: "esc", label: "⎋ Escape", description: "", icon: ""),
+            ],
+            holdOptions: [
+                SingleKeyPreset(output: "hyper", label: "✦ Hyper", description: "", icon: ""),
+                SingleKeyPreset(output: "meh", label: "◇ Meh", description: "", icon: ""),
+            ],
+            selectedTapOutput: "hyper",
+            selectedHoldOutput: "hyper"
+        ))
+
+        let proposed = RuleCollectionConfiguration.tapHoldPicker(TapHoldPickerConfig(
+            inputKey: "caps",
+            tapOptions: [
+                SingleKeyPreset(output: "hyper", label: "✦ Hyper", description: "", icon: ""),
+                SingleKeyPreset(output: "esc", label: "⎋ Escape", description: "", icon: ""),
+            ],
+            holdOptions: [
+                SingleKeyPreset(output: "hyper", label: "✦ Hyper", description: "", icon: ""),
+                SingleKeyPreset(output: "meh", label: "◇ Meh", description: "", icon: ""),
+            ],
+            selectedTapOutput: "esc",
+            selectedHoldOutput: "hyper"
+        ))
+
+        let diffs = RuleCollectionConfiguration.diffSettings(current: current, proposed: proposed)
+        XCTAssertEqual(diffs.count, 1, "Only tap action differs")
+        XCTAssertEqual(diffs.first?.label, "Tap Action")
+        XCTAssertEqual(diffs.first?.current, "✦ Hyper")
+        XCTAssertEqual(diffs.first?.proposed, "⎋ Escape")
+    }
+
+    func testIdenticalConfigsProduceNoDiff() {
+        let config = RuleCollectionConfiguration.tapHoldPicker(TapHoldPickerConfig(
+            inputKey: "caps",
+            tapOptions: [SingleKeyPreset(output: "esc", label: "⎋ Escape", description: "", icon: "")],
+            holdOptions: [SingleKeyPreset(output: "hyper", label: "✦ Hyper", description: "", icon: "")],
+            selectedTapOutput: "esc",
+            selectedHoldOutput: "hyper"
+        ))
+
+        let diffs = RuleCollectionConfiguration.diffSettings(current: config, proposed: config)
+        XCTAssertTrue(diffs.isEmpty, "Identical configs should produce no diffs")
+    }
+
     // MARK: - Legacy Vallack Migration
 
     func testLegacyVallackSnapshotMigration() throws {

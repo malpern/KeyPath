@@ -135,6 +135,106 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         return nil
     }
 
+    // MARK: - Display Settings (for comparison dialogs)
+
+    struct DisplaySetting: Equatable {
+        let label: String
+        let value: String
+    }
+
+    struct SettingDiff {
+        let label: String
+        let current: String
+        let proposed: String
+    }
+
+    var displaySettings: [DisplaySetting] {
+        switch self {
+        case let .tapHoldPicker(config):
+            var settings: [DisplaySetting] = []
+            if let tap = config.selectedTapOutput {
+                let label = config.tapOptions.first { $0.output == tap }?.label ?? tap
+                settings.append(DisplaySetting(label: "Tap Action", value: label))
+            }
+            if let hold = config.selectedHoldOutput {
+                let label = config.holdOptions.first { $0.output == hold }?.label ?? hold
+                settings.append(DisplaySetting(label: "Hold Action", value: label))
+            }
+            return settings
+
+        case let .homeRowMods(config):
+            var settings: [DisplaySetting] = []
+            let sortedKeys = config.enabledKeys.sorted()
+            settings.append(DisplaySetting(
+                label: "Modifier Keys",
+                value: sortedKeys.isEmpty ? "None" : sortedKeys.joined(separator: ", ").uppercased()
+            ))
+            let modSummary = sortedKeys.compactMap { key in
+                config.modifierAssignments[key].map { mod in
+                    "\(key.uppercased())=\(Self.modifierDisplayName(mod))"
+                }
+            }.joined(separator: ", ")
+            if !modSummary.isEmpty {
+                settings.append(DisplaySetting(label: "Layout", value: modSummary))
+            }
+            settings.append(DisplaySetting(
+                label: "Hold Timing",
+                value: "\(config.timing.tapWindow) ms"
+            ))
+            return settings
+
+        case let .homeRowLayerToggles(config):
+            var settings: [DisplaySetting] = []
+            let sortedKeys = config.enabledKeys.sorted()
+            settings.append(DisplaySetting(
+                label: "Toggle Keys",
+                value: sortedKeys.isEmpty ? "None" : sortedKeys.joined(separator: ", ").uppercased()
+            ))
+            let layerSummary = sortedKeys.compactMap { key in
+                config.layerAssignments[key].map { "\(key.uppercased())→\($0)" }
+            }.joined(separator: ", ")
+            if !layerSummary.isEmpty {
+                settings.append(DisplaySetting(label: "Layers", value: layerSummary))
+            }
+            return settings
+
+        default:
+            return []
+        }
+    }
+
+    static func diffSettings(
+        current: RuleCollectionConfiguration,
+        proposed: RuleCollectionConfiguration
+    ) -> [SettingDiff] {
+        let currentSettings = current.displaySettings
+        let proposedSettings = proposed.displaySettings
+
+        var diffs: [SettingDiff] = []
+        for proposed in proposedSettings {
+            let currentMatch = currentSettings.first { $0.label == proposed.label }
+            let currentValue = currentMatch?.value ?? "—"
+            if currentValue != proposed.value {
+                diffs.append(SettingDiff(
+                    label: proposed.label,
+                    current: currentValue,
+                    proposed: proposed.value
+                ))
+            }
+        }
+        return diffs
+    }
+
+    private static func modifierDisplayName(_ mod: String) -> String {
+        switch mod {
+        case "lctl", "rctl": "⌃"
+        case "lalt", "ralt": "⌥"
+        case "lsft", "rsft": "⇧"
+        case "lmet", "rmet": "⌘"
+        default: mod
+        }
+    }
+
     // MARK: - Mutating Helpers
 
     /// Update the selected output for single key picker configuration
@@ -681,7 +781,10 @@ public struct AutoShiftSymbolsConfig: Codable, Equatable, Sendable {
 
 /// A per-key repeat rate override within the managed-repeat system.
 public struct KeyRepeatOverride: Codable, Equatable, Sendable, Identifiable {
-    public var id: String { key }
+    public var id: String {
+        key
+    }
+
     public let key: String
     public var delayMs: Int
     public var intervalMs: Int
@@ -756,7 +859,9 @@ public struct KeyRepeatControlConfig: Codable, Equatable, Sendable {
         case fastNavigation
         case careful
 
-        public var id: String { rawValue }
+        public var id: String {
+            rawValue
+        }
 
         public var label: String {
             switch self {
