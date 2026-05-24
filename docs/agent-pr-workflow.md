@@ -40,6 +40,13 @@ End-to-end process for shepherding code from initial request through to a clean 
 18. **Verify the merge** — `gh pr view <number> --json state` should show `"state": "MERGED"`.
 19. **Verify issues closed** — for each `Fixes #NNN` reference, confirm the issue is now closed: `gh issue view <number> --json state`.
 
+## Phase 5.5: Publish Documentation
+
+If the PR added or changed files in `guides/`:
+
+19b. **Copy guides to gh-pages** — use the gh-pages worktree at `.worktrees/gh-pages` (or `Scripts/publish-guides.sh`). Copy new/changed `guides/*.md` files, update `docs.md` if new guides need links in the landing page.
+19c. **Push gh-pages** — `cd .worktrees/gh-pages && git add -A && git commit -m "Publish <guide names>" && git push origin gh-pages`.
+
 ## Phase 6: Cleanup
 
 20. **Exit the worktree** — `ExitWorktree` with `action: "remove"` and `discard_changes: true` (safe because all work is merged). This deletes the worktree directory and branch.

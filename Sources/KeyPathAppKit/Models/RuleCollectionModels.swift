@@ -376,6 +376,7 @@ public enum RuleCollectionIdentifier {
     public static let autoShiftSymbols = UUID(uuidString: "D1E2F3A4-B5C6-7D8E-9F0A-1B2C3D4E5F6A")!
     public static let missionControl = UUID(uuidString: "C3A5E2F1-8D4B-4C9A-A1E7-5F3D9B2C8A6E")!
     public static let keyRepeatControl = UUID(uuidString: "E4F6A8B0-2C3D-5E7F-9A1B-4D6E8F0A2C4E")!
+    public static let homeRowArrows = UUID(uuidString: "A3B5C7D9-0E2F-4A6B-8C1D-3E5F7A9B0C2D")!
     public static let vallackNavigation = UUID(uuidString: "F2A4B6C8-1D3E-5F7A-9B0C-2D4E6F8A0B2C")!
 }
 

@@ -70,6 +70,7 @@ struct RuleCollectionCatalog {
             funLayer,
             autoShiftSymbols,
             keyRepeatControl,
+            homeRowArrows,
             vallackNavigation,
             launcher
         ]
@@ -969,6 +970,70 @@ struct RuleCollectionCatalog {
             tags: ["fast", "navigation", "arrows", "repeat", "speed"],
             configuration: .keyRepeatControl(config)
         )
+    }
+
+    // MARK: - Home Row Arrows
+
+    private var homeRowArrows: RuleCollection {
+        RuleCollection(
+            id: RuleCollectionIdentifier.homeRowArrows,
+            name: "Home Row Arrows",
+            summary: "Hold F for arrow keys under your right hand. Tap F normally. Your fingers never leave the home row.",
+            category: .navigation,
+            mappings: [],
+            isEnabled: true,
+            isSystemDefault: true,
+            icon: "arrow.up.and.down.and.arrow.left.and.right",
+            tags: ["arrows", "navigation", "home row", "inverted-t", "vim", "beginner"],
+            targetLayer: .custom("home-arrows"),
+            momentaryActivator: MomentaryActivator(
+                input: "f",
+                targetLayer: .custom("home-arrows"),
+                sourceLayer: .base
+            ),
+            activationHint: "Hold F for arrow keys",
+            configuration: .layerPresetPicker(LayerPresetPickerConfig(
+                presets: homeRowArrowsPresets,
+                selectedPresetId: "inverted-t"
+            ))
+        )
+    }
+
+    private var homeRowArrowsPresets: [LayerPreset] {
+        [
+            LayerPreset(
+                id: "inverted-t",
+                label: "Inverted-T",
+                description: "Arrows match your physical arrow key layout. Easy to learn.",
+                icon: "arrow.up.and.down.and.arrow.left.and.right",
+                mappings: [
+                    KeyMapping(input: "i", action: .keystroke(key: "up"), description: "↑", sectionLabel: "Arrows"),
+                    KeyMapping(input: "j", action: .keystroke(key: "left"), description: "←"),
+                    KeyMapping(input: "k", action: .keystroke(key: "down"), description: "↓"),
+                    KeyMapping(input: "l", action: .keystroke(key: "right"), description: "→"),
+                    KeyMapping(input: "h", action: .keystroke(key: "home"), description: "Home", sectionBreak: true, sectionLabel: "Extended"),
+                    KeyMapping(input: ";", action: .keystroke(key: "end"), description: "End"),
+                    KeyMapping(input: "u", action: .keystroke(key: "pgup"), description: "Page Up"),
+                    KeyMapping(input: "o", action: .keystroke(key: "pgdn"), description: "Page Down"),
+                ]
+            ),
+            LayerPreset(
+                id: "vim",
+                label: "Vim-Style",
+                description: "Classic HJKL navigation from Vim. Popular with developers.",
+                icon: "chevron.left.forwardslash.chevron.right",
+                mappings: [
+                    KeyMapping(input: "h", action: .keystroke(key: "left"), description: "←", sectionLabel: "Arrows"),
+                    KeyMapping(input: "j", action: .keystroke(key: "down"), description: "↓"),
+                    KeyMapping(input: "k", action: .keystroke(key: "up"), description: "↑"),
+                    KeyMapping(input: "l", action: .keystroke(key: "right"), description: "→"),
+                    KeyMapping(input: "y", action: .keystroke(key: "home"), description: "Home", sectionBreak: true, sectionLabel: "Extended"),
+                    KeyMapping(input: ";", action: .keystroke(key: "end"), description: "End"),
+                    KeyMapping(input: "u", action: .keystroke(key: "pgup"), description: "Page Up"),
+                    KeyMapping(input: "o", action: .keystroke(key: "pgdn"), description: "Page Down"),
+                ]
+            ),
+        ]
     }
 
     // MARK: - Vallack Navigation

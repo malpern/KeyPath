@@ -9,6 +9,7 @@ public enum PackRegistry {
     /// All packs shipping in M1. Order matters — this is the display order in
     /// the Gallery view.
     public static let starterKit: [Pack] = [
+        homeRowArrows,
         capsLockToEscape,
         homeRowMods,
         escapeRemap,
@@ -74,6 +75,40 @@ public enum PackRegistry {
         default: return lower
         }
     }
+
+    // MARK: - Pack 0: Home Row Arrows
+
+    public static let homeRowArrows = Pack(
+        id: "com.keypath.pack.home-row-arrows",
+        version: "1.0.0",
+        name: "Home Row Arrows",
+        tagline: "Hold F for arrow keys — your fingers never leave the home row",
+        shortDescription:
+        "Hold F and your right hand becomes arrow keys. Tap F normally to type. I/J/K/L for arrows in an inverted-T layout you already know from your arrow keys. Plus Home, End, Page Up, Page Down.",
+        longDescription: "",
+        category: "Navigation",
+        iconSymbol: "arrow.up.and.down.and.arrow.left.and.right",
+        iconSecondarySymbol: "f.cursive",
+        quickSettings: [],
+        bindings: [
+            PackBindingTemplate(input: "f", output: "f", holdOutput: "layer:home-arrows",
+                                title: "F · tap / Arrows · hold"),
+        ],
+        associatedCollectionID: RuleCollectionIdentifier.homeRowArrows,
+        suggestedForKeys: ["f", "i", "j", "k", "l"],
+        dependencies: [
+            PackDependency(
+                packID: "com.keypath.pack.home-row-mods",
+                kind: .conflictsWith,
+                description: "Both use F as a hold key — Home Row Mods assigns F to Command, Home Row Arrows assigns F to a navigation layer"
+            ),
+            PackDependency(
+                packID: "com.keypath.pack.vallack-system",
+                kind: .conflictsWith,
+                description: "Vallack Nav also uses F as a hold key for navigation — use one or the other"
+            ),
+        ]
+    )
 
     // MARK: - Pack 1: Caps Lock → Escape
 
