@@ -71,9 +71,9 @@ tail -f ~/Library/Logs/KeyPath/keypath-debug.log | grep "Layer change"
 
 Keyboard Maestro can trigger macros from Distributed Notifications. Create a macro with the trigger "Distributed Notification Received" and set the notification name to `com.keypath.layerChanged`.
 
-### Shortcuts
+### Shortcuts / Siri / Apple Intelligence
 
-Shortcuts cannot directly listen for Distributed Notifications, but you can bridge them using a Hammerspoon callback that runs a Shortcut:
+KeyPath exposes [App Intents](APP_INTENTS.md) for direct Shortcuts and Siri integration — query the current layer, control the service, or send any action URI. For event-driven automation (reacting to layer changes), bridge via Hammerspoon:
 
 ```lua
 spoon.KeyPath:onLayerChange(function(layer)

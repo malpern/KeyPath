@@ -8,6 +8,7 @@ enum DistributedNotificationBridge {
     static let layerChangedName = NSNotification.Name("com.keypath.layerChanged")
     static let serviceStateChangedName = NSNotification.Name("com.keypath.serviceStateChanged")
 
+    private(set) static var currentLayer: String = "base"
     private static var previousLayer: String = "base"
     private static var observer: NSObjectProtocol?
 
@@ -24,6 +25,7 @@ enum DistributedNotificationBridge {
 
             let previous = previousLayer
             previousLayer = layerName
+            currentLayer = layerName
 
             DistributedNotificationCenter.default().postNotificationName(
                 layerChangedName,
