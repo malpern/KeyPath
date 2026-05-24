@@ -8344,3 +8344,46 @@ a.button:active {
 /* cache-bust 2026-04-25: force a fresh build SHA so browsers cached
  * on the previous {{ css_version }} URL pick up the kindavim banner
  * aspect-ratio fix. The trailing comment is the entire payload. */
+
+/* Core Features — featured card with spine layout */
+.docs-card-featured {
+    grid-column: 1 / -1;
+    border-color: var(--color-primary);
+    border-width: 2px;
+}
+
+.docs-card-spine .docs-card-links {
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.docs-card-spine .docs-card-links li a {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.docs-card-spine .docs-card-links li a:hover {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.docs-card-secondary-label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+}
+
+.docs-card-links-compact {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs) var(--spacing-md);
+}
+
+.docs-card-links-compact li a {
+    font-weight: 400;
+}
