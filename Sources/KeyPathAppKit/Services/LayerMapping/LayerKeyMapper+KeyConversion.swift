@@ -88,10 +88,10 @@ extension LayerKeyMapper {
         case let key where key.hasPrefix("f") && Int(String(key.dropFirst())) != nil:
             key.uppercased()
         // Navigation keys
-        case "home": "↖"
-        case "end": "↘"
-        case "pageup", "pgup": "⇞"
-        case "pagedown", "pgdn": "⇟"
+        case "home": "Home"
+        case "end": "End"
+        case "pageup", "pgup": "Pg Up"
+        case "pagedown", "pgdn": "Pg Dn"
         // Media / system keys (macOS function row)
         case "brdn": "☀-"
         case "brup": "☀+"
