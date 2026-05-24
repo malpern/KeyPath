@@ -34,6 +34,7 @@ public struct PackDependency: Codable, Equatable, Sendable {
 public enum DependencyKind: String, Codable, Sendable {
     case requires
     case enhancedBy
+    case conflictsWith
 }
 
 /// Serializable predicates for configuration state checks.
