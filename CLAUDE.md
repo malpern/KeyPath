@@ -64,6 +64,16 @@ Git guardrail hooks in `.claude/settings.json` block: commits on master, force-p
 
 **Kanata fork safety:** The kanata submodule (`External/kanata`) tracks `keypath/bundled` on `malpern/kanata`. Treat `keypath/bundled` like master — **never force-push** to it. Before pushing to any remote branch in the fork, verify the push is a fast-forward: `git log --oneline <source>..<target>`. If commits would be lost, cherry-pick instead. The `main` branch in kanata-pr may diverge from `keypath/bundled` — they are NOT interchangeable.
 
+## Documentation
+
+Two doc systems: `guides/` (user-facing, published to gh-pages) and `docs/` (developer-facing, master only).
+
+**When to write docs:** Any user-visible feature needs a guide in `guides/`. Developer-only changes (refactors, internal APIs) go in `docs/` if they affect architecture or integration patterns.
+
+**Publishing:** `guides/` content must be copied to the `gh-pages` branch to go live. Use `Scripts/publish-guides.sh` or manually copy changed files to the gh-pages worktree at `.worktrees/gh-pages`. The docs landing page (`docs.md` on gh-pages) must be updated to link new guides.
+
+**Style:** Follow [`docs/help-content-philosophy.md`](docs/help-content-philosophy.md) — user goals first, no jargon, ASCII UI mockups. Guides need Jekyll frontmatter (layout, title, description, permalink).
+
 ## Build & Deploy
 
 ```bash
