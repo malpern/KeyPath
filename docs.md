@@ -93,6 +93,7 @@ theme: parchment
 <ul class="docs-card-links">
 <li><a href="{{ '/guides/keyboard-layouts/' | relative_url }}">Works With Your Keyboard</a></li>
 <li><a href="{{ '/guides/alternative-layouts/' | relative_url }}">Alternative Layouts</a></li>
+<li><a href="{{ '/guides/qmk-import/' | relative_url }}">Custom Keyboards (QMK)</a></li>
 </ul>
 </div>
 
