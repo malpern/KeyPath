@@ -25,6 +25,10 @@ enum RulesRecommendationEngine {
         // --- Always-eligible popular starters ---
 
         maybeAdd(
+            RuleCollectionIdentifier.homeRowArrows,
+            reason: "Arrow keys under your right hand — hold F, press I/J/K/L. No more reaching."
+        )
+        maybeAdd(
             RuleCollectionIdentifier.capsLockRemap,
             reason: "Most popular: turn Caps Lock into Escape + Hyper for instant shortcuts."
         )
