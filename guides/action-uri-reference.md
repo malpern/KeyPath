@@ -119,12 +119,22 @@ open "keypath://launch/Safari"
 
 Use an Alfred workflow "Open URL" action with `keypath://launch/{query}`.
 
-### Shortcuts.app
+### Shortcuts.app / Siri
 
-Add a "Run Shell Script" action:
+KeyPath has native Shortcuts integration — no shell scripts needed. Use the "Send KeyPath Action" action directly, or ask Siri to start/stop KeyPath or check your current layer. See the [Siri & Shortcuts guide]({{ '/guides/siri-and-shortcuts/' | relative_url }}).
+
+You can also use a "Run Shell Script" action:
 
 ```bash
 open "keypath://launch/Safari"
+```
+
+### Hammerspoon
+
+Use the [KeyPath.spoon]({{ '/guides/hammerspoon/' | relative_url }}) to react to layer changes and send actions:
+
+```lua
+spoon.KeyPath:sendAction("launch/Safari")
 ```
 
 ### Shell scripts
@@ -160,6 +170,8 @@ If an action fails (e.g., app not found), KeyPath logs the error but doesn't cra
 ## Related guides
 
 - **[Launching Apps]({{ '/guides/action-uri/' | relative_url }})** — Set up app launching through KeyPath's UI
+- **[Siri & Shortcuts]({{ '/guides/siri-and-shortcuts/' | relative_url }})** — Voice control and Shortcuts automations
+- **[Hammerspoon]({{ '/guides/hammerspoon/' | relative_url }})** — Layer-aware desktop automation
 - **[Windows & App Shortcuts]({{ '/guides/window-management/' | relative_url }})** — App-specific keymaps and window snapping
 - **[From Kanata]({{ '/migration/kanata-users/' | relative_url }})** — Using Action URIs in your Kanata config
 - **[Back to Docs](https://malpern.github.io/KeyPath/docs)** — See all available guides

@@ -65,6 +65,28 @@ theme: parchment
 </div>
 
 <div class="docs-card">
+<h3><a href="{{ '/guides/siri-and-shortcuts/' | relative_url }}">Automation &amp; Integration</a></h3>
+<p>Control KeyPath with Siri, automate with Shortcuts, script with Hammerspoon, or use the CLI.</p>
+<ul class="docs-card-links">
+<li><a href="{{ '/guides/siri-and-shortcuts/' | relative_url }}">Siri &amp; Shortcuts</a></li>
+<li><a href="{{ '/guides/hammerspoon/' | relative_url }}">Hammerspoon</a></li>
+<li><a href="{{ '/guides/cli/' | relative_url }}">Command Line</a></li>
+<li><a href="{{ '/guides/action-uri-reference/' | relative_url }}">Action URI Reference</a></li>
+</ul>
+</div>
+
+<div class="docs-card">
+<h3><a href="{{ '/guides/siri-and-shortcuts/' | relative_url }}">Automation & Integration</a></h3>
+<p>Control KeyPath with Siri, automate with Shortcuts, script with Hammerspoon, or use the CLI.</p>
+<ul class="docs-card-links">
+<li><a href="{{ '/guides/siri-and-shortcuts/' | relative_url }}">Siri & Shortcuts</a></li>
+<li><a href="{{ '/guides/hammerspoon/' | relative_url }}">Hammerspoon</a></li>
+<li><a href="{{ '/guides/cli/' | relative_url }}">Command Line</a></li>
+<li><a href="{{ '/guides/action-uri-reference/' | relative_url }}">Action URI Reference</a></li>
+</ul>
+</div>
+
+<div class="docs-card">
 <h3><a href="{{ '/guides/action-uri-reference/' | relative_url }}">Reference</a></h3>
 <p>Technical references, privacy details, and troubleshooting.</p>
 <ul class="docs-card-links">
