@@ -272,7 +272,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.shared.info(
             "🚪 [AppDelegate] Application will terminate - performing synchronous cleanup"
         )
-        DistributedNotificationBridge.postServiceState("stopped")
+        // Don't broadcast "stopped" here — the LaunchDaemon keeps running
+        // after the UI app quits. Only ServiceLifecycleCoordinator.stopKanata()
+        // should broadcast service state changes.
         DistributedNotificationBridge.stop()
         kanataManager?.cleanupSync()
         AppLogger.shared.info("✅ [AppDelegate] Cleanup complete, app terminating")
