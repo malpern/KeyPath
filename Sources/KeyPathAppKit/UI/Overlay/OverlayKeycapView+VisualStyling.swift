@@ -160,6 +160,10 @@ extension OverlayKeycapView {
         // Layer mode: dark gray for unmapped keys (same as launcher)
         else if isLayerMode {
             KeyPathColors.keycapDark
+        }
+        // Inline layer: mapped keys get accent highlight, unmapped keys stay normal
+        else if isInlineLayer, hasLayerMapping {
+            collectionColor(for: layerKeyInfo?.collectionId)
         } else if isModifierKey {
             colorway.modBaseColor
         } else if isAccentKey {
