@@ -7,12 +7,16 @@ struct SendActionIntent: AppIntent {
         "Send an action to KeyPath (e.g., launch an app, show a notification, trigger a system action)."
     )
 
-    @Parameter(title: "Action URI", description: "A keypath:// URI (e.g., keypath://launch/Obsidian)")
+    @Parameter(title: "Action URI", description: "A keypath:// URI or shorthand (e.g., keypath://launch/Obsidian or launch:obsidian)")
     var uri: String
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        let result = ActionDispatcher.shared.dispatch(message: uri)
+        var normalized = uri
+        if !normalized.contains("://"), !normalized.contains(":") {
+            normalized = "keypath://\(normalized)"
+        }
+        let result = ActionDispatcher.shared.dispatch(message: normalized)
         switch result {
         case .success:
             return .result()

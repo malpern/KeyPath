@@ -6,7 +6,8 @@ struct GetCurrentLayerIntent: AppIntent {
     static let description = IntentDescription("Returns the currently active keyboard layer.")
 
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
-        let layer = await MainActor.run { DistributedNotificationBridge.currentLayer }
+        let facade = ConfigFacade()
+        let layer = try await facade.tcpGetCurrentLayer()
         return .result(value: layer)
     }
 

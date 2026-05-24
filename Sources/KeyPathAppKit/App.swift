@@ -272,6 +272,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.shared.info(
             "🚪 [AppDelegate] Application will terminate - performing synchronous cleanup"
         )
+        DistributedNotificationBridge.postServiceState("stopped")
+        DistributedNotificationBridge.stop()
         kanataManager?.cleanupSync()
         AppLogger.shared.info("✅ [AppDelegate] Cleanup complete, app terminating")
     }

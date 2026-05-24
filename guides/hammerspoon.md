@@ -14,16 +14,16 @@ permalink: /guides/hammerspoon/
 
 ## Install
 
-Copy the Spoon to your Hammerspoon directory:
-
-```bash
-cp -r /Applications/KeyPath.app/../Integrations/KeyPath.spoon ~/.hammerspoon/Spoons/
-```
-
-Or if you have the KeyPath source:
+If you have the KeyPath source checkout, symlink the Spoon:
 
 ```bash
 ln -s /path/to/KeyPath/Integrations/KeyPath.spoon ~/.hammerspoon/Spoons/KeyPath.spoon
+```
+
+Or copy it directly:
+
+```bash
+cp -r /path/to/KeyPath/Integrations/KeyPath.spoon ~/.hammerspoon/Spoons/
 ```
 
 Reload Hammerspoon after installing.
