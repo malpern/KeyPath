@@ -117,7 +117,6 @@ extension PackDetailView {
                             Task { await applyLayerPresetEdit(presetId: presetId, collectionID: homeRowArrowsCollection.id) }
                         }
                     )
-                    .id(selectedLayerPresetId ?? "inverted-t")
                 }
             }
         } else if let layerPresetCollection = associatedLayerPresetCollection {
