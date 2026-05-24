@@ -107,6 +107,11 @@ public enum PackRegistry {
                 kind: .conflictsWith,
                 description: "Vallack Nav also uses F as a hold key for navigation — use one or the other"
             ),
+            PackDependency(
+                packID: "com.keypath.pack.key-repeat-control",
+                kind: .enhancedBy,
+                description: "Fast Navigation makes your Home Row Arrows repeat 3× faster for quick cursor movement"
+            ),
         ]
     )
 
