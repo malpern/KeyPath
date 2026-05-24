@@ -80,8 +80,17 @@ struct OverlayKeycapView: View {
 
     /// Whether we're in a non-base layer (e.g., nav, vim) but not launcher mode
     var isLayerMode: Bool {
-        !isLauncherMode && currentLayerName.lowercased() != "base" && currentLayerName.lowercased() != "Base"
+        !isLauncherMode && !isInlineLayer && currentLayerName.lowercased() != "base"
     }
+
+    /// "Inline" layers render like the base layer — unmapped keys keep their
+    /// normal appearance, mapped keys swap in their action. Use for simple
+    /// layers where most of the keyboard stays the same (e.g., Home Row Arrows).
+    var isInlineLayer: Bool {
+        Self.inlineLayerNames.contains(currentLayerName.lowercased())
+    }
+
+    static let inlineLayerNames: Set<String> = ["home-arrows"]
 
     /// Whether this key has a meaningful layer mapping (not transparent/identity)
     var hasLayerMapping: Bool {
