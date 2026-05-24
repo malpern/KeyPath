@@ -60,7 +60,9 @@ private extension LauncherKeymapTranslator {
         // Brackets and backslash
         33, 30, 42,
         // Special keys (manually assignable)
-        36, 48, 49, 51
+        36, 48, 49, 51,
+        // Modifier keys (manually assignable)
+        60
     ]
 
     static let canonicalFallbackLabel: [String: String] = [
@@ -78,6 +80,7 @@ private extension LauncherKeymapTranslator {
         "enter": "↩",
         "tab": "⇥",
         "space": "␣",
-        "backspace": "⌫"
+        "backspace": "⌫",
+        "rightshift": "⇧R"
     ]
 }
