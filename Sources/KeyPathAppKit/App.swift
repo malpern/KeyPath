@@ -504,10 +504,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.shared.debug(
             "🪟 [AppDelegate] Main window controller created (deferring show until activation)"
         )
-        mainWindowController?.primeForActivation()
-        AppLogger.shared.debug(
-            "🪟 [AppDelegate] Primed main window so Finder launches have a visible surface to activate"
+        let hasExistingConfig = Foundation.FileManager.default.fileExists(
+            atPath: NSHomeDirectory() + "/.config/keypath/keypath.kbd"
         )
+        if !hasExistingConfig {
+            mainWindowController?.primeForActivation()
+            AppLogger.shared.debug(
+                "🪟 [AppDelegate] Primed main window so Finder launches have a visible surface to activate"
+            )
+        } else {
+            AppLogger.shared.debug(
+                "🪟 [AppDelegate] Skipping splash prime — existing config detected, overlay will show directly"
+            )
+        }
 
         LiveKeyboardOverlayController.shared.configure(
             kanataViewModel: vm,
