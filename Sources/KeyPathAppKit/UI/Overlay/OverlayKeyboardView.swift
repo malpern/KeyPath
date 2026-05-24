@@ -68,7 +68,11 @@ struct OverlayKeyboardView: View {
 
     /// Whether we're in a non-base layer (e.g., nav, vim) but not launcher mode
     private var isLayerMode: Bool {
-        !isLauncherMode && currentLayerName.lowercased() != "base"
+        !isLauncherMode && !isInlineLayer && currentLayerName.lowercased() != "base"
+    }
+
+    private var isInlineLayer: Bool {
+        OverlayKeycapView.inlineLayerNames.contains(currentLayerName.lowercased())
     }
 
     /// Track caps lock state from system
