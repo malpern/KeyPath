@@ -304,6 +304,11 @@ final class ContextHUDViewModel {
         "EQUAL": "=",
         "MINUS": "-",
         "GRAVE": "`",
+        "ENTER": "↩",
+        "TAB": "⇥",
+        "SPACE": "␣",
+        "BACKSPACE": "⌫",
+        "RIGHTSHIFT": "⇧R",
     ]
 
     /// VIM keycap overrides — show vim motion instead of physical key
