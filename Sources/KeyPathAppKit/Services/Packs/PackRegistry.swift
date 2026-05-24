@@ -84,7 +84,7 @@ public enum PackRegistry {
         name: "Home Row Arrows",
         tagline: "Hold F for arrow keys — your fingers never leave the home row",
         shortDescription:
-        "Hold F and your right hand becomes arrow keys. Tap F normally to type. I/J/K/L for arrows in an inverted-T layout you already know from your arrow keys. Plus Home, End, Page Up, Page Down.",
+        "Hold F and your right hand becomes arrow keys. Tap F normally to type. I/J/K/L for arrows in an inverted-T layout you already know from your arrow keys.\n\nH and ; give you Home and End for jumping to the start or end of a line. U and O are Page Up and Page Down.",
         longDescription: "",
         category: "Navigation",
         iconSymbol: "arrow.up.and.down.and.arrow.left.and.right",
