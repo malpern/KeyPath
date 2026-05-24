@@ -70,6 +70,26 @@ KeyPath installs Home Row Arrows by default. If it's already running, try it:
 
 That's it. Your hand never left the home row. No reaching, no looking down, no tiny arrow keys.
 
+### Prefer Vim-style HJKL?
+
+If you're a developer who already knows Vim's HJKL navigation, you can switch layouts in the pack settings:
+
+1. Open the **Pack Gallery**
+2. Click **Home Row Arrows**
+3. Choose **Vim-Style** from the layout picker
+
+```
+  Inverted-T (default):            Vim-Style:
+  ┌───┬───┬───┬───┐               ┌───┬───┬───┬───┐
+  │   │ ↑ │   │   │               │ ← │ ↓ │ ↑ │ → │
+  ├───┼───┼───┼───┤               ├───┼───┼───┼───┤
+  │ ← │ ↓ │ → │   │               │ H │ J │ K │ L │
+  └───┴───┴───┴───┘               └───┴───┴───┴───┘
+```
+
+<!-- Screenshot: Pack detail showing layout picker with Inverted-T and Vim options -->
+![Screenshot — Home Row Arrows layout picker]({{ '/images/help/placeholder-pack-detail-arrows-picker.png' | relative_url }})
+
 ### If it's not installed yet
 
 1. Open KeyPath from the menu bar
