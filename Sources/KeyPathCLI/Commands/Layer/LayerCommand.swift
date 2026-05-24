@@ -6,6 +6,7 @@ struct Layer: AsyncParsableCommand {
         abstract: "List or switch Kanata layers",
         subcommands: [
             LayerList.self,
+            LayerCurrent.self,
             LayerCreate.self,
             LayerDelete.self,
             LayerRename.self,

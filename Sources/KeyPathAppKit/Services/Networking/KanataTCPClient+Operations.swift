@@ -114,6 +114,20 @@ extension KanataTCPClient {
         }
     }
 
+    /// Request the current active layer name from Kanata
+    func requestCurrentLayerName() async throws -> String {
+        try await withErrorRecovery {
+            let requestData = try JSONEncoder().encode(["RequestCurrentLayerName": [:] as [String: String]])
+            let responseData = try await send(requestData)
+            if let response = try extractMessage(
+                named: "CurrentLayerName", into: TcpCurrentLayerName.self, from: responseData
+            ) {
+                return response.name
+            }
+            throw KeyPathError.communication(.invalidResponse)
+        }
+    }
+
     /// Request available layer names from Kanata
     func requestLayerNames() async throws -> [String] {
         try await withErrorRecovery {
