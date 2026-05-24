@@ -92,7 +92,7 @@ A complete navigation system inspired by keyboard minimalist [Ben Vallack](https
 
 Installs three coordinated collections: Vallack Navigation, Ben's Modifiers, and Vallack Layer Toggles. This is an opinionated alternative to the default Vim Navigation — use one or the other, not both.
 
-[Full guide &rarr;]({{ '/guides/vim-navigation/' | relative_url }})
+[Full guide &rarr;]({{ '/guides/vallack-nav/' | relative_url }})
 
 ### Window Snapping
 
