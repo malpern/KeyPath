@@ -78,7 +78,7 @@ function obj:start()
         function(name, object, userInfo)
             if not userInfo then return end
             local layer = userInfo.layer
-            local previous = userInfo.previous
+            local previous = userInfo.previous or ""
             if not layer then return end
 
             self.currentLayer = layer

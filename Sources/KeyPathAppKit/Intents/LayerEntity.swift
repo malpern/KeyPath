@@ -15,12 +15,12 @@ struct LayerEntity: AppEntity {
 
 struct LayerEntityQuery: EntityQuery {
     func entities(for identifiers: [String]) async throws -> [LayerEntity] {
-        let allLayers = try await fetchLayers()
+        let allLayers = (try? await fetchLayers()) ?? []
         return allLayers.filter { identifiers.contains($0.id) }
     }
 
     func suggestedEntities() async throws -> [LayerEntity] {
-        try await fetchLayers()
+        (try? await fetchLayers()) ?? []
     }
 
     private func fetchLayers() async throws -> [LayerEntity] {

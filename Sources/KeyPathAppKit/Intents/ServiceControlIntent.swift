@@ -22,9 +22,12 @@ struct ServiceControlIntent: AppIntent {
     @Parameter(title: "Action")
     var action: ServiceAction
 
+    // RuntimeCoordinator.startKanata/stopKanata/restartKanata delegate
+    // to ServiceLifecycleCoordinator internally — the CLAUDE.md anti-pattern
+    // is about calling launchctl or KanataDaemonManager directly.
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
-        guard let delegate = NSApp?.delegate as? AppDelegate,
+        guard let delegate = NSApp.delegate as? AppDelegate,
               let manager = delegate.kanataManager
         else {
             throw ServiceError.appNotRunning

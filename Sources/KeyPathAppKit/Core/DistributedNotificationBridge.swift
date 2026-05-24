@@ -21,7 +21,7 @@ enum DistributedNotificationBridge {
             queue: .main
         ) { notification in
             guard let layerName = notification.userInfo?["layerName"] as? String else { return }
-            guard layerName.lowercased() != previousLayer.lowercased() else { return }
+            guard layerName != previousLayer else { return }
 
             let previous = previousLayer
             previousLayer = layerName
