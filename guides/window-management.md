@@ -1,40 +1,121 @@
 ---
 layout: default
-title: "Windows & App Shortcuts"
-description: "App-specific keymaps and window management with KeyPath"
+title: "Window Management"
+description: "Tile, snap, and move windows with keyboard shortcuts — no mouse required"
 theme: parchment
 header_image: header-window-management.png
 permalink: /guides/window-management/
 ---
 
+# Window Management
 
-# Window Management & App-Specific Shortcuts
+Dragging windows with a mouse breaks your flow. KeyPath lets you tile, snap, and move windows with keyboard shortcuts — left half, right half, corners, maximize, center, and switch between displays. All without touching the trackpad.
 
-Dragging windows with a mouse breaks your flow. So does remembering which keyboard shortcuts work in which app. KeyPath solves both: **tile windows with a keystroke**, and **let your keyboard adapt automatically** when you switch apps.
+---
 
-Different apps need different shortcuts — Vim-style navigation in your browser, custom bindings in your editor, different layers in Terminal. KeyPath detects which app is in front and switches your key mappings to match. No manual toggling.
+## Quick start: the Window Snapping pack
+
+The fastest way to get window management:
+
+1. Open the **Pack Gallery**
+2. Install **Window Snapping**
+3. Install **Vim Navigation** if you haven't already (Window Snapping requires it)
+
+Now hold Space, press W to enter the window layer, then press a key to snap:
+
+```
+  Hold Space, then W, then:
+
+  ┌─────┬─────┬─────┐
+  │  U  │  I  │     │     U = Top-left corner
+  │ ◸   │ ◹   │     │     I = Top-right corner
+  ├─────┼─────┼─────┤
+  │  J  │  K  │  L  │     J = Left half
+  │ ◧   │ ☐   │ ◨   │     K = Maximize    L = Right half
+  ├─────┼─────┼─────┤
+  │  N  │  M  │     │     N = Bottom-left corner
+  │ ◺   │ ◻   │     │     M = Bottom-right corner
+  └─────┴─────┴─────┘
+
+  Also:
+  [ = Previous display    ] = Next display
+  , = Previous Space      . = Next Space
+```
+
+<!-- Screenshot: Overlay showing window snapping layer with position indicators -->
+![Screenshot — Window Snapping layer in the overlay]({{ '/images/help/placeholder-overlay-window-snapping.png' | relative_url }})
+
+Release Space to leave the window layer.
+
+---
+
+## How it works
+
+Window snapping uses macOS Accessibility APIs to move and resize the frontmost window. When you press a position key, KeyPath:
+
+1. Reads the current screen dimensions
+2. Calculates the target frame (e.g., left half = left edge, full height, 50% width)
+3. Moves and resizes the window via the Accessibility API
+
+This works in every app — no per-app configuration needed.
+
+### Accessibility permission required
+
+The first time you use window snapping, macOS will ask you to grant KeyPath Accessibility permission in **System Settings > Privacy & Security > Accessibility**. Window management won't work without this.
+
+<!-- Screenshot: macOS Accessibility permission prompt -->
+![Screenshot — Accessibility permission dialog]({{ '/images/help/placeholder-accessibility-permission.png' | relative_url }})
+
+---
+
+## All window positions
+
+| Key | Position | What it does |
+|-----|----------|-------------|
+| J | Left half | Window fills the left 50% of the screen |
+| L | Right half | Window fills the right 50% |
+| K | Maximize | Window fills the entire screen |
+| ; | Center | Window centers on screen at current size |
+| U | Top-left | Window fills the top-left quarter |
+| I | Top-right | Window fills the top-right quarter |
+| N | Bottom-left | Window fills the bottom-left quarter |
+| M | Bottom-right | Window fills the bottom-right quarter |
+| [ | Previous display | Move window to the display on the left |
+| ] | Next display | Move window to the display on the right |
+| , | Previous Space | Move window to the previous desktop Space |
+| . | Next Space | Move window to the next desktop Space |
+
+---
+
+## Using window actions from scripts and tools
+
+You can trigger window positions from Terminal, Shortcuts, or any tool that can open URLs:
+
+```bash
+open "keypath://window/left"
+open "keypath://window/right"
+open "keypath://window/maximize"
+open "keypath://window/center"
+open "keypath://window/top-left"
+open "keypath://window/next-display"
+```
+
+This works from Raycast, Alfred, Hammerspoon, or any automation tool. See the [Action URI Reference]({{ '/guides/action-uri-reference/' | relative_url }}) for the full list.
 
 ---
 
 ## App-Specific Keymaps
 
-Create different keyboard layouts for different apps. For example:
-- Vim-style navigation in Safari
-- Custom shortcuts in VS Code
-- Different layer behavior in Terminal
+Beyond window management, KeyPath can detect which app is in the foreground and switch your key mappings automatically. Different apps get different shortcuts — no manual toggling.
 
-### Creating App-Specific Rules
+### Creating app-specific rules
 
-1. Open KeyPath and click the gear icon to open the inspector panel
-2. Go to the **Custom Rules** tab
-3. Click **New Rule** (+ button)
-4. Select an application from the app picker — KeyPath shows all installed apps
-5. Add key mappings for that app (e.g., `H` → `Left Arrow`)
-6. Click **Save**
+1. Open the **Custom Rules** tab in the inspector panel
+2. Click **New Rule** (+ button)
+3. Select an application from the app picker
+4. Add key mappings for that app
+5. Click **Save**
 
-
-![Screenshot]({{ '/images/help/window-mgmt-custom-rules.png' | relative_url }})
-Screenshot — Custom Rules tab showing app-specific rule cards:
 ```
   ┌─────────────────────────────────────────────────────┐
   │  Custom Rules                                       │
@@ -45,114 +126,65 @@ Screenshot — Custom Rules tab showing app-specific rule cards:
   │  └────────────────────────────────────────────────┘ │
   │                                                     │
   │  ┌────────────────────────────────────────────────┐ │
-  │  │  🧭 SAFARI                            [✏] [🗑] │ │
-  │  │                                                │ │
-  │  │  h ──→ left_arrow                              │ │
-  │  │  j ──→ down_arrow                              │ │
-  │  │  k ──→ up_arrow                                │ │
-  │  │  l ──→ right_arrow                             │ │
+  │  │  🧭 SAFARI                                     │ │
+  │  │  h ──→ left    j ──→ down                      │ │
+  │  │  k ──→ up      l ──→ right                     │ │
   │  └────────────────────────────────────────────────┘ │
-  │                                                     │
-  │  ┌────────────────────────────────────────────────┐ │
-  │  │  💻 TERMINAL                          [✏] [🗑] │ │
-  │  │                                                │ │
-  │  │  (layer switch: vim-nav)                       │ │
-  │  └────────────────────────────────────────────────┘ │
-  │                                                     │
-  │  [ ↺ Reset ]                     [ + New Rule ]     │
   └─────────────────────────────────────────────────────┘
 ```
 
-KeyPath handles everything behind the scenes: it generates virtual keys, sets up layer switching, and communicates with the remapping engine via TCP. You don't need to edit any configuration files.
+<!-- Screenshot: Custom Rules tab with app-specific rules -->
+![Screenshot — App-specific rules in Custom Rules]({{ '/images/help/placeholder-custom-rules-app-specific.png' | relative_url }})
+
+When you switch apps, KeyPath tells Kanata to switch layers automatically. Your keyboard adapts instantly.
+
+### Example: Vim navigation in Safari
+
+A popular setup — use HJKL as arrow keys in Safari for keyboard-driven browsing:
+
+1. Click **New Rule** and select **Safari** as the target app
+2. Add mappings: H → Left, J → Down, K → Up, L → Right
+3. Click **Save**
+
+Now HJKL works as arrow keys in Safari. Switch to any other app and they go back to normal letters.
 
 ---
 
-## How It Works
+## Combining with other features
 
-When you create app-specific rules in the UI, KeyPath:
+**Quick Launcher + Window Snapping:** Launch an app and immediately tile it. Hold Hyper to launch Safari, then Space → W → L to snap it to the right half.
 
-1. **Detects app switches** — monitors which app is in the foreground
-2. **Sends layer commands** — tells the remapping engine to switch layers automatically
-3. **Restores defaults** — when you switch away, your normal key mappings return
+**Vim Navigation + Window Snapping:** Navigate text with Space → HJKL, then Space → W to tile the window, all without lifting your hands.
 
-All of this happens instantly and invisibly. You just switch apps and your keyboard adapts.
-
----
-
-## Example: Vim Navigation in Safari
-
-A popular setup: use HJKL as arrow keys in Safari for keyboard-driven browsing.
-
-1. Go to the **Custom Rules** tab
-2. Click **New Rule** and select **Safari** as the target app
-3. Add these mappings:
-   - `H` → `Left Arrow`
-   - `J` → `Down Arrow`
-   - `K` → `Up Arrow`
-   - `L` → `Right Arrow`
-4. Click **Save**
-
-Now when Safari is active, HJKL works as arrow keys. Switch to any other app and they go back to normal letters — no manual toggling needed.
-
----
-
-## Window Snapping
-
-KeyPath includes built-in window snapping shortcuts. Enable the **Window Snapping** pre-built rule to get:
-
-- **Hyper + H** → Snap window to left half
-- **Hyper + L** → Snap window to right half
-- **Hyper + K** → Maximize window
-- **Hyper + J** → Center window
-- **Hyper + U/I/N/M** → Snap to corners
-
-These use KeyPath's [Launching Apps & Workflows]({{ '/guides/action-uri/' | relative_url }}) under the hood. You can also trigger window actions from external tools like Raycast or Alfred:
-
-```bash
-open "keypath://window/snap/left"
-```
+**[Running Scripts]({{ '/guides/script-execution/' | relative_url }}) + Window Snapping:** Script complex layouts — open three apps and tile them into a coding workspace with one key.
 
 ---
 
 ## Troubleshooting
 
-### App-specific rules not working
+**Window snapping doesn't work:**
+- Check that Accessibility permission is granted in System Settings
+- Make sure the Window Snapping pack is installed and enabled
+- Try the CLI: `open "keypath://window/left"` — if that works, the issue is in the layer activation
 
-1. Verify the app appears in your app-specific rules list
-2. Check that KeyPath's service is running (look for the green status indicator)
-3. Try switching away from the app and back
-4. Check **File → View Logs** for connection errors
-
-### Rules apply to wrong app
-
-1. Verify the bundle identifier is correct in the rules list
-2. Check for apps with similar names
-3. Remove and re-add the app to refresh the bundle identifier
+**App-specific rules don't activate:**
+- Verify the app appears in your rules list
+- Check that KeyPath's service is running (green status indicator)
+- Try switching away from the app and back
+- Check **File > View Logs** for errors
 
 ---
 
-## Best Practices
+## Related guides
 
-1. **Start simple** — Add one app at a time and test before adding more
-2. **Test thoroughly** — Switch between apps to verify rules activate and deactivate correctly
-3. **Use familiar patterns** — Map keys in ways that match the app's existing shortcuts (e.g., Vim keys for browsers)
-4. **Combine with other features** — App-specific rules work great alongside [Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }}) and [Hyper key]({{ '/guides/use-cases/' | relative_url }}) setups
-
----
-
-## Next Steps
-
-- **[Launch Anything Instantly]({{ '/guides/quick-launcher/' | relative_url }})** — A simpler one-key-to-app launcher
-- **[Launching Apps & Workflows]({{ '/guides/action-uri/' | relative_url }})** — Full reference for all URI actions including window snapping
-- **[What You Can Build]({{ '/guides/use-cases/' | relative_url }})** — See window tiling as part of a complete setup
-- **[Keyboard Concepts]({{ '/guides/concepts/' | relative_url }})** — Background on layers and modifiers
-- **[One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }})** — Configure the keys that trigger your window actions
-- **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — Combine window management with home row modifiers
-- **[Switching from Karabiner?]({{ '/migration/karabiner-users/' | relative_url }})** — Map your existing Karabiner window rules to KeyPath
-- **[Back to Docs](https://malpern.github.io/KeyPath/docs)** — See all available guides
+- **[Packs & Layers]({{ '/guides/packs/' | relative_url }})** — Browse the full pack catalog
+- **[Vim Navigation]({{ '/guides/vim-navigation/' | relative_url }})** — The foundation layer that Window Snapping builds on
+- **[Action URI Reference]({{ '/guides/action-uri-reference/' | relative_url }})** — All `keypath://window/` action types
+- **[Quick Launcher]({{ '/guides/quick-launcher/' | relative_url }})** — Launch apps with one key
+- **[Running Scripts]({{ '/guides/script-execution/' | relative_url }})** — Automate complex workflows
+- **[Layers]({{ '/guides/layers/' | relative_url }})** — How layers and activation work
 
 ## External resources
 
 - **[Rectangle](https://rectangleapp.com/)** — Dedicated window manager that pairs well with KeyPath shortcuts ↗
 - **[Raycast Window Management](https://www.raycast.com/extensions/window-management)** — Raycast's built-in window tiling ↗
-- **[Kanata configuration reference](https://github.com/jtroo/kanata/blob/main/docs/config.adoc)** — Full reference for advanced users who want to edit configs directly ↗
