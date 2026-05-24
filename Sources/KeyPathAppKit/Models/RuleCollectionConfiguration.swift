@@ -646,7 +646,8 @@ public struct LauncherGridConfig: Codable, Equatable, Sendable {
     public static let allowedKeyOrder: [String] = suggestionKeyOrder + manualOnlyKeys
 
     private static let manualOnlyKeys: [String] = [
-        "enter", "tab", "space", "backspace"
+        "enter", "tab", "space", "backspace",
+        "rightshift"
     ]
 
     private static let allowedKeySet = Set(allowedKeyOrder)
