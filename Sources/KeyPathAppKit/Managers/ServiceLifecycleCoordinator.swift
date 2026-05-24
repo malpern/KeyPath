@@ -120,6 +120,7 @@ final class ServiceLifecycleCoordinator {
             onError?(nil)
             onWarning?(nil)
             onStateChanged?()
+            DistributedNotificationBridge.postServiceState("running")
             return true
         } catch {
             let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
@@ -139,6 +140,7 @@ final class ServiceLifecycleCoordinator {
             _ = try await kanataDaemonService.stopIfRunning()
             onWarning?(nil)
             onStateChanged?()
+            DistributedNotificationBridge.postServiceState("stopped")
             return true
         } catch {
             let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
