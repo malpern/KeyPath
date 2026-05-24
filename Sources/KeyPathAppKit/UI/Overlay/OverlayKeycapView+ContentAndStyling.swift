@@ -349,6 +349,10 @@ extension OverlayKeycapView {
         // System action keys show SF Symbol icon
         else if hasSystemAction {
             systemActionContent
+        }
+        // Inline layer mapped keys: arrows centered, nav words bottom-aligned
+        else if isInlineLayer, hasLayerMapping, let info = layerKeyInfo {
+            inlineLayerMappedContent(info: info)
         } else {
             switch key.layoutRole {
             case .centered:
@@ -366,6 +370,31 @@ extension OverlayKeycapView {
             case .escKey:
                 escKeyContent
             }
+        }
+    }
+
+    /// Inline layer: arrows get centered symbols, nav words get bottom-aligned text
+    @ViewBuilder
+    func inlineLayerMappedContent(info: LayerKeyInfo) -> some View {
+        let arrowLabels: Set<String> = ["←", "→", "↑", "↓"]
+        if arrowLabels.contains(info.displayLabel) {
+            Text(info.displayLabel)
+                .font(.system(size: 16 * scale, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            VStack {
+                Spacer(minLength: 0)
+                HStack {
+                    Text(info.displayLabel.lowercased())
+                        .font(.system(size: 9 * scale, weight: .medium))
+                        .foregroundStyle(Color.accentColor)
+                    Spacer(minLength: 0)
+                }
+                .padding(.leading, 4 * scale)
+                .padding(.bottom, 3 * scale)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }
