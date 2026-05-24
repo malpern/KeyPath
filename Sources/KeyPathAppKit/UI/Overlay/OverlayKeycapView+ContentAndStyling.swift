@@ -377,10 +377,11 @@ extension OverlayKeycapView {
     @ViewBuilder
     func inlineLayerMappedContent(info: LayerKeyInfo) -> some View {
         let arrowLabels: Set<String> = ["←", "→", "↑", "↓"]
+        let labelColor = Color.white.opacity(0.85)
         if arrowLabels.contains(info.displayLabel) {
             Text(info.displayLabel)
                 .font(.system(size: 16 * scale, weight: .semibold))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(labelColor)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             VStack {
@@ -388,7 +389,7 @@ extension OverlayKeycapView {
                 HStack {
                     Text(info.displayLabel.lowercased())
                         .font(.system(size: 9 * scale, weight: .medium))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(labelColor)
                     Spacer(minLength: 0)
                 }
                 .padding(.leading, 4 * scale)
