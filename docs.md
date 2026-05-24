@@ -29,6 +29,7 @@ theme: parchment
 <li><a href="{{ '/getting-started/installation/' | relative_url }}">Setting Up KeyPath</a></li>
 <li><a href="{{ '/guides/concepts/' | relative_url }}">Keyboard Concepts</a></li>
 <li><a href="{{ '/guides/use-cases/' | relative_url }}">What You Can Build</a></li>
+<li><a href="{{ '/guides/installation-wizard/' | relative_url }}">Installation Wizard</a></li>
 </ul>
 </div>
 
