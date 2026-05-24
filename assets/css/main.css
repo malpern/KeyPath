@@ -8387,3 +8387,18 @@ a.button:active {
 .docs-card-links-compact li a {
     font-weight: 400;
 }
+
+/* Coming soon badges for unpublished guide links */
+.docs-coming-soon {
+    display: inline-block;
+    font-size: 0.65em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    background: var(--color-border-light);
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
