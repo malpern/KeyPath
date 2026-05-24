@@ -121,7 +121,7 @@ This is where the difference is most noticeable. If you use home row mods in Kar
 
 ## What you'll lose (temporarily)
 
-- **Community rule library** — Karabiner's [importable modifications](https://ke-complex-modifications.pqrs.org/) library has thousands of user-contributed rules. KeyPath ships with 16 built-in rule collections (Vim Navigation, Home Row Mods, Window Snapping, Quick Launcher, etc.) but doesn't yet support importing community-shared packs. Interested in a Karabiner rule import tool? Let us know in [GitHub Discussions](https://github.com/malpern/KeyPath/discussions) so we can prioritize it.
+- **Community rule library** — Karabiner's [importable modifications](https://ke-complex-modifications.pqrs.org/) library has thousands of user-contributed rules. KeyPath ships with 19 built-in packs and can [import your existing Karabiner config](#4-import-your-karabiner-config), but doesn't yet support a community sharing marketplace.
 - **Some edge-case rules** — Karabiner's JSON is extremely flexible. Some exotic conditions (mouse button combinations, device-specific vendor IDs with complex conditions) may require creative workarounds in Kanata.
 - **Track record** — Karabiner has been trusted for 10+ years. KeyPath is newer. Both are open source, so you can verify the code yourself.
 
@@ -167,17 +167,50 @@ osascript -e 'quit app "Karabiner-Elements"'
 launchctl bootout system/org.pqrs.karabiner.karabiner_grabber 2>/dev/null
 ```
 
-### 4. Recreate your rules
+### 4. Import your Karabiner config
 
-Start with the basics — remaps you use most — and build up:
+KeyPath can automatically convert most of your Karabiner rules. Two ways to import:
 
-1. **Caps Lock remap** — Enable the pre-built rule in KeyPath
-2. **Home row mods** — Enable the pre-built rule (much easier than the Karabiner JSON version)
-3. **Custom rules** — Recreate your most-used modifications one at a time
+**During setup (recommended):** KeyPath's installation wizard detects `~/.config/karabiner/karabiner.json` and offers one-click import. You can review which rules will convert, see warnings for unsupported features, and choose which to import.
 
-See [Your First Mapping]({{ '/guides/use-cases/' | relative_url }}) for a walkthrough.
+<!-- Screenshot: Installation wizard Karabiner import page -->
+![Screenshot — Karabiner import in the installation wizard]({{ '/images/help/placeholder-wizard-karabiner-import.png' | relative_url }})
 
-### 5. Fine-tune
+**From the command line:**
+
+```bash
+# Import from your Karabiner config
+keypath import karabiner ~/.config/karabiner/karabiner.json
+
+# Import a specific profile (by index)
+keypath import karabiner ~/.config/karabiner/karabiner.json --profile=1
+
+# Merge all rules into one collection
+keypath import karabiner ~/.config/karabiner/karabiner.json --collection="My Karabiner Rules"
+```
+
+The converter handles simple remaps, tap-hold rules, chords, app-specific conditions, shell commands, and macros. About 95% of typical configs convert to working rules.
+
+**What gets skipped (with warnings):**
+- Mouse button rules
+- Input source switching
+- Variable-gated conditions (Karabiner's layer-via-variables pattern)
+- Pointing device rules
+
+If you see skipped rules, you can usually recreate them using KeyPath's native features — [layers]({{ '/guides/layers/' | relative_url }}), [packs]({{ '/guides/packs/' | relative_url }}), or the [Action URI system]({{ '/guides/action-uri-reference/' | relative_url }}).
+
+### 5. Or start fresh with packs
+
+If your Karabiner config is simple, you might prefer starting fresh with KeyPath's built-in packs instead of importing:
+
+1. **[Caps Lock Remap]({{ '/guides/packs/' | relative_url }})** — one click
+2. **[Home Row Mods]({{ '/guides/home-row-mods/' | relative_url }})** — much easier than the Karabiner JSON version
+3. **[Home Row Arrows]({{ '/guides/remapping/' | relative_url }})** — hold F for arrow keys
+4. **[Vim Navigation]({{ '/guides/vim-navigation/' | relative_url }})** — the full navigation layer
+
+Browse the [Pack Gallery]({{ '/guides/packs/' | relative_url }}) for everything available.
+
+### 6. Fine-tune
 
 KeyPath's per-finger timing, opposite-hand activation, and fast typing protection may mean you need less tweaking than your Karabiner setup required. Start with defaults and adjust from there.
 
@@ -216,9 +249,9 @@ Not every Karabiner feature has a direct KeyPath equivalent yet. Here's the curr
 | Community rule import | **Partial** | 16 built-in collections, but no community sharing or import yet (Karabiner has [thousands](https://ke-complex-modifications.pqrs.org/)) |
 | Pointing device rules | **Limited** | Kanata has mouse key support but not Karabiner's full pointing device condition system |
 
-### Config converter (future)
+### Config import
 
-We're exploring a tool that would let you paste your Karabiner JSON and see the equivalent Kanata config — making migration near-instant for common patterns. If this would be useful to you, let us know in [GitHub Discussions](https://github.com/malpern/KeyPath/discussions) so we can prioritize it.
+KeyPath includes a built-in Karabiner config converter — see [step 4 above](#4-import-your-karabiner-config) for how to use it. The converter handles ~95% of typical configs. For rules that don't convert automatically, you can recreate them using KeyPath's visual rule editor or the [CLI]({{ '/guides/cli/' | relative_url }}).
 
 ---
 
