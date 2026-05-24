@@ -74,6 +74,7 @@ theme: parchment
 <li><a href="{{ '/guides/cli/' | relative_url }}">Command Line</a></li>
 <li><a href="{{ '/guides/action-uri/' | relative_url }}">Launching Apps</a></li>
 <li><a href="{{ '/guides/window-management/' | relative_url }}">Window Management</a></li>
+<li><a href="{{ '/guides/script-execution/' | relative_url }}">Running Scripts</a></li>
 </ul>
 </div>
 
