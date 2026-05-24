@@ -13,7 +13,7 @@ struct SendActionIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         var normalized = uri
-        if !normalized.contains("://"), !normalized.contains(":") {
+        if !normalized.hasPrefix("keypath://"), !normalized.contains(":") {
             normalized = "keypath://\(normalized)"
         }
         let result = ActionDispatcher.shared.dispatch(message: normalized)
