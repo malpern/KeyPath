@@ -107,6 +107,19 @@ extension PackDetailView {
                 )
                 .id(autoShiftCollection.id)
             }
+        } else if let homeRowArrowsCollection = associatedHomeRowArrowsCollection {
+            if case let .layerPresetPicker(arrowsConfig) = homeRowArrowsCollection.configuration {
+                embeddedEditor {
+                    HomeRowArrowsView(
+                        config: arrowsConfig,
+                        onSelectPreset: { presetId in
+                            selectedLayerPresetId = presetId
+                            Task { await applyLayerPresetEdit(presetId: presetId, collectionID: homeRowArrowsCollection.id) }
+                        }
+                    )
+                    .id(selectedLayerPresetId ?? "inverted-t")
+                }
+            }
         } else if let layerPresetCollection = associatedLayerPresetCollection {
             // Layer preset picker — Symbol/Fun layers. Users choose a preset
             // (e.g. Mirrored, Alphabetical) that redefines the layer's

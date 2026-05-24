@@ -422,10 +422,20 @@ struct PackDetailView: View {
         return collection
     }
 
+    /// Collection backing the Home Row Arrows pack specifically.
+    var associatedHomeRowArrowsCollection: RuleCollection? {
+        guard let collection = liveAssociatedCollection,
+              collection.id == RuleCollectionIdentifier.homeRowArrows,
+              case .layerPresetPicker = collection.configuration
+        else { return nil }
+        return collection
+    }
+
     /// Collection backing a layer-preset pack (Symbol, Fun). Matches the
     /// `.layerPresetPicker` configuration case.
     var associatedLayerPresetCollection: RuleCollection? {
         guard let collection = liveAssociatedCollection,
+              collection.id != RuleCollectionIdentifier.homeRowArrows,
               case .layerPresetPicker = collection.configuration
         else { return nil }
         return collection
