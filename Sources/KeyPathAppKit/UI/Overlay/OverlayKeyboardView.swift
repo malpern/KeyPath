@@ -444,8 +444,11 @@ struct OverlayKeyboardView: View {
             includeExtraKeys: includeKeymapPunctuation
         )
 
-        // Look up launcher mapping for this key (lowercase key name)
-        let launcherMapping = launcherMappings[baseLabel.lowercased()]
+        // Look up launcher mapping for this key by kanata name first (handles special keys
+        // like enter/rightshift whose display labels differ from their mapping keys),
+        // then fall back to display label for standard letter/number/punctuation keys
+        let kanataName = OverlayKeyboardView.keyCodeToKanataName(key.keyCode).lowercased()
+        let launcherMapping = launcherMappings[kanataName] ?? launcherMappings[baseLabel.lowercased()]
 
         // Look up per-key shift label from system keymap when active
         let shiftOverride: String? = if keymap.id == LogicalKeymap.systemId {

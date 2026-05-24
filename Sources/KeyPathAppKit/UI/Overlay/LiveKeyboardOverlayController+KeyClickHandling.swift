@@ -43,9 +43,10 @@ extension LiveKeyboardOverlayController {
                 return
             }
 
-            // When inspector is open, clicking a launcher key opens the editor
+            // When inspector or Pack Detail window is open, clicking a launcher key opens the editor
             let inspectorOpen = uiState.isInspectorOpen || uiState.inspectorReveal > 0
-            if inspectorOpen {
+            let packDetailOpen = PackDetailWindowController.shared.currentPackID == PackRegistry.launcher.id
+            if inspectorOpen || packDetailOpen {
                 AppLogger.shared.log("🖱️ [OverlayController] Launcher key clicked for editing: \(normalizedKey)")
                 NotificationCenter.default.post(
                     name: .launcherSelectKey,
