@@ -642,7 +642,12 @@ public struct LauncherGridConfig: Codable, Equatable, Sendable {
     }()
 
     /// Full set of supported launcher keys in canonical (Kanata) form.
-    public static let allowedKeyOrder: [String] = suggestionKeyOrder
+    /// Includes suggestion keys plus additional manually-assignable keys (enter, tab, space, backspace).
+    public static let allowedKeyOrder: [String] = suggestionKeyOrder + manualOnlyKeys
+
+    private static let manualOnlyKeys: [String] = [
+        "enter", "tab", "space", "backspace"
+    ]
 
     private static let allowedKeySet = Set(allowedKeyOrder)
 
