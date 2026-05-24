@@ -298,6 +298,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return true
         }
 
+        // On relaunch (not first-ever install), skip splash and go straight to overlay
+        let hasExistingConfig = Foundation.FileManager.default.fileExists(
+            atPath: NSHomeDirectory() + "/.config/keypath/keypath.kbd"
+        )
+        if hasExistingConfig, !initialMainWindowShown {
+            AppLogger.shared.info("🪟 [AppDelegate] Reopen on relaunch — skipping splash, showing overlay")
+            initialMainWindowShown = true
+            LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
+            return true
+        }
+
         if mainWindowController == nil {
             if NSApplication.shared.activationPolicy() != .regular {
                 NSApplication.shared.setActivationPolicy(.regular)
@@ -368,6 +379,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         initialMainWindowShown = true
         suppressLaunchSplashAutoHide = false
+
+        let hasExistingConfig = Foundation.FileManager.default.fileExists(
+            atPath: NSHomeDirectory() + "/.config/keypath/keypath.kbd"
+        )
+
+        if hasExistingConfig, !suppressAutoHideBecauseReopen {
+            AppLogger.shared.info("🪟 [AppDelegate] Relaunch detected — skipping splash, restoring overlay directly")
+            LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
+
+            if pendingReopenShow {
+                pendingReopenShow = false
+                mainWindowController?.show(focus: true)
+            }
+            return
+        }
+
         mainWindowController?.show(focus: true)
 
         Task { @MainActor in

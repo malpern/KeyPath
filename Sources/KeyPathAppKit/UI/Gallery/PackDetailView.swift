@@ -229,12 +229,27 @@ struct PackDetailView: View {
                         }
                     }
                     if let managingPackName {
-                        Text("Part of \(managingPackName)")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(Color.accentColor))
+                        Button {
+                            if let parentPackID = managingPackID,
+                               let parentPack = PackRegistry.pack(id: parentPackID)
+                            {
+                                PackDetailWindowController.shared.showWindow(
+                                    pack: parentPack,
+                                    kanataManager: kanataManager
+                                )
+                            }
+                        } label: {
+                            Text("Part of \(managingPackName)")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Capsule().fill(Color.accentColor))
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { hovering in
+                            if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                        }
                     }
                     Text(pack.tagline)
                         .font(.body)

@@ -277,6 +277,17 @@ extension OverlayKeycapView {
         }
     }
 
+    // MARK: - Launcher Mode Exclusions
+
+    var preservesBaseInLauncher: Bool {
+        switch key.keyCode {
+        case 36, 48, 49, 51, 53: true // Return, Tab, Space, Delete, Esc
+        case 54, 55, 56, 58, 59, 60, 61, 63: true // Modifiers: Cmd, Shift, Opt, Ctrl, Fn
+        case 123, 124, 125, 126: true // Arrow keys
+        default: false
+        }
+    }
+
     // MARK: - Content Routing by Layout Role
 
     @ViewBuilder
@@ -305,8 +316,9 @@ extension OverlayKeycapView {
         if key.layoutRole == .touchId {
             touchIdContent
         }
-        // Launcher mode: ALL keys use launcher styling (icons for mapped, labels for unmapped)
-        else if isLauncherMode {
+        // Launcher mode: mapped keys show icons, unmapped keys use launcher styling
+        // Utility keys (tab, esc, shift, modifiers, arrows, etc.) keep base-layer rendering
+        else if isLauncherMode, !preservesBaseInLauncher {
             launcherModeContent
         }
         // Layer mode (Vim/Nav): ALL keys use layer styling (action in center, label in top-left)

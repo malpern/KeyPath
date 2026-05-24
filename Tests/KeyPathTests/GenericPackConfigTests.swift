@@ -334,6 +334,48 @@ final class GenericPackConfigTests: XCTestCase {
         )
     }
 
+    // MARK: - Silent Apply When Collection Has Catalog Defaults
+
+    @MainActor
+    func testInstallAppliesSilentlyWhenCollectionHasCatalogDefaults() async throws {
+        TestEnvironment.forceTestMode = true
+        PackInstaller.testOverrideApplyDefault = false
+        defer {
+            TestEnvironment.forceTestMode = false
+            PackInstaller.testOverrideApplyDefault = nil
+        }
+
+        let (manager, tempDir) = try makeTestManager()
+        defer {
+            try? FileManager.default.removeItem(at: tempDir)
+            PackCollectionSnapshot.remove(for: PackRegistry.launcher.id)
+        }
+
+        // Add caps lock from catalog with its default config (tap=hyper, hold=hyper)
+        // and mark it enabled — simulating a user who enabled it but never changed settings
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        if let capsFromCatalog = catalog.first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap }) {
+            var caps = capsFromCatalog
+            caps.isEnabled = true
+            manager.ruleCollections.append(caps)
+        }
+
+        // Install with testOverrideApplyDefault=false (would decline the dialog)
+        // but the dialog should NOT appear because config matches catalog defaults.
+        // The pack's config should be applied silently.
+        _ = try await PackInstaller.shared.install(PackRegistry.launcher, manager: manager)
+
+        let capsCollection = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.capsLockRemap }
+        XCTAssertEqual(
+            capsCollection?.configuration.tapHoldPickerConfig?.selectedTapOutput, "esc",
+            "Pack default should be applied silently when collection has catalog defaults"
+        )
+        XCTAssertEqual(
+            capsCollection?.configuration.tapHoldPickerConfig?.selectedHoldOutput, "hyper",
+            "Pack default should be applied silently when collection has catalog defaults"
+        )
+    }
+
     // MARK: - Nil Default Configuration (Enable-Only)
 
     @MainActor
@@ -525,6 +567,57 @@ final class GenericPackConfigTests: XCTestCase {
 
         let launcherCollection = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.launcher }
         XCTAssertFalse(launcherCollection?.isEnabled ?? true, "Launcher should be disabled after uninstall")
+    }
+
+    // MARK: - Display Settings Diff
+
+    func testTapHoldPickerDisplaySettingsDiff() {
+        let current = RuleCollectionConfiguration.tapHoldPicker(TapHoldPickerConfig(
+            inputKey: "caps",
+            tapOptions: [
+                SingleKeyPreset(output: "hyper", label: "✦ Hyper", description: "", icon: ""),
+                SingleKeyPreset(output: "esc", label: "⎋ Escape", description: "", icon: ""),
+            ],
+            holdOptions: [
+                SingleKeyPreset(output: "hyper", label: "✦ Hyper", description: "", icon: ""),
+                SingleKeyPreset(output: "meh", label: "◇ Meh", description: "", icon: ""),
+            ],
+            selectedTapOutput: "hyper",
+            selectedHoldOutput: "hyper"
+        ))
+
+        let proposed = RuleCollectionConfiguration.tapHoldPicker(TapHoldPickerConfig(
+            inputKey: "caps",
+            tapOptions: [
+                SingleKeyPreset(output: "hyper", label: "✦ Hyper", description: "", icon: ""),
+                SingleKeyPreset(output: "esc", label: "⎋ Escape", description: "", icon: ""),
+            ],
+            holdOptions: [
+                SingleKeyPreset(output: "hyper", label: "✦ Hyper", description: "", icon: ""),
+                SingleKeyPreset(output: "meh", label: "◇ Meh", description: "", icon: ""),
+            ],
+            selectedTapOutput: "esc",
+            selectedHoldOutput: "hyper"
+        ))
+
+        let diffs = RuleCollectionConfiguration.diffSettings(current: current, proposed: proposed)
+        XCTAssertEqual(diffs.count, 1, "Only tap action differs")
+        XCTAssertEqual(diffs.first?.label, "Tap Action")
+        XCTAssertEqual(diffs.first?.current, "✦ Hyper")
+        XCTAssertEqual(diffs.first?.proposed, "⎋ Escape")
+    }
+
+    func testIdenticalConfigsProduceNoDiff() {
+        let config = RuleCollectionConfiguration.tapHoldPicker(TapHoldPickerConfig(
+            inputKey: "caps",
+            tapOptions: [SingleKeyPreset(output: "esc", label: "⎋ Escape", description: "", icon: "")],
+            holdOptions: [SingleKeyPreset(output: "hyper", label: "✦ Hyper", description: "", icon: "")],
+            selectedTapOutput: "esc",
+            selectedHoldOutput: "hyper"
+        ))
+
+        let diffs = RuleCollectionConfiguration.diffSettings(current: config, proposed: config)
+        XCTAssertTrue(diffs.isEmpty, "Identical configs should produce no diffs")
     }
 
     // MARK: - Legacy Vallack Migration
