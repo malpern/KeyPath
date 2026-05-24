@@ -55,14 +55,12 @@ theme: parchment
 </div>
 
 <div class="docs-card">
-<h3><a href="{{ '/guides/simple-packs/' | relative_url }}">Packs & Layers</a></h3>
-<p>Installable feature packs and layer configurations. Browse the catalog, install with one click, customize to fit.</p>
+<h3><a href="{{ '/guides/packs/' | relative_url }}">Packs & Layers</a></h3>
+<p>Browse the pack catalog — installable keyboard features you add with one click. Start with Caps Lock Remap and Vim Navigation, then explore.</p>
 <ul class="docs-card-links">
-<li><a href="{{ '/guides/simple-packs/' | relative_url }}">Quick Tweaks</a></li>
+<li><a href="{{ '/guides/packs/' | relative_url }}"><strong>Browse All Packs</strong></a></li>
 <li><a href="{{ '/guides/vim-navigation/' | relative_url }}">Vim Navigation</a></li>
-<li><a href="{{ '/guides/numpad-layer/' | relative_url }}">Numpad Layer</a></li>
-<li><a href="{{ '/guides/symbol-layer/' | relative_url }}">Symbol Layer</a></li>
-<li><a href="{{ '/guides/fun-layer/' | relative_url }}">Function Layer</a></li>
+<li><a href="{{ '/guides/home-row-mods/' | relative_url }}">Home Row Mods</a></li>
 <li><a href="{{ '/guides/quick-launcher/' | relative_url }}">Quick Launcher</a></li>
 </ul>
 </div>
