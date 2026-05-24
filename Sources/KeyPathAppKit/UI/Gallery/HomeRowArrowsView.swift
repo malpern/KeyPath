@@ -4,8 +4,12 @@ struct HomeRowArrowsView: View {
     let config: LayerPresetPickerConfig
     let onSelectPreset: (String) -> Void
 
-    private var selectedPresetId: String {
-        config.selectedPresetId ?? "inverted-t"
+    @State private var selectedPresetId: String
+
+    init(config: LayerPresetPickerConfig, onSelectPreset: @escaping (String) -> Void) {
+        self.config = config
+        self.onSelectPreset = onSelectPreset
+        _selectedPresetId = State(initialValue: config.selectedPresetId ?? "inverted-t")
     }
 
     private var isVim: Bool {
@@ -120,6 +124,7 @@ struct HomeRowArrowsView: View {
                 subtitle: "Arrow key layout",
                 isSelected: !isVim
             ) {
+                selectedPresetId = "inverted-t"
                 onSelectPreset("inverted-t")
             }
             SettingsOptionCard(
@@ -128,6 +133,7 @@ struct HomeRowArrowsView: View {
                 subtitle: "HJKL layout",
                 isSelected: isVim
             ) {
+                selectedPresetId = "vim"
                 onSelectPreset("vim")
             }
         }
