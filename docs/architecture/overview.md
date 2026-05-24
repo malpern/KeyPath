@@ -117,6 +117,34 @@ KeyPath communicates with Kanata via TCP (port 37001):
 - Layer state queries
 - Virtual key control
 
+## External Integration
+
+KeyPath exposes its state and actions to external tools through multiple transports:
+
+```
+                    ┌──────────────────────────────────────┐
+                    │         External Consumers           │
+                    │  Siri, Shortcuts, Hammerspoon, KM    │
+                    └───────┬──────────┬──────────┬────────┘
+                            │          │          │
+              ┌─────────────┘          │          └───────────────┐
+              ▼                        ▼                          ▼
+  ┌───────────────────┐  ┌───────────────────────┐  ┌────────────────────┐
+  │  App Intents      │  │  Distributed Notifs   │  │  keypath:// URLs   │
+  │  (query + action) │  │  (outbound events)    │  │  (inbound actions) │
+  │  Siri, Shortcuts  │  │  Hammerspoon, KM      │  │  Terminal, any app │
+  └───────────────────┘  └───────────────────────┘  └────────────────────┘
+```
+
+| Direction | Transport | Implementation |
+|-----------|-----------|----------------|
+| **Outbound events** | Distributed Notifications | `DistributedNotificationBridge` |
+| **Inbound commands** | `keypath://` URL scheme | `DeepLinkRouter` → `ActionDispatcher` |
+| **Query + action** | App Intents | `Intents/` — delegates to existing services |
+| **CLI** | `keypath` command | `ConfigFacade`, `SystemFacade` |
+
+See [DISTRIBUTED_NOTIFICATIONS.md](../DISTRIBUTED_NOTIFICATIONS.md), [APP_INTENTS.md](../APP_INTENTS.md), and [ACTION_URI_SYSTEM.md](../ACTION_URI_SYSTEM.md).
+
 ## Key Design Decisions
 
 ### No Config Parsing

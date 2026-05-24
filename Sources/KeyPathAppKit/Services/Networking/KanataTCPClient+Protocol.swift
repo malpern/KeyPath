@@ -77,6 +77,10 @@ extension KanataTCPClient {
         let request_id: UInt64?
     }
 
+    struct TcpCurrentLayerName: Codable, Sendable {
+        let name: String
+    }
+
     struct TcpLayerNames: Codable, Sendable {
         let names: [String]
         let request_id: UInt64?

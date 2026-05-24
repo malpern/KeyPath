@@ -16,6 +16,7 @@ enum AppNotificationWiring {
         registerFeedbackNotifications()
         registerServiceNotifications(on: delegate)
         registerActionDispatcherCallbacks()
+        DistributedNotificationBridge.start()
     }
 
     // MARK: - Wizard Notifications

@@ -146,6 +146,10 @@ struct HelpExamples: AsyncParsableCommand {
             ]
         ),
         ExampleEntry(
+            description: "Check which layer is active",
+            commands: ["keypath layer current"]
+        ),
+        ExampleEntry(
             description: "Switch to a layer at runtime",
             commands: ["keypath layer switch nav"]
         ),

@@ -78,6 +78,11 @@ public struct ConfigFacade: Sendable {
         return await client.checkServerStatus()
     }
 
+    public func tcpGetCurrentLayer() async throws -> String {
+        let client = await tcpClient()
+        return try await client.requestCurrentLayerName()
+    }
+
     public func tcpGetLayers() async throws -> [String] {
         let client = await tcpClient()
         return try await client.requestLayerNames()
