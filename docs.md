@@ -38,7 +38,7 @@ theme: parchment
 
 <div class="docs-card-spine">
 <ul class="docs-card-links">
-<li><a href="{{ '/guides/concepts/' | relative_url }}"><strong>Remapping</strong> — Make any key do something else</a></li>
+<li><a href="{{ '/guides/remapping/' | relative_url }}"><strong>Remapping</strong> — Make any key do something else</a></li>
 <li><a href="{{ '/guides/tap-hold/' | relative_url }}"><strong>Tap-Hold</strong> — One key, two actions</a></li>
 <li><a href="{{ '/guides/concepts/' | relative_url }}"><strong>Layers</strong> — A whole new keyboard at your fingertips</a></li>
 </ul>
