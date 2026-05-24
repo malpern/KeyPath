@@ -8,7 +8,7 @@ final class PackDetailWindowController: NSObject {
 
     private var window: NSWindow?
     private var willCloseObserver: NSObjectProtocol?
-    private var currentPackID: String?
+    private(set) var currentPackID: String?
     private(set) var openedFromOverlay = false
 
     func showWindow(pack: Pack, kanataManager: KanataViewModel, fromOverlay: Bool = false) {
