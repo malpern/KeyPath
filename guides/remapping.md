@@ -8,132 +8,133 @@ permalink: /guides/remapping/
 
 # Remapping Keys
 
-Remapping means making a key do something different than what's printed on it. Caps Lock becomes Escape. Right Option becomes Delete. A key you never use becomes one you use constantly.
+Remapping means making a key do something different than what's printed on it. A key you never use becomes one you press constantly. An awkward reach becomes a comfortable press.
 
-This is the simplest and most useful thing KeyPath does. If you've never remapped a key before, this guide will get you there in under a minute.
-
----
-
-## Why bother?
-
-Look at your keyboard. Some keys are in perfect spots but do things you rarely need. Others are far away but you reach for them constantly.
-
-```
-  Keys you rarely press:            Keys you press all the time:
-  ┌──────┐ ┌──────┐ ┌──────┐       ┌──────┐ ┌──────┐ ┌──────┐
-  │ Caps │ │Right │ │Right │       │ Esc  │ │ Del  │ │ Ctrl │
-  │ Lock │ │Option│ │ Ctrl │       │      │ │      │ │      │
-  └──────┘ └──────┘ └──────┘       └──────┘ └──────┘ └──────┘
-  (prime real estate,               (awkward reaches,
-   gathering dust)                   dozens of times a day)
-```
-
-Remapping fixes this mismatch. You move frequently-used actions to comfortable keys. Your fingers travel less. Your wrists stay happier.
+This is the most useful thing KeyPath does. If you've never remapped a key before, this guide will get you there in under a minute — and by the end, you'll see why people redesign their whole keyboard.
 
 ---
 
-## Your first remap: Caps Lock to Escape
+## The problem
 
-The most popular remap in the world. Caps Lock sits right next to the home row — easy to reach without looking. Escape is way up in the corner. If you dismiss dialogs, cancel searches, or exit full-screen videos, you press Escape constantly.
+You navigate text every day — moving the cursor through documents, emails, code, spreadsheets. Every time you reach for the arrow keys, your right hand leaves the home row:
 
-### Method 1: Install the Pack (recommended)
+```
+                                          your hand has to
+                                          travel here ──┐
+                                                        ↓
+  ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐      ┌───┐
+  │   │   │   │   │   │   │   │   │   │   │      │ ↑ │
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤  ┌───┼───┼───┐
+  │   │   │   │ F │   │   │ J │   │   │   │  │ ← │ ↓ │ → │
+  └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘  └───┴───┴───┘
+                  ↑                   ↑
+            your left hand      your right hand
+            stays here          has to leave
+```
 
-The fastest way — one click and you're done.
+On a MacBook, those arrow keys are tiny. You look down to find them. You lose your place in the text. Then you move your hand back to the home row and find your position again. Dozens of times a day.
+
+---
+
+## Your first remap: Home Row Arrows
+
+What if your right hand could stay on the home row and *still* have arrow keys?
+
+**Home Row Arrows** turns F into a trigger. Tap F normally and it types "f". But hold F, and your right hand becomes arrow keys:
+
+```
+  Hold F, then press:
+
+  ┌───┬───┬───┬───┐
+  │   │ ↑ │   │   │     I = Up
+  ├───┼───┼───┼───┤
+  │ ← │ ↓ │ → │   │     J = Left, K = Down, L = Right
+  └───┴───┴───┴───┘
+
+  Plus: H = Home, ; = End, U = Page Up, O = Page Down
+```
+
+The arrow layout matches the physical arrow keys you already know — up is above down, left and right are on either side. No new layout to memorize.
+
+### Try it now
+
+KeyPath installs Home Row Arrows by default. If it's already running, try it:
+
+1. Open any text editor or document
+2. **Hold F** (don't release)
+3. Press **J, K, I, or L** to move the cursor
+4. **Release F** to go back to normal typing
+
+<!-- Screenshot: Overlay showing Home Row Arrows layer active, IJKL highlighted as arrows -->
+![Screenshot — Home Row Arrows active in the overlay]({{ '/images/help/placeholder-overlay-home-row-arrows.png' | relative_url }})
+
+That's it. Your hand never left the home row. No reaching, no looking down, no tiny arrow keys.
+
+### If it's not installed yet
 
 1. Open KeyPath from the menu bar
 2. Open the **Pack Gallery**
-3. Find **Caps Lock Remap** and click **Install**
+3. Find **Home Row Arrows** and click **Install**
 
-<!-- Screenshot: Pack Gallery showing Caps Lock Remap with Install button -->
-![Screenshot — Caps Lock Remap in the Pack Gallery]({{ '/images/help/placeholder-pack-gallery-caps-lock.png' | relative_url }})
+<!-- Screenshot: Pack Gallery showing Home Row Arrows pack -->
+![Screenshot — Home Row Arrows in the Pack Gallery]({{ '/images/help/placeholder-pack-gallery-home-row-arrows.png' | relative_url }})
 
-That's it. Caps Lock now sends Escape. Try it — press Caps Lock and watch what happens.
-
-The Pack also supports tap-hold — tap for Escape, hold for a modifier like Hyper or Control. You can change this in the pack settings after installing. But for now, the simple remap is all you need.
-
-### Method 2: Use the Keyboard Overlay
-
-If you prefer a more visual approach:
-
-1. Open the **KeyPath overlay** (click the menu bar icon, or use the global hotkey)
-2. Click on the **Caps Lock** key in the keyboard visualization
-3. In the inspector panel, set the output to **Escape**
-4. Click **Apply**
-
-<!-- Screenshot: Overlay with Caps Lock selected, inspector showing output picker -->
-![Screenshot — Clicking Caps Lock in the overlay to remap it]({{ '/images/help/placeholder-overlay-remap-caps-lock.png' | relative_url }})
-
-The overlay shows you every key and what it currently does. Clicking any key opens an inspector where you can change its behavior.
-
-### Method 3: Use the Command Line
-
-If you're a Terminal person:
+Or from the command line:
 
 ```bash
-keypath remap caps_lock esc
+keypath pack install home-row-arrows
 ```
-
-One command, done. Use `keypath unmap caps_lock` to undo it.
 
 ---
 
 ## What just happened?
 
-When you remapped Caps Lock to Escape, KeyPath told the Kanata remapping engine to intercept every Caps Lock press and send Escape instead. This happens at a level below your apps — every application on your Mac sees Escape, not Caps Lock. It works in every app, every context, even the login screen.
+When you held F and pressed J, KeyPath told the [Kanata](https://github.com/jtroo/kanata) remapping engine to intercept the keypress and send Left Arrow instead. This happens at a level below your apps — every application on your Mac sees an arrow key, not the letter J.
 
 ```
-  You press:     KeyPath intercepts:     Your Mac sees:
-  ┌──────┐       ┌─────────────┐         ┌──────┐
-  │ Caps │  →    │   Kanata    │    →    │ Esc  │
-  │ Lock │       │   engine    │         │      │
-  └──────┘       └─────────────┘         └──────┘
+  You press:        KeyPath intercepts:      Your Mac sees:
+  ┌───┐ + ┌───┐     ┌───────────────┐       ┌───┐
+  │ F │   │ J │  →   │    Kanata     │   →   │ ← │
+  │   │   │   │      │    engine     │       │   │
+  └───┘   └───┘      └───────────────┘       └───┘
+  (hold)  (press)
 ```
 
-Kanata is the open-source remapping engine that powers KeyPath. It runs as a system service, so your remaps work the moment your Mac boots — no need to open KeyPath first. KeyPath provides the visual interface; [Kanata](https://github.com/jtroo/kanata) provides the engine.
+When you release F, everything goes back to normal. F types "f" when tapped. J types "j" when tapped. The magic only happens when F is held.
+
+Kanata is the open-source keyboard remapping engine that powers KeyPath. It runs as a system service, so your remaps work in every app, every context — even before you log in. KeyPath provides the visual interface; Kanata provides the engine.
 
 ---
 
-## More remaps to try
+## A simpler remap: one key becomes another
 
-Once you've got one remap working, here are the most popular next steps:
+Home Row Arrows uses a powerful technique (tap-hold + a layer), but remapping can also be much simpler. You can make one key behave as another key — no holding required.
 
-### Right modifier keys
+### Caps Lock → Escape
 
-Most people never press the right-side modifiers. They're prime candidates:
+The most popular simple remap. Caps Lock sits in prime real estate next to the home row, but it's useless for most people. Escape is far away but you press it constantly — dismissing dialogs, canceling searches, exiting full-screen.
 
-| Remap | Why |
-|-------|-----|
-| Right Option → Forward Delete | Macs don't have a dedicated Delete key. Now you do. |
-| Right Control → Enter | Bring Enter closer to the home row. |
-| Right Command → Hyper | A modifier no app uses — perfect for custom shortcuts. |
+1. Open the **Pack Gallery**
+2. Install **Caps Lock Remap**
 
-### Function row
+Done. Caps Lock now sends Escape every time you press it.
 
-If you use the Touch Bar or never press F-keys directly:
+### Right Option → Forward Delete
 
-| Remap | Why |
-|-------|-----|
-| Caps Lock → Escape | The classic — move Escape to the home row. |
-| Escape → Caps Lock | If you still need Caps Lock occasionally, swap them. |
-| Backtick → Escape | For keyboards where Caps Lock is already taken. |
-
-### Swap two keys
-
-You can swap keys so both still exist, just in different positions:
-
-```
-  Before:                          After:
-  ┌──────┐ ┌──────┐               ┌──────┐ ┌──────┐
-  │ Caps │ │ Esc  │               │ Esc  │ │ Caps │
-  └──────┘ └──────┘               └──────┘ └──────┘
-```
-
-Install both the **Caps Lock Remap** and **Backup Caps Lock** packs, or use the CLI:
+Macs don't have a Forward Delete key (delete the character *after* the cursor). Right Option is right there and almost nobody uses it deliberately. Remap it:
 
 ```bash
-keypath remap caps_lock esc
-keypath remap esc caps_lock
+keypath remap right_option delete
 ```
+
+### More popular simple remaps
+
+| Remap | Why |
+|-------|-----|
+| Caps Lock → Escape | Move Escape to the home row |
+| Right Option → Forward Delete | Add the missing Forward Delete key |
+| Right Control → Enter | Bring Enter closer to the home row |
+| Right Command → Hyper | A modifier no app uses — free shortcut real estate |
 
 ---
 
@@ -144,31 +145,31 @@ The keyboard overlay shows you what every key does right now. Remapped keys are 
 <!-- Screenshot: Overlay showing remapped keys highlighted -->
 ![Screenshot — The overlay highlighting remapped keys]({{ '/images/help/placeholder-overlay-remapped-keys.png' | relative_url }})
 
-Hover over any key to see its current mapping. If you ever forget what you've changed, the overlay is your map.
+Click any key to see its current mapping. If you ever forget what you've changed, the overlay is your map.
 
 ---
 
 ## Undoing a remap
 
-Changed your mind? Three ways to undo:
+Changed your mind? Nothing is permanent:
 
 - **Pack Gallery** — click **Uninstall** on the pack
 - **Overlay** — click the key, set it back to its original output
 - **CLI** — `keypath unmap caps_lock`
 
-Nothing is permanent. Experiment freely.
+Experiment freely.
 
 ---
 
 ## What's next?
 
-You've remapped one key. That's the foundation. Here's where it gets interesting:
+You've seen two kinds of remapping — a simple key swap (Caps Lock → Escape) and a hold-activated layer (Home Row Arrows). That second one is the gateway to much more.
 
-**[Tap-Hold]({{ '/guides/tap-hold/' | relative_url }})** — What if Caps Lock could be *both* Escape (when tapped) and Control (when held)? One key, two jobs. This is the second fundamental concept, and it changes everything.
+**[Tap-Hold]({{ '/guides/tap-hold/' | relative_url }})** — The technique Home Row Arrows uses. One key, two jobs: tap for one thing, hold for another. This is the second fundamental concept, and it unlocks everything else.
 
-**[Browse the Pack Gallery]({{ '/guides/packs/' | relative_url }})** — Pre-built remapping packs you can install with one click. Caps Lock Remap, Escape Remap, Delete Enhancement, and more.
+**[Layers]({{ '/guides/concepts/' | relative_url }})** — Home Row Arrows gave you one extra layer (arrows). Imagine having *several* — a numpad layer, a symbol layer, an app launcher layer. That's where the real power lives.
 
-**[Keyboard Concepts]({{ '/guides/concepts/' | relative_url }})** — The full picture of what's possible — layers, home row mods, chords, and how they all build on the simple remap you just did.
+**[Browse the Pack Gallery]({{ '/guides/packs/' | relative_url }})** — Pre-built feature packs you install with one click. Start with what's already on and explore from there.
 
 ---
 
@@ -178,7 +179,8 @@ You've remapped one key. That's the foundation. Here's where it gets interesting
 
 | Pack | What it does |
 |------|-------------|
-| [Caps Lock Remap]({{ '/guides/packs/' | relative_url }}) | Tap: Escape (or Backspace/Hyper). Hold: Hyper (or Control/Shift/Meh). |
+| [Home Row Arrows]({{ '/guides/packs/' | relative_url }}) | Hold F for arrow keys on IJKL. Installed by default. |
+| [Caps Lock Remap]({{ '/guides/packs/' | relative_url }}) | Tap: Escape (or Backspace/Hyper). Hold: modifier. |
 | [Escape Remap]({{ '/guides/packs/' | relative_url }}) | Move Escape to Caps Lock, Backtick, or Tab. |
 | [Delete Enhancement]({{ '/guides/packs/' | relative_url }}) | Forward-delete, word-delete, and line-delete from Backspace. |
 | [Backup Caps Lock]({{ '/guides/packs/' | relative_url }}) | Both Shift keys together → Caps Lock. |
@@ -188,8 +190,9 @@ You've remapped one key. That's the foundation. Here's where it gets interesting
 ```bash
 keypath remap <from> <to>          # Remap a key
 keypath unmap <from>               # Remove a remap
+keypath pack install <name>        # Install a feature pack
+keypath pack uninstall <name>      # Remove a feature pack
 keypath rule list                  # See all active rules
-keypath rule add <from> <to>       # More control over rule creation
 ```
 
 ### Common key names

@@ -70,6 +70,14 @@ Press two adjacent keys simultaneously for instant actions — no modifier keys 
 
 ## Navigation
 
+### Home Row Arrows
+
+Hold F for arrow keys under your right hand — I/J/K/L in an inverted-T layout that matches your physical arrow keys. Plus Home, End, Page Up, and Page Down on surrounding keys. Tap F normally to type.
+
+Installed by default. This is the simplest way to navigate text without leaving the home row. Conflicts with Home Row Mods (both use F as a hold key) — use one or the other.
+
+[Full guide &rarr;]({{ '/guides/remapping/' | relative_url }})
+
 ### Vim Navigation
 
 Hold Space to enter a navigation layer: H/J/K/L become arrow keys, Y/P are copy/paste, U is undo, / is find. Release Space to type normally. This is the foundation pack — most other layer packs build on top of it.
