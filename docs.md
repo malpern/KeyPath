@@ -52,6 +52,8 @@ theme: parchment
 <li><a href="{{ '/guides/auto-shift/' | relative_url }}">Auto-Shift</a></li>
 <li><a href="{{ '/guides/leader-key/' | relative_url }}">Leader Key</a></li>
 <li><a href="{{ '/guides/key-repeat-control/' | relative_url }}">Key Repeat Control</a></li>
+<li><a href="{{ '/guides/tap-hold/' | relative_url }}">Tap-Dance</a></li>
+<li><a href="{{ '/guides/tap-hold/' | relative_url }}">One-Shot Modifiers</a></li>
 </ul>
 </div>
 
