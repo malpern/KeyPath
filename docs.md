@@ -101,13 +101,13 @@ theme: parchment
 </div>
 
 <div class="docs-card">
-<h3>Diagnostics & Insights</h3>
+<h3><a href="{{ '/guides/diagnostics/' | relative_url }}">Diagnostics & Insights</a></h3>
 <p>Understand what your keyboard is doing — analytics, history, and testing tools for power users.</p>
 <ul class="docs-card-links">
-<li>HRM Analytics <span class="docs-coming-soon">Coming soon</span></li>
-<li>Activity Insights <span class="docs-coming-soon">Coming soon</span></li>
-<li>Keystroke History <span class="docs-coming-soon">Coming soon</span></li>
-<li>Simulator <span class="docs-coming-soon">Coming soon</span></li>
+<li><a href="{{ '/guides/diagnostics/' | relative_url }}">HRM Analytics</a></li>
+<li><a href="{{ '/guides/diagnostics/' | relative_url }}">Activity Insights</a></li>
+<li><a href="{{ '/guides/diagnostics/' | relative_url }}">Keystroke History</a></li>
+<li><a href="{{ '/guides/diagnostics/' | relative_url }}">Simulator</a></li>
 </ul>
 </div>
 
