@@ -156,6 +156,16 @@ Hold any symbol key slightly longer to type its shifted variant — tap hyphen f
 
 ---
 
+## Fun
+
+### Typing Sounds
+
+Make your keyboard sound like a mechanical keyboard. Choose from five switch profiles — Cherry MX Blue (clicky), Cherry MX Brown (tactile), Cherry MX Red (linear), NK Cream (thocky), or Bubble Pop (playful). Each profile plays authentic audio samples on every keypress.
+
+Enable in **Settings > Typing Sounds** and pick your profile. No pack install needed — it's a built-in setting.
+
+---
+
 ## Integrations
 
 ### KindaVim
