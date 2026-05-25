@@ -243,10 +243,12 @@ struct LiveKeyboardOverlayView: View {
         let packIDs = ids ?? installedPackIDs
         let packConfig = PackZoneResolver.layerPreviewConfig(installedPackIDs: packIDs)
         let capsConfig = await Self.capsLockLayerPreviewTargets()
+        let momentaryConfig = await Self.momentaryActivatorLayerPreviewTargets()
 
         await MainActor.run {
             var merged = packConfig?.targets ?? [:]
             merged.merge(capsConfig) { existing, _ in existing }
+            merged.merge(momentaryConfig) { existing, _ in existing }
             viewModel.layerPreviewTargets = merged
             viewModel.layerPreviewActivators = Set(merged.keys)
         }
@@ -273,6 +275,24 @@ struct LiveKeyboardOverlayView: View {
         }
 
         return [57: targetLayer]
+    }
+
+    /// Scan all enabled rule collections for momentary activators that map a physical
+    /// key to a layer. Returns keyCode → target layer name for each one found.
+    private static func momentaryActivatorLayerPreviewTargets() async -> [UInt16: String] {
+        let collections = await RuleCollectionStore.shared.loadCollections()
+        var result: [UInt16: String] = [:]
+
+        for collection in collections {
+            guard collection.isEnabled, let activator = collection.momentaryActivator else { continue }
+            let input = activator.input.lowercased()
+            // Skip virtual inputs (hyper, meh) — those are handled by capsLockLayerPreviewTargets
+            guard input != "hyper", input != "meh" else { continue }
+            guard let keyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(input) else { continue }
+            result[keyCode] = activator.targetLayer.kanataName
+        }
+
+        return result
     }
 
     private func copyValidationErrorsToClipboard() {
