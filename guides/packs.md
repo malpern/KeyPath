@@ -92,7 +92,7 @@ A complete navigation system inspired by keyboard minimalist [Ben Vallack](https
 
 Installs three coordinated collections: Vallack Navigation, Ben's Modifiers, and Vallack Layer Toggles. This is an opinionated alternative to the default Vim Navigation — use one or the other, not both.
 
-[Full guide &rarr;]({{ '/guides/vim-navigation/' | relative_url }})
+[Full guide &rarr;]({{ '/guides/vallack-nav/' | relative_url }})
 
 ### Window Snapping
 
@@ -153,6 +153,16 @@ This is one of the most powerful features in KeyPath, but it takes some adjustme
 Hold any symbol key slightly longer to type its shifted variant — tap hyphen for `-`, hold for `_`. Tap apostrophe for `'`, hold for `"`. No Shift key needed.
 
 [Full guide &rarr;]({{ '/guides/auto-shift/' | relative_url }})
+
+---
+
+## Fun
+
+### Typing Sounds
+
+Make your keyboard sound like a mechanical keyboard. Choose from five switch profiles — Cherry MX Blue (clicky), Cherry MX Brown (tactile), Cherry MX Red (linear), NK Cream (thocky), or Bubble Pop (playful). Each profile plays authentic audio samples on every keypress.
+
+Enable in **Settings > Typing Sounds** and pick your profile. No pack install needed — it's a built-in setting.
 
 ---
 
