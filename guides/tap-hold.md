@@ -199,6 +199,60 @@ Default is 200ms for both, which works well for most users. Adjust based on your
 
 ---
 
+## Tap-Dance: multiple taps, multiple actions
+
+Tap-hold gives you two actions per key (tap and hold). Tap-dance goes further — different actions based on how many *times* you tap.
+
+```
+  Caps Lock with tap-dance:
+
+  1 tap  → Escape
+  2 taps → Caps Lock (when you actually need it)
+  3 taps → Toggle a layer
+```
+
+This is great for keys you rarely use in their original form. Pack multiple functions into one key without adding complexity to everyday typing — you only get the multi-tap action when you deliberately tap quickly.
+
+### Setting up tap-dance
+
+1. Open the **Custom Rules** tab
+2. Create or edit a rule
+3. Enable **Hold, Double Tap, etc.**
+4. Set actions for single tap, double tap, and optionally triple tap
+
+The timing window between taps is configurable. A shorter window means you need to tap faster; a longer window gives you more time but adds a slight delay before the single-tap action fires (KeyPath has to wait to see if you'll tap again).
+
+---
+
+## One-Shot Modifiers: tap a modifier, it applies once
+
+Standard modifiers require holding — hold Shift, press A, release Shift to type "A". One-shot modifiers let you *tap* a modifier and it applies to just the next key.
+
+```
+  Standard:                  One-shot:
+  Hold Shift + press A       Tap Shift, then press A
+  = A                        = A (then Shift deactivates)
+```
+
+This is useful for:
+- **Accessibility** — easier for users who find holding keys difficult
+- **One-handed typing** — tap a modifier with one hand, type the key with the other
+- **Reducing finger strain** — no simultaneous key holding
+
+One-shot modifiers are configured in the Kanata config. Add them to any key using the `one-shot` action:
+
+```lisp
+;; In your Kanata config:
+(defalias
+  os-sft (one-shot 1500 lsft)  ;; Tap for one-shot Shift (1.5s timeout)
+  os-ctl (one-shot 1500 lctl)  ;; Tap for one-shot Control
+)
+```
+
+The timeout (1500ms) is how long the one-shot stays active waiting for the next key. If you don't press a key within that window, the modifier deactivates.
+
+---
+
 ## Troubleshooting
 
 ### Hold activates too quickly
