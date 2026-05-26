@@ -503,8 +503,10 @@ extension KanataConfiguration {
             generateLauncherGridMappings(from: config)
         case let .autoShiftSymbols(config):
             generateAutoShiftSymbolsMappings(from: config)
-        case .keyRepeatControl:
-            []
+        case let .keyRepeatControl(config):
+            config.perKeyOverrides.map { override in
+                KeyMapping(input: override.key, action: .keystroke(key: override.key))
+            }
         case .list, .table, .singleKeyPicker:
             collection.mappings
         }

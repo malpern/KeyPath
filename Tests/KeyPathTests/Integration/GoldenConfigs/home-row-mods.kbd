@@ -81,8 +81,7 @@ PHYSICAL KEYBOARD LAYOUT - DEFSRC
   ;; === Collection: Fast Navigation (enabled) ===
   ;; UUID: <UUID>
   ;; Description: Arrow keys and delete repeat 3× faster. Regular keys stay steady.
-  ;; (no mappings)
-  ;; (no mappings)
+  del
 
   ;; === Collection: Home Row Arrows (enabled) ===
   ;; UUID: <UUID>
@@ -206,8 +205,7 @@ LAYER DEFINITIONS
   ;; === Collection: Fast Navigation (enabled) ===
   ;; UUID: <UUID>
   ;; Description: Arrow keys and delete repeat 3× faster. Regular keys stay steady.
-  ;; (no mappings)
-  ;; (no mappings)
+  del
 
   ;; === Collection: Home Row Arrows (enabled) ===
   ;; UUID: <UUID>
@@ -262,8 +260,7 @@ LAYER DEFINITIONS
   ;; === Collection: Fast Navigation (enabled) ===
   ;; UUID: <UUID>
   ;; Description: Arrow keys and delete repeat 3× faster. Regular keys stay steady.
-  ;; (no mappings)
-  ;; (no mappings)
+  _
 
   ;; === Collection: Home Row Arrows (enabled) ===
   ;; UUID: <UUID>
@@ -318,8 +315,7 @@ LAYER DEFINITIONS
   ;; === Collection: Fast Navigation (enabled) ===
   ;; UUID: <UUID>
   ;; Description: Arrow keys and delete repeat 3× faster. Regular keys stay steady.
-  ;; (no mappings)
-  ;; (no mappings)
+  _
 
   ;; === Collection: Home Row Arrows (enabled) ===
   ;; UUID: <UUID>
@@ -374,8 +370,7 @@ LAYER DEFINITIONS
   ;; === Collection: Fast Navigation (enabled) ===
   ;; UUID: <UUID>
   ;; Description: Arrow keys and delete repeat 3× faster. Regular keys stay steady.
-  ;; (no mappings)
-  ;; (no mappings)
+  _
 
   ;; === Collection: Home Row Arrows (enabled) ===
   ;; UUID: <UUID>
