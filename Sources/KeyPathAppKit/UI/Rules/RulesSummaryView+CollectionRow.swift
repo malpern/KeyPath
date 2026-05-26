@@ -13,7 +13,18 @@ struct ExpandableCollectionRow: View {
     let icon: String
     let count: Int
     let isEnabled: Bool
-    let mappings: [(input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, sectionLabel: String?, enabled: Bool, id: UUID, behavior: MappingBehavior?)]
+    let mappings: [(
+        input: String,
+        output: String,
+        shiftedOutput: String?,
+        ctrlOutput: String?,
+        description: String?,
+        sectionBreak: Bool,
+        sectionLabel: String?,
+        enabled: Bool,
+        id: UUID,
+        behavior: MappingBehavior?
+    )]
     var appKeymaps: [AppKeymap] = []
     let onToggle: (Bool) -> Void
     let onEditMapping: ((UUID) -> Void)?
@@ -29,7 +40,7 @@ struct ExpandableCollectionRow: View {
     var leaderKeyDisplay: String = "␣ Space"
     /// Optional activation hint from collection (overrides default formatting)
     var activationHint: String?
-    var managingPackName: String? = nil
+    var managingPackName: String?
     var onManagedToggleTapped: (() -> Void)?
     var defaultExpanded: Bool = false
     var displayStyle: RuleCollectionDisplayStyle = .list
@@ -70,6 +81,8 @@ struct ExpandableCollectionRow: View {
     var onSelectLayerPreset: ((String) -> Void)?
     /// For windowSnapping: callback to change key convention
     var onSelectWindowConvention: ((WindowKeyConvention) -> Void)?
+    /// For windowSnapping: callback to change activation mode
+    var onWindowSnappingActivationModeChange: ((WindowSnappingActivationMode) -> Void)?
     /// For functionKeys: callback to change mode (media keys vs function keys)
     var onSelectFunctionKeyMode: ((FunctionKeyMode) -> Void)?
     /// For launcherGrid: callback to update launcher config
@@ -114,7 +127,7 @@ struct ExpandableCollectionRow: View {
         return normalized == "neovimterminal"
     }
 
-private var fallbackKeyMappings: [KeyMapping] {
+    private var fallbackKeyMappings: [KeyMapping] {
         mappings.map { mapping in
             let action: KeyAction = mapping.output.hasPrefix("(") ? .rawKanata(mapping.output) : .keystroke(key: mapping.output)
             return KeyMapping(
@@ -558,8 +571,12 @@ private var fallbackKeyMappings: [KeyMapping] {
                         WindowSnappingView(
                             mappings: collection?.mappings ?? [],
                             convention: collection?.windowKeyConvention ?? .standard,
+                            activationMode: collection?.configuration.windowSnappingConfig?.activationMode ?? .leader,
                             onConventionChange: { convention in
                                 onSelectWindowConvention?(convention)
+                            },
+                            onActivationModeChange: { mode in
+                                onWindowSnappingActivationModeChange?(mode)
                             }
                         )
                         .padding(.top, 8)

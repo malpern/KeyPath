@@ -503,8 +503,12 @@ extension KanataConfiguration {
             generateLauncherGridMappings(from: config)
         case let .autoShiftSymbols(config):
             generateAutoShiftSymbolsMappings(from: config)
-        case .keyRepeatControl:
-            []
+        case let .keyRepeatControl(config):
+            config.perKeyOverrides.map { override in
+                KeyMapping(input: override.key, action: .keystroke(key: override.key))
+            }
+        case .windowSnapping:
+            collection.mappings
         case .list, .table, .singleKeyPicker:
             collection.mappings
         }
@@ -523,7 +527,10 @@ extension KanataConfiguration {
 
         for alias in aliases {
             if let existingIndex = seen[alias.aliasName] {
-                AppLogger.shared.error("🚨 [ConfigGen] Duplicate alias '\(alias.aliasName)' — this should have been caught by conflict detection. Keeping last definition as safety fallback. First: '\(result[existingIndex].definition.prefix(80))' → Replaced by: '\(alias.definition.prefix(80))'")
+                AppLogger.shared
+                    .error(
+                        "🚨 [ConfigGen] Duplicate alias '\(alias.aliasName)' — this should have been caught by conflict detection. Keeping last definition as safety fallback. First: '\(result[existingIndex].definition.prefix(80))' → Replaced by: '\(alias.definition.prefix(80))'"
+                    )
                 result[existingIndex] = alias
             } else {
                 seen[alias.aliasName] = result.count
@@ -618,7 +625,7 @@ extension KanataConfiguration {
         layout: PhysicalLayout = .macBookUS
     ) -> [String] {
         // Skip modifier/utility keys and any explicitly provided skips (e.g., activator key)
-        let defaultSkips: Set<String> = [
+        let defaultSkips: Set = [
             "leftmeta", "rightmeta", "leftctrl", "rightctrl",
             "leftalt", "rightalt", "leftshift", "rightshift",
             "capslock", "fn"

@@ -179,6 +179,13 @@ final class RuleCollectionsCoordinator {
         return wasNewlyEnabled
     }
 
+    func updateWindowSnappingConfig(id: UUID, config: WindowSnappingConfig) async -> String? {
+        let autoEnabled = await ruleCollectionsManager.updateWindowSnappingConfig(id: id, config: config)
+        applyMappings(ruleCollectionsManager.enabledMappings())
+        notifyStateChanged()
+        return autoEnabled
+    }
+
     /// Update the leader key for all collections that use momentary activation
     func updateLeaderKey(_ newKey: String) async {
         await ruleCollectionsManager.updateLeaderKey(newKey)

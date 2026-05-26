@@ -98,6 +98,12 @@ extension RulesTabView {
         if case let .autoShiftSymbols(config) = collection.configuration {
             return "\(config.enabledKeys.count) keys \u{00B7} \(config.timeoutMs)ms hold"
         }
+        if case let .windowSnapping(config) = collection.configuration {
+            switch config.activationMode {
+            case .leader: return "\(currentLeaderKeyDisplay) → w → action key"
+            case .quickLauncher: return "Hyper + w → action key"
+            }
+        }
         return collection.activationHint
     }
 

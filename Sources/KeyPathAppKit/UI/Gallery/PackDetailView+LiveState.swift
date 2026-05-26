@@ -7,6 +7,22 @@ extension PackDetailView {
         var installed = await PackInstaller.shared.isInstalled(packID: pack.id)
         let saved = await PackInstaller.shared.quickSettings(for: pack.id)
 
+        // Resilience: if collection is enabled but tracker has no record, backfill
+        if !installed, let collectionID = pack.associatedCollectionID {
+            let collections = await kanataManager.underlyingManager
+                .ruleCollectionsManager.ruleCollections
+            if let match = collections.first(where: { $0.id == collectionID }), match.isEnabled {
+                let record = InstalledPackRecord(
+                    packID: pack.id,
+                    version: pack.version,
+                    installedAt: Date(),
+                    quickSettingValues: [:]
+                )
+                try? await InstalledPackTracker.shared.upsert(record)
+                installed = true
+            }
+        }
+
         // Check if this pack's collection is managed by a different installed
         // pack (e.g. Home Row Mods managed by Vallack). If so, lock the
         // toggle and show the "Part of" tag.

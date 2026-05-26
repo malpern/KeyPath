@@ -312,6 +312,14 @@ struct RulesTabView: View {
             onSelectWindowConvention: collection.id == RuleCollectionIdentifier.windowSnapping ? { convention in
                 Task { await kanataManager.updateWindowKeyConvention(collection.id, convention: convention) }
             } : nil,
+            onWindowSnappingActivationModeChange: collection.id == RuleCollectionIdentifier.windowSnapping ? { mode in
+                Task {
+                    let config = WindowSnappingConfig(activationMode: mode)
+                    if let autoEnabled = await kanataManager.updateWindowSnappingConfig(collectionId: collection.id, config: config) {
+                        settingsToastManager.showSuccess("Also enabled \(autoEnabled)")
+                    }
+                }
+            } : nil,
             onSelectFunctionKeyMode: collection.id == RuleCollectionIdentifier.macFunctionKeys ? { mode in
                 Task { await kanataManager.updateFunctionKeyMode(collection.id, mode: mode) }
             } : nil,
@@ -332,7 +340,7 @@ struct RulesTabView: View {
             // Orange border for collections that need a Pack Detail view built
             packForCollection(collection) == nil && !collection.isSystemDefault
                 ? RoundedRectangle(cornerRadius: 10)
-                    .strokeBorder(Color.orange.opacity(0.35), lineWidth: 1.5)
+                .strokeBorder(Color.orange.opacity(0.35), lineWidth: 1.5)
                 : nil
         )
     }
@@ -368,17 +376,15 @@ struct RulesTabView: View {
                 let allAutoResolvable = unmet.allSatisfy { $0.reason == .notEnabled }
 
                 if allAutoResolvable {
-                    // Auto-enable dependencies and the pack
+                    // Auto-enable dependencies and the pack via PackInstaller to keep InstalledPackTracker in sync
                     pendingToggles[collection.id] = true
                     Task {
                         for dep in unmet {
-                            if let depPack = PackRegistry.pack(id: dep.dependency.packID),
-                               let depCollectionID = depPack.associatedCollectionID
-                            {
-                                await kanataManager.toggleRuleCollection(depCollectionID, enabled: true)
+                            if let depPack = PackRegistry.pack(id: dep.dependency.packID) {
+                                await toggleViaPack(depPack, isOn: true)
                             }
                         }
-                        await kanataManager.toggleRuleCollection(collection.id, enabled: true)
+                        await toggleViaPack(pack, isOn: true)
                         pendingToggles.removeValue(forKey: collection.id)
                         refreshUnmetDependencies()
                         let depNames = unmet.map { PackRegistry.pack(id: $0.dependency.packID)?.name ?? $0.dependency.packID }
@@ -559,7 +565,18 @@ struct RulesTabView: View {
                                 count: isSearching ? (filteredCustomRules.count + filteredAppKeymaps.flatMap(\.overrides).count) : totalCustomRulesCount,
                                 isEnabled: filteredCustomRules.isEmpty
                                     || filteredCustomRules.allSatisfy(\.isEnabled),
-                                mappings: filteredCustomRules.map { ($0.input, $0.action.outputString, $0.shiftedOutput, nil, $0.title.isEmpty ? nil : $0.title, false, nil as String?, $0.isEnabled, $0.id, $0.behavior) },
+                                mappings: filteredCustomRules.map { (
+                                    $0.input,
+                                    $0.action.outputString,
+                                    $0.shiftedOutput,
+                                    nil,
+                                    $0.title.isEmpty ? nil : $0.title,
+                                    false,
+                                    nil as String?,
+                                    $0.isEnabled,
+                                    $0.id,
+                                    $0.behavior
+                                ) },
                                 appKeymaps: filteredAppKeymaps,
                                 onToggle: { isOn in
                                     Task {
@@ -916,7 +933,6 @@ struct RulesTabView: View {
         }
     }
 
-
     private func collectionMatchesSearch(_ collection: RuleCollection) -> Bool {
         let query = trimmedSearchQuery.lowercased()
 
@@ -1077,4 +1093,3 @@ struct RulesTabView: View {
         }
     }
 }
-

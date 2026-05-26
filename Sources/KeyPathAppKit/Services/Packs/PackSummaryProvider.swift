@@ -14,7 +14,7 @@ import Foundation
 ///   misleading).
 /// * No associated collection → fall back to the pack's first binding
 ///   template (legacy rule-based packs).
-struct PackSummaryProvider {
+enum PackSummaryProvider {
     /// A minimal view of what the Pack Detail caller knows: the pack
     /// itself, the live-looked-up rule collection (if any), and the
     /// user's in-flight picker overrides (if any).
@@ -35,7 +35,7 @@ struct PackSummaryProvider {
                 return singleKeySummary(for: input, collection: collection)
             case .homeRowMods, .homeRowLayerToggles, .chordGroups, .sequences,
                  .launcherGrid, .layerPresetPicker, .autoShiftSymbols,
-                 .keyRepeatControl, .table, .list:
+                 .keyRepeatControl, .windowSnapping, .table, .list:
                 // Multi-binding or complex configs — the embedded editor
                 // shows everything; a one-liner would misrepresent state.
                 return nil

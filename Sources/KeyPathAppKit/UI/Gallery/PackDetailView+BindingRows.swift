@@ -7,10 +7,9 @@ extension PackDetailView {
     /// Wraps embedded editors in `InsetBackPlane` with the same padding the
     /// Rules tab uses, so Pack Detail editors visually match their Rules
     /// counterparts (subtle inner-shadow container, consistent insets).
-    @ViewBuilder
-    func embeddedEditor<Content: View>(
+    func embeddedEditor(
         horizontalPadding: CGFloat = 16,
-        @ViewBuilder content: () -> Content
+        @ViewBuilder content: () -> some View
     ) -> some View {
         InsetBackPlane {
             content()
@@ -166,7 +165,8 @@ extension PackDetailView {
                 .id(chordGroupsCollection.id)
             }
         } else if let collection = liveAssociatedCollection,
-                  collection.id == RuleCollectionIdentifier.windowSnapping {
+                  collection.id == RuleCollectionIdentifier.windowSnapping
+        {
             // Window Snapping has a custom visual editor in Rules — convention
             // picker + monitor canvas + floating action cards. Pack Detail
             // embeds the same view so the experience is identical.
@@ -175,8 +175,15 @@ extension PackDetailView {
                 WindowSnappingView(
                     mappings: collection.mappings,
                     convention: collection.windowKeyConvention ?? .standard,
+                    activationMode: collection.configuration.windowSnappingConfig?.activationMode ?? .leader,
                     onConventionChange: { convention in
                         Task { await applyWindowConventionEdit(convention, collectionID: collection.id) }
+                    },
+                    onActivationModeChange: { mode in
+                        Task {
+                            let config = WindowSnappingConfig(activationMode: mode)
+                            _ = await kanataManager.updateWindowSnappingConfig(collectionId: collection.id, config: config)
+                        }
                     }
                 )
             }
@@ -190,7 +197,8 @@ extension PackDetailView {
                 )
             }
         } else if pack.bindings.isEmpty, let collection = liveAssociatedCollection,
-                  !collection.mappings.isEmpty {
+                  !collection.mappings.isEmpty
+        {
             // Collection-backed pack with no explicit bindings and a plain
             // `.table` config (Vim Navigation, Mission Control, Numpad).
             // Uses the same MappingTableContent view Rules uses so the
