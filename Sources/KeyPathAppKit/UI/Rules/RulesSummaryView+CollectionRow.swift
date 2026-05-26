@@ -87,6 +87,8 @@ struct ExpandableCollectionRow: View {
     var onSelectFunctionKeyMode: ((FunctionKeyMode) -> Void)?
     /// For launcherGrid: callback to update launcher config
     var onLauncherConfigChanged: ((LauncherGridConfig) -> Void)?
+    /// For launcherGrid: whether Window Snapping uses Quick Launcher activation
+    var windowSnappingActive: Bool = false
     /// For autoShiftSymbols: callback to update config
     var onAutoShiftConfigChanged: ((AutoShiftSymbolsConfig) -> Void)?
     /// Optional help button callback — when non-nil, a `?` button appears in the header
@@ -465,7 +467,8 @@ struct ExpandableCollectionRow: View {
                             ),
                             onConfigChanged: { newConfig in
                                 onLauncherConfigChanged?(newConfig)
-                            }
+                            },
+                            windowSnappingActive: windowSnappingActive
                         )
                         .padding(.top, 8)
                         .padding(.bottom, 12)

@@ -651,15 +651,18 @@ extension RuleCollectionsManager {
     /// Update window snapping configuration (activation mode)
     /// - Returns: name of auto-enabled dependency, or nil
     func updateWindowSnappingConfig(id: UUID, config: WindowSnappingConfig) async -> String? {
+        var resolvedConfig = config
+
         guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
             let catalog = RuleCollectionCatalog()
             if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                catalogCollection.configuration = .windowSnapping(config)
-                catalogCollection.momentaryActivator = Self.momentaryActivatorForWindowSnapping(config)
-                catalogCollection.activationHint = Self.activationHintForWindowSnapping(config)
+                handleLauncherKeyConflict(config: &resolvedConfig)
+                catalogCollection.configuration = .windowSnapping(resolvedConfig)
+                catalogCollection.momentaryActivator = Self.momentaryActivatorForWindowSnapping(resolvedConfig)
+                catalogCollection.activationHint = Self.activationHintForWindowSnapping(resolvedConfig)
                 catalogCollection.isEnabled = true
                 ruleCollections.append(catalogCollection)
-                let autoEnabled = autoEnableWindowSnappingDependency(config)
+                let autoEnabled = autoEnableWindowSnappingDependency(resolvedConfig)
                 dedupeRuleCollectionsInPlace()
                 refreshLayerIndicatorState()
                 await regenerateConfigFromCollections()
@@ -668,15 +671,49 @@ extension RuleCollectionsManager {
             return nil
         }
 
-        ruleCollections[index].configuration = .windowSnapping(config)
-        ruleCollections[index].momentaryActivator = Self.momentaryActivatorForWindowSnapping(config)
-        ruleCollections[index].activationHint = Self.activationHintForWindowSnapping(config)
+        // Carry forward existing displaced mapping when not changing modes
+        if let existing = ruleCollections[index].configuration.windowSnappingConfig {
+            resolvedConfig.displacedLauncherMapping = existing.displacedLauncherMapping
+        }
+        handleLauncherKeyConflict(config: &resolvedConfig)
 
-        let autoEnabled = autoEnableWindowSnappingDependency(config)
+        ruleCollections[index].configuration = .windowSnapping(resolvedConfig)
+        ruleCollections[index].momentaryActivator = Self.momentaryActivatorForWindowSnapping(resolvedConfig)
+        ruleCollections[index].activationHint = Self.activationHintForWindowSnapping(resolvedConfig)
+
+        let autoEnabled = autoEnableWindowSnappingDependency(resolvedConfig)
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
         return autoEnabled
+    }
+
+    /// Displace or restore the `w` launcher mapping when switching Window Snapping activation modes.
+    private func handleLauncherKeyConflict(config: inout WindowSnappingConfig) {
+        guard let launcherIdx = ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }),
+              case var .launcherGrid(launcherConfig) = ruleCollections[launcherIdx].configuration
+        else { return }
+
+        switch config.activationMode {
+        case .quickLauncher:
+            if let wIdx = launcherConfig.mappings.firstIndex(where: { $0.key.lowercased() == "w" && $0.isEnabled }) {
+                config.displacedLauncherMapping = launcherConfig.mappings[wIdx]
+                launcherConfig.mappings[wIdx].isEnabled = false
+                ruleCollections[launcherIdx].configuration = .launcherGrid(launcherConfig)
+                AppLogger.shared.log("🪟 [WindowSnapping] Displaced launcher mapping for 'w': \(config.displacedLauncherMapping!.action.displayName)")
+            }
+        case .leader:
+            if let displaced = config.displacedLauncherMapping {
+                if let wIdx = launcherConfig.mappings.firstIndex(where: { $0.key.lowercased() == "w" }) {
+                    launcherConfig.mappings[wIdx] = displaced
+                } else {
+                    launcherConfig.mappings.append(displaced)
+                }
+                ruleCollections[launcherIdx].configuration = .launcherGrid(launcherConfig)
+                AppLogger.shared.log("🪟 [WindowSnapping] Restored launcher mapping for 'w': \(displaced.action.displayName)")
+                config.displacedLauncherMapping = nil
+            }
+        }
     }
 
     private static func momentaryActivatorForWindowSnapping(_ config: WindowSnappingConfig) -> MomentaryActivator {

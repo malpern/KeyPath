@@ -118,9 +118,23 @@ extension KeyboardVisualizationViewModel {
             return true
         }
 
-        let result = Dictionary(
+        var result = Dictionary(
             uniqueKeysWithValues: enabledMappings.map { ($0.key.lowercased(), $0) }
         )
+
+        // Inject synthetic "Windows" entry when Window Snapping uses Quick Launcher mode
+        if let wsCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.windowSnapping }),
+           wsCollection.isEnabled,
+           let wsConfig = wsCollection.configuration.windowSnappingConfig,
+           wsConfig.activationMode == .quickLauncher
+        {
+            result["w"] = LauncherMapping(
+                key: "w",
+                action: .systemAction(id: "window-snapping"),
+                userDescription: "Window Snapping"
+            )
+        }
+
         AppLogger.shared.info("🚀 [KeyboardViz] Built \(result.count) launcher mappings (filtered for installed apps)")
         return result
     }

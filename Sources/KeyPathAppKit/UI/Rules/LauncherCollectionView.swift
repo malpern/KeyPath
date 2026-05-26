@@ -10,6 +10,7 @@ import UniformTypeIdentifiers
 struct LauncherCollectionView: View {
     @Binding var config: LauncherGridConfig
     let onConfigChanged: (LauncherGridConfig) -> Void
+    var windowSnappingActive: Bool = false
 
     @State private var selectedKey: String?
     @State private var showBrowserHistory = false
@@ -59,7 +60,8 @@ struct LauncherCollectionView: View {
             LauncherDrawerView(
                 config: $config,
                 selectedKey: $selectedKey,
-                onConfigChanged: onConfigChanged
+                onConfigChanged: onConfigChanged,
+                windowSnappingActive: windowSnappingActive
             )
             .onChange(of: config) { _, newValue in
                 onConfigChanged(newValue)

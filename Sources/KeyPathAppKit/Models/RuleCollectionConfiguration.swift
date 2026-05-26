@@ -959,8 +959,15 @@ public enum WindowSnappingActivationMode: String, Codable, Equatable, Sendable {
 
 public struct WindowSnappingConfig: Codable, Equatable, Sendable {
     public var activationMode: WindowSnappingActivationMode
+    /// Stashed launcher mapping that was displaced when switching to Quick Launcher mode.
+    /// Restored when switching back to Leader mode.
+    public var displacedLauncherMapping: LauncherMapping?
 
-    public init(activationMode: WindowSnappingActivationMode = .leader) {
+    public init(
+        activationMode: WindowSnappingActivationMode = .leader,
+        displacedLauncherMapping: LauncherMapping? = nil
+    ) {
         self.activationMode = activationMode
+        self.displacedLauncherMapping = displacedLauncherMapping
     }
 }

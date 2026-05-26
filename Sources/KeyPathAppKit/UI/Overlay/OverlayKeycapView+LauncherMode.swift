@@ -40,7 +40,7 @@ extension OverlayKeycapView {
                         .opacity((iconVisible ? 1.0 : 0) * fadeFactor)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        Image(systemName: mapping.action.isLaunchApp ? "app.fill" : "globe")
+                        Image(systemName: launcherFallbackSymbol(for: mapping))
                             .font(.system(size: 14 * scale))
                             .foregroundStyle(foregroundColor.opacity(0.6))
                             .scaleEffect(iconVisible ? 1.0 : 0.3)
@@ -90,5 +90,12 @@ extension OverlayKeycapView {
 
     var launcherAppIcon: NSImage? {
         appIcon ?? faviconImage
+    }
+
+    private func launcherFallbackSymbol(for mapping: LauncherMapping) -> String {
+        if case let .systemAction(id) = mapping.action, id == "window-snapping" {
+            return "rectangle.split.2x2"
+        }
+        return mapping.action.isLaunchApp ? "app.fill" : "globe"
     }
 }
