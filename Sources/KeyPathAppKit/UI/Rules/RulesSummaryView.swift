@@ -44,6 +44,13 @@ struct RulesTabView: View {
     private let catalog = RuleCollectionCatalog()
 
     /// Total count of custom rules (everywhere + app-specific)
+    private var isWindowSnappingOnLauncher: Bool {
+        guard let ws = kanataManager.ruleCollections.first(where: { $0.id == RuleCollectionIdentifier.windowSnapping }),
+              ws.isEnabled
+        else { return false }
+        return ws.windowSnappingActivationMode == .quickLauncher
+    }
+
     private var totalCustomRulesCount: Int {
         kanataManager.customRules.count + appKeymaps.flatMap(\.overrides).count
     }
@@ -314,8 +321,7 @@ struct RulesTabView: View {
             } : nil,
             onWindowSnappingActivationModeChange: collection.id == RuleCollectionIdentifier.windowSnapping ? { mode in
                 Task {
-                    let config = WindowSnappingConfig(activationMode: mode)
-                    if let autoEnabled = await kanataManager.updateWindowSnappingConfig(collectionId: collection.id, config: config) {
+                    if let autoEnabled = await kanataManager.updateWindowSnappingActivationMode(collectionId: collection.id, mode: mode) {
                         settingsToastManager.showSuccess("Also enabled \(autoEnabled)")
                     }
                 }
@@ -326,6 +332,7 @@ struct RulesTabView: View {
             onLauncherConfigChanged: collection.id == RuleCollectionIdentifier.launcher ? { config in
                 Task { await kanataManager.updateLauncherConfig(collection.id, config: config) }
             } : nil,
+            windowSnappingActive: isWindowSnappingOnLauncher,
             onAutoShiftConfigChanged: collection.id == RuleCollectionIdentifier.autoShiftSymbols ? { config in
                 pendingToggles[collection.id] = true
                 Task { await kanataManager.updateAutoShiftSymbolsConfig(collectionId: collection.id, config: config) }

@@ -179,8 +179,8 @@ final class RuleCollectionsCoordinator {
         return wasNewlyEnabled
     }
 
-    func updateWindowSnappingConfig(id: UUID, config: WindowSnappingConfig) async -> String? {
-        let autoEnabled = await ruleCollectionsManager.updateWindowSnappingConfig(id: id, config: config)
+    func updateWindowSnappingActivationMode(id: UUID, mode: WindowSnappingActivationMode) async -> String? {
+        let autoEnabled = await ruleCollectionsManager.updateWindowSnappingActivationMode(id: id, mode: mode)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
         return autoEnabled

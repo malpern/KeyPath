@@ -648,39 +648,24 @@ extension RuleCollectionsManager {
         return wasNewlyEnabled
     }
 
-    /// Update window snapping configuration (activation mode)
+    /// Update window snapping activation mode
     /// - Returns: name of auto-enabled dependency, or nil
-    func updateWindowSnappingConfig(id: UUID, config: WindowSnappingConfig) async -> String? {
-        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
-            let catalog = RuleCollectionCatalog()
-            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                catalogCollection.configuration = .windowSnapping(config)
-                catalogCollection.momentaryActivator = Self.momentaryActivatorForWindowSnapping(config)
-                catalogCollection.activationHint = Self.activationHintForWindowSnapping(config)
-                catalogCollection.isEnabled = true
-                ruleCollections.append(catalogCollection)
-                let autoEnabled = autoEnableWindowSnappingDependency(config)
-                dedupeRuleCollectionsInPlace()
-                refreshLayerIndicatorState()
-                await regenerateConfigFromCollections()
-                return autoEnabled
-            }
-            return nil
-        }
+    func updateWindowSnappingActivationMode(id: UUID, mode: WindowSnappingActivationMode) async -> String? {
+        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else { return nil }
 
-        ruleCollections[index].configuration = .windowSnapping(config)
-        ruleCollections[index].momentaryActivator = Self.momentaryActivatorForWindowSnapping(config)
-        ruleCollections[index].activationHint = Self.activationHintForWindowSnapping(config)
+        ruleCollections[index].windowSnappingActivationMode = mode
+        ruleCollections[index].momentaryActivator = Self.momentaryActivatorForWindowSnapping(mode)
+        ruleCollections[index].activationHint = Self.activationHintForWindowSnapping(mode)
 
-        let autoEnabled = autoEnableWindowSnappingDependency(config)
+        let autoEnabled = autoEnableWindowSnappingDependency(mode)
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
         await regenerateConfigFromCollections()
         return autoEnabled
     }
 
-    private static func momentaryActivatorForWindowSnapping(_ config: WindowSnappingConfig) -> MomentaryActivator {
-        switch config.activationMode {
+    private static func momentaryActivatorForWindowSnapping(_ mode: WindowSnappingActivationMode) -> MomentaryActivator {
+        switch mode {
         case .leader:
             MomentaryActivator(input: "w", targetLayer: .custom("window"), sourceLayer: .navigation)
         case .quickLauncher:
@@ -688,15 +673,15 @@ extension RuleCollectionsManager {
         }
     }
 
-    private static func activationHintForWindowSnapping(_ config: WindowSnappingConfig) -> String {
-        switch config.activationMode {
+    private static func activationHintForWindowSnapping(_ mode: WindowSnappingActivationMode) -> String {
+        switch mode {
         case .leader: "Leader → w → action key"
         case .quickLauncher: "Hyper + w → action key"
         }
     }
 
-    private func autoEnableWindowSnappingDependency(_ config: WindowSnappingConfig) -> String? {
-        switch config.activationMode {
+    private func autoEnableWindowSnappingDependency(_ mode: WindowSnappingActivationMode) -> String? {
+        switch mode {
         case .leader:
             let navID = RuleCollectionIdentifier.leaderKey
             if !ruleCollections.contains(where: { $0.id == navID && $0.isEnabled }) {

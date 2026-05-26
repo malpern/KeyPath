@@ -18,10 +18,7 @@ struct RuleCollectionCatalog {
         // Preserve user's configuration for configurable collections
         // (e.g., launcher mappings, home row mods settings, etc.)
         // Only if the configuration type matches - otherwise use catalog default
-        // Migrate .table → .windowSnapping for Window Snapping collections
-        if case .table = existing.configuration, case let .windowSnapping(catalogConfig) = updated.configuration {
-            merged.configuration = .windowSnapping(catalogConfig)
-        } else if existing.configuration.displayStyle == updated.configuration.displayStyle {
+        if existing.configuration.displayStyle == updated.configuration.displayStyle {
             // For tapHoldPicker: preserve user's selections but use catalog's options
             // This ensures removed options (like "None") don't persist
             if case let .tapHoldPicker(existingConfig) = existing.configuration,
@@ -331,7 +328,7 @@ struct RuleCollectionCatalog {
                 sourceLayer: .navigation // Activated from within navigation layer
             ),
             activationHint: "Leader → w → action key",
-            configuration: .windowSnapping(WindowSnappingConfig()),
+            configuration: .table,
             windowKeyConvention: .standard
         )
     }

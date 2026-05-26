@@ -35,7 +35,7 @@ enum PackSummaryProvider {
                 return singleKeySummary(for: input, collection: collection)
             case .homeRowMods, .homeRowLayerToggles, .chordGroups, .sequences,
                  .launcherGrid, .layerPresetPicker, .autoShiftSymbols,
-                 .keyRepeatControl, .windowSnapping, .table, .list:
+                 .keyRepeatControl, .table, .list:
                 // Multi-binding or complex configs — the embedded editor
                 // shows everything; a one-liner would misrepresent state.
                 return nil

@@ -9,12 +9,27 @@ struct LauncherDrawerView: View {
     @Binding var config: LauncherGridConfig
     @Binding var selectedKey: String?
     var onConfigChanged: ((LauncherGridConfig) -> Void)?
+    var windowSnappingActive: Bool = false
 
     @State private var editingMapping: LauncherMapping?
     @State private var showAddMapping = false
 
     private var sortedMappings: [LauncherMapping] {
-        config.mappings.sorted { $0.key < $1.key }
+        var mappings = config.mappings.sorted { $0.key < $1.key }
+        if windowSnappingActive {
+            let synthetic = LauncherMapping(
+                key: "w",
+                action: .systemAction(id: "window-snapping"),
+                userDescription: "Window Snapping"
+            )
+            mappings.insert(synthetic, at: mappings.firstIndex(where: { $0.key > "w" }) ?? mappings.endIndex)
+        }
+        return mappings
+    }
+
+    private func isWindowSnappingEntry(_ mapping: LauncherMapping) -> Bool {
+        if case let .systemAction(id) = mapping.action, id == "window-snapping" { return true }
+        return false
     }
 
     private let columns = [
@@ -61,15 +76,17 @@ struct LauncherDrawerView: View {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 10) {
                         ForEach(sortedMappings) { mapping in
+                            let isSynthetic = isWindowSnappingEntry(mapping)
                             LauncherMappingCard(
                                 mapping: mapping,
-                                isSelected: selectedKey?.lowercased() == mapping.key.lowercased(),
+                                isSelected: !isSynthetic && selectedKey?.lowercased() == mapping.key.lowercased(),
                                 onEdit: {
+                                    guard !isSynthetic else { return }
                                     selectedKey = mapping.key
                                     editingMapping = mapping
                                 },
-                                onDelete: { deleteMapping(id: mapping.id) },
-                                onToggleEnabled: { newValue in
+                                onDelete: { guard !isSynthetic else { return }; deleteMapping(id: mapping.id) },
+                                onToggleEnabled: isSynthetic ? nil : { newValue in
                                     toggleMapping(mapping, enabled: newValue)
                                 }
                             )
@@ -207,6 +224,7 @@ private struct LauncherMappingCard: View {
         case .openURL: "Website"
         case .openFolder: "Folder"
         case .runScript: "Script"
+        case let .systemAction(id) where id == "window-snapping": "Layer"
         default: "Action"
         }
     }
@@ -352,6 +370,7 @@ private struct LauncherMappingCard: View {
         case .openURL: "globe"
         case .openFolder: "folder.fill"
         case .runScript: "terminal.fill"
+        case let .systemAction(id) where id == "window-snapping": "rectangle.split.2x2"
         default: "questionmark.circle"
         }
     }

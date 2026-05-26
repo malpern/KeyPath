@@ -408,8 +408,8 @@ class KanataViewModel {
         }
     }
 
-    func updateWindowSnappingConfig(collectionId: UUID, config: WindowSnappingConfig) async -> String? {
-        await manager.updateWindowSnappingConfig(collectionId: collectionId, config: config)
+    func updateWindowSnappingActivationMode(collectionId: UUID, mode: WindowSnappingActivationMode) async -> String? {
+        await manager.updateWindowSnappingActivationMode(collectionId: collectionId, mode: mode)
     }
 
     /// Update the leader key for all collections that use momentary activation

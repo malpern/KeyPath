@@ -175,14 +175,13 @@ extension PackDetailView {
                 WindowSnappingView(
                     mappings: collection.mappings,
                     convention: collection.windowKeyConvention ?? .standard,
-                    activationMode: collection.configuration.windowSnappingConfig?.activationMode ?? .leader,
+                    activationMode: collection.windowSnappingActivationMode ?? .leader,
                     onConventionChange: { convention in
                         Task { await applyWindowConventionEdit(convention, collectionID: collection.id) }
                     },
                     onActivationModeChange: { mode in
                         Task {
-                            let config = WindowSnappingConfig(activationMode: mode)
-                            _ = await kanataManager.updateWindowSnappingConfig(collectionId: collection.id, config: config)
+                            _ = await kanataManager.updateWindowSnappingActivationMode(collectionId: collection.id, mode: mode)
                         }
                     }
                 )

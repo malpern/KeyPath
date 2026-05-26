@@ -93,8 +93,8 @@ extension RuntimeCoordinator {
         await ruleCollectionsCoordinator.updateKeyRepeatControlConfig(id: collectionId, config: config)
     }
 
-    func updateWindowSnappingConfig(collectionId: UUID, config: WindowSnappingConfig) async -> String? {
-        await ruleCollectionsCoordinator.updateWindowSnappingConfig(id: collectionId, config: config)
+    func updateWindowSnappingActivationMode(collectionId: UUID, mode: WindowSnappingActivationMode) async -> String? {
+        await ruleCollectionsCoordinator.updateWindowSnappingActivationMode(id: collectionId, mode: mode)
     }
 
     func updateLeaderKey(_ newKey: String) async {

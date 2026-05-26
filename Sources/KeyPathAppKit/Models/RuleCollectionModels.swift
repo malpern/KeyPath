@@ -56,6 +56,9 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
     /// For windowSnapping: which key convention to use (standard mnemonic vs vim)
     public var windowKeyConvention: WindowKeyConvention?
 
+    /// For windowSnapping: how the window layer is activated
+    public var windowSnappingActivationMode: WindowSnappingActivationMode?
+
     /// For macFunctionKeys: media keys (default Mac) or standard F-keys
     public var functionKeyMode: FunctionKeyMode?
 
@@ -84,6 +87,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         activationHint: String? = nil,
         configuration: RuleCollectionConfiguration = .list,
         windowKeyConvention: WindowKeyConvention? = nil,
+        windowSnappingActivationMode: WindowSnappingActivationMode? = nil,
         functionKeyMode: FunctionKeyMode? = nil
     ) {
         self.id = id
@@ -101,6 +105,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         self.activationHint = activationHint
         self.configuration = configuration
         self.windowKeyConvention = windowKeyConvention
+        self.windowSnappingActivationMode = windowSnappingActivationMode
         self.functionKeyMode = functionKeyMode
     }
 
@@ -109,7 +114,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
     enum CodingKeys: String, CodingKey {
         case id, name, summary, category, mappings, isEnabled, isSystemDefault, owningPackID
         case icon, tags, targetLayer, momentaryActivator, activationHint
-        case configuration, windowKeyConvention, functionKeyMode
+        case configuration, windowKeyConvention, windowSnappingActivationMode, functionKeyMode
         // Legacy keys for migration
         case displayStyle, pickerInputKey, presetOptions, selectedOutput
         case homeRowModsConfig, tapHoldOptions, selectedTapOutput, selectedHoldOutput
@@ -134,6 +139,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         momentaryActivator = try container.decodeIfPresent(MomentaryActivator.self, forKey: .momentaryActivator)
         activationHint = try container.decodeIfPresent(String.self, forKey: .activationHint)
         windowKeyConvention = try container.decodeIfPresent(WindowKeyConvention.self, forKey: .windowKeyConvention)
+        windowSnappingActivationMode = try container.decodeIfPresent(WindowSnappingActivationMode.self, forKey: .windowSnappingActivationMode)
         functionKeyMode = try container.decodeIfPresent(FunctionKeyMode.self, forKey: .functionKeyMode)
 
         // Try new format first (configuration object)
@@ -218,6 +224,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         try container.encodeIfPresent(activationHint, forKey: .activationHint)
         try container.encode(configuration, forKey: .configuration)
         try container.encodeIfPresent(windowKeyConvention, forKey: .windowKeyConvention)
+        try container.encodeIfPresent(windowSnappingActivationMode, forKey: .windowSnappingActivationMode)
         try container.encodeIfPresent(functionKeyMode, forKey: .functionKeyMode)
     }
 }
