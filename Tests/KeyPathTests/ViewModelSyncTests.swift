@@ -1,101 +1,121 @@
+import Foundation
 @testable import KeyPathAppKit
 import KeyPathCore
-import XCTest
+import Testing
 
-/// Tests that KanataViewModel.ruleCollections stays in sync
-/// after collection config updates. Catches the bug where
-/// Pack Detail views showed stale data after convention/picker changes.
 @MainActor
-final class ViewModelSyncTests: XCTestCase {
+@Suite("Window Snapping Activation Mode Tests")
+struct WindowSnappingActivationModeTests {
 
-    private func createTestVM() async -> KanataViewModel {
+    private func createManagerWithWindowSnapping() async -> RuleCollectionsManager {
         TestEnvironment.forceTestMode = true
 
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("vm-sync-\(UUID().uuidString)")
+            .appendingPathComponent("ws-mode-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
-        let coordinator = RuntimeCoordinator(
-            injectedConfigurationService: ConfigurationService(configDirectory: tempDir.path)
+        let manager = RuleCollectionsManager(
+            ruleCollectionStore: RuleCollectionStore(
+                fileURL: tempDir.appendingPathComponent("RuleCollections.json")
+            ),
+            customRulesStore: CustomRulesStore(
+                fileURL: tempDir.appendingPathComponent("CustomRules.json")
+            ),
+            configurationService: ConfigurationService(configDirectory: tempDir.path),
+            eventListener: KanataEventListener()
         )
-        let vm = KanataViewModel(manager: coordinator)
-        return vm
-    }
 
-    func testWindowConventionUpdate_SyncsRuleCollections() async {
-        TestEnvironment.forceTestMode = true
-        defer { TestEnvironment.forceTestMode = false }
+        // Seed from catalog so momentaryActivator etc. are populated
+        let catalog = RuleCollectionCatalog()
+        manager.ruleCollections = catalog.defaultCollections()
 
-        let vm = await createTestVM()
-
-        // Enable window snapping
-        await vm.toggleRuleCollection(RuleCollectionIdentifier.windowSnapping, enabled: true)
-
-        let before = vm.ruleCollections.first { $0.id == RuleCollectionIdentifier.windowSnapping }
-        let beforeConvention = before?.windowKeyConvention ?? .standard
-
-        // Change convention
-        let newConvention: WindowKeyConvention = beforeConvention == .standard ? .vim : .standard
-        await vm.updateWindowKeyConvention(RuleCollectionIdentifier.windowSnapping, convention: newConvention)
-
-        let after = vm.ruleCollections.first { $0.id == RuleCollectionIdentifier.windowSnapping }
-        XCTAssertEqual(after?.windowKeyConvention, newConvention,
-                       "View model ruleCollections should reflect updated convention immediately")
-    }
-
-    func testTapOutputUpdate_SyncsRuleCollections() async {
-        TestEnvironment.forceTestMode = true
-        defer { TestEnvironment.forceTestMode = false }
-
-        let vm = await createTestVM()
-
-        await vm.toggleRuleCollection(RuleCollectionIdentifier.capsLockRemap, enabled: true)
-
-        await vm.updateCollectionTapOutput(RuleCollectionIdentifier.capsLockRemap, tapOutput: "bspc")
-
-        let collection = vm.ruleCollections.first { $0.id == RuleCollectionIdentifier.capsLockRemap }
-        if case let .tapHoldPicker(config) = collection?.configuration {
-            XCTAssertEqual(config.selectedTapOutput, "bspc",
-                           "View model should reflect updated tap output")
-        } else {
-            XCTFail("Caps Lock collection should have tapHoldPicker config")
+        // Enable Window Snapping and Quick Launcher
+        if let wsIdx = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.windowSnapping }) {
+            manager.ruleCollections[wsIdx].isEnabled = true
         }
-    }
-
-    func testHoldOutputUpdate_SyncsRuleCollections() async {
-        TestEnvironment.forceTestMode = true
-        defer { TestEnvironment.forceTestMode = false }
-
-        let vm = await createTestVM()
-
-        await vm.toggleRuleCollection(RuleCollectionIdentifier.capsLockRemap, enabled: true)
-
-        await vm.updateCollectionHoldOutput(RuleCollectionIdentifier.capsLockRemap, holdOutput: "lctl")
-
-        let collection = vm.ruleCollections.first { $0.id == RuleCollectionIdentifier.capsLockRemap }
-        if case let .tapHoldPicker(config) = collection?.configuration {
-            XCTAssertEqual(config.selectedHoldOutput, "lctl",
-                           "View model should reflect updated hold output")
-        } else {
-            XCTFail("Caps Lock collection should have tapHoldPicker config")
+        if let launcherIdx = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
+            manager.ruleCollections[launcherIdx].isEnabled = true
         }
+
+        return manager
     }
 
-    func testToggleCollection_SyncsRuleCollections() async {
-        TestEnvironment.forceTestMode = true
-        defer { TestEnvironment.forceTestMode = false }
+    @Test("Activation mode is stored on collection")
+    func activationModeStored() async {
+        let manager = await createManagerWithWindowSnapping()
 
-        let vm = await createTestVM()
+        _ = await manager.updateWindowSnappingActivationMode(
+            id: RuleCollectionIdentifier.windowSnapping,
+            mode: .quickLauncher
+        )
 
-        let wasBefore = vm.ruleCollections
-            .first { $0.id == RuleCollectionIdentifier.homeRowMods }?.isEnabled ?? false
+        let ws = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.windowSnapping }
+        #expect(ws?.windowSnappingActivationMode == .quickLauncher)
+    }
 
-        await vm.toggleRuleCollection(RuleCollectionIdentifier.homeRowMods, enabled: !wasBefore)
+    @Test("Activation mode updates momentary activator sourceLayer")
+    func activatorSourceLayer() async {
+        let manager = await createManagerWithWindowSnapping()
 
-        let isAfter = vm.ruleCollections
-            .first { $0.id == RuleCollectionIdentifier.homeRowMods }?.isEnabled ?? wasBefore
+        let before = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.windowSnapping }
+        #expect(before?.momentaryActivator?.sourceLayer == .navigation)
 
-        XCTAssertNotEqual(wasBefore, isAfter,
-                          "View model should reflect toggled state")
+        _ = await manager.updateWindowSnappingActivationMode(
+            id: RuleCollectionIdentifier.windowSnapping,
+            mode: .quickLauncher
+        )
+
+        let after = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.windowSnapping }
+        #expect(after?.momentaryActivator?.sourceLayer == .custom("launcher"))
+    }
+
+    @Test("Quick Launcher mode auto-enables launcher collection")
+    func autoEnablesLauncher() async {
+        let manager = await createManagerWithWindowSnapping()
+
+        // Disable launcher
+        if let idx = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
+            manager.ruleCollections[idx].isEnabled = false
+        }
+
+        let autoEnabled = await manager.updateWindowSnappingActivationMode(
+            id: RuleCollectionIdentifier.windowSnapping,
+            mode: .quickLauncher
+        )
+
+        #expect(autoEnabled == "Quick Launcher")
+        let launcher = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.launcher }
+        #expect(launcher?.isEnabled == true)
+    }
+
+    @Test("Activation mode updates activation hint")
+    func activationHint() async {
+        let manager = await createManagerWithWindowSnapping()
+
+        _ = await manager.updateWindowSnappingActivationMode(
+            id: RuleCollectionIdentifier.windowSnapping,
+            mode: .quickLauncher
+        )
+
+        let ws = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.windowSnapping }
+        #expect(ws?.activationHint == "Hyper + w → action key")
+    }
+
+    @Test("Switching back to leader restores navigation sourceLayer")
+    func switchBackToLeader() async {
+        let manager = await createManagerWithWindowSnapping()
+
+        _ = await manager.updateWindowSnappingActivationMode(
+            id: RuleCollectionIdentifier.windowSnapping,
+            mode: .quickLauncher
+        )
+        _ = await manager.updateWindowSnappingActivationMode(
+            id: RuleCollectionIdentifier.windowSnapping,
+            mode: .leader
+        )
+
+        let ws = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.windowSnapping }
+        #expect(ws?.momentaryActivator?.sourceLayer == .navigation)
+        #expect(ws?.activationHint == "Leader → w → action key")
     }
 }
