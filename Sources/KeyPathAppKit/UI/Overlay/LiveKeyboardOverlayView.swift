@@ -244,11 +244,13 @@ struct LiveKeyboardOverlayView: View {
         let packConfig = PackZoneResolver.layerPreviewConfig(installedPackIDs: packIDs)
         let capsConfig = await Self.capsLockLayerPreviewTargets()
         let momentaryConfig = await Self.momentaryActivatorLayerPreviewTargets()
+        let leaderConfig = await Self.leaderKeyPreviewTargets()
 
         await MainActor.run {
             var merged = packConfig?.targets ?? [:]
             merged.merge(capsConfig) { existing, _ in existing }
             merged.merge(momentaryConfig) { existing, _ in existing }
+            merged.merge(leaderConfig) { existing, _ in existing }
             viewModel.layerPreviewTargets = merged
             viewModel.layerPreviewActivators = Set(merged.keys)
         }
@@ -293,6 +295,23 @@ struct LiveKeyboardOverlayView: View {
         }
 
         return result
+    }
+
+    /// Add the leader key (e.g., Space → nav) to preview targets.
+    /// The leader key activator is driven by LeaderKeyPreference, not by a collection's
+    /// momentaryActivator, so it needs its own lookup.
+    private static func leaderKeyPreviewTargets() async -> [UInt16: String] {
+        let pref: LeaderKeyPreference
+        if let data = UserDefaults.standard.data(forKey: "KeyPath.LeaderKey.Preference"),
+           let stored = try? JSONDecoder().decode(LeaderKeyPreference.self, from: data)
+        {
+            pref = stored
+        } else {
+            pref = .default
+        }
+        guard pref.enabled else { return [:] }
+        guard let keyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(pref.key) else { return [:] }
+        return [keyCode: pref.targetLayer.kanataName]
     }
 
     private func copyValidationErrorsToClipboard() {
