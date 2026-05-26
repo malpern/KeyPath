@@ -46,10 +46,9 @@ struct RulesTabView: View {
     /// Total count of custom rules (everywhere + app-specific)
     private var isWindowSnappingOnLauncher: Bool {
         guard let ws = kanataManager.ruleCollections.first(where: { $0.id == RuleCollectionIdentifier.windowSnapping }),
-              ws.isEnabled,
-              let config = ws.configuration.windowSnappingConfig
+              ws.isEnabled
         else { return false }
-        return config.activationMode == .quickLauncher
+        return ws.windowSnappingActivationMode == .quickLauncher
     }
 
     private var totalCustomRulesCount: Int {
@@ -322,8 +321,7 @@ struct RulesTabView: View {
             } : nil,
             onWindowSnappingActivationModeChange: collection.id == RuleCollectionIdentifier.windowSnapping ? { mode in
                 Task {
-                    let config = WindowSnappingConfig(activationMode: mode)
-                    if let autoEnabled = await kanataManager.updateWindowSnappingConfig(collectionId: collection.id, config: config) {
+                    if let autoEnabled = await kanataManager.updateWindowSnappingActivationMode(collectionId: collection.id, mode: mode) {
                         settingsToastManager.showSuccess("Also enabled \(autoEnabled)")
                     }
                 }

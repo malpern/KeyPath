@@ -507,8 +507,6 @@ extension KanataConfiguration {
             config.perKeyOverrides.map { override in
                 KeyMapping(input: override.key, action: .keystroke(key: override.key))
             }
-        case .windowSnapping:
-            collection.mappings
         case .list, .table, .singleKeyPicker:
             collection.mappings
         }

@@ -125,8 +125,7 @@ extension KeyboardVisualizationViewModel {
         // Inject synthetic "Windows" entry when Window Snapping uses Quick Launcher mode
         if let wsCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.windowSnapping }),
            wsCollection.isEnabled,
-           let wsConfig = wsCollection.configuration.windowSnappingConfig,
-           wsConfig.activationMode == .quickLauncher
+           wsCollection.windowSnappingActivationMode == .quickLauncher
         {
             result["w"] = LauncherMapping(
                 key: "w",
