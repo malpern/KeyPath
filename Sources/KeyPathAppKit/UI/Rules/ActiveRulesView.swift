@@ -177,6 +177,7 @@ private extension RuleCollectionRow {
             WindowSnappingView(
                 mappings: collection.mappings,
                 convention: collection.windowKeyConvention ?? .standard,
+                activationMode: collection.configuration.windowSnappingConfig?.activationMode ?? .leader,
                 onConventionChange: { convention in
                     onWindowConventionChanged?(convention)
                 }

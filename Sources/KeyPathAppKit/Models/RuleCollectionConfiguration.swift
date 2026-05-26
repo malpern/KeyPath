@@ -55,6 +55,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
     /// Key Repeat Control: kanata-managed key repeat with per-key overrides
     case keyRepeatControl(KeyRepeatControlConfig)
 
+    /// Window Snapping: table display with configurable activation mode
+    case windowSnapping(WindowSnappingConfig)
+
     // MARK: - Convenience Accessors
 
     /// The display style enum value (for compatibility with existing UI code)
@@ -72,6 +75,7 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case .launcherGrid: .launcherGrid
         case .autoShiftSymbols: .autoShiftSymbols
         case .keyRepeatControl: .keyRepeatControl
+        case .windowSnapping: .table
         }
     }
 
@@ -132,6 +136,12 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
     /// Extract key repeat control config if this is a `.keyRepeatControl` case
     public var keyRepeatControlConfig: KeyRepeatControlConfig? {
         if case let .keyRepeatControl(config) = self { return config }
+        return nil
+    }
+
+    /// Extract window snapping config if this is a `.windowSnapping` case
+    public var windowSnappingConfig: WindowSnappingConfig? {
+        if case let .windowSnapping(config) = self { return config }
         return nil
     }
 
@@ -322,6 +332,12 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         }
     }
 
+    public mutating func updateWindowSnappingConfig(_ newConfig: WindowSnappingConfig) {
+        if case .windowSnapping = self {
+            self = .windowSnapping(newConfig)
+        }
+    }
+
     // MARK: - Codable
 
     private enum CodingKeys: String, CodingKey {
@@ -341,6 +357,7 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case launcherGrid
         case autoShiftSymbols
         case keyRepeatControl
+        case windowSnapping
     }
 
     public init(from decoder: Decoder) throws {
@@ -382,6 +399,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case .keyRepeatControl:
             let config = try KeyRepeatControlConfig(from: decoder)
             self = .keyRepeatControl(config)
+        case .windowSnapping:
+            let config = try WindowSnappingConfig(from: decoder)
+            self = .windowSnapping(config)
         }
     }
 
@@ -422,6 +442,9 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
             try config.encode(to: encoder)
         case let .keyRepeatControl(config):
             try container.encode(ConfigType.keyRepeatControl, forKey: .type)
+            try config.encode(to: encoder)
+        case let .windowSnapping(config):
+            try container.encode(ConfigType.windowSnapping, forKey: .type)
             try config.encode(to: encoder)
         }
     }
@@ -917,5 +940,27 @@ public struct KeyRepeatControlConfig: Codable, Equatable, Sendable {
                 )
             }
         }
+    }
+}
+
+// MARK: - Window Snapping Configuration
+
+public enum WindowSnappingActivationMode: String, Codable, Equatable, Sendable {
+    case leader
+    case quickLauncher
+
+    public var displayName: String {
+        switch self {
+        case .leader: "Leader Key"
+        case .quickLauncher: "Quick Launcher"
+        }
+    }
+}
+
+public struct WindowSnappingConfig: Codable, Equatable, Sendable {
+    public var activationMode: WindowSnappingActivationMode
+
+    public init(activationMode: WindowSnappingActivationMode = .leader) {
+        self.activationMode = activationMode
     }
 }

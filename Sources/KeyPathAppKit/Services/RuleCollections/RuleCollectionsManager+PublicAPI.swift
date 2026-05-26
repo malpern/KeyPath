@@ -648,6 +648,76 @@ extension RuleCollectionsManager {
         return wasNewlyEnabled
     }
 
+    /// Update window snapping configuration (activation mode)
+    /// - Returns: name of auto-enabled dependency, or nil
+    func updateWindowSnappingConfig(id: UUID, config: WindowSnappingConfig) async -> String? {
+        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
+            let catalog = RuleCollectionCatalog()
+            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
+                catalogCollection.configuration = .windowSnapping(config)
+                catalogCollection.momentaryActivator = Self.momentaryActivatorForWindowSnapping(config)
+                catalogCollection.activationHint = Self.activationHintForWindowSnapping(config)
+                catalogCollection.isEnabled = true
+                ruleCollections.append(catalogCollection)
+                let autoEnabled = autoEnableWindowSnappingDependency(config)
+                dedupeRuleCollectionsInPlace()
+                refreshLayerIndicatorState()
+                await regenerateConfigFromCollections()
+                return autoEnabled
+            }
+            return nil
+        }
+
+        ruleCollections[index].configuration = .windowSnapping(config)
+        ruleCollections[index].momentaryActivator = Self.momentaryActivatorForWindowSnapping(config)
+        ruleCollections[index].activationHint = Self.activationHintForWindowSnapping(config)
+
+        let autoEnabled = autoEnableWindowSnappingDependency(config)
+        dedupeRuleCollectionsInPlace()
+        refreshLayerIndicatorState()
+        await regenerateConfigFromCollections()
+        return autoEnabled
+    }
+
+    private static func momentaryActivatorForWindowSnapping(_ config: WindowSnappingConfig) -> MomentaryActivator {
+        switch config.activationMode {
+        case .leader:
+            MomentaryActivator(input: "w", targetLayer: .custom("window"), sourceLayer: .navigation)
+        case .quickLauncher:
+            MomentaryActivator(input: "w", targetLayer: .custom("window"), sourceLayer: .custom("launcher"))
+        }
+    }
+
+    private static func activationHintForWindowSnapping(_ config: WindowSnappingConfig) -> String {
+        switch config.activationMode {
+        case .leader: "Leader → w → action key"
+        case .quickLauncher: "Hyper + w → action key"
+        }
+    }
+
+    private func autoEnableWindowSnappingDependency(_ config: WindowSnappingConfig) -> String? {
+        switch config.activationMode {
+        case .leader:
+            let navID = RuleCollectionIdentifier.leaderKey
+            if !ruleCollections.contains(where: { $0.id == navID && $0.isEnabled }) {
+                if let idx = ruleCollections.firstIndex(where: { $0.id == navID }) {
+                    ruleCollections[idx].isEnabled = true
+                    return "Leader Key"
+                }
+            }
+            return nil
+        case .quickLauncher:
+            let launcherID = RuleCollectionIdentifier.launcher
+            if !ruleCollections.contains(where: { $0.id == launcherID && $0.isEnabled }) {
+                if let idx = ruleCollections.firstIndex(where: { $0.id == launcherID }) {
+                    ruleCollections[idx].isEnabled = true
+                    return "Quick Launcher"
+                }
+            }
+            return nil
+        }
+    }
+
     /// Pre-cache icons for launcher mappings (called when config changes)
     func warmLauncherIconCache(for config: LauncherGridConfig) async {
         let enabledMappings = config.mappings.filter(\.isEnabled)

@@ -321,7 +321,12 @@ public enum PackRegistry {
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
                 kind: .enhancedBy,
-                description: "Adds Leader key layer activation when Vim Navigation is enabled"
+                description: "Required for Leader Key activation mode (default)"
+            ),
+            PackDependency(
+                packID: "com.keypath.pack.quick-launcher",
+                kind: .enhancedBy,
+                description: "Required for Quick Launcher activation mode"
             ),
         ]
     )
