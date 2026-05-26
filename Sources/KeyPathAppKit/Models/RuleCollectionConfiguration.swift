@@ -341,6 +341,8 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case launcherGrid
         case autoShiftSymbols
         case keyRepeatControl
+        // Legacy: briefly shipped as a config type, now a plain field on RuleCollection
+        case windowSnapping
     }
 
     public init(from decoder: Decoder) throws {
@@ -382,6 +384,8 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         case .keyRepeatControl:
             let config = try KeyRepeatControlConfig(from: decoder)
             self = .keyRepeatControl(config)
+        case .windowSnapping:
+            self = .table
         }
     }
 
