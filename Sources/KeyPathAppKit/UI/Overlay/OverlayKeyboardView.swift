@@ -179,70 +179,36 @@ struct OverlayKeyboardView: View {
         return labels.sorted()
     }
 
-    /// Special labels that should always render in keycaps (not as floating labels)
-    /// Matches the special labels set in OverlayKeycapView.hasSpecialLabel
-    private static let specialLabels: Set<String> = [
-        "Home", "End", "PgUp", "PgDn", "Del", "␣", "Lyr", "Fn", "Mod", "✦", "◆",
-        "↩", "⌫", "⇥", "⇪", "esc", "ESC", "⎋", "🔒",
-        // Modifier symbols (rendered by keycap bottomAlignedContent, not floating labels)
-        "⇧", "⌃", "⌥", "⌘",
-        // Arrow symbols (both solid and outline variants)
-        "◀", "▶", "▲", "▼", "←", "→", "↑", "↓",
-        // Number row (not in standard keymaps, render directly)
-        "`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=",
-        // Function row (rendered by functionKeyWithMappingContent, not floating labels)
-        "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
-        // Function row extras (Print Screen, Scroll Lock, Pause)
-        "prt", "scr", "pse",
-        // Navigation cluster keys (both cases for matching)
-        "ins", "del", "home", "end", "pgup", "pgdn",
-        "INS", "DEL", "HOME", "END", "PGUP", "PGDN",
-        // Numpad keys (not in standard keymaps)
-        "clr", "CLR", "/", "*", "+", ".",
-        // JIS-specific keys (not in standard keymaps)
-        "¥", "英数", "かな", "_", "^", ":", "@", "fn",
-        // Menu/Application key
-        "☰", "▤",
-        // Numpad enter
-        "⏎", "⌅"
-    ]
+    // MARK: - Floating Label Visibility
+    private var floatingLabelVisibility: FloatingLabelVisibility {
+        let ltk = labelToKeyCode
 
-    /// Check if a label is special (should render in keycap, not as floating label)
-    /// Checks both original and lowercased to handle labels that arrive uppercased from labelToKeyCode
-    private static func isSpecialLabel(_ label: String) -> Bool {
-        specialLabels.contains(label) || specialLabels.contains(label.lowercased())
-    }
-
-    /// Check if a label's key has been remapped to a different output
-    /// (e.g., "A" -> "B" mapping means we should hide the floating "A" label)
-    /// The keycap will show the mapped output instead via layerKeyInfo
-    /// During keymap transitions, always returns false to allow floating label animation
-    private func isLoudVimHintLabel(_ label: String) -> Bool {
-        ["H", "J", "K", "L"].contains(label.uppercased())
-    }
-
-    private func isRemappedLabel(_ label: String) -> Bool {
-        // During keymap transition window, bypass remap gating to allow animation
-        // (keymap switches like QWERTY → Dvorak are implemented as remaps)
-        if isKeymapTransitioning {
-            return false
+        var remapped = Set<String>()
+        if !isKeymapTransitioning {
+            for (label, keyCode) in ltk {
+                if let layerInfo = layerKeyMap[keyCode],
+                   layerInfo.displayLabel.uppercased() != label
+                {
+                    remapped.insert(label)
+                }
+            }
         }
 
-        let normalizedLabel = label.uppercased()
-        guard let keyCode = labelToKeyCode[normalizedLabel],
-              let layerInfo = layerKeyMap[keyCode]
-        else {
-            return false
+        var zoneSubs = Set<String>()
+        for (label, keyCode) in ltk {
+            if activeZoneSubtitles[keyCode] != nil {
+                zoneSubs.insert(label)
+            }
         }
-        // Compare the layer's display label with the expected label for this key
-        // If they differ, this key has been remapped
-        let mappedLabel = layerInfo.displayLabel.uppercased()
-        return mappedLabel != normalizedLabel
-    }
 
-    private func hasZoneSubtitle(for label: String) -> Bool {
-        guard let keyCode = labelToKeyCode[label.uppercased()] else { return false }
-        return activeZoneSubtitles[keyCode] != nil
+        return FloatingLabelVisibility(
+            labelToKeyCode: ltk,
+            isLauncherMode: isLauncherMode,
+            isLayerMode: isLayerMode,
+            vimHintsActive: vimHintsActive,
+            remappedLabels: remapped,
+            zoneSubtitleLabels: zoneSubs
+        )
     }
 
     var keyboardAccessibilityLabel: String {
@@ -292,24 +258,12 @@ struct OverlayKeyboardView: View {
                 // Note: frames are calculated directly from layout, no GeometryReader needed.
                 // Skip floating labels for non-standard legend styles (dots show circles, not letters)
                 if !reduceMotion, activeColorway.legendStyle == .standard {
+                    let visibility = floatingLabelVisibility
                     ForEach(allLabels, id: \.self) { label in
-                        // In launcher mode or layer mode, hide ALL floating labels for a clean look
-                        // (mapped keys show icon + small letter, unmapped keys show small label)
                         FloatingKeymapLabel(
                             label: label,
                             targetFrame: targetFrameFor(label, scale: scale),
-                            // Visible when label exists in current keymap AND not special AND not in launcher/layer mode
-                            // Special labels render in keycaps, not as floating labels
-                            // Also hide floating label if the key has been remapped to a different output
-                            // (the keycap will show the mapped output instead)
-                            // Normalize to uppercase for consistent lookup (allLabels contains uppercase)
-                            isVisible: labelToKeyCode[label.uppercased()] != nil
-                                && !Self.isSpecialLabel(label)
-                                && !isLauncherMode
-                                && !isLayerMode
-                                && !isRemappedLabel(label)
-                                && !hasZoneSubtitle(for: label)
-                                && !(vimHintsActive && isLoudVimHintLabel(label)),
+                            isVisible: visibility.isVisible(label),
                             scale: scale,
                             colorway: activeColorway,
                             // Enable animation after initial render (prevents animation on drawer open)
