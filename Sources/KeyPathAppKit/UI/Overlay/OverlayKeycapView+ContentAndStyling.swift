@@ -106,7 +106,7 @@ extension OverlayKeycapView {
             iconVisible = isLauncherMode
         }
         .animation(nil, value: currentLayerName)
-        .allowsHitTesting(isInspectorVisible || key.layoutRole == .touchId)
+        .allowsHitTesting(isInspectorVisible || isLauncherMode || key.layoutRole == .touchId)
         // Hover detection (must be before contentShape for hit testing)
         .contentShape(Rectangle())
         .onHover { hovering in
@@ -140,8 +140,7 @@ extension OverlayKeycapView {
                     guard key.layoutRole != .touchId, let onKeyClick else { return }
                     onKeyClick(key, layerKeyInfo)
                 },
-            // Only capture gestures when drawer is open (Touch ID handled by highPriorityGesture above)
-            including: isInspectorVisible ? .all : .none
+            including: isInspectorVisible || isLauncherMode ? .all : .none
         )
         .onAppear {
             loadAppIconIfNeeded()
