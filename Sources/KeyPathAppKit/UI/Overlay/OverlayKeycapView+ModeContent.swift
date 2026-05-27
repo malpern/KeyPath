@@ -265,12 +265,13 @@ extension OverlayKeycapView {
                 .font(.system(size: 14 * scale, weight: .medium))
                 .foregroundStyle(Color.white.opacity(0.9))
         }
-        // Check for navigation arrows (Vim style) — keep arrows for hjkl
+        // Check for navigation arrows — from displayLabel or vimLabel
         else if let info = layerKeyInfo {
             let arrowLabels: Set<String> = ["←", "→", "↑", "↓"]
-            if arrowLabels.contains(info.displayLabel) {
+            if arrowLabels.contains(info.displayLabel) || arrowLabels.contains(info.vimLabel ?? "") {
                 // Large centered arrow
-                Text(info.displayLabel)
+                let arrow = arrowLabels.contains(info.displayLabel) ? info.displayLabel : info.vimLabel!
+                Text(arrow)
                     .font(.system(size: 16 * scale, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.9))
             }
