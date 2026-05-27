@@ -185,7 +185,7 @@ final class ScenarioSnapshotTests: ScreenshotTestCase {
     func testOverlay_WithTapHoldIdleLabels() {
         let viewModel = MockFactories.keyboardVisualizationViewModel()
         viewModel.tapHoldIdleLabels = [
-            57: "⎋",  // Caps Lock shows Escape when idle
+            57: "⎋", // Caps Lock shows Escape when idle
         ]
         let uiState = MockFactories.overlayUIState()
         let view = LiveKeyboardOverlayView(
@@ -434,6 +434,221 @@ final class ScenarioSnapshotTests: ScreenshotTestCase {
             precision: 0.98,
             perceptualPrecision: 0.98
         )
+    }
+
+    // MARK: - Launcher Mode Keycap Scenarios
+
+    func testKeycap_LauncherMode_WithAppMapping() {
+        let key = makePhysicalKey(keyCode: 1, label: "S")
+        let mapping = MockFactories.launcherMapping(
+            key: "s",
+            action: .launchApp(name: "Safari", bundleId: "com.apple.Safari")
+        )
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "S",
+            isPressed: false,
+            scale: 1.0,
+            isLauncherMode: true,
+            launcherMapping: mapping
+        )
+        assertScreenshot(of: view, size: keycapSize, named: "keycap-launcher-app-mapped")
+    }
+
+    func testKeycap_LauncherMode_UnmappedKey() {
+        let key = makePhysicalKey(keyCode: 12, label: "Q")
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "Q",
+            isPressed: false,
+            scale: 1.0,
+            isLauncherMode: true
+        )
+        assertScreenshot(of: view, size: keycapSize, named: "keycap-launcher-unmapped")
+    }
+
+    // MARK: - Layer Mode Keycap Scenarios
+
+    func testKeycap_LayerMode_WindowAction() {
+        let key = makePhysicalKey(keyCode: 4, label: "H")
+        let layerInfo = LayerKeyInfo.mapped(
+            displayLabel: "Left Half",
+            outputKey: "left-half",
+            outputKeyCode: nil,
+            collectionId: RuleCollectionIdentifier.windowSnapping
+        )
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "H",
+            isPressed: false,
+            scale: 1.0,
+            currentLayerName: "window",
+            layerKeyInfo: layerInfo
+        )
+        assertScreenshot(of: view, size: keycapSize, named: "keycap-layer-window-action")
+    }
+
+    func testKeycap_LayerMode_UnmappedKey() {
+        let key = makePhysicalKey(keyCode: 12, label: "Q")
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "Q",
+            isPressed: false,
+            scale: 1.0,
+            currentLayerName: "nav"
+        )
+        assertScreenshot(of: view, size: keycapSize, named: "keycap-layer-unmapped")
+    }
+
+    func testKeycap_LayerMode_SystemAction() {
+        let key = makePhysicalKey(keyCode: 1, label: "S")
+        let layerInfo = LayerKeyInfo.systemAction(
+            action: "spotlight",
+            description: "Spotlight"
+        )
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "S",
+            isPressed: false,
+            scale: 1.0,
+            currentLayerName: "nav",
+            layerKeyInfo: layerInfo
+        )
+        assertScreenshot(of: view, size: keycapSize, named: "keycap-layer-system-action")
+    }
+
+    func testKeycap_LayerMode_ZoneSubtitle() {
+        let key = makePhysicalKey(keyCode: 0, label: "A")
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "A",
+            isPressed: false,
+            scale: 1.0,
+            currentLayerName: "base",
+            zoneSubtitle: "⌃"
+        )
+        assertScreenshot(of: view, size: keycapSize, named: "keycap-zone-subtitle")
+    }
+
+    // MARK: - Base Layer Keycap Scenarios
+
+    func testKeycap_BaseLayer_DualSymbol() {
+        let key = makePhysicalKey(keyCode: 18, label: "1")
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "1",
+            isPressed: false,
+            scale: 1.0,
+            shiftLabelOverride: "!"
+        )
+        assertScreenshot(of: view, size: keycapSize, named: "keycap-base-dual-symbol")
+    }
+
+    func testKeycap_BaseLayer_FunctionKey() {
+        let key = makePhysicalKey(keyCode: 122, label: "F1", width: 1.0, height: 0.5)
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "F1",
+            isPressed: false,
+            scale: 1.0
+        )
+        assertScreenshot(of: view, size: CGSize(width: 80, height: 50), named: "keycap-base-function-key")
+    }
+
+    func testKeycap_BaseLayer_NarrowModifier() {
+        let key = makePhysicalKey(keyCode: 63, label: "fn", width: 1.0)
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "fn",
+            isPressed: false,
+            scale: 1.0
+        )
+        assertScreenshot(of: view, size: keycapSize, named: "keycap-base-narrow-modifier")
+    }
+
+    func testKeycap_BaseLayer_Arrow() {
+        let key = makePhysicalKey(keyCode: 123, label: "←", width: 1.0, height: 0.5)
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "←",
+            isPressed: false,
+            scale: 1.0
+        )
+        assertScreenshot(of: view, size: CGSize(width: 80, height: 50), named: "keycap-base-arrow")
+    }
+
+    func testKeycap_BaseLayer_EscKey() {
+        let key = makePhysicalKey(keyCode: 53, label: "esc", width: 1.0, height: 0.5)
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "esc",
+            isPressed: false,
+            scale: 1.0
+        )
+        assertScreenshot(of: view, size: CGSize(width: 80, height: 50), named: "keycap-base-esc")
+    }
+
+    func testKeycap_InlineLayer_Arrow() {
+        let key = makePhysicalKey(keyCode: 4, label: "H")
+        let layerInfo = LayerKeyInfo.mapped(
+            displayLabel: "←",
+            outputKey: "left",
+            outputKeyCode: 123
+        )
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "H",
+            isPressed: false,
+            scale: 1.0,
+            currentLayerName: "home-arrows",
+            layerKeyInfo: layerInfo
+        )
+        assertScreenshot(of: view, size: keycapSize, named: "keycap-inline-layer-arrow")
+    }
+
+    func testKeycap_NavIdentityMapping() {
+        let key = makePhysicalKey(keyCode: 0, label: "A")
+        let layerInfo = LayerKeyInfo.mapped(
+            displayLabel: "A",
+            outputKey: "a",
+            outputKeyCode: 0,
+            collectionId: RuleCollectionIdentifier.vimNavigation
+        )
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "A",
+            isPressed: false,
+            scale: 1.0,
+            currentLayerName: "nav",
+            layerKeyInfo: layerInfo
+        )
+        assertScreenshot(of: view, size: keycapSize, named: "keycap-nav-identity-mapping")
+    }
+
+    // MARK: - Legend Style Scenarios
+
+    func testKeycap_DotsLegend_Alpha() {
+        let key = makePhysicalKey(keyCode: 0, label: "A")
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "A",
+            isPressed: false,
+            scale: 1.0,
+            colorway: GMKColorway.find(id: "dots") ?? .default
+        )
+        assertScreenshot(of: view, size: keycapSize, named: "keycap-dots-alpha")
+    }
+
+    func testKeycap_DotsLegend_Modifier() {
+        let key = makePhysicalKey(keyCode: 55, label: "⌘", width: 1.25)
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "⌘",
+            isPressed: false,
+            scale: 1.0,
+            colorway: GMKColorway.find(id: "dots") ?? .default
+        )
+        assertScreenshot(of: view, size: CGSize(width: 100, height: 80), named: "keycap-dots-modifier")
     }
 
     // MARK: - Helpers
