@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Overlay Rendering — Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f5f5f7;
+    --surface-2: #ebebed;
+    --border: #d2d2d7;
+    --border-light: #e8e8ed;
+    --text: #1d1d1f;
+    --text-secondary: #6e6e73;
+    --text-tertiary: #86868b;
+    --accent: #1d1d1f;
+    --blue: #0071e3;
+    --code-bg: #f5f5f7;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.58;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container { max-width: 740px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Hero ── */
+  .hero { padding: 96px 0 64px; text-align: center; }
+  .hero-eyebrow {
+    font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 12px;
+  }
+  .hero h1 {
+    font-size: clamp(2.4rem, 5.5vw, 3.2rem); font-weight: 700;
+    letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px;
+    color: var(--text);
+  }
+  .hero p {
+    font-size: 1.15rem; color: var(--text-secondary); max-width: 480px;
+    margin: 0 auto; line-height: 1.5;
+  }
+
+  /* ── Sections ── */
+  section { padding: 64px 0; }
+  .divider { height: 1px; background: var(--border-light); }
+  .section-label {
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px;
+  }
+  h2 {
+    font-size: clamp(1.6rem, 3.5vw, 2rem); font-weight: 700;
+    letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 10px;
+  }
+  .section-desc {
+    font-size: 1rem; color: var(--text-secondary); max-width: 520px;
+    margin-bottom: 36px; line-height: 1.55;
+  }
+  h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; }
+  p { color: var(--text-secondary); margin-bottom: 14px; }
+
+  /* ── Three pillars ── */
+  .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border-light); border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; margin: 36px 0; }
+  .pillar { background: var(--bg); padding: 32px 24px; text-align: center; }
+  .pillar-icon { margin-bottom: 14px; display: flex; justify-content: center; }
+  .pillar h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+  .pillar p { font-size: 0.85rem; color: var(--text-tertiary); margin: 0; line-height: 1.45; }
+
+  /* ── Diagram ── */
+  .diagram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    margin: 36px 0;
+    display: flex; justify-content: center;
+  }
+
+  /* ── Type cards ── */
+  .types-grid { display: flex; flex-direction: column; gap: 12px; margin: 32px 0; }
+  .type-card {
+    background: var(--bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .type-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .type-icon {
+    width: 36px; height: 36px; border-radius: 8px; background: var(--surface);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .type-name {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace; font-size: 0.95rem;
+    font-weight: 600; color: var(--text);
+  }
+  .type-badge {
+    font-size: 0.65rem; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+    letter-spacing: 0.03em; text-transform: uppercase;
+    background: var(--surface); color: var(--text-tertiary); border: 1px solid var(--border-light);
+  }
+  .type-desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.55; }
+  .type-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82em;
+    background: var(--surface); padding: 1px 5px; border-radius: 4px; color: var(--text);
+  }
+
+  /* ── Code ── */
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border-light);
+    border-radius: 10px; padding: 18px 20px; overflow-x: auto;
+    font-size: 0.8rem; line-height: 1.75; margin: 14px 0 0;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace; color: var(--text);
+  }
+  .kw { color: #a626a4; }
+  .fn { color: #4078f2; }
+  .tp { color: #986801; }
+  .cm { color: #a0a1a7; }
+  .pr { color: #e45649; }
+
+  /* ── Data flow ── */
+  .flow-list { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .flow-item {
+    display: grid; grid-template-columns: 180px 1fr; gap: 0;
+    font-size: 0.9rem; border-bottom: 1px solid var(--border-light);
+  }
+  .flow-item:last-child { border-bottom: none; }
+  .flow-item > div { padding: 14px 20px; }
+  .flow-event { font-weight: 600; color: var(--text); background: var(--surface); }
+  .flow-desc { color: var(--text-secondary); }
+  .flow-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82em; color: var(--blue);
+  }
+
+  /* ── Rules ── */
+  .rules { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .rule-item {
+    padding: 18px 20px; display: flex; gap: 14px; align-items: start;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .rule-item:last-child { border-bottom: none; }
+  .rule-num {
+    width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700; background: var(--surface); color: var(--text-tertiary);
+  }
+  .rule-content { flex: 1; }
+  .rule-title { font-weight: 600; font-size: 0.9rem; color: var(--text); margin-bottom: 2px; }
+  .rule-desc { font-size: 0.85rem; color: var(--text-tertiary); line-height: 1.5; }
+  .rule-desc code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--text-secondary);
+  }
+
+  /* ── Invariant ── */
+  .invariant {
+    background: var(--surface); border: 1px solid var(--border-light);
+    border-radius: var(--radius); padding: 20px 24px; margin: 32px 0;
+    display: flex; gap: 14px; align-items: start;
+  }
+  .invariant-icon {
+    width: 32px; height: 32px; border-radius: 8px; background: var(--bg);
+    border: 1px solid var(--border-light);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .invariant-text { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55; }
+  .invariant-text strong { color: var(--text); }
+  .invariant-text code {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--text);
+  }
+
+  /* ── Prose blocks ── */
+  .prose {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    margin: 24px 0;
+    max-width: 620px;
+  }
+  .prose strong { color: var(--text); }
+  .prose code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    background: var(--surface);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--text);
+  }
+
+  footer {
+    padding: 40px 0; text-align: center;
+    font-size: 0.78rem; color: var(--text-tertiary); border-top: 1px solid var(--border-light);
+  }
+
+  @media (max-width: 640px) {
+    .pillars { grid-template-columns: 1fr; }
+    .flow-item { grid-template-columns: 1fr; }
+    .flow-event { border-bottom: 1px solid var(--border-light); }
+    .hero { padding: 64px 0 48px; }
+    section { padding: 48px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">Architecture</div>
+    <h1>Overlay Rendering</h1>
+    <p>How each keycap decides what to show.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="container">
+
+<section>
+  <div class="section-label">Overview</div>
+  <h2>Three Rendering Modes</h2>
+  <div class="section-desc">Every keycap on the overlay renders in exactly one of three modes, determined by the current layer and activation state.</div>
+
+  <div class="pillars">
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Keycap with letter -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="10" ry="2.5" fill="#3d4852" opacity="0.06"/>
+          <rect x="14" y="12" width="32" height="32" rx="6" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8"/>
+          <rect x="16" y="14" width="28" height="28" rx="4" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/>
+          <text x="30" y="34" text-anchor="middle" font-family="'SF Pro Text', -apple-system, sans-serif" font-size="16" font-weight="600" fill="#3d4852">A</text>
+        </svg>
+      </div>
+      <h4>Base</h4>
+      <p>Standard keycap: letters, shift symbols, function keys, modifiers. Handles floating label animation.</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Keycap with arrow overlay -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="10" ry="2.5" fill="#3d4852" opacity="0.06"/>
+          <rect x="14" y="12" width="32" height="32" rx="6" fill="#d2d2d7" stroke="#3d4852" stroke-width="1.8"/>
+          <rect x="16" y="14" width="28" height="28" rx="4" fill="#e8e8ed" stroke="#3d4852" stroke-width="0.8"/>
+          <!-- Small dimmed letter top-left -->
+          <text x="22" y="24" text-anchor="middle" font-family="'SF Pro Text', -apple-system, sans-serif" font-size="8" fill="#3d4852" opacity="0.35">H</text>
+          <!-- Arrow icon centered -->
+          <path d="M34 28 L24 28 M24 28 L28 24 M24 28 L28 32" stroke="#3d4852" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h4>Layer</h4>
+      <p>Active when holding a layer key: arrows, SF symbols, action icons, collection-colored backgrounds. Key letter dims to top-left.</p>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">
+        <!-- Keycap with app icon -->
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="54" rx="10" ry="2.5" fill="#3d4852" opacity="0.06"/>
+          <rect x="14" y="12" width="32" height="32" rx="6" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.8"/>
+          <rect x="16" y="14" width="28" height="28" rx="4" fill="#f5f5f7" stroke="#3d4852" stroke-width="0.8"/>
+          <!-- App icon placeholder centered -->
+          <rect x="23" y="21" width="14" height="14" rx="3" fill="#d2d2d7" stroke="#3d4852" stroke-width="1"/>
+          <circle cx="30" cy="28" r="3" fill="#3d4852" opacity="0.15"/>
+          <!-- Small letter top-right -->
+          <text x="39" y="23" text-anchor="middle" font-family="'SF Pro Text', -apple-system, sans-serif" font-size="7" fill="#3d4852" opacity="0.4">S</text>
+        </svg>
+      </div>
+      <h4>Launcher</h4>
+      <p>Active in launcher mode: app icons centered, key letter in top-right corner. Transition animation between states.</p>
+    </div>
+  </div>
+
+  <div class="prose">
+    The overlay originally rendered all keycap content inside a single 2,685-line <code>OverlayKeycapView</code>. The decomposition into focused child views followed a simple principle: the parent owns the <strong>shell</strong> (background, shadows, gestures, icon loading), while children own the <strong>content</strong> (what text, symbol, or icon to draw). Each child view is independently testable and snapshot-verifiable.
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Architecture</div>
+  <h2>The Composition Pattern</h2>
+  <div class="section-desc">A parent shell dispatches to one of three child views. The dispatch is a linear if-else chain &mdash; no key is ever in two modes at once.</div>
+
+  <div class="prose">
+    <strong>The parent <code>OverlayKeycapView</code></strong> handles everything shared across modes: keycap background color, shadows, glow effects, press animation, selection/hover highlights, gesture handling, and icon loading lifecycle (<code>onAppear</code>/<code>onChange</code>). It then dispatches to the appropriate child view based on the current mode. The parent weighs in at ~1,556 LOC spread across 10 files.
+  </div>
+
+  <div class="prose">
+    <strong>The child views</strong> are deliberately small and focused. <code>LauncherModeKeycap</code> is 108 LOC with 11 parameters. <code>LayerModeKeycap</code> is 255 LOC with 14 parameters. <code>BaseKeycap</code> is 852 LOC with 23 parameters (the largest, because base mode handles the most label variants). <code>KeycapSymbols</code> is a 177 LOC shared utility used by all three.
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 520 380" xmlns="http://www.w3.org/2000/svg" style="max-width:500px; width:100%;">
+      <defs>
+        <marker id="arr" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#86868b"/></marker>
+        <marker id="arr-b" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#0071e3"/></marker>
+        <marker id="arr-d" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0 0 L7 2.5 L0 5z" fill="#d2d2d7"/></marker>
+      </defs>
+
+      <!-- OverlayKeycapView (root) -->
+      <rect x="140" y="10" width="240" height="44" rx="8" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="190" y="27" font-family="-apple-system, sans-serif" font-size="8" fill="#86868b" font-weight="600" letter-spacing="0.04em">PARENT</text>
+      <text x="190" y="42" font-family="JetBrains Mono, monospace" font-size="10" fill="#1d1d1f" font-weight="600">OverlayKeycapView</text>
+
+      <!-- Arrow down to keyContent -->
+      <line x1="260" y1="54" x2="260" y2="86" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+
+      <!-- keyContent dispatch -->
+      <rect x="160" y="90" width="200" height="36" rx="6" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1"/>
+      <text x="260" y="112" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#1d1d1f" font-weight="500">keyContent</text>
+
+      <!-- Legend branches left -->
+      <line x1="200" y1="126" x2="200" y2="148" stroke="#86868b" stroke-width="1" marker-end="url(#arr)"/>
+      <line x1="260" y1="126" x2="260" y2="148" stroke="#86868b" stroke-width="1" marker-end="url(#arr)"/>
+      <line x1="320" y1="126" x2="320" y2="148" stroke="#86868b" stroke-width="1" marker-end="url(#arr)"/>
+
+      <!-- .dots -->
+      <rect x="10" y="126" width="80" height="28" rx="5" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="0.8"/>
+      <text x="50" y="144" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#86868b">.dots</text>
+      <line x1="90" y1="140" x2="160" y2="108" stroke="#d2d2d7" stroke-width="0.8" stroke-dasharray="4 3"/>
+
+      <!-- .blank -->
+      <rect x="10" y="160" width="80" height="28" rx="5" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="0.8"/>
+      <text x="50" y="178" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#86868b">.blank</text>
+      <line x1="90" y1="174" x2="160" y2="112" stroke="#d2d2d7" stroke-width="0.8" stroke-dasharray="4 3"/>
+
+      <!-- .iconMods -->
+      <rect x="10" y="194" width="80" height="28" rx="5" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="0.8"/>
+      <text x="50" y="212" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="#86868b">.iconMods</text>
+      <line x1="90" y1="208" x2="160" y2="114" stroke="#d2d2d7" stroke-width="0.8" stroke-dasharray="4 3"/>
+
+      <!-- Legend labels -->
+      <rect x="430" y="126" width="80" height="28" rx="5" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="0.8"/>
+      <text x="470" y="144" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7.5" fill="#86868b">DotsLegend</text>
+      <line x1="430" y1="140" x2="360" y2="108" stroke="#d2d2d7" stroke-width="0.8" stroke-dasharray="4 3"/>
+
+      <rect x="430" y="160" width="80" height="28" rx="5" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="0.8"/>
+      <text x="470" y="178" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7.5" fill="#86868b">EmptyView</text>
+      <line x1="430" y1="174" x2="360" y2="112" stroke="#d2d2d7" stroke-width="0.8" stroke-dasharray="4 3"/>
+
+      <rect x="430" y="194" width="80" height="28" rx="5" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="0.8"/>
+      <text x="470" y="212" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7.5" fill="#86868b">IconModsLeg.</text>
+      <line x1="430" y1="208" x2="360" y2="114" stroke="#d2d2d7" stroke-width="0.8" stroke-dasharray="4 3"/>
+
+      <!-- .standard → standardKeyContent -->
+      <rect x="168" y="152" width="184" height="36" rx="6" fill="white" stroke="#d2d2d7" stroke-width="1.2"/>
+      <text x="260" y="165" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="7.5" fill="#86868b" font-weight="600">.standard</text>
+      <text x="260" y="179" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#1d1d1f" font-weight="500">standardKeyContent</text>
+
+      <!-- Branches from standardKeyContent -->
+      <line x1="200" y1="188" x2="200" y2="210" stroke="#86868b" stroke-width="1"/>
+      <line x1="260" y1="188" x2="260" y2="210" stroke="#86868b" stroke-width="1"/>
+      <line x1="320" y1="188" x2="320" y2="210" stroke="#86868b" stroke-width="1"/>
+
+      <!-- touchIdContent -->
+      <line x1="140" y1="200" x2="200" y2="200" stroke="#86868b" stroke-width="1"/>
+      <line x1="140" y1="200" x2="140" y2="226" stroke="#86868b" stroke-width="1" marker-end="url(#arr)"/>
+      <rect x="100" y="230" width="80" height="28" rx="5" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="0.8"/>
+      <text x="140" y="248" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7.5" fill="#86868b">touchId?</text>
+
+      <!-- Three child view boxes -->
+      <!-- LauncherModeKeycap -->
+      <rect x="130" y="280" width="120" height="44" rx="8" fill="white" stroke="#0071e3" stroke-width="1.2"/>
+      <text x="190" y="296" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="7" fill="#0071e3" font-weight="600">LAUNCHER</text>
+      <text x="190" y="312" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#1d1d1f" font-weight="600">LauncherMode</text>
+
+      <!-- LayerModeKeycap -->
+      <rect x="260" y="280" width="120" height="44" rx="8" fill="white" stroke="#0071e3" stroke-width="1.2"/>
+      <text x="320" y="296" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="7" fill="#0071e3" font-weight="600">LAYER</text>
+      <text x="320" y="312" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#1d1d1f" font-weight="600">LayerMode</text>
+
+      <!-- BaseKeycap -->
+      <rect x="390" y="280" width="120" height="44" rx="8" fill="white" stroke="#0071e3" stroke-width="1.2"/>
+      <text x="450" y="296" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="7" fill="#0071e3" font-weight="600">BASE</text>
+      <text x="450" y="312" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#1d1d1f" font-weight="600">BaseKeycap</text>
+
+      <!-- Arrows into child views -->
+      <line x1="200" y1="210" x2="190" y2="276" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+      <line x1="260" y1="210" x2="320" y2="276" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+      <line x1="320" y1="210" x2="450" y2="276" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+
+      <!-- LOC labels -->
+      <text x="190" y="340" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="7.5" fill="#a0a1a7">108 LOC, 11 params</text>
+      <text x="320" y="340" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="7.5" fill="#a0a1a7">255 LOC, 14 params</text>
+      <text x="450" y="340" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="7.5" fill="#a0a1a7">852 LOC, 23 params</text>
+
+      <!-- Footer -->
+      <text x="260" y="370" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8" fill="#a0a1a7">Blue arrows show dispatch. Dashed lines show legend style routing.</text>
+    </svg>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Data Flow</div>
+  <h2>What Each Child Receives</h2>
+  <div class="section-desc">The parent passes only what each child needs. No child has access to the full parent state.</div>
+
+  <h3>LauncherModeKeycap</h3>
+  <div class="flow-list">
+    <div class="flow-item">
+      <div class="flow-event">keyCode</div>
+      <div class="flow-desc">Physical key identifier for launch action dispatch</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">baseLabel</div>
+      <div class="flow-desc">Key letter shown in top-right corner</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">holdLabel</div>
+      <div class="flow-desc">Secondary label for tap-hold keys</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">scale</div>
+      <div class="flow-desc">Keycap scale factor from layout geometry</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">launcherMapping</div>
+      <div class="flow-desc">The <code>LauncherMapping</code> bound to this key, if any</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">appIcon / faviconImage</div>
+      <div class="flow-desc">Pre-loaded images from the parent's <code>@State</code></div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">launcherTransition</div>
+      <div class="flow-desc">Animation phase for enter/exit transitions</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top: 32px;">LayerModeKeycap</h3>
+  <div class="flow-list">
+    <div class="flow-item">
+      <div class="flow-event">key</div>
+      <div class="flow-desc">The full <code>KeyInfo</code> for geometry and identity</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">baseLabel / holdLabel</div>
+      <div class="flow-desc">Key letter (dimmed to top-left) and hold label</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">currentLayerName</div>
+      <div class="flow-desc">Active layer name for collection color lookup</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">layerKeyInfo</div>
+      <div class="flow-desc">The layer-specific mapping for this key position</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">customIcon</div>
+      <div class="flow-desc">Custom SF symbol or image override</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">systemActionIcon</div>
+      <div class="flow-desc">Icon for system actions (volume, brightness, etc.)</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">hasLayerMapping</div>
+      <div class="flow-desc">Boolean: does this key have a binding on the active layer?</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top: 32px;">BaseKeycap</h3>
+  <div class="flow-list">
+    <div class="flow-item">
+      <div class="flow-event">key / baseLabel / scale</div>
+      <div class="flow-desc">Core identity, label text, and geometry scale</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">colorway</div>
+      <div class="flow-desc"><code>GMKColorway</code> theming: legend style, colors, backgrounds</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">holdLabel / tapHoldIdleLabel</div>
+      <div class="flow-desc">Labels for tap-hold behavior (idle vs. active states)</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">useFloatingLabels</div>
+      <div class="flow-desc">Whether floating tap-hold labels are enabled</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">shiftLabelOverride</div>
+      <div class="flow-desc">Custom shift label when shift layer is active</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">isPressed</div>
+      <div class="flow-desc">Current press state for visual feedback</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-event">+ 11 more</div>
+      <div class="flow-desc"><code>foregroundColor</code>, <code>layerKeyInfo</code>, <code>currentLayerName</code>, modifier flags, sizing hints, and accessibility overrides</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Concepts</div>
+  <h2>Key Types</h2>
+  <div class="section-desc">Four types that power the rendering pipeline, each with a single responsibility.</div>
+
+  <div class="types-grid">
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="8" r="4" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.4"/><path d="M12 12 L12 20" stroke="#3d4852" stroke-width="1.4"/><path d="M8 16 L16 16" stroke="#3d4852" stroke-width="1.2" opacity="0.5"/><circle cx="12" cy="8" r="1.5" fill="#3d4852" opacity="0.2"/></svg>
+        </div>
+        <span class="type-name">FloatingLabelVisibility</span>
+        <span class="type-badge">Struct</span>
+      </div>
+      <div class="type-desc">Pure struct that decides whether a floating label is visible. Evaluates 7 conditions as a single <code>isVisible(label)</code> call: is the key a tap-hold key? Is it idle? Is the floating labels preference on? Is the label non-empty? Is the layer base? Is the colorway standard? Is the key not pressed? Testable in isolation with 13 unit tests.</div>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="18" height="4" rx="1.5" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.2"/><rect x="3" y="10" width="18" height="4" rx="1.5" fill="#d2d2d7" stroke="#3d4852" stroke-width="1.2"/><rect x="3" y="16" width="18" height="4" rx="1.5" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.2"/><path d="M12 8 L12 10" stroke="#3d4852" stroke-width="1" opacity="0.4"/><path d="M12 14 L12 16" stroke="#3d4852" stroke-width="1" opacity="0.4"/></svg>
+        </div>
+        <span class="type-name">LayerMappingBuilder</span>
+        <span class="type-badge">Pipeline</span>
+      </div>
+      <div class="type-desc">Pipeline that transforms raw simulator output into display-ready layer mappings. Three steps: augment with <code>push-msg</code> actions, apply app-specific overrides, enrich with custom shift labels. Each step is a pure function that can be tested independently.</div>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 8 L12 4 L20 8 L12 12 Z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.2" stroke-linejoin="round"/><path d="M4 12 L12 16 L20 12" fill="none" stroke="#3d4852" stroke-width="1.2" stroke-linejoin="round"/><path d="M4 16 L12 20 L20 16" fill="none" stroke="#3d4852" stroke-width="1.2" stroke-linejoin="round" opacity="0.5"/></svg>
+        </div>
+        <span class="type-name">KeycapSymbols</span>
+        <span class="type-badge">Utility</span>
+      </div>
+      <div class="type-desc">Shared utility enum used by all three child views. SF symbol resolution for actions, window action symbols and colors, collection-to-color mapping, modifier key detection, and dynamic text label sizing. 177 LOC of pure functions with no state.</div>
+    </div>
+
+    <div class="type-card">
+      <div class="type-header">
+        <div class="type-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="4" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.4"/><circle cx="8" cy="12" r="2.5" fill="#d2d2d7" stroke="#3d4852" stroke-width="0.8"/><circle cx="16" cy="12" r="2.5" fill="#d2d2d7" stroke="#3d4852" stroke-width="0.8"/><line x1="10.5" y1="12" x2="13.5" y2="12" stroke="#3d4852" stroke-width="0.8" opacity="0.4"/></svg>
+        </div>
+        <span class="type-name">GMKColorway</span>
+        <span class="type-badge">Theme</span>
+      </div>
+      <div class="type-desc">Colorway theming system. Four legend styles: <code>.standard</code> (letters), <code>.dots</code> (circles), <code>.blank</code> (nothing), <code>.iconMods</code> (symbols for modifiers). Each style routes through a different content path in <code>keyContent</code>, which is why the dispatch tree branches before reaching <code>standardKeyContent</code>.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Principles</div>
+  <h2>Design Rules</h2>
+  <div class="section-desc">Five rules that govern the decomposition. Each exists because the monolithic version violated it and caused bugs.</div>
+
+  <div class="rules">
+    <div class="rule-item">
+      <div class="rule-num">1</div>
+      <div class="rule-content">
+        <div class="rule-title">Parent owns the shell, children own the content</div>
+        <div class="rule-desc">Background color, shadows, glow, gestures, and icon loading lifecycle stay in the parent. Content rendering (what text/icon to show) lives in child views.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">2</div>
+      <div class="rule-content">
+        <div class="rule-title">@State stays in the parent</div>
+        <div class="rule-desc"><code>appIcon</code>, <code>faviconImage</code>, <code>launcherTransition</code> are <code>@State</code> on <code>OverlayKeycapView</code>. Children receive them as plain parameters, never as bindings.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">3</div>
+      <div class="rule-content">
+        <div class="rule-title">Children never reference the parent</div>
+        <div class="rule-desc">No child view has a dependency on <code>OverlayKeycapView</code>. They use <code>KeycapSymbols</code> for shared utilities and take all data as init parameters.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">4</div>
+      <div class="rule-content">
+        <div class="rule-title">Snapshot tests gate every change</div>
+        <div class="rule-desc">15 keycap-level + 6 full-overlay snapshot tests verify pixel-identical rendering before and after any structural change.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">5</div>
+      <div class="rule-content">
+        <div class="rule-title">Geometry follows PhysicalLayout, labels follow LogicalKeymap</div>
+        <div class="rule-desc">The layout determines key positions and sizes. The keymap determines what letter to print. No UI toggle mixes them.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="invariant">
+    <div class="invariant-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 8 L12 14" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="16.5" r="0.8" fill="#3d4852"/></svg>
+    </div>
+    <div class="invariant-text"><strong>Core invariant.</strong> Each keycap renders exactly one mode. The parent's <code>standardKeyContent</code> is a linear if-else chain: touchId &rarr; launcher &rarr; layer &rarr; base. A key is never in two modes simultaneously.</div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Related</div>
+  <h2>See Also</h2>
+  <div class="section-desc">The rendering layer connects to several other overlay systems.</div>
+  <p><strong><a href="overlay-architecture.html" style="color: #0071e3; text-decoration: none;">Overlay Architecture &rarr;</a></strong> &mdash; Controller, window lifecycle, inspector panel, and the complete event flow.</p>
+  <p><strong><a href="layouts-architecture.html" style="color: #0071e3; text-decoration: none;">Keyboard Layouts &rarr;</a></strong> &mdash; PhysicalLayout and key positions that determine keycap geometry.</p>
+  <p><strong><a href="kindavim-architecture.html" style="color: #0071e3; text-decoration: none;">KindaVim Architecture &rarr;</a></strong> &mdash; Vim hint layer that renders atop the keycap grid.</p>
+  <p><a href="index.html" style="color: #86868b; text-decoration: none;">&larr; Back to Index</a></p>
+</section>
+
+</div>
+
+<footer>KeyPath Overlay Rendering &mdash; May 2026</footer>
+
+</body>
+</html>
