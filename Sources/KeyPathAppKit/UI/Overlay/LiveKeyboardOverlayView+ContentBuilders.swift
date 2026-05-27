@@ -171,6 +171,7 @@ extension LiveKeyboardOverlayView {
                     holdReleaseFadeKeyCodes: viewModel.holdReleaseFadeKeyCodes,
                     customIcons: viewModel.customIcons,
                     onKeyClick: onKeyClick,
+                    onKeyDoubleClick: onKeyDoubleClick,
                     selectedKeyCode: viewModel.selectedKeyCode,
                     hoveredRuleKeyCode: viewModel.hoveredRuleKeyCode,
                     vimHintsActive: kindaVimPackInstalled && VimHintLayer.isCurrentlyRendering,

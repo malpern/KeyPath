@@ -14,6 +14,8 @@ struct LiveKeyboardOverlayView: View {
     let kanataViewModel: KanataViewModel?
     /// Callback when a key is clicked (not dragged) - selects key in drawer mapper when visible
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
+    /// Callback when a key is double-clicked in launcher mode (opens edit panel)
+    var onKeyDoubleClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// Callback when the overlay close button is pressed
     var onClose: (() -> Void)?
     /// Callback when the inspector button is pressed

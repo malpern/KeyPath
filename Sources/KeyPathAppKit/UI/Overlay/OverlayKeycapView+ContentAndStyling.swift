@@ -121,11 +121,11 @@ extension OverlayKeycapView {
             }
         }
         // Click behavior based on drawer state:
-        // - Drawer CLOSED: only Touch ID key captures clicks (opens drawer), all other keys pass through for window drag
-        // - Drawer OPEN: all keys capture clicks for mapping
+        // - Drawer CLOSED + launcher mode: tap gestures with count disambiguation (double-click edits, single-click executes)
+        // - Drawer CLOSED + base mode: only Touch ID key captures clicks, all other keys pass through for window drag
+        // - Drawer OPEN: all keys capture clicks for mapping via DragGesture
         // Touch ID uses highPriorityGesture(TapGesture) so it wins over the parent keyboard's
         // highPriorityGesture(DragGesture) which would otherwise swallow tap events.
-        // Other keys use simultaneousGesture(DragGesture) so they coexist with keyboard drag.
         .highPriorityGesture(
             TapGesture()
                 .onEnded {
@@ -134,13 +134,26 @@ extension OverlayKeycapView {
                 },
             including: key.layoutRole == .touchId ? .all : .none
         )
+        // Launcher mode (inspector closed): double-click opens edit panel, single-click executes shortcut.
+        // onTapGesture(count:2) before count:1 makes SwiftUI delay the single tap to disambiguate.
+        .onTapGesture(count: 2) {
+            guard isLauncherMode, !isInspectorVisible, key.layoutRole != .touchId,
+                  let onKeyDoubleClick else { return }
+            onKeyDoubleClick(key, layerKeyInfo)
+        }
+        .onTapGesture {
+            guard isLauncherMode, !isInspectorVisible, key.layoutRole != .touchId,
+                  let onKeyClick else { return }
+            onKeyClick(key, layerKeyInfo)
+        }
+        // Inspector open: DragGesture for key selection (coexists with keyboard drag)
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onEnded { _ in
                     guard key.layoutRole != .touchId, let onKeyClick else { return }
                     onKeyClick(key, layerKeyInfo)
                 },
-            including: isInspectorVisible || isLauncherMode ? .all : .none
+            including: isInspectorVisible ? .all : .none
         )
         .onAppear {
             loadAppIconIfNeeded()
