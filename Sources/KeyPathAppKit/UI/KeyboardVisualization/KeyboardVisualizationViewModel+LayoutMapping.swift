@@ -27,12 +27,6 @@ extension KeyboardVisualizationViewModel {
         // layer indicators) update without waiting for the async mapping rebuild.
         currentLayerName = targetLayerName
 
-        // Clear stale layer mappings so keys without zone colors don't briefly
-        // render with the previous layer's collection color and icons (e.g.,
-        // F1-F12 flashing orange when entering a nav layer).
-        layerKeyMap = [:]
-        remapOutputMap = [:]
-
         // Clear tap-hold sources on layer change to prevent stale suppressions
         // (e.g., user switches layers while holding a tap-hold key)
         activeTapHoldSources.removeAll()
@@ -181,6 +175,13 @@ extension KeyboardVisualizationViewModel {
             return
         }
 
+        // Use prebuilt mapping immediately if available (from startup prebuild).
+        // This prevents the overlay from flashing empty during the async rebuild.
+        if let cached = prebuiltLayerMappings[targetLayerName.lowercased()] {
+            layerKeyMap = cached
+            remapOutputMap = buildRemapOutputMap(from: cached)
+        }
+
         isLoadingLayerMap = true
         AppLogger.shared.info("🗺️ [KeyboardViz] Starting layer mapping build for '\(targetLayerName)'...")
 
@@ -257,6 +258,7 @@ extension KeyboardVisualizationViewModel {
 
                 // Update mapping (layer name was already set eagerly in updateLayer;
                 // re-assign here for the rebuildLayerMapping() path from setLayout)
+                guard !Task.isCancelled else { return }
                 await MainActor.run {
                     self.currentLayerName = targetLayerName
                     self.layerKeyMap = mapping
@@ -652,7 +654,18 @@ extension KeyboardVisualizationViewModel {
                 allEnabledCollections: enabledCollections
             )
 
-            AppLogger.shared.info("🗺️ [KeyboardViz] Background prebuild complete")
+            // Copy prebuilt mappings to a synchronous cache for instant layer switching
+            var localCache: [String: [UInt16: LayerKeyInfo]] = [:]
+            for layer in layerNames {
+                if let mapping = await layerKeyMapper.getCachedMapping(for: layer) {
+                    localCache[layer] = mapping
+                }
+            }
+            await MainActor.run {
+                self.prebuiltLayerMappings = localCache
+            }
+
+            AppLogger.shared.info("🗺️ [KeyboardViz] Background prebuild complete (\(localCache.count) layers cached)")
         }
     }
 

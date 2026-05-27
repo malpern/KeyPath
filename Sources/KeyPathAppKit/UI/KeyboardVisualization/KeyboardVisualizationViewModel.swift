@@ -79,6 +79,9 @@ class KeyboardVisualizationViewModel {
     var launcherMappings: [String: LauncherMapping] = [:]
     /// Pre-computed launcher mappings cache, ready before layer switch
     @ObservationIgnored var cachedLauncherMappings: [String: LauncherMapping]?
+    /// Pre-built layer mappings from startup prebuild, keyed by layer name.
+    /// Used for instant layer switching without waiting for async simulator.
+    @ObservationIgnored var prebuiltLayerMappings: [String: [UInt16: LayerKeyInfo]] = [:]
 
     // MARK: - Optional Feature Collections
 

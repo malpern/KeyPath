@@ -282,6 +282,11 @@ actor LayerKeyMapper {
         return (mapping, report)
     }
 
+    /// Return a cached mapping if available, nil otherwise.
+    func getCachedMapping(for layer: String, cacheKeySuffix: String = "neovim-scope-fallback") -> [UInt16: LayerKeyInfo]? {
+        cache["\(layer.lowercased())|\(cacheKeySuffix)"]
+    }
+
     /// Invalidate all cached mappings (call when config changes)
     func invalidateCache() {
         cache.removeAll()
