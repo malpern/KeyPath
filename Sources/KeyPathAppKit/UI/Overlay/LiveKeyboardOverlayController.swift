@@ -84,6 +84,10 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// Timer for smooth inspector reveal animation (windowDidResize doesn't fire continuously)
     var inspectorAnimationTimer: Timer?
 
+    /// Double-click detection for launcher keys
+    var launcherDoubleClickKey: String?
+    var launcherDoubleClickTimer: DispatchWorkItem?
+
     private var minWindowHeight: CGFloat {
         OverlayLayoutMetrics.verticalChrome + minKeyboardHeight
     }

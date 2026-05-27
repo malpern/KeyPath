@@ -61,9 +61,6 @@ struct OverlayLaunchersSection: View {
 
             Spacer(minLength: 0)
 
-            // Promo card linking to full Pack Detail editor
-            launcherPromoCard
-
             // Bottom controls: Add/Edit (left) and Settings (right)
             HStack(spacing: 8) {
                 Button {
@@ -171,38 +168,6 @@ struct OverlayLaunchersSection: View {
                 editingMapping = LauncherMapping(key: normalized, action: .launchApp(name: "", bundleId: nil))
             }
         }
-    }
-
-    private var launcherPromoCard: some View {
-        Button { openLauncherPackDetail() } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "arrow.up.forward.app")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tint)
-                    .symbolRenderingMode(.hierarchical)
-                Text("Edit in Quick Launcher")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.primary)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.06))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(Color.accentColor.opacity(0.12), lineWidth: 0.5)
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .padding(.top, 8)
-        .accessibilityIdentifier("overlay-launcher-promo-card")
     }
 
     private var emptyState: some View {
