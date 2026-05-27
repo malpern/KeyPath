@@ -165,11 +165,14 @@ extension OverlayKeycapView {
                     }
                 } else {
                     // Default: action in center, key letter in top-left (except arrows)
+                    let arrowLabels: Set<String> = ["←", "→", "↑", "↓"]
+                    let isArrowAction = arrowLabels.contains(layerKeyInfo?.vimLabel ?? "")
+                        || arrowLabels.contains(layerKeyInfo?.displayLabel ?? "")
                     let hasActionSymbol = sfSymbolForAction(layerKeyInfo?.displayLabel ?? "") != nil
                         || LabelMetadata.sfSymbol(forOutputLabel: layerKeyInfo?.displayLabel ?? "") != nil
                     ZStack(alignment: .topLeading) {
-                        // Key letter behind (dimmed when an icon overlays it)
-                        if !isArrowKey {
+                        // Key letter behind — hidden for arrow actions (arrow symbol is self-explanatory)
+                        if !isArrowKey, !isArrowAction {
                             Text(layerKeyLabel.uppercased())
                                 .font(.system(size: 8 * scale, weight: .medium, design: .rounded))
                                 .foregroundStyle(Color.white.opacity(hasActionSymbol ? 0.25 : 0.7))
