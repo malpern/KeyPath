@@ -277,7 +277,7 @@
   </div>
 
   <div class="prose">
-    The overlay originally rendered all keycap content inside a single 2,685-line <code>OverlayKeycapView</code>. The decomposition into focused child views followed a simple principle: the parent owns the <strong>shell</strong> (background, shadows, gestures, icon loading), while children own the <strong>content</strong> (what text, symbol, or icon to draw). Each child view is independently testable and snapshot-verifiable.
+    The parent <code>OverlayKeycapView</code> owns the <strong>shell</strong> (background, shadows, gestures, icon loading), while focused child views own the <strong>content</strong> (what text, symbol, or icon to draw). Each child view is independently testable and snapshot-verifiable.
   </div>
 </section>
 
@@ -560,7 +560,7 @@
 <section>
   <div class="section-label">Principles</div>
   <h2>Design Rules</h2>
-  <div class="section-desc">Five rules that govern the decomposition. Each exists because the monolithic version violated it and caused bugs.</div>
+  <div class="section-desc">Five rules that govern the rendering decomposition.</div>
 
   <div class="rules">
     <div class="rule-item">
