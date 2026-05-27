@@ -336,7 +336,22 @@ extension OverlayKeycapView {
         }
         // Layer mode (Vim/Nav): ALL keys use layer styling (action in center, label in top-left)
         else if isLayerMode {
-            layerModeContent
+            LayerModeKeycap(
+                key: key,
+                baseLabel: baseLabel,
+                holdLabel: holdLabel,
+                scale: scale,
+                currentLayerName: currentLayerName,
+                layerKeyInfo: layerKeyInfo,
+                customIcon: customIcon,
+                zoneSubtitle: zoneSubtitle,
+                foregroundColor: foregroundColor,
+                appIcon: appIcon,
+                faviconImage: faviconImage,
+                systemActionIcon: systemActionIcon,
+                hasLayerMapping: hasLayerMapping,
+                isNavIdentityMapping: isNavIdentityMapping
+            )
         }
         // Multi-legend keys (JIS/ISO) get special 4-position rendering
         else if key.hasMultipleLegends {
