@@ -320,7 +320,19 @@ extension OverlayKeycapView {
         // Launcher mode: mapped keys show icons, unmapped keys use launcher styling
         // Utility keys (tab, esc, shift, modifiers, arrows, etc.) keep base-layer rendering
         else if isLauncherMode, !preservesBaseInLauncher {
-            launcherModeContent
+            LauncherModeKeycap(
+                keyCode: key.keyCode,
+                baseLabel: baseLabel,
+                holdLabel: holdLabel,
+                scale: scale,
+                fadeAmount: fadeAmount,
+                foregroundColor: foregroundColor,
+                launcherMapping: launcherMapping,
+                appIcon: appIcon,
+                faviconImage: faviconImage,
+                launcherTransition: launcherTransition,
+                iconVisible: iconVisible
+            )
         }
         // Layer mode (Vim/Nav): ALL keys use layer styling (action in center, label in top-left)
         else if isLayerMode {
@@ -376,7 +388,7 @@ extension OverlayKeycapView {
     /// Inline layer: arrows get centered symbols, nav words get bottom-aligned text
     @ViewBuilder
     func inlineLayerMappedContent(info: LayerKeyInfo) -> some View {
-        let arrowLabels: Set<String> = ["←", "→", "↑", "↓"]
+        let arrowLabels: Set = ["←", "→", "↑", "↓"]
         let labelColor = Color.white.opacity(0.85)
         if arrowLabels.contains(info.displayLabel) {
             Text(info.displayLabel)
