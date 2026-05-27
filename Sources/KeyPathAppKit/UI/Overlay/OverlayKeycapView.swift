@@ -39,6 +39,8 @@ struct OverlayKeycapView: View {
     var tapHoldIdleLabel: String?
     /// Callback when key is clicked (not dragged)
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
+    /// Callback when key is double-clicked in launcher mode (opens edit panel)
+    var onKeyDoubleClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// GMK colorway for keycap styling
     var colorway: GMKColorway = .default
     /// Layout total width for rainbow gradient calculation (default 15 for standard keyboards)

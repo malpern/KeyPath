@@ -84,10 +84,6 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// Timer for smooth inspector reveal animation (windowDidResize doesn't fire continuously)
     var inspectorAnimationTimer: Timer?
 
-    /// Double-click detection for launcher keys
-    var launcherDoubleClickKey: String?
-    var launcherDoubleClickTimer: DispatchWorkItem?
-
     private var minWindowHeight: CGFloat {
         OverlayLayoutMetrics.verticalChrome + minKeyboardHeight
     }
@@ -718,6 +714,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             kanataViewModel: kanataViewModel,
             onKeyClick: { [weak self] key, layerInfo in
                 self?.handleKeyClick(key: key, layerInfo: layerInfo)
+            },
+            onKeyDoubleClick: { [weak self] key, layerInfo in
+                self?.handleKeyDoubleClick(key: key, layerInfo: layerInfo)
             },
             onClose: { [weak self] in
                 self?.isVisible = false

@@ -1,4 +1,4 @@
-import AppKit
+import Foundation
 import KeyPathCore
 
 extension LiveKeyboardOverlayController {
@@ -56,48 +56,14 @@ extension LiveKeyboardOverlayController {
                 return
             }
 
-            // Double-click detection: second click on same key opens the editor
-            if launcherDoubleClickKey == normalizedKey {
-                launcherDoubleClickTimer?.cancel()
-                launcherDoubleClickTimer = nil
-                launcherDoubleClickKey = nil
-                AppLogger.shared.log("🖱️ [OverlayController] Launcher key double-clicked for editing: \(normalizedKey)")
-                toggleInspectorPanel()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    NotificationCenter.default.post(
-                        name: .launcherSelectKey,
-                        object: nil,
-                        userInfo: ["key": normalizedKey]
-                    )
-                }
-                return
-            }
-
-            // First click: defer action execution to allow double-click detection
-            launcherDoubleClickKey = normalizedKey
             if let mapping = viewModel.launcherMappings[normalizedKey],
                let message = Self.launcherActionMessage(for: mapping.action)
             {
-                let work = DispatchWorkItem { [weak self] in
-                    self?.launcherDoubleClickKey = nil
-                    self?.launcherDoubleClickTimer = nil
-                    AppLogger.shared.log("🖱️ [OverlayController] Launcher key clicked: \(normalizedKey) -> \(message)")
-                    ActionDispatcher.shared.dispatch(message: message)
-                    ActionDispatcher.shared.dispatch(message: "layer:base")
-                }
-                launcherDoubleClickTimer = work
-                DispatchQueue.main.asyncAfter(deadline: .now() + NSEvent.doubleClickInterval, execute: work)
+                AppLogger.shared.log("🖱️ [OverlayController] Launcher key clicked: \(normalizedKey) -> \(message)")
+                ActionDispatcher.shared.dispatch(message: message)
+                ActionDispatcher.shared.dispatch(message: "layer:base")
                 return
             }
-
-            // Unmapped key: just track for double-click, clear after interval
-            let work = DispatchWorkItem { [weak self] in
-                self?.launcherDoubleClickKey = nil
-                self?.launcherDoubleClickTimer = nil
-            }
-            launcherDoubleClickTimer = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + NSEvent.doubleClickInterval, execute: work)
-            return
         }
 
         let outputKey: String = if let simpleOutput = layerInfo?.outputKey {
@@ -148,4 +114,24 @@ extension LiveKeyboardOverlayController {
         )
     }
 
+    func handleKeyDoubleClick(key: PhysicalKey, layerInfo: LayerKeyInfo?) {
+        guard viewModel.isLauncherModeActive else { return }
+        let inputKey = OverlayKeyboardView.keyCodeToKanataName(key.keyCode)
+        let normalizedKey = inputKey.lowercased()
+
+        AppLogger.shared.log("🖱️ [OverlayController] Launcher key double-clicked for editing: \(normalizedKey)")
+
+        let inspectorOpen = uiState.isInspectorOpen || uiState.inspectorReveal > 0
+        if !inspectorOpen {
+            toggleInspectorPanel()
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            NotificationCenter.default.post(
+                name: .launcherSelectKey,
+                object: nil,
+                userInfo: ["key": normalizedKey]
+            )
+        }
+    }
 }

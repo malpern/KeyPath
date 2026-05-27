@@ -40,6 +40,8 @@ struct OverlayKeyboardView: View {
     var customIcons: [UInt16: String] = [:]
     /// Callback when a key is clicked (not dragged) - selects key in drawer mapper when visible
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
+    /// Callback when a key is double-clicked in launcher mode (opens edit panel)
+    var onKeyDoubleClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// Key code of currently selected key in mapper drawer (shows selection highlight)
     var selectedKeyCode: UInt16?
     /// Key code being hovered in rules/launcher tabs (for secondary highlight)
@@ -440,6 +442,7 @@ struct OverlayKeyboardView: View {
                 ? KeyPathColors.layerOrange : .accentColor,
             tapHoldIdleLabel: tapHoldIdleLabels[key.keyCode],
             onKeyClick: onKeyClick,
+            onKeyDoubleClick: onKeyDoubleClick,
             colorway: activeColorway,
             // Pass layout width for rainbow gradient calculation
             layoutTotalWidth: layout.totalWidth,
