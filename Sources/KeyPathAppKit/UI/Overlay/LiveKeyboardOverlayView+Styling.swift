@@ -92,7 +92,7 @@ extension LiveKeyboardOverlayView {
     func refreshOverlayCursor(allowDragCursor: Bool) {
         updateOverlayCursor(
             hovering: isOverlayHovered,
-            isDragging: isKeyboardDragging || isHeaderDragging,
+            isDragging: dragState.isDragging,
             allowDragCursor: allowDragCursor,
             isOverButton: isHoveringHeaderButton
         )
@@ -149,7 +149,7 @@ extension LiveKeyboardOverlayView {
 
     func moveKeyboardWindow(deltaX: CGFloat, deltaY: CGFloat) {
         guard let window = findOverlayWindow() else { return }
-        var newOrigin = keyboardDragInitialFrame.origin
+        var newOrigin = dragState.initialFrame.origin
         newOrigin.x += deltaX
         newOrigin.y += deltaY
         window.setFrameOrigin(newOrigin)

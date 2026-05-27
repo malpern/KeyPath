@@ -81,14 +81,10 @@ struct LiveKeyboardOverlayView: View {
 
     // MARK: - Drag State
 
-    @State var keyboardDragInitialFrame: NSRect = .zero
-    @State var keyboardDragInitialMouseLocation: NSPoint = .zero
-    @State var isKeyboardDragging = false
-    @State var isHeaderDragging = false
+    @State var dragState = OverlayDragState()
 
     // MARK: - Hover State
 
-    /// Whether the mouse is currently hovering over the overlay (for focus indicator)
     @State var isOverlayHovered = false
     @State var isHoveringHeaderButton = false
 
@@ -97,15 +93,10 @@ struct LiveKeyboardOverlayView: View {
     @AppStorage("launcherWelcomeSeenForBuild") var launcherWelcomeSeenForBuild: String = ""
     @State var pendingLauncherConfig: LauncherGridConfig?
 
-    // MARK: - Runtime Stopped Alert (Overlay)
+    // MARK: - Runtime State
 
-    @State var showingRuntimeStoppedAlert = false
-    @State private var lastRuntimeIssuePresent = false
-    @State private var hasSeenHealthyRuntime = false
-    @State private var overlayLaunchTime = Date()
-    @State private var toastManager = WizardToastManager()
-    @State private var lastReloadFailureToastAt: Date?
-    @State private var autoDetectToastHeight: CGFloat = 88
+    @State var runtimeState = OverlayRuntimeState()
+    @State var toastState = OverlayToastState()
     var autoDetectController: AutoDetectKeyboardController {
         .shared
     }
@@ -137,18 +128,20 @@ struct LiveKeyboardOverlayView: View {
         .spring(response: 0.5, dampingFraction: 0.72, blendDuration: 0.12)
     }
 
-    private var autoDetectToastGap: CGFloat { 10 }
+    private var autoDetectToastGap: CGFloat {
+        10
+    }
 
     private var autoDetectToastOffsetY: CGFloat {
         guard let window = findOverlayWindow(),
               let screen = window.screen ?? NSScreen.main
         else {
-            return -(autoDetectToastHeight + autoDetectToastGap)
+            return -(toastState.autoDetectHeight + autoDetectToastGap)
         }
 
         let visibleFrame = screen.visibleFrame
         let roomAbove = visibleFrame.maxY - window.frame.maxY
-        let requiredHeight = autoDetectToastHeight + autoDetectToastGap
+        let requiredHeight = toastState.autoDetectHeight + autoDetectToastGap
 
         if roomAbove >= requiredHeight {
             return -requiredHeight
@@ -198,24 +191,24 @@ struct LiveKeyboardOverlayView: View {
 
         if !hasRuntimeIssue {
             if let state = MainAppStateController.shared.validationState, state != .checking {
-                hasSeenHealthyRuntime = true
+                runtimeState.hasSeenHealthy = true
             }
         }
 
         // Grace period: don't show alert within 10s of launch (service may bounce during startup/deploy)
-        let timeSinceLaunch = Date().timeIntervalSince(overlayLaunchTime)
+        let timeSinceLaunch = Date().timeIntervalSince(runtimeState.launchTime)
         let wizardOpen = WizardWindowController.shared.isVisible
 
         if hasRuntimeIssue,
-           !lastRuntimeIssuePresent,
-           hasSeenHealthyRuntime,
+           !runtimeState.lastIssuePresent,
+           runtimeState.hasSeenHealthy,
            !wizardOpen,
            timeSinceLaunch > 10
         {
-            showingRuntimeStoppedAlert = true
+            runtimeState.showingStoppedAlert = true
         }
 
-        lastRuntimeIssuePresent = hasRuntimeIssue
+        runtimeState.lastIssuePresent = hasRuntimeIssue
     }
 
     private func openSystemStatusSettings() {
@@ -301,13 +294,12 @@ struct LiveKeyboardOverlayView: View {
     /// The leader key activator is driven by LeaderKeyPreference, not by a collection's
     /// momentaryActivator, so it needs its own lookup.
     private static func leaderKeyPreviewTargets() async -> [UInt16: String] {
-        let pref: LeaderKeyPreference
-        if let data = UserDefaults.standard.data(forKey: "KeyPath.LeaderKey.Preference"),
-           let stored = try? JSONDecoder().decode(LeaderKeyPreference.self, from: data)
+        let pref: LeaderKeyPreference = if let data = UserDefaults.standard.data(forKey: "KeyPath.LeaderKey.Preference"),
+                                           let stored = try? JSONDecoder().decode(LeaderKeyPreference.self, from: data)
         {
-            pref = stored
+            stored
         } else {
-            pref = .default
+            .default
         }
         guard pref.enabled else { return [:] }
         guard let keyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(pref.key) else { return [:] }
@@ -336,7 +328,7 @@ struct LiveKeyboardOverlayView: View {
             && !uiState.isInspectorAnimating
             && inspectorReveal <= 0.001
         let inspectorDebugEnabled = UserDefaults.standard.bool(forKey: "OverlayInspectorDebug")
-        let isOverlayDragging = isKeyboardDragging || isHeaderDragging
+        let isOverlayDragging = dragState.isDragging
         let trailingOuterPadding = inspectorVisible ? 0 : outerHorizontalPadding
         let keyboardAspectRatio = activeLayout.totalWidth / activeLayout.totalHeight
         let inspectorSeamWidth = OverlayLayoutMetrics.inspectorSeamWidth
@@ -424,18 +416,18 @@ struct LiveKeyboardOverlayView: View {
             },
             onConfigReloadFailed: { notification in
                 let now = Date()
-                if let last = lastReloadFailureToastAt, now.timeIntervalSince(last) < 10 {
+                if let last = toastState.lastReloadFailureAt, now.timeIntervalSince(last) < 10 {
                     return
                 }
-                lastReloadFailureToastAt = now
+                toastState.lastReloadFailureAt = now
                 let message = (notification.userInfo?["message"] as? String) ?? "Config reload failed"
-                toastManager.showError("Reload delayed: \(message)")
+                toastState.manager.showError("Reload delayed: \(message)")
                 SoundManager.shared.playErrorSound()
             },
             onConfigReloadRecovered: {
-                guard lastReloadFailureToastAt != nil else { return }
-                lastReloadFailureToastAt = nil
-                toastManager.showSuccess("Reload recovered")
+                guard toastState.lastReloadFailureAt != nil else { return }
+                toastState.lastReloadFailureAt = nil
+                toastState.manager.showSuccess("Reload recovered")
                 SoundManager.shared.playGlassSound()
             },
             onSwitchToAppRulesTab: {
@@ -528,8 +520,8 @@ struct LiveKeyboardOverlayView: View {
         .environment(viewModel)
         .overlayCursorTracking(
             isOverlayHovered: $isOverlayHovered,
-            isKeyboardDragging: isKeyboardDragging,
-            isHeaderDragging: isHeaderDragging,
+            isKeyboardDragging: dragState.isKeyboardDragging,
+            isHeaderDragging: dragState.isHeaderDragging,
             isHoveringHeaderButton: isHoveringHeaderButton,
             inspectorReveal: uiState.inspectorReveal,
             isInspectorOpen: uiState.isInspectorOpen,
@@ -541,7 +533,7 @@ struct LiveKeyboardOverlayView: View {
         .modifier(OverlayDialogsModifier(
             pendingDeleteRule: $pendingDeleteRule,
             appRuleDeleteError: $appRuleDeleteError,
-            showingRuntimeStoppedAlert: $showingRuntimeStoppedAlert,
+            showingRuntimeStoppedAlert: $runtimeState.showingStoppedAlert,
             showingValidationFailureModal: $showingValidationFailureModal,
             validationFailureErrors: $validationFailureErrors,
             showResetAllRulesConfirmation: $showResetAllRulesConfirmation,
@@ -584,10 +576,10 @@ struct LiveKeyboardOverlayView: View {
                     GeometryReader { proxy in
                         Color.clear
                             .onAppear {
-                                autoDetectToastHeight = proxy.size.height
+                                toastState.autoDetectHeight = proxy.size.height
                             }
                             .onChange(of: proxy.size.height) { _, newHeight in
-                                autoDetectToastHeight = newHeight
+                                toastState.autoDetectHeight = newHeight
                             }
                     }
                 }
@@ -614,7 +606,7 @@ struct LiveKeyboardOverlayView: View {
                 }
             )
         }
-        .withToasts(toastManager)
+        .withToasts(toastState.manager)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("keyboard-overlay")
         .accessibilityLabel("KeyPath keyboard overlay")
@@ -661,5 +653,4 @@ struct LiveKeyboardOverlayView: View {
             }
         }
     }
-
 }
