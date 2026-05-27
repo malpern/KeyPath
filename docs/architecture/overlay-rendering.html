@@ -277,6 +277,10 @@
   </div>
 
   <div class="prose">
+    <strong>Base</strong> is the default mode &mdash; it renders whenever the keyboard is on its normal layer. <strong>Layer</strong> activates when <code>currentLayerName</code> is something other than "base" and the key isn't in launcher mode. <strong>Launcher</strong> activates when the user holds the launcher trigger key (typically Caps Lock configured as Hyper).
+  </div>
+
+  <div class="prose">
     The parent <code>OverlayKeycapView</code> owns the <strong>shell</strong> (background, shadows, gestures, icon loading), while focused child views own the <strong>content</strong> (what text, symbol, or icon to draw). Each child view is independently testable and snapshot-verifiable.
   </div>
 </section>
@@ -381,10 +385,13 @@
       <text x="450" y="296" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="7" fill="#0071e3" font-weight="600">BASE</text>
       <text x="450" y="312" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#1d1d1f" font-weight="600">BaseKeycap</text>
 
-      <!-- Arrows into child views -->
+      <!-- Arrows into child views (strict if/else priority) -->
       <line x1="200" y1="210" x2="190" y2="276" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+      <text x="174" y="248" font-family="JetBrains Mono, monospace" font-size="7" fill="#0071e3" transform="rotate(-72 174 248)">if launcher</text>
       <line x1="260" y1="210" x2="320" y2="276" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+      <text x="274" y="248" font-family="JetBrains Mono, monospace" font-size="7" fill="#0071e3" transform="rotate(-46 274 248)">else if layer</text>
       <line x1="320" y1="210" x2="450" y2="276" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
+      <text x="380" y="240" font-family="JetBrains Mono, monospace" font-size="7" fill="#0071e3" transform="rotate(-27 380 240)">else (base)</text>
 
       <!-- LOC labels -->
       <text x="190" y="340" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="7.5" fill="#a0a1a7">108 LOC, 11 params</text>
@@ -440,7 +447,7 @@
   <div class="flow-list">
     <div class="flow-item">
       <div class="flow-event">key</div>
-      <div class="flow-desc">The full <code>KeyInfo</code> for geometry and identity</div>
+      <div class="flow-desc">The full <code>PhysicalKey</code> for geometry and identity</div>
     </div>
     <div class="flow-item">
       <div class="flow-event">baseLabel / holdLabel</div>
@@ -484,7 +491,7 @@
     </div>
     <div class="flow-item">
       <div class="flow-event">useFloatingLabels</div>
-      <div class="flow-desc">Whether floating tap-hold labels are enabled</div>
+      <div class="flow-desc">Whether alpha labels are hidden because the floating label animation layer renders them instead</div>
     </div>
     <div class="flow-item">
       <div class="flow-event">shiftLabelOverride</div>
@@ -517,7 +524,7 @@
         <span class="type-name">FloatingLabelVisibility</span>
         <span class="type-badge">Struct</span>
       </div>
-      <div class="type-desc">Pure struct that decides whether a floating label is visible. Evaluates 7 conditions as a single <code>isVisible(label)</code> call: is the key a tap-hold key? Is it idle? Is the floating labels preference on? Is the label non-empty? Is the layer base? Is the colorway standard? Is the key not pressed? Testable in isolation with 13 unit tests.</div>
+      <div class="type-desc">Pure struct that decides whether a floating label is visible. Evaluates 7 conditions as a single <code>isVisible(label)</code> call: does the label exist in the current keymap? Is it not a special label (modifiers, arrows, function keys)? Is the overlay not in launcher or layer mode? Is the key not remapped? Does it have no zone subtitle? Is it not an HJKL key while vim hints are active? Testable in isolation with 13 unit tests.</div>
     </div>
 
     <div class="type-card">
