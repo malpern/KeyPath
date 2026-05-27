@@ -436,10 +436,10 @@
 <section>
   <div class="section-label">Files</div>
   <h2>Seven Files, Seven Responsibilities</h2>
-  <div class="section-desc">The controller was originally a 1,360-line god object. We split it into one core class and six extensions, each in its own file, organized by responsibility.</div>
+  <div class="section-desc">The controller is organized as one core class and six extensions, each in its own file, organized by responsibility.</div>
 
   <div class="prose">
-    <strong>Why extensions instead of separate classes?</strong> The controller manages a single <code>NSWindow</code> with shared state: the window reference, the viewModel, the UIState, and a dozen flags for visibility, suppression, and animation. Separate classes would mean either passing all that state around or creating an artificial protocol layer. Extensions in separate files give us the readability win (each file is one concern) without the coupling cost (they share instance state naturally).
+    <strong>Why extensions instead of separate classes?</strong> The controller manages a single <code>NSWindow</code> with shared state: the window reference, the viewModel, the UIState, and a dozen flags for visibility, suppression, and animation. Separate classes would require passing all that state around or introducing an artificial protocol layer. Extensions in separate files keep each file focused on one concern while sharing instance state naturally.
   </div>
 
   <div class="prose">
@@ -570,7 +570,7 @@
 <section>
   <div class="section-label">Principles</div>
   <h2>Design Rules</h2>
-  <div class="section-desc">Five invariants that keep the overlay reliable and non-intrusive. Each rule exists because we learned the hard way what happens without it.</div>
+  <div class="section-desc">Five invariants that keep the overlay reliable and non-intrusive.</div>
 
   <div class="rules">
     <div class="rule-item">
@@ -611,7 +611,7 @@
   </div>
 
   <div class="prose">
-    <strong>Rule 3 deserves extra attention.</strong> The overlay can be hidden for three independent reasons: the user toggled it off (<code>userExplicitlyHidden</code>), the wizard/settings opened automatically (<code>overlayHiddenByWizard</code>), or the frontmost app is on the suppression list (<code>isAppSuppressed</code>). Each reason tracks its own "was visible before" flag and restores independently. Without this separation, closing the wizard would unhide an overlay the user had intentionally dismissed &mdash; a subtle but maddening bug we hit early on.
+    <strong>Rule 3 deserves extra attention.</strong> The overlay can be hidden for three independent reasons: the user toggled it off (<code>userExplicitlyHidden</code>), the wizard/settings opened automatically (<code>overlayHiddenByWizard</code>), or the frontmost app is on the suppression list (<code>isAppSuppressed</code>). Each reason tracks its own "was visible before" flag and restores independently. Without this separation, closing the wizard could unhide an overlay the user had intentionally dismissed.
   </div>
 
   <div class="prose">
