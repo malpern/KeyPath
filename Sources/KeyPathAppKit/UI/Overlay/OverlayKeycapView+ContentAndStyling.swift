@@ -353,76 +353,33 @@ extension OverlayKeycapView {
                 isNavIdentityMapping: isNavIdentityMapping
             )
         }
-        // Multi-legend keys (JIS/ISO) get special 4-position rendering
-        else if key.hasMultipleLegends {
-            multiLegendContent
-        }
-        // Check for novelty override first (ESC, Enter with special icons)
-        else if hasNoveltyKey {
-            noveltyKeyContent
-        }
-        // Function keys always show F-label + icon (even when remapped)
-        else if key.layoutRole == .functionKey {
-            functionKeyWithMappingContent
-        }
-        // URL mapping keys show favicon
-        else if hasURLMapping {
-            urlMappingContent
-        }
-        // App launch keys show app icon regardless of layout role
-        else if hasAppLaunch {
-            appLaunchContent
-        }
-        // System action keys show SF Symbol icon
-        else if hasSystemAction {
-            systemActionContent
-        }
-        // Inline layer mapped keys: arrows centered, nav words bottom-aligned
-        else if isInlineLayer, hasLayerMapping, let info = layerKeyInfo {
-            inlineLayerMappedContent(info: info)
-        } else {
-            switch key.layoutRole {
-            case .centered:
-                centeredContent
-            case .bottomAligned:
-                bottomAlignedContent
-            case .narrowModifier:
-                narrowModifierContent
-            case .functionKey:
-                functionKeyContent // Should never reach here due to check above
-            case .arrow:
-                arrowContent
-            case .touchId:
-                touchIdContent
-            case .escKey:
-                escKeyContent
-            }
-        }
-    }
-
-    /// Inline layer: arrows get centered symbols, nav words get bottom-aligned text
-    @ViewBuilder
-    func inlineLayerMappedContent(info: LayerKeyInfo) -> some View {
-        let arrowLabels: Set = ["←", "→", "↑", "↓"]
-        let labelColor = Color.white.opacity(0.85)
-        if arrowLabels.contains(info.displayLabel) {
-            Text(info.displayLabel)
-                .font(.system(size: 16 * scale, weight: .semibold))
-                .foregroundStyle(labelColor)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            VStack {
-                Spacer(minLength: 0)
-                HStack {
-                    Text(info.displayLabel.lowercased())
-                        .font(.system(size: 9 * scale, weight: .medium))
-                        .foregroundStyle(labelColor)
-                    Spacer(minLength: 0)
-                }
-                .padding(.leading, 4 * scale)
-                .padding(.bottom, 3 * scale)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Base layer content (multi-legend, novelty, function, app launch, URL, system action, layout roles)
+        else {
+            BaseKeycap(
+                key: key,
+                baseLabel: baseLabel,
+                scale: scale,
+                foregroundColor: foregroundColor,
+                colorway: colorway,
+                layerKeyInfo: layerKeyInfo,
+                holdLabel: holdLabel,
+                tapHoldIdleLabel: tapHoldIdleLabel,
+                useFloatingLabels: useFloatingLabels,
+                shiftLabelOverride: shiftLabelOverride,
+                isPressed: isPressed,
+                currentLayerName: currentLayerName,
+                isLauncherMode: isLauncherMode,
+                isLayerMode: isLayerMode,
+                isKeymapTransitioning: isKeymapTransitioning,
+                appIcon: appIcon,
+                faviconImage: faviconImage,
+                systemActionIcon: systemActionIcon,
+                zoneSubtitle: zoneSubtitle,
+                isLoadingLayerMap: isLoadingLayerMap,
+                isCapsLockOn: isCapsLockOn,
+                isInlineLayer: isInlineLayer,
+                hasLayerMapping: hasLayerMapping
+            )
         }
     }
 }
