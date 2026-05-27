@@ -180,7 +180,7 @@ extension KeyboardVisualizationViewModel {
         let cacheKey = targetLayerName.lowercased()
         if let cached = prebuiltLayerMappings[cacheKey] {
             layerKeyMap = cached
-            remapOutputMap = buildRemapOutputMap(from: cached)
+            remapOutputMap = LayerMappingBuilder.buildRemapOutputMap(from: cached)
         }
 
         isLoadingLayerMap = true
@@ -237,22 +237,21 @@ extension KeyboardVisualizationViewModel {
                     }
                 }
 
-                // Augment mapping with push-msg actions from custom rules and rule collections
-                // Only include actions targeting this specific layer
                 let customRules = await CustomRulesStore.shared.loadRules()
                 AppLogger.shared.info("🗺️ [KeyboardViz] Augmenting '\(targetLayerName)' with \(customRules.count) custom rules and \(scopedRuleCollections.count) collections")
-                mapping = augmentWithPushMsgActions(
+                mapping = LayerMappingBuilder.augmentWithPushMsgActions(
                     mapping: mapping,
                     customRules: customRules,
                     ruleCollections: scopedRuleCollections,
                     currentLayerName: targetLayerName
                 )
 
-                // Apply app-specific overrides for the current frontmost app
                 mapping = await applyAppSpecificOverrides(to: mapping)
 
-                // Enrich mapping with custom shift labels from custom rules
-                mapping = enrichWithCustomShiftLabels(mapping: mapping, customRules: customRules)
+                mapping = LayerMappingBuilder.enrichWithCustomShiftLabels(
+                    mapping: mapping,
+                    customRules: customRules
+                )
 
                 // Update mapping (layer name was already set eagerly in updateLayer;
                 // re-assign here for the rebuildLayerMapping() path from setLayout)
@@ -260,7 +259,7 @@ extension KeyboardVisualizationViewModel {
                 await MainActor.run {
                     self.currentLayerName = targetLayerName
                     self.layerKeyMap = mapping
-                    self.remapOutputMap = self.buildRemapOutputMap(from: mapping)
+                    self.remapOutputMap = LayerMappingBuilder.buildRemapOutputMap(from: mapping)
                     self.isLoadingLayerMap = false
                     AppLogger.shared
                         .info("🗺️ [KeyboardViz] Updated currentLayerName to '\(targetLayerName)' and layerKeyMap with \(mapping.count) entries, remapOutputMap with \(self.remapOutputMap.count) remaps")
@@ -275,7 +274,8 @@ extension KeyboardVisualizationViewModel {
 
                 // Show alert if simulator had significant failures on a non-base layer
                 if let report = simReport, report.hasSignificantFailures,
-                   targetLayerName.lowercased() != "base" {
+                   targetLayerName.lowercased() != "base"
+                {
                     await MainActor.run {
                         Self.showSimulationFailureAlert(report)
                     }
@@ -289,346 +289,37 @@ extension KeyboardVisualizationViewModel {
         }
     }
 
-    /// Build a map from input keyCode -> output keyCode for simple remaps.
-    /// Used to suppress output key highlighting when the input key is pressed.
-    /// - Parameter mapping: The layer key mapping to extract remap info from
-    /// - Returns: Dictionary mapping input keyCodes to their output keyCodes
-    func buildRemapOutputMap(from mapping: [UInt16: LayerKeyInfo]) -> [UInt16: UInt16] {
-        var result: [UInt16: UInt16] = [:]
-        for (inputKeyCode, info) in mapping {
-            guard let outputKeyCode = info.outputKeyCode,
-                  outputKeyCode != inputKeyCode, // Only actual remaps (A->B, not A->A)
-                  !info.isTransparent // Transparent keys pass through, not remaps
-            else {
-                continue
-            }
-            result[inputKeyCode] = outputKeyCode
-        }
-        return result
-    }
+    // MARK: - Forwarding to LayerMappingBuilder
 
-    /// Enrich layer mapping with custom shift labels from custom rules that have shiftedOutput.
-    /// This lets the overlay keyboard show the custom shifted character instead of the system default.
-    func enrichWithCustomShiftLabels(
-        mapping: [UInt16: LayerKeyInfo],
-        customRules: [CustomRule]
-    ) -> [UInt16: LayerKeyInfo] {
-        // Build lookup: kanata input name → custom shiftedOutput
-        var shiftOverrides: [String: String] = [:]
-        for rule in customRules where rule.isEnabled {
-            guard let shiftedOutput = rule.shiftedOutput, !shiftedOutput.isEmpty else { continue }
-            shiftOverrides[rule.input.lowercased()] = KeyDisplayFormatter.format(shiftedOutput)
-        }
-        guard !shiftOverrides.isEmpty else { return mapping }
-
-        var result = mapping
-        for (keyCode, info) in mapping {
-            let kanataName = OverlayKeyboardView.keyCodeToKanataName(keyCode)
-            if let customShift = shiftOverrides[kanataName.lowercased()] {
-                result[keyCode] = LayerKeyInfo(
-                    displayLabel: info.displayLabel,
-                    outputKey: info.outputKey,
-                    outputKeyCode: info.outputKeyCode,
-                    isTransparent: info.isTransparent,
-                    isLayerSwitch: info.isLayerSwitch,
-                    appLaunchIdentifier: info.appLaunchIdentifier,
-                    systemActionIdentifier: info.systemActionIdentifier,
-                    urlIdentifier: info.urlIdentifier,
-                    collectionId: info.collectionId,
-                    vimLabel: info.vimLabel,
-                    customShiftLabel: customShift
-                )
-            }
-        }
-        return result
-    }
-
-    /// Augment layer mapping with push-msg actions from custom rules and rule collections
-    /// Handles app launches, system actions, and other push-msg patterns
-    /// - Parameters:
-    ///   - mapping: The base layer key mapping from the simulator
-    ///   - customRules: Custom rules to check for push-msg patterns
-    ///   - ruleCollections: Preset rule collections to check for push-msg patterns
-    ///   - currentLayerName: The layer name to filter collections/rules by (only include matching layers)
-    /// - Returns: Mapping with action info added where applicable
-    func augmentWithPushMsgActions(
-        mapping: [UInt16: LayerKeyInfo],
-        customRules: [CustomRule],
-        ruleCollections: [RuleCollection],
-        currentLayerName: String
-    ) -> [UInt16: LayerKeyInfo] {
-        var augmented = mapping
-
-        // Build lookups from input key -> LayerKeyInfo
-        var actionByInput: [String: LayerKeyInfo] = [:]
-
-        // First, process rule collections (lower priority - can be overridden by custom rules)
-        // Only process collections that target the current layer or base layer
-        for collection in ruleCollections where collection.isEnabled {
-            // Check if this collection targets the current layer
-            let collectionLayerName = collection.targetLayer.kanataName.lowercased()
-            let currentLayer = currentLayerName.lowercased()
-
-            // Only include mappings from collections targeting this layer
-            // Exception: base layer gets base-layer collections only
-            guard collectionLayerName == currentLayer else {
-                AppLogger.shared.debug("🗺️ [KeyboardViz] Skipping collection '\(collection.name)' (targets '\(collectionLayerName)', current layer '\(currentLayer)')")
-                continue
-            }
-
-            for keyMapping in collection.mappings {
-                let input = keyMapping.input.lowercased()
-                if let info = Self.extractPushMsgInfo(from: keyMapping.action.kanataOutput, description: keyMapping.description) {
-                    actionByInput[input] = info
-                } else {
-                    let outputKey = keyMapping.action.outputString.lowercased()
-                    if let description = keyMapping.description,
-                       let outputKeyCode = Self.kanataNameToKeyCode(outputKey) {
-                        actionByInput[input] = .mapped(
-                            displayLabel: description,
-                            outputKey: outputKey,
-                            outputKeyCode: outputKeyCode,
-                            collectionId: collection.id
-                        )
-                    } else if let systemAction = SystemActionInfo.find(byOutput: outputKey) {
-                        actionByInput[input] = .systemAction(
-                            action: systemAction.id,
-                            description: keyMapping.description ?? systemAction.name,
-                            collectionId: collection.id
-                        )
-                    } else if let outputKeyCode = Self.kanataNameToKeyCode(outputKey) {
-                        let displayLabel = outputKey.count == 1 ? outputKey.uppercased() : outputKey.capitalized
-                        actionByInput[input] = .mapped(
-                            displayLabel: displayLabel,
-                            outputKey: outputKey,
-                            outputKeyCode: outputKeyCode,
-                            collectionId: collection.id
-                        )
-                    }
-                }
-            }
-        }
-
-        // Then, process custom rules (higher priority - overrides collections)
-        for rule in customRules where rule.isEnabled {
-            // Check if this rule targets the current layer
-            let ruleLayerName = rule.targetLayer.kanataName.lowercased()
-            let currentLayer = currentLayerName.lowercased()
-
-            // Only include rules targeting this layer
-            guard ruleLayerName == currentLayer else {
-                continue
-            }
-
-            let input = rule.input.lowercased()
-            // First try push-msg pattern (apps, system actions, URLs)
-            if let info = Self.extractPushMsgInfo(from: rule.action.kanataOutput, description: rule.notes) {
-                actionByInput[input] = info
-            } else {
-                // Simple key remap (e.g., "a" -> "b") or media key (e.g., "brup", "volu")
-                let outputKey = rule.action.outputString.lowercased()
-
-                // Check if this is a known system action/media key (brup, volu, pp, etc.)
-                // If so, create a systemAction LayerKeyInfo so the SF Symbol renders correctly
-                if let systemAction = SystemActionInfo.find(byOutput: outputKey) {
-                    actionByInput[input] = .systemAction(
-                        action: systemAction.id,
-                        description: systemAction.name
-                    )
-                } else if let outputKeyCode = Self.kanataNameToKeyCode(outputKey) {
-                    // Regular key remap (e.g., "a" -> "b")
-                    let displayLabel = outputKey.count == 1 ? outputKey.uppercased() : outputKey.capitalized
-                    actionByInput[input] = .mapped(
-                        displayLabel: displayLabel,
-                        outputKey: outputKey,
-                        outputKeyCode: outputKeyCode
-                    )
-                }
-            }
-        }
-
-        AppLogger.shared.info("🗺️ [KeyboardViz] Found \(actionByInput.count) actions (push-msg + simple remaps)")
-
-        // Update mapping entries
-        // IMPORTANT: Only augment keys that are NOT transparent (XX)
-        // Transparent keys should pass through without showing action labels
-        for (keyCode, originalInfo) in mapping {
-            let keyName = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
-            if let info = actionByInput[keyName] {
-                let resolvedInfo = Self.mergeAugmentation(info, with: originalInfo)
-                augmented[keyCode] = resolvedInfo
-            }
-        }
-
-        return augmented
-    }
-
-    /// Merge augmented info with the original simulator entry, preserving vimLabel
-    /// and preferring the simulator's displayLabel when a vimLabel exists (so arrow
-    /// keys show "←" instead of description text like "h — left").
     nonisolated static func mergeAugmentation(
         _ augmented: LayerKeyInfo,
         with original: LayerKeyInfo
     ) -> LayerKeyInfo {
-        let collectionId = original.collectionId ?? augmented.collectionId
-        let vimLabel = original.vimLabel ?? augmented.vimLabel
-        let displayLabel = vimLabel != nil ? (original.displayLabel.isEmpty ? augmented.displayLabel : original.displayLabel) : augmented.displayLabel
-
-        return LayerKeyInfo(
-            displayLabel: displayLabel,
-            outputKey: augmented.outputKey ?? original.outputKey,
-            outputKeyCode: augmented.outputKeyCode ?? original.outputKeyCode,
-            isTransparent: augmented.isTransparent,
-            isLayerSwitch: augmented.isLayerSwitch,
-            appLaunchIdentifier: augmented.appLaunchIdentifier,
-            systemActionIdentifier: augmented.systemActionIdentifier,
-            urlIdentifier: augmented.urlIdentifier,
-            collectionId: collectionId,
-            vimLabel: vimLabel
-        )
+        LayerMappingBuilder.mergeAugmentation(augmented, with: original)
     }
 
-    // MARK: - Cached Regex Patterns
-
-    /// Cached regex for extracting push-msg type:value patterns
-    /// Pattern: (push-msg "type:value")
-    private nonisolated static let pushMsgTypeValueRegex = try! NSRegularExpression(
-        pattern: #"\(push-msg\s+\"([^:\"]+):([^\"]+)\"\)"#,
-        options: [.caseInsensitive]
-    )
-
-    /// Cached regex for extracting app launch identifiers
-    /// Pattern: (push-msg "launch:AppName")
-    private nonisolated static let pushMsgLaunchRegex = try! NSRegularExpression(
-        pattern: #"\(push-msg\s+\"launch:([^\"]+)\"\)"#,
-        options: [.caseInsensitive]
-    )
-
-    /// Cached regex for extracting URL identifiers
-    /// Pattern: (push-msg "open:domain.com")
-    private nonisolated static let pushMsgOpenRegex = try! NSRegularExpression(
-        pattern: #"\(push-msg\s+\"open:([^\"]+)\"\)"#,
-        options: [.caseInsensitive]
-    )
-
-    /// Cached regex for extracting system action identifiers
-    /// Pattern: (push-msg "system:notification-center")
-    private nonisolated static let pushMsgSystemRegex = try! NSRegularExpression(
-        pattern: #"\(push-msg\s+\"system:([^\"]+)\"\)"#,
-        options: [.caseInsensitive]
-    )
-
-    /// Extract LayerKeyInfo from a push-msg output string
-    /// Handles: launch:, system:, and generic push-msg patterns
     nonisolated static func extractPushMsgInfo(from output: String, description: String?) -> LayerKeyInfo? {
-        guard let match = pushMsgTypeValueRegex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
-              let typeRange = Range(match.range(at: 1), in: output),
-              let valueRange = Range(match.range(at: 2), in: output)
-        else {
-            return nil
-        }
-
-        let msgType = String(output[typeRange]).lowercased()
-        let msgValue = String(output[valueRange])
-
-        switch msgType {
-        case "launch":
-            return .appLaunch(appIdentifier: msgValue)
-        case "system":
-            // Use description if available, otherwise format the system action
-            let displayLabel = description ?? Self.systemActionDisplayLabel(msgValue)
-            return .systemAction(action: msgValue, description: displayLabel)
-        case "open":
-            return .webURL(url: URLMappingFormatter.decodeFromPushMessage(msgValue))
-        default:
-            // Generic push-msg - use description or message value
-            return .pushMsg(message: description ?? msgValue)
-        }
+        LayerMappingBuilder.extractPushMsgInfo(from: output, description: description)
     }
 
-    /// Get a human-readable label for a system action
-    nonisolated static func systemActionDisplayLabel(_ action: String) -> String {
-        switch action.lowercased() {
-        case "dnd", "do-not-disturb", "donotdisturb", "focus":
-            "Do Not Disturb"
-        case "spotlight":
-            "Spotlight"
-        case "dictation":
-            "Dictation"
-        case "mission-control", "missioncontrol":
-            "Mission Control"
-        case "launchpad":
-            "Launchpad"
-        case "notification-center", "notificationcenter":
-            "Notification Center"
-        case "siri":
-            "Siri"
-        default:
-            action.capitalized
-        }
-    }
-
-    /// Get a human-readable label for media/function keys (returns nil if not a recognized media key)
-    /// These labels match what LabelMetadata.sfSymbol(forOutputLabel:) expects for icon lookup
-    nonisolated static func mediaKeyDisplayLabel(_ kanataKey: String) -> String? {
-        switch kanataKey.lowercased() {
-        case "brup": "Brightness Up"
-        case "brdn", "brdown": "Brightness Down"
-        case "volu": "Volume Up"
-        case "vold", "voldwn": "Volume Down"
-        case "mute": "Mute"
-        case "pp": "Play/Pause"
-        case "next": "Next Track"
-        case "prev": "Previous Track"
-        default: nil
-        }
-    }
-
-    /// Extract app identifier from a push-msg launch output string
-    /// - Parameter output: The kanata output string (e.g., "(push-msg \"launch:Safari\")")
-    /// - Returns: The app identifier if this is a launch action, nil otherwise
     nonisolated static func extractAppLaunchIdentifier(from output: String) -> String? {
-        guard let match = pushMsgLaunchRegex.firstMatch(
-            in: output,
-            range: NSRange(output.startIndex..., in: output)
-        ),
-            let range = Range(match.range(at: 1), in: output)
-        else {
-            return nil
-        }
-        let value = String(output[range])
-        return URLMappingFormatter.decodeFromPushMessage(value)
+        LayerMappingBuilder.extractAppLaunchIdentifier(from: output)
     }
 
-    /// Extract URL from a push-msg open output string
-    /// - Parameter output: The kanata output string (e.g., "(push-msg \"open:github.com\")")
-    /// - Returns: The URL string if this is an open action, nil otherwise
     nonisolated static func extractUrlIdentifier(from output: String) -> String? {
-        guard let match = pushMsgOpenRegex.firstMatch(
-            in: output,
-            range: NSRange(output.startIndex..., in: output)
-        ),
-            let range = Range(match.range(at: 1), in: output)
-        else {
-            return nil
-        }
-        let value = String(output[range])
-        return URLMappingFormatter.decodeFromPushMessage(value)
+        LayerMappingBuilder.extractUrlIdentifier(from: output)
     }
 
-    /// Extract system action ID from a push-msg system output string
-    /// - Parameter output: The kanata output string (e.g., "(push-msg \"system:notification-center\")")
-    /// - Returns: The action identifier if this is a system action, nil otherwise
     nonisolated static func extractSystemActionIdentifier(from output: String) -> String? {
-        guard let match = pushMsgSystemRegex.firstMatch(
-            in: output,
-            range: NSRange(output.startIndex..., in: output)
-        ),
-            let range = Range(match.range(at: 1), in: output)
-        else {
-            return nil
-        }
-        return String(output[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+        LayerMappingBuilder.extractSystemActionIdentifier(from: output)
+    }
+
+    nonisolated static func systemActionDisplayLabel(_ action: String) -> String {
+        LayerMappingBuilder.systemActionDisplayLabel(action)
+    }
+
+    nonisolated static func mediaKeyDisplayLabel(_ kanataKey: String) -> String? {
+        LayerMappingBuilder.mediaKeyDisplayLabel(kanataKey)
     }
 
     /// Fire-and-forget prebuild of all layer mappings so first layer switches hit cache.
@@ -662,14 +353,12 @@ extension KeyboardVisualizationViewModel {
             var localCache: [String: [UInt16: LayerKeyInfo]] = [:]
             for layer in layerNames {
                 if var mapping = await layerKeyMapper.getCachedMapping(for: layer) {
-                    mapping = await MainActor.run {
-                        self.augmentWithPushMsgActions(
-                            mapping: mapping,
-                            customRules: customRules,
-                            ruleCollections: enabledCollections,
-                            currentLayerName: layer
-                        )
-                    }
+                    mapping = LayerMappingBuilder.augmentWithPushMsgActions(
+                        mapping: mapping,
+                        customRules: customRules,
+                        ruleCollections: enabledCollections,
+                        currentLayerName: layer
+                    )
                     localCache[layer] = mapping
                 }
             }
