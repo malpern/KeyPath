@@ -57,6 +57,11 @@ public final class WindowManager {
     private var previousFrame: CGRect?
     private var previousWindowRef: AXUIElement?
 
+    /// Last frontmost app that isn't KeyPath — used as the snap target
+    /// when the overlay makes KeyPath frontmost during a snap action.
+    private var lastNonKeyPathApp: NSRunningApplication?
+    private var appActivationObserver: NSObjectProtocol?
+
     /// Track if we've shown the Space API unavailable warning (once per session)
     private var hasShownSpaceAPIWarning = false
 
@@ -75,6 +80,26 @@ public final class WindowManager {
     ) {
         self.spaceManager = spaceManager
         self.notificationService = notificationService
+        startTrackingFrontmostApp()
+    }
+
+    private func startTrackingFrontmostApp() {
+        let ownBundleId = Bundle.main.bundleIdentifier
+        if let current = NSWorkspace.shared.frontmostApplication,
+           current.bundleIdentifier != ownBundleId
+        {
+            lastNonKeyPathApp = current
+        }
+        appActivationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  app.bundleIdentifier != ownBundleId
+            else { return }
+            self?.lastNonKeyPathApp = app
+        }
     }
 
     // MARK: - API Status
@@ -444,14 +469,23 @@ public final class WindowManager {
 
     // MARK: - Accessibility Helpers
 
-    /// Get the currently focused window and its frame
+    /// Get the currently focused window and its frame.
+    /// Skips KeyPath's own windows — if KeyPath is frontmost (e.g., overlay is showing),
+    /// targets the last non-KeyPath app the user was working in.
     private func getFocusedWindow() -> (AXUIElement, CGRect)? {
-        // Get frontmost application
-        guard let frontApp = NSWorkspace.shared.frontmostApplication else {
-            return nil
+        let frontApp = NSWorkspace.shared.frontmostApplication
+        let ownBundleId = Bundle.main.bundleIdentifier
+
+        let targetApp: NSRunningApplication?
+        if frontApp?.bundleIdentifier == ownBundleId {
+            targetApp = lastNonKeyPathApp
+        } else {
+            targetApp = frontApp
         }
 
-        let pid = frontApp.processIdentifier
+        guard let app = targetApp else { return nil }
+
+        let pid = app.processIdentifier
         let axApp = AXUIElementCreateApplication(pid)
 
         // Get focused window

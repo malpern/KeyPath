@@ -65,6 +65,19 @@ struct VimHintLayer: View {
         }
     }
 
+    /// Whether the hint layer is currently rendering (for external consumers
+    /// that need to suppress overlapping content like floating labels).
+    @MainActor
+    static var isCurrentlyRendering: Bool {
+        let adapter = KindaVimStateAdapter.shared
+        let monitor = KindaVimStrategyMonitor.shared
+        if monitor.currentStrategy == .ignored { return false }
+        switch adapter.state.mode {
+        case .normal, .operatorPending, .visual: return true
+        case .insert, .unknown: return false
+        }
+    }
+
     // MARK: - Per-key hint resolution
 
     /// Public-friendly lookup helper (also used by tests) that resolves
@@ -221,7 +234,7 @@ private struct VimHintLabel: View {
     var body: some View {
         if isLoud {
             ZStack {
-                // Fully opaque base to cover the keycap letter
+                // Fully opaque base to cover the keycap background
                 RoundedRectangle(cornerRadius: max(4, 6 * scale), style: .continuous)
                     .fill(.black)
                 // Group-colored tint on top

@@ -173,7 +173,7 @@ extension LiveKeyboardOverlayView {
                     onKeyClick: onKeyClick,
                     selectedKeyCode: viewModel.selectedKeyCode,
                     hoveredRuleKeyCode: viewModel.hoveredRuleKeyCode,
-                    vimHintsActive: kindaVimPackInstalled,
+                    vimHintsActive: kindaVimPackInstalled && VimHintLayer.isCurrentlyRendering,
                     isLauncherMode: viewModel.isLauncherModeActive || (uiState.isInspectorOpen && inspectorSection == .launchers),
                     launcherMappings: viewModel.launcherMappings,
                     isInspectorVisible: inspectorVisible,

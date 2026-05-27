@@ -217,6 +217,10 @@ struct OverlayKeyboardView: View {
     /// (e.g., "A" -> "B" mapping means we should hide the floating "A" label)
     /// The keycap will show the mapped output instead via layerKeyInfo
     /// During keymap transitions, always returns false to allow floating label animation
+    private func isLoudVimHintLabel(_ label: String) -> Bool {
+        ["H", "J", "K", "L"].contains(label.uppercased())
+    }
+
     private func isRemappedLabel(_ label: String) -> Bool {
         // During keymap transition window, bypass remap gating to allow animation
         // (keymap switches like QWERTY → Dvorak are implemented as remaps)
@@ -304,7 +308,8 @@ struct OverlayKeyboardView: View {
                                 && !isLauncherMode
                                 && !isLayerMode
                                 && !isRemappedLabel(label)
-                                && !hasZoneSubtitle(for: label),
+                                && !hasZoneSubtitle(for: label)
+                                && !(vimHintsActive && isLoudVimHintLabel(label)),
                             scale: scale,
                             colorway: activeColorway,
                             // Enable animation after initial render (prevents animation on drawer open)
