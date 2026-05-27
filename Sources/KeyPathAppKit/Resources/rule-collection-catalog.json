@@ -1,0 +1,3362 @@
+[
+  {
+    "category" : "system",
+    "configuration" : {
+      "type" : "table"
+    },
+    "icon" : "applelogo",
+    "id" : "B8D6C8E4-2269-4C21-8C86-77D7A1722E01",
+    "isEnabled" : true,
+    "isSystemDefault" : true,
+    "mappings" : [
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "brdn"
+          }
+        },
+        "description" : "Brightness down",
+        "id" : "E61BC76C-BF23-450B-A9E6-94287E4F6645",
+        "input" : "f1"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "brup"
+          }
+        },
+        "description" : "Brightness up",
+        "id" : "45F441B5-78AF-4A6A-85AE-3F48B3F00926",
+        "input" : "f2"
+      },
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"system:mission-control\")"
+          }
+        },
+        "description" : "Mission Control",
+        "id" : "9A1E90F0-7F48-43BC-BA25-7BC62DA77EE4",
+        "input" : "f3"
+      },
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"system:spotlight\")"
+          }
+        },
+        "description" : "Spotlight",
+        "id" : "0E106A7E-AF64-45DC-AF32-FF39498E5FDB",
+        "input" : "f4"
+      },
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"system:dictation\")"
+          }
+        },
+        "description" : "Dictation",
+        "id" : "008AB350-2F2D-44A1-B357-802C88E45E87",
+        "input" : "f5"
+      },
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"system:dnd\")"
+          }
+        },
+        "description" : "Do Not Disturb",
+        "id" : "C1468E15-7876-4600-BD70-F4D5092360C1",
+        "input" : "f6"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "prev"
+          }
+        },
+        "description" : "Previous track",
+        "id" : "3B160D48-07C0-4A74-8AEB-1C834186ACB2",
+        "input" : "f7"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "pp"
+          }
+        },
+        "description" : "Play \/ Pause",
+        "id" : "4A5E0B5E-58BA-4528-930E-4AFDD7AD62A0",
+        "input" : "f8"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "next"
+          }
+        },
+        "description" : "Next track",
+        "id" : "10F7EEA5-2207-4F26-BFF3-0B060B749627",
+        "input" : "f9"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "mute"
+          }
+        },
+        "description" : "Mute",
+        "id" : "6773E74F-DC07-46CE-8523-889D646AC303",
+        "input" : "f10"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "vold"
+          }
+        },
+        "description" : "Volume down",
+        "id" : "7BFAB5D7-358E-4216-8AF1-68E4494B2E4F",
+        "input" : "f11"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "volu"
+          }
+        },
+        "description" : "Volume up",
+        "id" : "9C42BD35-9F64-430F-8F0A-F260ABFB12C1",
+        "input" : "f12"
+      }
+    ],
+    "name" : "macOS Function Keys",
+    "summary" : "Preserves brightness, volume, media, and system control keys (F1-F12).",
+    "tags" : [
+
+    ],
+    "targetLayer" : "base"
+  },
+  {
+    "category" : "system",
+    "configuration" : {
+      "inputKey" : "leader",
+      "presetOptions" : [
+        {
+          "description" : "Spacebar - most common, easy thumb access. Tap for space, hold for shortcuts.",
+          "icon" : "space",
+          "label" : "␣ Space",
+          "output" : "space"
+        },
+        {
+          "description" : "Caps Lock - dedicated modifier key, no conflict with typing.",
+          "icon" : "capslock",
+          "label" : "⇪ Caps",
+          "output" : "caps"
+        },
+        {
+          "description" : "Tab key - left pinky access, tap for tab, hold for shortcuts.",
+          "icon" : "arrow.right.to.line",
+          "label" : "⇥ Tab",
+          "output" : "tab"
+        },
+        {
+          "description" : "Backtick key - upper left corner, rarely used in normal typing.",
+          "icon" : "character",
+          "label" : "` Grave",
+          "output" : "grv"
+        }
+      ],
+      "selectedOutput" : "space",
+      "type" : "singleKeyPicker"
+    },
+    "icon" : "hand.point.up.left",
+    "id" : "A1B2C3D4-5E6F-7A8B-9C0D-1E2F3A4B5C6D",
+    "isEnabled" : false,
+    "isSystemDefault" : false,
+    "mappings" : [
+
+    ],
+    "name" : "Leader Key",
+    "summary" : "Change the key that activates all layer shortcuts (Vim, Delete, etc.)",
+    "tags" : [
+      "leader",
+      "layer",
+      "modifier",
+      "navigation"
+    ],
+    "targetLayer" : "base"
+  },
+  {
+    "activationHint" : "Hold Leader key to enter Navigation layer",
+    "category" : "navigation",
+    "configuration" : {
+      "type" : "table"
+    },
+    "icon" : "resource:vim-icon",
+    "id" : "A1E0744C-66C1-4E69-8E68-DA2643765429",
+    "isEnabled" : true,
+    "isSystemDefault" : true,
+    "mappings" : [
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "left"
+          }
+        },
+        "description" : "h — left",
+        "id" : "2CEB64D5-5ECE-49B0-B1C3-3CFEF6441B77",
+        "input" : "h"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "down"
+          }
+        },
+        "description" : "j — down",
+        "id" : "8CD61D0B-E53D-4746-9ED1-F5BFB0D3C30F",
+        "input" : "j"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "up"
+          }
+        },
+        "description" : "k — up",
+        "id" : "B5B69BEC-E80B-4A8B-9816-73549579339B",
+        "input" : "k"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "right"
+          }
+        },
+        "description" : "l — right",
+        "id" : "2044FFFC-8054-4E1E-A368-04A374A01F9C",
+        "input" : "l"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-left"
+          }
+        },
+        "description" : "0 — line start",
+        "id" : "5EA5019C-24DB-4726-BECF-56228A1545C3",
+        "input" : "0"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-right"
+          }
+        },
+        "description" : "$ — line end",
+        "id" : "C27289AD-039D-4A03-B095-3985C869A2EF",
+        "input" : "4"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "right"
+          }
+        },
+        "description" : "a — append",
+        "id" : "3394BFC3-36C9-43AE-A7F6-DCFBAF913AAE",
+        "input" : "a",
+        "shiftedOutput" : "M-right"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-up"
+          }
+        },
+        "description" : "gg \/ G — doc top\/bottom",
+        "id" : "044B34D5-DE4B-461B-B195-CB8203F6375B",
+        "input" : "g",
+        "shiftedOutput" : "M-down"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-f"
+          }
+        },
+        "description" : "\/ — find",
+        "id" : "45467AE1-ADE1-405E-BF97-D3EDECCD2AB6",
+        "input" : "\/",
+        "sectionBreak" : true
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-g"
+          }
+        },
+        "description" : "n \/ N — next\/prev match",
+        "id" : "9D36A394-2F51-44B0-B1DE-BEDF00B8D6B4",
+        "input" : "n",
+        "shiftedOutput" : "M-S-g"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-c"
+          }
+        },
+        "description" : "y — yank",
+        "id" : "F33805FD-9383-4DC8-81C6-95690107B3DB",
+        "input" : "y"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-v"
+          }
+        },
+        "description" : "p — put",
+        "id" : "142CDEA4-BA01-4D37-ABA9-3B4C0249BD14",
+        "input" : "p"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "del"
+          }
+        },
+        "description" : "x — delete char",
+        "id" : "F82574EB-9689-4E88-BFC4-53872DDAF34F",
+        "input" : "x"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-S-z"
+          }
+        },
+        "description" : "r — redo",
+        "id" : "4B4B8934-30D2-473D-A114-A7AD5586A79D",
+        "input" : "r"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "A-bspc"
+          }
+        },
+        "ctrlOutput" : "pgdn",
+        "description" : "d — delete previous word",
+        "id" : "69BA0469-B732-4D20-A224-F67EB28B4015",
+        "input" : "d"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-z"
+          }
+        },
+        "ctrlOutput" : "pgup",
+        "description" : "u — undo",
+        "id" : "04CB3C51-DD6F-4278-810E-8991C82CE653",
+        "input" : "u"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-right ret"
+          }
+        },
+        "description" : "o \/ O — open line below\/above",
+        "id" : "A1BC0476-FC46-4249-9FDF-0491C28F7272",
+        "input" : "o",
+        "shiftedOutput" : "up M-right ret"
+      }
+    ],
+    "momentaryActivator" : {
+      "input" : "space",
+      "sourceLayer" : "base",
+      "targetLayer" : "nav"
+    },
+    "name" : "Vim - Apple Keyboard Shortcuts",
+    "summary" : "Access familiar macOS shortcuts using Vim keys. Hold Leader + hjkl for arrows, y\/p for copy\/paste, u for undo, and more.",
+    "tags" : [
+      "vim",
+      "navigation",
+      "editing",
+      "selection"
+    ],
+    "targetLayer" : "nav"
+  },
+  {
+    "activationHint" : "Hold Leader key to enter Navigation layer",
+    "category" : "navigation",
+    "configuration" : {
+      "type" : "table"
+    },
+    "icon" : "terminal",
+    "id" : "A2B3C4D5-6E7F-8A9B-0C1D-2E3F4A5B6C7D",
+    "isEnabled" : false,
+    "isSystemDefault" : false,
+    "mappings" : [
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "left"
+          }
+        },
+        "description" : "h — left",
+        "id" : "CC7FF8BA-CD07-48B1-B49B-841873DBE11E",
+        "input" : "h"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "down"
+          }
+        },
+        "description" : "j — down",
+        "id" : "C04C21AD-9F8C-481B-A77F-DC86775E4782",
+        "input" : "j"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "up"
+          }
+        },
+        "description" : "k — up",
+        "id" : "844539E0-40A2-411A-8A43-9C93B8298999",
+        "input" : "k"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "right"
+          }
+        },
+        "description" : "l — right",
+        "id" : "E945D3A9-362E-45BD-A029-8C16C3558DF2",
+        "input" : "l"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "A-right"
+          }
+        },
+        "description" : "w — word forward",
+        "id" : "EF9F2C4D-8F92-4C06-B43D-09AADAC411E9",
+        "input" : "w",
+        "sectionBreak" : true
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "A-left"
+          }
+        },
+        "description" : "b — word back",
+        "id" : "6D160ED9-7A15-477D-882A-B99E097EDCBA",
+        "input" : "b"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "A-right"
+          }
+        },
+        "description" : "e — end of word",
+        "id" : "BEA85F38-3B5B-477A-A413-3AEA5272FCC6",
+        "input" : "e"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-left"
+          }
+        },
+        "description" : "0 — line start",
+        "id" : "06AE2415-E0FF-41C6-BC82-C6486FB2D6EA",
+        "input" : "0"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-right"
+          }
+        },
+        "description" : "$ — line end",
+        "id" : "C4BEE5B4-540D-440F-9D9B-35B9DD819377",
+        "input" : "4"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-up"
+          }
+        },
+        "description" : "gg \/ G — doc top\/bottom",
+        "id" : "9A3470F1-23A4-4808-A1A5-2D5C16F756C3",
+        "input" : "g",
+        "shiftedOutput" : "M-down"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-f"
+          }
+        },
+        "description" : "\/ — find",
+        "id" : "90151097-72EF-4566-BA60-4851FE6FE283",
+        "input" : "\/",
+        "sectionBreak" : true
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-g"
+          }
+        },
+        "description" : "n \/ N — next\/prev match",
+        "id" : "363FD74D-9538-4F8F-A362-FD383D88FF99",
+        "input" : "n",
+        "shiftedOutput" : "M-S-g"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-c"
+          }
+        },
+        "description" : "y — yank",
+        "id" : "F74D6713-E4A6-4644-B0B3-473572BF77E5",
+        "input" : "y"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-v"
+          }
+        },
+        "description" : "p — put",
+        "id" : "C9F67276-0835-4432-93E8-4DCDD00AB7CE",
+        "input" : "p"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "del"
+          }
+        },
+        "description" : "x — delete char",
+        "id" : "6265EF98-9BF8-41E1-8036-E1BB38CC1335",
+        "input" : "x"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-S-z"
+          }
+        },
+        "description" : "r — redo",
+        "id" : "D06F63A7-C316-436D-8670-3346C0D1E64B",
+        "input" : "r"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "A-bspc"
+          }
+        },
+        "ctrlOutput" : "pgdn",
+        "description" : "d — delete previous word",
+        "id" : "2565547D-3916-4978-A4F0-BE15E2A3C576",
+        "input" : "d"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-z"
+          }
+        },
+        "ctrlOutput" : "pgup",
+        "description" : "u — undo",
+        "id" : "CD1B3817-F3C0-4520-91CD-980C7C61EC70",
+        "input" : "u"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-right ret"
+          }
+        },
+        "description" : "o \/ O — open line below\/above",
+        "id" : "8F0DBAD7-85A1-46EB-B935-EC107C24ACD9",
+        "input" : "o",
+        "shiftedOutput" : "up M-right ret"
+      }
+    ],
+    "momentaryActivator" : {
+      "input" : "space",
+      "sourceLayer" : "base",
+      "targetLayer" : "nav"
+    },
+    "name" : "Neovim Terminal",
+    "summary" : "App-specific Neovim reference for approved terminal apps. It can run alongside other Navigation rules.",
+    "tags" : [
+      "neovim",
+      "vim",
+      "terminal",
+      "lsp",
+      "telescope",
+      "buffers"
+    ],
+    "targetLayer" : "nav"
+  },
+  {
+    "activationHint" : "Leader → single key",
+    "category" : "navigation",
+    "configuration" : {
+      "type" : "table"
+    },
+    "icon" : "rectangle.3.group",
+    "id" : "C3A5E2F1-8D4B-4C9A-A1E7-5F3D9B2C8A6E",
+    "isEnabled" : false,
+    "isSystemDefault" : false,
+    "mappings" : [
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "C-up"
+          }
+        },
+        "description" : "Mission Control",
+        "id" : "B4D10564-DB43-4979-BA60-70CA917604E5",
+        "input" : "m"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "C-down"
+          }
+        },
+        "description" : "App Exposé",
+        "id" : "608F8439-2C9C-4C39-8318-33CDE856F12C",
+        "input" : "q"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "f11"
+          }
+        },
+        "description" : "Show Desktop",
+        "id" : "888B10B2-2876-45E0-A141-4CEE782CFDD7",
+        "input" : "t"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "C-S-n"
+          }
+        },
+        "description" : "Notification Center",
+        "id" : "EC960EC7-3BB6-47B2-B2ED-1E0C6158F74C",
+        "input" : "c"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "C-left"
+          }
+        },
+        "description" : "Previous Desktop",
+        "id" : "0CDAD141-2B14-48A5-B0E0-32826E96F8EF",
+        "input" : ","
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "C-right"
+          }
+        },
+        "description" : "Next Desktop",
+        "id" : "0F377FC1-118B-4D0C-9D3D-0C107DCB6311",
+        "input" : "."
+      }
+    ],
+    "name" : "Mission Control",
+    "summary" : "Leader → single key: Mission Control, Exposé, Desktops, Notification Center.",
+    "tags" : [
+      "mission control",
+      "spaces",
+      "desktop"
+    ],
+    "targetLayer" : "nav"
+  },
+  {
+    "activationHint" : "Leader → w → action key",
+    "category" : "productivity",
+    "configuration" : {
+      "type" : "table"
+    },
+    "icon" : "rectangle.split.2x2",
+    "id" : "F7A9B1C3-5D6E-8F0A-2B4C-6D8E0F2A4B6C",
+    "isEnabled" : false,
+    "isSystemDefault" : false,
+    "mappings" : [
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"window:left\")"
+          }
+        },
+        "description" : "Left half",
+        "id" : "86C82B9E-A415-467B-8590-7E9B69D5611C",
+        "input" : "l"
+      },
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"window:right\")"
+          }
+        },
+        "description" : "Right half",
+        "id" : "8AF22BFD-4A5B-4038-ACBE-06C0BCE3D215",
+        "input" : "r"
+      },
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"window:maximize\")"
+          }
+        },
+        "description" : "Maximize\/Restore",
+        "id" : "DDDBF715-F60D-42BB-93EC-E26FE39555CF",
+        "input" : "m"
+      },
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"window:center\")"
+          }
+        },
+        "description" : "Center",
+        "id" : "E7BE96E5-A338-4FE9-8678-C2BB0C129269",
+        "input" : "c"
+      },
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"window:top-left\")"
+          }
+        },
+        "description" : "Top-left",
+        "id" : "4E487497-8CB0-492D-A25C-5BDBF5FAC081",
+        "input" : "u",
+        "sectionBreak" : true
+      },
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"window:top-right\")"
+          }
+        },
+        "description" : "Top-right",
+        "id" : "52159140-1A3A-4E08-9103-0F85D72F23AC",
+        "input" : "i"
+      },
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"window:bottom-left\")"
+          }
+        },
+        "description" : "Bottom-left",
+        "id" : "6CC80AFB-1E65-4AA4-9ACA-E72015B222F2",
+        "input" : "j"
+      },
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"window:bottom-right\")"
+          }
+        },
+        "description" : "Bottom-right",
+        "id" : "2152B5B6-71FB-49D6-8BD1-89F10392B52B",
+        "input" : "k"
+      },
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"window:previous-display\")"
+          }
+        },
+        "description" : "Previous display",
+        "id" : "E4FDB940-9AA4-47C5-AA1E-1297FDA1D21C",
+        "input" : "[",
+        "sectionBreak" : true
+      },
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"window:next-display\")"
+          }
+        },
+        "description" : "Next display",
+        "id" : "460FD374-C78F-4C70-BBA4-1921BCFFBEFB",
+        "input" : "]"
+      },
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"window:previous-space\")"
+          }
+        },
+        "description" : "Previous Space",
+        "id" : "5CBD4271-3006-403D-B1F1-896B913E04CC",
+        "input" : ",",
+        "sectionBreak" : true
+      },
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"window:next-space\")"
+          }
+        },
+        "description" : "Next Space",
+        "id" : "809A58D9-570B-40A9-9E6C-565B819E6ECB",
+        "input" : "."
+      },
+      {
+        "action" : {
+          "rawKanata" : {
+            "_0" : "(push-msg \"window:undo\")"
+          }
+        },
+        "description" : "Undo",
+        "id" : "F3A39427-4609-4210-AC2F-7D28EAAD7D83",
+        "input" : "z",
+        "sectionBreak" : true
+      }
+    ],
+    "momentaryActivator" : {
+      "input" : "w",
+      "sourceLayer" : "nav",
+      "targetLayer" : "window"
+    },
+    "name" : "Window Snapping",
+    "summary" : "Snap windows to edges\/corners, move between displays and Spaces.",
+    "tags" : [
+      "window",
+      "snapping",
+      "tiling",
+      "rectangle",
+      "display",
+      "spaces"
+    ],
+    "targetLayer" : "window",
+    "windowKeyConvention" : "standard"
+  },
+  {
+    "category" : "productivity",
+    "configuration" : {
+      "holdOptions" : [
+        {
+          "description" : "All four modifiers (⌃⌥⇧⌘) - ultimate shortcut prefix",
+          "icon" : "bolt.circle",
+          "label" : "✦ Hyper",
+          "output" : "hyper"
+        },
+        {
+          "description" : "Three modifiers (⌃⌥⇧) - Hyper without Command",
+          "icon" : "diamond",
+          "label" : "◇ Meh",
+          "output" : "meh"
+        },
+        {
+          "description" : "Control modifier (common on Unix systems)",
+          "icon" : "control",
+          "label" : "⌃ Control",
+          "output" : "lctl"
+        },
+        {
+          "description" : "Shift modifier",
+          "icon" : "shift",
+          "label" : "⇧ Shift",
+          "output" : "lsft"
+        }
+      ],
+      "inputKey" : "caps",
+      "selectedHoldOutput" : "hyper",
+      "selectedTapOutput" : "hyper",
+      "tapOptions" : [
+        {
+          "description" : "Popular for Vim users - quick access to Escape",
+          "icon" : "escape",
+          "label" : "⎋ Escape",
+          "output" : "esc"
+        },
+        {
+          "description" : "Keep original Caps Lock function on tap",
+          "icon" : "capslock",
+          "label" : "⇪ Caps Lock",
+          "output" : "caps"
+        },
+        {
+          "description" : "Easy access to Delete without reaching",
+          "icon" : "delete.left",
+          "label" : "⌫ Delete",
+          "output" : "bspc"
+        },
+        {
+          "description" : "Tap for Hyper (⌃⌥⇧⌘) - useful when hold is something else",
+          "icon" : "bolt.circle",
+          "label" : "✦ Hyper",
+          "output" : "hyper"
+        }
+      ],
+      "type" : "tapHoldPicker"
+    },
+    "icon" : "capslock",
+    "id" : "D2B4F6A8-1C3E-5D7F-9A2B-4C6E8F0A2B4D",
+    "isEnabled" : true,
+    "isSystemDefault" : true,
+    "mappings" : [
+      {
+        "action" : {
+          "hyper" : {
+
+          }
+        },
+        "behavior" : {
+          "dualRole" : {
+            "activateHoldOnOtherKey" : false,
+            "customTapKeys" : [
+
+            ],
+            "holdAction" : {
+              "hyper" : {
+
+              }
+            },
+            "holdTimeout" : 200,
+            "quickTap" : false,
+            "tapAction" : {
+              "hyper" : {
+
+              }
+            },
+            "tapTimeout" : 200,
+            "useOppositeHand" : false,
+            "useOppositeHandRelease" : false,
+            "useReleaseOrder" : false
+          }
+        },
+        "description" : "Tap: Hyper, Hold: Hyper",
+        "id" : "6A8DABEC-3004-4209-AA83-EC4D769EFBD2",
+        "input" : "caps"
+      }
+    ],
+    "name" : "Caps Lock Remap",
+    "summary" : "Make Caps Lock actually useful with tap and hold actions",
+    "tags" : [
+      "caps lock",
+      "hyper",
+      "escape",
+      "control",
+      "meh",
+      "productivity",
+      "tap-hold"
+    ],
+    "targetLayer" : "base"
+  },
+  {
+    "category" : "productivity",
+    "configuration" : {
+      "inputKey" : "backup-caps",
+      "presetOptions" : [
+        {
+          "description" : "Press both Shift keys together to toggle Caps Lock",
+          "icon" : "shift",
+          "label" : "⇧⇧ Both Shifts",
+          "output" : "both-shifts"
+        },
+        {
+          "description" : "Double-tap Escape to toggle Caps Lock",
+          "icon" : "escape",
+          "label" : "⎋⎋ Double-tap Esc",
+          "output" : "double-tap-esc"
+        }
+      ],
+      "selectedOutput" : "both-shifts",
+      "type" : "singleKeyPicker"
+    },
+    "icon" : "shift",
+    "id" : "C4D6E8F0-2A3B-5C7D-9E1F-3A5B7C9D1E3F",
+    "isEnabled" : false,
+    "isSystemDefault" : false,
+    "mappings" : [
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "caps"
+          }
+        },
+        "description" : "Both Shifts → Caps Lock",
+        "id" : "9502A6EE-8536-4F91-ADA8-DEE1338592D2",
+        "input" : "lsft rsft"
+      }
+    ],
+    "name" : "Backup Caps Lock",
+    "summary" : "Alternative way to access Caps Lock (both Shift keys)",
+    "tags" : [
+      "caps lock",
+      "shift",
+      "backup",
+      "chord"
+    ],
+    "targetLayer" : "base"
+  },
+  {
+    "category" : "productivity",
+    "configuration" : {
+      "inputKey" : "esc",
+      "presetOptions" : [
+        {
+          "description" : "Swap Escape with Caps Lock (use with Caps Lock → Escape)",
+          "icon" : "capslock",
+          "label" : "⇪ Caps Lock",
+          "output" : "caps"
+        },
+        {
+          "description" : "Remap Escape to backtick\/grave accent",
+          "icon" : "character",
+          "label" : "` Backtick",
+          "output" : "grv"
+        },
+        {
+          "description" : "Remap Escape to Tab",
+          "icon" : "arrow.right.to.line",
+          "label" : "⇥ Tab",
+          "output" : "tab"
+        }
+      ],
+      "selectedOutput" : "caps",
+      "type" : "singleKeyPicker"
+    },
+    "icon" : "escape",
+    "id" : "E7C9A3B5-2F4D-6E8A-B1C3-5D7F9A2B4C6E",
+    "isEnabled" : false,
+    "isSystemDefault" : false,
+    "mappings" : [
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "caps"
+          }
+        },
+        "description" : "Caps Lock",
+        "id" : "B81ABDA3-9EEA-412E-8BDD-9F568AF7C75D",
+        "input" : "esc"
+      }
+    ],
+    "name" : "Escape",
+    "summary" : "Remap the Escape key",
+    "tags" : [
+      "escape",
+      "caps lock",
+      "swap"
+    ],
+    "targetLayer" : "base"
+  },
+  {
+    "activationHint" : "Hold Leader key, then press Delete",
+    "category" : "productivity",
+    "configuration" : {
+      "inputKey" : "bspc",
+      "presetOptions" : [
+        {
+          "description" : "Leader + Delete → Forward Delete (delete character after cursor)",
+          "icon" : "delete.right",
+          "label" : "⌦ Fwd Delete",
+          "output" : "del"
+        },
+        {
+          "description" : "Leader + Delete → Delete entire word",
+          "icon" : "text.word.spacing",
+          "label" : "⌥⌫ Del Word",
+          "output" : "A-bspc"
+        },
+        {
+          "description" : "Leader + Delete → Delete to beginning of line",
+          "icon" : "text.alignleft",
+          "label" : "⌘⌫ Del Line",
+          "output" : "M-bspc"
+        }
+      ],
+      "selectedOutput" : "del",
+      "type" : "singleKeyPicker"
+    },
+    "icon" : "delete.left",
+    "id" : "F8D0B4C6-3A5E-7F9B-C2D4-6E8A0B2C4D6F",
+    "isEnabled" : false,
+    "isSystemDefault" : false,
+    "mappings" : [
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "del"
+          }
+        },
+        "description" : "Forward Delete",
+        "id" : "41E102DC-6ECD-400B-A161-C93947EDD52F",
+        "input" : "bspc"
+      }
+    ],
+    "name" : "Delete Enhancement",
+    "summary" : "Leader + Delete for enhanced delete actions (regular Delete unchanged)",
+    "tags" : [
+      "delete",
+      "backspace",
+      "forward delete",
+      "leader"
+    ],
+    "targetLayer" : "nav"
+  },
+  {
+    "category" : "productivity",
+    "configuration" : {
+      "enabledKeys" : [
+        "j",
+        ";",
+        "s",
+        "a",
+        "d",
+        "f",
+        "k",
+        "l"
+      ],
+      "hasUserSelectedHoldMode" : false,
+      "holdMode" : "modifiers",
+      "keySelection" : "both",
+      "layerAssignments" : {
+        ";" : "fun",
+        "a" : "fun",
+        "d" : "sym",
+        "f" : "nav",
+        "j" : "nav",
+        "k" : "sym",
+        "l" : "num",
+        "s" : "num"
+      },
+      "layerToggleMode" : "whileHeld",
+      "modifierAssignments" : {
+        ";" : "rsft",
+        "a" : "lsft",
+        "d" : "lalt",
+        "f" : "lmet",
+        "j" : "rmet",
+        "k" : "ralt",
+        "l" : "rctl",
+        "s" : "lctl"
+      },
+      "oppositeHandMode" : "press",
+      "showAdvanced" : false,
+      "showExpertTiming" : false,
+      "timing" : {
+        "holdDelay" : 150,
+        "holdOffsets" : {
+
+        },
+        "quickTapEnabled" : false,
+        "quickTapTermMs" : 0,
+        "requirePriorIdleMs" : 150,
+        "tapOffsets" : {
+
+        },
+        "tapWindow" : 200
+      },
+      "timingMode" : "basic",
+      "type" : "homeRowMods"
+    },
+    "icon" : "keyboard",
+    "id" : "B3E5F7A9-1C2D-4E5F-6A7B-8C9D0E1F2A3B",
+    "isEnabled" : false,
+    "isSystemDefault" : false,
+    "mappings" : [
+
+    ],
+    "name" : "Home Row Mods",
+    "summary" : "Tap for letters, hold for modifiers or layers",
+    "tags" : [
+      "home row",
+      "modifiers",
+      "productivity",
+      "ergonomics"
+    ],
+    "targetLayer" : "base"
+  },
+  {
+    "category" : "productivity",
+    "configuration" : {
+      "enabledKeys" : [
+        "a",
+        "s",
+        "d",
+        "l",
+        "f",
+        "k",
+        "j",
+        ";"
+      ],
+      "keySelection" : "both",
+      "layerAssignments" : {
+        ";" : "fun",
+        "a" : "fun",
+        "d" : "sym",
+        "f" : "nav",
+        "j" : "nav",
+        "k" : "sym",
+        "l" : "num",
+        "s" : "num"
+      },
+      "oppositeHandMode" : "press",
+      "showAdvanced" : false,
+      "timing" : {
+        "holdDelay" : 150,
+        "holdOffsets" : {
+
+        },
+        "quickTapEnabled" : false,
+        "quickTapTermMs" : 0,
+        "requirePriorIdleMs" : 150,
+        "tapOffsets" : {
+
+        },
+        "tapWindow" : 200
+      },
+      "toggleMode" : "whileHeld",
+      "type" : "homeRowLayerToggles"
+    },
+    "icon" : "square.3.layers.3d",
+    "id" : "C3F5E7A9-2D4E-5F6A-7B8C-9D0E1F2A3B4C",
+    "isEnabled" : false,
+    "isSystemDefault" : false,
+    "mappings" : [
+
+    ],
+    "name" : "Home Row Layer Toggles",
+    "owningPackID" : "com.keypath.pack.vallack-system",
+    "summary" : "Home row keys activate layers when held (tap=letter, hold=layer)",
+    "tags" : [
+      "home row",
+      "layers",
+      "productivity",
+      "ergonomics"
+    ],
+    "targetLayer" : "base"
+  },
+  {
+    "category" : "productivity",
+    "configuration" : {
+      "groups" : [
+
+      ],
+      "showAdvanced" : false,
+      "type" : "chordGroups"
+    },
+    "icon" : "keyboard.badge.ellipsis",
+    "id" : "D4A6B8C0-3E5F-6A7B-8C9D-0E1F2A3B4C5D",
+    "isEnabled" : false,
+    "isSystemDefault" : false,
+    "mappings" : [
+
+    ],
+    "name" : "Chord Groups",
+    "summary" : "Multi-key combinations (Ben Vallack style) for efficient navigation and editing",
+    "tags" : [
+      "chords",
+      "defchords",
+      "ben vallack",
+      "productivity",
+      "combos"
+    ],
+    "targetLayer" : "base"
+  },
+  {
+    "category" : "productivity",
+    "configuration" : {
+      "globalTimeout" : 500,
+      "sequences" : [
+
+      ],
+      "type" : "sequences"
+    },
+    "icon" : "arrow.right.arrow.left.circle",
+    "id" : "E5B7C9D1-4F2A-4B8C-9E3D-5A6F7C8D9E0F",
+    "isEnabled" : false,
+    "isSystemDefault" : false,
+    "mappings" : [
+
+    ],
+    "name" : "Sequences",
+    "summary" : "Create multi-key sequences like 'Leader → w' to activate layers",
+    "tags" : [
+      "sequences",
+      "defseq",
+      "leader",
+      "multi-key"
+    ],
+    "targetLayer" : "base"
+  },
+  {
+    "activationHint" : "Leader → ; → numpad keys",
+    "category" : "layers",
+    "configuration" : {
+      "type" : "table"
+    },
+    "icon" : "number.square",
+    "id" : "D5E7F9A1-3B4C-6D8E-0F2A-4B6C8D0E2F4A",
+    "isEnabled" : false,
+    "isSystemDefault" : false,
+    "mappings" : [
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "kp7"
+          }
+        },
+        "description" : "7",
+        "id" : "B0D35E9E-E9AF-4F8E-BF64-AFAA7D72C32D",
+        "input" : "u"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "kp8"
+          }
+        },
+        "description" : "8",
+        "id" : "4FC45B44-4FBE-473F-B5EB-7DD604005D54",
+        "input" : "i"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "kp9"
+          }
+        },
+        "description" : "9",
+        "id" : "B52F2270-0276-4719-AA98-BA8FEC23336C",
+        "input" : "o"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "kp4"
+          }
+        },
+        "description" : "4",
+        "id" : "A50AF183-70E6-4AEC-9233-2A0C7646E80C",
+        "input" : "j"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "kp5"
+          }
+        },
+        "description" : "5",
+        "id" : "9D016E77-D4B6-4916-96FD-41253A2DC3C3",
+        "input" : "k"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "kp6"
+          }
+        },
+        "description" : "6",
+        "id" : "597E5458-DE9F-4FE2-A8D9-244A4162EE57",
+        "input" : "l"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "kp1"
+          }
+        },
+        "description" : "1",
+        "id" : "941FECE7-EDBC-4B98-B447-BF34CDA79F41",
+        "input" : "m"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "kp2"
+          }
+        },
+        "description" : "2",
+        "id" : "BF3E1383-E1CC-4AA2-B5C4-B71822829C49",
+        "input" : ","
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "kp3"
+          }
+        },
+        "description" : "3",
+        "id" : "AD849FB2-0A27-469B-A61F-2F1BDAAFC1B1",
+        "input" : "."
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "kp0"
+          }
+        },
+        "description" : "0",
+        "id" : "B49C8E11-83A8-49E5-A3BC-9398B5668E3C",
+        "input" : "n"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "kp."
+          }
+        },
+        "description" : ".",
+        "id" : "8A221E1B-C89D-4730-B312-1DDF028933DD",
+        "input" : "\/"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "kp+"
+          }
+        },
+        "description" : "+",
+        "id" : "0B2BF37F-A17E-41DC-9152-863D83A06004",
+        "input" : "f",
+        "sectionBreak" : true
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "kp-"
+          }
+        },
+        "description" : "−",
+        "id" : "E14908A9-BC4D-4CFC-8F57-1F451B84C8B6",
+        "input" : "d"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "kp*"
+          }
+        },
+        "description" : "×",
+        "id" : "84FD7DCB-1320-4EB8-B5B3-5F4674036A28",
+        "input" : "s"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "kp\/"
+          }
+        },
+        "description" : "÷",
+        "id" : "786E5A6F-05F3-4E38-B13C-0EF380DC0A28",
+        "input" : "a"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "kprt"
+          }
+        },
+        "description" : "⏎",
+        "id" : "47275660-4E24-4D9C-8F8B-304F93F2AF18",
+        "input" : "g"
+      }
+    ],
+    "momentaryActivator" : {
+      "input" : ";",
+      "sourceLayer" : "nav",
+      "targetLayer" : "num"
+    },
+    "name" : "Numpad",
+    "summary" : "Right hand becomes a numpad. Hold activator key + use U\/I\/O, J\/K\/L, M\/,\/. for 7-8-9, 4-5-6, 1-2-3.",
+    "tags" : [
+      "numpad",
+      "numbers",
+      "data entry",
+      "calculator"
+    ],
+    "targetLayer" : "num"
+  },
+  {
+    "activationHint" : "Leader → s → symbol keys",
+    "category" : "layers",
+    "configuration" : {
+      "presets" : [
+        {
+          "description" : "Symbols mirror number positions (1→!, 2→@). Easy to learn.",
+          "icon" : "arrow.left.arrow.right",
+          "id" : "mirrored",
+          "label" : "Mirrored",
+          "mappings" : [
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-1"
+                }
+              },
+              "description" : "!",
+              "id" : "A3DEA20B-0B8C-4703-A58B-C1F0DA15876B",
+              "input" : "1"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-2"
+                }
+              },
+              "description" : "@",
+              "id" : "00858C91-79E6-47F6-A908-DF0E4EB49292",
+              "input" : "2"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-3"
+                }
+              },
+              "description" : "#",
+              "id" : "98FCDACA-0450-4C14-8E22-D0204FBCFB42",
+              "input" : "3"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-4"
+                }
+              },
+              "description" : "$",
+              "id" : "7F5D6C5A-EE1C-4C68-8355-3ED6B582D9A4",
+              "input" : "4"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-5"
+                }
+              },
+              "description" : "%",
+              "id" : "D8614DDC-375A-4B2F-BB27-E55602E5015B",
+              "input" : "5"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-6"
+                }
+              },
+              "description" : "^",
+              "id" : "DD527136-01DB-46CE-9E5B-985879EAC005",
+              "input" : "6"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-7"
+                }
+              },
+              "description" : "&",
+              "id" : "A1C33E62-2C84-472C-BE30-F1589A54DE9D",
+              "input" : "7"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-8"
+                }
+              },
+              "description" : "*",
+              "id" : "AC616929-23CA-461E-B44B-5AF6147C3F86",
+              "input" : "8"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-9"
+                }
+              },
+              "description" : "(",
+              "id" : "57A66854-A71E-402D-8CF7-9A0F413930E8",
+              "input" : "9"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-0"
+                }
+              },
+              "description" : ")",
+              "id" : "3B870B0D-79A6-4F8F-9E9E-D3EF79B45C28",
+              "input" : "0"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-grv"
+                }
+              },
+              "description" : "~",
+              "id" : "3EE31764-16F3-4399-846F-5F5D5C00D103",
+              "input" : "a",
+              "sectionBreak" : true
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "grv"
+                }
+              },
+              "description" : "`",
+              "id" : "F4AE508D-1F16-445D-8ACB-C254244EC24D",
+              "input" : "s"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "min"
+                }
+              },
+              "description" : "-",
+              "id" : "38EF8257-8803-41AF-AC91-02BF09F8A5DD",
+              "input" : "d"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "eql"
+                }
+              },
+              "description" : "=",
+              "id" : "79626EC4-7C6B-4EE8-B6E8-D9D5D8A8E933",
+              "input" : "f"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-eql"
+                }
+              },
+              "description" : "+",
+              "id" : "64D73C19-98DD-4D14-9DD8-BEB648718FA2",
+              "input" : "g"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "["
+                }
+              },
+              "description" : "[",
+              "id" : "14EB6C61-A864-4EE3-873E-FF09D79BEA27",
+              "input" : "h"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "]"
+                }
+              },
+              "description" : "]",
+              "id" : "1769843A-1756-4F30-AAF2-5A934967CC03",
+              "input" : "j"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-["
+                }
+              },
+              "description" : "{",
+              "id" : "2B1FAB81-A753-400C-8152-955DD1C68C9A",
+              "input" : "k"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-]"
+                }
+              },
+              "description" : "}",
+              "id" : "E0D97FB4-66DA-4C56-812B-CF711BC0323E",
+              "input" : "l"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-\\"
+                }
+              },
+              "description" : "|",
+              "id" : "C743D1D9-47DF-4BA1-9C9C-420E383E4241",
+              "input" : ";"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "\\"
+                }
+              },
+              "description" : "\\",
+              "id" : "CC9FDBD0-142C-4B29-84A6-FC9E756C6BB1",
+              "input" : "z",
+              "sectionBreak" : true
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-min"
+                }
+              },
+              "description" : "_",
+              "id" : "B37B3FE2-947F-4E01-ABF1-1928EA028232",
+              "input" : "x"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "\/"
+                }
+              },
+              "description" : "\/",
+              "id" : "53932D66-5682-496D-B95B-6568589CD0AC",
+              "input" : "c"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-\/"
+                }
+              },
+              "description" : "?",
+              "id" : "62D355A9-A4C7-48A9-B952-B0DE83B022CC",
+              "input" : "v"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "'"
+                }
+              },
+              "description" : "'",
+              "id" : "CB70087A-A36C-4857-BB88-084E3D11AFB9",
+              "input" : "b"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-'"
+                }
+              },
+              "description" : "\"",
+              "id" : "F2CEFA3F-25A7-47D9-B854-089D666A8306",
+              "input" : "n"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-;"
+                }
+              },
+              "description" : ":",
+              "id" : "340A315E-2AC2-4DD3-9CA8-08B8035F5944",
+              "input" : "m"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-,"
+                }
+              },
+              "description" : "<",
+              "id" : "8DDD6D3A-C345-4D99-84AA-B83CA4BE7CB9",
+              "input" : ","
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-."
+                }
+              },
+              "description" : ">",
+              "id" : "5C522858-6266-4334-8F1D-1E8FB460071B",
+              "input" : "."
+            }
+          ]
+        },
+        {
+          "description" : "Opening brackets on left, closing on right. Visual symmetry.",
+          "icon" : "curlybraces",
+          "id" : "paired",
+          "label" : "Paired Brackets",
+          "mappings" : [
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-grv"
+                }
+              },
+              "description" : "~",
+              "id" : "5EC81FBE-5BC3-402F-92EB-A8197FDA4A28",
+              "input" : "q"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-1"
+                }
+              },
+              "description" : "!",
+              "id" : "DDD137DC-7DB1-4EA1-A9D5-899D490223A8",
+              "input" : "w"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-2"
+                }
+              },
+              "description" : "@",
+              "id" : "B3179D95-3E09-4872-8831-D5673372D49A",
+              "input" : "e"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-3"
+                }
+              },
+              "description" : "#",
+              "id" : "829E38AC-9417-437B-A417-353B2F979647",
+              "input" : "r"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-4"
+                }
+              },
+              "description" : "$",
+              "id" : "0C59DD6C-1252-4FB3-81A0-AD199037F6C3",
+              "input" : "t"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-["
+                }
+              },
+              "description" : "{",
+              "id" : "503E6470-4AE3-42E0-97C6-3512FF3262F1",
+              "input" : "a",
+              "sectionBreak" : true
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-9"
+                }
+              },
+              "description" : "(",
+              "id" : "5689F416-6FAA-45B6-B207-5939A2E017A1",
+              "input" : "s"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "["
+                }
+              },
+              "description" : "[",
+              "id" : "2E43E6EC-6F4E-4FA8-9F58-5FED67822FBD",
+              "input" : "d"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-,"
+                }
+              },
+              "description" : "<",
+              "id" : "03C99C3B-8B72-483E-9568-77D59F09A278",
+              "input" : "f"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "min"
+                }
+              },
+              "description" : "-",
+              "id" : "81A29A34-3318-408B-8ED4-E3886ECDD3CB",
+              "input" : "g"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-\\"
+                }
+              },
+              "description" : "|",
+              "id" : "4E883CFD-D053-4997-80B4-D65F01A5C50A",
+              "input" : "z",
+              "sectionBreak" : true
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-eql"
+                }
+              },
+              "description" : "+",
+              "id" : "4649B6D5-95C0-4569-8618-F6E1E40059FC",
+              "input" : "x"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-min"
+                }
+              },
+              "description" : "_",
+              "id" : "DEC52701-EAF1-42B4-9D41-09DF781228F4",
+              "input" : "c"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "\/"
+                }
+              },
+              "description" : "\/",
+              "id" : "0275F5E0-14BF-4A16-B9C3-8C7DB7B639A9",
+              "input" : "v"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "\\"
+                }
+              },
+              "description" : "\\",
+              "id" : "BF1D1377-23B8-4233-8560-AAD21E00A39F",
+              "input" : "b"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-5"
+                }
+              },
+              "description" : "%",
+              "id" : "31E84BD7-9A26-45EC-9169-46E69FEF60A3",
+              "input" : "y",
+              "sectionBreak" : true
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-6"
+                }
+              },
+              "description" : "^",
+              "id" : "EF116FC2-4310-43C8-999F-C1270072D322",
+              "input" : "u"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-7"
+                }
+              },
+              "description" : "&",
+              "id" : "17DDBCA7-6FBF-48A5-AB3F-E51A0EFF6AB8",
+              "input" : "i"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-8"
+                }
+              },
+              "description" : "*",
+              "id" : "7290296A-FAAF-4FAC-8D7F-1BE5CB94F8E3",
+              "input" : "o"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "grv"
+                }
+              },
+              "description" : "`",
+              "id" : "F174152E-F53C-4A61-A96F-C5482D746B9E",
+              "input" : "p"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "eql"
+                }
+              },
+              "description" : "=",
+              "id" : "3C227EB4-DEB0-4D3F-9333-4DAEDD2C88F0",
+              "input" : "h",
+              "sectionBreak" : true
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-."
+                }
+              },
+              "description" : ">",
+              "id" : "A2CFE607-D839-4A0D-8575-D9128FA561DF",
+              "input" : "j"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "]"
+                }
+              },
+              "description" : "]",
+              "id" : "CF66A0AC-52D1-4018-830B-646E60F05114",
+              "input" : "k"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-0"
+                }
+              },
+              "description" : ")",
+              "id" : "A5A8BD86-45F7-4824-91E8-8804AF480692",
+              "input" : "l"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-]"
+                }
+              },
+              "description" : "}",
+              "id" : "B22A7765-3EED-4629-8B66-D4FEAC010A2B",
+              "input" : ";"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-\/"
+                }
+              },
+              "description" : "?",
+              "id" : "89DBB87F-0B12-4194-846B-136225B8512B",
+              "input" : "n",
+              "sectionBreak" : true
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-;"
+                }
+              },
+              "description" : ":",
+              "id" : "13199AB8-92EE-434D-92A7-CA023A2186EA",
+              "input" : "m"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : ";"
+                }
+              },
+              "description" : ";",
+              "id" : "34ECB4AF-40CF-44DD-840A-D53F6698D1F9",
+              "input" : ","
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "'"
+                }
+              },
+              "description" : "'",
+              "id" : "5BCE484E-0FBA-48DA-8F46-A6C69D4648FC",
+              "input" : "."
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-'"
+                }
+              },
+              "description" : "\"",
+              "id" : "324F11CA-F5EE-4A9E-A8A7-97CA5B26D3A0",
+              "input" : "\/"
+            }
+          ]
+        },
+        {
+          "description" : "Common bigrams (→, !=, <=) as comfortable rolls. Optimized for coding.",
+          "icon" : "chevron.left.forwardslash.chevron.right",
+          "id" : "programmer",
+          "label" : "Programmer",
+          "mappings" : [
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-1"
+                }
+              },
+              "description" : "!",
+              "id" : "474E420F-25C4-4C54-940E-E33089D60F0A",
+              "input" : "q"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-2"
+                }
+              },
+              "description" : "@",
+              "id" : "28481C37-42D6-4708-B230-0A44ECC87739",
+              "input" : "w"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-3"
+                }
+              },
+              "description" : "#",
+              "id" : "250314BD-53A2-44EC-A3EA-E38015A442B0",
+              "input" : "e"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-4"
+                }
+              },
+              "description" : "$",
+              "id" : "5C487FA4-3DA5-473F-A1F6-E42ABDB6D1D0",
+              "input" : "r"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-5"
+                }
+              },
+              "description" : "%",
+              "id" : "4790AC8D-D4B3-4464-8584-1AD726477A1A",
+              "input" : "t"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-6"
+                }
+              },
+              "description" : "^",
+              "id" : "D7E5B88B-CF29-45D6-98B0-9631861BDDE1",
+              "input" : "y"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-7"
+                }
+              },
+              "description" : "&",
+              "id" : "CC51659D-D0C2-4631-8DB7-4E5D4771DD44",
+              "input" : "u"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-8"
+                }
+              },
+              "description" : "*",
+              "id" : "06F078EC-9781-4885-A989-D9CC30F4F04C",
+              "input" : "i"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-grv"
+                }
+              },
+              "description" : "~",
+              "id" : "5F0BB550-14D3-45A5-8474-3B2BD4C5F8C8",
+              "input" : "o"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "grv"
+                }
+              },
+              "description" : "`",
+              "id" : "AF6F9D3A-D122-4EE1-9880-E8BA69D3AA20",
+              "input" : "p"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-["
+                }
+              },
+              "description" : "{",
+              "id" : "8CA859BC-6270-4843-AB89-EB6010125AB7",
+              "input" : "a",
+              "sectionBreak" : true
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-9"
+                }
+              },
+              "description" : "(",
+              "id" : "74125562-2FA3-47A9-BEDC-74E5609D348F",
+              "input" : "s"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "["
+                }
+              },
+              "description" : "[",
+              "id" : "1B35F8E1-E239-4501-8CB4-8A5772A2EB6F",
+              "input" : "d"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-,"
+                }
+              },
+              "description" : "<",
+              "id" : "B58D79E9-F0B7-4B5D-8A2E-DD0F4DB14CB9",
+              "input" : "f"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "eql"
+                }
+              },
+              "description" : "=",
+              "id" : "E3A63334-08A4-45DE-B137-30F342706EE3",
+              "input" : "g"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "min"
+                }
+              },
+              "description" : "-",
+              "id" : "9FAE17F4-F455-4E74-A82B-DE40B61EF97F",
+              "input" : "h"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-."
+                }
+              },
+              "description" : ">",
+              "id" : "9A33CCDC-CD19-4320-84B2-7E7B532C763E",
+              "input" : "j"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "]"
+                }
+              },
+              "description" : "]",
+              "id" : "2574F1F5-C3D1-4E47-820B-5DC48376FA33",
+              "input" : "k"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-0"
+                }
+              },
+              "description" : ")",
+              "id" : "E6C98882-CB5B-4CDB-8BED-EC1531A786BE",
+              "input" : "l"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-]"
+                }
+              },
+              "description" : "}",
+              "id" : "735577E4-5973-40B0-9B59-9599AE369116",
+              "input" : ";"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-\\"
+                }
+              },
+              "description" : "|",
+              "id" : "75621F88-F9E5-46D6-8FDE-70990C1A09EE",
+              "input" : "z",
+              "sectionBreak" : true
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-eql"
+                }
+              },
+              "description" : "+",
+              "id" : "2FEF6F5F-63DF-4715-8A55-75F38C52552D",
+              "input" : "x"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-min"
+                }
+              },
+              "description" : "_",
+              "id" : "4C9B39FA-2910-4C8B-9B04-7AE615E08C28",
+              "input" : "c"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-\/"
+                }
+              },
+              "description" : "?",
+              "id" : "686DEE63-D936-4951-984B-42252FE7654C",
+              "input" : "v"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "\\"
+                }
+              },
+              "description" : "\\",
+              "id" : "42B48F92-C1E2-42B8-AB9E-792F7BC3D732",
+              "input" : "b"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "\/"
+                }
+              },
+              "description" : "\/",
+              "id" : "F3AE729E-C8D0-496E-8145-CF72D96AE967",
+              "input" : "n"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-;"
+                }
+              },
+              "description" : ":",
+              "id" : "33550144-0D81-476A-822E-C82094BE1C0F",
+              "input" : "m"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : ";"
+                }
+              },
+              "description" : ";",
+              "id" : "AB7A210A-24FA-4E28-BA21-6C4DD27A8EA5",
+              "input" : ","
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "'"
+                }
+              },
+              "description" : "'",
+              "id" : "53656EEF-FE17-435F-8CA4-51ECDED4E3BC",
+              "input" : "."
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "S-'"
+                }
+              },
+              "description" : "\"",
+              "id" : "15398AAB-49FC-403B-A32A-DBA65684528A",
+              "input" : "\/"
+            }
+          ]
+        }
+      ],
+      "selectedPresetId" : "mirrored",
+      "type" : "layerPresetPicker"
+    },
+    "icon" : "textformat.abc.dottedunderline",
+    "id" : "E6F8A0B2-4C5D-7E9F-1A3B-5C7D9E1F3A5B",
+    "isEnabled" : false,
+    "isSystemDefault" : false,
+    "mappings" : [
+
+    ],
+    "momentaryActivator" : {
+      "input" : "s",
+      "sourceLayer" : "nav",
+      "targetLayer" : "sym"
+    },
+    "name" : "Symbol",
+    "summary" : "Quick access to programming symbols. Choose a layout optimized for your workflow.",
+    "tags" : [
+      "symbols",
+      "programming",
+      "brackets",
+      "operators"
+    ],
+    "targetLayer" : "sym"
+  },
+  {
+    "activationHint" : "Leader → f → function keys",
+    "category" : "layers",
+    "configuration" : {
+      "type" : "table"
+    },
+    "icon" : "f.cursive",
+    "id" : "C0D1E2F3-4A5B-6C7D-8E9F-0A1B2C3D4E5F",
+    "isEnabled" : false,
+    "isSystemDefault" : false,
+    "mappings" : [
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "f7"
+          }
+        },
+        "description" : "F7",
+        "id" : "D8F13652-0669-4683-85B2-4A0324A6BA6C",
+        "input" : "u"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "f8"
+          }
+        },
+        "description" : "F8",
+        "id" : "0B8D8182-36A5-4C7D-9740-F2FEDD4B87E7",
+        "input" : "i"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "f9"
+          }
+        },
+        "description" : "F9",
+        "id" : "904C9794-EA10-443A-846C-7D13ABC255FC",
+        "input" : "o"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "f4"
+          }
+        },
+        "description" : "F4",
+        "id" : "A33E578B-DFC1-4533-9F4D-9ABAC55FE80F",
+        "input" : "j"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "f5"
+          }
+        },
+        "description" : "F5",
+        "id" : "23F996D8-DF89-4654-927F-0343F4926B57",
+        "input" : "k"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "f6"
+          }
+        },
+        "description" : "F6",
+        "id" : "34C9233A-0D18-4890-A624-3370118575DF",
+        "input" : "l"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "f1"
+          }
+        },
+        "description" : "F1",
+        "id" : "067ED5BF-A1B4-477B-B558-763A36885C91",
+        "input" : "m"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "f2"
+          }
+        },
+        "description" : "F2",
+        "id" : "E112F0A7-1CDD-4F2D-8522-5BAC872DB166",
+        "input" : ","
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "f3"
+          }
+        },
+        "description" : "F3",
+        "id" : "A611FB88-EC46-4CD6-858F-D40A832D3454",
+        "input" : "."
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "f10"
+          }
+        },
+        "description" : "F10",
+        "id" : "E9878641-31B8-4DA0-8D28-DE49E256FE6E",
+        "input" : "n"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "f11"
+          }
+        },
+        "description" : "F11",
+        "id" : "FB6109F6-5678-47EB-AF14-017DC98AA410",
+        "input" : "\/"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "f12"
+          }
+        },
+        "description" : "F12",
+        "id" : "CE6703D8-76BD-4715-B267-F9EFD2C969E0",
+        "input" : ";"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "pp"
+          }
+        },
+        "description" : "Play\/Pause",
+        "id" : "885F5FE0-FC9F-41A9-85BB-60148754F50C",
+        "input" : "f",
+        "sectionBreak" : true
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "prev"
+          }
+        },
+        "description" : "Previous",
+        "id" : "9CE363C9-A7E8-4A11-9C9E-002C42AAAAC6",
+        "input" : "d"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "next"
+          }
+        },
+        "description" : "Next",
+        "id" : "316F283D-F92E-4D39-ABBC-8C672A63EE23",
+        "input" : "s"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "mute"
+          }
+        },
+        "description" : "Mute",
+        "id" : "F4F342C6-E5F0-41E9-A1E0-B89D6F8E5940",
+        "input" : "a"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "volu"
+          }
+        },
+        "description" : "Volume Up",
+        "id" : "1709A9DA-CCD8-4F00-A804-D083506B99B8",
+        "input" : "g"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "vold"
+          }
+        },
+        "description" : "Volume Down",
+        "id" : "F77DEA95-FFE3-4EEB-B723-33513E1DD346",
+        "input" : "r"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "brup"
+          }
+        },
+        "description" : "Brightness Up",
+        "id" : "B67095A7-9928-4206-9651-0E109489515F",
+        "input" : "v"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "brdn"
+          }
+        },
+        "description" : "Brightness Down",
+        "id" : "DFF5A618-391D-4BDD-A0EB-21F8D70CE700",
+        "input" : "c"
+      }
+    ],
+    "momentaryActivator" : {
+      "input" : "f",
+      "sourceLayer" : "nav",
+      "targetLayer" : "fun"
+    },
+    "name" : "Function",
+    "summary" : "F-keys on right hand (numpad grid), media controls on left hand.",
+    "tags" : [
+      "function",
+      "f-keys",
+      "media",
+      "brightness"
+    ],
+    "targetLayer" : "fun"
+  },
+  {
+    "activationHint" : "11 keys · 180ms hold",
+    "category" : "experimental",
+    "configuration" : {
+      "enabledKeys" : [
+        "eql",
+        "lbrc",
+        "bsls",
+        "comm",
+        "min",
+        "apos",
+        "dot",
+        "scln",
+        "rbrc",
+        "grv",
+        "slsh"
+      ],
+      "protectFastTyping" : true,
+      "timeoutMs" : 180,
+      "type" : "autoShiftSymbols"
+    },
+    "icon" : "arrow.up.square",
+    "id" : "D1E2F3A4-B5C6-7D8E-9F0A-1B2C3D4E5F6A",
+    "isEnabled" : false,
+    "isSystemDefault" : false,
+    "mappings" : [
+
+    ],
+    "name" : "Auto Shift Symbols",
+    "summary" : "Hold symbol keys slightly longer for shifted output",
+    "tags" : [
+      "auto-shift",
+      "symbols",
+      "experimental"
+    ],
+    "targetLayer" : "base"
+  },
+  {
+    "category" : "system",
+    "configuration" : {
+      "globalDelayMs" : 500,
+      "globalIntervalMs" : 30,
+      "isEnabled" : true,
+      "perKeyOverrides" : [
+        {
+          "delayMs" : 150,
+          "intervalMs" : 20,
+          "key" : "left"
+        },
+        {
+          "delayMs" : 150,
+          "intervalMs" : 20,
+          "key" : "right"
+        },
+        {
+          "delayMs" : 150,
+          "intervalMs" : 20,
+          "key" : "up"
+        },
+        {
+          "delayMs" : 150,
+          "intervalMs" : 20,
+          "key" : "down"
+        },
+        {
+          "delayMs" : 210,
+          "intervalMs" : 20,
+          "key" : "bspc"
+        },
+        {
+          "delayMs" : 210,
+          "intervalMs" : 20,
+          "key" : "del"
+        }
+      ],
+      "type" : "keyRepeatControl"
+    },
+    "icon" : "hare",
+    "id" : "E4F6A8B0-2C3D-5E7F-9A1B-4D6E8F0A2C4E",
+    "isEnabled" : true,
+    "isSystemDefault" : true,
+    "mappings" : [
+
+    ],
+    "name" : "Fast Navigation",
+    "summary" : "Arrow keys and delete repeat 3× faster. Regular keys stay steady.",
+    "tags" : [
+      "fast",
+      "navigation",
+      "arrows",
+      "repeat",
+      "speed"
+    ],
+    "targetLayer" : "base"
+  },
+  {
+    "activationHint" : "Hold F for arrow keys",
+    "category" : "navigation",
+    "configuration" : {
+      "presets" : [
+        {
+          "description" : "Arrows match your physical arrow key layout. Easy to learn.",
+          "icon" : "arrow.up.and.down.and.arrow.left.and.right",
+          "id" : "inverted-t",
+          "label" : "Inverted-T",
+          "mappings" : [
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "up"
+                }
+              },
+              "description" : "↑",
+              "id" : "A17C9E95-BC47-4404-AF41-30898D1EDCBF",
+              "input" : "i",
+              "sectionLabel" : "Arrows"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "left"
+                }
+              },
+              "description" : "←",
+              "id" : "3DFFB24A-1828-431C-8F86-93AC7492EE26",
+              "input" : "j"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "down"
+                }
+              },
+              "description" : "↓",
+              "id" : "5F668428-08A7-4AA6-9386-46C6BF4B7024",
+              "input" : "k"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "right"
+                }
+              },
+              "description" : "→",
+              "id" : "933F2B07-677A-4D94-A6E0-11CAA7B5C908",
+              "input" : "l"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "home"
+                }
+              },
+              "description" : "Home",
+              "id" : "0A8E3B1B-9143-4001-A9EF-AD608D4FBCDC",
+              "input" : "h",
+              "sectionBreak" : true,
+              "sectionLabel" : "Extended"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "end"
+                }
+              },
+              "description" : "End",
+              "id" : "DF957DBB-E7DC-4534-980D-FB428983E211",
+              "input" : ";"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "pgup"
+                }
+              },
+              "description" : "Page Up",
+              "id" : "FE0F9B69-C97E-4337-966B-4596D5200015",
+              "input" : "u"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "pgdn"
+                }
+              },
+              "description" : "Page Down",
+              "id" : "BA903A89-5FE2-4507-A090-CBF7478AF30B",
+              "input" : "o"
+            }
+          ]
+        },
+        {
+          "description" : "Classic HJKL navigation from Vim. Popular with developers.",
+          "icon" : "chevron.left.forwardslash.chevron.right",
+          "id" : "vim",
+          "label" : "Vim-Style",
+          "mappings" : [
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "left"
+                }
+              },
+              "description" : "←",
+              "id" : "4576BE6B-B187-4124-965C-9D2FAE029104",
+              "input" : "h",
+              "sectionLabel" : "Arrows"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "down"
+                }
+              },
+              "description" : "↓",
+              "id" : "679A62DA-E1E4-48E9-B362-38822D1B29B8",
+              "input" : "j"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "up"
+                }
+              },
+              "description" : "↑",
+              "id" : "AAB16C63-263D-4FDF-8C61-B6C9A48D1262",
+              "input" : "k"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "right"
+                }
+              },
+              "description" : "→",
+              "id" : "5D65B6ED-E7F7-4AC4-978A-E6D9C416DB5F",
+              "input" : "l"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "home"
+                }
+              },
+              "description" : "Home",
+              "id" : "FAE7AC97-DAA5-4CDA-912D-55016C528D37",
+              "input" : "y",
+              "sectionBreak" : true,
+              "sectionLabel" : "Extended"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "end"
+                }
+              },
+              "description" : "End",
+              "id" : "B75E7D4F-C9BF-4D90-9322-A62FFA194E2E",
+              "input" : ";"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "pgup"
+                }
+              },
+              "description" : "Page Up",
+              "id" : "C2F4EA76-4E94-4EED-A21E-82C1D56BA01F",
+              "input" : "u"
+            },
+            {
+              "action" : {
+                "keystroke" : {
+                  "key" : "pgdn"
+                }
+              },
+              "description" : "Page Down",
+              "id" : "58421B7F-1B12-4D6A-AD8F-466FE6A41989",
+              "input" : "o"
+            }
+          ]
+        }
+      ],
+      "selectedPresetId" : "inverted-t",
+      "type" : "layerPresetPicker"
+    },
+    "icon" : "arrow.up.and.down.and.arrow.left.and.right",
+    "id" : "A3B5C7D9-0E2F-4A6B-8C1D-3E5F7A9B0C2D",
+    "isEnabled" : true,
+    "isSystemDefault" : true,
+    "mappings" : [
+
+    ],
+    "momentaryActivator" : {
+      "input" : "f",
+      "sourceLayer" : "base",
+      "targetLayer" : "home-arrows"
+    },
+    "name" : "Home Row Arrows",
+    "summary" : "Hold F for arrow keys under your right hand. Tap F normally. Your fingers never leave the home row.",
+    "tags" : [
+      "arrows",
+      "navigation",
+      "home row",
+      "inverted-t",
+      "vim",
+      "beginner"
+    ],
+    "targetLayer" : "home-arrows"
+  },
+  {
+    "activationHint" : "Hold F or J to enter navigation layer",
+    "category" : "navigation",
+    "configuration" : {
+      "type" : "table"
+    },
+    "icon" : "rectangle.stack.badge.play",
+    "id" : "F2A4B6C8-1D3E-5F7A-9B0C-2D4E6F8A0B2C",
+    "isEnabled" : false,
+    "isSystemDefault" : false,
+    "mappings" : [
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "tab"
+          }
+        },
+        "description" : "tab",
+        "id" : "DBB9AF6B-AAAE-4C5B-B320-A9B3EF23934E",
+        "input" : "q",
+        "sectionLabel" : "✋ Left hand"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "esc"
+          }
+        },
+        "description" : "esc",
+        "id" : "CF77AC01-1B00-4765-93CF-6E0D92252B1C",
+        "input" : "w"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "C-S-tab"
+          }
+        },
+        "description" : "◀tab",
+        "id" : "57915059-8466-468A-9958-3DA532529A85",
+        "input" : "e"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "C-tab"
+          }
+        },
+        "description" : "tab▶",
+        "id" : "E177E2F3-2B62-47DB-A06D-CE68440977E4",
+        "input" : "r"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-tab"
+          }
+        },
+        "description" : "⌘tab",
+        "id" : "2FBDE4D2-7009-46D3-A884-BCFC3C87EB64",
+        "input" : "a"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "home"
+          }
+        },
+        "description" : "home",
+        "id" : "9D0DD7B3-D6D3-4C56-8BA3-3830DFB95B8C",
+        "input" : "s"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "end"
+          }
+        },
+        "description" : "end",
+        "id" : "F400B0AD-5F8E-4E6A-98B2-547C5C7D62A2",
+        "input" : "d"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "C-M-S-4"
+          }
+        },
+        "description" : "Screenshot",
+        "id" : "AAB80843-D056-4511-9490-B7BA7F1DCC41",
+        "input" : "g"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-["
+          }
+        },
+        "description" : "⌘[",
+        "id" : "B24C960F-0909-4AEA-88A6-3D2984A5226E",
+        "input" : "t"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-]"
+          }
+        },
+        "description" : "⌘]",
+        "id" : "85A1686D-2986-4CA2-ADB3-648F390BF553",
+        "input" : "v"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "left"
+          }
+        },
+        "description" : "←",
+        "id" : "81A60174-F13E-42B9-8409-6EDAF375B969",
+        "input" : "h",
+        "sectionBreak" : true,
+        "sectionLabel" : "🤚 Right hand"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "down"
+          }
+        },
+        "description" : "↓",
+        "id" : "A7EC6DB4-E437-4A7C-9AA8-9D2C47FDE1AA",
+        "input" : "j"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "up"
+          }
+        },
+        "description" : "↑",
+        "id" : "66779698-88A0-49A7-9CE2-A9C8E6EEA8F7",
+        "input" : "k"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "right"
+          }
+        },
+        "description" : "→",
+        "id" : "8527F351-580D-4A95-952E-9CCE839EDCC9",
+        "input" : "l"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "bspc"
+          }
+        },
+        "description" : "⌫",
+        "id" : "C6763F98-1296-4584-B146-22E7CA15C2B0",
+        "input" : "u"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "ret"
+          }
+        },
+        "description" : "↵",
+        "id" : "577D0B57-BDA4-4853-8845-99F553D8AF1E",
+        "input" : "i"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-c"
+          }
+        },
+        "description" : "⌘C",
+        "id" : "C0A8DB87-77FA-48B1-B7F8-37B129B57137",
+        "input" : "y"
+      },
+      {
+        "action" : {
+          "keystroke" : {
+            "key" : "M-v"
+          }
+        },
+        "description" : "⌘V",
+        "id" : "2D5916E2-BEC9-4B05-8550-4D6CE4571586",
+        "input" : ";"
+      }
+    ],
+    "name" : "Ben Vallack Nav",
+    "summary" : "Hold F or J for arrows, clipboard, tab switching, and line navigation — fingers never leave the home row.",
+    "tags" : [
+      "vallack",
+      "navigation",
+      "arrows",
+      "home row",
+      "system"
+    ],
+    "targetLayer" : "vallack-nav"
+  },
+  {
+    "activationHint" : "Hold Hyper key",
+    "category" : "layers",
+    "configuration" : {
+      "activationMode" : "holdHyper",
+      "hasSeenWelcome" : false,
+      "hyperTriggerMode" : "hold",
+      "mappings" : [
+        {
+          "action" : {
+            "launchApp" : {
+              "bundleId" : "com.apple.iCal",
+              "name" : "Calendar"
+            }
+          },
+          "id" : "B6B9A186-6115-4FA9-8755-D3A51D7394CB",
+          "isEnabled" : true,
+          "key" : "a"
+        },
+        {
+          "action" : {
+            "launchApp" : {
+              "bundleId" : "com.apple.finder",
+              "name" : "Finder"
+            }
+          },
+          "id" : "2F62CA29-45BA-40D8-AA8C-2EC44C0B7B2F",
+          "isEnabled" : true,
+          "key" : "f"
+        },
+        {
+          "action" : {
+            "openURL" : {
+              "_0" : "youtube.com"
+            }
+          },
+          "id" : "B1470D38-317A-4150-BE83-6741FB1B53CE",
+          "isEnabled" : true,
+          "key" : "h"
+        },
+        {
+          "action" : {
+            "openURL" : {
+              "_0" : "x.com"
+            }
+          },
+          "id" : "0A35F44C-B9A9-4065-94CE-C1D82A020150",
+          "isEnabled" : true,
+          "key" : "j"
+        },
+        {
+          "action" : {
+            "launchApp" : {
+              "bundleId" : "com.apple.MobileSMS",
+              "name" : "Messages"
+            }
+          },
+          "id" : "5DE5B2D2-5A1F-4126-96C0-C212B07C33BA",
+          "isEnabled" : true,
+          "key" : "k"
+        },
+        {
+          "action" : {
+            "openURL" : {
+              "_0" : "linkedin.com"
+            }
+          },
+          "id" : "1CE2311E-D571-4E3B-AEA9-89E05AA6197C",
+          "isEnabled" : true,
+          "key" : "l"
+        },
+        {
+          "action" : {
+            "openURL" : {
+              "_0" : "reddit.com"
+            }
+          },
+          "id" : "F80D05CD-AA0F-4718-BAB6-2330213EC497",
+          "isEnabled" : true,
+          "key" : "r"
+        },
+        {
+          "action" : {
+            "launchApp" : {
+              "bundleId" : "us.zoom.xos",
+              "name" : "Zoom"
+            }
+          },
+          "id" : "46A147DE-8CEA-4A74-B611-5E129CA06995",
+          "isEnabled" : true,
+          "key" : "z"
+        },
+        {
+          "action" : {
+            "launchApp" : {
+              "bundleId" : "com.tinyspeck.slackmacgap",
+              "name" : "Slack"
+            }
+          },
+          "id" : "6A0B517A-AFA5-428A-BC52-D24737C82A79",
+          "isEnabled" : true,
+          "key" : "x"
+        },
+        {
+          "action" : {
+            "launchApp" : {
+              "bundleId" : "com.hnc.Discord",
+              "name" : "Discord"
+            }
+          },
+          "id" : "7EA664BD-7502-4ACB-BD2A-649440204DA7",
+          "isEnabled" : true,
+          "key" : "c"
+        },
+        {
+          "action" : {
+            "openURL" : {
+              "_0" : "github.com"
+            }
+          },
+          "id" : "50209BC3-6CEE-4DDC-A545-EEE935D2BFA4",
+          "isEnabled" : true,
+          "key" : "1"
+        },
+        {
+          "action" : {
+            "openURL" : {
+              "_0" : "google.com"
+            }
+          },
+          "id" : "A53E99A0-5EAD-4B9E-BF9F-72C752D0342E",
+          "isEnabled" : true,
+          "key" : "2"
+        }
+      ],
+      "type" : "launcherGrid"
+    },
+    "icon" : "arrow.up.forward.app",
+    "id" : "A8B9C0D1-2E3F-4A5B-6C7D-8E9F0A1B2C3D",
+    "isEnabled" : true,
+    "isSystemDefault" : true,
+    "mappings" : [
+
+    ],
+    "momentaryActivator" : {
+      "input" : "hyper",
+      "sourceLayer" : "base",
+      "targetLayer" : "launcher"
+    },
+    "name" : "Quick Launcher",
+    "summary" : "Hold Hyper to quickly launch apps and websites with keyboard shortcuts.",
+    "tags" : [
+      "launcher",
+      "apps",
+      "websites",
+      "productivity"
+    ],
+    "targetLayer" : "launcher"
+  }
+]
