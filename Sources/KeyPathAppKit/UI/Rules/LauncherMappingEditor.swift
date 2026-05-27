@@ -225,31 +225,6 @@ struct LauncherMappingEditor: View {
                             .pickerStyle(.segmented)
                             .labelsHidden()
                             .accessibilityIdentifier("launcher-editor-type-picker")
-                            .onChange(of: targetType) { oldValue, newValue in
-                                if newValue.requiresScriptExecution, !isScriptExecutionEnabled {
-                                    targetType = oldValue
-                                }
-                            }
-                        }
-
-                        if !isScriptExecutionEnabled, targetType.requiresScriptExecution {
-                            HStack(spacing: 8) {
-                                Image(systemName: "lock.shield.fill")
-                                    .foregroundColor(.orange)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Script execution is disabled")
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                        .foregroundColor(.orange)
-                                    Button("Allow Scripts") {
-                                        showScriptEnableConfirmation = true
-                                    }
-                                    .buttonStyle(.link)
-                                    .font(.caption)
-                                }
-                            }
-                            .padding(.leading, 84)
-                            .accessibilityIdentifier("launcher-editor-script-disabled-warning")
                         }
 
                         targetFormRows
@@ -434,30 +409,87 @@ struct LauncherMappingEditor: View {
                     .accessibilityIdentifier("launcher-editor-folder-name-field")
             }
         case .script:
-            formRow("Path") {
-                HStack {
-                    TextField("Script path", text: $scriptPath)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityIdentifier("launcher-editor-script-path-field")
-                        .disabled(!isScriptExecutionEnabled)
-                    Button("Browse...") { browseForScript() }
-                        .accessibilityIdentifier("launcher-editor-script-browse-button")
-                        .disabled(!isScriptExecutionEnabled)
+            if scriptPath.isEmpty {
+                formRow("Script") {
+                    Button {
+                        browseForScript()
+                    } label: {
+                        Label("Select Script...", systemImage: "doc.badge.plus")
+                    }
+                    .accessibilityIdentifier("launcher-editor-script-browse-button")
                 }
-            }
-            if let warning = scriptPathWarning {
-                warningLabel(warning)
-                    .padding(.leading, 84)
-            }
-            formRow("Name") {
-                TextField("Display name (optional)", text: $scriptName)
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityIdentifier("launcher-editor-script-name-field")
-                    .disabled(!isScriptExecutionEnabled)
-            }
-            if let preview = scriptPreview {
-                formRow("") {
-                    VStack(alignment: .leading, spacing: 6) {
+            } else {
+                formRow("Script") {
+                    HStack(spacing: 8) {
+                        Image(systemName: "terminal.fill")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 16)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(scriptDisplayName)
+                                .font(.callout)
+                                .lineLimit(1)
+                            Text(scriptPath)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                        Spacer()
+                        Menu {
+                            Button {
+                                let url = URL(fileURLWithPath: (scriptPath as NSString).expandingTildeInPath)
+                                NSWorkspace.shared.open(url)
+                            } label: {
+                                Label("Open in Editor", systemImage: "pencil.and.outline")
+                            }
+                            Button {
+                                let url = URL(fileURLWithPath: (scriptPath as NSString).expandingTildeInPath)
+                                NSWorkspace.shared.activateFileViewerSelecting([url])
+                            } label: {
+                                Label("Show in Finder", systemImage: "folder")
+                            }
+                            Divider()
+                            Button {
+                                browseForScript()
+                            } label: {
+                                Label("Choose Different Script...", systemImage: "arrow.triangle.2.circlepath")
+                            }
+                            Divider()
+                            Button(role: .destructive) {
+                                scriptPath = ""
+                                scriptName = ""
+                            } label: {
+                                Label("Remove Script", systemImage: "trash")
+                            }
+                        } label: {
+                            Image(systemName: "gearshape")
+                                .foregroundStyle(.secondary)
+                        }
+                        .menuStyle(.borderlessButton)
+                        .frame(width: 24)
+                        .accessibilityIdentifier("launcher-editor-script-gear-menu")
+                    }
+                    .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(Color.primary.opacity(0.04))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
+                    )
+                }
+                if let warning = scriptPathWarning {
+                    warningLabel(warning)
+                        .padding(.leading, 84)
+                }
+                formRow("Name") {
+                    TextField("Display name (optional)", text: $scriptName)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("launcher-editor-script-name-field")
+                }
+                if let preview = scriptPreview {
+                    formRow("") {
                         Text(coloredScriptPreview(preview))
                             .font(.caption.monospaced())
                             .lineLimit(10)
@@ -467,16 +499,6 @@ struct LauncherMappingEditor: View {
                                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                                     .fill(Color.primary.opacity(0.04))
                             )
-                        Button {
-                            let url = URL(fileURLWithPath: (scriptPath as NSString).expandingTildeInPath)
-                            NSWorkspace.shared.open(url)
-                        } label: {
-                            Label("Open in Editor", systemImage: "pencil.and.outline")
-                                .font(.caption)
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .accessibilityIdentifier("launcher-editor-open-script")
                     }
                 }
             }
@@ -663,6 +685,12 @@ struct LauncherMappingEditor: View {
             return "File may not be executable"
         }
         return nil
+    }
+
+    private var scriptDisplayName: String {
+        if !scriptName.isEmpty { return scriptName }
+        let expanded = (scriptPath as NSString).expandingTildeInPath
+        return URL(fileURLWithPath: expanded).lastPathComponent
     }
 
     private func coloredScriptPreview(_ text: String) -> AttributedString {
