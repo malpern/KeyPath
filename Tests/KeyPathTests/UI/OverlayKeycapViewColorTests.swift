@@ -33,7 +33,7 @@ final class OverlayKeycapViewColorTests: XCTestCase {
 
     func testCollectionColor_NilReturnsDefaultOrange() {
         let view = makeKeycapView()
-        let color = view.collectionColor(for: nil)
+        let color = KeycapSymbols.collectionColor(for: nil)
 
         // Default color should be orange
         // We can't directly compare Color values, but we can verify it's not nil
@@ -42,7 +42,7 @@ final class OverlayKeycapViewColorTests: XCTestCase {
 
     func testCollectionColor_VimReturnsOrange() {
         let view = makeKeycapView()
-        let color = view.collectionColor(for: vimCollectionId)
+        let color = KeycapSymbols.collectionColor(for: vimCollectionId)
 
         // Vim collection should return orange
         XCTAssertNotNil(color, "Vim collection should return a color")
@@ -50,7 +50,7 @@ final class OverlayKeycapViewColorTests: XCTestCase {
 
     func testCollectionColor_WindowSnappingReturnsPurple() {
         let view = makeKeycapView()
-        let color = view.collectionColor(for: windowCollectionId)
+        let color = KeycapSymbols.collectionColor(for: windowCollectionId)
 
         // Window Snapping collection should return purple
         XCTAssertNotNil(color, "Window Snapping collection should return a color")
@@ -62,7 +62,7 @@ final class OverlayKeycapViewColorTests: XCTestCase {
 
     func testCollectionColor_SymbolLayerReturnsBlue() {
         let view = makeKeycapView()
-        let color = view.collectionColor(for: symbolCollectionId)
+        let color = KeycapSymbols.collectionColor(for: symbolCollectionId)
 
         // Symbol layer collection should return blue
         XCTAssertNotNil(color, "Symbol layer collection should return a color")
@@ -73,7 +73,7 @@ final class OverlayKeycapViewColorTests: XCTestCase {
 
     func testCollectionColor_LauncherReturnsCyan() {
         let view = makeKeycapView()
-        let color = view.collectionColor(for: launcherCollectionId)
+        let color = KeycapSymbols.collectionColor(for: launcherCollectionId)
 
         // Launcher collection should return cyan
         XCTAssertNotNil(color, "Launcher collection should return a color")
@@ -84,7 +84,7 @@ final class OverlayKeycapViewColorTests: XCTestCase {
 
     func testCollectionColor_UnknownCollectionReturnsDefaultOrange() {
         let view = makeKeycapView()
-        let color = view.collectionColor(for: unknownCollectionId)
+        let color = KeycapSymbols.collectionColor(for: unknownCollectionId)
 
         // Unknown collection should fall back to default orange
         XCTAssertNotNil(color, "Unknown collection should return a color")
@@ -93,10 +93,10 @@ final class OverlayKeycapViewColorTests: XCTestCase {
     func testCollectionColor_AllKnownCollectionsHaveUniqueColors() {
         let view = makeKeycapView()
 
-        _ = view.collectionColor(for: vimCollectionId)
-        let windowColor = view.collectionColor(for: windowCollectionId)
-        let symbolColor = view.collectionColor(for: symbolCollectionId)
-        let launcherColor = view.collectionColor(for: launcherCollectionId)
+        _ = KeycapSymbols.collectionColor(for: vimCollectionId)
+        let windowColor = KeycapSymbols.collectionColor(for: windowCollectionId)
+        let symbolColor = KeycapSymbols.collectionColor(for: symbolCollectionId)
+        let launcherColor = KeycapSymbols.collectionColor(for: launcherCollectionId)
 
         // Window, symbol, and launcher should all be different
         XCTAssertNotEqual(windowColor, symbolColor, "Window and Symbol should have different colors")
@@ -114,8 +114,8 @@ final class OverlayKeycapViewColorTests: XCTestCase {
         let view = makeKeycapView()
 
         // Nil should return a consistent color
-        let color1 = view.collectionColor(for: nil)
-        let color2 = view.collectionColor(for: nil)
+        let color1 = KeycapSymbols.collectionColor(for: nil)
+        let color2 = KeycapSymbols.collectionColor(for: nil)
 
         // Should be deterministic
         XCTAssertNotNil(color1)
@@ -126,9 +126,9 @@ final class OverlayKeycapViewColorTests: XCTestCase {
         let view = makeKeycapView()
 
         // System colors (purple, blue, cyan) should match SwiftUI standard colors
-        let windowColor = view.collectionColor(for: windowCollectionId)
-        let symbolColor = view.collectionColor(for: symbolCollectionId)
-        let launcherColor = view.collectionColor(for: launcherCollectionId)
+        let windowColor = KeycapSymbols.collectionColor(for: windowCollectionId)
+        let symbolColor = KeycapSymbols.collectionColor(for: symbolCollectionId)
+        let launcherColor = KeycapSymbols.collectionColor(for: launcherCollectionId)
 
         XCTAssertEqual(windowColor, Color.purple)
         XCTAssertEqual(symbolColor, Color.blue)
@@ -141,12 +141,12 @@ final class OverlayKeycapViewColorTests: XCTestCase {
         let view = makeKeycapView()
 
         // Each collection should return the same color on multiple calls
-        let vim1 = view.collectionColor(for: vimCollectionId)
-        let vim2 = view.collectionColor(for: vimCollectionId)
+        let vim1 = KeycapSymbols.collectionColor(for: vimCollectionId)
+        let vim2 = KeycapSymbols.collectionColor(for: vimCollectionId)
         XCTAssertEqual(vim1, vim2, "Vim color should be consistent")
 
-        let window1 = view.collectionColor(for: windowCollectionId)
-        let window2 = view.collectionColor(for: windowCollectionId)
+        let window1 = KeycapSymbols.collectionColor(for: windowCollectionId)
+        let window2 = KeycapSymbols.collectionColor(for: windowCollectionId)
         XCTAssertEqual(window1, window2, "Window color should be consistent")
     }
 
@@ -155,8 +155,8 @@ final class OverlayKeycapViewColorTests: XCTestCase {
         let view2 = makeKeycapView()
 
         // Different view instances should return the same colors for same collections
-        let color1 = view1.collectionColor(for: windowCollectionId)
-        let color2 = view2.collectionColor(for: windowCollectionId)
+        let color1 = KeycapSymbols.collectionColor(for: windowCollectionId)
+        let color2 = KeycapSymbols.collectionColor(for: windowCollectionId)
 
         XCTAssertEqual(color1, color2, "Different view instances should return same color for same collection")
     }

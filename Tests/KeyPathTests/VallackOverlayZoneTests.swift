@@ -259,7 +259,7 @@ final class VallackOverlayZoneTests: XCTestCase {
             isPressed: false,
             scale: 1.0
         )
-        let color = keycapView.collectionColor(for: RuleCollectionIdentifier.vallackNavigation)
+        let color = KeycapSymbols.collectionColor(for: RuleCollectionIdentifier.vallackNavigation)
         let expected = Color(red: 0.2, green: 0.7, blue: 0.4)
         XCTAssertEqual(String(describing: color), String(describing: expected))
     }
