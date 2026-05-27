@@ -177,7 +177,8 @@ extension KeyboardVisualizationViewModel {
 
         // Use prebuilt mapping immediately if available (from startup prebuild).
         // This prevents the overlay from flashing empty during the async rebuild.
-        if let cached = prebuiltLayerMappings[targetLayerName.lowercased()] {
+        let cacheKey = targetLayerName.lowercased()
+        if let cached = prebuiltLayerMappings[cacheKey] {
             layerKeyMap = cached
             remapOutputMap = buildRemapOutputMap(from: cached)
         }
@@ -227,9 +228,6 @@ extension KeyboardVisualizationViewModel {
 
                 // DEBUG: Log what simulator returned
                 AppLogger.shared.info("🗺️ [KeyboardViz] Simulator returned \(mapping.count) entries for '\(targetLayerName)'")
-                for (keyCode, info) in mapping.prefix(20) {
-                    AppLogger.shared.debug("  [\(targetLayerName)] keyCode \(keyCode) -> '\(info.displayLabel)'")
-                }
 
                 // Outside approved terminals, strip Neovim-owned entries from display mappings.
                 // This keeps layer behavior untouched while suppressing Neovim educational UI content.
@@ -457,33 +455,36 @@ extension KeyboardVisualizationViewModel {
         for (keyCode, originalInfo) in mapping {
             let keyName = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
             if let info = actionByInput[keyName] {
-                let resolvedInfo = Self.attachCollectionId(info, from: originalInfo)
+                let resolvedInfo = Self.mergeAugmentation(info, with: originalInfo)
                 augmented[keyCode] = resolvedInfo
-                AppLogger.shared.debug("🗺️ [KeyboardViz] Key \(keyName)(\(keyCode)) -> '\(resolvedInfo.displayLabel)'")
             }
         }
 
         return augmented
     }
 
-    /// Preserve collection ownership when augmenting with push-msg or remap actions.
-    private nonisolated static func attachCollectionId(
-        _ info: LayerKeyInfo,
-        from originalInfo: LayerKeyInfo
+    /// Merge augmented info with the original simulator entry, preserving vimLabel
+    /// and preferring the simulator's displayLabel when a vimLabel exists (so arrow
+    /// keys show "←" instead of description text like "h — left").
+    private nonisolated static func mergeAugmentation(
+        _ augmented: LayerKeyInfo,
+        with original: LayerKeyInfo
     ) -> LayerKeyInfo {
-        let collectionId = originalInfo.collectionId ?? info.collectionId
-        guard collectionId != info.collectionId else { return info }
+        let collectionId = original.collectionId ?? augmented.collectionId
+        let vimLabel = original.vimLabel ?? augmented.vimLabel
+        let displayLabel = vimLabel != nil ? (original.displayLabel.isEmpty ? augmented.displayLabel : original.displayLabel) : augmented.displayLabel
 
         return LayerKeyInfo(
-            displayLabel: info.displayLabel,
-            outputKey: info.outputKey,
-            outputKeyCode: info.outputKeyCode,
-            isTransparent: info.isTransparent,
-            isLayerSwitch: info.isLayerSwitch,
-            appLaunchIdentifier: info.appLaunchIdentifier,
-            systemActionIdentifier: info.systemActionIdentifier,
-            urlIdentifier: info.urlIdentifier,
-            collectionId: collectionId
+            displayLabel: displayLabel,
+            outputKey: augmented.outputKey ?? original.outputKey,
+            outputKeyCode: augmented.outputKeyCode ?? original.outputKeyCode,
+            isTransparent: augmented.isTransparent,
+            isLayerSwitch: augmented.isLayerSwitch,
+            appLaunchIdentifier: augmented.appLaunchIdentifier,
+            systemActionIdentifier: augmented.systemActionIdentifier,
+            urlIdentifier: augmented.urlIdentifier,
+            collectionId: collectionId,
+            vimLabel: vimLabel
         )
     }
 
@@ -654,10 +655,21 @@ extension KeyboardVisualizationViewModel {
                 allEnabledCollections: enabledCollections
             )
 
-            // Copy prebuilt mappings to a synchronous cache for instant layer switching
+            // Copy prebuilt mappings to a synchronous cache for instant layer switching.
+            // Augment each mapping with push-msg actions (app launches, system actions, etc.)
+            // so the cache includes the same data the async rebuild produces.
+            let customRules = await CustomRulesStore.shared.loadRules()
             var localCache: [String: [UInt16: LayerKeyInfo]] = [:]
             for layer in layerNames {
-                if let mapping = await layerKeyMapper.getCachedMapping(for: layer) {
+                if var mapping = await layerKeyMapper.getCachedMapping(for: layer) {
+                    mapping = await MainActor.run {
+                        self.augmentWithPushMsgActions(
+                            mapping: mapping,
+                            customRules: customRules,
+                            ruleCollections: enabledCollections,
+                            currentLayerName: layer
+                        )
+                    }
                     localCache[layer] = mapping
                 }
             }
