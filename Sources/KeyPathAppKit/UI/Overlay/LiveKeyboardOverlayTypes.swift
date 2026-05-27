@@ -1,6 +1,34 @@
 import AppKit
 import KeyPathCore
+import KeyPathInstallationWizard
 import SwiftUI
+
+// MARK: - Overlay State Groups
+
+struct OverlayDragState {
+    var initialFrame: NSRect = .zero
+    var initialMouseLocation: NSPoint = .zero
+    var isKeyboardDragging = false
+    var isHeaderDragging = false
+
+    var isDragging: Bool {
+        isKeyboardDragging || isHeaderDragging
+    }
+}
+
+struct OverlayRuntimeState {
+    var showingStoppedAlert = false
+    var lastIssuePresent = false
+    var hasSeenHealthy = false
+    var launchTime = Date()
+}
+
+@MainActor
+struct OverlayToastState {
+    var manager = WizardToastManager()
+    var lastReloadFailureAt: Date?
+    var autoDetectHeight: CGFloat = 88
+}
 
 // MARK: - Health Indicator State
 

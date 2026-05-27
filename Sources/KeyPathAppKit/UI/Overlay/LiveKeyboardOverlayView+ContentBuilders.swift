@@ -28,7 +28,7 @@ extension LiveKeyboardOverlayView {
                 inspectorWidth: inspectorTotalWidth,
                 reduceTransparency: reduceTransparency,
                 isInspectorOpen: uiState.isInspectorOpen,
-                isDragging: $isHeaderDragging,
+                isDragging: $dragState.isHeaderDragging,
                 isHoveringButton: $isHoveringHeaderButton,
                 inputModeIndicator: inputSourceDetector.modeIndicator,
                 currentLayerName: viewModel.currentLayerName,
@@ -203,11 +203,11 @@ extension LiveKeyboardOverlayView {
                         .simultaneousGesture(
                             DragGesture(minimumDistance: 3, coordinateSpace: .global)
                                 .onChanged { _ in
-                                    if !isKeyboardDragging, let window = findOverlayWindow() {
-                                        keyboardDragInitialFrame = window.frame
-                                        keyboardDragInitialMouseLocation = NSEvent.mouseLocation
+                                    if !dragState.isKeyboardDragging, let window = findOverlayWindow() {
+                                        dragState.initialFrame = window.frame
+                                        dragState.initialMouseLocation = NSEvent.mouseLocation
                                         viewModel.noteInteraction()
-                                        isKeyboardDragging = true
+                                        dragState.isKeyboardDragging = true
                                     }
                                     updateOverlayCursor(
                                         hovering: isOverlayHovered,
@@ -215,12 +215,12 @@ extension LiveKeyboardOverlayView {
                                         allowDragCursor: allowKeyboardDrag
                                     )
                                     let currentMouse = NSEvent.mouseLocation
-                                    let deltaX = currentMouse.x - keyboardDragInitialMouseLocation.x
-                                    let deltaY = currentMouse.y - keyboardDragInitialMouseLocation.y
+                                    let deltaX = currentMouse.x - dragState.initialMouseLocation.x
+                                    let deltaY = currentMouse.y - dragState.initialMouseLocation.y
                                     moveKeyboardWindow(deltaX: deltaX, deltaY: deltaY)
                                 }
                                 .onEnded { _ in
-                                    isKeyboardDragging = false
+                                    dragState.isKeyboardDragging = false
                                     viewModel.noteInteraction()
                                     updateOverlayCursor(
                                         hovering: isOverlayHovered,
