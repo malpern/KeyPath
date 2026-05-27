@@ -155,7 +155,7 @@ extension OverlayKeycapView {
         // or have a zone color (zone-colored keys already handled above, so this catches
         // collection-owned keys like vim nav that don't use zone coloring)
         else if isLayerMode, layerKeyInfo?.collectionId != nil, hasLayerMapping || isNavIdentityMapping {
-            collectionColor(for: layerKeyInfo?.collectionId)
+            KeycapSymbols.collectionColor(for: layerKeyInfo?.collectionId)
         }
         // Layer mode: dark gray for unmapped keys (same as launcher)
         else if isLayerMode {
