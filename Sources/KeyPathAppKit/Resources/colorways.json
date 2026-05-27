@@ -1,0 +1,290 @@
+[
+  {
+    "id": "default",
+    "name": "Default",
+    "designer": "KeyPath",
+    "year": 2025,
+    "alphaBase": "#141414",
+    "alphaLegend": "#e0edff",
+    "modBase": "#141414",
+    "modLegend": "#e0edff",
+    "accentBase": "#141414",
+    "accentLegend": "#e0edff",
+    "sourceURL": null,
+    "legendStyle": "standard",
+    "dotsConfig": null,
+    "noveltyConfig": {
+      "escNovelty": null,
+      "enterNovelty": null,
+      "useAccentColor": false
+    }
+  },
+  {
+    "id": "olivia-dark",
+    "name": "Olivia Dark",
+    "designer": "Olivia",
+    "year": 2018,
+    "alphaBase": "#2B2B2B",
+    "alphaLegend": "#F1BEB0",
+    "modBase": "#2B2B2B",
+    "modLegend": "#F1BEB0",
+    "accentBase": "#F1BEB0",
+    "accentLegend": "#2B2B2B",
+    "sourceURL": "https://geekhack.org/index.php?topic=94386.0",
+    "legendStyle": "standard",
+    "dotsConfig": null,
+    "noveltyConfig": {
+      "escNovelty": "♥",
+      "enterNovelty": null,
+      "useAccentColor": true
+    }
+  },
+  {
+    "id": "olivia-light",
+    "name": "Olivia Light",
+    "designer": "Olivia",
+    "year": 2018,
+    "alphaBase": "#E1DBD1",
+    "alphaLegend": "#F1BEB0",
+    "modBase": "#E1DBD1",
+    "modLegend": "#F1BEB0",
+    "accentBase": "#F1BEB0",
+    "accentLegend": "#E1DBD1",
+    "sourceURL": "https://geekhack.org/index.php?topic=94386.0",
+    "legendStyle": "standard",
+    "dotsConfig": null,
+    "noveltyConfig": {
+      "escNovelty": "♥",
+      "enterNovelty": null,
+      "useAccentColor": true
+    }
+  },
+  {
+    "id": "8008",
+    "name": "8008",
+    "designer": "Garrett",
+    "year": 2019,
+    "alphaBase": "#939598",
+    "alphaLegend": "#f5a4b8",
+    "modBase": "#3c4048",
+    "modLegend": "#f5a4b8",
+    "accentBase": "#f5a4b8",
+    "accentLegend": "#3c4048",
+    "sourceURL": "https://geekhack.org/index.php?topic=100308.0",
+    "legendStyle": "standard",
+    "dotsConfig": null,
+    "noveltyConfig": {
+      "escNovelty": null,
+      "enterNovelty": null,
+      "useAccentColor": false
+    }
+  },
+  {
+    "id": "laser",
+    "name": "Laser",
+    "designer": "MiTo",
+    "year": 2017,
+    "alphaBase": "#1a1a2e",
+    "alphaLegend": "#ff2a6d",
+    "modBase": "#1a1a2e",
+    "modLegend": "#05d9e8",
+    "accentBase": "#ff2a6d",
+    "accentLegend": "#1a1a2e",
+    "sourceURL": "https://mitormk.com/laser",
+    "legendStyle": "standard",
+    "dotsConfig": null,
+    "noveltyConfig": {
+      "escNovelty": "☀",
+      "enterNovelty": null,
+      "useAccentColor": true
+    }
+  },
+  {
+    "id": "red-samurai",
+    "name": "Red Samurai",
+    "designer": "RedSuns",
+    "year": 2018,
+    "alphaBase": "#25282A",
+    "alphaLegend": "#B9975B",
+    "modBase": "#651D32",
+    "modLegend": "#B9975B",
+    "accentBase": "#651D32",
+    "accentLegend": "#B9975B",
+    "sourceURL": "https://geekhack.org/index.php?topic=89970.0",
+    "legendStyle": "standard",
+    "dotsConfig": null,
+    "noveltyConfig": {
+      "escNovelty": "侍",
+      "enterNovelty": null,
+      "useAccentColor": false
+    }
+  },
+  {
+    "id": "botanical",
+    "name": "Botanical",
+    "designer": "Omnitype",
+    "year": 2020,
+    "alphaBase": "#DDE5ED",
+    "alphaLegend": "#92ACA0",
+    "modBase": "#3E5D58",
+    "modLegend": "#92ACA0",
+    "accentBase": "#92ACA0",
+    "accentLegend": "#3E5D58",
+    "sourceURL": "https://geekhack.org/index.php?topic=102350.0",
+    "legendStyle": "standard",
+    "dotsConfig": null,
+    "noveltyConfig": {
+      "escNovelty": "🌿",
+      "enterNovelty": null,
+      "useAccentColor": false
+    }
+  },
+  {
+    "id": "bento",
+    "name": "Bento",
+    "designer": "Biip",
+    "year": 2019,
+    "alphaBase": "#EEE2D0",
+    "alphaLegend": "#2A4D69",
+    "modBase": "#2A4D69",
+    "modLegend": "#EEE2D0",
+    "accentBase": "#E87F7F",
+    "accentLegend": "#2A4D69",
+    "sourceURL": "https://geekhack.org/index.php?topic=97855.0",
+    "legendStyle": "standard",
+    "dotsConfig": null,
+    "noveltyConfig": {
+      "escNovelty": "🍱",
+      "enterNovelty": null,
+      "useAccentColor": true
+    }
+  },
+  {
+    "id": "wob",
+    "name": "WoB",
+    "designer": "GMK",
+    "year": 2015,
+    "alphaBase": "#1a1a1a",
+    "alphaLegend": "#ffffff",
+    "modBase": "#1a1a1a",
+    "modLegend": "#ffffff",
+    "accentBase": "#1a1a1a",
+    "accentLegend": "#ffffff",
+    "sourceURL": "https://www.gmk.net/shop/en/gmk-cyl-wob-white-on-black-keycaps/fptk5009",
+    "legendStyle": "standard",
+    "dotsConfig": null,
+    "noveltyConfig": {
+      "escNovelty": null,
+      "enterNovelty": null,
+      "useAccentColor": false
+    }
+  },
+  {
+    "id": "wob-icon",
+    "name": "WoB Icons",
+    "designer": "GMK",
+    "year": 2015,
+    "alphaBase": "#1a1a1a",
+    "alphaLegend": "#ffffff",
+    "modBase": "#1a1a1a",
+    "modLegend": "#ffffff",
+    "accentBase": "#1a1a1a",
+    "accentLegend": "#ffffff",
+    "sourceURL": "https://cannonkeys.com/products/gmk-wob-bow-icon-extension-kit",
+    "legendStyle": "iconMods",
+    "dotsConfig": null,
+    "noveltyConfig": {
+      "escNovelty": null,
+      "enterNovelty": null,
+      "useAccentColor": false
+    }
+  },
+  {
+    "id": "hyperfuse",
+    "name": "Hyperfuse",
+    "designer": "BunnyLake",
+    "year": 2015,
+    "alphaBase": "#C6C9C7",
+    "alphaLegend": "#5D437E",
+    "modBase": "#727474",
+    "modLegend": "#00A4A9",
+    "accentBase": "#00A4A9",
+    "accentLegend": "#5D437E",
+    "sourceURL": "https://geekhack.org/index.php?topic=68198.0",
+    "legendStyle": "standard",
+    "dotsConfig": null,
+    "noveltyConfig": {
+      "escNovelty": null,
+      "enterNovelty": null,
+      "useAccentColor": false
+    }
+  },
+  {
+    "id": "godspeed",
+    "name": "Godspeed",
+    "designer": "MiTo",
+    "year": 2017,
+    "alphaBase": "#f5e6c8",
+    "alphaLegend": "#3a6ea5",
+    "modBase": "#f5e6c8",
+    "modLegend": "#e8873a",
+    "accentBase": "#3a6ea5",
+    "accentLegend": "#f5e6c8",
+    "sourceURL": "https://geekhack.org/index.php?topic=84090.0",
+    "legendStyle": "standard",
+    "dotsConfig": null,
+    "noveltyConfig": {
+      "escNovelty": "🚀",
+      "enterNovelty": null,
+      "useAccentColor": true
+    }
+  },
+  {
+    "id": "dots",
+    "name": "Dots Rainbow",
+    "designer": "Biip",
+    "year": 2019,
+    "alphaBase": "#f0ebe1",
+    "alphaLegend": "#1a1a1a",
+    "modBase": "#f0ebe1",
+    "modLegend": "#1a1a1a",
+    "accentBase": "#ff6b6b",
+    "accentLegend": "#f0ebe1",
+    "sourceURL": "https://geekhack.org/index.php?topic=100890.0",
+    "legendStyle": "dots",
+    "dotsConfig": {
+      "colorMode": "rainbow",
+      "dotSize": 0.22,
+      "oblongWidthMultiplier": 3.0
+    },
+    "noveltyConfig": {
+      "escNovelty": null,
+      "enterNovelty": null,
+      "useAccentColor": false
+    }
+  },
+  {
+    "id": "dots-dark",
+    "name": "Dots Dark",
+    "designer": "Biip",
+    "year": 2019,
+    "alphaBase": "#2b2b2b",
+    "alphaLegend": "#f5f5f5",
+    "modBase": "#2b2b2b",
+    "modLegend": "#f5f5f5",
+    "accentBase": "#ff6b6b",
+    "accentLegend": "#2b2b2b",
+    "sourceURL": "https://geekhack.org/index.php?topic=100890.0",
+    "legendStyle": "dots",
+    "dotsConfig": {
+      "colorMode": "rainbow",
+      "dotSize": 0.22,
+      "oblongWidthMultiplier": 3.0
+    },
+    "noveltyConfig": {
+      "escNovelty": null,
+      "enterNovelty": null,
+      "useAccentColor": false
+    }
+  }
+]

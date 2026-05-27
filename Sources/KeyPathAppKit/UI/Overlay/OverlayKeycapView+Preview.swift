@@ -154,7 +154,7 @@ import SwiftUI
                 baseLabel: String(Character(UnicodeScalar(97 + col)!)),
                 isPressed: false,
                 scale: 1.5,
-                colorway: .dots,
+                colorway: GMKColorway.find(id: "dots") ?? .default,
                 layoutTotalWidth: 10
             )
             .frame(width: 45, height: 45)
@@ -174,7 +174,7 @@ import SwiftUI
                     baseLabel: String(col),
                     isPressed: false,
                     scale: 1.2,
-                    colorway: .dotsDark,
+                    colorway: GMKColorway.find(id: "dots-dark") ?? .default,
                     layoutTotalWidth: 15
                 )
                 .frame(width: 38, height: 38)
@@ -187,7 +187,7 @@ import SwiftUI
                 baseLabel: "⌃",
                 isPressed: false,
                 scale: 1.2,
-                colorway: .dotsDark,
+                colorway: GMKColorway.find(id: "dots-dark") ?? .default,
                 layoutTotalWidth: 15
             )
             .frame(width: 55, height: 38)
@@ -197,7 +197,7 @@ import SwiftUI
                 baseLabel: "⌥",
                 isPressed: false,
                 scale: 1.2,
-                colorway: .dotsDark,
+                colorway: GMKColorway.find(id: "dots-dark") ?? .default,
                 layoutTotalWidth: 15
             )
             .frame(width: 45, height: 38)
@@ -207,7 +207,7 @@ import SwiftUI
                 baseLabel: "⌘",
                 isPressed: false,
                 scale: 1.2,
-                colorway: .dotsDark,
+                colorway: GMKColorway.find(id: "dots-dark") ?? .default,
                 layoutTotalWidth: 15
             )
             .frame(width: 50, height: 38)
@@ -218,7 +218,7 @@ import SwiftUI
                 baseLabel: " ",
                 isPressed: false,
                 scale: 1.2,
-                colorway: .dotsDark,
+                colorway: GMKColorway.find(id: "dots-dark") ?? .default,
                 layoutTotalWidth: 15
             )
             .frame(width: 180, height: 38)
