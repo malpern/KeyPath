@@ -466,7 +466,7 @@ extension KeyboardVisualizationViewModel {
     /// Merge augmented info with the original simulator entry, preserving vimLabel
     /// and preferring the simulator's displayLabel when a vimLabel exists (so arrow
     /// keys show "←" instead of description text like "h — left").
-    private nonisolated static func mergeAugmentation(
+    nonisolated static func mergeAugmentation(
         _ augmented: LayerKeyInfo,
         with original: LayerKeyInfo
     ) -> LayerKeyInfo {
