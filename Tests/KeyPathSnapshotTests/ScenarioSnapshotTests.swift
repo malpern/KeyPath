@@ -325,15 +325,8 @@ final class ScenarioSnapshotTests: ScreenshotTestCase {
     func testOverlay_VimNavLayer() {
         let viewModel = MockFactories.keyboardVisualizationViewModel()
         viewModel.currentLayerName = "nav"
-        // Set up vim nav layer mappings on H/J/K/L
-        let vimMappings: [UInt16: LayerKeyInfo] = [
-            4: .mapped(displayLabel: "←", outputKey: "left", outputKeyCode: 123, collectionId: RuleCollectionIdentifier.vimNavigation),
-            38: .mapped(displayLabel: "↓", outputKey: "down", outputKeyCode: 125, collectionId: RuleCollectionIdentifier.vimNavigation),
-            40: .mapped(displayLabel: "↑", outputKey: "up", outputKeyCode: 126, collectionId: RuleCollectionIdentifier.vimNavigation),
-            37: .mapped(displayLabel: "→", outputKey: "right", outputKeyCode: 124, collectionId: RuleCollectionIdentifier.vimNavigation),
-        ]
-        viewModel.layerKeyMap = vimMappings
-
+        // Set up vim nav layer mappings with vimLabels (arrows must survive augmentation)
+        viewModel.layerKeyMap = Self.vimNavLayerMap
         let uiState = MockFactories.overlayUIState()
         let view = LiveKeyboardOverlayView(
             viewModel: viewModel,
@@ -351,7 +344,107 @@ final class ScenarioSnapshotTests: ScreenshotTestCase {
         )
     }
 
+    // MARK: - HJKL Arrow Regression Tests
+
+    /// Base layer should show normal HJKL letter floating labels.
+    /// Regression: floating labels were hidden when KindaVim pack was installed
+    /// even in insert mode, leaving HJKL blank.
+    func testOverlay_BaseLayer_HJKLShowLetters() {
+        let viewModel = MockFactories.keyboardVisualizationViewModel()
+        viewModel.currentLayerName = "base"
+        let uiState = MockFactories.overlayUIState()
+        let view = LiveKeyboardOverlayView(
+            viewModel: viewModel,
+            uiState: uiState,
+            inspectorWidth: 0,
+            isMapperAvailable: true,
+            kanataViewModel: nil
+        )
+        assertScreenshot(
+            of: view,
+            size: CGSize(width: 1200, height: 450),
+            named: "overlay-base-hjkl-letters",
+            precision: 0.98,
+            perceptualPrecision: 0.98
+        )
+    }
+
+    /// Nav layer HJKL keycaps should show arrow symbols (← ↓ ↑ →) with vimLabels.
+    /// Regression: augmentation overwrote vimLabels, showing "H — Left" text instead.
+    func testKeycap_NavLayer_HArrow() {
+        let key = makePhysicalKey(keyCode: 4, label: "H")
+        let layerInfo = LayerKeyInfo.mapped(
+            displayLabel: "←",
+            outputKey: "left",
+            outputKeyCode: 123,
+            collectionId: RuleCollectionIdentifier.vimNavigation,
+            vimLabel: "←"
+        )
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "H",
+            isPressed: false,
+            scale: 1.0,
+            currentLayerName: "nav",
+            layerKeyInfo: layerInfo
+        )
+        assertScreenshot(of: view, size: keycapSize, named: "keycap-nav-h-arrow")
+    }
+
+    /// Nav layer HJKL keycap should NOT show the key letter in top-left corner
+    /// when the action is an arrow symbol.
+    func testKeycap_NavLayer_JArrow() {
+        let key = makePhysicalKey(keyCode: 38, label: "J")
+        let layerInfo = LayerKeyInfo.mapped(
+            displayLabel: "↓",
+            outputKey: "down",
+            outputKeyCode: 125,
+            collectionId: RuleCollectionIdentifier.vimNavigation,
+            vimLabel: "↓"
+        )
+        let view = OverlayKeycapView(
+            key: key,
+            baseLabel: "J",
+            isPressed: false,
+            scale: 1.0,
+            currentLayerName: "nav",
+            layerKeyInfo: layerInfo
+        )
+        assertScreenshot(of: view, size: keycapSize, named: "keycap-nav-j-arrow")
+    }
+
+    /// Full overlay on nav layer with HJKL arrows and other vim keys.
+    /// Regression: augmentation dropped vimLabels, making HJKL show description text.
+    func testOverlay_NavLayer_HJKLArrows() {
+        let viewModel = MockFactories.keyboardVisualizationViewModel()
+        viewModel.currentLayerName = "nav"
+        viewModel.layerKeyMap = Self.vimNavLayerMap
+        let uiState = MockFactories.overlayUIState()
+        let view = LiveKeyboardOverlayView(
+            viewModel: viewModel,
+            uiState: uiState,
+            inspectorWidth: 0,
+            isMapperAvailable: true,
+            kanataViewModel: nil
+        )
+        assertScreenshot(
+            of: view,
+            size: CGSize(width: 1200, height: 450),
+            named: "overlay-nav-hjkl-arrows",
+            precision: 0.98,
+            perceptualPrecision: 0.98
+        )
+    }
+
     // MARK: - Helpers
+
+    /// Standard vim nav layer mapping for HJKL with vimLabels preserved
+    private static let vimNavLayerMap: [UInt16: LayerKeyInfo] = [
+        4: .mapped(displayLabel: "←", outputKey: "left", outputKeyCode: 123, collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "←"),
+        38: .mapped(displayLabel: "↓", outputKey: "down", outputKeyCode: 125, collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "↓"),
+        40: .mapped(displayLabel: "↑", outputKey: "up", outputKeyCode: 126, collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "↑"),
+        37: .mapped(displayLabel: "→", outputKey: "right", outputKeyCode: 124, collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "→"),
+    ]
 
     private let keycapSize = CGSize(width: 80, height: 80)
     private let wideKeycapSize = CGSize(width: 120, height: 80)
