@@ -1,5 +1,6 @@
+import Foundation
 @testable import KeyPathAppKit
-import XCTest
+import Testing
 
 /// Static structural asserts on the default collection catalog.
 ///
@@ -13,24 +14,49 @@ import XCTest
 /// collision at build time instead of letting it fail silently at runtime.
 ///
 /// ~5ms total, no kanata binary needed.
-final class RuleCollectionCollisionTests: XCTestCase {
+@Suite("RuleCollection Collision Detection")
+struct RuleCollectionCollisionTests {
     private var collections: [RuleCollection] {
         RuleCollectionCatalog().defaultCollections()
     }
 
+    // MARK: - Catalog sanity
+
+    @Test("Catalog returns a non-empty set of collections")
+    func catalogNonEmpty() {
+        #expect(!collections.isEmpty)
+    }
+
+    @Test("Every collection has a unique ID")
+    func collectionIDsUnique() {
+        let ids = collections.map(\.id)
+        #expect(Set(ids).count == ids.count, "Duplicate collection IDs found")
+    }
+
+    @Test("Every collection has a non-empty name")
+    func collectionNamesNonEmpty() {
+        for collection in collections {
+            #expect(!collection.name.isEmpty, "Collection \(collection.id) has an empty name")
+        }
+    }
+
+    @Test("Every collection with mappings has a non-empty target layer name")
+    func targetLayerNamesValid() {
+        for collection in collections where !collection.mappings.isEmpty {
+            #expect(!collection.targetLayer.kanataName.isEmpty,
+                    "\(collection.name) has mappings but empty target layer")
+        }
+    }
+
     // MARK: - Activator uniqueness
 
-    func testNoTwoCollectionsShareAnActivator() {
-        // Intentionally-overlapping activators. The nav-providing collections
-        // (Vim Navigation, Neovim Terminal) both use Space as Leader — a
-        // user is meant to pick one, so the shared activator is by design
-        // rather than a bug.
+    @Test("No two collections share an activator (except known nav providers)")
+    func noTwoCollectionsShareAnActivator() {
         let navProviderIDs: Set<UUID> = [
             RuleCollectionIdentifier.vimNavigation,
-            RuleCollectionIdentifier.neovimTerminal
+            RuleCollectionIdentifier.neovimTerminal,
         ]
 
-        // Key: "<sourceLayer>:<input>". Value: first-registering collection name.
         var claimed: [String: String] = [:]
         var collisions: [(key: String, existing: String, incoming: String)] = []
 
@@ -38,7 +64,6 @@ final class RuleCollectionCollisionTests: XCTestCase {
             guard let activator = collection.momentaryActivator else { continue }
             let key = "\(activator.sourceLayer.kanataName):\(activator.input.lowercased())"
             if let existing = claimed[key] {
-                // Allow overlap among known mutually-exclusive nav providers.
                 if navProviderIDs.contains(collection.id),
                    let existingCollection = collections.first(where: { $0.name == existing }),
                    navProviderIDs.contains(existingCollection.id)
@@ -51,31 +76,26 @@ final class RuleCollectionCollisionTests: XCTestCase {
             }
         }
 
-        XCTAssertTrue(collisions.isEmpty,
-                      "Duplicate momentaryActivators detected:\n" +
-                      collisions.map { "  \($0.key): \($0.existing) ↔ \($0.incoming)" }.joined(separator: "\n"))
+        #expect(collisions.isEmpty,
+                "Duplicate momentaryActivators: \(collisions.map { "\($0.key): \($0.existing) ↔ \($0.incoming)" })")
     }
 
     // MARK: - Mapping uniqueness per target layer
 
-    func testNoTwoCollectionsMapTheSameInputInTheSameLayer() {
-        // Key: "<targetLayer>:<input>". Value: (collection name, output).
+    @Test("No two collections map the same input in the same layer with different outputs")
+    func noTwoCollectionsMapTheSameInputInTheSameLayer() {
         var claimed: [String: (name: String, output: String)] = [:]
         var collisions: [String] = []
 
         for collection in collections {
             let layerKey = collection.targetLayer.kanataName
             for mapping in collection.mappings {
-                // Space-separated chord inputs aren't "same input" — they
-                // land in defchordsv2 separately. Skip them here.
                 if mapping.input.contains(" ") { continue }
                 let key = "\(layerKey):\(mapping.input.lowercased())"
                 if let existing = claimed[key] {
-                    // Same output across two collections is fine (both agree).
                     if existing.output != mapping.action.outputString {
                         collisions.append(
-                            "\(key): \(existing.name)(\(existing.output)) ↔ " +
-                                "\(collection.name)(\(mapping.action.outputString))"
+                            "\(key): \(existing.name)(\(existing.output)) ↔ \(collection.name)(\(mapping.action.outputString))"
                         )
                     }
                 } else {
@@ -84,8 +104,30 @@ final class RuleCollectionCollisionTests: XCTestCase {
             }
         }
 
-        XCTAssertTrue(collisions.isEmpty,
-                      "Input-key collisions in the same target layer:\n" +
-                      collisions.joined(separator: "\n"))
+        #expect(collisions.isEmpty, "Input-key collisions: \(collisions)")
+    }
+
+    // MARK: - Mapping structural integrity
+
+    @Test("Every mapping has a non-empty input key")
+    func mappingInputsNonEmpty() {
+        for collection in collections {
+            for mapping in collection.mappings {
+                #expect(!mapping.input.isEmpty, "\(collection.name) has a mapping with empty input")
+            }
+        }
+    }
+
+    @Test("No collection has duplicate input keys within its own mappings")
+    func noDuplicateInputsWithinCollection() {
+        for collection in collections {
+            let nonChordInputs = collection.mappings
+                .map(\.input)
+                .filter { !$0.contains(" ") }
+                .map { $0.lowercased() }
+            let unique = Set(nonChordInputs)
+            #expect(nonChordInputs.count == unique.count,
+                    "\(collection.name) has duplicate input keys")
+        }
     }
 }
