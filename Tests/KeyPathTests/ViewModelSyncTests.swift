@@ -118,4 +118,80 @@ struct WindowSnappingActivationModeTests {
         #expect(ws?.momentaryActivator?.sourceLayer == .navigation)
         #expect(ws?.activationHint == "Leader → w → action key")
     }
+
+    @Test("Setting same mode twice is idempotent")
+    func settingSameModeTwiceIsIdempotent() async {
+        let manager = await createManagerWithWindowSnapping()
+
+        _ = await manager.updateWindowSnappingActivationMode(
+            id: RuleCollectionIdentifier.windowSnapping,
+            mode: .quickLauncher
+        )
+
+        let wsAfterFirst = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.windowSnapping }
+        let modeAfterFirst = wsAfterFirst?.windowSnappingActivationMode
+        let hintAfterFirst = wsAfterFirst?.activationHint
+
+        _ = await manager.updateWindowSnappingActivationMode(
+            id: RuleCollectionIdentifier.windowSnapping,
+            mode: .quickLauncher
+        )
+
+        let wsAfterSecond = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.windowSnapping }
+        #expect(wsAfterSecond?.windowSnappingActivationMode == modeAfterFirst)
+        #expect(wsAfterSecond?.activationHint == hintAfterFirst)
+    }
+
+    @Test("Launcher already enabled returns nil for auto-enable")
+    func launcherAlreadyEnabledReturnsNil() async {
+        let manager = await createManagerWithWindowSnapping()
+
+        // Launcher is already enabled by createManagerWithWindowSnapping()
+        let launcher = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.launcher }
+        #expect(launcher?.isEnabled == true)
+
+        let autoEnabled = await manager.updateWindowSnappingActivationMode(
+            id: RuleCollectionIdentifier.windowSnapping,
+            mode: .quickLauncher
+        )
+
+        #expect(autoEnabled == nil)
+    }
+
+    @Test("Activation hint for leader mode initially")
+    func activationHintForLeaderModeInitially() async {
+        let manager = await createManagerWithWindowSnapping()
+
+        // Before any mode change, the catalog default is leader mode
+        let ws = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.windowSnapping }
+        #expect(ws?.activationHint == "Leader → w → action key")
+    }
+
+    @Test("Switching modes multiple times ends in correct state")
+    func switchingModesMultipleTimesEndsCorrectly() async {
+        let manager = await createManagerWithWindowSnapping()
+
+        // leader → quickLauncher → leader → quickLauncher
+        _ = await manager.updateWindowSnappingActivationMode(
+            id: RuleCollectionIdentifier.windowSnapping,
+            mode: .leader
+        )
+        _ = await manager.updateWindowSnappingActivationMode(
+            id: RuleCollectionIdentifier.windowSnapping,
+            mode: .quickLauncher
+        )
+        _ = await manager.updateWindowSnappingActivationMode(
+            id: RuleCollectionIdentifier.windowSnapping,
+            mode: .leader
+        )
+        _ = await manager.updateWindowSnappingActivationMode(
+            id: RuleCollectionIdentifier.windowSnapping,
+            mode: .quickLauncher
+        )
+
+        let ws = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.windowSnapping }
+        #expect(ws?.windowSnappingActivationMode == .quickLauncher)
+        #expect(ws?.momentaryActivator?.sourceLayer == .custom("launcher"))
+        #expect(ws?.activationHint == "Hyper + w → action key")
+    }
 }

@@ -1,3 +1,4 @@
+import Foundation
 @testable import KeyPathAppKit
 import KeyPathCore
 import Testing
@@ -169,6 +170,165 @@ struct FloatingLabelHJKLTests {
             let isHidden = vimHintsActive && ["H", "J", "K", "L"].contains(label.uppercased())
             #expect(isHidden == false, "\(label) should be visible even during vim hints")
         }
+    }
+}
+
+// MARK: - Additional mergeAugmentation behavior
+
+@Suite("mergeAugmentation edge cases")
+struct MergeAugmentationEdgeCaseTests {
+
+    @Test("transparent augmented key preserves original displayLabel")
+    func transparentPreservesOriginalLabel() {
+        let original = LayerKeyInfo.mapped(
+            displayLabel: "A",
+            outputKey: "a",
+            outputKeyCode: 0
+        )
+        let augmented = LayerKeyInfo(
+            displayLabel: "augmented-label",
+            outputKey: "a",
+            outputKeyCode: 0,
+            isTransparent: true,
+            isLayerSwitch: false
+        )
+
+        let result = KeyboardVisualizationViewModel.mergeAugmentation(augmented, with: original)
+
+        // When no vimLabel exists, displayLabel comes from augmented regardless of transparency
+        #expect(result.displayLabel == "augmented-label")
+        #expect(result.isTransparent == true)
+    }
+
+    @Test("augmented vimLabel used when original has none")
+    func augmentedVimLabelUsedWhenOriginalHasNone() {
+        let original = LayerKeyInfo.mapped(
+            displayLabel: "J",
+            outputKey: "j",
+            outputKeyCode: 38
+        )
+        let augmented = LayerKeyInfo(
+            displayLabel: "j — down",
+            outputKey: "down",
+            outputKeyCode: 125,
+            isTransparent: false,
+            isLayerSwitch: false,
+            vimLabel: "↓"
+        )
+
+        let result = KeyboardVisualizationViewModel.mergeAugmentation(augmented, with: original)
+
+        // vimLabel = original.vimLabel ?? augmented.vimLabel — original is nil, so augmented wins
+        #expect(result.vimLabel == "↓")
+    }
+
+    @Test("original vimLabel takes precedence over augmented")
+    func originalVimLabelTakesPrecedence() {
+        let original = LayerKeyInfo.mapped(
+            displayLabel: "←",
+            outputKey: "left",
+            outputKeyCode: 123,
+            vimLabel: "←"
+        )
+        let augmented = LayerKeyInfo(
+            displayLabel: "h — left",
+            outputKey: "left",
+            outputKeyCode: 123,
+            isTransparent: false,
+            isLayerSwitch: false,
+            vimLabel: "⬅️"
+        )
+
+        let result = KeyboardVisualizationViewModel.mergeAugmentation(augmented, with: original)
+
+        // original.vimLabel ?? augmented.vimLabel — original is non-nil, so it wins
+        #expect(result.vimLabel == "←")
+    }
+
+    @Test("outputKeyCode preserved from augmented")
+    func outputKeyCodeFromAugmented() {
+        let original = LayerKeyInfo.mapped(
+            displayLabel: "H",
+            outputKey: "h",
+            outputKeyCode: 4
+        )
+        let augmented = LayerKeyInfo(
+            displayLabel: "←",
+            outputKey: "left",
+            outputKeyCode: 123,
+            isTransparent: false,
+            isLayerSwitch: false
+        )
+
+        let result = KeyboardVisualizationViewModel.mergeAugmentation(augmented, with: original)
+
+        // outputKeyCode = augmented.outputKeyCode ?? original.outputKeyCode
+        #expect(result.outputKeyCode == 123)
+    }
+
+    @Test("outputKeyCode falls back to original when augmented is nil")
+    func outputKeyCodeFallsBackToOriginal() {
+        let original = LayerKeyInfo.mapped(
+            displayLabel: "H",
+            outputKey: "h",
+            outputKeyCode: 4
+        )
+        let augmented = LayerKeyInfo(
+            displayLabel: "action",
+            outputKey: nil,
+            outputKeyCode: nil,
+            isTransparent: false,
+            isLayerSwitch: false
+        )
+
+        let result = KeyboardVisualizationViewModel.mergeAugmentation(augmented, with: original)
+
+        #expect(result.outputKeyCode == 4)
+    }
+
+    @Test("layer switch keys preserve isLayerSwitch flag")
+    func layerSwitchFlagPreserved() {
+        let original = LayerKeyInfo.mapped(
+            displayLabel: "Tab",
+            outputKey: "tab",
+            outputKeyCode: 48
+        )
+        let augmented = LayerKeyInfo(
+            displayLabel: "Nav",
+            outputKey: nil,
+            outputKeyCode: nil,
+            isTransparent: false,
+            isLayerSwitch: true
+        )
+
+        let result = KeyboardVisualizationViewModel.mergeAugmentation(augmented, with: original)
+
+        #expect(result.isLayerSwitch == true)
+    }
+
+    @Test("augmented collectionId takes precedence when both present")
+    func augmentedCollectionIdWhenBothPresent() {
+        let originalId = UUID()
+        let augmentedId = UUID()
+        let original = LayerKeyInfo.mapped(
+            displayLabel: "←",
+            outputKey: "left",
+            outputKeyCode: 123,
+            collectionId: originalId
+        )
+        let augmented = LayerKeyInfo(
+            displayLabel: "h — left",
+            outputKey: "left",
+            outputKeyCode: 123,
+            isTransparent: false,
+            isLayerSwitch: false,
+            collectionId: augmentedId
+        )
+
+        let result = KeyboardVisualizationViewModel.mergeAugmentation(augmented, with: original)
+
+        // collectionId = original.collectionId ?? augmented.collectionId — original takes precedence
+        #expect(result.collectionId == originalId)
     }
 }
 

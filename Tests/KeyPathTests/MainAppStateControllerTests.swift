@@ -2,6 +2,7 @@ import Foundation
 @testable import KeyPathAppKit
 @testable import KeyPathDaemonLifecycle
 @testable import KeyPathInstallationWizard
+@testable import KeyPathWizardCore
 import Testing
 
 /// Tests for MainAppStateController - main app validation coordination
@@ -103,6 +104,41 @@ struct MainAppStateControllerTests {
         #expect(controller.isConfigured == true)
     }
 
+    @Test("issues array can be populated and cleared")
+    func issuesArrayPopulateAndClear() {
+        let controller = MainAppStateController()
+        #expect(controller.issues.isEmpty)
+
+        // Populate with non-empty array
+        controller.issues = [
+            WizardIssue(
+                identifier: .daemon,
+                severity: .warning,
+                category: .daemon,
+                title: "Test issue",
+                description: "A test issue",
+                autoFixAction: nil,
+                userAction: nil
+            ),
+        ]
+        #expect(controller.issues.count == 1)
+
+        // Clear and verify empty
+        controller.issues = []
+        #expect(controller.issues.isEmpty)
+    }
+
+    @Test("lastValidationDate is settable")
+    func lastValidationDateSettable() {
+        let controller = MainAppStateController()
+        #expect(controller.lastValidationDate == nil)
+
+        let now = Date()
+        controller.lastValidationDate = now
+        #expect(controller.lastValidationDate != nil)
+        #expect(controller.lastValidationDate == now)
+    }
+
     // MARK: - State Observation Tests
 
     @Test("ValidationState is observable")
@@ -172,6 +208,33 @@ struct ValidationStateTransitionTests {
         // Has issues but not critical
         #expect(controller.validationState?.isSuccess == false)
         #expect(controller.validationState?.hasCriticalIssues == false)
+    }
+
+    @Test("Re-validation after success transitions through checking")
+    func revalidationAfterSuccessTransitionsThroughChecking() {
+        let controller = MainAppStateController()
+
+        // First validation succeeds
+        controller.validationState = .success
+        #expect(controller.validationState?.isSuccess == true)
+
+        // Re-validation starts: back to checking
+        controller.validationState = .checking
+        #expect(controller.validationState == .checking)
+        #expect(controller.validationState?.isSuccess == false)
+
+        // Re-validation completes: success again
+        controller.validationState = .success
+        #expect(controller.validationState?.isSuccess == true)
+    }
+
+    @Test("Failed state with zero total count")
+    func failedStateWithZeroTotalCount() {
+        let state = MainAppStateController.ValidationState.failed(
+            blockingCount: 0, totalCount: 0
+        )
+        #expect(state.isSuccess == false)
+        #expect(state.hasCriticalIssues == false)
     }
 }
 
@@ -309,5 +372,57 @@ struct MainAppStateControllerBehaviorTests {
 
         let ready = await controller.evaluateKanataStartupGateForTesting()
         #expect(ready == false)
+    }
+
+    @Test("performInitialValidation after configure sets lastValidationDate")
+    func performInitialValidationSetsLastValidationDate() async {
+        let controller = MainAppStateController()
+        let manager = RuntimeCoordinator()
+        controller.configure(
+            serviceLifecycle: manager.serviceLifecycleCoordinator,
+            onSystemHealthy: {}
+        )
+
+        #expect(controller.lastValidationDate == nil)
+        await controller.performInitialValidation()
+        #expect(controller.lastValidationDate != nil)
+    }
+
+    @Test("multiple rapid revalidate calls don't corrupt state")
+    func multipleRapidRevalidateCallsDontCorruptState() async {
+        let controller = MainAppStateController()
+
+        // Call revalidate 3 times rapidly (unconfigured controller)
+        await controller.revalidate()
+        await controller.revalidate()
+        await controller.revalidate()
+
+        // Final state should be consistent: checking (unconfigured path)
+        // and issues array should be valid (empty, not corrupted)
+        #expect(controller.validationState != nil)
+        #expect(controller.validationState == .checking)
+        #expect(controller.issues.isEmpty)
+    }
+
+    @Test("startup gate with immediately-healthy service reports ready")
+    func startupGateWithImmediatelyHealthyServiceReportsReady() async {
+        let controller = MainAppStateController()
+        #if DEBUG
+            controller.configureStartupGateTestingState(
+                healthOverride: {
+                    KanataHealthSnapshot(isRunning: true, isResponding: true)
+                },
+                transientWindowOverride: { false },
+                timingOverride: (
+                    definitiveGrace: 1.0,
+                    transientGrace: 1.05,
+                    checkInterval: 0.01
+                )
+            )
+            defer { controller.resetStartupGateTestingState() }
+        #endif
+
+        let ready = await controller.evaluateKanataStartupGateForTesting()
+        #expect(ready == true)
     }
 }
