@@ -55,6 +55,22 @@ struct WindowPositionTests {
         // Undo: undo
         #expect(WindowPosition.allCases.count == 13)
     }
+
+    @Test("all positions have non-empty rawValue")
+    func allPositionsHaveNonEmptyRawValue() {
+        for position in WindowPosition.allCases {
+            #expect(!position.rawValue.isEmpty, "\(position) should have a non-empty rawValue")
+        }
+    }
+
+    @Test("allValues contains all rawValues")
+    func allValuesContainsAllRawValues() {
+        let allValuesString = WindowPosition.allValues
+        // allValues is a comma-separated string; split and count
+        let splitValues = allValuesString.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        #expect(splitValues.count == WindowPosition.allCases.count,
+                "allValues should list exactly \(WindowPosition.allCases.count) positions")
+    }
 }
 
 // MARK: - Frame Calculation Tests
@@ -127,6 +143,57 @@ struct WindowFrameCalculationTests {
         // Size should be preserved
         #expect(result.size.width == windowSize.width)
         #expect(result.size.height == windowSize.height)
+    }
+
+    @Test("left and right halves together cover full width")
+    func leftAndRightHalvesCoverFullWidth() {
+        let left = calculateFrame(for: .left, in: visibleFrame)
+        let right = calculateFrame(for: .right, in: visibleFrame)
+
+        #expect(left.width + right.width == visibleFrame.width)
+        #expect(left.union(right) == visibleFrame)
+    }
+
+    @Test("all four quarters together cover full visible frame")
+    func allFourQuartersCoverFullVisibleFrame() {
+        let topLeft = calculateFrame(for: .topLeft, in: visibleFrame)
+        let topRight = calculateFrame(for: .topRight, in: visibleFrame)
+        let bottomLeft = calculateFrame(for: .bottomLeft, in: visibleFrame)
+        let bottomRight = calculateFrame(for: .bottomRight, in: visibleFrame)
+
+        let combined = topLeft.union(topRight).union(bottomLeft).union(bottomRight)
+        #expect(combined == visibleFrame)
+    }
+
+    @Test("frame calculations with non-zero origin")
+    func frameCalculationsWithNonZeroOrigin() {
+        // Simulate an external monitor with non-zero origin
+        let externalFrame = CGRect(x: 100, y: 50, width: 1920, height: 1055)
+
+        let left = calculateFrame(for: .left, in: externalFrame)
+        #expect(left == CGRect(x: 100, y: 50, width: 960, height: 1055))
+
+        let right = calculateFrame(for: .right, in: externalFrame)
+        #expect(right == CGRect(x: 1060, y: 50, width: 960, height: 1055))
+
+        let maximize = calculateFrame(for: .maximize, in: externalFrame)
+        #expect(maximize == externalFrame)
+    }
+
+    @Test("center with window larger than screen clips to screen")
+    func centerWithLargerWindowPositionsCorrectly() {
+        let largeFrame = CGRect(x: 0, y: 0, width: 2500, height: 1500)
+
+        let result = calculateFrameWithCurrentFrame(for: .center, in: visibleFrame, currentFrame: largeFrame)
+
+        // Center formula: x + (width - currentFrame.width) / 2 => 0 + (1920 - 2500) / 2 = -290
+        let expectedX = (1920.0 - 2500.0) / 2.0
+        let expectedY = (1055.0 - 1500.0) / 2.0
+        #expect(abs(result.origin.x - expectedX) < 0.01)
+        #expect(abs(result.origin.y - expectedY) < 0.01)
+        // Size preserved (the window size itself, not clipped)
+        #expect(result.size.width == largeFrame.width)
+        #expect(result.size.height == largeFrame.height)
     }
 
     // Helper: Simplified frame calculation (mirrors WindowManager logic)

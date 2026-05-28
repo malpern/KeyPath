@@ -176,6 +176,48 @@ struct OutputActionGroupingTests {
             #expect(allIDs.contains(id), "\(id) must exist in SystemActionInfo.allActions")
         }
     }
+
+    // MARK: - Action property validation
+
+    @Test("every action has non-empty label")
+    func everyActionHasNonEmptyLabel() {
+        for group in OutputActionGrouping.detailed {
+            for action in group.actions {
+                #expect(!action.name.isEmpty, "\(action.id) should have a non-empty name")
+            }
+        }
+    }
+
+    @Test("every action has non-empty icon")
+    func everyActionHasNonEmptyIcon() {
+        for group in OutputActionGrouping.detailed {
+            for action in group.actions {
+                #expect(!action.sfSymbol.isEmpty, "\(action.id) should have a non-empty sfSymbol")
+            }
+        }
+    }
+
+    @Test("SystemActionInfo.allActions count is at least 15")
+    func allActionsCountIsReasonable() {
+        #expect(SystemActionInfo.allActions.count >= 15, "Expected at least 15 system actions")
+    }
+
+    @Test("action kanata outputs are non-empty")
+    func actionKanataOutputsAreNonEmpty() {
+        for action in SystemActionInfo.allActions {
+            #expect(!action.kanataOutput.isEmpty, "\(action.id) should have non-empty kanataOutput")
+        }
+    }
+
+    @Test("no duplicate action labels across all groups")
+    func noDuplicateActionLabelsAcrossGroups() {
+        let allNames = OutputActionGrouping.detailed.flatMap { $0.actions.map(\.name) }
+        var seen = Set<String>()
+        for name in allNames {
+            #expect(!seen.contains(name), "Duplicate action label found: \(name)")
+            seen.insert(name)
+        }
+    }
 }
 
 // MARK: - KeystrokePresetGridView
@@ -226,6 +268,20 @@ struct KeystrokePresetGridViewTests {
             let action = KeyAction.keystroke(key: preset.key)
             let info = action.commonDisplayInfo
             #expect(info != nil, "\(preset.key) should have commonDisplayInfo")
+        }
+    }
+
+    @Test("preset labels are unique")
+    func presetLabelsAreUnique() {
+        let labels = KeystrokePresetGridView.presets.map(\.label)
+        #expect(Set(labels).count == labels.count, "Preset labels must be unique")
+    }
+
+    @Test("preset icons are valid SF Symbol names")
+    func presetIconsAreValidSFSymbolNames() {
+        for preset in KeystrokePresetGridView.presets {
+            #expect(!preset.icon.isEmpty, "\(preset.label) should have a non-empty icon")
+            #expect(!preset.icon.contains(" "), "\(preset.label) icon '\(preset.icon)' should not contain spaces")
         }
     }
 }
