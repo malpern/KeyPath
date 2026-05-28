@@ -54,6 +54,8 @@ final class StuckKeyRecoveryService {
             guard let self else { return }
             defer { self.isRecovering = false }
 
+            await writeDiagnosticSnapshot(correlation)
+
             if let restart = restartKanata {
                 let success = await restart("Stuck key recovery (\(correlation.key))")
                 lastRecoveryAt = Date()
@@ -67,4 +69,106 @@ final class StuckKeyRecoveryService {
             }
         }
     }
+
+    // MARK: - Diagnostic Snapshot
+
+    private func writeDiagnosticSnapshot(_ correlation: InvestigationSystemEventCorrelation) async {
+        let tracker = await DuplicateKeyInvestigationTracker.shared.snapshot(
+            phase: "stuck-key-recovery",
+            reason: "key=\(correlation.key) ms_since_kanata=\(correlation.msSinceAnyKanataEvent ?? -1)"
+        )
+
+        let lastRecoveryDescription = lastRecoveryAt.map { ISO8601DateFormatter().string(from: $0) } ?? "never"
+
+        let snapshot = DiagnosticSnapshotData(
+            correlation: correlation,
+            tracker: tracker,
+            lastRecoveryDescription: lastRecoveryDescription
+        )
+
+        await Task.detached(priority: .utility) {
+            Self.writeSnapshotToDisk(snapshot)
+        }.value
+    }
+
+    private nonisolated static func writeSnapshotToDisk(_ snapshot: DiagnosticSnapshotData) {
+        let diagnosticsDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Logs/KeyPath/stuck-key-incidents")
+
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let safeTimestamp = timestamp.replacingOccurrences(of: ":", with: "-")
+        let filename = "stuck-key-\(safeTimestamp).log"
+        let fileURL = diagnosticsDir.appendingPathComponent(filename)
+
+        var lines: [String] = []
+        lines.append("=== Stuck Key Incident ===")
+        lines.append("timestamp: \(timestamp)")
+        lines.append("stuck_key: \(snapshot.correlation.key) (keycode \(snapshot.correlation.keyCode))")
+        lines.append("ms_since_any_kanata_event: \(snapshot.correlation.msSinceAnyKanataEvent ?? -1)")
+        lines.append("same_key_gap_ms: \(snapshot.correlation.sameKeyGapMs.map(String.init) ?? "nil")")
+        lines.append("previous_kanata_action: \(snapshot.correlation.previousKanataAction?.rawValue ?? "none")")
+        lines.append("previous_kanata_session: \(snapshot.correlation.previousKanataSessionID.map(String.init) ?? "none")")
+        lines.append("event_type: \(snapshot.correlation.eventType)")
+        lines.append("is_autorepeat: \(snapshot.correlation.isAutorepeat)")
+        lines.append("source_pid: \(snapshot.correlation.sourcePID.map(String.init) ?? "none")")
+        lines.append("")
+        lines.append("=== Held Keys at Recovery ===")
+        if snapshot.tracker.heldKeys.isEmpty {
+            lines.append("(none tracked)")
+        } else {
+            for held in snapshot.tracker.heldKeys {
+                lines.append("  \(held.key): held for \(held.heldDurationMs)ms")
+            }
+        }
+        lines.append("ms_since_last_key_event: \(snapshot.tracker.msSinceLastEvent.map(String.init) ?? "nil")")
+        lines.append("session_id: \(snapshot.tracker.sessionID.map(String.init) ?? "none")")
+        lines.append("")
+
+        lines.append("=== Kanata Stderr (last 50 lines) ===")
+        if let data = FileManager.default.contents(atPath: "/var/log/com.keypath.kanata.stderr.log"),
+           let content = String(data: data, encoding: .utf8) {
+            lines.append(contentsOf: content.components(separatedBy: .newlines).suffix(50))
+        } else {
+            lines.append("(file not readable)")
+        }
+        lines.append("")
+
+        lines.append("=== Recovery History ===")
+        lines.append("last_recovery_at: \(snapshot.lastRecoveryDescription)")
+        lines.append("")
+
+        do {
+            try FileManager.default.createDirectory(at: diagnosticsDir, withIntermediateDirectories: true)
+            try lines.joined(separator: "\n").write(to: fileURL, atomically: true, encoding: .utf8)
+            AppLogger.shared.info("[StuckKeyRecovery] Diagnostic snapshot written to \(fileURL.path)")
+        } catch {
+            AppLogger.shared.error("[StuckKeyRecovery] Failed to write diagnostic snapshot: \(error)")
+        }
+
+        // Keep at most 20 incident files
+        if let files = try? FileManager.default.contentsOfDirectory(
+            at: diagnosticsDir,
+            includingPropertiesForKeys: [.creationDateKey],
+            options: .skipsHiddenFiles
+        ) {
+            let sorted = files
+                .compactMap { url -> (URL, Date)? in
+                    guard let date = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate else {
+                        return nil
+                    }
+                    return (url, date)
+                }
+                .sorted { $0.1 > $1.1 }
+
+            for (url, _) in sorted.dropFirst(20) {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+    }
+}
+
+private struct DiagnosticSnapshotData: Sendable {
+    let correlation: InvestigationSystemEventCorrelation
+    let tracker: InvestigationReloadSnapshot
+    let lastRecoveryDescription: String
 }

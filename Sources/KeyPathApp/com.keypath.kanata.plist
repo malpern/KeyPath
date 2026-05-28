@@ -46,9 +46,28 @@
         <integer>1024</integer>
     </dict>
 
+    <!-- Keyboard input processing is latency-critical — treat this daemon like
+         an interactive app so macOS does not throttle CPU, I/O, or timers under load.
+         Without this, the daemon runs at Standard priority and the processing thread
+         can be starved by background work (compilation, Spotlight indexing), causing
+         stuck keys when release events are delayed. -->
+    <key>ProcessType</key>
+    <string>Interactive</string>
+
+    <!-- Disable macOS timer coalescing. The kanata processing loop uses a 1ms tick
+         timer for tap-hold timeouts; coalescing adds unpredictable jitter that can
+         extend tap-hold windows long enough for macOS to fire autorepeat. -->
+    <key>LegacyTimers</key>
+    <true/>
+
+    <!-- If kanata is hung and won't respond to SIGTERM, kill it after 5s instead of
+         the default 20s. A keyboard daemon that can't shut down in 5s is stuck. -->
+    <key>ExitTimeOut</key>
+    <integer>5</integer>
+
     <key>ThrottleInterval</key>
     <integer>10</integer>
-    
+
     <key>AssociatedBundleIdentifiers</key>
     <array>
         <string>com.keypath.KeyPath</string>
