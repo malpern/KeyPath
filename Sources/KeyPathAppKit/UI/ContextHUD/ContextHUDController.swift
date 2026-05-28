@@ -9,47 +9,40 @@ import SwiftUI
 final class ContextHUDController {
     static let shared = ContextHUDController()
 
-    private var window: ContextHUDWindow?
-    private var hostingView: NSHostingView<ContextHUDView>?
-    private let viewModel = ContextHUDViewModel()
-    private let layerKeyMapper = LayerKeyMapper.shared
-    private let kindaVimStateAdapter = KindaVimStateAdapter.shared
-    private var hasStartedKindaVimStateMonitoring = false
+    var window: ContextHUDWindow?
+    var hostingView: NSHostingView<ContextHUDView>?
+    let viewModel = ContextHUDViewModel()
+    let layerKeyMapper = LayerKeyMapper.shared
+    let kindaVimStateAdapter = KindaVimStateAdapter.shared
+    var hasStartedKindaVimStateMonitoring = false
 
-    /// Cached "is the KindaVim Mode Display pack installed?" flag. Refreshed
-    /// on .installedPacksChanged so the layer-change hot path doesn't have
-    /// to await the tracker actor.
-    private var kindaVimPackInstalled = false
+    var kindaVimPackInstalled = false
 
-    private var dismissTask: Task<Void, Never>?
-    private var layerMapTask: Task<Void, Never>?
+    var dismissTask: Task<Void, Never>?
+    var layerMapTask: Task<Void, Never>?
     private var previousLayer: String = "base"
 
-    /// Cached hold labels per layer name (avoids Phase 2 jump on repeat activations)
-    private var holdLabelCache: [String: [UInt16: String]] = [:]
-
-    /// Cached enabled collections (avoids ~200ms disk I/O per layer activation)
-    private var cachedEnabledCollections: [RuleCollection]?
+    var holdLabelCache: [String: [UInt16: String]] = [:]
+    var cachedEnabledCollections: [RuleCollection]?
 
     private let oneShotOverride = OneShotLayerOverrideState(
         timeoutDuration: .seconds(5)
     )
 
-    private static let modifierKeys: Set<String> = [
+    static let modifierKeys: Set<String> = [
         "leftshift", "rightshift", "leftalt", "rightalt",
         "leftctrl", "rightctrl", "leftmeta", "rightmeta",
         "capslock", "fn"
     ]
 
-    /// Background precompute task (cancelled on config change)
-    private var precomputeTask: Task<Void, Never>?
+    var precomputeTask: Task<Void, Never>?
 
     // MARK: - Backtick cheat-sheet trigger
 
-    private var backtickMonitor: Any?
-    private var cheatSheetDismissKeyMonitor: Any?
-    private var cheatSheetDismissClickMonitor: Any?
-    private var cheatSheetVisible = false
+    var backtickMonitor: Any?
+    var cheatSheetDismissKeyMonitor: Any?
+    var cheatSheetDismissClickMonitor: Any?
+    var cheatSheetVisible = false
 
     private init() {
         setupNotificationObservers()
@@ -303,8 +296,7 @@ final class ContextHUDController {
 
     // MARK: - Collection Cache
 
-    /// Load enabled collections, using in-memory cache when available
-    private func loadEnabledCollections() async -> [RuleCollection] {
+    func loadEnabledCollections() async -> [RuleCollection] {
         if let cached = cachedEnabledCollections {
             return cached
         }
@@ -324,540 +316,17 @@ final class ContextHUDController {
 
     // MARK: - Background Precompute
 
-    /// Layers to precompute in the background (most commonly activated)
-    private static let precomputeLayers = ["nav", "launcher"]
+    static let precomputeLayers = ["nav", "launcher"]
 
-    /// Warm the LayerKeyMapper cache and hold labels for common layers
-    /// so the first activation is instant. Runs entirely off the main thread.
-    /// - Parameter debounce: Whether to debounce (use on config change, skip on startup)
-    private func precomputeNavLayer(debounce: Bool = false) {
-        precomputeTask?.cancel()
-        precomputeTask = Task { [weak self] in
-            guard let self else { return }
-            if debounce {
-                try? await Task.sleep(for: .seconds(2))
-                guard !Task.isCancelled else { return }
-            }
-
-            AppLogger.shared.info("🎯 [ContextHUD] Background precompute starting")
-
-            let configPath = WizardSystemPaths.userConfigPath
-            let enabledCollections = await loadEnabledCollections()
-            let layoutId = UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey) ?? LayoutPreferences.defaultLayoutId
-            let layout = PhysicalLayout.find(id: layoutId) ?? .macBookUS
-
-            for layerName in Self.precomputeLayers {
-                guard !Task.isCancelled else { return }
-
-                do {
-                    if layerName == "launcher" {
-                        let keyMap = buildLauncherKeyMap(from: enabledCollections)
-                        await preloadLauncherIcons(keyMap: keyMap)
-                        AppLogger.shared.info("🎯 [ContextHUD] Precomputed launcher icons")
-                    } else {
-                        // Warm the simulator cache
-                        let (keyMap, _) = try await layerKeyMapper.getMapping(
-                            for: layerName,
-                            configPath: configPath,
-                            layout: layout,
-                            collections: enabledCollections
-                        )
-                        guard !Task.isCancelled else { return }
-
-                        // Warm the hold label cache
-                        if FeatureFlags.simulatorAndVirtualKeysEnabled {
-                            let holdLabels = await resolveHoldLabels(
-                                keyMap: keyMap,
-                                configPath: configPath,
-                                layerName: layerName
-                            )
-                            guard !Task.isCancelled else { return }
-                            if !holdLabels.isEmpty {
-                                holdLabelCache[layerName] = holdLabels
-                            }
-                        }
-                        AppLogger.shared.info("🎯 [ContextHUD] Precomputed layer '\(layerName)'")
-                    }
-                } catch {
-                    AppLogger.shared.debug("🎯 [ContextHUD] Precompute failed for '\(layerName)': \(error)")
-                }
-            }
-
-            AppLogger.shared.info("🎯 [ContextHUD] Background precompute complete")
-        }
-    }
-
-    // MARK: - Show / Dismiss
-
-    private func showForLayer(_ layerName: String) {
-        // Respect the user's per-app suppression list — if the frontmost
-        // app is listed (e.g. Figma), skip showing the HUD entirely. Also
-        // dismiss if it's already up, for apps the user just activated.
-        if let frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
-           PreferencesService.shared.overlaySuppressedBundleIDs.contains(frontBundle)
-        {
-            dismiss()
-            return
-        }
-        // Cancel any pending dismiss
-        dismissTask?.cancel()
-        dismissTask = nil
-
-        // Cancel any in-flight mapping task
-        layerMapTask?.cancel()
-
-        layerMapTask = Task { [weak self] in
-            guard let self else { return }
-
-            do {
-                let configPath = WizardSystemPaths.userConfigPath
-                let enabledCollections = await loadEnabledCollections()
-
-                // Get the active layout
-                let layoutId = UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey) ?? LayoutPreferences.defaultLayoutId
-                let layout = PhysicalLayout.find(id: layoutId) ?? .macBookUS
-
-                let normalizedLayerName = layerName.lowercased()
-                let frontmostBundleIdentifier = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-                let isApprovedNeovimTerminal = NeovimTerminalScope.isApprovedTerminal(
-                    bundleIdentifier: frontmostBundleIdentifier
-                )
-                let scopedEnabledCollections = isApprovedNeovimTerminal
-                    ? enabledCollections
-                    : enabledCollections.filter { $0.id != RuleCollectionIdentifier.neovimTerminal }
-
-                // Build launcher keyMap from collections (not simulator).
-                // The kanata simulator cannot capture push-msg events, so launcher
-                // keys appear transparent when simulated. Build from config directly.
-                let collectionLauncherKeyMap = buildLauncherKeyMap(from: scopedEnabledCollections)
-
-                let keyMap: [UInt16: LayerKeyInfo]
-                let launcherKeyMap: [UInt16: LayerKeyInfo]? = nil
-
-                if normalizedLayerName == "launcher" {
-                    // Launcher layer: use collection-built keyMap as primary
-                    keyMap = collectionLauncherKeyMap
-
-                    // Preload all app icons and favicons before showing,
-                    // so the layout doesn't jitter as icons load async
-                    await preloadLauncherIcons(keyMap: keyMap)
-                } else {
-                    // Other layers: use simulator for primary keyMap
-                    keyMap = try await layerKeyMapper.getMapping(
-                        for: layerName,
-                        configPath: configPath,
-                        layout: layout,
-                        collections: scopedEnabledCollections,
-                        cacheKeySuffix: "neovim-scope-\(isApprovedNeovimTerminal ? "approved" : "fallback")"
-                    ).mapping
-                }
-
-                guard !Task.isCancelled else { return }
-
-                var effectiveKeyMap = keyMap
-                let hasRawNeovimEntries = keyMap.values.contains {
-                    $0.collectionId == RuleCollectionIdentifier.neovimTerminal
-                }
-                if hasRawNeovimEntries, !isApprovedNeovimTerminal {
-                    effectiveKeyMap = keyMap.filter { _, info in
-                        info.collectionId != RuleCollectionIdentifier.neovimTerminal
-                    }
-                }
-
-                guard !Task.isCancelled else { return }
-
-                let hasRenderableEntries = effectiveKeyMap.values.contains { info in
-                    !info.isTransparent && !info.isLayerSwitch
-                }
-
-                if effectiveKeyMap.isEmpty || !hasRenderableEntries {
-                    if hasRawNeovimEntries, !isApprovedNeovimTerminal {
-                        AppLogger.shared.info(
-                            "🎯 [ContextHUD] Suppressing Neovim HUD outside approved terminals (frontmost=\(frontmostBundleIdentifier ?? "nil"))"
-                        )
-                    }
-                    dismiss()
-                    return
-                }
-
-                // Resolve content style based on the layer's own content
-                let resolvedStyle = HUDContentResolver.resolve(
-                    layerName: layerName,
-                    keyMap: effectiveKeyMap,
-                    collections: scopedEnabledCollections
-                )
-
-                // KindaVim cheat sheet is triggered by backtick in normal
-                // mode, not by leader-hold layer changes.
-                let shouldUseKindaVimLearningStyle = false
-
-                let hasNeovimEntries = effectiveKeyMap.values.contains { $0.collectionId == RuleCollectionIdentifier.neovimTerminal }
-                let shouldUseNeovimStyle = normalizedLayerName == "nav" &&
-                    hasNeovimEntries &&
-                    isApprovedNeovimTerminal
-
-                if shouldUseKindaVimLearningStyle, !hasStartedKindaVimStateMonitoring {
-                    kindaVimStateAdapter.startMonitoring()
-                    hasStartedKindaVimStateMonitoring = true
-                }
-
-                let style: HUDContentStyle = if shouldUseKindaVimLearningStyle {
-                    .kindaVimLearning
-                } else if shouldUseNeovimStyle {
-                    .neovimTerminal
-                } else {
-                    resolvedStyle
-                }
-
-                guard !Task.isCancelled else { return }
-
-                // Resolve hold labels: use cache or fetch before showing
-                var holdLabels = holdLabelCache[normalizedLayerName] ?? [:]
-
-                if holdLabels.isEmpty, FeatureFlags.simulatorAndVirtualKeysEnabled {
-                    holdLabels = await resolveHoldLabels(
-                        keyMap: effectiveKeyMap,
-                        configPath: configPath,
-                        layerName: layerName
-                    )
-                    guard !Task.isCancelled else { return }
-                    if !holdLabels.isEmpty {
-                        holdLabelCache[normalizedLayerName] = holdLabels
-                    }
-                }
-
-                guard !Task.isCancelled else { return }
-
-                // Show HUD with complete data (tap + hold labels)
-                viewModel.update(
-                    layerName: layerName,
-                    keyMap: effectiveKeyMap,
-                    collections: scopedEnabledCollections,
-                    style: style,
-                    holdLabels: holdLabels,
-                    launcherKeyMap: launcherKeyMap,
-                    kindaVimState: nil,
-                    kindaVimLeaderHUDMode: .off
-                )
-
-                showWindow()
-            } catch {
-                AppLogger.shared.error("🎯 [ContextHUD] Failed to build layer mapping: \(error)")
-            }
-        }
-    }
+    // showForLayer, resolveHoldLabels, precomputeNavLayer → ContextHUDController+ShowForLayer.swift
+    // showWindow, dismiss, scheduleDismiss, createWindow, positionWindow → ContextHUDController+Window.swift
+    // buildLauncherKeyMap, preloadLauncherIcons → ContextHUDController+Window.swift
+    // startBacktickMonitor, handleBacktickCandidate, showKindaVimCheatSheet → ContextHUDController+Window.swift
+    // installCheatSheetDismissMonitors, dismissCheatSheet → ContextHUDController+Window.swift
 
     private func refreshKindaVimPackInstalled() async {
         let installed = await InstalledPackTracker.shared
             .isInstalled(packID: PackRegistry.kindaVim.id)
         await MainActor.run { self.kindaVimPackInstalled = installed }
-    }
-
-    /// Resolve hold labels for tap-hold keys via simulator
-    private func resolveHoldLabels(
-        keyMap: [UInt16: LayerKeyInfo],
-        configPath: String,
-        layerName: String
-    ) async -> [UInt16: String] {
-        // Filter to non-transparent, non-layer-switch keys
-        let candidates = keyMap.filter { _, info in
-            !info.isTransparent && !info.isLayerSwitch
-        }
-        guard !candidates.isEmpty else { return [:] }
-
-        var result: [UInt16: String] = [:]
-        await withTaskGroup(of: (UInt16, String?).self) { group in
-            for (keyCode, info) in candidates {
-                group.addTask { [layerKeyMapper] in
-                    do {
-                        let label = try await layerKeyMapper.holdDisplayLabel(
-                            for: keyCode,
-                            configPath: configPath,
-                            startLayer: layerName
-                        )
-                        // Filter out hold == tap (not a real tap-hold)
-                        if let label, label != info.displayLabel {
-                            return (keyCode, label)
-                        }
-                        return (keyCode, nil)
-                    } catch {
-                        return (keyCode, nil)
-                    }
-                }
-            }
-            for await (keyCode, label) in group {
-                if let label {
-                    result[keyCode] = label
-                }
-            }
-        }
-        return result
-    }
-
-    private func showWindow() {
-        if window == nil {
-            createWindow()
-        }
-
-        guard let window else { return }
-
-        // Update the hosting view content and force initial layout pass
-        if let hostingView {
-            hostingView.rootView = ContextHUDView(viewModel: viewModel)
-            hostingView.needsLayout = true
-            hostingView.layoutSubtreeIfNeeded()
-        }
-
-        // Hide content immediately — prevents flash of stale layout
-        window.contentView?.alphaValue = 0
-
-        // Defer to next runloop iteration so SwiftUI fully settles its layout.
-        // Without this, fittingSize can be stale on first view causing a visible jump.
-        DispatchQueue.main.async { [weak self] in
-            guard let self, let window = self.window else { return }
-
-            // Second layout pass after SwiftUI has settled
-            if let hostingView {
-                hostingView.invalidateIntrinsicContentSize()
-                hostingView.layoutSubtreeIfNeeded()
-            }
-
-            // Size and position with accurate fittingSize
-            positionWindow()
-
-            // Animate in: scale + fade
-            if let contentView = window.contentView {
-                contentView.wantsLayer = true
-                contentView.layer?.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-                let bounds = contentView.bounds
-                contentView.layer?.position = CGPoint(x: bounds.midX, y: bounds.midY)
-
-                contentView.layer?.transform = CATransform3DMakeScale(0.95, 0.95, 1.0)
-                contentView.alphaValue = 0
-
-                window.orderFront(nil)
-
-                NSAnimationContext.runAnimationGroup { context in
-                    context.duration = 0.15
-                    context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                    contentView.animator().alphaValue = 1.0
-                    contentView.layer?.transform = CATransform3DIdentity
-                }
-            } else {
-                window.orderFront(nil)
-            }
-
-            AppLogger.shared.debug("🎯 [ContextHUD] Showing HUD for layer '\(viewModel.layerName)'")
-        }
-    }
-
-    private func dismiss() {
-        dismissTask?.cancel()
-        dismissTask = nil
-
-        guard let window, window.isVisible else { return }
-
-        // Animate out: scale + fade
-        if let contentView = window.contentView {
-            contentView.wantsLayer = true
-            contentView.layer?.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-            let bounds = contentView.bounds
-            contentView.layer?.position = CGPoint(x: bounds.midX, y: bounds.midY)
-
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.12
-                context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-                contentView.animator().alphaValue = 0
-                contentView.layer?.transform = CATransform3DMakeScale(0.95, 0.95, 1.0)
-            } completionHandler: {
-                Task { @MainActor in
-                    window.orderOut(nil)
-                    // Reset for next show
-                    contentView.alphaValue = 1.0
-                    contentView.layer?.transform = CATransform3DIdentity
-                }
-            }
-        } else {
-            window.orderOut(nil)
-        }
-
-        AppLogger.shared.debug("🎯 [ContextHUD] Dismissed")
-    }
-
-    private func scheduleDismiss() {
-        dismissTask?.cancel()
-        let timeout = PreferencesService.shared.contextHUDTimeout
-        dismissTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(timeout))
-            guard !Task.isCancelled else { return }
-            self?.dismiss()
-        }
-    }
-
-    // MARK: - Launcher KeyMap from Collections
-
-    /// Build a launcher keyMap directly from LauncherGridConfig in rule collections.
-    /// The kanata simulator cannot capture push-msg events, so launcher keys appear
-    /// transparent when simulated. This bypasses the simulator entirely.
-    private func buildLauncherKeyMap(from collections: [RuleCollection]) -> [UInt16: LayerKeyInfo] {
-        guard let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
-              let config = launcherCollection.configuration.launcherGridConfig
-        else {
-            return [:]
-        }
-
-        var keyMap: [UInt16: LayerKeyInfo] = [:]
-        let collectionId = launcherCollection.id
-
-        for mapping in config.mappings where mapping.isEnabled {
-            guard let keyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(mapping.key) else {
-                continue
-            }
-
-            let info: LayerKeyInfo = switch mapping.action {
-            case let .launchApp(name, bundleId):
-                .appLaunch(appIdentifier: bundleId ?? name, collectionId: collectionId)
-            case let .openURL(urlString):
-                .webURL(url: urlString, collectionId: collectionId)
-            case .openFolder, .runScript:
-                .pushMsg(message: mapping.action.displayName, collectionId: collectionId)
-            default:
-                .pushMsg(message: mapping.action.displayName, collectionId: collectionId)
-            }
-
-            keyMap[keyCode] = info
-        }
-
-        return keyMap
-    }
-
-    /// Preload app icons and favicons so the launcher HUD doesn't jitter
-    private func preloadLauncherIcons(keyMap: [UInt16: LayerKeyInfo]) async {
-        await withTaskGroup(of: Void.self) { group in
-            for (_, info) in keyMap {
-                if let appId = info.appLaunchIdentifier {
-                    // App icons are synchronous (already cached by IconResolverService)
-                    _ = IconResolverService.shared.resolveAppIcon(for: appId)
-                }
-                if let url = info.urlIdentifier {
-                    // Favicons are async — preload them
-                    group.addTask {
-                        await IconResolverService.shared.preloadIcon(for: .url(url))
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Window Creation & Positioning
-
-    private func createWindow() {
-        let hudView = ContextHUDView(viewModel: viewModel)
-        let hosting = NSHostingView(rootView: hudView)
-        hosting.setFrameSize(NSSize(width: 400, height: 240))
-
-        let newWindow = ContextHUDWindow(contentView: hosting)
-        hostingView = hosting
-        window = newWindow
-    }
-
-    private func positionWindow() {
-        guard let window, let screen = NSScreen.main else { return }
-
-        let screenFrame = screen.visibleFrame
-
-        // Size to fit content. Cap at the available screen width (with a
-        // margin) so multi-group HUDs with many entries still fit on-screen
-        // without clipping, instead of hitting a hardcoded 1100pt ceiling.
-        if let hostingView {
-            // Force SwiftUI layout pass so fittingSize reflects current content,
-            // not stale layout from a previous show/update cycle.
-            hostingView.invalidateIntrinsicContentSize()
-            hostingView.layoutSubtreeIfNeeded()
-
-            let fittingSize = hostingView.fittingSize
-            let horizontalMargin: CGFloat = 64
-            let verticalMargin: CGFloat = 80
-            let maxWidth = max(600, screenFrame.width - horizontalMargin)
-            let maxHeight = max(400, screenFrame.height - verticalMargin)
-            let width = min(max(fittingSize.width, 240), maxWidth)
-            let height = min(max(fittingSize.height, 100), maxHeight)
-            window.setContentSize(NSSize(width: width, height: height))
-        }
-
-        // Position at center of screen
-        let windowFrame = window.frame
-        let x = screenFrame.midX - (windowFrame.width / 2)
-        let y = screenFrame.midY - (windowFrame.height / 2)
-        window.setFrameOrigin(NSPoint(x: x, y: y))
-    }
-
-    // MARK: - Backtick cheat-sheet trigger
-
-    private func startBacktickMonitor() {
-        backtickMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            Task { @MainActor in
-                self?.handleBacktickCandidate(event)
-            }
-        }
-    }
-
-    private func handleBacktickCandidate(_ event: NSEvent) {
-        guard !cheatSheetVisible,
-              kindaVimPackInstalled,
-              event.charactersIgnoringModifiers == "`",
-              event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty,
-              KindaVimStateAdapter.shared.state.mode == .normal
-        else { return }
-
-        showKindaVimCheatSheet()
-    }
-
-    private func showKindaVimCheatSheet() {
-        cheatSheetVisible = true
-
-        if !hasStartedKindaVimStateMonitoring {
-            kindaVimStateAdapter.startMonitoring()
-            hasStartedKindaVimStateMonitoring = true
-        }
-
-        viewModel.update(
-            layerName: "nav",
-            keyMap: [:],
-            collections: [],
-            style: .kindaVimLearning,
-            holdLabels: [:],
-            launcherKeyMap: [:],
-            kindaVimState: kindaVimStateAdapter.state,
-            kindaVimLeaderHUDMode: .cheatSheetOnly
-        )
-
-        showWindow()
-        installCheatSheetDismissMonitors()
-    }
-
-    private func installCheatSheetDismissMonitors() {
-        cheatSheetDismissKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] _ in
-            Task { @MainActor in
-                self?.dismissCheatSheet()
-            }
-        }
-        cheatSheetDismissClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            Task { @MainActor in
-                self?.dismissCheatSheet()
-            }
-        }
-    }
-
-    private func dismissCheatSheet() {
-        guard cheatSheetVisible else { return }
-        cheatSheetVisible = false
-
-        if let m = cheatSheetDismissKeyMonitor { NSEvent.removeMonitor(m) }
-        if let m = cheatSheetDismissClickMonitor { NSEvent.removeMonitor(m) }
-        cheatSheetDismissKeyMonitor = nil
-        cheatSheetDismissClickMonitor = nil
-
-        dismiss()
     }
 }

@@ -8,43 +8,35 @@ import SwiftUI
 
 struct RulesTabView: View {
     @Environment(KanataViewModel.self) var kanataManager
-    @Environment(\.services) private var services
+    @Environment(\.services) var services
     @State private var searchQuery = ""
-    @State private var recommendationFocusCollectionId: UUID?
+    @State var recommendationFocusCollectionId: UUID?
     @State private var showingResetConfirmation = false
     @State private var showingNewRuleSheet = false
-    @State private var settingsToastManager = WizardToastManager()
+    @State var settingsToastManager = WizardToastManager()
     @State private var createButtonHovered = false
-    /// Stable sort order captured when view appears (enabled collections first)
-    @State private var stableSortOrder: [UUID] = []
-    /// Track pending selections for immediate UI feedback (before backend confirms)
+    @State var stableSortOrder: [UUID] = []
     @State var pendingSelections: [UUID: String] = [:]
-    /// Track pending toggle states for immediate UI feedback
     @State var pendingToggles: [UUID: Bool] = [:]
-    @State private var showingHomeRowModsHelp = false
-    @State private var homeRowModsEditState: HomeRowModsEditState?
-    @State private var homeRowLayerTogglesEditState: HomeRowLayerTogglesEditState?
-    @State private var chordGroupsEditState: ChordGroupsEditState?
-    @State private var sequencesEditState: SequencesEditState?
-    @State private var appKeymaps: [AppKeymap] = []
-    @State private var isKindaVimInstalled = false
-    @State private var isKeystrokeHistoryInstalled = false
-    /// Dependency resolution: pack awaiting enable confirmation
-    @State private var pendingEnablePack: Pack?
-    @State private var pendingEnableUnmetDeps: [UnmetDependency] = []
-    /// Dependency resolution: pack awaiting disable confirmation
-    @State private var pendingDisablePack: Pack?
-    @State private var pendingDisableDependents: [Pack] = []
-    /// Tracks packs with unmet dependencies (for warning badges)
-    @State private var unmetDependencyMap: [String: [UnmetDependency]] = [:]
-    /// Maps collection IDs to managing pack info (for installed packs only)
-    @State private var collectionOwnershipMap: [UUID: (packID: String, packName: String)] = [:]
-    /// Alert: collection whose toggle was tapped while managed by a pack
-    @State private var managedToggleCollection: RuleCollection?
+    @State var showingHomeRowModsHelp = false
+    @State var homeRowModsEditState: HomeRowModsEditState?
+    @State var homeRowLayerTogglesEditState: HomeRowLayerTogglesEditState?
+    @State var chordGroupsEditState: ChordGroupsEditState?
+    @State var sequencesEditState: SequencesEditState?
+    @State var appKeymaps: [AppKeymap] = []
+    @State var isKindaVimInstalled = false
+    @State var isKeystrokeHistoryInstalled = false
+    @State var pendingEnablePack: Pack?
+    @State var pendingEnableUnmetDeps: [UnmetDependency] = []
+    @State var pendingDisablePack: Pack?
+    @State var pendingDisableDependents: [Pack] = []
+    @State var unmetDependencyMap: [String: [UnmetDependency]] = [:]
+    @State var collectionOwnershipMap: [UUID: (packID: String, packName: String)] = [:]
+    @State var managedToggleCollection: RuleCollection?
     private let catalog = RuleCollectionCatalog()
 
     /// Total count of custom rules (everywhere + app-specific)
-    private var isWindowSnappingOnLauncher: Bool {
+    var isWindowSnappingOnLauncher: Bool {
         guard let ws = kanataManager.ruleCollections.first(where: { $0.id == RuleCollectionIdentifier.windowSnapping }),
               ws.isEnabled
         else { return false }
@@ -102,11 +94,11 @@ struct RulesTabView: View {
         }
     }
 
-    private var trimmedSearchQuery: String {
+    var trimmedSearchQuery: String {
         searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var isSearching: Bool {
+    var isSearching: Bool {
         !trimmedSearchQuery.isEmpty
     }
 
@@ -183,8 +175,7 @@ struct RulesTabView: View {
             .map { $0 }
     }
 
-    /// Compute sort order: grouped by category, then enabled first within each category
-    private func computeSortOrder() -> [UUID] {
+    func computeSortOrder() -> [UUID] {
         // Group by category, sort categories by sortOrder
         let grouped = Dictionary(grouping: allCollections, by: \.category)
         var order: [UUID] = []
@@ -217,281 +208,8 @@ struct RulesTabView: View {
         "Custom Rules"
     }
 
-    /// Helper to build a collection row - extracted to simplify type-checking
-    @ViewBuilder
-    private func collectionRow(for collection: RuleCollection, scrollProxy: ScrollViewProxy) -> some View {
-        let style = collection.displayStyle
-        let isSpecializedTable = style == .table && (
-            collection.id == RuleCollectionIdentifier.numpadLayer ||
-                collection.id == RuleCollectionIdentifier.vimNavigation ||
-                collection.id == RuleCollectionIdentifier.windowSnapping ||
-                collection.id == RuleCollectionIdentifier.macFunctionKeys
-        )
-        let needsCollection = style == .singleKeyPicker || style == .homeRowMods || style == .homeRowLayerToggles || style == .tapHoldPicker || style == .layerPresetPicker || style == .launcherGrid ||
-            style == .chordGroups ||
-            style ==
-            .sequences || style == .autoShiftSymbols || isSpecializedTable
-        ExpandableCollectionRow(
-            collectionId: collection.id.uuidString,
-            name: dynamicCollectionName(for: collection),
-            icon: collection.icon ?? "circle",
-            count: style == .singleKeyPicker || style == .tapHoldPicker ? 1 :
-                (style == .layerPresetPicker ? (collection.configuration.layerPresetPickerConfig?.selectedMappings.count ?? 0) : collection.mappings.count),
-            isEnabled: pendingToggles[collection.id] ?? collection.isEnabled,
-            mappings: collection.mappings.map {
-                ($0.input, $0.action.outputString, $0.shiftedOutput, $0.ctrlOutput, $0.description, $0.sectionBreak, $0.sectionLabel, collection.isEnabled, $0.id, nil)
-            },
-            onToggle: { isOn in
-                handleCollectionToggle(collection: collection, isOn: isOn)
-            },
-            onEditMapping: nil,
-            onDeleteMapping: nil,
-            onTapRow: packForCollection(collection).map { pack in
-                { PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: kanataManager) }
-            },
-            description: dynamicCollectionDescription(for: collection),
-            layerActivator: collection.momentaryActivator,
-            leaderKeyDisplay: currentLeaderKeyDisplay,
-            activationHint: dynamicActivationHint(for: collection),
-            managingPackName: collectionOwnershipMap[collection.id]?.packName,
-            onManagedToggleTapped: collectionOwnershipMap[collection.id] != nil ? {
-                managedToggleCollection = collection
-            } : nil,
-            defaultExpanded: recommendationFocusCollectionId == collection.id,
-            displayStyle: style,
-            collection: needsCollection ? collection : nil,
-            onSelectOutput: style == .singleKeyPicker ? { output in
-                pendingSelections[collection.id] = output
-                Task { await kanataManager.updateCollectionOutput(collection.id, output: output) }
-            } : nil,
-            onSelectTapOutput: style == .tapHoldPicker ? { tap in
-                Task { await kanataManager.updateCollectionTapOutput(collection.id, tapOutput: tap) }
-            } : nil,
-            onSelectHoldOutput: style == .tapHoldPicker ? { hold in
-                Task { await kanataManager.updateCollectionHoldOutput(collection.id, holdOutput: hold) }
-            } : nil,
-            onUpdateHomeRowModsConfig: style == .homeRowMods ? { config in
-                pendingToggles[collection.id] = true
-                Task { await kanataManager.updateHomeRowModsConfig(collectionId: collection.id, config: config) }
-            } : nil,
-            homeRowAvailableLayers: style == .homeRowMods ? availableHomeRowLayers(for: collection) : [],
-            onEnsureHomeRowLayersExist: style == .homeRowMods ? { layerNames in
-                for layerName in layerNames {
-                    await kanataManager.underlyingManager.rulesManager.createLayer(layerName)
-                }
-            } : nil,
-            onEnableLayerCollections: style == .homeRowMods ? { collectionIds in
-                await kanataManager.batchEnableCollections(collectionIds)
-            } : nil,
-            onOpenHomeRowModsModal: style == .homeRowMods ? {
-                homeRowModsEditState = HomeRowModsEditState(collection: collection, selectedKey: nil)
-            } : nil,
-            onOpenHomeRowModsModalWithKey: style == .homeRowMods ? { key in
-                homeRowModsEditState = HomeRowModsEditState(collection: collection, selectedKey: key)
-            } : nil,
-            onUpdateHomeRowLayerTogglesConfig: style == .homeRowLayerToggles ? { config in
-                pendingToggles[collection.id] = true
-                Task { await kanataManager.updateHomeRowLayerTogglesConfig(collectionId: collection.id, config: config) }
-            } : nil,
-            onOpenHomeRowLayerTogglesModal: style == .homeRowLayerToggles ? {
-                homeRowLayerTogglesEditState = HomeRowLayerTogglesEditState(collection: collection, selectedKey: nil)
-            } : nil,
-            onOpenHomeRowLayerTogglesModalWithKey: style == .homeRowLayerToggles ? { key in
-                homeRowLayerTogglesEditState = HomeRowLayerTogglesEditState(collection: collection, selectedKey: key)
-            } : nil,
-            onUpdateChordGroupsConfig: style == .chordGroups ? { config in
-                pendingToggles[collection.id] = true
-                Task { await kanataManager.updateChordGroupsConfig(collectionId: collection.id, config: config) }
-            } : nil,
-            onOpenChordGroupsModal: style == .chordGroups ? {
-                chordGroupsEditState = ChordGroupsEditState(collection: collection)
-            } : nil,
-            onUpdateSequencesConfig: style == .sequences ? { config in
-                pendingToggles[collection.id] = true
-                Task { await kanataManager.updateSequencesConfig(collectionId: collection.id, config: config) }
-            } : nil,
-            onOpenSequencesModal: style == .sequences ? {
-                sequencesEditState = SequencesEditState(collection: collection)
-            } : nil,
-            onSelectLayerPreset: style == .layerPresetPicker ? { presetId in
-                Task { await kanataManager.updateCollectionLayerPreset(collection.id, presetId: presetId) }
-            } : nil,
-            onSelectWindowConvention: collection.id == RuleCollectionIdentifier.windowSnapping ? { convention in
-                Task { await kanataManager.updateWindowKeyConvention(collection.id, convention: convention) }
-            } : nil,
-            onWindowSnappingActivationModeChange: collection.id == RuleCollectionIdentifier.windowSnapping ? { mode in
-                Task {
-                    if let autoEnabled = await kanataManager.updateWindowSnappingActivationMode(collectionId: collection.id, mode: mode) {
-                        settingsToastManager.showSuccess("Also enabled \(autoEnabled)")
-                    }
-                }
-            } : nil,
-            onSelectFunctionKeyMode: collection.id == RuleCollectionIdentifier.macFunctionKeys ? { mode in
-                Task { await kanataManager.updateFunctionKeyMode(collection.id, mode: mode) }
-            } : nil,
-            onLauncherConfigChanged: collection.id == RuleCollectionIdentifier.launcher ? { config in
-                Task { await kanataManager.updateLauncherConfig(collection.id, config: config) }
-            } : nil,
-            windowSnappingActive: isWindowSnappingOnLauncher,
-            onAutoShiftConfigChanged: collection.id == RuleCollectionIdentifier.autoShiftSymbols ? { config in
-                pendingToggles[collection.id] = true
-                Task { await kanataManager.updateAutoShiftSymbolsConfig(collectionId: collection.id, config: config) }
-            } : nil,
-            onHelpTapped: collection.id == RuleCollectionIdentifier.homeRowMods ? {
-                showingHomeRowModsHelp = true
-            } : nil,
-            scrollID: "collection-\(collection.id.uuidString)",
-            scrollProxy: scrollProxy
-        )
-        .overlay(
-            // Orange border for collections that need a Pack Detail view built
-            packForCollection(collection) == nil && !collection.isSystemDefault
-                ? RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(Color.orange.opacity(0.35), lineWidth: 1.5)
-                : nil
-        )
-    }
-
-    private func packForCollection(_ collection: RuleCollection) -> Pack? {
-        PackRegistry.starterKit.first { $0.associatedCollectionID == collection.id }
-    }
-
-    // MARK: - Dependency-Aware Toggle
-
-    private func handleCollectionToggle(collection: RuleCollection, isOn: Bool) {
-        AppLogger.shared.log("🎚️ [Rules] handleCollectionToggle: '\(collection.name)' isOn=\(isOn) pack=\(packForCollection(collection)?.name ?? "nil") collectionID=\(collection.id)")
-        if let owner = collectionOwnershipMap[collection.id] {
-            settingsToastManager.showError(
-                "Part of \(owner.packName) — turn off the pack to change this"
-            )
-            pendingToggles.removeValue(forKey: collection.id)
-            return
-        }
-
-        let pack = packForCollection(collection)
-
-        if isOn, let pack {
-            // Check for unmet dependencies before enabling
-            let unmet = PackDependencyChecker.unmetRequirements(
-                for: pack.id,
-                enabledCollections: kanataManager.ruleCollections,
-                installedPackIDs: []
-            )
-
-            if !unmet.isEmpty {
-                // Auto-resolvable: all unmet deps just need to be enabled
-                let allAutoResolvable = unmet.allSatisfy { $0.reason == .notEnabled }
-
-                if allAutoResolvable {
-                    // Auto-enable dependencies and the pack via PackInstaller to keep InstalledPackTracker in sync
-                    pendingToggles[collection.id] = true
-                    Task {
-                        for dep in unmet {
-                            if let depPack = PackRegistry.pack(id: dep.dependency.packID) {
-                                await toggleViaPack(depPack, isOn: true)
-                            }
-                        }
-                        await toggleViaPack(pack, isOn: true)
-                        pendingToggles.removeValue(forKey: collection.id)
-                        refreshUnmetDependencies()
-                        let depNames = unmet.map { PackRegistry.pack(id: $0.dependency.packID)?.name ?? $0.dependency.packID }
-                        settingsToastManager.showSuccess("Also enabled \(depNames.joined(separator: ", "))")
-                    }
-                    return
-                } else {
-                    // Config mismatch — show dialog
-                    pendingEnablePack = pack
-                    pendingEnableUnmetDeps = unmet
-                    return
-                }
-            }
-        }
-
-        if !isOn, let pack {
-            // Check if other enabled packs depend on this one
-            let dependents = PackDependencyChecker.dependents(
-                of: pack.id,
-                enabledCollections: kanataManager.ruleCollections,
-                installedPackIDs: []
-            )
-
-            if !dependents.isEmpty {
-                pendingDisablePack = pack
-                pendingDisableDependents = dependents
-                return
-            }
-        }
-
-        // No dependency issues — toggle directly
-        pendingToggles[collection.id] = isOn
-        if !isOn {
-            pendingSelections.removeValue(forKey: collection.id)
-        }
-        Task {
-            if let pack {
-                AppLogger.shared.log("🎚️ [Rules] toggleViaPack path for '\(pack.name)' (collectionID=\(collection.id), packAssoc=\(pack.associatedCollectionID?.uuidString ?? "nil"))")
-                await toggleViaPack(pack, isOn: isOn)
-            } else {
-                AppLogger.shared.log("🎚️ [Rules] direct toggleRuleCollection for '\(collection.name)' (id=\(collection.id))")
-                await kanataManager.toggleRuleCollection(collection.id, enabled: isOn)
-            }
-            pendingToggles.removeValue(forKey: collection.id)
-            refreshUnmetDependencies()
-        }
-    }
-
-    private func toggleViaPack(_ pack: Pack, isOn: Bool) async {
-        let manager = kanataManager.underlyingManager.ruleCollectionsManager
-        do {
-            if isOn {
-                _ = try await PackInstaller.shared.install(pack, manager: manager)
-            } else {
-                try await PackInstaller.shared.uninstall(packID: pack.id, manager: manager)
-            }
-            // System packs (e.g. Vallack) directly mutate collection isEnabled
-            // state and call regenerateConfigFromCollections(), which doesn't
-            // trigger RuntimeCoordinator's state publisher. Push the updated
-            // collection state to the ViewModel so toggles and previews reflect
-            // the new enabled state.
-            kanataManager.underlyingManager.notifyStateChanged()
-        } catch {
-            AppLogger.shared.log("⚠️ [Rules] Pack toggle failed for '\(pack.name)': \(error.localizedDescription)")
-            await kanataManager.toggleRuleCollection(
-                pack.associatedCollectionID ?? UUID(),
-                enabled: isOn
-            )
-        }
-    }
-
-    private func refreshCollectionOwnership() async {
-        var map: [UUID: (packID: String, packName: String)] = [:]
-        for collection in allCollections {
-            if let owner = await InstalledPackTracker.shared.packManagingCollection(collection.id) {
-                let pack = PackRegistry.pack(id: owner.packID)
-                let isSelfManaged = pack?.associatedCollectionID == collection.id
-                if !isSelfManaged {
-                    map[collection.id] = (packID: owner.packID, packName: owner.packName)
-                }
-            }
-        }
-        collectionOwnershipMap = map
-    }
-
-    private func refreshUnmetDependencies() {
-        unmetDependencyMap = PackDependencyChecker.allUnmetRequirements(
-            enabledCollections: kanataManager.ruleCollections,
-            installedPackIDs: []
-        )
-    }
-
-    private func availableHomeRowLayers(for _: RuleCollection) -> [String] {
-        let existingLayerNames = Set(
-            kanataManager.ruleCollections
-                .map(\.targetLayer.kanataName)
-                .filter { $0.lowercased() != "base" }
-        )
-        return Array(existingLayerNames).sorted()
-    }
+    // collectionRow, packForCollection → RulesSummaryView+CollectionRow.swift (via extension on RulesTabView)
+    // handleCollectionToggle, toggleViaPack, refresh helpers → RulesSummaryView+ToggleHandling.swift
 
     var body: some View {
         @Bindable var kanataManager = kanataManager
@@ -940,163 +658,6 @@ struct RulesTabView: View {
         }
     }
 
-    private func collectionMatchesSearch(_ collection: RuleCollection) -> Bool {
-        let query = trimmedSearchQuery.lowercased()
-
-        let mappingText = collection.mappings
-            .flatMap { mapping in
-                [mapping.input, mapping.action.outputString, mapping.shiftedOutput ?? "", mapping.ctrlOutput ?? "", mapping.description ?? ""]
-            }
-            .joined(separator: " ")
-
-        let searchable = [
-            collection.name,
-            collection.summary,
-            collection.activationHint ?? "",
-            collection.tags.joined(separator: " "),
-            mappingText
-        ]
-        .joined(separator: " ")
-        .lowercased()
-
-        return searchable.contains(query)
-    }
-
-    private func openConfigInEditor() {
-        let url = URL(fileURLWithPath: kanataManager.configPath)
-        openFileInPreferredEditor(url)
-    }
-
-    private func openBackupsFolder() {
-        let backupsPath = "\(NSHomeDirectory())/.config/keypath/.backups"
-        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: backupsPath)
-    }
-
-    private func resetToDefaultConfig() {
-        Task {
-            do {
-                try await kanataManager.resetToDefaultConfig()
-                // Clear all pending UI state so toggles reflect actual reset state
-                pendingToggles.removeAll()
-                pendingSelections.removeAll()
-                // Recompute sort order to reflect new enabled/disabled state
-                stableSortOrder = computeSortOrder()
-                settingsToastManager.showSuccess("Configuration reset to default")
-            } catch {
-                settingsToastManager.showError("Reset failed: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    // MARK: - KindaVim Visual-Only Pack
-
-    @ViewBuilder
-    private var kindaVimRow: some View {
-        let pack = PackRegistry.kindaVim
-        if !isSearching || pack.name.localizedCaseInsensitiveContains(trimmedSearchQuery)
-            || "kindavim".contains(trimmedSearchQuery.lowercased())
-        {
-            ExpandableKindaVimRow(
-                isPackEnabled: isKindaVimInstalled,
-                onToggle: { newValue in
-                    isKindaVimInstalled = newValue
-                    Task {
-                        do {
-                            if newValue {
-                                let record = InstalledPackRecord(
-                                    packID: pack.id,
-                                    version: pack.version,
-                                    installedAt: Date(),
-                                    quickSettingValues: [:]
-                                )
-                                try await InstalledPackTracker.shared.upsert(record)
-                            } else {
-                                try await InstalledPackTracker.shared.remove(packID: pack.id)
-                            }
-                        } catch {
-                            AppLogger.shared.log("⚠️ [Rules] KindaVim toggle failed: \(error.localizedDescription)")
-                            isKindaVimInstalled = !newValue
-                            settingsToastManager.showError("Failed to \(newValue ? "enable" : "disable") KindaVim")
-                        }
-                    }
-                },
-                onTapRow: {
-                    PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: kanataManager)
-                }
-            )
-        }
-    }
-
-    @ViewBuilder
-    private var keystrokeHistoryRow: some View {
-        let pack = PackRegistry.keystrokeHistory
-        if !isSearching || pack.name.localizedCaseInsensitiveContains(trimmedSearchQuery)
-            || "keystroke history".contains(trimmedSearchQuery.lowercased())
-            || "debug".contains(trimmedSearchQuery.lowercased())
-        {
-            ExpandableKeystrokeHistoryRow(
-                isPackEnabled: isKeystrokeHistoryInstalled,
-                onToggle: { newValue in
-                    isKeystrokeHistoryInstalled = newValue
-                    Task {
-                        do {
-                            if newValue {
-                                let record = InstalledPackRecord(
-                                    packID: pack.id,
-                                    version: pack.version,
-                                    installedAt: Date(),
-                                    quickSettingValues: [:]
-                                )
-                                try await InstalledPackTracker.shared.upsert(record)
-                                KeystrokeHistoryService.shared.isRecording = true
-                            } else {
-                                try await InstalledPackTracker.shared.remove(packID: pack.id)
-                                KeystrokeHistoryService.shared.isRecording = false
-                                KeystrokeHistoryService.shared.clearEvents()
-                            }
-                        } catch {
-                            AppLogger.shared.log("⚠️ [Rules] Keystroke History toggle failed: \(error.localizedDescription)")
-                            isKeystrokeHistoryInstalled = !newValue
-                        }
-                    }
-                },
-                onTapRow: {
-                    PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: kanataManager)
-                }
-            )
-        }
-    }
-
-    // MARK: - App Keymaps Helpers
-
-    private func loadAppKeymaps() {
-        Task {
-            let keymaps = await services.appKeymapStore.loadKeymaps()
-            await MainActor.run {
-                appKeymaps = keymaps.sorted { $0.mapping.displayName < $1.mapping.displayName }
-            }
-        }
-    }
-
-    private func deleteAppRule(keymap: AppKeymap, override: AppKeyOverride) {
-        Task {
-            var updatedKeymap = keymap
-            updatedKeymap.overrides.removeAll { $0.id == override.id }
-
-            do {
-                if updatedKeymap.overrides.isEmpty {
-                    try await services.appKeymapStore.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
-                } else {
-                    try await services.appKeymapStore.upsertKeymap(updatedKeymap)
-                }
-
-                try await AppConfigGenerator.regenerateFromStore()
-                await AppContextService.shared.reloadMappings()
-                _ = await kanataManager.underlyingManager.restartKanata(reason: "App rule deleted from Settings")
-            } catch {
-                AppLogger.shared.log("⚠️ [RulesTabView] Failed to delete app rule: \(error)")
-                settingsToastManager.showError("Failed to delete rule: \(error.localizedDescription)")
-            }
-        }
-    }
+    // collectionMatchesSearch, openConfigInEditor, openBackupsFolder, resetToDefaultConfig → RulesSummaryView+Packs.swift
+    // kindaVimRow, keystrokeHistoryRow, loadAppKeymaps, deleteAppRule → RulesSummaryView+Packs.swift
 }
