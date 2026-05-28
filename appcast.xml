@@ -36,6 +36,7 @@
                 type="application/octet-stream"/>
             <description><![CDATA[
                 <style>
+                    :root { color-scheme: light dark; }
                     body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 13px; line-height: 1.6; color: #333; padding: 8px; }
                     h2 { font-size: 18px; margin-top: 0; margin-bottom: 8px; }
                     p { margin: 6px 0; }
@@ -43,7 +44,18 @@
                     .section-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
                     .muted { color: #888; font-size: 12px; }
                     .tag { display: inline-block; background: #f0f0f0; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 500; margin-right: 2px; }
+                    code { background: rgba(127,127,127,0.18); padding: 1px 4px; border-radius: 3px; font-size: 12px; }
                     a { color: #D97706; }
+
+                    /* Sparkle's release-notes WebView follows the system appearance.
+                       Without these overrides the hardcoded light-mode colors (#333
+                       text, light tags) render as grey-on-black and are unreadable. */
+                    @media (prefers-color-scheme: dark) {
+                        body { color: #e8e8e8; }
+                        .muted { color: #a0a0a0; }
+                        .tag { background: #3a3a3a; color: #e8e8e8; }
+                        a { color: #F59E0B; }
+                    }
                 </style>
 
                 <h2>Beta 3 🧡</h2>

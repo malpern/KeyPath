@@ -25,6 +25,20 @@ To publish a new release, run:
 
 **Sparkle auto-update:** Existing users get notified within 24 hours. The appcast is served from `raw.githubusercontent.com/malpern/KeyPath/master/appcast.xml`. All releases currently omit `sparkle:channel` so all users see them (no stable/beta split yet).
 
+**Inline release notes & dark mode:** The generated appcast entry links to the GitHub release page (`<sparkle:releaseNotesLink>`), which handles dark mode on its own. If you instead hand-author rich inline notes in a `<description><![CDATA[…]]></description>` block, you **must** include dark-mode CSS — Sparkle's WebView follows the system appearance, and hardcoded light colors render as unreadable grey-on-black. Always add:
+
+```css
+:root { color-scheme: light dark; }
+@media (prefers-color-scheme: dark) {
+    body { color: #e8e8e8; }
+    .muted { color: #a0a0a0; }
+    .tag { background: #3a3a3a; color: #e8e8e8; }
+    a { color: #F59E0B; }
+}
+```
+
+(Mirror this for any other elements with hardcoded `color`/`background`.) See the v1.0.0-beta3 entry in `appcast.xml` for a complete example.
+
 **Marketing site:** The download button on keypath-app.com links to the DMG. The release script updates this automatically via a gh-pages worktree commit. Never hardcode a version-specific download URL in index.md manually.
 
 **Homebrew cask:** Users can install via `brew install --cask malpern/tap/keypath`. The cask lives in `github.com/malpern/homebrew-tap/Casks/keypath.rb`. The release script updates the version and SHA256 automatically.

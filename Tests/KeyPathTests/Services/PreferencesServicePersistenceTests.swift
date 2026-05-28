@@ -106,6 +106,49 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         XCTAssertFalse(prefs.isValidPort(65536))
     }
 
+    // MARK: - Legacy TCP Port Migration
+
+    /// An old install that still has the UDP-era port (54141) stored should be
+    /// migrated to the current default (37001) on load, and the stale key
+    /// cleared so it tracks the default going forward. This is the fix for the
+    /// "no TCP" mismatch where the app dialed 54141 while kanata listened on 37001.
+    func testTcpServerPort_LegacyUDPEraPortMigratesToDefault() {
+        let key = "KeyPath.TCP.ServerPort"
+        let saved = UserDefaults.standard.object(forKey: key)
+        defer {
+            if let saved { UserDefaults.standard.set(saved, forKey: key) } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+
+        UserDefaults.standard.set(54141, forKey: key)
+
+        let prefs = PreferencesService()
+
+        XCTAssertEqual(prefs.tcpServerPort, 37001, "Legacy port should migrate to current default")
+        XCTAssertNil(
+            UserDefaults.standard.object(forKey: key),
+            "Stale key should be cleared so the port tracks the default going forward"
+        )
+    }
+
+    /// A deliberately-chosen non-legacy port must NOT be clobbered by the migration.
+    func testTcpServerPort_DeliberateCustomPortPreserved() {
+        let key = "KeyPath.TCP.ServerPort"
+        let saved = UserDefaults.standard.object(forKey: key)
+        defer {
+            if let saved { UserDefaults.standard.set(saved, forKey: key) } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+
+        UserDefaults.standard.set(8123, forKey: key)
+
+        let prefs = PreferencesService()
+
+        XCTAssertEqual(prefs.tcpServerPort, 8123, "A non-legacy custom port must be preserved")
+    }
+
     // MARK: - LeaderKeyPreference Codable Tests
 
     func testLeaderKeyPreference_DefaultValues() {

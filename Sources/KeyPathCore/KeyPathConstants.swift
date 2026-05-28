@@ -76,6 +76,13 @@ public enum KeyPathConstants {
 
     public enum Networking {
         public static let defaultTCPPort = 37001
+
+        /// The port used during the old UDP-era architecture. PR #500 introduced
+        /// `defaultTCPPort = 37001`, but existing installs kept this value in
+        /// UserDefaults — leaving the app dialing a port the kanata daemon (now
+        /// launched on the new default) doesn't listen on. PreferencesService
+        /// migrates this value to `defaultTCPPort` on load.
+        public static let legacyUDPEraPort = 54141
     }
 
     public enum URLs {
