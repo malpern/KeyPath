@@ -4,11 +4,12 @@ import XCTest
 /// Tests for the mapper sidebar active rules footer logic.
 @MainActor
 final class MapperActiveRulesTests: XCTestCase {
-
-    func testDefaultEnabledCollections_CountIs5() {
+    func testDefaultEnabledCollections_CountIs6() {
         let defaults = RuleCollectionCatalog().defaultCollections()
         let enabledCount = defaults.filter(\.isEnabled).count
-        XCTAssertEqual(enabledCount, 5, "Should have 5 default-enabled collections")
+        // 6 default-on collections: macOS Function Keys, Vim, Caps Lock Remap,
+        // Fast Navigation, Home Row Arrows (added in f946842b), Quick Launcher.
+        XCTAssertEqual(enabledCount, 6, "Should have 6 default-enabled collections")
     }
 
     func testDefaultEnabledCollections_IncludesExpectedPacks() {
@@ -73,9 +74,11 @@ final class MapperActiveRulesTests: XCTestCase {
                           "Disabling a default pack should count as customized")
     }
 
-    func testMerchandisingThreshold_Under5ShowsHero() {
-        // With 4 defaults, 3 are user-facing (excluding macOS Function Keys)
-        // 3 < 5 → merchandising hero card should show
+    func testMerchandisingThreshold_Under6ShowsHero() {
+        // Default user-facing packs (excluding the macOS Function Keys system default)
+        // must stay below the merchandising-hero threshold, which production sets at
+        // `< 6` (OverlayInspectorPanel+CustomRules.swift). The Home Row Arrows pack
+        // brought the default user-facing count to 5, so the hero card still shows.
         let defaults = RuleCollectionCatalog().defaultCollections()
         let enabledIDs = Set(defaults.filter(\.isEnabled).map(\.id))
 
@@ -85,7 +88,7 @@ final class MapperActiveRulesTests: XCTestCase {
             return enabledIDs.contains(collectionID)
         }
 
-        XCTAssertLessThan(userFacingPacks.count, 5,
-                          "Default user-facing pack count should be under 5 for merchandising")
+        XCTAssertLessThan(userFacingPacks.count, 6,
+                          "Default user-facing pack count should be under 6 for merchandising")
     }
 }
