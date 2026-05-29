@@ -676,6 +676,21 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             }
         }
 
+        // Check for kanata aborting/panicking during Karabiner virtual-HID / input
+        // initialization. kanata prints "aborted while talking to the Karabiner virtual
+        // HID daemon" (often after a Rust panic, e.g. a CString NulError), followed by a
+        // numbered causes list that includes "Another process is already grabbing your
+        // keyboard exclusively". When this happens kanata is up (process + TCP), but it
+        // never grabs the keyboard — it's crash-looping or running degraded, with NO
+        // remapping. This was previously invisible to the health check (#624), so status
+        // read green while the core feature was dead.
+        if inputCaptureIssue.isReady, !permissionRejected, Self.detectsInputGrabFailure(in: logChunk) {
+            inputCaptureIssue = KanataInputCaptureStatus(
+                isReady: false,
+                issue: "kanata-failed-to-grab-keyboard"
+            )
+        }
+
         // Check for configuration parse errors (e.g., duplicate aliases, syntax errors).
         // These cause kanata to exit immediately and crash-loop via launchd.
         let configParseError = Self.extractConfigParseError(from: logChunk)
@@ -685,6 +700,17 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             inputCapture: inputCaptureIssue,
             configParseError: configParseError
         )
+    }
+
+    /// Detect kanata aborting/panicking during Karabiner virtual-HID / input
+    /// initialization — meaning it is up (process + TCP) but never grabbed the
+    /// keyboard, so no remapping occurs. Matches kanata's abort epilogue and the
+    /// underlying panic. Pure function over a stderr chunk so it can be unit-tested.
+    static func detectsInputGrabFailure(in logChunk: String) -> Bool {
+        let lower = logChunk.lowercased()
+        return lower.contains("aborted while talking to the karabiner virtual hid daemon")
+            || lower.contains("grabbing your keyboard exclusively")
+            || (lower.contains("panicked at") && lower.contains("karabiner-driverkit"))
     }
 
     /// Extract a user-facing config parse error from kanata stderr output.
