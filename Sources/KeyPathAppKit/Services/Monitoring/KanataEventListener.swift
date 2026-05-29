@@ -426,6 +426,9 @@ actor KanataEventListener {
         isAwaitingHrmTraceSubscribeAck = false
         activeConnection = nil
         currentSessionID = nil
+        // No live connection → drop any authoritative grab status so it can't
+        // outlive the session that produced it.
+        KanataGrabStatusStore.shared.reset()
     }
 
     private func listenLoop() async {
@@ -459,6 +462,11 @@ actor KanataEventListener {
             currentSessionID = nil
             isHrmTraceSubscribed = false
             isAwaitingHrmTraceSubscribeAck = false
+            // Connection dropped: a previously-authoritative grab status no
+            // longer reflects reality (e.g. kanata crashed). Reset so the health
+            // checker falls back to log-pattern detection until we reconnect and
+            // kanata emits a fresh InputGrab.
+            KanataGrabStatusStore.shared.reset()
         }
 
         try await waitForReady(connection)
@@ -702,6 +710,23 @@ actor KanataEventListener {
             return
         }
 
+        // Handle InputGrab events (authoritative keyboard-grab status from the
+        // bundled kanata fork, #630).
+        // Format: {"InputGrab":{"active":true,"devices":["..."]}}
+        //         {"InputGrab":{"active":false,"devices":[],"reason":"..."}}
+        // Ground truth from kanata's OS grab layer — immune to the VNC/"no keys
+        // seen" ambiguity. Recorded into the process-wide store that the health
+        // checker reads (ServiceHealthChecker.resolveInputCaptureStatus).
+        if let inputGrab = json["InputGrab"] as? [String: Any],
+           let status = Self.parseInputGrab(from: inputGrab, observedAt: Date())
+        {
+            AppLogger.shared.log(
+                "🎛️ [EventListener] InputGrab active=\(status.active) devices=\(status.devices.count) reason=\(status.reason ?? "none")"
+            )
+            KanataGrabStatusStore.shared.record(status)
+            return
+        }
+
         // Handle HoldActivated events (tap-hold key transitioned to hold state)
         // Format from Kanata: {"HoldActivated":{"key":"caps"}}
         // Note: upstream only sends "key"; "action" and "t" are not included
@@ -906,6 +931,20 @@ actor KanataEventListener {
             set.insert(normalized)
         }
         return set.sorted()
+    }
+
+    /// Parse the body of an `InputGrab` TCP message (#630).
+    /// Expects `{"active": Bool, "devices": [String], "reason": String?}`.
+    /// Returns nil when `active` is missing/malformed (defensive against an
+    /// older or unexpected schema). `devices` defaults to empty.
+    static func parseInputGrab(from body: [String: Any], observedAt: Date) -> KanataInputGrabStatus? {
+        guard let active = body["active"] as? Bool else { return nil }
+        return KanataInputGrabStatus(
+            active: active,
+            devices: (body["devices"] as? [String]) ?? [],
+            reason: body["reason"] as? String,
+            observedAt: observedAt
+        )
     }
 
     static func extractMessagePushMessages(from push: [String: Any]) -> [String]? {
