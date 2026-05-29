@@ -73,48 +73,76 @@ public final class HelperMaintenance {
             log("✅ App copy check: OK (\(copies.first ?? "unknown"))")
         }
 
-        // Step 1: Try to refresh/register the helper in-place first.
+        // Step 1: Try an idempotent register/refresh first. If the helper is already
+        // healthy, tearing it down first can introduce its own SMAppService failure
+        // modes and makes fast iteration harder.
         //
-        // If the helper is already healthy, tearing it down first can introduce its own
-        // SMAppService failure modes and makes fast iteration harder. Prefer an idempotent
-        // register/refresh attempt, then fall back to full unregister/cleanup only if needed.
-        if await registerHelper() {
-            log("✅ Helper registered via SMAppService on first attempt")
-        } else {
-            log("⚠️ Direct helper refresh failed; attempting cleanup then retry")
-
-            // Step 2: Best-effort unregister via SMAppService
-            await unregisterHelperIfPresent()
-
-            // Step 3: Stop/bootout any launchd job remnants
-            await bootoutHelperJob()
-
-            // Step 4: Remove residual files (legacy paths) – AppleScript fallback optional
-            let cleanupResult = await removeLegacyHelperArtifacts(
-                useAppleScriptFallback: useAppleScriptFallback
-            )
-            switch cleanupResult {
-            case .removed:
-                break
-            case .skipped:
-                log("ℹ️ No legacy helper artifacts removed or operation skipped")
-            case .failed:
-                log("❌ Legacy helper cleanup failed; aborting repair")
-                isRunning = false
-                return false
-            }
-
-            // Step 5: Retry registration after cleanup
-            let registered = await registerHelper()
-            if !registered {
-                log("❌ Register failed after cleanup – see logs above")
-                isRunning = false
-                return false
-            }
+        // CRITICAL: SMAppService.register() reports success even when the helper is
+        // already registered but cannot actually run. After the helper binary's code
+        // signature changes (new cdhash / identifier — e.g. a re-sign or update),
+        // launchd keeps the previously recorded launch constraint (LWCR) and refuses
+        // to spawn the new binary (EX_CONFIG / "needs LWCR update"). A bare register()
+        // then "succeeds" while the helper stays dead. So we trust the first attempt
+        // only if the helper actually answers via XPC; otherwise we fall through to a
+        // full unregister → bootout → re-register, which is what resets the launch
+        // constraint. This is what makes "Fix" reliable across re-signs and updates.
+        let firstRegisterOK = await registerHelper()
+        if firstRegisterOK, await HelperManager.shared.testHelperFunctionality() {
+            log("✅ Helper registered and responding via XPC on first attempt")
+            return true
         }
 
-        // Step 6: Health check (XPC hello/version)
-        let healthy = await HelperManager.shared.testHelperFunctionality()
+        log(firstRegisterOK
+            ? "⚠️ Helper registered but not responding via XPC (likely stale launch constraint); forcing full reinstall"
+            : "⚠️ Direct helper refresh failed; attempting cleanup then retry")
+
+        // Step 2: Best-effort unregister via SMAppService (clears the stale launch constraint)
+        await unregisterHelperIfPresent()
+
+        // Step 3: Stop/bootout any launchd job remnants
+        await bootoutHelperJob()
+
+        // Step 4: Remove residual files (legacy paths) – AppleScript fallback optional
+        let cleanupResult = await removeLegacyHelperArtifacts(
+            useAppleScriptFallback: useAppleScriptFallback
+        )
+        switch cleanupResult {
+        case .removed:
+            break
+        case .skipped:
+            log("ℹ️ No legacy helper artifacts removed or operation skipped")
+        case .failed:
+            log("❌ Legacy helper cleanup failed; aborting repair")
+            return false
+        }
+
+        // Step 5: Retry registration after cleanup (records a fresh launch constraint)
+        let registered = await registerHelper()
+        if !registered {
+            log("❌ Register failed after cleanup – see logs above")
+            return false
+        }
+
+        // Step 6: Final health check (XPC hello/version).
+        //
+        // A freshly (re-)registered SMAppService daemon spawns lazily on first XPC
+        // contact, and launchd needs a brief moment to apply the new registration and
+        // launch constraint. A single eager check here is exactly why "Fix" used to
+        // need a second click: the first click did the real repair but reported failure
+        // before the helper had spawned. Poll for a few seconds so a single Fix click
+        // succeeds.
+        var healthy = false
+        let maxAttempts = 6
+        for attempt in 1 ... maxAttempts {
+            if await HelperManager.shared.testHelperFunctionality() {
+                healthy = true
+                break
+            }
+            if attempt < maxAttempts {
+                log("⏳ Helper not responding yet (attempt \(attempt)/\(maxAttempts)); waiting for spawn…")
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+        }
         log(healthy ? "✅ Helper responding via XPC" : "❌ Helper still not responding via XPC")
 
         return healthy

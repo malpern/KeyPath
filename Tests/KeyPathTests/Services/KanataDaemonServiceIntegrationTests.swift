@@ -43,12 +43,18 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
             MockSMAppService(status: .notRegistered)
         }
 
+        // 1b. Force the last-resort TCP liveness probe to report "no server". The CI
+        // runner is a dev Mac with a real kanata listening on the default port, which
+        // would otherwise make the probe succeed and contaminate these status tests.
+        KanataDaemonService.tcpProbeOverride = { _, _ in false }
+
         // 2. Create Service under test
         service = KanataDaemonService()
     }
 
     override func tearDown() async throws {
         KanataDaemonService.smServiceFactory = originalFactory
+        KanataDaemonService.tcpProbeOverride = nil
         service = nil
         try await super.tearDown()
     }
@@ -84,7 +90,8 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
 
     func testEvaluateStatus_WhenPIDAndTCPBothFail_ShouldReportFailed() async {
         // Given: SMAppService reports .enabled but no process is running
-        // and no kanata TCP server is listening (default in test env)
+        // and the TCP probe is forced to report "no server" (see setUp) so a live
+        // kanata on the machine cannot mask the failure.
         KanataDaemonService.smServiceFactory = { _ in
             MockSMAppService(status: .enabled)
         }

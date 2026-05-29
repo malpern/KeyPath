@@ -40,6 +40,15 @@ final class KanataDaemonService {
         }
     #endif
 
+    // Test seam for the last-resort TCP liveness probe. Without this, integration
+    // tests that assert a "failed" status get contaminated by a real kanata daemon
+    // answering on the default port (the CI runner is a dev Mac with kanata running).
+    // Tests inject `{ _, _ in false }` so the probe is deterministic regardless of
+    // whatever is listening on the machine. DEBUG-only — production always probes.
+    #if DEBUG
+        nonisolated(unsafe) static var tcpProbeOverride: ((Int, Int) -> Bool)?
+    #endif
+
     // MARK: - Internal Dependencies (Hidden from consumers)
 
     @ObservationIgnored private let pidCache = LaunchDaemonPIDCache()
@@ -226,9 +235,20 @@ final class KanataDaemonService {
 
             // Before declaring failure, probe the Kanata TCP server as a last resort.
             let tcpPort = PreferencesService.shared.tcpServerPort
-            let tcpAlive = await Task.detached(priority: .utility) {
-                TCPProbe.probe(port: tcpPort, timeoutMs: 300)
-            }.value
+            let tcpAlive: Bool
+            #if DEBUG
+                if let override = Self.tcpProbeOverride {
+                    tcpAlive = override(tcpPort, 300)
+                } else {
+                    tcpAlive = await Task.detached(priority: .utility) {
+                        TCPProbe.probe(port: tcpPort, timeoutMs: 300)
+                    }.value
+                }
+            #else
+                tcpAlive = await Task.detached(priority: .utility) {
+                    TCPProbe.probe(port: tcpPort, timeoutMs: 300)
+                }.value
+            #endif
 
             if tcpAlive {
                 AppLogger.shared.log(
@@ -268,7 +288,6 @@ final class KanataDaemonService {
                 )
             }
         }
-
     }
 
     /// Log service state failures to persistent crash log for later analysis
