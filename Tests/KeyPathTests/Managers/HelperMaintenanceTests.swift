@@ -127,6 +127,46 @@ final class HelperMaintenanceTests: XCTestCase {
         )
     }
 
+    func testRepairForcesReinstallWhenRegisteredButUnresponsive() async {
+        // Regression: SMAppService.register() reports success even when the helper is
+        // registered-but-wedged (stale launch constraint after a re-sign), so the bare
+        // first-attempt success must NOT be trusted. The repair has to fall through to
+        // unregister → bootout → re-register, then succeed once the helper responds.
+        HelperMaintenance.testDuplicateAppPathsOverride = { ["/Applications/KeyPath.app"] }
+
+        var unregisterCalled = false
+        var bootoutCalled = false
+        var registerAttempts = 0
+        let hooks = HelperMaintenance.TestHooks(
+            unregisterHelper: { unregisterCalled = true },
+            bootoutHelperJob: { bootoutCalled = true },
+            removeLegacyHelperArtifacts: { _ in .removed },
+            registerHelper: {
+                registerAttempts += 1
+                return true // register always "succeeds" — even while wedged
+            }
+        )
+        HelperMaintenance.shared.applyTestHooks(hooks)
+
+        // XPC health: unresponsive on the first-attempt gate, responsive after reinstall.
+        var healthChecks = 0
+        HelperManager.testHelperFunctionalityOverride = {
+            healthChecks += 1
+            return healthChecks > 1
+        }
+
+        let success = await HelperMaintenance.shared.runCleanupAndRepair(useAppleScriptFallback: false)
+
+        XCTAssertTrue(success, "Repair should succeed after forcing a full reinstall")
+        XCTAssertTrue(unregisterCalled, "Wedged-but-registered helper must be unregistered")
+        XCTAssertTrue(bootoutCalled, "Wedged helper job must be booted out")
+        XCTAssertGreaterThanOrEqual(registerAttempts, 2, "Helper must be re-registered after cleanup")
+        XCTAssertTrue(
+            HelperMaintenance.shared.logLines.contains { $0.localizedCaseInsensitiveContains("forcing full reinstall") },
+            "Should log that it forced a reinstall despite register() succeeding"
+        )
+    }
+
     func testRunCleanupIsIdempotentWithoutDuplicates() async {
         HelperMaintenance.testDuplicateAppPathsOverride = { ["/Applications/KeyPath.app"] }
         let hooks = HelperMaintenance.TestHooks(
