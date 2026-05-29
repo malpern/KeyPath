@@ -101,51 +101,75 @@ enum KeycapSymbols {
 
         let lower = label.lowercased()
 
-        if lower.contains("top") && lower.contains("left") { return .purple }
-        if lower.contains("top") && lower.contains("right") { return .purple }
-        if lower.contains("bottom") && lower.contains("left") { return .purple }
-        if lower.contains("bottom") && lower.contains("right") { return .purple }
-        if lower.contains("left") && lower.contains("half") { return .blue }
-        if lower.contains("right") && lower.contains("half") { return .blue }
-        if lower.contains("maximize") || lower.contains("fullscreen") { return .green }
-        if lower.contains("center") { return .green }
-        if lower.contains("display") || lower.contains("monitor") { return .orange }
-        if lower.contains("space") { return .cyan }
-        if lower.contains("undo") { return .gray }
+        // Window-action labels reuse the shared palette so window keys match the
+        // window/spaces family color used elsewhere (purple), with blue/green/teal
+        // accents for halves/maximize/spaces.
+        if lower.contains("top") && lower.contains("left") { return KeyPathColors.layerPurple }
+        if lower.contains("top") && lower.contains("right") { return KeyPathColors.layerPurple }
+        if lower.contains("bottom") && lower.contains("left") { return KeyPathColors.layerPurple }
+        if lower.contains("bottom") && lower.contains("right") { return KeyPathColors.layerPurple }
+        if lower.contains("left") && lower.contains("half") { return KeyPathColors.layerBlue }
+        if lower.contains("right") && lower.contains("half") { return KeyPathColors.layerBlue }
+        if lower.contains("maximize") || lower.contains("fullscreen") { return KeyPathColors.layerGreen }
+        if lower.contains("center") { return KeyPathColors.layerGreen }
+        if lower.contains("display") || lower.contains("monitor") { return KeyPathColors.layerOrange }
+        if lower.contains("space") { return KeyPathColors.layerTeal }
+        if lower.contains("undo") { return Color.gray }
 
         return nil
     }
 
+    /// Semantic color families for collection-owned keys shown on a layer.
+    ///
+    /// Every collection maps to an intentional color grouped by *what the layer does*,
+    /// rather than each color carrying an unrelated meaning. Collections without a
+    /// vibrant category fall to the calm `keycapMapped` blue-gray — NOT orange — so
+    /// simple remaps (function keys, caps/escape/delete remaps, leader, custom) don't
+    /// shout. Orange is reserved for the modifier-producing family.
     private enum LayerColors {
-        static let defaultLayer = KeyPathColors.layerOrange
-        static let vim = KeyPathColors.layerOrange
-        static let windowSnapping = Color.purple
-        static let symbols = Color.blue
-        static let launcher = Color.cyan
-        static let neovimTerminal = KeyPathColors.layerBlue
-        static let vallackNav = KeyPathColors.layerGreen
+        static let navigation = KeyPathColors.layerGreen
+        static let window = KeyPathColors.layerPurple
+        static let symbols = KeyPathColors.layerBlue
+        static let launcher = KeyPathColors.layerTeal
+        /// Editor / terminal integration — shares the blue family with symbols
+        /// (they don't appear together, so the shared hue is intentional).
+        static let editor = KeyPathColors.layerBlue
+        static let modifier = KeyPathColors.layerOrange
+        /// Calm default for everything without a vibrant category (simple remaps).
+        static let mapped = KeyPathColors.keycapMapped
     }
 
     static func collectionColor(for collectionId: UUID?) -> Color {
         guard let id = collectionId else {
-            return LayerColors.defaultLayer
+            return LayerColors.mapped
         }
 
         switch id {
-        case RuleCollectionIdentifier.vimNavigation:
-            return LayerColors.vim
-        case RuleCollectionIdentifier.windowSnapping:
-            return LayerColors.windowSnapping
-        case RuleCollectionIdentifier.symbolLayer:
+        case RuleCollectionIdentifier.vimNavigation,
+             RuleCollectionIdentifier.kindaVim,
+             RuleCollectionIdentifier.homeRowArrows,
+             RuleCollectionIdentifier.vallackNavigation:
+            return LayerColors.navigation
+        case RuleCollectionIdentifier.windowSnapping,
+             RuleCollectionIdentifier.missionControl:
+            return LayerColors.window
+        case RuleCollectionIdentifier.symbolLayer,
+             RuleCollectionIdentifier.numpadLayer,
+             RuleCollectionIdentifier.autoShiftSymbols:
             return LayerColors.symbols
-        case RuleCollectionIdentifier.launcher:
+        case RuleCollectionIdentifier.launcher,
+             RuleCollectionIdentifier.funLayer:
             return LayerColors.launcher
         case RuleCollectionIdentifier.neovimTerminal:
-            return LayerColors.neovimTerminal
-        case RuleCollectionIdentifier.vallackNavigation:
-            return LayerColors.vallackNav
+            return LayerColors.editor
+        case RuleCollectionIdentifier.homeRowMods,
+             RuleCollectionIdentifier.homeRowLayerToggles,
+             RuleCollectionIdentifier.capsLockHyperKey:
+            return LayerColors.modifier
         default:
-            return LayerColors.defaultLayer
+            // Simple remaps (function keys, caps/escape/delete remaps, leader,
+            // custom, chords, sequences, …) — calm blue-gray, not orange.
+            return LayerColors.mapped
         }
     }
 

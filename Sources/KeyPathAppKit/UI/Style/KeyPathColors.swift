@@ -22,8 +22,11 @@ enum KeyPathColors {
     /// Steel blue — Neovim terminal layer
     static let layerBlue = Color(red: 0.3, green: 0.6, blue: 0.9)
 
-    /// Teal — tap-hold active state
+    /// Teal — tap-hold active state, launcher/apps
     static let layerTeal = Color(red: 0.2, green: 0.7, blue: 0.8)
+
+    /// Purple — window management & spaces
+    static let layerPurple = Color(red: 0.55, green: 0.45, blue: 0.85)
 
     // MARK: - Overlay Keycap Backgrounds
 

@@ -2,162 +2,109 @@
 import SwiftUI
 @preconcurrency import XCTest
 
-/// Tests for collection color routing in OverlayKeycapView
+/// Tests for collection color routing in OverlayKeycapView.
+///
+/// The taxonomy is semantic: keys are colored by *what their layer does*, grouped
+/// into families (navigation = green, window/spaces = purple, symbols = blue,
+/// launcher/apps = teal, editor = steel blue, modifier-producing = orange). Anything
+/// without a vibrant category falls to the calm `keycapMapped` blue-gray — NOT orange.
 @MainActor
 final class OverlayKeycapViewColorTests: XCTestCase {
-    // MARK: - Test Data
+    // MARK: - Family routing
 
-    private let vimCollectionId = RuleCollectionIdentifier.vimNavigation
-    private let windowCollectionId = RuleCollectionIdentifier.windowSnapping
-    private let symbolCollectionId = RuleCollectionIdentifier.symbolLayer
-    private let launcherCollectionId = RuleCollectionIdentifier.launcher
-    private let unknownCollectionId = UUID()
-
-    private func makeKeycapView() -> OverlayKeycapView {
-        let key = PhysicalKey(
-            keyCode: 0,
-            label: "A",
-            x: 0,
-            y: 0,
-            width: 1.0
-        )
-        return OverlayKeycapView(
-            key: key,
-            baseLabel: "A",
-            isPressed: false,
-            scale: 1.0
-        )
+    func testCollectionColor_NavigationFamilyIsGreen() {
+        for id in [
+            RuleCollectionIdentifier.vimNavigation,
+            RuleCollectionIdentifier.kindaVim,
+            RuleCollectionIdentifier.homeRowArrows,
+            RuleCollectionIdentifier.vallackNavigation
+        ] {
+            XCTAssertEqual(
+                KeycapSymbols.collectionColor(for: id),
+                KeyPathColors.layerGreen,
+                "Navigation-family collection should be green"
+            )
+        }
     }
 
-    // MARK: - Collection Color Tests
-
-    func testCollectionColor_NilReturnsDefaultOrange() {
-        let view = makeKeycapView()
-        let color = KeycapSymbols.collectionColor(for: nil)
-
-        // Default color should be orange
-        // We can't directly compare Color values, but we can verify it's not nil
-        XCTAssertNotNil(color, "Nil collection ID should return a color")
+    func testCollectionColor_WindowFamilyIsPurple() {
+        for id in [RuleCollectionIdentifier.windowSnapping, RuleCollectionIdentifier.missionControl] {
+            XCTAssertEqual(KeycapSymbols.collectionColor(for: id), KeyPathColors.layerPurple)
+        }
     }
 
-    func testCollectionColor_VimReturnsOrange() {
-        let view = makeKeycapView()
-        let color = KeycapSymbols.collectionColor(for: vimCollectionId)
-
-        // Vim collection should return orange
-        XCTAssertNotNil(color, "Vim collection should return a color")
+    func testCollectionColor_SymbolsFamilyIsBlue() {
+        for id in [
+            RuleCollectionIdentifier.symbolLayer,
+            RuleCollectionIdentifier.numpadLayer,
+            RuleCollectionIdentifier.autoShiftSymbols
+        ] {
+            XCTAssertEqual(KeycapSymbols.collectionColor(for: id), KeyPathColors.layerBlue)
+        }
     }
 
-    func testCollectionColor_WindowSnappingReturnsPurple() {
-        let view = makeKeycapView()
-        let color = KeycapSymbols.collectionColor(for: windowCollectionId)
-
-        // Window Snapping collection should return purple
-        XCTAssertNotNil(color, "Window Snapping collection should return a color")
-
-        // Verify it's purple by checking it's the same as Color.purple
-        let purple = Color.purple
-        XCTAssertEqual(color, purple, "Window Snapping should return purple")
+    func testCollectionColor_LauncherFamilyIsTeal() {
+        for id in [RuleCollectionIdentifier.launcher, RuleCollectionIdentifier.funLayer] {
+            XCTAssertEqual(KeycapSymbols.collectionColor(for: id), KeyPathColors.layerTeal)
+        }
     }
 
-    func testCollectionColor_SymbolLayerReturnsBlue() {
-        let view = makeKeycapView()
-        let color = KeycapSymbols.collectionColor(for: symbolCollectionId)
-
-        // Symbol layer collection should return blue
-        XCTAssertNotNil(color, "Symbol layer collection should return a color")
-
-        let blue = Color.blue
-        XCTAssertEqual(color, blue, "Symbol layer should return blue")
+    func testCollectionColor_ModifierFamilyIsOrange() {
+        for id in [
+            RuleCollectionIdentifier.homeRowMods,
+            RuleCollectionIdentifier.homeRowLayerToggles,
+            RuleCollectionIdentifier.capsLockHyperKey
+        ] {
+            XCTAssertEqual(KeycapSymbols.collectionColor(for: id), KeyPathColors.layerOrange)
+        }
     }
 
-    func testCollectionColor_LauncherReturnsCyan() {
-        let view = makeKeycapView()
-        let color = KeycapSymbols.collectionColor(for: launcherCollectionId)
+    // MARK: - Calm default (the orange-everywhere fix)
 
-        // Launcher collection should return cyan
-        XCTAssertNotNil(color, "Launcher collection should return a color")
-
-        let cyan = Color.cyan
-        XCTAssertEqual(color, cyan, "Launcher should return cyan")
+    func testCollectionColor_NilFallsToCalmMapped() {
+        XCTAssertEqual(KeycapSymbols.collectionColor(for: nil), KeyPathColors.keycapMapped)
     }
 
-    func testCollectionColor_UnknownCollectionReturnsDefaultOrange() {
-        let view = makeKeycapView()
-        let color = KeycapSymbols.collectionColor(for: unknownCollectionId)
-
-        // Unknown collection should fall back to default orange
-        XCTAssertNotNil(color, "Unknown collection should return a color")
+    func testCollectionColor_UnknownFallsToCalmMapped() {
+        XCTAssertEqual(KeycapSymbols.collectionColor(for: UUID()), KeyPathColors.keycapMapped)
     }
 
-    func testCollectionColor_AllKnownCollectionsHaveUniqueColors() {
-        let view = makeKeycapView()
-
-        _ = KeycapSymbols.collectionColor(for: vimCollectionId)
-        let windowColor = KeycapSymbols.collectionColor(for: windowCollectionId)
-        let symbolColor = KeycapSymbols.collectionColor(for: symbolCollectionId)
-        let launcherColor = KeycapSymbols.collectionColor(for: launcherCollectionId)
-
-        // Window, symbol, and launcher should all be different
-        XCTAssertNotEqual(windowColor, symbolColor, "Window and Symbol should have different colors")
-        XCTAssertNotEqual(windowColor, launcherColor, "Window and Launcher should have different colors")
-        XCTAssertNotEqual(symbolColor, launcherColor, "Symbol and Launcher should have different colors")
-
-        // Vim and default are both orange (same as unknown), which is acceptable
+    func testCollectionColor_SimpleRemapsAreNotOrange() {
+        // Regression: these used to fall through the switch to the orange default,
+        // making unrelated remaps (and F-keys mid-transition) flash orange.
+        for id in [
+            RuleCollectionIdentifier.macFunctionKeys,
+            RuleCollectionIdentifier.capsLockRemap,
+            RuleCollectionIdentifier.escapeRemap,
+            RuleCollectionIdentifier.deleteRemap,
+            RuleCollectionIdentifier.leaderKey,
+            RuleCollectionIdentifier.customMappings,
+            RuleCollectionIdentifier.chordGroups,
+            RuleCollectionIdentifier.sequences
+        ] {
+            let color = KeycapSymbols.collectionColor(for: id)
+            XCTAssertEqual(color, KeyPathColors.keycapMapped, "Simple remap should be calm-mapped")
+            XCTAssertNotEqual(color, KeyPathColors.layerOrange, "Simple remap must not be orange")
+        }
     }
 
-    // MARK: - LayerColors Constants Tests
+    // MARK: - Family distinctness & determinism
 
-    func testLayerColors_DefaultLayerIsDefined() {
-        // This test verifies the LayerColors enum has the expected constants
-        // We can't access the private enum directly, but we can verify behavior
-        let view = makeKeycapView()
-
-        // Nil should return a consistent color
-        let color1 = KeycapSymbols.collectionColor(for: nil)
-        let color2 = KeycapSymbols.collectionColor(for: nil)
-
-        // Should be deterministic
-        XCTAssertNotNil(color1)
-        XCTAssertNotNil(color2)
+    func testCollectionColor_FamiliesAreDistinct() {
+        let nav = KeycapSymbols.collectionColor(for: RuleCollectionIdentifier.vimNavigation)
+        let window = KeycapSymbols.collectionColor(for: RuleCollectionIdentifier.windowSnapping)
+        let symbols = KeycapSymbols.collectionColor(for: RuleCollectionIdentifier.symbolLayer)
+        let launcher = KeycapSymbols.collectionColor(for: RuleCollectionIdentifier.launcher)
+        let colors = [nav, window, symbols, launcher]
+        for (i, a) in colors.enumerated() {
+            for b in colors[(i + 1)...] {
+                XCTAssertNotEqual(a, b, "Distinct families must have distinct colors")
+            }
+        }
     }
 
-    func testLayerColors_SystemColorsAreStandard() {
-        let view = makeKeycapView()
-
-        // System colors (purple, blue, cyan) should match SwiftUI standard colors
-        let windowColor = KeycapSymbols.collectionColor(for: windowCollectionId)
-        let symbolColor = KeycapSymbols.collectionColor(for: symbolCollectionId)
-        let launcherColor = KeycapSymbols.collectionColor(for: launcherCollectionId)
-
-        XCTAssertEqual(windowColor, Color.purple)
-        XCTAssertEqual(symbolColor, Color.blue)
-        XCTAssertEqual(launcherColor, Color.cyan)
-    }
-
-    // MARK: - Integration Tests
-
-    func testCollectionColor_ConsistentAcrossMultipleCalls() {
-        let view = makeKeycapView()
-
-        // Each collection should return the same color on multiple calls
-        let vim1 = KeycapSymbols.collectionColor(for: vimCollectionId)
-        let vim2 = KeycapSymbols.collectionColor(for: vimCollectionId)
-        XCTAssertEqual(vim1, vim2, "Vim color should be consistent")
-
-        let window1 = KeycapSymbols.collectionColor(for: windowCollectionId)
-        let window2 = KeycapSymbols.collectionColor(for: windowCollectionId)
-        XCTAssertEqual(window1, window2, "Window color should be consistent")
-    }
-
-    func testCollectionColor_DifferentViewsReturnSameColors() {
-        let view1 = makeKeycapView()
-        let view2 = makeKeycapView()
-
-        // Different view instances should return the same colors for same collections
-        let color1 = KeycapSymbols.collectionColor(for: windowCollectionId)
-        let color2 = KeycapSymbols.collectionColor(for: windowCollectionId)
-
-        XCTAssertEqual(color1, color2, "Different view instances should return same color for same collection")
+    func testCollectionColor_IsDeterministic() {
+        let id = RuleCollectionIdentifier.windowSnapping
+        XCTAssertEqual(KeycapSymbols.collectionColor(for: id), KeycapSymbols.collectionColor(for: id))
     }
 }
