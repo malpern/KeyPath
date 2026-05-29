@@ -425,8 +425,22 @@ final class PreferencesService: @unchecked Sendable {
         communicationProtocol =
             CommunicationProtocol(rawValue: protocolString) ?? Defaults.communicationProtocol
 
-        tcpServerPort =
-            UserDefaults.standard.object(forKey: Keys.tcpServerPort) as? Int ?? Defaults.tcpServerPort
+        // TCP server port. Migrate the legacy UDP-era port (54141) to the
+        // current default. PR #500 changed the default to 37001, but existing
+        // installs kept 54141 in UserDefaults while the kanata daemon was
+        // (re)launched on the new default — so the app dialed a port nothing was
+        // listening on and reported "no TCP". Clear the stale key so it tracks
+        // the current default; preserve any deliberately-set non-legacy port.
+        let storedTCPPort = UserDefaults.standard.object(forKey: Keys.tcpServerPort) as? Int
+        if let storedTCPPort, storedTCPPort == KeyPathConstants.Networking.legacyUDPEraPort {
+            UserDefaults.standard.removeObject(forKey: Keys.tcpServerPort)
+            tcpServerPort = Defaults.tcpServerPort
+            AppLogger.shared.log(
+                "🔧 [PreferencesService] Migrated legacy TCP port \(storedTCPPort) → \(Defaults.tcpServerPort)"
+            )
+        } else {
+            tcpServerPort = storedTCPPort ?? Defaults.tcpServerPort
+        }
 
         notificationsEnabled =
             UserDefaults.standard.object(forKey: Keys.notificationsEnabled) as? Bool

@@ -23,6 +23,14 @@ struct StatusSettingsTabView: View {
     @State var showingPermissionAlert = false
     @State private var localServiceRunning: Bool? // Optimistic local state for instant toggle feedback
 
+    /// Persisted record that the user explicitly switched the service off (as
+    /// opposed to it being unexpectedly down). Drives the calm "KeyPath is Off"
+    /// presentation, survives relaunch, and — unlike the optimistic
+    /// `localServiceRunning` — is NOT cleared when the actual service state
+    /// changes (see the `onChange(of: isServiceRunning)` handler). Cleared when
+    /// the user switches the service back on.
+    @AppStorage("KeyPath.Status.UserDisabledService") private var userDisabledService = false
+
     private var isServiceRunning: Bool {
         systemContext?.services.kanataRunning ?? false
     }
@@ -38,6 +46,17 @@ struct StatusSettingsTabView: View {
 
     private var isSystemHealthy: Bool {
         overallHealthLevel == .success
+    }
+
+    /// True when the user has deliberately switched the service off, as opposed
+    /// to the service being unexpectedly down. Drives the calm "disabled"
+    /// presentation (gray, no "Fix it") instead of treating an intentional OFF
+    /// as a fault. Uses the optimistic `effectiveServiceRunning` so the calm
+    /// state appears the instant the toggle flips, and only asserts while the
+    /// service is actually not running. Accessible from the StatusDetails
+    /// extension.
+    var isIntentionallyDisabled: Bool {
+        userDisabledService && !effectiveServiceRunning
     }
 
     /// True when the only permission issue is unverified kanata (no FDA to check)
@@ -107,8 +126,10 @@ struct StatusSettingsTabView: View {
                         }
                     }
 
-                    // Action button when there are problems
-                    if !isSystemHealthy {
+                    // Action button when there are problems. Suppressed when the
+                    // user has intentionally turned the service off — nothing is
+                    // broken, so there's nothing to fix.
+                    if !isSystemHealthy, !isIntentionallyDisabled {
                         if isOnlyKanataUnverified {
                             // Only issue is unverified kanata — lead with FDA
                             Button(action: { SystemDiagnostics.open(.fullDiskAccess) }) {
@@ -141,6 +162,9 @@ struct StatusSettingsTabView: View {
                                 set: { newValue in
                                     // Optimistic update: change UI immediately
                                     localServiceRunning = newValue
+                                    // Record explicit user intent (persists across
+                                    // relaunch and the isServiceRunning onChange reset).
+                                    userDisabledService = !newValue
                                     // Then trigger async operation
                                     Task {
                                         if newValue {

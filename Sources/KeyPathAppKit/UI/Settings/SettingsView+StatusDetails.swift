@@ -12,9 +12,19 @@ extension StatusSettingsTabView {
         case warning = 1
         case critical = 2
         case checking = 3
+        case disabled = 4
     }
 
     var overallHealthLevel: OverallHealthLevel {
+        // The user deliberately switched the service off. This is a calm,
+        // intentional state — not a fault — so it takes precedence over both the
+        // loading guard and the health checks below (which all assume the
+        // service should be running). Checked before the guard so the icon/tint
+        // stay in sync with systemHealthMessage's "KeyPath is Off".
+        if isIntentionallyDisabled {
+            return .disabled
+        }
+
         guard let context = systemContext, permissionSnapshot != nil else { return .checking }
 
         let hasBlockingIssues = wizardIssues.contains { $0.severity == .critical || $0.severity == .error }
@@ -47,6 +57,8 @@ extension StatusSettingsTabView {
             "xmark.circle.fill"
         case .checking:
             "gear"
+        case .disabled:
+            "power.circle.fill"
         }
     }
 
@@ -60,10 +72,15 @@ extension StatusSettingsTabView {
             .red
         case .checking:
             .secondary
+        case .disabled:
+            .secondary
         }
     }
 
     var systemHealthMessage: String {
+        if isIntentionallyDisabled {
+            return "KeyPath is Off"
+        }
         guard let context = systemContext else { return "Checking status…" }
         if !context.services.kanataRunning {
             return kanataServiceStatus
@@ -137,6 +154,15 @@ extension StatusSettingsTabView {
                 title: "KeyPath Runtime",
                 message: "Checking current status…",
                 icon: "ellipsis.circle",
+                level: .info
+            )
+        }
+
+        if isIntentionallyDisabled {
+            return StatusDetail(
+                title: "KeyPath Runtime",
+                message: "Turned off. Flip the switch above to resume remapping.",
+                icon: "power",
                 level: .info
             )
         }
@@ -342,6 +368,9 @@ extension StatusSettingsTabView {
 
     var kanataLogsDetail: StatusDetail? {
         // Show logs affordance when service isn't healthy or has daemon issues.
+        // Not when the user simply turned the service off — there's nothing to
+        // troubleshoot.
+        guard !isIntentionallyDisabled else { return nil }
         guard serviceStatusDetail.level != .success else { return nil }
         return StatusDetail(
             title: "Kanata Logs",
