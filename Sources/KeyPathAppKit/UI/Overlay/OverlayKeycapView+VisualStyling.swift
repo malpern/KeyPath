@@ -137,7 +137,7 @@ extension OverlayKeycapView {
         } else if isOneShot {
             KeyPathColors.layerTeal
         } else if isEmphasized {
-            Color.orange
+            KeyPathColors.layerOrange
         }
         // System pack zone coloring (e.g., blue modifiers, orange activators, green nav)
         else if let color = zoneColor {

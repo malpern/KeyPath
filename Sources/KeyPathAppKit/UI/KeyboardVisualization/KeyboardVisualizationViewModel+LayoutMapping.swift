@@ -181,6 +181,16 @@ extension KeyboardVisualizationViewModel {
         if let cached = prebuiltLayerMappings[cacheKey] {
             layerKeyMap = cached
             remapOutputMap = LayerMappingBuilder.buildRemapOutputMap(from: cached)
+        } else {
+            // Cache miss (layer not yet warmed): clear the stale previous-layer map so
+            // keys don't render with the prior layer's collection color during the async
+            // rebuild below. Otherwise F-row keys — owned by the "macOS Function Keys"
+            // collection on the base layer — flash orange when switching to a layer where
+            // they're transparent, because `currentLayerName` already flipped (isLayerMode
+            // true) while `layerKeyMap` still holds the base mapping. Restores the eager
+            // clear from PR #515 that PR #581's prebuilt-cache change dropped.
+            layerKeyMap = [:]
+            remapOutputMap = [:]
         }
 
         isLoadingLayerMap = true
