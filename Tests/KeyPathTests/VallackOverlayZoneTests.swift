@@ -150,7 +150,10 @@ final class VallackOverlayZoneTests: XCTestCase {
 
     // MARK: - backgroundColor Priority
 
-    func testZoneColorYieldsToPressedState() {
+    func testPressedZoneKeyStaysInZoneColor() {
+        // PR #515 (eliminate orange flash on nav layer): a pressed key that belongs to
+        // a zone keeps its in-palette zone color instead of switching to the accent
+        // color, so the pressed background equals the zone color.
         let view = OverlayKeycapView(
             key: PhysicalKey(keyCode: 12, label: "Q", x: 0, y: 0, width: 1, height: 1),
             baseLabel: "Q",
@@ -159,10 +162,10 @@ final class VallackOverlayZoneTests: XCTestCase {
             zoneColor: Color.blue.opacity(0.45)
         )
         let bg = view.backgroundColor
-        XCTAssertNotEqual(
+        XCTAssertEqual(
             String(describing: bg),
             String(describing: Color.blue.opacity(0.45)),
-            "Pressed state should override zone color"
+            "Pressed zone key should stay in its zone color"
         )
     }
 
@@ -302,12 +305,17 @@ final class VallackOverlayZoneTests: XCTestCase {
         XCTAssertEqual(subs.count, 6)
     }
 
-    func testResolverReturnsNoSubtitlesOnNavLayer() {
+    func testResolverReturnsNavSubtitlesOnNavLayer() {
+        // PR #519 wired up nav subtitles for the vallack-nav layer overlay, so the
+        // resolver now returns the populated VallackZoneMap.navSubtitles here.
         let subs = PackZoneResolver.activeZoneSubtitles(
             installedPackIDs: [PackRegistry.vallackSystem.id],
             layerName: "vallack-nav"
         )
-        XCTAssertTrue(subs.isEmpty, "Nav layer should not have subtitles")
+        XCTAssertFalse(subs.isEmpty, "Nav layer should expose nav subtitles")
+        XCTAssertEqual(subs[4], "←")
+        XCTAssertEqual(subs[40], "↑")
+        XCTAssertEqual(subs[12], "tab")
     }
 
     func testResolverReturnsNoSubtitlesWithoutPack() {

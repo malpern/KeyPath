@@ -1,22 +1,25 @@
 @testable import KeyPathAppKit
-import KeyPathCore
 import XCTest
 
 /// Regression tests for hold-label resolution and rendering inputs.
 @MainActor
 final class OverlayHoldLabelTests: XCTestCase {
-    func testHoldDisplayLabelHyperUsesStar() async throws {
-        let mapper = LayerKeyMapper()
-        let keyCode: UInt16 = 57
-        let config = WizardSystemPaths.userConfigPath
-        let layer = "base"
+    func testHoldDisplayLabelHyperUsesStar() {
+        // When a hold resolves to all four modifiers (Ctrl+Cmd+Alt+Shift) the overlay
+        // labels it with the Hyper star. This exercises the label-resolution contract
+        // directly rather than driving the kanata simulator against the live user
+        // config, which made the test non-deterministic (skip locally when the bundled
+        // simulator is absent, fail in CI when the config has no caps→Hyper mapping).
+        let hyperOutputs: Set = ["lctl", "lmet", "lalt", "lsft"]
+        let label = LayerKeyMapper.labelForOutputKeys(hyperOutputs) { $0 }
+        XCTAssertEqual(label, "✦", "Hyper (Ctrl+Cmd+Alt+Shift) should resolve to the star symbol")
+    }
 
-        do {
-            let label = try await mapper.holdDisplayLabel(for: keyCode, configPath: config, startLayer: layer)
-            XCTAssertEqual(label, "✦", "Hyper should resolve to star symbol for capslock hold")
-        } catch is SimulatorError {
-            throw XCTSkip("Kanata simulator binary not available in test environment")
-        }
+    func testHoldDisplayLabelHyperUsesStarWithModifierAliases() {
+        // Right-side and spelled-out modifier aliases normalize to the same Hyper set.
+        let hyperOutputs: Set = ["rctl", "cmd", "ralt", "shift"]
+        let label = LayerKeyMapper.labelForOutputKeys(hyperOutputs) { $0 }
+        XCTAssertEqual(label, "✦", "Aliased Hyper modifiers should still resolve to the star symbol")
     }
 
     func testSimulatorEmitsCanonicalNameForCaps() {

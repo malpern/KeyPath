@@ -20,6 +20,15 @@ RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
 ENTITLEMENTS="$PROJECT_DIR/KeyPath.entitlements"
 WAS_RUNNING=0
 
+# KeepAlive LaunchAgent that runs the headless KeyPath instance. We unload it for
+# the build+sign window so launchd can't respawn KeyPath onto a bundle whose
+# signature is mid-rewrite — that race produces a crash report with
+# SIGKILL (Code Signature Invalid) / Taskgated Invalid Signature.
+AGENT_LABEL="com.keypath.agent"
+AGENT_PLIST="$HOME/Library/LaunchAgents/${AGENT_LABEL}.plist"
+AGENT_DOMAIN="gui/$(id -u)"
+AGENT_WAS_LOADED=0
+
 # Local module cache to avoid invalidations and sandboxed cache paths.
 MODULE_CACHE="$PROJECT_DIR/.build/ModuleCache.noindex"
 export CLANG_MODULECACHE_PATH="$MODULE_CACHE"
@@ -76,8 +85,22 @@ release_lock() {
     rm -f "$LOCK_FILE"
 }
 
+# Re-load the KeepAlive agent we unloaded for the signing window. Idempotent:
+# only bootstraps when we actually unloaded it and it isn't already loaded.
+# RunAtLoad=true makes launchd relaunch the headless KeyPath instance.
+reload_agent() {
+    if [[ "$AGENT_WAS_LOADED" == "1" ]] && [[ -f "$AGENT_PLIST" ]]; then
+        if ! launchctl print "${AGENT_DOMAIN}/${AGENT_LABEL}" >/dev/null 2>&1; then
+            echo "▶️  Reloading ${AGENT_LABEL}..."
+            launchctl bootstrap "${AGENT_DOMAIN}" "$AGENT_PLIST" 2>/dev/null || true
+        fi
+    fi
+}
+
 cleanup() {
     local exit_code=$?
+    # Always restore the agent, even on failure, so KeyPath is never left disabled.
+    reload_agent
     release_lock
 
     if [[ $exit_code -ne 0 ]] && [[ $exit_code -ne 130 ]]; then
@@ -113,6 +136,22 @@ if [[ -f "$SWIFTPM_LOCK" ]] && lsof "$SWIFTPM_LOCK" 2>/dev/null | grep -q swift;
     echo "⏭️  SwiftPM build in progress, skipping..."
     log_build_event "SKIPPED_SWIFTPM_BUSY"
     exit 0
+fi
+
+# Unload the KeepAlive LaunchAgent first. Without this, the up-front kill below is
+# futile: launchd respawns KeyPath within ThrottleInterval, and the respawned
+# process is alive during the in-place re-sign — producing a crash report with
+# SIGKILL (Code Signature Invalid) / Taskgated Invalid Signature. The agent is
+# restored in cleanup() (runs on every exit path), so a failed deploy never leaves
+# KeyPath disabled.
+if launchctl print "${AGENT_DOMAIN}/${AGENT_LABEL}" >/dev/null 2>&1; then
+    AGENT_WAS_LOADED=1
+    echo "⏸️  Unloading ${AGENT_LABEL} so launchd won't respawn KeyPath during signing..."
+    launchctl bootout "${AGENT_DOMAIN}/${AGENT_LABEL}" 2>/dev/null || true
+    for _ in {1..40}; do
+        launchctl print "${AGENT_DOMAIN}/${AGENT_LABEL}" >/dev/null 2>&1 || break
+        sleep 0.05
+    done
 fi
 
 # Stop the currently running app before mutating the bundle on disk.
