@@ -10,7 +10,7 @@ extension PhysicalLayout {
             return layout
         }
         #if DEBUG
-        print("PhysicalLayout: Failed to load MacBook US from JSON, using fallback")
+            print("PhysicalLayout: Failed to load MacBook US from JSON, using fallback")
         #endif
         return PhysicalLayout(id: "macbook-us", name: "MacBook US", keys: [], totalWidth: 15.54, totalHeight: 6.05)
     }()
@@ -25,7 +25,7 @@ extension PhysicalLayout {
             return layout
         }
         #if DEBUG
-        print("PhysicalLayout: Failed to load MacBook JIS from JSON, using fallback")
+            print("PhysicalLayout: Failed to load MacBook JIS from JSON, using fallback")
         #endif
         return PhysicalLayout(id: "macbook-jis", name: "MacBook JIS", keys: [], totalWidth: 15.54, totalHeight: 6.05)
     }()
@@ -41,7 +41,7 @@ extension PhysicalLayout {
             return layout
         }
         #if DEBUG
-        print("PhysicalLayout: Failed to load MacBook ISO from JSON, using fallback")
+            print("PhysicalLayout: Failed to load MacBook ISO from JSON, using fallback")
         #endif
         return PhysicalLayout(id: "macbook-iso", name: "MacBook ISO", keys: [], totalWidth: 15.54, totalHeight: 6.05)
     }()
@@ -59,7 +59,7 @@ extension PhysicalLayout {
             return layout
         }
         #if DEBUG
-        print("PhysicalLayout: Failed to load MacBook ABNT2 from JSON, using fallback")
+            print("PhysicalLayout: Failed to load MacBook ABNT2 from JSON, using fallback")
         #endif
         return PhysicalLayout(id: "macbook-abnt2", name: "MacBook ABNT2", keys: [], totalWidth: 15.54, totalHeight: 6.05)
     }()
@@ -74,52 +74,44 @@ extension PhysicalLayout {
             return layout
         }
         #if DEBUG
-        print("PhysicalLayout: Failed to load MacBook Korean from JSON, using fallback")
+            print("PhysicalLayout: Failed to load MacBook Korean from JSON, using fallback")
         #endif
         return PhysicalLayout(id: "macbook-korean", name: "MacBook Korean", keys: [], totalWidth: 15.54, totalHeight: 6.05)
     }()
 
     // MARK: - Apple Magic Keyboard Family
 
-    static let magicKeyboardCompact: PhysicalLayout = {
-        PhysicalLayout(
-            id: "magic-keyboard-compact",
-            name: "Magic Keyboard",
-            keys: macBookUS.keys,
-            totalWidth: macBookUS.totalWidth,
-            totalHeight: macBookUS.totalHeight
-        )
-    }()
+    static let magicKeyboardCompact: PhysicalLayout = .init(
+        id: "magic-keyboard-compact",
+        name: "Magic Keyboard",
+        keys: macBookUS.keys,
+        totalWidth: macBookUS.totalWidth,
+        totalHeight: macBookUS.totalHeight
+    )
 
-    static let magicKeyboardTouchID: PhysicalLayout = {
-        PhysicalLayout(
-            id: "magic-keyboard-touchid",
-            name: "Magic Keyboard with Touch ID",
-            keys: macBookUS.keys,
-            totalWidth: macBookUS.totalWidth,
-            totalHeight: macBookUS.totalHeight
-        )
-    }()
+    static let magicKeyboardTouchID: PhysicalLayout = .init(
+        id: "magic-keyboard-touchid",
+        name: "Magic Keyboard with Touch ID",
+        keys: macBookUS.keys,
+        totalWidth: macBookUS.totalWidth,
+        totalHeight: macBookUS.totalHeight
+    )
 
-    static let magicKeyboardNumpad: PhysicalLayout = {
-        PhysicalLayout(
-            id: "magic-keyboard-numpad",
-            name: "Magic Keyboard with Numeric Keypad",
-            keys: ansi100Percent.keys,
-            totalWidth: ansi100Percent.totalWidth,
-            totalHeight: ansi100Percent.totalHeight
-        )
-    }()
+    static let magicKeyboardNumpad: PhysicalLayout = .init(
+        id: "magic-keyboard-numpad",
+        name: "Magic Keyboard with Numeric Keypad",
+        keys: ansi100Percent.keys,
+        totalWidth: ansi100Percent.totalWidth,
+        totalHeight: ansi100Percent.totalHeight
+    )
 
-    static let magicKeyboardTouchIDNumpad: PhysicalLayout = {
-        PhysicalLayout(
-            id: "magic-keyboard-touchid-numpad",
-            name: "Magic Keyboard with Touch ID and Numeric Keypad",
-            keys: ansi100Percent.keys,
-            totalWidth: ansi100Percent.totalWidth,
-            totalHeight: ansi100Percent.totalHeight
-        )
-    }()
+    static let magicKeyboardTouchIDNumpad: PhysicalLayout = .init(
+        id: "magic-keyboard-touchid-numpad",
+        name: "Magic Keyboard with Touch ID and Numeric Keypad",
+        keys: ansi100Percent.keys,
+        totalWidth: ansi100Percent.totalWidth,
+        totalHeight: ansi100Percent.totalHeight
+    )
 
     // MARK: - Kinesis Advantage 360
 
@@ -143,7 +135,7 @@ extension PhysicalLayout {
         // Fallback to a minimal layout if JSON parsing fails
         // This should never happen in production, but provides graceful degradation
         #if DEBUG
-        print("PhysicalLayout: Failed to load Kinesis 360 from JSON, using fallback")
+            print("PhysicalLayout: Failed to load Kinesis 360 from JSON, using fallback")
         #endif
         return PhysicalLayout(
             id: "kinesis-360",
@@ -166,7 +158,7 @@ extension PhysicalLayout {
         }
 
         #if DEBUG
-        print("PhysicalLayout: Failed to load Kinesis mWave from JSON, using fallback")
+            print("PhysicalLayout: Failed to load Kinesis mWave from JSON, using fallback")
         #endif
         return PhysicalLayout(
             id: "kinesis-mwave",
@@ -191,7 +183,7 @@ extension PhysicalLayout {
             return layout
         }
         #if DEBUG
-        print("PhysicalLayout: Failed to load 40% ANSI from JSON, using fallback")
+            print("PhysicalLayout: Failed to load 40% ANSI from JSON, using fallback")
         #endif
         return PhysicalLayout(
             id: "ansi-40",
@@ -214,7 +206,7 @@ extension PhysicalLayout {
             return layout
         }
         #if DEBUG
-        print("PhysicalLayout: Failed to load 60% ANSI from JSON, using fallback")
+            print("PhysicalLayout: Failed to load 60% ANSI from JSON, using fallback")
         #endif
         return PhysicalLayout(
             id: "ansi-60",
@@ -237,7 +229,7 @@ extension PhysicalLayout {
             return layout
         }
         #if DEBUG
-        print("PhysicalLayout: Failed to load 65% ANSI from JSON, using fallback")
+            print("PhysicalLayout: Failed to load 65% ANSI from JSON, using fallback")
         #endif
         return PhysicalLayout(
             id: "ansi-65",
@@ -260,7 +252,7 @@ extension PhysicalLayout {
             return layout
         }
         #if DEBUG
-        print("PhysicalLayout: Failed to load 75% ANSI from JSON, using fallback")
+            print("PhysicalLayout: Failed to load 75% ANSI from JSON, using fallback")
         #endif
         return PhysicalLayout(
             id: "ansi-75",
@@ -283,7 +275,7 @@ extension PhysicalLayout {
             return layout
         }
         #if DEBUG
-        print("PhysicalLayout: Failed to load 80% ANSI from JSON, using fallback")
+            print("PhysicalLayout: Failed to load 80% ANSI from JSON, using fallback")
         #endif
         return PhysicalLayout(
             id: "ansi-80",
@@ -306,7 +298,7 @@ extension PhysicalLayout {
             return layout
         }
         #if DEBUG
-        print("PhysicalLayout: Failed to load 100% ANSI from JSON, using fallback")
+            print("PhysicalLayout: Failed to load 100% ANSI from JSON, using fallback")
         #endif
         return PhysicalLayout(
             id: "ansi-100",
@@ -331,7 +323,7 @@ extension PhysicalLayout {
             return layout
         }
         #if DEBUG
-        print("PhysicalLayout: Failed to load HHKB from JSON, using fallback")
+            print("PhysicalLayout: Failed to load HHKB from JSON, using fallback")
         #endif
         return PhysicalLayout(
             id: "hhkb",
@@ -355,7 +347,7 @@ extension PhysicalLayout {
             return layout
         }
         #if DEBUG
-        print("PhysicalLayout: Failed to load Corne from JSON, using fallback")
+            print("PhysicalLayout: Failed to load Corne from JSON, using fallback")
         #endif
         return PhysicalLayout(
             id: "corne",
@@ -379,7 +371,7 @@ extension PhysicalLayout {
             return layout
         }
         #if DEBUG
-        print("PhysicalLayout: Failed to load Sofle from JSON, using fallback")
+            print("PhysicalLayout: Failed to load Sofle from JSON, using fallback")
         #endif
         return PhysicalLayout(
             id: "sofle",
@@ -403,7 +395,7 @@ extension PhysicalLayout {
             return layout
         }
         #if DEBUG
-        print("PhysicalLayout: Failed to load Ferris Sweep from JSON, using fallback")
+            print("PhysicalLayout: Failed to load Ferris Sweep from JSON, using fallback")
         #endif
         return PhysicalLayout(
             id: "ferris-sweep",
@@ -427,7 +419,7 @@ extension PhysicalLayout {
             return layout
         }
         #if DEBUG
-        print("PhysicalLayout: Failed to load Cornix from JSON, using fallback")
+            print("PhysicalLayout: Failed to load Cornix from JSON, using fallback")
         #endif
         return PhysicalLayout(
             id: "cornix",

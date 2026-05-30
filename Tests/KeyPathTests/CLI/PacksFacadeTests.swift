@@ -2,7 +2,6 @@
 import XCTest
 
 final class PacksFacadeTests: XCTestCase {
-
     // MARK: - resolvePack: by full ID
 
     func testResolvePack_FullID_ReturnsExactMatch() throws {
@@ -76,7 +75,7 @@ final class PacksFacadeTests: XCTestCase {
             category: "Test",
             tagline: "A test pack",
             isInstalled: true,
-            installedAt: Date(timeIntervalSince1970: 1700000000)
+            installedAt: Date(timeIntervalSince1970: 1_700_000_000)
         )
         let data = try JSONEncoder().encode(pack)
         let decoded = try JSONDecoder().decode(CLIPack.self, from: data)

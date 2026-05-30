@@ -90,9 +90,9 @@ public struct WizardDetailPageModifier: ViewModifier {
     }
 }
 
-extension View {
+public extension View {
     /// Adds the standard navigation control overlay to wizard detail pages
-    public func wizardDetailPage() -> some View {
+    func wizardDetailPage() -> some View {
         modifier(WizardDetailPageModifier())
     }
 }

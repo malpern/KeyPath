@@ -26,8 +26,13 @@ public struct WizardKarabinerComponentsPage: View {
     @State private var stepProgressCancellable: AnyCancellable?
     @Environment(WizardStateMachine.self) private var stateMachine
 
-    private var systemState: WizardSystemState { stateMachine.wizardState }
-    private var issues: [WizardIssue] { stateMachine.wizardIssues }
+    private var systemState: WizardSystemState {
+        stateMachine.wizardState
+    }
+
+    private var issues: [WizardIssue] {
+        stateMachine.wizardIssues
+    }
 
     public init(
         isFixing: Bool,

@@ -8,7 +8,18 @@ import SwiftUI
 // MARK: - Mapping Table Content
 
 struct MappingTableContent: View {
-    let mappings: [(input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, sectionLabel: String?, enabled: Bool, id: UUID, behavior: MappingBehavior?)]
+    let mappings: [(
+        input: String,
+        output: String,
+        shiftedOutput: String?,
+        ctrlOutput: String?,
+        description: String?,
+        sectionBreak: Bool,
+        sectionLabel: String?,
+        enabled: Bool,
+        id: UUID,
+        behavior: MappingBehavior?
+    )]
 
     private var hasShiftVariants: Bool {
         mappings.contains { $0.shiftedOutput != nil }

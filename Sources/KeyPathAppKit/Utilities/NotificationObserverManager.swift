@@ -28,10 +28,14 @@ import Foundation
 /// For `@MainActor` types, use the `@MainActor` variant methods.
 public final class NotificationObserverManager: @unchecked Sendable {
     public static let mainOperationQueue: OperationQueue? = nil
+    // swiftformat:disable redundantClosure — collapsing this IIFE lets `.perform` lose its
+    // explicit `NotificationCenter` base, which breaks type inference (won't compile).
     public static let defaultCenter: NotificationCenter = {
         NotificationCenter.perform(NSSelectorFromString("defaultCenter"))?
             .takeUnretainedValue() as? NotificationCenter ?? NotificationCenter()
     }()
+
+    // swiftformat:enable redundantClosure
 
     /// Stored observer with its associated notification center
     private struct StoredObserver {

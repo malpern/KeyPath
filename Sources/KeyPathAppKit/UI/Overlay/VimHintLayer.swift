@@ -145,7 +145,7 @@ struct VimHintLayer: View {
         return !motionGroups.contains(hint.group)
     }
 
-    nonisolated private static let terminalBundleIDs: Set<String> = [
+    private nonisolated static let terminalBundleIDs: Set<String> = [
         "net.kovidgoyal.kitty",
         "com.mitchellh.ghostty",
         "com.apple.Terminal",
@@ -182,44 +182,44 @@ private func groupColor(for group: VimHint.Group) -> Color {
 
 private func shortActionLabel(for hint: VimHint) -> String {
     switch hint.actionLabel {
-    case "left": return "left"
-    case "down": return "down"
-    case "up": return "up"
-    case "right": return "right"
-    case "word forward": return "word →"
-    case "word back": return "← word"
-    case "end of word": return "end"
-    case "line start": return "start"
-    case "line end": return "end"
-    case "insert before cursor": return "insert"
-    case "append after cursor": return "append"
-    case "open line below": return "open ↓"
-    case "insert at line start": return "Insert"
-    case "append at line end": return "Append"
-    case "open line above": return "open ↑"
-    case "delete char": return "del chr"
-    case "replace char": return "replace"
-    case "undo": return "undo"
-    case "redo": return "redo"
-    case "delete (motion / dd line)": return "delete"
-    case "change (motion / cc line)": return "change"
-    case "yank (motion / yy line)": return "yank"
-    case "find char forward": return "find →"
-    case "find char backward": return "← find"
-    case "to char forward": return "to →"
-    case "to char backward": return "← to"
-    case "doc top": return "top"
-    case "doc bottom": return "bottom"
-    case "half page down": return "½ pg ↓"
-    case "half page up": return "½ pg ↑"
-    case "page down": return "pg ↓"
-    case "page up": return "pg ↑"
-    case "match bracket": return "match"
-    case "search forward": return "search"
-    case "search backward": return "search"
-    case "next match": return "next"
-    case "previous match": return "prev"
-    default: return String(hint.actionLabel.prefix(6))
+    case "left": "left"
+    case "down": "down"
+    case "up": "up"
+    case "right": "right"
+    case "word forward": "word →"
+    case "word back": "← word"
+    case "end of word": "end"
+    case "line start": "start"
+    case "line end": "end"
+    case "insert before cursor": "insert"
+    case "append after cursor": "append"
+    case "open line below": "open ↓"
+    case "insert at line start": "Insert"
+    case "append at line end": "Append"
+    case "open line above": "open ↑"
+    case "delete char": "del chr"
+    case "replace char": "replace"
+    case "undo": "undo"
+    case "redo": "redo"
+    case "delete (motion / dd line)": "delete"
+    case "change (motion / cc line)": "change"
+    case "yank (motion / yy line)": "yank"
+    case "find char forward": "find →"
+    case "find char backward": "← find"
+    case "to char forward": "to →"
+    case "to char backward": "← to"
+    case "doc top": "top"
+    case "doc bottom": "bottom"
+    case "half page down": "½ pg ↓"
+    case "half page up": "½ pg ↑"
+    case "page down": "pg ↓"
+    case "page up": "pg ↑"
+    case "match bracket": "match"
+    case "search forward": "search"
+    case "search backward": "search"
+    case "next match": "next"
+    case "previous match": "prev"
+    default: String(hint.actionLabel.prefix(6))
     }
 }
 
@@ -275,25 +275,25 @@ private struct VimHintLabel: View {
 
     private var fillOpacity: Double {
         switch hint.tier {
-        case .core: return 0.2
-        case .secondary: return 0.1
-        case .advanced: return 0.05
+        case .core: 0.2
+        case .secondary: 0.1
+        case .advanced: 0.05
         }
     }
 
     private var borderOpacity: Double {
         switch hint.tier {
-        case .core: return 0.6
-        case .secondary: return 0.35
-        case .advanced: return 0.2
+        case .core: 0.6
+        case .secondary: 0.35
+        case .advanced: 0.2
         }
     }
 
     private var labelOpacity: Double {
         switch hint.tier {
-        case .core: return 1.0
-        case .secondary: return 0.8
-        case .advanced: return 0.55
+        case .core: 1.0
+        case .secondary: 0.8
+        case .advanced: 0.55
         }
     }
 }

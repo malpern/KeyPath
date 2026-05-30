@@ -22,7 +22,7 @@ public enum WizardDependencies {
     public static var runtimeCoordinator: (any RuntimeCoordinating)?
 
     /// HelperManager instance
-    nonisolated(unsafe) public static var helperManager: (any WizardHelperManaging)?
+    public nonisolated(unsafe) static var helperManager: (any WizardHelperManaging)?
 
     /// KanataDaemonManager instance
     public static var daemonManager: (any WizardDaemonManaging)?
@@ -36,10 +36,10 @@ public enum WizardDependencies {
     public static var helperMaintenance: (any WizardHelperMaintaining)?
 
     /// FullDiskAccessChecker instance
-    nonisolated(unsafe) public static var fullDiskAccessChecker: (any WizardFullDiskAccessChecking)?
+    public nonisolated(unsafe) static var fullDiskAccessChecker: (any WizardFullDiskAccessChecking)?
 
     /// PermissionRequestService instance
-    nonisolated(unsafe) public static var permissionRequestService: (any WizardPermissionRequesting)?
+    public nonisolated(unsafe) static var permissionRequestService: (any WizardPermissionRequesting)?
 
     /// PrivilegedOperationsCoordinator instance
     public static var privilegedOperations: (any WizardPrivilegedOperating)?
@@ -61,47 +61,47 @@ public enum WizardDependencies {
     // MARK: - Type-Erased Closures
 
     /// SMAppService factory for helper plist (type-erased)
-    nonisolated(unsafe) public static var smServiceFactory: ((String) -> Any)?
+    public nonisolated(unsafe) static var smServiceFactory: ((String) -> Any)?
 
     /// Check if the helper needs Login Items approval in System Settings
-    nonisolated(unsafe) public static var helperNeedsApproval: (() -> Bool)?
+    public nonisolated(unsafe) static var helperNeedsApproval: (() -> Bool)?
 
     /// UninstallCoordinator factory (type-erased, creates new instance each call)
     public static var createUninstallCoordinator: (() -> any WizardUninstalling)?
 
     /// AdminCommandExecutor - execute(batch:) for privileged commands
-    nonisolated(unsafe) public static var executePrivilegedBatch: ((PrivilegedCommandRunner.Batch) async throws -> (exitCode: Int32, output: String))?
+    public nonisolated(unsafe) static var executePrivilegedBatch: ((PrivilegedCommandRunner.Batch) async throws -> (exitCode: Int32, output: String))?
 
     /// KeyPathAppKitResources bundle accessor
-    nonisolated(unsafe) public static var resourceBundle: Bundle?
+    public nonisolated(unsafe) static var resourceBundle: Bundle?
 
     // MARK: - ExternalKanataService (static methods)
 
     /// Get info about externally-running Kanata process
-    nonisolated(unsafe) public static var getExternalKanataInfo: (() -> WizardSystemPaths.RunningKanataInfo?)?
+    public nonisolated(unsafe) static var getExternalKanataInfo: (() -> WizardSystemPaths.RunningKanataInfo?)?
 
     /// Stop an externally-running Kanata process
-    nonisolated(unsafe) public static var stopExternalKanata: ((WizardSystemPaths.RunningKanataInfo) async -> Result<Void, Error>)?
+    public nonisolated(unsafe) static var stopExternalKanata: ((WizardSystemPaths.RunningKanataInfo) async -> Result<Void, Error>)?
 
     /// Check if external Kanata is running
-    nonisolated(unsafe) public static var hasExternalKanataRunning: (() -> Bool)?
+    public nonisolated(unsafe) static var hasExternalKanataRunning: (() -> Bool)?
 
     // MARK: - TCPProbe (static method)
 
     /// TCP connectivity probe
-    nonisolated(unsafe) public static var tcpProbe: ((Int, Int) -> Bool)?
+    public nonisolated(unsafe) static var tcpProbe: ((Int, Int) -> Bool)?
 
     // MARK: - NotificationObserverManager factory
 
     /// Factory to create notification observer managers
-    nonisolated(unsafe) public static var createNotificationObserverManager: (() -> Any)?
+    public nonisolated(unsafe) static var createNotificationObserverManager: (() -> Any)?
 
     // MARK: - Ad-hoc Signature Cache
 
     /// Whether the app is running ad-hoc signed (not notarized).
     /// Cached at startup by KeyPathAppKit to avoid blocking the main thread
     /// with a synchronous codesign subprocess call from SwiftUI views.
-    nonisolated(unsafe) public static var isRunningAdHoc: Bool = false
+    public nonisolated(unsafe) static var isRunningAdHoc: Bool = false
 
     // MARK: - Test Support
 

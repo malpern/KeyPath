@@ -4,7 +4,6 @@ import XCTest
 
 /// Tests for KeyMappingFormatter: KeySequence → kanata format conversion.
 final class MapperKanataFormatTests: XCTestCase {
-
     // MARK: - Single Key Formatting
 
     func testSingleLetterKey() {

@@ -2,7 +2,6 @@
 import XCTest
 
 final class ConfigBackupManagerTests: XCTestCase {
-
     private var tempDir: String!
 
     override func setUp() {
@@ -19,7 +18,9 @@ final class ConfigBackupManagerTests: XCTestCase {
         super.tearDown()
     }
 
-    private var configPath: String { "\(tempDir!)/keypath.kbd" }
+    private var configPath: String {
+        "\(tempDir!)/keypath.kbd"
+    }
 
     private func writeValidConfig(_ content: String? = nil) throws {
         let validConfig = content ?? """

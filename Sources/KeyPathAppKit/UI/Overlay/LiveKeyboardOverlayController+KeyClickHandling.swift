@@ -114,7 +114,7 @@ extension LiveKeyboardOverlayController {
         )
     }
 
-    func handleKeyDoubleClick(key: PhysicalKey, layerInfo: LayerKeyInfo?) {
+    func handleKeyDoubleClick(key: PhysicalKey, layerInfo _: LayerKeyInfo?) {
         guard viewModel.isLauncherModeActive else { return }
         let inputKey = OverlayKeyboardView.keyCodeToKanataName(key.keyCode)
         let normalizedKey = inputKey.lowercased()

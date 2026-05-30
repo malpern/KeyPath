@@ -205,7 +205,6 @@ public final class VHIDDeviceManager: @unchecked Sendable {
         return String(compact.prefix(160)) + "…"
     }
 
-
     private func evaluateDaemonProcess() async -> DaemonHealthState {
         // During startup mode, use fast non-blocking check to avoid false negatives
         // while still preventing UI freezes from Process() execution

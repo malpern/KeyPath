@@ -128,21 +128,20 @@ struct RuleEnsure: AsyncParsableCommand {
     private func ensureOne(spec: EnsureSpec, facade: RulesFacade, dryRun: Bool) async throws -> CLIEnsureResult {
         let existing = await facade.showRule(input: spec.input)
 
-        let matchesDesired: Bool
-        if let existing {
+        let matchesDesired: Bool = if let existing {
             if let hold = spec.hold {
                 if case let .dualRole(dr) = existing.behavior {
-                    matchesDesired = existing.action.outputString == spec.output
+                    existing.action.outputString == spec.output
                         && dr.holdActionString == hold
                         && dr.tapTimeout == spec.timeout
                 } else {
-                    matchesDesired = false
+                    false
                 }
             } else {
-                matchesDesired = existing.action.outputString == spec.output && existing.behavior == nil
+                existing.action.outputString == spec.output && existing.behavior == nil
             }
         } else {
-            matchesDesired = false
+            false
         }
 
         if matchesDesired {

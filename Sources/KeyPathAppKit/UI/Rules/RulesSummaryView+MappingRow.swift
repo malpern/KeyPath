@@ -8,7 +8,18 @@ import SwiftUI
 // MARK: - Mapping Row View
 
 struct MappingRowView: View {
-    let mapping: (input: String, output: String, shiftedOutput: String?, ctrlOutput: String?, description: String?, sectionBreak: Bool, sectionLabel: String?, enabled: Bool, id: UUID, behavior: MappingBehavior?)
+    let mapping: (
+        input: String,
+        output: String,
+        shiftedOutput: String?,
+        ctrlOutput: String?,
+        description: String?,
+        sectionBreak: Bool,
+        sectionLabel: String?,
+        enabled: Bool,
+        id: UUID,
+        behavior: MappingBehavior?
+    )
     let layerActivator: MomentaryActivator?
     var leaderKeyDisplay: String = "␣ Space"
     let onEditMapping: ((UUID) -> Void)?
@@ -173,5 +184,4 @@ struct MappingRowView: View {
             }
         }
     }
-
 }

@@ -3,8 +3,8 @@ import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
 
-extension InstallationWizardView {
-    public func openLoginItemsSettings() {
+public extension InstallationWizardView {
+    func openLoginItemsSettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
             NSWorkspace.shared.open(url)
         } else {
@@ -16,7 +16,7 @@ extension InstallationWizardView {
     }
 
     /// Start polling for Login Items approval status change
-    public func startLoginItemsApprovalPolling() {
+    func startLoginItemsApprovalPolling() {
         stopLoginItemsApprovalPolling()
 
         AppLogger.shared.log("🔍 [LoginItems] Starting approval polling (3 min timeout)...")
@@ -55,7 +55,7 @@ extension InstallationWizardView {
     }
 
     /// Stop polling for Login Items approval
-    public func stopLoginItemsApprovalPolling() {
+    func stopLoginItemsApprovalPolling() {
         loginItemsPollingTask?.cancel()
         loginItemsPollingTask = nil
     }

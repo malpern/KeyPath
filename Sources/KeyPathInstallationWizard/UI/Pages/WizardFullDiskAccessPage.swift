@@ -19,8 +19,13 @@ public struct WizardFullDiskAccessPage: View {
 
     @Environment(WizardStateMachine.self) private var stateMachine
 
-    private var systemState: WizardSystemState { stateMachine.wizardState }
-    private var issues: [WizardIssue] { stateMachine.wizardIssues }
+    private var systemState: WizardSystemState {
+        stateMachine.wizardState
+    }
+
+    private var issues: [WizardIssue] {
+        stateMachine.wizardIssues
+    }
 
     public init() {}
 

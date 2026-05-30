@@ -1,5 +1,5 @@
-@testable import KeyPathAppKit
 import Foundation
+@testable import KeyPathAppKit
 import XCTest
 
 /// Runtime behavior guard for starter-kit packs. For each pack, we enable
@@ -14,7 +14,9 @@ import XCTest
 ///
 /// Skips gracefully if the simulator binary isn't available.
 final class PackRuntimeBehaviorTests: XCTestCase {
-    private var simulatorURL: URL? { findBinary("kanata_simulated_input") }
+    private var simulatorURL: URL? {
+        findBinary("kanata_simulated_input")
+    }
 
     // MARK: - Starter-kit headline behaviors
 

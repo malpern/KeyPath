@@ -19,9 +19,17 @@ public struct WizardInputMonitoringPage: View {
 
     @Environment(WizardStateMachine.self) private var stateMachine
 
-    private var systemState: WizardSystemState { stateMachine.wizardState }
-    private var issues: [WizardIssue] { stateMachine.wizardIssues.filter { $0.category == .permissions } }
-    private var allIssues: [WizardIssue] { stateMachine.wizardIssues }
+    private var systemState: WizardSystemState {
+        stateMachine.wizardState
+    }
+
+    private var issues: [WizardIssue] {
+        stateMachine.wizardIssues.filter { $0.category == .permissions }
+    }
+
+    private var allIssues: [WizardIssue] {
+        stateMachine.wizardIssues
+    }
 
     public init(
         onRefresh: @escaping () async -> Void,

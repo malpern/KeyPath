@@ -2,7 +2,6 @@
 import XCTest
 
 final class ConfigApplyTypesExtendedTests: XCTestCase {
-
     // MARK: - ApplyResult
 
     func testApplyResult_SuccessDefaults() {
@@ -87,7 +86,7 @@ final class ConfigApplyTypesExtendedTests: XCTestCase {
     }
 
     func testConfigDiagnostics_Equality() {
-        let date = Date(timeIntervalSince1970: 1700000000)
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
         let a = ConfigDiagnostics(mappingCountBefore: 3, timestamp: date)
         let b = ConfigDiagnostics(mappingCountBefore: 3, timestamp: date)
         XCTAssertEqual(a, b)

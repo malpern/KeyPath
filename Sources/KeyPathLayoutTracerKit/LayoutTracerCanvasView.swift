@@ -155,17 +155,17 @@ struct LayoutTracerCanvasView: View {
         // #available check alone isn't enough because the compiler can't
         // type-check the call on older SDKs even inside the guarded branch.
         #if compiler(>=6.2)
-        if #available(macOS 26, *) {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(.clear)
-                .glassEffect(.regular.tint(.white.opacity(0.02)), in: .rect(cornerRadius: 22))
-        } else {
+            if #available(macOS 26, *) {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(.clear)
+                    .glassEffect(.regular.tint(.white.opacity(0.02)), in: .rect(cornerRadius: 22))
+            } else {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Color.black.opacity(0.12))
+            }
+        #else
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(Color.black.opacity(0.12))
-        }
-        #else
-        RoundedRectangle(cornerRadius: 22, style: .continuous)
-            .fill(Color.black.opacity(0.12))
         #endif
     }
 
@@ -269,12 +269,11 @@ struct LayoutTracerCanvasView: View {
             document.beginInteractiveChange()
         }
         guard let origin = draggingGuideOrigin else { return }
-        let delta: Double
-        switch guide.axis {
+        let delta: Double = switch guide.axis {
         case .horizontal:
-            delta = translation.height / (document.zoom * document.coordinateScale)
+            translation.height / (document.zoom * document.coordinateScale)
         case .vertical:
-            delta = translation.width / (document.zoom * document.coordinateScale)
+            translation.width / (document.zoom * document.coordinateScale)
         }
         let proposedPosition = origin + delta
         if final, proposedPosition <= guideRemovalThreshold {

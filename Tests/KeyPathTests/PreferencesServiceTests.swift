@@ -3,7 +3,6 @@ import XCTest
 
 @MainActor
 final class PreferencesServiceTests: XCTestCase {
-
     // MARK: - Port Validation
 
     func testIsValidPort_AcceptsUserPorts() {

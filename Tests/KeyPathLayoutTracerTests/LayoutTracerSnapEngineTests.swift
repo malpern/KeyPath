@@ -1,5 +1,5 @@
-import Testing
 @testable import KeyPathLayoutTracerKit
+import Testing
 
 struct LayoutTracerSnapEngineTests {
     @Test

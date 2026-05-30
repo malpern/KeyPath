@@ -2,7 +2,6 @@
 import XCTest
 
 final class RuleCollectionCatalogTests: XCTestCase {
-
     // MARK: - Default Collections
 
     func testDefaultCollections_IsNonEmpty() {

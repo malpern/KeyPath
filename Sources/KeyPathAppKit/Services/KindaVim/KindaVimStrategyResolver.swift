@@ -23,7 +23,7 @@ struct KindaVimStrategyResolver: Sendable {
         static let empty = PreferenceLists(ignored: [], keyboardEnforced: [], hybrid: [])
     }
 
-    static let defaultPreferencesURL: URL = URL(fileURLWithPath: NSHomeDirectory())
+    static let defaultPreferencesURL: URL = .init(fileURLWithPath: NSHomeDirectory())
         .appendingPathComponent("Library")
         .appendingPathComponent("Preferences")
         .appendingPathComponent("mo.com.sleeplessmind.kindaVim.plist")

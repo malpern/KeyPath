@@ -3,8 +3,8 @@ import SwiftUI
 
 struct HoverDropdownButton: View {
     let text: String
-    var sfSymbol: String? = nil
-    var icon: (name: String, image: NSImage?)? = nil
+    var sfSymbol: String?
+    var icon: (name: String, image: NSImage?)?
     let action: () -> Void
 
     @State private var isHovering = false

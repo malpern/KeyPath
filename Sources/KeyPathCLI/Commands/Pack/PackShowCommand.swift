@@ -86,7 +86,10 @@ struct PackShow: AsyncParsableCommand {
                 lines.append("Quick Settings:")
                 for setting in detail.quickSettings {
                     let current = detail.quickSettingValues[setting.id] ?? setting.defaultValue
-                    lines.append("  \(setting.label): \(current)\(setting.unitSuffix) (range: \(setting.min)-\(setting.max)\(setting.unitSuffix), default: \(setting.defaultValue)\(setting.unitSuffix))")
+                    lines
+                        .append(
+                            "  \(setting.label): \(current)\(setting.unitSuffix) (range: \(setting.min)-\(setting.max)\(setting.unitSuffix), default: \(setting.defaultValue)\(setting.unitSuffix))"
+                        )
                 }
             }
 

@@ -937,4 +937,3 @@ public enum WindowSnappingActivationMode: String, Codable, Equatable, Sendable {
         }
     }
 }
-

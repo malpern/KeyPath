@@ -1,9 +1,8 @@
-import Testing
 @testable import KeyPathAppKit
+import Testing
 
 @Suite("OutputActionGrouping")
 struct OutputActionGroupingTests {
-
     // MARK: - Detailed grouping (overlay mapper)
 
     @Test("detailed produces 9 groups in expected order")
@@ -167,7 +166,7 @@ struct OutputActionGroupingTests {
     @Test("detailed media key IDs all exist in SystemActionInfo.allActions")
     func detailedMediaKeyIDsExist() {
         let allIDs = Set(SystemActionInfo.allActions.map(\.id))
-        let hardcodedIDs: Set<String> = [
+        let hardcodedIDs: Set = [
             "play-pause", "next-track", "prev-track",
             "mute", "volume-up", "volume-down",
             "brightness-up", "brightness-down",
@@ -224,7 +223,6 @@ struct OutputActionGroupingTests {
 
 @Suite("KeystrokePresetGridView")
 struct KeystrokePresetGridViewTests {
-
     @Test("presets have unique keys")
     func presetsUnique() {
         let keys = KeystrokePresetGridView.presets.map(\.key)
@@ -249,7 +247,7 @@ struct KeystrokePresetGridViewTests {
     @Test("presets include expected common keys")
     func presetsIncludeCommonKeys() {
         let keys = Set(KeystrokePresetGridView.presets.map(\.key))
-        let expected: Set<String> = ["esc", "enter", "bspc", "del", "tab", "spc", "up", "down", "left", "right"]
+        let expected: Set = ["esc", "enter", "bspc", "del", "tab", "spc", "up", "down", "left", "right"]
         #expect(keys == expected)
     }
 

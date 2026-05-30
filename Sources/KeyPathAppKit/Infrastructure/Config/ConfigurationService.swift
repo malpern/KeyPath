@@ -827,7 +827,7 @@ public enum KanataKeyConverter {
         }
 
         // Known valid kanata key names that need no conversion (pass-through is safe)
-        let validKanataPassthrough: Set<String> = [
+        let validKanataPassthrough: Set = [
             // Arrow keys
             "up", "down", "left", "right",
             // Navigation
@@ -915,7 +915,7 @@ public enum KanataKeyConverter {
         }
 
         // Known key names that shouldn't be split into macros
-        let keyNames: Set<String> = [
+        let keyNames: Set = [
             "escape", "esc", "return", "ret", "enter",
             "backspace", "bspc", "delete", "del",
             "tab", "space", "spc",

@@ -3,31 +3,31 @@ import XCTest
 
 final class LayerKeyMapperLabelTests: XCTestCase {
     func testHyperDetectionWithRightSideAliases() {
-        let outputs: Set<String> = ["rctl", "rmet", "ralt", "rsft"]
+        let outputs: Set = ["rctl", "rmet", "ralt", "rsft"]
         let label = LayerKeyMapper.labelForOutputKeys(outputs) { key in key }
         XCTAssertEqual(label, "✦")
     }
 
     func testHyperDetectionWithPlainModifierNames() {
-        let outputs: Set<String> = ["lctl", "lmet", "lalt", "lsft"]
+        let outputs: Set = ["lctl", "lmet", "lalt", "lsft"]
         let label = LayerKeyMapper.labelForOutputKeys(outputs) { key in key }
         XCTAssertEqual(label, "✦")
     }
 
     func testMehDetectionWithMixedAliases() {
-        let outputs: Set<String> = ["control", "lalt", "shift"]
+        let outputs: Set = ["control", "lalt", "shift"]
         let label = LayerKeyMapper.labelForOutputKeys(outputs) { key in key }
         XCTAssertEqual(label, "◆")
     }
 
     func testSingleKeyFallback() {
-        let outputs: Set<String> = ["escape"]
+        let outputs: Set = ["escape"]
         let label = LayerKeyMapper.labelForOutputKeys(outputs) { _ in "⎋" }
         XCTAssertEqual(label, "⎋")
     }
 
     func testComboFallbackJoinsLabels() {
-        let outputs: Set<String> = ["lmet", "left"]
+        let outputs: Set = ["lmet", "left"]
         let label = LayerKeyMapper.labelForOutputKeys(outputs) { key in
             switch key {
             case "lmet": "⌘"

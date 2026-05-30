@@ -226,7 +226,8 @@ extension BaseKeycap {
         } else {
             let sfSymbol: String? = {
                 if let info = layerKeyInfo,
-                   let outputSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel) {
+                   let outputSymbol = LabelMetadata.sfSymbol(forOutputLabel: info.displayLabel)
+                {
                     return outputSymbol
                 }
                 return LabelMetadata.sfSymbol(forKeyCode: key.keyCode)

@@ -8,7 +8,6 @@ import XCTest
 /// These exercise the path from MapperViewModel.save() through RuleCollectionsManager
 /// to ConfigurationService, verifying the full chain that breaks most often.
 final class MapperSaveIntegrationTests: XCTestCase {
-
     @MainActor
     private func createTestEnvironment() async throws -> (RuleCollectionsManager, URL) {
         TestEnvironment.forceTestMode = true

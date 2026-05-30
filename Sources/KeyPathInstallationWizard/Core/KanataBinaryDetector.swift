@@ -168,5 +168,4 @@ public final class KanataBinaryDetector: Sendable {
             return [.bundledKanataMissing] // CRITICAL: App bundle corrupted
         }
     }
-
 }

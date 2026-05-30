@@ -145,5 +145,4 @@ enum AppNotificationWiring {
             }
         }
     }
-
 }

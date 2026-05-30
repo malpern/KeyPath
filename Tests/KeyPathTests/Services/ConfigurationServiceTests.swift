@@ -1238,7 +1238,7 @@ class ConfigurationServiceTests: XCTestCase {
         let allKeyCodes: [UInt16] = Array(0 ... 126) + [200, 255]
 
         // Valid kanata key names (single chars, function keys, and known abbreviations)
-        let validKanataKeys: Set<String> = [
+        let validKanataKeys: Set = [
             // Single character keys (a-z, 0-9, punctuation)
             "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
             "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",

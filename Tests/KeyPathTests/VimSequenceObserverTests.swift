@@ -44,7 +44,7 @@ final class VimSequenceObserverTests: XCTestCase {
         mode = .normal
         observer.ingest(character: "5")
         XCTAssertEqual(observer.countBuffer, "5")
-        observer.ingest(character: "0")  // not a leading zero — ok mid-buffer
+        observer.ingest(character: "0") // not a leading zero — ok mid-buffer
         XCTAssertEqual(observer.countBuffer, "50")
     }
 
@@ -61,7 +61,7 @@ final class VimSequenceObserverTests: XCTestCase {
         mode = .normal
         observer.ingest(character: "5")
         XCTAssertEqual(observer.countBuffer, "5")
-        observer.ingest(character: "j")  // motion consumes the count
+        observer.ingest(character: "j") // motion consumes the count
         XCTAssertEqual(observer.countBuffer, "")
     }
 
@@ -77,7 +77,7 @@ final class VimSequenceObserverTests: XCTestCase {
 
         // kindaVim flips to insert (e.g. user pressed Esc, then `i`).
         mode = .insert
-        observer.ingest(character: "x")  // insert mode keystroke
+        observer.ingest(character: "x") // insert mode keystroke
         XCTAssertNil(observer.currentOperator)
         XCTAssertEqual(observer.countBuffer, "")
     }
@@ -98,7 +98,7 @@ final class VimSequenceObserverTests: XCTestCase {
         XCTAssertEqual(observer.currentOperator, "d")
 
         // Sequence completes: kindaVim flips back to normal. No new key.
-        mode = .normal  // (still normal — but pretend we transitioned through op-pending)
+        mode = .normal // (still normal — but pretend we transitioned through op-pending)
         observer.syncWithMode()
         // Mode didn't actually change, so state should remain.
         XCTAssertEqual(observer.currentOperator, "d")

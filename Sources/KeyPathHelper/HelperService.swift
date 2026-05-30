@@ -14,7 +14,7 @@ class HelperService: NSObject, HelperProtocol {
     /// Helper version (must match app version for compatibility)
     private static let version = "1.1.0"
     private static let vhidRootOnlyDirectory = "/Library/Application Support/org.pqrs/tmp/rootonly"
-private let logger = Logger(subsystem: "com.keypath.helper", category: "service")
+    private let logger = Logger(subsystem: "com.keypath.helper", category: "service")
 
     // MARK: - Version Management
 
@@ -226,6 +226,7 @@ private let logger = Logger(subsystem: "com.keypath.helper", category: "service"
             reply: reply
         )
     }
+
     func installBundledVHIDDriver(pkgPath: String, reply: @escaping (Bool, String?) -> Void) {
         NSLog("[KeyPathHelper] installBundledVHIDDriver requested: %@", pkgPath)
         executePrivilegedOperation(
@@ -298,6 +299,7 @@ private let logger = Logger(subsystem: "com.keypath.helper", category: "service"
         _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(vhidDaemonServiceID)"])
         _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(vhidManagerServiceID)"])
     }
+
     // MARK: - Process Management
 
     func terminateProcess(_ pid: Int32, reply: @escaping (Bool, String?) -> Void) {

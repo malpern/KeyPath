@@ -128,7 +128,7 @@ struct ActivityLoggingSettingsSection: View {
                 eventCount = 0
             } catch {
                 #if DEBUG
-                print("❌ [ActivityLogging] Reset failed: \(error.localizedDescription)")
+                    print("❌ [ActivityLogging] Reset failed: \(error.localizedDescription)")
                 #endif
             }
             isResetting = false

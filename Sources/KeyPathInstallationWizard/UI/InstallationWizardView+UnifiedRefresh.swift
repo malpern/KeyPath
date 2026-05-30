@@ -3,14 +3,14 @@ import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
 
-extension InstallationWizardView {
+public extension InstallationWizardView {
     // MARK: - Unified State Refresh
 
     /// Consolidated refresh method that handles all refresh scenarios
     /// - Parameters:
     ///   - showSpinner: Whether to show summary validating activity state
     ///   - previousPage: The page we're coming from (enables special handling for communication page)
-    public func refreshSystemState(showSpinner: Bool = false, previousPage: WizardPage? = nil) {
+    func refreshSystemState(showSpinner: Bool = false, previousPage: WizardPage? = nil) {
         guard !isForceClosing else {
             AppLogger.shared.log("🔍 [Wizard] Refresh blocked - force closing in progress")
             return
@@ -68,7 +68,7 @@ extension InstallationWizardView {
 
     /// Internal: Performs state detection with retry logic for communication page
     @MainActor
-    public func performStateDetection(previousPage: WizardPage?, attempt: Int, showSpinner: Bool) {
+    func performStateDetection(previousPage: WizardPage?, attempt: Int, showSpinner: Bool) {
         guard !isForceClosing else { return }
 
         let operation = WizardOperations.stateDetection(
@@ -100,7 +100,7 @@ extension InstallationWizardView {
     }
 
     /// Check if we should retry due to transient communication issues
-    public func shouldRetryForCommunication(result: SystemStateResult) -> Bool {
+    func shouldRetryForCommunication(result: SystemStateResult) -> Bool {
         // Retry if service appears not running
         switch result.state {
         case .serviceNotRunning, .daemonNotRunning:
@@ -125,7 +125,7 @@ extension InstallationWizardView {
         }
     }
 
-    public func cachedPreferredPage() async -> WizardPage? {
+    func cachedPreferredPage() async -> WizardPage? {
         guard let cachedState = stateMachine.lastWizardSnapshot else { return nil }
         let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
         let helperNeedsApproval = WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
@@ -138,7 +138,7 @@ extension InstallationWizardView {
         return page != .summary ? page : nil
     }
 
-    public func sanitizedIssues(from issues: [WizardIssue], for state: WizardSystemState)
+    func sanitizedIssues(from issues: [WizardIssue], for state: WizardSystemState)
         -> [WizardIssue]
     {
         guard shouldSuppressCommunicationIssues(for: state) else {
@@ -155,7 +155,7 @@ extension InstallationWizardView {
     }
 
     @MainActor
-    public func applySystemStateResult(_ result: SystemStateResult) -> [WizardIssue] {
+    func applySystemStateResult(_ result: SystemStateResult) -> [WizardIssue] {
         let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
         stateMachine.updateWizardState(result.state, issues: filteredIssues)
 
@@ -201,14 +201,14 @@ extension InstallationWizardView {
         return filteredIssues
     }
 
-    public func shouldSuppressCommunicationIssues(for state: WizardSystemState) -> Bool {
+    func shouldSuppressCommunicationIssues(for state: WizardSystemState) -> Bool {
         if case .active = state {
             return false
         }
         return true
     }
 
-    public func isCommunicationIssue(_ issue: WizardIssue) -> Bool {
+    func isCommunicationIssue(_ issue: WizardIssue) -> Bool {
         guard case let .component(component) = issue.identifier else {
             return false
         }
@@ -225,7 +225,7 @@ extension InstallationWizardView {
         }
     }
 
-    public func startKeyPathRuntime() {
+    func startKeyPathRuntime() {
         Task {
             if stateMachine.wizardState != .active {
                 guard let kanataManager else {
@@ -258,5 +258,4 @@ extension InstallationWizardView {
             }
         }
     }
-
 }

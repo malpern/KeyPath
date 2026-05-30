@@ -4,7 +4,6 @@ import XCTest
 /// Edge case tests for RuleCollectionDeduplicator.
 /// Verifies merge logic when multiple collections map the same key.
 final class DeduplicatorEdgeCaseTests: XCTestCase {
-
     // MARK: - Same Key, Different Collections
 
     func testFirstCollectionWins_SameKeyOnSameLayer() {
@@ -109,9 +108,9 @@ final class DeduplicatorEdgeCaseTests: XCTestCase {
         let allMappings = deduped.flatMap(\.mappings)
 
         XCTAssertTrue(allMappings.contains { $0.input == "s" && $0.action.outputString == "d" },
-                       "Non-conflicting key 's' from first collection should survive")
+                      "Non-conflicting key 's' from first collection should survive")
         XCTAssertTrue(allMappings.contains { $0.input == "f" && $0.action.outputString == "g" },
-                       "Non-conflicting key 'f' from second collection should survive")
+                      "Non-conflicting key 'f' from second collection should survive")
     }
 
     // MARK: - Empty Collections

@@ -1,6 +1,7 @@
 import Foundation
 
 // MARK: - CLI–GUI Parity Guard
+
 // Exhaustive switches on KeyAction and MappingBehavior ensure the CLI won't
 // compile if a new case is added without CLI support.
 

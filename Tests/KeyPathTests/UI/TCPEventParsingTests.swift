@@ -6,7 +6,6 @@ import XCTest
 /// Verifies that key input, hold, tap, and message events are correctly
 /// parsed and update the view model state.
 final class TCPEventParsingTests: XCTestCase {
-
     // MARK: - Key Input Events
 
     @MainActor
@@ -137,7 +136,7 @@ final class TCPEventParsingTests: XCTestCase {
     func testRapidPressRelease_DoesNotLeakState() {
         let vm = KeyboardVisualizationViewModel()
 
-        for _ in 0..<100 {
+        for _ in 0 ..< 100 {
             vm.simulateTcpKeyInput(key: "a", action: "press")
             vm.simulateTcpKeyInput(key: "a", action: "release")
         }

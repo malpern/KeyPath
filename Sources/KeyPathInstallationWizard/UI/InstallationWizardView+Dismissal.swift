@@ -2,8 +2,8 @@ import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
 
-extension InstallationWizardView {
-    public func handleCloseButtonTapped() {
+public extension InstallationWizardView {
+    func handleCloseButtonTapped() {
         let criticalIssues = stateMachine.wizardIssues.filter { $0.severity == .critical }
 
         if criticalIssues.isEmpty {
@@ -13,11 +13,11 @@ extension InstallationWizardView {
         }
     }
 
-    public func forceInstantClose() {
+    func forceInstantClose() {
         dismissAndRefreshMainScreen()
     }
 
-    public func dismissAndRefreshMainScreen() {
+    func dismissAndRefreshMainScreen() {
         stopLoginItemsApprovalPolling()
 
         Task { @MainActor in
@@ -26,9 +26,9 @@ extension InstallationWizardView {
         }
     }
 
-    public func performBackgroundCleanup() {}
+    func performBackgroundCleanup() {}
 
-    public func forciblyCloseWizard() {
+    func forciblyCloseWizard() {
         isForceClosing = true
 
         Task { @MainActor in

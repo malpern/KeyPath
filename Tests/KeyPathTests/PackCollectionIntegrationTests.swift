@@ -5,7 +5,6 @@ import XCTest
 /// Verifies that packs correctly reference their backing collections
 /// and that config generation produces valid kanata config.
 final class PackCollectionIntegrationTests: XCTestCase {
-
     // MARK: - Pack-to-Collection Mapping
 
     func testAllNonVisualPacksHaveAssociatedCollections() {
@@ -19,7 +18,7 @@ final class PackCollectionIntegrationTests: XCTestCase {
 
     func testAssociatedCollectionsExistInCatalog() {
         let catalog = RuleCollectionCatalog().defaultCollections()
-        let catalogIDs = Set(catalog.map { $0.id })
+        let catalogIDs = Set(catalog.map(\.id))
 
         for pack in PackRegistry.starterKit {
             guard let collectionID = pack.associatedCollectionID else { continue }
@@ -90,7 +89,7 @@ final class PackCollectionIntegrationTests: XCTestCase {
             return XCTFail("Collection not found in catalog")
         }
 
-        if case .tapHoldPicker(let config) = collection.configuration {
+        if case let .tapHoldPicker(config) = collection.configuration {
             XCTAssertEqual(config.inputKey.lowercased(), "caps", "Should target caps key")
             XCTAssertFalse(config.tapOptions.isEmpty, "Should have tap options")
             XCTAssertFalse(config.holdOptions.isEmpty, "Should have hold options")

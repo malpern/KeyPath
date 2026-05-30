@@ -183,7 +183,10 @@ final class OrphanDetector {
 
         let hasRealFailures = !userFilesFailed.isEmpty || daemonsError != nil
         if hasRealFailures {
-            AppLogger.shared.warn("🧹 [OrphanDetector] Cleanup partially complete: \(userFilesCleaned) files removed, \(userFilesFailed.count) failed, daemons: \(daemonsCleaned), daemonsError: \(daemonsError ?? "none")")
+            AppLogger.shared
+                .warn(
+                    "🧹 [OrphanDetector] Cleanup partially complete: \(userFilesCleaned) files removed, \(userFilesFailed.count) failed, daemons: \(daemonsCleaned), daemonsError: \(daemonsError ?? "none")"
+                )
         } else {
             AppLogger.shared.info("🧹 [OrphanDetector] Cleanup complete: \(userFilesCleaned) user files, daemons: \(daemonsCleaned), deferred: \(deferredForNextUninstall)")
         }

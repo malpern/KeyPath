@@ -1,6 +1,6 @@
 @testable import KeyPathAppKit
-@testable import KeyPathInstallationWizard
 @testable import KeyPathCore
+@testable import KeyPathInstallationWizard
 @preconcurrency import XCTest
 
 final class VHIDDeviceManagerTests: XCTestCase {

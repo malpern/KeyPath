@@ -4,7 +4,6 @@ import XCTest
 /// Exhaustive data-driven tests for LabelMetadata.forLabel().
 /// Covers all ~31 known mappings to catch regressions when entries are added/changed.
 final class LabelMetadataExhaustiveTests: XCTestCase {
-
     // MARK: - Wide Modifier Word Labels
 
     func testAllWideModifierSymbolsProduceWordLabels() {
@@ -110,15 +109,15 @@ final class LabelMetadataExhaustiveTests: XCTestCase {
 
     func testAllFunctionKeySFSymbols() {
         let expected: [(UInt16, String)] = [
-            (122, "sun.min"),     // F1
-            (120, "sun.max"),     // F2
+            (122, "sun.min"), // F1
+            (120, "sun.max"), // F2
             (99, "rectangle.3.group"), // F3
-            (118, "magnifyingglass"),  // F4
-            (96, "mic"),          // F5
-            (97, "moon"),         // F6
-            (98, "backward"),     // F7
-            (100, "playpause"),   // F8
-            (101, "forward"),     // F9
+            (118, "magnifyingglass"), // F4
+            (96, "mic"), // F5
+            (97, "moon"), // F6
+            (98, "backward"), // F7
+            (100, "playpause"), // F8
+            (101, "forward"), // F9
             (109, "speaker.slash"), // F10
         ]
         for (keyCode, symbol) in expected {

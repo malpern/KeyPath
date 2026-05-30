@@ -3,7 +3,9 @@ import Foundation
 struct OutputActionGroup: Identifiable {
     let title: String
     let actions: [SystemActionInfo]
-    var id: String { title }
+    var id: String {
+        title
+    }
 }
 
 private let clipboardIDs: Set<String> = ["cut", "copy", "paste", "undo", "redo", "select-all", "save", "find"]

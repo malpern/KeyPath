@@ -80,7 +80,7 @@ final class DeviceSwitchConfigTests: XCTestCase {
 
         // Override for device hash "0xBBBB1111" (index 1) comes first in the overrides array
         XCTAssertTrue(device1Pos!.lowerBound < device0Pos!.lowerBound,
-                       "Overrides should appear in input order")
+                      "Overrides should appear in input order")
     }
 
     func testDefaultFallthroughAlwaysPresent() {

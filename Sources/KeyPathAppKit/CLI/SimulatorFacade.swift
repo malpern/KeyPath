@@ -9,11 +9,10 @@ public struct SimulatorFacade: Sendable {
         configPath: String?,
         simulatorProvider: CLISimulatorProvider? = nil
     ) async throws -> CLISimulationResult {
-        let config: String
-        if let configPath {
-            config = configPath
+        let config: String = if let configPath {
+            configPath
         } else {
-            config = await MainActor.run { ConfigurationService().configurationPath }
+            await MainActor.run { ConfigurationService().configurationPath }
         }
 
         let provider = simulatorProvider ?? RealSimulatorProvider()

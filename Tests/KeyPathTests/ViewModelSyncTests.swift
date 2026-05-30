@@ -6,7 +6,6 @@ import Testing
 @MainActor
 @Suite("Window Snapping Activation Mode Tests")
 struct WindowSnappingActivationModeTests {
-
     private func createManagerWithWindowSnapping() async -> RuleCollectionsManager {
         TestEnvironment.forceTestMode = true
 

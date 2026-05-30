@@ -30,7 +30,10 @@ enum DocSize {
     /// Taller subpanel (per-finger sliders, expanded settings) — 650×500
     static let subpanelTall = CGSize(width: 650, height: 500)
     /// Pack detail dialog — use pack.preferredDetailWidth × 800
-    static func packDetail(width: CGFloat) -> CGSize { CGSize(width: width, height: 800) }
+    static func packDetail(width: CGFloat) -> CGSize {
+        CGSize(width: width, height: 800)
+    }
+
     /// Settings tab (Rules, General, etc.) — 680×700
     static let settingsTab = CGSize(width: 680, height: 700)
     /// Full overlay + inspector composite — 1400×800

@@ -3,11 +3,11 @@ import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
 
-extension InstallationWizardView {
+public extension InstallationWizardView {
     // MARK: - Actions
 
     /// Main "Fix All" handler - delegates to InstallerEngine which handles all repair logic
-    public func performAutoFix() {
+    func performAutoFix() {
         AppLogger.shared.log("🔧 [Wizard] Fix button clicked - delegating to InstallerEngine")
 
         Task {
@@ -78,7 +78,7 @@ extension InstallationWizardView {
     }
 
     /// Single-action fix handler for individual "Fix" buttons on pages
-    public func performAutoFix(_ action: AutoFixAction, suppressToast: Bool = false) async -> Bool {
+    func performAutoFix(_ action: AutoFixAction, suppressToast: Bool = false) async -> Bool {
         // Single-flight guard for Fix buttons
         if inFlightFixActions.contains(action) {
             if !suppressToast {
@@ -191,12 +191,12 @@ extension InstallationWizardView {
     }
 
     /// UI-only descriptions for auto-fix actions (delegated to AutoFixActionDescriptions)
-    public func describeAutoFixActionForUI(_ action: AutoFixAction) -> String {
+    func describeAutoFixActionForUI(_ action: AutoFixAction) -> String {
         AutoFixActionDescriptions.describe(action)
     }
 
     /// Get user-friendly description for auto-fix actions
-    public func getAutoFixActionDescription(_ action: AutoFixAction) -> String {
+    func getAutoFixActionDescription(_ action: AutoFixAction) -> String {
         AppLogger.shared.log("🔍 [ActionDescription] getAutoFixActionDescription called for: \(action)")
         let description = AutoFixActionDescriptions.describe(action)
         AppLogger.shared.log("🔍 [ActionDescription] Returning description: \(description)")

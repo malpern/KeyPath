@@ -16,9 +16,17 @@ public struct WizardAccessibilityPage: View {
 
     @Environment(WizardStateMachine.self) private var stateMachine
 
-    private var systemState: WizardSystemState { stateMachine.wizardState }
-    private var issues: [WizardIssue] { stateMachine.wizardIssues.filter { $0.category == .permissions } }
-    private var allIssues: [WizardIssue] { stateMachine.wizardIssues }
+    private var systemState: WizardSystemState {
+        stateMachine.wizardState
+    }
+
+    private var issues: [WizardIssue] {
+        stateMachine.wizardIssues.filter { $0.category == .permissions }
+    }
+
+    private var allIssues: [WizardIssue] {
+        stateMachine.wizardIssues
+    }
 
     private func statusIcon(for status: InstallationStatus) -> (name: String, color: Color) {
         switch status {

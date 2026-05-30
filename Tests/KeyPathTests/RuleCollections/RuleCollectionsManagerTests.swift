@@ -454,7 +454,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
     // the KindaVim rule collection was retired from the catalog; KindaVim now
     // ships as a visual-only pack and the mutex is enforced by PackInstaller.
 
-@MainActor
+    @MainActor
     func testNeovimReferenceCoexistsWithVimNavigationWithoutConflictDialog() async throws {
         let (manager, _) = try await createTestManager()
         defer { TestEnvironment.forceTestMode = false }

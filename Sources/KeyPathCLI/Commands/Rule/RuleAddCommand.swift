@@ -54,7 +54,7 @@ struct RuleAdd: AsyncParsableCommand {
         if modeCount > 1 {
             throw ValidationError("Specify only one of: <output>, --action, or --tap/--hold")
         }
-        if modeCount == 0 && behavior == nil {
+        if modeCount == 0, behavior == nil {
             throw ValidationError("Specify an output key, --action, --tap/--hold, or --behavior")
         }
     }

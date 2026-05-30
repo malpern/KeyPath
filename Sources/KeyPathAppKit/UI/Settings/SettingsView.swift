@@ -68,225 +68,225 @@ struct StatusSettingsTabView: View {
 
     var body: some View {
         ScrollView {
-        VStack(alignment: .leading, spacing: 0) {
-            if FeatureFlags.allowOptionalWizard, showSetupBanner {
-                SetupBanner {
-                    wizardInitialPage = .summary
+            VStack(alignment: .leading, spacing: 0) {
+                if FeatureFlags.allowOptionalWizard, showSetupBanner {
+                    SetupBanner {
+                        wizardInitialPage = .summary
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-            }
 
-            // System Status Hero Section
-            HStack(alignment: .top, spacing: 40) {
-                // Large status indicator with centered toggle
-                VStack(spacing: 16) {
-                    VStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .fill(systemHealthTint.opacity(0.15))
-                                .frame(width: 80, height: 80)
+                // System Status Hero Section
+                HStack(alignment: .top, spacing: 40) {
+                    // Large status indicator with centered toggle
+                    VStack(spacing: 16) {
+                        VStack(spacing: 12) {
+                            ZStack {
+                                Circle()
+                                    .fill(systemHealthTint.opacity(0.15))
+                                    .frame(width: 80, height: 80)
 
-                            Button(action: { wizardInitialPage = .summary }) {
-                                Image(systemName: systemHealthIcon)
-                                    .font(.largeTitle)
-                                    .foregroundColor(systemHealthTint)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("status-system-health-button")
-                            .accessibilityLabel("System status: \(systemHealthMessage)")
-                        }
-
-                        VStack(spacing: 4) {
-                            Text(systemHealthMessage)
-                                .font(.title3.weight(.semibold))
-                                .multilineTextAlignment(.center)
-
-                            if let issue = primaryIssueDetail {
-                                Text(issue.message)
-                                    .font(.footnote)
-                                    .foregroundColor(issue.level.tintColor)
-                                    .multilineTextAlignment(.center)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-
-                            Button(action: {
-                                NotificationCenter.default.post(name: .openSettingsRules, object: nil)
-                            }) {
-                                let enabledCollections = kanataManager.ruleCollections.filter(\.isEnabled).count
-                                let enabledCustomRules = kanataManager.customRules.filter(\.isEnabled).count
-                                let activeCount = enabledCollections + enabledCustomRules
-                                Text(activeRulesText(count: activeCount))
-                                    .font(.body)
-                                    .foregroundColor(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("status-active-rules-button")
-                            .accessibilityLabel("View active rules")
-                        }
-                    }
-
-                    // Action button when there are problems. Suppressed when the
-                    // user has intentionally turned the service off — nothing is
-                    // broken, so there's nothing to fix.
-                    if !isSystemHealthy, !isIntentionallyDisabled {
-                        if isOnlyKanataUnverified {
-                            // Only issue is unverified kanata — lead with FDA
-                            Button(action: { SystemDiagnostics.open(.fullDiskAccess) }) {
-                                Label("Enable Enhanced Diagnostics", systemImage: "checkmark.shield")
-                                    .font(.body.weight(.semibold))
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.large)
-                            .tint(.blue)
-                            .accessibilityIdentifier("status-enable-fda-button")
-                        } else {
-                            Button(action: { wizardInitialPage = .summary }) {
-                                Label("Fix it", systemImage: "wand.and.stars")
-                                    .font(.body.weight(.semibold))
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.large)
-                            .tint(overallHealthLevel == .critical ? .red : .orange)
-                            .accessibilityIdentifier("status-fix-it-button")
-                            .accessibilityLabel("Fix system issues")
-                        }
-                    }
-
-                    // Centered toggle
-                    HStack(spacing: 12) {
-                        Toggle(
-                            "",
-                            isOn: Binding(
-                                get: { effectiveServiceRunning },
-                                set: { newValue in
-                                    // Optimistic update: change UI immediately
-                                    localServiceRunning = newValue
-                                    // Record explicit user intent (persists across
-                                    // relaunch and the isServiceRunning onChange reset).
-                                    userDisabledService = !newValue
-                                    // Then trigger async operation
-                                    Task {
-                                        if newValue {
-                                            await startViaInstallerEngine()
-                                        } else {
-                                            await stopViaInstallerEngine()
-                                        }
-                                        await refreshStatus()
-                                    }
+                                Button(action: { wizardInitialPage = .summary }) {
+                                    Image(systemName: systemHealthIcon)
+                                        .font(.largeTitle)
+                                        .foregroundColor(systemHealthTint)
                                 }
-                            )
-                        )
-                        .toggleStyle(.switch)
-                        .controlSize(.large)
-                        .accessibilityIdentifier("status-service-toggle")
-                        .accessibilityLabel("KeyPath Runtime")
+                                .buttonStyle(.plain)
+                                .accessibilityIdentifier("status-system-health-button")
+                                .accessibilityLabel("System status: \(systemHealthMessage)")
+                            }
 
-                        Text(effectiveServiceRunning ? "ON" : "OFF")
-                            .font(.body.weight(.medium))
-                            .foregroundColor(effectiveServiceRunning ? .green : .secondary)
-                    }
-
-                    if let runtimePathTitle = kanataManager.activeRuntimePathTitle {
-                        VStack(spacing: 4) {
-                            Text(runtimePathTitle)
-                                .font(.footnote.weight(.semibold))
-                                .foregroundColor(.secondary)
-
-                            if let runtimePathDetail = kanataManager.activeRuntimePathDetail {
-                                Text(runtimePathDetail)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                            VStack(spacing: 4) {
+                                Text(systemHealthMessage)
+                                    .font(.title3.weight(.semibold))
                                     .multilineTextAlignment(.center)
-                                    .fixedSize(horizontal: false, vertical: true)
+
+                                if let issue = primaryIssueDetail {
+                                    Text(issue.message)
+                                        .font(.footnote)
+                                        .foregroundColor(issue.level.tintColor)
+                                        .multilineTextAlignment(.center)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+
+                                Button(action: {
+                                    NotificationCenter.default.post(name: .openSettingsRules, object: nil)
+                                }) {
+                                    let enabledCollections = kanataManager.ruleCollections.filter(\.isEnabled).count
+                                    let enabledCustomRules = kanataManager.customRules.filter(\.isEnabled).count
+                                    let activeCount = enabledCollections + enabledCustomRules
+                                    Text(activeRulesText(count: activeCount))
+                                        .font(.body)
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityIdentifier("status-active-rules-button")
+                                .accessibilityLabel("View active rules")
                             }
                         }
-                        .frame(maxWidth: 220)
-                        .accessibilityIdentifier("status-runtime-path")
-                        .accessibilityLabel(
-                            "Active runtime path: \(runtimePathTitle)\(kanataManager.activeRuntimePathDetail.map { ", \($0)" } ?? "")"
-                        )
+
+                        // Action button when there are problems. Suppressed when the
+                        // user has intentionally turned the service off — nothing is
+                        // broken, so there's nothing to fix.
+                        if !isSystemHealthy, !isIntentionallyDisabled {
+                            if isOnlyKanataUnverified {
+                                // Only issue is unverified kanata — lead with FDA
+                                Button(action: { SystemDiagnostics.open(.fullDiskAccess) }) {
+                                    Label("Enable Enhanced Diagnostics", systemImage: "checkmark.shield")
+                                        .font(.body.weight(.semibold))
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.large)
+                                .tint(.blue)
+                                .accessibilityIdentifier("status-enable-fda-button")
+                            } else {
+                                Button(action: { wizardInitialPage = .summary }) {
+                                    Label("Fix it", systemImage: "wand.and.stars")
+                                        .font(.body.weight(.semibold))
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.large)
+                                .tint(overallHealthLevel == .critical ? .red : .orange)
+                                .accessibilityIdentifier("status-fix-it-button")
+                                .accessibilityLabel("Fix system issues")
+                            }
+                        }
+
+                        // Centered toggle
+                        HStack(spacing: 12) {
+                            Toggle(
+                                "",
+                                isOn: Binding(
+                                    get: { effectiveServiceRunning },
+                                    set: { newValue in
+                                        // Optimistic update: change UI immediately
+                                        localServiceRunning = newValue
+                                        // Record explicit user intent (persists across
+                                        // relaunch and the isServiceRunning onChange reset).
+                                        userDisabledService = !newValue
+                                        // Then trigger async operation
+                                        Task {
+                                            if newValue {
+                                                await startViaInstallerEngine()
+                                            } else {
+                                                await stopViaInstallerEngine()
+                                            }
+                                            await refreshStatus()
+                                        }
+                                    }
+                                )
+                            )
+                            .toggleStyle(.switch)
+                            .controlSize(.large)
+                            .accessibilityIdentifier("status-service-toggle")
+                            .accessibilityLabel("KeyPath Runtime")
+
+                            Text(effectiveServiceRunning ? "ON" : "OFF")
+                                .font(.body.weight(.medium))
+                                .foregroundColor(effectiveServiceRunning ? .green : .secondary)
+                        }
+
+                        if let runtimePathTitle = kanataManager.activeRuntimePathTitle {
+                            VStack(spacing: 4) {
+                                Text(runtimePathTitle)
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundColor(.secondary)
+
+                                if let runtimePathDetail = kanataManager.activeRuntimePathDetail {
+                                    Text(runtimePathDetail)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .multilineTextAlignment(.center)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                            .frame(maxWidth: 220)
+                            .accessibilityIdentifier("status-runtime-path")
+                            .accessibilityLabel(
+                                "Active runtime path: \(runtimePathTitle)\(kanataManager.activeRuntimePathDetail.map { ", \($0)" } ?? "")"
+                            )
+                        }
                     }
-                }
-                .frame(minWidth: 220)
+                    .frame(minWidth: 220)
 
-                // Permissions grid
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Permissions")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        PermissionStatusRow(
-                            title: "KeyPath Accessibility",
-                            icon: "checkmark.shield",
-                            status: permissionSnapshot?.keyPath.accessibility,
-                            isKanata: false,
-                            hasFullDiskAccess: hasFullDiskAccess,
-                            onTap: { wizardInitialPage = .accessibility }
-                        )
-
-                        PermissionStatusRow(
-                            title: "KeyPath Input Monitoring",
-                            icon: "keyboard",
-                            // No Apple API to query KeyPath IM — always .unknown.
-                            // Kanata's IM grant is what matters. Show green to avoid
-                            // a permanent unresolvable "?" in Settings.
-                            status: .granted,
-                            isKanata: false,
-                            hasFullDiskAccess: hasFullDiskAccess,
-                            onTap: { wizardInitialPage = .inputMonitoring }
-                        )
-
-                        PermissionStatusRow(
-                            title: "Kanata Accessibility",
-                            icon: "checkmark.shield",
-                            status: permissionSnapshot?.kanata.accessibility,
-                            isKanata: true,
-                            hasFullDiskAccess: hasFullDiskAccess,
-                            onTap: { wizardInitialPage = .accessibility }
-                        )
-
-                        PermissionStatusRow(
-                            title: "Kanata Input Monitoring",
-                            icon: "keyboard",
-                            status: permissionSnapshot?.kanata.inputMonitoring,
-                            isKanata: true,
-                            hasFullDiskAccess: hasFullDiskAccess,
-                            onTap: { wizardInitialPage = .inputMonitoring }
-                        )
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("System Status")
+                    // Permissions grid
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Permissions")
                             .font(.headline)
                             .foregroundColor(.secondary)
-                            .padding(.top, 10)
 
-                        ForEach(systemStatusRows) { row in
-                            SettingsSystemStatusRow(
-                                title: row.title,
-                                icon: row.icon,
-                                status: row.status,
-                                message: row.message,
-                                onTap: row.targetPage.map { page in
-                                    { wizardInitialPage = page }
-                                }
+                        VStack(alignment: .leading, spacing: 8) {
+                            PermissionStatusRow(
+                                title: "KeyPath Accessibility",
+                                icon: "checkmark.shield",
+                                status: permissionSnapshot?.keyPath.accessibility,
+                                isKanata: false,
+                                hasFullDiskAccess: hasFullDiskAccess,
+                                onTap: { wizardInitialPage = .accessibility }
+                            )
+
+                            PermissionStatusRow(
+                                title: "KeyPath Input Monitoring",
+                                icon: "keyboard",
+                                // No Apple API to query KeyPath IM — always .unknown.
+                                // Kanata's IM grant is what matters. Show green to avoid
+                                // a permanent unresolvable "?" in Settings.
+                                status: .granted,
+                                isKanata: false,
+                                hasFullDiskAccess: hasFullDiskAccess,
+                                onTap: { wizardInitialPage = .inputMonitoring }
+                            )
+
+                            PermissionStatusRow(
+                                title: "Kanata Accessibility",
+                                icon: "checkmark.shield",
+                                status: permissionSnapshot?.kanata.accessibility,
+                                isKanata: true,
+                                hasFullDiskAccess: hasFullDiskAccess,
+                                onTap: { wizardInitialPage = .accessibility }
+                            )
+
+                            PermissionStatusRow(
+                                title: "Kanata Input Monitoring",
+                                icon: "keyboard",
+                                status: permissionSnapshot?.kanata.inputMonitoring,
+                                isKanata: true,
+                                hasFullDiskAccess: hasFullDiskAccess,
+                                onTap: { wizardInitialPage = .inputMonitoring }
                             )
                         }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("System Status")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+                                .padding(.top, 10)
+
+                            ForEach(systemStatusRows) { row in
+                                SettingsSystemStatusRow(
+                                    title: row.title,
+                                    icon: row.icon,
+                                    status: row.status,
+                                    message: row.message,
+                                    onTap: row.targetPage.map { page in
+                                        { wizardInitialPage = page }
+                                    }
+                                )
+                            }
+                        }
                     }
+
+                    Spacer()
                 }
-
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 24)
-
-            keyboardDetailsSection
                 .padding(.horizontal, 20)
                 .padding(.top, 24)
-                .padding(.bottom, 20)
-        }
+
+                keyboardDetailsSection
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
+                    .padding(.bottom, 20)
+            }
         }
         .settingsBackground()
         .withToasts(settingsToastManager)
@@ -336,7 +336,6 @@ struct StatusSettingsTabView: View {
 
     @State private var showKeyboardDetails = false
 
-    @ViewBuilder
     private var keyboardDetailsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Connected Keyboard")
@@ -461,7 +460,6 @@ struct StatusSettingsTabView: View {
         }
     }
 
-    @ViewBuilder
     private func keyboardInfoRow(title: String, value: String) -> some View {
         GridRow {
             Text(title)

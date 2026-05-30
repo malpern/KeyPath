@@ -48,7 +48,6 @@ extension EnvironmentValues {
     }
 }
 
-
 // MARK: - Service Container DI
 
 /// EnvironmentKey for the central ServiceContainer

@@ -40,8 +40,8 @@ struct ScriptExecutionSettingsSection: View {
                         }
                     }
                 ))
-                    .toggleStyle(.switch)
-                    .labelsHidden()
+                .toggleStyle(.switch)
+                .labelsHidden()
             }
             .accessibilityIdentifier("settings-script-execution-toggle")
             .accessibilityLabel("Allow script execution")

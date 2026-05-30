@@ -476,11 +476,10 @@ public final class WindowManager {
         let frontApp = NSWorkspace.shared.frontmostApplication
         let ownBundleId = Bundle.main.bundleIdentifier
 
-        let targetApp: NSRunningApplication?
-        if frontApp?.bundleIdentifier == ownBundleId {
-            targetApp = lastNonKeyPathApp
+        let targetApp: NSRunningApplication? = if frontApp?.bundleIdentifier == ownBundleId {
+            lastNonKeyPathApp
         } else {
-            targetApp = frontApp
+            frontApp
         }
 
         guard let app = targetApp else { return nil }

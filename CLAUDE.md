@@ -80,9 +80,15 @@ Two doc systems: `guides/` (user-facing, published to gh-pages) and `docs/` (dev
 ./build.sh                        # Canonical build (SKIP_NOTARIZE=1 for local dev)
 ./Scripts/quick-deploy.sh         # Fast debug deploy
 swift test                        # All tests (~532 tests, <5s)
-swiftformat Sources/ Tests/ --swiftversion 5.9
+swiftformat Sources Tests         # Uses pinned rules + swiftversion from .swiftformat
 swiftlint --fix --quiet
 ```
+
+**SwiftFormat is pinned to 0.61.1** (`mise.toml`); `master` is a formatted fixed-point
+for that version + `.swiftformat` config, so a run produces **no churn**. A different
+version reformats unrelated code (see #634) — match the pin (`mise install` or
+`brew install swiftformat` at 0.61.1) before formatting, and never bulk-reformat with
+an unpinned version.
 
 **"dd"** → Run `SKIP_NOTARIZE=1 ./build.sh`, respond **"Eye eye Captain!"**
 **"df"** → Run `./Scripts/quick-deploy.sh`, respond **"Eye eye Cap, fast deploying!"**

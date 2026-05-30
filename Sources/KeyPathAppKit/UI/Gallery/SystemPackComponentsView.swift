@@ -301,7 +301,6 @@ struct VallackSystemPackContent: View {
 
     // MARK: - Card Content
 
-    @ViewBuilder
     private var modsCardContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Modifiers move to the top row so the home row is free for layer toggles. Tap for the letter, hold for the modifier.")
@@ -320,7 +319,6 @@ struct VallackSystemPackContent: View {
         }
     }
 
-    @ViewBuilder
     private var activatorCardContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Hold either index finger to activate the navigation layer. Release to return to normal typing. Both activate the same layer — use whichever hand is free.")

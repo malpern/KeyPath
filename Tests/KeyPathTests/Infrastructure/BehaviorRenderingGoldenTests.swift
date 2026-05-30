@@ -306,6 +306,7 @@ struct BehaviorRenderingGoldenTests {
         )
         let layerInfos = [HyperLinkedLayerInfo(layerName: "nav", triggerMode: .hold)]
         let result = KanataBehaviorRenderer.render(mapping, hyperLinkedLayerInfos: layerInfos)
-        #expect(result == "(tap-hold $tap-timeout $hold-timeout esc (multi lctl lmet lalt lsft (layer-while-held nav) (on-press-fakekey kp-layer-nav-enter tap) (on-release-fakekey kp-layer-nav-exit tap)))")
+        #expect(result ==
+            "(tap-hold $tap-timeout $hold-timeout esc (multi lctl lmet lalt lsft (layer-while-held nav) (on-press-fakekey kp-layer-nav-enter tap) (on-release-fakekey kp-layer-nav-exit tap)))")
     }
 }

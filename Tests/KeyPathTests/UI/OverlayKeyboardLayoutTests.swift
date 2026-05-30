@@ -3,7 +3,6 @@ import Testing
 
 @Suite("OverlayKeyboardView.escLeftInset")
 struct OverlayKeyboardLayoutTests {
-
     @Test("returns keyGap at scale 1 for macBookUS")
     func escLeftInsetAtScaleOne() {
         let inset = OverlayKeyboardView.escLeftInset(

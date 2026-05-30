@@ -190,11 +190,10 @@ struct LabelMetadata {
         // For labels like "⇥ tab" (symbol + space + text), extract just the symbol.
         // For multi-word text labels like "Caps Lock", keep the full string and lowercase.
         let firstWord = label.contains(" ") ? String(label.split(separator: " ").first ?? "") : label
-        let cleanLabel: String
-        if firstWord.count == 1, firstWord.first?.isLetter == false {
-            cleanLabel = firstWord
+        let cleanLabel: String = if firstWord.count == 1, firstWord.first?.isLetter == false {
+            firstWord
         } else {
-            cleanLabel = label.count > 1 ? label.lowercased() : label
+            label.count > 1 ? label.lowercased() : label
         }
 
         switch cleanLabel {

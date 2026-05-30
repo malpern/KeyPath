@@ -161,7 +161,7 @@ public struct RulesFacade: Sendable {
         let existingIsSimple = existing.behavior == nil
         let newIsSimple = newBehavior == nil
 
-        if existingIsSimple && newIsSimple {
+        if existingIsSimple, newIsSimple {
             throw CLIMergeError(
                 input: existing.input,
                 reason: "both rules are simple remaps with different outputs — ambiguous"
@@ -182,7 +182,7 @@ public struct RulesFacade: Sendable {
             return merged
         }
 
-        if case .dualRole(var existingDual) = existing.behavior, newIsSimple {
+        if case var .dualRole(existingDual) = existing.behavior, newIsSimple {
             existingDual.tapAction = newAction
             merged.behavior = .dualRole(existingDual)
             merged.action = newAction
@@ -319,11 +319,11 @@ public enum RuleAddResult: Codable, Sendable {
         let status = try container.decode(String.self, forKey: .status)
         switch status {
         case "created":
-            self = .created(try container.decode(CLIRuleDetail.self, forKey: .rule))
+            self = try .created(container.decode(CLIRuleDetail.self, forKey: .rule))
         case "replaced":
-            self = .replaced(try container.decode(CLIRuleDetail.self, forKey: .rule))
+            self = try .replaced(container.decode(CLIRuleDetail.self, forKey: .rule))
         case "merged":
-            self = .merged(try container.decode(CLIRuleDetail.self, forKey: .rule))
+            self = try .merged(container.decode(CLIRuleDetail.self, forKey: .rule))
         case "skipped":
             self = .skipped
         default:
@@ -359,10 +359,14 @@ public enum CLIConflictStrategy: String, Sendable {
 public struct CLIMergeError: Error, CustomStringConvertible {
     public let input: String
     public let reason: String
-    public var description: String { "Cannot merge rules for '\(input)': \(reason)" }
+    public var description: String {
+        "Cannot merge rules for '\(input)': \(reason)"
+    }
 }
 
 public struct CLIConflictError: Error, CustomStringConvertible {
     public let input: String
-    public var description: String { "Rule already exists for '\(input)'" }
+    public var description: String {
+        "Rule already exists for '\(input)'"
+    }
 }

@@ -44,11 +44,11 @@ struct PackUninstall: AsyncParsableCommand {
             CLIOutput.write(result, context: ctx) {
                 switch result.action {
                 case "not-installed":
-                    return "Pack '\(result.packName)' is not installed."
+                    "Pack '\(result.packName)' is not installed."
                 case "would-uninstall":
-                    return "Would uninstall '\(result.packName)'"
+                    "Would uninstall '\(result.packName)'"
                 default:
-                    return ""
+                    ""
                 }
             }
 

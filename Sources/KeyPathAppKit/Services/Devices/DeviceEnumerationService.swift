@@ -50,6 +50,7 @@ enum DeviceEnumerationService {
     }
 
     #if DEBUG
+
         // MARK: - Dev Fake Devices
 
         // DEV FALLBACK: macOS multi-device is blocked upstream (psych3r/driverkit#15).

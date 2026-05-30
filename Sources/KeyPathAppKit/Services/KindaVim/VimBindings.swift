@@ -15,7 +15,9 @@ import Foundation
 /// One Vim command, with enough metadata to render it in either the
 /// overlay (per-key) or the HUD list (grouped).
 struct VimHint: Identifiable, Equatable, Sendable {
-    var id: String { key + "|" + displayLabel }
+    var id: String {
+        key + "|" + displayLabel
+    }
 
     /// Physical key, lowercase, in kanata convention (e.g. "h", "0", "/").
     /// Multi-key sequences like `gg` use the leading key (the second is
@@ -49,7 +51,9 @@ struct VimHint: Identifiable, Equatable, Sendable {
         case secondary = 1
         case advanced = 2
 
-        static func < (lhs: Tier, rhs: Tier) -> Bool { lhs.rawValue < rhs.rawValue }
+        static func < (lhs: Tier, rhs: Tier) -> Bool {
+            lhs.rawValue < rhs.rawValue
+        }
     }
 
     enum Group: Int, CaseIterable, Sendable {
@@ -81,7 +85,9 @@ struct VimHint: Identifiable, Equatable, Sendable {
             }
         }
 
-        var sortOrder: Int { rawValue }
+        var sortOrder: Int {
+            rawValue
+        }
     }
 }
 
@@ -89,7 +95,9 @@ struct VimHintGroup: Equatable, Sendable {
     let group: VimHint.Group
     let entries: [VimHint]
 
-    var displayName: String { group.displayName }
+    var displayName: String {
+        group.displayName
+    }
 }
 
 enum VimBindings {
@@ -98,6 +106,7 @@ enum VimBindings {
     /// within each group is the order we want them to appear in lists.
     static let all: [VimHint] = [
         // MARK: Movement (core, hjkl)
+
         .init(key: "h", displayLabel: "←", actionLabel: "left",
               tier: .core, group: .movement,
               strategies: allStrategies, modes: motionModes),
@@ -112,6 +121,7 @@ enum VimBindings {
               strategies: allStrategies, modes: motionModes),
 
         // MARK: Word motion (core)
+
         .init(key: "w", displayLabel: "w", actionLabel: "word forward",
               tier: .core, group: .wordMotion,
               strategies: allStrategies, modes: motionModes),
@@ -123,6 +133,7 @@ enum VimBindings {
               strategies: allStrategies, modes: motionModes),
 
         // MARK: Line motion (core)
+
         .init(key: "0", displayLabel: "0", actionLabel: "line start",
               tier: .core, group: .lineMotion,
               strategies: allStrategies, modes: motionModes),
@@ -131,6 +142,7 @@ enum VimBindings {
               strategies: allStrategies, modes: motionModes),
 
         // MARK: Enter Insert (core: i/a/o; secondary: capitals)
+
         .init(key: "i", displayLabel: "i", actionLabel: "insert before cursor",
               tier: .core, group: .enterInsert,
               strategies: allStrategies, modes: [.normal, .visual]),
@@ -151,6 +163,7 @@ enum VimBindings {
               strategies: allStrategies, modes: [.normal, .visual]),
 
         // MARK: Edit (core: x; secondary: r/u/redo)
+
         .init(key: "x", displayLabel: "x", actionLabel: "delete char",
               tier: .core, group: .edit,
               strategies: allStrategies, modes: [.normal, .visual]),
@@ -165,6 +178,7 @@ enum VimBindings {
               strategies: allStrategies, modes: [.normal]),
 
         // MARK: Operators (secondary). In op-pending we still surface
+
         // these so the user can see "press the same one twice = whole line".
         .init(key: "d", displayLabel: "d", actionLabel: "delete (motion / dd line)",
               tier: .secondary, group: .operators,
@@ -177,6 +191,7 @@ enum VimBindings {
               strategies: allStrategies, modes: [.normal, .visual, .operatorPending]),
 
         // MARK: Find char (secondary)
+
         .init(key: "f", displayLabel: "f", actionLabel: "find char forward",
               tier: .secondary, group: .findChar,
               strategies: allStrategies, modes: [.normal, .visual]),
@@ -191,6 +206,7 @@ enum VimBindings {
               strategies: allStrategies, modes: [.normal, .visual]),
 
         // MARK: Top / Bottom (secondary; Accessibility-only)
+
         .init(key: "g", displayLabel: "gg", actionLabel: "doc top",
               tier: .secondary, group: .doc,
               strategies: [.accessibility, .hybrid], modes: motionModes),
@@ -199,6 +215,7 @@ enum VimBindings {
               strategies: [.accessibility, .hybrid], modes: motionModes),
 
         // MARK: Page (advanced — only shown with "Show all" toggle)
+
         .init(key: "ctrl-d", displayLabel: "⌃D", actionLabel: "half page down",
               tier: .advanced, group: .page,
               strategies: [.accessibility, .hybrid], modes: motionModes),
@@ -213,11 +230,13 @@ enum VimBindings {
               strategies: [.accessibility, .hybrid], modes: motionModes),
 
         // MARK: Match (advanced, Accessibility-only)
+
         .init(key: "%", displayLabel: "%", actionLabel: "match bracket",
               tier: .advanced, group: .match,
               strategies: [.accessibility, .hybrid], modes: motionModes),
 
         // MARK: Search (advanced)
+
         .init(key: "/", displayLabel: "/", actionLabel: "search forward",
               tier: .advanced, group: .search,
               strategies: [.accessibility, .hybrid], modes: [.normal, .visual]),

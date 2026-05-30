@@ -256,5 +256,4 @@ final class DiagnosticsServiceTests: XCTestCase {
         XCTAssertEqual(DiagnosticCategory.system.rawValue, "System")
         XCTAssertEqual(DiagnosticCategory.conflict.rawValue, "Conflict")
     }
-
 }

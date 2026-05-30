@@ -26,8 +26,8 @@ struct LayoutTracerInspectorView: View {
         let matches = availableLayouts
             .filter {
                 $0.displayName.localizedCaseInsensitiveContains(query) ||
-                $0.layoutID.localizedCaseInsensitiveContains(query) ||
-                $0.filename.localizedCaseInsensitiveContains(query)
+                    $0.layoutID.localizedCaseInsensitiveContains(query) ||
+                    $0.filename.localizedCaseInsensitiveContains(query)
             }
             .prefix(6)
             .map { $0 }
@@ -131,7 +131,7 @@ struct LayoutTracerInspectorView: View {
                             }
                             .buttonStyle(.plain)
                             .background(
-                                (highlightedLayoutID == layout.id ? Color.accentColor.opacity(0.22) : Color.white.opacity(0.03))
+                                highlightedLayoutID == layout.id ? Color.accentColor.opacity(0.22) : Color.white.opacity(0.03)
                             )
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                             .accessibilityIdentifier("layoutTracer.search.result.\(layout.layoutID)")
@@ -146,7 +146,7 @@ struct LayoutTracerInspectorView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if document.backgroundImageURL != nil, (document.hasLayoutOverlay || document.hasAnalysisProposals) {
+            if document.backgroundImageURL != nil, document.hasLayoutOverlay || document.hasAnalysisProposals {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
                         if document.hasLayoutOverlay {
@@ -240,7 +240,7 @@ struct LayoutTracerInspectorView: View {
             HStack(spacing: 8) {
                 Image(systemName: "plus.magnifyingglass")
                     .foregroundStyle(.secondary)
-                Slider(value: $document.zoom, in: 0.03...2.0)
+                Slider(value: $document.zoom, in: 0.03 ... 2.0)
                     .frame(width: 140)
                     .accessibilityIdentifier("layoutTracer.zoom")
                 Button("Fit") {
@@ -253,7 +253,7 @@ struct LayoutTracerInspectorView: View {
             HStack(spacing: 8) {
                 Image(systemName: "photo")
                     .foregroundStyle(.secondary)
-                Slider(value: $document.imageOpacity, in: 0.1...1.0)
+                Slider(value: $document.imageOpacity, in: 0.1 ... 1.0)
                     .frame(width: 200)
                     .accessibilityIdentifier("layoutTracer.imageOpacity")
             }
@@ -261,14 +261,13 @@ struct LayoutTracerInspectorView: View {
             HStack(spacing: 8) {
                 Image(systemName: "roundedcorner")
                     .foregroundStyle(.secondary)
-                Slider(value: $document.keyCornerRadius, in: 0...24)
+                Slider(value: $document.keyCornerRadius, in: 0 ... 24)
                     .frame(width: 140)
                     .accessibilityIdentifier("layoutTracer.keyCornerRadius")
                 Text("\(Int(document.keyCornerRadius.rounded()))")
                     .font(.body.monospacedDigit())
                     .frame(minWidth: 24, alignment: .trailing)
             }
-
         }
         .tracerGlassCard()
     }
@@ -280,61 +279,61 @@ struct LayoutTracerInspectorView: View {
                     Text("Selected Key")
                         .font(.headline)
 
-                LabelComboBoxField(
-                    title: "Label",
-                    text: binding(for: \.label),
-                    suggestions: KeySuggestionCatalog.commonLabelSuggestions,
-                    accessibilityID: "layoutTracer.selected.label"
-                )
-                KeyCodeComboBoxField(
-                    title: "Key Code",
-                    value: bindingUInt16(for: \.keyCode),
-                    suggestions: KeySuggestionCatalog.keyCodeSuggestions,
-                    accessibilityID: "layoutTracer.selected.keyCode"
-                )
-                LabeledDoubleField(title: "X", value: bindingDouble(for: \.x), accessibilityID: "layoutTracer.selected.x")
-                LabeledDoubleField(title: "Y", value: bindingDouble(for: \.y), accessibilityID: "layoutTracer.selected.y")
-                LabeledDoubleField(title: "Width", value: bindingDouble(for: \.width), accessibilityID: "layoutTracer.selected.width")
-                LabeledDoubleField(title: "Height", value: bindingDouble(for: \.height), accessibilityID: "layoutTracer.selected.height")
+                    LabelComboBoxField(
+                        title: "Label",
+                        text: binding(for: \.label),
+                        suggestions: KeySuggestionCatalog.commonLabelSuggestions,
+                        accessibilityID: "layoutTracer.selected.label"
+                    )
+                    KeyCodeComboBoxField(
+                        title: "Key Code",
+                        value: bindingUInt16(for: \.keyCode),
+                        suggestions: KeySuggestionCatalog.keyCodeSuggestions,
+                        accessibilityID: "layoutTracer.selected.keyCode"
+                    )
+                    LabeledDoubleField(title: "X", value: bindingDouble(for: \.x), accessibilityID: "layoutTracer.selected.x")
+                    LabeledDoubleField(title: "Y", value: bindingDouble(for: \.y), accessibilityID: "layoutTracer.selected.y")
+                    LabeledDoubleField(title: "Width", value: bindingDouble(for: \.width), accessibilityID: "layoutTracer.selected.width")
+                    LabeledDoubleField(title: "Height", value: bindingDouble(for: \.height), accessibilityID: "layoutTracer.selected.height")
 
-                HStack(spacing: 8) {
-                    Text("Rotation")
-                        .frame(width: 70, alignment: .leading)
-                    Button {
-                        document.rotateSelectedKey(by: -5)
-                    } label: {
-                        Image(systemName: "rotate.left")
+                    HStack(spacing: 8) {
+                        Text("Rotation")
+                            .frame(width: 70, alignment: .leading)
+                        Button {
+                            document.rotateSelectedKey(by: -5)
+                        } label: {
+                            Image(systemName: "rotate.left")
+                        }
+                        .help("Rotate Counterclockwise")
+                        .accessibilityIdentifier("layoutTracer.rotate.left")
+
+                        Text("\(Int((selected.rotation ?? 0).rounded()))°")
+                            .font(.body.monospacedDigit())
+                            .frame(minWidth: 44)
+
+                        Button {
+                            document.rotateSelectedKey(by: 5)
+                        } label: {
+                            Image(systemName: "rotate.right")
+                        }
+                        .help("Rotate Clockwise")
+                        .accessibilityIdentifier("layoutTracer.rotate.right")
                     }
-                    .help("Rotate Counterclockwise")
-                    .accessibilityIdentifier("layoutTracer.rotate.left")
 
-                    Text("\(Int((selected.rotation ?? 0).rounded()))°")
-                        .font(.body.monospacedDigit())
-                        .frame(minWidth: 44)
-
-                    Button {
-                        document.rotateSelectedKey(by: 5)
-                    } label: {
-                        Image(systemName: "rotate.right")
+                    HStack {
+                        Button("←") { document.nudgeSelectedKey(dx: -1, dy: 0) }
+                            .accessibilityIdentifier("layoutTracer.nudge.left")
+                        Button("→") { document.nudgeSelectedKey(dx: 1, dy: 0) }
+                            .accessibilityIdentifier("layoutTracer.nudge.right")
+                        Button("↑") { document.nudgeSelectedKey(dx: 0, dy: -1) }
+                            .accessibilityIdentifier("layoutTracer.nudge.up")
+                        Button("↓") { document.nudgeSelectedKey(dx: 0, dy: 1) }
+                            .accessibilityIdentifier("layoutTracer.nudge.down")
                     }
-                    .help("Rotate Clockwise")
-                    .accessibilityIdentifier("layoutTracer.rotate.right")
-                }
 
-                HStack {
-                    Button("←") { document.nudgeSelectedKey(dx: -1, dy: 0) }
-                        .accessibilityIdentifier("layoutTracer.nudge.left")
-                    Button("→") { document.nudgeSelectedKey(dx: 1, dy: 0) }
-                        .accessibilityIdentifier("layoutTracer.nudge.right")
-                    Button("↑") { document.nudgeSelectedKey(dx: 0, dy: -1) }
-                        .accessibilityIdentifier("layoutTracer.nudge.up")
-                    Button("↓") { document.nudgeSelectedKey(dx: 0, dy: 1) }
-                        .accessibilityIdentifier("layoutTracer.nudge.down")
-                }
-
-                Text("Current frame: \(Int(selected.width))×\(Int(selected.height)) at (\(Int(selected.x)), \(Int(selected.y)))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    Text("Current frame: \(Int(selected.width))×\(Int(selected.height)) at (\(Int(selected.x)), \(Int(selected.y)))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 .tracerGlassCard()
             }

@@ -183,8 +183,8 @@ public enum KeyDisplayFormatter {
         if parts.count > 1 {
             // Check for Hyper (Ctrl+Cmd+Alt+Shift)
             let partSet = Set(parts)
-            let hyperSet: Set<String> = ["lctl", "lmet", "lalt", "lsft"]
-            let mehSet: Set<String> = ["lctl", "lalt", "lsft"]
+            let hyperSet: Set = ["lctl", "lmet", "lalt", "lsft"]
+            let mehSet: Set = ["lctl", "lalt", "lsft"]
 
             if partSet.isSuperset(of: hyperSet) { return "✦" }
             if partSet.isSuperset(of: mehSet) { return "◆" }

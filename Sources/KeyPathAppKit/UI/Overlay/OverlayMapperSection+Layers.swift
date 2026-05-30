@@ -181,7 +181,6 @@ extension OverlayMapperSection {
         }
     }
 
-
     var shouldShowHealthGate: Bool {
         if healthIndicatorState == .checking { return true }
         if case .unhealthy = healthIndicatorState { return true }

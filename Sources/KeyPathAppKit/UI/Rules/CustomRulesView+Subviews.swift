@@ -263,7 +263,10 @@ struct DeviceRulesSectionHeader: View {
     let device: ConnectedDevice?
     let deviceHash: String
 
-    private var isConnected: Bool { device != nil }
+    private var isConnected: Bool {
+        device != nil
+    }
+
     private var displayName: String {
         device?.displayName ?? "Device \(deviceHash.suffix(8))"
     }

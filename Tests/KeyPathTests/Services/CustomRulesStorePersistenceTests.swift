@@ -2,7 +2,6 @@
 import XCTest
 
 final class CustomRulesStorePersistenceTests: XCTestCase {
-
     private var tempDir: URL!
 
     override func setUp() {
@@ -67,7 +66,7 @@ final class CustomRulesStorePersistenceTests: XCTestCase {
     func testSaveAndLoad_PreservesAllFields() async throws {
         let store = makeStore()
         let id = UUID()
-        let date = Date(timeIntervalSince1970: 1700000000)
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
         var rule = CustomRule(
             id: id,
             title: "Test Rule",

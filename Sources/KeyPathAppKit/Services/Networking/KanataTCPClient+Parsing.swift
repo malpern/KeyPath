@@ -16,7 +16,7 @@ extension KanataTCPClient {
         if json["status"] != nil { return true }
 
         // Named command response objects
-        let responseKeys: Set<String> = [
+        let responseKeys: Set = [
             "HelloOk", "StatusInfo", "ReloadResult",
             "LayerNames", "FakeKeyNames",
             "CurrentLayerName", "CurrentLayerInfo",

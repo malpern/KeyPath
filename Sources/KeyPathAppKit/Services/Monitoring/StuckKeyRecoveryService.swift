@@ -40,7 +40,8 @@ final class StuckKeyRecoveryService {
         guard !isRecovering else { return }
 
         if let lastRecovery = lastRecoveryAt,
-           Date().timeIntervalSince(lastRecovery) < Self.recoveryCooldownSeconds {
+           Date().timeIntervalSince(lastRecovery) < Self.recoveryCooldownSeconds
+        {
             return
         }
 
@@ -126,7 +127,8 @@ final class StuckKeyRecoveryService {
 
         lines.append("=== Kanata Stderr (last 50 lines) ===")
         if let data = FileManager.default.contents(atPath: "/var/log/com.keypath.kanata.stderr.log"),
-           let content = String(data: data, encoding: .utf8) {
+           let content = String(data: data, encoding: .utf8)
+        {
             lines.append(contentsOf: content.components(separatedBy: .newlines).suffix(50))
         } else {
             lines.append("(file not readable)")

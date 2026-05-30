@@ -6,7 +6,6 @@ import XCTest
 /// Tests the path from user interaction (slider, picker, toggle) through
 /// config generation to verify the correct kanata syntax is produced.
 final class PackConfigPipelineTests: XCTestCase {
-
     // MARK: - Home Row Mods
 
     @MainActor

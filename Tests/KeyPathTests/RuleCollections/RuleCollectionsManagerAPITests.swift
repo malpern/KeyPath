@@ -4,7 +4,6 @@ import XCTest
 
 @MainActor
 final class RuleCollectionsManagerAPITests: XCTestCase {
-
     private func makeManager() -> RuleCollectionsManager {
         RuleCollectionsManager(
             ruleCollectionStore: .shared,

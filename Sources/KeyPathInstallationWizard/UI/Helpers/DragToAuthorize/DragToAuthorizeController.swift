@@ -263,15 +263,14 @@ public final class DragToAuthorizeController: ObservableObject {
     private func checkPermission(for target: PermissionTarget) async {
         let snapshot = await PermissionOracle.shared.forceRefresh()
 
-        let granted: Bool
-        switch target {
+        let granted: Bool = switch target {
         case .accessibility:
-            granted = snapshot.kanata.accessibility == .granted
+            snapshot.kanata.accessibility == .granted
         case .inputMonitoring:
-            granted = snapshot.kanata.inputMonitoring == .granted
+            snapshot.kanata.inputMonitoring == .granted
         case .fullDiskAccess:
             // FDA doesn't exist in PermissionSet — skip polling for it
-            granted = false
+            false
         }
 
         if granted {

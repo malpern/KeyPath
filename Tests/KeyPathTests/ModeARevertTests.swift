@@ -111,7 +111,7 @@ final class ModeARevertTests: XCTestCase {
         let snapshot = makeSnapshot(kanataRunning: false, kanataPermissionRejected: true)
 
         let permIssues = snapshot.blockingIssues.filter {
-            if case .permissionMissing(let app, let perm, _) = $0 {
+            if case let .permissionMissing(app, perm, _) = $0 {
                 return app == "Kanata" && perm == "Accessibility"
             }
             return false
@@ -119,7 +119,7 @@ final class ModeARevertTests: XCTestCase {
         XCTAssertFalse(permIssues.isEmpty, "blockingIssues must contain Kanata Accessibility permission issue")
 
         let serviceIssues = snapshot.blockingIssues.filter {
-            if case .serviceNotRunning(let name, _) = $0 {
+            if case let .serviceNotRunning(name, _) = $0 {
                 return name == "Kanata Service"
             }
             return false
@@ -131,7 +131,7 @@ final class ModeARevertTests: XCTestCase {
         let snapshot = makeSnapshot(kanataRunning: false, kanataPermissionRejected: false)
 
         let serviceIssues = snapshot.blockingIssues.filter {
-            if case .serviceNotRunning(let name, _) = $0 {
+            if case let .serviceNotRunning(name, _) = $0 {
                 return name == "Kanata Service"
             }
             return false

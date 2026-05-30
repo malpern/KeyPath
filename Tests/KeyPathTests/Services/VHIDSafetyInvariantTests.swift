@@ -8,7 +8,6 @@
 /// system services are needed.
 @MainActor
 final class VHIDSafetyInvariantTests: KeyPathTestCase {
-
     // MARK: - Emergency Stop Decision
 
     func test_emergencyStop_triggeredWhenKanataRunningWithoutVHID() {

@@ -30,7 +30,9 @@ public struct DeviceConditionInfo: Equatable, Identifiable {
     public let deviceHash: String
     public let displayName: String
     public let sfSymbolName: String
-    public var id: String { deviceHash }
+    public var id: String {
+        deviceHash
+    }
 
     public init(deviceHash: String, displayName: String, sfSymbolName: String) {
         self.deviceHash = deviceHash
@@ -98,11 +100,11 @@ public struct SystemActionInfo: Equatable, Hashable, Identifiable, Sendable {
     public var kanataOutput: String {
         switch output {
         case .pushMessage:
-            return "(push-msg \"system:\(id)\")"
-        case .hidKeycode(let keycode, _):
-            return keycode
-        case .modifierCombo(let combo):
-            return combo
+            "(push-msg \"system:\(id)\")"
+        case let .hidKeycode(keycode, _):
+            keycode
+        case let .modifierCombo(combo):
+            combo
         }
     }
 
@@ -126,13 +128,13 @@ public struct SystemActionInfo: Equatable, Hashable, Identifiable, Sendable {
 
     /// The HID keycode for media-key actions (e.g., `pp`, `mute`). Nil otherwise.
     public var kanataKeycode: String? {
-        if case .hidKeycode(let keycode, _) = output { return keycode }
+        if case let .hidKeycode(keycode, _) = output { return keycode }
         return nil
     }
 
     /// Canonical simulator name for media keys (e.g., `MediaPlayPause`). Nil otherwise.
     public var simulatorName: String? {
-        if case .hidKeycode(_, let name) = output { return name }
+        if case let .hidKeycode(_, name) = output { return name }
         return nil
     }
 
@@ -254,11 +256,11 @@ public struct SystemActionInfo: Equatable, Hashable, Identifiable, Sendable {
         if let action = allActions.first(where: { action in
             switch action.output {
             case .pushMessage:
-                return false
-            case .hidKeycode(let keycode, let simulator):
-                return keycode.lowercased() == lower || simulator?.lowercased() == lower
-            case .modifierCombo(let combo):
-                return combo.lowercased() == lower
+                false
+            case let .hidKeycode(keycode, simulator):
+                keycode.lowercased() == lower || simulator?.lowercased() == lower
+            case let .modifierCombo(combo):
+                combo.lowercased() == lower
             }
         }) {
             return action

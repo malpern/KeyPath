@@ -151,9 +151,9 @@ public struct WizardHeroSection: View {
 
 // MARK: - Convenience Initializers
 
-extension WizardHeroSection {
+public extension WizardHeroSection {
     /// Convenience initializer for success state with large checkmark overlay
-    public static func success(
+    static func success(
         icon: String,
         title: String,
         subtitle: String,
@@ -178,7 +178,7 @@ extension WizardHeroSection {
     }
 
     /// Convenience initializer for warning state with small warning overlay
-    public static func warning(
+    static func warning(
         icon: String,
         title: String,
         subtitle: String,
@@ -203,7 +203,7 @@ extension WizardHeroSection {
     }
 
     /// Convenience initializer for info state with question mark overlay
-    public static func info(
+    static func info(
         icon: String,
         title: String,
         subtitle: String,
@@ -228,7 +228,7 @@ extension WizardHeroSection {
     }
 
     /// Convenience initializer for error state with small error overlay
-    public static func error(
+    static func error(
         icon: String,
         title: String,
         subtitle: String,

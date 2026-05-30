@@ -145,7 +145,7 @@ struct KindaVimInsightsView: View {
         Chart {
             chartMarks(series)
         }
-        .chartYScale(domain: 0...100)
+        .chartYScale(domain: 0 ... 100)
         .chartYAxis {
             // Just 0 and 100 — anything else clutters this size.
             AxisMarks(position: .leading, values: [0, 100]) { value in
@@ -186,7 +186,9 @@ struct KindaVimInsightsView: View {
     private struct ChartPoint: Identifiable, Equatable {
         let date: Date
         let percent: Double
-        var id: Date { date }
+        var id: Date {
+            date
+        }
     }
 
     private static let chartDateFormatter: DateFormatter = {
@@ -273,17 +275,17 @@ struct KindaVimInsightsView: View {
 
     private static func tier(for count: Int) -> MasteryTier {
         switch count {
-        case 0: return .untried
-        case 1...9: return .learning
-        case 10...99: return .comfortable
-        default: return .fluent
+        case 0: .untried
+        case 1 ... 9: .learning
+        case 10 ... 99: .comfortable
+        default: .fluent
         }
     }
 
     private var topCommands: [UsageEntry] {
         snapshot.commandFrequency
             .filter { !$0.key.isEmpty }
-            .map { (key, count) in
+            .map { key, count in
                 UsageEntry(
                     key: key,
                     count: count,
@@ -306,7 +308,7 @@ struct KindaVimInsightsView: View {
         case "\u{F701}": return "↓"
         case "\u{F702}": return "←"
         case "\u{F703}": return "→"
-        case "\u{F704}"..."\u{F70F}":
+        case "\u{F704}" ... "\u{F70F}":
             guard let scalar = key.unicodeScalars.first else { return "?" }
             return "F\(scalar.value - 0xF704 + 1)"
         case "\u{F72C}": return "PgUp"
@@ -373,19 +375,19 @@ struct KindaVimInsightsView: View {
     /// to blue, Fluent to green. Same semantic palette as `tierColor`.
     private func barGradient(for tier: MasteryTier) -> [Color] {
         switch tier {
-        case .untried: return [Color.secondary.opacity(0.3), Color.secondary.opacity(0.15)]
-        case .learning: return [Color.orange.opacity(0.85), Color.orange.opacity(0.45)]
-        case .comfortable: return [Color.blue.opacity(0.85), Color.blue.opacity(0.45)]
-        case .fluent: return [Color.green.opacity(0.85), Color.green.opacity(0.45)]
+        case .untried: [Color.secondary.opacity(0.3), Color.secondary.opacity(0.15)]
+        case .learning: [Color.orange.opacity(0.85), Color.orange.opacity(0.45)]
+        case .comfortable: [Color.blue.opacity(0.85), Color.blue.opacity(0.45)]
+        case .fluent: [Color.green.opacity(0.85), Color.green.opacity(0.45)]
         }
     }
 
     private func tierColor(_ tier: MasteryTier) -> Color {
         switch tier {
-        case .untried: return .secondary
-        case .learning: return .orange
-        case .comfortable: return .blue
-        case .fluent: return .green
+        case .untried: .secondary
+        case .learning: .orange
+        case .comfortable: .blue
+        case .fluent: .green
         }
     }
 

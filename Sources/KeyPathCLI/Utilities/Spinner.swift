@@ -11,9 +11,9 @@ final class CLISpinner: @unchecked Sendable {
     private var frameIndex = 0
 
     init(context: OutputContext) {
-        self.noColor = context.noColor
-        self.isInteractive = context.isInteractive && !context.quiet
-        self.message = ""
+        noColor = context.noColor
+        isInteractive = context.isInteractive && !context.quiet
+        message = ""
     }
 
     func start(_ message: String) {

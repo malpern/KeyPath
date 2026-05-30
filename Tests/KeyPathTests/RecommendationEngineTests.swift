@@ -3,10 +3,11 @@ import XCTest
 
 /// Tests for the contextual recommendation engine.
 final class RecommendationEngineTests: XCTestCase {
-
     func testAlwaysRecommendsCorePacksWhenDisabled() {
         var collections = RuleCollectionCatalog().defaultCollections()
-        for i in collections.indices { collections[i].isEnabled = false }
+        for i in collections.indices {
+            collections[i].isEnabled = false
+        }
 
         let recs = RulesRecommendationEngine.recommendations(from: collections)
         let ids = Set(recs.map(\.collectionId))
@@ -19,7 +20,9 @@ final class RecommendationEngineTests: XCTestCase {
 
     func testEnabledPacksExcludedFromRecommendations() {
         var collections = RuleCollectionCatalog().defaultCollections()
-        for i in collections.indices { collections[i].isEnabled = false }
+        for i in collections.indices {
+            collections[i].isEnabled = false
+        }
         if let idx = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.capsLockRemap }) {
             collections[idx].isEnabled = true
         }
@@ -33,7 +36,9 @@ final class RecommendationEngineTests: XCTestCase {
 
     func testVimEnabled_RecommendsMissionControl() {
         var collections = RuleCollectionCatalog().defaultCollections()
-        for i in collections.indices { collections[i].isEnabled = false }
+        for i in collections.indices {
+            collections[i].isEnabled = false
+        }
         if let idx = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.vimNavigation }) {
             collections[idx].isEnabled = true
         }
@@ -47,7 +52,9 @@ final class RecommendationEngineTests: XCTestCase {
 
     func testCapsLockEnabled_RecommendsBackupCapsLock() {
         var collections = RuleCollectionCatalog().defaultCollections()
-        for i in collections.indices { collections[i].isEnabled = false }
+        for i in collections.indices {
+            collections[i].isEnabled = false
+        }
         if let idx = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.capsLockRemap }) {
             collections[idx].isEnabled = true
         }
@@ -61,7 +68,9 @@ final class RecommendationEngineTests: XCTestCase {
 
     func testHRMEnabled_RecommendsVimNav() {
         var collections = RuleCollectionCatalog().defaultCollections()
-        for i in collections.indices { collections[i].isEnabled = false }
+        for i in collections.indices {
+            collections[i].isEnabled = false
+        }
         if let idx = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowMods }) {
             collections[idx].isEnabled = true
         }
@@ -75,7 +84,9 @@ final class RecommendationEngineTests: XCTestCase {
 
     func testPowerUser_RecommendsLeaderKey() {
         var collections = RuleCollectionCatalog().defaultCollections()
-        for i in collections.indices { collections[i].isEnabled = false }
+        for i in collections.indices {
+            collections[i].isEnabled = false
+        }
         // Enable 3+ productivity packs
         var enabledCount = 0
         for i in collections.indices where collections[i].category == .productivity {
@@ -94,7 +105,9 @@ final class RecommendationEngineTests: XCTestCase {
 
     func testAllEnabled_NoRecommendations() {
         var collections = RuleCollectionCatalog().defaultCollections()
-        for i in collections.indices { collections[i].isEnabled = true }
+        for i in collections.indices {
+            collections[i].isEnabled = true
+        }
 
         let recs = RulesRecommendationEngine.recommendations(from: collections)
 

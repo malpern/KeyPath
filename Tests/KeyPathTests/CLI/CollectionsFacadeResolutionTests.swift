@@ -2,7 +2,6 @@
 import XCTest
 
 final class CollectionsFacadeResolutionTests: XCTestCase {
-
     private let facade = CollectionsFacade()
 
     private func testCollections() -> [RuleCollection] {

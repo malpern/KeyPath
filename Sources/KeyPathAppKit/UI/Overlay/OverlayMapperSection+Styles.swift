@@ -41,9 +41,9 @@ extension View {
     /// Drop-in replacement for `.popover()` that renders content as an inline overlay
     /// instead of using NSPopover. Avoids a crash on borderless overlay windows where
     /// NSPopover's animated resize triggers a null function pointer callback.
-    func inlinePopover<Content: View>(
+    func inlinePopover(
         isPresented: Binding<Bool>,
-        @ViewBuilder content: @escaping () -> Content
+        @ViewBuilder content: @escaping () -> some View
     ) -> some View {
         overlay(alignment: .top) {
             if isPresented.wrappedValue {

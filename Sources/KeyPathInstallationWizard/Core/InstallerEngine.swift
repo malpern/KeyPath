@@ -34,9 +34,9 @@ public final class InstallerEngine {
 
     /// Internal designated initializer to share construction logic
     public init(
-        processLifecycleManager: ProcessLifecycleManager,
+        processLifecycleManager _: ProcessLifecycleManager,
         systemValidator injectedValidator: (any WizardSystemValidating)? = nil,
-        kanataManager: (any RuntimeCoordinating)? = nil
+        kanataManager _: (any RuntimeCoordinating)? = nil
     ) {
         self.injectedValidator = injectedValidator
 

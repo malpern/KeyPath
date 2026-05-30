@@ -334,7 +334,7 @@ public class KanataDaemonManager {
         }
     }
 
-    nonisolated private func readLaunchctlOutputs(for managementState: ServiceManagementState)
+    private nonisolated func readLaunchctlOutputs(for managementState: ServiceManagementState)
         async -> [(target: String, output: String, exitCode: Int32?)]
     {
         var outputs: [(target: String, output: String, exitCode: Int32?)] = []

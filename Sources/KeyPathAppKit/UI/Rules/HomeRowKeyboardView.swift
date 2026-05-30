@@ -109,8 +109,6 @@ struct HomeRowKeyboardView<PopoverContent: View>: View {
                             .popover(isPresented: popoverBinding(for: key), arrowEdge: .top) {
                                 if let keyPopoverContent {
                                     keyPopoverContent(key)
-                                } else {
-                                    EmptyView()
                                 }
                             }
                         }
@@ -148,8 +146,6 @@ struct HomeRowKeyboardView<PopoverContent: View>: View {
                             .popover(isPresented: popoverBinding(for: key), arrowEdge: .top) {
                                 if let keyPopoverContent {
                                     keyPopoverContent(key)
-                                } else {
-                                    EmptyView()
                                 }
                             }
                         }
@@ -229,7 +225,7 @@ extension HomeRowKeyboardView where PopoverContent == EmptyView {
         self.timingPreviewPhase = timingPreviewPhase
         self.leftHandKeys = leftHandKeys
         self.rightHandKeys = rightHandKeys
-        self.keyPopoverContent = nil
+        keyPopoverContent = nil
         self.onPopoverDismiss = onPopoverDismiss
         self.onKeySelected = onKeySelected
     }

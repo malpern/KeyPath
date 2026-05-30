@@ -84,12 +84,14 @@ struct KindaVimStatusBlock: View {
             .accessibilityIdentifier("kindavim-status-terminal-info")
 
             if showTerminalInfo {
-                Text("Terminal apps are usually in KindaVim's ignore list. To practice vim motions there, add `bindkey -v` to your ~/.zshrc to enable zsh's built-in vi mode, then turn on \"Show vim hints in terminal apps\" above.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.leading, 15)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                Text(
+                    "Terminal apps are usually in KindaVim's ignore list. To practice vim motions there, add `bindkey -v` to your ~/.zshrc to enable zsh's built-in vi mode, then turn on \"Show vim hints in terminal apps\" above."
+                )
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.leading, 15)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             Divider()
@@ -115,9 +117,9 @@ struct KindaVimStatusBlock: View {
         } message: {
             Text(
                 "This permanently deletes all locally-recorded command counts, " +
-                "mode dwell time, and other usage statistics. KeyPath has no " +
-                "copies of this data — it stays on your Mac and is never sent " +
-                "anywhere."
+                    "mode dwell time, and other usage statistics. KeyPath has no " +
+                    "copies of this data — it stays on your Mac and is never sent " +
+                    "anywhere."
             )
         }
     }
@@ -169,7 +171,6 @@ struct KindaVimStatusBlock: View {
         .accessibilityIdentifier(id)
     }
 
-    @ViewBuilder
     private func row(label: String, value: String, tint: Color) -> some View {
         HStack {
             Text(label)
@@ -190,20 +191,20 @@ struct KindaVimStatusBlock: View {
 
     private var modeTint: Color {
         switch adapter.state.mode {
-        case .normal: return .green
-        case .insert: return .blue
-        case .visual: return .orange
-        case .operatorPending: return .purple
-        case .unknown: return .secondary
+        case .normal: .green
+        case .insert: .blue
+        case .visual: .orange
+        case .operatorPending: .purple
+        case .unknown: .secondary
         }
     }
 
     private var strategyTint: Color {
         switch strategyMonitor.currentStrategy {
-        case .accessibility: return .green
-        case .hybrid: return .blue
-        case .keyboard: return .orange
-        case .ignored: return .secondary
+        case .accessibility: .green
+        case .hybrid: .blue
+        case .keyboard: .orange
+        case .ignored: .secondary
         }
     }
 }

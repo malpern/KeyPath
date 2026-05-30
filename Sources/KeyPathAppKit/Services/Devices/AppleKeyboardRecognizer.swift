@@ -38,10 +38,10 @@ enum AppleKeyboardRecognizer {
     ) -> DeviceRecognitionService.RecognitionResult? {
         let productID = event.productID
 
-        let compactProductIDs: Set<Int> = [0x0267, 0x029C]
-        let compactTouchIDProductIDs: Set<Int> = [0x029A]
-        let numpadProductIDs: Set<Int> = [0x026C]
-        let numpadTouchIDProductIDs: Set<Int> = [0x029F]
+        let compactProductIDs: Set = [0x0267, 0x029C]
+        let compactTouchIDProductIDs: Set = [0x029A]
+        let numpadProductIDs: Set = [0x026C]
+        let numpadTouchIDProductIDs: Set = [0x029F]
 
         let hasTouchID = lowerName.contains("touch id") || compactTouchIDProductIDs.contains(productID) || numpadTouchIDProductIDs.contains(productID)
         let hasNumericKeypad = lowerName.contains("numeric keypad") || numpadProductIDs.contains(productID) || numpadTouchIDProductIDs.contains(productID)

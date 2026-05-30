@@ -97,10 +97,10 @@ public class SheetWindowResizeDelegate: NSObject, NSWindowDelegate {
     }
 }
 
-extension View {
+public extension View {
     /// Customizes sheet window appearance (removes border, sets dark mode-aware background)
     /// Also ensures window resizes from bottom (top-left corner stays stable)
-    public func customizeSheetWindow() -> some View {
+    func customizeSheetWindow() -> some View {
         modifier(SheetWindowModifier())
     }
 }

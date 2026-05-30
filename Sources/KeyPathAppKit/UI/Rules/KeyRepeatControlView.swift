@@ -238,8 +238,8 @@ struct KeyRepeatControlView: View {
                     .font(.caption.monospaced())
                     .foregroundStyle(.tertiary)
             }
-            cleanSlider(label: "Delay", value: $globalDelayMs, range: 50...2000, snap: 10, id: "global-delay")
-            cleanSlider(label: "Speed", value: $globalIntervalMs, range: 5...200, snap: 5, id: "global-speed")
+            cleanSlider(label: "Delay", value: $globalDelayMs, range: 50 ... 2000, snap: 10, id: "global-delay")
+            cleanSlider(label: "Speed", value: $globalIntervalMs, range: 5 ... 200, snap: 5, id: "global-speed")
         }
     }
 
@@ -258,8 +258,8 @@ struct KeyRepeatControlView: View {
                 }
             }
             if arrowEnabled {
-                cleanSlider(label: "Delay", value: $arrowDelayMs, range: 50...1000, snap: 10, id: "arrow-delay")
-                cleanSlider(label: "Speed", value: $arrowIntervalMs, range: 5...100, snap: 5, id: "arrow-speed")
+                cleanSlider(label: "Delay", value: $arrowDelayMs, range: 50 ... 1000, snap: 10, id: "arrow-delay")
+                cleanSlider(label: "Speed", value: $arrowIntervalMs, range: 5 ... 100, snap: 5, id: "arrow-speed")
             }
         }
     }
@@ -271,8 +271,8 @@ struct KeyRepeatControlView: View {
                 .toggleStyle(.checkbox)
                 .accessibilityIdentifier("key-repeat-delete-toggle")
             if deleteEnabled {
-                cleanSlider(label: "Delay", value: $deleteDelayMs, range: 50...1000, snap: 10, id: "delete-delay")
-                cleanSlider(label: "Speed", value: $deleteIntervalMs, range: 5...100, snap: 5, id: "delete-speed")
+                cleanSlider(label: "Delay", value: $deleteDelayMs, range: 50 ... 1000, snap: 10, id: "delete-delay")
+                cleanSlider(label: "Speed", value: $deleteIntervalMs, range: 5 ... 100, snap: 5, id: "delete-speed")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -285,8 +285,8 @@ struct KeyRepeatControlView: View {
                 .toggleStyle(.checkbox)
                 .accessibilityIdentifier("key-repeat-fwd-delete-toggle")
             if fwdDeleteEnabled {
-                cleanSlider(label: "Delay", value: $fwdDeleteDelayMs, range: 50...1000, snap: 10, id: "fwd-delete-delay")
-                cleanSlider(label: "Speed", value: $fwdDeleteIntervalMs, range: 5...100, snap: 5, id: "fwd-delete-speed")
+                cleanSlider(label: "Delay", value: $fwdDeleteDelayMs, range: 50 ... 1000, snap: 10, id: "fwd-delete-delay")
+                cleanSlider(label: "Speed", value: $fwdDeleteIntervalMs, range: 5 ... 100, snap: 5, id: "fwd-delete-speed")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -308,17 +308,17 @@ struct KeyRepeatControlView: View {
                         cleanSlider(label: "Delay", value: Binding(
                             get: { customOverrides.indices.contains(index) ? customOverrides[index].delayMs : entry.delayMs },
                             set: { if customOverrides.indices.contains(index) { customOverrides[index].delayMs = $0 } }
-                        ), range: 50...2000, snap: 10)
+                        ), range: 50 ... 2000, snap: 10)
                         cleanSlider(label: "Speed", value: Binding(
                             get: { customOverrides.indices.contains(index) ? customOverrides[index].intervalMs : entry.intervalMs },
                             set: { if customOverrides.indices.contains(index) { customOverrides[index].intervalMs = $0 } }
-                        ), range: 5...200, snap: 5)
+                        ), range: 5 ... 200, snap: 5)
                     }
 
                     Button { customOverrides.remove(at: index) } label: {
                         Image(systemName: "xmark.circle.fill").font(.subheadline).foregroundStyle(.tertiary)
                     }.buttonStyle(.plain)
-                    .accessibilityIdentifier("key-repeat-remove-custom-\(entry.key)")
+                        .accessibilityIdentifier("key-repeat-remove-custom-\(entry.key)")
                 }
             }
         }
@@ -343,7 +343,7 @@ struct KeyRepeatControlView: View {
                     Label("Add custom key", systemImage: "plus.circle")
                         .font(.subheadline.weight(.medium))
                 }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
-                .accessibilityIdentifier("key-repeat-add-custom-key-button")
+                    .accessibilityIdentifier("key-repeat-add-custom-key-button")
             }
         }
     }
@@ -390,10 +390,10 @@ struct KeyRepeatControlView: View {
             Slider(value: Binding(
                 get: { Double(value.wrappedValue) },
                 set: { value.wrappedValue = Int(($0 / Double(snap)).rounded() * Double(snap)) }
-            ), in: Double(range.lowerBound)...Double(range.upperBound))
-            .controlSize(.small)
-            .accessibilityIdentifier(id.isEmpty ? "key-repeat-slider-\(label.lowercased())" : "key-repeat-slider-\(id)")
-            .accessibilityValue(displayValue)
+            ), in: Double(range.lowerBound) ... Double(range.upperBound))
+                .controlSize(.small)
+                .accessibilityIdentifier(id.isEmpty ? "key-repeat-slider-\(label.lowercased())" : "key-repeat-slider-\(id)")
+                .accessibilityValue(displayValue)
         }
     }
 
@@ -421,7 +421,9 @@ struct KeyRepeatControlView: View {
         emitConfig()
     }
 
-    private func emitConfig() { onConfigChanged(buildConfig()) }
+    private func emitConfig() {
+        onConfigChanged(buildConfig())
+    }
 
     private func buildConfig() -> KeyRepeatControlConfig {
         var overrides: [KeyRepeatOverride] = []

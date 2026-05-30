@@ -117,5 +117,4 @@ enum JISPositionTable {
             nil
         }
     }
-
 }

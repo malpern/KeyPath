@@ -5,13 +5,14 @@ import XCTest
 /// Extended dependency system tests covering allUnmetRequirements,
 /// dependents, config predicates, and suggestions.
 final class PackDependencyExtendedTests: XCTestCase {
-
     // MARK: - allUnmetRequirements
 
     @MainActor
     func testAllUnmetRequirements_EmptyWhenNoRequiredDeps() {
         var collections = RuleCollectionCatalog().defaultCollections()
-        for i in collections.indices { collections[i].isEnabled = false }
+        for i in collections.indices {
+            collections[i].isEnabled = false
+        }
         // Enable layer packs WITHOUT Vim Nav — they only have enhancedBy, not requires
         for i in collections.indices {
             if collections[i].id == RuleCollectionIdentifier.windowSnapping
@@ -33,7 +34,9 @@ final class PackDependencyExtendedTests: XCTestCase {
     @MainActor
     func testAllUnmetRequirements_EmptyWhenDepsAreMet() {
         var collections = RuleCollectionCatalog().defaultCollections()
-        for i in collections.indices { collections[i].isEnabled = false }
+        for i in collections.indices {
+            collections[i].isEnabled = false
+        }
         // Enable Vim Nav AND Window Snapping
         for i in collections.indices {
             if collections[i].id == RuleCollectionIdentifier.vimNavigation
@@ -58,7 +61,9 @@ final class PackDependencyExtendedTests: XCTestCase {
     func testDependents_FindsAllVimNavDependents() {
         var collections = RuleCollectionCatalog().defaultCollections()
         // Enable everything
-        for i in collections.indices { collections[i].isEnabled = true }
+        for i in collections.indices {
+            collections[i].isEnabled = true
+        }
 
         let dependents = PackDependencyChecker.dependents(
             of: "com.keypath.pack.vim-navigation",
@@ -80,7 +85,9 @@ final class PackDependencyExtendedTests: XCTestCase {
     @MainActor
     func testDependents_OnlyReturnsEnabledPacks() {
         var collections = RuleCollectionCatalog().defaultCollections()
-        for i in collections.indices { collections[i].isEnabled = false }
+        for i in collections.indices {
+            collections[i].isEnabled = false
+        }
         // Only Vim Nav enabled, nothing depends on it that's also enabled
         if let idx = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.vimNavigation }) {
             collections[idx].isEnabled = true
@@ -100,7 +107,9 @@ final class PackDependencyExtendedTests: XCTestCase {
     @MainActor
     func testConfigPredicate_HoldOutputMatch() {
         var collections = RuleCollectionCatalog().defaultCollections()
-        for i in collections.indices { collections[i].isEnabled = true }
+        for i in collections.indices {
+            collections[i].isEnabled = true
+        }
         // Caps Lock Remap defaults to hold=Hyper (C-S-M-A-)
 
         let unmet = PackDependencyChecker.unmetRequirements(

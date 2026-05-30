@@ -113,7 +113,7 @@ extension OverlayInspectorPanel {
             guard !pack.visualOnly else { return false }
             return enabledIDs.contains(collectionID)
         }.filter { pack in
-            let systemIDs: Set<String> = ["com.keypath.pack.leader-key"]
+            let systemIDs: Set = ["com.keypath.pack.leader-key"]
             return !systemIDs.contains(pack.id)
         }
     }

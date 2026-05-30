@@ -401,7 +401,7 @@ final class CommandPaletteWindowController {
 }
 
 private class PanelDelegate: NSObject, NSWindowDelegate {
-    func windowDidResignKey(_ notification: Notification) {
+    func windowDidResignKey(_: Notification) {
         Task { @MainActor in
             CommandPaletteWindowController.shared.dismiss()
         }

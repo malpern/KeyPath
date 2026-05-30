@@ -125,15 +125,15 @@ final class VimSequenceObserver {
     /// signal.
     private static func nonVimNavigationName(for keyCode: UInt16) -> String? {
         switch keyCode {
-        case 123: return "left"
-        case 124: return "right"
-        case 125: return "down"
-        case 126: return "up"
-        case 116: return "pageup"
-        case 121: return "pagedown"
-        case 115: return "home"
-        case 119: return "end"
-        default: return nil
+        case 123: "left"
+        case 124: "right"
+        case 125: "down"
+        case 126: "up"
+        case 116: "pageup"
+        case 121: "pagedown"
+        case 115: "home"
+        case 119: "end"
+        default: nil
         }
     }
 
@@ -222,7 +222,7 @@ final class VimSequenceObserver {
             // No bookkeeping — user is typing or kindaVim isn't reporting.
             currentOperator = nil
             countBuffer = ""
-            return  // skip telemetry recording
+            return // skip telemetry recording
         }
 
         if !character.isEmpty, !Self.isApplePrivateUse(character) {

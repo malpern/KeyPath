@@ -3,7 +3,6 @@ import XCTest
 
 /// Tests for KanataBehaviorRenderer's chord rendering and advanced action conversion.
 final class KanataBehaviorRendererChordTests: XCTestCase {
-
     // MARK: - Chord rendering
 
     func testRenderChord_ReturnsAliasReference() {

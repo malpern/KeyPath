@@ -30,11 +30,11 @@ public extension View {
     ///   - content: The popover content. Built once when `isPresented`
     ///     becomes `true` and cached until dismissal, so heavier content
     ///     doesn't pay a rebuild cost on every layout pass.
-    func windowAnchoredPopover<PopoverContent: View>(
+    func windowAnchoredPopover(
         isPresented: Binding<Bool>,
         edge: WindowAnchoredPopoverEdge = .leading,
         gap: CGFloat = 8,
-        @ViewBuilder content: @escaping () -> PopoverContent
+        @ViewBuilder content: @escaping () -> some View
     ) -> some View {
         modifier(
             WindowAnchoredPopoverModifier(
@@ -169,7 +169,9 @@ private struct WindowAnchoredPopoverHostModifier: ViewModifier {
                     Color.black.opacity(0.001)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            for entry in entries { entry.dismiss() }
+                            for entry in entries {
+                                entry.dismiss()
+                            }
                         }
                         .accessibilityIdentifier("window-anchored-popover-dismiss-backdrop")
                         .accessibilityLabel("Dismiss popover")
@@ -191,11 +193,15 @@ private struct WindowAnchoredPopoverHostModifier: ViewModifier {
                 if newEntries.isEmpty {
                     removeEscMonitor()
                 } else {
-                    installEscMonitor(dismissAll: { for entry in newEntries { entry.dismiss() } })
+                    installEscMonitor(dismissAll: { for entry in newEntries {
+                        entry.dismiss()
+                    } })
                 }
             }
             .onAppear {
-                installEscMonitor(dismissAll: { for entry in entries { entry.dismiss() } })
+                installEscMonitor(dismissAll: { for entry in entries {
+                    entry.dismiss()
+                } })
             }
             .onDisappear { removeEscMonitor() }
         }
@@ -286,22 +292,22 @@ private struct WindowAnchoredPopoverContent: View {
     private func position(for edge: WindowAnchoredPopoverEdge, size: CGSize) -> CGPoint {
         switch edge {
         case .leading:
-            return CGPoint(
+            CGPoint(
                 x: triggerFrame.minX - entry.gap - size.width / 2,
                 y: clampVertical(centerY: triggerFrame.midY, size: size)
             )
         case .trailing:
-            return CGPoint(
+            CGPoint(
                 x: triggerFrame.maxX + entry.gap + size.width / 2,
                 y: clampVertical(centerY: triggerFrame.midY, size: size)
             )
         case .top:
-            return CGPoint(
+            CGPoint(
                 x: clampHorizontal(centerX: triggerFrame.midX, size: size),
                 y: triggerFrame.minY - entry.gap - size.height / 2
             )
         case .bottom:
-            return CGPoint(
+            CGPoint(
                 x: clampHorizontal(centerX: triggerFrame.midX, size: size),
                 y: triggerFrame.maxY + entry.gap + size.height / 2
             )

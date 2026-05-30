@@ -61,11 +61,11 @@ enum KeyboardDetectionIndex {
     }
 
     private static let cacheLock = NSLock()
-    nonisolated(unsafe) private static var cached: Cache?
+    private nonisolated(unsafe) static var cached: Cache?
 
     #if DEBUG
-        nonisolated(unsafe) private static var seededExactEntries: [Record]?
-        nonisolated(unsafe) private static var seededVendorFallbackEntries: [Record]?
+        private nonisolated(unsafe) static var seededExactEntries: [Record]?
+        private nonisolated(unsafe) static var seededVendorFallbackEntries: [Record]?
 
         static func seedIndex(exactEntries: [Record], vendorFallbackEntries: [Record] = []) {
             cacheLock.lock()

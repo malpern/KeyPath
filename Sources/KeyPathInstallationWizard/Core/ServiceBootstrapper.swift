@@ -499,7 +499,7 @@ public final class ServiceBootstrapper {
     /// - Conditional installation and restart
     ///
     /// - Returns: `true` if all services are healthy after the operation
-@MainActor
+    @MainActor
     public func recoverRequiredRuntimeServices() async -> Bool {
         AppLogger.shared.log("🔧 [ServiceBootstrapper] Starting comprehensive service health fix")
 
@@ -661,7 +661,7 @@ public final class ServiceBootstrapper {
     }
 
     /// Resolve legacy/conflicted SMAppService state
-@MainActor
+    @MainActor
     private func resolveLegacyConflict() async {
         AppLogger.shared.log("🔄 [ServiceBootstrapper] Resolving legacy/conflicted state")
         guard let daemonManager else {
@@ -688,7 +688,7 @@ public final class ServiceBootstrapper {
     /// Fix broken SMAppService state with retry logic
     ///
     /// - Returns: `true` if the broken state was resolved, `false` if all retries failed
-@MainActor
+    @MainActor
     private func fixBrokenSMAppServiceState() async -> Bool {
         AppLogger.shared.log("🔄 [ServiceBootstrapper] Fixing broken SMAppService state")
         AppLogger.shared.log("🐛 Known macOS bug: BundleProgram path caching after uninstall/reinstall")
@@ -827,11 +827,11 @@ public final class ServiceBootstrapper {
         // launchctl bootstrap is async — services may take 1-3 seconds to start.
         var daemonLoaded = false
         var managerLoaded = false
-        for _ in 0..<10 {
+        for _ in 0 ..< 10 {
             ServiceHealthChecker.shared.invalidateHealthCache()
             daemonLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
             managerLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidManagerServiceID)
-            if daemonLoaded && managerLoaded { break }
+            if daemonLoaded, managerLoaded { break }
             _ = await WizardSleep.ms(500)
         }
         let configured = ServiceHealthChecker.shared.isVHIDDaemonConfiguredCorrectly()
@@ -889,7 +889,7 @@ public final class ServiceBootstrapper {
     /// 2. Kanata daemon registration via SMAppService
     ///
     /// - Returns: `true` if all services were installed successfully
-@MainActor
+    @MainActor
     public func installAllServices() async -> Bool {
         AppLogger.shared.log("🔧 [ServiceBootstrapper] Installing all services (VHID + Kanata)")
 
@@ -937,7 +937,7 @@ public final class ServiceBootstrapper {
     /// Handles state checking, conflict resolution, and SMAppService registration.
     ///
     /// - Returns: `true` if registration succeeded or already registered
-@MainActor
+    @MainActor
     private func registerKanataWithSMAppService() async -> Bool {
         AppLogger.shared.log("📱 [ServiceBootstrapper] Registering Kanata daemon via SMAppService")
 

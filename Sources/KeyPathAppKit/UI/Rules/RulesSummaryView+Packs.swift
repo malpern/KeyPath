@@ -14,7 +14,8 @@ extension RulesTabView {
     var kindaVimRow: some View {
         let pack = PackRegistry.kindaVim
         if !isSearching || pack.name.localizedCaseInsensitiveContains(trimmedSearchQuery)
-            || "kindavim".contains(trimmedSearchQuery.lowercased()) {
+            || "kindavim".contains(trimmedSearchQuery.lowercased())
+        {
             ExpandableKindaVimRow(
                 isPackEnabled: isKindaVimInstalled,
                 onToggle: { newValue in
@@ -51,7 +52,8 @@ extension RulesTabView {
         let pack = PackRegistry.keystrokeHistory
         if !isSearching || pack.name.localizedCaseInsensitiveContains(trimmedSearchQuery)
             || "keystroke history".contains(trimmedSearchQuery.lowercased())
-            || "debug".contains(trimmedSearchQuery.lowercased()) {
+            || "debug".contains(trimmedSearchQuery.lowercased())
+        {
             ExpandableKeystrokeHistoryRow(
                 isPackEnabled: isKeystrokeHistoryInstalled,
                 onToggle: { newValue in

@@ -1,0 +1,6 @@
+# Pinned developer tool versions (https://mise.jdx.dev).
+# swiftformat is version-sensitive: a different version reformats unrelated code
+# (see issue #634). Pinning keeps master a fixed-point so format runs don't churn.
+# Install with: `mise install` (or `brew install swiftformat` at this exact version).
+[tools]
+swiftformat = "0.61.1"
