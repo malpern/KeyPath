@@ -35,7 +35,16 @@ public enum SystemInspector {
         }
 
         if !context.services.kanataInputCaptureReady {
-            return .missingPermissions(missing: [.kanataInputMonitoring])
+            // Be honest about WHY input capture failed (#624). Only a genuine
+            // built-in-keyboard permission problem belongs on the permissions
+            // page; a grab failure (driver crash, another app holding the
+            // keyboard, not root) is not fixed by regranting a permission —
+            // route to the service page so the remedy is "restart", not
+            // "regrant Input Monitoring".
+            if Self.isInputCapturePermissionReason(context.services.kanataInputCaptureIssue) {
+                return .missingPermissions(missing: [.kanataInputMonitoring])
+            }
+            return .serviceNotRunning
         }
 
         if context.services.kanataPermissionRejected {
@@ -122,15 +131,36 @@ public enum SystemInspector {
         if !context.services.kanataInputCaptureReady,
            !issues.contains(where: { $0.identifier == .permission(.kanataInputMonitoring) })
         {
-            issues.append(WizardIssue(
-                identifier: .permission(.kanataInputMonitoring),
-                severity: .error,
-                category: .permissions,
-                title: "KeyPath Runtime Cannot Open Built-In Keyboard",
-                description: "KeyPath Runtime is running but cannot open the built-in keyboard device, so remapping will not work on this laptop.",
-                autoFixAction: nil,
-                userAction: "Regrant Input Monitoring for the KeyPath runtime binary and restart KeyPath"
-            ))
+            if isInputCapturePermissionReason(context.services.kanataInputCaptureIssue) {
+                issues.append(WizardIssue(
+                    identifier: .permission(.kanataInputMonitoring),
+                    severity: .error,
+                    category: .permissions,
+                    title: "KeyPath Runtime Cannot Open Built-In Keyboard",
+                    description: "KeyPath Runtime is running but cannot open the built-in keyboard device, so remapping will not work on this laptop.",
+                    autoFixAction: nil,
+                    userAction: "Regrant Input Monitoring for the KeyPath runtime binary and restart KeyPath"
+                ))
+            } else {
+                // Grab failure (driver crash / another app holding the keyboard /
+                // not root) — honest attribution + a one-click restart, not a
+                // permission misdiagnosis (#624).
+                issues.append(WizardIssue(
+                    identifier: .daemon,
+                    severity: .error,
+                    category: .daemon,
+                    title: "Kanata Isn't Capturing Keyboard Input",
+                    description: "KeyPath's keyboard engine is running but isn't capturing input, so remapping won't work. "
+                        + inputCaptureFailureDetail(context.services.kanataInputCaptureIssue),
+                    // No one-click auto-fix yet: the existing recipes don't actually
+                    // bounce the wedged kanata process (they find SMAppService
+                    // "already healthy" and no-op), so a Restart button here would
+                    // be a false remedy. Point to the real restart instead; a
+                    // proper one-click kanata kickstart is a follow-up.
+                    autoFixAction: nil,
+                    userAction: "Restart the keyboard service from Settings → Status (or quit and reopen KeyPath)"
+                ))
+            }
         }
     }
 
@@ -323,5 +353,23 @@ public enum SystemInspector {
         if context.components.vhidVersionMismatch { missing.append(.vhidDriverVersionMismatch) }
         if !context.components.vhidDeviceHealthy { missing.append(.vhidDeviceRunning) }
         return missing
+    }
+
+    // MARK: - Input-capture failure attribution (#624)
+
+    /// Whether an input-capture failure reason is a genuine Input Monitoring
+    /// permission problem (the built-in keyboard couldn't be opened) — vs. a
+    /// grab failure that a restart, not a permission grant, fixes.
+    static func isInputCapturePermissionReason(_ reason: String?) -> Bool {
+        reason == "kanata-cannot-open-built-in-keyboard"
+    }
+
+    /// Human-readable detail for a non-permission input-capture failure, using
+    /// kanata's authoritative reason (from the InputGrab signal) when present.
+    static func inputCaptureFailureDetail(_ reason: String?) -> String {
+        guard let reason, reason != "kanata-failed-to-grab-keyboard" else {
+            return "The keyboard couldn't be captured — the input driver may have crashed, or another app may be holding the keyboard exclusively."
+        }
+        return "Reason: \(reason)."
     }
 }

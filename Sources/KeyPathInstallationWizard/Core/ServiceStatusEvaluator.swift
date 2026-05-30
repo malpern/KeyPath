@@ -82,6 +82,14 @@ public enum ServiceStatusEvaluator {
                     continue
                 }
             }
+            // Any error/critical daemon issue is a true service failure (e.g. the
+            // #624 grab failure: kanata running but not capturing input) — the
+            // service must not render "running" green over it. The severity filter
+            // above keeps warning-level daemon issues (e.g. status-check timeout)
+            // from blocking.
+            if case .daemon = issue.identifier {
+                return issue.title
+            }
         }
         return nil
     }
