@@ -511,9 +511,13 @@ public class SystemValidator {
         )
         let kanataRunning = kanataHealth.isRunning
         let stderrDiagnosis = await ServiceHealthChecker.shared.diagnoseDaemonStderr()
+        // Layer kanata's authoritative InputGrab signal (#630) over the stderr
+        // detector, identical to checkKanataServiceRuntimeSnapshot, so both
+        // health pipelines agree on input-capture readiness.
+        let inputCapture = ServiceHealthChecker.resolveInputCaptureStatus(stderrFallback: stderrDiagnosis.inputCapture)
         let kanataDuration = Date().timeIntervalSince(kanataStart)
         AppLogger.shared.log(
-            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: hostRunning=\(kanataHealth.isRunning), tcpResponding=\(kanataHealth.isResponding), healthy=\(kanataRunning), inputCaptureReady=\(stderrDiagnosis.inputCapture.isReady), permRejected=\(stderrDiagnosis.permissionRejected) (took \(String(format: "%.3f", kanataDuration))s)"
+            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: hostRunning=\(kanataHealth.isRunning), tcpResponding=\(kanataHealth.isResponding), healthy=\(kanataRunning), inputCaptureReady=\(inputCapture.isReady), permRejected=\(stderrDiagnosis.permissionRejected) (took \(String(format: "%.3f", kanataDuration))s)"
         )
 
         // Use launchctl-based check instead of unreliable pgrep
@@ -550,8 +554,8 @@ public class SystemValidator {
             kanataRunning: kanataRunning,
             karabinerDaemonRunning: karabinerDaemonRunning,
             vhidHealthy: vhidHealthy,
-            kanataInputCaptureReady: stderrDiagnosis.inputCapture.isReady,
-            kanataInputCaptureIssue: stderrDiagnosis.inputCapture.issue,
+            kanataInputCaptureReady: inputCapture.isReady,
+            kanataInputCaptureIssue: inputCapture.issue,
             kanataPermissionRejected: stderrDiagnosis.permissionRejected,
             configParseError: stderrDiagnosis.configParseError
         )

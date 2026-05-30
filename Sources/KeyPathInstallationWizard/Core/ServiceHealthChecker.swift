@@ -513,6 +513,7 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         let targets = await getDaemonManager()?.preferredLaunchctlTargets(for: managementState) ?? []
         let runningState = await evaluateKanataLaunchctlRunningState(managementState: managementState, launchctlTargets: targets)
         let stderrDiagnosis = await diagnoseDaemonStderr()
+        let inputCapture = Self.resolveInputCaptureStatus(stderrFallback: stderrDiagnosis.inputCapture)
         let tcpOK = await Task.detached { [self] in
             if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
                let overridePort = Int(portEnv)
@@ -526,8 +527,8 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             managementState: managementState,
             isRunning: runningState.isRunning,
             isResponding: tcpOK,
-            inputCaptureReady: stderrDiagnosis.inputCapture.isReady,
-            inputCaptureIssue: stderrDiagnosis.inputCapture.issue,
+            inputCaptureReady: inputCapture.isReady,
+            inputCaptureIssue: inputCapture.issue,
             launchctlExitCode: runningState.exitCode,
             staleEnabledRegistration: staleEnabledRegistration,
             recentlyRestarted: Self.wasRecentlyRestarted(
@@ -565,6 +566,37 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             }
         }
         return (false, lastExitCode)
+    }
+
+    /// Resolve the input-capture status, layering kanata's authoritative
+    /// `InputGrab` signal (#630) on top of the stderr log-pattern detector
+    /// (#632).
+    ///
+    /// The signal is **strictly additive**: only an authoritative grab
+    /// *failure* (`active:false`) overrides the stderr fallback. We deliberately
+    /// do NOT let an authoritative `active:true` suppress a failure the stderr
+    /// detector found — the grab bit is coarser than stderr (kanata can seize an
+    /// external keyboard while failing to open the built-in one), and a cached
+    /// `active:true` could outlive a silent grab loss. So this can only make
+    /// status MORE truthful (catch a VNC-masked failure stderr missed), never
+    /// less. A recovery transition (`active:true` after a prior `active:false`)
+    /// still clears the failure by falling back to the now-clean stderr.
+    ///
+    /// `KanataGrabStatusStore` is recorded by the TCP listener and reset when
+    /// the connection drops, so a non-nil failure is always ground truth from
+    /// the current live session. When absent (old kanata, no grab-state
+    /// transition since connect — kanata does not replay on connect, or no live
+    /// connection) we use the stderr detector. Belt-and-suspenders.
+    public nonisolated static func resolveInputCaptureStatus(
+        stderrFallback: KanataInputCaptureStatus
+    ) -> KanataInputCaptureStatus {
+        guard let grab = KanataGrabStatusStore.shared.latest, !grab.active else {
+            return stderrFallback
+        }
+        return KanataInputCaptureStatus(
+            isReady: false,
+            issue: grab.reason ?? "kanata-failed-to-grab-keyboard"
+        )
     }
 
     public nonisolated static func decideKanataHealth(
