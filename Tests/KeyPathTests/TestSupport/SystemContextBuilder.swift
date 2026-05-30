@@ -10,6 +10,9 @@ struct SystemContextBuilder {
     var helperReady: Bool = true
     var servicesHealthy: Bool = false
     var kanataInputCaptureReady: Bool = true
+    /// Overrides the input-capture failure reason when not ready (defaults to
+    /// the built-in-keyboard permission reason). Used to exercise #624 attribution.
+    var kanataInputCaptureIssue: String?
     var componentsInstalled: Bool = false
     var conflicts: [SystemConflict] = []
     var driverCompatible: Bool = true
@@ -51,7 +54,7 @@ struct SystemContextBuilder {
                 vhidHealthy: true,
                 kanataInputCaptureReady: kanataInputCaptureReady,
                 kanataInputCaptureIssue: kanataInputCaptureReady
-                    ? nil : "kanata-cannot-open-built-in-keyboard"
+                    ? nil : (kanataInputCaptureIssue ?? "kanata-cannot-open-built-in-keyboard")
             )
             : HealthStatus.empty
 
