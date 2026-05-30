@@ -265,10 +265,4 @@ extension RuleCollectionsManager {
         await eventListener.stop()
         AppLogger.shared.log("🌐 [RuleCollectionsManager] Stopped event monitoring")
     }
-
-    /// Deprecated: Use startEventMonitoring instead
-    @available(*, deprecated, renamed: "startEventMonitoring")
-    func startLayerMonitoring(port: Int) {
-        startEventMonitoring(port: port)
-    }
 }

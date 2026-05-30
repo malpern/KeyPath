@@ -1004,9 +1004,3 @@ actor KanataEventListener {
         case connectionClosed
     }
 }
-
-// MARK: - Backward Compatibility
-
-/// Deprecated: Use KanataEventListener instead
-@available(*, deprecated, renamed: "KanataEventListener")
-typealias LayerChangeListener = KanataEventListener
