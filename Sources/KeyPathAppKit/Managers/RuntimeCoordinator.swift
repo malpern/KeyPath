@@ -1278,16 +1278,17 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             AppLogger.shared.log("🎛️ [RuntimeCoordinator] Grab recovery already in flight — ignoring")
 
         case .evaluate:
-            // Known limitation (#625): kanata only emits InputGrab on a transition or
-            // in reply to RequestInputGrab at connect — it does not re-emit a steady
-            // failure. So if the new kanata started by a recovery STILL fails to grab,
-            // its single post-restart `active=false` can land inside the lingering
-            // transition-grace / single-flight window and be suppressed, and the
-            // recovery loop won't auto-re-fire. This is not silent: the same store
-            // (KanataGrabStatusStore) feeds ServiceHealthChecker.resolveInputCaptureStatus,
-            // so the degraded state is still surfaced on the next health check. Robust
-            // post-recovery re-verification pairs with the part-1 deterministic restart
-            // (wait-for-exit before start), which is the follow-up PR.
+            // Note (#625): kanata only emits InputGrab on a transition or in reply to
+            // RequestInputGrab at connect — it does not re-emit a steady failure. The
+            // post-restart grab status from a freshly started kanata is no longer masked
+            // by the stop-grace (startKanata clears it), so a restart that lands degraded
+            // does reach here. The one residual window is single-flight: a failure event
+            // arriving while a recovery is still in flight is suppressed; in practice the
+            // new kanata's InputGrab arrives after the recovery call returns, so the
+            // bounded loop re-fires and advances toward give-up. Even in the rare miss,
+            // it is not silent — KanataGrabStatusStore also feeds
+            // ServiceHealthChecker.resolveInputCaptureStatus, so the degraded state is
+            // surfaced on the next health check.
             switch await diagnosticsManager.recordGrabFailureAndDecideRecovery() {
             case let .recover(attempt):
                 AppLogger.shared.warn(

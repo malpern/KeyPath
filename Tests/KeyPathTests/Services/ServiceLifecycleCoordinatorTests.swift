@@ -95,6 +95,22 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         )
     }
 
+    func testStartClearsLingeringStopGrace() async {
+        // The stop-grace exists only to swallow the OLD process's last gasp. Once a new
+        // start begins (e.g. the start phase of a restart), the grace must end so a
+        // genuine `active=false` from the freshly started kanata is NOT masked as benign.
+        coordinator.isKarabinerDaemonRunning = { true }
+        _ = await coordinator.stopKanata(reason: "stop for restart")
+        XCTAssertTrue(coordinator.isIntentionalTransitionInProgress, "Grace armed after stop")
+
+        _ = await coordinator.startKanata(reason: "restart")
+
+        XCTAssertFalse(
+            coordinator.isIntentionalTransitionInProgress,
+            "Starting a new kanata must clear the stale stop-grace so post-start grab failures are caught"
+        )
+    }
+
     // MARK: - Restart
 
     func testRestartCallsStopThenStart() async {

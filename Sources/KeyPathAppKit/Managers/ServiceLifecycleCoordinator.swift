@@ -40,9 +40,10 @@ final class ServiceLifecycleCoordinator {
     /// overlapping stop composes correctly; a short trailing grace swallows the late
     /// last-gasp event after the stop call returns.
     ///
-    /// Deliberately scoped to the STOP phase only: a plain `startKanata` (including the
-    /// start phase of a restart) stays un-gated so a genuine post-start grab failure
-    /// (the #625 race) is still caught and recovered.
+    /// Deliberately scoped to the STOP phase only, and the trailing grace is cleared at
+    /// the top of `startKanata`: the start phase of a restart stays un-gated so a genuine
+    /// post-start grab failure (the #625 race) from the freshly started kanata is still
+    /// caught and recovered, rather than masked as a benign transition.
     private var intentionalStopDepth = 0
     private var stopGraceUntil: Date?
     private let intentionalStopGrace: TimeInterval = 2.0
@@ -98,6 +99,13 @@ final class ServiceLifecycleCoordinator {
     @discardableResult
     func startKanata(reason: String = "Manual start") async -> Bool {
         AppLogger.shared.log("🚀 [Service] Starting Kanata (\(reason))")
+        // End any lingering post-stop grace (#625): we are deliberately starting a new
+        // kanata now, so its authoritative grab status is exactly what we want to act
+        // on. Without this, the 2s grace armed by the preceding stop in a restart would
+        // suppress a genuine `InputGrab active=false` from the freshly started daemon —
+        // the very degraded state this feature recovers from. The grace only needs to
+        // cover the OLD process's last gasp, which is already past once a start begins.
+        stopGraceUntil = nil
         onWarning?(nil)
         isStartingKanata = true
         defer {
