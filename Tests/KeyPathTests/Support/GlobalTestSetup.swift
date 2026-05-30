@@ -21,6 +21,10 @@ enum TestSingletonReset {
         DeviceSelectionCache.shared.reset()
         KeyboardDetectionIndex.resetCache()
 
+        // Authoritative kanata grab status (#630) — read by ServiceHealthChecker,
+        // so a value left by one test must not bleed into another's health check.
+        KanataGrabStatusStore.shared.reset()
+
         // TestEnvironment flags
         TestEnvironment.forceTestMode = false
     }

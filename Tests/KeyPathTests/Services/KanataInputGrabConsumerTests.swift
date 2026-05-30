@@ -6,17 +6,12 @@ import KeyPathCore
 /// Tests for the KeyPath consumer of kanata's authoritative `InputGrab` TCP
 /// status (#630): parsing the message, the shared status store, and the health
 /// checker preferring it over the stderr log-pattern detector (#632).
-final class KanataInputGrabConsumerTests: XCTestCase {
-    override func setUp() {
-        super.setUp()
-        KanataGrabStatusStore.shared.reset()
-    }
-
-    override func tearDown() {
-        KanataGrabStatusStore.shared.reset()
-        super.tearDown()
-    }
-
+///
+/// Extends `KeyPathTestCase` for defensive isolation: its `TestSingletonReset`
+/// resets `KanataGrabStatusStore.shared` in setUp/tearDown, so the global store
+/// these tests mutate can't bleed into (or out of) other suites.
+@MainActor
+final class KanataInputGrabConsumerTests: KeyPathTestCase {
     // MARK: - parseInputGrab
 
     func testParseInputGrab_active_withDevices() {

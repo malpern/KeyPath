@@ -15,7 +15,10 @@ public struct KanataInputGrabStatus: Sendable, Equatable {
     /// Optional human-readable explanation, typically populated on failure
     /// (e.g. another process holds an exclusive grab, not running as root).
     public let reason: String?
-    /// Wall-clock time KeyPath observed the status.
+    /// Wall-clock time KeyPath observed the status. Diagnostics/logging only —
+    /// NOT used in health decisions. Staleness is handled structurally (the
+    /// store is reset when the TCP connection drops), not by age-out, so there
+    /// is no timestamp-expiry check on this field.
     public let observedAt: Date
 
     public init(active: Bool, devices: [String], reason: String?, observedAt: Date) {
@@ -42,7 +45,7 @@ public final class KanataGrabStatusStore: @unchecked Sendable {
     private let lock = NSLock()
     private var _latest: KanataInputGrabStatus?
 
-    public init() {}
+    private init() {}
 
     /// The most recent status received on the current live connection, or nil
     /// if none has been received (or the connection has since dropped).
