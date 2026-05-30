@@ -707,6 +707,7 @@ actor KanataEventListener {
                 await handler(normalizedCaps)
             }
             await subscribeToHrmTraceIfSupported()
+            await requestInputGrabIfSupported()
             return
         }
 
@@ -901,6 +902,27 @@ actor KanataEventListener {
         }
 
         AppLogger.shared.debug("🌐 [EventListener] Unhandled message type")
+    }
+
+    /// Ask kanata for the current input-grab status once, after the HelloOk
+    /// handshake. kanata only emits `InputGrab` on grab-state transitions and
+    /// does not replay on connect, so without this a fresh connection never
+    /// learns the startup grab result. Gated on the `input-grab` capability so
+    /// an older bundled kanata (which would treat the unknown message as
+    /// malformed and disconnect, breaking ALL event listening) is never sent it.
+    /// The reply is a normal `InputGrab` message handled by `handleLine`; if the
+    /// grab hasn't resolved yet kanata stays silent and the health checker falls
+    /// back to its stderr detector.
+    private func requestInputGrabIfSupported() async {
+        guard capabilities.contains("input-grab") else { return }
+        guard let activeConnection else { return }
+        do {
+            try await send(jsonObject: ["RequestInputGrab": [:] as [String: String]], over: activeConnection)
+            AppLogger.shared.debug("🌐 [EventListener] Requested current InputGrab status")
+        } catch {
+            // Failing this query must not break layer/key event listening.
+            AppLogger.shared.debug("🌐 [EventListener] RequestInputGrab failed: \(error.localizedDescription)")
+        }
     }
 
     private func subscribeToHrmTraceIfSupported() async {
