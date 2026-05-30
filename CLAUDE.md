@@ -92,6 +92,7 @@ an unpinned version.
 
 **"dd"** → Run `SKIP_NOTARIZE=1 ./build.sh`, respond **"Eye eye Captain!"**
 **"df"** → Run `./Scripts/quick-deploy.sh`, respond **"Eye eye Cap, fast deploying!"**
+**"ds"** → Full ship workflow for the current changes, end to end: branch off master → format/lint + commit → review gate → push + open PR → babysit CI → address feedback → merge → pull master → rebuild/deploy from master. Follow [`docs/agent-pr-workflow.md`](docs/agent-pr-workflow.md) and its invariants; risk-tier the babysit (auto-merge mechanical PRs, full babysit for logic/hot-path).
 
 Test targets: `Tests/KeyPathTests/` (target: `KeyPathTests`). Files in `Tests/KeyPathAppKitTests/` are NOT compiled. Snapshot tests in `Tests/KeyPathSnapshotTests/`.
 
