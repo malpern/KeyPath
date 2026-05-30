@@ -83,6 +83,14 @@ protocol ServiceHealthMonitorProtocol: AnyObject {
     /// Record a successful connection (resets failure count)
     func recordConnectionSuccess() async
 
+    /// Record a kanata input-grab failure (up but not grabbing the keyboard) and decide
+    /// whether to attempt recovery, with a bounded-attempts guard so a deterministic
+    /// crash (e.g. #631) doesn't restart forever. See #624/#625.
+    func recordGrabFailureAndDecideRecovery() async -> GrabRecoveryDecision
+
+    /// Record that the keyboard grab is healthy again (resets grab-recovery attempts).
+    func recordGrabSuccess() async
+
     /// Determine the appropriate recovery action based on current state
     /// - Parameter healthStatus: Current health status
     /// - Returns: Recommended recovery action
@@ -90,6 +98,17 @@ protocol ServiceHealthMonitorProtocol: AnyObject {
 
     /// Reset all monitoring state (e.g., after successful recovery)
     func resetMonitoringState() async
+}
+
+// MARK: - Grab Recovery Decision
+
+/// Outcome of a kanata input-grab-failure event: attempt a bounded recovery, or give
+/// up after exhausting attempts (so a deterministic crash doesn't restart forever).
+enum GrabRecoveryDecision: Equatable, Sendable {
+    /// Attempt recovery now; `attempt` is the 1-based attempt number in this episode.
+    case recover(attempt: Int)
+    /// Recovery budget exhausted — surface a persistent error instead of restarting again.
+    case giveUp(attempts: Int)
 }
 
 // MARK: - Process Status Type
@@ -126,6 +145,13 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
     private var lastStartAttempt: Date?
     private var lastServiceStart: Date? // Tracks when service was last started (for grace period)
     private var connectionFailureCount = 0
+    // Grab-failure recovery guard (#625): bound auto-restarts so a deterministic kanata
+    // crash (e.g. #631) doesn't restart forever. Attempts reset on grab-success or after
+    // a quiet window (a fresh failure episode gets a fresh budget).
+    private let maxGrabRecoveryAttempts = 3
+    private let grabRecoveryEpisodeWindow: TimeInterval = 300 // 5 min
+    private var grabRecoveryAttempts = 0
+    private var lastGrabRecoveryAt: Date?
     private var startAttemptCount = 0
     private var retryAttemptCount = 0
     private var lastHealthCheckResult: ServiceHealthStatus?
@@ -449,6 +475,40 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
         if connectionFailureCount > 0 {
             AppLogger.shared.info("[HealthMonitor] Connection restored - resetting failure count")
             connectionFailureCount = 0
+        }
+    }
+
+    func recordGrabFailureAndDecideRecovery() async -> GrabRecoveryDecision {
+        decideGrabRecovery(now: Date())
+    }
+
+    /// Testable core of the grab-recovery guard (injectable clock).
+    func decideGrabRecovery(now: Date) -> GrabRecoveryDecision {
+        // Start a fresh episode (fresh budget) if enough quiet time passed since the
+        // last recovery attempt — a failure long after a previous burst isn't the same
+        // crash loop.
+        if let last = lastGrabRecoveryAt, now.timeIntervalSince(last) > grabRecoveryEpisodeWindow {
+            grabRecoveryAttempts = 0
+        }
+        guard grabRecoveryAttempts < maxGrabRecoveryAttempts else {
+            AppLogger.shared.error(
+                "[HealthMonitor] kanata input-grab still failing after \(grabRecoveryAttempts) recovery attempts — giving up (manual intervention / reboot likely needed)"
+            )
+            return .giveUp(attempts: grabRecoveryAttempts)
+        }
+        grabRecoveryAttempts += 1
+        lastGrabRecoveryAt = now
+        AppLogger.shared.warn(
+            "[HealthMonitor] kanata input-grab failure — recovery attempt \(grabRecoveryAttempts)/\(maxGrabRecoveryAttempts)"
+        )
+        return .recover(attempt: grabRecoveryAttempts)
+    }
+
+    func recordGrabSuccess() async {
+        if grabRecoveryAttempts > 0 {
+            AppLogger.shared.info("[HealthMonitor] Keyboard grab restored — resetting grab-recovery attempts")
+            grabRecoveryAttempts = 0
+            lastGrabRecoveryAt = nil
         }
     }
 

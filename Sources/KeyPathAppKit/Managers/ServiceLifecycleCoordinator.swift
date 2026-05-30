@@ -33,6 +33,29 @@ final class ServiceLifecycleCoordinator {
     /// Mutable flag shared with RuntimeCoordinator to track in-progress start attempts.
     var isStartingKanata = false
     private var lastStartAttemptAt: Date?
+
+    /// Intentional-transition gate (#625). While we are deliberately stopping kanata,
+    /// the dying process may emit one last `InputGrab active=false` on its still-open
+    /// socket — that is benign and must NOT trigger auto-recovery. Depth-counted so an
+    /// overlapping stop composes correctly; a short trailing grace swallows the late
+    /// last-gasp event after the stop call returns.
+    ///
+    /// Deliberately scoped to the STOP phase only, and the trailing grace is cleared at
+    /// the top of `startKanata`: the start phase of a restart stays un-gated so a genuine
+    /// post-start grab failure (the #625 race) from the freshly started kanata is still
+    /// caught and recovered, rather than masked as a benign transition.
+    private var intentionalStopDepth = 0
+    private var stopGraceUntil: Date?
+    private let intentionalStopGrace: TimeInterval = 2.0
+
+    /// True while an intentional kanata stop is in progress (or within the short grace
+    /// window after one). Read by RuntimeCoordinator before acting on a grab failure.
+    var isIntentionalTransitionInProgress: Bool {
+        if intentionalStopDepth > 0 { return true }
+        if let until = stopGraceUntil, Date() < until { return true }
+        return false
+    }
+
     private let windowEvaluator = TransientStartupWindowEvaluator(
         gracePeriod: RuntimeStartupTiming.uiGracePeriod,
         createdAt: Date()
@@ -76,6 +99,13 @@ final class ServiceLifecycleCoordinator {
     @discardableResult
     func startKanata(reason: String = "Manual start") async -> Bool {
         AppLogger.shared.log("🚀 [Service] Starting Kanata (\(reason))")
+        // End any lingering post-stop grace (#625): we are deliberately starting a new
+        // kanata now, so its authoritative grab status is exactly what we want to act
+        // on. Without this, the 2s grace armed by the preceding stop in a restart would
+        // suppress a genuine `InputGrab active=false` from the freshly started daemon —
+        // the very degraded state this feature recovers from. The grace only needs to
+        // cover the OLD process's last gasp, which is already past once a start begins.
+        stopGraceUntil = nil
         onWarning?(nil)
         isStartingKanata = true
         defer {
@@ -134,6 +164,15 @@ final class ServiceLifecycleCoordinator {
     @discardableResult
     func stopKanata(reason: String = "Manual stop") async -> Bool {
         AppLogger.shared.log("🛑 [Service] Stopping Kanata (\(reason))")
+        // Mark this as an intentional transition so a benign `InputGrab active=false`
+        // emitted by the dying kanata doesn't trip auto-recovery (#625).
+        intentionalStopDepth += 1
+        defer {
+            intentionalStopDepth = max(0, intentionalStopDepth - 1)
+            if intentionalStopDepth == 0 {
+                stopGraceUntil = Date().addingTimeInterval(intentionalStopGrace)
+            }
+        }
         await AppContextService.shared.stop()
 
         do {

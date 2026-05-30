@@ -239,4 +239,7 @@ extension Notification.Name {
     static let kanataActionDispatched = Notification.Name("KeyPath.KanataActionDispatched")
     /// Posted when HelloOk capability list changes.
     static let kanataCapabilitiesUpdated = Notification.Name("KeyPath.KanataCapabilitiesUpdated")
+    /// Posted when an authoritative kanata `InputGrab` status is received (#625).
+    /// userInfo["active"]: Bool, userInfo["reason"]: String? (present on failure).
+    static let kanataGrabStatusChanged = Notification.Name("KeyPath.KanataGrabStatusChanged")
 }

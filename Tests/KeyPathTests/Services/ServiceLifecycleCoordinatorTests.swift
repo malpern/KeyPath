@@ -61,6 +61,56 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         XCTAssertGreaterThan(stateChangeCount, 0)
     }
 
+    // MARK: - Intentional-transition gate (#625)
+
+    func testNotInIntentionalTransitionWhenIdle() {
+        // A fresh coordinator that hasn't stopped anything is not transitioning, so a
+        // grab failure observed now is genuine and eligible for recovery.
+        XCTAssertFalse(coordinator.isIntentionalTransitionInProgress)
+    }
+
+    func testIntentionalTransitionFlagSetDuringStop() async {
+        // The flag must be closed *while the stop runs*, so a benign `active=false`
+        // from the dying kanata is suppressed. We observe it from the onStateChanged
+        // callback, which fires inside stopKanata before its `defer` opens the grace.
+        var seenDuringStop: Bool?
+        coordinator.onStateChanged = { [unowned self] in
+            if seenDuringStop == nil {
+                seenDuringStop = coordinator.isIntentionalTransitionInProgress
+            }
+        }
+
+        _ = await coordinator.stopKanata(reason: "test")
+
+        XCTAssertEqual(seenDuringStop, true, "Transition gate must be closed during the stop")
+    }
+
+    func testIntentionalTransitionGraceHoldsBrieflyAfterStop() async {
+        // Immediately after stop returns, the short trailing grace keeps the gate closed
+        // so a late last-gasp `active=false` from the just-killed kanata is still suppressed.
+        _ = await coordinator.stopKanata(reason: "test")
+        XCTAssertTrue(
+            coordinator.isIntentionalTransitionInProgress,
+            "Gate should remain closed during the post-stop grace window"
+        )
+    }
+
+    func testStartClearsLingeringStopGrace() async {
+        // The stop-grace exists only to swallow the OLD process's last gasp. Once a new
+        // start begins (e.g. the start phase of a restart), the grace must end so a
+        // genuine `active=false` from the freshly started kanata is NOT masked as benign.
+        coordinator.isKarabinerDaemonRunning = { true }
+        _ = await coordinator.stopKanata(reason: "stop for restart")
+        XCTAssertTrue(coordinator.isIntentionalTransitionInProgress, "Grace armed after stop")
+
+        _ = await coordinator.startKanata(reason: "restart")
+
+        XCTAssertFalse(
+            coordinator.isIntentionalTransitionInProgress,
+            "Starting a new kanata must clear the stale stop-grace so post-start grab failures are caught"
+        )
+    }
+
     // MARK: - Restart
 
     func testRestartCallsStopThenStart() async {

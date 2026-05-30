@@ -461,4 +461,35 @@ class ServiceHealthMonitorTests: XCTestCase {
             "Crash loop window (\(45.0)s) must be >= \(minimumRequiredWindow)s ((\(crashThreshold)-1) x \(launchdThrottleInterval)s throttle)"
         )
     }
+
+    // MARK: - Grab-recovery guard (#625)
+
+    func testGrabRecoveryGuard_boundsAttemptsThenGivesUp() {
+        let t0 = Date()
+        XCTAssertEqual(monitor.decideGrabRecovery(now: t0), .recover(attempt: 1))
+        XCTAssertEqual(monitor.decideGrabRecovery(now: t0.addingTimeInterval(1)), .recover(attempt: 2))
+        XCTAssertEqual(monitor.decideGrabRecovery(now: t0.addingTimeInterval(2)), .recover(attempt: 3))
+        // 4th and beyond: budget exhausted → give up (don't restart forever).
+        XCTAssertEqual(monitor.decideGrabRecovery(now: t0.addingTimeInterval(3)), .giveUp(attempts: 3))
+        XCTAssertEqual(monitor.decideGrabRecovery(now: t0.addingTimeInterval(4)), .giveUp(attempts: 3))
+    }
+
+    func testGrabRecoveryGuard_resetsOnSuccess() async {
+        let t0 = Date()
+        _ = monitor.decideGrabRecovery(now: t0)
+        _ = monitor.decideGrabRecovery(now: t0.addingTimeInterval(1))
+        await monitor.recordGrabSuccess()
+        // After a healthy grab, the budget is fresh.
+        XCTAssertEqual(monitor.decideGrabRecovery(now: t0.addingTimeInterval(2)), .recover(attempt: 1))
+    }
+
+    func testGrabRecoveryGuard_freshEpisodeAfterQuietWindow() {
+        let t0 = Date()
+        _ = monitor.decideGrabRecovery(now: t0)
+        _ = monitor.decideGrabRecovery(now: t0)
+        _ = monitor.decideGrabRecovery(now: t0)
+        XCTAssertEqual(monitor.decideGrabRecovery(now: t0.addingTimeInterval(1)), .giveUp(attempts: 3))
+        // A failure long after the burst (> episode window) is a new episode → fresh budget.
+        XCTAssertEqual(monitor.decideGrabRecovery(now: t0.addingTimeInterval(301)), .recover(attempt: 1))
+    }
 }

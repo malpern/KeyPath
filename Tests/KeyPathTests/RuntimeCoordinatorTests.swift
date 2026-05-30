@@ -79,4 +79,18 @@ final class RuntimeCoordinatorTests: KeyPathTestCase {
         let duration = Date().timeIntervalSince(startTime)
         XCTAssertLessThan(duration, 10.0, "Config validation should complete within 10 seconds")
     }
+
+    // MARK: - Grab recovery (#625)
+
+    /// An authoritative grab success must not clear an unrelated error — only a
+    /// grab-recovery give-up message it set itself. (active=true takes the pure
+    /// .recordSuccess path, which performs no service side effects.)
+    func testGrabSuccessDoesNotClearUnrelatedError() async {
+        manager.lastError = "Some unrelated install error"
+        await manager.handleGrabStatusChanged(active: true, reason: nil)
+        XCTAssertEqual(
+            manager.lastError, "Some unrelated install error",
+            "Grab success should leave an unrelated error untouched"
+        )
+    }
 }
