@@ -99,6 +99,7 @@ struct OverlayKeyboardView: View {
     @State private var cachedAllLabels: [String] = []
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.services) private var services
 
     /// Selected colorway ID from user preferences
     @AppStorage("overlayColorwayId") private var selectedColorwayId: String = GMKColorway.default.id
@@ -204,10 +205,19 @@ struct OverlayKeyboardView: View {
             }
         }
 
+        // When unmapped keys render base-style, let their floating shift legends
+        // (e.g. "!" over "1") show again. Mapped/remapped/zone keys are excluded
+        // by remappedLabels / zoneSubtitleLabels, so only unmapped keys gain them.
+        // Read via the same injected `services` the keycaps use, so both halves
+        // of the feature always agree on the preference instance.
+        // TODO: an identity-style mapping whose output label equals its base
+        // label is filtered out of `remapped`, so it could show a stray floating
+        // legend here. Uncommon; revisit if it surfaces in practice.
+        let baseStyleUnmapped = services.preferences.unmappedLayerKeyStyle == .baseLayer
         return FloatingLabelVisibility(
             labelToKeyCode: ltk,
             isLauncherMode: isLauncherMode,
-            isLayerMode: isLayerMode,
+            isLayerMode: baseStyleUnmapped ? false : isLayerMode,
             vimHintsActive: vimHintsActive,
             remappedLabels: remapped,
             zoneSubtitleLabels: zoneSubs

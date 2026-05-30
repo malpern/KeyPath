@@ -59,6 +59,38 @@ struct GeneralSettingsTabView: View {
                     .accessibilityIdentifier("settings-key-label-style-picker")
                 }
 
+                // Unmapped keys on layers (Nav, Vim, etc.)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Unmapped Keys on Layers")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+
+                    HStack(spacing: 10) {
+                        SettingsOptionCard(
+                            icon: "keyboard",
+                            title: "Base layer",
+                            subtitle: "Look like the base layer",
+                            isSelected: services.preferences.unmappedLayerKeyStyle == .baseLayer
+                        ) {
+                            services.preferences.unmappedLayerKeyStyle = .baseLayer
+                        }
+                        .accessibilityIdentifier("settings-unmapped-layer-keys-base")
+                        .accessibilityLabel("Unmapped layer keys look like the base layer")
+
+                        SettingsOptionCard(
+                            icon: "eye.slash",
+                            title: "Dimmed",
+                            subtitle: "Dim so mappings stand out",
+                            isSelected: services.preferences.unmappedLayerKeyStyle == .dimmed
+                        ) {
+                            services.preferences.unmappedLayerKeyStyle = .dimmed
+                        }
+                        .accessibilityIdentifier("settings-unmapped-layer-keys-dimmed")
+                        .accessibilityLabel("Dim unmapped layer keys")
+                    }
+                    .accessibilityIdentifier("settings-unmapped-layer-keys-picker")
+                }
+
                 // Capture Mode
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Capture Mode")

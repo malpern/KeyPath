@@ -82,7 +82,20 @@ struct OverlayKeycapView: View {
 
     /// Whether we're in a non-base layer (e.g., nav, vim) but not launcher mode
     var isLayerMode: Bool {
-        !isLauncherMode && !isInlineLayer && currentLayerName.lowercased() != "base"
+        guard !isLauncherMode, !isInlineLayer, currentLayerName.lowercased() != "base" else {
+            return false
+        }
+        // Under base-style, an unmapped key leaves layer mode so it renders
+        // like the base/inline layer instead of dimming. Unmapped = transparent
+        // (production) or nil (hand-built maps). The zoneSubtitle guard keeps
+        // nav-hint keys in layer mode so their subtitle still renders.
+        if services.preferences.unmappedLayerKeyStyle == .baseLayer,
+           zoneSubtitle == nil,
+           layerKeyInfo == nil || layerKeyInfo?.isTransparent == true
+        {
+            return false
+        }
+        return true
     }
 
     /// "Inline" layers render like the base layer — unmapped keys keep their
