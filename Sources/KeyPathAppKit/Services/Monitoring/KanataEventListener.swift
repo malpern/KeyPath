@@ -707,6 +707,7 @@ actor KanataEventListener {
                 await handler(normalizedCaps)
             }
             await subscribeToHrmTraceIfSupported()
+            await requestInputGrabIfSupported()
             return
         }
 
@@ -901,6 +902,19 @@ actor KanataEventListener {
         }
 
         AppLogger.shared.debug("🌐 [EventListener] Unhandled message type")
+    }
+
+    /// Ask kanata for current grab status after HelloOk; gated on the `input-grab` capability so older kanata is never sent the unknown message (it would disconnect).
+    private func requestInputGrabIfSupported() async {
+        guard capabilities.contains("input-grab") else { return }
+        guard let activeConnection else { return }
+        do {
+            try await send(jsonObject: ["RequestInputGrab": [:] as [String: String]], over: activeConnection)
+            AppLogger.shared.debug("🌐 [EventListener] Requested current InputGrab status")
+        } catch {
+            // Failing this query must not break layer/key event listening.
+            AppLogger.shared.debug("🌐 [EventListener] RequestInputGrab failed: \(error.localizedDescription)")
+        }
     }
 
     private func subscribeToHrmTraceIfSupported() async {

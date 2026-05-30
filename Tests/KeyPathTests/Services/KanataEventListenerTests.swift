@@ -93,6 +93,14 @@ final class KanataEventListenerTests: XCTestCase {
         )
         XCTAssertEqual(normalized, ["hrm-trace", "tap-activated"])
     }
+
+    /// The RequestInputGrab safety gate matches on "input-grab"; ensure both the
+    /// hyphen and underscore forms normalize to it so the gate can't silently miss.
+    func testNormalizedCapabilities_inputGrab_normalizes() {
+        XCTAssertEqual(KanataEventListener.normalizedCapabilities(["input-grab"]), ["input-grab"])
+        XCTAssertEqual(KanataEventListener.normalizedCapabilities(["input_grab"]), ["input-grab"])
+        XCTAssertEqual(KanataEventListener.normalizedCapabilities(["INPUT-GRAB"]), ["input-grab"])
+    }
 }
 
 /// Tests for KeyboardVisualizationViewModel TCP input handling with capitalized actions
