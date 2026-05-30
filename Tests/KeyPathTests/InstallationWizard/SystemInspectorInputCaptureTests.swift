@@ -36,6 +36,12 @@ final class SystemInspectorInputCaptureTests: XCTestCase {
         XCTAssertEqual(state, .missingPermissions(missing: [.kanataInputMonitoring]))
     }
 
+    func testNilReason_routesToService_notPermissions() {
+        // An unknown/unpopulated reason must never be blamed on permissions.
+        let state = SystemInspector.determineState(context(inputCaptureIssue: nil))
+        XCTAssertEqual(state, .serviceNotRunning)
+    }
+
     // MARK: - Issue card
 
     func testGrabFailure_issueIsHonest_noFalseAutofix() {
