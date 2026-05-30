@@ -85,13 +85,10 @@ struct OverlayKeycapView: View {
         guard !isLauncherMode, !isInlineLayer, currentLayerName.lowercased() != "base" else {
             return false
         }
-        // When the user prefers base-layer rendering for unmapped keys, a key
-        // with no mapping on this layer renders like the base layer — same as an
-        // inline layer — instead of dimming. "Unmapped" is either a transparent
-        // LayerKeyInfo (production: the simulator emits one per physical key) or
-        // a nil entry (hand-built maps / passthrough). Keys that carry a zone
-        // subtitle (nav hint glyph) keep layer styling so the subtitle still
-        // renders. Mapped keys keep full layer styling (zone/collection colors).
+        // Under base-style, an unmapped key leaves layer mode so it renders
+        // like the base/inline layer instead of dimming. Unmapped = transparent
+        // (production) or nil (hand-built maps). The zoneSubtitle guard keeps
+        // nav-hint keys in layer mode so their subtitle still renders.
         if services.preferences.unmappedLayerKeyStyle == .baseLayer,
            zoneSubtitle == nil,
            layerKeyInfo == nil || layerKeyInfo?.isTransparent == true

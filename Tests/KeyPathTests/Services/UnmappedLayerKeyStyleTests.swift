@@ -83,4 +83,45 @@ final class UnmappedLayerKeyStyleTests: XCTestCase {
         let view = keycap(layer: "base", info: .transparent(fallbackLabel: "Q"))
         XCTAssertFalse(view.isLayerMode, "The base layer is never in layer mode")
     }
+
+    // MARK: - FloatingLabelVisibility (the keyboard-view half)
+
+    /// Under base-style the keyboard view forces `isLayerMode: false` into
+    /// FloatingLabelVisibility so unmapped keys' floating legends return —
+    /// while mapped keys stay hidden via `remappedLabels`.
+    func testFloatingLabels_baseStyle_showsUnmapped_hidesRemapped() {
+        let visibility = FloatingLabelVisibility(
+            labelToKeyCode: ["A": 0, "S": 1],
+            isLauncherMode: false,
+            isLayerMode: false, // what baseStyleUnmapped forces
+            vimHintsActive: false,
+            remappedLabels: ["S"], // S is mapped on this layer
+            zoneSubtitleLabels: []
+        )
+        XCTAssertTrue(visibility.isVisible("A"), "Unmapped key's floating legend shows under base-style")
+        XCTAssertFalse(visibility.isVisible("S"), "Mapped key stays excluded via remappedLabels")
+    }
+
+    func testFloatingLabels_dimmed_suppressesAll() {
+        let visibility = FloatingLabelVisibility(
+            labelToKeyCode: ["A": 0],
+            isLauncherMode: false,
+            isLayerMode: true, // dimmed style keeps real layer mode
+            vimHintsActive: false,
+            remappedLabels: [],
+            zoneSubtitleLabels: []
+        )
+        XCTAssertFalse(visibility.isVisible("A"), "Dimmed style keeps floating legends suppressed on layers")
+    }
+
+    // MARK: - Persistence
+
+    func testPreference_persistsAcrossReload() {
+        let writer = PreferencesService()
+        writer.unmappedLayerKeyStyle = .dimmed
+        // A fresh instance hydrates from UserDefaults in init().
+        let reloaded = PreferencesService()
+        XCTAssertEqual(reloaded.unmappedLayerKeyStyle, .dimmed, "Value should survive a UserDefaults round-trip")
+        writer.unmappedLayerKeyStyle = .baseLayer // restore default-backed state
+    }
 }
