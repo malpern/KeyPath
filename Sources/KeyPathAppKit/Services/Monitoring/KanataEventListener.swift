@@ -904,15 +904,7 @@ actor KanataEventListener {
         AppLogger.shared.debug("🌐 [EventListener] Unhandled message type")
     }
 
-    /// Ask kanata for the current input-grab status once, after the HelloOk
-    /// handshake. kanata only emits `InputGrab` on grab-state transitions and
-    /// does not replay on connect, so without this a fresh connection never
-    /// learns the startup grab result. Gated on the `input-grab` capability so
-    /// an older bundled kanata (which would treat the unknown message as
-    /// malformed and disconnect, breaking ALL event listening) is never sent it.
-    /// The reply is a normal `InputGrab` message handled by `handleLine`; if the
-    /// grab hasn't resolved yet kanata stays silent and the health checker falls
-    /// back to its stderr detector.
+    /// Ask kanata for current grab status after HelloOk; gated on the `input-grab` capability so older kanata is never sent the unknown message (it would disconnect).
     private func requestInputGrabIfSupported() async {
         guard capabilities.contains("input-grab") else { return }
         guard let activeConnection else { return }
