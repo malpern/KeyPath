@@ -92,7 +92,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         keymapObservationTask = Task { @MainActor [weak self] in
             for await _ in NotificationCenter.default.notifications(named: .appKeymapsDidChange) {
                 guard let self, !Task.isCancelled else { break }
-                self.refreshAppKeymapCache()
+                refreshAppKeymapCache()
             }
         }
 

@@ -2,7 +2,6 @@
 import XCTest
 
 final class InstalledPackTrackerTests: XCTestCase {
-
     private var tempDir: URL!
 
     override func setUp() {
@@ -172,7 +171,7 @@ final class InstalledPackTrackerTests: XCTestCase {
         let original = InstalledPackRecord(
             packID: "com.keypath.pack.test",
             version: "1.0.0",
-            installedAt: Date(timeIntervalSince1970: 1700000000),
+            installedAt: Date(timeIntervalSince1970: 1_700_000_000),
             quickSettingValues: ["holdTimeout": 200, "speed": 5]
         )
         let encoder = JSONEncoder()
@@ -189,7 +188,7 @@ final class InstalledPackTrackerTests: XCTestCase {
     }
 
     func testInstalledPackRecordEquality() {
-        let date = Date(timeIntervalSince1970: 1700000000)
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
         let a = InstalledPackRecord(packID: "x", version: "1", installedAt: date, quickSettingValues: ["k": 1])
         let b = InstalledPackRecord(packID: "x", version: "1", installedAt: date, quickSettingValues: ["k": 1])
         let c = InstalledPackRecord(packID: "x", version: "2", installedAt: date, quickSettingValues: ["k": 1])

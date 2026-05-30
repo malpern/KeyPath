@@ -101,31 +101,31 @@ public extension KeyAction {
     var displayName: String {
         switch self {
         case let .keystroke(key):
-            return key
+            key
         case .hyper:
-            return "Hyper"
+            "Hyper"
         case .meh:
-            return "Meh"
+            "Meh"
         case let .launchApp(name, _):
-            return name
+            name
         case let .openURL(urlString):
-            return URLMappingFormatter.displayDomain(for: urlString)
+            URLMappingFormatter.displayDomain(for: urlString)
         case let .openFolder(_, name):
-            return name ?? "Folder"
+            name ?? "Folder"
         case let .runScript(path, name):
-            return name ?? URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
+            name ?? URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
         case let .systemAction(id):
-            return id
+            id
         case let .notify(title, _, _):
-            return title
+            title
         case let .windowAction(position):
-            return position
+            position
         case let .fakeKey(name, _):
-            return name
+            name
         case let .activateLayer(name):
-            return name
+            name
         case let .rawKanata(expr):
-            return expr
+            expr
         }
     }
 
@@ -133,31 +133,31 @@ public extension KeyAction {
     var autoDescription: String {
         switch self {
         case let .keystroke(key):
-            return "Remap to \(key)"
+            "Remap to \(key)"
         case .hyper:
-            return "Hyper (Cmd+Ctrl+Alt+Shift)"
+            "Hyper (Cmd+Ctrl+Alt+Shift)"
         case .meh:
-            return "Meh (Ctrl+Alt+Shift)"
+            "Meh (Ctrl+Alt+Shift)"
         case let .launchApp(name, _):
-            return "Open \(name)"
+            "Open \(name)"
         case let .openURL(urlString):
-            return "Open \(URLMappingFormatter.displayDomain(for: urlString))"
+            "Open \(URLMappingFormatter.displayDomain(for: urlString))"
         case let .openFolder(_, name):
-            return "Open \(name ?? "folder")"
+            "Open \(name ?? "folder")"
         case let .runScript(_, name):
-            return "Run \(name ?? "script")"
+            "Run \(name ?? "script")"
         case let .systemAction(id):
-            return "System: \(id)"
+            "System: \(id)"
         case let .notify(title, _, _):
-            return "Notify: \(title)"
+            "Notify: \(title)"
         case let .windowAction(position):
-            return "Window: \(position)"
+            "Window: \(position)"
         case let .fakeKey(name, action):
-            return "FakeKey: \(name) (\(action.rawValue))"
+            "FakeKey: \(name) (\(action.rawValue))"
         case let .activateLayer(name):
-            return "Activate \(name) layer"
+            "Activate \(name) layer"
         case let .rawKanata(expr):
-            return expr
+            expr
         }
     }
 }
@@ -206,20 +206,20 @@ public extension KeyAction {
 
     private static func resolveKeystroke(_ key: String) -> DisplayInfo? {
         switch key.lowercased() {
-        case "esc": return DisplayInfo(label: "Esc", icon: "escape")
-        case "enter", "ret": return DisplayInfo(label: "Return", icon: "return")
-        case "bspc": return DisplayInfo(label: "Backspace", icon: "delete.backward")
-        case "del": return DisplayInfo(label: "Delete", icon: "delete.forward")
-        case "tab": return DisplayInfo(label: "Tab", icon: "arrow.right.to.line")
-        case "spc": return DisplayInfo(label: "Space", icon: nil)
-        case "up": return DisplayInfo(label: "Up", icon: "arrow.up")
-        case "down": return DisplayInfo(label: "Down", icon: "arrow.down")
-        case "left": return DisplayInfo(label: "Left", icon: "arrow.left")
-        case "right": return DisplayInfo(label: "Right", icon: "arrow.right")
-        case "pp": return DisplayInfo(label: "Play/Pause", icon: "playpause")
-        case "next": return DisplayInfo(label: "Next", icon: "forward")
-        case "prev": return DisplayInfo(label: "Previous", icon: "backward")
-        default: return nil
+        case "esc": DisplayInfo(label: "Esc", icon: "escape")
+        case "enter", "ret": DisplayInfo(label: "Return", icon: "return")
+        case "bspc": DisplayInfo(label: "Backspace", icon: "delete.backward")
+        case "del": DisplayInfo(label: "Delete", icon: "delete.forward")
+        case "tab": DisplayInfo(label: "Tab", icon: "arrow.right.to.line")
+        case "spc": DisplayInfo(label: "Space", icon: nil)
+        case "up": DisplayInfo(label: "Up", icon: "arrow.up")
+        case "down": DisplayInfo(label: "Down", icon: "arrow.down")
+        case "left": DisplayInfo(label: "Left", icon: "arrow.left")
+        case "right": DisplayInfo(label: "Right", icon: "arrow.right")
+        case "pp": DisplayInfo(label: "Play/Pause", icon: "playpause")
+        case "next": DisplayInfo(label: "Next", icon: "forward")
+        case "prev": DisplayInfo(label: "Previous", icon: "backward")
+        default: nil
         }
     }
 
@@ -352,13 +352,13 @@ public extension KeyAction {
     var outputString: String {
         switch self {
         case let .keystroke(key):
-            return key
+            key
         case .hyper:
-            return "hyper"
+            "hyper"
         case .meh:
-            return "meh"
+            "meh"
         default:
-            return kanataOutput
+            kanataOutput
         }
     }
 }

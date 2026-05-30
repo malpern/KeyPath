@@ -6,11 +6,11 @@ import KeyPathWizardCore
 
 // MARK: - Recipe Generation Extension
 
-extension InstallerEngine {
+public extension InstallerEngine {
     // MARK: - Action Determination
 
     /// Determine which actions are needed based on intent and context
-    public func determineActions(for intent: InstallIntent, context: SystemContext)
+    func determineActions(for intent: InstallIntent, context: SystemContext)
         -> [AutoFixAction]
     {
         // Use shared ActionDeterminer to avoid duplication
@@ -20,7 +20,7 @@ extension InstallerEngine {
     // MARK: - Recipe Generation
 
     /// Generate ServiceRecipes from AutoFixActions
-    public func generateRecipes(from actions: [AutoFixAction], context: SystemContext)
+    func generateRecipes(from actions: [AutoFixAction], context: SystemContext)
         -> [ServiceRecipe]
     {
         var recipes: [ServiceRecipe] = []
@@ -35,7 +35,7 @@ extension InstallerEngine {
     }
 
     /// Convert an AutoFixAction to a ServiceRecipe
-    public func recipeForAction(_ action: AutoFixAction, context _: SystemContext) -> ServiceRecipe? {
+    func recipeForAction(_ action: AutoFixAction, context _: SystemContext) -> ServiceRecipe? {
         switch action {
         case .installRequiredRuntimeServices:
             ServiceRecipe(
@@ -198,7 +198,7 @@ extension InstallerEngine {
     /// If complex dependencies emerge, implement topological sort here.
     ///
     /// Related: Linear MAL-35, MAL-16 (duplicate issues resolved by documenting design)
-    public func orderRecipes(_ recipes: [ServiceRecipe]) -> [ServiceRecipe] {
+    func orderRecipes(_ recipes: [ServiceRecipe]) -> [ServiceRecipe] {
         // Validate design assumption: no recipe should currently declare dependencies
         assert(
             recipes.allSatisfy(\.dependencies.isEmpty),
@@ -211,7 +211,7 @@ extension InstallerEngine {
     }
 
     /// Map AutoFixAction to recipe ID
-    public func recipeIDForAction(_ action: AutoFixAction) -> String {
+    func recipeIDForAction(_ action: AutoFixAction) -> String {
         switch action {
         case .installRequiredRuntimeServices:
             InstallerRecipeID.installRequiredRuntimeServices

@@ -136,12 +136,12 @@ extension OverlayMapperSection {
             .accessibilityHidden(true)
     }
 
-    private func tapOutputModeRow<TrailingAction: View>(
+    private func tapOutputModeRow(
         title: String,
         subtitle: String,
         mode: TapOutputMode,
         accessibilityIdentifier: String,
-        @ViewBuilder trailingAction: () -> TrailingAction = { EmptyView() }
+        @ViewBuilder trailingAction: () -> some View = { EmptyView() }
     ) -> some View {
         let isSelected = selectedTapOutputMode == mode
         return Button {

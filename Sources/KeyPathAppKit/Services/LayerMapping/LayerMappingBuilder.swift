@@ -29,7 +29,8 @@ enum LayerMappingBuilder {
                 } else {
                     let outputKey = keyMapping.action.outputString.lowercased()
                     if let description = keyMapping.description,
-                       let outputKeyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(outputKey) {
+                       let outputKeyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(outputKey)
+                    {
                         actionByInput[input] = .mapped(
                             displayLabel: description,
                             outputKey: outputKey,

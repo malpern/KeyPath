@@ -37,7 +37,7 @@ final class TCPClientRobustnessTests: XCTestCase {
 
     func testExtractFirstLine_LargePayload() {
         let client = KanataTCPClient(port: port)
-        let largeValue = String(repeating: "x", count: 50_000)
+        let largeValue = String(repeating: "x", count: 50000)
         let json = "{\"data\":\"\(largeValue)\"}\n"
         let data = Data(json.utf8)
 
@@ -176,7 +176,7 @@ final class TCPClientRobustnessTests: XCTestCase {
         let client = KanataTCPClient(port: port)
         var ids: [UInt64] = []
         for _ in 0 ..< 100 {
-            ids.append(await client.generateRequestId())
+            await ids.append(client.generateRequestId())
         }
         for i in 1 ..< ids.count {
             XCTAssertGreaterThan(ids[i], ids[i - 1], "IDs must be strictly monotonic")
@@ -295,7 +295,7 @@ final class TCPClientRobustnessTests: XCTestCase {
         XCTAssertEqual(hello.capabilities, ["reload"])
     }
 
-    func testHelloOk_HasCapabilities() throws {
+    func testHelloOk_HasCapabilities() {
         let hello = KanataTCPClient.TcpHelloOk(
             version: "1.10.0",
             protocolVersion: 1,
@@ -497,8 +497,13 @@ final class TCPClientRobustnessTests: XCTestCase {
 
         actor Counter {
             var count = 0
-            func increment() { count += 1 }
-            func get() -> Int { count }
+            func increment() {
+                count += 1
+            }
+
+            func get() -> Int {
+                count
+            }
         }
         let counter = Counter()
 

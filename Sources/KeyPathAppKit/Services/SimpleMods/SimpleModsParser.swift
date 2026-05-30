@@ -220,7 +220,7 @@ public final class SimpleModsParser: Sendable {
         }
 
         // Known valid keys (non-exhaustive but covers common cases)
-        let validKeys: Set<String> = [
+        let validKeys: Set = [
             "caps", "esc", "lctl", "rctl", "lsft", "rsft",
             "lalt", "ralt", "lmet", "rmet", "spc", "ret",
             "tab", "bspc", "del", "f1", "f2", "f3", "f4",

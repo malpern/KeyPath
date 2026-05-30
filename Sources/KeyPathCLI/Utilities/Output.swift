@@ -8,7 +8,9 @@ public struct OutputContext: Sendable {
     public let noColor: Bool
     public let quiet: Bool
 
-    public var shouldOutputJSON: Bool { forceJSON || (!forceHuman && !isInteractive) }
+    public var shouldOutputJSON: Bool {
+        forceJSON || (!forceHuman && !isInteractive)
+    }
 
     public init(isInteractive: Bool, forceJSON: Bool, forceHuman: Bool, noColor: Bool, quiet: Bool = false) {
         self.isInteractive = isInteractive
@@ -30,7 +32,7 @@ public struct OutputContext: Sendable {
 }
 
 enum CLIOutput {
-    static func write<T: Encodable>(_ value: T, context: OutputContext, humanRender: () -> String) {
+    static func write(_ value: some Encodable, context: OutputContext, humanRender: () -> String) {
         if context.shouldOutputJSON {
             writeJSON(value)
         } else {
@@ -44,7 +46,7 @@ enum CLIOutput {
         let data: T
     }
 
-    static func writeJSON<T: Encodable>(_ value: T) {
+    static func writeJSON(_ value: some Encodable) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601

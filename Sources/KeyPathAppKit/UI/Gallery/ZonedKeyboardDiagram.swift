@@ -81,7 +81,9 @@ struct ZonedKeyboardDiagram: View {
         let label: String
         let x: Double
         let y: Double
-        var id: UInt16 { keyCode }
+        var id: UInt16 {
+            keyCode
+        }
     }
 
     private var activeKeymap: LogicalKeymap {

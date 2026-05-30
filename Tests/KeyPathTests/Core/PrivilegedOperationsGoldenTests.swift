@@ -257,7 +257,7 @@ final class PrivilegedOperationsGoldenTests: XCTestCase {
             lastAttempt: nil
         )
         XCTAssertEqual(decision, .skipPendingApproval,
-                        "Pending approval takes priority even with stale registration")
+                       "Pending approval takes priority even with stale registration")
     }
 
     // MARK: - KanataReadinessResult: Semantics

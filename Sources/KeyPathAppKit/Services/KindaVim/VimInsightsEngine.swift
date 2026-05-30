@@ -28,10 +28,13 @@ struct VimInsight: Identifiable, Equatable, Sendable {
         case beginner
         case intermediate
         case advanced
-        case unknown  // not enough data
+        case unknown // not enough data
     }
 
-    var id: String { title }
+    var id: String {
+        title
+    }
+
     let glyph: Glyph
     let title: String
     let body: String
@@ -66,7 +69,6 @@ enum VimInsightsEngine {
                 priority: 100
             ))
             return candidates
-
         case .beginner:
             candidates.append(contentsOf: beginnerInsights(snapshot))
         case .intermediate:

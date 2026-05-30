@@ -88,7 +88,9 @@ struct HelpExamples: AsyncParsableCommand {
         ),
         ExampleEntry(
             description: "Create a tap-dance (single=Esc, double=Caps Lock)",
-            commands: [#"keypath rule add caps --behavior '{"tapOrTapDance":{"tapDance":{"windowMs":200,"steps":[{"label":"Esc","action":{"keystroke":{"key":"esc"}}},{"label":"Caps","action":{"keystroke":{"key":"caps"}}}]}}}' --apply"#]
+            commands: [
+                #"keypath rule add caps --behavior '{"tapOrTapDance":{"tapDance":{"windowMs":200,"steps":[{"label":"Esc","action":{"keystroke":{"key":"esc"}}},{"label":"Caps","action":{"keystroke":{"key":"caps"}}}]}}}' --apply"#
+            ]
         ),
         ExampleEntry(
             description: "Preview a rule without saving",

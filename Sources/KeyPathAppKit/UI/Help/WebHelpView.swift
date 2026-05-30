@@ -39,7 +39,7 @@ struct WebHelpView: NSViewRepresentable {
         }
 
         func webView(
-            _ webView: WKWebView,
+            _: WKWebView,
             decidePolicyFor navigationAction: WKNavigationAction,
             decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
         ) {
@@ -59,7 +59,8 @@ struct WebHelpView: NSViewRepresentable {
 
             if let host = url.host,
                host.contains("malpern.github.io"),
-               url.path.hasPrefix("/KeyPath/guides/") {
+               url.path.hasPrefix("/KeyPath/guides/")
+            {
                 let resource = url.path
                     .replacingOccurrences(of: "/KeyPath/guides/", with: "")
                     .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
@@ -75,4 +76,3 @@ struct WebHelpView: NSViewRepresentable {
         }
     }
 }
-

@@ -7,7 +7,6 @@ import Testing
 @Suite("ServiceContainer Tests")
 @MainActor
 struct ServiceContainerTests {
-
     @Test("default init creates container with shared instances")
     func defaultInitCreatesContainer() {
         let container = ServiceContainer()
@@ -37,7 +36,7 @@ struct ServiceContainerTests {
         // the macro expansion compiles and runs correctly.
         let container = ServiceContainer()
         // Access a property to exercise the @Observable getter path
-        let _ = container.preferences
+        _ = container.preferences
     }
 
     @Test("multiple containers are independent instances")
@@ -54,7 +53,6 @@ struct ServiceContainerTests {
 
 @Suite("BuildInfo Tests")
 struct BuildInfoTests {
-
     @Test("current returns non-empty version")
     func currentReturnsNonEmptyVersion() {
         let info = BuildInfo.current()
@@ -105,7 +103,7 @@ struct BuildInfoTests {
     func kanataVersionCachedIsAccessible() {
         // In a test environment, kanata may not be installed, so the cached version
         // may be nil. We just verify accessing it does not crash.
-        let _ = BuildInfo.kanataVersionCached
+        _ = BuildInfo.kanataVersionCached
     }
 
     @Test("current returns fallback values in test environment")

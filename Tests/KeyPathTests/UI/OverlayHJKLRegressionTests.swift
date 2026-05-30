@@ -3,21 +3,20 @@ import Foundation
 import KeyPathCore
 import Testing
 
-/// Regression tests for HJKL arrow rendering across overlay layers.
-///
-/// These tests protect against three bugs that occurred in the same session:
-/// 1. Nav layer HJKL showed text ("H — Left") instead of arrow symbols
-///    because augmentation dropped vimLabels
-/// 2. KindaVim HJKL showed letter + arrow overlap because floating labels
-///    weren't hidden when vim hints rendered
-/// 3. Base layer HJKL went blank because floating labels were hidden whenever
-///    the KindaVim pack was installed, not just when hints actually rendered
+// Regression tests for HJKL arrow rendering across overlay layers.
+//
+// These tests protect against three bugs that occurred in the same session:
+// 1. Nav layer HJKL showed text ("H — Left") instead of arrow symbols
+//    because augmentation dropped vimLabels
+// 2. KindaVim HJKL showed letter + arrow overlap because floating labels
+//    weren't hidden when vim hints rendered
+// 3. Base layer HJKL went blank because floating labels were hidden whenever
+//    the KindaVim pack was installed, not just when hints actually rendered
 
 // MARK: - Augmentation preserves vimLabels
 
 @Suite("mergeAugmentation preserves vimLabels")
 struct MergeAugmentationTests {
-
     @Test("vimLabel from original is preserved when augmentation has none")
     func preservesOriginalVimLabel() {
         let original = LayerKeyInfo.mapped(
@@ -138,7 +137,6 @@ struct MergeAugmentationTests {
 
 @Suite("Floating label HJKL visibility logic")
 struct FloatingLabelHJKLTests {
-
     @Test("HJKL floating labels hidden when vim hints render")
     func hjklHiddenDuringVimHints() {
         let vimHintsActive = true
@@ -177,7 +175,6 @@ struct FloatingLabelHJKLTests {
 
 @Suite("mergeAugmentation edge cases")
 struct MergeAugmentationEdgeCaseTests {
-
     @Test("transparent augmented key preserves original displayLabel")
     func transparentPreservesOriginalLabel() {
         let original = LayerKeyInfo.mapped(
@@ -336,7 +333,6 @@ struct MergeAugmentationEdgeCaseTests {
 
 @Suite("VimBindings HJKL display labels are arrow-only")
 struct VimBindingsArrowLabelTests {
-
     @Test("HJKL hints have pure arrow displayLabels")
     func hjklDisplayLabelsAreArrows() {
         let hints = VimBindings.hints(strategy: .accessibility, mode: .normal, showAdvanced: false)

@@ -5,7 +5,6 @@ import XCTest
 /// Verifies that test mode is correctly detected when running tests,
 /// and documents the detection mechanism to prevent regressions.
 final class TestEnvironmentDetectionTests: XCTestCase {
-
     func testIsRunningTests_TrueInTestContext() {
         XCTAssertTrue(
             TestEnvironment.isRunningTests,

@@ -1,7 +1,7 @@
 import Foundation
 @testable import KeyPathAppKit
-@testable import KeyPathInstallationWizard
 @testable import KeyPathCore
+@testable import KeyPathInstallationWizard
 @preconcurrency import XCTest
 
 /// Tests for PrivilegedOperationsRouter

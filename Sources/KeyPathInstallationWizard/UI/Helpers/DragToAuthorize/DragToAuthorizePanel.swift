@@ -20,6 +20,11 @@ final class DragToAuthorizePanel: NSPanel {
         hasShadow = true
     }
 
-    override var canBecomeKey: Bool { false }
-    override var canBecomeMain: Bool { false }
+    override var canBecomeKey: Bool {
+        false
+    }
+
+    override var canBecomeMain: Bool {
+        false
+    }
 }

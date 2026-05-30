@@ -446,12 +446,12 @@ extension LayerKeyMapper {
         })
 
         // Hyper detection (Ctrl+Cmd+Alt+Shift)
-        let hyperSet: Set<String> = ["lctl", "lmet", "lalt", "lsft"]
+        let hyperSet: Set = ["lctl", "lmet", "lalt", "lsft"]
         if normalizedSet.isSuperset(of: hyperSet) || normalizedSet.isSuperset(of: Set(["lctl", "lmet", "lalt", "lshift"])) {
             return "✦"
         }
         // Meh detection (Ctrl+Alt+Shift)
-        let mehSet: Set<String> = ["lctl", "lalt", "lsft"]
+        let mehSet: Set = ["lctl", "lalt", "lsft"]
         if normalizedSet.isSuperset(of: mehSet) {
             return "◆"
         }

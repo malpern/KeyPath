@@ -27,6 +27,7 @@ extension QMKKeycodeMapping {
         }
 
         // MARK: - Japanese (JP)
+
         alias("JP",
               ("ZKHK", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
               ("4", "KC_4"), ("5", "KC_5"), ("6", "KC_6"), ("7", "KC_7"),
@@ -45,6 +46,7 @@ extension QMKKeycodeMapping {
               ("BSLS", "KC_INT1"), ("MHEN", "KC_INT5"), ("HENK", "KC_INT4"), ("KANA", "KC_INT2"))
 
         // MARK: - German (DE)
+
         alias("DE",
               ("CIRC", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
               ("4", "KC_4"), ("5", "KC_5"), ("6", "KC_6"), ("7", "KC_7"),
@@ -62,6 +64,7 @@ extension QMKKeycodeMapping {
               ("COMM", "KC_COMM"), ("DOT", "KC_DOT"), ("MINS", "KC_SLSH"))
 
         // MARK: - French (FR)
+
         alias("FR",
               ("SUP2", "KC_GRV"), ("AMPR", "KC_1"), ("EACU", "KC_2"), ("DQUO", "KC_3"),
               ("QUOT", "KC_4"), ("LPRN", "KC_5"), ("MINS", "KC_6"), ("EGRV", "KC_7"),
@@ -79,6 +82,7 @@ extension QMKKeycodeMapping {
               ("SCLN", "KC_COMM"), ("COLN", "KC_DOT"), ("EXLM", "KC_SLSH"))
 
         // MARK: - UK (UK)
+
         alias("UK",
               ("GRV", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
               ("4", "KC_4"), ("5", "KC_5"), ("6", "KC_6"), ("7", "KC_7"),
@@ -96,6 +100,7 @@ extension QMKKeycodeMapping {
               ("COMM", "KC_COMM"), ("DOT", "KC_DOT"), ("SLSH", "KC_SLSH"))
 
         // MARK: - Korean (KR)
+
         alias("KR",
               ("GRV", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
               ("4", "KC_4"), ("5", "KC_5"), ("6", "KC_6"), ("7", "KC_7"),
@@ -114,6 +119,7 @@ extension QMKKeycodeMapping {
               ("HANJ", "KC_LNG2"), ("HAEN", "KC_LNG1"))
 
         // MARK: - Spanish (ES)
+
         alias("ES",
               ("MORD", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
               ("4", "KC_4"), ("5", "KC_5"), ("6", "KC_6"), ("7", "KC_7"),
@@ -131,6 +137,7 @@ extension QMKKeycodeMapping {
               ("COMM", "KC_COMM"), ("DOT", "KC_DOT"), ("MINS", "KC_SLSH"))
 
         // MARK: - Italian (IT)
+
         alias("IT",
               ("BSLS", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
               ("4", "KC_4"), ("5", "KC_5"), ("6", "KC_6"), ("7", "KC_7"),
@@ -148,6 +155,7 @@ extension QMKKeycodeMapping {
               ("COMM", "KC_COMM"), ("DOT", "KC_DOT"), ("MINS", "KC_SLSH"))
 
         // MARK: - Brazilian ABNT2 (BR)
+
         alias("BR",
               ("QUOT", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
               ("4", "KC_4"), ("5", "KC_5"), ("6", "KC_6"), ("7", "KC_7"),
@@ -166,6 +174,7 @@ extension QMKKeycodeMapping {
               ("SLSH", "KC_INT1"), ("PDOT", "KC_PCMM"), ("PCMM", "KC_PDOT"))
 
         // MARK: - Nordic/Scandinavian (NO, SE, DK, FI)
+
         for prefix in ["NO", "SE", "DK", "FI"] {
             // These four locales share the same QWERTY alpha layout
             alias(prefix,
@@ -202,6 +211,7 @@ extension QMKKeycodeMapping {
         map["FI_ODIA"] = "KC_SCLN"; map["FI_ADIA"] = "KC_QUOT"; map["FI_QUOT"] = "KC_NUHS"
 
         // MARK: - Swiss (CH) — shared by Swiss German and Swiss French
+
         alias("CH",
               ("SECT", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
               ("4", "KC_4"), ("5", "KC_5"), ("6", "KC_6"), ("7", "KC_7"),
@@ -221,6 +231,7 @@ extension QMKKeycodeMapping {
         map["CH_EGRV"] = "KC_LBRC"; map["CH_EACU"] = "KC_SCLN"; map["CH_AGRV"] = "KC_QUOT"
 
         // MARK: - Portuguese (PT)
+
         alias("PT",
               ("BSLS", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
               ("4", "KC_4"), ("5", "KC_5"), ("6", "KC_6"), ("7", "KC_7"),
@@ -238,6 +249,7 @@ extension QMKKeycodeMapping {
               ("COMM", "KC_COMM"), ("DOT", "KC_DOT"), ("MINS", "KC_SLSH"))
 
         // MARK: - Turkish Q (TR)
+
         alias("TR",
               ("DQUO", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
               ("4", "KC_4"), ("5", "KC_5"), ("6", "KC_6"), ("7", "KC_7"),
@@ -255,6 +267,7 @@ extension QMKKeycodeMapping {
               ("ODIA", "KC_COMM"), ("CCED", "KC_DOT"), ("DOT", "KC_SLSH"))
 
         // MARK: - Central/Eastern European (CZ, HU, HR, SI, RO, PL)
+
         // Czech — QWERTZ with diacritics on number row
         alias("CZ",
               ("SCLN", "KC_GRV"), ("PLUS", "KC_1"), ("ECAR", "KC_2"), ("SCAR", "KC_3"),
@@ -343,6 +356,7 @@ extension QMKKeycodeMapping {
               ("COMM", "KC_COMM"), ("DOT", "KC_DOT"), ("SLSH", "KC_SLSH"))
 
         // MARK: - Belgian (BE) — AZERTY variant
+
         alias("BE",
               ("SUP2", "KC_GRV"), ("AMPR", "KC_1"), ("EACU", "KC_2"), ("DQUO", "KC_3"),
               ("QUOT", "KC_4"), ("LPRN", "KC_5"), ("SECT", "KC_6"), ("EGRV", "KC_7"),
@@ -360,6 +374,7 @@ extension QMKKeycodeMapping {
               ("SCLN", "KC_COMM"), ("COLN", "KC_DOT"), ("EQL", "KC_SLSH"))
 
         // MARK: - Baltic (EE, LV, LT)
+
         // Estonian — QWERTY
         alias("EE",
               ("CARN", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
@@ -412,6 +427,7 @@ extension QMKKeycodeMapping {
               ("COMM", "KC_COMM"), ("DOT", "KC_DOT"), ("SLSH", "KC_SLSH"))
 
         // MARK: - Icelandic (IS)
+
         alias("IS",
               ("RNGA", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
               ("4", "KC_4"), ("5", "KC_5"), ("6", "KC_6"), ("7", "KC_7"),
@@ -429,6 +445,7 @@ extension QMKKeycodeMapping {
               ("COMM", "KC_COMM"), ("DOT", "KC_DOT"), ("THRN", "KC_SLSH"))
 
         // MARK: - Cyrillic (RU, UA, RS)
+
         // Russian
         alias("RU",
               ("YO", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
@@ -481,6 +498,7 @@ extension QMKKeycodeMapping {
               ("COMM", "KC_COMM"), ("DOT", "KC_DOT"), ("MINS", "KC_SLSH"))
 
         // MARK: - Greek (GR)
+
         alias("GR",
               ("GRV", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
               ("4", "KC_4"), ("5", "KC_5"), ("6", "KC_6"), ("7", "KC_7"),
@@ -497,6 +515,7 @@ extension QMKKeycodeMapping {
               ("COMM", "KC_COMM"), ("DOT", "KC_DOT"), ("SLSH", "KC_SLSH"))
 
         // MARK: - Hebrew (IL)
+
         alias("IL",
               ("SCLN", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
               ("4", "KC_4"), ("5", "KC_5"), ("6", "KC_6"), ("7", "KC_7"),
@@ -513,6 +532,7 @@ extension QMKKeycodeMapping {
               ("TAV", "KC_COMM"), ("FTSD", "KC_DOT"), ("DOT", "KC_SLSH"))
 
         // MARK: - Alternative Layouts (DV, CM, BP, NE)
+
         // Dvorak
         alias("DV",
               ("GRV", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
@@ -583,6 +603,7 @@ extension QMKKeycodeMapping {
               ("COMM", "KC_COMM"), ("DOT", "KC_DOT"), ("J", "KC_SLSH"))
 
         // MARK: - US International (US)
+
         alias("US",
               ("DGRV", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
               ("4", "KC_4"), ("5", "KC_5"), ("6", "KC_6"), ("7", "KC_7"),
@@ -600,6 +621,7 @@ extension QMKKeycodeMapping {
               ("COMM", "KC_COMM"), ("DOT", "KC_DOT"), ("SLSH", "KC_SLSH"))
 
         // MARK: - Canadian Multilingual (CA)
+
         alias("CA",
               ("SLSH", "KC_GRV"), ("1", "KC_1"), ("2", "KC_2"), ("3", "KC_3"),
               ("4", "KC_4"), ("5", "KC_5"), ("6", "KC_6"), ("7", "KC_7"),
@@ -620,4 +642,5 @@ extension QMKKeycodeMapping {
     }()
     // swiftlint:enable function_body_length
 }
+
 // swiftlint:enable file_length

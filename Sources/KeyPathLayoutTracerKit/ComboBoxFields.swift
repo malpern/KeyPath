@@ -35,7 +35,7 @@ struct LabelComboBoxField: NSViewRepresentable {
         return stack
     }
 
-    func updateNSView(_ nsView: NSStackView, context: Context) {
+    func updateNSView(_: NSStackView, context: Context) {
         context.coordinator.text = $text
         context.coordinator.suggestions = suggestions
         if let comboBox = context.coordinator.comboBox {
@@ -112,7 +112,7 @@ struct KeyCodeComboBoxField: NSViewRepresentable {
         return stack
     }
 
-    func updateNSView(_ nsView: NSStackView, context: Context) {
+    func updateNSView(_: NSStackView, context: Context) {
         context.coordinator.value = $value
         context.coordinator.suggestions = suggestions
         if let comboBox = context.coordinator.comboBox {
@@ -163,7 +163,7 @@ struct KeyCodeComboBoxField: NSViewRepresentable {
                 value.wrappedValue = numericPrefix
             } else if let match = suggestions.first(where: { suggestion in
                 suggestion.searchTokens.contains { $0.localizedCaseInsensitiveContains(trimmed) } ||
-                suggestion.displayText.localizedCaseInsensitiveContains(trimmed)
+                    suggestion.displayText.localizedCaseInsensitiveContains(trimmed)
             }) {
                 value.wrappedValue = match.keyCode
             }

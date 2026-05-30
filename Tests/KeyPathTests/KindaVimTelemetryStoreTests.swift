@@ -66,7 +66,7 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
 
         store.recordCommand("h")
         store.recordCommand("h")
-        store.recordCommand("J")  // case-insensitive
+        store.recordCommand("J") // case-insensitive
         store.recordCommand("k")
 
         let snapshot = store.loadSnapshot()
@@ -134,7 +134,7 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
             let storeA = makeStore()
             storeA.recordCommand("h")
             storeA.recordModeDwell("normal", duration: 12)
-            storeA.flushNow()  // force the debounced write before storeA goes away
+            storeA.flushNow() // force the debounced write before storeA goes away
         }
 
         // New store instance reading the same file should see the data.
@@ -152,7 +152,7 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
         defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
         let store = makeStore()
         store.recordCommand("h")
-        store.flushNow()  // force the debounced write
+        store.flushNow() // force the debounced write
         XCTAssertTrue(FileManager.default.fileExists(atPath: tempFileURL.path))
 
         store.clearAll()
@@ -170,7 +170,7 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
         defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
         let store = makeStore()
         store.recordNonVimNavigation("left")
-        store.recordNonVimNavigation("LEFT")  // case-insensitive
+        store.recordNonVimNavigation("LEFT") // case-insensitive
         store.recordNonVimNavigation("right")
         let snap = store.loadSnapshot()
         XCTAssertEqual(snap.nonVimNavigationFrequency["left"], 2)
@@ -183,7 +183,7 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
         store.recordCommand("h")
         store.recordCommand("h")
         store.recordCommand("j")
-        store.recordCommand("w")  // not hjkl, doesn't count toward daily hjkl
+        store.recordCommand("w") // not hjkl, doesn't count toward daily hjkl
         let snap = store.loadSnapshot()
         XCTAssertEqual(snap.dailySnapshots.count, 1)
         XCTAssertEqual(snap.dailySnapshots.last?.hjklCount, 3)
@@ -203,7 +203,9 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
         defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
         let store = makeStore()
         // 9 presses of `h` — not yet fluent
-        for _ in 0..<9 { store.recordCommand("h") }
+        for _ in 0 ..< 9 {
+            store.recordCommand("h")
+        }
         XCTAssertEqual(store.loadSnapshot().dailySnapshots.last?.vocabularySize, 0)
 
         // 10th press crosses the threshold
@@ -252,7 +254,7 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
         let store = KindaVimTelemetryStore(
             fileURL: tempFileURL,
             userDefaults: defaults,
-            flushInterval: 60  // long enough that the debounce won't fire
+            flushInterval: 60 // long enough that the debounce won't fire
         )
         store.recordCommand("h")
         XCTAssertFalse(FileManager.default.fileExists(atPath: tempFileURL.path),

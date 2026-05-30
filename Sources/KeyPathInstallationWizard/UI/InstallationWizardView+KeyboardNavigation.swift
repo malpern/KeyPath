@@ -3,11 +3,11 @@ import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
 
-extension InstallationWizardView {
+public extension InstallationWizardView {
     // MARK: - Keyboard Navigation
 
     /// Navigate to the previous page using keyboard left arrow
-    public func navigateToPreviousPage() {
+    func navigateToPreviousPage() {
         guard stateMachine.currentPage != .summary else { return }
         let defaultSequence: [WizardPage] = [
             .fullDiskAccess, .conflicts, .inputMonitoring, .accessibility,
@@ -23,7 +23,7 @@ extension InstallationWizardView {
     }
 
     /// Navigate to the next page using keyboard right arrow, respecting prerequisites
-    public func navigateToNextPage() {
+    func navigateToNextPage() {
         guard stateMachine.currentPage != .summary else { return }
         Task { @MainActor in
             if let next = await stateMachine.getNextPage(

@@ -16,8 +16,13 @@ struct WizardCommunicationPage: View {
     @Environment(KanataViewModel.self) var kanataViewModel
     @Environment(\.preferencesService) private var preferences: PreferencesService
 
-    private var systemState: WizardSystemState { stateMachine.wizardState }
-    private var issues: [WizardIssue] { stateMachine.wizardIssues }
+    private var systemState: WizardSystemState {
+        stateMachine.wizardState
+    }
+
+    private var issues: [WizardIssue] {
+        stateMachine.wizardIssues
+    }
 
     /// Access underlying RuntimeCoordinator for business logic
     private var kanataManager: RuntimeCoordinator {

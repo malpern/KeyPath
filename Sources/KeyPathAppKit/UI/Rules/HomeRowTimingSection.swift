@@ -111,6 +111,7 @@ struct HomeRowTimingSection: View {
             }
 
             // MARK: - Composite Timing Slider
+
             HStack(spacing: 8) {
                 Label("Prefer letters", systemImage: "character.cursor.ibeam")
                     .font(.caption2)
@@ -159,6 +160,7 @@ struct HomeRowTimingSection: View {
             .animation(.easeInOut(duration: 0.15), value: isEditingHoldDuration)
 
             // MARK: - Advanced: Independent Sliders
+
             DisclosureGroup("Adjust independently") {
                 VStack(alignment: .leading, spacing: 12) {
                     // Hold duration
@@ -178,8 +180,8 @@ struct HomeRowTimingSection: View {
                                             get: { config.timing.tapWindow },
                                             set: { config.timing.tapWindow = $0; updateConfig() }
                                         ), format: .number)
-                                        .textFieldStyle(.roundedBorder).frame(width: 70)
-                                        .accessibilityIdentifier("home-row-mods-tap-window-field")
+                                            .textFieldStyle(.roundedBorder).frame(width: 70)
+                                            .accessibilityIdentifier("home-row-mods-tap-window-field")
                                         Text("ms").font(.caption).foregroundColor(.secondary)
                                     }
                                 }
@@ -190,8 +192,8 @@ struct HomeRowTimingSection: View {
                                             get: { config.timing.holdDelay },
                                             set: { config.timing.holdDelay = $0; updateConfig() }
                                         ), format: .number)
-                                        .textFieldStyle(.roundedBorder).frame(width: 70)
-                                        .accessibilityIdentifier("home-row-mods-hold-delay-field")
+                                            .textFieldStyle(.roundedBorder).frame(width: 70)
+                                            .accessibilityIdentifier("home-row-mods-hold-delay-field")
                                         Text("ms").font(.caption).foregroundColor(.secondary)
                                     }
                                 }
@@ -201,9 +203,12 @@ struct HomeRowTimingSection: View {
                                 Text("Letters feel snappy").font(.caption2).foregroundStyle(.secondary)
                                 Slider(value: Binding(
                                     get: { 1.0 - effectiveSliderPosition },
-                                    set: { let v = TypingFeelMapping.timingValues(forSliderPosition: 1.0 - $0); config.timing.tapWindow = v.tapWindow; config.timing.holdDelay = v.holdDelay; debouncedUpdateConfig() }
-                                ), in: 0...1, step: 0.05)
-                                .accessibilityIdentifier("home-row-mods-hold-duration-advanced")
+                                    set: {
+                                        let v = TypingFeelMapping.timingValues(forSliderPosition: 1.0 - $0); config.timing.tapWindow = v.tapWindow; config.timing.holdDelay = v
+                                            .holdDelay; debouncedUpdateConfig()
+                                    }
+                                ), in: 0 ... 1, step: 0.05)
+                                    .accessibilityIdentifier("home-row-mods-hold-duration-advanced")
                                 Text("Modifiers feel snappy").font(.caption2).foregroundStyle(.secondary)
                             }
                         }
@@ -221,31 +226,31 @@ struct HomeRowTimingSection: View {
                             InfoTip("How long you must pause after typing before holds are allowed. Prevents accidental modifiers mid-word.")
                         }
                         if config.timing.requirePriorIdleMs > 0 {
-                        HStack(spacing: 8) {
-                            Text("Modifiers work mid-typing").font(.caption2).foregroundStyle(.secondary)
-                            Slider(value: Binding(
-                                get: { 350.0 - Double(max(config.timing.requirePriorIdleMs, 50)) },
-                                set: { config.timing.requirePriorIdleMs = Int(350.0 - $0); debouncedUpdateConfig() }
-                            ), in: 50...300, step: 10) { editing in
-                                isEditingIdleWindow = editing
-                            }
-                            .accessibilityIdentifier("home-row-mods-prior-idle-advanced")
-                            .overlay(alignment: .top) {
-                                if isEditingIdleWindow {
-                                    Text("\(config.timing.requirePriorIdleMs)ms")
-                                        .font(.caption.weight(.semibold).width(.condensed))
-                                        .foregroundStyle(.white)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(Capsule().fill(Color.accentColor))
-                                        .offset(y: -18)
-                                        .allowsHitTesting(false)
-                                        .transition(.opacity)
+                            HStack(spacing: 8) {
+                                Text("Modifiers work mid-typing").font(.caption2).foregroundStyle(.secondary)
+                                Slider(value: Binding(
+                                    get: { 350.0 - Double(max(config.timing.requirePriorIdleMs, 50)) },
+                                    set: { config.timing.requirePriorIdleMs = Int(350.0 - $0); debouncedUpdateConfig() }
+                                ), in: 50 ... 300, step: 10) { editing in
+                                    isEditingIdleWindow = editing
                                 }
+                                .accessibilityIdentifier("home-row-mods-prior-idle-advanced")
+                                .overlay(alignment: .top) {
+                                    if isEditingIdleWindow {
+                                        Text("\(config.timing.requirePriorIdleMs)ms")
+                                            .font(.caption.weight(.semibold).width(.condensed))
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Capsule().fill(Color.accentColor))
+                                            .offset(y: -18)
+                                            .allowsHitTesting(false)
+                                            .transition(.opacity)
+                                    }
+                                }
+                                Text("No misfires while typing").font(.caption2).foregroundStyle(.secondary)
                             }
-                            Text("No misfires while typing").font(.caption2).foregroundStyle(.secondary)
-                        }
-                        .animation(.easeInOut(duration: 0.15), value: isEditingIdleWindow)
+                            .animation(.easeInOut(duration: 0.15), value: isEditingIdleWindow)
                         } // requirePriorIdleMs > 0
                     }
                 }
@@ -279,8 +284,6 @@ struct HomeRowTimingSection: View {
                     "Hold actions (modifiers or layers) only activate when you press a key with the other hand. Same-hand typing always produces letters — no accidental modifiers during fast rolls.\n\nOn Press: Faster response, may misfire on fast same-hand rolls.\nOn Release: More forgiving — waits for the other-hand key to be released before committing."
                 )
             }
-
-
 
             // MARK: - Quick Tap
 

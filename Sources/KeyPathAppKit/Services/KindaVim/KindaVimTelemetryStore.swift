@@ -311,12 +311,12 @@ final class KindaVimTelemetryStore {
     }
 
     private func scheduleDebouncedFlush() {
-        guard flushTask == nil else { return }  // already armed
+        guard flushTask == nil else { return } // already armed
         let delay = flushInterval
         flushTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(delay))
             guard let self, !Task.isCancelled else { return }
-            self.flushNow()
+            flushNow()
         }
     }
 

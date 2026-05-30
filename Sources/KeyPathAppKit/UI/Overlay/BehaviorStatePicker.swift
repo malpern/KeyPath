@@ -134,8 +134,8 @@ private struct BehaviorSegment: View {
                 Circle()
                     .fill(
                         isConfigured
-                        ? Color.accentColor.opacity(isDefault ? 0.35 : 1.0)
-                        : Color.clear
+                            ? Color.accentColor.opacity(isDefault ? 0.35 : 1.0)
+                            : Color.clear
                     )
                     .frame(width: 4, height: 4)
 

@@ -9,10 +9,14 @@ extension KeyboardVisualizationViewModel {
     enum OverlayTiming {
         /// Grace period to wait for a quick re-press before clearing hold state (seconds).
         /// Trade-off: higher = less flicker, lower = less linger.
-        static var holdReleaseGrace: TimeInterval { 0 }
+        static var holdReleaseGrace: TimeInterval {
+            0
+        }
 
         /// Duration of fade-out animation when key is released (seconds).
-        static var keyReleaseFadeDuration: TimeInterval { 0 }
+        static var keyReleaseFadeDuration: TimeInterval {
+            0
+        }
     }
 
     /// Start fade-out animation for a released key

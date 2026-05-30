@@ -1,7 +1,10 @@
 import Foundation
 
 struct LayoutCatalogEntry: Identifiable, Equatable {
-    var id: String { fileURL.path }
+    var id: String {
+        fileURL.path
+    }
+
     let fileURL: URL
     let filename: String
     let layoutID: String
@@ -13,9 +16,9 @@ enum LayoutCatalog {
         let manager = FileManager.default
         guard let resourcesURL = bundledLayoutsDirectoryURL(),
               let files = try? manager.contentsOfDirectory(
-                at: resourcesURL,
-                includingPropertiesForKeys: nil,
-                options: [.skipsHiddenFiles]
+                  at: resourcesURL,
+                  includingPropertiesForKeys: nil,
+                  options: [.skipsHiddenFiles]
               )
         else {
             return []

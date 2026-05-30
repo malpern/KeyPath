@@ -103,7 +103,7 @@ final class OutputContractTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func jsonKeys<T: Encodable>(_ value: T) throws -> Set<String> {
+    private func jsonKeys(_ value: some Encodable) throws -> Set<String> {
         let data = try encoder.encode(value)
         let dict = try JSONSerialization.jsonObject(with: data) as! [String: Any]
         return Set(dict.keys)

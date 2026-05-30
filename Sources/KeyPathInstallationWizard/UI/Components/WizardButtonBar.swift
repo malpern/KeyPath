@@ -122,9 +122,9 @@ public struct WizardButtonBar: View {
 
 // MARK: - Convenience Initializers
 
-extension WizardButtonBar {
+public extension WizardButtonBar {
     /// Single primary button (most common case)
-    public static func primaryOnly(title: String, action: @escaping () -> Void, isLoading: Bool = false)
+    static func primaryOnly(title: String, action: @escaping () -> Void, isLoading: Bool = false)
         -> WizardButtonBar
     {
         WizardButtonBar(
@@ -133,7 +133,7 @@ extension WizardButtonBar {
     }
 
     /// Primary + Cancel (common case)
-    public static func primaryAndCancel(
+    static func primaryAndCancel(
         primaryTitle: String, primaryAction: @escaping () -> Void, cancelTitle: String = "Cancel",
         cancelAction: @escaping () -> Void,
         isLoading: Bool = false
@@ -145,7 +145,7 @@ extension WizardButtonBar {
     }
 
     /// Primary + Secondary + Cancel (full set)
-    public static func full(
+    static func full(
         primaryTitle: String,
         primaryAction: @escaping () -> Void,
         secondaryTitle: String,

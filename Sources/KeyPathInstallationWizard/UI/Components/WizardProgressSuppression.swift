@@ -13,10 +13,10 @@ public struct WizardInlineProgressVisiblePreferenceKey: PreferenceKey {
     }
 }
 
-extension View {
+public extension View {
     /// Marks that this view subtree contains an inline progress indicator that is currently visible.
     /// The wizard root uses this to hide the global operation overlay.
-    public func wizardInlineProgressVisible(_ isVisible: Bool = true) -> some View {
+    func wizardInlineProgressVisible(_ isVisible: Bool = true) -> some View {
         preference(key: WizardInlineProgressVisiblePreferenceKey.self, value: isVisible)
     }
 }

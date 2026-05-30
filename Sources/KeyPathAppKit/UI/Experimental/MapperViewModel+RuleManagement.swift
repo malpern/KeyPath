@@ -30,7 +30,8 @@ extension MapperViewModel {
            selectedURL == nil,
            !hasAdvancedBehavior,
            !hasShiftedOutput,
-           !hasDeviceCondition {
+           !hasDeviceCondition
+        {
             statusMessage = "Nothing to save - input and output are the same"
             statusIsError = true
             return
@@ -222,7 +223,8 @@ extension MapperViewModel {
             )
 
             if let appIdentifier = originalAppIdentifier,
-               let appInfo = appLaunchInfo(for: appIdentifier) {
+               let appInfo = appLaunchInfo(for: appIdentifier)
+            {
                 selectedApp = appInfo
                 outputLabel = appInfo.name
                 outputSequence = nil
@@ -231,7 +233,8 @@ extension MapperViewModel {
                 outputLabel = extractDomain(from: url)
                 outputSequence = nil
             } else if let systemActionId = originalSystemActionIdentifier,
-                      let systemAction = SystemActionInfo.find(byOutput: systemActionId) {
+                      let systemAction = SystemActionInfo.find(byOutput: systemActionId)
+            {
                 selectedSystemAction = systemAction
                 outputLabel = systemAction.name
                 outputSequence = nil

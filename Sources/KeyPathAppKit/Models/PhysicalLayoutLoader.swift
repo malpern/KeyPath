@@ -87,13 +87,13 @@ enum PhysicalLayoutLoader {
     ) -> PhysicalLayout? {
         guard let url = KeyPathAppKitResources.url(forResource: filename, withExtension: "json") else {
             #if DEBUG
-            print("PhysicalLayoutLoader: Could not find \(filename).json in bundle")
+                print("PhysicalLayoutLoader: Could not find \(filename).json in bundle")
             #endif
             return nil
         }
         guard let data = try? Data(contentsOf: url) else {
             #if DEBUG
-            print("PhysicalLayoutLoader: Could not read data from \(filename).json")
+                print("PhysicalLayoutLoader: Could not read data from \(filename).json")
             #endif
             return nil
         }
@@ -114,7 +114,7 @@ enum PhysicalLayoutLoader {
     ) -> PhysicalLayout? {
         guard let dto = try? JSONDecoder().decode(PhysicalLayoutDTO.self, from: data) else {
             #if DEBUG
-            print("PhysicalLayoutLoader: Failed to decode layout JSON")
+                print("PhysicalLayoutLoader: Failed to decode layout JSON")
             #endif
             return nil
         }
@@ -139,4 +139,3 @@ enum PhysicalLayoutLoader {
         return layout
     }
 }
-

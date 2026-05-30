@@ -56,7 +56,9 @@ private func formatHumanReadable(_ status: CLIStatusResult, noColor: Bool) -> St
     let ok = ANSIColor.green("✓", noColor: noColor)
     let fail = ANSIColor.red("✗", noColor: noColor)
 
-    func check(_ value: Bool) -> String { value ? ok : fail }
+    func check(_ value: Bool) -> String {
+        value ? ok : fail
+    }
 
     var lines: [String] = []
     lines.append(ANSIColor.bold("=== System Status ===", noColor: noColor))

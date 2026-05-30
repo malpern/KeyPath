@@ -108,8 +108,6 @@ extension InstallationWizardView {
                         stateMachine.navigateToPage(.summary)
                     }
                 )
-            } else {
-                EmptyView()
             }
         case .stopExternalKanata:
             WizardStopKanataPage(
@@ -135,8 +133,6 @@ extension InstallationWizardView {
                         stateMachine.nextPage()
                     }
                 )
-            } else {
-                EmptyView()
             }
         case .helper:
             if let coordinator = kanataManager {
@@ -155,8 +151,6 @@ extension InstallationWizardView {
                 factory(
                     performAutoFix
                 )
-            } else {
-                EmptyView()
             }
         case .service:
             WizardKanataServicePage(
@@ -165,7 +159,6 @@ extension InstallationWizardView {
         }
     }
 
-    @ViewBuilder
     private func unconfiguredView(page: String) -> some View {
         VStack(spacing: 8) {
             Text("Wizard not fully configured")

@@ -21,7 +21,7 @@ struct ExpandableKindaVimRow: View {
         .background(
             RoundedRectangle(cornerRadius: 10)
                 .fill(isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.5)
-                                : Color(NSColor.windowBackgroundColor))
+                    : Color(NSColor.windowBackgroundColor))
                 .allowsHitTesting(false)
         )
         .overlay(
@@ -135,7 +135,6 @@ struct ExpandableKindaVimRow: View {
 
     // MARK: - Static Mode Badge
 
-    @ViewBuilder
     private func staticModeBadge(_ label: String, tint: Color) -> some View {
         HStack(spacing: 4) {
             Text("VIM")

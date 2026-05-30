@@ -4,7 +4,6 @@ import KeyPathCore
 import KeyPathWizardCore
 import Network
 import os.lock
-import os.lock
 
 /// Handles health checking and status reporting for LaunchDaemon services.
 ///
@@ -539,7 +538,7 @@ public final class ServiceHealthChecker: @unchecked Sendable {
     }
 
     private nonisolated func evaluateKanataLaunchctlRunningState(
-        managementState: WizardServiceManagementState,
+        managementState _: WizardServiceManagementState,
         launchctlTargets: [String]
     ) async
         -> (isRunning: Bool, exitCode: Int32?)
@@ -662,11 +661,10 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         // Only examine errors from the most recent kanata launch.
         // The stderr log accumulates across restarts; stale errors from previous
         // runs (before permissions were granted) cause false positives.
-        let logChunk: String
-        if let lastLaunchRange = fullLog.range(of: "[kanata-launcher] Launching Kanata", options: .backwards) {
-            logChunk = String(fullLog[lastLaunchRange.lowerBound...])
+        let logChunk: String = if let lastLaunchRange = fullLog.range(of: "[kanata-launcher] Launching Kanata", options: .backwards) {
+            String(fullLog[lastLaunchRange.lowerBound...])
         } else {
-            logChunk = fullLog
+            fullLog
         }
 
         var permissionRejected = false

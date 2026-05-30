@@ -473,7 +473,7 @@ struct PackDetailView: View {
     /// interactive keyboard + modifier controls instead of the generic
     /// tap-hold picker.
     var isHomeRowModsPack: Bool {
-        let homeRowKeys: Set<String> = ["a", "s", "d", "f", "j", "k", "l", "scln", ";"]
+        let homeRowKeys: Set = ["a", "s", "d", "f", "j", "k", "l", "scln", ";"]
         let inputs = Set(pack.bindings.map { $0.input.lowercased() })
         // Consider it a home-row pack if at least 4 of its bindings are on
         // the home row — covers light and full variants without listing
@@ -492,7 +492,7 @@ struct PackDetailView: View {
     var associatedPickerConfig: TapHoldPickerConfig? {
         guard let firstInput = pack.bindings.first?.input.lowercased() else { return nil }
         let base = RuleCollectionCatalog().defaultCollections().lazy
-            .compactMap { $0.configuration.tapHoldPickerConfig }
+            .compactMap(\.configuration.tapHoldPickerConfig)
             .first(where: { $0.inputKey.lowercased() == firstInput })
         guard var config = base else { return nil }
         if let liveTap = pickerTapSelection {
@@ -645,9 +645,9 @@ struct PackDetailView: View {
 
     private func settingRange(_ s: PackQuickSetting) -> ClosedRange<Double> {
         if case let .slider(_, min: lo, max: hi, step: _, unitSuffix: _) = s.kind {
-            return Double(lo)...Double(hi)
+            return Double(lo) ... Double(hi)
         }
-        return 0...100
+        return 0 ... 100
     }
 
     private func settingStep(_ s: PackQuickSetting) -> Double {

@@ -6,7 +6,6 @@ import Testing
 
 @Suite("PermissionOracle Fast/Test Mode")
 struct PermissionOracleFastModeTests {
-
     @Test("Snapshot in test mode completes under 1 second")
     @MainActor
     func snapshotIsFastInTestMode() async {

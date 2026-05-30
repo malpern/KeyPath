@@ -183,7 +183,7 @@ final class ContextHUDViewModel {
         // visual-only pack); the .kindaVimLearning style is its own view and
         // doesn't read `groups[]`. Nothing to do for KindaVim in this pass.
 
-// Split Vallack Navigation entries into hand sub-groups using sectionBreak/sectionLabel
+        // Split Vallack Navigation entries into hand sub-groups using sectionBreak/sectionLabel
         if let vallackGroup = groupMap[RuleCollectionIdentifier.vallackNavigation],
            let vallackCollection = collectionLookup[RuleCollectionIdentifier.vallackNavigation]
         {
@@ -202,7 +202,9 @@ final class ContextHUDViewModel {
             // Classify HUD entries into sections, override action with description
             var sectionEntries: [Int: [HUDKeyEntry]] = [:]
             var mappingsByInput: [String: KeyMapping] = [:]
-            for m in vallackCollection.mappings { mappingsByInput[m.input.lowercased()] = m }
+            for m in vallackCollection.mappings {
+                mappingsByInput[m.input.lowercased()] = m
+            }
 
             for entry in vallackGroup.entries {
                 let kanataName = OverlayKeyboardView.keyCodeToKanataName(entry.keyCode).lowercased()
@@ -333,7 +335,7 @@ final class ContextHUDViewModel {
         "find": ("Search", 2), "next": ("Search", 2),
     ]
 
-/// Neovim Terminal subcategory mapping: vimLabel → (subcategory name, sort order)
+    /// Neovim Terminal subcategory mapping: vimLabel → (subcategory name, sort order)
     static let neovimSubcategories: [String: (name: String, order: Int)] = [
         // Movement
         "←": ("Movement", 0), "↓": ("Movement", 0),

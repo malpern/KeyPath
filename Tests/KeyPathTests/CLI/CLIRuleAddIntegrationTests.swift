@@ -17,79 +17,79 @@ final class CLIRuleAddIntegrationTests: XCTestCase {
 
     // MARK: - KeyAction JSON decoding (all 13 variants)
 
-    func testDecodeKeystrokeAction() async throws {
+    func testDecodeKeystrokeAction() throws {
         let json = #"{"keystroke":{"key":"esc"}}"#
         let action = try decode(KeyAction.self, from: json)
         XCTAssertEqual(action, .keystroke(key: "esc"))
     }
 
-    func testDecodeHyperAction() async throws {
+    func testDecodeHyperAction() throws {
         let json = #"{"hyper":{}}"#
         let action = try decode(KeyAction.self, from: json)
         XCTAssertEqual(action, .hyper)
     }
 
-    func testDecodeMehAction() async throws {
+    func testDecodeMehAction() throws {
         let json = #"{"meh":{}}"#
         let action = try decode(KeyAction.self, from: json)
         XCTAssertEqual(action, .meh)
     }
 
-    func testDecodeLaunchAppAction() async throws {
+    func testDecodeLaunchAppAction() throws {
         let json = #"{"launchApp":{"name":"Safari","bundleId":"com.apple.Safari"}}"#
         let action = try decode(KeyAction.self, from: json)
         XCTAssertEqual(action, .launchApp(name: "Safari", bundleId: "com.apple.Safari"))
     }
 
-    func testDecodeOpenURLAction() async throws {
+    func testDecodeOpenURLAction() throws {
         let json = #"{"openURL":{"_0":"https://example.com"}}"#
         let action = try decode(KeyAction.self, from: json)
         XCTAssertEqual(action, .openURL("https://example.com"))
     }
 
-    func testDecodeOpenFolderAction() async throws {
+    func testDecodeOpenFolderAction() throws {
         let json = #"{"openFolder":{"path":"~/Documents","name":"Docs"}}"#
         let action = try decode(KeyAction.self, from: json)
         XCTAssertEqual(action, .openFolder(path: "~/Documents", name: "Docs"))
     }
 
-    func testDecodeRunScriptAction() async throws {
+    func testDecodeRunScriptAction() throws {
         let json = #"{"runScript":{"path":"~/.scripts/foo.sh","name":"Foo"}}"#
         let action = try decode(KeyAction.self, from: json)
         XCTAssertEqual(action, .runScript(path: "~/.scripts/foo.sh", name: "Foo"))
     }
 
-    func testDecodeSystemActionAction() async throws {
+    func testDecodeSystemActionAction() throws {
         let json = #"{"systemAction":{"id":"volume-up"}}"#
         let action = try decode(KeyAction.self, from: json)
         XCTAssertEqual(action, .systemAction(id: "volume-up"))
     }
 
-    func testDecodeNotifyAction() async throws {
+    func testDecodeNotifyAction() throws {
         let json = #"{"notify":{"title":"Done","body":"Build succeeded","sound":true}}"#
         let action = try decode(KeyAction.self, from: json)
         XCTAssertEqual(action, .notify(title: "Done", body: "Build succeeded", sound: true))
     }
 
-    func testDecodeWindowActionAction() async throws {
+    func testDecodeWindowActionAction() throws {
         let json = #"{"windowAction":{"position":"left-half"}}"#
         let action = try decode(KeyAction.self, from: json)
         XCTAssertEqual(action, .windowAction(position: "left-half"))
     }
 
-    func testDecodeFakeKeyAction() async throws {
+    func testDecodeFakeKeyAction() throws {
         let json = #"{"fakeKey":{"name":"vk1","action":"tap"}}"#
         let action = try decode(KeyAction.self, from: json)
         XCTAssertEqual(action, .fakeKey(name: "vk1", action: .tap))
     }
 
-    func testDecodeActivateLayerAction() async throws {
+    func testDecodeActivateLayerAction() throws {
         let json = #"{"activateLayer":{"name":"nav"}}"#
         let action = try decode(KeyAction.self, from: json)
         XCTAssertEqual(action, .activateLayer(name: "nav"))
     }
 
-    func testDecodeRawKanataAction() async throws {
+    func testDecodeRawKanataAction() throws {
         let json = #"{"rawKanata":{"_0":"(multi lctl c)"}}"#
         let action = try decode(KeyAction.self, from: json)
         XCTAssertEqual(action, .rawKanata("(multi lctl c)"))
@@ -97,7 +97,7 @@ final class CLIRuleAddIntegrationTests: XCTestCase {
 
     // MARK: - MappingBehavior JSON decoding
 
-    func testDecodeDualRoleBehavior() async throws {
+    func testDecodeDualRoleBehavior() throws {
         let json = #"{"dualRole":{"tapAction":{"keystroke":{"key":"a"}},"holdAction":{"keystroke":{"key":"lctl"}},"tapTimeout":200,"holdTimeout":200,"activateHoldOnOtherKey":true}}"#
         let behavior = try decode(MappingBehavior.self, from: json)
         if case let .dualRole(d) = behavior {
@@ -110,7 +110,7 @@ final class CLIRuleAddIntegrationTests: XCTestCase {
         }
     }
 
-    func testDecodeMacroBehavior() async throws {
+    func testDecodeMacroBehavior() throws {
         let json = #"{"macro":{"text":"hello world","outputs":[],"source":"text"}}"#
         let behavior = try decode(MappingBehavior.self, from: json)
         if case let .macro(m) = behavior {
@@ -121,7 +121,7 @@ final class CLIRuleAddIntegrationTests: XCTestCase {
         }
     }
 
-    func testDecodeChordBehavior() async throws {
+    func testDecodeChordBehavior() throws {
         let json = #"{"chord":{"keys":["j","k"],"output":{"keystroke":{"key":"esc"}},"timeout":200}}"#
         let behavior = try decode(MappingBehavior.self, from: json)
         if case let .chord(c) = behavior {
@@ -133,7 +133,7 @@ final class CLIRuleAddIntegrationTests: XCTestCase {
         }
     }
 
-    func testDecodeTapDanceBehavior() async throws {
+    func testDecodeTapDanceBehavior() throws {
         let json = #"{"tapOrTapDance":{"tapDance":{"_0":{"windowMs":200,"steps":[{"label":"Single","action":{"keystroke":{"key":"esc"}}},{"label":"Double","action":{"keystroke":{"key":"caps"}}}]}}}}"#
         let behavior = try decode(MappingBehavior.self, from: json)
         if case let .tapOrTapDance(.tapDance(td)) = behavior {

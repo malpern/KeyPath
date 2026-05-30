@@ -242,7 +242,6 @@ struct LauncherService {
 
     // MARK: - Environment Helpers
 
-
     func environmentFlag(_ key: String) -> Bool {
         let value = ProcessInfo.processInfo.environment[key]?
             .trimmingCharacters(in: .whitespacesAndNewlines)

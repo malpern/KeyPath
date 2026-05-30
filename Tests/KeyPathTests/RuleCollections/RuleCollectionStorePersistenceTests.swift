@@ -2,7 +2,6 @@
 import XCTest
 
 final class RuleCollectionStorePersistenceTests: XCTestCase {
-
     private var tempDir: URL!
 
     override func setUp() {

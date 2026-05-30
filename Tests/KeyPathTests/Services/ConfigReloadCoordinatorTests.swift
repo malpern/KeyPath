@@ -112,7 +112,6 @@ private final class NotificationMessage: @unchecked Sendable {
 @Suite("ConfigReloadCoordinator Tests")
 @MainActor
 struct ConfigReloadCoordinatorTests {
-
     // MARK: - Factory
 
     /// Creates a ConfigReloadCoordinator with the given mock dependencies.
@@ -189,7 +188,7 @@ struct ConfigReloadCoordinatorTests {
             // In test environment triggerTCPReload returns networkError,
             // so the callback is not expected to fire.
             #expect(callbackCalled == false,
-                "onReloadSuccess should not fire when TCP is disabled in test env")
+                    "onReloadSuccess should not fire when TCP is disabled in test env")
         }
     }
 
@@ -220,7 +219,7 @@ struct ConfigReloadCoordinatorTests {
         // If TCP is disabled, we verify no false positive notification fires.
         if !result.isSuccess {
             #expect(received.value == false,
-                "Should not post recovered notification when reload failed")
+                    "Should not post recovered notification when reload failed")
         }
     }
 
@@ -251,10 +250,10 @@ struct ConfigReloadCoordinatorTests {
         // That is NOT a cooldown message, so configReloadFailed should be posted.
         if !result.isSuccess {
             #expect(received.value == true,
-                "Should post configReloadFailed for non-cooldown errors")
+                    "Should post configReloadFailed for non-cooldown errors")
             if let msg = message.value {
                 #expect(!msg.contains("cooldown"),
-                    "Error message should not be a cooldown block")
+                        "Error message should not be a cooldown block")
             }
         }
     }
@@ -295,10 +294,12 @@ struct ConfigReloadCoordinatorTests {
         let partialB = "In cooldown period"
         #expect(
             !(partialA.contains("Reload blocked") && partialA.contains("cooldown")),
-            "Partial match without 'cooldown' should not be detected")
+            "Partial match without 'cooldown' should not be detected"
+        )
         #expect(
             !(partialB.contains("Reload blocked") && partialB.contains("cooldown")),
-            "Partial match without 'Reload blocked' should not be detected")
+            "Partial match without 'Reload blocked' should not be detected"
+        )
 
         // Confirm the coordinator itself can be called without crashing
         _ = await coordinator.triggerConfigReload()
@@ -313,9 +314,9 @@ struct ConfigReloadCoordinatorTests {
         let tcpResult = await coordinator.triggerTCPReload()
 
         #expect(tcpResult.isSuccess == false,
-            "TCP reload should not succeed in test environment")
+                "TCP reload should not succeed in test environment")
         #expect(tcpResult.errorMessage?.contains("Test environment") == true,
-            "Error should mention test environment, got: \(tcpResult.errorMessage ?? "nil")")
+                "Error should mention test environment, got: \(tcpResult.errorMessage ?? "nil")")
     }
 
     // MARK: - ReloadResult properties
@@ -368,7 +369,7 @@ struct ConfigReloadCoordinatorTests {
         // Verify the coordinator is still functional after the failure path.
         let result = await coordinator.triggerConfigReload()
         #expect(result.isSuccess == false,
-            "Should still return failure on subsequent calls with unhealthy service")
+                "Should still return failure on subsequent calls with unhealthy service")
     }
 
     // MARK: - TCPReloadResult properties
@@ -432,7 +433,7 @@ struct ConfigReloadCoordinatorTests {
         if let err1 = result1.errorMessage, let err2 = result2.errorMessage {
             // err1 is a health-related message, err2 is a TCP/test-environment message
             #expect(err1 != err2 || result2.isSuccess,
-                "Second call should get past the health check gate")
+                    "Second call should get past the health check gate")
         }
     }
 

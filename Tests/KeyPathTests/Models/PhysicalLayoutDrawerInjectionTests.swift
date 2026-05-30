@@ -1,7 +1,6 @@
 import Foundation
-import Testing
-
 @testable import KeyPathAppKit
+import Testing
 
 @Suite("PhysicalLayout Drawer Key Injection")
 struct PhysicalLayoutDrawerInjectionTests {

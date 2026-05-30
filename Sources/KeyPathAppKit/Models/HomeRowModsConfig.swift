@@ -17,7 +17,9 @@ public enum OppositeHandMode: String, Codable, Sendable {
         }
     }
 
-    public var isEnabled: Bool { self != .off }
+    public var isEnabled: Bool {
+        self != .off
+    }
 }
 
 /// Timing UI complexity level for home row mods

@@ -112,20 +112,19 @@ struct PackInstall: AsyncParsableCommand {
             throw error.code.exitCode
         } catch let installErr as PackInstaller.InstallError {
             spinner.fail("Install failed")
-            let error: CLIError
-            switch installErr {
+            let error = switch installErr {
             case .mutuallyExclusive:
-                error = CLIError.conflict(
+                CLIError.conflict(
                     installErr.errorDescription ?? installErr.localizedDescription,
                     hint: "Uninstall the conflicting pack first"
                 )
             case let .dependencyMissing(name, _):
-                error = CLIError.validation(
+                CLIError.validation(
                     installErr.errorDescription ?? installErr.localizedDescription,
                     hint: "Install \(name) first"
                 )
             default:
-                error = CLIError.validation(installErr.errorDescription ?? installErr.localizedDescription)
+                CLIError.validation(installErr.errorDescription ?? installErr.localizedDescription)
             }
             CLIOutput.writeError(error, context: ctx)
             throw error.code.exitCode

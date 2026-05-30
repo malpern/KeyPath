@@ -1,6 +1,6 @@
+import Foundation
 @testable import KeyPathAppKit
 @testable import KeyPathCLI
-import Foundation
 import XCTest
 
 final class CLIOutputSnapshotTests: XCTestCase {
@@ -244,7 +244,7 @@ final class CLIOutputSnapshotTests: XCTestCase {
         )
         let json = try encode(value)
         let dict = try JSONSerialization.jsonObject(with: Data(json.utf8)) as! [String: Any]
-        let expectedKeys: Set<String> = [
+        let expectedKeys: Set = [
             "isOperational", "helperInstalled", "helperWorking", "helperVersion",
             "keyPathAccessibility", "keyPathInputMonitoring",
             "kanataAccessibility", "kanataInputMonitoring",
@@ -291,7 +291,7 @@ final class CLIOutputSnapshotTests: XCTestCase {
         let detail = CLIRuleDetail(from: rule)
         let json = try encode(detail)
         let dict = try JSONSerialization.jsonObject(with: Data(json.utf8)) as! [String: Any]
-        let expectedKeys: Set<String> = [
+        let expectedKeys: Set = [
             "input", "action", "shiftedOutput", "title", "notes",
             "targetLayer", "isEnabled", "createdAt",
         ]
@@ -406,13 +406,13 @@ final class CLIOutputSnapshotTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func encode<T: Encodable>(_ value: T) throws -> String {
+    private func encode(_ value: some Encodable) throws -> String {
         let data = try encoder.encode(value)
         return String(data: data, encoding: .utf8)!
     }
 
-    private func assertSnapshot<T: Encodable>(
-        _ value: T,
+    private func assertSnapshot(
+        _ value: some Encodable,
         expected: String,
         file: StaticString = #filePath,
         line: UInt = #line

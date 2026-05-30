@@ -10,7 +10,6 @@ private struct SystemActionPopoverContentHeightKey: PreferenceKey {
 }
 
 extension OverlayMapperSection {
-
     /// Keep the picker compact by default, then grow it to a larger scrollable surface
     /// whenever any section expands. Using an explicit height lets the popover resize
     /// with the presented SwiftUI view instead of relying on a maxHeight that never
@@ -36,7 +35,8 @@ extension OverlayMapperSection {
 
     /// Popover content for output type picker with collapsible sections
     var systemActionPopover: some View {
-        let isKeystrokeSelected = viewModel.selectedSystemAction == nil && viewModel.selectedApp == nil && selectedLayerOutput == nil && viewModel.selectedURL == nil && viewModel.selectedFolder == nil && viewModel.selectedScript == nil
+        let isKeystrokeSelected = viewModel.selectedSystemAction == nil && viewModel.selectedApp == nil && selectedLayerOutput == nil && viewModel.selectedURL == nil && viewModel
+            .selectedFolder == nil && viewModel.selectedScript == nil
         let isSystemActionSelected = viewModel.selectedSystemAction != nil
         let isAppSelected = viewModel.selectedApp != nil
         let isLayerSelected = selectedLayerOutput != nil
@@ -396,11 +396,10 @@ extension OverlayMapperSection {
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
-        let path: String
-        if url.path.hasPrefix(NSHomeDirectory()) {
-            path = url.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+        let path: String = if url.path.hasPrefix(NSHomeDirectory()) {
+            url.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
         } else {
-            path = url.path
+            url.path
         }
 
         viewModel.selectFolder(path: path, name: url.lastPathComponent)
@@ -418,11 +417,10 @@ extension OverlayMapperSection {
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
-        let path: String
-        if url.path.hasPrefix(NSHomeDirectory()) {
-            path = url.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+        let path: String = if url.path.hasPrefix(NSHomeDirectory()) {
+            url.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
         } else {
-            path = url.path
+            url.path
         }
 
         let name = url.deletingPathExtension().lastPathComponent

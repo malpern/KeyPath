@@ -39,8 +39,14 @@ final class AutoDetectKeyboardController {
         var confidence: KeyboardDetectionIndex.Confidence?
         var status: Status
 
-        var id: String { event.id }
-        var vidPidKey: String { event.vidPidKey }
+        var id: String {
+            event.id
+        }
+
+        var vidPidKey: String {
+            event.vidPidKey
+        }
+
         var canActivateOverlay: Bool {
             layoutId != nil && status != .possibleMatch
         }
@@ -116,7 +122,7 @@ final class AutoDetectKeyboardController {
         }
     ) {
         let defaults = UserDefaults.standard
-        self.baselineDisplayContext = BaselineDisplayContext(
+        baselineDisplayContext = BaselineDisplayContext(
             layoutId: defaults.string(forKey: Self.baselineLayoutDefaultsKey)
                 ?? defaults.string(forKey: LayoutPreferences.layoutIdKey)
                 ?? LayoutPreferences.defaultLayoutId,
@@ -235,13 +241,12 @@ final class AutoDetectKeyboardController {
             "🔌 [AutoDetect] Recognized \(result.keyboardName) (built-in: \(result.isBuiltIn), path: \(result.qmkPath ?? "none"), source: \(result.source.rawValue), match: \(result.matchType.rawValue))"
         )
 
-        let keyboardStatus: ConnectedKeyboard.Status
-        if result.confidence == .low {
-            keyboardStatus = .possibleMatch
+        let keyboardStatus: ConnectedKeyboard.Status = if result.confidence == .low {
+            .possibleMatch
         } else if result.isBuiltIn {
-            keyboardStatus = .suggested
+            .suggested
         } else {
-            keyboardStatus = .importRequired
+            .importRequired
         }
 
         upsertConnectedKeyboard(

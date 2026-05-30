@@ -63,9 +63,9 @@ extension PackDetailView {
 
     var holdTimingQuickSettingRange: ClosedRange<Double> {
         if case let .slider(_, min: lo, max: hi, step: _, unitSuffix: _) = holdTimingQuickSetting?.kind {
-            return Double(lo)...Double(hi)
+            return Double(lo) ... Double(hi)
         }
-        return 120...300
+        return 120 ... 300
     }
 
     var holdTimingQuickSettingStep: Double {

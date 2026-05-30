@@ -3,7 +3,6 @@ import XCTest
 
 /// Tests for multi-tap index mapping and tap-dance step management.
 final class MapperMultiTapTests: XCTestCase {
-
     // MARK: - multiTapAction Index Mapping
 
     @MainActor

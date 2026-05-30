@@ -56,18 +56,15 @@ final class WizardWindowController {
             .frame(width: 700)
             .fixedSize(horizontal: false, vertical: true)
 
-        let hosting: NSView
-        if let viewModel = kanataViewModel {
-            hosting = NSHostingView(rootView:
+        let hosting: NSView = if let viewModel = kanataViewModel {
+            NSHostingView(rootView:
                 styledView
                     .environment(viewModel)
-                    .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator)
-            )
+                    .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator))
         } else {
-            hosting = NSHostingView(rootView:
+            NSHostingView(rootView:
                 styledView
-                    .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator)
-            )
+                    .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator))
         }
 
         let window = NSWindow(

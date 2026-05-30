@@ -5,7 +5,6 @@ import XCTest
 /// Tests for MapperViewModel canSave logic, identity mapping detection,
 /// shifted output blocking, and conflict state management.
 final class MapperConflictAndSaveTests: XCTestCase {
-
     // MARK: - canSave
 
     @MainActor

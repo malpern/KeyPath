@@ -15,11 +15,10 @@ enum LayoutTracerImporter {
         let decoder = JSONDecoder()
         let layout = try decoder.decode(LayoutTracerPhysicalLayoutDTO.self, from: data)
         let derivedMaxX = layout.keys.map { $0.x + $0.width }.max() ?? 0
-        let recommendedCoordinateScale: Double
-        if layout.totalWidth == nil, derivedMaxX < 100 {
-            recommendedCoordinateScale = 64
+        let recommendedCoordinateScale: Double = if layout.totalWidth == nil, derivedMaxX < 100 {
+            64
         } else {
-            recommendedCoordinateScale = 1
+            1
         }
         return ImportedTracingLayout(
             id: layout.id,

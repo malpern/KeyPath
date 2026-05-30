@@ -62,8 +62,6 @@ public struct WizardActionSection: View {
             WizardButton("Start KeyPath Runtime", style: .primary, isDefaultAction: true) {
                 onStartService()
             }
-        } else {
-            EmptyView()
         }
     }
 

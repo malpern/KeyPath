@@ -162,7 +162,7 @@ public final class PrivilegedOperationsRouter {
             return false
         case .throttled:
             return false
-        case let .run(_, _):
+        case .run:
             break
         }
 
@@ -275,9 +275,9 @@ public final class PrivilegedOperationsRouter {
     public func restartKarabinerDaemonVerified() async throws -> Bool {
         switch Self.operationMode {
         case .privilegedHelper:
-            return try await helperRestartKarabinerDaemonVerified()
+            try await helperRestartKarabinerDaemonVerified()
         case .directSudo:
-            return try await sudoRestartKarabinerDaemonVerified()
+            try await sudoRestartKarabinerDaemonVerified()
         }
     }
 
@@ -337,21 +337,21 @@ public final class PrivilegedOperationsRouter {
 
     private func sudoActivateVHID() async throws {
         let vhidManager = VHIDDeviceManager()
-        if !(await vhidManager.activateManager()) {
+        if await !(vhidManager.activateManager()) {
             throw PrivilegedOperationError.operationFailed("VirtualHID activation failed")
         }
     }
 
     private func sudoUninstallDrivers() async throws {
         let vhidManager = VHIDDeviceManager()
-        if !(await vhidManager.uninstallAllDriverVersions()) {
+        if await !(vhidManager.uninstallAllDriverVersions()) {
             throw PrivilegedOperationError.operationFailed("Driver uninstallation failed")
         }
     }
 
     private func sudoInstallCorrectDriver() async throws {
         let vhidManager = VHIDDeviceManager()
-        if !(await vhidManager.downloadAndInstallCorrectVersion()) {
+        if await !(vhidManager.downloadAndInstallCorrectVersion()) {
             throw PrivilegedOperationError.operationFailed("Driver installation failed")
         }
     }
@@ -506,7 +506,7 @@ public final class PrivilegedOperationsRouter {
         return output.contains("kanata")
     }
 
-    private func removeLegacyKanataPlist(reason: String) async {
+    private func removeLegacyKanataPlist(reason _: String) async {
         let path = KanataDaemonManager.legacyPlistPath
         guard Foundation.FileManager().fileExists(atPath: path) else { return }
         guard path.hasPrefix("/Library/LaunchDaemons/"),

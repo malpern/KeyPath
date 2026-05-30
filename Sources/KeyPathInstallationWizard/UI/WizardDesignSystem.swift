@@ -255,25 +255,25 @@ public enum WizardDesign {
 
     @MainActor enum Transition {
         /// Card appearance from top
-        public static let cardAppear: AnyTransition = .opacity.combined(with: .move(edge: .top))
+        static let cardAppear: AnyTransition = .opacity.combined(with: .move(edge: .top))
 
         /// Overlay icon changes
-        public static let overlayChange: AnyTransition = .opacity.combined(with: .scale(scale: 0.8))
+        static let overlayChange: AnyTransition = .opacity.combined(with: .scale(scale: 0.8))
 
         /// Technical details expansion
-        public static let detailsExpand: AnyTransition = .asymmetric(
+        static let detailsExpand: AnyTransition = .asymmetric(
             insertion: .move(edge: .top).combined(with: .opacity),
             removal: .opacity
         )
 
         /// Page slide forward (next page)
-        public static let pageSlideForward: AnyTransition = .asymmetric(
+        static let pageSlideForward: AnyTransition = .asymmetric(
             insertion: .move(edge: .trailing).combined(with: .opacity),
             removal: .move(edge: .leading).combined(with: .opacity)
         )
 
         /// Page slide backward (previous page)
-        public static let pageSlideBackward: AnyTransition = .asymmetric(
+        static let pageSlideBackward: AnyTransition = .asymmetric(
             insertion: .move(edge: .leading).combined(with: .opacity),
             removal: .move(edge: .trailing).combined(with: .opacity)
         )
@@ -556,7 +556,6 @@ public enum WizardDesign {
                             }
                             .padding(.top, WizardDesign.Spacing.elementGap)
                         }
-
                     }
                     .padding(.vertical, WizardDesign.Spacing.pageVertical)
 
@@ -672,30 +671,30 @@ public enum WizardDesign {
 
 // MARK: - View Extensions
 
-extension View {
+public extension View {
     /// Apply wizard card styling
-    public func wizardCard() -> some View {
+    func wizardCard() -> some View {
         modifier(WizardDesign.Component.Card())
     }
 
     /// Apply status indicator styling
-    public func wizardStatusIndicator(_ status: InstallationStatus) -> some View {
+    func wizardStatusIndicator(_ status: InstallationStatus) -> some View {
         modifier(WizardDesign.Component.StatusIndicator(status: status))
     }
 
     /// Apply standard wizard page padding
-    public func wizardPagePadding() -> some View {
+    func wizardPagePadding() -> some View {
         padding(.horizontal, WizardDesign.Spacing.pageVertical)
             .padding(.vertical, WizardDesign.Spacing.sectionGap)
     }
 
     /// Apply standard wizard content spacing
-    public func wizardContentSpacing() -> some View {
+    func wizardContentSpacing() -> some View {
         frame(maxWidth: WizardDesign.Layout.maxContentWidth)
     }
 
     /// Apply toast card styling
-    public func wizardToastCard() -> some View {
+    func wizardToastCard() -> some View {
         modifier(WizardDesign.Component.ToastCard())
     }
 }
@@ -1208,8 +1207,8 @@ public struct WizardPageHeader: View {
 // MARK: - Tap Gesture Modifier
 
 private struct TapGestureModifier: ViewModifier {
-    public let isNavigable: Bool
-    public let action: (() -> Void)?
+    let isNavigable: Bool
+    let action: (() -> Void)?
 
     func body(content: Content) -> some View {
         if isNavigable, let action {
@@ -1224,15 +1223,15 @@ private struct TapGestureModifier: ViewModifier {
 
 // MARK: - View Extension
 
-extension View {
+public extension View {
     /// Wraps content in a standardized hero section container with Spacer() and padding
-    public func heroSectionContainer() -> some View {
+    func heroSectionContainer() -> some View {
         modifier(WizardDesign.HeroSectionContainer())
     }
 
     /// Conditionally apply a modifier
     @ViewBuilder
-    public func `if`(_ condition: Bool, transform: (Self) -> some View) -> some View {
+    func `if`(_ condition: Bool, transform: (Self) -> some View) -> some View {
         if condition {
             transform(self)
         } else {

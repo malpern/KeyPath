@@ -648,11 +648,11 @@ extension KeyboardVisualizationViewModel {
         layerPreviewTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(50))
             guard let self, !Task.isCancelled else { return }
-            guard self.pressedKeyCodes.contains(keyCode) else { return }
-            self.prePreviewLayerName = self.currentLayerName
-            self.isShowingLayerPreview = true
-            self.currentPreviewTargetLayer = targetLayer
-            self.updateLayer(targetLayer)
+            guard pressedKeyCodes.contains(keyCode) else { return }
+            prePreviewLayerName = currentLayerName
+            isShowingLayerPreview = true
+            currentPreviewTargetLayer = targetLayer
+            updateLayer(targetLayer)
         }
     }
 

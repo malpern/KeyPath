@@ -25,12 +25,12 @@ extension WizardServiceManagementState {
     var asInternal: KanataDaemonManager.ServiceManagementState {
         // EXHAUSTIVE: must mirror KanataDaemonManager.ServiceManagementState exactly — do not add a default case
         switch self {
-        case .legacyActive: return .legacyActive
-        case .smappserviceActive: return .smappserviceActive
-        case .smappservicePending: return .smappservicePending
-        case .uninstalled: return .uninstalled
-        case .conflicted: return .conflicted
-        case .unknown: return .unknown
+        case .legacyActive: .legacyActive
+        case .smappserviceActive: .smappserviceActive
+        case .smappservicePending: .smappservicePending
+        case .uninstalled: .uninstalled
+        case .conflicted: .conflicted
+        case .unknown: .unknown
         }
     }
 }
@@ -53,7 +53,7 @@ extension RuntimeCoordinator: RuntimeCoordinating {
         await serviceLifecycleCoordinator.isInTransientRuntimeStartupWindow()
     }
 
-    public func runFullRepair(reason: String) async -> WizardRepairReport {
+    public func runFullRepair(reason _: String) async -> WizardRepairReport {
         let report = await installerEngine.run(intent: .repair, using: privilegeBroker)
         return WizardRepairReport(
             success: report.success,
@@ -72,7 +72,7 @@ extension HelperManager: WizardHelperManaging {}
 
 extension KanataDaemonManager: WizardDaemonManaging {
     public func refreshManagementState() async -> WizardServiceManagementState {
-        WizardServiceManagementState(await refreshManagementStateInternal())
+        await WizardServiceManagementState(refreshManagementStateInternal())
     }
 
     public nonisolated var kanataServiceID: String {

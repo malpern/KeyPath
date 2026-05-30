@@ -489,146 +489,146 @@ struct OverlayMapperSection: View {
 
     private var mapperMainContent: some View {
         GeometryReader { scrollProxy in
-        ScrollView {
-        VStack(spacing: 0) {
-            Spacer(minLength: 20)
+            ScrollView {
+                VStack(spacing: 0) {
+                    Spacer(minLength: 20)
 
-            // Custom keycap layout with labels on top
-            GeometryReader { proxy in
-                let availableWidth = max(1, proxy.size.width - 8)
-                let keycapWidth: CGFloat = 100
-                let arrowWidth: CGFloat = 20
-                let spacing: CGFloat = 16
-                let baseWidth = keycapWidth * 2 + spacing * 2 + arrowWidth
-                let scale = min(1, availableWidth / baseWidth)
+                    // Custom keycap layout with labels on top
+                    GeometryReader { proxy in
+                        let availableWidth = max(1, proxy.size.width - 8)
+                        let keycapWidth: CGFloat = 100
+                        let arrowWidth: CGFloat = 20
+                        let spacing: CGFloat = 16
+                        let baseWidth = keycapWidth * 2 + spacing * 2 + arrowWidth
+                        let scale = min(1, availableWidth / baseWidth)
 
-                VStack(spacing: 8) {
-                    // Keycap row — vertically centered, fixed height
-                    HStack(alignment: .center, spacing: spacing) {
-                        // Input keycap
-                        ZStack(alignment: .top) {
-                            MapperInputKeycap(
-                                label: viewModel.inputLabel,
-                                keyCode: viewModel.inputKeyCode,
-                                isRecording: viewModel.isRecordingInput,
-                                fadeAmount: fadeAmount,
-                                customShiftSymbol: viewModel.isShiftedOutputDefault ? nil : viewModel.shiftedOutputLabel,
-                                onTap: { viewModel.toggleInputRecording() }
-                            )
-                            .scaleEffect(inputKeycapBounce ? 1.05 : 1.0)
-                            .scaleEffect(inputKeycapScale)
+                        VStack(spacing: 8) {
+                            // Keycap row — vertically centered, fixed height
+                            HStack(alignment: .center, spacing: spacing) {
+                                // Input keycap
+                                ZStack(alignment: .top) {
+                                    MapperInputKeycap(
+                                        label: viewModel.inputLabel,
+                                        keyCode: viewModel.inputKeyCode,
+                                        isRecording: viewModel.isRecordingInput,
+                                        fadeAmount: fadeAmount,
+                                        customShiftSymbol: viewModel.isShiftedOutputDefault ? nil : viewModel.shiftedOutputLabel,
+                                        onTap: { viewModel.toggleInputRecording() }
+                                    )
+                                    .scaleEffect(inputKeycapBounce ? 1.05 : 1.0)
+                                    .scaleEffect(inputKeycapScale)
 
-                            if let inputModifierLabel {
-                                Text(inputModifierLabel)
-                                    .font(.caption.weight(.medium))
-                                    .foregroundStyle(Color.accentColor)
-                                    .offset(y: -18)
-                                    .opacity(showBehaviorLabel ? 1 : 0)
-                                    .scaleEffect(showBehaviorLabel ? 1 : 0.8)
-                            }
-                        }
-                        .frame(width: keycapWidth)
+                                    if let inputModifierLabel {
+                                        Text(inputModifierLabel)
+                                            .font(.caption.weight(.medium))
+                                            .foregroundStyle(Color.accentColor)
+                                            .offset(y: -18)
+                                            .opacity(showBehaviorLabel ? 1 : 0)
+                                            .scaleEffect(showBehaviorLabel ? 1 : 0.8)
+                                    }
+                                }
+                                .frame(width: keycapWidth)
 
-                        // Arrow
-                        Image(systemName: "arrow.right")
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                            .modifier(TextGlowModifier(fadeAmount: fadeAmount))
-                            .frame(width: arrowWidth)
-
-                        // Output keycap
-                        ZStack(alignment: .top) {
-                            if selectedBehaviorSlot == .tap, selectedTapCount == 1 {
-                                MapperKeycapView(
-                                    label: activeTapOutputLabel,
-                                    isRecording: activeTapIsRecording,
-                                    maxWidth: keycapWidth,
-                                    appInfo: selectedTapOutputMode == .default ? viewModel.selectedApp : nil,
-                                    systemActionInfo: selectedTapOutputMode == .default ? viewModel.selectedSystemAction : nil,
-                                    urlFavicon: selectedTapOutputMode == .default ? viewModel.selectedURLFavicon : nil,
-                                    folderInfo: selectedTapOutputMode == .default ? viewModel.selectedFolder : nil,
-                                    scriptInfo: selectedTapOutputMode == .default ? viewModel.selectedScript : nil,
-                                    fadeAmount: fadeAmount,
-                                    onTap: { toggleRecordingForCurrentSlot() }
-                                )
-                            } else {
-                                let slotName = selectedTapCount > 1
-                                    ? "\(selectedTapCount)× Tap"
-                                    : selectedBehaviorSlot.label
-                                BehaviorSlotKeycap(
-                                    label: currentSlotOutputLabel,
-                                    isConfigured: currentSlotIsConfigured,
-                                    isRecording: isRecordingForCurrentSlot,
-                                    slotName: slotName,
-                                    fadeAmount: fadeAmount,
-                                    onTap: { toggleRecordingForCurrentSlot() },
-                                    onClear: { clearCurrentSlot() }
-                                )
-                            }
-                        }
-                        .frame(width: keycapWidth)
-                    }
-
-                    // Controls row — centered under keycaps
-                    HStack(spacing: spacing) {
-                        appConditionDropdown
-                            .frame(width: keycapWidth, alignment: .center)
-
-                        if tapHasNonIdentityMapping || currentSlotIsConfigured {
-                            Button {
-                                showingResetDialog = true
-                            } label: {
-                                Image(systemName: "arrow.counterclockwise")
-                                    .font(.caption)
+                                // Arrow
+                                Image(systemName: "arrow.right")
+                                    .font(.title3)
                                     .foregroundColor(.secondary)
+                                    .modifier(TextGlowModifier(fadeAmount: fadeAmount))
+                                    .frame(width: arrowWidth)
+
+                                // Output keycap
+                                ZStack(alignment: .top) {
+                                    if selectedBehaviorSlot == .tap, selectedTapCount == 1 {
+                                        MapperKeycapView(
+                                            label: activeTapOutputLabel,
+                                            isRecording: activeTapIsRecording,
+                                            maxWidth: keycapWidth,
+                                            appInfo: selectedTapOutputMode == .default ? viewModel.selectedApp : nil,
+                                            systemActionInfo: selectedTapOutputMode == .default ? viewModel.selectedSystemAction : nil,
+                                            urlFavicon: selectedTapOutputMode == .default ? viewModel.selectedURLFavicon : nil,
+                                            folderInfo: selectedTapOutputMode == .default ? viewModel.selectedFolder : nil,
+                                            scriptInfo: selectedTapOutputMode == .default ? viewModel.selectedScript : nil,
+                                            fadeAmount: fadeAmount,
+                                            onTap: { toggleRecordingForCurrentSlot() }
+                                        )
+                                    } else {
+                                        let slotName = selectedTapCount > 1
+                                            ? "\(selectedTapCount)× Tap"
+                                            : selectedBehaviorSlot.label
+                                        BehaviorSlotKeycap(
+                                            label: currentSlotOutputLabel,
+                                            isConfigured: currentSlotIsConfigured,
+                                            isRecording: isRecordingForCurrentSlot,
+                                            slotName: slotName,
+                                            fadeAmount: fadeAmount,
+                                            onTap: { toggleRecordingForCurrentSlot() },
+                                            onClear: { clearCurrentSlot() }
+                                        )
+                                    }
+                                }
+                                .frame(width: keycapWidth)
                             }
-                            .buttonStyle(.plain)
-                            .help("Clear mapping")
-                            .accessibilityIdentifier("overlay-mapper-reset-trigger")
-                            .frame(width: arrowWidth)
-                        } else {
-                            Color.clear
-                                .frame(width: arrowWidth, height: 1)
+
+                            // Controls row — centered under keycaps
+                            HStack(spacing: spacing) {
+                                appConditionDropdown
+                                    .frame(width: keycapWidth, alignment: .center)
+
+                                if tapHasNonIdentityMapping || currentSlotIsConfigured {
+                                    Button {
+                                        showingResetDialog = true
+                                    } label: {
+                                        Image(systemName: "arrow.counterclockwise")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help("Clear mapping")
+                                    .accessibilityIdentifier("overlay-mapper-reset-trigger")
+                                    .frame(width: arrowWidth)
+                                } else {
+                                    Color.clear
+                                        .frame(width: arrowWidth, height: 1)
+                                }
+
+                                outputTypeDropdown
+                                    .frame(width: keycapWidth, alignment: .center)
+                            }
+                            .saturation(Double(1 - fadeAmount))
+                            .opacity(Double(1 - fadeAmount * 0.5))
                         }
-
-                        outputTypeDropdown
-                            .frame(width: keycapWidth, alignment: .center)
+                        .border(showDebugBorders ? Color.blue : Color.clear, width: 1)
+                        .frame(width: baseWidth, height: proxy.size.height, alignment: .center)
+                        .scaleEffect(scale, anchor: .center)
+                        .frame(width: availableWidth, height: proxy.size.height, alignment: .center)
                     }
-                    .saturation(Double(1 - fadeAmount))
-                    .opacity(Double(1 - fadeAmount * 0.5))
+                    .frame(height: 132)
+
+                    appMappingIndicators
+                        .saturation(Double(1 - fadeAmount))
+                        .opacity(Double(1 - fadeAmount * 0.5))
+
+                    packSuggestionsForSelectedKey
+                        .saturation(Double(1 - fadeAmount))
+                        .opacity(Double(1 - fadeAmount * 0.5))
+
+                    if selectedBehaviorSlot == .hold, !viewModel.holdAction.isEmpty {
+                        holdVariantButton
+                            .saturation(Double(1 - fadeAmount))
+                            .opacity(Double(1 - fadeAmount * 0.5))
+                    }
+
+                    if viewModel.showAdvanced {
+                        AdvancedBehaviorContent(viewModel: viewModel)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                            .saturation(Double(1 - fadeAmount))
+                            .opacity(Double(1 - fadeAmount * 0.5))
+                    }
+
+                    Spacer(minLength: 0)
                 }
-                .border(showDebugBorders ? Color.blue : Color.clear, width: 1)
-                .frame(width: baseWidth, height: proxy.size.height, alignment: .center)
-                .scaleEffect(scale, anchor: .center)
-                .frame(width: availableWidth, height: proxy.size.height, alignment: .center)
+                .frame(maxWidth: .infinity, minHeight: scrollProxy.size.height, alignment: .leading)
             }
-            .frame(height: 132)
-
-            appMappingIndicators
-                .saturation(Double(1 - fadeAmount))
-                .opacity(Double(1 - fadeAmount * 0.5))
-
-            packSuggestionsForSelectedKey
-                .saturation(Double(1 - fadeAmount))
-                .opacity(Double(1 - fadeAmount * 0.5))
-
-            if selectedBehaviorSlot == .hold, !viewModel.holdAction.isEmpty {
-                holdVariantButton
-                    .saturation(Double(1 - fadeAmount))
-                    .opacity(Double(1 - fadeAmount * 0.5))
-            }
-
-            if viewModel.showAdvanced {
-                AdvancedBehaviorContent(viewModel: viewModel)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                    .saturation(Double(1 - fadeAmount))
-                    .opacity(Double(1 - fadeAmount * 0.5))
-            }
-
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, minHeight: scrollProxy.size.height, alignment: .leading)
-        }
         }
     }
 
@@ -734,8 +734,8 @@ struct OverlayMapperSection: View {
         var packs = PackRegistry.packsTargeting(kanataKey: kanataKey)
         if !packs.contains(where: { $0.id == PackRegistry.launcher.id }),
            let launcherConfig = kanataViewModel?.ruleCollections
-               .first(where: { $0.id == RuleCollectionIdentifier.launcher })?
-               .configuration.launcherGridConfig,
+           .first(where: { $0.id == RuleCollectionIdentifier.launcher })?
+           .configuration.launcherGridConfig,
            launcherConfig.mappings.contains(where: {
                LauncherGridConfig.normalizeKey($0.key) == LauncherGridConfig.normalizeKey(kanataKey)
            })

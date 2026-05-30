@@ -11,7 +11,6 @@ import XCTest
 /// 2. A valid .kbd config file is generated with the expected content
 /// 3. The KeyboardVisualizationViewModel picks up the change and updates its label map
 final class PackInstallIntegrationTests: XCTestCase {
-
     @MainActor
     func testCapsLockPackInstall_GeneratesConfigAndUpdatesLabels() async throws {
         TestEnvironment.forceTestMode = true
@@ -74,7 +73,7 @@ final class PackInstallIntegrationTests: XCTestCase {
         vm.updateTapHoldIdleLabels(from: collections)
 
         let capsKeyCode: UInt16 = 57
-        if case .tapHoldPicker(let config) = capsCollection?.configuration {
+        if case let .tapHoldPicker(config) = capsCollection?.configuration {
             let expectedOutput = config.selectedTapOutput ?? config.tapOptions.first?.output
             if let expectedOutput {
                 let label = vm.tapHoldIdleLabels[capsKeyCode]
@@ -166,7 +165,7 @@ final class PackInstallIntegrationTests: XCTestCase {
         // Vim nav maps h→left, j→down, k→up, l→right on a nav layer
         XCTAssertTrue(
             configContent.contains("left") && configContent.contains("down") &&
-            configContent.contains("up") && configContent.contains("right"),
+                configContent.contains("up") && configContent.contains("right"),
             "Config should contain arrow key mappings from vim navigation"
         )
         XCTAssertTrue(

@@ -195,7 +195,7 @@ final class CLIKarabinerImportTests: XCTestCase {
         """
         let result = try facade.importFromKarabiner(data: Data(json.utf8), collectionName: nil, profileIndex: nil)
 
-        XCTAssertTrue(result.collections.isEmpty || result.collections.allSatisfy { $0.mappings.isEmpty })
+        XCTAssertTrue(result.collections.isEmpty || result.collections.allSatisfy(\.mappings.isEmpty))
         XCTAssertFalse(result.skippedRules.isEmpty)
         XCTAssertTrue(result.skippedRules.first?.reason.contains("Mouse") == true
             || result.skippedRules.first?.reason.contains("mouse") == true)

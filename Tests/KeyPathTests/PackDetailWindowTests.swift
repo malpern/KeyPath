@@ -3,7 +3,6 @@ import XCTest
 
 /// Tests for Pack Detail window sizing and pack metadata.
 final class PackDetailWindowTests: XCTestCase {
-
     func testNarrowPacksGetNarrowWindow() {
         let narrowPacks = [
             "com.keypath.pack.caps-lock-to-escape",
@@ -21,7 +20,7 @@ final class PackDetailWindowTests: XCTestCase {
             }
             // Verify these are NOT in the wide or medium lists
             // (they should get 560px default)
-            let wideIDs: Set<String> = [
+            let wideIDs: Set = [
                 "com.keypath.pack.vim-navigation",
                 "com.keypath.pack.window-snapping",
                 "com.keypath.pack.mission-control",

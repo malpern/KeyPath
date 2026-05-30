@@ -1,7 +1,7 @@
 @testable import KeyPathAppKit
+import KeyPathCore
 @testable import KeyPathInstallationWizard
 @testable import KeyPathWizardCore
-import KeyPathCore
 import XCTest
 
 final class AliasDeduplicationTests: XCTestCase {
@@ -147,7 +147,7 @@ final class AliasDeduplicationTests: XCTestCase {
 
     // MARK: - Integration: config gen safety net still works
 
-    func testConfigGenSafetyNetProducesValidConfig() throws {
+    func testConfigGenSafetyNetProducesValidConfig() {
         let hrmCollection = makeCollection(
             name: "Home Row Mods",
             configuration: .homeRowMods(HomeRowModsConfig(

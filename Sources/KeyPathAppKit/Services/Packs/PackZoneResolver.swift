@@ -17,7 +17,9 @@ enum PackZoneResolver {
         /// Per-key target layers: keyCode -> layer name to preview when that key is held
         let targets: [UInt16: String]
 
-        var activatorKeyCodes: Set<UInt16> { Set(targets.keys) }
+        var activatorKeyCodes: Set<UInt16> {
+            Set(targets.keys)
+        }
     }
 
     static func layerPreviewConfig(
@@ -65,9 +67,9 @@ enum PackZoneResolver {
     ) -> [UInt16: Color]? {
         switch packID {
         case PackRegistry.vallackSystem.id:
-            return VallackZoneMap.zones(forLayer: layerName)?.mapValues(\.color)
+            VallackZoneMap.zones(forLayer: layerName)?.mapValues(\.color)
         default:
-            return nil
+            nil
         }
     }
 

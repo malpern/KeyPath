@@ -11,7 +11,6 @@ import XCTest
 ///
 /// Requires: kanata binary at /usr/local/bin/kanata or the bundled app path.
 final class ConfigValidationTests: XCTestCase {
-
     private func findKanataBinary() -> String? {
         // Only use the bundled binary — it matches the version KeyPath ships.
         // System-installed kanata (e.g., homebrew v1.10) may be too old and

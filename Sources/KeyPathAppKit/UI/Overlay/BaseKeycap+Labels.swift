@@ -39,7 +39,8 @@ extension BaseKeycap {
         if info.isTransparent { return true }
         if info.isLayerSwitch { return false }
         if info.appLaunchIdentifier != nil || info.systemActionIdentifier != nil
-            || info.urlIdentifier != nil {
+            || info.urlIdentifier != nil
+        {
             return false
         }
         if !info.displayLabel.isEmpty, info.displayLabel.lowercased() != inputKeyName {

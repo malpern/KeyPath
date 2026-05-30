@@ -217,7 +217,7 @@ final class CLIRuleCRUDTests: XCTestCase {
         XCTAssertEqual(detail?.notes, "Makes caps into hyper")
     }
 
-    func testRuleShowNotFoundReturnsNil() async throws {
+    func testRuleShowNotFoundReturnsNil() async {
         let detail = await facade.showRule(input: "nonexistent")
         XCTAssertNil(detail)
     }

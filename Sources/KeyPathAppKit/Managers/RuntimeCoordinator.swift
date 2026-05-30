@@ -479,11 +479,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                 Task { @MainActor in
                     AppLogger.shared.log("🔌 [RuntimeCoordinator] Device selection changed, regenerating config and restarting Kanata...")
                     let regenerated = await self.ruleCollectionsManager.regenerateConfigFromCollections(skipReload: true)
-                    let success: Bool
-                    if regenerated {
-                        success = await self.restartKanata(reason: "Device selection changed")
+                    let success: Bool = if regenerated {
+                        await self.restartKanata(reason: "Device selection changed")
                     } else {
-                        success = false
+                        false
                     }
                     NotificationCenter.default.post(
                         name: .deviceSelectionApplyCompleted,
@@ -510,7 +509,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                     await self.handleGrabStatusChanged(active: active, reason: reason)
                 }
             })
-
         }
 
         AppLogger.shared.log("🏗️ [RuntimeCoordinator] init() completed")
@@ -727,7 +725,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     public func isKarabinerElementsRunning() async -> Bool {
         await systemRequirementsChecker.isKarabinerElementsRunning()
     }
-
 
     func killKarabinerGrabber() async -> Bool {
         await systemRequirementsChecker.killKarabinerGrabber()

@@ -9,7 +9,7 @@ final class VimInsightsEngineTests: XCTestCase {
 
     func testStageIsUnknownBelowSampleFloor() {
         var snap = KindaVimTelemetrySnapshot()
-        snap.commandFrequency = ["h": 5, "j": 5]  // total 10 → below floor of 50
+        snap.commandFrequency = ["h": 5, "j": 5] // total 10 → below floor of 50
         XCTAssertEqual(VimInsightsEngine.stage(for: snap), .unknown)
     }
 
@@ -23,7 +23,7 @@ final class VimInsightsEngineTests: XCTestCase {
 
     func testStageIsIntermediateInTheMiddle() {
         var snap = KindaVimTelemetrySnapshot()
-        snap.commandFrequency = ["h": 30, "j": 30, "k": 20, "l": 20]  // 100 hjkl
+        snap.commandFrequency = ["h": 30, "j": 30, "k": 20, "l": 20] // 100 hjkl
         snap.nonVimNavigationFrequency = ["left": 25]
         // 25 / 125 = 20% → intermediate
         XCTAssertEqual(VimInsightsEngine.stage(for: snap), .intermediate)
@@ -65,8 +65,8 @@ final class VimInsightsEngineTests: XCTestCase {
 
     func testIntermediateSurfacesFoundationGapForB() {
         var snap = KindaVimTelemetrySnapshot()
-        snap.commandFrequency = ["h": 30, "j": 30, "w": 20]  // w fluent, b absent
-        snap.nonVimNavigationFrequency = ["left": 15]  // ~16% reliance
+        snap.commandFrequency = ["h": 30, "j": 30, "w": 20] // w fluent, b absent
+        snap.nonVimNavigationFrequency = ["left": 15] // ~16% reliance
         let insights = VimInsightsEngine.insights(for: snap)
         XCTAssertTrue(insights.contains { $0.title.contains("`b`") })
     }
@@ -106,7 +106,7 @@ final class VimInsightsEngineTests: XCTestCase {
     func testInsightsOrderedByPriority() {
         var snap = KindaVimTelemetrySnapshot()
         snap.commandFrequency = ["h": 30, "j": 30, "i": 30, "w": 30]
-        snap.nonVimNavigationFrequency = ["left": 30]  // intermediate
+        snap.nonVimNavigationFrequency = ["left": 30] // intermediate
         let insights = VimInsightsEngine.insights(for: snap, maxInsights: 5)
         let priorities = insights.map(\.priority)
         XCTAssertEqual(priorities, priorities.sorted(by: >))

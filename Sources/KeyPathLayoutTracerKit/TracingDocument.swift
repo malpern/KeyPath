@@ -551,12 +551,11 @@ final class TracingDocument {
     }
 
     private func clampedGuidePosition(_ position: Double, axis: TracingGuide.Axis) -> Double {
-        let maxPosition: Double
-        switch axis {
+        let maxPosition: Double = switch axis {
         case .horizontal:
-            maxPosition = max(editorTotalHeight / coordinateScale, 0)
+            max(editorTotalHeight / coordinateScale, 0)
         case .vertical:
-            maxPosition = max(editorTotalWidth / coordinateScale, 0)
+            max(editorTotalWidth / coordinateScale, 0)
         }
         return max(0, min(position, maxPosition))
     }

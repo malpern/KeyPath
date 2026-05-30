@@ -532,7 +532,8 @@ struct LauncherMappingEditor: View {
         formRow("Icon") {
             HStack(spacing: 8) {
                 if !customIconPath.isEmpty,
-                   let img = NSImage(contentsOfFile: (customIconPath as NSString).expandingTildeInPath) {
+                   let img = NSImage(contentsOfFile: (customIconPath as NSString).expandingTildeInPath)
+                {
                     Image(nsImage: img)
                         .resizable()
                         .aspectRatio(contentMode: .fit)

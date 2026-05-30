@@ -181,8 +181,13 @@ struct SimulationReport: Sendable {
         let kanataName: String
     }
 
-    var failureCount: Int { failedKeys.count }
-    var hasSignificantFailures: Bool { failedKeys.count > 5 }
+    var failureCount: Int {
+        failedKeys.count
+    }
+
+    var hasSignificantFailures: Bool {
+        failedKeys.count > 5
+    }
 
     func copyableText() -> String {
         var lines: [String] = []

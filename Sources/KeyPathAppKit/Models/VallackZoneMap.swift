@@ -1,9 +1,9 @@
 import Foundation
 
 enum VallackZoneMap {
-    // Q=12, W=13, E=14, U=32, I=34, O=31
+    /// Q=12, W=13, E=14, U=32, I=34, O=31
     static let modifierKeyCodes: Set<UInt16> = [12, 13, 14, 32, 34, 31]
-    // F=3, J=38
+    /// F=3, J=38
     static let activatorKeyCodes: Set<UInt16> = [3, 38]
 
     static let navMappingKeyCodes: Set<UInt16> = [
@@ -26,14 +26,20 @@ enum VallackZoneMap {
 
     static func homeZones() -> [UInt16: KeyboardZone] {
         var zones: [UInt16: KeyboardZone] = [:]
-        for code in modifierKeyCodes { zones[code] = .modifier }
-        for code in activatorKeyCodes { zones[code] = .activator }
+        for code in modifierKeyCodes {
+            zones[code] = .modifier
+        }
+        for code in activatorKeyCodes {
+            zones[code] = .activator
+        }
         return zones
     }
 
     static func navZones() -> [UInt16: KeyboardZone] {
         var zones: [UInt16: KeyboardZone] = [:]
-        for code in navMappingKeyCodes { zones[code] = .navMapping }
+        for code in navMappingKeyCodes {
+            zones[code] = .navMapping
+        }
         return zones
     }
 

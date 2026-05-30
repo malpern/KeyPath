@@ -157,8 +157,8 @@ final class ConfigReloadCoordinator {
             try? await Task.sleep(nanoseconds: 3_200_000_000)
             guard let self, !Task.isCancelled else { return }
             AppLogger.shared.log("🔁 [Reload] Firing deferred reload after cooldown expiry")
-            await self.triggerReload()
-            self.deferredReloadTask = nil
+            await triggerReload()
+            deferredReloadTask = nil
         }
     }
 

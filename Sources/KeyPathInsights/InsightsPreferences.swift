@@ -12,9 +12,9 @@ enum InsightsPreferences {
         get {
             if UserDefaults.standard.object(forKey: Keys.activityLoggingEnabled) == nil {
                 #if DEBUG
-                return true
+                    return true
                 #else
-                return false
+                    return false
                 #endif
             }
             return UserDefaults.standard.bool(forKey: Keys.activityLoggingEnabled)

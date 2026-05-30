@@ -3,10 +3,10 @@ import KeyPathCore
 import KeyPathWizardCore
 import SwiftUI
 
-extension InstallationWizardView {
+public extension InstallationWizardView {
     // MARK: - Computed Properties
 
-    public func getBuildTimestamp() -> String {
+    func getBuildTimestamp() -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM/dd HH:mm"
         // Use compile time if available, otherwise current time
@@ -14,7 +14,7 @@ extension InstallationWizardView {
     }
 
     /// Quick summary to surface state when a fix times out
-    public func describeServiceState() async -> String {
+    func describeServiceState() async -> String {
         guard let daemonManager = WizardDependencies.daemonManager else {
             AppLogger.shared.log("⚠️ [Wizard] daemonManager not configured")
             return "daemonManager not configured"
@@ -23,7 +23,8 @@ extension InstallationWizardView {
         let vhidRunning = await VHIDDeviceManager().detectRunning()
         return "VHID running=\(vhidRunning ? "yes" : "no"); services=\(state.description)"
     }
-    public func handlePageChange(from oldPage: WizardPage, to newPage: WizardPage) {
+
+    func handlePageChange(from oldPage: WizardPage, to newPage: WizardPage) {
         AppLogger.shared.log("🧭 [Wizard] View detected page change: \(oldPage) → \(newPage)")
         if newPage == .summary, !isValidating {
             refreshSystemState(showSpinner: true, previousPage: oldPage)
@@ -39,9 +40,9 @@ extension InstallationWizardView {
 
 // MARK: - Focus Ring Suppression Helper
 
-extension InstallationWizardView {
+public extension InstallationWizardView {
     /// Recursively disable focus rings in all subviews
-    public func disableFocusRings(in view: NSView) {
+    func disableFocusRings(in view: NSView) {
         view.focusRingType = .none
         for subview in view.subviews {
             disableFocusRings(in: subview)

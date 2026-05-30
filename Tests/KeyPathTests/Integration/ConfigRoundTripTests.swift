@@ -5,7 +5,6 @@ import XCTest
 /// Round-trip tests: save collections → load → regenerate config → compare.
 /// Detects serialization bugs where data is lost or mutated during persistence.
 final class ConfigRoundTripTests: XCTestCase {
-
     @MainActor
     func testRuleCollections_SaveLoadRoundTrip_ProducesIdenticalConfig() async throws {
         TestEnvironment.forceTestMode = true

@@ -181,7 +181,7 @@ final class ServiceLifecycleCoordinator {
             // If the daemon registered but isn't running (e.g., it exited cleanly
             // after max retries), kickstart it to force a restart.
             try? await Task.sleep(for: .milliseconds(500))
-            if !(await kanataDaemonService.isDaemonRunning()) {
+            if await !(kanataDaemonService.isDaemonRunning()) {
                 AppLogger.shared.log("🔄 [Service] Daemon registered but not running — kickstarting")
                 _ = try? await SubprocessRunner.shared.launchctl("kickstart", ["system/com.keypath.kanata"])
             }
@@ -267,8 +267,8 @@ final class ServiceLifecycleCoordinator {
         if smAppServiceRefreshTask != nil { return }
         smAppServiceRefreshTask = Task { [weak self] in
             guard let self else { return false }
-            let value = await self.performSMAppServiceRefresh()
-            self.smAppServiceRefreshTask = nil
+            let value = await performSMAppServiceRefresh()
+            smAppServiceRefreshTask = nil
             return value
         }
     }

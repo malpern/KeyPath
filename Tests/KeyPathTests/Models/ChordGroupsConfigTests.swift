@@ -78,7 +78,7 @@ final class ChordGroupsConfigTests: XCTestCase {
             ]
         )
 
-        let expected: Set<String> = ["s", "d", "f", "j", "k"]
+        let expected: Set = ["s", "d", "f", "j", "k"]
         XCTAssertEqual(group.participatingKeys, expected)
     }
 

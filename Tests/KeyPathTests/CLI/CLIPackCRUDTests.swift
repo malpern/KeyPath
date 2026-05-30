@@ -24,7 +24,7 @@ final class CLIPackCRUDTests: XCTestCase {
             }
         }
         for record in originalInstalledPacks {
-            if !(await InstalledPackTracker.shared.isInstalled(packID: record.packID)) {
+            if await !(InstalledPackTracker.shared.isInstalled(packID: record.packID)) {
                 try await InstalledPackTracker.shared.upsert(record)
             }
         }

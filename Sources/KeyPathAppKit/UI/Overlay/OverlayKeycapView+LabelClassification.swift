@@ -5,7 +5,7 @@ extension OverlayKeycapView {
     /// Whether this key has a special label that should always be rendered in the keycap
     /// (not handled by floating labels). Includes navigation keys, system keys, number row, etc.
     var hasSpecialLabel: Bool {
-        let specialLabels: Set<String> = [
+        let specialLabels: Set = [
             "Home", "End", "PgUp", "PgDn", "Del", "Lyr", "Fn", "Mod", "✦", "◆",
             "↩", "⌫", "⇥", "⇪", "esc", "⎋",
             "◀", "▶", "▲", "▼", "←", "→", "↑", "↓",

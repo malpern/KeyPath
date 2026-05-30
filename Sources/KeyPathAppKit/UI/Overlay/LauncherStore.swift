@@ -36,11 +36,11 @@ final class LauncherStore {
             let filteredMappings: [LauncherMapping] = config.mappings.filter { mapping in
                 switch mapping.action {
                 case let .launchApp(name, bundleId):
-                    return Self.isAppInstalled(name: name, bundleId: bundleId)
+                    Self.isAppInstalled(name: name, bundleId: bundleId)
                 case .openURL, .openFolder, .runScript:
-                    return true
+                    true
                 default:
-                    return true
+                    true
                 }
             }
 

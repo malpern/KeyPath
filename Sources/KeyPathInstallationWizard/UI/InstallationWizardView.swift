@@ -38,7 +38,10 @@ public struct InstallationWizardView: View {
     // New architecture components
     @State public var stateMachine = WizardStateMachine()
     @State public var asyncOperationManager = WizardAsyncOperationManager()
-    public var isOperationRunning: Bool { asyncOperationManager.hasRunningOperations }
+    public var isOperationRunning: Bool {
+        asyncOperationManager.hasRunningOperations
+    }
+
     @State public var toastManager = WizardToastManager()
 
     // UI state

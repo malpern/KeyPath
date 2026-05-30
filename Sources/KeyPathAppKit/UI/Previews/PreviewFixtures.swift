@@ -53,6 +53,7 @@
         ]
 
         // MARK: - Connected Devices (fake data for UI development)
+
         // TODO: Remove once macOS multi-device support lands upstream:
         //   - psych3r/driverkit#15 (macOS multi-device DriverKit support)
         //   - jtroo/kanata#1974 (Kanata device-switch support)

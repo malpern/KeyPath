@@ -2,7 +2,6 @@
 import XCTest
 
 final class CustomRuleModelTests: XCTestCase {
-
     // MARK: - displayTitle
 
     func testDisplayTitle_WithTitle_ReturnsTitle() {
@@ -192,7 +191,7 @@ final class CustomRuleModelTests: XCTestCase {
 
     func testEquality_SameID_SameDate_Equal() {
         let id = UUID()
-        let date = Date(timeIntervalSince1970: 1700000000)
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
         let a = CustomRule(id: id, input: "a", action: .keystroke(key: "b"), createdAt: date)
         let b = CustomRule(id: id, input: "a", action: .keystroke(key: "b"), createdAt: date)
         XCTAssertEqual(a, b)

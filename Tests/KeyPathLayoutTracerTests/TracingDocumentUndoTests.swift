@@ -1,6 +1,6 @@
 import Foundation
-import Testing
 @testable import KeyPathLayoutTracerKit
+import Testing
 
 struct TracingDocumentUndoTests {
     @Test

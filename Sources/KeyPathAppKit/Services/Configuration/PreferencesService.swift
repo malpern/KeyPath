@@ -441,9 +441,9 @@ final class PreferencesService: @unchecked Sendable {
         static let kindaVimLeaderHUDMode = KindaVimLeaderHUDMode.off
         static let neovimReferenceTopics = NeovimTerminalCategory.defaultRawValues
         static let neovimReferenceTopicsVersion = 2
-        // Figma uses hold-Space for pan/navigate; the overlay's hold-Space
-        // leader interferes. Ship disabled there by default — user can
-        // add more apps in Settings → Experimental.
+        /// Figma uses hold-Space for pan/navigate; the overlay's hold-Space
+        /// leader interferes. Ship disabled there by default — user can
+        /// add more apps in Settings → Experimental.
         static let overlaySuppressedBundleIDs: Set<String> = [
             "com.figma.Desktop",
             "com.figma.agent"

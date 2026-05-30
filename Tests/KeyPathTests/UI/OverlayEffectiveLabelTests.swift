@@ -3,7 +3,6 @@ import KeyPathCore
 import XCTest
 
 final class OverlayEffectiveLabelTests: XCTestCase {
-
     // MARK: - effectiveLabel Priority Chain
 
     func testHoldLabelTakesPriorityWhenPressed() {

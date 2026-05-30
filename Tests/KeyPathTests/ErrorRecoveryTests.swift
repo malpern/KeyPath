@@ -7,7 +7,6 @@ import XCTest
 /// Verifies that crash detection, config backup, and validation
 /// failure handling work correctly.
 final class ErrorRecoveryTests: XCTestCase {
-
     // MARK: - Config Backup
 
     @MainActor

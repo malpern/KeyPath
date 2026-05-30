@@ -131,14 +131,14 @@ final class RuleCollectionKanataValidationTests: XCTestCase {
             let err = String(data: errData, encoding: .utf8) ?? ""
             let out = String(data: outData, encoding: .utf8) ?? ""
             XCTFail("""
-                kanata --check rejected config for \(label) (exit \(process.terminationStatus)).
-                --- stderr ---
-                \(err)
-                --- stdout ---
-                \(out)
-                --- config (first 800 chars) ---
-                \(String(config.prefix(800)))
-                """)
+            kanata --check rejected config for \(label) (exit \(process.terminationStatus)).
+            --- stderr ---
+            \(err)
+            --- stdout ---
+            \(out)
+            --- config (first 800 chars) ---
+            \(String(config.prefix(800)))
+            """)
         }
     }
 }

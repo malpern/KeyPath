@@ -43,7 +43,7 @@ struct KeyboardTransformGrid: View {
     }
 
     private var keyboardRows: [RowModel] {
-        let desiredKeys: Set<String> = [
+        let desiredKeys: Set = [
             "q", "w", "e", "r", "t", "y", "u", "i", "o", "p",
             "a", "s", "d", "f", "g", "h", "j", "k", "l", "semicolon",
             "z", "x", "c", "v", "b", "n", "m", "comma", "dot", "slash"

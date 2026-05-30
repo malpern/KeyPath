@@ -196,78 +196,78 @@ private struct ChordRuleRow: View {
 
             // Rest of the row — tapping opens editor
             Button(action: onEdit) {
-            ZStack(alignment: .trailing) {
-                HStack {
-                    // Input keys — left aligned
-                    HStack(spacing: 3) {
-                        ForEach(chord.keys, id: \.self) { key in
-                            Text(key.uppercased())
-                                .font(.body.monospaced().weight(.semibold))
-                                .foregroundStyle(chord.isEnabled ? Self.keycapTextColor : Self.keycapTextColor.opacity(0.4))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(chord.isEnabled ? Self.keycapBgColor : Self.keycapBgColor.opacity(0.4))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 0.5)
-                                )
+                ZStack(alignment: .trailing) {
+                    HStack {
+                        // Input keys — left aligned
+                        HStack(spacing: 3) {
+                            ForEach(chord.keys, id: \.self) { key in
+                                Text(key.uppercased())
+                                    .font(.body.monospaced().weight(.semibold))
+                                    .foregroundStyle(chord.isEnabled ? Self.keycapTextColor : Self.keycapTextColor.opacity(0.4))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(chord.isEnabled ? Self.keycapBgColor : Self.keycapBgColor.opacity(0.4))
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 0.5)
+                                    )
+                            }
                         }
+
+                        Spacer()
+
+                        // Arrow — centered
+                        Image(systemName: "arrow.right")
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        // Output — right aligned
+                        outputKeycap(for: chord.action, enabled: chord.isEnabled)
                     }
 
-                    Spacer()
+                    // Hover action buttons
+                    if isHovered {
+                        HStack(spacing: 2) {
+                            Button(action: onEdit) {
+                                Image(systemName: "pencil")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 24, height: 24)
+                                    .background(Circle().fill(Color.accentColor))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Edit chord")
 
-                    // Arrow — centered
-                    Image(systemName: "arrow.right")
-                        .font(.body.weight(.medium))
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    // Output — right aligned
-                    outputKeycap(for: chord.action, enabled: chord.isEnabled)
-                }
-
-                // Hover action buttons
-                if isHovered {
-                    HStack(spacing: 2) {
-                        Button(action: onEdit) {
-                            Image(systemName: "pencil")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .frame(width: 24, height: 24)
-                                .background(Circle().fill(Color.accentColor))
+                            Button(action: onDelete) {
+                                Image(systemName: "trash")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 24, height: 24)
+                                    .background(Circle().fill(Color.red.opacity(0.85)))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Delete chord")
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Edit chord")
-
-                        Button(action: onDelete) {
-                            Image(systemName: "trash")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .frame(width: 24, height: 24)
-                                .background(Circle().fill(Color.red.opacity(0.85)))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Delete chord")
+                        .padding(.trailing, 4)
+                        .transition(.opacity.combined(with: .scale(scale: 0.8)))
                     }
-                    .padding(.trailing, 4)
-                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
                 }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 8)
+                .background(isHovered ? Color.accentColor.opacity(0.15) : Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.accentColor.opacity(isHovered ? 0.4 : 0), lineWidth: 1)
+                )
+                .contentShape(Rectangle())
             }
-            .padding(.vertical, 6)
-            .padding(.horizontal, 8)
-            .background(isHovered ? Color.accentColor.opacity(0.15) : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(Color.accentColor.opacity(isHovered ? 0.4 : 0), lineWidth: 1)
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
+            .buttonStyle(.plain)
         }
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
@@ -309,10 +309,14 @@ private struct ChordEditItem: Identifiable {
     let groupIndex: Int
     let chordIndex: Int
     let chord: ChordDefinition
-    var id: UUID { chord.id }
+    var id: UUID {
+        chord.id
+    }
 }
 
 private struct ChordAddItem: Identifiable {
     let groupIndex: Int
-    var id: Int { groupIndex }
+    var id: Int {
+        groupIndex
+    }
 }

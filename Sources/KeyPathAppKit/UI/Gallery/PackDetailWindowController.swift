@@ -18,7 +18,7 @@ final class PackDetailWindowController: NSObject {
                 return
             }
             // Different pack — replace content in the same window
-            self.openedFromOverlay = fromOverlay
+            openedFromOverlay = fromOverlay
             let content = PackDetailView(pack: pack, showBackToRules: fromOverlay)
                 .environment(kanataManager)
             existingWindow.contentView = NSHostingView(rootView: content)
@@ -54,7 +54,7 @@ final class PackDetailWindowController: NSObject {
         // Pack Detail is opened from the Rules tab (inside Settings), so the
         // overlay is already hidden and should stay hidden until Settings closes.
 
-        self.openedFromOverlay = fromOverlay
+        openedFromOverlay = fromOverlay
 
         willCloseObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
@@ -78,11 +78,13 @@ final class PackDetailWindowController: NSObject {
         }
 
         newWindow.makeKeyAndOrderFront(nil)
-        self.window = newWindow
-        self.currentPackID = pack.id
+        window = newWindow
+        currentPackID = pack.id
     }
 
-    var hasWindow: Bool { window != nil }
+    var hasWindow: Bool {
+        window != nil
+    }
 
     func closeWindow() {
         let wasFromOverlay = openedFromOverlay

@@ -2,7 +2,6 @@
 import XCTest
 
 final class PackDependencyTests: XCTestCase {
-
     func testNoCyclicDependencies() {
         // Verify no pack A requires B which requires A
         var visited = Set<String>()
@@ -41,7 +40,7 @@ final class PackDependencyTests: XCTestCase {
     }
 
     func testPacksWithNoDependencies() {
-        let noDeps = PackRegistry.starterKit.filter { $0.dependencies.isEmpty }
+        let noDeps = PackRegistry.starterKit.filter(\.dependencies.isEmpty)
         XCTAssertTrue(noDeps.contains { $0.id == "com.keypath.pack.caps-lock-to-escape" })
         XCTAssertTrue(noDeps.contains { $0.id == "com.keypath.pack.vim-navigation" })
         XCTAssertTrue(noDeps.contains { $0.id == "com.keypath.pack.home-row-mods" })
@@ -67,7 +66,9 @@ final class PackDependencyTests: XCTestCase {
     @MainActor
     func testNoRequiredDeps_UnmetRequirementsEmpty() {
         var collections = RuleCollectionCatalog().defaultCollections()
-        for i in collections.indices { collections[i].isEnabled = false }
+        for i in collections.indices {
+            collections[i].isEnabled = false
+        }
         if let idx = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.windowSnapping }) {
             collections[idx].isEnabled = true
         }
@@ -84,7 +85,9 @@ final class PackDependencyTests: XCTestCase {
     @MainActor
     func testEnhancedByDeps_NotReportedAsUnmet() {
         var collections = RuleCollectionCatalog().defaultCollections()
-        for i in collections.indices { collections[i].isEnabled = false }
+        for i in collections.indices {
+            collections[i].isEnabled = false
+        }
 
         // Window Snapping is enhancedBy Vim Nav, not requires
         let unmet = PackDependencyChecker.unmetRequirements(

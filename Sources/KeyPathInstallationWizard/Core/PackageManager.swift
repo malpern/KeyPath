@@ -7,6 +7,7 @@ import Security
 /// Implements the package management integration identified in the installer improvement analysis
 public class PackageManager {
     public init() {}
+
     // MARK: - Code Signing Cache
 
     /// Cache for code signing status to avoid expensive Security framework calls

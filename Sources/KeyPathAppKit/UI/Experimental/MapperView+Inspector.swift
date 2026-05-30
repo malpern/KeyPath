@@ -75,7 +75,6 @@ struct MapperInspectorPanel: View {
         viewModel.inputSequence?.keys.first?.baseKey.lowercased()
     }
 
-    @ViewBuilder
     private var packSuggestionsSection: some View {
         VStack(alignment: .leading, spacing: 2) {
             ForEach(packSuggestions) { pack in

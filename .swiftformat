@@ -1,8 +1,21 @@
 # SwiftFormat Configuration
-# Match SwiftLint rules to avoid conflicts
+# Match SwiftLint rules to avoid conflicts.
+#
+# Pinned tool version: swiftformat 0.61.1 (see mise.toml). master is kept as a
+# fixed-point for this version + this config, so a local run produces no churn.
+# Run: `swiftformat Sources Tests` (swiftversion is set below, so no CLI flag needed).
 
-# Disable trailing commas (SwiftLint doesn't allow them in collection literals)
---disable trailingCommas
+# Target Swift version — set here so CI's `swiftformat --lint` and local runs agree
+# (CI previously omitted it, which let version-dependent rules drift).
+--swiftversion 5.9
+
+# Disabled rules:
+# - trailingCommas: SwiftLint doesn't allow them in collection literals.
+# - redundantSendable: keep explicit `Sendable` as intent documentation; we don't
+#   want a formatter silently dropping conformances (even where implicit).
+# - noForceUnwrapInTests: this is a semantic rewrite (force-unwrap → `try #require`,
+#   adds `throws`), not formatting — out of scope for a mechanical format pass.
+--disable trailingCommas,redundantSendable,noForceUnwrapInTests
 
 # Match SwiftLint preferences
 --indent 4

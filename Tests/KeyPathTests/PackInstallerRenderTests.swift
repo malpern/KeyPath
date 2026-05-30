@@ -5,7 +5,6 @@ import XCTest
 /// Pack model computed properties. These don't require RuleCollectionsManager.
 @MainActor
 final class PackInstallerRenderTests: XCTestCase {
-
     // MARK: - renderBindings: simple remap (no holdOutput)
 
     func testRenderBindings_SimpleRemap_ProducesKeystrokeAction() {

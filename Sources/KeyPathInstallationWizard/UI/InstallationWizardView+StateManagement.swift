@@ -4,10 +4,10 @@ import KeyPathPermissions
 import KeyPathWizardCore
 import SwiftUI
 
-extension InstallationWizardView {
+public extension InstallationWizardView {
     // MARK: - State Management
 
-    public func setupWizard() async {
+    func setupWizard() async {
         AppLogger.shared.log("🔍 [Wizard] Setting up wizard with new architecture")
 
         // Always reset navigation state for fresh run
@@ -56,7 +56,7 @@ extension InstallationWizardView {
         }
     }
 
-    public func performInitialStateCheck(retryAllowed: Bool = true) async {
+    func performInitialStateCheck(retryAllowed: Bool = true) async {
         // Check if user has already closed wizard
         guard !Task.isCancelled else {
             AppLogger.shared.log("🔍 [Wizard] Initial state check cancelled - wizard closing")
@@ -133,7 +133,7 @@ extension InstallationWizardView {
             let permSnapshot = await PermissionOracle.shared.forceRefresh()
             let permissionsStillUnknown =
                 permSnapshot.kanata.accessibility == .unknown
-                || permSnapshot.kanata.inputMonitoring == .unknown
+                    || permSnapshot.kanata.inputMonitoring == .unknown
             if permissionsStillUnknown {
                 AppLogger.shared.log("🔍 [Wizard] Permissions still unverified — staying on summary to avoid skipping permission pages")
                 Task { @MainActor in
@@ -167,7 +167,7 @@ extension InstallationWizardView {
         }
     }
 
-    public func monitorSystemState() async {
+    func monitorSystemState() async {
         AppLogger.shared.log("🟡 [MONITOR] System state monitoring started with 60s interval")
 
         // Smart monitoring: Only poll when needed, much less frequently
@@ -193,13 +193,13 @@ extension InstallationWizardView {
     }
 
     /// Determine if background polling is needed
-    public func shouldPerformBackgroundPolling() -> Bool {
+    func shouldPerformBackgroundPolling() -> Bool {
         // Only poll on summary page where overview is shown
         stateMachine.currentPage == .summary
     }
 
     /// Perform targeted state check based on current page
-    public func performSmartStateCheck(retryAllowed: Bool = true) async {
+    func performSmartStateCheck(retryAllowed: Bool = true) async {
         // Check if force closing is in progress
         guard !isForceClosing else {
             AppLogger.shared.log("🔍 [Wizard] Smart state check blocked - force closing in progress")

@@ -5,7 +5,9 @@ struct KeyCodeSuggestion: Identifiable, Hashable {
     let canonicalName: String
     let preferredLabel: String
 
-    var id: UInt16 { keyCode }
+    var id: UInt16 {
+        keyCode
+    }
 
     var displayText: String {
         "\(keyCode)  \(preferredLabel)  \(canonicalName)"
@@ -109,7 +111,7 @@ enum KeySuggestionCatalog {
         }
     }
 
-    // Sourced from KeyPath's canonical macOS keycode mapping used by the overlay/simulator.
+    /// Sourced from KeyPath's canonical macOS keycode mapping used by the overlay/simulator.
     private static let macOSKeycodes: [(UInt16, String)] = [
         (0, "a"), (1, "s"), (2, "d"), (3, "f"), (4, "h"), (5, "g"),
         (6, "z"), (7, "x"), (8, "c"), (9, "v"), (10, "intlbackslash"), (11, "b"),

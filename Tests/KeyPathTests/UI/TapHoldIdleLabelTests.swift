@@ -3,7 +3,6 @@ import KeyPathCore
 import XCTest
 
 final class TapHoldIdleLabelTests: XCTestCase {
-
     @MainActor
     func testUpdateTapHoldIdleLabelsFromEnabledCollection() {
         let vm = KeyboardVisualizationViewModel()

@@ -53,7 +53,6 @@ private final class SendableBox<T>: @unchecked Sendable {
 
 @Suite("NotificationObserverManager Tests")
 struct NotificationObserverManagerTests {
-
     // MARK: - Observer Count
 
     @Test("initial observerCount is zero")

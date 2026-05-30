@@ -430,7 +430,6 @@ struct ActionDispatcherSystemWindowTests {
         }
     }
 
-
     @Test("Dispatches repair helper action")
     @MainActor
     func dispatchesRepairHelperAction() throws {

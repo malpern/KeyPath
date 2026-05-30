@@ -6,7 +6,7 @@ import Foundation
 ///
 /// Extracted as a value type so the decision logic is unit-testable without
 /// instantiating singletons or hitting real system services.
-struct VHIDSafetyCheck {
+enum VHIDSafetyCheck {
     /// Returns `true` when kanata is running but the VirtualHID daemon is not healthy.
     /// Callers should emergency-stop kanata when this returns `true`.
     static func shouldEmergencyStop(kanataRunning: Bool, vhidDaemonHealthy: Bool) -> Bool {

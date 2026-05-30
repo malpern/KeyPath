@@ -37,4 +37,3 @@ struct MarkdownHelpSheet: View {
         .background(Color(NSColor.windowBackgroundColor))
     }
 }
-

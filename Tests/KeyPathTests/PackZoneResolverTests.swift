@@ -2,7 +2,6 @@
 import XCTest
 
 final class PackZoneResolverTests: XCTestCase {
-
     // MARK: - activeZoneColors
 
     func testActiveZoneColors_NoInstalledPacks_ReturnsEmpty() {

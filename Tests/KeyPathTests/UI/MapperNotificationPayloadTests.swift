@@ -5,7 +5,6 @@ import XCTest
 /// Tests for the outputKey vs displayLabel distinction in mapper notification payloads.
 /// This is a critical data flow boundary — mixing these up causes config validation errors.
 final class MapperNotificationPayloadTests: XCTestCase {
-
     // MARK: - outputKey Resolution
 
     func testOutputKeyPrefersLayerInfoOutputKey() {
@@ -104,11 +103,11 @@ final class MapperNotificationPayloadTests: XCTestCase {
     /// Mirrors the outputKey resolution logic from LiveKeyboardOverlayController+KeyClickHandling
     private func resolveOutputKey(inputKey: String, layerInfo: LayerKeyInfo?) -> String {
         if let simpleOutput = layerInfo?.outputKey {
-            return simpleOutput
+            simpleOutput
         } else if let displayLabel = layerInfo?.displayLabel, !displayLabel.isEmpty {
-            return displayLabel
+            displayLabel
         } else {
-            return inputKey
+            inputKey
         }
     }
 

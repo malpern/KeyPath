@@ -71,9 +71,9 @@ final class KindaVimStrategyMonitor {
         // frontmost and the real user app hasn't re-activated yet.
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(1))
-            guard let self, self.monitoringCount > 0 else { return }
+            guard let self, monitoringCount > 0 else { return }
             let current = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-            self.handleFrontmostAppChanged(bundleID: current)
+            handleFrontmostAppChanged(bundleID: current)
         }
     }
 

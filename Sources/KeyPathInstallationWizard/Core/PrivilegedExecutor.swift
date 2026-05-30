@@ -225,7 +225,7 @@ public final class PrivilegedExecutor: @unchecked Sendable {
 
 // MARK: - Convenience Extensions
 
-extension PrivilegedExecutor {
+public extension PrivilegedExecutor {
     /// Execute multiple commands in sequence with administrator privileges.
     /// All commands are joined with && and executed in a single privileged session.
     ///
@@ -233,7 +233,7 @@ extension PrivilegedExecutor {
     ///   - commands: Array of shell commands to execute
     ///   - prompt: The prompt to show in the admin dialog
     /// - Returns: Tuple of (success, output)
-    public func executeWithPrivileges(commands: [String], prompt: String) -> (success: Bool, output: String) {
+    func executeWithPrivileges(commands: [String], prompt: String) -> (success: Bool, output: String) {
         let combinedCommand = commands.joined(separator: " && ")
         return executeWithPrivileges(command: combinedCommand, prompt: prompt)
     }
@@ -245,7 +245,7 @@ extension PrivilegedExecutor {
     ///   - service: The service identifier or path
     ///   - prompt: The prompt to show in the admin dialog
     /// - Returns: Tuple of (success, output)
-    public func launchctl(_ subcommand: String, service: String, prompt: String) -> (
+    func launchctl(_ subcommand: String, service: String, prompt: String) -> (
         success: Bool, output: String
     ) {
         let command = "/bin/launchctl \(subcommand) \(service)"
@@ -259,7 +259,7 @@ extension PrivilegedExecutor {
     ///   - destination: Destination file path
     ///   - prompt: The prompt to show in the admin dialog
     /// - Returns: Tuple of (success, output)
-    public func copyFile(from source: String, to destination: String, prompt: String) -> (
+    func copyFile(from source: String, to destination: String, prompt: String) -> (
         success: Bool, output: String
     ) {
         let command = "/bin/cp '\(source)' '\(destination)'"
@@ -272,7 +272,7 @@ extension PrivilegedExecutor {
     ///   - path: Path to the file to remove
     ///   - prompt: The prompt to show in the admin dialog
     /// - Returns: Tuple of (success, output)
-    public func removeFile(at path: String, prompt: String) -> (success: Bool, output: String) {
+    func removeFile(at path: String, prompt: String) -> (success: Bool, output: String) {
         let command = "/bin/rm -f '\(path)'"
         return executeWithPrivileges(command: command, prompt: prompt)
     }
@@ -283,7 +283,7 @@ extension PrivilegedExecutor {
     ///   - path: Path to the directory to create
     ///   - prompt: The prompt to show in the admin dialog
     /// - Returns: Tuple of (success, output)
-    public func createDirectory(at path: String, prompt: String) -> (success: Bool, output: String) {
+    func createDirectory(at path: String, prompt: String) -> (success: Bool, output: String) {
         let command = "/bin/mkdir -p '\(path)'"
         return executeWithPrivileges(command: command, prompt: prompt)
     }
@@ -295,7 +295,7 @@ extension PrivilegedExecutor {
     ///   - signal: Signal to send (default: 15 / SIGTERM)
     ///   - prompt: The prompt to show in the admin dialog
     /// - Returns: Tuple of (success, output)
-    public func killProcess(pid: Int32, signal: Int32 = 15, prompt: String) -> (
+    func killProcess(pid: Int32, signal: Int32 = 15, prompt: String) -> (
         success: Bool, output: String
     ) {
         let command = "/bin/kill -\(signal) \(pid)"

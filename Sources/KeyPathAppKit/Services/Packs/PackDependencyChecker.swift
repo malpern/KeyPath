@@ -6,7 +6,6 @@ import Foundation
 /// if they're met. No graph traversal needed for ~15 packs with 1-2 depth chains.
 @MainActor
 enum PackDependencyChecker {
-
     /// Returns unmet hard requirements for a specific pack.
     static func unmetRequirements(
         for packID: String,
@@ -106,13 +105,12 @@ enum PackDependencyChecker {
         guard let targetPack = PackRegistry.pack(id: dep.packID) else { return nil }
 
         // Check if the target pack is enabled
-        let isTargetEnabled: Bool
-        if targetPack.visualOnly {
-            isTargetEnabled = installedPackIDs.contains(targetPack.id)
+        let isTargetEnabled: Bool = if targetPack.visualOnly {
+            installedPackIDs.contains(targetPack.id)
         } else if let collectionID = targetPack.associatedCollectionID {
-            isTargetEnabled = enabledIDs.contains(collectionID)
+            enabledIDs.contains(collectionID)
         } else {
-            isTargetEnabled = false
+            false
         }
 
         guard isTargetEnabled else {

@@ -167,7 +167,7 @@ class MainAppStateController {
                         AppLogger.shared.error(
                             "🚨 [MainAppStateController] Critical error detected - triggering immediate revalidation"
                         )
-                        await self.revalidate()
+                        await revalidate()
                     }
                 }
             }

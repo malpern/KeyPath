@@ -117,10 +117,10 @@ public class WizardStateMachine {
     public func autoNavigateIfNeeded(for state: WizardSystemState, issues: [WizardIssue]) async {
         guard !userInteractionMode else { return }
 
-        let recommended = WizardRouter.route(
+        let recommended = await WizardRouter.route(
             state: state,
             issues: issues,
-            helperInstalled: await WizardDependencies.helperManager?.isHelperInstalled() ?? false,
+            helperInstalled: WizardDependencies.helperManager?.isHelperInstalled() ?? false,
             helperNeedsApproval: WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
         )
 
@@ -153,9 +153,17 @@ public class WizardStateMachine {
         return curIdx >= lastIdx
     }
 
-    public func isCurrentPage(_ page: WizardPage) -> Bool { currentPage == page }
-    public var canNavigateBack: Bool { currentPage != .summary }
-    public var canNavigateForward: Bool { true }
+    public func isCurrentPage(_ page: WizardPage) -> Bool {
+        currentPage == page
+    }
+
+    public var canNavigateBack: Bool {
+        currentPage != .summary
+    }
+
+    public var canNavigateForward: Bool {
+        true
+    }
 
     public var previousPageInSequence: WizardPage? {
         let order = customSequence ?? WizardPage.orderedPages

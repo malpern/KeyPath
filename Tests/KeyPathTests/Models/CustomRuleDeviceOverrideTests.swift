@@ -42,7 +42,7 @@ final class CustomRuleDeviceOverrideTests: XCTestCase {
         let mapping = rule.asKeyMapping()
 
         XCTAssertNotNil(mapping.deviceOverrides?.first?.behavior)
-        if case .dualRole(let loaded) = mapping.deviceOverrides?.first?.behavior {
+        if case let .dualRole(loaded) = mapping.deviceOverrides?.first?.behavior {
             XCTAssertEqual(loaded.holdAction, .keystroke(key: "lctl"))
         } else {
             XCTFail("Expected dualRole behavior")
@@ -123,7 +123,7 @@ final class CustomRuleDeviceOverrideTests: XCTestCase {
 
         XCTAssertEqual(decoded, original)
         XCTAssertEqual(decoded.deviceOverrides?.count, 1)
-        if case .dualRole(let loaded) = decoded.deviceOverrides?.first?.behavior {
+        if case let .dualRole(loaded) = decoded.deviceOverrides?.first?.behavior {
             XCTAssertEqual(loaded.holdAction, .keystroke(key: "lctl"))
         } else {
             XCTFail("Expected dualRole behavior after round-trip")

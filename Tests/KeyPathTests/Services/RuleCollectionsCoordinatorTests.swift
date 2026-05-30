@@ -39,7 +39,6 @@ private func cleanUp(_ url: URL) {
 @Suite("RuleCollectionsCoordinator — Configuration")
 @MainActor
 struct RuleCollectionsCoordinatorConfigTests {
-
     @Test("unconfigured coordinator has no-op callbacks")
     func unconfiguredCoordinatorHasNoOpCallbacks() async throws {
         let (manager, tempDir) = try makeTestManager()
@@ -88,7 +87,6 @@ struct RuleCollectionsCoordinatorConfigTests {
 @Suite("RuleCollectionsCoordinator — Toggle Operations")
 @MainActor
 struct RuleCollectionsCoordinatorToggleTests {
-
     @Test("toggleRuleCollection enables a disabled collection")
     func toggleEnablesDisabled() async throws {
         let (manager, tempDir) = try makeTestManager()
@@ -172,7 +170,6 @@ struct RuleCollectionsCoordinatorToggleTests {
 @Suite("RuleCollectionsCoordinator — Batch Operations")
 @MainActor
 struct RuleCollectionsCoordinatorBatchTests {
-
     @Test("batchEnableCollections enables multiple collections")
     func batchEnablesMultiple() async throws {
         let (manager, tempDir) = try makeTestManager()
@@ -230,7 +227,6 @@ struct RuleCollectionsCoordinatorBatchTests {
 @Suite("RuleCollectionsCoordinator — Custom Rules")
 @MainActor
 struct RuleCollectionsCoordinatorCustomRuleTests {
-
     @Test("makeCustomRule creates rule with correct input and output")
     func makeCustomRuleCorrectFields() throws {
         let (manager, tempDir) = try makeTestManager()
@@ -318,7 +314,6 @@ struct RuleCollectionsCoordinatorCustomRuleTests {
 @Suite("RuleCollectionsCoordinator — Read-Only Access")
 @MainActor
 struct RuleCollectionsCoordinatorReadOnlyTests {
-
     @Test("ruleCollections returns manager's collections matching catalog count")
     func ruleCollectionsMatchesCatalog() throws {
         let (manager, tempDir) = try makeTestManager()

@@ -6,7 +6,6 @@ import XCTest
 /// that turn collection configs (HRM, layer toggles, chords, auto-shift, tap-hold pickers)
 /// into concrete KeyMapping arrays consumed by the config renderer.
 final class KanataConfigMappingGeneratorTests: XCTestCase {
-
     // MARK: - generateHomeRowModsMappings
 
     func testHRM_DefaultConfig_ProducesMappingsForAllEnabledKeys() {

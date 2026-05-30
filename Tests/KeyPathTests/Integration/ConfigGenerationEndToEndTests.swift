@@ -7,7 +7,6 @@ import XCTest
 /// verifying that critical kanata blocks appear correctly in generated configs.
 @MainActor
 final class ConfigGenerationEndToEndTests: XCTestCase {
-
     private func generateConfig(
         collections: [RuleCollection],
         customRules: [CustomRule] = []

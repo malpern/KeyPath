@@ -64,7 +64,7 @@ public struct PacksFacade: Sendable {
 
         if dryRun {
             var warnings: [String] = []
-            let installedIDs = Set(await InstalledPackTracker.shared.allInstalled().map(\.packID))
+            let installedIDs = await Set(InstalledPackTracker.shared.allInstalled().map(\.packID))
             let suggestions = PackDependencyChecker.suggestions(for: pack.id, installedPackIDs: installedIDs)
             for dep in suggestions {
                 let depName = PackRegistry.pack(id: dep.packID)?.name ?? dep.packID
@@ -87,7 +87,7 @@ public struct PacksFacade: Sendable {
         )
 
         var warnings: [String] = []
-        let installedIDs = Set(await InstalledPackTracker.shared.allInstalled().map(\.packID))
+        let installedIDs = await Set(InstalledPackTracker.shared.allInstalled().map(\.packID))
         let suggestions = PackDependencyChecker.suggestions(for: pack.id, installedPackIDs: installedIDs)
         for dep in suggestions {
             let depName = PackRegistry.pack(id: dep.packID)?.name ?? dep.packID
@@ -187,7 +187,9 @@ public struct PacksFacade: Sendable {
         if dryRun {
             let current = await PackInstaller.shared.quickSettings(for: pack.id)
             var merged = current
-            for (k, v) in settingValues { merged[k] = v }
+            for (k, v) in settingValues {
+                merged[k] = v
+            }
             return CLIPackInstallResult(
                 packID: pack.id,
                 packName: pack.name,
@@ -404,7 +406,9 @@ public struct AmbiguousPackMatch: Error, CustomStringConvertible {
 
 public struct CLIPackNotFound: Error, CustomStringConvertible {
     public let query: String
-    public var description: String { "No pack found matching \"\(query)\"" }
+    public var description: String {
+        "No pack found matching \"\(query)\""
+    }
 }
 
 public struct CLIPackSettingError: Error, CustomStringConvertible {
