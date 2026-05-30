@@ -185,6 +185,19 @@ extension RuleCollectionsManager {
                             userInfo: ["capabilities": capabilities]
                         )
                     }
+                },
+                onGrabStatus: { active, reason in
+                    // Authoritative keyboard-grab status from kanata (#625). Route to
+                    // RuntimeCoordinator, which owns the recovery guard + action.
+                    await MainActor.run {
+                        var userInfo: [String: Any] = ["active": active]
+                        if let reason { userInfo["reason"] = reason }
+                        NotificationCenter.default.post(
+                            name: .kanataGrabStatusChanged,
+                            object: nil,
+                            userInfo: userInfo
+                        )
+                    }
                 }
             )
         }

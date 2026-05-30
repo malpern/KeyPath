@@ -94,6 +94,15 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     // Core status tracking
     public var lastError: String?
     var lastWarning: String?
+    /// Single-flight guard for grab-failure auto-recovery (#625). A recovery is a
+    /// ~5s kill→restart sequence that itself produces more grab-status events;
+    /// without this, a burst of `active=false` events would launch overlapping
+    /// recoveries. MainActor isolation makes the check-and-set atomic.
+    private var isRecoveringGrab = false
+    /// True while `lastError` holds the grab-recovery give-up message (#625), so a
+    /// later authoritative grab success can clear exactly that error without
+    /// stomping an unrelated error someone else set in the meantime.
+    private var grabGiveUpErrorActive = false
     private var warningExpiryTask: Task<Void, Never>?
     var keyMappings: [KeyMapping] = []
     var currentLayerName: String = RuleCollectionLayer.base.displayName
@@ -484,6 +493,21 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                     if success {
                         NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
                     }
+                }
+            })
+
+            // Authoritative kanata grab status (#625): a grab failure means kanata
+            // is up but not remapping. Drive bounded auto-recovery off this signal.
+            notificationObserverTokens.append(NotificationCenter.default.addObserver(
+                forName: .kanataGrabStatusChanged,
+                object: nil,
+                queue: NotificationObserverManager.mainOperationQueue
+            ) { @Sendable [weak self] note in
+                guard let self else { return }
+                let active = note.userInfo?["active"] as? Bool ?? true
+                let reason = note.userInfo?["reason"] as? String
+                Task { @MainActor in
+                    await self.handleGrabStatusChanged(active: active, reason: reason)
                 }
             })
 
@@ -1196,6 +1220,92 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     }
 
     // MARK: - Recovery Operations (delegates to RecoveryCoordinator)
+
+    /// Pre-guard gate for a grab-status event (#625). Pure function so the
+    /// suppression rules are unit-testable without touching the real recovery action.
+    enum GrabRecoveryGate: Equatable, Sendable {
+        /// `active == true` — authoritative healthy grab; reset the recovery budget.
+        case recordSuccess
+        /// Benign `active=false` during an intentional stop — do nothing.
+        case suppressedDuringTransition
+        /// A recovery is already in flight — do nothing (single-flight).
+        case suppressedRecoveryInFlight
+        /// Genuine grab failure — consult the bounded guard and maybe recover.
+        case evaluate
+    }
+
+    nonisolated static func decideGrabRecoveryGate(
+        active: Bool,
+        isIntentionalTransition: Bool,
+        isRecovering: Bool
+    ) -> GrabRecoveryGate {
+        if active { return .recordSuccess }
+        if isIntentionalTransition { return .suppressedDuringTransition }
+        if isRecovering { return .suppressedRecoveryInFlight }
+        return .evaluate
+    }
+
+    /// React to an authoritative kanata `InputGrab` status (#625).
+    ///
+    /// `active == false` means kanata is up (process + TCP) but failed to seize the
+    /// keyboard — remapping is silently dead. Drive a bounded auto-recovery, gated so
+    /// it never fires on a benign `active=false` (intentional stop) and never overlaps
+    /// an in-flight recovery. `active == true` clears the recovery budget.
+    func handleGrabStatusChanged(active: Bool, reason: String?) async {
+        switch Self.decideGrabRecoveryGate(
+            active: active,
+            isIntentionalTransition: serviceLifecycleCoordinator.isIntentionalTransitionInProgress,
+            isRecovering: isRecoveringGrab
+        ) {
+        case .recordSuccess:
+            // Authoritative healthy grab → reset the episode budget so a future
+            // failure gets a fresh set of attempts.
+            await diagnosticsManager.recordGrabSuccess()
+            // If we'd previously given up and surfaced a persistent error, the grab
+            // is working again now — clear that stale message so the UI recovers.
+            if grabGiveUpErrorActive {
+                grabGiveUpErrorActive = false
+                lastError = nil
+                notifyStateChanged()
+            }
+
+        case .suppressedDuringTransition:
+            AppLogger.shared.log(
+                "🎛️ [RuntimeCoordinator] Grab inactive during an intentional transition — suppressing recovery (reason: \(reason ?? "none"))"
+            )
+
+        case .suppressedRecoveryInFlight:
+            AppLogger.shared.log("🎛️ [RuntimeCoordinator] Grab recovery already in flight — ignoring")
+
+        case .evaluate:
+            // Known limitation (#625): kanata only emits InputGrab on a transition or
+            // in reply to RequestInputGrab at connect — it does not re-emit a steady
+            // failure. So if the new kanata started by a recovery STILL fails to grab,
+            // its single post-restart `active=false` can land inside the lingering
+            // transition-grace / single-flight window and be suppressed, and the
+            // recovery loop won't auto-re-fire. This is not silent: the same store
+            // (KanataGrabStatusStore) feeds ServiceHealthChecker.resolveInputCaptureStatus,
+            // so the degraded state is still surfaced on the next health check. Robust
+            // post-recovery re-verification pairs with the part-1 deterministic restart
+            // (wait-for-exit before start), which is the follow-up PR.
+            switch await diagnosticsManager.recordGrabFailureAndDecideRecovery() {
+            case let .recover(attempt):
+                AppLogger.shared.warn(
+                    "🚨 [RuntimeCoordinator] kanata failed to grab the keyboard (reason: \(reason ?? "unknown")) — recovery attempt \(attempt), restarting"
+                )
+                isRecoveringGrab = true
+                defer { isRecoveringGrab = false }
+                await attemptKeyboardRecovery()
+            case let .giveUp(attempts):
+                AppLogger.shared.error(
+                    "❌ [RuntimeCoordinator] kanata still not grabbing the keyboard after \(attempts) recovery attempts — giving up (manual intervention / reboot likely needed)"
+                )
+                lastError = "Keyboard remapping is not active: kanata could not capture the keyboard after \(attempts) automatic recovery attempts. Try quitting other keyboard tools, then restart KeyPath."
+                grabGiveUpErrorActive = true
+                notifyStateChanged()
+            }
+        }
+    }
 
     func attemptKeyboardRecovery() async {
         await recoveryCoordinator.attemptKeyboardRecovery()

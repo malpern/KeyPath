@@ -344,6 +344,7 @@ actor KanataEventListener {
     private var tapDanceResolvedHandler: (@Sendable (KanataTapDanceResolution) async -> Void)?
     private var hrmTraceHandler: (@Sendable (KanataHrmTraceEvent) async -> Void)?
     private var capabilitiesUpdatedHandler: (@Sendable ([String]) async -> Void)?
+    private var grabStatusHandler: (@Sendable (_ active: Bool, _ reason: String?) async -> Void)?
     /// Capabilities advertised by Kanata in HelloOk (normalized to dash-case, e.g. "hold-activated").
     private var capabilities: Set<String> = []
     private var activeConnection: NWConnection?
@@ -367,6 +368,7 @@ actor KanataEventListener {
     ///   - onTapDanceResolved: Called when a tap-dance resolves to an action
     ///   - onHrmTrace: Called when an HRM trace decision event is received
     ///   - onCapabilitiesUpdated: Called when HelloOk capabilities are received
+    ///   - onGrabStatus: Called when an authoritative `InputGrab` status is received (#625)
     func start(
         port: Int,
         onLayerChange: @escaping @Sendable (String) async -> Void,
@@ -379,7 +381,8 @@ actor KanataEventListener {
         onChordResolved: (@Sendable (KanataChordResolution) async -> Void)? = nil,
         onTapDanceResolved: (@Sendable (KanataTapDanceResolution) async -> Void)? = nil,
         onHrmTrace: (@Sendable (KanataHrmTraceEvent) async -> Void)? = nil,
-        onCapabilitiesUpdated: (@Sendable ([String]) async -> Void)? = nil
+        onCapabilitiesUpdated: (@Sendable ([String]) async -> Void)? = nil,
+        onGrabStatus: (@Sendable (_ active: Bool, _ reason: String?) async -> Void)? = nil
     ) async {
         if self.port == port, listenTask != nil { return }
         await stop()
@@ -396,6 +399,7 @@ actor KanataEventListener {
         tapDanceResolvedHandler = onTapDanceResolved
         hrmTraceHandler = onHrmTrace
         capabilitiesUpdatedHandler = onCapabilitiesUpdated
+        grabStatusHandler = onGrabStatus
         AppLogger.shared.log("🌐 [EventListener] Starting event listener on port \(port)")
         listenTask = Task(priority: .background) { [weak self] in
             guard let self else { return }
@@ -421,6 +425,7 @@ actor KanataEventListener {
         tapDanceResolvedHandler = nil
         hrmTraceHandler = nil
         capabilitiesUpdatedHandler = nil
+        grabStatusHandler = nil
         capabilities.removeAll()
         isHrmTraceSubscribed = false
         isAwaitingHrmTraceSubscribeAck = false
@@ -725,6 +730,9 @@ actor KanataEventListener {
                 "🎛️ [EventListener] InputGrab active=\(status.active) devices=\(status.devices.count) reason=\(status.reason ?? "none")"
             )
             KanataGrabStatusStore.shared.record(status)
+            // Notify the recovery path (#625): active=false is an authoritative
+            // grab failure (up but not remapping); active=true clears it.
+            await grabStatusHandler?(status.active, status.reason)
             return
         }
 

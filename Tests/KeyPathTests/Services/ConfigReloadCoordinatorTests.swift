@@ -62,6 +62,12 @@ private final class MockDiagnosticsManager: @preconcurrency DiagnosticsManaging 
         connectionFailureCount = 0
     }
 
+    func recordGrabFailureAndDecideRecovery() async -> GrabRecoveryDecision {
+        .recover(attempt: 1)
+    }
+
+    func recordGrabSuccess() async {}
+
     func diagnoseFailure(exitCode _: Int32, output _: String) -> [KanataDiagnostic] {
         []
     }

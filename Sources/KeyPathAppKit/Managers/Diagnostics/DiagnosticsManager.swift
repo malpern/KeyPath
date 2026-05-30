@@ -30,6 +30,12 @@ protocol DiagnosticsManaging: Sendable {
     /// Record a VirtualHID connection success.
     func recordConnectionSuccess() async
 
+    /// Record a kanata input-grab failure and decide whether to recover (bounded). (#625)
+    func recordGrabFailureAndDecideRecovery() async -> GrabRecoveryDecision
+
+    /// Record that the keyboard grab is healthy again (resets grab-recovery attempts).
+    func recordGrabSuccess() async
+
     /// Diagnose Kanata failure
     func diagnoseFailure(exitCode: Int32, output: String) -> [KanataDiagnostic]
 
@@ -178,6 +184,14 @@ final class DiagnosticsManager: @preconcurrency DiagnosticsManaging { // @precon
 
     func recordConnectionSuccess() async {
         await healthMonitor.recordConnectionSuccess()
+    }
+
+    func recordGrabFailureAndDecideRecovery() async -> GrabRecoveryDecision {
+        await healthMonitor.recordGrabFailureAndDecideRecovery()
+    }
+
+    func recordGrabSuccess() async {
+        await healthMonitor.recordGrabSuccess()
     }
 
     func diagnoseFailure(exitCode: Int32, output: String) -> [KanataDiagnostic] {

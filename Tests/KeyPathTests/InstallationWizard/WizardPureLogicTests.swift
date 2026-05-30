@@ -335,12 +335,17 @@ final class WizardPureLogicTests: XCTestCase {
     }
 
     func test_inspect_inputCaptureNotReady_producesIMIssue() {
+        // Per #642, input-capture-not-ready maps to an Input Monitoring permission
+        // issue ONLY when the failure reason is a genuine built-in-keyboard permission
+        // problem. A grab failure (driver crash / another app) routes to the service
+        // page instead — covered by SystemInspectorInputCaptureTests.
         let context = makeContext(
             services: HealthStatus(
                 kanataRunning: true,
                 karabinerDaemonRunning: true,
                 vhidHealthy: true,
-                kanataInputCaptureReady: false
+                kanataInputCaptureReady: false,
+                kanataInputCaptureIssue: "kanata-cannot-open-built-in-keyboard"
             )
         )
         let (state, issues) = SystemInspector.inspect(context: context)
