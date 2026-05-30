@@ -31,6 +31,10 @@ What must be true at each phase boundary. The agent's job is to make these true 
 - [ ] PR exists on GitHub with summary and test plan
 - [ ] Every open issue addressed by this work has `Fixes #NNN` in the PR body
 
+## Required Status Checks
+
+`master` requires both **`build-and-test`** and **`code-quality`** (strict — branch must be up to date). `code-quality` enforces the swiftformat version pin and is gating (#649/#652). Docs-only PRs don't trigger `ci.yml` (it's `paths-ignore`'d); the `ci-docs.yml` companion reports both contexts as success so docs PRs aren't blocked (#650).
+
 ## After Babysitting
 
 - [ ] All CI checks green
