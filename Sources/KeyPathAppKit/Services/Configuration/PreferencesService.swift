@@ -264,15 +264,6 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
-    /// cdhash of the bundled kanata binary KeyPath last (re)started the daemon
-    /// with. Compared to the current bundled cdhash to detect a stale running
-    /// daemon after an upgrade/redeploy (#638). nil until first recorded.
-    var adoptedKanataCodeHash: String? {
-        didSet {
-            UserDefaults.standard.set(adoptedKanataCodeHash, forKey: Keys.adoptedKanataCodeHash)
-        }
-    }
-
     // MARK: - Leader Key Configuration
 
     /// Primary leader key preference (Space → Nav by default)
@@ -422,7 +413,6 @@ final class PreferencesService: @unchecked Sendable {
         static let neovimReferenceTopicsVersion = "KeyPath.Neovim.ReferenceTopicsVersion"
         static let keyLabelStyle = "KeyPath.Display.KeyLabelStyle"
         static let unmappedLayerKeyStyle = "KeyPath.Overlay.UnmappedLayerKeyStyle"
-        static let adoptedKanataCodeHash = "KeyPath.Kanata.AdoptedCodeHash"
         static let overlayHiddenHintShowCount = "KeyPath.Education.OverlayHiddenHintShowCount"
         static let overlaySuppressedBundleIDs = "KeyPath.Overlay.SuppressedBundleIDs"
     }
@@ -513,9 +503,6 @@ final class PreferencesService: @unchecked Sendable {
         let unmappedLayerKeyStyleString = UserDefaults.standard.string(forKey: Keys.unmappedLayerKeyStyle)
             ?? Defaults.unmappedLayerKeyStyle.rawValue
         unmappedLayerKeyStyle = UnmappedLayerKeyStyle(rawValue: unmappedLayerKeyStyleString) ?? Defaults.unmappedLayerKeyStyle
-
-        // Adopted kanata binary identity (#638)
-        adoptedKanataCodeHash = UserDefaults.standard.string(forKey: Keys.adoptedKanataCodeHash)
 
         // Testing preferences
         accessibilityTestMode =
