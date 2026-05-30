@@ -11,7 +11,7 @@ End-to-end process for shepherding code from initial request through to a clean 
 
 3. **Do the work** — edit code, iterate with the user.
 4. **Build** — `swift build` must pass before any commit.
-5. **Test** — `swift test` must pass (all 532+ tests). Never commit code that breaks tests.
+5. **Test** — `swift test` must pass (all 532+ tests). Never commit code that breaks tests. Iterate with `swift test --filter <area>` for speed; run the **full** suite once as the pre-push gate — the final full run is required, the repeated mid-iteration full runs are the waste.
 6. **Commit** — commit frequently as you work. Use descriptive messages. Include `Co-Authored-By` tag.
 
 ## Phase 2.5: Thermonuclear Review
@@ -32,6 +32,14 @@ End-to-end process for shepherding code from initial request through to a clean 
 13. **Resolve conflicts** — if master has moved ahead, `git fetch origin master && git merge origin/master`, resolve conflicts, commit the merge, push.
 14. **Re-check CI** — after any push, wait for all checks to go green again.
 15. **Repeat 11-14** until all checks pass and no unaddressed review comments remain.
+
+### Velocity — risk-tier the babysit (don't poll when you don't need to)
+
+Most PR clock-time is latency, not rigor. Cut the latency without dropping any gate:
+
+- **Risk-tier the merge.** *Mechanical / low-logic* PRs (formatting, dead-code removal with a green suite, docs, config-only) — once local build + full test + lint pass, push and `gh pr merge <n> --auto --squash`, then move on instead of sitting in a poll loop. *Logic / hot-path* PRs (runtime behavior, lifecycle, concurrency, FFI/syscalls, anything subtle) — keep the full manual babysit **and read every review comment**. **Never auto-merge a logic/hot-path PR:** review tools post real bugs as **non-blocking comments while the check still goes green** (e.g. an EPERM liveness bug that the `claude-review` check passed but a Codex comment caught — auto-merge would have shipped it).
+- **Parallelize independent PRs.** Open non-conflicting PRs together, let their CI overlap, merge each when green — don't run them strictly serially.
+- **Front-load review.** For substantive PRs, run `/code-review` locally *before* opening, with a runtime-reality lens ("what does this call actually return in the real root/unprivileged deployment?").
 
 ## Phase 5: Merge
 
