@@ -117,6 +117,11 @@ final class ServiceLifecycleCoordinator {
             }
 
             await AppContextService.shared.start()
+            // Record that the running daemon now matches the binary we bundle, so
+            // a later launch can detect when an upgrade left it stale (#638).
+            if let bundled = KanataBinaryIdentity.bundledCodeHash() {
+                await MainActor.run { PreferencesService.shared.adoptedKanataCodeHash = bundled }
+            }
             onError?(nil)
             onWarning?(nil)
             onStateChanged?()
@@ -156,6 +161,62 @@ final class ServiceLifecycleCoordinator {
         let stopped = await stopKanata(reason: "\(reason) (stop for restart)")
         guard stopped else { return false }
         return await startKanata(reason: "\(reason) (restart)")
+    }
+
+    /// Ensure a running kanata daemon is the binary KeyPath currently bundles.
+    ///
+    /// A daemon can outlive a KeyPath upgrade/redeploy and keep running stale
+    /// kanata code (health checks only see it alive). When the bundled cdhash
+    /// differs from what we last adopted — including the first run with no record,
+    /// which covers an already-running older daemon — restart it so it adopts the
+    /// new binary. The cdhash is stable across the deploy's re-sign step, so a
+    /// Swift-only redeploy doesn't bounce kanata. Call only when kanata is already
+    /// running; `startKanata` records adoption on every KeyPath-initiated start.
+    ///
+    /// Adopting a newer binary is an optimization — it must NEVER sacrifice a
+    /// working keyboard. `restartKanata` stops before it starts, so we only act
+    /// when we're confident the start will succeed: the running daemon is our own
+    /// SMAppService daemon (don't fight an external/homebrew kanata), and the
+    /// VirtualHID daemon (the main reason `startKanata` fails) is healthy.
+    /// Otherwise we leave the working-but-stale daemon alone and retry on a later
+    /// launch — a stale daemon is harmless (features capability-gate gracefully).
+    @discardableResult
+    func adoptBundledKanataIfStale() async -> Bool {
+        guard !TestEnvironment.isRunningTests else { return false }
+        guard let bundled = KanataBinaryIdentity.bundledCodeHash() else {
+            AppLogger.shared.log("⚠️ [Service] Bundled kanata cdhash unavailable — skipping binary adopt check (#638)")
+            return false
+        }
+        let adopted = await MainActor.run { PreferencesService.shared.adoptedKanataCodeHash }
+        guard KanataBinaryIdentity.shouldAdoptBundled(adopted: adopted, bundled: bundled) else {
+            return false
+        }
+
+        // Only adopt our own SMAppService daemon — restarting won't kill an
+        // external kanata, so we'd just spawn a second process contending for the
+        // keyboard.
+        let managementState = await KanataDaemonManager.shared.refreshManagementStateInternal()
+        guard managementState == .smappserviceActive else {
+            AppLogger.shared.log("⏭️ [Service] Skipping kanata adopt — not our SMAppService daemon (state=\(managementState)) (#638)")
+            return false
+        }
+        // Don't stop a working kanata unless the restart's main precondition holds.
+        let vhidHealthy = await ServiceHealthChecker.shared.isServiceHealthy(
+            serviceID: ServiceHealthChecker.vhidDaemonServiceID
+        )
+        guard vhidHealthy else {
+            AppLogger.shared.log("⏭️ [Service] Skipping kanata adopt — VirtualHID not healthy; won't risk a working keyboard (#638)")
+            return false
+        }
+
+        AppLogger.shared.log(
+            "🔁 [Service] Running kanata predates bundled binary (adopted=\(adopted ?? "none") bundled=\(bundled)) — restarting to adopt"
+        )
+        let ok = await restartKanata(reason: "adopt updated kanata binary")
+        if !ok {
+            AppLogger.shared.error("❌ [Service] kanata adopt restart failed — will retry on next start/launch")
+        }
+        return ok
     }
 
     func isInTransientRuntimeStartupWindow() async -> Bool {
