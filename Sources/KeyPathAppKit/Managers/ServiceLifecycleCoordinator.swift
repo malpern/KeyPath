@@ -30,6 +30,46 @@ final class ServiceLifecycleCoordinator {
     private let kanataDaemonService: KanataDaemonService
     private let recoveryCoordinator: RecoveryCoordinator
 
+    // MARK: - Wait-for-exit test seams (#625 part-1)
+
+    // Test seams for the deterministic wait-for-exit routine. Without these, the
+    // polling loops would spawn real `pgrep` (which deadlocks under parallel test
+    // runs — see CLAUDE.md), probe a real TCP port, and sleep real time. Tests
+    // inject deterministic closures; production always uses the real subprocess /
+    // syscall / TCP probe. DEBUG-only and nil in production.
+    #if DEBUG
+        /// Replaces `SubprocessRunner.shared.pgrep`. Returns matching PIDs for a name.
+        nonisolated(unsafe) static var testPgrepProvider: ((String) -> [pid_t])?
+        /// Replaces `kill(pid, 0)`. Returns `true` when the process is still alive.
+        nonisolated(unsafe) static var testLivenessProbe: ((pid_t) -> Bool)?
+        /// Replaces `kill(pid, signal)` for SIGTERM/SIGKILL so tests with synthetic PIDs
+        /// never signal a real, unrelated process on the machine.
+        nonisolated(unsafe) static var testSignal: ((pid_t, Int32) -> Void)?
+        /// Replaces `TCPProbe.probe`. Returns `true` when something is listening.
+        nonisolated(unsafe) static var testTCPProbe: ((Int, Int) -> Bool)?
+        /// Replaces `Task.sleep` in the polling loops so tests never wait real time.
+        nonisolated(unsafe) static var testSleep: ((Duration) async -> Void)?
+    #endif
+
+    /// Timing for the stop→start wait-for-exit (#625 part-1). Bounds are expressed in
+    /// milliseconds so poll counts derive trivially and stay deterministic when the
+    /// sleep seam is a no-op (a wall-clock deadline would never advance under that seam).
+    private enum WaitForExitTiming {
+        static let pollIntervalMs = 100
+        static let processExitGraceMs = 2000 // SIGTERM → SIGKILL window
+        static let portReleaseTimeoutMs = 2000 // after processes confirmed dead
+        static let postKillConfirmMs = 500 // brief confirm-gone poll after SIGKILL
+        static let tcpProbeTimeoutMs = 150
+
+        static var pollInterval: Duration {
+            .milliseconds(pollIntervalMs)
+        }
+
+        static func pollCount(forMs ms: Int) -> Int {
+            max(1, ms / pollIntervalMs)
+        }
+    }
+
     /// Mutable flag shared with RuntimeCoordinator to track in-progress start attempts.
     var isStartingKanata = false
     private var lastStartAttemptAt: Date?
@@ -131,7 +171,7 @@ final class ServiceLifecycleCoordinator {
             return false
         }
 
-        await killOrphanedKanataProcesses()
+        await waitForKanataExitBeforeStart()
 
         do {
             lastStartAttemptAt = Date()
@@ -291,26 +331,128 @@ final class ServiceLifecycleCoordinator {
 
     // MARK: - Private
 
-    /// Kill orphaned kanata-launcher and kanata processes that aren't managed by
-    /// the current LaunchDaemon, so the new daemon can bind the TCP port.
-    private func killOrphanedKanataProcesses() async {
+    /// Terminate any orphaned `kanata-launcher` / `kanata` processes and wait until
+    /// they are fully gone AND the TCP port is released, BEFORE the new LaunchDaemon
+    /// registers (#625 part-1 — "wait-for-exit before start").
+    ///
+    /// The old kanata holds the exclusive keyboard grab and TCP port until it actually
+    /// exits, and `SMAppService.unregister()` returns before the OS finishes tearing the
+    /// process down. Registering a new kanata while the old one lingers is the stop→start
+    /// race that produces the silent "degraded" state (process up, but never grabbed the
+    /// keyboard). Waiting here makes the transition deterministic.
+    ///
+    /// Bounded: on timeout we log a warning and proceed anyway rather than failing the
+    /// start — leaving the user with no remapping would be worse, and the #625 grab
+    /// auto-recovery is the backstop for any residual degraded case.
+    func waitForKanataExitBeforeStart() async {
         let processNames = ["kanata-launcher", "kanata"]
+        var killedAny = false
+
         for name in processNames {
-            do {
-                let pids = await SubprocessRunner.shared.pgrep(name)
-                for pid in pids {
-                    AppLogger.shared.log("🧹 [Service] Killing orphaned \(name) (PID \(pid)) before LaunchDaemon start")
-                    kill(pid, SIGTERM)
+            let pids = await pgrepMatches(name)
+            guard !pids.isEmpty else { continue }
+            killedAny = true
+
+            for pid in pids {
+                AppLogger.shared.log("🧹 [Service] Terminating orphaned \(name) (PID \(pid)) before LaunchDaemon start")
+                sendSignal(pid, SIGTERM)
+            }
+
+            // Poll until the processes exit; escalate to SIGKILL past the grace window.
+            let survivors = await waitForProcessesGone(pids, withinMs: WaitForExitTiming.processExitGraceMs)
+            for pid in survivors {
+                AppLogger.shared.warn("⚠️ [Service] \(name) (PID \(pid)) did not exit within grace — SIGKILL")
+                sendSignal(pid, SIGKILL)
+            }
+            if !survivors.isEmpty {
+                let stillAlive = await waitForProcessesGone(survivors, withinMs: WaitForExitTiming.postKillConfirmMs)
+                if !stillAlive.isEmpty {
+                    AppLogger.shared.warn("⚠️ [Service] \(name) PIDs \(stillAlive) still alive after SIGKILL — proceeding anyway")
                 }
-                if !pids.isEmpty {
-                    try? await Task.sleep(for: .milliseconds(500))
-                    for pid in pids where kill(pid, 0) == 0 {
-                        kill(pid, SIGKILL)
-                    }
-                }
-            } catch {
-                // pgrep not finding matches is fine
             }
         }
+
+        // Only wait on the TCP port if we actually killed something. A clean machine has
+        // nothing of ours holding the port, so the common first-start path adds no latency.
+        if killedAny {
+            await waitForPortReleased()
+        }
+    }
+
+    /// Poll the given PIDs until none are alive or the budget elapses.
+    /// - Returns: PIDs still alive when the budget is exhausted (empty on success).
+    private func waitForProcessesGone(_ pids: [pid_t], withinMs budgetMs: Int) async -> [pid_t] {
+        var remaining = pids
+        let maxPolls = WaitForExitTiming.pollCount(forMs: budgetMs)
+        for _ in 0 ..< maxPolls {
+            remaining = remaining.filter { isProcessAlive($0) }
+            if remaining.isEmpty { return [] }
+            await waitSleep(WaitForExitTiming.pollInterval)
+        }
+        return remaining.filter { isProcessAlive($0) }
+    }
+
+    /// Poll the kanata TCP port until nothing is listening (the old process released it)
+    /// or the budget elapses. On timeout, warn and return — the caller proceeds anyway.
+    private func waitForPortReleased() async {
+        let port = PreferencesService.shared.tcpServerPort
+        let maxPolls = WaitForExitTiming.pollCount(forMs: WaitForExitTiming.portReleaseTimeoutMs)
+        for poll in 0 ..< maxPolls {
+            let listening = await probePort(port, timeoutMs: WaitForExitTiming.tcpProbeTimeoutMs)
+            if !listening { return }
+            if poll < maxPolls - 1 { await waitSleep(WaitForExitTiming.pollInterval) }
+        }
+        AppLogger.shared.warn(
+            "⚠️ [Service] TCP port \(port) still in use after wait-for-exit — proceeding anyway (grab auto-recovery is the backstop)"
+        )
+    }
+
+    // MARK: - Wait-for-exit primitives (test-seam aware)
+
+    private func pgrepMatches(_ name: String) async -> [pid_t] {
+        #if DEBUG
+            if let provider = Self.testPgrepProvider { return provider(name) }
+        #endif
+        // Never spawn a real `pgrep` under tests: it can deadlock under parallel runs
+        // (see CLAUDE.md) and would let synthetic PIDs reach a real `kill`. Tests that
+        // need orphan PIDs inject `testPgrepProvider`; everything else gets a clean slate.
+        if TestEnvironment.isRunningTests { return [] }
+        return await SubprocessRunner.shared.pgrep(name)
+    }
+
+    private nonisolated func isProcessAlive(_ pid: pid_t) -> Bool {
+        #if DEBUG
+            if let probe = Self.testLivenessProbe { return probe(pid) }
+        #endif
+        return kill(pid, 0) == 0
+    }
+
+    private nonisolated func sendSignal(_ pid: pid_t, _ signal: Int32) {
+        #if DEBUG
+            if let send = Self.testSignal {
+                send(pid, signal)
+                return
+            }
+        #endif
+        kill(pid, signal)
+    }
+
+    private func probePort(_ port: Int, timeoutMs: Int) async -> Bool {
+        #if DEBUG
+            if let probe = Self.testTCPProbe { return probe(port, timeoutMs) }
+        #endif
+        return await Task.detached(priority: .utility) {
+            TCPProbe.probe(port: port, timeoutMs: timeoutMs)
+        }.value
+    }
+
+    private func waitSleep(_ duration: Duration) async {
+        #if DEBUG
+            if let sleep = Self.testSleep {
+                await sleep(duration)
+                return
+            }
+        #endif
+        try? await Task.sleep(for: duration)
     }
 }
