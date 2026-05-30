@@ -266,7 +266,25 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         // Must return despite the port never freeing.
         await coordinator.waitForKanataExitBeforeStart()
 
-        XCTAssertEqual(tcpProbes, 20, "Port poll bounded to portReleaseTimeout / pollInterval = 20 probes")
+        let expectedProbes = ServiceLifecycleCoordinator.WaitForExitTiming.pollCount(
+            forMs: ServiceLifecycleCoordinator.WaitForExitTiming.portReleaseTimeoutMs
+        )
+        XCTAssertEqual(tcpProbes, expectedProbes, "Port poll bounded to portReleaseTimeout / pollInterval")
+    }
+
+    func testWaitForExit_bothProcessNamesHaveOrphans() async {
+        // Both `kanata-launcher` and `kanata` can have live instances; each family must be
+        // terminated, not just the first one found.
+        var terminated: Set<pid_t> = []
+        ServiceLifecycleCoordinator.testPgrepProvider = { name in name == "kanata-launcher" ? [4242] : [5252] }
+        ServiceLifecycleCoordinator.testLivenessProbe = { _ in false } // exit immediately
+        ServiceLifecycleCoordinator.testSignal = { pid, sig in if sig == SIGTERM { terminated.insert(pid) } }
+        ServiceLifecycleCoordinator.testTCPProbe = { _, _ in false }
+        ServiceLifecycleCoordinator.testSleep = { _ in }
+
+        await coordinator.waitForKanataExitBeforeStart()
+
+        XCTAssertEqual(terminated, [4242, 5252], "Both process families are terminated")
     }
 
     func testWaitForExit_safeToCallRepeatedlyAcrossRestarts() async {

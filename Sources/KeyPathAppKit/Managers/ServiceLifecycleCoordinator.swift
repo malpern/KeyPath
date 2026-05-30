@@ -54,7 +54,7 @@ final class ServiceLifecycleCoordinator {
     /// Timing for the stop→start wait-for-exit (#625 part-1). Bounds are expressed in
     /// milliseconds so poll counts derive trivially and stay deterministic when the
     /// sleep seam is a no-op (a wall-clock deadline would never advance under that seam).
-    private enum WaitForExitTiming {
+    enum WaitForExitTiming {
         static let pollIntervalMs = 100
         static let processExitGraceMs = 2000 // SIGTERM → SIGKILL window
         static let portReleaseTimeoutMs = 2000 // after processes confirmed dead
@@ -344,6 +344,10 @@ final class ServiceLifecycleCoordinator {
     /// Bounded: on timeout we log a warning and proceed anyway rather than failing the
     /// start — leaving the user with no remapping would be worse, and the #625 grab
     /// auto-recovery is the backstop for any residual degraded case.
+    ///
+    /// `internal` (not `private`) so tests can drive it directly: `startKanata`'s VHID
+    /// gates short-circuit in the test environment, so the seam-injected polling logic
+    /// is exercised by calling this method rather than through `startKanata`.
     func waitForKanataExitBeforeStart() async {
         let processNames = ["kanata-launcher", "kanata"]
         var killedAny = false
@@ -374,9 +378,9 @@ final class ServiceLifecycleCoordinator {
 
         // Only wait on the TCP port if we actually killed something. A clean machine has
         // nothing of ours holding the port, so the common first-start path adds no latency.
-        if killedAny {
-            await waitForPortReleased()
-        }
+        guard killedAny else { return }
+        await waitForPortReleased()
+        AppLogger.shared.log("✅ [Service] wait-for-exit complete — old kanata gone, proceeding with start")
     }
 
     /// Poll the given PIDs until none are alive or the budget elapses.
@@ -384,12 +388,14 @@ final class ServiceLifecycleCoordinator {
     private func waitForProcessesGone(_ pids: [pid_t], withinMs budgetMs: Int) async -> [pid_t] {
         var remaining = pids
         let maxPolls = WaitForExitTiming.pollCount(forMs: budgetMs)
-        for _ in 0 ..< maxPolls {
+        for poll in 0 ..< maxPolls {
             remaining = remaining.filter { isProcessAlive($0) }
             if remaining.isEmpty { return [] }
-            await waitSleep(WaitForExitTiming.pollInterval)
+            // Skip the sleep after the final poll so the budget stays ~budgetMs, not
+            // budgetMs + one extra interval.
+            if poll < maxPolls - 1 { await waitSleep(WaitForExitTiming.pollInterval) }
         }
-        return remaining.filter { isProcessAlive($0) }
+        return remaining
     }
 
     /// Poll the kanata TCP port until nothing is listening (the old process released it)
@@ -424,7 +430,13 @@ final class ServiceLifecycleCoordinator {
         #if DEBUG
             if let probe = Self.testLivenessProbe { return probe(pid) }
         #endif
-        return kill(pid, 0) == 0
+        if kill(pid, 0) == 0 { return true }
+        // kanata runs as a root LaunchDaemon while this app is unprivileged, so
+        // `kill(pid, 0)` returns EPERM ("exists, but you may not signal it") — that
+        // is still ALIVE. Only ESRCH means the process is actually gone. Treating
+        // EPERM as dead would make the wait return immediately for the very process
+        // (the root kanata) this fix exists to wait out.
+        return errno == EPERM
     }
 
     private nonisolated func sendSignal(_ pid: pid_t, _ signal: Int32) {
