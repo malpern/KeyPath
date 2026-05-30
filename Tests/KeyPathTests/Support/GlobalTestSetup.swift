@@ -25,6 +25,19 @@ enum TestSingletonReset {
         // so a value left by one test must not bleed into another's health check.
         KanataGrabStatusStore.shared.reset()
 
+        // Wait-for-exit seams (#625 part-1): safe defaults so any test reaching
+        // ServiceLifecycleCoordinator.startKanata neither spawns real `pgrep`
+        // (parallel-run deadlock risk) nor waits real time. Tests that exercise the
+        // wait-for-exit logic override these explicitly and rely on this reset to
+        // avoid bleeding into the next test.
+        #if DEBUG
+            ServiceLifecycleCoordinator.testPgrepProvider = { _ in [] }
+            ServiceLifecycleCoordinator.testLivenessProbe = nil
+            ServiceLifecycleCoordinator.testSignal = nil
+            ServiceLifecycleCoordinator.testTCPProbe = nil
+            ServiceLifecycleCoordinator.testSleep = { _ in }
+        #endif
+
         // TestEnvironment flags
         TestEnvironment.forceTestMode = false
     }
