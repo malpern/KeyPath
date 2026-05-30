@@ -23,6 +23,7 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         case recovery = "KP_RECOVERY"
         case permission = "KP_PERMISSION"
         case info = "KP_INFO"
+        case update = "KP_UPDATE"
     }
 
     /// Action identifiers
@@ -32,6 +33,7 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         case openInputMonitoring = "KP_ACTION_OPEN_INPUT_MONITORING"
         case openAccessibility = "KP_ACTION_OPEN_ACCESSIBILITY"
         case openApp = "KP_ACTION_OPEN_APP"
+        case restartToAdopt = "KP_ACTION_RESTART_ADOPT"
     }
 
     private init(preferences: PreferencesService = .shared) {
@@ -90,6 +92,9 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         let openApp = UNNotificationAction(
             identifier: Action.openApp.rawValue, title: "Open KeyPath", options: [.foreground]
         )
+        let restartToAdopt = UNNotificationAction(
+            identifier: Action.restartToAdopt.rawValue, title: "Restart Now", options: []
+        )
 
         let serviceFailure = UNNotificationCategory(
             identifier: Category.serviceFailure.rawValue,
@@ -107,8 +112,12 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
             identifier: Category.info.rawValue,
             actions: [openApp], intentIdentifiers: [], options: []
         )
+        let update = UNNotificationCategory(
+            identifier: Category.update.rawValue,
+            actions: [restartToAdopt, openApp], intentIdentifiers: [], options: []
+        )
 
-        center.setNotificationCategories([serviceFailure, recovery, permission, info])
+        center.setNotificationCategories([serviceFailure, recovery, permission, info, update])
     }
 
     // MARK: - Dedupe / Rate limiting
@@ -205,6 +214,22 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         )
     }
 
+    /// Notify the user that the running kanata daemon predates the bundled
+    /// binary (e.g. after a KeyPath upgrade) and a restart will apply the update
+    /// (#638). Detection-only by design — the user chooses when to restart via
+    /// the "Restart Now" action; KeyPath never auto-restarts a working keyboard.
+    /// Rate-limited to at most once a day; shown even when frontmost.
+    func notifyKanataUpdateReady() {
+        sendNotification(
+            title: "Keyboard engine update ready",
+            body: "Restart the keyboard service to apply the latest KeyPath update.",
+            category: .update,
+            key: "kanata.update.ready",
+            ttl: 86400,
+            allowWhenFrontmost: true
+        )
+    }
+
     func notifyRecoverySucceeded(_ message: String = "All set") {
         sendNotification(
             title: "KeyPath Ready",
@@ -250,6 +275,8 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
             NotificationCenter.default.post(name: .openInstallationWizard, object: nil)
         case Action.retryStart.rawValue:
             NotificationCenter.default.post(name: .retryStartService, object: nil)
+        case Action.restartToAdopt.rawValue:
+            NotificationCenter.default.post(name: .restartKanataForUpdate, object: nil)
         case Action.openInputMonitoring.rawValue:
             NotificationCenter.default.post(name: .openInputMonitoringSettings, object: nil)
         case Action.openAccessibility.rawValue:

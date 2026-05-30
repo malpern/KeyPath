@@ -1188,8 +1188,11 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         if context.services.kanataRunning {
             AppLogger.shared.info("✅ [Init] Kanata is already running - skipping initialization")
             // A daemon can outlive a KeyPath upgrade/redeploy and keep running
-            // stale kanata code; adopt the bundled binary if so (#638).
-            await serviceLifecycleCoordinator.adoptBundledKanataIfStale()
+            // stale kanata code. Notify the user to restart and adopt the bundled
+            // binary — never auto-restart a working keyboard (#638).
+            if await serviceLifecycleCoordinator.isRunningKanataStale() {
+                await UserNotificationService.shared.notifyKanataUpdateReady()
+            }
             return
         }
 
