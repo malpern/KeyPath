@@ -100,38 +100,6 @@ struct RecoveryCoordinatorVirtualHIDValidationTests {
     }
 }
 
-// MARK: - VirtualHID Recovery
-
-@Suite("RecoveryCoordinator — VirtualHID Recovery")
-@MainActor
-struct RecoveryCoordinatorVirtualHIDRecoveryTests {
-    @Test("triggerVirtualHIDRecovery adds diagnostic and triggers recovery")
-    func addsDiagnosticAndTriggersRecovery() async {
-        let coordinator = RecoveryCoordinator()
-        var addedDiagnostic: KanataDiagnostic?
-        var recoveryCalled = false
-
-        await coordinator.triggerVirtualHIDRecovery(
-            addDiagnostic: { addedDiagnostic = $0 },
-            attemptRecovery: { recoveryCalled = true }
-        )
-
-        #expect(addedDiagnostic != nil, "addDiagnostic should have been called")
-        #expect(recoveryCalled, "attemptRecovery should have been called")
-    }
-
-    @Test("createVirtualHIDFailureDiagnostic has correct properties")
-    func diagnosticHasCorrectProperties() {
-        let coordinator = RecoveryCoordinator()
-        let diagnostic = coordinator.createVirtualHIDFailureDiagnostic()
-
-        #expect(diagnostic.severity == .error)
-        #expect(diagnostic.category == .conflict)
-        #expect(diagnostic.canAutoFix == true)
-        #expect(diagnostic.title == "VirtualHID Connection Failed")
-    }
-}
-
 // MARK: - Auto-Fix Logic
 
 @Suite("RecoveryCoordinator — Auto-Fix Logic")

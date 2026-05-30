@@ -962,29 +962,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         KanataKeyConverter.convertToKanataSequence(sequence)
     }
 
-    // MARK: - Real-Time VirtualHID Connection Monitoring
-
-    // startLogMonitoring/stopLogMonitoring moved to RuntimeCoordinator+Output.swif
-
-    /// Analyze new log content for VirtualHID connection issues (delegates parsing to DiagnosticsService)
-    func analyzeLogContent(_ content: String) async {
-        let events = diagnosticsService.analyzeKanataLogChunk(content)
-        for event in events {
-            switch event {
-            case .virtualHIDConnectionFailed:
-                let shouldTriggerRecovery = await diagnosticsManager.recordConnectionFailure()
-                if shouldTriggerRecovery {
-                    AppLogger.shared.log(
-                        "🚨 [LogMonitor] Maximum connection failures reached - triggering recovery"
-                    )
-                    await triggerVirtualHIDRecovery()
-                }
-            case .virtualHIDConnected:
-                await diagnosticsManager.recordConnectionSuccess()
-            }
-        }
-    }
-
     // MARK: - One-click Service Regeneration
 
     /// Regenerate LaunchDaemon services (rewrite plists, bootstrap, kickstart) using current settings.
@@ -1004,18 +981,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         AppLogger.shared.error("❌ [Services] Regenerate services failed: \(failureReason)")
         lastError = "Regenerate services failed: \(failureReason)"
         return false
-    }
-
-    /// Trigger VirtualHID recovery when connection failures are detected
-    private func triggerVirtualHIDRecovery() async {
-        await recoveryCoordinator.triggerVirtualHIDRecovery(
-            addDiagnostic: { [weak self] diagnostic in
-                self?.addDiagnostic(diagnostic)
-            },
-            attemptRecovery: { [weak self] in
-                await self?.attemptKeyboardRecovery()
-            }
-        )
     }
 
     // MARK: - Enhanced Config Validation and Recovery

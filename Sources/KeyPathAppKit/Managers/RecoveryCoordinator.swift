@@ -110,39 +110,6 @@ final class RecoveryCoordinator {
         }
     }
 
-    /// Trigger VirtualHID recovery when connection failures are detected
-    ///
-    /// - Parameters:
-    ///   - addDiagnostic: Handler to add diagnostic to system
-    ///   - attemptRecovery: Handler to perform recovery
-    func triggerVirtualHIDRecovery(
-        addDiagnostic: (KanataDiagnostic) -> Void,
-        attemptRecovery: () async -> Void
-    ) async {
-        let diagnostic = createVirtualHIDFailureDiagnostic()
-        addDiagnostic(diagnostic)
-        await attemptRecovery()
-    }
-
-    /// Create a VirtualHID failure diagnostic
-    func createVirtualHIDFailureDiagnostic() -> KanataDiagnostic {
-        AppLogger.shared.log("🚨 [RecoveryCoordinator] VirtualHID connection failure detected in real-time")
-
-        return KanataDiagnostic(
-            timestamp: Date(),
-            severity: .error,
-            category: .conflict,
-            title: "VirtualHID Connection Failed",
-            description:
-            "Real-time monitoring detected repeated VirtualHID connection failures. Keyboard remapping is not functioning.",
-            technicalDetails:
-            "Detected multiple consecutive asio.system connection failures",
-            suggestedAction:
-            "KeyPath will attempt automatic recovery. If issues persist, restart the application.",
-            canAutoFix: true
-        )
-    }
-
     // MARK: - Auto-Fix Logic
 
     /// Determine if a diagnostic can be auto-fixed

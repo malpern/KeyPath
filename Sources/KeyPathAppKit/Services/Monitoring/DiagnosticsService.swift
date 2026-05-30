@@ -52,11 +52,6 @@ struct VirtualHIDDaemonStatus: Sendable {
     let serviceHealthy: Bool?
 }
 
-enum DiagnosticsLogEvent: Sendable {
-    case virtualHIDConnectionFailed
-    case virtualHIDConnected
-}
-
 // MARK: - Protocol
 
 /// Service responsible for generating and analyzing system diagnostics
@@ -76,8 +71,6 @@ protocol DiagnosticsServiceProtocol: Sendable {
     func analyzeLogFile(path: String) async -> [KanataDiagnostic]
     /// VirtualHID daemon low-level status (used for summaries)
     func virtualHIDDaemonStatus() async -> VirtualHIDDaemonStatus
-    /// Parse a log chunk into high-level events
-    func analyzeKanataLogChunk(_ chunk: String) -> [DiagnosticsLogEvent]
 }
 
 // MARK: - Implementation
@@ -109,20 +102,6 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
             serviceState: running ? "running" : "stopped",
             serviceHealthy: health
         )
-    }
-
-    nonisolated func analyzeKanataLogChunk(_ chunk: String) -> [DiagnosticsLogEvent] {
-        var events: [DiagnosticsLogEvent] = []
-        let lower = chunk.lowercased()
-        if lower.contains("connection established") || lower.contains("vhid connected") {
-            events.append(.virtualHIDConnected)
-        }
-        if lower.contains("asio.system") || lower.contains("connection failed")
-            || lower.contains("vhid error")
-        {
-            events.append(.virtualHIDConnectionFailed)
-        }
-        return events
     }
 
     func getSystemDiagnostics(engineClient _: EngineClient?) async -> [KanataDiagnostic] {
