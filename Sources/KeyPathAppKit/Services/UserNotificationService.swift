@@ -218,14 +218,25 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
     /// binary (e.g. after a KeyPath upgrade) and a restart will apply the update
     /// (#638). Detection-only by design — the user chooses when to restart via
     /// the "Restart Now" action; KeyPath never auto-restarts a working keyboard.
-    /// Rate-limited to at most once a day; shown even when frontmost.
+    ///
+    /// Short dedup window (30 min) on purpose: this fires once per app launch
+    /// (from init), so a 30-min window suppresses only rapid relaunches while
+    /// letting a notification that was dropped — e.g. sent in the startup race
+    /// before notification authorization resolved — retry on the next launch,
+    /// instead of being lost for a day. Shown even when frontmost.
+    ///
+    /// Known limitation: if the user has notifications disabled there is no
+    /// in-app fallback yet, so the nudge is silently skipped (the stale daemon
+    /// is harmless — it just misses new features). An in-app banner is a
+    /// follow-up.
     func notifyKanataUpdateReady() {
+        requestAuthorizationIfNeeded()
         sendNotification(
             title: "Keyboard engine update ready",
             body: "Restart the keyboard service to apply the latest KeyPath update.",
             category: .update,
             key: "kanata.update.ready",
-            ttl: 86400,
+            ttl: 1800,
             allowWhenFrontmost: true
         )
     }
