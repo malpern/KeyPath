@@ -101,6 +101,23 @@ enum AppNotificationWiring {
             }
         }
 
+        // Restart kanata to adopt a newer bundled binary (#638, user-triggered)
+        NotificationCenter.default.addObserver(
+            forName: .restartKanataForUpdate, object: nil, queue: NotificationObserverManager.mainOperationQueue
+        ) { [weak delegate] _ in
+            Task { @MainActor in
+                AppLogger.shared.log("🔄 [App] Restart-to-adopt requested via notification")
+                guard let manager = delegate?.kanataManager else {
+                    AppLogger.shared.error("❌ [App] Restart-to-adopt requested but RuntimeCoordinator unavailable")
+                    return
+                }
+                let success = await manager.restartKanata(reason: "Adopt updated kanata binary")
+                if !success {
+                    AppLogger.shared.error("❌ [App] Restart-to-adopt failed")
+                }
+            }
+        }
+
         // Open Input Monitoring settings
         NotificationCenter.default.addObserver(
             forName: .openInputMonitoringSettings, object: nil, queue: NotificationObserverManager.mainOperationQueue
