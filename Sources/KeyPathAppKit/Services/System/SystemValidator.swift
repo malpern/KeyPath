@@ -517,7 +517,7 @@ public class SystemValidator {
         let inputCapture = ServiceHealthChecker.resolveInputCaptureStatus(stderrFallback: stderrDiagnosis.inputCapture)
         let kanataDuration = Date().timeIntervalSince(kanataStart)
         AppLogger.shared.log(
-            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: hostRunning=\(kanataHealth.isRunning), tcpResponding=\(kanataHealth.isResponding), healthy=\(kanataRunning), inputCaptureReady=\(stderrDiagnosis.inputCapture.isReady), permRejected=\(stderrDiagnosis.permissionRejected) (took \(String(format: "%.3f", kanataDuration))s)"
+            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: hostRunning=\(kanataHealth.isRunning), tcpResponding=\(kanataHealth.isResponding), healthy=\(kanataRunning), inputCaptureReady=\(inputCapture.isReady), permRejected=\(stderrDiagnosis.permissionRejected) (took \(String(format: "%.3f", kanataDuration))s)"
         )
 
         // Use launchctl-based check instead of unreliable pgrep
