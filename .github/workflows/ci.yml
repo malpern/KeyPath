@@ -200,14 +200,29 @@ jobs:
         echo "Linting changed Swift files only..."
         echo "${{ steps.changed.outputs.swift_files }}" | xargs swiftlint --reporter github-actions-logging || true
 
+    - name: Verify SwiftFormat version matches pin
+      if: steps.changed.outputs.swift_files != ''
+      run: |
+        PINNED=$(sed -nE 's/^[[:space:]]*swiftformat[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' mise.toml)
+        ACTUAL=$(swiftformat --version | tr -d '[:space:]')
+        echo "SwiftFormat — pinned (mise.toml): '$PINNED', installed: '$ACTUAL'"
+        if [ -z "$PINNED" ]; then
+          echo "::error::Could not read the swiftformat pin from mise.toml"
+          exit 1
+        fi
+        if [ "$PINNED" != "$ACTUAL" ]; then
+          echo "::error::SwiftFormat version drift — runner has '$ACTUAL' but mise.toml pins '$PINNED'."
+          echo "::error::master is a formatted fixed-point for the pinned version; a different version produces spurious lint results. Install the pinned version on the runner (mise install / brew) or update mise.toml + reformat."
+          exit 1
+        fi
+
     - name: SwiftFormat Check
       if: steps.changed.outputs.swift_files != ''
       run: |
-        echo "Checking formatting of changed Swift files..."
+        echo "Checking formatting of changed Swift files (must match the pinned fixed-point)..."
         echo "${{ steps.changed.outputs.swift_files }}" | xargs swiftformat --lint || {
-          echo "SwiftFormat found formatting issues, but not failing CI"
-          echo "Run 'swiftformat Sources/ Tests/' locally to fix formatting"
-          exit 0
+          echo "::error::SwiftFormat found formatting issues. Run 'swiftformat Sources Tests' (at the pinned version) and commit."
+          exit 1
         }
 
     - name: Wizard Sleep Lint
