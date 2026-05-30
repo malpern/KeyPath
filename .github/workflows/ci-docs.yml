@@ -1,0 +1,40 @@
+name: KeyPath CI (docs)
+
+# Companion to ci.yml. ci.yml uses `paths-ignore` (docs/**, *.md, resources, …) so it
+# does NOT run on docs-only PRs — which leaves the *required* `build-and-test` (and, per
+# #652, `code-quality`) checks unreported, so the PR is permanently BLOCKED and can only
+# be admin-merged (#650). This workflow triggers on exactly those ignored paths and
+# reports the same check-run names as success, so docs-only PRs satisfy branch protection
+# without an admin override. The `paths` list MUST mirror ci.yml's `paths-ignore`.
+#
+# Mixed PRs (docs + code) trigger both workflows; ci.yml's real result governs pass/fail
+# (a real failure still blocks), and this stub's success is harmless/redundant.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main, master]
+    paths:
+      - 'docs/**'
+      - '*.md'
+      - '.github/workflows/claude.yml'
+      - '.github/workflows/claude-code-review.yml'
+      - 'Sources/KeyPathAppKit/Resources/*.md'
+      - 'Sources/KeyPathAppKit/Resources/*.css'
+      - 'Sources/KeyPathAppKit/Resources/*.png'
+
+concurrency:
+  group: ci-docs-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Job names MUST match ci.yml's required check contexts exactly.
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Docs-only change — no Swift build/test applicable; reporting success (#650)."
+
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Docs-only change — no Swift code-quality applicable; reporting success (#650)."
