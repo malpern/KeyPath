@@ -23,7 +23,6 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         case recovery = "KP_RECOVERY"
         case permission = "KP_PERMISSION"
         case info = "KP_INFO"
-        case update = "KP_UPDATE"
     }
 
     /// Action identifiers
@@ -33,7 +32,6 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         case openInputMonitoring = "KP_ACTION_OPEN_INPUT_MONITORING"
         case openAccessibility = "KP_ACTION_OPEN_ACCESSIBILITY"
         case openApp = "KP_ACTION_OPEN_APP"
-        case restartToAdopt = "KP_ACTION_RESTART_ADOPT"
     }
 
     private init(preferences: PreferencesService = .shared) {
@@ -92,9 +90,6 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         let openApp = UNNotificationAction(
             identifier: Action.openApp.rawValue, title: "Open KeyPath", options: [.foreground]
         )
-        let restartToAdopt = UNNotificationAction(
-            identifier: Action.restartToAdopt.rawValue, title: "Restart Now", options: []
-        )
 
         let serviceFailure = UNNotificationCategory(
             identifier: Category.serviceFailure.rawValue,
@@ -112,12 +107,8 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
             identifier: Category.info.rawValue,
             actions: [openApp], intentIdentifiers: [], options: []
         )
-        let update = UNNotificationCategory(
-            identifier: Category.update.rawValue,
-            actions: [restartToAdopt, openApp], intentIdentifiers: [], options: []
-        )
 
-        center.setNotificationCategories([serviceFailure, recovery, permission, info, update])
+        center.setNotificationCategories([serviceFailure, recovery, permission, info])
     }
 
     // MARK: - Dedupe / Rate limiting
@@ -214,33 +205,6 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         )
     }
 
-    /// Notify the user that the running kanata daemon predates the bundled
-    /// binary (e.g. after a KeyPath upgrade) and a restart will apply the update
-    /// (#638). Detection-only by design — the user chooses when to restart via
-    /// the "Restart Now" action; KeyPath never auto-restarts a working keyboard.
-    ///
-    /// Short dedup window (30 min) on purpose: this fires once per app launch
-    /// (from init), so a 30-min window suppresses only rapid relaunches while
-    /// letting a notification that was dropped — e.g. sent in the startup race
-    /// before notification authorization resolved — retry on the next launch,
-    /// instead of being lost for a day. Shown even when frontmost.
-    ///
-    /// Known limitation: if the user has notifications disabled there is no
-    /// in-app fallback yet, so the nudge is silently skipped (the stale daemon
-    /// is harmless — it just misses new features). An in-app banner is a
-    /// follow-up.
-    func notifyKanataUpdateReady() {
-        requestAuthorizationIfNeeded()
-        sendNotification(
-            title: "Keyboard engine update ready",
-            body: "Restart the keyboard service to apply the latest KeyPath update.",
-            category: .update,
-            key: "kanata.update.ready",
-            ttl: 1800,
-            allowWhenFrontmost: true
-        )
-    }
-
     func notifyRecoverySucceeded(_ message: String = "All set") {
         sendNotification(
             title: "KeyPath Ready",
@@ -286,8 +250,6 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
             NotificationCenter.default.post(name: .openInstallationWizard, object: nil)
         case Action.retryStart.rawValue:
             NotificationCenter.default.post(name: .retryStartService, object: nil)
-        case Action.restartToAdopt.rawValue:
-            NotificationCenter.default.post(name: .restartKanataForUpdate, object: nil)
         case Action.openInputMonitoring.rawValue:
             NotificationCenter.default.post(name: .openInputMonitoringSettings, object: nil)
         case Action.openAccessibility.rawValue:

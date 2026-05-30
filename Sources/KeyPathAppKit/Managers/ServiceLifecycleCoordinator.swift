@@ -117,11 +117,6 @@ final class ServiceLifecycleCoordinator {
             }
 
             await AppContextService.shared.start()
-            // Record that the running daemon now matches the binary we bundle, so
-            // a later launch can detect when an upgrade left it stale (#638).
-            if let bundled = KanataBinaryIdentity.bundledCodeHash() {
-                await MainActor.run { PreferencesService.shared.adoptedKanataCodeHash = bundled }
-            }
             onError?(nil)
             onWarning?(nil)
             onStateChanged?()
@@ -161,41 +156,6 @@ final class ServiceLifecycleCoordinator {
         let stopped = await stopKanata(reason: "\(reason) (stop for restart)")
         guard stopped else { return false }
         return await startKanata(reason: "\(reason) (restart)")
-    }
-
-    /// Whether the running kanata daemon predates the binary KeyPath bundles, so
-    /// a restart would adopt newer code (#638).
-    ///
-    /// A daemon can outlive a KeyPath upgrade/redeploy and keep running stale
-    /// kanata code — health checks only see it alive (PID + TCP). When the
-    /// bundled cdhash differs from what we last adopted (including the first run
-    /// with no record, which covers an already-running older daemon) the user is
-    /// notified to restart and adopt it. **Detection only — KeyPath never
-    /// auto-restarts a working keyboard.** True only for our own SMAppService
-    /// daemon, since restarting wouldn't adopt an external/homebrew kanata. The
-    /// cdhash is stable across the deploy's re-sign step, so a Swift-only
-    /// redeploy isn't flagged. `startKanata` records adoption on every
-    /// KeyPath-initiated start, so a user-triggered restart clears the flag.
-    func isRunningKanataStale() async -> Bool {
-        guard !TestEnvironment.isRunningTests else { return false }
-        guard let bundled = KanataBinaryIdentity.bundledCodeHash() else {
-            AppLogger.shared.log("⚠️ [Service] Bundled kanata cdhash unavailable — skipping staleness check (#638)")
-            return false
-        }
-        let adopted = await MainActor.run { PreferencesService.shared.adoptedKanataCodeHash }
-        guard KanataBinaryIdentity.shouldAdoptBundled(adopted: adopted, bundled: bundled) else {
-            return false
-        }
-        // Only our own SMAppService daemon can be adopted by a restart.
-        let managementState = await KanataDaemonManager.shared.refreshManagementStateInternal()
-        guard managementState == .smappserviceActive else {
-            AppLogger.shared.log("⏭️ [Service] Stale binary but not our SMAppService daemon (state=\(managementState)) — not flagging (#638)")
-            return false
-        }
-        AppLogger.shared.log(
-            "🔁 [Service] Running kanata predates bundled binary (adopted=\(adopted ?? "none") bundled=\(bundled)) — will notify user to restart"
-        )
-        return true
     }
 
     func isInTransientRuntimeStartupWindow() async -> Bool {
