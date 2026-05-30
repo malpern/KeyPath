@@ -379,8 +379,11 @@ final class ServiceLifecycleCoordinator {
         // Only wait on the TCP port if we actually killed something. A clean machine has
         // nothing of ours holding the port, so the common first-start path adds no latency.
         guard killedAny else { return }
-        await waitForPortReleased()
-        AppLogger.shared.log("✅ [Service] wait-for-exit complete — old kanata gone, proceeding with start")
+        if await waitForPortReleased() {
+            AppLogger.shared.log("✅ [Service] wait-for-exit complete — port released, proceeding with start")
+        }
+        // The timeout path already warned inside waitForPortReleased; no ✅ there so a
+        // `grep "✅"` of the log can't be fooled into thinking a stuck port was clean.
     }
 
     /// Poll the given PIDs until none are alive or the budget elapses.
@@ -399,18 +402,21 @@ final class ServiceLifecycleCoordinator {
     }
 
     /// Poll the kanata TCP port until nothing is listening (the old process released it)
-    /// or the budget elapses. On timeout, warn and return — the caller proceeds anyway.
-    private func waitForPortReleased() async {
+    /// or the budget elapses.
+    /// - Returns: `true` if the port was confirmed free, `false` on timeout (caller
+    ///   proceeds anyway; a warning is logged here).
+    private func waitForPortReleased() async -> Bool {
         let port = PreferencesService.shared.tcpServerPort
         let maxPolls = WaitForExitTiming.pollCount(forMs: WaitForExitTiming.portReleaseTimeoutMs)
         for poll in 0 ..< maxPolls {
             let listening = await probePort(port, timeoutMs: WaitForExitTiming.tcpProbeTimeoutMs)
-            if !listening { return }
+            if !listening { return true }
             if poll < maxPolls - 1 { await waitSleep(WaitForExitTiming.pollInterval) }
         }
         AppLogger.shared.warn(
             "⚠️ [Service] TCP port \(port) still in use after wait-for-exit — proceeding anyway (grab auto-recovery is the backstop)"
         )
+        return false
     }
 
     // MARK: - Wait-for-exit primitives (test-seam aware)

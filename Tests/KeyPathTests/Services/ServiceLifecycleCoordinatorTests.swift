@@ -233,8 +233,8 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         // Must return (proceed), not hang, even though the process never dies.
         await coordinator.waitForKanataExitBeforeStart()
 
-        XCTAssertTrue(signals.contains(SIGTERM), "SIGTERM attempted first")
-        XCTAssertTrue(signals.contains(SIGKILL), "Surviving process SIGKILLed after the grace window")
+        XCTAssertEqual(signals.first, SIGTERM, "SIGTERM must precede SIGKILL")
+        XCTAssertEqual(signals.filter { $0 == SIGKILL }.count, 1, "Exactly one SIGKILL after the grace window")
     }
 
     func testWaitForExit_portBusyThenFrees() async {
@@ -285,6 +285,20 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         await coordinator.waitForKanataExitBeforeStart()
 
         XCTAssertEqual(terminated, [4242, 5252], "Both process families are terminated")
+    }
+
+    func testWaitForExit_multiplePidsPerName() async {
+        // A single process family can have multiple orphans; every PID must be SIGTERMed.
+        var terminated: Set<pid_t> = []
+        ServiceLifecycleCoordinator.testPgrepProvider = { name in name == "kanata-launcher" ? [4242, 4243, 4244] : [] }
+        ServiceLifecycleCoordinator.testLivenessProbe = { _ in false } // all exit immediately
+        ServiceLifecycleCoordinator.testSignal = { pid, sig in if sig == SIGTERM { terminated.insert(pid) } }
+        ServiceLifecycleCoordinator.testTCPProbe = { _, _ in false }
+        ServiceLifecycleCoordinator.testSleep = { _ in }
+
+        await coordinator.waitForKanataExitBeforeStart()
+
+        XCTAssertEqual(terminated, [4242, 4243, 4244], "Every orphan PID for the name is terminated")
     }
 
     func testWaitForExit_safeToCallRepeatedlyAcrossRestarts() async {
