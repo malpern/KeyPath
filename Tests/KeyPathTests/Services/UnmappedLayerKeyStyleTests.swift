@@ -6,12 +6,19 @@ import XCTest
 /// Tests for the "unmapped keys on layers" overlay setting: a transparent
 /// (unmapped) key leaves layer mode — rendering base-style — when the user
 /// prefers `.baseLayer`, while mapped keys keep full layer styling.
-@MainActor
-final class UnmappedLayerKeyStyleTests: XCTestCase {
+final class UnmappedLayerKeyStyleTests: KeyPathTestCase {
     private var savedStyle: UnmappedLayerKeyStyle!
 
     override func setUp() {
         super.setUp()
+        // Tripwire: the isLayerMode tests drive the view through
+        // PreferencesService.shared, which only works because the default
+        // @Environment(\.services) ServiceContainer uses `.shared` for its
+        // preferences. Fail loudly (not silently) if that ever decouples.
+        XCTAssertTrue(
+            ServiceContainer().preferences === PreferencesService.shared,
+            "Tests assume the default ServiceContainer uses PreferencesService.shared"
+        )
         savedStyle = PreferencesService.shared.unmappedLayerKeyStyle
     }
 

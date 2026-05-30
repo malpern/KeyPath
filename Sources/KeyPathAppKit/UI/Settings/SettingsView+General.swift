@@ -78,7 +78,7 @@ struct GeneralSettingsTabView: View {
                         .accessibilityLabel("Unmapped layer keys look like the base layer")
 
                         SettingsOptionCard(
-                            icon: "moon",
+                            icon: "eye.slash",
                             title: "Dimmed",
                             subtitle: "Dim so mappings stand out",
                             isSelected: services.preferences.unmappedLayerKeyStyle == .dimmed
