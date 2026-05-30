@@ -35,6 +35,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-037](adr-037-dynamic-os-key-labels.md) | Dynamic OS-Driven Key Labels (System Keymap) | Accepted |
 | [ADR-038](adr-038-extension-file-splitting.md) | Extension-File Splitting for Large Types | Accepted |
 | [ADR-039](adr-039-key-conflict-resolution-principles.md) | Key Conflict Detection and Resolution Principles | Accepted |
+| [ADR-040](adr-040-process-liveness-across-privilege-boundary.md) | Process Liveness and Signaling Across the Privilege Boundary | Accepted |
 
 ## Key Decisions Summary
 
@@ -45,6 +46,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 - **ADR-015**: `InstallerEngine` is the unified façade for all install/repair/uninstall operations.
 - **ADR-026**: Always validate components exist BEFORE checking service status.
 - **ADR-031**: Installer success requires verified runtime readiness (`running + TCP`) or explicit pending approval.
+- **ADR-040**: kanata is a root LaunchDaemon; the app is unprivileged. `kill(pid,0)` returns `EPERM` (not `ESRCH`) for the live daemon — treat EPERM as alive. The app cannot signal/kill the daemon; only launchd can.
 
 ### Configuration
 - **ADR-023**: Never parse Kanata config files directly. Use TCP and simulator.
