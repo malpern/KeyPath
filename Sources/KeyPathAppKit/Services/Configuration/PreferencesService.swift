@@ -25,6 +25,31 @@ public enum KeyLabelStyle: String, CaseIterable, Sendable {
     }
 }
 
+/// How the keyboard overlay renders keys that have NO mapping on a non-base
+/// layer (e.g. the unmapped letters while the Nav layer is active).
+public enum UnmappedLayerKeyStyle: String, CaseIterable, Sendable {
+    /// Render unmapped keys exactly like the base layer — full labels, shifted
+    /// symbols, normal keycap colors. Mapped keys still show their mapping.
+    case baseLayer
+    /// Dim unmapped keys to a dark keycap with a plain single label, so the
+    /// layer's actual mappings stand out.
+    case dimmed
+
+    public var displayName: String {
+        switch self {
+        case .baseLayer: "Base layer"
+        case .dimmed: "Dimmed"
+        }
+    }
+
+    public var description: String {
+        switch self {
+        case .baseLayer: "Unmapped keys look like the base layer"
+        case .dimmed: "Unmapped keys dim so mappings stand out"
+        }
+    }
+}
+
 /// Communication protocol for Kanata integration
 /// TCP is the only supported protocol (Kanata v1.9.0 - see ADR-013)
 enum CommunicationProtocol: String, CaseIterable {
@@ -231,6 +256,14 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    /// How unmapped keys render on non-base layers (base-layer style vs dimmed).
+    var unmappedLayerKeyStyle: UnmappedLayerKeyStyle {
+        didSet {
+            UserDefaults.standard.set(unmappedLayerKeyStyle.rawValue, forKey: Keys.unmappedLayerKeyStyle)
+            AppLogger.shared.log("🎨 [Preferences] unmappedLayerKeyStyle = \(unmappedLayerKeyStyle.rawValue)")
+        }
+    }
+
     // MARK: - Leader Key Configuration
 
     /// Primary leader key preference (Space → Nav by default)
@@ -379,6 +412,7 @@ final class PreferencesService: @unchecked Sendable {
         static let neovimReferenceTopics = "KeyPath.Neovim.ReferenceTopics"
         static let neovimReferenceTopicsVersion = "KeyPath.Neovim.ReferenceTopicsVersion"
         static let keyLabelStyle = "KeyPath.Display.KeyLabelStyle"
+        static let unmappedLayerKeyStyle = "KeyPath.Overlay.UnmappedLayerKeyStyle"
         static let overlayHiddenHintShowCount = "KeyPath.Education.OverlayHiddenHintShowCount"
         static let overlaySuppressedBundleIDs = "KeyPath.Overlay.SuppressedBundleIDs"
     }
@@ -397,6 +431,7 @@ final class PreferencesService: @unchecked Sendable {
             static let verboseKanataLogging = false // Release builds favor smaller logs
         #endif
         static let keyLabelStyle = KeyLabelStyle.symbols
+        static let unmappedLayerKeyStyle = UnmappedLayerKeyStyle.baseLayer
         static let accessibilityTestMode = false
         static let contextHUDDisplayMode = ContextHUDDisplayMode.overlayOnly
         static let contextHUDTriggerMode = ContextHUDTriggerMode.holdToShow
@@ -463,6 +498,11 @@ final class PreferencesService: @unchecked Sendable {
         let keyLabelStyleString = UserDefaults.standard.string(forKey: Keys.keyLabelStyle)
             ?? Defaults.keyLabelStyle.rawValue
         keyLabelStyle = KeyLabelStyle(rawValue: keyLabelStyleString) ?? Defaults.keyLabelStyle
+
+        // Unmapped-key rendering on non-base layers
+        let unmappedLayerKeyStyleString = UserDefaults.standard.string(forKey: Keys.unmappedLayerKeyStyle)
+            ?? Defaults.unmappedLayerKeyStyle.rawValue
+        unmappedLayerKeyStyle = UnmappedLayerKeyStyle(rawValue: unmappedLayerKeyStyleString) ?? Defaults.unmappedLayerKeyStyle
 
         // Testing preferences
         accessibilityTestMode =
