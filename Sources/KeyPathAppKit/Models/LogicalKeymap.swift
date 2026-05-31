@@ -41,7 +41,9 @@ struct LogicalKeymap: Identifiable {
         graphite,
         // International layouts
         azerty,
-        qwertz
+        qwertz,
+        norwegian,
+        russian
     ]
 
     /// Alternative/ergonomic layouts (excluding QWERTY)
@@ -56,7 +58,9 @@ struct LogicalKeymap: Identifiable {
     /// International layouts
     static let internationalLayouts: [LogicalKeymap] = [
         azerty,
-        qwertz
+        qwertz,
+        norwegian,
+        russian
     ]
 
     /// Look up a static keymap by ID. Returns nil for unknown IDs and for `systemId`.
@@ -141,6 +145,49 @@ struct LogicalKeymap: Identifiable {
             bottom: ["y", "x", "c", "v", "b", "n", "m", ",", ".", "-"]
         ),
         extraLabels: [:]
+    )
+
+    /// Norwegian - Nordic keyboard layout.
+    /// QWERTY letter arrangement plus the three Norwegian letters: Ø replaces `;`,
+    /// Æ replaces `'`, and Å replaces `[` (the key right of P). The key right of `.`
+    /// is `-` (US `/` position). Verified against kbdlayout.info/KBDNO.
+    static let norwegian: LogicalKeymap = .init(
+        id: "norwegian",
+        name: "Norwegian",
+        description: "The standard Norwegian (Nordic) layout — QWERTY with Æ, Ø, and Å.",
+        learnMoreURL: URL(string: "https://en.wikipedia.org/wiki/Keyboard_layout#Norwegian")!,
+        iconFilename: "Norwegian",
+        coreLabels: buildCoreMap(
+            top: ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
+            home: ["a", "s", "d", "f", "g", "h", "j", "k", "l", "ø"],
+            bottom: ["z", "x", "c", "v", "b", "n", "m", ",", ".", "-"]
+        ),
+        extraLabels: [
+            KeyCode.leftBracket: "å", // right of P
+            KeyCode.apostrophe: "æ" // right of Ø
+        ]
+    )
+
+    /// Russian - ЙЦУКЕН (JCUKEN) Cyrillic layout.
+    /// Standard Russian arrangement (by letter frequency, not a QWERTY remap).
+    /// Verified against en.wikipedia.org/wiki/JCUKEN.
+    static let russian: LogicalKeymap = .init(
+        id: "russian",
+        name: "Russian",
+        description: "The standard Russian ЙЦУКЕН (JCUKEN) Cyrillic layout.",
+        learnMoreURL: URL(string: "https://en.wikipedia.org/wiki/JCUKEN")!,
+        iconFilename: "Russian",
+        coreLabels: buildCoreMap(
+            top: ["й", "ц", "у", "к", "е", "н", "г", "ш", "щ", "з"],
+            home: ["ф", "ы", "в", "а", "п", "р", "о", "л", "д", "ж"],
+            bottom: ["я", "ч", "с", "м", "и", "т", "ь", "б", "ю", "."]
+        ),
+        extraLabels: [
+            KeyCode.leftBracket: "х", // right of З
+            KeyCode.rightBracket: "ъ",
+            KeyCode.apostrophe: "э", // right of Ж
+            KeyCode.grave: "ё"
+        ]
     )
 
     static let colemak: LogicalKeymap = .init(
