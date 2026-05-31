@@ -187,6 +187,22 @@ final class ChordGroupsConfigTests: XCTestCase {
         XCTAssertTrue(config.detectDuplicateGroupNames().isEmpty)
     }
 
+    func testNoDuplicateWhenOneGroupHasNoEnabledChords() {
+        // The renderer skips groups with no enabled chords, so they never emit a
+        // (defchords …) block and cannot collide — don't flag them as duplicates.
+        let disabledChord = ChordDefinition(id: UUID(), keys: ["j", "k"], action: .keystroke(key: "up"), isEnabled: false)
+        let config = ChordGroupsConfig(groups: [
+            ChordGroup(id: UUID(), name: "Navigation", timeout: 250,
+                       chords: [ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))]),
+            ChordGroup(id: UUID(), name: "Navigation", timeout: 300, chords: [disabledChord])
+        ])
+
+        XCTAssertTrue(
+            config.detectDuplicateGroupNames().isEmpty,
+            "A same-named group with no enabled chords doesn't render, so it isn't a conflict"
+        )
+    }
+
     func testDuplicateGroupNamesCaseSensitive() {
         // Kanata identifiers are case-sensitive, so "Nav" and "nav" do not collide.
         let config = ChordGroupsConfig(groups: [

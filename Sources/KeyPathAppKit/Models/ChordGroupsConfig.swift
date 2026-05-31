@@ -67,11 +67,15 @@ public struct ChordGroupsConfig: Codable, Equatable, Sendable {
     /// two groups with the same name produce duplicate blocks that kanata rejects.
     /// Names are compared exactly (kanata identifiers are case-sensitive).
     ///
+    /// Only groups that actually render are counted: a group with no enabled
+    /// chords is skipped by the renderer, so it cannot collide — counting it would
+    /// flag a false conflict for draft/empty groups.
+    ///
     /// - Returns: One entry per duplicated name, with the number of groups using it,
     ///   sorted by name for stable output.
     public func detectDuplicateGroupNames() -> [(name: String, count: Int)] {
         var counts: [String: Int] = [:]
-        for group in groups {
+        for group in groups where group.chords.contains(where: \.isEnabled) {
             counts[group.name, default: 0] += 1
         }
         return counts
