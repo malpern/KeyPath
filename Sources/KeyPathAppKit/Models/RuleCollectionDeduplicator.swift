@@ -140,6 +140,23 @@ enum RuleCollectionDeduplicator {
         // produces duplicate aliases that kanata rejects.
         for collection in collections where collection.isEnabled {
             if case let .chordGroups(config) = collection.configuration {
+                // Duplicate group names (#464): each group renders to a
+                // `(defchords <name> …)` block keyed by its name, so two groups
+                // sharing a name produce duplicate blocks that kanata rejects.
+                for duplicate in config.detectDuplicateGroupNames() {
+                    conflicts.append(KeyPathError.MappingConflictInfo(
+                        inputKey: duplicate.name,
+                        layer: collection.targetLayer.displayName,
+                        conflictingCollections: Array(
+                            repeating: "chord group '\(duplicate.name)'",
+                            count: duplicate.count
+                        ),
+                        holdDescriptions: [
+                            "\(duplicate.count) chord groups share the name '\(duplicate.name)' — chord group names must be unique"
+                        ]
+                    ))
+                }
+
                 let chordConflicts = config.detectCrossGroupConflicts()
                 for conflict in chordConflicts {
                     let groupNames = conflict.groups.map(\.name)
