@@ -20,10 +20,13 @@ enum RuleCollectionDeduplicator {
         }
 
         var claimedKeys: [InputKey: [ClaimInfo]] = [:]
-        // Which collections place a regular mapping on each (input, layer) slot.
-        // Mappings only — NOT activators or the leader — so it can be cross-checked
-        // against activator placements without double-reporting.
-        var mappingOwners: [InputKey: Set<String>] = [:]
+        // Which collections place a regular mapping on each (input, layer) slot,
+        // keyed by collection id → name. Mappings only (NOT activators or the leader)
+        // so it can be cross-checked against activator placements without
+        // double-reporting. Keyed by id, not name: collection titles aren't unique
+        // (custom rules become collections titled by editable display text), so a
+        // name-based self-filter could cancel the real other owner.
+        var mappingOwners: [InputKey: [UUID: String]] = [:]
 
         for collection in collections where collection.isEnabled {
             let mappings = KanataConfiguration.effectiveMappings(for: collection)
@@ -34,7 +37,7 @@ enum RuleCollectionDeduplicator {
                 // sharing keys). Within-collection conflicts are detected separately.
                 guard seenKeysInCollection.insert(normalizedInput).inserted else { continue }
                 let inputKey = InputKey(input: normalizedInput, layer: collection.targetLayer)
-                mappingOwners[inputKey, default: []].insert(collection.name)
+                mappingOwners[inputKey, default: [:]][collection.id] = collection.name
 
                 let holdDesc = mapping.behavior.flatMap { behavior -> String? in
                     if case let .dualRole(dr) = behavior {
@@ -135,7 +138,10 @@ enum RuleCollectionDeduplicator {
             // is handled by the redundant-aware pass below; leader collisions via the
             // leader injection above — neither is in `mappingOwners`, so no double-report.
             let mappingSlot = InputKey(input: normalizedInput, layer: activator.sourceLayer)
-            let otherMappers = (mappingOwners[mappingSlot] ?? []).subtracting([collection.name]).sorted()
+            // Exclude the activator's own collection by id (names aren't unique).
+            let otherMappers = (mappingOwners[mappingSlot] ?? [:])
+                .filter { $0.key != collection.id }
+                .values.sorted()
             if !otherMappers.isEmpty {
                 conflicts.append(KeyPathError.MappingConflictInfo(
                     inputKey: normalizedInput,

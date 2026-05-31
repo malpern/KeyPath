@@ -481,6 +481,35 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
         XCTAssertEqual(Set(conflict?.conflictingCollections ?? []), ["Home Row Arrows", "Home Row Mods"])
     }
 
+    func testActivatorVsMappingConflictDetectedWhenCollectionsShareName() {
+        // Collection titles aren't unique (custom rules use editable display text).
+        // Two distinct collections with the same name must still be detected by
+        // identity — a name-based self-filter would cancel the real other owner.
+        let mapper = RuleCollection(
+            name: "Shared Title",
+            summary: "Base",
+            category: .custom,
+            mappings: [KeyMapping(input: "f", action: .keystroke(key: "f"))],
+            isEnabled: true,
+            targetLayer: .base
+        )
+        let arrows = RuleCollection(
+            name: "Shared Title",
+            summary: "Arrows",
+            category: .navigation,
+            mappings: [KeyMapping(input: "j", action: .keystroke(key: "left"))],
+            isEnabled: true,
+            targetLayer: .custom("arrows"),
+            momentaryActivator: MomentaryActivator(input: "f", targetLayer: .custom("arrows"), sourceLayer: .base)
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [mapper, arrows])
+        XCTAssertTrue(
+            conflicts.contains { $0.inputKey == "f" },
+            "Activator-vs-mapping conflict must be detected by identity even when collections share a name"
+        )
+    }
+
     func testNoActivatorVsMappingConflictWhenDifferentKeys() {
         let mapper = RuleCollection(
             name: "Base Maps",
