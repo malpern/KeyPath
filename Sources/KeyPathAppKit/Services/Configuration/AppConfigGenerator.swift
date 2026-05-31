@@ -114,27 +114,41 @@ public enum AppConfigGenerator {
 
     /// Detect input keys that an enabled app maps more than once (#465).
     ///
-    /// Each `kp-<key>` alias is generated once per input key and dispatches per app
-    /// via a switch expression. Cross-app duplicates (the same key in different apps)
-    /// are valid — that's the whole point of the switch. But the same key appearing
-    /// twice *within one app* produces two switch cases with the same condition: the
-    /// second is unreachable, so the user's second mapping is silently dropped.
+    /// Each `kp-<key>` alias dispatches per app via a switch expression. Cross-app
+    /// duplicates (the same key in different apps) are valid — that's the whole
+    /// point of the switch. But two switch cases with the *same* condition make the
+    /// second unreachable, so the user's second mapping is silently dropped. That
+    /// happens whenever the same input key is claimed twice for the same rendered
+    /// virtual key — either within one app entry, or across two entries for the
+    /// same app (a legacy/hand-edited store can hold duplicate app entries).
     ///
-    /// Keys are compared lowercased, matching how `generateAliasBlock` keys them.
-    /// Only enabled apps are checked — disabled apps don't render.
+    /// `generateAliasBlock` flattens overrides across all enabled keymaps and keys
+    /// switch cases by `virtualKeyName`, so detection groups the same way: by
+    /// virtual key, over all enabled keymaps, with keys compared lowercased.
     ///
-    /// - Returns: One entry per app that has duplicates, with the duplicated keys
-    ///   sorted, in input order of `keymaps`.
+    /// - Returns: One entry per app (virtual key) that has duplicates, with the
+    ///   duplicated keys sorted, in first-seen order of `keymaps`.
     public static func detectDuplicateKeys(in keymaps: [AppKeymap]) -> [AppKeymapDuplicate] {
-        var result: [AppKeymapDuplicate] = []
+        var order: [String] = [] // virtualKeyName, in first-seen order
+        var appName: [String: String] = [:] // virtualKeyName → display name
+        var counts: [String: [String: Int]] = [:] // virtualKeyName → (lowercased key → count)
+
         for keymap in keymaps where keymap.mapping.isEnabled {
-            var counts: [String: Int] = [:]
-            for override in keymap.overrides {
-                counts[override.inputKey.lowercased(), default: 0] += 1
+            let vkName = keymap.mapping.virtualKeyName
+            if counts[vkName] == nil {
+                order.append(vkName)
+                appName[vkName] = keymap.mapping.displayName
             }
-            let dups = counts.filter { $0.value > 1 }.keys.sorted()
+            for override in keymap.overrides {
+                counts[vkName, default: [:]][override.inputKey.lowercased(), default: 0] += 1
+            }
+        }
+
+        var result: [AppKeymapDuplicate] = []
+        for vkName in order {
+            let dups = (counts[vkName] ?? [:]).filter { $0.value > 1 }.keys.sorted()
             if !dups.isEmpty {
-                result.append(AppKeymapDuplicate(app: keymap.mapping.displayName, keys: dups))
+                result.append(AppKeymapDuplicate(app: appName[vkName] ?? vkName, keys: dups))
             }
         }
         return result

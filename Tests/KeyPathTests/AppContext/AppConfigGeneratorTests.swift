@@ -130,6 +130,29 @@ final class AppConfigGeneratorTests: XCTestCase {
         XCTAssertEqual(AppConfigGenerator.detectDuplicateKeys(in: [keymap]).first?.keys, ["j"])
     }
 
+    func testDetectDuplicateKeys_SameKeyAcrossDuplicateAppEntries_Detected() {
+        // A legacy/hand-edited store can hold the same app as two entries. Both
+        // render to the same vk_safari switch, so the same key in each collides.
+        let keymaps = [
+            AppKeymap(
+                bundleIdentifier: "com.apple.Safari",
+                displayName: "Safari",
+                overrides: [AppKeyOverride(inputKey: "j", action: .keystroke(key: "down"))]
+            ),
+            AppKeymap(
+                bundleIdentifier: "com.apple.Safari",
+                displayName: "Safari",
+                overrides: [AppKeyOverride(inputKey: "j", action: .keystroke(key: "pgdn"))]
+            )
+        ]
+
+        let duplicates = AppConfigGenerator.detectDuplicateKeys(in: keymaps)
+
+        XCTAssertEqual(duplicates.count, 1)
+        XCTAssertEqual(duplicates.first?.app, "Safari")
+        XCTAssertEqual(duplicates.first?.keys, ["j"])
+    }
+
     func testDetectDuplicateKeys_DisabledAppIgnored() {
         let keymap = AppKeymap(
             mapping: AppKeyMapping(
