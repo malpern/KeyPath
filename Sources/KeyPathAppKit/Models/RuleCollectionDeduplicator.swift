@@ -57,6 +57,40 @@ enum RuleCollectionDeduplicator {
             ))
         }
 
+        // Momentary activator conflicts (#466): two collections claim the same
+        // physical activator key but route it to different layers. The silent
+        // `seenActivators` dedup in buildCollectionBlocks would drop one without
+        // notice — surface it via the same detect-and-explain path instead.
+        // Identical activators (same key + same target layer) are redundant, not
+        // conflicting, and are intentionally skipped (matching the toggle-time
+        // conflictInfo semantics).
+        struct ActivatorClaim {
+            let collectionName: String
+            let targetLayer: RuleCollectionLayer
+        }
+        var activatorClaims: [String: [ActivatorClaim]] = [:]
+        for collection in collections where collection.isEnabled {
+            guard let activator = collection.momentaryActivator else { continue }
+            // "hyper" activators are folded into the hyper hold action, not emitted
+            // as standalone layer activators — they never collide in seenActivators.
+            guard activator.input.lowercased() != "hyper" else { continue }
+            let normalizedInput = KanataKeyConverter.convertToKanataKey(activator.input)
+            activatorClaims[normalizedInput, default: []].append(
+                ActivatorClaim(collectionName: collection.name, targetLayer: activator.targetLayer)
+            )
+        }
+        for (input, claims) in activatorClaims where claims.count > 1 {
+            // Only a conflict if the activators disagree on which layer to activate.
+            let distinctTargets = Set(claims.map(\.targetLayer))
+            guard distinctTargets.count > 1 else { continue }
+            conflicts.append(KeyPathError.MappingConflictInfo(
+                inputKey: input,
+                layer: RuleCollectionLayer.base.displayName,
+                conflictingCollections: claims.map(\.collectionName),
+                holdDescriptions: claims.map { "\($0.collectionName): activates \($0.targetLayer.displayName)" }
+            ))
+        }
+
         // Within-collection chord group conflicts: two chord groups sharing keys
         // produces duplicate aliases that kanata rejects.
         for collection in collections where collection.isEnabled {
