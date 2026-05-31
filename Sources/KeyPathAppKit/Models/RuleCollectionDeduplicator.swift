@@ -177,7 +177,54 @@ enum RuleCollectionDeduplicator {
             }
         }
 
-        return conflicts.sorted { $0.inputKey < $1.inputKey }
+        // Alias-name collisions (#462): generated alias names are
+        // `{prefix}_{layer}_{sanitized-input}`, and sanitization maps `-`/space (and,
+        // for device switches, any non-alphanumeric) to `_`. Two distinct input keys
+        // can therefore collapse to the same alias name (e.g. `caps-lock` and
+        // `caps_lock` → `beh_base_caps_lock`), which kanata rejects. These keys don't
+        // collide as defsrc inputs, so the key-overlap pass above misses them.
+        struct AliasOrigin {
+            let collectionName: String
+            let rawInput: String
+            let layer: String
+        }
+        var aliasOrigins: [String: [AliasOrigin]] = [:]
+        for collection in collections where collection.isEnabled {
+            for mapping in KanataConfiguration.effectiveMappings(for: collection) {
+                // Chord inputs (space-separated) render to defchordsv2, not aliases.
+                guard !mapping.input.contains(" ") else { continue }
+                for aliasName in KanataConfiguration.generatedAliasNames(
+                    for: mapping, layer: collection.targetLayer
+                ) {
+                    aliasOrigins[aliasName, default: []].append(AliasOrigin(
+                        collectionName: collection.name,
+                        rawInput: mapping.input,
+                        layer: collection.targetLayer.displayName
+                    ))
+                }
+            }
+        }
+        for (aliasName, origins) in aliasOrigins {
+            // Only a collision when *different* input keys produce the same alias.
+            // Same input across collections is already a key-overlap conflict above.
+            let distinctInputs = Set(origins.map(\.rawInput))
+            guard distinctInputs.count > 1 else { continue }
+            conflicts.append(KeyPathError.MappingConflictInfo(
+                inputKey: distinctInputs.sorted().joined(separator: " / "),
+                layer: origins.first?.layer ?? RuleCollectionLayer.base.displayName,
+                conflictingCollections: Array(Set(origins.map(\.collectionName))).sorted(),
+                holdDescriptions: ["keys \(distinctInputs.sorted().joined(separator: ", ")) all generate the alias '\(aliasName)'"]
+            ))
+        }
+
+        // Total ordering (inputKey, then layer, then explanation) so output is
+        // deterministic even when two conflicts share an inputKey — e.g. the same
+        // pair of keys colliding on two different alias prefixes at once.
+        return conflicts.sorted { lhs, rhs in
+            if lhs.inputKey != rhs.inputKey { return lhs.inputKey < rhs.inputKey }
+            if lhs.layer != rhs.layer { return lhs.layer < rhs.layer }
+            return lhs.holdDescriptions.joined() < rhs.holdDescriptions.joined()
+        }
     }
 
     /// Deduplicates collections by removing duplicate input keys.

@@ -690,6 +690,29 @@ extension KanataConfiguration {
         return "beh_\(layer.kanataName)_\(sanitized)"
     }
 
+    /// The alias names `buildCollectionBlocks` would emit for a regular (non-chord)
+    /// mapping on the given layer, mirroring its path selection. Used by conflict
+    /// detection to catch alias-name collisions from key sanitization (#462) — e.g.
+    /// `caps-lock` and `caps_lock` both producing `beh_base_caps_lock`. Returns
+    /// empty for simple key outputs, which emit no alias.
+    static func generatedAliasNames(for mapping: KeyMapping, layer: RuleCollectionLayer) -> [String] {
+        var names: [String] = []
+        let trimmedOutput = mapping.action.kanataOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+        if mapping.behavior != nil {
+            names.append(behaviorAliasName(for: mapping, layer: layer))
+        } else if mapping.requiresFork {
+            names.append(forkAliasName(for: mapping, layer: layer))
+        } else if trimmedOutput.hasPrefix("("), trimmedOutput.count > 1 {
+            names.append(actionAliasName(for: mapping, layer: layer))
+        }
+        // A per-device override wraps the output in an additional `dev_` alias,
+        // emitted regardless of which (if any) base alias was chosen above.
+        if let overrides = mapping.deviceOverrides, !overrides.isEmpty {
+            names.append(deviceSwitchAliasName(for: mapping, layer: layer))
+        }
+        return names
+    }
+
     /// Generate alias name for complex actions (push-msg, multi, etc.)
     static func actionAliasName(for mapping: KeyMapping, layer: RuleCollectionLayer) -> String {
         let sanitized =

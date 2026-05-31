@@ -497,6 +497,67 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
         XCTAssertTrue(conflicts.isEmpty, "Unique chord group names do not conflict")
     }
 
+    // MARK: - Alias Name Collision Detection (#462)
+
+    func testDetectsAliasNameCollisionFromSanitization() {
+        // "caps-lock" and "caps_lock" are different input keys, but both sanitize
+        // to the alias stem "caps_lock" — so a complex-action mapping for each
+        // produces the same `act_base_caps_lock` alias, which kanata rejects.
+        let collection = RuleCollection(
+            name: "Custom",
+            summary: "Custom",
+            category: .custom,
+            mappings: [
+                KeyMapping(input: "caps-lock", action: .rawKanata("(macro h)")),
+                KeyMapping(input: "caps_lock", action: .rawKanata("(macro j)"))
+            ],
+            isEnabled: true,
+            targetLayer: .base
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection])
+
+        let aliasConflict = conflicts.first { $0.inputKey.contains("caps-lock") && $0.inputKey.contains("caps_lock") }
+        XCTAssertNotNil(aliasConflict, "Two keys sanitizing to the same alias name should be surfaced")
+    }
+
+    func testNoAliasCollisionForSimpleMappings() {
+        // Simple key outputs generate no alias, so they can't collide on alias names.
+        let collection = RuleCollection(
+            name: "Custom",
+            summary: "Custom",
+            category: .custom,
+            mappings: [
+                KeyMapping(input: "caps-lock", action: .keystroke(key: "esc")),
+                KeyMapping(input: "caps_lock", action: .keystroke(key: "tab"))
+            ],
+            isEnabled: true,
+            targetLayer: .base
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection])
+
+        XCTAssertTrue(conflicts.isEmpty, "Simple mappings generate no alias, so no alias collision")
+    }
+
+    func testNoAliasCollisionForDistinctStems() {
+        let collection = RuleCollection(
+            name: "Custom",
+            summary: "Custom",
+            category: .custom,
+            mappings: [
+                KeyMapping(input: "caps-lock", action: .rawKanata("(macro h)")),
+                KeyMapping(input: "tab", action: .rawKanata("(macro j)"))
+            ],
+            isEnabled: true,
+            targetLayer: .base
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection])
+
+        XCTAssertTrue(conflicts.isEmpty, "Distinct sanitized stems don't collide")
+    }
+
     // MARK: - Deduplication Tests
 
     func testDisabledCollectionDoesNotClaimKeysInDedupe() {
