@@ -61,6 +61,25 @@ public struct ChordGroupsConfig: Codable, Equatable, Sendable {
         !detectCrossGroupConflicts().isEmpty
     }
 
+    /// Detect chord groups that share the same name.
+    ///
+    /// Each group renders to a `(defchords <name> …)` block keyed by its name;
+    /// two groups with the same name produce duplicate blocks that kanata rejects.
+    /// Names are compared exactly (kanata identifiers are case-sensitive).
+    ///
+    /// - Returns: One entry per duplicated name, with the number of groups using it,
+    ///   sorted by name for stable output.
+    public func detectDuplicateGroupNames() -> [(name: String, count: Int)] {
+        var counts: [String: Int] = [:]
+        for group in groups {
+            counts[group.name, default: 0] += 1
+        }
+        return counts
+            .filter { $0.value > 1 }
+            .map { (name: $0.key, count: $0.value) }
+            .sorted { $0.name < $1.name }
+    }
+
     /// Get groups that conflict with a specific group.
     /// Returns groups that share keys with the specified group.
     public func conflictingGroups(for groupID: UUID) -> [ChordGroup] {

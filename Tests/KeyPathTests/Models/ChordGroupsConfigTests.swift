@@ -160,6 +160,45 @@ final class ChordGroupsConfigTests: XCTestCase {
         XCTAssertEqual(conflicts.count, 0, "Should not detect conflicts for different key combinations")
     }
 
+    // MARK: - Duplicate Group Names (#464)
+
+    func testDetectsDuplicateGroupNames() {
+        let config = ChordGroupsConfig(groups: [
+            ChordGroup(id: UUID(), name: "Navigation", timeout: 250,
+                       chords: [ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))]),
+            ChordGroup(id: UUID(), name: "Navigation", timeout: 300,
+                       chords: [ChordDefinition(id: UUID(), keys: ["j", "k"], action: .keystroke(key: "up"))])
+        ])
+
+        let duplicates = config.detectDuplicateGroupNames()
+        XCTAssertEqual(duplicates.count, 1)
+        XCTAssertEqual(duplicates.first?.name, "Navigation")
+        XCTAssertEqual(duplicates.first?.count, 2)
+    }
+
+    func testNoDuplicateGroupNamesWhenUnique() {
+        let config = ChordGroupsConfig(groups: [
+            ChordGroup(id: UUID(), name: "Navigation", timeout: 250,
+                       chords: [ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))]),
+            ChordGroup(id: UUID(), name: "Editing", timeout: 300,
+                       chords: [ChordDefinition(id: UUID(), keys: ["j", "k"], action: .keystroke(key: "up"))])
+        ])
+
+        XCTAssertTrue(config.detectDuplicateGroupNames().isEmpty)
+    }
+
+    func testDuplicateGroupNamesCaseSensitive() {
+        // Kanata identifiers are case-sensitive, so "Nav" and "nav" do not collide.
+        let config = ChordGroupsConfig(groups: [
+            ChordGroup(id: UUID(), name: "Nav", timeout: 250,
+                       chords: [ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))]),
+            ChordGroup(id: UUID(), name: "nav", timeout: 300,
+                       chords: [ChordDefinition(id: UUID(), keys: ["j", "k"], action: .keystroke(key: "up"))])
+        ])
+
+        XCTAssertTrue(config.detectDuplicateGroupNames().isEmpty)
+    }
+
     // MARK: - Chord Definition
 
     func testChordDefinitionRecommendedCombo() {

@@ -449,6 +449,54 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
         XCTAssertTrue(conflicts.isEmpty, "A base mapping on a different key does not conflict with the leader")
     }
 
+    // MARK: - Duplicate Chord Group Name Detection (#464)
+
+    func testDetectsDuplicateChordGroupNames() {
+        let config = ChordGroupsConfig(groups: [
+            ChordGroup(id: UUID(), name: "Navigation", timeout: 250,
+                       chords: [ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))]),
+            ChordGroup(id: UUID(), name: "Navigation", timeout: 300,
+                       chords: [ChordDefinition(id: UUID(), keys: ["j", "k"], action: .keystroke(key: "up"))])
+        ])
+        let collection = RuleCollection(
+            id: RuleCollectionIdentifier.chordGroups,
+            name: "Chord Groups",
+            summary: "Test",
+            category: .productivity,
+            mappings: [],
+            isEnabled: true,
+            configuration: .chordGroups(config)
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection])
+
+        let conflict = conflicts.first { $0.inputKey == "Navigation" }
+        XCTAssertNotNil(conflict, "Duplicate chord group names should be surfaced")
+        XCTAssertEqual(conflict?.conflictingCollections.count, 2)
+    }
+
+    func testNoConflictWhenChordGroupNamesUnique() {
+        let config = ChordGroupsConfig(groups: [
+            ChordGroup(id: UUID(), name: "Navigation", timeout: 250,
+                       chords: [ChordDefinition(id: UUID(), keys: ["s", "d"], action: .keystroke(key: "esc"))]),
+            ChordGroup(id: UUID(), name: "Editing", timeout: 300,
+                       chords: [ChordDefinition(id: UUID(), keys: ["j", "k"], action: .keystroke(key: "up"))])
+        ])
+        let collection = RuleCollection(
+            id: RuleCollectionIdentifier.chordGroups,
+            name: "Chord Groups",
+            summary: "Test",
+            category: .productivity,
+            mappings: [],
+            isEnabled: true,
+            configuration: .chordGroups(config)
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection])
+
+        XCTAssertTrue(conflicts.isEmpty, "Unique chord group names do not conflict")
+    }
+
     // MARK: - Deduplication Tests
 
     func testDisabledCollectionDoesNotClaimKeysInDedupe() {
