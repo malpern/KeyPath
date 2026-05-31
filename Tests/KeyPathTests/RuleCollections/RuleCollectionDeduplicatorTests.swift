@@ -219,6 +219,39 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
         XCTAssertTrue(conflicts.isEmpty, "Distinct activator keys do not conflict")
     }
 
+    func testNoActivatorConflictWhenSameKeyDifferentSourceLayers() {
+        // A key can carry a different binding per source layer. `f` activating one
+        // layer from base and another from nav is a valid chained-layer setup
+        // (e.g. Home Row Arrows on base + Function layer reached from nav), not a
+        // conflict — the generator places them in separate layers.
+        let fromBase = RuleCollection(
+            name: "Home Row Arrows",
+            summary: "Arrows",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
+            isEnabled: true,
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "f", targetLayer: .navigation, sourceLayer: .base)
+        )
+
+        let fromNav = RuleCollection(
+            name: "Function Layer",
+            summary: "Function",
+            category: .productivity,
+            mappings: [KeyMapping(input: "j", action: .keystroke(key: "f5"))],
+            isEnabled: true,
+            targetLayer: .custom("function"),
+            momentaryActivator: MomentaryActivator(input: "f", targetLayer: .custom("function"), sourceLayer: .navigation)
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [fromBase, fromNav])
+
+        XCTAssertFalse(
+            conflicts.contains { $0.inputKey == "f" },
+            "Same activator key on different source layers is a valid chained setup, not a conflict"
+        )
+    }
+
     func testDisabledCollectionActivatorIgnoredInConflictDetection() {
         let enabled = RuleCollection(
             name: "Vim Nav",
