@@ -63,9 +63,6 @@ struct LauncherCollectionView: View {
                 onConfigChanged: onConfigChanged,
                 windowSnappingActive: windowSnappingActive
             )
-            .onChange(of: config) { _, newValue in
-                onConfigChanged(newValue)
-            }
         }
         .sheet(isPresented: $showBrowserHistory) {
             BrowserHistorySuggestionsView(existingDomains: existingDomains) { selectedSites in
