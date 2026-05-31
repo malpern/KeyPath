@@ -128,6 +128,160 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
         XCTAssertEqual(conflictKeys, ["h", "j"])
     }
 
+    // MARK: - Momentary Activator Conflict Detection (#466)
+
+    func testDetectsConflictWhenTwoActivatorsTargetDifferentLayers() {
+        // Two collections claim the same physical activator key ("space") but route
+        // it to different layers. The silent `seenActivators` dedup in
+        // buildCollectionBlocks would drop one without explanation — surface it instead.
+        let navCollection = RuleCollection(
+            name: "Vim Nav",
+            summary: "Nav",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
+            isEnabled: true,
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
+        )
+
+        let windowCollection = RuleCollection(
+            name: "Window Mgmt",
+            summary: "Window",
+            category: .productivity,
+            mappings: [KeyMapping(input: "y", action: .keystroke(key: "left"))],
+            isEnabled: true,
+            targetLayer: .custom("window"),
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .custom("window"))
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [navCollection, windowCollection])
+
+        // "space" normalizes to the kanata key "spc"
+        let activatorConflict = conflicts.first { $0.inputKey == "spc" }
+        XCTAssertNotNil(activatorConflict, "Activator key collision on different layers should be surfaced")
+        XCTAssertEqual(Set(activatorConflict?.conflictingCollections ?? []), ["Vim Nav", "Window Mgmt"])
+    }
+
+    func testNoActivatorConflictWhenSameTargetLayer() {
+        // Two navigation collections sharing the same activator (space → nav) are
+        // redundant, not conflicting — both want the same layer activated the same way.
+        let first = RuleCollection(
+            name: "Vim Nav",
+            summary: "Nav",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
+            isEnabled: true,
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
+        )
+
+        let second = RuleCollection(
+            name: "Nav Extras",
+            summary: "Nav",
+            category: .navigation,
+            mappings: [KeyMapping(input: "j", action: .keystroke(key: "down"))],
+            isEnabled: true,
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [first, second])
+
+        XCTAssertFalse(
+            conflicts.contains { $0.inputKey == "spc" },
+            "Identical activators targeting the same layer are redundant, not a conflict"
+        )
+    }
+
+    func testNoActivatorConflictWhenDifferentKeys() {
+        let first = RuleCollection(
+            name: "Vim Nav",
+            summary: "Nav",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
+            isEnabled: true,
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
+        )
+
+        let second = RuleCollection(
+            name: "Window Mgmt",
+            summary: "Window",
+            category: .productivity,
+            mappings: [KeyMapping(input: "y", action: .keystroke(key: "left"))],
+            isEnabled: true,
+            targetLayer: .custom("window"),
+            momentaryActivator: MomentaryActivator(input: "tab", targetLayer: .custom("window"))
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [first, second])
+
+        XCTAssertTrue(conflicts.isEmpty, "Distinct activator keys do not conflict")
+    }
+
+    func testNoActivatorConflictWhenSameKeyDifferentSourceLayers() {
+        // A key can carry a different binding per source layer. `f` activating one
+        // layer from base and another from nav is a valid chained-layer setup
+        // (e.g. Home Row Arrows on base + Function layer reached from nav), not a
+        // conflict — the generator places them in separate layers.
+        let fromBase = RuleCollection(
+            name: "Home Row Arrows",
+            summary: "Arrows",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
+            isEnabled: true,
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "f", targetLayer: .navigation, sourceLayer: .base)
+        )
+
+        let fromNav = RuleCollection(
+            name: "Function Layer",
+            summary: "Function",
+            category: .productivity,
+            mappings: [KeyMapping(input: "j", action: .keystroke(key: "f5"))],
+            isEnabled: true,
+            targetLayer: .custom("function"),
+            momentaryActivator: MomentaryActivator(input: "f", targetLayer: .custom("function"), sourceLayer: .navigation)
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [fromBase, fromNav])
+
+        XCTAssertFalse(
+            conflicts.contains { $0.inputKey == "f" },
+            "Same activator key on different source layers is a valid chained setup, not a conflict"
+        )
+    }
+
+    func testDisabledCollectionActivatorIgnoredInConflictDetection() {
+        let enabled = RuleCollection(
+            name: "Vim Nav",
+            summary: "Nav",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
+            isEnabled: true,
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
+        )
+
+        var disabled = RuleCollection(
+            name: "Window Mgmt",
+            summary: "Window",
+            category: .productivity,
+            mappings: [KeyMapping(input: "y", action: .keystroke(key: "left"))],
+            isEnabled: false,
+            targetLayer: .custom("window"),
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .custom("window"))
+        )
+        disabled.isEnabled = false
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [enabled, disabled])
+
+        XCTAssertFalse(
+            conflicts.contains { $0.inputKey == "spc" },
+            "A disabled collection's activator must not trigger a conflict"
+        )
+    }
+
     // MARK: - Deduplication Tests
 
     func testDisabledCollectionDoesNotClaimKeysInDedupe() {

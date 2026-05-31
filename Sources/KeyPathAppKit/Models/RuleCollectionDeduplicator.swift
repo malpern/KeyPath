@@ -57,6 +57,52 @@ enum RuleCollectionDeduplicator {
             ))
         }
 
+        // Momentary activator conflicts (#466): two collections claim the same
+        // physical activator key from the same source layer but route it to
+        // different target layers. The silent `seenActivators` dedup in
+        // buildCollectionBlocks would drop one without notice — surface it via the
+        // same detect-and-explain path instead.
+        //
+        // The claim slot is (sourceLayer, input): a key can only carry one binding
+        // per layer. The same key activating different targets from *different*
+        // source layers is a valid chained-layer setup (e.g. `f` → arrows from base
+        // and `f` → function from nav), not a conflict. Identical activators (same
+        // slot + same target) are redundant, not conflicting. Both are skipped so
+        // the detection does not over-fire (matching the toggle-time conflictInfo).
+        struct ActivatorSlot: Hashable {
+            let sourceLayer: RuleCollectionLayer
+            let input: String
+        }
+        struct ActivatorClaim {
+            let collectionName: String
+            let targetLayer: RuleCollectionLayer
+        }
+        var activatorClaims: [ActivatorSlot: [ActivatorClaim]] = [:]
+        for collection in collections where collection.isEnabled {
+            guard let activator = collection.momentaryActivator else { continue }
+            // "hyper" activators are folded into the hyper hold action, not emitted
+            // as standalone layer activators — they never collide in seenActivators.
+            guard activator.input.lowercased() != "hyper" else { continue }
+            let slot = ActivatorSlot(
+                sourceLayer: activator.sourceLayer,
+                input: KanataKeyConverter.convertToKanataKey(activator.input)
+            )
+            activatorClaims[slot, default: []].append(
+                ActivatorClaim(collectionName: collection.name, targetLayer: activator.targetLayer)
+            )
+        }
+        for (slot, claims) in activatorClaims where claims.count > 1 {
+            // Only a conflict if the activators disagree on which layer to activate.
+            let distinctTargets = Set(claims.map(\.targetLayer))
+            guard distinctTargets.count > 1 else { continue }
+            conflicts.append(KeyPathError.MappingConflictInfo(
+                inputKey: slot.input,
+                layer: slot.sourceLayer.displayName,
+                conflictingCollections: claims.map(\.collectionName),
+                holdDescriptions: claims.map { "\($0.collectionName): activates \($0.targetLayer.displayName)" }
+            ))
+        }
+
         // Within-collection chord group conflicts: two chord groups sharing keys
         // produces duplicate aliases that kanata rejects.
         for collection in collections where collection.isEnabled {
