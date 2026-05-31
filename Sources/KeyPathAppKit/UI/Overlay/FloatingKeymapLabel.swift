@@ -5,7 +5,7 @@ import SwiftUI
 /// A label that floats above the keyboard and animates to its target keycap.
 /// Each label has randomized spring parameters for a playful shuffling effect.
 /// Renders both main symbol and shift symbol (if any) as a unit that animates together.
-struct FloatingKeymapLabel: View {
+struct FloatingKeymapLabel: View, Equatable {
     let label: String
     let targetFrame: CGRect
     let isVisible: Bool
@@ -16,6 +16,24 @@ struct FloatingKeymapLabel: View {
     var fadeAmount: CGFloat = 0 // 0 = fully visible, 1 = fully faded (for glow effect)
     var isDarkMode: Bool = false // Whether dark mode is active (enables glow effect)
     var shiftSymbolOverride: String? // Dynamic shift symbol from system keymap
+
+    /// Compare only the inputs that affect rendering, so SwiftUI can skip
+    /// re-evaluating bodies for unchanged labels when used with `.equatable()`
+    /// in a `ForEach` (#485). `@State` is intentionally excluded — it's view-local
+    /// and keyed by identity, not part of the value. Synthesis can't be used
+    /// because `@State` properties aren't `Equatable`.
+    nonisolated static func == (lhs: FloatingKeymapLabel, rhs: FloatingKeymapLabel) -> Bool {
+        lhs.label == rhs.label
+            && lhs.targetFrame == rhs.targetFrame
+            && lhs.isVisible == rhs.isVisible
+            && lhs.scale == rhs.scale
+            && lhs.colorway == rhs.colorway
+            && lhs.enableAnimation == rhs.enableAnimation
+            && lhs.animateVisibility == rhs.animateVisibility
+            && lhs.fadeAmount == rhs.fadeAmount
+            && lhs.isDarkMode == rhs.isDarkMode
+            && lhs.shiftSymbolOverride == rhs.shiftSymbolOverride
+    }
 
     /// Randomized animation parameters (seeded by label for consistency)
     private var springResponse: Double {

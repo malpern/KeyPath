@@ -289,6 +289,9 @@ struct OverlayKeyboardView: View {
                             // System keymap shift label override
                             shiftSymbolOverride: floatingLabelShiftOverride(for: label)
                         )
+                        // Skip re-rendering labels whose display inputs are unchanged
+                        // when the parent re-renders for unrelated state (#485).
+                        .equatable()
                     }
                 }
             }
