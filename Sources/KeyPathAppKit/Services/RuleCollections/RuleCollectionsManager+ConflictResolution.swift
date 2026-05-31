@@ -71,10 +71,19 @@ extension RuleCollectionsManager {
         AppLogger.shared.log(
             "🔧 [RuleCollections] Resolving mapping conflict by disabling '\(ruleCollections[index].name)' (#460)"
         )
-        // Disable in-memory and retry the full save (avoids a nested toggle save).
+        // Make the disable atomic: snapshot first, disable in-memory, retry the full
+        // save. If the retry still fails (another conflict, depth guard, validation),
+        // restore so in-memory state never diverges from what was actually persisted —
+        // callers that ignore the `false` return must not see an unsaved disable.
+        let snapshot = ruleCollections
         ruleCollections[index].isEnabled = false
         refreshLayerIndicatorState()
-        return await regenerateConfigFromCollections(skipReload: skipReload, conflictResolutionDepth: depth + 1)
+        let saved = await regenerateConfigFromCollections(skipReload: skipReload, conflictResolutionDepth: depth + 1)
+        if !saved {
+            ruleCollections = snapshot
+            refreshLayerIndicatorState()
+        }
+        return saved
     }
 
     // MARK: - Conflict Resolution
