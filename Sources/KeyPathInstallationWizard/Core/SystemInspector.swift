@@ -361,13 +361,13 @@ public enum SystemInspector {
     /// permission problem (the built-in keyboard couldn't be opened) — vs. a
     /// grab failure that a restart, not a permission grant, fixes.
     static func isInputCapturePermissionReason(_ reason: String?) -> Bool {
-        reason == "kanata-cannot-open-built-in-keyboard"
+        reason == ServiceHealthChecker.inputCaptureBuiltInKeyboardReason
     }
 
     /// Human-readable detail for a non-permission input-capture failure, using
     /// kanata's authoritative reason (from the InputGrab signal) when present.
     static func inputCaptureFailureDetail(_ reason: String?) -> String {
-        guard let reason, reason != "kanata-failed-to-grab-keyboard" else {
+        guard let reason, reason != ServiceHealthChecker.inputCaptureGrabFailureReason else {
             return "The keyboard couldn't be captured — the input driver may have crashed, or another app may be holding the keyboard exclusively."
         }
         return "Reason: \(reason)."

@@ -80,7 +80,7 @@ final class WizardStateRegressionTests: XCTestCase {
             karabinerDaemonRunning: true,
             vhidHealthy: true,
             kanataInputCaptureReady: false,
-            kanataInputCaptureIssue: "kanata-cannot-open-built-in-keyboard"
+            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureBuiltInKeyboardReason
         )
 
         let components = ComponentStatus(

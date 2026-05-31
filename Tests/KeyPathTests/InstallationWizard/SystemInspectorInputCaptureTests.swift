@@ -21,7 +21,7 @@ final class SystemInspectorInputCaptureTests: XCTestCase {
     // MARK: - State routing
 
     func testGrabFailure_routesToService_notPermissions() {
-        let state = SystemInspector.determineState(context(inputCaptureIssue: "kanata-failed-to-grab-keyboard"))
+        let state = SystemInspector.determineState(context(inputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason))
         XCTAssertEqual(state, .serviceNotRunning, "A grab failure must not be misrouted to the permissions page")
     }
 
@@ -32,7 +32,7 @@ final class SystemInspectorInputCaptureTests: XCTestCase {
     }
 
     func testBuiltInKeyboardPermission_staysOnPermissions() {
-        let state = SystemInspector.determineState(context(inputCaptureIssue: "kanata-cannot-open-built-in-keyboard"))
+        let state = SystemInspector.determineState(context(inputCaptureIssue: ServiceHealthChecker.inputCaptureBuiltInKeyboardReason))
         XCTAssertEqual(state, .missingPermissions(missing: [.kanataInputMonitoring]))
     }
 
@@ -45,7 +45,7 @@ final class SystemInspectorInputCaptureTests: XCTestCase {
     // MARK: - Issue card
 
     func testGrabFailure_issueIsHonest_noFalseAutofix() {
-        let issues = SystemInspector.generateIssues(context(inputCaptureIssue: "kanata-failed-to-grab-keyboard"))
+        let issues = SystemInspector.generateIssues(context(inputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason))
         guard let issue = issues.first(where: { $0.identifier == .daemon }) else {
             return XCTFail("Expected an honest daemon issue for a grab failure")
         }
@@ -66,7 +66,7 @@ final class SystemInspectorInputCaptureTests: XCTestCase {
         // The Service page must reflect the grab failure even though the process
         // is up + TCP-reachable (the #624 dishonesty — and the trap of routing
         // here without making the status honest).
-        let issues = SystemInspector.generateIssues(context(inputCaptureIssue: "kanata-failed-to-grab-keyboard"))
+        let issues = SystemInspector.generateIssues(context(inputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason))
         let status = ServiceStatusEvaluator.evaluate(
             kanataIsRunning: true,
             systemState: .serviceNotRunning,
@@ -96,7 +96,7 @@ final class SystemInspectorInputCaptureTests: XCTestCase {
     }
 
     func testBuiltInKeyboard_keepsPermissionIssue() {
-        let issues = SystemInspector.generateIssues(context(inputCaptureIssue: "kanata-cannot-open-built-in-keyboard"))
+        let issues = SystemInspector.generateIssues(context(inputCaptureIssue: ServiceHealthChecker.inputCaptureBuiltInKeyboardReason))
         XCTAssertTrue(issues.contains { $0.identifier == .permission(.kanataInputMonitoring) })
         XCTAssertFalse(issues.contains { $0.identifier == .daemon && $0.title.contains("Capturing") })
     }
@@ -104,8 +104,8 @@ final class SystemInspectorInputCaptureTests: XCTestCase {
     // MARK: - Helpers
 
     func testIsInputCapturePermissionReason() {
-        XCTAssertTrue(SystemInspector.isInputCapturePermissionReason("kanata-cannot-open-built-in-keyboard"))
-        XCTAssertFalse(SystemInspector.isInputCapturePermissionReason("kanata-failed-to-grab-keyboard"))
+        XCTAssertTrue(SystemInspector.isInputCapturePermissionReason(ServiceHealthChecker.inputCaptureBuiltInKeyboardReason))
+        XCTAssertFalse(SystemInspector.isInputCapturePermissionReason(ServiceHealthChecker.inputCaptureGrabFailureReason))
         XCTAssertFalse(SystemInspector.isInputCapturePermissionReason("another process has exclusive grab"))
         XCTAssertFalse(SystemInspector.isInputCapturePermissionReason(nil))
     }

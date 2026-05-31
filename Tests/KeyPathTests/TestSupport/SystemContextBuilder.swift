@@ -13,7 +13,7 @@ struct SystemContextBuilder {
     /// The input-capture failure reason surfaced when not ready (#624 attribution).
     /// Defaults to the built-in-keyboard permission reason; set to a grab-failure
     /// reason, or explicitly nil, to exercise the other branches.
-    var kanataInputCaptureIssue: String? = "kanata-cannot-open-built-in-keyboard"
+    var kanataInputCaptureIssue: String? = ServiceHealthChecker.inputCaptureBuiltInKeyboardReason
     var componentsInstalled: Bool = false
     var conflicts: [SystemConflict] = []
     var driverCompatible: Bool = true

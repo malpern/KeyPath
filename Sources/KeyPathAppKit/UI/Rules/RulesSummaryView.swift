@@ -33,6 +33,7 @@ struct RulesTabView: View {
     @State var unmetDependencyMap: [String: [UnmetDependency]] = [:]
     @State var collectionOwnershipMap: [UUID: (packID: String, packName: String)] = [:]
     @State var managedToggleCollection: RuleCollection?
+    @State private var onAppearTask: Task<Void, Never>?
     private let catalog = RuleCollectionCatalog()
 
     /// Total count of custom rules (everywhere + app-specific)
@@ -438,22 +439,25 @@ struct RulesTabView: View {
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: kanataManager.toastMessage)
         .onAppear {
-            // Capture sort order once when view appears (enabled first, then disabled)
-            // This ensures stable layout - toggling a rule won't move it until window reopens
             if stableSortOrder.isEmpty {
                 stableSortOrder = computeSortOrder()
             }
-            // Load app-specific keymaps
             loadAppKeymaps()
-            Task {
+            onAppearTask?.cancel()
+            onAppearTask = Task {
                 isKindaVimInstalled = await InstalledPackTracker.shared.isInstalled(
                     packID: PackRegistry.kindaVim.id
                 )
                 isKeystrokeHistoryInstalled = await InstalledPackTracker.shared.isInstalled(
                     packID: PackRegistry.keystrokeHistory.id
                 )
+                guard !Task.isCancelled else { return }
                 await refreshCollectionOwnership()
             }
+        }
+        .onDisappear {
+            onAppearTask?.cancel()
+            onAppearTask = nil
         }
         .onReceive(NotificationCenter.default.publisher(for: .appKeymapsDidChange)) { _ in
             loadAppKeymaps()

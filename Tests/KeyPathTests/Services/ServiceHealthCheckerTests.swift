@@ -204,7 +204,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
         let diagnosis = await checker.diagnoseDaemonStderr()
         XCTAssertFalse(diagnosis.permissionRejected)
         XCTAssertFalse(diagnosis.inputCapture.isReady)
-        XCTAssertEqual(diagnosis.inputCapture.issue, "kanata-cannot-open-built-in-keyboard")
+        XCTAssertEqual(diagnosis.inputCapture.issue, ServiceHealthChecker.inputCaptureBuiltInKeyboardReason)
     }
 
     func testDiagnoseDaemonStderrDetectsAccessibilityRejection() async throws {
@@ -227,14 +227,14 @@ final class ServiceHealthCheckerTests: XCTestCase {
             isRunning: true,
             isResponding: true,
             inputCaptureReady: false,
-            inputCaptureIssue: "kanata-cannot-open-built-in-keyboard",
+            inputCaptureIssue: ServiceHealthChecker.inputCaptureBuiltInKeyboardReason,
             launchctlExitCode: 0,
             staleEnabledRegistration: false,
             recentlyRestarted: false
         )
 
         let decision = ServiceHealthChecker.decideKanataHealth(for: snapshot)
-        XCTAssertEqual(decision, .unhealthy(reason: "kanata-cannot-open-built-in-keyboard"))
+        XCTAssertEqual(decision, .unhealthy(reason: ServiceHealthChecker.inputCaptureBuiltInKeyboardReason))
         XCTAssertFalse(decision.isHealthy)
     }
 

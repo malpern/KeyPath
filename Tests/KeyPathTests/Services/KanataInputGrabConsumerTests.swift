@@ -66,7 +66,7 @@ final class KanataInputGrabConsumerTests: KeyPathTestCase {
 
     func testResolve_noStore_usesStderrFallback() {
         // Store empty → fall back to the #632 stderr detector verbatim.
-        let failedFallback = ServiceHealthChecker.KanataInputCaptureStatus(isReady: false, issue: "kanata-failed-to-grab-keyboard")
+        let failedFallback = ServiceHealthChecker.KanataInputCaptureStatus(isReady: false, issue: ServiceHealthChecker.inputCaptureGrabFailureReason)
         XCTAssertEqual(
             ServiceHealthChecker.resolveInputCaptureStatus(stderrFallback: failedFallback),
             failedFallback
@@ -85,7 +85,7 @@ final class KanataInputGrabConsumerTests: KeyPathTestCase {
             KanataInputGrabStatus(active: true, devices: ["kbd"], reason: nil, observedAt: Date())
         )
         let stderrFailure = ServiceHealthChecker.KanataInputCaptureStatus(
-            isReady: false, issue: "kanata-cannot-open-built-in-keyboard"
+            isReady: false, issue: ServiceHealthChecker.inputCaptureBuiltInKeyboardReason
         )
         XCTAssertEqual(
             ServiceHealthChecker.resolveInputCaptureStatus(stderrFallback: stderrFailure),
@@ -132,7 +132,7 @@ final class KanataInputGrabConsumerTests: KeyPathTestCase {
         )
         let resolved = ServiceHealthChecker.resolveInputCaptureStatus(stderrFallback: .ready)
         XCTAssertFalse(resolved.isReady)
-        XCTAssertEqual(resolved.issue, "kanata-failed-to-grab-keyboard")
+        XCTAssertEqual(resolved.issue, ServiceHealthChecker.inputCaptureGrabFailureReason)
     }
 
     // MARK: - end-to-end decision
