@@ -403,6 +403,52 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
         XCTAssertTrue(conflicts.isEmpty, "Leader (base) vs chained activator (nav) on the same key is valid")
     }
 
+    func testDetectsConflictWhenBaseMappingShadowsLeaderKey() {
+        // A base-layer collection that maps the leader's physical key collides:
+        // buildCollectionBlocks emits the leader's base entry and deduplicateBlocks
+        // keeps it, silently dropping the user's base mapping.
+        let leader = LeaderKeyPreference(key: "space", targetLayer: .navigation, enabled: true)
+
+        let baseCollection = RuleCollection(
+            name: "Custom Base",
+            summary: "Base",
+            category: .custom,
+            mappings: [KeyMapping(input: "space", action: .keystroke(key: "backspace"))],
+            isEnabled: true,
+            targetLayer: .base
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+            in: [baseCollection],
+            leaderKey: leader
+        )
+
+        let conflict = conflicts.first { $0.inputKey == "spc" }
+        XCTAssertNotNil(conflict, "A base mapping of the leader key should be surfaced as a conflict")
+        XCTAssertTrue(conflict?.conflictingCollections.contains("Leader Key") ?? false)
+        XCTAssertTrue(conflict?.conflictingCollections.contains("Custom Base") ?? false)
+    }
+
+    func testNoConflictWhenBaseMappingDiffersFromLeaderKey() {
+        let leader = LeaderKeyPreference(key: "space", targetLayer: .navigation, enabled: true)
+
+        let baseCollection = RuleCollection(
+            name: "Custom Base",
+            summary: "Base",
+            category: .custom,
+            mappings: [KeyMapping(input: "caps", action: .keystroke(key: "escape"))],
+            isEnabled: true,
+            targetLayer: .base
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+            in: [baseCollection],
+            leaderKey: leader
+        )
+
+        XCTAssertTrue(conflicts.isEmpty, "A base mapping on a different key does not conflict with the leader")
+    }
+
     // MARK: - Deduplication Tests
 
     func testDisabledCollectionDoesNotClaimKeysInDedupe() {

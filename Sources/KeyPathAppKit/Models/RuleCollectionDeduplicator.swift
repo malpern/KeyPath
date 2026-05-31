@@ -44,6 +44,22 @@ enum RuleCollectionDeduplicator {
             }
         }
 
+        // The leader key (#463) also consumes its physical key's BASE-layer slot:
+        // buildCollectionBlocks emits the leader as a base entry (tap = key, hold =
+        // layer) before any collection, and deduplicateBlocks keeps it over a later
+        // base mapping — so a base-layer collection or custom rule that maps the same
+        // key is silently dropped. Claim that base slot so the collision surfaces.
+        if let leaderKey, leaderKey.enabled {
+            let normalizedInput = KanataKeyConverter.convertToKanataKey(leaderKey.key)
+            let inputKey = InputKey(input: normalizedInput, layer: .base)
+            claimedKeys[inputKey, default: []].append(
+                ClaimInfo(
+                    collectionName: "Leader Key",
+                    holdDescription: "\(leaderKey.targetLayer.displayName) layer"
+                )
+            )
+        }
+
         var conflicts: [KeyPathError.MappingConflictInfo] = []
         for (inputKey, claims) in claimedKeys where claims.count > 1 {
             let collectionNames = claims.map(\.collectionName)
