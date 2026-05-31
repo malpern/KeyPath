@@ -345,7 +345,7 @@ final class WizardPureLogicTests: XCTestCase {
                 karabinerDaemonRunning: true,
                 vhidHealthy: true,
                 kanataInputCaptureReady: false,
-                kanataInputCaptureIssue: "kanata-cannot-open-built-in-keyboard"
+                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureBuiltInKeyboardReason
             )
         )
         let (state, issues) = SystemInspector.inspect(context: context)
