@@ -560,6 +560,20 @@ struct RulesTabView: View {
                 .interactiveDismissDisabled()
             }
         }
+        .sheet(isPresented: $kanataManager.showMappingConflictDialog) {
+            if let context = kanataManager.pendingMappingConflict {
+                MappingConflictResolutionDialog(
+                    context: context,
+                    onChoice: { collectionID in
+                        kanataManager.resolveMappingConflict(disabling: collectionID)
+                    },
+                    onCancel: {
+                        kanataManager.resolveMappingConflict(disabling: nil)
+                    }
+                )
+                .interactiveDismissDisabled()
+            }
+        }
         .alert("Reset Configuration?", isPresented: $showingResetConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Open Backups Folder") {

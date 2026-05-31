@@ -111,6 +111,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     var pendingRuleConflict: RuleConflictContext?
     var conflictResolutionContinuation: CheckedContinuation<RuleConflictChoice?, Never>?
 
+    // Save-time mapping conflict resolution state (#460)
+    var pendingMappingConflict: MappingConflictContext?
+    var mappingConflictContinuation: CheckedContinuation<UUID?, Never>?
+
     /// Rule collections are now managed by RuleCollectionsCoordinator
     var ruleCollections: [RuleCollection] {
         get { ruleCollectionsCoordinator.ruleCollections }
@@ -434,6 +438,9 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
         ruleCollectionsManager.onConflictResolution = { [weak self] context in
             await self?.promptForConflictResolution(context)
+        }
+        ruleCollectionsManager.onMappingConflictResolution = { [weak self] context in
+            await self?.promptForMappingConflict(context)
         }
         // Note: onActionURI callback not needed - RuleCollectionsManager.handleActionURI()
         // already dispatches to ActionDispatcher. Setting this would cause double dispatch.
@@ -1090,7 +1097,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             saveStatus: saveStatus,
 
             // Rule conflict resolution
-            pendingRuleConflict: pendingRuleConflict
+            pendingRuleConflict: pendingRuleConflict,
+            pendingMappingConflict: pendingMappingConflict
         )
     }
 
@@ -1508,6 +1516,39 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         pendingRuleConflict = nil
         conflictResolutionContinuation?.resume(returning: choice)
         conflictResolutionContinuation = nil
+        notifyStateChanged()
+    }
+
+    /// Prompt the user to resolve a save-time mapping conflict by disabling a
+    /// collection (#460). Returns the collection id to disable, or nil to cancel.
+    @MainActor
+    func promptForMappingConflict(_ context: MappingConflictContext) async -> UUID? {
+        // Cancel any pending resolution to avoid continuation leak
+        mappingConflictContinuation?.resume(returning: nil)
+        mappingConflictContinuation = nil
+
+        pendingMappingConflict = context
+        notifyStateChanged()
+
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                mappingConflictContinuation = continuation
+            }
+        } onCancel: {
+            Task { @MainActor in
+                self.mappingConflictContinuation?.resume(returning: nil)
+                self.mappingConflictContinuation = nil
+                self.pendingMappingConflict = nil
+                self.notifyStateChanged()
+            }
+        }
+    }
+
+    /// Called by ViewModel when the user resolves (or dismisses) a mapping conflict.
+    func resolveMappingConflict(disabling collectionID: UUID?) {
+        pendingMappingConflict = nil
+        mappingConflictContinuation?.resume(returning: collectionID)
+        mappingConflictContinuation = nil
         notifyStateChanged()
     }
 

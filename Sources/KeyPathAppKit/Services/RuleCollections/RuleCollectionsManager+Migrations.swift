@@ -36,7 +36,7 @@ extension RuleCollectionsManager {
     /// Regenerates the Kanata configuration from collections and custom rules.
     /// Returns `true` on success, `false` if validation or saving fails.
     @discardableResult
-    func regenerateConfigFromCollections(skipReload: Bool = false) async -> Bool {
+    func regenerateConfigFromCollections(skipReload: Bool = false, conflictResolutionDepth: Int = 0) async -> Bool {
         dedupeRuleCollectionsInPlace()
 
         AppLogger.shared.log("🔄 [RuleCollections] regenerateConfigFromCollections: \(ruleCollections.count) collections, \(customRules.count) custom rules")
@@ -92,6 +92,14 @@ extension RuleCollectionsManager {
             AppLogger.shared.log("⚠️ [RuleCollections] Config save cancelled (task cancellation)")
             return false
         } catch {
+            // #460: if the failure is a mapping conflict between real collections,
+            // offer to disable one inline and retry, instead of just showing an error.
+            if let resolved = await tryResolveMappingConflict(
+                error, skipReload: skipReload, depth: conflictResolutionDepth
+            ) {
+                return resolved
+            }
+
             AppLogger.shared.log("❌ [RuleCollections] Failed to regenerate config: \(error)")
             AppLogger.shared.log("❌ [RuleCollections] Error details: \(String(describing: error))")
 
@@ -106,11 +114,17 @@ extension RuleCollectionsManager {
             }
 
             // Extract user-friendly error message
-            let userMessage = if let keyPathError = error as? KeyPathError,
-                                 case let .configuration(configError) = keyPathError,
-                                 case let .validationFailed(errors) = configError
+            let userMessage: String = if let keyPathError = error as? KeyPathError,
+                                         case let .configuration(configError) = keyPathError,
+                                         case let .validationFailed(errors) = configError
             {
                 "Configuration validation failed:\n\n" + errors.joined(separator: "\n")
+            } else if let keyPathError = error as? KeyPathError,
+                      case let .configuration(configError) = keyPathError,
+                      case let .mappingConflicts(conflicts) = configError
+            {
+                // Non-actionable (or cancelled) mapping conflict — explain it (#460).
+                conflicts.map(\.userExplanation).joined(separator: "\n\n")
             } else {
                 "Failed to save configuration: \(error.localizedDescription)"
             }

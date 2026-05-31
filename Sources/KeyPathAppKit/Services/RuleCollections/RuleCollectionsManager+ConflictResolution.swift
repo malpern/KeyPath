@@ -3,6 +3,80 @@ import KeyPathCore
 import KeyPathPermissions
 
 extension RuleCollectionsManager {
+    // MARK: - Save-time mapping-conflict resolution (#460)
+
+    /// Determine whether a set of save-time mapping conflicts can be resolved by
+    /// disabling a collection — i.e. every named party of every conflict maps to a
+    /// real, enabled collection by exact name. Synthetic parties (chord group names,
+    /// alias key-pairs, the "Leader Key" preference) won't match a collection, so
+    /// those conflicts fall back to a plain explanation rather than offering an
+    /// action that wouldn't apply.
+    ///
+    /// - Returns: the distinct collections the user could disable (≥2), or nil when
+    ///   the conflicts aren't all collection-vs-collection.
+    nonisolated static func resolvableCollectionConflict(
+        conflicts: [KeyPathError.MappingConflictInfo],
+        collections: [RuleCollection]
+    ) -> [RuleCollection]? {
+        guard !conflicts.isEmpty else { return nil }
+
+        let byName = Dictionary(
+            collections.filter(\.isEnabled).map { ($0.name, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        var involved: [UUID: RuleCollection] = [:]
+        for conflict in conflicts {
+            // Every party must resolve to a real enabled collection; otherwise the
+            // whole set is treated as non-actionable (explanation fallback).
+            for name in conflict.conflictingCollections {
+                guard let collection = byName[name] else { return nil }
+                involved[collection.id] = collection
+            }
+        }
+
+        // Need at least two distinct collections for "disable one" to resolve anything.
+        guard involved.count >= 2 else { return nil }
+        return involved.values.sorted { $0.name < $1.name }
+    }
+
+    /// On a save-time mapping-conflict failure, if the conflicting parties are all
+    /// real collections, prompt the user to disable one and retry the save (#460).
+    /// - Returns: the retry result, or nil when the failure wasn't a resolvable
+    ///   mapping conflict or the user cancelled (caller falls back to its error path).
+    func tryResolveMappingConflict(_ error: Error, skipReload: Bool, depth: Int) async -> Bool? {
+        // Bound retries: each resolution disables one collection (strictly shrinking
+        // the enabled set), so this terminates, but the guard prevents pathological loops.
+        guard depth < 5,
+              let keyPathError = error as? KeyPathError,
+              case let .configuration(configError) = keyPathError,
+              case let .mappingConflicts(conflicts) = configError,
+              let callback = onMappingConflictResolution,
+              let resolvable = Self.resolvableCollectionConflict(
+                  conflicts: conflicts, collections: ruleCollections
+              )
+        else { return nil }
+
+        let context = MappingConflictContext(
+            explanation: conflicts.map(\.userExplanation).joined(separator: "\n\n"),
+            options: resolvable.map {
+                MappingConflictOption(id: $0.id, name: $0.name, icon: $0.icon ?? "square.stack.3d.up")
+            }
+        )
+
+        guard let chosenID = await callback(context),
+              let index = ruleCollections.firstIndex(where: { $0.id == chosenID })
+        else { return nil } // cancelled → fall back to explanation
+
+        AppLogger.shared.log(
+            "🔧 [RuleCollections] Resolving mapping conflict by disabling '\(ruleCollections[index].name)' (#460)"
+        )
+        // Disable in-memory and retry the full save (avoids a nested toggle save).
+        ruleCollections[index].isEnabled = false
+        refreshLayerIndicatorState()
+        return await regenerateConfigFromCollections(skipReload: skipReload, conflictResolutionDepth: depth + 1)
+    }
+
     // MARK: - Conflict Resolution
 
     typealias RuleStateSnapshot = (collections: [RuleCollection], customRules: [CustomRule])
