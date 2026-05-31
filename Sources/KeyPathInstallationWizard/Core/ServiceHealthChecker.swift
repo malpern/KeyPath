@@ -27,6 +27,10 @@ public final class ServiceHealthChecker: @unchecked Sendable {
     private nonisolated static let launchctlNotFoundExitCode: Int32 = 113
     private nonisolated static let kanataRestartGraceWindow: TimeInterval = 12.0
 
+    /// Reason codes for input-capture failures, shared with SystemInspector.
+    public nonisolated static let inputCaptureBuiltInKeyboardReason = "kanata-cannot-open-built-in-keyboard"
+    public nonisolated static let inputCaptureGrabFailureReason = "kanata-failed-to-grab-keyboard"
+
     // MARK: - Short-lived health cache
 
     private struct HealthCacheEntry {
@@ -594,7 +598,7 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         }
         return KanataInputCaptureStatus(
             isReady: false,
-            issue: grab.reason ?? "kanata-failed-to-grab-keyboard"
+            issue: grab.reason ?? Self.inputCaptureGrabFailureReason
         )
     }
 
@@ -700,7 +704,7 @@ public final class ServiceHealthChecker: @unchecked Sendable {
                 else { continue }
                 inputCaptureIssue = KanataInputCaptureStatus(
                     isReady: false,
-                    issue: "kanata-cannot-open-built-in-keyboard"
+                    issue: Self.inputCaptureBuiltInKeyboardReason
                 )
                 break
             }
@@ -717,7 +721,7 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         if inputCaptureIssue.isReady, !permissionRejected, Self.detectsInputGrabFailure(in: logChunk) {
             inputCaptureIssue = KanataInputCaptureStatus(
                 isReady: false,
-                issue: "kanata-failed-to-grab-keyboard"
+                issue: Self.inputCaptureGrabFailureReason
             )
         }
 
