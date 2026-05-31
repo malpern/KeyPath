@@ -50,6 +50,9 @@ struct KanataUIState: Sendable {
     /// Rule conflict resolution
     let pendingRuleConflict: RuleConflictContext?
 
+    /// Save-time mapping conflict resolution (#460)
+    let pendingMappingConflict: MappingConflictContext?
+
     /// Empty state for initialization fallback
     static let empty = KanataUIState(
         lastError: nil,
@@ -65,7 +68,8 @@ struct KanataUIState: Sendable {
         activeRuntimePathDetail: nil,
         validationError: nil,
         saveStatus: .idle,
-        pendingRuleConflict: nil
+        pendingRuleConflict: nil,
+        pendingMappingConflict: nil
     )
 }
 

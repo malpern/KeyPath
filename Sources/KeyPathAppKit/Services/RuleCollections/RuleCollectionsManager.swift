@@ -85,6 +85,10 @@ final class RuleCollectionsManager {
     /// Returns the user's choice, or nil if cancelled
     var onConflictResolution: ((RuleConflictContext) async -> RuleConflictChoice?)?
 
+    /// Callback for save-time mapping-conflict resolution (#460).
+    /// Returns the id of the collection to disable, or nil if cancelled.
+    var onMappingConflictResolution: ((MappingConflictContext) async -> UUID?)?
+
     /// Callback to suppress file watcher before internal saves (prevents double-reload beep)
     var onBeforeSave: (() -> Void)?
 

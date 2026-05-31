@@ -67,6 +67,20 @@ struct ActiveRulesView: View {
                     .interactiveDismissDisabled()
                 }
             }
+            .sheet(isPresented: $kanataManager.showMappingConflictDialog) {
+                if let context = kanataManager.pendingMappingConflict {
+                    MappingConflictResolutionDialog(
+                        context: context,
+                        onChoice: { collectionID in
+                            kanataManager.resolveMappingConflict(disabling: collectionID)
+                        },
+                        onCancel: {
+                            kanataManager.resolveMappingConflict(disabling: nil)
+                        }
+                    )
+                    .interactiveDismissDisabled()
+                }
+            }
         }
     }
 

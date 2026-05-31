@@ -56,6 +56,10 @@ class KanataViewModel {
     var showRuleConflictDialog = false
     var pendingRuleConflict: RuleConflictContext?
 
+    // Save-time mapping conflict resolution (#460)
+    var showMappingConflictDialog = false
+    var pendingMappingConflict: MappingConflictContext?
+
     enum ToastType {
         case success
         case error
@@ -136,6 +140,10 @@ class KanataViewModel {
         // Handle rule conflict resolution dialog
         pendingRuleConflict = state.pendingRuleConflict
         showRuleConflictDialog = state.pendingRuleConflict != nil
+
+        // Handle save-time mapping conflict resolution dialog (#460)
+        pendingMappingConflict = state.pendingMappingConflict
+        showMappingConflictDialog = state.pendingMappingConflict != nil
 
         // Map validation error to alert properties
         if let error = state.validationError {
@@ -525,6 +533,13 @@ class KanataViewModel {
     func resolveRuleConflict(with choice: RuleConflictChoice?) {
         showRuleConflictDialog = false
         manager.resolveConflict(with: choice)
+    }
+
+    /// Called when the user resolves (or dismisses) a save-time mapping conflict (#460).
+    /// Pass the collection id to disable, or nil to cancel.
+    func resolveMappingConflict(disabling collectionID: UUID?) {
+        showMappingConflictDialog = false
+        manager.resolveMappingConflict(disabling: collectionID)
     }
 }
 
