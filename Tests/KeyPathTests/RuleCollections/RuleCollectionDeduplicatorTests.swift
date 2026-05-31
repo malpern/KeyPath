@@ -449,6 +449,106 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
         XCTAssertTrue(conflicts.isEmpty, "A base mapping on a different key does not conflict with the leader")
     }
 
+    // MARK: - Activator vs Mapping Conflict Detection
+
+    func testDetectsActivatorVsMappingConflict() {
+        // Mirrors Home Row Mods (maps `f` on base, e.g. hold = Cmd) + Home Row Arrows
+        // (momentary activator `f` from base → its own layer). Both claim `f` on the
+        // base layer; the generator silently keeps one. Surface it.
+        let homeRowMods = RuleCollection(
+            name: "Home Row Mods",
+            summary: "Mods",
+            category: .productivity,
+            mappings: [KeyMapping(input: "f", action: .keystroke(key: "f"))],
+            isEnabled: true,
+            targetLayer: .base
+        )
+
+        let homeRowArrows = RuleCollection(
+            name: "Home Row Arrows",
+            summary: "Arrows",
+            category: .navigation,
+            mappings: [KeyMapping(input: "j", action: .keystroke(key: "left"))],
+            isEnabled: true,
+            targetLayer: .custom("home-arrows"),
+            momentaryActivator: MomentaryActivator(input: "f", targetLayer: .custom("home-arrows"), sourceLayer: .base)
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [homeRowMods, homeRowArrows])
+
+        let conflict = conflicts.first { $0.inputKey == "f" }
+        XCTAssertNotNil(conflict, "An activator key colliding with another collection's base mapping should surface")
+        XCTAssertEqual(Set(conflict?.conflictingCollections ?? []), ["Home Row Arrows", "Home Row Mods"])
+    }
+
+    func testNoActivatorVsMappingConflictWhenDifferentKeys() {
+        let mapper = RuleCollection(
+            name: "Base Maps",
+            summary: "Base",
+            category: .productivity,
+            mappings: [KeyMapping(input: "f", action: .keystroke(key: "f"))],
+            isEnabled: true,
+            targetLayer: .base
+        )
+        let arrows = RuleCollection(
+            name: "Arrows",
+            summary: "Arrows",
+            category: .navigation,
+            mappings: [KeyMapping(input: "j", action: .keystroke(key: "left"))],
+            isEnabled: true,
+            targetLayer: .custom("arrows"),
+            momentaryActivator: MomentaryActivator(input: "g", targetLayer: .custom("arrows"), sourceLayer: .base)
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [mapper, arrows])
+        XCTAssertTrue(conflicts.isEmpty, "Activator and mapping on different keys do not conflict")
+    }
+
+    func testNoActivatorVsMappingConflictWhenDifferentSourceLayer() {
+        // Mapping on `f` base; activator `f` reached FROM the nav layer (chained).
+        // Different source layers — the generator places them separately. Valid.
+        let mapper = RuleCollection(
+            name: "Base Maps",
+            summary: "Base",
+            category: .productivity,
+            mappings: [KeyMapping(input: "f", action: .keystroke(key: "f"))],
+            isEnabled: true,
+            targetLayer: .base
+        )
+        let chained = RuleCollection(
+            name: "Chained",
+            summary: "Chained",
+            category: .navigation,
+            mappings: [KeyMapping(input: "j", action: .keystroke(key: "left"))],
+            isEnabled: true,
+            targetLayer: .custom("sym"),
+            momentaryActivator: MomentaryActivator(input: "f", targetLayer: .custom("sym"), sourceLayer: .navigation)
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [mapper, chained])
+        XCTAssertTrue(conflicts.isEmpty, "Activator from a different source layer than the mapping is valid")
+    }
+
+    func testNoActivatorVsMappingConflictWithinSameCollection() {
+        // A collection that both maps `f` on base and uses `f` as its own activator
+        // is a within-collection arrangement, not a cross-collection conflict.
+        let collection = RuleCollection(
+            name: "Solo",
+            summary: "Solo",
+            category: .navigation,
+            mappings: [KeyMapping(input: "f", action: .keystroke(key: "f"))],
+            isEnabled: true,
+            targetLayer: .base,
+            momentaryActivator: MomentaryActivator(input: "f", targetLayer: .custom("arrows"), sourceLayer: .base)
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection])
+        XCTAssertFalse(
+            conflicts.contains { $0.inputKey == "f" },
+            "Same-collection activator+mapping on a key is not a cross-collection conflict"
+        )
+    }
+
     // MARK: - Duplicate Chord Group Name Detection (#464)
 
     func testDetectsDuplicateChordGroupNames() {
