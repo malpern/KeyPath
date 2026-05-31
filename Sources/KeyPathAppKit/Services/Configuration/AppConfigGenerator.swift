@@ -11,6 +11,8 @@ public enum AppConfigError: LocalizedError, Equatable {
     case writeFailed(path: String, underlying: String)
     /// No ConfigurationService available for validation
     case validationUnavailable
+    /// One or more apps map the same input key more than once (#465)
+    case duplicateKeys(duplicates: [AppKeymapDuplicate])
 
     public var errorDescription: String? {
         switch self {
@@ -20,6 +22,10 @@ public enum AppConfigError: LocalizedError, Equatable {
             "Failed to write app config to \(path): \(underlying)"
         case .validationUnavailable:
             "Config validation service unavailable"
+        case let .duplicateKeys(duplicates):
+            "Duplicate keys in app keymap(s): "
+                + duplicates.map { "\($0.app) maps \($0.keys.joined(separator: ", ")) more than once" }
+                .joined(separator: "; ")
         }
     }
 
@@ -35,7 +41,21 @@ public enum AppConfigError: LocalizedError, Equatable {
             return "Could not save config to \(path)"
         case .validationUnavailable:
             return "Validation service unavailable"
+        case let .duplicateKeys(duplicates):
+            guard let first = duplicates.first else { return "Duplicate keys in an app keymap" }
+            return "\(first.app) maps \(first.keys.joined(separator: ", ")) more than once — each key can have only one action per app."
         }
+    }
+}
+
+/// Describes input keys that an app's keymap maps more than once.
+public struct AppKeymapDuplicate: Equatable, Sendable {
+    public let app: String
+    public let keys: [String]
+
+    public init(app: String, keys: [String]) {
+        self.app = app
+        self.keys = keys
     }
 }
 
@@ -92,6 +112,34 @@ public enum AppConfigGenerator {
 
     // MARK: - Generation
 
+    /// Detect input keys that an enabled app maps more than once (#465).
+    ///
+    /// Each `kp-<key>` alias is generated once per input key and dispatches per app
+    /// via a switch expression. Cross-app duplicates (the same key in different apps)
+    /// are valid — that's the whole point of the switch. But the same key appearing
+    /// twice *within one app* produces two switch cases with the same condition: the
+    /// second is unreachable, so the user's second mapping is silently dropped.
+    ///
+    /// Keys are compared lowercased, matching how `generateAliasBlock` keys them.
+    /// Only enabled apps are checked — disabled apps don't render.
+    ///
+    /// - Returns: One entry per app that has duplicates, with the duplicated keys
+    ///   sorted, in input order of `keymaps`.
+    public static func detectDuplicateKeys(in keymaps: [AppKeymap]) -> [AppKeymapDuplicate] {
+        var result: [AppKeymapDuplicate] = []
+        for keymap in keymaps where keymap.mapping.isEnabled {
+            var counts: [String: Int] = [:]
+            for override in keymap.overrides {
+                counts[override.inputKey.lowercased(), default: 0] += 1
+            }
+            let dups = counts.filter { $0.value > 1 }.keys.sorted()
+            if !dups.isEmpty {
+                result.append(AppKeymapDuplicate(app: keymap.mapping.displayName, keys: dups))
+            }
+        }
+        return result
+    }
+
     /// Generate the complete app-specific config file content.
     ///
     /// - Parameter keymaps: The app keymaps to generate config for.
@@ -129,6 +177,18 @@ public enum AppConfigGenerator {
         from keymaps: [AppKeymap],
         configService: ConfigurationService? = nil
     ) async throws {
+        // Detect within-app duplicate keys before generating — kanata accepts the
+        // resulting config (the duplicate switch case is just dead), so this would
+        // otherwise silently drop the user's second mapping (#465).
+        let duplicates = detectDuplicateKeys(in: keymaps)
+        if !duplicates.isEmpty {
+            AppLogger.shared.error(
+                "❌ [AppConfigGenerator] Duplicate keys within app keymap(s): "
+                    + duplicates.map { "\($0.app): \($0.keys.joined(separator: ", "))" }.joined(separator: "; ")
+            )
+            throw AppConfigError.duplicateKeys(duplicates: duplicates)
+        }
+
         let content = generate(from: keymaps)
         let path = appConfigPath
 
