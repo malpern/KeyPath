@@ -66,6 +66,112 @@ final class AppConfigGeneratorTests: XCTestCase {
         XCTAssertFalse(content.contains(" nop"), "Should NOT contain 'nop' - it's invalid Kanata")
     }
 
+    // MARK: - Duplicate Key Detection (#465)
+
+    func testDetectDuplicateKeys_SameKeyTwiceInOneApp_Detected() {
+        let keymap = AppKeymap(
+            bundleIdentifier: "com.apple.Safari",
+            displayName: "Safari",
+            overrides: [
+                AppKeyOverride(inputKey: "j", action: .keystroke(key: "down")),
+                AppKeyOverride(inputKey: "j", action: .keystroke(key: "pgdn"))
+            ]
+        )
+
+        let duplicates = AppConfigGenerator.detectDuplicateKeys(in: [keymap])
+
+        XCTAssertEqual(duplicates.count, 1)
+        XCTAssertEqual(duplicates.first?.app, "Safari")
+        XCTAssertEqual(duplicates.first?.keys, ["j"])
+    }
+
+    func testDetectDuplicateKeys_SameKeyDifferentApps_NotDetected() {
+        // Cross-app duplicates are valid — the switch expression dispatches per app.
+        let keymaps = [
+            AppKeymap(
+                bundleIdentifier: "com.apple.Safari",
+                displayName: "Safari",
+                overrides: [AppKeyOverride(inputKey: "j", action: .keystroke(key: "down"))]
+            ),
+            AppKeymap(
+                bundleIdentifier: "com.microsoft.VSCode",
+                displayName: "VS Code",
+                overrides: [AppKeyOverride(inputKey: "j", action: .keystroke(key: "pgdn"))]
+            )
+        ]
+
+        XCTAssertTrue(AppConfigGenerator.detectDuplicateKeys(in: keymaps).isEmpty)
+    }
+
+    func testDetectDuplicateKeys_UniqueKeys_NotDetected() {
+        let keymap = AppKeymap(
+            bundleIdentifier: "com.apple.Safari",
+            displayName: "Safari",
+            overrides: [
+                AppKeyOverride(inputKey: "j", action: .keystroke(key: "down")),
+                AppKeyOverride(inputKey: "k", action: .keystroke(key: "up"))
+            ]
+        )
+
+        XCTAssertTrue(AppConfigGenerator.detectDuplicateKeys(in: [keymap]).isEmpty)
+    }
+
+    func testDetectDuplicateKeys_CaseInsensitive() {
+        // Generation lowercases input keys, so "J" and "j" collide on the same alias.
+        let keymap = AppKeymap(
+            bundleIdentifier: "com.apple.Safari",
+            displayName: "Safari",
+            overrides: [
+                AppKeyOverride(inputKey: "J", action: .keystroke(key: "down")),
+                AppKeyOverride(inputKey: "j", action: .keystroke(key: "pgdn"))
+            ]
+        )
+
+        XCTAssertEqual(AppConfigGenerator.detectDuplicateKeys(in: [keymap]).first?.keys, ["j"])
+    }
+
+    func testDetectDuplicateKeys_SameKeyAcrossDuplicateAppEntries_Detected() {
+        // A legacy/hand-edited store can hold the same app as two entries. Both
+        // render to the same vk_safari switch, so the same key in each collides.
+        let keymaps = [
+            AppKeymap(
+                bundleIdentifier: "com.apple.Safari",
+                displayName: "Safari",
+                overrides: [AppKeyOverride(inputKey: "j", action: .keystroke(key: "down"))]
+            ),
+            AppKeymap(
+                bundleIdentifier: "com.apple.Safari",
+                displayName: "Safari",
+                overrides: [AppKeyOverride(inputKey: "j", action: .keystroke(key: "pgdn"))]
+            )
+        ]
+
+        let duplicates = AppConfigGenerator.detectDuplicateKeys(in: keymaps)
+
+        XCTAssertEqual(duplicates.count, 1)
+        XCTAssertEqual(duplicates.first?.app, "Safari")
+        XCTAssertEqual(duplicates.first?.keys, ["j"])
+    }
+
+    func testDetectDuplicateKeys_DisabledAppIgnored() {
+        let keymap = AppKeymap(
+            mapping: AppKeyMapping(
+                bundleIdentifier: "com.apple.Safari",
+                displayName: "Safari",
+                isEnabled: false
+            ),
+            overrides: [
+                AppKeyOverride(inputKey: "j", action: .keystroke(key: "down")),
+                AppKeyOverride(inputKey: "j", action: .keystroke(key: "pgdn"))
+            ]
+        )
+
+        XCTAssertTrue(
+            AppConfigGenerator.detectDuplicateKeys(in: [keymap]).isEmpty,
+            "Disabled apps don't render, so their duplicates aren't conflicts"
+        )
+    }
+
     // MARK: - Kanata Keyword Safety
 
     func testGenerate_UsesKanataKeywordConstant() {
