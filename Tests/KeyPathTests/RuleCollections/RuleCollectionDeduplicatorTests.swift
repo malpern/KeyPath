@@ -282,6 +282,173 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
         )
     }
 
+    // MARK: - Leader Key vs Activator Conflict Detection (#463)
+
+    func testDetectsConflictBetweenLeaderKeyAndCollectionActivator() {
+        // The system leader key (space → nav, from base) and a collection that
+        // claims the same physical key from base but routes it to a different layer
+        // collide. buildCollectionBlocks inserts the leader alias into seenActivators
+        // first, so the collection's activator is silently dropped — surface it.
+        let leader = LeaderKeyPreference(key: "space", targetLayer: .navigation, enabled: true)
+
+        let windowCollection = RuleCollection(
+            name: "Window Mgmt",
+            summary: "Window",
+            category: .productivity,
+            mappings: [KeyMapping(input: "y", action: .keystroke(key: "left"))],
+            isEnabled: true,
+            targetLayer: .custom("window"),
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .custom("window"))
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+            in: [windowCollection],
+            leaderKey: leader
+        )
+
+        let conflict = conflicts.first { $0.inputKey == "spc" }
+        XCTAssertNotNil(conflict, "Leader key colliding with a collection activator should be surfaced")
+        XCTAssertTrue(conflict?.conflictingCollections.contains("Window Mgmt") ?? false)
+    }
+
+    func testNoConflictWhenLeaderKeyMatchesCollectionActivatorExactly() {
+        // The leader key (space → nav) and a nav collection's own space → nav
+        // activator describe the same activation — redundant, not a conflict.
+        let leader = LeaderKeyPreference(key: "space", targetLayer: .navigation, enabled: true)
+
+        let navCollection = RuleCollection(
+            name: "Vim Nav",
+            summary: "Nav",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
+            isEnabled: true,
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+            in: [navCollection],
+            leaderKey: leader
+        )
+
+        XCTAssertFalse(
+            conflicts.contains { $0.inputKey == "spc" },
+            "Leader key matching a collection activator exactly is redundant, not a conflict"
+        )
+    }
+
+    func testNoConflictWhenLeaderKeyDisabled() {
+        let leader = LeaderKeyPreference(key: "space", targetLayer: .navigation, enabled: false)
+
+        let windowCollection = RuleCollection(
+            name: "Window Mgmt",
+            summary: "Window",
+            category: .productivity,
+            mappings: [KeyMapping(input: "y", action: .keystroke(key: "left"))],
+            isEnabled: true,
+            targetLayer: .custom("window"),
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .custom("window"))
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+            in: [windowCollection],
+            leaderKey: leader
+        )
+
+        XCTAssertTrue(conflicts.isEmpty, "A disabled leader key must not produce conflicts")
+    }
+
+    func testNoConflictWhenLeaderKeyDifferentKey() {
+        let leader = LeaderKeyPreference(key: "caps", targetLayer: .navigation, enabled: true)
+
+        let windowCollection = RuleCollection(
+            name: "Window Mgmt",
+            summary: "Window",
+            category: .productivity,
+            mappings: [KeyMapping(input: "y", action: .keystroke(key: "left"))],
+            isEnabled: true,
+            targetLayer: .custom("window"),
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .custom("window"))
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+            in: [windowCollection],
+            leaderKey: leader
+        )
+
+        XCTAssertTrue(conflicts.isEmpty, "Leader key on a different physical key does not conflict")
+    }
+
+    func testNoConflictWhenLeaderKeyCollidesWithChainedActivator() {
+        // Leader key activates nav from base; a collection reaches another layer
+        // using the same key but FROM the nav layer (chained). Different source
+        // layers — valid, not a conflict.
+        let leader = LeaderKeyPreference(key: "f", targetLayer: .navigation, enabled: true)
+
+        let chained = RuleCollection(
+            name: "Function Layer",
+            summary: "Function",
+            category: .productivity,
+            mappings: [KeyMapping(input: "j", action: .keystroke(key: "f5"))],
+            isEnabled: true,
+            targetLayer: .custom("function"),
+            momentaryActivator: MomentaryActivator(input: "f", targetLayer: .custom("function"), sourceLayer: .navigation)
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+            in: [chained],
+            leaderKey: leader
+        )
+
+        XCTAssertTrue(conflicts.isEmpty, "Leader (base) vs chained activator (nav) on the same key is valid")
+    }
+
+    func testDetectsConflictWhenBaseMappingShadowsLeaderKey() {
+        // A base-layer collection that maps the leader's physical key collides:
+        // buildCollectionBlocks emits the leader's base entry and deduplicateBlocks
+        // keeps it, silently dropping the user's base mapping.
+        let leader = LeaderKeyPreference(key: "space", targetLayer: .navigation, enabled: true)
+
+        let baseCollection = RuleCollection(
+            name: "Custom Base",
+            summary: "Base",
+            category: .custom,
+            mappings: [KeyMapping(input: "space", action: .keystroke(key: "backspace"))],
+            isEnabled: true,
+            targetLayer: .base
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+            in: [baseCollection],
+            leaderKey: leader
+        )
+
+        let conflict = conflicts.first { $0.inputKey == "spc" }
+        XCTAssertNotNil(conflict, "A base mapping of the leader key should be surfaced as a conflict")
+        XCTAssertTrue(conflict?.conflictingCollections.contains("Leader Key") ?? false)
+        XCTAssertTrue(conflict?.conflictingCollections.contains("Custom Base") ?? false)
+    }
+
+    func testNoConflictWhenBaseMappingDiffersFromLeaderKey() {
+        let leader = LeaderKeyPreference(key: "space", targetLayer: .navigation, enabled: true)
+
+        let baseCollection = RuleCollection(
+            name: "Custom Base",
+            summary: "Base",
+            category: .custom,
+            mappings: [KeyMapping(input: "caps", action: .keystroke(key: "escape"))],
+            isEnabled: true,
+            targetLayer: .base
+        )
+
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+            in: [baseCollection],
+            leaderKey: leader
+        )
+
+        XCTAssertTrue(conflicts.isEmpty, "A base mapping on a different key does not conflict with the leader")
+    }
+
     // MARK: - Deduplication Tests
 
     func testDisabledCollectionDoesNotClaimKeysInDedupe() {

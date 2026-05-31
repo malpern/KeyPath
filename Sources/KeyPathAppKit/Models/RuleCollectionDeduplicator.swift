@@ -10,7 +10,10 @@ enum RuleCollectionDeduplicator {
     ///
     /// Uses `effectiveMappings(for:)` to include config-generated mappings (Home Row Mods,
     /// Layer Toggles, etc.) — not just the raw `.mappings` array.
-    static func detectConflicts(in collections: [RuleCollection]) -> [KeyPathError.MappingConflictInfo] {
+    static func detectConflicts(
+        in collections: [RuleCollection],
+        leaderKey: LeaderKeyPreference? = nil
+    ) -> [KeyPathError.MappingConflictInfo] {
         struct ClaimInfo {
             let collectionName: String
             let holdDescription: String?
@@ -39,6 +42,22 @@ enum RuleCollectionDeduplicator {
                     ClaimInfo(collectionName: collection.name, holdDescription: holdDesc)
                 )
             }
+        }
+
+        // The leader key (#463) also consumes its physical key's BASE-layer slot:
+        // buildCollectionBlocks emits the leader as a base entry (tap = key, hold =
+        // layer) before any collection, and deduplicateBlocks keeps it over a later
+        // base mapping — so a base-layer collection or custom rule that maps the same
+        // key is silently dropped. Claim that base slot so the collision surfaces.
+        if let leaderKey, leaderKey.enabled {
+            let normalizedInput = KanataKeyConverter.convertToKanataKey(leaderKey.key)
+            let inputKey = InputKey(input: normalizedInput, layer: .base)
+            claimedKeys[inputKey, default: []].append(
+                ClaimInfo(
+                    collectionName: "Leader Key",
+                    holdDescription: "\(leaderKey.targetLayer.displayName) layer"
+                )
+            )
         }
 
         var conflicts: [KeyPathError.MappingConflictInfo] = []
@@ -78,6 +97,20 @@ enum RuleCollectionDeduplicator {
             let targetLayer: RuleCollectionLayer
         }
         var activatorClaims: [ActivatorSlot: [ActivatorClaim]] = [:]
+        // The system leader key (#463) is an activator too: pressing it from the
+        // base layer activates its target layer. buildCollectionBlocks seeds it into
+        // seenActivators before any collection, so a collection activator on the
+        // same base-layer key is silently dropped — include it as a claim so the
+        // collision is surfaced instead.
+        if let leaderKey, leaderKey.enabled {
+            let slot = ActivatorSlot(
+                sourceLayer: .base,
+                input: KanataKeyConverter.convertToKanataKey(leaderKey.key)
+            )
+            activatorClaims[slot, default: []].append(
+                ActivatorClaim(collectionName: "Leader Key", targetLayer: leaderKey.targetLayer)
+            )
+        }
         for collection in collections where collection.isEnabled {
             guard let activator = collection.momentaryActivator else { continue }
             // "hyper" activators are folded into the hyper hold action, not emitted
