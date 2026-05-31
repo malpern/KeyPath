@@ -241,9 +241,21 @@ public final class ConfigurationService: FileConfigurationProviding {
             )
         }
 
+        // Get leader key preference and trigger mode from PreferencesService on MainActor.
+        // Fetched before conflict detection so the leader key participates in it (#463).
+        let (leaderKeyPref, triggerMode, holdDelayMs) = await MainActor.run {
+            (PreferencesService.shared.leaderKeyPreference,
+             PreferencesService.shared.contextHUDTriggerMode,
+             PreferencesService.shared.contextHUDHoldDelayMs)
+        }
+
         // DETECT CONFLICTS BEFORE DEDUPLICATION
-        // This catches cases where multiple collections map the same key
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: collectionsForConfig)
+        // This catches cases where multiple collections map the same key, and where
+        // a collection activator collides with the system leader key (#463).
+        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+            in: collectionsForConfig,
+            leaderKey: leaderKeyPref
+        )
         if !conflicts.isEmpty {
             AppLogger.shared.log(
                 "⚠️ [ConfigService] Mapping conflicts detected: \(conflicts.map(\.description).joined(separator: "; "))"
@@ -256,13 +268,6 @@ public final class ConfigurationService: FileConfigurationProviding {
         let mappings = combinedCollections.enabledMappings()
         let preservedChordGroups = loadPreservedChordGroups()
         let preservedSequences = loadPreservedSequences()
-
-        // Get leader key preference and trigger mode from PreferencesService on MainActor
-        let (leaderKeyPref, triggerMode, holdDelayMs) = await MainActor.run {
-            (PreferencesService.shared.leaderKeyPreference,
-             PreferencesService.shared.contextHUDTriggerMode,
-             PreferencesService.shared.contextHUDHoldDelayMs)
-        }
 
         let configContent = KanataConfiguration.generateFromCollections(
             combinedCollections,
