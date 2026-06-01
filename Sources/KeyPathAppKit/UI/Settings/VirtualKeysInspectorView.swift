@@ -64,6 +64,7 @@ struct VirtualKeysInspectorView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
+                .disabled(isLoading) // avoid overlapping loads that could desync loadSource/virtualKeys
                 .help("Refresh")
                 .accessibilityIdentifier("virtual-keys-refresh-button")
                 .accessibilityLabel("Refresh virtual keys")

@@ -233,6 +233,15 @@ private struct WebHelpWebView: NSViewRepresentable {
             reportFailure(error)
         }
 
+        private static let offlineErrorCodes: Set<Int> = [
+            NSURLErrorNotConnectedToInternet,
+            NSURLErrorCannotFindHost,
+            NSURLErrorCannotConnectToHost,
+            NSURLErrorNetworkConnectionLost,
+            NSURLErrorTimedOut,
+            NSURLErrorDNSLookupFailed
+        ]
+
         private func reportFailure(_ error: Error) {
             let nsError = error as NSError
             // Ignore cancellations from our own policy decisions (404 handling, internal links).
@@ -240,15 +249,7 @@ private struct WebHelpWebView: NSViewRepresentable {
             // WebKitErrorDomain 102 = frame load interrupted by a policy change (our .cancel calls).
             if nsError.domain == "WebKitErrorDomain", nsError.code == 102 { return }
 
-            let offlineCodes: Set<Int> = [
-                NSURLErrorNotConnectedToInternet,
-                NSURLErrorCannotFindHost,
-                NSURLErrorCannotConnectToHost,
-                NSURLErrorNetworkConnectionLost,
-                NSURLErrorTimedOut,
-                NSURLErrorDNSLookupFailed
-            ]
-            if nsError.domain == NSURLErrorDomain, offlineCodes.contains(nsError.code) {
+            if nsError.domain == NSURLErrorDomain, Self.offlineErrorCodes.contains(nsError.code) {
                 onLoadError?(.offline)
             } else {
                 onLoadError?(.generic)

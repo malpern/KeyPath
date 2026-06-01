@@ -179,7 +179,7 @@ struct AIConfigGenerationSettingsSection: View {
             if saveFailed {
                 HStack(spacing: 8) {
                     Button("Retry") {
-                        Task { await saveAPIKey() }
+                        storeValidatedKey()
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -216,20 +216,27 @@ struct AIConfigGenerationSettingsSection: View {
 
         isValidating = false
 
-        if result.isValid {
-            do {
-                try KeychainService.shared.storeClaudeAPIKey(apiKeyInput)
-                apiKeyInput = ""
-                isAddingKey = false
-                saveFailed = false
-                refreshStatus()
-            } catch {
-                validationError = "Couldn't save to Keychain: \(error.localizedDescription)"
-                saveFailed = true
-            }
-        } else {
+        guard result.isValid else {
             validationError = result.errorMessage ?? "Invalid API key"
             saveFailed = false
+            return
+        }
+
+        storeValidatedKey()
+    }
+
+    /// Persists the already-validated `apiKeyInput` to the Keychain. Retry calls this
+    /// directly so a Keychain write failure doesn't trigger a redundant network re-validation.
+    private func storeValidatedKey() {
+        do {
+            try KeychainService.shared.storeClaudeAPIKey(apiKeyInput)
+            apiKeyInput = ""
+            isAddingKey = false
+            saveFailed = false
+            refreshStatus()
+        } catch {
+            validationError = "Couldn't save to Keychain: \(error.localizedDescription)"
+            saveFailed = true
         }
     }
 
