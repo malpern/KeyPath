@@ -3,7 +3,7 @@ import XCTest
 
 /// Tests for layer selector functionality in MapperViewModel
 @MainActor
-final class LayerSelectorTests: XCTestCase {
+final class LayerSelectorTests: KeyPathTestCase {
     // MARK: - getAvailableLayers Tests
 
     func testGetAvailableLayers_defaultsToBaseAndNav() {

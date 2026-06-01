@@ -3,7 +3,7 @@ import KeyPathPermissions
 @preconcurrency import XCTest
 
 @MainActor
-final class RecordingCoordinatorTests: XCTestCase {
+final class RecordingCoordinatorTests: KeyPathTestCase {
     private var statusMessages: [String] = []
     private lazy var permissionProvider = StubPermissionProvider(
         snapshot: RecordingCoordinatorTests.snapshot(accessibility: .unknown)

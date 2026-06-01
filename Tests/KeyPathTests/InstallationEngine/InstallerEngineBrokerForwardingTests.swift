@@ -3,7 +3,7 @@
 @preconcurrency import XCTest
 
 @MainActor
-final class InstallerEngineBrokerForwardingTests: XCTestCase {
+final class InstallerEngineBrokerForwardingTests: KeyPathTestCase {
     func testUninstallVirtualHIDDriversRoutesToBroker() async throws {
         let coordinator = PrivilegedCoordinatorStub()
         let broker = PrivilegeBroker(coordinator: coordinator)

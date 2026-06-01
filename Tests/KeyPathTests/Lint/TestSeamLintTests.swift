@@ -17,23 +17,14 @@ final class TestSeamLintTests: XCTestCase {
     /// Pre-existing suites that use a hazard type but still extend XCTestCase directly.
     /// Migrate these to KeyPathTestCase and remove them here. Never add new entries.
     private static let allowList: Set<String> = [
-        "ContentViewDebounceTests.swift",
         "ErrorHandlingTests.swift",
         "FacadeLintTests.swift",
-        "GrabRecoveryGateTests.swift",
-        "InstallerEngineBrokerForwardingTests.swift",
-        "KanataViewModelTests.swift",
-        "KeyboardCaptureTests.swift",
         "KeyPathTests.swift",
-        "LayerSelectorTests.swift",
-        "OverlayHealthIndicatorObserverTests.swift",
         "PrivilegedOperationsCoordinatorTests.swift",
-        "RecordingCoordinatorTests.swift",
         "RuntimeCoordinatorResetTests.swift",
         "SystemRequirementsTests.swift",
         "VHIDDeviceManagerTests.swift",
-        "WizardPureLogicTests.swift",
-        "WizardRecipeParityTests.swift"
+        "WizardPureLogicTests.swift"
     ]
 
     func testCoordinatorSuitesUseKeyPathTestCase() throws {

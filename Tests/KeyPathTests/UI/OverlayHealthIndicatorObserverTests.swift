@@ -4,7 +4,7 @@ import KeyPathInstallationWizard
 import KeyPathWizardCore
 import XCTest
 
-final class OverlayHealthIndicatorObserverTests: XCTestCase {
+final class OverlayHealthIndicatorObserverTests: KeyPathTestCase {
     @MainActor
     func testHealthyStateTriggersDismiss() async {
         var states: [HealthIndicatorState] = []

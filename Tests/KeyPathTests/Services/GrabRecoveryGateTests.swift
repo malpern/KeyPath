@@ -6,7 +6,7 @@ import XCTest
 /// recovery. The recover/give-up tail (the bounded budget) is covered separately by
 /// `ServiceHealthMonitorTests`; these tests cover only the pre-guard gate so they
 /// never touch the real recovery action (which would shell out to launchctl/pgrep).
-final class GrabRecoveryGateTests: XCTestCase {
+final class GrabRecoveryGateTests: KeyPathTestCase {
     typealias Gate = RuntimeCoordinator.GrabRecoveryGate
 
     func testActiveGrabRecordsSuccess() {
