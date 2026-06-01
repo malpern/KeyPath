@@ -188,7 +188,8 @@ private struct WebHelpWebView: NSViewRepresentable {
 
             if let host = url.host,
                host.contains("malpern.github.io"),
-               url.path.hasPrefix("/KeyPath/guides/") {
+               url.path.hasPrefix("/KeyPath/guides/")
+            {
                 let resource = url.path
                     .replacingOccurrences(of: "/KeyPath/guides/", with: "")
                     .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
@@ -211,7 +212,8 @@ private struct WebHelpWebView: NSViewRepresentable {
         ) {
             if navigationResponse.isForMainFrame,
                let http = navigationResponse.response as? HTTPURLResponse,
-               http.statusCode >= 400 {
+               http.statusCode >= 400
+            {
                 onLoadError?(http.statusCode == 404 ? .notFound : .generic)
                 decisionHandler(.cancel)
                 return
