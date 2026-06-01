@@ -40,9 +40,20 @@ public final class PluginManager {
     /// Current install progress message
     public private(set) var installProgressMessage: String?
 
+    /// Download progress in 0...1 while downloading, or nil when indeterminate
+    /// (download not started, server didn't report a size, or unzip/install phase).
+    public private(set) var installProgress: Double?
+
+    /// Human-readable reason the last install failed, or nil. Cleared when a new
+    /// install starts or one succeeds. User-initiated cancellation does not set it.
+    public private(set) var installError: String?
+
     // MARK: - Private
 
     private var loadedBundlePaths: Set<String> = []
+
+    /// The in-flight install task, used for cancellation.
+    private var installTask: Task<Void, Never>?
 
     private var userPluginsDirectory: URL {
         guard let appSupport = Foundation.FileManager().urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
@@ -192,21 +203,82 @@ public final class PluginManager {
 
     // MARK: - Install / Remove
 
-    /// Downloads and installs a plugin bundle from a URL.
-    public func installPlugin(from url: URL) async -> Bool {
+    /// Error thrown during install with a user-facing message.
+    private struct InstallError: Error {
+        let userMessage: String
+    }
+
+    /// Starts a (cancellable) download + install of a plugin bundle. Fire-and-forget:
+    /// progress, completion, and any error are reflected on the observable state
+    /// (`isInstalling`, `installProgress`, `installProgressMessage`, `installError`).
+    /// Ignored if an install is already running.
+    public func beginInstall(from url: URL) {
+        guard installTask == nil else {
+            AppLogger.shared.warn("🔌 [PluginManager] Install already in progress; ignoring request")
+            return
+        }
+
+        installError = nil
+        installProgress = nil
         isInstalling = true
         installProgressMessage = "Downloading\u{2026}"
 
+        installTask = Task { [self] in
+            await performInstall(from: url)
+            isInstalling = false
+            installProgressMessage = nil
+            installProgress = nil
+            installTask = nil
+        }
+    }
+
+    /// Cancels an in-flight install. The download is aborted and partial files
+    /// are cleaned up; no error message is shown for user-initiated cancellation.
+    public func cancelInstall() {
+        guard installTask != nil else { return }
+        AppLogger.shared.info("🔌 [PluginManager] Cancelling in-flight install")
+        installProgressMessage = "Cancelling\u{2026}"
+        installTask?.cancel()
+    }
+
+    /// Backwards-compatible one-shot install. Returns true on success. Prefer
+    /// `beginInstall(from:)` for UI use so the install can be cancelled.
+    @discardableResult
+    public func installPlugin(from url: URL) async -> Bool {
+        isInstalling = true
+        installError = nil
+        installProgress = nil
+        installProgressMessage = "Downloading\u{2026}"
         defer {
             isInstalling = false
             installProgressMessage = nil
+            installProgress = nil
         }
+        await performInstall(from: url)
+        return installError == nil
+    }
 
+    /// Runs the full download → unzip → install pipeline, updating observable
+    /// state. Sets `installError` with a specific message on failure; leaves it
+    /// nil on success or user cancellation.
+    private func performInstall(from url: URL) async {
         do {
-            // Download
-            let (tempFileURL, _) = try await URLSession.shared.download(from: url)
+            // Download with progress + cancellation support.
+            let downloader = PluginDownloader { [weak self] progress in
+                Task { @MainActor in self?.installProgress = progress }
+            }
+            let tempFileURL: URL
+            do {
+                tempFileURL = try await downloader.download(from: url)
+            } catch let urlError as URLError where urlError.code == .cancelled {
+                throw CancellationError()
+            } catch let urlError as URLError {
+                throw InstallError(userMessage: networkMessage(for: urlError))
+            }
 
+            try Task.checkCancellation()
             installProgressMessage = "Installing\u{2026}"
+            installProgress = nil
 
             // Ensure plugins directory exists
             try Foundation.FileManager().createDirectory(at: userPluginsDirectory, withIntermediateDirectories: true)
@@ -218,7 +290,8 @@ public final class PluginManager {
             let result = try await SubprocessRunner.shared.run("/usr/bin/ditto", args: ["-xk", tempFileURL.path, unzipDir.path])
             guard result.exitCode == 0 else {
                 AppLogger.shared.error("🔌 [PluginManager] Unzip failed with status \(result.exitCode)")
-                return false
+                try? Foundation.FileManager().removeItem(at: tempFileURL)
+                throw InstallError(userMessage: "The download couldn't be unpacked — it may be corrupted. Try again.")
             }
 
             // Find the .bundle in unzipped contents
@@ -230,7 +303,9 @@ public final class PluginManager {
 
             guard let bundleSource = unzippedContents.first(where: { $0.pathExtension == "bundle" }) else {
                 AppLogger.shared.error("🔌 [PluginManager] No .bundle found in downloaded archive")
-                return false
+                try? Foundation.FileManager().removeItem(at: tempFileURL)
+                try? Foundation.FileManager().removeItem(at: unzipDir)
+                throw InstallError(userMessage: "The download didn't contain a valid plugin.")
             }
 
             let destination = userPluginsDirectory.appendingPathComponent(bundleSource.lastPathComponent)
@@ -250,10 +325,30 @@ public final class PluginManager {
             loadPlugin(from: destination)
 
             AppLogger.shared.info("🔌 [PluginManager] Plugin installed from: \(url.lastPathComponent)")
-            return true
+        } catch is CancellationError {
+            AppLogger.shared.info("🔌 [PluginManager] Install cancelled by user")
+        } catch let error as InstallError {
+            AppLogger.shared.error("🔌 [PluginManager] Install failed: \(error.userMessage)")
+            installError = error.userMessage
         } catch {
             AppLogger.shared.error("🔌 [PluginManager] Install failed: \(error)")
-            return false
+            installError = "Installation failed: \(error.localizedDescription)"
+        }
+    }
+
+    /// Maps a `URLError` to a concise, user-facing reason.
+    private func networkMessage(for error: URLError) -> String {
+        switch error.code {
+        case .notConnectedToInternet:
+            "No internet connection. Check your network and try again."
+        case .timedOut:
+            "The download timed out. Check your connection and try again."
+        case .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
+            "Couldn't reach the download server. Try again later."
+        case .fileDoesNotExist, .badURL, .resourceUnavailable:
+            "The plugin download is unavailable. Try again later."
+        default:
+            "Download failed: \(error.localizedDescription)"
         }
     }
 
