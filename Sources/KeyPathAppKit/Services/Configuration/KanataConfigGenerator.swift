@@ -233,12 +233,15 @@ public class KanataConfigGenerator {
     /// Error thrown when user cancels biometric authentication
     public enum ConfigGeneratorError: Error, LocalizedError {
         case authenticationCancelled
+        case authenticationFailed(String)
         case noAPIKey
 
         public var errorDescription: String? {
             switch self {
             case .authenticationCancelled:
                 "Authentication was cancelled"
+            case let .authenticationFailed(message):
+                "Authentication failed: \(message)"
             case .noAPIKey:
                 "AI repair requires an API key. Add one in Settings → General → AI Configuration."
             }
@@ -261,8 +264,10 @@ public class KanataConfigGenerator {
         case .cancelled:
             throw ConfigGeneratorError.authenticationCancelled
         case let .failed(errorMessage):
-            AppLogger.shared.log("⚠️ [ConfigGenerator] Auth failed: \(errorMessage), proceeding anyway")
-        // Continue - biometric failure shouldn't block if user has API key
+            // Fail-closed: an unexpected auth error must not bypass the consent gate
+            // for a paid API call. Legit no-biometrics cases already route to password.
+            AppLogger.shared.log("⚠️ [ConfigGenerator] Auth failed: \(errorMessage), aborting")
+            throw ConfigGeneratorError.authenticationFailed(errorMessage)
         case .authenticated, .notRequired:
             break // Continue with API call
         }
