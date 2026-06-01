@@ -36,6 +36,14 @@ public class InsightsPlugin: NSObject, KeyPathPlugin {
         }
     }
 
+    public func prepareForTermination(completion: @escaping () -> Void) {
+        Task { @MainActor in
+            // Flush any buffered events to disk before the app exits.
+            await ActivityLogger.shared.prepareForTermination()
+            completion()
+        }
+    }
+
     public func didReceiveActionEvent(action: String, target: String?, uri: String) {
         Task { @MainActor in
             ActivityLogger.shared.recordKeyPathAction(action: action, target: target, uri: uri)

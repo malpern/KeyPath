@@ -135,14 +135,44 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var suppressLaunchSplashAutoHide = false
     private var keyboardCapture: KeyboardCapture?
 
-    func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminate called")
         // Close wizard and all windows so nothing blocks the quit
         WizardWindowController.shared.closeWindow()
         for window in NSApp.windows {
             window.close()
         }
-        return .terminateNow
+
+        // Give loaded plugins (e.g. Insights) a chance to flush buffered state
+        // before the process exits. Plugin cleanup is async, so defer the quit
+        // and reply once it completes — bounded by a short timeout so a stuck
+        // flush can never block the user from quitting.
+        guard !PluginManager.shared.plugins.isEmpty else {
+            return .terminateNow
+        }
+
+        var didReply = false
+        let reply: @MainActor () -> Void = {
+            guard !didReply else { return }
+            didReply = true
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+
+        PluginManager.shared.prepareForTerminationAll {
+            AppLogger.shared.info("🚪 [AppDelegate] Plugin termination flush complete")
+            reply()
+        }
+
+        // Safety timeout: never let a slow plugin hold up termination.
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            if !didReply {
+                AppLogger.shared.log("⚠️ [AppDelegate] Plugin termination flush timed out; quitting anyway")
+            }
+            reply()
+        }
+
+        return .terminateLater
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
