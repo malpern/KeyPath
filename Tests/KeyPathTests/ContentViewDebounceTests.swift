@@ -6,7 +6,7 @@ import SwiftUI
 /// Phase 1 Unit Tests: ContentView Debouncing
 /// Tests the save operation debouncing added in Phase 1.3 to prevent rapid successive saves
 @MainActor
-class ContentViewDebounceTests: XCTestCase {
+class ContentViewDebounceTests: KeyPathTestCase {
     lazy var testManager: RuntimeCoordinator = .init()
 
     // MARK: - Debounce Logic Tests (Non-UI)

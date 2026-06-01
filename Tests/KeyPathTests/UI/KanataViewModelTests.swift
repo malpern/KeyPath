@@ -8,7 +8,7 @@
 /// - ViewModel delegates actions to KanataManager
 /// - UI state updates correctly
 @MainActor
-final class KanataViewModelTests: XCTestCase {
+final class KanataViewModelTests: KeyPathTestCase {
     // Note: These tests are simple sanity checks to verify the MVVM architecture compiles and runs
     // Full integration testing is done at the UI level
 

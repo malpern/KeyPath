@@ -5,7 +5,7 @@ import KeyPathCore
 @preconcurrency import XCTest
 
 @MainActor
-final class KeyboardCaptureTests: XCTestCase {
+final class KeyboardCaptureTests: KeyPathTestCase {
     private let defaultNotificationCenter = NotificationCenter
         .perform(NSSelectorFromString("defaultCenter"))?
         .takeUnretainedValue() as? NotificationCenter
