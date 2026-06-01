@@ -589,8 +589,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         await installerEngine.inspectSystem()
     }
 
-    func uninstall(deleteConfig: Bool) async -> InstallerReport {
-        await installerEngine.uninstall(deleteConfig: deleteConfig, using: privilegeBroker)
+    func uninstall(deleteConfig: Bool, removeVirtualHID: Bool = false) async -> InstallerReport {
+        await installerEngine.uninstall(
+            deleteConfig: deleteConfig, removeVirtualHID: removeVirtualHID, using: privilegeBroker
+        )
     }
 
     func runFullRepair(reason: String = "RuntimeCoordinator repair request") async -> InstallerReport {

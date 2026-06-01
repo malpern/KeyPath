@@ -11,6 +11,7 @@ struct UninstallKeyPathDialog: View {
     @State private var didSucceed = false
     @State private var hasScheduledQuit = false
     @State private var autoQuitWorkItem: DispatchWorkItem?
+    @State private var removeVirtualHID = false
 
     var body: some View {
         VStack(spacing: 20) {
@@ -35,6 +36,20 @@ struct UninstallKeyPathDialog: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
+
+                // Optional: also remove the shared Karabiner virtual keyboard driver.
+                Toggle(isOn: $removeVirtualHID) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Also remove the virtual keyboard driver")
+                            .font(.caption)
+                        Text("Other tools (e.g. Karabiner-Elements) may rely on it.")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .toggleStyle(.checkbox)
+                .disabled(isRunning)
+                .accessibilityIdentifier("uninstall-remove-vhid-toggle")
 
                 // Status
                 if isRunning {
@@ -90,7 +105,7 @@ struct UninstallKeyPathDialog: View {
             lastError = nil
         }
 
-        let report = await kanataManager.uninstall(deleteConfig: false)
+        let report = await kanataManager.uninstall(deleteConfig: false, removeVirtualHID: removeVirtualHID)
 
         await MainActor.run {
             isRunning = false

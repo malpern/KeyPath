@@ -601,10 +601,23 @@ public final class InstallerEngine {
         return report
     }
 
-    /// Execute uninstall via the existing coordinator (placeholder until uninstall recipes exist)
-    public func uninstall(deleteConfig: Bool, using broker: PrivilegeBroker) async -> InstallerReport {
-        AppLogger.shared.log("🗑️ [InstallerEngine] Starting uninstall (deleteConfig: \(deleteConfig))")
-        _ = broker // Reserved for future privileged uninstall steps
+    /// Execute uninstall via the existing coordinator.
+    /// - Parameter removeVirtualHID: when true, also tears down the Karabiner VirtualHID
+    ///   driver. Off by default because the driver is a shared component other tools may use.
+    public func uninstall(deleteConfig: Bool, removeVirtualHID: Bool = false, using broker: PrivilegeBroker) async -> InstallerReport {
+        AppLogger.shared.log("🗑️ [InstallerEngine] Starting uninstall (deleteConfig: \(deleteConfig), removeVirtualHID: \(removeVirtualHID))")
+
+        // Remove the VirtualHID driver BEFORE the main teardown: the coordinator uninstall
+        // self-destructs the privileged helper that this step depends on. Best-effort — a
+        // VHID failure must not block removing KeyPath itself.
+        if removeVirtualHID {
+            do {
+                try await broker.uninstallVirtualHIDDrivers()
+                AppLogger.shared.log("🗑️ [InstallerEngine] Virtual HID driver removed")
+            } catch {
+                AppLogger.shared.log("⚠️ [InstallerEngine] Virtual HID removal failed (continuing uninstall): \(error)")
+            }
+        }
 
         let start = Date()
         guard let coordinator = WizardDependencies.createUninstallCoordinator?() else {
