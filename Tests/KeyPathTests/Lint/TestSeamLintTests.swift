@@ -17,22 +17,23 @@ final class TestSeamLintTests: XCTestCase {
     /// Pre-existing suites that use a hazard type but still extend XCTestCase directly.
     /// Migrate these to KeyPathTestCase and remove them here. Never add new entries.
     private static let allowList: Set<String> = [
+        // Real-I/O suites: the seam fixes their pgrep hang but they also do real
+        // saveConfiguration/updateStatus/resetToDefaultConfig that needs deeper mocking.
         "ErrorHandlingTests.swift",
-        "FacadeLintTests.swift",
         "KeyPathTests.swift",
-        "PrivilegedOperationsCoordinatorTests.swift",
         "RuntimeCoordinatorResetTests.swift",
-        "SystemRequirementsTests.swift",
-        "VHIDDeviceManagerTests.swift",
-        "WizardPureLogicTests.swift"
+        // The seam's own test (sets testPIDProvider per test, asserts real-pgrep fallthrough).
+        "VHIDDeviceManagerTests.swift"
     ]
 
     func testCoordinatorSuitesUseKeyPathTestCase() throws {
         let testsDir = repositoryRoot().appendingPathComponent("Tests/KeyPathTests")
 
-        // Type used as a constructor `Type(` or as a type annotation `: Type`.
+        // Type used as a constructor `Type(` or as a type annotation `: Type`. The
+        // leading \b avoids matching a method name that merely ends in the type, e.g.
+        // `testDoNotBypassInstallerEngine()`.
         let hazard = try NSRegularExpression(
-            pattern: #"(RuntimeCoordinator|InstallerEngine|SystemValidator|VHIDDeviceManager)\s*\(|:\s*(RuntimeCoordinator|InstallerEngine|SystemValidator|VHIDDeviceManager)\b"#
+            pattern: #"\b(RuntimeCoordinator|InstallerEngine|SystemValidator|VHIDDeviceManager)\s*\(|:\s*(RuntimeCoordinator|InstallerEngine|SystemValidator|VHIDDeviceManager)\b"#
         )
 
         guard let enumerator = FileManager.default.enumerator(at: testsDir, includingPropertiesForKeys: nil) else {
