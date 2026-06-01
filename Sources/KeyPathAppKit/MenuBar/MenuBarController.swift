@@ -31,6 +31,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     /// Updated asynchronously; read synchronously during menu building.
     private var cachedAppKeymaps: [String: AppKeymap] = [:]
 
+    /// Whether the status menu is currently open. Used to rebuild live when an
+    /// async keymap load resolves mid-display.
+    private var isMenuOpen = false
+
     // MARK: - Feature IDs (in display order: approachable → nerdy)
 
     private static let featureCollections: [(id: UUID, name: String)] = [
@@ -153,6 +157,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     func menuNeedsUpdate(_: NSMenu) {
         rebuildMenu()
+    }
+
+    func menuWillOpen(_: NSMenu) {
+        isMenuOpen = true
+        // Reload app keymaps each time the menu opens so the per-app section is
+        // current. If the (async) load resolves while the menu is still open,
+        // refreshAppKeymapCache rebuilds it live — fixing the first-open race
+        // where the cache hadn't populated yet.
+        refreshAppKeymapCache()
+    }
+
+    func menuDidClose(_: NSMenu) {
+        isMenuOpen = false
     }
 
     // MARK: - Menu Building
@@ -342,16 +359,30 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 menu.addItem(mappingItem)
             }
 
-            // Show "and X more..." if there are more
+            // Remaining mappings live in an "X more…" submenu so they're
+            // actually viewable in the menu bar, rather than a flat row that
+            // silently opens the mapper.
             if keymap.overrides.count > 5 {
+                let remaining = Array(keymap.overrides.dropFirst(5))
                 let moreItem = NSMenuItem(
-                    title: "  and \(keymap.overrides.count - 5) more...",
-                    action: #selector(handleAppMappingClick),
+                    title: "  \(remaining.count) more\u{2026}",
+                    action: nil,
                     keyEquivalent: ""
                 )
-                moreItem.target = self
                 moreItem.indentationLevel = 1
-                moreItem.representedObject = bundleId
+
+                let submenu = NSMenu()
+                for override in remaining {
+                    let item = NSMenuItem(
+                        title: "\(override.inputKey) → \(KeyDisplayFormatter.format(override.action.displayName))",
+                        action: #selector(handleAppMappingClick),
+                        keyEquivalent: ""
+                    )
+                    item.target = self
+                    item.representedObject = bundleId
+                    submenu.addItem(item)
+                }
+                moreItem.submenu = submenu
                 menu.addItem(moreItem)
             }
         }
@@ -372,12 +403,18 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     /// Called on initial configure and whenever `.appKeymapsDidChange` fires.
     private func refreshAppKeymapCache() {
         Task { @MainActor [weak self] in
+            guard let self else { return }
             let keymaps = await AppKeymapStore.shared.loadKeymaps()
             var keymapsByBundle: [String: AppKeymap] = [:]
             for keymap in keymaps {
                 keymapsByBundle[keymap.mapping.bundleIdentifier] = keymap
             }
-            self?.cachedAppKeymaps = keymapsByBundle
+            cachedAppKeymaps = keymapsByBundle
+            // If the menu is showing when the load lands, rebuild so the
+            // per-app section appears now instead of on the next open.
+            if isMenuOpen {
+                rebuildMenu()
+            }
         }
     }
 

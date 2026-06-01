@@ -233,8 +233,87 @@ struct ScriptEnableConfirmationView: View {
     }
 }
 
+/// Confirmation dialog for enabling the "skip confirmation dialog" bypass.
+/// This is the riskier sub-toggle: with it on, scripts run with no per-run
+/// warning, so flipping it on warrants its own explicit confirmation.
+struct ScriptBypassConfirmationView: View {
+    let onAllow: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.largeTitle)
+                .foregroundColor(.orange)
+
+            Text("Skip the Per-Script Warning?")
+                .font(.title2.weight(.bold))
+
+            Text("With this on, scripts run the moment you press their shortcut — KeyPath will no longer show a warning before each one. Only do this if you fully trust every script you've added.")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(alignment: .leading, spacing: 10) {
+                warningPoint(
+                    icon: "bolt.fill",
+                    text: "Scripts run immediately, with no confirmation"
+                )
+                warningPoint(
+                    icon: "terminal.fill",
+                    text: "A mistaken or malicious script runs unchecked"
+                )
+            }
+            .padding(.horizontal, 8)
+
+            Text("You can turn this back on anytime in Settings.")
+                .font(.callout)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+
+            Divider()
+
+            HStack(spacing: 16) {
+                Button("Cancel") {
+                    onCancel()
+                }
+                .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("script-bypass-cancel-button")
+
+                Button("Skip Warnings") {
+                    ScriptSecurityService.shared.bypassFirstRunDialog = true
+                    onAllow()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.orange)
+                .accessibilityIdentifier("script-bypass-allow-button")
+            }
+        }
+        .padding(24)
+        .frame(width: 400)
+    }
+
+    private func warningPoint(icon: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .foregroundColor(.orange)
+                .frame(width: 20)
+            Text(text)
+                .font(.body)
+        }
+    }
+}
+
 #Preview("Enable Confirmation") {
     ScriptEnableConfirmationView(
+        onAllow: {},
+        onCancel: {}
+    )
+}
+
+#Preview("Bypass Confirmation") {
+    ScriptBypassConfirmationView(
         onAllow: {},
         onCancel: {}
     )

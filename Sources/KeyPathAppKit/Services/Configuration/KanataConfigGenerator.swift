@@ -254,7 +254,7 @@ public class KanataConfigGenerator {
 
         // Biometric authentication before expensive API call
         let authResult = await BiometricAuthService.shared.authenticate(
-            reason: "This AI generation will use your Anthropic API quota and cost approximately $0.01-0.03. Authenticate to proceed?"
+            reason: BiometricAuthService.defaultAuthReason
         )
 
         switch authResult {
@@ -267,16 +267,15 @@ public class KanataConfigGenerator {
             break // Continue with API call
         }
 
-        let url = URL(string: "https://api.anthropic.com/v1/messages")!
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: ClaudeAPIConstants.messagesEndpoint)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.addValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.addValue(ClaudeAPIConstants.apiVersion, forHTTPHeaderField: "anthropic-version")
 
         let requestBody: [String: Any] = [
-            "model": "claude-3-5-sonnet-20241022",
-            "max_tokens": 4096,
+            "model": ClaudeAPIConstants.defaultModel,
+            "max_tokens": ClaudeAPIConstants.maxTokensForConfig,
             "messages": [
                 [
                     "role": "user",

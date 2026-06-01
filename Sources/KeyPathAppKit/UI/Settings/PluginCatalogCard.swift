@@ -9,7 +9,9 @@ import SwiftUI
 /// to let users discover and install optional add-ons like Activity Insights.
 struct PluginCatalogCard: View {
     let entry: PluginCatalogEntry
-    @State private var installFailed = false
+    private var pluginManager: PluginManager {
+        PluginManager.shared
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -46,22 +48,33 @@ struct PluginCatalogCard: View {
             }
             .padding(.vertical, 4)
 
-            // Install button
-            HStack {
-                if PluginManager.shared.isInstalling {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text(PluginManager.shared.installProgressMessage ?? "Installing\u{2026}")
+            // Install button / progress
+            HStack(spacing: 10) {
+                if pluginManager.isInstalling {
+                    if let progress = pluginManager.installProgress {
+                        ProgressView(value: progress)
+                            .frame(maxWidth: 140)
+                        Text("\(Int(progress * 100))%")
+                            .font(.caption.monospacedDigit())
+                            .foregroundColor(.secondary)
+                    } else {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                    Text(pluginManager.installProgressMessage ?? "Installing\u{2026}")
                         .font(.caption)
                         .foregroundColor(.secondary)
+
+                    Spacer()
+
+                    Button("Cancel") {
+                        pluginManager.cancelInstall()
+                    }
+                    .controlSize(.small)
+                    .accessibilityIdentifier("plugin-cancel-\(entry.id)")
                 } else {
                     Button {
-                        Task {
-                            let success = await PluginManager.shared.installPlugin(from: entry.downloadURL)
-                            if !success {
-                                installFailed = true
-                            }
-                        }
+                        pluginManager.beginInstall(from: entry.downloadURL)
                     } label: {
                         Text("Download & Install")
                     }
@@ -75,10 +88,12 @@ struct PluginCatalogCard: View {
                 }
             }
 
-            if installFailed {
-                Text("Installation failed. Check your internet connection and try again.")
+            if let installError = pluginManager.installError, !pluginManager.isInstalling {
+                Text(installError)
                     .font(.caption)
                     .foregroundColor(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("plugin-install-error-\(entry.id)")
             }
 
             // Learn more link

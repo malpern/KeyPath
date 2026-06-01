@@ -306,32 +306,44 @@ struct ExpandableCollectionRow: View {
                 .accessibilityLabel("\(name) help")
             }
 
-            // Right side: Toggle (NOT inside button, so it receives taps)
-            Toggle(
-                "",
-                isOn: Binding(
-                    get: { effectiveEnabled },
-                    set: { newValue in
-                        // Optimistic update: change UI immediately
-                        localEnabled = newValue
-                        // Then trigger async operation
-                        onToggle(newValue)
-                    }
-                )
-            )
-            .labelsHidden()
-            .toggleStyle(.switch)
-            .tint(.blue)
-            .disabled(managingPackName != nil)
-            .overlay {
-                if managingPackName != nil {
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .onTapGesture { onManagedToggleTapped?() }
+            // Right side: a managed-by-pack lock affordance, or the enable toggle.
+            if let managingPackName {
+                // This collection is owned by an installed pack — toggling it directly
+                // would be a dead control. Show an explicit, tappable lock that names
+                // the managing pack instead of a disabled switch with an invisible
+                // tap target (the former anti-pattern).
+                Button {
+                    onManagedToggleTapped?()
+                } label: {
+                    Image(systemName: "lock.fill")
+                        .foregroundColor(.secondary)
+                        .font(.body)
                 }
+                .buttonStyle(.plain)
+                .help("Managed by \(managingPackName). Tap to learn more.")
+                .accessibilityIdentifier("rules-summary-managed-\(collectionId)")
+                .accessibilityLabel("\(name) is managed by \(managingPackName)")
+                .accessibilityHint("Activate to learn how to change it")
+            } else {
+                // Toggle (NOT inside button, so it receives taps)
+                Toggle(
+                    "",
+                    isOn: Binding(
+                        get: { effectiveEnabled },
+                        set: { newValue in
+                            // Optimistic update: change UI immediately
+                            localEnabled = newValue
+                            // Then trigger async operation
+                            onToggle(newValue)
+                        }
+                    )
+                )
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .tint(.blue)
+                .accessibilityIdentifier("rules-summary-toggle-\(collectionId)")
+                .accessibilityLabel("Toggle \(name)")
             }
-            .accessibilityIdentifier("rules-summary-toggle-\(collectionId)")
-            .accessibilityLabel("Toggle \(name)")
         }
         .padding(12)
     }

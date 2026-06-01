@@ -8,6 +8,7 @@ struct ScriptExecutionSettingsSection: View {
     @Bindable private var securityService = ScriptSecurityService.shared
     @State private var showingExecutionLog = false
     @State private var showingEnableConfirmation = false
+    @State private var showingBypassConfirmation = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -67,13 +68,29 @@ struct ScriptExecutionSettingsSection: View {
                             .foregroundColor(.orange)
                     }
                     Spacer()
-                    Toggle("", isOn: $securityService.bypassFirstRunDialog)
-                        .toggleStyle(.switch)
-                        .labelsHidden()
+                    Toggle("", isOn: Binding(
+                        get: { securityService.bypassFirstRunDialog },
+                        set: { newValue in
+                            if newValue {
+                                // Enabling the bypass is the risky direction — confirm it.
+                                showingBypassConfirmation = true
+                            } else {
+                                securityService.bypassFirstRunDialog = false
+                            }
+                        }
+                    ))
+                    .toggleStyle(.switch)
+                    .labelsHidden()
                 }
                 .padding(.leading, 24)
                 .accessibilityIdentifier("settings-script-bypass-dialog-toggle")
                 .accessibilityLabel("Skip script confirmation dialog")
+                .sheet(isPresented: $showingBypassConfirmation) {
+                    ScriptBypassConfirmationView(
+                        onAllow: { showingBypassConfirmation = false },
+                        onCancel: { showingBypassConfirmation = false }
+                    )
+                }
 
                 // Execution log button
                 HStack {
@@ -103,6 +120,7 @@ struct ScriptExecutionSettingsSection: View {
 private struct ScriptExecutionLogView: View {
     private var securityService = ScriptSecurityService.shared
     @Environment(\.dismiss) private var dismiss
+    @State private var showingClearConfirmation = false
 
     private var logEntries: [(id: Int, path: String, timestamp: String, success: Bool, error: String)] {
         securityService.executionLog.enumerated().reversed().map { index, entry in
@@ -187,7 +205,7 @@ private struct ScriptExecutionLogView: View {
                 Spacer()
 
                 Button("Clear Log") {
-                    clearLog()
+                    showingClearConfirmation = true
                 }
                 .buttonStyle(.bordered)
                 .disabled(logEntries.isEmpty)
@@ -196,6 +214,19 @@ private struct ScriptExecutionLogView: View {
             .padding()
         }
         .frame(width: 500, height: 400)
+        .confirmationDialog(
+            "Clear the script execution log?",
+            isPresented: $showingClearConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Clear Log", role: .destructive) {
+                clearLog()
+            }
+            .accessibilityIdentifier("settings-script-clear-log-confirm")
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently deletes the audit history of scripts KeyPath has run. This can't be undone.")
+        }
     }
 
     private func formatTimestamp(_ iso8601: String) -> String {

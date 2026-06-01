@@ -12,6 +12,8 @@ struct AIConfigGenerationSettingsSection: View {
     @State private var isValidating: Bool = false
     @State private var validationError: String?
     @State private var isAddingKey: Bool = false
+    /// True when the last failure was a Keychain write (vs. validation), so we offer Retry + env-var guidance.
+    @State private var saveFailed: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -29,6 +31,11 @@ struct AIConfigGenerationSettingsSection: View {
                 statusButton
             }
             .accessibilityIdentifier("settings-ai-api-key-row")
+
+            // Environment-variable precedence explainer
+            if hasAPIKeyFromEnv {
+                envPrecedenceNote
+            }
 
             // API key input (shown when adding)
             if isAddingKey {
@@ -65,7 +72,9 @@ struct AIConfigGenerationSettingsSection: View {
 
     private var statusDescription: String {
         if hasAPIKeyFromEnv {
-            "Using environment variable"
+            hasAPIKeyInKeychain
+                ? "Using ANTHROPIC_API_KEY (overrides your saved key)"
+                : "Using ANTHROPIC_API_KEY environment variable"
         } else if hasAPIKeyInKeychain {
             "Stored in Keychain"
         } else {
@@ -73,12 +82,42 @@ struct AIConfigGenerationSettingsSection: View {
         }
     }
 
+    /// Explains that the environment variable always wins and how to switch to a Keychain key.
+    private var envPrecedenceNote: some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: "info.circle")
+                .foregroundColor(.secondary)
+                .font(.caption)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("The ANTHROPIC_API_KEY environment variable always takes precedence over a key saved here.")
+                Text(hasAPIKeyInKeychain
+                    ? "Your saved Keychain key is kept but unused. To use it, unset the variable and relaunch KeyPath."
+                    : "To store a key in KeyPath instead, unset the variable and relaunch KeyPath.")
+            }
+            .font(.caption)
+            .foregroundColor(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.leading, 16)
+        .accessibilityIdentifier("settings-ai-env-precedence-note")
+    }
+
     @ViewBuilder
     private var statusButton: some View {
         if hasAPIKeyFromEnv {
-            // Environment variable - just show indicator
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.green)
+            if hasAPIKeyInKeychain {
+                // Env var wins, but a stale Keychain key exists — let the user clear it.
+                Button("Remove Saved Key") {
+                    removeAPIKey()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityIdentifier("settings-ai-remove-key-button")
+            } else {
+                // Environment variable - just show indicator
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+            }
         } else if hasAPIKeyInKeychain {
             // Has key - show remove button
             Button("Remove") {
@@ -93,6 +132,7 @@ struct AIConfigGenerationSettingsSection: View {
                 isAddingKey = false
                 apiKeyInput = ""
                 validationError = nil
+                saveFailed = false
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -135,6 +175,23 @@ struct AIConfigGenerationSettingsSection: View {
                     .foregroundColor(.red)
             }
 
+            // On a Keychain write failure, offer a retry and an env-var fallback.
+            if saveFailed {
+                HStack(spacing: 8) {
+                    Button("Retry") {
+                        storeValidatedKey()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(apiKeyInput.isEmpty || isValidating)
+                    .accessibilityIdentifier("settings-ai-retry-save-button")
+                }
+                Text("If saving keeps failing, set the ANTHROPIC_API_KEY environment variable instead, then relaunch KeyPath.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             Link("Get API Key from Anthropic →", destination: URL(string: "https://console.anthropic.com/settings/keys")!)
                 .font(.caption)
                 .accessibilityIdentifier("settings-ai-get-key-link")
@@ -153,22 +210,33 @@ struct AIConfigGenerationSettingsSection: View {
 
         isValidating = true
         validationError = nil
+        saveFailed = false
 
         let result = await APIKeyValidator.shared.validate(apiKeyInput)
 
         isValidating = false
 
-        if result.isValid {
-            do {
-                try KeychainService.shared.storeClaudeAPIKey(apiKeyInput)
-                apiKeyInput = ""
-                isAddingKey = false
-                refreshStatus()
-            } catch {
-                validationError = "Failed to save: \(error.localizedDescription)"
-            }
-        } else {
+        guard result.isValid else {
             validationError = result.errorMessage ?? "Invalid API key"
+            saveFailed = false
+            return
+        }
+
+        storeValidatedKey()
+    }
+
+    /// Persists the already-validated `apiKeyInput` to the Keychain. Retry calls this
+    /// directly so a Keychain write failure doesn't trigger a redundant network re-validation.
+    private func storeValidatedKey() {
+        do {
+            try KeychainService.shared.storeClaudeAPIKey(apiKeyInput)
+            apiKeyInput = ""
+            isAddingKey = false
+            saveFailed = false
+            refreshStatus()
+        } catch {
+            validationError = "Couldn't save to Keychain: \(error.localizedDescription)"
+            saveFailed = true
         }
     }
 

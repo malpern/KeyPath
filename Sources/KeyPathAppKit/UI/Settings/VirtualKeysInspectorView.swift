@@ -10,10 +10,21 @@ struct VirtualKeysInspectorView: View {
     @State private var errorMessage: String?
     @State private var testingKey: String?
     @State private var testResult: TestResult?
+    @State private var loadSource: LoadSource?
 
     private enum TestResult {
         case success(String)
         case failure(String)
+    }
+
+    /// Which path produced the currently displayed keys.
+    ///
+    /// The live-TCP path can only return fake-key *names* — Kanata's TCP API doesn't
+    /// distinguish `defvirtualkeys` from `deffakekeys` — so those results can't be
+    /// grouped by source. The config-file parser labels sources accurately.
+    private enum LoadSource {
+        case liveTCP
+        case configFile
     }
 
     var body: some View {
@@ -45,11 +56,15 @@ struct VirtualKeysInspectorView: View {
                     .foregroundStyle(.secondary)
                 Text("Virtual Keys")
                     .font(.headline)
+                if !isLoading, let loadSource {
+                    sourceBadge(loadSource)
+                }
                 Spacer()
                 Button(action: { Task { await loadVirtualKeys() } }) {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
+                .disabled(isLoading) // avoid overlapping loads that could desync loadSource/virtualKeys
                 .help("Refresh")
                 .accessibilityIdentifier("virtual-keys-refresh-button")
                 .accessibilityLabel("Refresh virtual keys")
@@ -59,6 +74,22 @@ struct VirtualKeysInspectorView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    /// Badge indicating whether keys came from the running service (live) or the config file.
+    private func sourceBadge(_ source: LoadSource) -> some View {
+        let isLive = source == .liveTCP
+        return Text(isLive ? "Live" : "From config file")
+            .font(.caption2.weight(.medium))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background((isLive ? Color.green : Color.secondary).opacity(0.15))
+            .foregroundStyle(isLive ? Color.green : Color.secondary)
+            .clipShape(.rect(cornerRadius: 4))
+            .help(isLive
+                ? "Read live from the running Kanata service. Source type (virtual vs fake keys) isn't reported over the live connection."
+                : "Parsed from your config file. The service isn't reporting keys right now.")
+            .accessibilityIdentifier("virtual-keys-source-badge")
     }
 
     // MARK: - Loading
@@ -120,12 +151,20 @@ struct VirtualKeysInspectorView: View {
 
     private var keyListView: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Group by source
-            let grouped = Dictionary(grouping: virtualKeys, by: { $0.source })
+            // The live-TCP path can't report whether each key is a virtual or fake key,
+            // so group-by-source would be misleading there — show a flat list instead.
+            // Config-file parsing knows the source, so keep the labeled sections.
+            if loadSource == .liveTCP {
+                ForEach(virtualKeys) { key in
+                    keyRow(key)
+                }
+            } else {
+                let grouped = Dictionary(grouping: virtualKeys, by: { $0.source })
 
-            ForEach([VirtualKey.VirtualKeySource.virtualkeys, .fakekeys], id: \.self) { source in
-                if let keys = grouped[source], !keys.isEmpty {
-                    sourceSection(source: source, keys: keys)
+                ForEach([VirtualKey.VirtualKeySource.virtualkeys, .fakekeys], id: \.self) { source in
+                    if let keys = grouped[source], !keys.isEmpty {
+                        sourceSection(source: source, keys: keys)
+                    }
                 }
             }
 
@@ -225,22 +264,27 @@ struct VirtualKeysInspectorView: View {
         isLoading = true
         errorMessage = nil
 
-        // Try live TCP query first (returns keys from running kanata, including dynamic includes)
+        // Try live TCP query first (returns keys from running kanata, including dynamic includes).
+        // The TCP API can't distinguish virtual vs fake keys, so source is left as .fakekeys
+        // and the UI renders these as a flat (ungrouped) "Live" list.
         let liveNames = await loadVirtualKeysFromTCP()
         if let liveNames, !liveNames.isEmpty {
             virtualKeys = liveNames.map { VirtualKey(name: $0, action: "", source: .fakekeys) }
+            loadSource = .liveTCP
             isLoading = false
             return
         }
 
-        // Fall back to static config file parsing
+        // Fall back to static config file parsing (source labels are accurate here)
         do {
             let configPath = KeyPathConstants.Config.mainConfigPath
             let content = try String(contentsOfFile: configPath, encoding: .utf8)
             virtualKeys = VirtualKeyParser.parse(config: content)
+            loadSource = .configFile
         } catch {
             errorMessage = "Could not read config: \(error.localizedDescription)"
             virtualKeys = []
+            loadSource = nil
         }
 
         isLoading = false
