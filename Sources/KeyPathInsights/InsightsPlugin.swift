@@ -36,6 +36,23 @@ public class InsightsPlugin: NSObject, KeyPathPlugin {
         }
     }
 
+    public func prepareForTermination(completion: @escaping () -> Void) {
+        // @escaping () -> Void is not Sendable; box it so it can cross into the
+        // @MainActor Task. Safe: PluginManager always calls this from @MainActor
+        // and guards the completion with MainActor.assumeIsolated.
+        final class Box: @unchecked Sendable {
+            let fn: () -> Void
+            init(_ fn: @escaping () -> Void) {
+                self.fn = fn
+            }
+        }
+        let box = Box(completion)
+        Task { @MainActor in
+            await ActivityLogger.shared.prepareForTermination()
+            box.fn()
+        }
+    }
+
     public func didReceiveActionEvent(action: String, target: String?, uri: String) {
         Task { @MainActor in
             ActivityLogger.shared.recordKeyPathAction(action: action, target: target, uri: uri)

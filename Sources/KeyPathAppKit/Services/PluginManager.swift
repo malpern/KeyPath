@@ -163,6 +163,33 @@ public final class PluginManager {
         }
     }
 
+    /// Ask all loaded plugins to flush buffered state before app termination,
+    /// invoking `completion` once every plugin has finished (or immediately if
+    /// none implement the hook). Each plugin's cleanup is async; the caller is
+    /// responsible for bounding the overall wait with a timeout.
+    public func prepareForTerminationAll(completion: @escaping @MainActor () -> Void) {
+        let participating = plugins.filter { $0.responds(to: #selector(KeyPathPlugin.prepareForTermination(completion:))) }
+        guard !participating.isEmpty else {
+            completion()
+            return
+        }
+
+        var remaining = participating.count
+        AppLogger.shared.info("🔌 [PluginManager] Flushing \(remaining) plugin(s) for termination")
+        for plugin in participating {
+            plugin.prepareForTermination? {
+                // Dispatch to MainActor rather than asserting — plugins may legally
+                // call their completion from any thread or actor context.
+                Task { @MainActor in
+                    remaining -= 1
+                    if remaining == 0 {
+                        completion()
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Install / Remove
 
     /// Downloads and installs a plugin bundle from a URL.

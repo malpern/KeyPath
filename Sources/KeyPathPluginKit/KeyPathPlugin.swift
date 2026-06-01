@@ -28,6 +28,14 @@ import AppKit
     /// Called before the plugin is unloaded (optional, default no-op).
     @objc optional func deactivate()
 
+    /// Called when the host app is about to terminate, so the plugin can
+    /// flush any buffered state (e.g. analytics events) before the process
+    /// exits. The plugin performs its (possibly async) cleanup and **must**
+    /// invoke `completion` when finished; the host bounds the total wait with
+    /// a timeout so a stuck plugin can never block the user from quitting.
+    /// Optional — host skips plugins that don't implement it.
+    @objc optional func prepareForTermination(completion: @escaping () -> Void)
+
     /// Called when a `keypath://` action URI is dispatched.
     /// Plugins can use this to record analytics, trigger side effects, etc.
     @objc optional func didReceiveActionEvent(action: String, target: String?, uri: String)
