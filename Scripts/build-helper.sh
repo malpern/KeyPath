@@ -60,7 +60,9 @@ else
     HELPER_ENTITLEMENTS="Sources/KeyPathHelper/KeyPathHelper.entitlements"
 
     if [ -f "$HELPER_ENTITLEMENTS" ]; then
-        codesign --force --options=runtime \
+        # Honor KP_SIGN_CMD so the helper signs through the same path as the rest
+        # of the build (e.g. an unattended GUI-session codesign wrapper).
+        ${KP_SIGN_CMD:-codesign} --force --options=runtime \
             --identifier "com.keypath.helper" \
             --entitlements "$HELPER_ENTITLEMENTS" \
             --sign "$SIGNING_IDENTITY" \
