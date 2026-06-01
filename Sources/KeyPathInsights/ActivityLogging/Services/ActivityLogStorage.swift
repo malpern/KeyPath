@@ -51,10 +51,11 @@ public actor ActivityLogStorage {
         // Application Support directory must degrade gracefully rather than
         // crash the whole app, so fall back to the conventional home-relative
         // path if the API lookup ever fails.
-        let appSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        ).first ?? URL(fileURLWithPath: NSHomeDirectory())
+        let appSupportResult = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+        if appSupportResult.isEmpty {
+            AppLogger.shared.warn("⚠️ [ActivityLogStorage] Application Support directory unavailable — using NSHomeDirectory fallback")
+        }
+        let appSupport = appSupportResult.first ?? URL(fileURLWithPath: NSHomeDirectory())
             .appendingPathComponent("Library")
             .appendingPathComponent("Application Support")
         baseDirectory = appSupport

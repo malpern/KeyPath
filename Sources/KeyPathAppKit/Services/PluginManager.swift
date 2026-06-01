@@ -178,7 +178,9 @@ public final class PluginManager {
         AppLogger.shared.info("🔌 [PluginManager] Flushing \(remaining) plugin(s) for termination")
         for plugin in participating {
             plugin.prepareForTermination? {
-                MainActor.assumeIsolated {
+                // Dispatch to MainActor rather than asserting — plugins may legally
+                // call their completion from any thread or actor context.
+                Task { @MainActor in
                     remaining -= 1
                     if remaining == 0 {
                         completion()
