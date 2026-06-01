@@ -35,12 +35,18 @@ kp_notarize_zip() {
     local zip_path=$1
     local profile=$2
     shift 2
+    # Optionally read the notary profile from a specific keychain (KP_NOTARY_KEYCHAIN).
+    # Without it, notarytool uses the default (login) keychain, exactly as before.
+    local keychain_args=()
+    if [ -n "${KP_NOTARY_KEYCHAIN:-}" ]; then
+        keychain_args=(--keychain "$KP_NOTARY_KEYCHAIN")
+    fi
     if [ "$KP_SIGN_DRY_RUN" = "1" ]; then
-        echo "[DRY RUN] $KP_NOTARY_CMD submit $zip_path --keychain-profile $profile --wait $*"
+        echo "[DRY RUN] $KP_NOTARY_CMD submit $zip_path --keychain-profile $profile ${keychain_args[*]} --wait $*"
         return 0
     fi
     # Use word-splitting for multi-word command (xcrun notarytool)
-    $KP_NOTARY_CMD submit "$zip_path" --keychain-profile "$profile" --wait "$@"
+    $KP_NOTARY_CMD submit "$zip_path" --keychain-profile "$profile" "${keychain_args[@]}" --wait "$@"
 }
 
 kp_staple() {
