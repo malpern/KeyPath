@@ -144,7 +144,7 @@ struct AIKeyRequiredDialog: View {
                 .foregroundColor(.orange)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("• Each complex mapping costs approximately $0.01-0.03")
+                Text("• Each complex mapping makes one API call (a small per-request cost)")
                 Text("• Simple mappings are always free (no API call)")
                 Text("• Costs vary based on Anthropic's pricing")
                 Text("• Check your Anthropic dashboard for exact charges")

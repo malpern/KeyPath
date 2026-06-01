@@ -3,8 +3,9 @@ import KeyPathCore
 
 // MARK: - Pricing Constants
 
-/// Claude API pricing constants (Claude 3.5 Sonnet, Dec 2024)
-/// ⚠️ Update these when releasing new app versions
+/// Claude API pricing constants — must match `ClaudeAPIConstants.defaultModel`.
+/// Currently Claude Sonnet 4.x ($3/1M input, $15/1M output).
+/// ⚠️ Update these whenever `ClaudeAPIConstants.defaultModel` changes.
 public enum ClaudeAPIPricing {
     /// Price per million input tokens ($3/1M)
     public static let inputPricePerMillion: Double = 3.0

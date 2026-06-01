@@ -8,9 +8,9 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
     private let version: String
 
     public init(
-        endpoint: URL = URL(string: "https://api.anthropic.com/v1/messages")!,
-        model: String = "claude-3-5-sonnet-20241022",
-        version: String = "2023-06-01"
+        endpoint: URL = ClaudeAPIConstants.messagesEndpoint,
+        model: String = ClaudeAPIConstants.defaultModel,
+        version: String = ClaudeAPIConstants.apiVersion
     ) {
         self.endpoint = endpoint
         self.model = model
@@ -59,7 +59,7 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
 
         // Biometric authentication before expensive API call
         let authResult = await BiometricAuthService.shared.authenticate(
-            reason: "This config repair will use your Anthropic API quota. Authenticate to proceed?"
+            reason: BiometricAuthService.defaultAuthReason
         )
 
         switch authResult {

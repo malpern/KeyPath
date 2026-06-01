@@ -9,8 +9,10 @@ public enum ClaudeAPIConstants {
     /// API version header value
     public static let apiVersion = "2023-06-01"
 
-    /// Default model for config generation and repair
-    public static let defaultModel = "claude-3-5-sonnet-20241022"
+    /// Default model for config generation and repair.
+    /// Single source of truth — update here when bumping models, and update
+    /// `ClaudeAPIPricing` in AICostTracker to match the new model's rates.
+    public static let defaultModel = "claude-sonnet-4-6"
 
     /// Maximum tokens for config generation responses
     public static let maxTokensForConfig = 4096

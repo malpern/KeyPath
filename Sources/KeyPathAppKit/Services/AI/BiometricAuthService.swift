@@ -13,6 +13,12 @@ public final class BiometricAuthService: @unchecked Sendable {
     /// UserDefaults key for biometric auth preference
     public static let requireBiometricAuthKey = "KeyPath.AI.RequireBiometricAuth"
 
+    /// Default reason shown when authenticating before a paid Claude API call.
+    /// Intentionally avoids a precise dollar figure — per-request cost varies with
+    /// model and config size. Shared across all AI call sites for consistent copy.
+    public static let defaultAuthReason =
+        "This will use your Anthropic API quota (a small per-request cost). Authenticate to proceed?"
+
     /// Whether user has authenticated this session (persists until app restart)
     private var hasAuthenticatedThisSession: Bool = false
     private let userDefaults: UserDefaults
@@ -70,7 +76,7 @@ public final class BiometricAuthService: @unchecked Sendable {
     /// - Parameter reason: Explanation shown to user (should mention cost)
     /// - Returns: AuthResult indicating the outcome
     public func authenticate(
-        reason: String = "This AI generation will use your Anthropic API quota and cost approximately $0.01-0.03. Authenticate to proceed?"
+        reason: String = BiometricAuthService.defaultAuthReason
     ) async -> AuthResult {
         // Check if auth is required
         guard isEnabled else {
