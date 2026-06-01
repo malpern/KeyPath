@@ -12,6 +12,10 @@ source "$SCRIPT_DIR/lib/signing.sh"
 #
 # Defined near the top so it can be invoked from the main build flow below.
 create_sparkle_archive() {
+    if [ "${SKIP_SPARKLE:-0}" = "1" ]; then
+        echo "⏭️  Skipping Sparkle update archive (SKIP_SPARKLE=1)"
+        return 0
+    fi
     echo ""
     echo "✨ Creating Sparkle update archive..."
 
@@ -35,11 +39,17 @@ create_sparkle_archive() {
     # Resolve dynamically because Homebrew cask versions change frequently.
     local SIGN_UPDATE=""
     local SIGNATURE=""
-    if command -v sign_update >/dev/null 2>&1; then
+    if [ -n "${KP_SPARKLE_SIGN_CMD:-}" ]; then
+        # Explicit override (e.g. an unattended wrapper that signs in the GUI session).
+        SIGN_UPDATE="$KP_SPARKLE_SIGN_CMD"
+    elif command -v sign_update >/dev/null 2>&1; then
         SIGN_UPDATE="$(command -v sign_update)"
     else
         local CASK_VERSION=""
-        CASK_VERSION="$(brew list --cask --versions sparkle 2>/dev/null | awk '{print $2}')"
+        # `|| CASK_VERSION=""` keeps `set -euo pipefail` from aborting the whole build
+        # when the sparkle cask isn't installed (brew exits non-zero); fall through to
+        # the graceful "sign_update not found" handling below instead.
+        CASK_VERSION="$(brew list --cask --versions sparkle 2>/dev/null | awk '{print $2}')" || CASK_VERSION=""
         for CASK_ROOT in /opt/homebrew/Caskroom/sparkle /usr/local/Caskroom/sparkle; do
             if [ -n "$CASK_VERSION" ] && [ -x "$CASK_ROOT/$CASK_VERSION/bin/sign_update" ]; then
                 SIGN_UPDATE="$CASK_ROOT/$CASK_VERSION/bin/sign_update"
