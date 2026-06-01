@@ -69,7 +69,13 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
                 userInfo: [NSLocalizedDescriptionKey: "Authentication cancelled"]
             )
         case let .failed(errorMessage):
-            AppLogger.shared.log("⚠️ [ConfigRepair] Auth failed: \(errorMessage), proceeding anyway")
+            // Fail-closed: an unexpected auth error must not bypass the consent gate
+            // for a paid API call. Legit no-biometrics cases already route to password.
+            AppLogger.shared.log("⚠️ [ConfigRepair] Auth failed: \(errorMessage), aborting")
+            throw NSError(
+                domain: "ClaudeAPI", code: 5,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication failed: \(errorMessage)"]
+            )
         case .authenticated, .notRequired:
             break
         }
