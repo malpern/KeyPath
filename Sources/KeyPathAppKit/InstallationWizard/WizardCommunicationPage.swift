@@ -116,11 +116,17 @@ struct WizardCommunicationPage: View {
                         .buttonStyle(WizardDesign.Component.SecondaryButton())
                         .disabled(isFixing)
                     } else if commStatus == .checking || isAuthTesting {
-                        Button("Checking...") {}
-                            .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: true))
-                            .disabled(true)
-                            .frame(minHeight: 44)
-                            .padding(.top, WizardDesign.Spacing.itemGap)
+                        // Show an honest progress indicator rather than a disabled
+                        // button, which reads as a frozen/unresponsive control (#680).
+                        HStack(spacing: WizardDesign.Spacing.labelGap) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Checking…")
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(minHeight: 44)
+                        .padding(.top, WizardDesign.Spacing.itemGap)
+                        .accessibilityIdentifier("wizard-comm-checking-indicator")
                     } else {
                         Button("Re-check Status") {
                             Task { await checkCommunicationStatus() }
