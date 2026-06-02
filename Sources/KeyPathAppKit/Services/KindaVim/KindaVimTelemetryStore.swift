@@ -164,10 +164,9 @@ final class KindaVimTelemetryStore {
 
     deinit {
         flushTask?.cancel()
-        // No final flush from deinit — the @MainActor restriction makes
-        // it impractical, and the `flushNow()` API + app-deactivation
-        // hook (TODO in a follow-up) covers correctness for the cases
-        // that matter (Pack Detail viewing, app quit).
+        // No final flush from deinit — the @MainActor restriction makes it
+        // impractical. Correctness is covered by the `flushNow()` API: called
+        // when viewing Pack Detail and from applicationWillTerminate on app quit (#690).
     }
 
     // MARK: - Opt-in gate

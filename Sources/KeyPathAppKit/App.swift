@@ -309,6 +309,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // after the UI app quits. Only ServiceLifecycleCoordinator.stopKanata()
         // should broadcast service state changes.
         DistributedNotificationBridge.stop()
+        // Flush pending KindaVim telemetry so counters aren't lost on quit (up to one
+        // ~5s flush interval would otherwise be dropped — see #690). No-op when disabled.
+        KindaVimTelemetryStore.shared.flushNow()
         kanataManager?.cleanupSync()
         AppLogger.shared.info("✅ [AppDelegate] Cleanup complete, app terminating")
     }
