@@ -74,10 +74,6 @@ extension PackDetailView {
         }
         return 20
     }
-
-    func copyValidationErrorsToClipboard() {
-        // Placeholder for future implementation
-    }
 }
 
 // MARK: - Undo snapshot
