@@ -37,28 +37,4 @@ extension View {
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .padding(outerPadding)
     }
-
-    /// Drop-in replacement for `.popover()` that renders content as an inline overlay
-    /// instead of using NSPopover. Avoids a crash on borderless overlay windows where
-    /// NSPopover's animated resize triggers a null function pointer callback.
-    func inlinePopover(
-        isPresented: Binding<Bool>,
-        @ViewBuilder content: @escaping () -> some View
-    ) -> some View {
-        overlay(alignment: .top) {
-            if isPresented.wrappedValue {
-                ZStack {
-                    Color.black.opacity(0.01)
-                        .frame(width: 2000, height: 2000)
-                        .onTapGesture { isPresented.wrappedValue = false }
-
-                    content()
-                        .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .transition(.opacity)
-                .zIndex(999)
-            }
-        }
-    }
 }
