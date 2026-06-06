@@ -100,6 +100,45 @@ struct FloatingLabelVisibilityTests {
         #expect(vis.isVisible("D"))
     }
 
+    @Test("transparent layer entries do not suppress base floating labels")
+    func transparentLayerEntriesDoNotSuppressBaseFloatingLabels() {
+        let info = LayerKeyInfo.transparent(fallbackLabel: "A")
+
+        #expect(!OverlayKeyboardView.shouldHideFloatingLabel(
+            for: info,
+            baseLabel: "A",
+            inputKeyName: "a"
+        ))
+    }
+
+    @Test("identity mappings do not suppress base floating labels")
+    func identityMappingsDoNotSuppressBaseFloatingLabels() {
+        let info = LayerKeyInfo.mapped(displayLabel: "A", outputKey: "a", outputKeyCode: 0)
+
+        #expect(!OverlayKeyboardView.shouldHideFloatingLabel(
+            for: info,
+            baseLabel: "A",
+            inputKeyName: "a"
+        ))
+    }
+
+    @Test("real remaps and actions suppress base floating labels")
+    func realRemapsAndActionsSuppressBaseFloatingLabels() {
+        let remap = LayerKeyInfo.mapped(displayLabel: "B", outputKey: "b", outputKeyCode: 11)
+        let action = LayerKeyInfo.systemAction(action: "spotlight", description: "Spotlight")
+
+        #expect(OverlayKeyboardView.shouldHideFloatingLabel(
+            for: remap,
+            baseLabel: "A",
+            inputKeyName: "a"
+        ))
+        #expect(OverlayKeyboardView.shouldHideFloatingLabel(
+            for: action,
+            baseLabel: "A",
+            inputKeyName: "a"
+        ))
+    }
+
     // MARK: - Zone subtitle labels
 
     @Test("labels with zone subtitles are hidden")

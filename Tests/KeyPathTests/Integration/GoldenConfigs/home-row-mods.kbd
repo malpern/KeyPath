@@ -5,6 +5,7 @@
   process-unmapped-keys yes
   danger-enable-cmd yes
   managed-repeat yes
+  managed-repeat-unlisted no
   managed-repeat-delay 500
   managed-repeat-interval 30
   tap-hold-require-prior-idle 150

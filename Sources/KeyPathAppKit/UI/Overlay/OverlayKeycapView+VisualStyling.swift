@@ -136,6 +136,11 @@ extension OverlayKeycapView {
         // Inline layer: mapped keys get a subtle accent tint, unmapped keys stay normal
         else if isInlineLayer, hasLayerMapping {
             Color.accentColor.opacity(0.15)
+        } else if services.preferences.unmappedLayerKeyStyle == .baseLayer,
+                  currentLayerName.lowercased() != "base",
+                  isVisuallyUnmappedLayerKey
+        {
+            colorway.alphaBaseColor
         } else if isModifierKey {
             colorway.modBaseColor
         } else if isAccentKey {

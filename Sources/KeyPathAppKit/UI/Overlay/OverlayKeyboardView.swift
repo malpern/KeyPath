@@ -189,7 +189,10 @@ struct OverlayKeyboardView: View {
         var remapped = Set<String>()
         if !isKeymapTransitioning {
             for (label, keyCode) in ltk {
-                if layerKeyMap[keyCode] != nil {
+                let inputKeyName = Self.keyCodeToKanataName(keyCode).lowercased()
+                if let info = layerKeyMap[keyCode],
+                   Self.shouldHideFloatingLabel(for: info, baseLabel: label, inputKeyName: inputKeyName)
+                {
                     remapped.insert(label)
                 }
             }
@@ -216,6 +219,26 @@ struct OverlayKeyboardView: View {
             remappedLabels: remapped,
             zoneSubtitleLabels: zoneSubs
         )
+    }
+
+    nonisolated static func shouldHideFloatingLabel(
+        for info: LayerKeyInfo,
+        baseLabel: String,
+        inputKeyName: String
+    ) -> Bool {
+        if info.isTransparent {
+            return false
+        }
+        if info.isLayerSwitch {
+            return true
+        }
+        if info.appLaunchIdentifier != nil || info.systemActionIdentifier != nil || info.urlIdentifier != nil {
+            return true
+        }
+        if let outputKey = info.outputKey {
+            return outputKey.lowercased() != inputKeyName
+        }
+        return !info.displayLabel.isEmpty && info.displayLabel.uppercased() != baseLabel.uppercased()
     }
 
     var keyboardAccessibilityLabel: String {
