@@ -170,6 +170,7 @@ extension OverlayDragHeader {
             }
             .buttonStyle(LayerPickerButtonStyle())
             .focusable(false)
+            .accessibilityIdentifier("layer-picker-\(layer)")
 
             // Delete button for user-created layers (hover only)
             if canDelete {

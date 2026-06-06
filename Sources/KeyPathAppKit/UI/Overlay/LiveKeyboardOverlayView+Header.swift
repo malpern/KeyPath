@@ -178,8 +178,6 @@ struct OverlayDragHeader: View {
     @State var newLayerName = ""
     /// Layer being hovered for delete button
     @State var hoveredLayer: String?
-    /// Computed arrow edge for layer picker (up by default, down near screen top)
-    @State private var layerPickerArrowEdge: Edge = .top
     /// When the health indicator dismissed — used to suppress "No TCP" briefly at startup
     @State private var healthDismissedAt: Date?
 
@@ -529,7 +527,7 @@ struct OverlayDragHeader: View {
         .onHover { hovering in
             handleLayerPillHover(hovering)
         }
-        .inlinePopover(isPresented: $isLayerPickerOpen) {
+        .windowAnchoredPopover(isPresented: $isLayerPickerOpen, edge: .bottom, gap: 6) {
             layerPickerPopover
         }
         .sheet(isPresented: $showingNewLayerSheet) {
@@ -625,48 +623,9 @@ struct OverlayDragHeader: View {
         }
     }
 
-    /// Toggle layer picker with smart positioning (opens up by default, down near screen top)
+    /// Toggle the layer picker. The root popover host handles positioning and edge flipping.
     private func toggleLayerMenu() {
-        if isLayerPickerOpen {
-            // Closing - just toggle
-            isLayerPickerOpen = false
-        } else {
-            // Opening - compute arrow edge first
-            layerPickerArrowEdge = computeLayerPickerArrowEdge()
-            isLayerPickerOpen = true
-        }
-    }
-
-    /// Compute which edge the popover arrow should point from based on available screen space
-    private func computeLayerPickerArrowEdge() -> Edge {
-        guard let window = findOverlayWindow(),
-              let screen = window.screen ?? NSScreen.main
-        else {
-            return .top // Default to opening upward
-        }
-
-        let windowTop = window.frame.maxY
-        let screenTop = screen.visibleFrame.maxY
-        let spaceAbove = screenTop - windowTop
-
-        // Estimate popover height (layers + new layer option + padding)
-        // Each row is ~40pt, header/footer ~12pt
-        let estimatedRowHeight: CGFloat = 40
-        let estimatedPopoverHeight = CGFloat(availableLayers.count + 1) * estimatedRowHeight + 24
-
-        // If not enough space above, open downward (arrowEdge: .bottom)
-        // Add some margin (20pt) for safety
-        if spaceAbove < estimatedPopoverHeight + 20 {
-            return .bottom
-        }
-
-        return .top
-    }
-
-    private func findOverlayWindow() -> NSWindow? {
-        NSApplication.shared.windows.first {
-            $0.styleMask.contains(.borderless) && $0.level == .floating
-        }
+        isLayerPickerOpen.toggle()
     }
 }
 
