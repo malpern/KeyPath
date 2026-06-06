@@ -13,6 +13,83 @@ Rationale: older CLI/tooling may still expose `tools.web_search`, which prints a
 - Keep diffs minimal and focused. Preserve directory layout and script entry points.
 - Update docs/tests when behavior or commands change.
 
+## Build, Deploy, and Release Workflow
+
+Use the narrowest workflow that matches the task. Do not run the full notarized
+release path for ordinary UI/code iteration.
+
+### 1. Inner Loop: local development
+Use for Swift/UI changes while iterating:
+```bash
+swift build
+./Scripts/quick-deploy.sh
+python3 Scripts/check-accessibility.py
+```
+
+Notes:
+- `quick-deploy.sh` updates `/Applications/KeyPath.app`, re-signs locally, and
+  restarts KeyPath only if it was running.
+- It intentionally does **not** redeploy the privileged helper unless
+  `KEYPATH_DEPLOY_HELPER=1` is set. Avoid helper redeploys during UI work.
+- Use Poltergeist when you want continuous rebuild/deploy:
+  `poltergeist start`, edit, then `poltergeist wait keypath`.
+
+### 2. Release Candidate: signed local testing
+Use after a PR is merged when `/Applications/KeyPath.app` should match a real
+Developer ID/notarized build for manual testing:
+```bash
+./Scripts/release-candidate.sh
+```
+
+Defaults:
+- skips screenshot regeneration (`SKIP_SNAPSHOTS=1`)
+- skips Peekaboo screenshot generation (`SKIP_PEEKABOO=1`)
+- skips Sparkle archive/appcast generation (`SKIP_SPARKLE=1`)
+- skips website publishing (`SKIP_WEBSITE=1`)
+- deploys to `/Applications/KeyPath.app`
+- runs installed-app verification
+
+Use opt-ins only when needed:
+```bash
+./Scripts/release-candidate.sh --with-snapshots
+./Scripts/release-candidate.sh --with-sparkle
+./Scripts/release-candidate.sh --with-website
+```
+
+### 3. Ship: public release artifacts
+Use the full script only when producing public distribution artifacts:
+```bash
+./Scripts/build-and-sign.sh
+```
+
+This path may regenerate screenshots, create Sparkle artifacts, notarize, staple,
+deploy, and publish website help content depending on environment flags. It is
+intentionally slower than the release-candidate path.
+
+### 4. Installed app verification
+After any signed/notarized deploy, or when diagnosing a local install:
+```bash
+./Scripts/verify-installed-app.sh
+```
+
+It verifies:
+- code signature
+- Gatekeeper assessment
+- stapled notarization ticket
+- KeyPath process
+- `system/com.keypath.kanata` launchd job
+- TCP readiness on `127.0.0.1:37001`
+
+For non-notarized local debug builds, skip distribution trust checks:
+```bash
+REQUIRE_NOTARIZED=0 REQUIRE_STAPLED=0 ./Scripts/verify-installed-app.sh
+```
+
+For trust-only diagnostics where KeyPath is not running yet:
+```bash
+CHECK_RUNTIME=0 ./Scripts/verify-installed-app.sh
+```
+
 ## Architecture & Patterns
 
 ### InstallerEngine Façade

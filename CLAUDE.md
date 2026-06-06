@@ -79,9 +79,69 @@ Two doc systems: `guides/` (user-facing, published to gh-pages) and `docs/` (dev
 ```bash
 ./build.sh                        # Canonical build (SKIP_NOTARIZE=1 for local dev)
 ./Scripts/quick-deploy.sh         # Fast debug deploy
+./Scripts/release-candidate.sh    # Signed/notarized post-merge testing
 swift test                        # All tests (~532 tests, <5s)
 swiftformat Sources Tests         # Uses pinned rules + swiftversion from .swiftformat
 swiftlint --fix --quiet
+```
+
+### Workflow tiers
+
+Use the narrowest workflow that matches the task:
+
+**Inner loop:** For normal Swift/UI iteration, prefer `swift build` and
+`./Scripts/quick-deploy.sh`. Use Poltergeist for continuous rebuild/deploy:
+`poltergeist start`, edit, then `poltergeist wait keypath`. `quick-deploy.sh`
+updates `/Applications/KeyPath.app`, re-signs locally, and restarts KeyPath only
+if it was already running. It does not redeploy the privileged helper unless
+`KEYPATH_DEPLOY_HELPER=1` is set.
+
+**Release candidate:** After a PR is merged and manual testing needs a real
+Developer ID/notarized app in `/Applications`, run:
+
+```bash
+./Scripts/release-candidate.sh
+```
+
+This defaults to `SKIP_SNAPSHOTS=1`, `SKIP_PEEKABOO=1`, `SKIP_SPARKLE=1`, and
+`SKIP_WEBSITE=1`, then runs installed-app verification. Opt into slower release
+work only when needed:
+
+```bash
+./Scripts/release-candidate.sh --with-snapshots
+./Scripts/release-candidate.sh --with-sparkle
+./Scripts/release-candidate.sh --with-website
+```
+
+**Public ship:** Use the full release script only when producing public
+distribution artifacts:
+
+```bash
+./Scripts/build-and-sign.sh
+```
+
+That path may regenerate screenshots, create Sparkle artifacts, notarize,
+staple, deploy, and publish website help content depending on environment flags.
+
+**Installed verification:** After signed/notarized deploys, or when diagnosing a
+local install, run:
+
+```bash
+./Scripts/verify-installed-app.sh
+```
+
+It checks code signature, Gatekeeper assessment, stapled notarization ticket,
+KeyPath process, `system/com.keypath.kanata`, and TCP readiness on
+`127.0.0.1:37001`. For non-notarized debug builds:
+
+```bash
+REQUIRE_NOTARIZED=0 REQUIRE_STAPLED=0 ./Scripts/verify-installed-app.sh
+```
+
+For trust-only diagnostics where KeyPath is not running yet:
+
+```bash
+CHECK_RUNTIME=0 ./Scripts/verify-installed-app.sh
 ```
 
 **SwiftFormat is pinned to 0.61.1** (`mise.toml`); `master` is a formatted fixed-point
