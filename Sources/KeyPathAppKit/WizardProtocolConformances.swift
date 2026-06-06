@@ -199,3 +199,62 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
         ))
     }
 }
+
+/// Configure WizardDependencies for app-bundled CLI repair/inspect entry points.
+@MainActor
+func configureCLIWizardDependencies(systemValidator: SystemValidator) {
+    WizardDependencies.runtimeCoordinator = nil
+    WizardDependencies.helperManager = HelperManager.shared
+    WizardDependencies.daemonManager = KanataDaemonManager.shared
+    WizardDependencies.systemValidator = systemValidator
+
+    MainAppStateController.shared.setValidator(systemValidator)
+    WizardDependencies.helperMaintenance = HelperMaintenance.shared
+    WizardDependencies.fullDiskAccessChecker = FullDiskAccessChecker.shared
+    WizardDependencies.permissionRequestService = PermissionRequestService.shared
+    WizardDependencies.privilegedOperations = PrivilegedOperationsRouter.shared
+
+    WizardDependencies.smServiceFactory = { plistName in
+        HelperManager.smServiceFactory(plistName)
+    }
+    WizardDependencies.helperNeedsApproval = {
+        HelperManager.smServiceFactory(HelperManager.helperPlistName).status == .requiresApproval
+    }
+    WizardDependencies.createUninstallCoordinator = {
+        UninstallCoordinator()
+    }
+    WizardDependencies.executePrivilegedBatch = { batch in
+        let result = try await AdminCommandExecutorHolder.shared.execute(batch: batch)
+        return (exitCode: result.exitCode, output: result.output)
+    }
+    WizardDependencies.resourceBundle = KeyPathAppKitResources.bundle
+
+    WizardDependencies.getExternalKanataInfo = {
+        ExternalKanataService.getExternalKanataInfo()
+    }
+    WizardDependencies.stopExternalKanata = { info in
+        let result = await ExternalKanataService.stopExternalKanata(info)
+        switch result {
+        case .success, .processNotFound:
+            return .success(())
+        case let .killFailed(reason):
+            return .failure(NSError(
+                domain: "ExternalKanata",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: reason]
+            ))
+        case let .launchAgentDisableFailed(reason):
+            return .failure(NSError(
+                domain: "ExternalKanata",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: reason]
+            ))
+        }
+    }
+    WizardDependencies.hasExternalKanataRunning = {
+        ExternalKanataService.hasExternalKanataRunning()
+    }
+    WizardDependencies.tcpProbe = { port, timeoutMs in
+        TCPProbe.probe(port: port, timeoutMs: timeoutMs)
+    }
+}

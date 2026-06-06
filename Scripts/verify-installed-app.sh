@@ -27,6 +27,12 @@ if [[ ! -d "$APP_PATH" ]]; then
     exit 1
 fi
 
+CLI_PATH="$APP_PATH/Contents/MacOS/keypath-cli"
+if [[ ! -x "$CLI_PATH" ]]; then
+    echo "❌ Bundled CLI is missing or not executable: $CLI_PATH" >&2
+    exit 1
+fi
+
 print_section "Trust Policy"
 codesign --verify --strict --verbose=2 "$APP_PATH"
 if [[ "$REQUIRE_NOTARIZED" == "1" ]]; then
@@ -53,6 +59,9 @@ if ! pgrep -x "KeyPath" >/dev/null; then
     exit 1
 fi
 pgrep -fl 'KeyPath|KeyPathHelper|kanata|kanata-launcher' || true
+
+print_section "Bundled CLI"
+"$CLI_PATH" --version
 
 print_section "Kanata Launchd"
 if ! launchctl print "$KANATA_LABEL" >"$KANATA_LAUNCHCTL_OUTPUT" 2>&1; then

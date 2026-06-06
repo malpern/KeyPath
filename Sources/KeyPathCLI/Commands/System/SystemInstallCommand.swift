@@ -12,6 +12,7 @@ struct SystemInstall: AsyncParsableCommand {
 
     mutating func run() async throws {
         let ctx = globals.outputContext
+        let dryRun = globals.dryRun
         let spinner = CLISpinner(context: ctx)
         spinner.start("Installing...")
 
@@ -19,18 +20,22 @@ struct SystemInstall: AsyncParsableCommand {
         let report: CLIInstallerReport
         do {
             report = try await withThrowingTimeout(seconds: globals.timeout) {
-                await facade.runInstall()
+                await facade.runInstall(dryRun: dryRun)
             }
         } catch is TimeoutError {
             spinner.fail("Installation timed out after \(globals.timeout)s")
             throw ExitCode.failure
         }
 
-        if report.success { spinner.succeed("Installation complete") }
+        if dryRun, report.success {
+            spinner.succeed("Installation plan ready")
+        } else if dryRun {
+            spinner.fail("Installation plan has blockers")
+        } else if report.success { spinner.succeed("Installation complete") }
         else { spinner.fail("Installation failed") }
 
         CLIOutput.write(report, context: ctx) {
-            formatInstallerReport(report, title: "Installation")
+            formatInstallerReport(report, title: dryRun ? "Installation Dry Run" : "Installation")
         }
 
         if !report.success {

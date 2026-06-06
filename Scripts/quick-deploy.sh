@@ -202,16 +202,23 @@ rm -f "$BUILD_LOG"
 
 # Get the built binary
 DEBUG_BIN="$BIN_DIR/KeyPath"
+CLI_BIN="$BIN_DIR/keypath-cli"
 
 if [[ ! -f "$DEBUG_BIN" ]]; then
     echo "❌ Build failed - binary not found"
     log_build_event "FAILED_NO_BINARY"
     exit 1
 fi
+if [[ ! -f "$CLI_BIN" ]]; then
+    echo "❌ Build failed - CLI binary not found"
+    log_build_event "FAILED_NO_CLI_BINARY"
+    exit 1
+fi
 
 # Copy binary to app bundle
 echo "📦 Deploying..."
 cp "$DEBUG_BIN" "$MACOS_DIR/$APP_NAME"
+cp "$CLI_BIN" "$MACOS_DIR/keypath-cli"
 
 # Do not hot-swap the embedded privileged helper by default.
 #
@@ -315,6 +322,9 @@ done
 if ! otool -l "$MACOS_DIR/$APP_NAME" | grep -q "@executable_path/../Frameworks"; then
     install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/$APP_NAME" 2>/dev/null || true
 fi
+if ! otool -l "$MACOS_DIR/keypath-cli" | grep -q "@executable_path/../Frameworks"; then
+    install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/keypath-cli" 2>/dev/null || true
+fi
 
 # Assemble and sync Insights.bundle to PlugIns
 INSIGHTS_DYLIB="$BIN_DIR/libKeyPathInsights.dylib"
@@ -368,6 +378,9 @@ if security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
     fi
     if [[ -f "$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" ]]; then
         codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" 2>/dev/null || true
+    fi
+    if [[ -f "$APP_BUNDLE/Contents/MacOS/keypath-cli" ]]; then
+        codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/MacOS/keypath-cli" 2>/dev/null || true
     fi
     codesign --force --options=runtime --sign "$SIGNING_IDENTITY" --entitlements "$ENTITLEMENTS" --deep "$APP_BUNDLE"
     resign_helper_identifier "$SIGNING_IDENTITY"

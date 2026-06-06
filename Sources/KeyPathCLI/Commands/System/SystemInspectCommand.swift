@@ -30,16 +30,35 @@ struct SystemInspect: AsyncParsableCommand {
                 "macOS Version: \(result.macOSVersion)",
                 "Driver Compatible: \(result.driverCompatible ? "Yes" : "No")",
                 "",
+                "System Ready: \((result.isOperational ?? false) ? "Yes" : "No")",
                 "Plan Status: \(result.planStatus)",
             ]
+            if let intent = result.planIntent {
+                lines.append("Plan Intent: \(intent)")
+            }
             if let blockedBy = result.blockedBy {
                 lines.append("Blocked By: \(blockedBy)")
+            }
+            if result.promptsNeeded == true {
+                lines.append("Prompts Needed: Yes")
             }
             if !result.plannedRecipes.isEmpty {
                 lines.append("")
                 lines.append("Planned Recipes:")
                 for recipe in result.plannedRecipes {
                     lines.append("  - \(recipe)")
+                }
+            }
+            if let issues = result.issues, !issues.isEmpty {
+                lines.append("")
+                lines.append("Issues:")
+                for issue in issues {
+                    let fixability = issue.canAutoFix ? "auto-fixable" : "manual"
+                    lines.append("  - \(issue.title) [\(issue.category), \(fixability)]")
+                    lines.append("    Action: \(issue.action)")
+                    if let url = issue.remediationURL {
+                        lines.append("    Open: \(url)")
+                    }
                 }
             }
             lines.append("")

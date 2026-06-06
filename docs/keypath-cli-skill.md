@@ -21,6 +21,9 @@ editing config files directly.
 - When piped (non-TTY), output is JSON automatically
 - Use `--quiet` to suppress stderr decoration (spinners, progress)
 - Use `--dry-run` to preview any mutation before committing
+- For system install/repair, use the app-bundled CLI or the app-installed
+  `/usr/local/bin/keypath-cli` shim. Standalone debug/Homebrew formula binaries
+  are not authoritative for bundle-relative helper assets.
 
 ## Command Reference
 
@@ -107,11 +110,17 @@ keypath config apply --json         # Regenerate + reload (returns changeset wit
 
 ### System Management
 ```bash
-keypath system inspect --json       # Check system state and plan
-keypath system install              # Install services and components
-keypath system repair               # Fix broken services
-keypath system uninstall            # Remove all services
+keypath system inspect --json             # Check system state, repair plan, and issues
+keypath system install --dry-run --json   # Preview installation work and blockers
+keypath system repair --dry-run --json    # Preview repair work and manual permission actions
+keypath system repair --open-permissions  # Open System Settings for permission blockers
+keypath system repair                     # Fix auto-repairable services and components
+keypath system uninstall                  # Remove all services
 ```
+
+Permission repair boundary: the CLI can diagnose missing Accessibility/Input
+Monitoring grants and open the matching System Settings pane, but macOS still
+requires the user to approve those permissions manually.
 
 ### Import/Export
 ```bash
