@@ -28,13 +28,13 @@ struct RootView: View {
                 SimpleModsView(configPath: kanataVM.configPath)
                     .environment(kanataVM)
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowEmergencyStop"))) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: .showEmergencyStop)) { _ in
                 showingEmergencyStopDialog = true
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowUninstall"))) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: .showUninstall)) { _ in
                 showingUninstallDialog = true
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowSimpleMods"))) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: .showSimpleMods)) { _ in
                 showingSimpleModsDialog = true
             }
             .task {

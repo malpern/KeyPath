@@ -393,7 +393,7 @@ final class CommandPaletteWindowController {
                 group: "Settings"
             ) {
                 DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
+                    NotificationCenter.default.post(name: .showWizard, object: nil)
                 }
             },
         ]
