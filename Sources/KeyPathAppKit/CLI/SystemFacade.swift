@@ -34,7 +34,7 @@ public struct SystemFacade: Sendable {
     }
 
     public func serviceLogs(lines: Int = 50) -> [String] {
-        let logPath = NSString("~/Library/Logs/KeyPath/keypath-debug.log").expandingTildeInPath
+        let logPath = KeyPathConstants.Logs.userDebugLog
         guard let content = try? String(contentsOfFile: logPath, encoding: .utf8) else {
             return []
         }

@@ -1,10 +1,10 @@
 import Foundation
 import KeyPathAppKit
+import KeyPathCore
 
 enum UpdateChecker {
     private static let cacheFile: String = {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        return "\(home)/.config/keypath/.update-check"
+        "\(KeyPathConstants.Config.directory)/.update-check"
     }()
 
     private static let checkInterval: TimeInterval = 86400 // 24 hours

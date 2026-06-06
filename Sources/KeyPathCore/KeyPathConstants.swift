@@ -45,6 +45,11 @@ public enum KeyPathConstants {
     }
 
     public enum Logs {
+        /// User-facing debug log: ~/Library/Logs/KeyPath/keypath-debug.log
+        public static var userDebugLog: String {
+            "\(NSHomeDirectory())/Library/Logs/KeyPath/keypath-debug.log"
+        }
+
         /// Standard output log for the kanata daemon
         public static let kanataStdout = "/var/log/com.keypath.kanata.stdout.log"
 

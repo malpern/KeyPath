@@ -150,7 +150,7 @@ extension RulesTabView {
     }
 
     func openBackupsFolder() {
-        let backupsPath = "\(NSHomeDirectory())/.config/keypath/.backups"
+        let backupsPath = "\(KeyPathConstants.Config.directory)/.backups"
         NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: backupsPath)
     }
 

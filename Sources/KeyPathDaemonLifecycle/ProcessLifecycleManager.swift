@@ -288,7 +288,7 @@ public final class ProcessLifecycleManager {
     /// Uses cached PID lookups to prevent race conditions and improve performance
     private func isProcessManagedByLaunchDaemon(_ process: ProcessInfo) async -> Bool {
         // First check if the process uses our config path (necessary but not sufficient)
-        guard process.command.contains("/.config/keypath/keypath.kbd") else {
+        guard process.command.contains(KeyPathConstants.Config.fileName) else {
             AppLogger.shared.log(
                 "🔍 [ProcessLifecycleManager] PID \(process.pid): Wrong config path, not managed"
             )

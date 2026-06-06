@@ -340,7 +340,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // On relaunch (not first-ever install), skip splash and go straight to overlay
         let hasExistingConfig = Foundation.FileManager.default.fileExists(
-            atPath: NSHomeDirectory() + "/.config/keypath/keypath.kbd"
+            atPath: KeyPathConstants.Config.mainConfigPath
         )
         if hasExistingConfig, !initialMainWindowShown {
             AppLogger.shared.info("🪟 [AppDelegate] Reopen on relaunch — skipping splash, showing overlay")
@@ -421,7 +421,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         suppressLaunchSplashAutoHide = false
 
         let hasExistingConfig = Foundation.FileManager.default.fileExists(
-            atPath: NSHomeDirectory() + "/.config/keypath/keypath.kbd"
+            atPath: KeyPathConstants.Config.mainConfigPath
         )
 
         if hasExistingConfig, !suppressAutoHideBecauseReopen {
@@ -546,7 +546,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "🪟 [AppDelegate] Main window controller created (deferring show until activation)"
         )
         let hasExistingConfig = Foundation.FileManager.default.fileExists(
-            atPath: NSHomeDirectory() + "/.config/keypath/keypath.kbd"
+            atPath: KeyPathConstants.Config.mainConfigPath
         )
         if !hasExistingConfig {
             mainWindowController?.primeForActivation()

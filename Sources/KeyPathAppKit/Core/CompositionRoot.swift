@@ -50,7 +50,7 @@ enum CompositionRoot {
 
         // Phase 4: MVVM - Initialize services and RuntimeCoordinator via composition root
         let configurationService = ConfigurationService(
-            configDirectory: "\(NSHomeDirectory())/.config/keypath"
+            configDirectory: KeyPathConstants.Config.directory
         )
         let manager = RuntimeCoordinator(injectedConfigurationService: configurationService)
         let viewModel = KanataViewModel(manager: manager)
