@@ -561,7 +561,7 @@ GHPAGES_DIR="$SCRIPT_DIR/../.worktrees/gh-pages"
 if [ -d "$GHPAGES_DIR" ] && [ "${SKIP_WEBSITE:-0}" != "1" ] && [ "${SKIP_NOTARIZE:-}" != "1" ]; then
     echo ""
     echo "🌐 Publishing help content to website..."
-    "$SCRIPT_DIR/publish-help-to-web.sh"
+    "$SCRIPT_DIR/publish-guides.sh"
 
     echo ""
     echo "🌐 Committing and pushing gh-pages..."

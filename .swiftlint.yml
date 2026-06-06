@@ -53,6 +53,7 @@ disabled_rules:
   - force_try           # Allow force try in tests
   - force_cast          # Allow force cast in tests
   - force_unwrapping    # Allow force unwrapping in tests
+  - opening_brace       # swiftformat owns brace style via wrapMultilineStatementBraces
 
 # Custom reporter for CI
 reporter: "github-actions-logging"
