@@ -194,9 +194,12 @@ echo "🔐 Building privileged helper..."
 # Build and sign the helper tool
 ./Scripts/build-helper.sh
 
-# Screenshot regeneration + website publish only run for full release builds.
-# Skipped when SKIP_NOTARIZE=1 (dev builds via `dd`).
-if [ "${SKIP_NOTARIZE:-}" != "1" ]; then
+# Screenshot regeneration is only needed for full public release builds or when
+# help/snapshot assets intentionally changed. Release-candidate builds should set
+# SKIP_SNAPSHOTS=1 to avoid spending time regenerating unrelated images.
+if [ "${SKIP_SNAPSHOTS:-0}" = "1" ]; then
+    echo "⏭️  Skipping screenshot regeneration (SKIP_SNAPSHOTS=1)"
+elif [ "${SKIP_NOTARIZE:-}" != "1" ]; then
     echo "📸 Regenerating help screenshots..."
     SKIP_PEEKABOO="${SKIP_PEEKABOO:-1}" ./Scripts/regenerate-screenshots.sh
 else
