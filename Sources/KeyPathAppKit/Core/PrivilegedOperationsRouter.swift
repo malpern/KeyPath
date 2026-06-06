@@ -20,10 +20,10 @@ public final class PrivilegedOperationsRouter {
 
     private static var lastServiceInstallAttempt: Date?
     private static var lastSMAppApprovalNotice: Date?
-    private static let smAppApprovalNoticeThrottle: TimeInterval = 5
+    private static let smAppApprovalNoticeThrottle: TimeInterval = KeyPathConstants.Timing.smAppApprovalThrottle
 
-    private static let kanataReadinessTimeout: TimeInterval = 20
-    private static let kanataReadinessPollIntervalSeconds: TimeInterval = 0.5
+    private static let kanataReadinessTimeout: TimeInterval = KeyPathConstants.Timing.kanataReadinessTimeout
+    private static let kanataReadinessPollIntervalSeconds: TimeInterval = KeyPathConstants.Timing.kanataReadinessPollInterval
     private static let kanataLaunchctlNotFoundExitCode: Int32 = 113
     private static let persistentLaunchctlNotFoundThreshold = 3
 

@@ -98,7 +98,7 @@ class KeyboardVisualizationViewModel {
     @ObservationIgnored var lastTcpEventTime: Date?
 
     /// How long without events before we consider disconnected (seconds)
-    @ObservationIgnored let tcpConnectionTimeout: TimeInterval = 3.0
+    @ObservationIgnored let tcpConnectionTimeout: TimeInterval = KeyPathConstants.Timing.tcpConnectionTimeout
 
     // MARK: - One-Shot Modifier State
 
@@ -111,7 +111,7 @@ class KeyboardVisualizationViewModel {
     /// Short-lived cache of resolved hold labels to avoid repeated simulator runs (keyCode -> (label, timestamp))
     @ObservationIgnored var holdLabelCache: [UInt16: (label: String, timestamp: Date)] = [:]
     /// Cache time-to-live in seconds
-    @ObservationIgnored let holdLabelCacheTTL: TimeInterval = 5
+    @ObservationIgnored let holdLabelCacheTTL: TimeInterval = KeyPathConstants.Timing.holdLabelCacheTTL
     /// Pending delayed clears for hold-active keys to tolerate tap-hold-press jitter
     @ObservationIgnored var holdClearWorkItems: [UInt16: DispatchWorkItem] = [:]
 

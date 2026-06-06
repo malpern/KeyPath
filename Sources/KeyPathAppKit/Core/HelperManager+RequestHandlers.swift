@@ -63,7 +63,7 @@ extension HelperManager {
     /// - Throws: HelperError if the operation fails
     private func executeXPCCall(
         _ name: String,
-        timeout: TimeInterval = 30.0,
+        timeout: TimeInterval = KeyPathConstants.Timing.helperRequestTimeout,
         _ call: @escaping @Sendable (HelperProtocol, @escaping (Bool, String?) -> Void) -> Void
     ) async throws {
         // Detect concurrent XPC calls (indicates a bug in caller logic)
@@ -113,7 +113,7 @@ extension HelperManager {
     /// used by the void-returning helper operations.
     private func executeValueXPCCall<T: Sendable>(
         _ name: String,
-        timeout: TimeInterval = 30.0,
+        timeout: TimeInterval = KeyPathConstants.Timing.helperRequestTimeout,
         _ call: @escaping @Sendable (
             HelperProtocol,
             @escaping @Sendable (Result<T, Error>) -> Void

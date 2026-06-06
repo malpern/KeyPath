@@ -94,4 +94,14 @@ public enum KeyPathConstants {
         public static let inputMonitoringPrivacy = "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
         public static let accessibilityPrivacy = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
     }
+
+    public enum Timing {
+        public static let tcpConnectionTimeout: TimeInterval = 3.0
+        public static let toastDuration: TimeInterval = 3.0
+        public static let holdLabelCacheTTL: TimeInterval = 5
+        public static let helperRequestTimeout: TimeInterval = 30.0
+        public static let kanataReadinessTimeout: TimeInterval = 20
+        public static let kanataReadinessPollInterval: TimeInterval = 0.5
+        public static let smAppApprovalThrottle: TimeInterval = 5
+    }
 }
