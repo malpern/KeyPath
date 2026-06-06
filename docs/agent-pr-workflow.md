@@ -44,7 +44,7 @@ Most PR clock-time is latency, not rigor. Cut the latency without dropping any g
 ## Phase 5: Merge
 
 16. **Ask the user for permission to merge** — never merge without explicit approval.
-17. **Merge** — `gh pr merge <number> --squash --delete-branch`. If git complains about the local branch being in use (worktree), that's fine — the merge happens on GitHub. The error about local branch deletion is cosmetic.
+17. **Merge** — `gh pr merge <number> --merge --delete-branch` unless the PR explicitly needs another merge mode. If multiple worktrees are active, prefer `gh pr merge <number> --repo malpern/KeyPath --merge --delete-branch` from outside the repo so `gh` does not try to switch a local worktree to `master`. If a local worktree error appears, verify GitHub state before retrying; the PR may already be merged.
 18. **Verify the merge** — `gh pr view <number> --json state` should show `"state": "MERGED"`.
 19. **Verify issues closed** — for each `Fixes #NNN` reference, confirm the issue is now closed: `gh issue view <number> --json state`.
 
@@ -58,8 +58,8 @@ If the PR added or changed files in `guides/`:
 ## Phase 6: Cleanup
 
 20. **Exit the worktree** — `ExitWorktree` with `action: "remove"` and `discard_changes: true` (safe because all work is merged). This deletes the worktree directory and branch.
-21. **Pull master** — `git pull` from the main repo directory. Verify it fast-forwards to include your merged PR. If it doesn't fast-forward, something went wrong — investigate before proceeding.
-22. **Deploy from master** — run `SKIP_NOTARIZE=1 ./build.sh` (or `dd`) so the running app matches the merged code. This is critical — without this step, the user is running stale code and thinks the work is lost.
+21. **Pull master** — `git fetch --prune origin && git pull --ff-only origin master` from the intended master worktree. Verify it fast-forwards to include your merged PR. If another worktree owns `master`, do the pull and deploy from that worktree.
+22. **Deploy from master** — run `./Scripts/release-candidate.sh` so the running app matches merged master with a signed/notarized local build. For fast dev-only handoffs where notarization is explicitly unnecessary, use `./Scripts/quick-deploy.sh` and say that you did not produce a notarized build.
 23. **Confirm to the user** — state explicitly: PR merged, issues closed, master pulled, deployed, worktree cleaned up.
 
 ## What Can Go Wrong
@@ -67,6 +67,7 @@ If the PR added or changed files in `guides/`:
 | Symptom | Cause | Prevention |
 |---------|-------|------------|
 | Work "disappears" after merge | Merged to GitHub but never pulled to local master, or deployed from worktree not master | Always do Phase 6 steps 21-22 |
+| `gh pr merge` reports a local worktree error | The PR merged on GitHub, then `gh` tried to switch/delete a branch owned by another worktree | Verify `gh pr view <number> --json state,mergeCommit`, fetch/prune, then pull/deploy from the master worktree |
 | Issues stay open after merge | PR body didn't include `Fixes #NNN` keywords | Step 9: link issues before creating the PR |
 | PR shows conflicts after merge | Another PR merged first, moving master ahead | Resolve conflicts before merging (step 13) |
 | CI passes but app is broken | Tests don't cover the feature; only tested in worktree | Deploy from master (step 22) and have user verify |

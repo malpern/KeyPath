@@ -79,6 +79,7 @@ Two doc systems: `guides/` (user-facing, published to gh-pages) and `docs/` (dev
 ```bash
 ./build.sh                        # Canonical build (SKIP_NOTARIZE=1 for local dev)
 ./Scripts/quick-deploy.sh         # Fast debug deploy
+./Scripts/release-doctor.sh       # Read-only release preflight
 ./Scripts/release-candidate.sh    # Signed/notarized post-merge testing
 swift test                        # All tests (~532 tests, <5s)
 swiftformat Sources Tests         # Uses pinned rules + swiftversion from .swiftformat
@@ -90,22 +91,28 @@ swiftlint --fix --quiet
 Use the narrowest workflow that matches the task:
 
 **Inner loop:** For normal Swift/UI iteration, prefer `swift build` and
-`./Scripts/quick-deploy.sh`. Use Poltergeist for continuous rebuild/deploy:
-`poltergeist start`, edit, then `poltergeist wait keypath`. `quick-deploy.sh`
-updates `/Applications/KeyPath.app`, re-signs locally, and restarts KeyPath only
-if it was already running. It does not redeploy the privileged helper unless
-`KEYPATH_DEPLOY_HELPER=1` is set.
+`./Scripts/quick-deploy.sh`. Use Poltergeist only for focused single-agent
+Swift/UI iteration: `poltergeist start`, edit, then `poltergeist wait keypath`.
+`quick-deploy.sh` updates `/Applications/KeyPath.app`, re-signs locally, and
+restarts KeyPath only if it was already running. It does not redeploy the
+privileged helper unless `KEYPATH_DEPLOY_HELPER=1` is set.
 
 **Release candidate:** After a PR is merged and manual testing needs a real
 Developer ID/notarized app in `/Applications`, run:
 
 ```bash
+git fetch --prune origin
+git pull --ff-only origin master
 ./Scripts/release-candidate.sh
 ```
 
-This defaults to `SKIP_SNAPSHOTS=1`, `SKIP_PEEKABOO=1`, `SKIP_SPARKLE=1`, and
-`SKIP_WEBSITE=1`, then runs installed-app verification. Opt into slower release
-work only when needed:
+Run this from the intended `master` worktree. If another worktree owns `master`,
+pull and deploy there instead of from the feature worktree.
+
+This runs `./Scripts/release-doctor.sh --release-candidate`, defaults to
+`SKIP_SNAPSHOTS=1`, `SKIP_PEEKABOO=1`, `SKIP_SPARKLE=1`, and `SKIP_WEBSITE=1`,
+then runs installed-app verification. Opt into slower release work only when
+needed:
 
 ```bash
 ./Scripts/release-candidate.sh --with-snapshots
@@ -113,15 +120,18 @@ work only when needed:
 ./Scripts/release-candidate.sh --with-website
 ```
 
-**Public ship:** Use the full release script only when producing public
+**Public ship:** Use the public release script only when producing public
 distribution artifacts:
 
 ```bash
-./Scripts/build-and-sign.sh
+./Scripts/release-doctor.sh --ship
+./Scripts/release.sh 1.0.0
 ```
 
-That path may regenerate screenshots, create Sparkle artifacts, notarize,
-staple, deploy, and publish website help content depending on environment flags.
+That path may bump versions, regenerate screenshots, create Sparkle artifacts,
+notarize, staple, deploy, tag, create a GitHub release, and publish website help
+content depending on environment flags. `Scripts/build-and-sign.sh` is the
+lower-level artifact builder used by the release scripts.
 
 **Installed verification:** After signed/notarized deploys, or when diagnosing a
 local install, run:
@@ -152,13 +162,13 @@ an unpinned version.
 
 **"dd"** → Run `SKIP_NOTARIZE=1 ./build.sh`, respond **"Eye eye Captain!"**
 **"df"** → Run `./Scripts/quick-deploy.sh`, respond **"Eye eye Cap, fast deploying!"**
-**"ds"** → Full ship workflow for the current changes, end to end: branch off master → format/lint + commit → review gate → push + open PR → babysit CI → address feedback → merge → pull master → rebuild/deploy from master. Follow [`docs/agent-pr-workflow.md`](docs/agent-pr-workflow.md) and its invariants; risk-tier the babysit (auto-merge mechanical PRs, full babysit for logic/hot-path).
+**"ds"** → Development ship workflow for the current changes, end to end: branch off master → format/lint + commit → review gate → push + open PR → babysit CI → address feedback → merge → pull master → `./Scripts/release-candidate.sh` from master for signed/notarized manual testing. Follow [`docs/agent-pr-workflow.md`](docs/agent-pr-workflow.md) and its invariants; risk-tier the babysit (auto-merge mechanical PRs, full babysit for logic/hot-path). Public distribution is a separate explicit release: `./Scripts/release-doctor.sh --ship && ./Scripts/release.sh <version>`.
 
 Test targets: `Tests/KeyPathTests/` (target: `KeyPathTests`). Files in `Tests/KeyPathAppKitTests/` are NOT compiled. Snapshot tests in `Tests/KeyPathSnapshotTests/`.
 
 ## Poltergeist (Auto-Deploy)
 
-`poltergeist start` / `poltergeist stop`. **Stop before running parallel agents** — file change watchers cause SwiftPM lock contention.
+`poltergeist start` / `poltergeist stop`. Use it only for focused single-agent Swift/UI iteration. **Stop before running parallel agents, broad tests, helper/service work, or release builds** — file change watchers cause SwiftPM lock contention and surprise app restarts.
 
 ## Linear
 
