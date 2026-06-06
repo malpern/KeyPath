@@ -10,7 +10,7 @@ set -euo pipefail
 #   ./Scripts/release.sh --dry-run          # Show what would happen without doing it
 #   ./Scripts/release.sh --dry-run 1.2.0    # Dry run with version bump
 #   ./Scripts/release.sh --refresh-keyboard-data
-#   ./Scripts/release.sh --skip-notarize    # Local release build without notarization
+#   ./Scripts/release.sh --no-doctor        # Skip release-doctor preflight
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 REPO_ROOT="${SCRIPT_DIR%/Scripts}"
@@ -19,7 +19,33 @@ INFO_PLIST="$REPO_ROOT/Sources/KeyPathApp/Info.plist"
 DRY_RUN=false
 SKIP_NOTARIZE=false
 REFRESH_KEYBOARD_DATA=false
+RUN_DOCTOR=true
 NEW_VERSION=""
+TEMP_GHPAGES_WORKTREE=""
+
+cleanup() {
+    if [ -n "$TEMP_GHPAGES_WORKTREE" ]; then
+        git worktree remove "$TEMP_GHPAGES_WORKTREE" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT
+
+find_worktree_for_branch() {
+    local branch_name=$1
+    git worktree list --porcelain | awk -v target="refs/heads/${branch_name}" '
+        /^worktree / { path=substr($0, 10) }
+        /^branch / {
+            if ($2 == target) {
+                print path
+                exit
+            }
+        }
+    '
+}
+
+usage() {
+    echo "Usage: $0 [--dry-run] [--no-doctor] [--refresh-keyboard-data] [--skip-notarize dry-run only] [X.Y.Z]"
+}
 
 # Parse arguments
 for arg in "$@"; do
@@ -30,6 +56,9 @@ for arg in "$@"; do
         --skip-notarize)
             SKIP_NOTARIZE=true
             ;;
+        --no-doctor)
+            RUN_DOCTOR=false
+            ;;
         --refresh-keyboard-data)
             REFRESH_KEYBOARD_DATA=true
             ;;
@@ -38,7 +67,7 @@ for arg in "$@"; do
                 NEW_VERSION="$arg"
             else
                 echo "❌ Invalid argument: $arg"
-                echo "Usage: $0 [--dry-run] [--skip-notarize] [--refresh-keyboard-data] [X.Y.Z]"
+                usage
                 exit 1
             fi
             ;;
@@ -50,6 +79,12 @@ cd "$REPO_ROOT"
 echo "🚀 KeyPath Release Script"
 echo "========================="
 echo ""
+
+if [ "$SKIP_NOTARIZE" = true ] && [ "$DRY_RUN" = false ]; then
+    echo "❌ ERROR: release.sh publishes public artifacts and must notarize them."
+    echo "   Use ./build.sh or ./Scripts/release-candidate.sh for local unnotarized testing."
+    exit 1
+fi
 
 # Get current version
 CURRENT_VERSION=$(defaults read "$INFO_PLIST" CFBundleShortVersionString 2>/dev/null || echo "0.0.0")
@@ -75,7 +110,7 @@ fi
 echo ""
 echo "🎯 Release version: $VERSION"
 if [ "$SKIP_NOTARIZE" = true ]; then
-    echo "⚠️  Notarization: skipped (--skip-notarize)"
+    echo "⚠️  Notarization: skipped (--skip-notarize dry-run only)"
 fi
 if [ "$REFRESH_KEYBOARD_DATA" = true ]; then
     echo "🗂️  Keyboard data: refresh before build"
@@ -100,33 +135,51 @@ fi
 if [ "$DRY_RUN" = true ]; then
     echo "🔍 [DRY RUN] Would perform the following steps:"
     echo ""
+    STEP=1
+    if [ "$RUN_DOCTOR" = true ]; then
+        echo "   ${STEP}. Run release-doctor ship preflight"
+        STEP=$((STEP + 1))
+    fi
     if [ "$REFRESH_KEYBOARD_DATA" = true ]; then
-        echo "   1. Refresh keyboard detection data"
-        echo "   2. Build and sign KeyPath"
-        echo "   3. Create Sparkle archive: dist/sparkle/KeyPath-${VERSION}.zip"
-        echo "   4. Sign with EdDSA"
-        echo "   5. Generate appcast entry"
+        echo "   ${STEP}. Refresh keyboard detection data"
+        STEP=$((STEP + 1))
+    fi
+    if [ "$SKIP_NOTARIZE" = true ]; then
+        echo "   ${STEP}. Build/sign KeyPath without notarization (dry-run only)"
     else
-        echo "   1. Build and sign KeyPath"
-        echo "   2. Create Sparkle archive: dist/sparkle/KeyPath-${VERSION}.zip"
-        echo "   3. Sign with EdDSA"
-        echo "   4. Generate appcast entry"
+        echo "   ${STEP}. Build, sign, notarize, and staple KeyPath"
     fi
-    NEXT_STEP=5
-    if [ "$REFRESH_KEYBOARD_DATA" = true ]; then
-        NEXT_STEP=6
-    fi
+    STEP=$((STEP + 1))
+    echo "   ${STEP}. Create Sparkle archive: dist/sparkle/KeyPath-${VERSION}.zip"
+    STEP=$((STEP + 1))
+    echo "   ${STEP}. Sign Sparkle archive with EdDSA"
+    STEP=$((STEP + 1))
+    echo "   ${STEP}. Create DMG: dist/sparkle/KeyPath-${VERSION}.dmg"
+    STEP=$((STEP + 1))
+    echo "   ${STEP}. Generate appcast entry"
+    STEP=$((STEP + 1))
     echo ""
     echo "   Then you would:"
-    echo "   ${NEXT_STEP}. git add -A && git commit -m 'chore: release v${VERSION}'"
-    echo "   $((NEXT_STEP + 1)). git tag v${VERSION}"
-    echo "   $((NEXT_STEP + 2)). git push origin main --tags"
-    echo "   $((NEXT_STEP + 3)). Create GitHub Release and upload ZIP"
-    echo "   $((NEXT_STEP + 4)). Update appcast.xml with generated entry"
-    echo "   $((NEXT_STEP + 5)). git add appcast.xml && git commit -m 'chore: update appcast for v${VERSION}'"
-    echo "   $((NEXT_STEP + 6)). git push"
+    echo "   ${STEP}. git tag v${VERSION}"
+    STEP=$((STEP + 1))
+    echo "   ${STEP}. Create GitHub Release and upload ZIP + DMG"
+    STEP=$((STEP + 1))
+    echo "   ${STEP}. Update appcast.xml with generated entry"
+    STEP=$((STEP + 1))
+    echo "   ${STEP}. git add appcast.xml && git commit -m 'chore: update appcast for v${VERSION}'"
+    STEP=$((STEP + 1))
+    echo "   ${STEP}. Update and push gh-pages download links"
+    STEP=$((STEP + 1))
+    echo "   ${STEP}. Update and push Homebrew cask if the local tap is installed"
+    STEP=$((STEP + 1))
+    echo "   ${STEP}. Push appcast commit and tag: git push origin master --tags"
     echo ""
     exit 0
+fi
+
+if [ "$RUN_DOCTOR" = true ] && [ "${SKIP_RELEASE_DOCTOR:-0}" != "1" ]; then
+    echo "🩺 Running release preflight..."
+    ./Scripts/release-doctor.sh --ship
 fi
 
 if [ "$REFRESH_KEYBOARD_DATA" = true ]; then
@@ -210,8 +263,19 @@ else
 fi
 
 echo "🌐 Updating gh-pages download link..."
-GHPAGES_WORKTREE=$(mktemp -d)
-git worktree add "$GHPAGES_WORKTREE" gh-pages 2>/dev/null
+GHPAGES_WORKTREE=$(find_worktree_for_branch gh-pages)
+if [ -n "$GHPAGES_WORKTREE" ]; then
+    echo "   Using existing gh-pages worktree: $GHPAGES_WORKTREE"
+else
+    TEMP_GHPAGES_WORKTREE=$(mktemp -d)
+    GHPAGES_WORKTREE="$TEMP_GHPAGES_WORKTREE"
+    git worktree add "$GHPAGES_WORKTREE" gh-pages
+fi
+
+if ! git -C "$GHPAGES_WORKTREE" diff --quiet || ! git -C "$GHPAGES_WORKTREE" diff --cached --quiet; then
+    echo "❌ gh-pages worktree has uncommitted tracked changes: $GHPAGES_WORKTREE" >&2
+    exit 1
+fi
 
 DMG_URL="https://github.com/malpern/KeyPath/releases/download/v${VERSION}/KeyPath-${VERSION}.dmg"
 if [ -f "$GHPAGES_WORKTREE/index.md" ]; then
@@ -230,7 +294,6 @@ if [ -f "$GHPAGES_WORKTREE/index.md" ]; then
 else
     echo "   ⚠️  index.md not found on gh-pages — update manually"
 fi
-git worktree remove "$GHPAGES_WORKTREE" 2>/dev/null || true
 
 echo "🍺 Updating Homebrew cask..."
 HOMEBREW_TAP="/opt/homebrew/Library/Taps/malpern/homebrew-tap"

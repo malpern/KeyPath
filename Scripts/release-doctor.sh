@@ -129,6 +129,19 @@ resolve_sign_update() {
     return 1
 }
 
+find_worktree_for_branch() {
+    local branch_name=$1
+    git worktree list --porcelain | awk -v target="refs/heads/${branch_name}" '
+        /^worktree / { path=substr($0, 10) }
+        /^branch / {
+            if ($2 == target) {
+                print path
+                exit
+            }
+        }
+    '
+}
+
 cd "$PROJECT_DIR"
 
 print_section "Release Doctor"
@@ -179,11 +192,8 @@ if [[ -n "$(git status --porcelain --untracked-files=normal)" ]]; then
     warn "Working tree has untracked files"
 fi
 
-if git worktree list --porcelain | grep -q '^branch refs/heads/master$'; then
-    master_worktree=$(git worktree list --porcelain | awk '
-        /^worktree / { path=substr($0, 10) }
-        /^branch refs\/heads\/master$/ { print path; exit }
-    ')
+master_worktree=$(find_worktree_for_branch master)
+if [[ -n "$master_worktree" ]]; then
     if [[ "$master_worktree" != "$PROJECT_DIR" ]]; then
         warn "master is checked out in another worktree: $master_worktree"
         echo "   Merge PRs through GitHub or from outside this repo, then fetch/prune before deploying."
@@ -246,8 +256,8 @@ fi
 if [[ "$effective_skip_website" == "1" ]]; then
     pass "Website publish checks skipped (SKIP_WEBSITE=1)"
 else
-    ghpages_dir="$PROJECT_DIR/.worktrees/gh-pages"
-    if [[ -d "$ghpages_dir/.git" || -f "$ghpages_dir/.git" ]]; then
+    ghpages_dir=$(find_worktree_for_branch gh-pages)
+    if [[ -n "$ghpages_dir" && ( -d "$ghpages_dir/.git" || -f "$ghpages_dir/.git" ) ]]; then
         pass "gh-pages worktree found: $ghpages_dir"
         if git -C "$ghpages_dir" diff --quiet && git -C "$ghpages_dir" diff --cached --quiet; then
             pass "gh-pages worktree has no tracked changes"
@@ -257,8 +267,10 @@ else
         if [[ -n "$(git -C "$ghpages_dir" status --porcelain --untracked-files=normal)" ]]; then
             warn "gh-pages worktree has untracked files"
         fi
+    elif git show-ref --verify --quiet refs/heads/gh-pages || git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+        pass "gh-pages branch found; release.sh can create a temporary worktree"
     else
-        fail "gh-pages worktree missing at $ghpages_dir"
+        fail "gh-pages branch not found; website download publishing would fail"
     fi
 fi
 
