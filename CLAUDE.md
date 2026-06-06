@@ -79,10 +79,13 @@ Two doc systems: `guides/` (user-facing, published to gh-pages) and `docs/` (dev
 ```bash
 ./build.sh                        # Canonical build (SKIP_NOTARIZE=1 for local dev)
 ./Scripts/quick-deploy.sh         # Fast debug deploy
+./Scripts/release-candidate.sh    # Signed/notarized post-merge testing
 swift test                        # All tests (~532 tests, <5s)
 swiftformat Sources Tests         # Uses pinned rules + swiftversion from .swiftformat
 swiftlint --fix --quiet
 ```
+
+### Workflow tiers
 
 Use the narrowest workflow that matches the task:
 
@@ -133,6 +136,12 @@ KeyPath process, `system/com.keypath.kanata`, and TCP readiness on
 
 ```bash
 REQUIRE_NOTARIZED=0 REQUIRE_STAPLED=0 ./Scripts/verify-installed-app.sh
+```
+
+For trust-only diagnostics where KeyPath is not running yet:
+
+```bash
+CHECK_RUNTIME=0 ./Scripts/verify-installed-app.sh
 ```
 
 **SwiftFormat is pinned to 0.61.1** (`mise.toml`); `master` is a formatted fixed-point

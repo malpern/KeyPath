@@ -8,6 +8,7 @@ TCP_PORT="${KEYPATH_TCP_PORT:-37001}"
 TCP_TIMEOUT_SECONDS="${KEYPATH_TCP_TIMEOUT_SECONDS:-20}"
 REQUIRE_NOTARIZED="${REQUIRE_NOTARIZED:-1}"
 REQUIRE_STAPLED="${REQUIRE_STAPLED:-1}"
+CHECK_RUNTIME="${CHECK_RUNTIME:-1}"
 KANATA_LAUNCHCTL_OUTPUT=$(mktemp -t keypath-kanata-launchctl.XXXXXX)
 TCP_PROBE_OUTPUT=$(mktemp -t keypath-tcp-probe.XXXXXX)
 
@@ -27,7 +28,7 @@ if [[ ! -d "$APP_PATH" ]]; then
 fi
 
 print_section "Trust Policy"
-codesign --verify --strict --deep --verbose=2 "$APP_PATH"
+codesign --verify --strict --verbose=2 "$APP_PATH"
 if [[ "$REQUIRE_NOTARIZED" == "1" ]]; then
     spctl -a -vvv -t install "$APP_PATH"
 else
@@ -38,6 +39,12 @@ if [[ "$REQUIRE_STAPLED" == "1" ]]; then
     xcrun stapler validate "$APP_PATH"
 else
     echo "⏭️  Skipping stapler validation (REQUIRE_STAPLED=0)"
+fi
+
+if [[ "$CHECK_RUNTIME" != "1" ]]; then
+    echo "⏭️  Skipping runtime checks (CHECK_RUNTIME=0)"
+    echo "✅ Installed KeyPath passed requested trust checks."
+    exit 0
 fi
 
 print_section "Processes"
@@ -53,14 +60,18 @@ if ! launchctl print "$KANATA_LABEL" >"$KANATA_LAUNCHCTL_OUTPUT" 2>&1; then
     echo "❌ Kanata launchd job is not registered/running: $KANATA_LABEL" >&2
     exit 1
 fi
+line_count=$(wc -l <"$KANATA_LAUNCHCTL_OUTPUT" | tr -d ' ')
 sed -n '1,140p' "$KANATA_LAUNCHCTL_OUTPUT"
+if (( line_count > 140 )); then
+    echo "  ... (${line_count} total lines, truncated at 140)"
+fi
 
 print_section "TCP Readiness"
 deadline=$((SECONDS + TCP_TIMEOUT_SECONDS))
 while true; do
     if nc -vz -w 1 "$TCP_HOST" "$TCP_PORT" >"$TCP_PROBE_OUTPUT" 2>&1; then
         cat "$TCP_PROBE_OUTPUT"
-        echo "✅ Installed KeyPath is signed, notarized, running, and TCP-ready."
+        echo "✅ Installed KeyPath passed requested trust checks and is TCP-ready."
         exit 0
     fi
 

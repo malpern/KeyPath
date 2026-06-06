@@ -85,6 +85,11 @@ For non-notarized local debug builds, skip distribution trust checks:
 REQUIRE_NOTARIZED=0 REQUIRE_STAPLED=0 ./Scripts/verify-installed-app.sh
 ```
 
+For trust-only diagnostics where KeyPath is not running yet:
+```bash
+CHECK_RUNTIME=0 ./Scripts/verify-installed-app.sh
+```
+
 ## Architecture & Patterns
 
 ### InstallerEngine Façade
