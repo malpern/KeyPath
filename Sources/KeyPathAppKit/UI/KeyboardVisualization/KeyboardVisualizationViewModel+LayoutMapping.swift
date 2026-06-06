@@ -20,8 +20,11 @@ extension KeyboardVisualizationViewModel {
 
     /// Update the current layer and rebuild key mapping
     func updateLayer(_ layerName: String) {
-        let wasLauncherMode = isLauncherModeActive
         let targetLayerName = layerName
+
+        guard currentLayerName != targetLayerName else { return }
+
+        let wasLauncherMode = isLauncherModeActive
 
         // Set layer name immediately so computed properties (isLauncherModeActive,
         // layer indicators) update without waiting for the async mapping rebuild.
