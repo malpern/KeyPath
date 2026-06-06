@@ -12,6 +12,8 @@ final class HelperManagerTests: XCTestCase {
 
     override func tearDown() {
         HelperManager.smServiceFactory = originalFactory
+        HelperManager.testHelperFunctionalityOverride = nil
+        HelperManager.staleHelperSMAppServiceBootoutOverride = nil
         super.tearDown()
     }
 
@@ -39,16 +41,57 @@ final class HelperManagerTests: XCTestCase {
             XCTAssertTrue(msg.contains(expectedDescription), "missing detailed SM error: \(msg)")
         }
     }
+
+    func testStaleHelperSMAppServiceBootoutCommandsTargetSystemDomain() {
+        XCTAssertEqual(
+            HelperManager.staleHelperSMAppServiceBootoutCommands(),
+            ["/bin/launchctl bootout system/com.keypath.helper 2>/dev/null || true"]
+        )
+    }
+
+    func testInstallHelperRecoversEnabledButUnresponsiveRegistration() async throws {
+        let service = FakeSMAppService(status: .enabled)
+        HelperManager.smServiceFactory = { _ in service }
+
+        var bootoutCalls = 0
+        HelperManager.staleHelperSMAppServiceBootoutOverride = {
+            bootoutCalls += 1
+            return (true, "booted out")
+        }
+
+        HelperManager.testHelperFunctionalityOverride = {
+            service.unregisterCalls > 0
+        }
+
+        try await HelperManager.shared.installHelper()
+
+        XCTAssertEqual(service.registerCalls, 2)
+        XCTAssertEqual(service.unregisterCalls, 1)
+        XCTAssertEqual(bootoutCalls, 1)
+    }
 }
 
 // MARK: - Test Doubles
 
-private struct FakeSMAppService: SMAppServiceProtocol, @unchecked Sendable {
-    let status: SMAppService.Status
-    let registerError: Error
-    func register() throws {
-        throw registerError
+private final class FakeSMAppService: SMAppServiceProtocol, @unchecked Sendable {
+    var status: SMAppService.Status
+    var registerError: Error?
+    var registerCalls = 0
+    var unregisterCalls = 0
+
+    init(status: SMAppService.Status, registerError: Error? = nil) {
+        self.status = status
+        self.registerError = registerError
     }
 
-    func unregister() async throws {}
+    func register() throws {
+        registerCalls += 1
+        if let registerError {
+            throw registerError
+        }
+    }
+
+    func unregister() async throws {
+        unregisterCalls += 1
+    }
 }
