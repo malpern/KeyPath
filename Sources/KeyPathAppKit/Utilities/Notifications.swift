@@ -8,8 +8,12 @@ extension Notification.Name {
     static let kp_startupEmergencyMonitor = Notification.Name("KeyPath.Startup.EmergencyMonitor")
     static let kp_startupRevalidate = Notification.Name("KeyPath.Startup.Revalidate")
 
-    // Wizard events
+    // App navigation
     static let showWizard = Notification.Name("ShowWizard")
+    static let showEmergencyStop = Notification.Name("ShowEmergencyStop")
+    static let showUninstall = Notification.Name("ShowUninstall")
+    static let showSimpleMods = Notification.Name("ShowSimpleMods")
+    static let showUserFeedback = Notification.Name("ShowUserFeedback")
     static let wizardOpened = Notification.Name("KeyPath.Wizard.Opened")
     static let wizardClosed = Notification.Name("KeyPath.Wizard.Closed")
 

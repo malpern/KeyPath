@@ -76,7 +76,7 @@ struct AppMenuCommands: Commands {
             Divider()
 
             Button("Install wizard...") {
-                NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
+                NotificationCenter.default.post(name: .showWizard, object: nil)
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
 
@@ -94,7 +94,7 @@ struct AppMenuCommands: Commands {
 
             Button("Simple Key Mappings\u{2026}") {
                 appDelegate.showMainWindow()
-                NotificationCenter.default.post(name: NSNotification.Name("ShowSimpleMods"), object: nil)
+                NotificationCenter.default.post(name: .showSimpleMods, object: nil)
             }
 
             Divider()
@@ -158,7 +158,7 @@ struct AppMenuCommands: Commands {
                 role: .destructive,
                 action: {
                     appDelegate.showMainWindow()
-                    NotificationCenter.default.post(name: NSNotification.Name("ShowUninstall"), object: nil)
+                    NotificationCenter.default.post(name: .showUninstall, object: nil)
                 },
                 label: {
                     Label("Uninstall KeyPath\u{2026}", systemImage: "trash")

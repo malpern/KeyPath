@@ -57,7 +57,7 @@ enum AppNotificationWiring {
     private static func registerFeedbackNotifications() {
         // Settings/permission flows sometimes post a "toast" message; show as a user notification.
         NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("ShowUserFeedback"), object: nil, queue: NotificationObserverManager.mainOperationQueue
+            forName: .showUserFeedback, object: nil, queue: NotificationObserverManager.mainOperationQueue
         ) { notification in
             if let message = notification.userInfo?["message"] as? String {
                 Task { @MainActor in

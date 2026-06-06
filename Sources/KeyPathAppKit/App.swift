@@ -620,7 +620,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if !helperFunctional {
                 AppLogger.shared.info("🆕 [AppDelegate] Helper not functional - auto-launching wizard")
                 try? await Task.sleep(for: .seconds(1))
-                NotificationCenter.default.post(name: NSNotification.Name("ShowWizard"), object: nil)
+                NotificationCenter.default.post(name: .showWizard, object: nil)
             }
         }
     }
@@ -657,7 +657,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             },
             showWizardHandler: { targetPage in
                 NotificationCenter.default.post(
-                    name: NSNotification.Name("ShowWizard"),
+                    name: .showWizard,
                     object: nil,
                     userInfo: targetPage.map { ["targetPage": $0] }
                 )
@@ -825,7 +825,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 if NSApp.isActive, !NSApp.isHidden {
                     self.showMainWindow()
                     NotificationCenter.default.post(
-                        name: NSNotification.Name("ShowEmergencyStop"),
+                        name: .showEmergencyStop,
                         object: nil
                     )
                 }
