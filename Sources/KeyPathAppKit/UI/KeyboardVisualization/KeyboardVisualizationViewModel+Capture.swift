@@ -40,8 +40,16 @@ extension KeyboardVisualizationViewModel {
         guard isCapturing else { return }
 
         isCapturing = false
+
+        // Clear all visual state
         keyVisualStates.removeAll()
         holdLabelCache.removeAll()
+        resolvingHoldLabels.removeAll()
+        customIcons.removeAll()
+        customEmphasisKeyCodes.removeAll()
+        activeOneShotModifiers.removeAll()
+
+        // Clear suppression state
         activeTapHoldSources.removeAll()
         dynamicTapHoldOutputMap.removeAll()
         recentTapOutputs.removeAll()
@@ -51,35 +59,33 @@ extension KeyboardVisualizationViewModel {
         remapSourceClearTasks.values.forEach { $0.cancel() }
         remapSourceClearTasks.removeAll()
 
-        if let observer = keyInputObserver {
-            NotificationCenter.default.removeObserver(observer)
-            keyInputObserver = nil
-        }
+        // Cancel all pending work items and tasks
+        holdClearWorkItems.values.forEach { $0.cancel() }
+        holdClearWorkItems.removeAll()
+        iconClearTasks.values.forEach { $0.cancel() }
+        iconClearTasks.removeAll()
+        layerMapTask?.cancel()
+        layerMapTask = nil
+        layerPreviewTask?.cancel()
+        layerPreviewTask = nil
+        appContextObservationTask?.cancel()
+        appContextObservationTask = nil
+        isShowingLayerPreview = false
 
-        if let observer = tcpHeartbeatObserver {
-            NotificationCenter.default.removeObserver(observer)
-            tcpHeartbeatObserver = nil
+        // Remove notification observers
+        for observer in [keyInputObserver, tcpHeartbeatObserver, holdActivatedObserver,
+                         tapActivatedObserver, messagePushObserver, ruleCollectionsObserver,
+                         oneShotObserver]
+        {
+            if let observer { NotificationCenter.default.removeObserver(observer) }
         }
-
-        if let observer = holdActivatedObserver {
-            NotificationCenter.default.removeObserver(observer)
-            holdActivatedObserver = nil
-        }
-
-        if let observer = tapActivatedObserver {
-            NotificationCenter.default.removeObserver(observer)
-            tapActivatedObserver = nil
-        }
-
-        if let observer = messagePushObserver {
-            NotificationCenter.default.removeObserver(observer)
-            messagePushObserver = nil
-        }
-
-        if let observer = ruleCollectionsObserver {
-            NotificationCenter.default.removeObserver(observer)
-            ruleCollectionsObserver = nil
-        }
+        keyInputObserver = nil
+        tcpHeartbeatObserver = nil
+        holdActivatedObserver = nil
+        tapActivatedObserver = nil
+        messagePushObserver = nil
+        ruleCollectionsObserver = nil
+        oneShotObserver = nil
 
         idleMonitorTask?.cancel()
         idleMonitorTask = nil
