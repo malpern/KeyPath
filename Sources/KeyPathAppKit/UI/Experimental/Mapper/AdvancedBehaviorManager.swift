@@ -157,7 +157,8 @@ public final class AdvancedBehaviorManager {
     public func checkHoldConflict() -> Bool {
         !doubleTapAction.isEmpty ||
             tapDanceSteps.contains { !$0.action.isEmpty } ||
-            (macroBehavior?.isValid == true)
+            (macroBehavior?.isValid == true) ||
+            hasValidCombo
     }
 
     /// Check if setting tap-dance would conflict with existing hold

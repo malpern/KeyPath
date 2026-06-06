@@ -314,11 +314,72 @@ struct AdvancedBehaviorContent: View {
 
                 Spacer()
             }
+            // Chord row
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 16) {
+                    Text("Chord")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .frame(width: 70, alignment: .trailing)
+
+                    HStack(spacing: 4) {
+                        ForEach(viewModel.comboKeys, id: \.self) { key in
+                            Text(key.uppercased())
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(Color.accentColor.opacity(0.15))
+                                .cornerRadius(4)
+                        }
+                    }
+
+                    if viewModel.comboKeys.isEmpty {
+                        Text("No chord keys")
+                            .font(.caption)
+                            .foregroundColor(.secondary.opacity(0.5))
+                    }
+
+                    Spacer()
+                }
+                .accessibilityIdentifier("mapper-chord-keys-row")
+
+                if !viewModel.comboKeys.isEmpty {
+                    HStack(spacing: 16) {
+                        Text("Output")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .frame(width: 70, alignment: .trailing)
+
+                        MiniActionKeycap(
+                            label: viewModel.comboOutput.isEmpty ? "" : formatKeyForDisplay(viewModel.comboOutput),
+                            isRecording: viewModel.isRecordingComboOutput,
+                            onTap: { viewModel.toggleComboOutputRecording() }
+                        )
+
+                        if !viewModel.comboOutput.isEmpty {
+                            Button {
+                                viewModel.comboOutput = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.secondary.opacity(0.6))
+                            }
+                            .buttonStyle(.plain)
+                            .help("Clear chord output")
+                            .accessibilityIdentifier("mapper-clear-combo-output-button")
+                        }
+
+                        Spacer()
+                    }
+                    .accessibilityIdentifier("mapper-chord-output-row")
+                }
+            }
         }
         .padding(.leading, 8)
         .animation(.easeInOut(duration: 0.2), value: viewModel.holdAction.isEmpty)
         .animation(.easeInOut(duration: 0.2), value: viewModel.tapDanceSteps.count)
         .animation(.easeInOut(duration: 0.2), value: viewModel.showTimingAdvanced)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.comboKeys.isEmpty)
     }
 
     // MARK: - Hold Behavior Picker
