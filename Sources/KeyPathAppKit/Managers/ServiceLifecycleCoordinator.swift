@@ -3,6 +3,7 @@ import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathInstallationWizard
 import KeyPathPermissions
+import KeyPathWizardCore
 
 /// Manages the lifecycle of the Kanata runtime service (start, stop, restart, status).
 ///
@@ -68,6 +69,26 @@ final class ServiceLifecycleCoordinator {
         static func pollCount(forMs ms: Int) -> Int {
             max(1, ms / pollIntervalMs)
         }
+    }
+
+    enum RuntimeReadinessTiming {
+        static let pollIntervalMs = 250
+        static let timeoutMs = 5000
+        static let tcpProbeTimeoutMs = 300
+
+        static var pollInterval: Duration {
+            .milliseconds(pollIntervalMs)
+        }
+
+        static var pollCount: Int {
+            max(1, timeoutMs / pollIntervalMs)
+        }
+    }
+
+    private enum RuntimeReadinessVerification {
+        case ready
+        case pendingApproval(String)
+        case failed(String)
     }
 
     /// Mutable flag shared with RuntimeCoordinator to track in-progress start attempts.
@@ -186,6 +207,23 @@ final class ServiceLifecycleCoordinator {
                 _ = try? await SubprocessRunner.shared.launchctl("kickstart", ["system/com.keypath.kanata"])
             }
 
+            switch await verifyRuntimeReadinessAfterStart(reason: reason) {
+            case .ready:
+                break
+            case let .pendingApproval(message):
+                AppLogger.shared.warn("⚠️ [Service] \(message)")
+                onError?(nil)
+                onWarning?(message)
+                onStateChanged?()
+                DistributedNotificationBridge.postServiceState("pending-approval")
+                return true
+            case let .failed(message):
+                AppLogger.shared.error("❌ [Service] \(message)")
+                onError?(message)
+                onStateChanged?()
+                return false
+            }
+
             await AppContextService.shared.start()
             onError?(nil)
             onWarning?(nil)
@@ -278,6 +316,51 @@ final class ServiceLifecycleCoordinator {
         let isPending = managementState == .smappservicePending
         smAppServicePendingCache = (isPending, Date())
         return isPending
+    }
+
+    private func verifyRuntimeReadinessAfterStart(reason: String) async -> RuntimeReadinessVerification {
+        var lastSummary = "no runtime snapshot collected"
+
+        for attempt in 0 ..< RuntimeReadinessTiming.pollCount {
+            let managementState = await KanataDaemonManager.shared.refreshManagementStateInternal()
+            if managementState == .smappservicePending {
+                return .pendingApproval("Kanata is registered but pending approval in System Settings → Login Items.")
+            }
+
+            let staleRegistration = managementState == .smappserviceActive
+                ? await KanataDaemonManager.shared.isRegisteredButNotLoaded()
+                : false
+            let snapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot(
+                managementState: WizardServiceManagementState(managementState),
+                staleEnabledRegistration: staleRegistration,
+                tcpPort: PreferencesService.shared.tcpServerPort,
+                timeoutMs: RuntimeReadinessTiming.tcpProbeTimeoutMs
+            )
+            let decision = ServiceHealthChecker.decideKanataHealth(for: snapshot)
+            lastSummary =
+                "state=\(managementState.description), running=\(snapshot.isRunning), tcp=\(snapshot.isResponding), inputCapture=\(snapshot.inputCaptureReady), decision=\(decision)"
+
+            if snapshot.isRunning, snapshot.isResponding, snapshot.inputCaptureReady, !snapshot.staleEnabledRegistration {
+                AppLogger.shared.log("✅ [Service] Runtime readiness verified after start (\(reason)): \(lastSummary)")
+                return .ready
+            }
+
+            if attempt < RuntimeReadinessTiming.pollCount - 1 {
+                await sleepForReadinessPoll()
+            }
+        }
+
+        return .failed("Kanata start did not reach runtime readiness after \(RuntimeReadinessTiming.timeoutMs)ms (\(lastSummary))")
+    }
+
+    private func sleepForReadinessPoll() async {
+        #if DEBUG
+            if let testSleep = Self.testSleep {
+                await testSleep(RuntimeReadinessTiming.pollInterval)
+                return
+            }
+        #endif
+        try? await Task.sleep(for: RuntimeReadinessTiming.pollInterval)
     }
 
     // MARK: - Runtime Status

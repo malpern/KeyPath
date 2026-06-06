@@ -40,10 +40,6 @@ final class ConfigReloadCoordinator {
     /// Main reload method using TCP protocol.
     /// Checks service health, permission gates, and delegates to TCP reload.
     func triggerConfigReload() async -> ReloadResult {
-        if TestEnvironment.isRunningTests {
-            return ReloadResult(success: true, response: "Test environment", errorMessage: nil, protocol: nil)
-        }
-
         // Use cached state to avoid synchronous IPC to SMAppService in hot path
         let smState: KanataDaemonManager.ServiceManagementState
         let cached = await MainActor.run { KanataDaemonManager.shared.currentManagementState }
@@ -60,7 +56,8 @@ final class ConfigReloadCoordinator {
                 success: false,
                 response: nil,
                 errorMessage: "Approve KeyPath in Login Items before reloading config",
-                protocol: nil
+                protocol: nil,
+                disposition: .pending
             )
         }
 
@@ -76,7 +73,8 @@ final class ConfigReloadCoordinator {
                 success: false,
                 response: nil,
                 errorMessage: healthStatus.reason ?? "Kanata service is starting; retry shortly",
-                protocol: nil
+                protocol: nil,
+                disposition: .pending
             )
         }
 
@@ -91,7 +89,7 @@ final class ConfigReloadCoordinator {
             if !allowed {
                 AppLogger.shared.warn("⚠️ [Reload] Blocked by missing permission (JIT gate)")
                 return ReloadResult(
-                    success: false, response: nil, errorMessage: "Permission required", protocol: nil
+                    success: false, response: nil, errorMessage: "Permission required", protocol: nil, disposition: .rejected
                 )
             }
         }
@@ -108,7 +106,8 @@ final class ConfigReloadCoordinator {
                 success: true,
                 response: tcpResult.response ?? "",
                 errorMessage: nil,
-                protocol: .tcp
+                protocol: .tcp,
+                disposition: .applied
             )
         } else {
             AppLogger.shared.debug(
@@ -137,8 +136,24 @@ final class ConfigReloadCoordinator {
                 success: false,
                 response: tcpResult.response,
                 errorMessage: errorMessage,
-                protocol: .tcp
+                protocol: .tcp,
+                disposition: disposition(for: tcpResult, message: errorMessage)
             )
+        }
+    }
+
+    private func disposition(for tcpResult: TCPReloadResult, message: String) -> ReloadDisposition {
+        if isCooldownBlockMessage(message) {
+            return .pending
+        }
+
+        switch tcpResult {
+        case .failure:
+            return .rejected
+        case .networkError:
+            return .failed
+        case .success:
+            return .applied
         }
     }
 

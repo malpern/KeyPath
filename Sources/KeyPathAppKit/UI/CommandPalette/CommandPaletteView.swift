@@ -268,6 +268,7 @@ private struct CommandPaletteRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("command-palette-row-\(item.id)")
     }
 }
 

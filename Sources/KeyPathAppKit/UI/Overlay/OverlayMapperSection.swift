@@ -643,9 +643,9 @@ struct OverlayMapperSection: View {
         return HoverDropdownButton(
             text: displayText,
             icon: appConditionIcon,
+            accessibilityIdentifier: "overlay-mapper-app-condition",
             action: { isAppConditionPickerOpen = true }
         )
-        .accessibilityIdentifier("overlay-mapper-app-condition")
         .windowAnchoredPopover(isPresented: $isAppConditionPickerOpen) {
             appConditionPopover
         }
@@ -657,6 +657,7 @@ struct OverlayMapperSection: View {
             Button("Triple Tap") { selectedTapCount = 3 }
                 .accessibilityIdentifier("overlay-mapper-triple-tap")
             Button("Cancel", role: .cancel) {}
+                .accessibilityIdentifier("overlay-mapper-tap-count-cancel")
         }
     }
 

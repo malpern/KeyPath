@@ -270,7 +270,7 @@ struct PermissionOracleTests {
     @Test("Oracle returns placeholder snapshot in test mode")
     func modeSnapshot() async {
         // This test verifies the Oracle behaves correctly in test environment
-        let oracle = PermissionOracle.shared
+        let oracle = PermissionOracle()
         let snapshot = await oracle.currentSnapshot()
 
         // In test mode, should get placeholder with unknown status
@@ -284,7 +284,7 @@ struct PermissionOracleTests {
 
     @Test("Cache invalidation works")
     func cacheInvalidation() async {
-        let oracle = PermissionOracle.shared
+        let oracle = PermissionOracle()
 
         // Get first snapshot
         let snapshot1 = await oracle.currentSnapshot()
@@ -310,7 +310,7 @@ struct PermissionOracleTests {
 
     @Test("Force refresh bypasses cache")
     func forceRefresh() async {
-        let oracle = PermissionOracle.shared
+        let oracle = PermissionOracle()
 
         // Get first snapshot
         let snapshot1 = await oracle.currentSnapshot()

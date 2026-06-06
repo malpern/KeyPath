@@ -30,7 +30,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
             configurationService: configService,
             reloadHandler: { [weak self] in
                 self?.reloadHandlerCalled = true
-                return self?.reloadHandlerResult ?? false
+                return (self?.reloadHandlerResult ?? false) ? .applied : .failed("Hot reload failed")
             },
             configParser: { _ in
                 // Simple parser - in real usage this would parse Kanata config
@@ -155,7 +155,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
             configurationService: configService,
             reloadHandler: { [weak self] in
                 self?.reloadHandlerCalled = true
-                return self?.reloadHandlerResult ?? false
+                return (self?.reloadHandlerResult ?? false) ? .applied : .failed("Hot reload failed")
             },
             configParser: { _ in [] },
             serviceManagementStateProvider: { .smappserviceActive },
@@ -239,7 +239,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
     func testParseKeyMappingsReturnsMappings() {
         service.configure(
             configurationService: configService,
-            reloadHandler: { true },
+            reloadHandler: { .applied },
             configParser: { _ in
                 [KeyMapping(input: "caps", action: .keystroke(key: "esc"))]
             }
@@ -254,7 +254,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         // Configure parser to throw an error
         service.configure(
             configurationService: configService,
-            reloadHandler: { true },
+            reloadHandler: { .applied },
             configParser: { _ in
                 throw NSError(domain: "test", code: 1, userInfo: [NSLocalizedDescriptionKey: "Parser error"])
             }
@@ -267,7 +267,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
     func testParseKeyMappingsHandlesParserErrors() {
         service.configure(
             configurationService: configService,
-            reloadHandler: { true },
+            reloadHandler: { .applied },
             configParser: { _ in
                 throw NSError(domain: "test", code: 1)
             }

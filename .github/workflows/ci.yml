@@ -232,10 +232,7 @@ jobs:
 
     - name: Accessibility Check
       run: |
-        python3 Scripts/check-accessibility.py || {
-          echo "Some UI elements are missing accessibility identifiers"
-          exit 0
-        }
+        python3 Scripts/check-accessibility.py
 
     - name: Critical Pattern Analysis
       run: |
@@ -252,9 +249,26 @@ jobs:
         FORCE_UNWRAPS=0
         PRINT_STATEMENTS=0
 
-        if grep -r "!" Sources/KeyPath/Managers/ --include="*.swift" | grep -v "!=" | grep -v "// swiftlint:disable" >/dev/null 2>&1; then
+        python3 - <<'PY' > /tmp/keypath-force-unwraps.txt
+        from pathlib import Path
+        import re
+
+        pattern = re.compile(r"(?:\btry\s*!|(?:[\w\)\]\}\"'`])\s*!(?=\s*(?:[\)\]\}\.,;:]|$)))")
+        for path in Path("Sources/KeyPathAppKit/Managers").rglob("*.swift"):
+            try:
+                lines = path.read_text(encoding="utf-8").splitlines()
+            except UnicodeDecodeError:
+                continue
+            for idx, line in enumerate(lines, start=1):
+                stripped = line.strip()
+                if stripped.startswith("//") or "// swiftlint:disable" in line:
+                    continue
+                if pattern.search(line):
+                    print(f"{path}:{idx}: {stripped}")
+        PY
+        if [ -s /tmp/keypath-force-unwraps.txt ]; then
           echo "Force unwraps found in manager files:"
-          grep -r "!" Sources/KeyPath/Managers/ --include="*.swift" | grep -v "!=" | grep -v "// swiftlint:disable" | head -10
+          head -10 /tmp/keypath-force-unwraps.txt
           FORCE_UNWRAPS=1
         fi
 

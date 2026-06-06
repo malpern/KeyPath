@@ -19,9 +19,9 @@ NC = "\033[0m"  # No Color
 
 # Patterns for interactive UI elements
 INTERACTIVE_PATTERNS = [
-    (r"Button\s*\(", "Button"),
-    (r"Toggle\s*\(", "Toggle"),
-    (r"Picker\s*\(", "Picker"),
+    (r"(?<![A-Za-z0-9_])Button\s*\(", "Button"),
+    (r"(?<![A-Za-z0-9_])Toggle\s*\(", "Toggle"),
+    (r"(?<![A-Za-z0-9_])Picker\s*\(", "Picker"),
 ]
 
 # Files/directories to exclude

@@ -41,7 +41,8 @@ final class PackInstallIntegrationTests: XCTestCase {
         let success = await manager.toggleCollection(
             id: capsCollectionID,
             isEnabled: true,
-            autoResolveConflicts: true
+            autoResolveConflicts: true,
+            bypassOwnershipCheck: true
         )
         XCTAssertTrue(success, "toggleCollection should succeed")
 
@@ -74,8 +75,7 @@ final class PackInstallIntegrationTests: XCTestCase {
 
         let capsKeyCode: UInt16 = 57
         if case let .tapHoldPicker(config) = capsCollection?.configuration {
-            let expectedOutput = config.selectedTapOutput ?? config.tapOptions.first?.output
-            if let expectedOutput {
+            if config.selectedTapOutput != nil || config.tapOptions.first?.output != nil {
                 let label = vm.tapHoldIdleLabels[capsKeyCode]
                 XCTAssertNotNil(label, "Should have tap-hold idle label for caps after pack install")
             }
@@ -113,7 +113,8 @@ final class PackInstallIntegrationTests: XCTestCase {
         let success = await manager.toggleCollection(
             id: capsCollectionID,
             isEnabled: true,
-            autoResolveConflicts: true
+            autoResolveConflicts: true,
+            bypassOwnershipCheck: true
         )
         XCTAssertTrue(success)
 
@@ -154,7 +155,8 @@ final class PackInstallIntegrationTests: XCTestCase {
         let success = await manager.toggleCollection(
             id: collectionID,
             isEnabled: true,
-            autoResolveConflicts: true
+            autoResolveConflicts: true,
+            bypassOwnershipCheck: true
         )
         XCTAssertTrue(success)
 
@@ -204,7 +206,8 @@ final class PackInstallIntegrationTests: XCTestCase {
         let installed = await manager.toggleCollection(
             id: capsCollectionID,
             isEnabled: true,
-            autoResolveConflicts: true
+            autoResolveConflicts: true,
+            bypassOwnershipCheck: true
         )
         XCTAssertTrue(installed)
 
@@ -212,7 +215,8 @@ final class PackInstallIntegrationTests: XCTestCase {
         let uninstalled = await manager.toggleCollection(
             id: capsCollectionID,
             isEnabled: false,
-            autoResolveConflicts: true
+            autoResolveConflicts: true,
+            bypassOwnershipCheck: true
         )
         XCTAssertTrue(uninstalled)
 

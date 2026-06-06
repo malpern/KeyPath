@@ -199,17 +199,16 @@ final class OverlayHealthIndicatorObserverTests: KeyPathTestCase {
 
 @MainActor
 private final class AsyncGate {
-    private var continuation: CheckedContinuation<Void, Never>?
+    private var isOpen = false
 
     func wait() async {
-        await withCheckedContinuation { continuation in
-            self.continuation = continuation
+        while !isOpen, !Task.isCancelled {
+            await Task.yield()
         }
     }
 
     func open() {
-        continuation?.resume()
-        continuation = nil
+        isOpen = true
     }
 }
 

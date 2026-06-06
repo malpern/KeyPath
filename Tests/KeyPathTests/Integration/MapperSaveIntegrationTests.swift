@@ -162,7 +162,8 @@ final class MapperSaveIntegrationTests: XCTestCase {
         let packSuccess = await manager.toggleCollection(
             id: capsCollectionID,
             isEnabled: true,
-            autoResolveConflicts: true
+            autoResolveConflicts: true,
+            bypassOwnershipCheck: true
         )
         XCTAssertTrue(packSuccess)
 

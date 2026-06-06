@@ -5,6 +5,7 @@ struct HoverDropdownButton: View {
     let text: String
     var sfSymbol: String?
     var icon: (name: String, image: NSImage?)?
+    var accessibilityIdentifier: String = "hover-dropdown-button"
     let action: () -> Void
 
     @State private var isHovering = false
@@ -36,6 +37,7 @@ struct HoverDropdownButton: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(accessibilityIdentifier)
         .onHover { isHovering = $0 }
     }
 }

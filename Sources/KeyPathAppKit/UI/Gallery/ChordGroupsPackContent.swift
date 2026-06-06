@@ -193,6 +193,7 @@ private struct ChordRuleRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("chord-pack-toggle-\(chord.id.uuidString)")
 
             // Rest of the row — tapping opens editor
             Button(action: onEdit) {
@@ -242,6 +243,7 @@ private struct ChordRuleRow: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Edit chord")
+                            .accessibilityIdentifier("chord-pack-edit-\(chord.id.uuidString)")
 
                             Button(action: onDelete) {
                                 Image(systemName: "trash")
@@ -252,6 +254,7 @@ private struct ChordRuleRow: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Delete chord")
+                            .accessibilityIdentifier("chord-pack-delete-\(chord.id.uuidString)")
                         }
                         .padding(.trailing, 4)
                         .transition(.opacity.combined(with: .scale(scale: 0.8)))
@@ -268,6 +271,7 @@ private struct ChordRuleRow: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("chord-pack-edit-row-\(chord.id.uuidString)")
         }
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {

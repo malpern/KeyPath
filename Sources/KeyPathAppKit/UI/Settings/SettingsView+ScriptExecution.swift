@@ -224,6 +224,7 @@ private struct ScriptExecutionLogView: View {
             }
             .accessibilityIdentifier("settings-script-clear-log-confirm")
             Button("Cancel", role: .cancel) {}
+                .accessibilityIdentifier("settings-script-clear-log-cancel")
         } message: {
             Text("This permanently deletes the audit history of scripts KeyPath has run. This can't be undone.")
         }
