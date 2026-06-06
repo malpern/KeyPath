@@ -102,6 +102,9 @@ struct OverlayKeycapView: View {
         if info.appLaunchIdentifier != nil || info.systemActionIdentifier != nil || info.urlIdentifier != nil {
             return false
         }
+        if key.layoutRole == .narrowModifier {
+            return true
+        }
         if let outputKey = info.outputKey {
             return LayerKeyMapper.normalizeKeyName(outputKey) == LayerKeyMapper.normalizeKeyName(inputKeyName)
         }

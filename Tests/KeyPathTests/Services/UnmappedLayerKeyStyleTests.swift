@@ -160,6 +160,27 @@ final class UnmappedLayerKeyStyleTests: KeyPathTestCase {
         )
     }
 
+    func testFnModifierOutput_baseLayerPref_leavesLayerMode() {
+        PreferencesService.shared.unmappedLayerKeyStyle = .baseLayer
+        let view = keycap(
+            keyCode: 63,
+            label: "fn",
+            info: LayerKeyInfo(
+                displayLabel: "fn",
+                outputKey: "fn",
+                outputKeyCode: 63,
+                isTransparent: false,
+                isLayerSwitch: false
+            )
+        )
+        XCTAssertTrue(view.isVisuallyUnmappedLayerKey)
+        XCTAssertFalse(view.isLayerMode, "fn should not be treated as an active layer mapping")
+        XCTAssertEqual(
+            String(describing: view.backgroundColor),
+            String(describing: GMKColorway.default.alphaBaseColor)
+        )
+    }
+
     func testMappedSlashWithCollection_baseLayerPref_keepsCollectionLayerColor() {
         PreferencesService.shared.unmappedLayerKeyStyle = .baseLayer
         let view = keycap(
