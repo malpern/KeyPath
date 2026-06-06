@@ -230,10 +230,15 @@ MACOS="${CONTENTS}/MacOS"
 	# Copy main executable
 	ditto "$BUILD_DIR/KeyPath" "$MACOS/KeyPath"
 
+	# Copy command-line tool. Keep the filename distinct from KeyPath on
+	# case-insensitive filesystems; users can opt into a shell shim from the app.
+	ditto "$BUILD_DIR/keypath-cli" "$MACOS/keypath-cli"
+
 	# Ensure app-bundle rpath can locate embedded frameworks
 	# SwiftPM-built executables usually have LC_RPATH=@loader_path, which points to Contents/MacOS.
 	# For an app bundle, frameworks live at Contents/Frameworks, so add that search path.
 	install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS/KeyPath" 2>/dev/null || true
+	install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS/keypath-cli" 2>/dev/null || true
 
 	# Create "Kanata Engine.app" bundle wrapping the kanata binary.
 	# This gives kanata a CFBundleIdentifier so macOS TCC tracks it by bundle ID
@@ -324,6 +329,7 @@ ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath
 	    local missing=0
 	    for path in \
 	        "$HELPER_TOOLS/KeyPathHelper" \
+	        "$MACOS/keypath-cli" \
 	        "$LAUNCH_DAEMONS/com.keypath.helper.plist" \
 	        "$LAUNCH_DAEMONS/com.keypath.kanata.plist" \
 	        "$FRAMEWORKS/Sparkle.framework" \
@@ -440,6 +446,9 @@ else
 
     # Sign bundled kanata simulator binary
     kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --sign "$SIGNING_IDENTITY"
+
+    # Sign command-line tool embedded in the app bundle.
+    kp_sign "$MACOS/keypath-cli" --force --options=runtime --sign "$SIGNING_IDENTITY"
 
     # Sign Insights plugin bundle
     kp_sign "$INSIGHTS_BUNDLE" --force --options=runtime --deep --sign "$SIGNING_IDENTITY"

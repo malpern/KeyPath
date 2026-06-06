@@ -230,15 +230,16 @@ KeyPath includes a CLI for automation and system administration.
 [[cli-installation]]
 === CLI Installation
 
-The standalone CLI is exposed as `keypath`. To use it:
+The command-line tool is exposed as `keypath-cli`. Opening KeyPath.app remains
+the primary way to launch KeyPath; the CLI is a separate terminal entry point.
 
 [source,bash]
 ----
-# Add to PATH (add to ~/.zshrc or ~/.bash_profile)
-export PATH="$PATH:/Applications/KeyPath.app/Contents/MacOS"
+# Recommended: open KeyPath and choose File > Install Command Line Tool
+keypath-cli status
 
 # Or use full path
-/Applications/KeyPath.app/Contents/MacOS/keypath status
+/Applications/KeyPath.app/Contents/MacOS/keypath-cli status
 ----
 
 [[cli-commands]]

@@ -50,7 +50,19 @@ public final class AppLogger {
     }
 
     /// Whether console logging is enabled (default: true in debug, false in release)
-    private let enableConsoleLogging: Bool
+    private var enableConsoleLogging: Bool
+
+    private func getConsoleLoggingEnabled() -> Bool {
+        levelLock.lock()
+        defer { levelLock.unlock() }
+        return enableConsoleLogging
+    }
+
+    public func setConsoleLoggingEnabled(_ enabled: Bool) {
+        levelLock.lock()
+        defer { levelLock.unlock() }
+        enableConsoleLogging = enabled
+    }
 
     // MARK: - State
 
@@ -184,7 +196,7 @@ public final class AppLogger {
         let logMessage = "[\(timestamp)] [\(levelPrefix)] [\(fileName):\(line) \(function)] \(message)"
 
         // Print to console if enabled
-        if enableConsoleLogging {
+        if getConsoleLoggingEnabled() {
             Swift.print(logMessage)
         }
 

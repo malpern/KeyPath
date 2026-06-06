@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
@@ -46,6 +47,7 @@ public struct SystemFacade: Sendable {
 
     @MainActor
     public func runStatus() async -> CLIStatusResult {
+        CLIRuntimeBootstrap.ensureConfigured()
         let engine = InstallerEngine()
         let context = await engine.inspectSystem()
 
@@ -78,23 +80,82 @@ public struct SystemFacade: Sendable {
     // MARK: - Installer
 
     @MainActor
-    public func runInstall() async -> CLIInstallerReport {
+    public func runInstall(dryRun: Bool = false) async -> CLIInstallerReport {
+        CLIRuntimeBootstrap.ensureConfigured()
+        if let bundleIssue = Self.systemRepairBundleIssue() {
+            return CLIInstallerReport(bundleIssue: bundleIssue, dryRun: dryRun, title: "Installation")
+        }
         let engine = InstallerEngine()
+        let context = await engine.inspectSystem()
+        let plan = await engine.makePlan(for: .install, context: context)
+        if dryRun {
+            return CLIInstallerReport(
+                dryRunPlan: plan,
+                context: context,
+                title: "Installation"
+            )
+        }
         let broker = PrivilegeBroker()
-        let report = await engine.run(intent: .install, using: broker)
-        return CLIInstallerReport(from: report)
+        let report = await engine.execute(plan: plan, using: broker)
+        let finalContext = report.success ? await engine.inspectSystem() : nil
+        return CLIInstallerReport(
+            from: report,
+            initialContext: context,
+            finalContext: finalContext,
+            plan: plan,
+            title: "Installation"
+        )
     }
 
     @MainActor
-    public func runRepair() async -> CLIInstallerReport {
+    public func runRepair(dryRun: Bool = false) async -> CLIInstallerReport {
+        CLIRuntimeBootstrap.ensureConfigured()
+        if let bundleIssue = Self.systemRepairBundleIssue() {
+            return CLIInstallerReport(bundleIssue: bundleIssue, dryRun: dryRun, title: "Repair")
+        }
         let engine = InstallerEngine()
+        let context = await engine.inspectSystem()
+        let plan = await engine.makePlan(for: .repair, context: context)
+        if dryRun {
+            return CLIInstallerReport(
+                dryRunPlan: plan,
+                context: context,
+                title: "Repair"
+            )
+        }
+
+        let initialIssues = Self.issues(from: context)
+        let initialUserActionIssues = initialIssues.filter { !$0.canAutoFix }
+        if !initialUserActionIssues.isEmpty, plan.recipes.isEmpty {
+            return CLIInstallerReport(
+                success: false,
+                failureReason: Self.userActionFailureReason(initialUserActionIssues, prefix: "Repair requires user action"),
+                steps: [],
+                fastRepair: false,
+                dryRun: false,
+                userActionRequired: true,
+                issues: initialIssues,
+                plannedRecipes: [],
+                unmetRequirements: plan.blockedBy.map { [$0.name] } ?? [],
+                logs: []
+            )
+        }
+
         let broker = PrivilegeBroker()
-        let report = await engine.run(intent: .repair, using: broker)
-        return CLIInstallerReport(from: report)
+        let report = await engine.execute(plan: plan, using: broker)
+        let finalContext = report.success ? await engine.inspectSystem() : nil
+        return CLIInstallerReport(
+            from: report,
+            initialContext: context,
+            finalContext: finalContext,
+            plan: plan,
+            title: "Repair"
+        )
     }
 
     @MainActor
     public func runUninstall(deleteConfig: Bool) async -> CLIInstallerReport {
+        CLIRuntimeBootstrap.ensureConfigured()
         let engine = InstallerEngine()
         let broker = PrivilegeBroker()
         let report = await engine.uninstall(deleteConfig: deleteConfig, using: broker)
@@ -102,10 +163,25 @@ public struct SystemFacade: Sendable {
     }
 
     @MainActor
-    public func runInspect() async -> CLIInspectResult {
+    public func runInspect(planIntent: InstallIntent = .repair) async -> CLIInspectResult {
+        CLIRuntimeBootstrap.ensureConfigured()
+        if let bundleIssue = Self.systemRepairBundleIssue() {
+            return CLIInspectResult(
+                macOSVersion: ProcessInfo.processInfo.operatingSystemVersionString,
+                driverCompatible: false,
+                planStatus: "blocked",
+                blockedBy: "Valid KeyPath.app bundle",
+                plannedRecipes: [],
+                planIntent: "\(planIntent)",
+                isOperational: false,
+                userActionRequired: true,
+                promptsNeeded: false,
+                issues: [bundleIssue]
+            )
+        }
         let engine = InstallerEngine()
         let context = await engine.inspectSystem()
-        let plan = await engine.makePlan(for: .inspectOnly, context: context)
+        let plan = await engine.makePlan(for: planIntent, context: context)
 
         let planStatus: String
         var blockedBy: String?
@@ -122,8 +198,220 @@ public struct SystemFacade: Sendable {
             driverCompatible: context.system.driverCompatible,
             planStatus: planStatus,
             blockedBy: blockedBy,
-            plannedRecipes: plan.recipes.map { "\($0.id) (\($0.type))" }
+            plannedRecipes: plan.recipes.map { "\($0.id) (\($0.type))" },
+            planIntent: "\(planIntent)",
+            isOperational: Self.isOperational(context),
+            userActionRequired: Self.issues(from: context).contains { !$0.canAutoFix },
+            promptsNeeded: plan.metadata.promptsNeeded,
+            issues: Self.issues(from: context)
         )
+    }
+
+    @MainActor
+    public func openFirstRemediationURL(in issues: [CLISystemIssue]) -> Bool {
+        guard let rawURL = issues.compactMap(\.remediationURL).first,
+              let url = URL(string: rawURL)
+        else {
+            return false
+        }
+        return NSWorkspace.shared.open(url)
+    }
+
+    fileprivate static func isOperational(_ context: SystemContext) -> Bool {
+        context.permissions.isSystemReady
+            && context.helper.isReady
+            && context.components.hasAllRequired
+            && context.services.isHealthy
+            && !context.conflicts.hasConflicts
+    }
+
+    fileprivate static func systemRepairBundleIssue() -> CLISystemIssue? {
+        let bundlePath = Bundle.main.bundlePath
+        let requiredPaths = [
+            "\(bundlePath)/Contents/MacOS/keypath-cli",
+            "\(bundlePath)/Contents/Library/LaunchDaemons/com.keypath.kanata.plist",
+            "\(bundlePath)/Contents/Library/HelperTools/KeyPathHelper",
+            WizardSystemPaths.bundledKanataPath,
+            WizardSystemPaths.bundledKanataLauncherPath,
+        ]
+        if requiredPaths.allSatisfy({ FileManager.default.fileExists(atPath: $0) }) {
+            return nil
+        }
+
+        return CLISystemIssue(
+            title: "System repair requires the app-bundled CLI",
+            category: "bundle",
+            action: "Open KeyPath and choose File > Install Command Line Tool, or run /Applications/KeyPath.app/Contents/MacOS/keypath-cli",
+            canAutoFix: false
+        )
+    }
+
+    fileprivate static func issues(from context: SystemContext) -> [CLISystemIssue] {
+        var issues: [CLISystemIssue] = []
+
+        if !context.helper.isInstalled {
+            issues.append(.init(
+                title: "Privileged Helper not installed",
+                category: "helper",
+                action: "Install or repair KeyPath services",
+                canAutoFix: true
+            ))
+        } else if !context.helper.isWorking {
+            issues.append(.init(
+                title: "Privileged Helper unhealthy",
+                category: "helper",
+                action: "Reinstall the privileged helper",
+                canAutoFix: true
+            ))
+        }
+
+        appendPermissionIssues(from: context, to: &issues)
+
+        for conflict in context.conflicts.conflicts {
+            issues.append(.init(
+                title: Self.conflictTitle(conflict),
+                category: "conflict",
+                action: "Terminate conflicting process",
+                canAutoFix: context.conflicts.canAutoResolve
+            ))
+        }
+
+        if !context.components.kanataBinaryInstalled {
+            issues.append(.init(
+                title: "Kanata binary not installed",
+                category: "component",
+                action: "Reinstall KeyPath; the bundled Kanata engine is missing",
+                canAutoFix: false
+            ))
+        }
+        if !context.components.karabinerDriverInstalled {
+            issues.append(.init(
+                title: "Karabiner VirtualHID driver not installed",
+                category: "component",
+                action: "Install the bundled VirtualHID driver",
+                canAutoFix: true
+            ))
+        }
+        if context.components.vhidVersionMismatch {
+            issues.append(.init(
+                title: "Karabiner VirtualHID driver version incompatible",
+                category: "component",
+                action: "Install the compatible bundled VirtualHID driver",
+                canAutoFix: true
+            ))
+        }
+        if !context.components.vhidDeviceHealthy {
+            issues.append(.init(
+                title: "VirtualHID device unhealthy",
+                category: "component",
+                action: "Repair VirtualHID services",
+                canAutoFix: true
+            ))
+        }
+
+        if !context.services.isHealthy {
+            if !context.services.kanataRunning, let configError = context.services.configParseError {
+                issues.append(.init(
+                    title: "Configuration error prevents remapping",
+                    category: "configuration",
+                    action: configError,
+                    canAutoFix: false
+                ))
+            } else if !context.services.kanataRunning, context.services.kanataPermissionRejected {
+                issues.append(.init(
+                    title: "Kanata needs Accessibility permission",
+                    category: "permissions",
+                    action: "Re-grant Accessibility for Kanata Engine in System Settings",
+                    canAutoFix: false
+                ))
+            } else if !context.services.kanataRunning {
+                issues.append(.init(
+                    title: "Kanata service not running",
+                    category: "service",
+                    action: "Start or reinstall the Kanata service",
+                    canAutoFix: true
+                ))
+            }
+            if !context.services.karabinerDaemonRunning {
+                issues.append(.init(
+                    title: "Karabiner VirtualHID daemon not running",
+                    category: "service",
+                    action: "Start or repair the VirtualHID daemon",
+                    canAutoFix: true
+                ))
+            }
+        }
+
+        return issues
+    }
+
+    private static func appendPermissionIssues(from context: SystemContext, to issues: inout [CLISystemIssue]) {
+        if !context.permissions.keyPath.accessibility.isReady {
+            issues.append(.init(
+                title: "KeyPath needs Accessibility permission",
+                category: "permissions",
+                action: "Open KeyPath.app and grant Accessibility in System Settings > Privacy & Security > Accessibility",
+                canAutoFix: false,
+                remediationURL: WizardSystemPaths.accessibilitySettings
+            ))
+        }
+        if !context.permissions.keyPath.inputMonitoring.isReady {
+            issues.append(.init(
+                title: "KeyPath needs Input Monitoring permission",
+                category: "permissions",
+                action: "Open KeyPath.app and grant Input Monitoring in System Settings > Privacy & Security > Input Monitoring",
+                canAutoFix: false,
+                remediationURL: WizardSystemPaths.inputMonitoringSettings
+            ))
+        }
+        if !context.permissions.kanata.accessibility.isReady {
+            issues.append(.init(
+                title: "Kanata needs Accessibility permission",
+                category: "permissions",
+                action: "Open the KeyPath Installation Wizard to grant Kanata Engine Accessibility",
+                canAutoFix: false,
+                remediationURL: WizardSystemPaths.accessibilitySettings
+            ))
+        }
+        if !context.permissions.kanata.inputMonitoring.isReady {
+            issues.append(.init(
+                title: "Kanata needs Input Monitoring permission",
+                category: "permissions",
+                action: "Open the KeyPath Installation Wizard to grant Kanata Engine Input Monitoring",
+                canAutoFix: false,
+                remediationURL: WizardSystemPaths.inputMonitoringSettings
+            ))
+        }
+        if !context.services.kanataInputCaptureReady {
+            issues.append(.init(
+                title: "Kanata cannot capture keyboard input",
+                category: "permissions",
+                action: context.services.kanataInputCaptureIssue
+                    ?? "Re-grant Input Monitoring for Kanata Engine in System Settings",
+                canAutoFix: false,
+                remediationURL: WizardSystemPaths.inputMonitoringSettings
+            ))
+        }
+    }
+
+    private static func conflictTitle(_ conflict: SystemConflict) -> String {
+        switch conflict {
+        case let .kanataProcessRunning(pid, _):
+            "Conflicting Kanata process running (PID \(pid))"
+        case let .karabinerGrabberRunning(pid):
+            "Karabiner Grabber running (PID \(pid))"
+        case let .karabinerVirtualHIDDeviceRunning(pid, _):
+            "Karabiner VirtualHID process running (PID \(pid))"
+        case let .karabinerVirtualHIDDaemonRunning(pid):
+            "Karabiner VirtualHID daemon running (PID \(pid))"
+        case let .exclusiveDeviceAccess(device):
+            "Device in exclusive use: \(device)"
+        }
+    }
+
+    fileprivate static func userActionFailureReason(_ issues: [CLISystemIssue], prefix: String) -> String {
+        guard let first = issues.first else { return prefix }
+        return "\(prefix): \(first.title). \(first.action)"
     }
 }
 
@@ -155,6 +443,12 @@ public struct CLIInstallerReport: Codable, Sendable {
     public let failureReason: String?
     public let steps: [CLIInstallerStep]
     public let fastRepair: Bool
+    public let dryRun: Bool?
+    public let userActionRequired: Bool?
+    public let issues: [CLISystemIssue]?
+    public let plannedRecipes: [String]?
+    public let unmetRequirements: [String]?
+    public let logs: [String]?
 
     init(from report: InstallerReport) {
         success = report.success
@@ -163,6 +457,75 @@ public struct CLIInstallerReport: Codable, Sendable {
             CLIInstallerStep(name: $0.recipeID, success: $0.success, error: $0.error)
         }
         fastRepair = false
+        dryRun = nil
+        userActionRequired = nil
+        issues = nil
+        plannedRecipes = nil
+        unmetRequirements = nil
+        logs = nil
+    }
+
+    init(
+        from report: InstallerReport,
+        initialContext: SystemContext,
+        finalContext: SystemContext?,
+        plan: InstallPlan,
+        title: String
+    ) {
+        let finalIssues = SystemFacade.issues(from: finalContext ?? initialContext)
+        let finalUserActionIssues = finalIssues.filter { !$0.canAutoFix }
+        let finalOperational = finalContext.map(SystemFacade.isOperational) ?? false
+        let completedButStillBlocked = report.success && !finalOperational && !finalIssues.isEmpty
+
+        success = report.success && !completedButStillBlocked
+        if let reportFailure = report.failureReason {
+            failureReason = reportFailure
+        } else if !finalUserActionIssues.isEmpty {
+            failureReason = SystemFacade.userActionFailureReason(
+                finalUserActionIssues,
+                prefix: "\(title) requires user action"
+            )
+        } else if completedButStillBlocked {
+            failureReason = "Repair completed but system still has blocking issue(s)"
+        } else {
+            failureReason = nil
+        }
+        steps = report.executedRecipes.map {
+            CLIInstallerStep(name: $0.recipeID, success: $0.success, error: $0.error)
+        }
+        fastRepair = false
+        dryRun = false
+        userActionRequired = !finalUserActionIssues.isEmpty || plan.metadata.promptsNeeded
+        issues = finalIssues
+        plannedRecipes = plan.recipes.map { "\($0.id) (\($0.type))" }
+        unmetRequirements = report.unmetRequirements.map(\.name)
+        logs = report.logs
+    }
+
+    init(dryRunPlan plan: InstallPlan, context: SystemContext, title: String) {
+        let contextIssues = SystemFacade.issues(from: context)
+        let userActionIssues = contextIssues.filter { !$0.canAutoFix }
+        let blockedBy = plan.blockedBy.map { [$0.name] } ?? []
+
+        success = blockedBy.isEmpty && userActionIssues.isEmpty
+        if !blockedBy.isEmpty {
+            failureReason = "Plan blocked by requirement: \(blockedBy.joined(separator: ", "))"
+        } else if !userActionIssues.isEmpty {
+            failureReason = SystemFacade.userActionFailureReason(
+                userActionIssues,
+                prefix: "\(title) requires user action"
+            )
+        } else {
+            failureReason = nil
+        }
+        steps = []
+        fastRepair = false
+        dryRun = true
+        userActionRequired = !userActionIssues.isEmpty || plan.metadata.promptsNeeded
+        issues = contextIssues
+        plannedRecipes = plan.recipes.map { "\($0.id) (\($0.type))" }
+        unmetRequirements = blockedBy
+        logs = nil
     }
 
     init(success: Bool, failureReason: String?, steps: [CLIInstallerStep], fastRepair: Bool) {
@@ -170,6 +533,49 @@ public struct CLIInstallerReport: Codable, Sendable {
         self.failureReason = failureReason
         self.steps = steps
         self.fastRepair = fastRepair
+        dryRun = nil
+        userActionRequired = nil
+        issues = nil
+        plannedRecipes = nil
+        unmetRequirements = nil
+        logs = nil
+    }
+
+    init(bundleIssue: CLISystemIssue, dryRun: Bool, title: String) {
+        success = false
+        failureReason = "\(title) requires the signed KeyPath.app bundle. \(bundleIssue.action)"
+        steps = []
+        fastRepair = false
+        self.dryRun = dryRun
+        userActionRequired = true
+        issues = [bundleIssue]
+        plannedRecipes = []
+        unmetRequirements = ["Valid KeyPath.app bundle"]
+        logs = nil
+    }
+
+    init(
+        success: Bool,
+        failureReason: String?,
+        steps: [CLIInstallerStep],
+        fastRepair: Bool,
+        dryRun: Bool?,
+        userActionRequired: Bool?,
+        issues: [CLISystemIssue]?,
+        plannedRecipes: [String]?,
+        unmetRequirements: [String]?,
+        logs: [String]?
+    ) {
+        self.success = success
+        self.failureReason = failureReason
+        self.steps = steps
+        self.fastRepair = fastRepair
+        self.dryRun = dryRun
+        self.userActionRequired = userActionRequired
+        self.issues = issues
+        self.plannedRecipes = plannedRecipes
+        self.unmetRequirements = unmetRequirements
+        self.logs = logs
     }
 }
 
@@ -185,4 +591,31 @@ public struct CLIInspectResult: Codable, Sendable {
     public let planStatus: String
     public let blockedBy: String?
     public let plannedRecipes: [String]
+    public let planIntent: String?
+    public let isOperational: Bool?
+    public let userActionRequired: Bool?
+    public let promptsNeeded: Bool?
+    public let issues: [CLISystemIssue]?
+}
+
+public struct CLISystemIssue: Codable, Sendable {
+    public let title: String
+    public let category: String
+    public let action: String
+    public let canAutoFix: Bool
+    public let remediationURL: String?
+
+    public init(
+        title: String,
+        category: String,
+        action: String,
+        canAutoFix: Bool,
+        remediationURL: String? = nil
+    ) {
+        self.title = title
+        self.category = category
+        self.action = action
+        self.canAutoFix = canAutoFix
+        self.remediationURL = remediationURL
+    }
 }

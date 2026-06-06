@@ -32,6 +32,42 @@ func formatInstallerReport(_ report: CLIInstallerReport, title: String, noColor:
         lines.append(ANSIColor.red("Failure Reason: \(reason)", noColor: noColor))
     }
 
+    if report.dryRun == true {
+        lines.append("Dry Run: Yes")
+    }
+    if report.userActionRequired == true {
+        lines.append("User Action Required: Yes")
+    }
+
+    if let plannedRecipes = report.plannedRecipes, !plannedRecipes.isEmpty {
+        lines.append("")
+        lines.append("Planned Recipes:")
+        for recipe in plannedRecipes {
+            lines.append("  - \(recipe)")
+        }
+    }
+
+    if let unmetRequirements = report.unmetRequirements, !unmetRequirements.isEmpty {
+        lines.append("")
+        lines.append("Unmet Requirements:")
+        for requirement in unmetRequirements {
+            lines.append("  - \(requirement)")
+        }
+    }
+
+    if let issues = report.issues, !issues.isEmpty {
+        lines.append("")
+        lines.append("Issues:")
+        for issue in issues {
+            let fixability = issue.canAutoFix ? "auto-fixable" : "manual"
+            lines.append("  - \(issue.title) [\(issue.category), \(fixability)]")
+            lines.append("    Action: \(issue.action)")
+            if let url = issue.remediationURL {
+                lines.append("    Open: \(url)")
+            }
+        }
+    }
+
     if !report.steps.isEmpty {
         lines.append("")
         lines.append("Steps:")
