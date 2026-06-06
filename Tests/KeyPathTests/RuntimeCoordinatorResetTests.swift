@@ -2,7 +2,7 @@
 @preconcurrency import XCTest
 
 @MainActor
-final class KanataManagerResetTests: XCTestCase {
+final class KanataManagerResetTests: KeyPathTestCase {
     func testResetWritesDefaultConfig() async throws {
         // Given a fresh manager
         let manager = RuntimeCoordinator()
