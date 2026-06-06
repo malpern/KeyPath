@@ -168,15 +168,26 @@ enum VimInsightsEngine {
                 priority: 75
             ))
         }
-        // NOTE: we used to suggest learning `0` / `$` here, gated on
-        // `commandFrequency["0"]` / `["4"]` being low. That's unsafe:
-        // VimSequenceObserver records every typed character — including
-        // count prefixes (`4j`, `14w`) — into `commandFrequency`. So a
-        // user heavily relying on counts accumulates `"4"` presses
-        // without ever using `$`, suppressing the suggestion. We can't
-        // distinguish raw digits from shifted symbols without tracking
-        // shift state, which we don't. Drop the rule rather than ship
-        // false negatives.
+        if (snapshot.commandFrequency["w"] ?? 0) >= fluencyThreshold,
+           (snapshot.commandFrequency["0"] ?? 0) < 5
+        {
+            out.append(.init(
+                glyph: .learn,
+                title: "Try `0` (start of line)",
+                body: "Jumps to the first column instantly. Pairs with `$` (end of line) to replace Home/End.",
+                priority: 70
+            ))
+        }
+        if (snapshot.commandFrequency["w"] ?? 0) >= fluencyThreshold,
+           (snapshot.commandFrequency["$"] ?? 0) < 5
+        {
+            out.append(.init(
+                glyph: .learn,
+                title: "Try `$` (end of line)",
+                body: "Jumps to the last character on the line. Pairs with `0` (start of line) to replace Home/End.",
+                priority: 70
+            ))
+        }
         if (snapshot.commandFrequency["i"] ?? 0) >= fluencyThreshold,
            (snapshot.commandFrequency["a"] ?? 0) < 5
         {
