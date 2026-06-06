@@ -47,6 +47,19 @@ struct ConnectedDevice: Codable, Identifiable, Hashable, Sendable {
         return lower.contains("trackpad") && !lower.contains("keyboard")
     }
 
+    /// True if this device is a known mouse that exposes a composite HID keyboard
+    /// endpoint (for programmable buttons/macros) but isn't an actual keyboard.
+    var isMouseOnly: Bool {
+        let lower = productKey.lowercased()
+        let mouseNames = ["x2a", "x2h", "x2v", "xlite", "x2 mini"]
+        return lower.contains("mouse") || mouseNames.contains(where: { lower == $0 })
+    }
+
+    /// True if this device should be excluded from the keyboard picker.
+    var isNonKeyboard: Bool {
+        isVirtualHID || isTrackpadOnly || isMouseOnly
+    }
+
     /// SF Symbol name for this device type.
     /// Apple internal keyboards (vendor 0x05AC) use `laptopcomputer`;
     /// all external keyboards use `keyboard`.
