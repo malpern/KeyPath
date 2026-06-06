@@ -5,6 +5,7 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 PROJECT_DIR="$SCRIPT_DIR/.."
 
 VERIFY=1
+DOCTOR=1
 
 usage() {
     cat <<'EOF'
@@ -15,6 +16,7 @@ and verify the installed runtime. This is the right path after a PR merge when
 you need a real Developer ID + notarized build for local manual testing.
 
 Defaults:
+  release-doctor preflight
   SKIP_SNAPSHOTS=1
   SKIP_PEEKABOO=1
   SKIP_SPARKLE=1
@@ -25,6 +27,7 @@ Options:
   --with-sparkle      Build Sparkle archive/appcast artifacts.
   --with-website      Publish website help content when the release script allows it.
   --with-peekaboo     Allow Peekaboo screenshot generation during snapshot regeneration.
+  --no-doctor         Skip Scripts/release-doctor.sh preflight.
   --no-verify         Skip Scripts/verify-installed-app.sh after deploy.
   -h, --help          Show this help.
 
@@ -53,6 +56,9 @@ while [[ $# -gt 0 ]]; do
         --with-peekaboo)
             export SKIP_PEEKABOO=0
             ;;
+        --no-doctor)
+            DOCTOR=0
+            ;;
         --no-verify)
             VERIFY=0
             ;;
@@ -76,6 +82,12 @@ echo "   SKIP_SNAPSHOTS=$SKIP_SNAPSHOTS"
 echo "   SKIP_PEEKABOO=$SKIP_PEEKABOO"
 echo "   SKIP_SPARKLE=$SKIP_SPARKLE"
 echo "   SKIP_WEBSITE=$SKIP_WEBSITE"
+
+if [[ "$DOCTOR" == "1" && "${SKIP_RELEASE_DOCTOR:-0}" != "1" ]]; then
+    "$SCRIPT_DIR/release-doctor.sh" --release-candidate
+else
+    echo "⏭️  Skipping release preflight (--no-doctor or SKIP_RELEASE_DOCTOR=1)"
+fi
 
 "$SCRIPT_DIR/build-and-sign.sh"
 
