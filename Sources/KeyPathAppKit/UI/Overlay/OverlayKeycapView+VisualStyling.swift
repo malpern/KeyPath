@@ -14,43 +14,15 @@ extension OverlayKeycapView {
 
     // MARK: - Styling
 
-    /// Interpolate between two colors based on progress (0 = from, 1 = to)
-    func interpolate(from: Color, to: Color, progress: CGFloat) -> (red: Double, green: Double, blue: Double) {
-        // Extract RGB components (simplified - assumes sRGB)
-        let fromRGB = NSColor(from).usingColorSpace(.sRGB) ?? NSColor.black
-        let toRGB = NSColor(to).usingColorSpace(.sRGB) ?? NSColor.black
-        let t = Double(progress)
-        let inv = 1.0 - t
-
-        let r = Double(fromRGB.redComponent) * inv + Double(toRGB.redComponent) * t
-        let g = Double(fromRGB.greenComponent) * inv + Double(toRGB.greenComponent) * t
-        let b = Double(fromRGB.blueComponent) * inv + Double(toRGB.blueComponent) * t
-
-        return (r, g, b)
-    }
-
     var cornerRadius: CGFloat {
         key.layoutRole == .arrow ? 3 * scale : 4 * scale
     }
 
     var keyBackground: Color {
-        // For per-key release fade: blend from pressed color to base
-        if isReleaseFading, fadeAmount > 0 {
-            let fromColor = releaseFadeFromColor
-            let targetColor = backgroundColor // Use colorway's background color
-            return Color(
-                red: interpolate(from: fromColor, to: targetColor, progress: fadeAmount).red,
-                green: interpolate(from: fromColor, to: targetColor, progress: fadeAmount).green,
-                blue: interpolate(from: fromColor, to: targetColor, progress: fadeAmount).blue
-            )
-        }
-        // For global overlay fade: use opacity
-        else if fadeAmount > 0 {
-            return backgroundColor.opacity(1 - 0.9 * fadeAmount)
-        }
-        // No fade: use base color
-        else {
-            return backgroundColor
+        if fadeAmount > 0 {
+            backgroundColor.opacity(1 - 0.9 * fadeAmount)
+        } else {
+            backgroundColor
         }
     }
 

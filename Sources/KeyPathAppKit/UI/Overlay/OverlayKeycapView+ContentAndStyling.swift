@@ -9,6 +9,7 @@ extension OverlayKeycapView {
             // Animated color transition for launcher mode (per-key timing variation)
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(keyBackground)
+                .animation(.easeOut(duration: 0.15), value: isPressed)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .shadow(color: shadowColor, radius: shadowRadius, y: shadowOffset)
                 .overlay(
