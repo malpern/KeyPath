@@ -83,15 +83,29 @@ struct OverlayKeycapView: View {
         }
         // Under base-style, an unmapped key leaves layer mode so it renders
         // like the base/inline layer instead of dimming. Unmapped = transparent
-        // (production) or nil (hand-built maps). The zoneSubtitle guard keeps
-        // nav-hint keys in layer mode so their subtitle still renders.
+        // (production), explicit blockers, or nil (hand-built maps).
         if services.preferences.unmappedLayerKeyStyle == .baseLayer,
-           zoneSubtitle == nil,
-           layerKeyInfo == nil || layerKeyInfo?.isTransparent == true
+           isVisuallyUnmappedLayerKey
         {
             return false
         }
         return true
+    }
+
+    /// Whether this layer entry represents "nothing active here" for visual
+    /// styling. Kanata can express that as transparent passthrough, omitted
+    /// info, or an explicit `XX` blocker with no label/output.
+    var isVisuallyUnmappedLayerKey: Bool {
+        guard let info = layerKeyInfo else { return true }
+        if info.isTransparent { return true }
+        if info.isLayerSwitch { return false }
+        if info.appLaunchIdentifier != nil || info.systemActionIdentifier != nil || info.urlIdentifier != nil {
+            return false
+        }
+        if let outputKey = info.outputKey {
+            return LayerKeyMapper.normalizeKeyName(outputKey) == LayerKeyMapper.normalizeKeyName(inputKeyName)
+        }
+        return info.displayLabel.isEmpty || info.displayLabel.uppercased() == baseLabel.uppercased()
     }
 
     /// "Inline" layers render like the base layer — unmapped keys keep their

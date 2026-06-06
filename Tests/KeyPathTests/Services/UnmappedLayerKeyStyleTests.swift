@@ -39,6 +39,24 @@ final class UnmappedLayerKeyStyleTests: KeyPathTestCase {
         )
     }
 
+    private func keycap(
+        keyCode: UInt16,
+        label: String,
+        layer: String = "nav",
+        info: LayerKeyInfo?,
+        zoneSubtitle: String? = nil
+    ) -> OverlayKeycapView {
+        OverlayKeycapView(
+            key: PhysicalKey(keyCode: keyCode, label: label, x: 1, y: 2, width: 1, height: 1),
+            baseLabel: label,
+            isPressed: false,
+            scale: 1.0,
+            currentLayerName: layer,
+            layerKeyInfo: info,
+            zoneSubtitle: zoneSubtitle
+        )
+    }
+
     func testUnmappedKey_baseLayerPref_leavesLayerMode() {
         PreferencesService.shared.unmappedLayerKeyStyle = .baseLayer
         let view = keycap(layer: "nav", info: .transparent(fallbackLabel: "Q"))
@@ -56,12 +74,111 @@ final class UnmappedLayerKeyStyleTests: KeyPathTestCase {
         XCTAssertFalse(view.isLayerMode, "A nil-info (unmapped) key should also render base-style")
     }
 
-    func testUnmappedKey_withZoneSubtitle_staysInLayerMode() {
-        // A key carrying a nav-hint subtitle keeps layer styling so the subtitle
-        // still renders (avoids a stray subtitle on a base-styled keycap).
+    func testUnmappedKey_withZoneSubtitle_baseLayerPref_leavesLayerMode() {
+        // A subtitle should not force a transparent/pass-through key into layer
+        // styling. The subtitle can still render inline on the base-styled keycap.
         PreferencesService.shared.unmappedLayerKeyStyle = .baseLayer
         let view = keycap(layer: "nav", info: .transparent(fallbackLabel: "Q"), zoneSubtitle: "◀")
-        XCTAssertTrue(view.isLayerMode, "Keys with a zone subtitle keep layer styling even under base-style")
+        XCTAssertFalse(view.isLayerMode, "Transparent keys keep base styling even when a subtitle exists")
+    }
+
+    func testExplicitlyBlockedKey_baseLayerPref_leavesLayerMode() {
+        PreferencesService.shared.unmappedLayerKeyStyle = .baseLayer
+        let view = keycap(
+            keyCode: 47,
+            label: ".",
+            info: LayerKeyInfo(
+                displayLabel: "",
+                outputKey: nil,
+                outputKeyCode: nil,
+                isTransparent: false,
+                isLayerSwitch: false
+            )
+        )
+        XCTAssertTrue(view.isVisuallyUnmappedLayerKey)
+        XCTAssertFalse(view.isLayerMode, "XX-blocked punctuation should render base-style under the base-style preference")
+        XCTAssertEqual(
+            String(describing: view.backgroundColor),
+            String(describing: GMKColorway.default.alphaBaseColor)
+        )
+    }
+
+    func testFallbackSameLabelNoOutput_baseLayerPref_leavesLayerMode() {
+        PreferencesService.shared.unmappedLayerKeyStyle = .baseLayer
+        let view = keycap(
+            keyCode: 44,
+            label: "/",
+            info: LayerKeyInfo(
+                displayLabel: "/",
+                outputKey: nil,
+                outputKeyCode: nil,
+                isTransparent: false,
+                isLayerSwitch: false
+            )
+        )
+        XCTAssertTrue(view.isVisuallyUnmappedLayerKey)
+        XCTAssertFalse(view.isLayerMode, "Fallback punctuation with no output should render as visually unmapped")
+        XCTAssertEqual(
+            String(describing: view.backgroundColor),
+            String(describing: GMKColorway.default.alphaBaseColor)
+        )
+    }
+
+    func testLiteralPunctuationIdentity_baseLayerPref_leavesLayerMode() {
+        PreferencesService.shared.unmappedLayerKeyStyle = .baseLayer
+        let view = keycap(
+            keyCode: 44,
+            label: "/",
+            info: LayerKeyInfo(
+                displayLabel: "/",
+                outputKey: "/",
+                outputKeyCode: 44,
+                isTransparent: false,
+                isLayerSwitch: false
+            )
+        )
+        XCTAssertTrue(view.isVisuallyUnmappedLayerKey)
+        XCTAssertFalse(view.isLayerMode, "Literal slash output should normalize as identity/pass-through")
+        XCTAssertEqual(
+            String(describing: view.backgroundColor),
+            String(describing: GMKColorway.default.alphaBaseColor)
+        )
+    }
+
+    func testTransparentFn_baseLayerPref_leavesLayerMode() {
+        PreferencesService.shared.unmappedLayerKeyStyle = .baseLayer
+        let view = keycap(
+            keyCode: 63,
+            label: "fn",
+            info: .transparent(fallbackLabel: "fn")
+        )
+        XCTAssertTrue(view.isVisuallyUnmappedLayerKey)
+        XCTAssertFalse(view.isLayerMode, "Transparent fn should not pick up layer fallback coloring")
+        XCTAssertEqual(
+            String(describing: view.backgroundColor),
+            String(describing: GMKColorway.default.alphaBaseColor)
+        )
+    }
+
+    func testMappedSlashWithCollection_baseLayerPref_keepsCollectionLayerColor() {
+        PreferencesService.shared.unmappedLayerKeyStyle = .baseLayer
+        let view = keycap(
+            keyCode: 44,
+            label: "/",
+            info: .mapped(
+                displayLabel: "find",
+                outputKey: "f",
+                outputKeyCode: 3,
+                collectionId: RuleCollectionIdentifier.vimNavigation,
+                vimLabel: "find"
+            )
+        )
+        XCTAssertFalse(view.isVisuallyUnmappedLayerKey)
+        XCTAssertTrue(view.isLayerMode, "Mapped punctuation should still render as an active layer key")
+        XCTAssertEqual(
+            String(describing: view.backgroundColor),
+            String(describing: KeycapSymbols.collectionColor(for: RuleCollectionIdentifier.vimNavigation))
+        )
     }
 
     func testUnmappedKey_dimmedPref_staysInLayerMode() {
