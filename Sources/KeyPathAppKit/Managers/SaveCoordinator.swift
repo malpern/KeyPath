@@ -81,13 +81,13 @@ final class SaveCoordinator {
     ///   - input: The input key/sequence
     ///   - output: The output key/sequence
     ///   - ruleCollectionsManager: Manager to persist the custom rule
-    ///   - reloadHandler: Async handler to trigger config reload (returns success, error message)
+    ///   - reloadHandler: Async handler to trigger config reload and classify the result
     /// - Returns: SaveResult indicating success or failure with error details
     func saveMapping(
         input: String,
         output: String,
         ruleCollectionsManager: RuleCollectionsManager,
-        reloadHandler: @escaping () async -> (success: Bool, errorMessage: String?)
+        reloadHandler: @escaping () async -> ReloadResult
     ) async -> SaveResult {
         // Suppress file watcher to prevent double reload
         configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveConfiguration")
@@ -122,9 +122,13 @@ final class SaveCoordinator {
             AppLogger.shared.debug("📡 [SaveCoordinator] Triggering TCP reload for validation")
             let reloadResult = await reloadHandler()
 
-            if reloadResult.success {
+            if reloadResult.disposition == .applied || reloadResult.disposition == .pending {
                 // Success!
-                AppLogger.shared.info("✅ [SaveCoordinator] Reload successful, config is valid")
+                if reloadResult.disposition == .applied {
+                    AppLogger.shared.info("✅ [SaveCoordinator] Reload successful, config is valid")
+                } else {
+                    AppLogger.shared.info("ℹ️ [SaveCoordinator] Config saved; reload pending: \(reloadResult.errorMessage ?? "service unavailable")")
+                }
                 playSuccessSound()
                 saveStatus = .success
                 scheduleStatusReset()
@@ -165,11 +169,11 @@ final class SaveCoordinator {
     ///
     /// - Parameters:
     ///   - content: The full Kanata configuration content
-    ///   - reloadHandler: Async handler to trigger config reload
+    ///   - reloadHandler: Async handler to trigger config reload and classify the result
     /// - Returns: SaveResult indicating success or failure
     func saveGeneratedConfig(
         content: String,
-        reloadHandler: @escaping () async -> (success: Bool, errorMessage: String?)
+        reloadHandler: @escaping () async -> ReloadResult
     ) async -> SaveResult {
         // Suppress file watcher to prevent double reload
         configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveGeneratedConfiguration")
@@ -225,10 +229,16 @@ final class SaveCoordinator {
             // Step 6: Trigger reload for validation
             let reloadResult = await reloadHandler()
 
-            if reloadResult.success {
-                AppLogger.shared.info(
-                    "✅ [SaveCoordinator] TCP reload successful, config is active"
-                )
+            if reloadResult.disposition == .applied || reloadResult.disposition == .pending {
+                if reloadResult.disposition == .applied {
+                    AppLogger.shared.info(
+                        "✅ [SaveCoordinator] TCP reload successful, config is active"
+                    )
+                } else {
+                    AppLogger.shared.info(
+                        "ℹ️ [SaveCoordinator] Config saved; reload pending: \(reloadResult.errorMessage ?? "service unavailable")"
+                    )
+                }
                 playSuccessSound()
                 saveStatus = .success
                 scheduleStatusReset()

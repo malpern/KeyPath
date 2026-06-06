@@ -253,7 +253,11 @@ final class RuleCollectionsManagerTests: XCTestCase {
         }
 
         // Enable Caps Lock remap collection (maps caps -> something)
-        await manager.toggleCollection(id: RuleCollectionIdentifier.capsLockRemap, isEnabled: true)
+        await manager.toggleCollection(
+            id: RuleCollectionIdentifier.capsLockRemap,
+            isEnabled: true,
+            bypassOwnershipCheck: true
+        )
         XCTAssertTrue(manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && $0.isEnabled })
 
         // Create custom rule with same input (caps)
@@ -542,7 +546,11 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertTrue(initialRuleSaved)
         conflictingCustomRule = try XCTUnwrap(manager.customRules.first { $0.input == "caps" && $0.action.outputString == "esc" })
 
-        await manager.toggleCollection(id: RuleCollectionIdentifier.capsLockRemap, isEnabled: true)
+        await manager.toggleCollection(
+            id: RuleCollectionIdentifier.capsLockRemap,
+            isEnabled: true,
+            bypassOwnershipCheck: true
+        )
 
         XCTAssertTrue(
             manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && $0.isEnabled },
@@ -559,7 +567,19 @@ final class RuleCollectionsManagerTests: XCTestCase {
         let (manager, _) = try await createTestManager()
         defer { TestEnvironment.forceTestMode = false }
 
-        await manager.replaceCollections(RuleCollectionCatalog().defaultCollections())
+        PreferencesService.shared.leaderKeyPreference = .default
+        defer { PreferencesService.shared.leaderKeyPreference = .default }
+
+        let collections = RuleCollectionCatalog().defaultCollections().map { collection in
+            var collection = collection
+            if collection.momentaryActivator != nil,
+               collection.id != RuleCollectionIdentifier.vimNavigation
+            {
+                collection.isEnabled = false
+            }
+            return collection
+        }
+        await manager.replaceCollections(collections)
         await manager.updateLeaderKey("tab")
 
         let beforeInputs = manager.ruleCollections.compactMap(\.momentaryActivator?.input)
@@ -580,7 +600,11 @@ final class RuleCollectionsManagerTests: XCTestCase {
 
         manager.onConflictResolution = { _ in .keepNew }
 
-        await manager.toggleCollection(id: RuleCollectionIdentifier.capsLockRemap, isEnabled: true)
+        await manager.toggleCollection(
+            id: RuleCollectionIdentifier.capsLockRemap,
+            isEnabled: true,
+            bypassOwnershipCheck: true
+        )
         XCTAssertTrue(
             manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && $0.isEnabled },
             "Collection should start enabled"

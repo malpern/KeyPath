@@ -9,9 +9,9 @@ extension OverlayMapperSection {
         return HoverDropdownButton(
             text: currentType.label,
             sfSymbol: currentType.icon,
+            accessibilityIdentifier: "overlay-mapper-output-type",
             action: { isSystemActionPickerOpen = true }
         )
-        .accessibilityIdentifier("overlay-mapper-output-type")
         .accessibilityLabel("Select output action type")
         .windowAnchoredPopover(isPresented: $isSystemActionPickerOpen) {
             systemActionPopover

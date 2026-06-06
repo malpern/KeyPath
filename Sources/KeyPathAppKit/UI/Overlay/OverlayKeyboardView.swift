@@ -513,7 +513,7 @@ struct OverlayKeyboardView: View {
         return baseY + halfHeight + keyGap * scale
     }
 
-    static func escLeftInset(
+    nonisolated static func escLeftInset(
         for layout: PhysicalLayout,
         scale: CGFloat,
         keyUnitSize: CGFloat = 32,

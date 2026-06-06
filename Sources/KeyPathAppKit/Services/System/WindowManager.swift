@@ -2,6 +2,7 @@ import AppKit
 import ApplicationServices
 import Foundation
 import KeyPathCore
+import KeyPathPermissions
 
 // MARK: - Window Position
 
@@ -107,7 +108,7 @@ public final class WindowManager {
     /// Whether Accessibility permission is granted.
     /// Window management requires this permission to control other app windows.
     public var hasAccessibilityPermission: Bool {
-        AXIsProcessTrusted()
+        PermissionOracle.shared.keyPathAccessibilityStatus().isReady
     }
 
     /// Whether Space movement features are available.

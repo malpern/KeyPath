@@ -84,7 +84,13 @@ public enum PIDFileManager {
             return
         }
 
-        try FileManager.default.removeItem(atPath: pidFilePath)
+        do {
+            try FileManager.default.removeItem(atPath: pidFilePath)
+        } catch let error as NSError
+            where error.domain == NSCocoaErrorDomain && error.code == NSFileNoSuchFileError
+        {
+            return
+        }
         AppLogger.shared.log("🗑️ [PIDFile] Removed PID file")
     }
 

@@ -159,6 +159,12 @@ public actor PermissionOracle {
         lastSnapshotTime = nil
     }
 
+    /// Synchronous, non-prompting Accessibility status for call sites that cannot
+    /// await a full permission snapshot.
+    public nonisolated func keyPathAccessibilityStatus() -> Status {
+        Self.checkKeyPathAccessibilityStatus()
+    }
+
     /// Get current permission snapshot - THE authoritative permission state
     ///
     /// This is the ONLY method other components should call.
@@ -282,8 +288,7 @@ public actor PermissionOracle {
         let start = Date()
 
         // Accessibility check via official Apple API (no prompt)
-        let axGranted = AXIsProcessTrusted()
-        let accessibility: Status = axGranted ? .granted : .denied
+        let accessibility = Self.checkKeyPathAccessibilityStatus()
 
         // Input Monitoring: use TCC database reading (passive, no prompt).
         // IOHIDCheckAccess would trigger the system permission dialog on first call,
@@ -306,6 +311,10 @@ public actor PermissionOracle {
             confidence: confidence,
             timestamp: Date()
         )
+    }
+
+    private nonisolated static func checkKeyPathAccessibilityStatus() -> Status {
+        AXIsProcessTrusted() ? .granted : .denied
     }
 
     // MARK: - Kanata Permission Detection (ADR-016: TCC Database Reading)

@@ -2,6 +2,7 @@ import AppKit
 import Carbon
 import Foundation
 import KeyPathCore
+import KeyPathPermissions
 import Observation
 
 // Import the event processing infrastructure
@@ -784,8 +785,7 @@ public class KeyboardCapture {
 
     /// Check permissions without prompting - using synchronous method to avoid deadlocks
     func checkAccessibilityPermissionsSilently() -> Bool {
-        // Use direct API call instead of async PermissionOracle to avoid semaphore deadlock
-        AXIsProcessTrusted()
+        PermissionOracle.shared.keyPathAccessibilityStatus().isReady
     }
 
     /// Public method to explicitly request permissions (for use in wizard)

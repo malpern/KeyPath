@@ -89,11 +89,15 @@ final class ConfigBackupManagerTests: XCTestCase {
 
     func testCleanupOldBackups_KeepsOnlyMaxBackups() throws {
         try writeValidConfig()
-        let manager = ConfigBackupManager(configPath: configPath)
+        var dateOffset: TimeInterval = 0
+        let baseDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let manager = ConfigBackupManager(configPath: configPath) {
+            defer { dateOffset += 1 }
+            return baseDate.addingTimeInterval(dateOffset)
+        }
 
         for _ in 0 ..< 8 {
             XCTAssertTrue(manager.createPreEditBackup())
-            Thread.sleep(forTimeInterval: 0.05)
         }
 
         let backups = manager.getAvailableBackups()

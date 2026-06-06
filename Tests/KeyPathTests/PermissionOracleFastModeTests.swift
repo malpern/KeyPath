@@ -12,8 +12,9 @@ struct PermissionOracleFastModeTests {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
+        let oracle = PermissionOracle()
         let start = Date()
-        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        let snapshot = await oracle.currentSnapshot()
         let duration = Date().timeIntervalSince(start)
 
         #expect(duration < 1.0)
@@ -27,8 +28,9 @@ struct PermissionOracleFastModeTests {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
-        let first = await PermissionOracle.shared.currentSnapshot()
-        let second = await PermissionOracle.shared.currentSnapshot()
+        let oracle = PermissionOracle()
+        let first = await oracle.currentSnapshot()
+        let second = await oracle.currentSnapshot()
         #expect(first.timestamp.timeIntervalSince1970 == second.timestamp.timeIntervalSince1970)
     }
 
@@ -38,7 +40,8 @@ struct PermissionOracleFastModeTests {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
-        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        let oracle = PermissionOracle()
+        let snapshot = await oracle.currentSnapshot()
         #expect(snapshot.kanata.confidence == .low)
     }
 
@@ -48,8 +51,9 @@ struct PermissionOracleFastModeTests {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
+        let oracle = PermissionOracle()
         let before = Date()
-        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        let snapshot = await oracle.currentSnapshot()
         #expect(snapshot.timestamp >= before.addingTimeInterval(-1))
     }
 
@@ -59,9 +63,10 @@ struct PermissionOracleFastModeTests {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
-        await PermissionOracle.shared.invalidateCache()
+        let oracle = PermissionOracle()
+        await oracle.invalidateCache()
         let start = Date()
-        let snapshot = await PermissionOracle.shared.forceRefresh()
+        let snapshot = await oracle.forceRefresh()
         let duration = Date().timeIntervalSince(start)
 
         #expect(duration < 1.0)
@@ -74,7 +79,8 @@ struct PermissionOracleFastModeTests {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
-        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        let oracle = PermissionOracle()
+        let snapshot = await oracle.currentSnapshot()
         #expect(!snapshot.diagnosticSummary.isEmpty)
         #expect(snapshot.diagnosticSummary.contains("Permission Oracle"))
     }

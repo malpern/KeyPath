@@ -923,12 +923,18 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             AppLogger.shared.info("🔄 [Reset] Triggering immediate config reload via TCP...")
             let reloadResult = await triggerConfigReload()
 
-            if reloadResult.isSuccess {
+            if reloadResult.disposition == .applied {
                 let response = reloadResult.response ?? "Success"
                 AppLogger.shared.info("✅ [Reset] Default config applied successfully via TCP: \(response)")
                 // Play happy chime on successful reset
                 await MainActor.run {
                     SoundManager.shared.playGlassSound()
+                    saveStatus = .success
+                }
+            } else if reloadResult.disposition == .pending {
+                let reason = reloadResult.errorMessage ?? "reload pending"
+                AppLogger.shared.info("ℹ️ [Reset] Default config saved; reload pending: \(reason)")
+                await MainActor.run {
                     saveStatus = .success
                 }
             } else {
@@ -1333,9 +1339,12 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         configHotReloadService.configure(
             configurationService: configurationService,
             reloadHandler: { [weak self] in
-                guard let self else { return false }
+                guard let self else { return .failed("Coordinator deallocated") }
                 let result = await triggerConfigReload()
-                return result.isSuccess
+                return ConfigHotReloadService.ReloadOutcome(
+                    disposition: result.disposition,
+                    message: result.errorMessage
+                )
             },
             configParser: { [weak self] content in
                 guard let self else { return [] }
@@ -1425,19 +1434,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         let result = await saveCoordinator.saveGeneratedConfig(
             content: configContent,
             reloadHandler: { [weak self] in
-                guard let self else { return (false, "Coordinator deallocated") }
-                let reloadResult = await triggerConfigReload()
-                // triggerConfigReload() already checks service health and returns failure
-                // when service is unavailable. Don't trigger rollback for that case -
-                // the config passed our validation, it just can't be applied yet.
-                if !reloadResult.isSuccess,
-                   let reason = reloadResult.errorMessage,
-                   reason.contains("not healthy") || reason.contains("requires approval") || reason.contains("starting")
-                {
-                    AppLogger.shared.info("ℹ️ [SaveCoordinator] Service unavailable - config saved but not validated by kanata")
-                    return (true, nil)
+                guard let self else {
+                    return ReloadResult(success: false, response: nil, errorMessage: "Coordinator deallocated", protocol: nil, disposition: .failed)
                 }
-                return (reloadResult.isSuccess, reloadResult.errorMessage)
+                return await triggerConfigReload()
             }
         )
 
@@ -1462,15 +1462,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             output: output,
             ruleCollectionsManager: ruleCollectionsManager,
             reloadHandler: { [weak self] in
-                guard let self else { return (false, "Coordinator deallocated") }
-                let tcpResult = await triggerTCPReload()
-                // Distinguish "TCP unreachable" (service down) from "kanata rejected config".
-                // Only trigger rollback for actual config rejections, not network errors.
-                if case .networkError = tcpResult {
-                    AppLogger.shared.info("ℹ️ [SaveCoordinator] TCP unreachable - config saved but not validated (service may be starting)")
-                    return (true, nil)
+                guard let self else {
+                    return ReloadResult(success: false, response: nil, errorMessage: "Coordinator deallocated", protocol: nil, disposition: .failed)
                 }
-                return (tcpResult.isSuccess, tcpResult.errorMessage)
+                return await triggerConfigReload()
             }
         )
 
@@ -1613,14 +1608,36 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
 // MARK: - Result Types
 
+enum ReloadDisposition: Sendable, Equatable {
+    case applied
+    case pending
+    case rejected
+    case failed
+}
+
 /// TCP reload result
 struct ReloadResult {
     let success: Bool
     let response: String?
     let errorMessage: String?
     let `protocol`: CommunicationProtocol?
+    let disposition: ReloadDisposition
 
     var isSuccess: Bool {
-        success
+        disposition == .applied
+    }
+
+    init(
+        success: Bool,
+        response: String?,
+        errorMessage: String?,
+        protocol: CommunicationProtocol?,
+        disposition: ReloadDisposition? = nil
+    ) {
+        self.success = success
+        self.response = response
+        self.errorMessage = errorMessage
+        self.protocol = `protocol`
+        self.disposition = disposition ?? (success ? .applied : .failed)
     }
 }

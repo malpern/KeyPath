@@ -13,12 +13,14 @@ public final class ConfigBackupManager {
 
     private let backupDirectory: String
     private let configPath: String
+    private let dateProvider: () -> Date
     private let maxBackups = 5
 
     // MARK: - Initialization
 
-    public init(configPath: String) {
+    public init(configPath: String, dateProvider: @escaping () -> Date = { Date() }) {
         self.configPath = configPath
+        self.dateProvider = dateProvider
         let configDir = (configPath as NSString).deletingLastPathComponent
         backupDirectory = "\(configDir)/.backups"
 
@@ -46,19 +48,12 @@ public final class ConfigBackupManager {
                 return false
             }
 
-            // Create timestamped backup filename
-            let timestamp = ISO8601DateFormatter().string(from: Date())
-                .replacingOccurrences(of: ":", with: "-")
-                .replacingOccurrences(of: "T", with: "_")
-                .replacingOccurrences(of: "Z", with: "")
-
-            let backupFileName = "keypath_\(timestamp).kbd"
-            let backupPath = "\(backupDirectory)/\(backupFileName)"
+            let backup = uniqueBackupPath(prefix: "keypath", date: dateProvider())
 
             // Write backup file
-            try content.write(toFile: backupPath, atomically: true, encoding: .utf8)
+            try content.write(toFile: backup.path, atomically: true, encoding: .utf8)
 
-            AppLogger.shared.log("✅ [BackupManager] Created pre-edit backup: \(backupFileName)")
+            AppLogger.shared.log("✅ [BackupManager] Created pre-edit backup: \(backup.fileName)")
 
             // Cleanup old backups
             cleanupOldBackups()
@@ -128,9 +123,8 @@ public final class ConfigBackupManager {
 
         // Create a backup of current config (if it exists) before restoring
         if Foundation.FileManager().fileExists(atPath: configPath) {
-            let currentBackupPath =
-                "\(backupDirectory)/before_restore_\(Date().timeIntervalSince1970).kbd"
-            try? Foundation.FileManager().copyItem(atPath: configPath, toPath: currentBackupPath)
+            let currentBackup = uniqueBackupPath(prefix: "before_restore", date: dateProvider())
+            try? Foundation.FileManager().copyItem(atPath: configPath, toPath: currentBackup.path)
         }
 
         // Restore the backup
@@ -180,6 +174,30 @@ public final class ConfigBackupManager {
         } catch {
             AppLogger.shared.log("❌ [BackupManager] Failed to create backup directory: \(error)")
         }
+    }
+
+    private func uniqueBackupPath(prefix: String, date: Date) -> (fileName: String, path: String) {
+        let baseName = "\(prefix)_\(timestampString(from: date))"
+        var fileName = "\(baseName).kbd"
+        var path = "\(backupDirectory)/\(fileName)"
+        var suffix = 1
+
+        while Foundation.FileManager().fileExists(atPath: path) {
+            fileName = "\(baseName)_\(suffix).kbd"
+            path = "\(backupDirectory)/\(fileName)"
+            suffix += 1
+        }
+
+        return (fileName, path)
+    }
+
+    private func timestampString(from date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: date)
+            .replacingOccurrences(of: ":", with: "-")
+            .replacingOccurrences(of: "T", with: "_")
+            .replacingOccurrences(of: "Z", with: "")
     }
 
     private func cleanupOldBackups() {

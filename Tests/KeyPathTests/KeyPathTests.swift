@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 @testable import KeyPathInstallationWizard
+@testable import KeyPathPermissions
 @preconcurrency import XCTest
 
 @MainActor
@@ -691,6 +692,6 @@ extension KeyboardCapture {
     }
 
     func hasAccessibilityPermissions() -> Bool {
-        AXIsProcessTrusted()
+        PermissionOracle.shared.keyPathAccessibilityStatus().isReady
     }
 }

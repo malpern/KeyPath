@@ -12,6 +12,7 @@ final class FacadeLintTests: XCTestCase {
             root.appendingPathComponent("Sources/KeyPathAppKit/Managers/RuntimeCoordinator.swift").path,
             root.appendingPathComponent("Sources/KeyPathAppKit/Managers/RuntimeCoordinator+Lifecycle.swift").path,
             root.appendingPathComponent("Sources/KeyPathAppKit/InstallationWizard/Core/PermissionGrantCoordinator.swift").path,
+            root.appendingPathComponent("Sources/KeyPathAppKit/WizardProtocolConformances.swift").path,
         ]
         let violations = findPattern("PrivilegedOperationsRouter\\.shared", in: appKitRoot, allowList: allow)
         if !violations.isEmpty {
@@ -21,10 +22,8 @@ final class FacadeLintTests: XCTestCase {
 
     func testDirectAXChecksAreLimitedToAllowlist() {
         let root = repositoryRoot()
-        let sourcesDir = root.appendingPathComponent("Sources/KeyPathAppKit")
+        let sourcesDir = root.appendingPathComponent("Sources")
         let allow = [
-            root.appendingPathComponent("Sources/KeyPathAppKit/Services/KeyboardCapture.swift").path,
-            root.appendingPathComponent("Sources/KeyPathAppKit/UI/KeyboardVisualization/KeyboardVisualizationViewModel.swift").path,
             root.appendingPathComponent("Sources/KeyPathPermissions/PermissionOracle.swift").path,
         ]
         let violations = findPattern("AXIsProcessTrusted\\(", in: sourcesDir, allowList: allow)
@@ -51,12 +50,15 @@ private func findPattern(_ pattern: String, in directory: URL, allowList: [Strin
     }
     var hits: [String] = []
     let allowed = Set(allowList)
+    let regex = try? NSRegularExpression(pattern: pattern)
     for case let fileURL as URL in enumerator {
         guard fileURL.pathExtension == "swift" else { continue }
         if allowed.contains(fileURL.path) { continue }
         guard let contents = try? String(contentsOf: fileURL, encoding: .utf8) else { continue }
         let lines = contents.components(separatedBy: .newlines)
-        for (idx, line) in lines.enumerated() where line.contains(pattern) {
+        for (idx, line) in lines.enumerated() {
+            let range = NSRange(line.startIndex ..< line.endIndex, in: line)
+            guard regex?.firstMatch(in: line, range: range) != nil else { continue }
             hits.append("\(fileURL.path):\(idx + 1): \(line.trimmingCharacters(in: .whitespaces))")
         }
     }

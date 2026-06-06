@@ -390,6 +390,7 @@ struct ExpandableCollectionRow: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("rules-summary-add-rule-\(collectionId)")
                 } else if displayStyle == .singleKeyPicker, let coll = collection {
                     // Segmented picker for single-key remapping
                     SingleKeyPickerContent(

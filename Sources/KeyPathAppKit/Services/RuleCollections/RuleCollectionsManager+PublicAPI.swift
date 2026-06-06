@@ -34,6 +34,7 @@ extension RuleCollectionsManager {
         }
 
         let snapshot = snapshotRuleState()
+        let leaderPreferenceSnapshot = PreferencesService.shared.leaderKeyPreference
 
         let catalogMatch = RuleCollectionCatalog().defaultCollections().first { $0.id == id }
         AppLogger.shared.log("🔀 [RuleCollections] catalogMatch=\(catalogMatch?.name ?? "nil")")
@@ -101,14 +102,23 @@ extension RuleCollectionsManager {
         AppLogger.shared.log("🔀 [RuleCollections] After toggle - collections: \(ruleCollections.map { "\($0.name) (enabled: \($0.isEnabled))" }.joined(separator: ", "))")
 
         // Special handling: If Leader Key collection is toggled off, reset all momentary activators to default (space)
-        if id == RuleCollectionIdentifier.leaderKey, !isEnabled {
-            applyLeaderKeyToMomentaryActivators("space")
+        if id == RuleCollectionIdentifier.leaderKey {
+            if isEnabled {
+                let key = leaderKeyOutput(from: resolvedCandidate) ?? leaderPreferenceSnapshot.key
+                syncLeaderKeyPreference(key: key, enabled: true)
+            } else {
+                syncLeaderKeyPreference(enabled: false)
+                applyLeaderKeyToMomentaryActivators("space")
+            }
         }
 
         refreshLayerIndicatorState()
         AppLogger.shared.log("🔀 [RuleCollections] Calling regenerateConfigFromCollections...")
         let applied = await regenerateConfigFromCollections()
         guard applied else {
+            if id == RuleCollectionIdentifier.leaderKey {
+                PreferencesService.shared.leaderKeyPreference = leaderPreferenceSnapshot
+            }
             AppLogger.shared.log("↩️ [RuleCollections] Toggle apply failed; rolling back to previous state")
             await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.")
             return false
@@ -721,10 +731,19 @@ extension RuleCollectionsManager {
     /// Update the leader key for all collections that use momentary activation
     func updateLeaderKey(_ newKey: String) async {
         AppLogger.shared.log("🔑 [RuleCollections] Updating leader key to '\(newKey)'")
+        let snapshot = snapshotRuleState()
+        let leaderPreferenceSnapshot = PreferencesService.shared.leaderKeyPreference
+
         applyLeaderKeyToMomentaryActivators(newKey)
+        syncLeaderKeyPreference(key: newKey, enabled: true)
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
-        await regenerateConfigFromCollections()
+        let applied = await regenerateConfigFromCollections()
+        guard applied else {
+            PreferencesService.shared.leaderKeyPreference = leaderPreferenceSnapshot
+            await rollbackToSnapshot(snapshot, userMessage: "Could not apply this leader key change. Your previous rule state was restored.")
+            return
+        }
     }
 
     private func applyLeaderKeyToMomentaryActivators(_ newKey: String) {
@@ -740,6 +759,20 @@ extension RuleCollectionsManager {
                 )
             }
         }
+    }
+
+    private func leaderKeyOutput(from collection: RuleCollection) -> String? {
+        guard let config = collection.configuration.singleKeyPickerConfig else { return nil }
+        return config.selectedOutput ?? config.presetOptions.first?.output
+    }
+
+    private func syncLeaderKeyPreference(key: String? = nil, enabled: Bool) {
+        var preference = PreferencesService.shared.leaderKeyPreference
+        if let key {
+            preference.key = key
+        }
+        preference.enabled = enabled
+        PreferencesService.shared.leaderKeyPreference = preference
     }
 
     /// Save or update a custom rule

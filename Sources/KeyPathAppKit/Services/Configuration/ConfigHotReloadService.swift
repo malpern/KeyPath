@@ -35,6 +35,31 @@ final class ConfigHotReloadService {
         static func pendingReload(content: String) -> ReloadResult {
             ReloadResult(success: false, message: "Config saved, will apply when service starts", newContent: content, pendingReload: true)
         }
+
+        static func pendingReload(content: String, message: String) -> ReloadResult {
+            ReloadResult(success: false, message: message, newContent: content, pendingReload: true)
+        }
+    }
+
+    struct ReloadOutcome: Sendable {
+        let disposition: ReloadDisposition
+        let message: String?
+
+        static var applied: ReloadOutcome {
+            ReloadOutcome(disposition: .applied, message: nil)
+        }
+
+        static func pending(_ message: String?) -> ReloadOutcome {
+            ReloadOutcome(disposition: .pending, message: message)
+        }
+
+        static func rejected(_ message: String?) -> ReloadOutcome {
+            ReloadOutcome(disposition: .rejected, message: message)
+        }
+
+        static func failed(_ message: String?) -> ReloadOutcome {
+            ReloadOutcome(disposition: .failed, message: message)
+        }
     }
 
     /// Callbacks for UI feedback during reload
@@ -49,7 +74,7 @@ final class ConfigHotReloadService {
     // MARK: - Properties
 
     private var configurationService: ConfigurationService?
-    private var reloadHandler: (() async -> Bool)?
+    private var reloadHandler: (() async -> ReloadOutcome)?
     private var configParser: ((String) throws -> [KeyMapping])?
     private var serviceManagementStateProvider: (() async -> KanataDaemonManager.ServiceManagementState)?
     private var isKanataProcessRunningProvider: (() async -> Bool)?
@@ -83,11 +108,11 @@ final class ConfigHotReloadService {
     ///
     /// - Parameters:
     ///   - configurationService: Service for validating config content
-    ///   - reloadHandler: Async handler to trigger TCP reload (returns success)
+    ///   - reloadHandler: Async handler to trigger reload and classify the result
     ///   - configParser: Parser to extract key mappings from config content
     func configure(
         configurationService: ConfigurationService,
-        reloadHandler: @escaping () async -> Bool,
+        reloadHandler: @escaping () async -> ReloadOutcome,
         configParser: @escaping (String) throws -> [KeyMapping],
         serviceManagementStateProvider: (() async -> KanataDaemonManager.ServiceManagementState)? = nil,
         isKanataProcessRunningProvider: (() async -> Bool)? = nil
@@ -171,14 +196,22 @@ final class ConfigHotReloadService {
             return result
         }
 
-        let reloadSuccess = await handler()
+        let reloadOutcome = await handler()
 
-        if reloadSuccess {
+        switch reloadOutcome.disposition {
+        case .applied:
             AppLogger.shared.info("✅ [ConfigHotReload] External config successfully reloaded")
             callbacks.onSuccess?(configContent)
             scheduleStatusReset()
             return .success(content: configContent)
-        } else {
+
+        case .pending:
+            let message = reloadOutcome.message ?? "Config saved, will apply when service starts"
+            AppLogger.shared.info("ℹ️ [ConfigHotReload] Reload pending: \(message)")
+            callbacks.onReset?()
+            return .pendingReload(content: configContent, message: message)
+
+        case .failed:
             // Check if service is simply unavailable (SMAppService pending, service not running, or process not started)
             // In this case, don't show error to user - config is valid, just can't reload yet
             let smState = await currentServiceManagementState()
@@ -198,8 +231,17 @@ final class ConfigHotReloadService {
                 return .pendingReload(content: configContent)
             }
 
-            AppLogger.shared.error("❌ [ConfigHotReload] Hot reload failed")
-            let result = ReloadResult.failure("Hot reload failed")
+            let message = reloadOutcome.message ?? "Hot reload failed"
+            AppLogger.shared.error("❌ [ConfigHotReload] \(message)")
+            let result = ReloadResult.failure(message)
+            callbacks.onFailure?(result.message)
+            scheduleStatusReset()
+            return result
+
+        case .rejected:
+            let message = reloadOutcome.message ?? "Hot reload rejected"
+            AppLogger.shared.error("❌ [ConfigHotReload] \(message)")
+            let result = ReloadResult.failure(message)
             callbacks.onFailure?(result.message)
             scheduleStatusReset()
             return result
