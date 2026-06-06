@@ -243,6 +243,31 @@ final class ServiceBootstrapperTests: XCTestCase {
         XCTAssertTrue(installResult)
     }
 
+    func testStaleSMAppServiceBootoutCommandsTargetGuiAndSystemDomains() {
+        let commands = ServiceBootstrapper.staleKanataSMAppServiceBootoutCommands(userID: 501)
+
+        XCTAssertEqual(commands, [
+            "/bin/launchctl bootout gui/501/com.keypath.kanata 2>/dev/null || true",
+            "/bin/launchctl bootout system/com.keypath.kanata 2>/dev/null || true"
+        ])
+    }
+
+    func testStaleSMAppServiceBootoutUsesOverrideResult() async {
+        let bootstrapper = ServiceBootstrapper.shared
+        var calls = 0
+
+        ServiceBootstrapper.staleSMAppServiceBootoutOverride = {
+            calls += 1
+            return (success: true, output: "booted")
+        }
+        defer { ServiceBootstrapper.staleSMAppServiceBootoutOverride = nil }
+
+        let result = await bootstrapper._testBootOutStaleKanataSMAppServiceJob()
+
+        XCTAssertTrue(result)
+        XCTAssertEqual(calls, 1)
+    }
+
     func testRepairVHIDDaemonServicesInTestModeSetsOutput() async {
         let bootstrapper = ServiceBootstrapper.shared
         let result = await bootstrapper.repairVHIDDaemonServices()

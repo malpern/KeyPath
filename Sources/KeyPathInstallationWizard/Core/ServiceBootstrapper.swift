@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import KeyPathCore
 import KeyPathWizardCore
@@ -23,6 +24,10 @@ public final class ServiceBootstrapper {
     private init() {}
 
     public private(set) var lastVHIDRepairOutput: String?
+
+    #if DEBUG
+        static var staleSMAppServiceBootoutOverride: (() async -> (success: Bool, output: String))?
+    #endif
 
     // MARK: - Service Identifiers
 
@@ -704,6 +709,12 @@ public final class ServiceBootstrapper {
                 AppLogger.shared.log("🔄 Attempt \(attempt)/\(maxRetries)")
 
                 try await daemonManager.unregister()
+                let bootedOut = await bootOutStaleKanataSMAppServiceJob(attempt: attempt)
+                if !bootedOut {
+                    AppLogger.shared.log("❌ Attempt \(attempt) failed: stale launchd job could not be booted out")
+                    continue
+                }
+                ServiceHealthChecker.shared.invalidateHealthCache()
                 for _ in 0 ..< 10 { // ~1s
                     if await !(ServiceHealthChecker.shared.isServiceHealthy(serviceID: Self.kanataServiceID)) {
                         break
@@ -736,6 +747,48 @@ public final class ServiceBootstrapper {
         AppLogger.shared.log("⚠️ [ServiceBootstrapper] Could not fix SMAppService state - user may need to reboot")
         return false
     }
+
+    static func staleKanataSMAppServiceBootoutCommands(userID: uid_t = getuid()) -> [String] {
+        [
+            "/bin/launchctl bootout gui/\(userID)/\(kanataServiceID) 2>/dev/null || true",
+            "/bin/launchctl bootout system/\(kanataServiceID) 2>/dev/null || true"
+        ]
+    }
+
+    @MainActor
+    private func bootOutStaleKanataSMAppServiceJob(attempt: Int) async -> Bool {
+        AppLogger.shared.log(
+            "🔄 [ServiceBootstrapper] Booting out stale Kanata launchd job before SMAppService re-register (attempt \(attempt))"
+        )
+
+        #if DEBUG
+            if let override = Self.staleSMAppServiceBootoutOverride {
+                let result = await override()
+                if !result.success {
+                    AppLogger.shared.log("❌ [ServiceBootstrapper] Test bootout override failed: \(result.output)")
+                }
+                return result.success
+            }
+        #endif
+
+        let result = await executePrivilegedBatch(
+            label: "clear stale Kanata service registration",
+            commands: Self.staleKanataSMAppServiceBootoutCommands(),
+            prompt: "KeyPath needs to clear a stale keyboard runtime registration."
+        )
+        if result.success {
+            AppLogger.shared.log("✅ [ServiceBootstrapper] Stale Kanata launchd job booted out")
+        } else {
+            AppLogger.shared.log("❌ [ServiceBootstrapper] Failed to boot out stale Kanata launchd job: \(result.output)")
+        }
+        return result.success
+    }
+
+    #if DEBUG
+        func _testBootOutStaleKanataSMAppServiceJob(attempt: Int = 1) async -> Bool {
+            await bootOutStaleKanataSMAppServiceJob(attempt: attempt)
+        }
+    #endif
 
     // MARK: - VHID Service Repair
 
