@@ -36,6 +36,8 @@ enum TestSingletonReset {
             ServiceLifecycleCoordinator.testSignal = nil
             ServiceLifecycleCoordinator.testTCPProbe = nil
             ServiceLifecycleCoordinator.testSleep = { _ in }
+            ServiceLifecycleCoordinator.testRunningKanataIdentityProvider = nil
+            WizardSystemPaths.setBundledKanataPathOverride(nil)
         #endif
 
         // TestEnvironment flags

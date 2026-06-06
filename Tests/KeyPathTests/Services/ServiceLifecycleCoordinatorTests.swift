@@ -1,4 +1,6 @@
 @testable import KeyPathAppKit
+@testable import KeyPathCore
+@testable import KeyPathWizardCore
 @preconcurrency import XCTest
 
 @MainActor
@@ -49,6 +51,65 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         XCTAssertFalse(coordinator.isStartingKanata)
         _ = await coordinator.startKanata(reason: "test")
         XCTAssertFalse(coordinator.isStartingKanata, "isStartingKanata should be reset after start completes")
+    }
+
+    func testStartTerminatesRunningKanataWhenBinaryDoesNotMatchBundledRuntime() async {
+        coordinator.isKarabinerDaemonRunning = { true }
+
+        let privileged = StubPrivilegedOperationsCoordinator()
+        WizardDependencies.privilegedOperations = privileged
+
+        ServiceLifecycleCoordinator.testRunningKanataIdentityProvider = {
+            ServiceLifecycleCoordinator.RunningKanataIdentity(
+                pid: 4242,
+                executablePath: "/opt/homebrew/bin/kanata",
+                startedAt: Date()
+            )
+        }
+
+        _ = await coordinator.startKanata(reason: "test stale binary")
+
+        XCTAssertTrue(
+            privileged.calls.contains("killAllKanataProcesses"),
+            "A confirmed running/bundled Kanata mismatch must route through InstallerEngine privileged termination before startup continues"
+        )
+    }
+
+    func testStartTerminatesRunningKanataWhenSamePathButProcessPredatesBundledBinary() async throws {
+        coordinator.isKarabinerDaemonRunning = { true }
+
+        let privileged = StubPrivilegedOperationsCoordinator()
+        WizardDependencies.privilegedOperations = privileged
+
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keypath-kanata-identity-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let bundledKanata = tempDir.appendingPathComponent("kanata")
+        FileManager.default.createFile(atPath: bundledKanata.path, contents: Data())
+        let bundledModifiedAt = Date()
+        try FileManager.default.setAttributes(
+            [.modificationDate: bundledModifiedAt],
+            ofItemAtPath: bundledKanata.path
+        )
+        WizardSystemPaths.setBundledKanataPathOverride(bundledKanata.path)
+        defer { WizardSystemPaths.setBundledKanataPathOverride(nil) }
+
+        ServiceLifecycleCoordinator.testRunningKanataIdentityProvider = {
+            ServiceLifecycleCoordinator.RunningKanataIdentity(
+                pid: 4242,
+                executablePath: bundledKanata.path,
+                startedAt: bundledModifiedAt.addingTimeInterval(-60)
+            )
+        }
+
+        _ = await coordinator.startKanata(reason: "test stale same-path binary")
+
+        XCTAssertTrue(
+            privileged.calls.contains("killAllKanataProcesses"),
+            "A running Kanata process started before the bundled binary was replaced is stale even when proc_pidpath returns the same path"
+        )
     }
 
     // MARK: - Stop
