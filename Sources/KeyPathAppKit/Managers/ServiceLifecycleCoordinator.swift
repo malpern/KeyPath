@@ -50,6 +50,8 @@ final class ServiceLifecycleCoordinator {
         nonisolated(unsafe) static var testTCPProbe: ((Int, Int) -> Bool)?
         /// Replaces `Task.sleep` in the polling loops so tests never wait real time.
         nonisolated(unsafe) static var testSleep: ((Duration) async -> Void)?
+        /// Replaces the running-kanata identity check so tests can simulate stale binaries.
+        nonisolated(unsafe) static var testRunningKanataIdentityProvider: (() async -> RunningKanataIdentity)?
     #endif
 
     /// Timing for the stop→start wait-for-exit (#625 part-1). Bounds are expressed in
@@ -89,6 +91,37 @@ final class ServiceLifecycleCoordinator {
         case ready
         case pendingApproval(String)
         case failed(String)
+    }
+
+    struct RunningKanataIdentity: Equatable {
+        let pid: pid_t
+        let executablePath: String
+        let startedAt: Date?
+
+        func matchesBundledKanata(_ bundledPath: String) -> Bool {
+            let samePath = Self.canonicalPath(executablePath) == Self.canonicalPath(bundledPath)
+            guard samePath else { return false }
+
+            guard
+                let startedAt,
+                let bundledModifiedAt = Self.fileModificationDate(at: bundledPath)
+            else {
+                return true
+            }
+
+            // `ps -o lstart` reports whole seconds, while file modification dates
+            // include subsecond precision. Allow one second of slack so a freshly
+            // restarted same-path process does not look stale because of truncation.
+            return startedAt.addingTimeInterval(1) >= bundledModifiedAt
+        }
+
+        private static func canonicalPath(_ path: String) -> String {
+            URL(fileURLWithPath: path).standardizedFileURL.path
+        }
+
+        private static func fileModificationDate(at path: String) -> Date? {
+            (try? FileManager.default.attributesOfItem(atPath: path)[.modificationDate]) as? Date
+        }
     }
 
     /// Mutable flag shared with RuntimeCoordinator to track in-progress start attempts.
@@ -193,6 +226,7 @@ final class ServiceLifecycleCoordinator {
         }
 
         await waitForKanataExitBeforeStart()
+        let mismatchedRuntimeRecovered = await recoverIfRunningKanataDoesNotMatchBundledBinary(reason: reason)
 
         do {
             lastStartAttemptAt = Date()
@@ -202,7 +236,8 @@ final class ServiceLifecycleCoordinator {
             // If the daemon registered but isn't running (e.g., it exited cleanly
             // after max retries), kickstart it to force a restart.
             try? await Task.sleep(for: .milliseconds(500))
-            if await !(kanataDaemonService.isDaemonRunning()) {
+            let daemonRunning = await kanataDaemonService.isDaemonRunning()
+            if mismatchedRuntimeRecovered || !daemonRunning {
                 AppLogger.shared.log("🔄 [Service] Daemon registered but not running — kickstarting")
                 _ = try? await SubprocessRunner.shared.launchctl("kickstart", ["system/com.keypath.kanata"])
             }
@@ -237,6 +272,41 @@ final class ServiceLifecycleCoordinator {
             onStateChanged?()
             return false
         }
+    }
+
+    @discardableResult
+    private func recoverIfRunningKanataDoesNotMatchBundledBinary(reason: String) async -> Bool {
+        guard let runningIdentity = await detectRunningKanataIdentity() else {
+            AppLogger.shared.debug("🔍 [Service] Running Kanata identity unavailable before start (\(reason))")
+            return false
+        }
+
+        let bundledPath = WizardSystemPaths.bundledKanataPath
+        guard !runningIdentity.matchesBundledKanata(bundledPath) else {
+            AppLogger.shared.debug(
+                "✅ [Service] Running Kanata binary matches bundled binary: pid=\(runningIdentity.pid), path=\(runningIdentity.executablePath)"
+            )
+            return false
+        }
+
+        AppLogger.shared.warn(
+            "⚠️ [Service] Running Kanata binary does not match bundled binary; " +
+                "forcing privileged runtime recovery. running(pid=\(runningIdentity.pid), " +
+                "path=\(runningIdentity.executablePath)) bundled=\(bundledPath)"
+        )
+
+        let report = await InstallerEngine()
+            .runSingleAction(.terminateConflictingProcesses, using: PrivilegeBroker())
+        if !report.success {
+            AppLogger.shared.warn(
+                "⚠️ [Service] Privileged stale Kanata termination failed: \(report.failureReason ?? "unknown error")"
+            )
+            return false
+        }
+
+        ServiceHealthChecker.shared.invalidateHealthCache()
+        AppLogger.shared.log("✅ [Service] Stale Kanata runtime terminated before start (\(reason))")
+        return true
     }
 
     @discardableResult
@@ -513,6 +583,63 @@ final class ServiceLifecycleCoordinator {
         // need orphan PIDs inject `testPgrepProvider`; everything else gets a clean slate.
         if TestEnvironment.isRunningTests { return [] }
         return await SubprocessRunner.shared.pgrep(name)
+    }
+
+    private func detectRunningKanataIdentity() async -> RunningKanataIdentity? {
+        #if DEBUG
+            if let provider = Self.testRunningKanataIdentityProvider {
+                return await provider()
+            }
+        #endif
+
+        if TestEnvironment.isRunningTests { return nil }
+
+        let pids = await pgrepMatches("kanata.*--cfg")
+        for pid in pids {
+            if let path = executablePath(for: pid) {
+                return await RunningKanataIdentity(
+                    pid: pid,
+                    executablePath: path,
+                    startedAt: processStartDate(for: pid)
+                )
+            }
+        }
+        return nil
+    }
+
+    private func processStartDate(for pid: pid_t) async -> Date? {
+        do {
+            let result = try await SubprocessRunner.shared.run(
+                "/bin/ps",
+                args: ["-p", "\(pid)", "-o", "lstart="],
+                timeout: 2
+            )
+            guard result.exitCode == 0 else { return nil }
+            let raw = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            return Self.parseProcessStartDate(raw)
+        } catch {
+            return nil
+        }
+    }
+
+    private static func parseProcessStartDate(_ raw: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "EEE MMM d HH:mm:ss yyyy"
+        formatter.isLenient = true
+        return formatter.date(from: raw)
+    }
+
+    private nonisolated func executablePath(for pid: pid_t) -> String? {
+        let procPIDPathInfoMaxSize = 4096
+        var buffer = [CChar](repeating: 0, count: procPIDPathInfoMaxSize)
+        let length = proc_pidpath(pid, &buffer, UInt32(buffer.count))
+        guard length > 0 else { return nil }
+        let bytes = buffer
+            .prefix(Int(length))
+            .prefix { $0 != 0 }
+            .map { UInt8(bitPattern: $0) }
+        return String(bytes: bytes, encoding: .utf8)
     }
 
     private nonisolated func isProcessAlive(_ pid: pid_t) -> Bool {
