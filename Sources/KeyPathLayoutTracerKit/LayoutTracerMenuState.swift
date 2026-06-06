@@ -1,15 +1,17 @@
 import Foundation
+import Observation
 
+@Observable
 @MainActor
-final class LayoutTracerMenuState: ObservableObject {
+final class LayoutTracerMenuState {
     static let shared = LayoutTracerMenuState()
 
-    @Published var canSave = false
-    @Published var canUndo = false
-    @Published var canRedo = false
-    @Published var canClearGuides = false
-    @Published var snapEnabled = true
-    @Published var showsSnapGuides = true
+    var canSave = false
+    var canUndo = false
+    var canRedo = false
+    var canClearGuides = false
+    var snapEnabled = true
+    var showsSnapGuides = true
 
     var save: (() -> Void)?
     var saveAs: (() -> Void)?

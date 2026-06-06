@@ -4,7 +4,7 @@ import SwiftUI
 struct LayoutTracerRootView: View {
     @State private var document = TracingDocument()
     @State private var documentError: String?
-    @StateObject private var menuState = LayoutTracerMenuState.shared
+    @State private var menuState = LayoutTracerMenuState.shared
     @State private var saveSheetMode: SaveSheetMode?
     private let availableLayouts = LayoutCatalog.builtInLayouts()
 
