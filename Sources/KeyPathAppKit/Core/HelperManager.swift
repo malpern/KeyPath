@@ -27,6 +27,8 @@ public actor HelperManager {
 
         nonisolated(unsafe) static var testHelperFunctionalityOverride: (() async -> Bool)?
         nonisolated(unsafe) static var testInstallHelperOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var staleHelperSMAppServiceBootoutOverride:
+            (() async -> (success: Bool, output: String))?
         nonisolated(unsafe) static var subprocessRunnerFactory: () -> SubprocessRunning = {
             SubprocessRunner.shared
         }
