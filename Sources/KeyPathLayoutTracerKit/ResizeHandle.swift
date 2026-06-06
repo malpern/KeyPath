@@ -1,3 +1,0 @@
-enum ResizeHandle {
-    case bottomTrailing
-}
