@@ -114,7 +114,9 @@ final class VimSequenceObserver {
             KindaVimTelemetryStore.shared.recordNonVimNavigation(navName)
         }
 
-        guard let chars = event.charactersIgnoringModifiers, !chars.isEmpty else { return }
+        let isShifted = event.modifierFlags.contains(.shift)
+        guard let chars = (isShifted ? event.characters : event.charactersIgnoringModifiers),
+              !chars.isEmpty else { return }
         ingestCore(character: chars)
     }
 
