@@ -125,7 +125,7 @@ distribution artifacts:
 
 ```bash
 ./Scripts/release-doctor.sh --ship
-./Scripts/release.sh 1.0.0
+./Scripts/release.sh <version>
 ```
 
 That path may bump versions, regenerate screenshots, create Sparkle artifacts,

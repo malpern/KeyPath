@@ -67,7 +67,7 @@ Use opt-ins only when needed:
 Use the public release script only when producing public distribution artifacts:
 ```bash
 ./Scripts/release-doctor.sh --ship
-./Scripts/release.sh 1.0.0
+./Scripts/release.sh <version>
 ```
 
 This path may bump versions, regenerate screenshots, create Sparkle artifacts,

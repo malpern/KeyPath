@@ -148,6 +148,19 @@ else
 fi
 check_command nc
 
+print_section "Disk Space"
+available_kb=$(df -Pk "$PROJECT_DIR" 2>/dev/null | awk 'NR==2 {print $4}')
+if [[ -n "$available_kb" ]]; then
+    available_gb=$((available_kb / 1024 / 1024))
+    if (( available_gb < 5 )); then
+        warn "Low disk space: ${available_gb}GB available on project volume; SwiftPM builds and notarization artifacts can be large"
+    else
+        pass "Project volume has ${available_gb}GB available"
+    fi
+else
+    warn "Could not determine available disk space for $PROJECT_DIR"
+fi
+
 print_section "Git State"
 branch=$(git branch --show-current || true)
 if [[ -n "$branch" ]]; then
@@ -168,7 +181,7 @@ fi
 
 if git worktree list --porcelain | grep -q '^branch refs/heads/master$'; then
     master_worktree=$(git worktree list --porcelain | awk '
-        /^worktree / { path=$2 }
+        /^worktree / { path=substr($0, 10) }
         /^branch refs\/heads\/master$/ { print path; exit }
     ')
     if [[ "$master_worktree" != "$PROJECT_DIR" ]]; then
@@ -262,7 +275,7 @@ else
     warn "Kanata launchd job is not registered"
 fi
 
-if nc -vz -w 1 127.0.0.1 37001 >/dev/null 2>&1; then
+if nc -z -w 1 127.0.0.1 37001 >/dev/null 2>&1; then
     pass "Kanata TCP endpoint is responding on 127.0.0.1:37001"
 else
     warn "Kanata TCP endpoint is not responding on 127.0.0.1:37001"

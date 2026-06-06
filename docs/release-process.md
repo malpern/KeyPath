@@ -105,7 +105,7 @@ Public releases are intentionally slower and should be explicit:
 
 ```bash
 ./Scripts/release-doctor.sh --ship
-./Scripts/release.sh 1.0.0
+./Scripts/release.sh <version>
 ```
 
 Use `--dry-run` before an unfamiliar release:

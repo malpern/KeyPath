@@ -44,7 +44,7 @@ Most PR clock-time is latency, not rigor. Cut the latency without dropping any g
 ## Phase 5: Merge
 
 16. **Ask the user for permission to merge** — never merge without explicit approval.
-17. **Merge** — `gh pr merge <number> --merge --delete-branch` unless the PR explicitly needs another merge mode. If multiple worktrees are active, prefer `gh pr merge <number> --repo malpern/KeyPath --merge --delete-branch` from outside the repo so `gh` does not try to switch a local worktree to `master`. If a local worktree error appears, verify GitHub state before retrying; the PR may already be merged.
+17. **Merge** — `gh pr merge <number> --merge --delete-branch` unless the PR explicitly needs another merge mode. This matches the repo's recent merge-commit history and preserves individual commits when a PR intentionally has more than one. If multiple worktrees are active, prefer `gh pr merge <number> --repo malpern/KeyPath --merge --delete-branch` from outside the repo so `gh` does not try to switch a local worktree to `master`. If a local worktree error appears, verify GitHub state before retrying; the PR may already be merged.
 18. **Verify the merge** — `gh pr view <number> --json state` should show `"state": "MERGED"`.
 19. **Verify issues closed** — for each `Fixes #NNN` reference, confirm the issue is now closed: `gh issue view <number> --json state`.
 
