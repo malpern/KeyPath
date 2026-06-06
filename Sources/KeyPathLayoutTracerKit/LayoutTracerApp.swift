@@ -1,7 +1,7 @@
 import SwiftUI
 
 public struct LayoutTracerApp: App {
-    @StateObject private var menuState = LayoutTracerMenuState.shared
+    @State private var menuState = LayoutTracerMenuState.shared
 
     public init() {
         NSApplication.shared.setActivationPolicy(.regular)

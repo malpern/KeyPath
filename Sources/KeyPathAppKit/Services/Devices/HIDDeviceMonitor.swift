@@ -2,6 +2,7 @@ import Foundation
 import IOKit
 import IOKit.hid
 import KeyPathCore
+import Observation
 
 /// Monitors USB HID keyboard connect/disconnect events via IOKit.
 ///
@@ -23,8 +24,9 @@ import KeyPathCore
 ///   alive while `CFRunLoopRun()` blocks.
 /// - `handleDeviceConnected`/`handleDeviceRemoved` run on the IOKit thread, extract
 ///   Sendable data, then hop to MainActor via `Task { @MainActor }`.
+@Observable
 @MainActor
-final class HIDDeviceMonitor: ObservableObject {
+final class HIDDeviceMonitor {
     static let shared = HIDDeviceMonitor()
 
     struct HIDKeyboardEvent: Sendable, Equatable, Identifiable {
@@ -42,9 +44,9 @@ final class HIDDeviceMonitor: ObservableObject {
         }
     }
 
-    @Published private(set) var connectedKeyboards: [HIDKeyboardEvent] = []
+    private(set) var connectedKeyboards: [HIDKeyboardEvent] = []
 
-    @Published private(set) var lastConnectedKeyboard: HIDKeyboardEvent?
+    private(set) var lastConnectedKeyboard: HIDKeyboardEvent?
 
     /// Dedicated thread for the IOKit run loop. Non-nil means monitoring is active.
     /// Only accessed from MainActor (startMonitoring/stopMonitoring).

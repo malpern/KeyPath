@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct LayoutTracerMenuCommands: Commands {
-    @ObservedObject var menuState: LayoutTracerMenuState
+    @Bindable var menuState: LayoutTracerMenuState
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {}

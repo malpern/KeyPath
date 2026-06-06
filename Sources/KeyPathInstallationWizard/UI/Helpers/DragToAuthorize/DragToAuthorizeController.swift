@@ -2,13 +2,15 @@ import AppKit
 import KeyPathCore
 import KeyPathPermissions
 import KeyPathWizardCore
+import Observation
 import SwiftUI
 
 /// Orchestrates the drag-to-authorize overlay lifecycle.
 /// Manages panel presentation, Settings window tracking, permission polling,
 /// and state transitions with animations.
+@Observable
 @MainActor
-public final class DragToAuthorizeController: ObservableObject {
+public final class DragToAuthorizeController {
     public static let shared = DragToAuthorizeController()
 
     // MARK: - Public Types
@@ -48,10 +50,10 @@ public final class DragToAuthorizeController: ObservableObject {
         case dismissing
     }
 
-    // MARK: - Published State
+    // MARK: - Observable State
 
-    @Published public private(set) var state: OverlayState = .idle
-    @Published public private(set) var currentTarget: PermissionTarget?
+    public private(set) var state: OverlayState = .idle
+    public private(set) var currentTarget: PermissionTarget?
 
     // MARK: - Private Properties
 
