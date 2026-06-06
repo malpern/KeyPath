@@ -686,10 +686,10 @@ struct OverlayMapperSection: View {
         return parts.joined(separator: " · ")
     }
 
-    /// Physical keyboard devices currently connected (excludes VirtualHID and trackpad-only devices)
+    /// Physical keyboard devices currently connected (excludes VirtualHID, trackpads, mice)
     private var physicalDevices: [ConnectedDevice] {
         DeviceSelectionCache.shared.getConnectedDevices().filter { device in
-            !device.isVirtualHID && !device.isTrackpadOnly
+            !device.isNonKeyboard
         }
     }
 

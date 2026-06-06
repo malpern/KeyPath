@@ -11,9 +11,9 @@ struct DeviceSelectionView: View {
     @State private var needsRestart = false
     @State private var isRestarting = false
 
-    /// Physical (non-VirtualHID) devices currently connected.
+    /// Physical keyboard devices currently connected (excludes VirtualHID, trackpads, mice).
     private var physicalConnected: [ConnectedDevice] {
-        connectedDevices.filter { !$0.isVirtualHID }
+        connectedDevices.filter { !$0.isNonKeyboard }
     }
 
     /// Previously-seen devices that are no longer connected.
@@ -188,7 +188,7 @@ struct DeviceSelectionView: View {
 
         // Update lastSeen for connected devices
         let now = Date()
-        for device in connectedDevices where !device.isVirtualHID {
+        for device in connectedDevices where !device.isNonKeyboard {
             if selections[device.hash] == nil {
                 // New device — default to enabled, don't mark dirty
                 selections[device.hash] = DeviceSelection(
