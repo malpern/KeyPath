@@ -352,10 +352,6 @@ extension KeyboardVisualizationViewModel {
 
         // If Kanata omitted the action string, try to resolve the hold label via simulator
         if action.isEmpty {
-            guard FeatureFlags.simulatorAndVirtualKeysEnabled else {
-                AppLogger.shared.debug("🔒 [KeyboardViz] Simulator disabled; skipping hold label resolution for \(key)")
-                return
-            }
             // Check short-lived cache first
             if let cached = holdLabelCache[keyCode], Date().timeIntervalSince(cached.timestamp) < holdLabelCacheTTL {
                 holdLabels[keyCode] = cached.label

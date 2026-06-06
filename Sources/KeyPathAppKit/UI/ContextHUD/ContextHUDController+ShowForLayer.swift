@@ -112,7 +112,7 @@ extension ContextHUDController {
 
                 var holdLabels = holdLabelCache[normalizedLayerName] ?? [:]
 
-                if holdLabels.isEmpty, FeatureFlags.simulatorAndVirtualKeysEnabled {
+                if holdLabels.isEmpty {
                     holdLabels = await resolveHoldLabels(
                         keyMap: effectiveKeyMap,
                         configPath: configPath,
@@ -215,16 +215,14 @@ extension ContextHUDController {
                         )
                         guard !Task.isCancelled else { return }
 
-                        if FeatureFlags.simulatorAndVirtualKeysEnabled {
-                            let holdLabels = await resolveHoldLabels(
-                                keyMap: keyMap,
-                                configPath: configPath,
-                                layerName: layerName
-                            )
-                            guard !Task.isCancelled else { return }
-                            if !holdLabels.isEmpty {
-                                holdLabelCache[layerName] = holdLabels
-                            }
+                        let holdLabels = await resolveHoldLabels(
+                            keyMap: keyMap,
+                            configPath: configPath,
+                            layerName: layerName
+                        )
+                        guard !Task.isCancelled else { return }
+                        if !holdLabels.isEmpty {
+                            holdLabelCache[layerName] = holdLabels
                         }
                         AppLogger.shared.info("🎯 [ContextHUD] Precomputed layer '\(layerName)'")
                     }
