@@ -17,11 +17,6 @@ final class TestSeamLintTests: XCTestCase {
     /// Pre-existing suites that use a hazard type but still extend XCTestCase directly.
     /// Migrate these to KeyPathTestCase and remove them here. Never add new entries.
     private static let allowList: Set<String> = [
-        // Real-I/O suites: the seam fixes their pgrep hang but they also do real
-        // saveConfiguration/updateStatus/resetToDefaultConfig that needs deeper mocking.
-        "ErrorHandlingTests.swift",
-        "KeyPathTests.swift",
-        "RuntimeCoordinatorResetTests.swift",
         // The seam's own test (sets testPIDProvider per test, asserts real-pgrep fallthrough).
         "VHIDDeviceManagerTests.swift"
     ]

@@ -3,7 +3,7 @@ import Foundation
 @preconcurrency import XCTest
 
 @MainActor
-final class ErrorHandlingTests: XCTestCase {
+final class ErrorHandlingTests: KeyPathTestCase {
     lazy var manager: RuntimeCoordinator = .init()
     lazy var capture: KeyboardCapture = .init()
 
