@@ -17,8 +17,6 @@ struct OverlayKeycapView: View {
     var isCapsLockOn: Bool = false
     /// Fade amount: 0 = fully visible, 1 = fully faded
     var fadeAmount: CGFloat = 0
-    /// Whether this is a per-key release fade (vs global overlay fade)
-    var isReleaseFading: Bool = false
     /// Current layer name for Touch ID key display
     var currentLayerName: String = "base"
     /// Whether layer mapping is loading (shows spinner on Touch ID key)
@@ -33,8 +31,6 @@ struct OverlayKeycapView: View {
     var holdLabel: String?
     /// Whether this key is currently in a hold-active state (for orange coloring)
     var isHoldActive: Bool = false
-    /// The "from" color for release fade animation (orange when hold-active, blue otherwise)
-    var releaseFadeFromColor: Color = .accentColor
     /// Idle label to display for tap-hold inputs when not pressed
     var tapHoldIdleLabel: String?
     /// Callback when key is clicked (not dragged)

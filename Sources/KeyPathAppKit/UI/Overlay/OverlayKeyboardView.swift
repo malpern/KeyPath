@@ -19,7 +19,6 @@ struct OverlayKeyboardView: View {
     let pressedKeyCodes: Set<UInt16>
     var isDarkMode: Bool = false
     var fadeAmount: CGFloat = 0 // 0 = fully visible, 1 = fully faded (global overlay fade)
-    var keyFadeAmounts: [UInt16: CGFloat] = [:] // Per-key fade amounts for release animation
     var currentLayerName: String = "base"
     var isLoadingLayerMap: Bool = false
     /// Key mapping for current layer: keyCode -> LayerKeyInfo
@@ -36,8 +35,6 @@ struct OverlayKeyboardView: View {
     var tapHoldIdleLabels: [UInt16: String] = [:]
     /// Keys currently in hold-active state (for orange styling)
     var holdActiveKeyCodes: Set<UInt16> = []
-    /// Keys that were hold-active when released (for orange fade-out color)
-    var holdReleaseFadeKeyCodes: Set<UInt16> = []
     /// Custom icons for keys set via push-msg: keyCode -> icon name
     var customIcons: [UInt16: String] = [:]
     /// Callback when a key is clicked (not dragged) - selects key in drawer mapper when visible
@@ -412,9 +409,6 @@ struct OverlayKeyboardView: View {
             )
         }
 
-        // Use per-key fade amount if available, otherwise use global fade
-        let hasPerKeyFade = keyFadeAmounts[key.keyCode] != nil
-        let effectiveFadeAmount = keyFadeAmounts[key.keyCode] ?? fadeAmount
         let baseLabel = keymap.displayLabel(
             for: key,
             includeExtraKeys: includeKeymapPunctuation
@@ -440,8 +434,7 @@ struct OverlayKeyboardView: View {
             scale: scale,
             isDarkMode: isDarkMode,
             isCapsLockOn: isCapsLockOn,
-            fadeAmount: effectiveFadeAmount,
-            isReleaseFading: hasPerKeyFade,
+            fadeAmount: fadeAmount,
             currentLayerName: currentLayerName,
             isLoadingLayerMap: isLoadingLayerMap,
             layerKeyInfo: layerKeyMap[key.keyCode],
@@ -449,8 +442,6 @@ struct OverlayKeyboardView: View {
             isOneShot: oneShotKeyCodes.contains(key.keyCode),
             holdLabel: holdLabels[key.keyCode],
             isHoldActive: holdActiveKeyCodes.contains(key.keyCode),
-            releaseFadeFromColor: holdReleaseFadeKeyCodes.contains(key.keyCode)
-                ? KeyPathColors.layerOrange : .accentColor,
             tapHoldIdleLabel: tapHoldIdleLabels[key.keyCode],
             onKeyClick: onKeyClick,
             onKeyDoubleClick: onKeyDoubleClick,

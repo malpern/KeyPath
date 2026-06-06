@@ -6,20 +6,19 @@ import Observation
 import SwiftUI
 
 /// Unified visual state for a single key on the overlay.
-/// Replaces four separate collections (pressedKeyCodes, holdActiveKeyCodes,
-/// holdLabels, holdReleaseFadeKeyCodes) with one map entry per key.
+/// Replaces separate collections (pressedKeyCodes, holdActiveKeyCodes,
+/// holdLabels) with one map entry per key.
 struct KeyVisualState: Equatable {
     var isPressed: Bool = false
     var isHoldActive: Bool = false
     var holdLabel: String?
-    var releasedFromHold: Bool = false
 
     var appearsPressed: Bool {
         isPressed || isHoldActive
     }
 
     var isIdle: Bool {
-        !isPressed && !isHoldActive && holdLabel == nil && !releasedFromHold
+        !isPressed && !isHoldActive && holdLabel == nil
     }
 }
 
@@ -37,10 +36,6 @@ class KeyboardVisualizationViewModel {
     var fadeAmount: CGFloat = 0
     /// Deep fade level for full keyboard opacity (0 = normal, 1 = 5% visible)
     var deepFadeAmount: CGFloat = 0
-    /// Per-key fade amounts for release animation (keyCode -> fade amount 0-1)
-    var keyFadeAmounts: [UInt16: CGFloat] = [:]
-    /// Active fade-out timers for released keys
-    @ObservationIgnored var fadeOutTasks: [UInt16: Task<Void, Never>] = [:]
 
     // MARK: - Computed Accessors (backward compatibility)
 
@@ -54,10 +49,6 @@ class KeyboardVisualizationViewModel {
 
     var holdLabels: [UInt16: String] {
         keyVisualStates.compactMapValues(\.holdLabel)
-    }
-
-    var holdReleaseFadeKeyCodes: Set<UInt16> {
-        Set(keyVisualStates.filter(\.value.releasedFromHold).map(\.key))
     }
 
     // MARK: - Layer State

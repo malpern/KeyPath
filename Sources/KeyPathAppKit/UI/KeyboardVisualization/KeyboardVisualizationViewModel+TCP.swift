@@ -543,7 +543,6 @@ extension KeyboardVisualizationViewModel {
             if shouldSuppress {
                 return
             }
-            cancelKeyFadeOut(keyCode) // Cancel any ongoing fade-out
             keyVisualStates[keyCode, default: .init()].isPressed = true
             // Track most recently pressed key for icon association
             lastPressedKeyCode = keyCode
@@ -600,13 +599,8 @@ extension KeyboardVisualizationViewModel {
                 return
             }
 
-            // Track if this key was hold-active for orange release fade
-            if keyVisualStates[keyCode]?.isHoldActive == true {
-                keyVisualStates[keyCode, default: .init()].releasedFromHold = true
-            }
             keyVisualStates[keyCode]?.isPressed = false
             cancelLayerPreviewIfActivator(keyCode)
-            startKeyFadeOut(keyCode) // Start fade-out animation
             // Defer clearing hold state briefly to tolerate tap-hold-press sequences that emit rapid releases.
             let work = DispatchWorkItem { [weak self] in
                 guard let self else { return }
