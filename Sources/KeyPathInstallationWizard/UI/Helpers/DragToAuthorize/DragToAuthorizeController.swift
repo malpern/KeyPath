@@ -1,6 +1,7 @@
 import AppKit
 import KeyPathCore
 import KeyPathPermissions
+import KeyPathWizardCore
 import SwiftUI
 
 /// Orchestrates the drag-to-authorize overlay lifecycle.
@@ -269,8 +270,7 @@ public final class DragToAuthorizeController: ObservableObject {
         case .inputMonitoring:
             snapshot.kanata.inputMonitoring == .granted
         case .fullDiskAccess:
-            // FDA doesn't exist in PermissionSet — skip polling for it
-            false
+            WizardDependencies.fullDiskAccessChecker?.hasFullDiskAccess() ?? false
         }
 
         if granted {
