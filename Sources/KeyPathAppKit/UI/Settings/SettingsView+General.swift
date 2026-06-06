@@ -161,7 +161,7 @@ struct GeneralSettingsTabView: View {
 
                     HStack(spacing: 12) {
                         Button {
-                            openLogFile(NSHomeDirectory() + "/Library/Logs/KeyPath/keypath-debug.log")
+                            openLogFile(KeyPathConstants.Logs.userDebugLog)
                         } label: {
                             Label("KeyPath Log", systemImage: "doc.text")
                         }
