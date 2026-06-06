@@ -50,7 +50,7 @@ extension OverlayDragHeader {
             .accessibilityIdentifier("layer-picker-new")
         }
         .padding(.vertical, 6)
-        .frame(minWidth: 200)
+        .frame(width: 280)
         .pickerPopoverChrome()
     }
 
