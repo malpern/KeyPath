@@ -157,9 +157,9 @@ extension LayerKeyMapper {
         case "bksl", "backslash": "backslash"
         case "scln", "semicolon": "semicolon"
         case "apos", "apostrophe", "quote": "apostrophe"
-        case "comm", "comma": "comma"
-        case "dot", "period": "dot"
-        case "slash", "slsh": "slash"
+        case "comm", "comma", ",": "comma"
+        case "dot", "period", ".": "dot"
+        case "slash", "slsh", "/": "slash"
         default:
             key.lowercased()
         }
