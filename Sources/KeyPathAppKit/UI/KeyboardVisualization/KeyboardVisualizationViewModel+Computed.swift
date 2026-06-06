@@ -65,7 +65,6 @@ extension KeyboardVisualizationViewModel {
     /// Uses only Kanata TCP KeyInput events to show the actual physical keys pressed,
     /// not the transformed output keys from CGEvent tap.
     var effectivePressedKeyCodes: Set<UInt16> {
-        // Use TCP physical keys and any keys currently in an active hold state.
-        pressedKeyCodes.union(holdActiveKeyCodes)
+        Set(keyVisualStates.filter(\.value.appearsPressed).map(\.key))
     }
 }

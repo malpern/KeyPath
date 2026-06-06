@@ -5,14 +5,33 @@ import KeyPathCore
 import Observation
 import SwiftUI
 
+/// Unified visual state for a single key on the overlay.
+/// Replaces four separate collections (pressedKeyCodes, holdActiveKeyCodes,
+/// holdLabels, holdReleaseFadeKeyCodes) with one map entry per key.
+struct KeyVisualState: Equatable {
+    var isPressed: Bool = false
+    var isHoldActive: Bool = false
+    var holdLabel: String?
+    var releasedFromHold: Bool = false
+
+    var appearsPressed: Bool {
+        isPressed || isHoldActive
+    }
+
+    var isIdle: Bool {
+        !isPressed && !isHoldActive && holdLabel == nil && !releasedFromHold
+    }
+}
+
 /// ViewModel for keyboard visualization that tracks pressed keys
 @MainActor
 @Observable
 class KeyboardVisualizationViewModel {
     // MARK: - Key State
 
-    /// Key codes currently pressed (from Kanata TCP KeyInput events)
-    var pressedKeyCodes: Set<UInt16> = []
+    /// Unified per-key visual state map (source of truth for press/hold/fade state)
+    var keyVisualStates: [UInt16: KeyVisualState] = [:]
+
     var layout: PhysicalLayout = .macBookUS
     /// Fade level for outline state (0 = fully visible, 1 = outline-only faded)
     var fadeAmount: CGFloat = 0
@@ -22,6 +41,24 @@ class KeyboardVisualizationViewModel {
     var keyFadeAmounts: [UInt16: CGFloat] = [:]
     /// Active fade-out timers for released keys
     @ObservationIgnored var fadeOutTasks: [UInt16: Task<Void, Never>] = [:]
+
+    // MARK: - Computed Accessors (backward compatibility)
+
+    var pressedKeyCodes: Set<UInt16> {
+        Set(keyVisualStates.filter(\.value.isPressed).map(\.key))
+    }
+
+    var holdActiveKeyCodes: Set<UInt16> {
+        Set(keyVisualStates.filter(\.value.isHoldActive).map(\.key))
+    }
+
+    var holdLabels: [UInt16: String] {
+        keyVisualStates.compactMapValues(\.holdLabel)
+    }
+
+    var holdReleaseFadeKeyCodes: Set<UInt16> {
+        Set(keyVisualStates.filter(\.value.releasedFromHold).map(\.key))
+    }
 
     // MARK: - Layer State
 
@@ -36,17 +73,8 @@ class KeyboardVisualizationViewModel {
     var hoveredRuleKeyCode: UInt16?
     /// Key mapping for the current layer: keyCode -> LayerKeyInfo
     var layerKeyMap: [UInt16: LayerKeyInfo] = [:]
-    /// Hold labels for tap-hold keys that have transitioned to hold state
-    /// Maps keyCode -> hold display label (e.g., "*" for Hyper)
-    var holdLabels: [UInt16: String] = [:]
     /// Idle labels for tap-hold inputs (show tap output when not pressed)
     var tapHoldIdleLabels: [UInt16: String] = [:]
-    /// Keys currently in a hold-active state (set when HoldActivated fires).
-    /// Used to keep the key visually pressed even if tap-hold implementations
-    /// emit spurious release/press events while held.
-    @ObservationIgnored var holdActiveKeyCodes: Set<UInt16> = []
-    /// Keys that were hold-active when released (for orange fade-out color)
-    var holdReleaseFadeKeyCodes: Set<UInt16> = []
     /// Custom icons for keys set via push-msg (keyCode -> icon name)
     /// Example: "arrow-left", "safari", "home"
     var customIcons: [UInt16: String] = [:]

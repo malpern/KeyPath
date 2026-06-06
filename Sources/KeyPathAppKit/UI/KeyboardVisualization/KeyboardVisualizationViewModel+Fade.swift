@@ -45,7 +45,10 @@ extension KeyboardVisualizationViewModel {
             // Fade complete - clean up
             keyFadeAmounts.removeValue(forKey: keyCode)
             fadeOutTasks.removeValue(forKey: keyCode)
-            holdReleaseFadeKeyCodes.remove(keyCode)
+            if var state = keyVisualStates[keyCode] {
+                state.releasedFromHold = false
+                keyVisualStates[keyCode] = state.isIdle ? nil : state
+            }
         }
 
         fadeOutTasks[keyCode] = task
@@ -56,6 +59,9 @@ extension KeyboardVisualizationViewModel {
         fadeOutTasks[keyCode]?.cancel()
         fadeOutTasks.removeValue(forKey: keyCode)
         keyFadeAmounts.removeValue(forKey: keyCode)
-        holdReleaseFadeKeyCodes.remove(keyCode)
+        if var state = keyVisualStates[keyCode] {
+            state.releasedFromHold = false
+            keyVisualStates[keyCode] = state.isIdle ? nil : state
+        }
     }
 }

@@ -40,8 +40,7 @@ extension KeyboardVisualizationViewModel {
         guard isCapturing else { return }
 
         isCapturing = false
-        pressedKeyCodes.removeAll()
-        holdLabels.removeAll()
+        keyVisualStates.removeAll()
         holdLabelCache.removeAll()
         activeTapHoldSources.removeAll()
         dynamicTapHoldOutputMap.removeAll()
@@ -89,6 +88,6 @@ extension KeyboardVisualizationViewModel {
     }
 
     func isPressed(_ key: PhysicalKey) -> Bool {
-        pressedKeyCodes.contains(key.keyCode)
+        keyVisualStates[key.keyCode]?.isPressed ?? false
     }
 }

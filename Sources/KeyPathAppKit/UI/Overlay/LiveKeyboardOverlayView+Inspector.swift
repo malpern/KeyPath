@@ -253,7 +253,9 @@ struct OverlayInspectorPanel: View {
     LiveKeyboardOverlayView(
         viewModel: {
             let vm = KeyboardVisualizationViewModel()
-            vm.pressedKeyCodes = [0, 56, 55] // a, leftshift, leftmeta
+            for keyCode: UInt16 in [0, 56, 55] { // a, leftshift, leftmeta
+                vm.keyVisualStates[keyCode, default: .init()].isPressed = true
+            }
             return vm
         }(),
         uiState: LiveKeyboardOverlayUIState(),

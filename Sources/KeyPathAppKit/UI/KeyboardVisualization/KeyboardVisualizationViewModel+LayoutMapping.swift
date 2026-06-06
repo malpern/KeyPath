@@ -42,9 +42,7 @@ extension KeyboardVisualizationViewModel {
                 holdClearWorkItems[keyCode]?.cancel()
                 holdClearWorkItems.removeValue(forKey: keyCode)
             }
-            holdActiveKeyCodes.removeAll()
-            holdLabels.removeAll()
-            pressedKeyCodes.removeAll()
+            keyVisualStates.removeAll()
         }
 
         // Check if we'll be entering/exiting launcher mode
