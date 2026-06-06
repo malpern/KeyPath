@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
@@ -24,6 +25,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     public let configFileName = KeyPathConstants.Config.fileName
 
     private var currentConfiguration: KanataConfiguration?
+    private var lastContentHash: String?
     private var fileWatcher: FileWatcher?
     private var observers: [UUID: @Sendable (Config) async -> Void] = [:]
 
@@ -88,7 +90,16 @@ public final class ConfigurationService: FileConfigurationProviding {
 
         do {
             let content = try await readFileAsync(path: configurationPath)
+
+            let contentHash = SHA256.hash(data: Data(content.utf8))
+                .map { String(format: "%02x", $0) }.joined()
+            if contentHash == lastContentHash, let cached = currentConfiguration {
+                AppLogger.shared.debug("⏭️ [ConfigService] Content unchanged, skipping re-parse")
+                return cached
+            }
+
             let config = try validate(content: content)
+            lastContentHash = contentHash
             setCurrentConfiguration(config)
 
             // Notify observers on main actor
