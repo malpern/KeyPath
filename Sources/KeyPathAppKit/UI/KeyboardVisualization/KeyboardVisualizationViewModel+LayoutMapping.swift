@@ -37,7 +37,9 @@ extension KeyboardVisualizationViewModel {
         // When returning to base layer, clear hold state for all keys.
         // This handles the case where KeyInput events are unavailable (older kanata)
         // and the Release event never fires to clear holdActiveKeyCodes.
-        if targetLayerName.lowercased() == "base" {
+        // Skip during layer preview — the physical keys are still held and the
+        // preview system manages its own state transitions.
+        if targetLayerName.lowercased() == "base", !isShowingLayerPreview {
             for keyCode in holdActiveKeyCodes {
                 holdClearWorkItems[keyCode]?.cancel()
                 holdClearWorkItems.removeValue(forKey: keyCode)

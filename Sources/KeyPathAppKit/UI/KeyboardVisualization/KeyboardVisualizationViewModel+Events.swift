@@ -86,6 +86,14 @@ extension KeyboardVisualizationViewModel {
         let elapsed = Date().timeIntervalSince(lastEvent)
         if elapsed > tcpConnectionTimeout, isKanataConnected {
             isKanataConnected = false
+            // Clear stranded key state — we missed the release events
+            if !keyVisualStates.isEmpty {
+                keyVisualStates.removeAll()
+                holdClearWorkItems.values.forEach { $0.cancel() }
+                holdClearWorkItems.removeAll()
+                holdLabelCache.removeAll()
+                AppLogger.shared.debug("🌐 [KeyboardViz] Cleared stranded key state on disconnect")
+            }
             AppLogger.shared.log("🌐 [KeyboardViz] Kanata TCP disconnected (timeout after \(String(format: "%.1f", elapsed))s)")
         }
     }
