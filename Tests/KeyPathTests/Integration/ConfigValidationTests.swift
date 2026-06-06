@@ -9,17 +9,24 @@ import XCTest
 /// undefined aliases, invalid S-expression nesting, unsupported key names,
 /// missing deflayer entries, etc.
 ///
-/// Requires: kanata binary at /usr/local/bin/kanata or the bundled app path.
+/// Requires: a current KeyPath kanata binary, preferably via
+/// KEYPATH_KANATA_PATH or the repo-built External/kanata release binary.
 final class ConfigValidationTests: XCTestCase {
     private func findKanataBinary() -> String? {
-        // Only use the bundled binary — it matches the version KeyPath ships.
-        // System-installed kanata (e.g., homebrew v1.10) may be too old and
-        // reject features like defhands or tap-hold-require-prior-idle.
-        let bundled = "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata"
-        if FileManager.default.isExecutableFile(atPath: bundled) {
-            return bundled
-        }
-        return nil
+        let candidates: [String] = [
+            ProcessInfo.processInfo.environment["KEYPATH_KANATA_PATH"],
+            URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent() // Integration
+                .deletingLastPathComponent() // KeyPathTests
+                .deletingLastPathComponent() // Tests
+                .deletingLastPathComponent() // repo root
+                .appendingPathComponent("External/kanata/target/aarch64-apple-darwin/release/kanata")
+                .path,
+            "/opt/homebrew/bin/kanata",
+            "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata"
+        ].compactMap { $0 }
+
+        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
     @MainActor

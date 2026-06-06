@@ -9,6 +9,29 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
         assertContains(config, "volu")
     }
 
+    func testManagedRepeatUsesExplicitDefrepeatAllowlist() throws {
+        let repeatCollection = try makeCollection(
+            id: XCTUnwrap(UUID(uuidString: "44444444-4444-4444-4444-444444444444")),
+            name: "Key Repeat Control",
+            summary: "Repeat",
+            category: .custom,
+            mappings: [],
+            targetLayer: .base,
+            momentaryActivator: nil,
+            configuration: .keyRepeatControl(KeyRepeatControlConfig())
+        )
+        let config = KanataConfiguration.generateFromCollections([repeatCollection])
+
+        assertContains(config, "managed-repeat yes")
+        assertContains(config, "managed-repeat-unlisted no")
+        assertContains(config, "(defrepeat")
+        assertContains(config, "(left  150 20)")
+        XCTAssertFalse(
+            config.contains("(e "),
+            "Alpha keys should not be implicitly enrolled in managed repeat\n\nActual output:\n\(config)"
+        )
+    }
+
     func testNavigationActivatorUsesOneShotAndWrapsMappings() throws {
         let navCollection = try makeCollection(
             id: XCTUnwrap(UUID(uuidString: "11111111-1111-1111-1111-111111111111")),
