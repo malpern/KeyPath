@@ -34,6 +34,12 @@ struct MapperInspectorPanel: View {
                 Divider()
                     .padding(.vertical, 4)
 
+                // Device Condition Section
+                deviceConditionSection
+
+                Divider()
+                    .padding(.vertical, 4)
+
                 // Output Type Options
                 outputTypeSection
 
@@ -254,6 +260,99 @@ struct MapperInspectorPanel: View {
                 showingAppPickerSheet = true
             }
             .accessibilityIdentifier("mapper-app-condition-only-in")
+        }
+    }
+
+    // MARK: - Device Condition Section
+
+    private var connectedDevices: [ConnectedDevice] {
+        DeviceSelectionCache.shared.getConnectedDevices().filter { !$0.isNonKeyboard }
+    }
+
+    private var deviceConditionSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Device")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+
+            InspectorButton(
+                icon: "keyboard",
+                title: "Any Device",
+                isSelected: viewModel.selectedDeviceCondition == nil
+            ) {
+                viewModel.selectedDeviceCondition = nil
+            }
+            .accessibilityIdentifier("mapper-device-condition-any")
+
+            if let selected = viewModel.selectedDeviceCondition {
+                HStack(spacing: 12) {
+                    Image(systemName: selected.sfSymbolName)
+                        .font(.title3)
+                        .frame(width: 24, height: 24)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Only on...")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(selected.displayName)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "checkmark")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.accentColor)
+
+                    Button {
+                        viewModel.selectedDeviceCondition = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Clear device condition")
+                    .accessibilityIdentifier("mapper-clear-device-condition")
+                    .accessibilityLabel("Clear device condition")
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.accentColor.opacity(0.15))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+                )
+                .accessibilityIdentifier("mapper-device-condition-selected")
+            }
+
+            ForEach(connectedDevices.filter { device in
+                viewModel.selectedDeviceCondition?.deviceHash != device.hash
+            }) { device in
+                InspectorButton(
+                    icon: device.sfSymbolName,
+                    title: "Only on \(device.displayName)",
+                    isSelected: false
+                ) {
+                    viewModel.selectedDeviceCondition = DeviceConditionInfo(
+                        deviceHash: device.hash,
+                        displayName: device.displayName,
+                        sfSymbolName: device.sfSymbolName
+                    )
+                }
+                .accessibilityIdentifier("mapper-device-condition-\(device.hash)")
+            }
+
+            if connectedDevices.count > 1 {
+                Text("Rule only applies when this keyboard is active")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
         }
     }
 
