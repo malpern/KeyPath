@@ -82,11 +82,21 @@ extension MapperViewModel {
         customRule.shiftedOutput = shiftedOutputKanata
 
         // Add behavior based on configured actions
-        // Priority: macro → dualRole → tap-dance → chord
+        // Priority: macro → chord → dualRole → tap-dance
         // (UI should prevent conflicting behaviors from being set simultaneously)
         if let macroBehavior, macroBehavior.isValid {
             customRule.behavior = .macro(macroBehavior)
             AppLogger.shared.log("💾 [MapperViewModel] Adding macro behavior")
+        } else if advancedBehavior.hasValidCombo {
+            var allKeys = [inputKanata]
+            allKeys.append(contentsOf: advancedBehavior.comboKeys)
+            let chord = ChordBehavior(
+                keys: allKeys,
+                output: KanataBehaviorRenderer.parseActionString(advancedBehavior.comboOutput),
+                timeout: advancedBehavior.comboTimeout
+            )
+            customRule.behavior = .chord(chord)
+            AppLogger.shared.log("💾 [MapperViewModel] Adding chord behavior: keys=\(allKeys), output='\(chord.outputString)'")
         } else if !holdAction.isEmpty {
             let dualRole = DualRoleBehavior(
                 tapAction: KanataBehaviorRenderer.parseActionString(outputKanata),
@@ -110,16 +120,6 @@ extension MapperViewModel {
             let tapDance = TapDanceBehavior(windowMs: tapTimeout, steps: steps)
             customRule.behavior = .tapOrTapDance(.tapDance(tapDance))
             AppLogger.shared.log("💾 [MapperViewModel] Adding tapDance behavior: \(steps.count) steps")
-        } else if advancedBehavior.hasValidCombo {
-            var allKeys = [inputKanata]
-            allKeys.append(contentsOf: advancedBehavior.comboKeys)
-            let chord = ChordBehavior(
-                keys: allKeys,
-                output: KanataBehaviorRenderer.parseActionString(advancedBehavior.comboOutput),
-                timeout: advancedBehavior.comboTimeout
-            )
-            customRule.behavior = .chord(chord)
-            AppLogger.shared.log("💾 [MapperViewModel] Adding chord behavior: keys=\(allKeys), output='\(chord.outputString)'")
         }
 
         // Apply device condition: scoped output goes into deviceOverrides,
