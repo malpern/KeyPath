@@ -168,6 +168,7 @@ extension LiveKeyboardOverlayView {
                     oneShotKeyCodes: viewModel.oneShotHighlightedKeyCodes,
                     holdLabels: viewModel.holdLabels,
                     tapHoldIdleLabels: viewModel.tapHoldIdleLabels,
+                    holdActiveKeyCodes: viewModel.holdActiveKeyCodes,
                     holdReleaseFadeKeyCodes: viewModel.holdReleaseFadeKeyCodes,
                     customIcons: viewModel.customIcons,
                     onKeyClick: onKeyClick,

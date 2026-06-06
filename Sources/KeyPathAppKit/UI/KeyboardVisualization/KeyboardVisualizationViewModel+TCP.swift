@@ -345,16 +345,16 @@ extension KeyboardVisualizationViewModel {
         // Convert the action string to a display label; if empty, wait for simulator resolution.
         if !action.isEmpty {
             let displayLabel = Self.actionToDisplayLabel(action)
-            holdLabels[keyCode] = displayLabel
+            keyVisualStates[keyCode, default: .init()].holdLabel = displayLabel
         }
-        holdActiveKeyCodes.insert(keyCode)
-        AppLogger.shared.info("🔒 [KeyboardViz] Hold activated: \(key) -> '\(holdLabels[keyCode] ?? "pending")' (from '\(action)')")
+        keyVisualStates[keyCode, default: .init()].isHoldActive = true
+        AppLogger.shared.info("🔒 [KeyboardViz] Hold activated: \(key) -> '\(keyVisualStates[keyCode]?.holdLabel ?? "pending")' (from '\(action)')")
 
         // If Kanata omitted the action string, try to resolve the hold label via simulator
         if action.isEmpty {
             // Check short-lived cache first
             if let cached = holdLabelCache[keyCode], Date().timeIntervalSince(cached.timestamp) < holdLabelCacheTTL {
-                holdLabels[keyCode] = cached.label
+                keyVisualStates[keyCode, default: .init()].holdLabel = cached.label
                 AppLogger.shared.debug("🔒 [KeyboardViz] Hold label served from cache: \(key) -> '\(cached.label)'")
                 return
             }
@@ -377,7 +377,7 @@ extension KeyboardVisualizationViewModel {
                         startLayer: layer
                     ) {
                         await MainActor.run {
-                            self.holdLabels[keyCode] = resolved
+                            self.keyVisualStates[keyCode, default: .init()].holdLabel = resolved
                             self.holdLabelCache[keyCode] = (resolved, Date())
                             AppLogger.shared.info("🔒 [KeyboardViz] Hold label resolved via simulator: \(key) -> '\(resolved)'")
                             self.resolvingHoldLabels.remove(keyCode)
@@ -544,12 +544,12 @@ extension KeyboardVisualizationViewModel {
                 return
             }
             cancelKeyFadeOut(keyCode) // Cancel any ongoing fade-out
-            pressedKeyCodes.insert(keyCode)
+            keyVisualStates[keyCode, default: .init()].isPressed = true
             // Track most recently pressed key for icon association
             lastPressedKeyCode = keyCode
             startLayerPreviewIfActivator(keyCode)
             // If a hold is already active for this key, keep it active and cancel any pending clear.
-            if holdActiveKeyCodes.contains(keyCode) {
+            if keyVisualStates[keyCode]?.isHoldActive == true {
                 holdClearWorkItems[keyCode]?.cancel()
                 holdClearWorkItems.removeValue(forKey: keyCode)
             } else {
@@ -588,8 +588,11 @@ extension KeyboardVisualizationViewModel {
             // If this was a suppressed key, just ignore the release too
             // But still clear any lingering hold state to prevent visual artifacts
             if shouldSuppress {
-                holdActiveKeyCodes.remove(keyCode)
-                holdLabels.removeValue(forKey: keyCode)
+                if var state = keyVisualStates[keyCode] {
+                    state.isHoldActive = false
+                    state.holdLabel = nil
+                    keyVisualStates[keyCode] = state.isIdle ? nil : state
+                }
                 holdLabelCache.removeValue(forKey: keyCode)
                 holdClearWorkItems[keyCode]?.cancel()
                 holdClearWorkItems.removeValue(forKey: keyCode)
@@ -598,20 +601,24 @@ extension KeyboardVisualizationViewModel {
             }
 
             // Track if this key was hold-active for orange release fade
-            if holdActiveKeyCodes.contains(keyCode) {
-                holdReleaseFadeKeyCodes.insert(keyCode)
+            if keyVisualStates[keyCode]?.isHoldActive == true {
+                keyVisualStates[keyCode, default: .init()].releasedFromHold = true
             }
-            pressedKeyCodes.remove(keyCode)
+            keyVisualStates[keyCode]?.isPressed = false
             cancelLayerPreviewIfActivator(keyCode)
             startKeyFadeOut(keyCode) // Start fade-out animation
             // Defer clearing hold state briefly to tolerate tap-hold-press sequences that emit rapid releases.
             let work = DispatchWorkItem { [weak self] in
                 guard let self else { return }
-                holdActiveKeyCodes.remove(keyCode)
-                if holdLabels[keyCode] != nil {
-                    holdLabels.removeValue(forKey: keyCode)
-                    holdLabelCache.removeValue(forKey: keyCode)
-                    AppLogger.shared.debug("⌨️ [KeyboardViz] Cleared hold label (delayed) for \(key)")
+                if var state = keyVisualStates[keyCode] {
+                    let hadLabel = state.holdLabel != nil
+                    state.isHoldActive = false
+                    state.holdLabel = nil
+                    keyVisualStates[keyCode] = state.isIdle ? nil : state
+                    if hadLabel {
+                        holdLabelCache.removeValue(forKey: keyCode)
+                        AppLogger.shared.debug("⌨️ [KeyboardViz] Cleared hold label (delayed) for \(key)")
+                    }
                 }
                 holdClearWorkItems.removeValue(forKey: keyCode)
             }
@@ -624,8 +631,9 @@ extension KeyboardVisualizationViewModel {
         }
 
         if keyCode == 57 {
+            let state = keyVisualStates[57]
             AppLogger.shared.debug(
-                "🧪 [KeyboardViz] caps state: tcpPressed=\(pressedKeyCodes.contains(57)) holdActive=\(holdActiveKeyCodes.contains(57)) holdLabel=\(holdLabels[57] ?? "nil")"
+                "🧪 [KeyboardViz] caps state: tcpPressed=\(state?.isPressed ?? false) holdActive=\(state?.isHoldActive ?? false) holdLabel=\(state?.holdLabel ?? "nil")"
             )
         }
     }
@@ -644,7 +652,7 @@ extension KeyboardVisualizationViewModel {
         layerPreviewTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(50))
             guard let self, !Task.isCancelled else { return }
-            guard pressedKeyCodes.contains(keyCode) else { return }
+            guard keyVisualStates[keyCode]?.isPressed == true else { return }
             prePreviewLayerName = currentLayerName
             isShowingLayerPreview = true
             currentPreviewTargetLayer = targetLayer
