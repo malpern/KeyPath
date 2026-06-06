@@ -190,9 +190,7 @@ struct OverlayKeyboardView: View {
         var remapped = Set<String>()
         if !isKeymapTransitioning {
             for (label, keyCode) in ltk {
-                if let layerInfo = layerKeyMap[keyCode],
-                   layerInfo.displayLabel.uppercased() != label
-                {
+                if layerKeyMap[keyCode] != nil {
                     remapped.insert(label)
                 }
             }
@@ -210,9 +208,6 @@ struct OverlayKeyboardView: View {
         // by remappedLabels / zoneSubtitleLabels, so only unmapped keys gain them.
         // Read via the same injected `services` the keycaps use, so both halves
         // of the feature always agree on the preference instance.
-        // TODO: an identity-style mapping whose output label equals its base
-        // label is filtered out of `remapped`, so it could show a stray floating
-        // legend here. Uncommon; revisit if it surfaces in practice.
         let baseStyleUnmapped = services.preferences.unmappedLayerKeyStyle == .baseLayer
         return FloatingLabelVisibility(
             labelToKeyCode: ltk,
