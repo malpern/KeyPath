@@ -124,7 +124,7 @@ Shortcuts:
 - `SKIP_NOTARIZE=1 ./build.sh` — skip notarization for faster local builds
 - `./Scripts/quick-deploy.sh` — incremental rebuild (run `./build.sh` once first)
 
-### Community builds (no Apple credentials needed)
+### Community build checks (no Apple credentials needed)
 
 ```bash
 swift build
