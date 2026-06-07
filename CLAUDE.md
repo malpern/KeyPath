@@ -154,6 +154,20 @@ For trust-only diagnostics where KeyPath is not running yet:
 CHECK_RUNTIME=0 ./Scripts/verify-installed-app.sh
 ```
 
+**Release QA CLI:** For release-candidate and installed-app QA, use the CLI
+inside the installed app:
+
+```bash
+/Applications/KeyPath.app/Contents/MacOS/keypath-cli
+```
+
+Do **not** use `.build/debug/keypath-cli` for release QA that validates or
+applies config. The debug CLI resolves bundled Kanata relative to `.build/debug`
+and expects `.build/debug/Contents/Library/KeyPath/Kanata Engine.app/...`, which
+does not exist in a normal SwiftPM debug build. The installed CLI resolves the
+bundled engine from `/Applications/KeyPath.app` and matches the deployed app
+under test.
+
 **SwiftFormat is pinned to 0.61.1** (`mise.toml`); `master` is a formatted fixed-point
 for that version + `.swiftformat` config, so a run produces **no churn**. A different
 version reformats unrelated code (see #634) — match the pin (`mise install` or

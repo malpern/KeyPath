@@ -1290,30 +1290,22 @@ class ConfigurationServiceTests: XCTestCase {
         try await validateCatalogConfig(withBinary: kanataBinary)
     }
 
-    /// Find the kanata binary, checking multiple locations
+    /// Find the kanata binary, checking fork-aware locations before PATH.
     private func findKanataBinary() throws -> String {
-        // Use Process to find kanata in PATH (includes /opt/homebrew/bin where CI installs the fork)
-        let which = Process()
-        which.executableURL = URL(fileURLWithPath: "/usr/bin/which")
-        which.arguments = ["kanata"]
-        let pipe = Pipe()
-        which.standardOutput = pipe
-        try? which.run()
-        which.waitUntilExit()
-        if which.terminationStatus == 0 {
-            let path = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            if !path.isEmpty {
-                return path
-            }
-        }
-
-        // Fallback to well-known locations
         let candidates = [
-            "/opt/homebrew/bin/kanata",
+            ProcessInfo.processInfo.environment["KEYPATH_KANATA_PATH"],
+            URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent() // Services
+                .deletingLastPathComponent() // KeyPathTests
+                .deletingLastPathComponent() // Tests
+                .deletingLastPathComponent() // repo root
+                .appendingPathComponent("External/kanata/target/aarch64-apple-darwin/release/kanata")
+                .path,
             "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
             "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata",
-        ]
+            "/opt/homebrew/bin/kanata",
+            findPathKanata()
+        ].compactMap { $0 }
 
         for candidate in candidates {
             if FileManager.default.isExecutableFile(atPath: candidate) {
@@ -1322,6 +1314,21 @@ class ConfigurationServiceTests: XCTestCase {
         }
 
         throw XCTSkip("Kanata binary not found in PATH or known locations")
+    }
+
+    private func findPathKanata() -> String? {
+        let which = Process()
+        which.executableURL = URL(fileURLWithPath: "/usr/bin/which")
+        which.arguments = ["kanata"]
+        let pipe = Pipe()
+        which.standardOutput = pipe
+        try? which.run()
+        which.waitUntilExit()
+        guard which.terminationStatus == 0 else { return nil }
+
+        let path = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return path.isEmpty ? nil : path
     }
 
     private func validateCatalogConfig(withBinary kanataBinary: String) async throws {

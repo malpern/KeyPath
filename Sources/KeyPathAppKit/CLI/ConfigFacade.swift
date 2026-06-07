@@ -2,25 +2,47 @@ import Foundation
 import KeyPathCore
 
 public struct ConfigFacade: Sendable {
-    public init() {}
+    private let configDirectory: String
+    private let ruleCollectionLoader: @Sendable () async -> [RuleCollection]
+    private let customRuleLoader: @Sendable () async -> [CustomRule]
+    private let reloadHandler: (@Sendable () async -> Bool)?
+
+    public init(configDirectory: String = KeyPathConstants.Config.directory) {
+        self.configDirectory = configDirectory
+        ruleCollectionLoader = { await RuleCollectionStore.shared.loadCollections() }
+        customRuleLoader = { await CustomRulesStore.shared.loadRules() }
+        reloadHandler = nil
+    }
+
+    init(
+        configDirectory: String,
+        ruleCollectionLoader: @escaping @Sendable () async -> [RuleCollection],
+        customRuleLoader: @escaping @Sendable () async -> [CustomRule],
+        reloadHandler: (@Sendable () async -> Bool)? = nil
+    ) {
+        self.configDirectory = configDirectory
+        self.ruleCollectionLoader = ruleCollectionLoader
+        self.customRuleLoader = customRuleLoader
+        self.reloadHandler = reloadHandler
+    }
 
     // MARK: - Configuration
 
     @MainActor
     public func currentConfig() async -> String {
-        let service = ConfigurationService()
+        let service = ConfigurationService(configDirectory: configDirectory)
         let config = await service.current()
         return config.content
     }
 
     @MainActor
     public func configPath() -> String {
-        ConfigurationService().configurationPath
+        ConfigurationService(configDirectory: configDirectory).configurationPath
     }
 
     @MainActor
     public func validateConfig() async -> CLIValidationResult {
-        let service = ConfigurationService()
+        let service = ConfigurationService(configDirectory: configDirectory)
         let config = await service.current()
         if config.content.isEmpty {
             return CLIValidationResult(isValid: false, errors: ["No configuration generated yet. Run 'keypath apply' first."])
@@ -31,38 +53,47 @@ public struct ConfigFacade: Sendable {
 
     // MARK: - Apply
 
-    public func applyConfiguration() async throws -> CLIApplyResult {
-        let collections = await RuleCollectionStore.shared.loadCollections()
-        let customRules = await CustomRulesStore.shared.loadRules()
+    public func applyConfiguration(dryRun: Bool = false) async throws -> CLIApplyResult {
+        let collections = await ruleCollectionLoader()
+        let customRules = await customRuleLoader()
         let enabledCount = collections.filter(\.isEnabled).count
 
-        let service = await MainActor.run { ConfigurationService() }
+        let service = await MainActor.run { ConfigurationService(configDirectory: configDirectory) }
+
+        if dryRun {
+            let previewConfig = try await service.generateConfiguration(
+                ruleCollections: collections,
+                customRules: customRules
+            )
+            try await validateDryRunConfig(previewConfig.content)
+
+            return CLIApplyResult(
+                collectionsCount: collections.count,
+                enabledCount: enabledCount,
+                customRulesCount: customRules.count,
+                reloadSuccess: false,
+                changeset: changeset(collections: collections, customRules: customRules),
+                dryRun: true
+            )
+        }
+
         try await service.saveConfiguration(
             ruleCollections: collections,
             customRules: customRules
         )
 
-        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
-        let client = KanataTCPClient(port: port)
-        let result = await client.reloadConfig()
-        let reloadSuccess = if case .success = result {
-            true
+        let reloadSuccess = if let reloadHandler {
+            await reloadHandler()
         } else {
-            false
+            await tcpReload()
         }
-
-        let changeset = CLIApplyChangeset(
-            enabledCollections: collections.filter(\.isEnabled).map(\.name),
-            disabledCollections: collections.filter { !$0.isEnabled }.map(\.name),
-            customRules: customRules.filter(\.isEnabled).map { "\($0.input) → \($0.action.outputString)" }
-        )
 
         return CLIApplyResult(
             collectionsCount: collections.count,
             enabledCount: enabledCount,
             customRulesCount: customRules.count,
             reloadSuccess: reloadSuccess,
-            changeset: changeset
+            changeset: changeset(collections: collections, customRules: customRules)
         )
     }
 
@@ -70,8 +101,9 @@ public struct ConfigFacade: Sendable {
 
     public func backupConfig(outputPath: String? = nil) throws -> CLIConfigBackupResult {
         let fileManager = FileManager.default
-        let sourceURL = URL(fileURLWithPath: KeyPathConstants.Config.directory, isDirectory: true)
-        guard fileManager.fileExists(atPath: sourceURL.path) else {
+        let sourceURL = URL(fileURLWithPath: configDirectory, isDirectory: true)
+        let sourceCopyURL = try resolvedExistingDirectory(sourceURL, fileManager: fileManager)
+        guard fileManager.fileExists(atPath: sourceCopyURL.path) else {
             throw Self.error("Config directory does not exist: \(sourceURL.path)")
         }
 
@@ -87,7 +119,8 @@ public struct ConfigFacade: Sendable {
             at: destinationURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        try fileManager.copyItem(at: sourceURL, to: destinationURL)
+        try fileManager.createDirectory(at: destinationURL, withIntermediateDirectories: true)
+        try copyDirectoryContents(from: sourceCopyURL, to: destinationURL, fileManager: fileManager)
 
         return try CLIConfigBackupResult(
             sourcePath: sourceURL.path,
@@ -104,21 +137,33 @@ public struct ConfigFacade: Sendable {
             throw Self.error("Backup directory does not exist: \(sourceURL.path)")
         }
 
-        let destinationURL = URL(fileURLWithPath: KeyPathConstants.Config.directory, isDirectory: true)
+        let resolvedSourceURL = try resolvedExistingDirectory(sourceURL, fileManager: fileManager)
+        let destinationURL = URL(fileURLWithPath: configDirectory, isDirectory: true)
         try fileManager.createDirectory(
             at: destinationURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
+
+        let restoreTargetURL: URL
         if fileManager.fileExists(atPath: destinationURL.path) {
-            try fileManager.removeItem(at: destinationURL)
+            restoreTargetURL = try resolvedExistingDirectory(destinationURL, fileManager: fileManager)
+        } else {
+            restoreTargetURL = destinationURL
+            try fileManager.createDirectory(at: restoreTargetURL, withIntermediateDirectories: true)
         }
-        try fileManager.copyItem(at: sourceURL, to: destinationURL)
+
+        if sameResolvedPath(resolvedSourceURL, restoreTargetURL) {
+            throw Self.error("Backup path resolves to the active config directory: \(sourceURL.path)")
+        }
+
+        try removeDirectoryContents(at: restoreTargetURL, fileManager: fileManager)
+        try copyDirectoryContents(from: resolvedSourceURL, to: restoreTargetURL, fileManager: fileManager)
 
         let reloadSuccess = reload ? await tcpReload() : nil
         return try CLIConfigRestoreResult(
             sourcePath: sourceURL.path,
             restoredPath: destinationURL.path,
-            restoredItems: copiedItemNames(in: destinationURL),
+            restoredItems: copiedItemNames(in: restoreTargetURL),
             reloadRequested: reload,
             reloadSuccess: reloadSuccess
         )
@@ -192,6 +237,66 @@ public struct ConfigFacade: Sendable {
             .appendingPathComponent(name, isDirectory: true)
     }
 
+    private func validateDryRunConfig(_ content: String) async throws {
+        let tempDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keypath-cli-dry-run-\(UUID().uuidString)", isDirectory: true)
+        defer {
+            try? FileManager.default.removeItem(at: tempDirectory)
+        }
+        let service = await MainActor.run { ConfigurationService(configDirectory: tempDirectory.path) }
+        let validation = await service.validateConfiguration(content)
+        guard validation.isValid else {
+            throw KeyPathError.configuration(.validationFailed(errors: validation.errors))
+        }
+    }
+
+    private func changeset(
+        collections: [RuleCollection],
+        customRules: [CustomRule]
+    ) -> CLIApplyChangeset {
+        CLIApplyChangeset(
+            enabledCollections: collections.filter(\.isEnabled).map(\.name),
+            disabledCollections: collections.filter { !$0.isEnabled }.map(\.name),
+            customRules: customRules.filter(\.isEnabled).map { "\($0.input) → \($0.action.outputString)" }
+        )
+    }
+
+    private func resolvedExistingDirectory(_ url: URL, fileManager: FileManager) throws -> URL {
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            throw Self.error("Directory does not exist: \(url.path)")
+        }
+        return url.resolvingSymlinksInPath()
+    }
+
+    private func copyDirectoryContents(from source: URL, to destination: URL, fileManager: FileManager) throws {
+        let contents = try fileManager.contentsOfDirectory(
+            at: source,
+            includingPropertiesForKeys: nil
+        )
+        for item in contents {
+            try fileManager.copyItem(
+                at: item,
+                to: destination.appendingPathComponent(item.lastPathComponent)
+            )
+        }
+    }
+
+    private func removeDirectoryContents(at directory: URL, fileManager: FileManager) throws {
+        let contents = try fileManager.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil
+        )
+        for item in contents {
+            try fileManager.removeItem(at: item)
+        }
+    }
+
+    private func sameResolvedPath(_ lhs: URL, _ rhs: URL) -> Bool {
+        lhs.resolvingSymlinksInPath().standardizedFileURL.path ==
+            rhs.resolvingSymlinksInPath().standardizedFileURL.path
+    }
+
     private func copiedItemNames(in directory: URL) throws -> [String] {
         try FileManager.default.contentsOfDirectory(atPath: directory.path).sorted()
     }
@@ -209,6 +314,23 @@ public struct CLIApplyResult: Codable, Sendable {
     public let customRulesCount: Int
     public let reloadSuccess: Bool
     public let changeset: CLIApplyChangeset?
+    public let dryRun: Bool?
+
+    public init(
+        collectionsCount: Int,
+        enabledCount: Int,
+        customRulesCount: Int,
+        reloadSuccess: Bool,
+        changeset: CLIApplyChangeset?,
+        dryRun: Bool? = nil
+    ) {
+        self.collectionsCount = collectionsCount
+        self.enabledCount = enabledCount
+        self.customRulesCount = customRulesCount
+        self.reloadSuccess = reloadSuccess
+        self.changeset = changeset
+        self.dryRun = dryRun
+    }
 }
 
 public struct CLIApplyChangeset: Codable, Sendable {

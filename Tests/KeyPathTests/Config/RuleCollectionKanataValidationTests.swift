@@ -15,7 +15,7 @@ import XCTest
 /// need this coverage should build kanata first.
 final class RuleCollectionKanataValidationTests: XCTestCase {
     /// Resolve the kanata binary. CI should set `KEYPATH_KANATA_PATH` to an
-    /// explicit location; locally we fall back to the repo's debug build.
+    /// explicit location; locally we prefer the repo or app-bundled fork.
     private var kanataURL: URL? {
         let candidates: [String] = [
             ProcessInfo.processInfo.environment["KEYPATH_KANATA_PATH"],
@@ -26,7 +26,9 @@ final class RuleCollectionKanataValidationTests: XCTestCase {
                 .deletingLastPathComponent() // Tests
                 .deletingLastPathComponent() // repo root
                 .appendingPathComponent("External/kanata/target/aarch64-apple-darwin/release/kanata")
-                .path
+                .path,
+            "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
+            "/opt/homebrew/bin/kanata"
         ].compactMap { $0 }
 
         return candidates
