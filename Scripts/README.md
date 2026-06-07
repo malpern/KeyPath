@@ -8,6 +8,7 @@
   - Release builds now fail if Sparkle EdDSA signing cannot be produced for the update archive.
   - For local-only testing, set `ALLOW_UNSIGNED_SPARKLE=1` to continue without an EdDSA signature.
 - `./Scripts/release.sh <version>` — Public distribution release flow. Run `./Scripts/release-doctor.sh --ship` first.
+- `./Scripts/cleanup-local-build-artifacts.sh` — Dry-run cleanup of generated `.build`/`dist`/test artifacts across local worktrees. Add `--apply` to delete.
 - `./test.sh` — Run the full test suite (root)
 - `./Scripts/run-installer-reliability-matrix.sh` — Automated installer reliability matrix + diagnostic artifact bundle (`test-results/installer-reliability/latest`).
 - `./Scripts/repro-duplicate-keys.sh` — CPU-load repro harness for duplicate keypress detection (filters navigation keys by default). Supports `--auto-type osascript` or `--auto-type peekaboo` for deterministic automated keystroke generation, and continuously samples Kanata process metrics (CPU%, memory, threads, priority).
@@ -17,6 +18,7 @@
 - `release-doctor.sh` - Read-only preflight for signing, notarization, Sparkle, website, watcher, and runtime state.
 - `release-candidate.sh` - Post-merge signed/notarized local build wrapper with fast defaults.
 - `release.sh` - Public release wrapper for versioned distribution artifacts.
+- `cleanup-local-build-artifacts.sh` - Safe local disk cleanup helper for generated build artifacts.
 - `run-tests-safe.sh` - The safe test runner implementation
 - `run-installer-reliability-matrix.sh` - Runs installer scenario lanes and writes `matrix-summary.md` + `matrix-results.json`
 - `uninstall.sh` - Uninstaller script

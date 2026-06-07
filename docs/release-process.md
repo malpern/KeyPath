@@ -142,6 +142,9 @@ release scripts. Prefer `release-candidate.sh` for post-merge manual testing and
 Releases must be notarized. Do not use `SKIP_NOTARIZE=1` or `--skip-notarize` for
 public distribution; unnotarized apps trigger Gatekeeper warnings.
 
+`release.sh` runs `release-doctor.sh --ship` automatically unless
+`--no-doctor` or `SKIP_RELEASE_DOCTOR=1` is used for script debugging.
+
 ## Preflight Details
 
 `release-doctor.sh` is read-only. It checks local prerequisites and state before
@@ -195,3 +198,31 @@ fail if `sign_update` cannot produce a signature, unless
 
 Existing users get update notifications from `appcast.xml`. Release notes linked
 from the appcast should remain readable in dark mode.
+
+## Local Artifact Cleanup
+
+Parallel worktrees and repeated SwiftPM builds can leave large generated
+directories behind. Inspect them first:
+
+```bash
+./Scripts/cleanup-local-build-artifacts.sh
+```
+
+Then remove only generated artifact directories:
+
+```bash
+./Scripts/cleanup-local-build-artifacts.sh --apply
+```
+
+The helper skips the current worktree by default. Use `--include-current` when
+you intentionally want to force the current checkout to rebuild from scratch, and
+`--include-tmp-keypath` to include `/tmp/keypath-*` worktrees.
+
+For stale worktree directories themselves, inspect first and remove only the
+specific worktree you are done with:
+
+```bash
+git worktree list
+git worktree remove <path>
+git worktree prune --dry-run
+```

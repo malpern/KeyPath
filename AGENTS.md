@@ -94,6 +94,10 @@ Use opt-ins only when needed:
 ./Scripts/release-candidate.sh --with-website
 ```
 
+If local worktrees/builds are consuming disk, inspect generated artifacts with
+`./Scripts/cleanup-local-build-artifacts.sh` and delete them only with
+`./Scripts/cleanup-local-build-artifacts.sh --apply`.
+
 ### 3. Ship: public release artifacts
 Use the public release script only when producing public distribution artifacts:
 ```bash
@@ -104,8 +108,10 @@ Use the public release script only when producing public distribution artifacts:
 This path may bump versions, regenerate screenshots, create Sparkle artifacts,
 notarize, staple, deploy, tag, create a GitHub release, and publish website help
 content depending on environment flags. It is intentionally slower than the
-release-candidate path. `Scripts/build-and-sign.sh` is the lower-level artifact
-builder used by the release scripts.
+release-candidate path. `release.sh` runs `release-doctor.sh --ship`
+automatically unless explicitly skipped for script debugging. Do not use
+`--skip-notarize` for public releases. `Scripts/build-and-sign.sh` is the
+lower-level artifact builder used by the release scripts.
 
 ### 4. Installed app verification
 After any signed/notarized deploy, or when diagnosing a local install:

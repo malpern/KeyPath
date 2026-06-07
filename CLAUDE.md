@@ -154,6 +154,9 @@ needed:
 ./Scripts/release-candidate.sh --with-website
 ```
 
+For local disk cleanup, run `./Scripts/cleanup-local-build-artifacts.sh` first to
+inspect generated artifacts across worktrees, then add `--apply` to remove them.
+
 **Public ship:** Use the public release script only when producing public
 distribution artifacts:
 
@@ -164,7 +167,9 @@ distribution artifacts:
 
 That path may bump versions, regenerate screenshots, create Sparkle artifacts,
 notarize, staple, deploy, tag, create a GitHub release, and publish website help
-content depending on environment flags. `Scripts/build-and-sign.sh` is the
+content depending on environment flags. `release.sh` runs the ship preflight
+automatically unless explicitly skipped for script debugging. Do not use
+`--skip-notarize` for public releases. `Scripts/build-and-sign.sh` is the
 lower-level artifact builder used by the release scripts.
 
 **Installed verification:** After signed/notarized deploys, or when diagnosing a
