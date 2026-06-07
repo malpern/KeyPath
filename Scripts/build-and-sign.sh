@@ -458,8 +458,12 @@ else
     # Sign bundled kanata simulator binary
     kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --sign "$SIGNING_IDENTITY"
 
-    # Sign command-line tool embedded in the app bundle.
-    kp_sign "$MACOS/keypath-cli" --force --options=runtime --sign "$SIGNING_IDENTITY"
+    # Sign command-line tool embedded in the app bundle with a stable identifier
+    # trusted by the privileged helper for CLI system diagnostics and repair.
+    kp_sign "$MACOS/keypath-cli" \
+        --force --options=runtime \
+        --identifier "com.keypath.KeyPath.CLI" \
+        --sign "$SIGNING_IDENTITY"
 
     # Sign Insights plugin bundle
     kp_sign "$INSIGHTS_BUNDLE" --force --options=runtime --deep --sign "$SIGNING_IDENTITY"
