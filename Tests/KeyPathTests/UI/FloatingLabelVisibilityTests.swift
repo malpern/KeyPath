@@ -37,6 +37,13 @@ struct FloatingLabelVisibilityTests {
         #expect(vis.isVisible("F"))
     }
 
+    @Test("normal letter suppresses keycap content on base layer")
+    func normalLetterSuppressesKeycapContent() {
+        let vis = Self.base()
+        #expect(vis.suppressesKeycapContent("A"))
+        #expect(vis.suppressesKeycapContent("Q"))
+    }
+
     @Test("lowercase input still matches uppercase keyCode map")
     func lowercaseInput() {
         let vis = Self.base()
@@ -79,6 +86,7 @@ struct FloatingLabelVisibilityTests {
         #expect(!vis.isVisible("A"))
         #expect(!vis.isVisible("H"))
         #expect(!vis.isVisible("Q"))
+        #expect(!vis.suppressesKeycapContent("A"))
     }
 
     // MARK: - Layer mode
@@ -88,6 +96,7 @@ struct FloatingLabelVisibilityTests {
         let vis = Self.base(isLayerMode: true)
         #expect(!vis.isVisible("A"))
         #expect(!vis.isVisible("H"))
+        #expect(!vis.suppressesKeycapContent("A"))
     }
 
     // MARK: - Remapped labels
@@ -98,6 +107,7 @@ struct FloatingLabelVisibilityTests {
         #expect(!vis.isVisible("A"))
         #expect(!vis.isVisible("S"))
         #expect(vis.isVisible("D"))
+        #expect(!vis.suppressesKeycapContent("A"))
     }
 
     @Test("transparent layer entries do not suppress base floating labels")
@@ -147,6 +157,7 @@ struct FloatingLabelVisibilityTests {
         #expect(!vis.isVisible("A"))
         #expect(!vis.isVisible("F"))
         #expect(vis.isVisible("G"))
+        #expect(!vis.suppressesKeycapContent("A"))
     }
 
     // MARK: - Vim hints (HJKL regression)
@@ -158,6 +169,7 @@ struct FloatingLabelVisibilityTests {
         #expect(!vis.isVisible("J"))
         #expect(!vis.isVisible("K"))
         #expect(!vis.isVisible("L"))
+        #expect(vis.suppressesKeycapContent("H"))
     }
 
     @Test("HJKL visible when vim hints inactive")
