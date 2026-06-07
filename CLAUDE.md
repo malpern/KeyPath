@@ -81,7 +81,8 @@ Two doc systems: `guides/` (user-facing, published to gh-pages) and `docs/` (dev
 ./Scripts/quick-deploy.sh         # Fast debug deploy
 ./Scripts/release-doctor.sh       # Read-only release preflight
 ./Scripts/release-candidate.sh    # Signed/notarized post-merge testing
-swift test                        # All tests (~532 tests, <5s)
+swift test --filter <TestName>     # Focused tests while iterating
+swift test                        # Full suite before PR/merge when practical
 swiftformat Sources Tests         # Uses pinned rules + swiftversion from .swiftformat
 swiftlint --fix --quiet
 ```
@@ -96,6 +97,29 @@ Swift/UI iteration: `poltergeist start`, edit, then `poltergeist wait keypath`.
 `quick-deploy.sh` updates `/Applications/KeyPath.app`, re-signs locally, and
 restarts KeyPath only if it was already running. It does not redeploy the
 privileged helper unless `KEYPATH_DEPLOY_HELPER=1` is set.
+
+### Swift build/test performance
+
+- Prefer targeted tests while iterating:
+  `swift test --filter <TestClassOrMethod>`
+- Run full `swift test` before PR/merge, release-candidate work, or after
+  broad/shared changes.
+- Avoid running broad Swift builds/tests concurrently across worktrees. Before
+  full test, release-candidate, or expensive build work, check for active Swift
+  compiles:
+  `pgrep -fl 'swift-test|swift-build|swift-frontend|swift-driver'`
+- If another worktree/agent is compiling and you must continue, reduce local
+  parallelism:
+  `swift test --jobs 4`
+  `swift build --jobs 4`
+- Do not delete `.build` or run clean builds unless diagnosing cache/build-state
+  problems; preserving incremental build products is usually faster.
+- If a full suite stalls after compilation, triage it as a test failure/hang,
+  not compile slowness. Capture the failing test name and log path in the
+  handoff.
+- Do not leave hung suites running. If a full run times out or stalls in an
+  unrelated test, report the failing test and keep targeted validation for the
+  current change.
 
 **Release candidate:** After a PR is merged and manual testing needs a real
 Developer ID/notarized app in `/Applications`, run:
@@ -184,9 +208,12 @@ Test targets: `Tests/KeyPathTests/` (target: `KeyPathTests`). Files in `Tests/Ke
 
 `poltergeist start` / `poltergeist stop`. Use it only for focused single-agent Swift/UI iteration. **Stop before running parallel agents, broad tests, helper/service work, or release builds** — file change watchers cause SwiftPM lock contention and surprise app restarts.
 
-## Linear
+## UI Automation
 
-Personal workspace (`malpern@gmail.com`) via `/linear-switch personal`. Smirkhealth (`micah@smirkhealth.com`) via `/linear-switch smirkhealth`. Restart Claude Code after switching.
+Use Computer Use for agent-driven UI testing and release QA. It reads the macOS
+accessibility tree, can click accessible controls, and validates the same
+automation hooks needed for 1.0 QA. Prefer Computer Use over Peekaboo unless the
+user explicitly asks for Peekaboo or Computer Use is unavailable.
 
 ## Deep-Dive References
 
@@ -198,7 +225,7 @@ Load these on demand — don't need them every session:
 | Help content writing | [`docs/help-content-philosophy.md`](docs/help-content-philosophy.md) |
 | Pack dependency system | [`docs/architecture/pack-dependency-system.md`](docs/architecture/pack-dependency-system.md) |
 | Overlay/mapper/gallery data flow | [`docs/architecture/overlay-data-flow.md`](docs/architecture/overlay-data-flow.md) |
-| Peekaboo UI automation | [`docs/LLM_VISION_UI_AUTOMATION.md`](docs/LLM_VISION_UI_AUTOMATION.md) |
+| UI automation | [`docs/LLM_VISION_UI_AUTOMATION.md`](docs/LLM_VISION_UI_AUTOMATION.md) |
 | All architecture guides | [`docs/architecture/`](docs/architecture/) |
 | All ADRs | [`docs/adr/README.md`](docs/adr/README.md) |
 | Feature docs | [`docs/features/`](docs/features/) |
