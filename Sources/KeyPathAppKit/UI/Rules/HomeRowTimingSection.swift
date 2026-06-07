@@ -164,7 +164,7 @@ struct HomeRowTimingSection: View {
 
             // MARK: - Advanced: Independent Sliders
 
-            DisclosureGroup("Adjust independently") {
+            DisclosureGroup {
                 VStack(alignment: .leading, spacing: 12) {
                     // Hold duration
                     VStack(alignment: .leading, spacing: 4) {
@@ -179,28 +179,32 @@ struct HomeRowTimingSection: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Tap window").font(.caption).foregroundColor(.secondary)
                                     HStack(spacing: 4) {
-                                        TextField("", value: Binding(
-                                            get: { config.timing.tapWindow },
-                                            set: { config.timing.tapWindow = $0; updateConfig() }
-                                        ), format: .number)
-                                            .textFieldStyle(.roundedBorder).frame(width: 70)
-                                            .accessibilityIdentifier("home-row-mods-tap-window-field")
-                                            .accessibilityLabel("Tap window")
-                                            .accessibilityValue("\(config.timing.tapWindow) ms")
+                                        automationIntegerField(
+                                            placeholder: "",
+                                            value: Binding(
+                                                get: { config.timing.tapWindow },
+                                                set: { config.timing.tapWindow = $0 }
+                                            ),
+                                            range: 80 ... 350,
+                                            accessibilityIdentifier: "home-row-mods-tap-window-field",
+                                            accessibilityLabel: "Tap window"
+                                        )
                                         Text("ms").font(.caption).foregroundColor(.secondary)
                                     }
                                 }
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Hold delay").font(.caption).foregroundColor(.secondary)
                                     HStack(spacing: 4) {
-                                        TextField("", value: Binding(
-                                            get: { config.timing.holdDelay },
-                                            set: { config.timing.holdDelay = $0; updateConfig() }
-                                        ), format: .number)
-                                            .textFieldStyle(.roundedBorder).frame(width: 70)
-                                            .accessibilityIdentifier("home-row-mods-hold-delay-field")
-                                            .accessibilityLabel("Hold delay")
-                                            .accessibilityValue("\(config.timing.holdDelay) ms")
+                                        automationIntegerField(
+                                            placeholder: "",
+                                            value: Binding(
+                                                get: { config.timing.holdDelay },
+                                                set: { config.timing.holdDelay = $0 }
+                                            ),
+                                            range: 80 ... 350,
+                                            accessibilityIdentifier: "home-row-mods-hold-delay-field",
+                                            accessibilityLabel: "Hold delay"
+                                        )
                                         Text("ms").font(.caption).foregroundColor(.secondary)
                                     }
                                 }
@@ -240,26 +244,39 @@ struct HomeRowTimingSection: View {
                         if config.timing.requirePriorIdleMs > 0 {
                             HStack(spacing: 8) {
                                 Text("Modifiers work mid-typing").font(.caption2).foregroundStyle(.secondary)
-                                Slider(value: Binding(
-                                    get: { 350.0 - Double(max(config.timing.requirePriorIdleMs, 50)) },
-                                    set: { config.timing.requirePriorIdleMs = Int(350.0 - $0); debouncedUpdateConfig() }
-                                ), in: 50 ... 300, step: 10) { editing in
-                                    isEditingIdleWindow = editing
-                                }
-                                .accessibilityIdentifier("home-row-mods-prior-idle-advanced")
-                                .accessibilityLabel("Fast typing protection idle window")
-                                .accessibilityValue("\(config.timing.requirePriorIdleMs) ms")
-                                .overlay(alignment: .top) {
-                                    if isEditingIdleWindow {
-                                        Text("\(config.timing.requirePriorIdleMs)ms")
-                                            .font(.caption.weight(.semibold).width(.condensed))
-                                            .foregroundStyle(.white)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(Capsule().fill(Color.accentColor))
-                                            .offset(y: -18)
-                                            .allowsHitTesting(false)
-                                            .transition(.opacity)
+                                if config.showExpertTiming {
+                                    automationIntegerField(
+                                        placeholder: "",
+                                        value: Binding(
+                                            get: { config.timing.requirePriorIdleMs },
+                                            set: { config.timing.requirePriorIdleMs = $0 }
+                                        ),
+                                        range: 0 ... 500,
+                                        accessibilityIdentifier: "home-row-mods-prior-idle-field",
+                                        accessibilityLabel: "Fast typing protection idle window"
+                                    )
+                                } else {
+                                    Slider(value: Binding(
+                                        get: { 350.0 - Double(max(config.timing.requirePriorIdleMs, 50)) },
+                                        set: { config.timing.requirePriorIdleMs = Int(350.0 - $0); debouncedUpdateConfig() }
+                                    ), in: 50 ... 300, step: 10) { editing in
+                                        isEditingIdleWindow = editing
+                                    }
+                                    .accessibilityIdentifier("home-row-mods-prior-idle-advanced")
+                                    .accessibilityLabel("Fast typing protection idle window")
+                                    .accessibilityValue("\(config.timing.requirePriorIdleMs) ms")
+                                    .overlay(alignment: .top) {
+                                        if isEditingIdleWindow {
+                                            Text("\(config.timing.requirePriorIdleMs)ms")
+                                                .font(.caption.weight(.semibold).width(.condensed))
+                                                .foregroundStyle(.white)
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(Capsule().fill(Color.accentColor))
+                                                .offset(y: -18)
+                                                .allowsHitTesting(false)
+                                                .transition(.opacity)
+                                        }
                                     }
                                 }
                                 Text("No misfires while typing").font(.caption2).foregroundStyle(.secondary)
@@ -269,10 +286,13 @@ struct HomeRowTimingSection: View {
                     }
                 }
                 .padding(.top, 6)
+            } label: {
+                Text("Adjust independently")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("home-row-mods-adjust-independently-disclosure")
+                    .accessibilityLabel("Adjust independently")
             }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .accessibilityIdentifier("home-row-mods-adjust-independently-disclosure")
 
             // MARK: - Opposite-Hand Activation
 
@@ -322,16 +342,29 @@ struct HomeRowTimingSection: View {
                         .foregroundStyle(.secondary)
                         .frame(width: 90, alignment: .trailing)
 
-                    Slider(value: Binding(
-                        get: { Double(config.timing.quickTapTermMs) },
-                        set: { newValue in
-                            config.timing.quickTapTermMs = Int(newValue)
-                            debouncedUpdateConfig()
-                        }
-                    ), in: 0 ... 80, step: 5)
-                        .accessibilityIdentifier("home-row-mods-quick-tap-term-slider")
-                        .accessibilityLabel("Quick tap extra time")
-                        .accessibilityValue("\(config.timing.quickTapTermMs) ms")
+                    if config.showExpertTiming {
+                        automationIntegerField(
+                            placeholder: "",
+                            value: Binding(
+                                get: { config.timing.quickTapTermMs },
+                                set: { config.timing.quickTapTermMs = $0 }
+                            ),
+                            range: 0 ... 120,
+                            accessibilityIdentifier: "home-row-mods-quick-tap-term-field",
+                            accessibilityLabel: "Quick tap extra time"
+                        )
+                    } else {
+                        Slider(value: Binding(
+                            get: { Double(config.timing.quickTapTermMs) },
+                            set: { newValue in
+                                config.timing.quickTapTermMs = Int(newValue)
+                                debouncedUpdateConfig()
+                            }
+                        ), in: 0 ... 80, step: 5)
+                            .accessibilityIdentifier("home-row-mods-quick-tap-term-slider")
+                            .accessibilityLabel("Quick tap extra time")
+                            .accessibilityValue("\(config.timing.quickTapTermMs) ms")
+                    }
 
                     Text("Fewer misfires")
                         .font(.caption2)
@@ -410,20 +443,35 @@ struct HomeRowTimingSection: View {
                 .font(.caption)
                 .frame(width: 80, alignment: .trailing)
 
-            Slider(
-                value: Binding(
-                    get: { Double(displayValue) },
-                    set: { newValue in
-                        TypingFeelMapping.applyFingerSensitivity(Int(newValue), for: finger, to: &config.timing, topRow: isTopRow)
-                        debouncedUpdateConfig()
-                    }
-                ),
-                in: 0 ... 80,
-                step: 5
-            )
-            .accessibilityIdentifier("home-row-mods-finger-\(finger.rawValue)-slider")
-            .accessibilityLabel("\(finger.displayName) finger sensitivity")
-            .accessibilityValue("\(displayValue) ms")
+            if config.showExpertTiming {
+                automationIntegerField(
+                    placeholder: "",
+                    value: Binding(
+                        get: { displayValue },
+                        set: {
+                            TypingFeelMapping.applyFingerSensitivity($0, for: finger, to: &config.timing, topRow: isTopRow)
+                        }
+                    ),
+                    range: 0 ... 120,
+                    accessibilityIdentifier: "home-row-mods-finger-\(finger.rawValue)-field",
+                    accessibilityLabel: "\(finger.displayName) finger sensitivity"
+                )
+            } else {
+                Slider(
+                    value: Binding(
+                        get: { Double(displayValue) },
+                        set: { newValue in
+                            TypingFeelMapping.applyFingerSensitivity(Int(newValue), for: finger, to: &config.timing, topRow: isTopRow)
+                            debouncedUpdateConfig()
+                        }
+                    ),
+                    in: 0 ... 80,
+                    step: 5
+                )
+                .accessibilityIdentifier("home-row-mods-finger-\(finger.rawValue)-slider")
+                .accessibilityLabel("\(finger.displayName) finger sensitivity")
+                .accessibilityValue("\(displayValue) ms")
+            }
 
             if isCustom {
                 Text("Mixed")
@@ -454,22 +502,22 @@ struct HomeRowTimingSection: View {
                             Text(key.uppercased())
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            TextField("0", value: Binding(
-                                get: { config.timing.tapOffsets[key] ?? 0 },
-                                set: { newValue in
-                                    if newValue == 0 {
-                                        config.timing.tapOffsets.removeValue(forKey: key)
-                                    } else {
-                                        config.timing.tapOffsets[key] = newValue
+                            automationIntegerField(
+                                placeholder: "0",
+                                value: Binding(
+                                    get: { config.timing.tapOffsets[key] ?? 0 },
+                                    set: { newValue in
+                                        if newValue == 0 {
+                                            config.timing.tapOffsets.removeValue(forKey: key)
+                                        } else {
+                                            config.timing.tapOffsets[key] = newValue
+                                        }
                                     }
-                                    updateConfig()
-                                }
-                            ), format: .number)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 70)
-                                .accessibilityIdentifier("home-row-mods-tap-offset-\(key)-field")
-                                .accessibilityLabel("\(key.uppercased()) tap offset")
-                                .accessibilityValue("\(config.timing.tapOffsets[key] ?? 0) ms")
+                                ),
+                                range: -100 ... 200,
+                                accessibilityIdentifier: "home-row-mods-tap-offset-\(key)-field",
+                                accessibilityLabel: "\(key.uppercased()) tap offset"
+                            )
                         }
                     }
                     Spacer()
@@ -489,22 +537,22 @@ struct HomeRowTimingSection: View {
                             Text(key.uppercased())
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            TextField("0", value: Binding(
-                                get: { config.timing.holdOffsets[key] ?? 0 },
-                                set: { newValue in
-                                    if newValue == 0 {
-                                        config.timing.holdOffsets.removeValue(forKey: key)
-                                    } else {
-                                        config.timing.holdOffsets[key] = newValue
+                            automationIntegerField(
+                                placeholder: "0",
+                                value: Binding(
+                                    get: { config.timing.holdOffsets[key] ?? 0 },
+                                    set: { newValue in
+                                        if newValue == 0 {
+                                            config.timing.holdOffsets.removeValue(forKey: key)
+                                        } else {
+                                            config.timing.holdOffsets[key] = newValue
+                                        }
                                     }
-                                    updateConfig()
-                                }
-                            ), format: .number)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 70)
-                                .accessibilityIdentifier("home-row-mods-hold-offset-\(key)-field")
-                                .accessibilityLabel("\(key.uppercased()) hold offset")
-                                .accessibilityValue("\(config.timing.holdOffsets[key] ?? 0) ms")
+                                ),
+                                range: -100 ... 200,
+                                accessibilityIdentifier: "home-row-mods-hold-offset-\(key)-field",
+                                accessibilityLabel: "\(key.uppercased()) hold offset"
+                            )
                         }
                     }
                     Spacer()
@@ -773,6 +821,34 @@ struct HomeRowTimingSection: View {
             return hrmStatsUnavailableMessage
         }
         return "Refreshes home row mods statistics from Kanata."
+    }
+
+    @ViewBuilder
+    private func automationIntegerField(
+        placeholder: String,
+        value: Binding<Int>,
+        range: ClosedRange<Int>? = nil,
+        accessibilityIdentifier: String,
+        accessibilityLabel: String
+    ) -> some View {
+        #if os(macOS)
+            AccessibleIntegerField(
+                placeholder: placeholder,
+                value: value,
+                range: range,
+                accessibilityIdentifier: accessibilityIdentifier,
+                accessibilityLabel: accessibilityLabel,
+                onValueChanged: { _ in updateConfig() }
+            )
+            .frame(width: 70, height: 22)
+        #else
+            TextField(placeholder, value: value, format: .number)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 70)
+                .accessibilityIdentifier(accessibilityIdentifier)
+                .accessibilityLabel(accessibilityLabel)
+                .accessibilityValue("\(value.wrappedValue) ms")
+        #endif
     }
 
     private func updateConfig() {
