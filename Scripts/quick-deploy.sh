@@ -38,13 +38,15 @@ MODULE_CACHE_FLAGS=(-Xcc "-fmodules-cache-path=$MODULE_CACHE")
 
 # Build instrumentation
 BUILD_STATS_FILE="$PROJECT_DIR/.build/build-stats.log"
+BUILD_LOG_DIR="$PROJECT_DIR/.build/logs/quick-deploy"
+BUILD_LOG_RETENTION_DAYS="${KEYPATH_QUICK_DEPLOY_LOG_RETENTION_DAYS:-7}"
 LOCK_FILE="$PROJECT_DIR/.build/quick-deploy.lock"
 BUILD_ID="$(date +%s%N | cut -c1-13)"  # Millisecond timestamp as build ID
 
 cd "$PROJECT_DIR"
 
 # Ensure .build directory exists for stats
-mkdir -p "$PROJECT_DIR/.build" "$MODULE_CACHE"
+mkdir -p "$PROJECT_DIR/.build" "$MODULE_CACHE" "$BUILD_LOG_DIR"
 
 # --- Instrumentation Functions ---
 
@@ -58,6 +60,64 @@ log_build_event() {
 get_time_ms() {
     perl -MTime::HiRes -e 'printf "%d\n", Time::HiRes::time()*1000' 2>/dev/null || echo "$(($(date +%s) * 1000))"
 }
+
+prune_old_build_logs() {
+    local retention_days="$BUILD_LOG_RETENTION_DAYS"
+    if [[ ! "$retention_days" =~ ^[0-9]+$ ]]; then
+        retention_days=7
+    fi
+    find "$BUILD_LOG_DIR" -type f -name "build-*.log" -mtime +"$retention_days" -delete 2>/dev/null || true
+}
+
+write_build_log_header() {
+    local log_file="$1"
+    {
+        echo "quick-deploy build diagnostics"
+        echo "timestamp: $(date '+%Y-%m-%d %H:%M:%S')"
+        echo "build_id: $BUILD_ID"
+        echo "project_dir: $PROJECT_DIR"
+        echo "branch: $(git branch --show-current 2>/dev/null || echo unknown)"
+        echo "commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+        echo "CLANG_MODULECACHE_PATH: ${CLANG_MODULECACHE_PATH:-}"
+        echo "SWIFT_MODULECACHE_PATH: ${SWIFT_MODULECACHE_PATH:-}"
+        echo "module_cache_flags: ${MODULE_CACHE_FLAGS[*]}"
+        echo "--- swift build output ---"
+    } > "$log_file"
+}
+
+print_build_failure_diagnostics() {
+    local log_file="$1"
+    echo "❌ Build failed"
+    echo "🧾 Full build log preserved at: $log_file"
+    echo "   build_id=$BUILD_ID"
+    echo "   CLANG_MODULECACHE_PATH=${CLANG_MODULECACHE_PATH:-}"
+    echo "   SWIFT_MODULECACHE_PATH=${SWIFT_MODULECACHE_PATH:-}"
+    echo "   module_cache_flags=${MODULE_CACHE_FLAGS[*]}"
+
+    local first_match
+    first_match=$(
+        awk '
+            /^--- swift build output ---$/ { in_output = 1; next }
+            in_output && /error:|fatal error:|Stack dump|Please submit a bug report|swift-frontend/ { print NR; exit }
+        ' "$log_file" || true
+    )
+    if [[ -n "$first_match" ]]; then
+        local start=$((first_match - 12))
+        local end=$((first_match + 40))
+        if (( start < 1 )); then
+            start=1
+        fi
+        echo "---- first relevant diagnostic (${start}-${end}) ----"
+        sed -n "${start},${end}p" "$log_file" || true
+    else
+        echo "---- no compiler diagnostic marker found ----"
+    fi
+
+    echo "---- final 120 build log lines ----"
+    tail -120 "$log_file" || true
+}
+
+prune_old_build_logs
 
 # --- Lock Management ---
 
@@ -192,18 +252,32 @@ fi
 
 # Build debug (fast - incremental)
 echo "🔨 Building..."
-BUILD_LOG=$(mktemp -t keypath-build.XXXXXX)
+BUILD_LOG="$BUILD_LOG_DIR/build-${BUILD_ID}.log"
+write_build_log_header "$BUILD_LOG"
 if ! swift build "${MODULE_CACHE_FLAGS[@]}" >> "$BUILD_LOG" 2>&1; then
     BUILD_END_MS=$(get_time_ms)
     DURATION=$((BUILD_END_MS - BUILD_START_MS))
-    echo "❌ Build failed"
-    tail -3 "$BUILD_LOG" || true
-    rm -f "$BUILD_LOG"
+    print_build_failure_diagnostics "$BUILD_LOG"
     log_build_event "BUILD_FAILED" "$DURATION"
     exit 1
 fi
 
-BIN_DIR=$(swift build --show-bin-path "${MODULE_CACHE_FLAGS[@]}" 2>> "$BUILD_LOG" | tail -1)
+if ! BIN_DIR_OUTPUT=$(swift build --show-bin-path "${MODULE_CACHE_FLAGS[@]}" 2>> "$BUILD_LOG"); then
+    BUILD_END_MS=$(get_time_ms)
+    DURATION=$((BUILD_END_MS - BUILD_START_MS))
+    print_build_failure_diagnostics "$BUILD_LOG"
+    log_build_event "SHOW_BIN_PATH_FAILED" "$DURATION"
+    exit 1
+fi
+BIN_DIR=$(printf '%s\n' "$BIN_DIR_OUTPUT" | tail -1)
+if [[ -z "$BIN_DIR" ]]; then
+    BUILD_END_MS=$(get_time_ms)
+    DURATION=$((BUILD_END_MS - BUILD_START_MS))
+    echo "swift build --show-bin-path produced no output" >> "$BUILD_LOG"
+    print_build_failure_diagnostics "$BUILD_LOG"
+    log_build_event "SHOW_BIN_PATH_EMPTY" "$DURATION"
+    exit 1
+fi
 tail -3 "$BUILD_LOG" || true
 rm -f "$BUILD_LOG"
 

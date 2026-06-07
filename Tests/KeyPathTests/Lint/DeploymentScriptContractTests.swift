@@ -37,6 +37,40 @@ final class DeploymentScriptContractTests: XCTestCase {
             "build-and-sign must release the shared deploy lock on exit."
         )
     }
+
+    func testQuickDeployPreservesBuildFailureDiagnostics() throws {
+        let root = repositoryRoot()
+        let quickDeploy = try contents(of: root.appendingPathComponent("Scripts/quick-deploy.sh"))
+
+        XCTAssertTrue(
+            quickDeploy.contains(#"BUILD_LOG_DIR="$PROJECT_DIR/.build/logs/quick-deploy""#),
+            "quick-deploy must write failed build logs to a stable path under .build."
+        )
+        XCTAssertTrue(
+            quickDeploy.contains("print_build_failure_diagnostics"),
+            "quick-deploy must print useful diagnostics when swift build fails."
+        )
+        XCTAssertTrue(
+            quickDeploy.contains("Full build log preserved at:"),
+            "quick-deploy failure output must tell developers where the full log is."
+        )
+        XCTAssertTrue(
+            quickDeploy.contains("KEYPATH_QUICK_DEPLOY_LOG_RETENTION_DAYS"),
+            "quick-deploy must expose a retention setting for preserved failure logs."
+        )
+        XCTAssertTrue(
+            quickDeploy.contains("prune_old_build_logs"),
+            "quick-deploy must prune old preserved build logs."
+        )
+        XCTAssertTrue(
+            quickDeploy.contains("BIN_DIR_OUTPUT=$(swift build --show-bin-path"),
+            "quick-deploy must capture show-bin-path output without masking swift build failures behind tail."
+        )
+        XCTAssertFalse(
+            quickDeploy.contains("    tail -3 \"$BUILD_LOG\" || true\n    rm -f \"$BUILD_LOG\""),
+            "quick-deploy must not reduce failed build output to only the last three lines."
+        )
+    }
 }
 
 // MARK: - Helpers
