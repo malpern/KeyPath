@@ -66,14 +66,12 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
         XCTAssertNotNil(coordinator, "Coordinator should be accessible")
     }
 
-    func testOperationModeIsDirectSudoInDebug() {
-        #if DEBUG
-            XCTAssertEqual(
-                PrivilegedOperationsRouter.operationMode,
-                .directSudo,
-                "Debug builds should use directSudo mode"
-            )
-        #endif
+    func testOperationModeIsDirectSudoInTests() {
+        XCTAssertEqual(
+            PrivilegedOperationsRouter.operationMode,
+            .directSudo,
+            "Tests should use directSudo mode so they do not touch the installed helper"
+        )
     }
 
     func testRestartKarabinerDaemonUsesSingleBatch() async throws {

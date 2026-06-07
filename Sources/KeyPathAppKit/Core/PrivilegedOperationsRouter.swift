@@ -7,7 +7,7 @@ import KeyPathWizardCore
 @MainActor
 protocol PrivilegedOperationsCoordinating: WizardPrivilegedOperating {}
 
-/// Routes privileged operations to either the XPC helper (release) or direct sudo (debug).
+/// Routes privileged operations through the XPC helper, with direct sudo fallback for tests.
 /// Slim replacement for PrivilegedOperationsCoordinator — pure routing, no domain logic.
 @MainActor
 public final class PrivilegedOperationsRouter {
@@ -60,11 +60,10 @@ public final class PrivilegedOperationsRouter {
     }
 
     static var operationMode: OperationMode {
-        #if DEBUG
+        if TestEnvironment.isTestMode {
             return .directSudo
-        #else
-            return .privilegedHelper
-        #endif
+        }
+        return .privilegedHelper
     }
 
     init(
