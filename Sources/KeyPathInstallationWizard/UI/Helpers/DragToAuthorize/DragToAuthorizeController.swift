@@ -224,8 +224,9 @@ public final class DragToAuthorizeController {
                 panel.animator().setFrameOrigin(finalFrame.origin)
                 panel.animator().alphaValue = 1.0
             } completionHandler: { [weak self] in
-                self?.state = .visible
-                self?.stateModel?.transitionTo(.visible)
+                Task { @MainActor [weak self] in
+                    self?.transitionToVisible()
+                }
             }
         } else {
             // Simple fade + slide up
@@ -238,10 +239,16 @@ public final class DragToAuthorizeController {
                 panel.animator().setFrameOrigin(finalOrigin)
                 panel.animator().alphaValue = 1.0
             } completionHandler: { [weak self] in
-                self?.state = .visible
-                self?.stateModel?.transitionTo(.visible)
+                Task { @MainActor [weak self] in
+                    self?.transitionToVisible()
+                }
             }
         }
+    }
+
+    private func transitionToVisible() {
+        state = .visible
+        stateModel?.transitionTo(.visible)
     }
 
     private func transitionToSuccess() {

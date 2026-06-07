@@ -21,21 +21,23 @@ enum DistributedNotificationBridge {
             queue: .main
         ) { notification in
             guard let layerName = notification.userInfo?["layerName"] as? String else { return }
-            guard layerName != previousLayer else { return }
+            MainActor.assumeIsolated {
+                guard layerName != previousLayer else { return }
 
-            let previous = previousLayer
-            previousLayer = layerName
-            currentLayer = layerName
+                let previous = previousLayer
+                previousLayer = layerName
+                currentLayer = layerName
 
-            DistributedNotificationCenter.default().postNotificationName(
-                layerChangedName,
-                object: "com.keypath.app",
-                userInfo: [
-                    "layer": layerName,
-                    "previous": previous,
-                ],
-                deliverImmediately: true
-            )
+                DistributedNotificationCenter.default().postNotificationName(
+                    layerChangedName,
+                    object: "com.keypath.app",
+                    userInfo: [
+                        "layer": layerName,
+                        "previous": previous,
+                    ],
+                    deliverImmediately: true
+                )
+            }
         }
     }
 

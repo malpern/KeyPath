@@ -71,7 +71,6 @@ enum PackDependencyChecker {
         enabledCollections: [RuleCollection],
         installedPackIDs: Set<String>
     ) -> [Pack] {
-        let targetCollectionID = PackRegistry.pack(id: packID)?.associatedCollectionID
         let enabledIDs = Set(enabledCollections.filter(\.isEnabled).map(\.id))
 
         return PackRegistry.starterKit.filter { pack in

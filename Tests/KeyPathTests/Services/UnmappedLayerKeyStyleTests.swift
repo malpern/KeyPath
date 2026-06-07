@@ -6,6 +6,7 @@ import XCTest
 /// Tests for the "unmapped keys on layers" overlay setting: a transparent
 /// (unmapped) key leaves layer mode — rendering base-style — when the user
 /// prefers `.baseLayer`, while mapped keys keep full layer styling.
+@MainActor
 final class UnmappedLayerKeyStyleTests: KeyPathTestCase {
     private var savedStyle: UnmappedLayerKeyStyle!
 

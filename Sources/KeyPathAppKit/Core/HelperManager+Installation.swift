@@ -168,7 +168,7 @@ extension HelperManager {
     }
 
     private func recoverStaleEnabledHelper(_ svc: SMAppServiceProtocol) async throws {
-        await clearConnection()
+        clearConnection()
 
         do {
             try await svc.unregister()

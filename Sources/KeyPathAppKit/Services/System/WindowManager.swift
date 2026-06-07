@@ -99,7 +99,9 @@ public final class WindowManager {
             guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
                   app.bundleIdentifier != ownBundleId
             else { return }
-            self?.lastNonKeyPathApp = app
+            MainActor.assumeIsolated {
+                self?.lastNonKeyPathApp = app
+            }
         }
     }
 

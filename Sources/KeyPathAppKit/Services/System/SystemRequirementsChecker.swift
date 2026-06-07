@@ -83,7 +83,7 @@ final class SystemRequirementsChecker {
         let snapshot = await PermissionOracle.shared.currentSnapshot()
 
         let keyPathPath = Bundle.main.bundlePath
-        let kanataPath = WizardSystemPaths.kanataSystemInstallPath
+        let kanataPath = WizardSystemPaths.bundledKanataPath
 
         let keyPathHasInputMonitoring = snapshot.keyPath.inputMonitoring.isReady
         let keyPathHasAccessibility = snapshot.keyPath.accessibility.isReady
@@ -158,7 +158,7 @@ final class SystemRequirementsChecker {
 
     /// Reveal the canonical kanata binary in Finder to assist drag-and-drop into permissions
     func revealKanataInFinder(onRevealed: (() -> Void)? = nil) {
-        let kanataPath = WizardSystemPaths.kanataSystemInstallPath
+        let kanataPath = WizardSystemPaths.bundledKanataPath
         let folderPath = (kanataPath as NSString).deletingLastPathComponent
 
         let script = """
