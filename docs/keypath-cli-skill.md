@@ -173,4 +173,7 @@ When an error includes a `hint` field, it contains a runnable command to fix the
 - Use `--on-conflict replace` for idempotent updates
 - Never use `keypath service logs --follow` — it blocks indefinitely
 - Pack-managed collections cannot be toggled independently — uninstall the pack first
-- The `simulate` command requires Kanata binary — skip if not installed
+- The `simulate` command requires the bundled `kanata-simulator` binary — skip if not installed
+- Use `keypath simulate a b --json` for simple tap sequences
+- Use `keypath simulate --raw 'd:f t:100 d:j t:50 u:j t:50 u:f' --json` for overlapping press/release timelines such as Home Row Mods opposite-hand QA
+- Use `keypath simulate --sim-file ./scenario.sim --json` for reusable raw simulator scripts

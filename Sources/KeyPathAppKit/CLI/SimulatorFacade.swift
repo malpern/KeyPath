@@ -19,6 +19,21 @@ public struct SimulatorFacade: Sendable {
         return try await provider.simulate(taps: keys, configPath: config)
     }
 
+    public func simulateRaw(
+        simContent: String,
+        configPath: String?,
+        simulatorProvider: CLISimulatorProvider? = nil
+    ) async throws -> CLISimulationResult {
+        let config: String = if let configPath {
+            configPath
+        } else {
+            await MainActor.run { ConfigurationService().configurationPath }
+        }
+
+        let provider = simulatorProvider ?? RealSimulatorProvider()
+        return try await provider.simulateRaw(simContent: simContent, configPath: config)
+    }
+
     public func validateKey(_ key: String) -> String? {
         guard CustomRuleValidator.isValidKey(key) else { return nil }
         return CustomRuleValidator.normalizeKey(key)
@@ -61,6 +76,7 @@ public struct CLISimEvent: Codable, Sendable {
 
 public protocol CLISimulatorProvider: Sendable {
     func simulate(taps: [CLISimulatorKeyTap], configPath: String) async throws -> CLISimulationResult
+    func simulateRaw(simContent: String, configPath: String) async throws -> CLISimulationResult
 }
 
 struct RealSimulatorProvider: CLISimulatorProvider {
@@ -70,6 +86,16 @@ struct RealSimulatorProvider: CLISimulatorProvider {
             SimulatorKeyTap(kanataKey: $0.key, displayLabel: $0.key, delayAfterMs: $0.delayMs, isHold: $0.isHold)
         }
         let result = try await service.simulate(taps: internalTaps, configPath: configPath)
+        return cliSimulationResult(from: result)
+    }
+
+    func simulateRaw(simContent: String, configPath: String) async throws -> CLISimulationResult {
+        let service = SimulatorService()
+        let result = try await service.simulateRaw(simContent: simContent, configPath: configPath)
+        return cliSimulationResult(from: result)
+    }
+
+    private func cliSimulationResult(from result: SimulationResult) -> CLISimulationResult {
         let events = result.events.map { event -> CLISimEvent in
             switch event {
             case let .input(t, action, key):
