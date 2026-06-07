@@ -36,7 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin "${{ github.base_ref }}" --depth=1
-          changed_files="$(git diff --name-only --diff-filter=d "origin/${{ github.base_ref }}"...HEAD)"
+          changed_files="$(git diff --name-only --diff-filter=d "origin/${{ github.base_ref }}" HEAD)"
 
           if printf '%s\n' "$changed_files" | grep -qx '.github/workflows/claude-code-review.yml'; then
             echo "workflow_changed=true" >> "$GITHUB_OUTPUT"
