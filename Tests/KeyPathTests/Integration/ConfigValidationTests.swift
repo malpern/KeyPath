@@ -10,7 +10,7 @@ import XCTest
 /// missing deflayer entries, etc.
 ///
 /// Requires: a current KeyPath kanata binary, preferably via
-/// KEYPATH_KANATA_PATH or the repo-built External/kanata release binary.
+/// KEYPATH_KANATA_PATH, the repo-built fork, or the app-bundled fork.
 final class ConfigValidationTests: XCTestCase {
     private func findKanataBinary() -> String? {
         let candidates: [String] = [
@@ -22,8 +22,8 @@ final class ConfigValidationTests: XCTestCase {
                 .deletingLastPathComponent() // repo root
                 .appendingPathComponent("External/kanata/target/aarch64-apple-darwin/release/kanata")
                 .path,
-            "/opt/homebrew/bin/kanata",
-            "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata"
+            "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
+            "/opt/homebrew/bin/kanata"
         ].compactMap { $0 }
 
         return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }

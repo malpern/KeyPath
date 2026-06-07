@@ -233,6 +233,45 @@ public final class ConfigurationService: FileConfigurationProviding {
         ruleCollections: [RuleCollection],
         customRules: [CustomRule] = []
     ) async throws {
+        let newConfig = try await generateConfiguration(
+            ruleCollections: ruleCollections,
+            customRules: customRules
+        )
+
+        // VALIDATE BEFORE SAVING - prevent writing broken configs
+        AppLogger.shared.log("🔍 [ConfigService] Validating config before save...")
+        let validation = await validateConfiguration(newConfig.content)
+
+        if !validation.isValid {
+            AppLogger.shared.log(
+                "❌ [ConfigService] Config validation failed: \(validation.errors.joined(separator: ", "))"
+            )
+            throw KeyPathError.configuration(.validationFailed(errors: validation.errors))
+        }
+
+        AppLogger.shared.log("✅ [ConfigService] Config validation passed")
+
+        try await writeFileAsync(string: newConfig.content, to: configurationPath)
+
+        setCurrentConfiguration(newConfig)
+
+        // Notify observers on main actor
+        let snapshot = observersSnapshot()
+        let tasks = snapshot.map { observer in
+            Task { @MainActor in await observer(newConfig) }
+        }
+        for t in tasks {
+            await t.value
+        }
+
+        AppLogger.shared.log("✅ [ConfigService] Configuration saved with \(newConfig.keyMappings.count) mappings")
+    }
+
+    /// Generate a Kanata configuration from rule stores without writing it.
+    public func generateConfiguration(
+        ruleCollections: [RuleCollection],
+        customRules: [CustomRule] = []
+    ) async throws -> KanataConfiguration {
         // Custom rules come first so they take priority over preset collections
         let customRuleCollections = customRules.asRuleCollections()
         AppLogger.shared.log("🔧 [ConfigService] Converting \(customRules.count) custom rules to \(customRuleCollections.count) collections")
@@ -289,23 +328,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             sequences: preservedSequences
         )
 
-        // VALIDATE BEFORE SAVING - prevent writing broken configs
-        AppLogger.shared.log("🔍 [ConfigService] Validating config before save...")
-        let validation = await validateConfiguration(configContent)
-
-        if !validation.isValid {
-            AppLogger.shared.log(
-                "❌ [ConfigService] Config validation failed: \(validation.errors.joined(separator: ", "))"
-            )
-            throw KeyPathError.configuration(.validationFailed(errors: validation.errors))
-        }
-
-        AppLogger.shared.log("✅ [ConfigService] Config validation passed")
-
-        try await writeFileAsync(string: configContent, to: configurationPath)
-
-        // Update current configuration
-        let newConfig = KanataConfiguration(
+        return KanataConfiguration(
             content: configContent,
             keyMappings: mappings,
             lastModified: Date(),
@@ -313,18 +336,6 @@ public final class ConfigurationService: FileConfigurationProviding {
             chordGroups: preservedChordGroups,
             sequences: preservedSequences
         )
-        setCurrentConfiguration(newConfig)
-
-        // Notify observers on main actor
-        let snapshot = observersSnapshot()
-        let tasks = snapshot.map { observer in
-            Task { @MainActor in await observer(newConfig) }
-        }
-        for t in tasks {
-            await t.value
-        }
-
-        AppLogger.shared.log("✅ [ConfigService] Configuration saved with \(mappings.count) mappings")
     }
 
     /// Strip managed-repeat directives that the runtime supports but `kanata --check` doesn't.
