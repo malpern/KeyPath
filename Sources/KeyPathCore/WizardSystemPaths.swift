@@ -430,8 +430,8 @@ public enum WizardSystemPaths {
 
         // Known KeyPath-managed binary paths
         let keyPathManagedPaths = [
-            kanataSystemInstallPath,
-            bundledKanataPath
+            bundledKanataPath,
+            legacySystemBinaryPath
         ]
 
         var externalProcess: RunningKanataInfo?

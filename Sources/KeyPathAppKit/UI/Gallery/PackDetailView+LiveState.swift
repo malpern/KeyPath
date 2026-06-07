@@ -9,7 +9,7 @@ extension PackDetailView {
 
         // Resilience: if collection is enabled but tracker has no record, backfill
         if !installed, let collectionID = pack.associatedCollectionID {
-            let collections = await kanataManager.underlyingManager
+            let collections = kanataManager.underlyingManager
                 .ruleCollectionsManager.ruleCollections
             if let match = collections.first(where: { $0.id == collectionID }), match.isEnabled {
                 let record = InstalledPackRecord(
@@ -115,7 +115,7 @@ extension PackDetailView {
 
     func liveSingleKeySelection() async -> String? {
         guard let collectionID = pack.associatedCollectionID else { return nil }
-        let collections = await kanataManager.underlyingManager
+        let collections = kanataManager.underlyingManager
             .ruleCollectionsManager.ruleCollections
         if let match = collections.first(where: { $0.id == collectionID }),
            let cfg = match.configuration.singleKeyPickerConfig
@@ -129,7 +129,7 @@ extension PackDetailView {
         // Collection-backed pack: read live selection from the associated
         // collection's TapHoldPickerConfig (this is what Rules persists to).
         if let collectionID = pack.associatedCollectionID {
-            let collections = await kanataManager.underlyingManager
+            let collections = kanataManager.underlyingManager
                 .ruleCollectionsManager.ruleCollections
             if let match = collections.first(where: { $0.id == collectionID }),
                let cfg = match.configuration.tapHoldPickerConfig
@@ -160,7 +160,7 @@ extension PackDetailView {
         guard isHomeRowModsPack, let collectionID = pack.associatedCollectionID else {
             return nil
         }
-        let collections = await kanataManager.underlyingManager
+        let collections = kanataManager.underlyingManager
             .ruleCollectionsManager.ruleCollections
         if let match = collections.first(where: { $0.id == collectionID }),
            case let .homeRowMods(config) = match.configuration

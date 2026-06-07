@@ -61,7 +61,7 @@ struct ImportCollection: AsyncParsableCommand {
             CLIOutput.write(result, context: ctx) {
                 "Imported collection: \(result.name) (\(result.mappingCount) mappings)"
             }
-        } catch let error as AmbiguousCollectionMatch {
+        } catch is AmbiguousCollectionMatch {
             let cliError = CLIError.conflict(
                 "Collection '\(exported.name)' already exists",
                 hint: "Use --on-conflict=replace to overwrite, or --on-conflict=skip to no-op"

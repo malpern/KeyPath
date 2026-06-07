@@ -57,7 +57,7 @@ final class TCPClientRobustnessTests: XCTestCase {
 
     func testExtractFirstLine_BinaryFollowedByNewline() {
         let client = KanataTCPClient(port: port)
-        var data = Data([0xFF, 0xFE, 0x00, 0x0A])
+        let data = Data([0xFF, 0xFE, 0x00, 0x0A])
         let result = client.extractFirstLine(from: data)
         XCTAssertNotNil(result, "Should find newline byte even in non-UTF8 data")
     }

@@ -57,6 +57,7 @@ final class HIDDeviceMonitor {
     private let runLoopLock = NSLock()
     /// The IOKit thread's CFRunLoop. Written by the IOKit thread in setupHIDManager,
     /// read by MainActor in stopMonitoring. All access is under `runLoopLock`.
+    @ObservationIgnored
     private nonisolated(unsafe) var _monitorRunLoop: CFRunLoop?
 
     private var trackedDeviceIDs: [UInt: HIDKeyboardEvent] = [:]

@@ -88,21 +88,12 @@ extension ContextHUDController {
                     collections: scopedEnabledCollections
                 )
 
-                let shouldUseKindaVimLearningStyle = false
-
                 let hasNeovimEntries = effectiveKeyMap.values.contains { $0.collectionId == RuleCollectionIdentifier.neovimTerminal }
                 let shouldUseNeovimStyle = normalizedLayerName == "nav" &&
                     hasNeovimEntries &&
                     isApprovedNeovimTerminal
 
-                if shouldUseKindaVimLearningStyle, !hasStartedKindaVimStateMonitoring {
-                    kindaVimStateAdapter.startMonitoring()
-                    hasStartedKindaVimStateMonitoring = true
-                }
-
-                let style: HUDContentStyle = if shouldUseKindaVimLearningStyle {
-                    .kindaVimLearning
-                } else if shouldUseNeovimStyle {
+                let style: HUDContentStyle = if shouldUseNeovimStyle {
                     .neovimTerminal
                 } else {
                     resolvedStyle
