@@ -470,6 +470,14 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
         let runtimeServicesRecipe = engine.recipeForAction(.installRequiredRuntimeServices, context: context)
         XCTAssertEqual(runtimeServicesRecipe?.id, InstallerRecipeID.installRequiredRuntimeServices)
 
+        let installHelperRecipe = engine.recipeForAction(.installPrivilegedHelper, context: context)
+        XCTAssertEqual(installHelperRecipe?.id, InstallerRecipeID.installPrivilegedHelper)
+        XCTAssertEqual(installHelperRecipe?.type, .repairPrivilegedHelper)
+
+        let reinstallHelperRecipe = engine.recipeForAction(.reinstallPrivilegedHelper, context: context)
+        XCTAssertEqual(reinstallHelperRecipe?.id, InstallerRecipeID.reinstallPrivilegedHelper)
+        XCTAssertEqual(reinstallHelperRecipe?.type, .repairPrivilegedHelper)
+
         let karabinerStartRecipe = engine.recipeForAction(.startKarabinerDaemon, context: context)
         XCTAssertEqual(karabinerStartRecipe?.id, InstallerRecipeID.startKarabinerDaemon)
         XCTAssertEqual(karabinerStartRecipe?.serviceID, KeyPathConstants.Bundle.vhidDaemonID)

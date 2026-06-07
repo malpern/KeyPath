@@ -8,15 +8,21 @@ permalink: /guides/cli/
 
 # Command Line
 
-KeyPath includes a CLI tool (`keypath`) for managing your keyboard from Terminal. Everything you can do in the app — remapping keys, managing layers, controlling the service — you can also do from the command line.
+KeyPath includes a CLI tool (`keypath-cli`) for managing your keyboard from Terminal. Opening KeyPath.app remains the primary way to launch KeyPath; the CLI is a separate terminal entry point.
 
-Install it with Homebrew:
+For DMG installs, open KeyPath and choose **File > Install Command Line Tool**. That installs:
 
 ```bash
-brew install keypath
+keypath-cli
 ```
 
-Or use the CLI bundled with the app at `/Applications/KeyPath.app/Contents/MacOS/keypath-cli`.
+The installed command points at the signed CLI inside `/Applications/KeyPath.app`, which is required for system install and repair commands that use bundled helper assets.
+
+You can also run the bundled CLI directly:
+
+```bash
+/Applications/KeyPath.app/Contents/MacOS/keypath-cli system inspect
+```
 
 All commands support `--json` for machine-readable output, making them easy to use in scripts, Shortcuts, and automation tools.
 
@@ -108,11 +114,18 @@ keypath export collection "My Rules"        # Export one collection
 ### System
 
 ```bash
-keypath system inspect            # Inspect system state
-keypath system install            # Install services
-keypath system repair             # Fix broken services
-keypath system uninstall          # Remove everything
+keypath system inspect                    # Inspect system state and repair plan
+keypath system install --dry-run          # Preview installation work and blockers
+keypath system repair --dry-run           # Preview repair work and manual permission actions
+keypath system repair --open-permissions  # Open System Settings for permission blockers
+keypath system repair                     # Fix auto-repairable services and components
+keypath system uninstall                  # Remove everything
 ```
+
+`system repair` can repair service/helper/component problems that KeyPath can
+control. macOS permissions such as Accessibility and Input Monitoring still
+require user approval; the CLI reports those as manual issues and can open the
+appropriate System Settings pane with `--open-permissions`.
 
 ### Simulation
 

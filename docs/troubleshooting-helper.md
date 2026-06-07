@@ -13,6 +13,8 @@ What Changed
 Quick Validation Checklist
 - Helper binary exists in the app: `/Applications/KeyPath.app/Contents/Library/HelperTools/KeyPathHelper`
 - Helper plist exists in the app: `/Applications/KeyPath.app/Contents/Library/LaunchDaemons/com.keypath.helper.plist`
+- Bundled CLI is signed as `com.keypath.KeyPath.CLI`:
+  `codesign -dv /Applications/KeyPath.app/Contents/MacOS/keypath-cli 2>&1 | grep '^Identifier=com.keypath.KeyPath.CLI$'`
 - `Info.plist` contains `SMPrivilegedExecutables` for `com.keypath.helper` with the correct requirement.
 - Helper binary is signed and satisfies the requirement (see Diagnostic Script below).
 - App bundle is signed, notarized, and stapled.
@@ -43,6 +45,13 @@ Hypotheses To Investigate
 Development Caveat
 - `Scripts/quick-deploy.sh` should not hot-swap the embedded helper by default.
 - Replacing `/Applications/KeyPath.app/Contents/Library/HelperTools/KeyPathHelper` during fast iteration can leave the registered helper in a `spawn failed` state even when `codesign --verify --deep --strict /Applications/KeyPath.app` still passes.
+- `keypath-cli system inspect` uses helper XPC to check helper health. The helper
+  trusts `com.keypath.KeyPath` and the app-bundled CLI identifier
+  `com.keypath.KeyPath.CLI`, both signed by team `X2RKZ5TG99`.
+- If the CLI reports `Privileged Helper unhealthy` after a helper-signing or
+  helper-trust change, repair must refresh the SMAppService helper registration
+  through `HelperMaintenance.runCleanupAndRepair(...)`; reinstalling only
+  LaunchDaemon services will not replace a stale registered helper process.
 - Symptom:
   - `launchctl print system/com.keypath.helper` shows `job state = spawn failed`
   - `last exit code = 78: EX_CONFIG`

@@ -58,6 +58,36 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         )
     }
 
+    func testExecutePlanRunsHelperMaintenanceForPrivilegedHelperRepair() async {
+        let coordinator = StubPrivilegedOperationsCoordinator()
+        let broker = PrivilegeBroker(coordinator: coordinator)
+        let engine = InstallerEngine()
+        let helperMaintenance = StubHelperMaintenance()
+        WizardDependencies.helperMaintenance = helperMaintenance
+        defer { WizardDependencies.helperMaintenance = nil }
+
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(
+                    id: InstallerRecipeID.reinstallPrivilegedHelper,
+                    type: .repairPrivilegedHelper,
+                    serviceID: "com.keypath.helper"
+                )
+            ],
+            status: .ready,
+            intent: .repair
+        )
+
+        let report = await engine.execute(plan: plan, using: broker)
+
+        XCTAssertTrue(report.success, "Helper maintenance success should mark the recipe successful")
+        XCTAssertEqual(helperMaintenance.repairCallCount, 1)
+        XCTAssertFalse(
+            coordinator.calls.contains("installRequiredRuntimeServices"),
+            "Privileged helper repair must not be routed to Kanata LaunchDaemon installation"
+        )
+    }
+
     func testExecutePlanTreatsPendingApprovalAsHealthyForKanataHealthCheck() async throws {
         #if DEBUG
             final class PendingApprovalSMAppService: SMAppServiceProtocol, @unchecked Sendable {
@@ -99,5 +129,22 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         #else
             throw XCTSkip("Uses DEBUG-only KanataDaemonManager.smServiceFactory override")
         #endif
+    }
+}
+
+@MainActor
+private final class StubHelperMaintenance: WizardHelperMaintaining {
+    private(set) var repairCallCount = 0
+    var logLines: [String] = []
+    var lastErrorLine: String?
+
+    func detectDuplicateAppCopies() -> [String] {
+        ["/Applications/KeyPath.app"]
+    }
+
+    func runCleanupAndRepair(useAppleScriptFallback _: Bool) async -> Bool {
+        repairCallCount += 1
+        logLines.append("helper repair invoked")
+        return true
     }
 }

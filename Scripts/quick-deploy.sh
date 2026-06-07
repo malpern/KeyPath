@@ -13,6 +13,7 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 PROJECT_DIR="$SCRIPT_DIR/.."
+source "$SCRIPT_DIR/lib/deploy-lock.sh"
 APP_NAME="KeyPath"
 APP_BUNDLE="/Applications/${APP_NAME}.app"
 MACOS_DIR="$APP_BUNDLE/Contents/MacOS"
@@ -101,6 +102,7 @@ cleanup() {
     local exit_code=$?
     # Always restore the agent, even on failure, so KeyPath is never left disabled.
     reload_agent
+    keypath_release_deploy_lock
     release_lock
 
     if [[ $exit_code -ne 0 ]] && [[ $exit_code -ne 130 ]]; then
@@ -117,6 +119,11 @@ trap cleanup EXIT
 # Try to acquire lock
 if ! acquire_lock; then
     exit 0  # Exit cleanly - not an error, just skipped
+fi
+
+if ! keypath_acquire_deploy_lock "quick-deploy ($PROJECT_DIR)" "${KEYPATH_QUICK_DEPLOY_LOCK_TIMEOUT_SECONDS:-0}"; then
+    log_build_event "SKIPPED_DEPLOY_LOCK"
+    exit 0
 fi
 
 BUILD_START_MS=$(get_time_ms)
@@ -202,16 +209,23 @@ rm -f "$BUILD_LOG"
 
 # Get the built binary
 DEBUG_BIN="$BIN_DIR/KeyPath"
+CLI_BIN="$BIN_DIR/keypath-cli"
 
 if [[ ! -f "$DEBUG_BIN" ]]; then
     echo "❌ Build failed - binary not found"
     log_build_event "FAILED_NO_BINARY"
     exit 1
 fi
+if [[ ! -f "$CLI_BIN" ]]; then
+    echo "❌ Build failed - CLI binary not found"
+    log_build_event "FAILED_NO_CLI_BINARY"
+    exit 1
+fi
 
 # Copy binary to app bundle
 echo "📦 Deploying..."
 cp "$DEBUG_BIN" "$MACOS_DIR/$APP_NAME"
+cp "$CLI_BIN" "$MACOS_DIR/keypath-cli"
 
 # Do not hot-swap the embedded privileged helper by default.
 #
@@ -315,6 +329,20 @@ done
 if ! otool -l "$MACOS_DIR/$APP_NAME" | grep -q "@executable_path/../Frameworks"; then
     install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/$APP_NAME" 2>/dev/null || true
 fi
+if ! otool -l "$MACOS_DIR/keypath-cli" | grep -q "@executable_path/../Frameworks"; then
+    install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/keypath-cli" 2>/dev/null || true
+fi
+if [[ ! -f "$APP_BUNDLE/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle" ]]; then
+    echo "❌ Sparkle.framework is missing from the deployed app bundle" >&2
+    exit 1
+fi
+for executable in "$MACOS_DIR/$APP_NAME" "$MACOS_DIR/keypath-cli"; do
+    if ! otool -l "$executable" | grep -q "@executable_path/../Frameworks"; then
+        echo "❌ $(basename "$executable") is missing @executable_path/../Frameworks rpath" >&2
+        echo "   Without this, dyld cannot load the embedded Sparkle.framework at launch." >&2
+        exit 1
+    fi
+done
 
 # Assemble and sync Insights.bundle to PlugIns
 INSIGHTS_DYLIB="$BIN_DIR/libKeyPathInsights.dylib"
@@ -335,6 +363,7 @@ echo "✍️  Signing..."
 SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
 HELPER_EXEC="$APP_BUNDLE/Contents/Library/HelperTools/KeyPathHelper"
 HELPER_ENTITLEMENTS="$PROJECT_DIR/Sources/KeyPathHelper/KeyPathHelper.entitlements"
+CLI_EXEC="$APP_BUNDLE/Contents/MacOS/keypath-cli"
 
 # Re-sign the embedded privileged helper with its REQUIRED signing identifier and
 # re-seal the app afterwards. `codesign --deep` on the app re-signs nested
@@ -342,16 +371,23 @@ HELPER_ENTITLEMENTS="$PROJECT_DIR/Sources/KeyPathHelper/KeyPathHelper.entitlemen
 # SMPrivilegedExecutables entry requires identifier "com.keypath.helper". A mismatch
 # makes the helper fail validation — the setup wizard reports a privileged-helper
 # error it "can't fix". So after the --deep pass we re-sign the helper with the
-# correct identifier, then re-seal the OUTER app WITHOUT --deep so the corrected
-# helper signature is preserved. $1 = signing identity ("-" for ad-hoc).
-resign_helper_identifier() {
+# correct identifiers, then re-seal the OUTER app WITHOUT --deep so the corrected
+# nested signatures are preserved. $1 = signing identity ("-" for ad-hoc).
+resign_nested_identifiers() {
     local sign_id="$1"
-    [[ -f "$HELPER_EXEC" && -f "$HELPER_ENTITLEMENTS" ]] || return 0
-    codesign --force --options=runtime \
-        --identifier "com.keypath.helper" \
-        --entitlements "$HELPER_ENTITLEMENTS" \
-        --sign "$sign_id" \
-        "$HELPER_EXEC" || echo "⚠️  Failed to re-sign helper with com.keypath.helper identifier"
+    if [[ -f "$HELPER_EXEC" && -f "$HELPER_ENTITLEMENTS" ]]; then
+        codesign --force --options=runtime \
+            --identifier "com.keypath.helper" \
+            --entitlements "$HELPER_ENTITLEMENTS" \
+            --sign "$sign_id" \
+            "$HELPER_EXEC" || echo "⚠️  Failed to re-sign helper with com.keypath.helper identifier"
+    fi
+    if [[ -f "$CLI_EXEC" ]]; then
+        codesign --force --options=runtime \
+            --identifier "com.keypath.KeyPath.CLI" \
+            --sign "$sign_id" \
+            "$CLI_EXEC" || echo "⚠️  Failed to re-sign keypath-cli with com.keypath.KeyPath.CLI identifier"
+    fi
     codesign --force --options=runtime --sign "$sign_id" --entitlements "$ENTITLEMENTS" "$APP_BUNDLE"
 }
 
@@ -369,12 +405,15 @@ if security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
     if [[ -f "$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" ]]; then
         codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" 2>/dev/null || true
     fi
+    if [[ -f "$APP_BUNDLE/Contents/MacOS/keypath-cli" ]]; then
+        codesign --force --options=runtime --identifier "com.keypath.KeyPath.CLI" --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/MacOS/keypath-cli" 2>/dev/null || true
+    fi
     codesign --force --options=runtime --sign "$SIGNING_IDENTITY" --entitlements "$ENTITLEMENTS" --deep "$APP_BUNDLE"
-    resign_helper_identifier "$SIGNING_IDENTITY"
+    resign_nested_identifiers "$SIGNING_IDENTITY"
 else
     echo "⚠️  Developer ID identity not found; using ad-hoc signing (helper may reject this build)."
     codesign --force --sign - --entitlements "$ENTITLEMENTS" --deep "$APP_BUNDLE"
-    resign_helper_identifier "-"
+    resign_nested_identifiers "-"
 fi
 
 # Verify signature is valid before restarting — catch any silent corruption.

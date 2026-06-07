@@ -80,6 +80,10 @@ struct AppMenuCommands: Commands {
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
 
+            Button("Install Command Line Tool...") {
+                installCommandLineTool()
+            }
+
             Divider()
 
             Button(
@@ -241,6 +245,56 @@ struct AppMenuCommands: Commands {
                 NSApplication.AboutPanelOptionKey.version: "Build \(info.build)"
             ]
         )
+    }
+
+    private func installCommandLineTool() {
+        if !CommandLineToolInstaller.canReplaceExistingDestination() {
+            let alert = NSAlert()
+            alert.messageText = "Command Line Tool Already Exists"
+            alert.informativeText = """
+            \(CommandLineToolInstaller.linkPath) already exists and is not a KeyPath command-line tool link.
+
+            Remove or rename the existing file before installing KeyPath's command-line tool.
+            """
+            alert.alertStyle = .warning
+            alert.runModal()
+            return
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "Install Command Line Tool?"
+        alert.informativeText = """
+        This installs a terminal command at:
+        \(CommandLineToolInstaller.linkPath)
+
+        The command points to the signed CLI inside KeyPath.app. Opening KeyPath.app remains the primary way to launch KeyPath.
+        """
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Install")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        Task { @MainActor in
+            do {
+                try await CommandLineToolInstaller.install()
+                let success = NSAlert()
+                success.messageText = "Command Line Tool Installed"
+                success.informativeText = """
+                You can now run:
+                keypath-cli system inspect
+
+                The command points to the CLI inside KeyPath.app.
+                """
+                success.alertStyle = .informational
+                success.runModal()
+            } catch {
+                let failure = NSAlert()
+                failure.messageText = "Command Line Tool Install Failed"
+                failure.informativeText = error.localizedDescription
+                failure.alertStyle = .critical
+                failure.runModal()
+            }
+        }
     }
 }
 

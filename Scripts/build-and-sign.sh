@@ -7,6 +7,9 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 source "$SCRIPT_DIR/lib/signing.sh"
+source "$SCRIPT_DIR/lib/deploy-lock.sh"
+keypath_acquire_deploy_lock "build-and-sign ($SCRIPT_DIR/..)" "${KEYPATH_RELEASE_DEPLOY_LOCK_TIMEOUT_SECONDS:-600}"
+trap keypath_release_deploy_lock EXIT
 
 # Function to create Sparkle update archive with EdDSA signature.
 #
@@ -194,9 +197,12 @@ echo "🔐 Building privileged helper..."
 # Build and sign the helper tool
 ./Scripts/build-helper.sh
 
-# Screenshot regeneration + website publish only run for full release builds.
-# Skipped when SKIP_NOTARIZE=1 (dev builds via `dd`).
-if [ "${SKIP_NOTARIZE:-}" != "1" ]; then
+# Screenshot regeneration is only needed for full public release builds or when
+# help/snapshot assets intentionally changed. Release-candidate builds should set
+# SKIP_SNAPSHOTS=1 to avoid spending time regenerating unrelated images.
+if [ "${SKIP_SNAPSHOTS:-}" = "1" ]; then
+    echo "⏭️  Skipping screenshot regeneration (SKIP_SNAPSHOTS=1)"
+elif [ "${SKIP_SNAPSHOTS:-}" = "0" ] || [ "${SKIP_NOTARIZE:-}" != "1" ]; then
     echo "📸 Regenerating help screenshots..."
     SKIP_PEEKABOO="${SKIP_PEEKABOO:-1}" ./Scripts/regenerate-screenshots.sh
 else
@@ -227,10 +233,15 @@ MACOS="${CONTENTS}/MacOS"
 	# Copy main executable
 	ditto "$BUILD_DIR/KeyPath" "$MACOS/KeyPath"
 
+	# Copy command-line tool. Keep the filename distinct from KeyPath on
+	# case-insensitive filesystems; users can opt into a shell shim from the app.
+	ditto "$BUILD_DIR/keypath-cli" "$MACOS/keypath-cli"
+
 	# Ensure app-bundle rpath can locate embedded frameworks
 	# SwiftPM-built executables usually have LC_RPATH=@loader_path, which points to Contents/MacOS.
 	# For an app bundle, frameworks live at Contents/Frameworks, so add that search path.
 	install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS/KeyPath" 2>/dev/null || true
+	install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS/keypath-cli" 2>/dev/null || true
 
 	# Create "Kanata Engine.app" bundle wrapping the kanata binary.
 	# This gives kanata a CFBundleIdentifier so macOS TCC tracks it by bundle ID
@@ -277,6 +288,17 @@ MACOS="${CONTENTS}/MacOS"
 	    echo "   This usually indicates the Sparkle SPM dependency did not build." >&2
 	    exit 1
 	fi
+	if [ ! -f "$FRAMEWORKS/Sparkle.framework/Versions/B/Sparkle" ]; then
+	    echo "❌ ERROR: Embedded Sparkle binary is missing from $FRAMEWORKS/Sparkle.framework" >&2
+	    exit 1
+	fi
+	for executable in "$MACOS/KeyPath" "$MACOS/keypath-cli"; do
+	    if ! otool -l "$executable" | grep -q "@executable_path/../Frameworks"; then
+	        echo "❌ ERROR: $(basename "$executable") is missing @executable_path/../Frameworks rpath" >&2
+	        echo "   Without this, dyld cannot load the embedded Sparkle.framework at launch." >&2
+	        exit 1
+	    fi
+	done
 
 	# Assemble Insights plugin bundle
 	echo "🔌 Assembling Insights.bundle..."
@@ -321,6 +343,7 @@ ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath
 	    local missing=0
 	    for path in \
 	        "$HELPER_TOOLS/KeyPathHelper" \
+	        "$MACOS/keypath-cli" \
 	        "$LAUNCH_DAEMONS/com.keypath.helper.plist" \
 	        "$LAUNCH_DAEMONS/com.keypath.kanata.plist" \
 	        "$FRAMEWORKS/Sparkle.framework" \
@@ -437,6 +460,13 @@ else
 
     # Sign bundled kanata simulator binary
     kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --sign "$SIGNING_IDENTITY"
+
+    # Sign command-line tool embedded in the app bundle with a stable identifier
+    # trusted by the privileged helper for CLI system diagnostics and repair.
+    kp_sign "$MACOS/keypath-cli" \
+        --force --options=runtime \
+        --identifier "com.keypath.KeyPath.CLI" \
+        --sign "$SIGNING_IDENTITY"
 
     # Sign Insights plugin bundle
     kp_sign "$INSIGHTS_BUNDLE" --force --options=runtime --deep --sign "$SIGNING_IDENTITY"

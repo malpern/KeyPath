@@ -49,7 +49,7 @@ All of these must be true before the agent reports "done." If any fails, fix it 
 ```
 PR state == MERGED
 local master SHA == origin/master SHA
-running app built from master (not worktree)
+running app built from master (not worktree; release-candidate build unless explicitly dev-only)
 linked issues state == CLOSED
 no worktrees left for this branch
 ```

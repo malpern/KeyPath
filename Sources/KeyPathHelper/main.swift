@@ -9,7 +9,7 @@ import Security
 // as a LaunchDaemon Mach service.
 //
 // Security:
-// - Only accepts connections from KeyPath.app (com.keypath.KeyPath) in release builds
+// - Only accepts connections from KeyPath.app or its bundled CLI in release builds
 // - Validates code signature via audit token before accepting connections
 // - All operations are logged to system log for audit trail
 
@@ -74,7 +74,7 @@ func validateConnection(_ connection: NSXPCConnection, requirement requirementSt
             let teamID = info[kSecCodeInfoTeamIdentifier as String] as? String ?? "unknown"
             NSLog("[KeyPathHelper] Code signature validation failed for PID \(pid): \(status)")
             NSLog("[KeyPathHelper]   → Connecting process: identifier=\(identifier), team=\(teamID)")
-            NSLog("[KeyPathHelper]   → Expected: identifier=\"com.keypath.KeyPath\", team=\"X2RKZ5TG99\"")
+            NSLog("[KeyPathHelper]   → Expected: identifier=\"com.keypath.KeyPath\" or \"com.keypath.KeyPath.CLI\", team=\"X2RKZ5TG99\"")
             NSLog("[KeyPathHelper]   → This likely means app was updated but not restarted")
             logger.error(
                 """
@@ -103,13 +103,13 @@ class HelperDelegate: NSObject, NSXPCListenerDelegate {
     func listener(_: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
         // Security requirement:
         // - DEBUG: allow any app from our Developer ID team for contributor convenience
-        // - RELEASE: require the exact app bundle identifier for strict production security
+        // - RELEASE: require the exact app or bundled CLI identifier for strict production security
         #if DEBUG
             let requirementString =
                 "anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = X2RKZ5TG99"
         #else
             // swiftlint:disable:next line_length
-            let requirementString = "identifier \"com.keypath.KeyPath\" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = X2RKZ5TG99"
+            let requirementString = "(identifier \"com.keypath.KeyPath\" or identifier \"com.keypath.KeyPath.CLI\") and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = X2RKZ5TG99"
         #endif
 
         // Validate the caller's code signature using audit token
@@ -118,7 +118,7 @@ class HelperDelegate: NSObject, NSXPCListenerDelegate {
             return false
         }
 
-        NSLog("[KeyPathHelper] ✅ Accepting connection from validated KeyPath.app")
+        NSLog("[KeyPathHelper] ✅ Accepting connection from validated KeyPath client")
 
         // Set up the XPC interface
         connection.exportedInterface = NSXPCInterface(with: HelperProtocol.self)

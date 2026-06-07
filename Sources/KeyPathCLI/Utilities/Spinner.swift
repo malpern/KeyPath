@@ -5,22 +5,19 @@ final class CLISpinner: @unchecked Sendable {
     private static let asciiFrames = ["-", "\\", "|", "/"]
 
     private let noColor: Bool
-    private let isInteractive: Bool
+    private let isEnabled: Bool
     private var message: String
     private var timer: Timer?
     private var frameIndex = 0
 
     init(context: OutputContext) {
         noColor = context.noColor
-        isInteractive = context.isInteractive && !context.quiet
+        isEnabled = context.isInteractive && !context.quiet && !context.shouldOutputJSON
         message = ""
     }
 
     func start(_ message: String) {
-        guard isInteractive else {
-            FileHandle.standardError.write(Data("\(message)\n".utf8))
-            return
-        }
+        guard isEnabled else { return }
         self.message = message
         frameIndex = 0
         renderFrame()
@@ -34,12 +31,14 @@ final class CLISpinner: @unchecked Sendable {
     }
 
     func succeed(_ message: String) {
+        guard isEnabled else { return }
         stop()
         let marker = ANSIColor.green("✓", noColor: noColor)
         FileHandle.standardError.write(Data("\r\u{001b}[2K\(marker) \(message)\n".utf8))
     }
 
     func fail(_ message: String) {
+        guard isEnabled else { return }
         stop()
         let marker = ANSIColor.red("✗", noColor: noColor)
         FileHandle.standardError.write(Data("\r\u{001b}[2K\(marker) \(message)\n".utf8))
@@ -48,7 +47,7 @@ final class CLISpinner: @unchecked Sendable {
     func stop() {
         timer?.invalidate()
         timer = nil
-        if isInteractive {
+        if isEnabled {
             FileHandle.standardError.write(Data("\r\u{001b}[2K".utf8))
         }
     }

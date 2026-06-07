@@ -71,6 +71,43 @@ final class OutputContractTests: XCTestCase {
         XCTAssertTrue(required.isSubset(of: keys), "Missing required keys: \(required.subtracting(keys))")
     }
 
+    func testInstallerReportRepairMetadataJSONShape() throws {
+        let issue = CLISystemIssue(
+            title: "Kanata needs Input Monitoring permission",
+            category: "permissions",
+            action: "Open System Settings",
+            canAutoFix: false,
+            remediationURL: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+        )
+        let report = CLIInstallerReport(
+            success: false,
+            failureReason: "Repair requires user action",
+            steps: [],
+            fastRepair: false,
+            dryRun: true,
+            userActionRequired: true,
+            issues: [issue],
+            plannedRecipes: ["reinstall-privileged-helper (installService)"],
+            unmetRequirements: [],
+            logs: nil
+        )
+
+        let keys = try jsonKeys(report)
+        let required: Set = [
+            "dryRun", "failureReason", "fastRepair", "issues", "plannedRecipes",
+            "steps", "success", "unmetRequirements", "userActionRequired",
+        ]
+        XCTAssertTrue(required.isSubset(of: keys), "Missing required keys: \(required.subtracting(keys))")
+
+        let data = try encoder.encode(report)
+        let decoded = try decoder.decode(CLIInstallerReport.self, from: data)
+        XCTAssertEqual(decoded.issues?.first?.category, "permissions")
+        XCTAssertEqual(
+            decoded.issues?.first?.remediationURL,
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+        )
+    }
+
     func testValidationResultJSONShape() throws {
         let result = CLIValidationResult(isValid: true, errors: [])
         let keys = try jsonKeys(result)
@@ -85,6 +122,34 @@ final class OutputContractTests: XCTestCase {
         let result = try decoder.decode(CLIInspectResult.self, from: Data(json.utf8))
         let keys = try jsonKeys(result)
         let required: Set = ["driverCompatible", "macOSVersion", "planStatus", "plannedRecipes"]
+        XCTAssertTrue(required.isSubset(of: keys), "Missing required keys: \(required.subtracting(keys))")
+    }
+
+    func testInspectResultRepairMetadataJSONShape() throws {
+        let issue = CLISystemIssue(
+            title: "Privileged Helper unhealthy",
+            category: "helper",
+            action: "Reinstall the privileged helper",
+            canAutoFix: true
+        )
+        let result = CLIInspectResult(
+            macOSVersion: "26.5.0",
+            driverCompatible: true,
+            planStatus: "ready",
+            blockedBy: nil,
+            plannedRecipes: ["reinstall-privileged-helper (installService)"],
+            planIntent: "repair",
+            isOperational: false,
+            userActionRequired: false,
+            promptsNeeded: true,
+            issues: [issue]
+        )
+
+        let keys = try jsonKeys(result)
+        let required: Set = [
+            "driverCompatible", "issues", "isOperational", "macOSVersion", "planIntent",
+            "planStatus", "plannedRecipes", "promptsNeeded", "userActionRequired",
+        ]
         XCTAssertTrue(required.isSubset(of: keys), "Missing required keys: \(required.subtracting(keys))")
     }
 
