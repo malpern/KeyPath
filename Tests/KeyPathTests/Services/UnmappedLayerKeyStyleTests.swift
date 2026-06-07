@@ -203,6 +203,28 @@ final class UnmappedLayerKeyStyleTests: KeyPathTestCase {
         )
     }
 
+    func testNavIdentityMapping_baseLayerPref_keepsCollectionLayerColor() {
+        PreferencesService.shared.unmappedLayerKeyStyle = .baseLayer
+        let view = keycap(
+            keyCode: 0,
+            label: "A",
+            info: .mapped(
+                displayLabel: "A",
+                outputKey: "a",
+                outputKeyCode: 0,
+                collectionId: RuleCollectionIdentifier.vimNavigation
+            )
+        )
+
+        XCTAssertTrue(view.isNavIdentityMapping)
+        XCTAssertFalse(view.isVisuallyUnmappedLayerKey)
+        XCTAssertTrue(view.isLayerMode, "Nav identity mappings should keep collection styling")
+        XCTAssertEqual(
+            String(describing: view.backgroundColor),
+            String(describing: KeycapSymbols.collectionColor(for: RuleCollectionIdentifier.vimNavigation))
+        )
+    }
+
     func testUnmappedKey_dimmedPref_staysInLayerMode() {
         PreferencesService.shared.unmappedLayerKeyStyle = .dimmed
         let view = keycap(layer: "nav", info: .transparent(fallbackLabel: "Q"))

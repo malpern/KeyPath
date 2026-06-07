@@ -235,4 +235,46 @@ extension MockFactories {
         vm.ruleCollections = catalog.defaultCollections()
         return vm
     }
+
+    @MainActor
+    static func rulesTabKanataViewModel() async throws -> KanataViewModel {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keypath-rules-tab-snapshot-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let configService = ConfigurationService(configDirectory: tempDir.path)
+        let collectionStore = RuleCollectionStore(
+            fileURL: tempDir.appendingPathComponent("RuleCollections.json")
+        )
+        let customRulesStore = CustomRulesStore(
+            fileURL: tempDir.appendingPathComponent("CustomRules.json")
+        )
+        let enabledCollections: Set<UUID> = [
+            RuleCollectionIdentifier.macFunctionKeys,
+            RuleCollectionIdentifier.vimNavigation,
+            RuleCollectionIdentifier.capsLockRemap,
+            RuleCollectionIdentifier.keyRepeatControl,
+            RuleCollectionIdentifier.homeRowArrows,
+            RuleCollectionIdentifier.launcher,
+        ]
+        let catalog = RuleCollectionCatalog()
+        let collections = catalog.defaultCollections().map { collection in
+            var updated = collection
+            updated.isEnabled = enabledCollections.contains(collection.id)
+            return updated
+        }
+        try await collectionStore.saveCollections(collections)
+        let manager = RuleCollectionsManager(
+            ruleCollectionStore: collectionStore,
+            customRulesStore: customRulesStore,
+            configurationService: configService
+        )
+        manager.ruleCollections = collections
+        let coordinator = RuntimeCoordinator(
+            injectedConfigurationService: configService,
+            injectedRuleCollectionsManager: manager
+        )
+        let vm = KanataViewModel(manager: coordinator)
+        vm.ruleCollections = collections
+        return vm
+    }
 }

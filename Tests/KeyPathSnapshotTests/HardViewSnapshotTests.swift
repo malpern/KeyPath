@@ -170,8 +170,8 @@ final class HardViewSnapshotTests: ScreenshotTestCase {
         )
     }
 
-    func testRulesTabView() {
-        let vm = MockFactories.kanataViewModel()
+    func testRulesTabView() async throws {
+        let vm = try await MockFactories.rulesTabKanataViewModel()
         let view = RulesTabView()
             .environment(vm)
             .frame(width: 680, height: 700)

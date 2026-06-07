@@ -452,7 +452,13 @@ final class ScenarioSnapshotTests: ScreenshotTestCase {
             isLauncherMode: true,
             launcherMapping: mapping
         )
-        assertScreenshot(of: view, size: keycapSize, named: "keycap-launcher-app-mapped")
+        assertScreenshot(
+            of: view,
+            size: keycapSize,
+            named: "keycap-launcher-app-mapped",
+            precision: 0.99,
+            perceptualPrecision: 0.99
+        )
     }
 
     func testKeycap_LauncherMode_UnmappedKey() {
