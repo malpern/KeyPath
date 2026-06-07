@@ -16,6 +16,12 @@ swift build
 restarts KeyPath only if it was already running. It does not redeploy the
 privileged helper unless `KEYPATH_DEPLOY_HELPER=1` is set.
 
+Supported scripts that mutate `/Applications/KeyPath.app` use a shared
+machine-wide deploy lock at `/tmp/keypath-deploy.lock`. This is intentionally
+outside the worktree: replacing a signed app bundle from another checkout while
+KeyPath is running can produce macOS crash reports with `CODESIGNING`,
+`Invalid Page`, or `SIGKILL (Code Signature Invalid)`.
+
 Poltergeist is optional acceleration for focused single-agent UI/app iteration:
 
 ```bash
@@ -53,6 +59,11 @@ Then it delegates to `build-and-sign.sh` with fast release-candidate defaults:
 
 It deploys to `/Applications/KeyPath.app` and runs
 `./Scripts/verify-installed-app.sh` after the build.
+
+Release-candidate and public release builds hold the shared deploy lock for the
+whole build/sign/notarize/deploy flow. Update old worktrees before running
+`quick-deploy.sh`; older scripts that do not use this lock can still overwrite
+the installed app and invalidate the running process.
 
 Opt into slower work only when needed:
 

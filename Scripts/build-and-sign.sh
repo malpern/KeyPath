@@ -7,6 +7,9 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 source "$SCRIPT_DIR/lib/signing.sh"
+source "$SCRIPT_DIR/lib/deploy-lock.sh"
+keypath_acquire_deploy_lock "build-and-sign ($SCRIPT_DIR/..)" "${KEYPATH_RELEASE_DEPLOY_LOCK_TIMEOUT_SECONDS:-600}"
+trap keypath_release_deploy_lock EXIT
 
 # Function to create Sparkle update archive with EdDSA signature.
 #
