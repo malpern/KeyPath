@@ -57,7 +57,8 @@ struct ContextHUDSettingsSection: View {
                         icon: "hand.tap",
                         title: "Hold",
                         subtitle: "Show while held",
-                        isSelected: triggerMode == .holdToShow
+                        isSelected: triggerMode == .holdToShow,
+                        cardWidth: SettingsOptionCard.settingsRowWidth
                     ) {
                         triggerMode = .holdToShow
                         services.preferences.contextHUDTriggerMode = .holdToShow
@@ -69,7 +70,8 @@ struct ContextHUDSettingsSection: View {
                         icon: "hand.point.up",
                         title: "Tap",
                         subtitle: "Toggle on/off",
-                        isSelected: triggerMode == .tapToToggle
+                        isSelected: triggerMode == .tapToToggle,
+                        cardWidth: SettingsOptionCard.settingsRowWidth
                     ) {
                         triggerMode = .tapToToggle
                         services.preferences.contextHUDTriggerMode = .tapToToggle

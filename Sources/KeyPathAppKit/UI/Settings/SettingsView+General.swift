@@ -38,7 +38,8 @@ struct GeneralSettingsTabView: View {
                             icon: "textformat.123",
                             title: "Symbols",
                             subtitle: "⌫ ⇥ ⇪ ⇧ ↩",
-                            isSelected: services.preferences.keyLabelStyle == .symbols
+                            isSelected: services.preferences.keyLabelStyle == .symbols,
+                            cardWidth: SettingsOptionCard.settingsRowWidth
                         ) {
                             services.preferences.keyLabelStyle = .symbols
                         }
@@ -49,7 +50,8 @@ struct GeneralSettingsTabView: View {
                             icon: "textformat.abc",
                             title: "Text",
                             subtitle: "delete tab caps shift",
-                            isSelected: services.preferences.keyLabelStyle == .text
+                            isSelected: services.preferences.keyLabelStyle == .text,
+                            cardWidth: SettingsOptionCard.settingsRowWidth
                         ) {
                             services.preferences.keyLabelStyle = .text
                         }
@@ -70,7 +72,8 @@ struct GeneralSettingsTabView: View {
                             icon: "keyboard",
                             title: "Base layer",
                             subtitle: "Look like the base layer",
-                            isSelected: services.preferences.unmappedLayerKeyStyle == .baseLayer
+                            isSelected: services.preferences.unmappedLayerKeyStyle == .baseLayer,
+                            cardWidth: SettingsOptionCard.settingsRowWidth
                         ) {
                             services.preferences.unmappedLayerKeyStyle = .baseLayer
                         }
@@ -81,7 +84,8 @@ struct GeneralSettingsTabView: View {
                             icon: "eye.slash",
                             title: "Dimmed",
                             subtitle: "Dim so mappings stand out",
-                            isSelected: services.preferences.unmappedLayerKeyStyle == .dimmed
+                            isSelected: services.preferences.unmappedLayerKeyStyle == .dimmed,
+                            cardWidth: SettingsOptionCard.settingsRowWidth
                         ) {
                             services.preferences.unmappedLayerKeyStyle = .dimmed
                         }
@@ -102,7 +106,8 @@ struct GeneralSettingsTabView: View {
                             icon: "arrow.right",
                             title: "Sequences",
                             subtitle: "Keys one after another",
-                            isSelected: services.preferences.isSequenceMode
+                            isSelected: services.preferences.isSequenceMode,
+                            cardWidth: SettingsOptionCard.settingsRowWidth
                         ) {
                             services.preferences.isSequenceMode = true
                         }
@@ -112,7 +117,8 @@ struct GeneralSettingsTabView: View {
                             icon: "command",
                             title: "Combos",
                             subtitle: "Keys pressed together",
-                            isSelected: !services.preferences.isSequenceMode
+                            isSelected: !services.preferences.isSequenceMode,
+                            cardWidth: SettingsOptionCard.settingsRowWidth
                         ) {
                             services.preferences.isSequenceMode = false
                         }
@@ -132,7 +138,8 @@ struct GeneralSettingsTabView: View {
                             icon: "keyboard",
                             title: "Physical Keys",
                             subtitle: "Pause mappings",
-                            isSelected: !services.preferences.applyMappingsDuringRecording
+                            isSelected: !services.preferences.applyMappingsDuringRecording,
+                            cardWidth: SettingsOptionCard.settingsRowWidth
                         ) {
                             services.preferences.applyMappingsDuringRecording = false
                         }
@@ -142,7 +149,8 @@ struct GeneralSettingsTabView: View {
                             icon: "wand.and.stars",
                             title: "With Mappings",
                             subtitle: "Include KeyPath",
-                            isSelected: services.preferences.applyMappingsDuringRecording
+                            isSelected: services.preferences.applyMappingsDuringRecording,
+                            cardWidth: SettingsOptionCard.settingsRowWidth
                         ) {
                             services.preferences.applyMappingsDuringRecording = true
                         }
