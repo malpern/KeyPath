@@ -153,6 +153,10 @@ final class HrmObservabilityService {
         func _testSetAvailability(_ value: AvailabilityState) {
             availability = value
         }
+
+        func _testSetAdvertisedCapabilities(_ values: Set<String>) {
+            advertisedCapabilities = values
+        }
     #endif
 
     deinit {
@@ -405,7 +409,7 @@ final class HrmObservabilityService {
 
         // Receiving reason data proves the build supports HRM trace telemetry,
         // even if capabilities didn't advertise hrm-trace yet.
-        if availability == .unknown || availability == .unsupported {
+        if availability == .unknown || availability == .unsupported || availability == .traceOnly {
             availability = supportsHrmStats ? .supported : .traceOnly
         }
     }
