@@ -44,6 +44,12 @@ for executable in "$APP_PATH/Contents/MacOS/KeyPath" "$CLI_PATH"; do
         exit 1
     fi
 done
+cli_codesign_output="$(codesign -dv "$CLI_PATH" 2>&1)"
+if ! grep -q '^Identifier=com\.keypath\.KeyPath\.CLI$' <<<"$cli_codesign_output"; then
+    echo "❌ Bundled CLI is not signed with identifier com.keypath.KeyPath.CLI" >&2
+    echo "   The privileged helper will reject CLI XPC health checks without this identifier." >&2
+    exit 1
+fi
 
 print_section "Trust Policy"
 codesign --verify --strict --verbose=2 "$APP_PATH"

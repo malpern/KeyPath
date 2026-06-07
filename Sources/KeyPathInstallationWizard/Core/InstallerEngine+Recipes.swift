@@ -61,14 +61,14 @@ public extension InstallerEngine {
         case .installPrivilegedHelper:
             ServiceRecipe(
                 id: InstallerRecipeID.installPrivilegedHelper,
-                type: .installService,
+                type: .repairPrivilegedHelper,
                 serviceID: KeyPathConstants.Bundle.helperID
             )
 
         case .reinstallPrivilegedHelper:
             ServiceRecipe(
                 id: InstallerRecipeID.reinstallPrivilegedHelper,
-                type: .installService,
+                type: .repairPrivilegedHelper,
                 serviceID: KeyPathConstants.Bundle.helperID
             )
 

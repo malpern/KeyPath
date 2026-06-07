@@ -156,6 +156,8 @@ public struct EngineSystemInfo: Sendable, Equatable {
 public enum RecipeType: Sendable, Equatable {
     /// Install a LaunchDaemon service
     case installService
+    /// Repair or refresh the privileged helper registration
+    case repairPrivilegedHelper
     /// Restart an existing service
     case restartService
     /// Install a component (Kanata binary, driver, etc.)

@@ -362,6 +362,11 @@ public final class InstallerEngine {
             try await executeInstallService(recipe, using: broker)
             logs.append("LaunchDaemon services installed")
 
+        case .repairPrivilegedHelper:
+            logs.append("Repairing privileged helper registration...")
+            try await executeRepairPrivilegedHelper()
+            logs.append("Privileged helper repair completed")
+
         case .restartService:
             logs.append("Checking VHID Manager activation status...")
             if let serviceID = recipe.serviceID {
@@ -391,6 +396,21 @@ public final class InstallerEngine {
     /// Execute a single recipe (legacy method for backward compatibility)
     private func executeRecipe(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws {
         _ = try await executeRecipeWithDetails(recipe, using: broker)
+    }
+
+    /// Execute privileged helper repair via the helper-maintenance workflow.
+    private func executeRepairPrivilegedHelper() async throws {
+        guard let helperMaintenance = WizardDependencies.helperMaintenance else {
+            throw InstallerError.healthCheckFailed("Helper maintenance is not configured")
+        }
+
+        let repaired = await helperMaintenance.runCleanupAndRepair(useAppleScriptFallback: true)
+        guard repaired else {
+            let failure = helperMaintenance.lastErrorLine
+                ?? helperMaintenance.logLines.last
+                ?? "Privileged helper repair failed"
+            throw InstallerError.healthCheckFailed(failure)
+        }
     }
 
     /// Execute installService recipe

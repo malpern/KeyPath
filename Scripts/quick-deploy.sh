@@ -356,6 +356,7 @@ echo "✍️  Signing..."
 SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
 HELPER_EXEC="$APP_BUNDLE/Contents/Library/HelperTools/KeyPathHelper"
 HELPER_ENTITLEMENTS="$PROJECT_DIR/Sources/KeyPathHelper/KeyPathHelper.entitlements"
+CLI_EXEC="$APP_BUNDLE/Contents/MacOS/keypath-cli"
 
 # Re-sign the embedded privileged helper with its REQUIRED signing identifier and
 # re-seal the app afterwards. `codesign --deep` on the app re-signs nested
@@ -363,16 +364,23 @@ HELPER_ENTITLEMENTS="$PROJECT_DIR/Sources/KeyPathHelper/KeyPathHelper.entitlemen
 # SMPrivilegedExecutables entry requires identifier "com.keypath.helper". A mismatch
 # makes the helper fail validation — the setup wizard reports a privileged-helper
 # error it "can't fix". So after the --deep pass we re-sign the helper with the
-# correct identifier, then re-seal the OUTER app WITHOUT --deep so the corrected
-# helper signature is preserved. $1 = signing identity ("-" for ad-hoc).
-resign_helper_identifier() {
+# correct identifiers, then re-seal the OUTER app WITHOUT --deep so the corrected
+# nested signatures are preserved. $1 = signing identity ("-" for ad-hoc).
+resign_nested_identifiers() {
     local sign_id="$1"
-    [[ -f "$HELPER_EXEC" && -f "$HELPER_ENTITLEMENTS" ]] || return 0
-    codesign --force --options=runtime \
-        --identifier "com.keypath.helper" \
-        --entitlements "$HELPER_ENTITLEMENTS" \
-        --sign "$sign_id" \
-        "$HELPER_EXEC" || echo "⚠️  Failed to re-sign helper with com.keypath.helper identifier"
+    if [[ -f "$HELPER_EXEC" && -f "$HELPER_ENTITLEMENTS" ]]; then
+        codesign --force --options=runtime \
+            --identifier "com.keypath.helper" \
+            --entitlements "$HELPER_ENTITLEMENTS" \
+            --sign "$sign_id" \
+            "$HELPER_EXEC" || echo "⚠️  Failed to re-sign helper with com.keypath.helper identifier"
+    fi
+    if [[ -f "$CLI_EXEC" ]]; then
+        codesign --force --options=runtime \
+            --identifier "com.keypath.KeyPath.CLI" \
+            --sign "$sign_id" \
+            "$CLI_EXEC" || echo "⚠️  Failed to re-sign keypath-cli with com.keypath.KeyPath.CLI identifier"
+    fi
     codesign --force --options=runtime --sign "$sign_id" --entitlements "$ENTITLEMENTS" "$APP_BUNDLE"
 }
 
@@ -391,14 +399,14 @@ if security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
         codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" 2>/dev/null || true
     fi
     if [[ -f "$APP_BUNDLE/Contents/MacOS/keypath-cli" ]]; then
-        codesign --force --options=runtime --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/MacOS/keypath-cli" 2>/dev/null || true
+        codesign --force --options=runtime --identifier "com.keypath.KeyPath.CLI" --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/MacOS/keypath-cli" 2>/dev/null || true
     fi
     codesign --force --options=runtime --sign "$SIGNING_IDENTITY" --entitlements "$ENTITLEMENTS" --deep "$APP_BUNDLE"
-    resign_helper_identifier "$SIGNING_IDENTITY"
+    resign_nested_identifiers "$SIGNING_IDENTITY"
 else
     echo "⚠️  Developer ID identity not found; using ad-hoc signing (helper may reject this build)."
     codesign --force --sign - --entitlements "$ENTITLEMENTS" --deep "$APP_BUNDLE"
-    resign_helper_identifier "-"
+    resign_nested_identifiers "-"
 fi
 
 # Verify signature is valid before restarting — catch any silent corruption.
