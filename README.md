@@ -3,7 +3,7 @@
 <div align="center">
 
   <a href="https://keypath-app.com">
-    <img src="https://malpern.github.io/KeyPath/images/keypath-hero-nobg.png" alt="KeyPath — Keys that do more" width="800"/>
+    <img src="https://malpern.github.io/KeyPath/images/keypath-hero-nobg.png" alt="KeyPath — Keys that do more" width="520"/>
   </a>
 
   ### Keys that do more.
