@@ -299,25 +299,14 @@ struct HomeRowTimingSection: View {
             HStack(spacing: 4) {
                 Text("Opposite-hand activation")
                 Spacer()
-                Picker("", selection: Binding(
-                    get: { config.oppositeHandMode },
-                    set: { newValue in
-                        config.oppositeHandMode = newValue
-                        updateConfig()
-                    }
-                )) {
-                    ForEach([OppositeHandMode.off, .press, .release], id: \.self) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
+                OppositeHandModeControl(selection: config.oppositeHandMode) { newValue in
+                    config.oppositeHandMode = newValue
+                    updateConfig()
                 }
-                .pickerStyle(.segmented)
                 .frame(maxWidth: 220)
-                .accessibilityIdentifier("home-row-mods-opposite-hand-picker")
-                .accessibilityLabel("Opposite-hand activation mode")
-                .accessibilityValue(config.oppositeHandMode.displayName)
 
                 InfoTip(
-                    "Hold actions (modifiers or layers) only activate when you press a key with the other hand. Same-hand typing always produces letters — no accidental modifiers during fast rolls.\n\nOn Press: Faster response, may misfire on fast same-hand rolls.\nOn Release: More forgiving — waits for the other-hand key to be released before committing."
+                    "Off: Hold resolves by timing, so holding a home-row key can become its modifier by itself.\n\nOn Press: Hold actions activate when you press a key with the other hand. Faster response, but more opinionated.\n\nOn Release: More forgiving — waits for the other-hand key to be released before committing."
                 )
             }
 
@@ -870,5 +859,46 @@ struct HomeRowTimingSection: View {
 private func chunks<T>(of array: [T], size: Int) -> [[T]] {
     stride(from: 0, to: array.count, by: size).map { start in
         Array(array[start ..< min(start + size, array.count)])
+    }
+}
+
+private struct OppositeHandModeControl: View {
+    let selection: OppositeHandMode
+    let onSelection: (OppositeHandMode) -> Void
+
+    private let modes: [OppositeHandMode] = [.off, .press, .release]
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(modes, id: \.self) { mode in
+                Button {
+                    onSelection(mode)
+                } label: {
+                    Text(mode.displayName)
+                        .font(.subheadline.weight(selection == mode ? .semibold : .regular))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                        .frame(maxWidth: .infinity, minHeight: 26)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(selection == mode ? Color.white : Color.primary)
+                .background(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(selection == mode ? Color.accentColor : Color.clear)
+                )
+                .accessibilityIdentifier("home-row-mods-opposite-hand-\(mode.rawValue)")
+                .accessibilityLabel(mode.displayName)
+                .accessibilityValue(selection == mode ? "selected" : "not selected")
+                .accessibilityAddTraits(selection == mode ? .isSelected : [])
+            }
+        }
+        .padding(2)
+        .background(Color.primary.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("home-row-mods-opposite-hand-picker")
+        .accessibilityLabel("Opposite-hand activation mode")
+        .accessibilityValue(selection.displayName)
     }
 }
