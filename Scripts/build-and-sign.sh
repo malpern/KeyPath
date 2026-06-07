@@ -285,6 +285,17 @@ MACOS="${CONTENTS}/MacOS"
 	    echo "   This usually indicates the Sparkle SPM dependency did not build." >&2
 	    exit 1
 	fi
+	if [ ! -f "$FRAMEWORKS/Sparkle.framework/Versions/B/Sparkle" ]; then
+	    echo "❌ ERROR: Embedded Sparkle binary is missing from $FRAMEWORKS/Sparkle.framework" >&2
+	    exit 1
+	fi
+	for executable in "$MACOS/KeyPath" "$MACOS/keypath-cli"; do
+	    if ! otool -l "$executable" | grep -q "@executable_path/../Frameworks"; then
+	        echo "❌ ERROR: $(basename "$executable") is missing @executable_path/../Frameworks rpath" >&2
+	        echo "   Without this, dyld cannot load the embedded Sparkle.framework at launch." >&2
+	        exit 1
+	    fi
+	done
 
 	# Assemble Insights plugin bundle
 	echo "🔌 Assembling Insights.bundle..."

@@ -325,6 +325,17 @@ fi
 if ! otool -l "$MACOS_DIR/keypath-cli" | grep -q "@executable_path/../Frameworks"; then
     install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/keypath-cli" 2>/dev/null || true
 fi
+if [[ ! -f "$APP_BUNDLE/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle" ]]; then
+    echo "❌ Sparkle.framework is missing from the deployed app bundle" >&2
+    exit 1
+fi
+for executable in "$MACOS_DIR/$APP_NAME" "$MACOS_DIR/keypath-cli"; do
+    if ! otool -l "$executable" | grep -q "@executable_path/../Frameworks"; then
+        echo "❌ $(basename "$executable") is missing @executable_path/../Frameworks rpath" >&2
+        echo "   Without this, dyld cannot load the embedded Sparkle.framework at launch." >&2
+        exit 1
+    fi
+done
 
 # Assemble and sync Insights.bundle to PlugIns
 INSIGHTS_DYLIB="$BIN_DIR/libKeyPathInsights.dylib"
