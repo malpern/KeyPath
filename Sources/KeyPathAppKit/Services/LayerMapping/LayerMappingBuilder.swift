@@ -54,6 +54,31 @@ enum LayerMappingBuilder {
                     }
                 }
             }
+
+            if case let .homeRowMods(config) = collection.configuration,
+               config.holdMode == .modifiers
+            {
+                for key in config.enabledKeys {
+                    guard let modifier = config.modifierAssignments[key],
+                          let displayLabel = KeyDisplayFormatter.tapHoldLabel(for: modifier)
+                    else { continue }
+                    let input = KanataKeyConverter.convertToKanataKey(key).lowercased()
+                    let info = LayerKeyInfo.mapped(
+                        displayLabel: displayLabel,
+                        outputKey: modifier,
+                        outputKeyCode: nil,
+                        collectionId: collection.id
+                    )
+                    actionByInput[input] = info
+                    // Overlay key names are not always the same canonical strings used in
+                    // saved HRM config (for example ";" vs "semicolon"). Register both
+                    // forms so physical keycode lookup still resolves the modifier label.
+                    if let keyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(key) {
+                        let overlayInput = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
+                        actionByInput[overlayInput] = info
+                    }
+                }
+            }
         }
 
         for rule in customRules where rule.isEnabled {

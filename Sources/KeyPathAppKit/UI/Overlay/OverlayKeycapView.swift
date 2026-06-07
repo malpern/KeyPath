@@ -225,7 +225,11 @@ struct OverlayKeycapView: View {
             return holdLabel
         }
 
-        if !isPressed, let tapHoldIdleLabel, shouldShowTapHoldIdleLabel {
+        if !isPressed,
+           let tapHoldIdleLabel,
+           shouldShowTapHoldIdleLabel,
+           !TapHoldLabelPrecedence.idleLabelMatchesBase(tapHoldIdleLabel, baseLabel: baseLabel, keyLabel: key.label)
+        {
             return tapHoldIdleLabel
         }
 

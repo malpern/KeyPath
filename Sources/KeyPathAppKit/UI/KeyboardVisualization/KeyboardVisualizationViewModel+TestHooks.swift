@@ -39,7 +39,7 @@ extension KeyboardVisualizationViewModel {
             "rightbrace": 30, "o": 31, "u": 32, "leftbrace": 33, "i": 34, "p": 35,
             // Home row continued
             "enter": 36, "ret": 36, "return": 36,
-            "l": 37, "j": 38, "apostrophe": 39, "k": 40, "semicolon": 41, "backslash": 42,
+            "l": 37, "j": 38, "apostrophe": 39, "k": 40, "semicolon": 41, "scln": 41, ";": 41, "backslash": 42,
             // Bottom row continued
             "comma": 43, "slash": 44, "n": 45, "m": 46, "dot": 47,
             // Special keys

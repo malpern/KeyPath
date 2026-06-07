@@ -184,4 +184,129 @@ struct LayerMappingBuilderTests {
     func nonMediaKeyReturnsNil() {
         #expect(LayerMappingBuilder.mediaKeyDisplayLabel("a") == nil)
     }
+
+    // MARK: - Home Row Mods augmentation
+
+    @Test("home row mods augment base layer with hold modifier labels")
+    func homeRowModsAugmentBaseLayerWithHoldModifierLabels() {
+        let mapping: [UInt16: LayerKeyInfo] = [
+            0: LayerKeyInfo(
+                displayLabel: "A",
+                outputKey: "a",
+                outputKeyCode: 0,
+                isTransparent: true,
+                isLayerSwitch: false
+            ),
+            1: LayerKeyInfo(
+                displayLabel: "S",
+                outputKey: "s",
+                outputKeyCode: 1,
+                isTransparent: true,
+                isLayerSwitch: false
+            ),
+            41: LayerKeyInfo(
+                displayLabel: ";",
+                outputKey: "semicolon",
+                outputKeyCode: 41,
+                isTransparent: true,
+                isLayerSwitch: false
+            ),
+        ]
+        let config = HomeRowModsConfig(
+            enabledKeys: ["a", "s", ";"],
+            modifierAssignments: ["a": "lsft", "s": "lctl", ";": "rsft"]
+        )
+        let collection = RuleCollection(
+            id: RuleCollectionIdentifier.homeRowMods,
+            name: "Home Row Mods",
+            summary: "",
+            category: .productivity,
+            mappings: [],
+            isEnabled: true,
+            isSystemDefault: true,
+            configuration: .homeRowMods(config)
+        )
+
+        let result = LayerMappingBuilder.augmentWithPushMsgActions(
+            mapping: mapping,
+            customRules: [],
+            ruleCollections: [collection],
+            currentLayerName: "base"
+        )
+
+        #expect(result[0]?.displayLabel == "⇧")
+        #expect(result[1]?.displayLabel == "⌃")
+        // Semicolon verifies the dual-registration path for config aliases like ";" vs overlay names.
+        #expect(result[41]?.displayLabel == "⇧")
+        #expect(result[0]?.collectionId == RuleCollectionIdentifier.homeRowMods)
+        #expect(result[0]?.isTransparent == false)
+    }
+
+    @Test("home row mods augmentation ignores non-base layer")
+    func homeRowModsAugmentationIgnoresNonBaseLayer() {
+        let mapping: [UInt16: LayerKeyInfo] = [
+            0: .mapped(displayLabel: "←", outputKey: "left", outputKeyCode: 123)
+        ]
+        let config = HomeRowModsConfig(
+            enabledKeys: ["a"],
+            modifierAssignments: ["a": "lsft"]
+        )
+        let collection = RuleCollection(
+            id: RuleCollectionIdentifier.homeRowMods,
+            name: "Home Row Mods",
+            summary: "",
+            category: .productivity,
+            mappings: [],
+            isEnabled: true,
+            isSystemDefault: true,
+            configuration: .homeRowMods(config)
+        )
+
+        let result = LayerMappingBuilder.augmentWithPushMsgActions(
+            mapping: mapping,
+            customRules: [],
+            ruleCollections: [collection],
+            currentLayerName: "nav"
+        )
+
+        #expect(result[0]?.displayLabel == "←")
+    }
+
+    @Test("home row mods layer hold mode does not inject modifier labels")
+    func homeRowModsLayerHoldModeDoesNotInjectModifierLabels() {
+        let mapping: [UInt16: LayerKeyInfo] = [
+            0: LayerKeyInfo(
+                displayLabel: "A",
+                outputKey: "a",
+                outputKeyCode: 0,
+                isTransparent: true,
+                isLayerSwitch: false
+            ),
+        ]
+        let config = HomeRowModsConfig(
+            enabledKeys: ["a"],
+            modifierAssignments: ["a": "lsft"],
+            holdMode: .layers
+        )
+        let collection = RuleCollection(
+            id: RuleCollectionIdentifier.homeRowMods,
+            name: "Home Row Mods",
+            summary: "",
+            category: .productivity,
+            mappings: [],
+            isEnabled: true,
+            isSystemDefault: true,
+            configuration: .homeRowMods(config)
+        )
+
+        let result = LayerMappingBuilder.augmentWithPushMsgActions(
+            mapping: mapping,
+            customRules: [],
+            ruleCollections: [collection],
+            currentLayerName: "base"
+        )
+
+        #expect(result[0]?.displayLabel == "A")
+        #expect(result[0]?.collectionId == nil)
+    }
 }

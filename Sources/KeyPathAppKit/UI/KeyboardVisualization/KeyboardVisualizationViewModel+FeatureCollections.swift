@@ -17,12 +17,25 @@ extension KeyboardVisualizationViewModel {
     func updateTapHoldIdleLabels(from collections: [RuleCollection]) {
         var labels: [UInt16: String] = [:]
         for collection in collections where collection.isEnabled {
-            guard case let .tapHoldPicker(config) = collection.configuration else { continue }
-            let output = config.selectedTapOutput ?? config.tapOptions.first?.output
-            guard let output, let keyCode = Self.kanataNameToKeyCode(config.inputKey) else { continue }
-            if let label = Self.tapHoldOutputDisplayLabel(output) {
-                labels[keyCode] = label
-                AppLogger.shared.info("🏷️ [TapHoldIdle] keyCode=\(keyCode) input=\(config.inputKey) tapOutput=\(output) label=\(label)")
+            switch collection.configuration {
+            case let .tapHoldPicker(config):
+                let output = config.selectedTapOutput ?? config.tapOptions.first?.output
+                guard let output, let keyCode = Self.kanataNameToKeyCode(config.inputKey) else { continue }
+                if let label = Self.tapHoldOutputDisplayLabel(output) {
+                    labels[keyCode] = label
+                    AppLogger.shared.info("🏷️ [TapHoldIdle] keyCode=\(keyCode) input=\(config.inputKey) tapOutput=\(output) label=\(label)")
+                }
+            case let .homeRowMods(config):
+                // Visually suppressed when it echoes the base key, but still feeds "tap A, hold ⇧" accessibility labels.
+                for key in config.enabledKeys {
+                    guard let keyCode = Self.kanataNameToKeyCode(key),
+                          let label = Self.tapHoldOutputDisplayLabel(key)
+                    else { continue }
+                    labels[keyCode] = label
+                    AppLogger.shared.info("🏷️ [TapHoldIdle] keyCode=\(keyCode) input=\(key) tapOutput=(self) label=\(label)")
+                }
+            default:
+                continue
             }
         }
         AppLogger.shared.info("🏷️ [TapHoldIdle] Updated: \(labels.count) entries")
