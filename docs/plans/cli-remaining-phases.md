@@ -316,18 +316,20 @@ keypath keyboard forget <deviceHash>
 
 ```
 keypath simulate <key-sequence> [--config <path>]
-keypath simulate --file <sim-file>
+keypath simulate --raw <raw-sim-timeline> [--config <path>]
+keypath simulate --sim-file <sim-file> [--config <path>]
 ```
 
 #### Input format
 
 ```
-# Key sequence as space-separated keys with timing
-keypath simulate "a:press a:release"
-keypath simulate "caps:press caps:release"
+# Simple key taps
+keypath simulate a b
+keypath simulate caps:hold a
 
-# With custom timing (ms between events)
-keypath simulate "a:press 50 a:release 100 b:press 50 b:release"
+# Raw kanata simulator timelines for overlapping key events
+keypath simulate --raw 'd:f t:100 d:j t:50 u:j t:50 u:f'
+keypath simulate --sim-file ./home-row-mods.sim
 ```
 
 #### Output (structured JSON)
@@ -346,12 +348,15 @@ keypath simulate "a:press 50 a:release 100 b:press 50 b:release"
 
 #### Implementation
 
-Delegates to `SimulatorService.simulate(taps:configPath:)` which runs the bundled `kanata-simulator` binary.
+Delegates to `SimulatorService.simulate(taps:configPath:)` for simple tap sequences and
+`SimulatorService.simulateRaw(simContent:configPath:)` for raw overlapping timelines.
+Both run the bundled `kanata-simulator` binary.
 
 #### CLIFacade additions
 
 ```swift
 public func simulate(keys: [SimulatorKeyTap], configPath: String?) async throws -> CLISimulationResult
+public func simulateRaw(simContent: String, configPath: String?) async throws -> CLISimulationResult
 ```
 
 #### Tests (~4)
@@ -360,6 +365,7 @@ public func simulate(keys: [SimulatorKeyTap], configPath: String?) async throws 
 - `testSimulateLayerSwitch`
 - `testSimulateTapHold`
 - `testSimulateInvalidKeyReturnsError`
+- `testRealSimulateRawHomeRowModsOppositeHandChord`
 
 ---
 

@@ -4,6 +4,7 @@
 final class MockSimulatorProvider: CLISimulatorProvider, @unchecked Sendable {
     var result: CLISimulationResult
     var lastTaps: [CLISimulatorKeyTap] = []
+    var lastRawContent: String?
     var lastConfigPath: String = ""
     var shouldThrow: Error?
 
@@ -13,6 +14,13 @@ final class MockSimulatorProvider: CLISimulatorProvider, @unchecked Sendable {
 
     func simulate(taps: [CLISimulatorKeyTap], configPath: String) async throws -> CLISimulationResult {
         lastTaps = taps
+        lastConfigPath = configPath
+        if let error = shouldThrow { throw error }
+        return result
+    }
+
+    func simulateRaw(simContent: String, configPath: String) async throws -> CLISimulationResult {
+        lastRawContent = simContent
         lastConfigPath = configPath
         if let error = shouldThrow { throw error }
         return result
@@ -139,6 +147,27 @@ final class CLISimulateTests: XCTestCase {
         XCTAssertEqual(mock.lastTaps[1].key, "a")
         XCTAssertEqual(mock.lastTaps[1].delayMs, 100)
         XCTAssertEqual(mock.lastConfigPath, "/my/config.kbd")
+    }
+
+    func testRawSimulationPassedToProvider() async throws {
+        let mock = MockSimulatorProvider(result: CLISimulationResult(
+            events: [
+                CLISimEvent(type: "output", timeMs: 100, action: "press", key: "lmet"),
+            ],
+            finalLayer: "base",
+            durationMs: 200
+        ))
+        let raw = "d:f t:100 d:j t:50 u:j t:50 u:f"
+
+        let result = try await facade.simulateRaw(
+            simContent: raw,
+            configPath: "/my/config.kbd",
+            simulatorProvider: mock
+        )
+
+        XCTAssertEqual(mock.lastRawContent, raw)
+        XCTAssertEqual(mock.lastConfigPath, "/my/config.kbd")
+        XCTAssertEqual(result.events.first?.key, "lmet")
     }
 
     // MARK: - Result Structure
@@ -332,6 +361,43 @@ final class CLISimulateIntegrationTests: XCTestCase {
         XCTAssertTrue(outputs.contains { $0.key == "2" }, "Key '1' should produce '2'")
         XCTAssertTrue(result.durationMs > 0)
     }
+
+    func testRealSimulateRawHomeRowModsOppositeHandChord() async throws {
+        let simulatorPath = try requireSimulatorPath()
+
+        let config = HomeRowModsConfig(
+            enabledKeys: ["f", "j"],
+            modifierAssignments: ["f": "lmet", "j": "rmet"],
+            holdMode: .modifiers,
+            timing: TimingConfig(tapWindow: 200, holdDelay: 150, requirePriorIdleMs: 0),
+            oppositeHandMode: .press
+        )
+        let collection = RuleCollection(
+            name: "Home Row Mods",
+            summary: "Tap for letters, hold for modifiers",
+            category: .productivity,
+            mappings: [],
+            isEnabled: true,
+            configuration: .homeRowMods(config)
+        )
+        let renderedConfig = KanataConfiguration.generateFromCollections([collection])
+        let configPath = try createTempConfig(renderedConfig)
+        defer { try? FileManager.default.removeItem(atPath: configPath) }
+
+        let provider = RealSimulatorTestProvider(simulatorPath: simulatorPath)
+        let result = try await runOrSkipOnVersionMismatch {
+            try await facade.simulateRaw(
+                simContent: "d:f t:100 d:j t:50 u:j t:50 u:f",
+                configPath: configPath,
+                simulatorProvider: provider
+            )
+        }
+
+        let activatedLeftCommand = result.events.contains { event in
+            event.type == "output" && event.action == "press" && event.key == "lmet"
+        }
+        XCTAssertTrue(activatedLeftCommand, "Overlapping f+j HRM simulation should activate f's left-command hold action")
+    }
 }
 
 /// Provider that uses the real SimulatorService with a specific binary path.
@@ -348,6 +414,16 @@ private final class RealSimulatorTestProvider: CLISimulatorProvider, @unchecked 
             SimulatorKeyTap(kanataKey: $0.key, displayLabel: $0.key, delayAfterMs: $0.delayMs, isHold: $0.isHold)
         }
         let result = try await service.simulate(taps: internalTaps, configPath: configPath)
+        return cliSimulationResult(from: result)
+    }
+
+    func simulateRaw(simContent: String, configPath: String) async throws -> CLISimulationResult {
+        let service = SimulatorService(simulatorPath: simulatorPath)
+        let result = try await service.simulateRaw(simContent: simContent, configPath: configPath)
+        return cliSimulationResult(from: result)
+    }
+
+    private func cliSimulationResult(from result: SimulationResult) -> CLISimulationResult {
         let events = result.events.map { event -> CLISimEvent in
             switch event {
             case let .input(t, action, key):

@@ -145,6 +145,38 @@ final class CLICommandValidationTests: XCTestCase {
         XCTAssertEqual(cmd.lines, 50)
     }
 
+    // MARK: - Simulate command parsing
+
+    func testSimulateAcceptsRawTimeline() throws {
+        let cmd = try Simulate.parse(["--raw", "d:f t:100 d:j t:50 u:j t:50 u:f"])
+        XCTAssertEqual(cmd.rawSimulation, "d:f t:100 d:j t:50 u:j t:50 u:f")
+        XCTAssertTrue(cmd.keys.isEmpty)
+    }
+
+    func testSimulateAcceptsSimFile() throws {
+        let cmd = try Simulate.parse(["--sim-file", "/tmp/keypath-sim.txt"])
+        XCTAssertEqual(cmd.simulationFile, "/tmp/keypath-sim.txt")
+        XCTAssertTrue(cmd.keys.isEmpty)
+    }
+
+    func testSimulateRejectsRawAndKeysTogether() {
+        XCTAssertThrowsError(
+            try Simulate.parse(["--raw", "d:f t:100 u:f", "f"])
+        )
+    }
+
+    func testSimulateRejectsRawAndSimFileTogether() {
+        XCTAssertThrowsError(
+            try Simulate.parse(["--raw", "d:f t:100 u:f", "--sim-file", "/tmp/keypath-sim.txt"])
+        )
+    }
+
+    func testSimulateRejectsNoInput() {
+        XCTAssertThrowsError(
+            try Simulate.parse([])
+        )
+    }
+
     // MARK: - System command parsing
 
     func testSystemRepairAcceptsOpenPermissions() throws {
