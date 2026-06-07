@@ -229,7 +229,7 @@ struct OverlayKeycapView: View {
         if !isPressed,
            let tapHoldIdleLabel,
            shouldShowTapHoldIdleLabel,
-           !TapHoldLabelPrecedence.idleLabelMatchesBase(tapHoldIdleLabel, baseLabel: baseLabel, keyLabel: key.label)
+           !TapHoldLabelPrecedence.idleLabelAddsNoNewVisualInformation(tapHoldIdleLabel, baseLabel: baseLabel, keyLabel: key.label)
         {
             return tapHoldIdleLabel
         }
