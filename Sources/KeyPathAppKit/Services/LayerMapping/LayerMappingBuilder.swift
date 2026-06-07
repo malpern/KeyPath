@@ -29,7 +29,7 @@ enum LayerMappingBuilder {
                 } else {
                     let outputKey = keyMapping.action.outputString.lowercased()
                     if let description = keyMapping.description,
-                       let outputKeyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(outputKey)
+                       let outputKeyCode = KanataKeyCodeMap.keyCode(for: outputKey)
                     {
                         actionByInput[input] = .mapped(
                             displayLabel: description,
@@ -43,7 +43,7 @@ enum LayerMappingBuilder {
                             description: keyMapping.description ?? systemAction.name,
                             collectionId: collection.id
                         )
-                    } else if let outputKeyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(outputKey) {
+                    } else if let outputKeyCode = KanataKeyCodeMap.keyCode(for: outputKey) {
                         let displayLabel = outputKey.count == 1 ? outputKey.uppercased() : outputKey.capitalized
                         actionByInput[input] = .mapped(
                             displayLabel: displayLabel,
@@ -73,8 +73,8 @@ enum LayerMappingBuilder {
                     // Overlay key names are not always the same canonical strings used in
                     // saved HRM config (for example ";" vs "semicolon"). Register both
                     // forms so physical keycode lookup still resolves the modifier label.
-                    if let keyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(key) {
-                        let overlayInput = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
+                    if let keyCode = KanataKeyCodeMap.keyCode(for: key) {
+                        let overlayInput = KanataKeyCodeMap.overlayName(for: keyCode).lowercased()
                         actionByInput[overlayInput] = info
                     }
                 }
@@ -100,7 +100,7 @@ enum LayerMappingBuilder {
                         action: systemAction.id,
                         description: systemAction.name
                     )
-                } else if let outputKeyCode = KeyboardVisualizationViewModel.kanataNameToKeyCode(outputKey) {
+                } else if let outputKeyCode = KanataKeyCodeMap.keyCode(for: outputKey) {
                     let displayLabel = outputKey.count == 1 ? outputKey.uppercased() : outputKey.capitalized
                     actionByInput[input] = .mapped(
                         displayLabel: displayLabel,
@@ -114,7 +114,7 @@ enum LayerMappingBuilder {
         AppLogger.shared.info("🗺️ [LayerMappingBuilder] Found \(actionByInput.count) actions (push-msg + simple remaps)")
 
         for (keyCode, originalInfo) in mapping {
-            let keyName = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
+            let keyName = KanataKeyCodeMap.overlayName(for: keyCode).lowercased()
             if let info = actionByInput[keyName] {
                 let resolvedInfo = mergeAugmentation(info, with: originalInfo)
                 augmented[keyCode] = resolvedInfo
@@ -137,7 +137,7 @@ enum LayerMappingBuilder {
 
         var result = mapping
         for (keyCode, info) in mapping {
-            let kanataName = OverlayKeyboardView.keyCodeToKanataName(keyCode)
+            let kanataName = KanataKeyCodeMap.overlayName(for: keyCode)
             if let customShift = shiftOverrides[kanataName.lowercased()] {
                 result[keyCode] = LayerKeyInfo(
                     displayLabel: info.displayLabel,

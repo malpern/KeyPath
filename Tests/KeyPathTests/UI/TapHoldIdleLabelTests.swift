@@ -160,6 +160,10 @@ final class TapHoldIdleLabelTests: XCTestCase {
     @MainActor
     func testDisabledHomeRowModsDoNotPopulateIdleTapLabels() {
         let vm = KeyboardVisualizationViewModel()
+        let config = HomeRowModsConfig(
+            enabledKeys: ["a"],
+            modifierAssignments: ["a": "lsft"]
+        )
         let collection = RuleCollection(
             id: RuleCollectionIdentifier.homeRowMods,
             name: "Home Row Mods",
@@ -168,7 +172,7 @@ final class TapHoldIdleLabelTests: XCTestCase {
             mappings: [],
             isEnabled: false,
             isSystemDefault: true,
-            configuration: .homeRowMods(HomeRowModsConfig())
+            configuration: .homeRowMods(config)
         )
 
         vm.updateTapHoldIdleLabels(from: [collection])
