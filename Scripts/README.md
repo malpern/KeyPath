@@ -22,6 +22,7 @@
 - `uninstall.sh` - Uninstaller script
 - `archive/` - Deprecated or historical scripts
 - `lib/signing.sh` - Thin wrappers around codesign/notarytool/stapler with `KP_SIGN_DRY_RUN=1` for safe local runs; CI overrides hook into this.
+- `lib/deploy-lock.sh` - Shared cross-worktree lock for scripts that mutate `/Applications/KeyPath.app`.
 - `test-installer-device.sh` - Opt-in device smoke for InstallerEngine (requires `KEYPATH_E2E_DEVICE=1`; non-destructive).
 
 ## Testing

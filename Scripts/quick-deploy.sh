@@ -13,6 +13,7 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 PROJECT_DIR="$SCRIPT_DIR/.."
+source "$SCRIPT_DIR/lib/deploy-lock.sh"
 APP_NAME="KeyPath"
 APP_BUNDLE="/Applications/${APP_NAME}.app"
 MACOS_DIR="$APP_BUNDLE/Contents/MacOS"
@@ -101,6 +102,7 @@ cleanup() {
     local exit_code=$?
     # Always restore the agent, even on failure, so KeyPath is never left disabled.
     reload_agent
+    keypath_release_deploy_lock
     release_lock
 
     if [[ $exit_code -ne 0 ]] && [[ $exit_code -ne 130 ]]; then
@@ -117,6 +119,11 @@ trap cleanup EXIT
 # Try to acquire lock
 if ! acquire_lock; then
     exit 0  # Exit cleanly - not an error, just skipped
+fi
+
+if ! keypath_acquire_deploy_lock "quick-deploy ($PROJECT_DIR)" "${KEYPATH_QUICK_DEPLOY_LOCK_TIMEOUT_SECONDS:-0}"; then
+    log_build_event "SKIPPED_DEPLOY_LOCK"
+    exit 0
 fi
 
 BUILD_START_MS=$(get_time_ms)
