@@ -450,6 +450,10 @@ struct OverlayKeyboardView: View {
             nil
         }
 
+        let floatingLabelsEnabled = !reduceMotion && activeColorway.legendStyle == .standard
+        let shouldSuppressKeycapLabel = floatingLabelsEnabled
+            && floatingLabelVisibility.suppressesKeycapContent(baseLabel)
+
         return OverlayKeycapView(
             key: key,
             baseLabel: baseLabel,
@@ -471,10 +475,10 @@ struct OverlayKeyboardView: View {
             colorway: activeColorway,
             // Pass layout width for rainbow gradient calculation
             layoutTotalWidth: layout.totalWidth,
-            // Hide keycap alpha labels when floating labels are rendered
-            // (floating labels handle animation, keycaps just show backgrounds)
+            // Hide a keycap alpha label only when the floating/hint overlay owns
+            // that label. Layer, launcher, remapped, and zone labels render inline.
             // Disable floating labels for non-standard legend styles (dots, blank, etc.)
-            useFloatingLabels: !reduceMotion && activeColorway.legendStyle == .standard,
+            useFloatingLabels: shouldSuppressKeycapLabel,
             // Kinesis keyboards have scooped/dished home row keys
             showScoopedHomeRow: layout.id == "kinesis-360",
             // Selection highlight for mapper drawer

@@ -9,6 +9,11 @@ struct FloatingLabelVisibility {
     let zoneSubtitleLabels: Set<String>
 
     func isVisible(_ label: String) -> Bool {
+        suppressesKeycapContent(label)
+            && !(vimHintsActive && Self.isLoudVimHintLabel(label.uppercased()))
+    }
+
+    func suppressesKeycapContent(_ label: String) -> Bool {
         let normalized = label.uppercased()
         return labelToKeyCode[normalized] != nil
             && !Self.isSpecialLabel(label)
@@ -16,7 +21,6 @@ struct FloatingLabelVisibility {
             && !isLayerMode
             && !remappedLabels.contains(normalized)
             && !zoneSubtitleLabels.contains(normalized)
-            && !(vimHintsActive && Self.isLoudVimHintLabel(normalized))
     }
 
     private static func isLoudVimHintLabel(_ label: String) -> Bool {
