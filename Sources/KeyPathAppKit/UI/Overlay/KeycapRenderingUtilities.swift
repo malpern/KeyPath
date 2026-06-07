@@ -125,7 +125,7 @@ enum KeycapSymbols {
     /// rather than each color carrying an unrelated meaning. Collections without a
     /// vibrant category fall to the calm `keycapMapped` blue-gray — NOT orange — so
     /// simple remaps (function keys, caps/escape/delete remaps, leader, custom) don't
-    /// shout. Orange is reserved for the modifier-producing family.
+    /// shout. Modifier-producing keys use a quieter blue-gray.
     private enum LayerColors {
         static let navigation = KeyPathColors.layerGreen
         static let window = KeyPathColors.layerPurple
@@ -134,7 +134,7 @@ enum KeycapSymbols {
         /// Editor / terminal integration — shares the blue family with symbols
         /// (they don't appear together, so the shared hue is intentional).
         static let editor = KeyPathColors.layerBlue
-        static let modifier = KeyPathColors.layerOrange
+        static let modifier = KeyPathColors.layerModifier
         /// Calm default for everything without a vibrant category (simple remaps).
         static let mapped = KeyPathColors.keycapMapped
     }

@@ -101,7 +101,7 @@ extension OverlayKeycapView {
 
     var backgroundColor: Color {
         if isPressed, isHoldActive {
-            KeyPathColors.layerOrange
+            KeyPathColors.layerModifier
         } else if isPressed, let zc = zoneColor {
             zc // Pressed activator/zone key stays in-palette
         } else if isPressed {

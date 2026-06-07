@@ -76,6 +76,23 @@ struct OverlayKeyboardView: View {
         OverlayKeycapView.inlineLayerNames.contains(currentLayerName.lowercased())
     }
 
+    private func homeRowModSubtitle(for info: LayerKeyInfo?, key: PhysicalKey) -> String? {
+        guard currentLayerName.lowercased() == "base",
+              key.layoutRole == .centered,
+              let info,
+              info.collectionId == RuleCollectionIdentifier.homeRowMods,
+              !info.displayLabel.isEmpty,
+              !info.isTransparent,
+              !info.isLayerSwitch,
+              info.appLaunchIdentifier == nil,
+              info.systemActionIdentifier == nil,
+              info.urlIdentifier == nil
+        else {
+            return nil
+        }
+        return info.displayLabel
+    }
+
     /// Track caps lock state from system
     @State private var isCapsLockOn: Bool = NSEvent.modifierFlags.contains(.capsLock)
     /// Global monitor for flagsChanged events (detects caps lock toggled by kanata/IOKit)
@@ -434,6 +451,12 @@ struct OverlayKeyboardView: View {
             for: key,
             includeExtraKeys: includeKeymapPunctuation
         )
+        let layerInfo = layerKeyMap[key.keyCode]
+        let homeRowModSubtitle = homeRowModSubtitle(for: layerInfo, key: key)
+        let resolvedZoneColor = homeRowModSubtitle == nil
+            ? activeZoneColors[key.keyCode]
+            : KeycapSymbols.collectionColor(for: RuleCollectionIdentifier.homeRowMods)
+        let resolvedZoneSubtitle = homeRowModSubtitle ?? activeZoneSubtitles[key.keyCode]
 
         // Look up launcher mapping for this key by kanata name first (handles special keys
         // like enter/rightshift whose display labels differ from their mapping keys),
@@ -462,7 +485,7 @@ struct OverlayKeyboardView: View {
             fadeAmount: fadeAmount,
             currentLayerName: currentLayerName,
             isLoadingLayerMap: isLoadingLayerMap,
-            layerKeyInfo: layerKeyMap[key.keyCode],
+            layerKeyInfo: layerInfo,
             isEmphasized: emphasizedKeyCodes.contains(key.keyCode),
             isOneShot: oneShotKeyCodes.contains(key.keyCode),
             holdLabel: holdLabels[key.keyCode],
@@ -494,8 +517,8 @@ struct OverlayKeyboardView: View {
             launcherMapping: launcherMapping,
             // Keymap transition flag (bypasses remap gating for animation)
             isKeymapTransitioning: isKeymapTransitioning,
-            zoneColor: activeZoneColors[key.keyCode],
-            zoneSubtitle: activeZoneSubtitles[key.keyCode]
+            zoneColor: resolvedZoneColor,
+            zoneSubtitle: resolvedZoneSubtitle
         )
         .frame(
             width: keyWidth(for: key, scale: scale),

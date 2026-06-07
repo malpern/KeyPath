@@ -24,6 +24,8 @@ extension BaseKeycap {
                 fnKeyContent
             } else if let navSymbol = navOverlaySymbol {
                 navOverlayContent(arrow: navSymbol, letter: baseLabel)
+            } else if let subtitle = zoneSubtitle, !isLayerMode, !isLauncherMode, zoneSubtitleRenderedInline {
+                inlineSubtitleContent(primary: effectiveLabel, subtitle: subtitle)
             } else if let shiftSymbol = metadata.shiftSymbol, !isNumpadKey {
                 dualSymbolContent(main: effectiveLabel, shift: shiftSymbol)
             } else if let sfSymbol = LabelMetadata.sfSymbol(forOutputLabel: effectiveLabel) {
@@ -35,29 +37,30 @@ extension BaseKeycap {
                 layerKeyContent(label: key.label)
             } else {
                 let displayText = effectiveLabel.isEmpty ? key.label : effectiveLabel
-                if let subtitle = zoneSubtitle, !isLayerMode, !isLauncherMode {
-                    let adj = OpticalAdjustments.forLabel(displayText)
-                    VStack(spacing: dualSymbolSpacing(for: displayText)) {
-                        Text(displayText.uppercased())
-                            .font(.system(
-                                size: 12.5 * scale * adj.fontScale,
-                                weight: adj.fontWeight ?? .medium
-                            ))
-                            .offset(y: adj.verticalOffset * scale)
-                            .foregroundStyle(foregroundColor)
-                        Text(subtitle)
-                            .font(.system(size: 8.5 * scale, weight: .light))
-                            .foregroundStyle(foregroundColor.opacity(isSmallSize ? 0 : 0.65))
-                    }
+                Text(isNumpadKey ? displayText : displayText.uppercased())
+                    .font(.system(size: isNumpadKey ? 14 * scale : 12 * scale, weight: .medium))
+                    .foregroundStyle(foregroundColor)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    Text(isNumpadKey ? displayText : displayText.uppercased())
-                        .font(.system(size: isNumpadKey ? 14 * scale : 12 * scale, weight: .medium))
-                        .foregroundStyle(foregroundColor)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
             }
         }
+    }
+
+    func inlineSubtitleContent(primary: String, subtitle: String) -> some View {
+        let displayText = primary.isEmpty ? key.label : primary
+        let adj = OpticalAdjustments.forLabel(displayText)
+        return VStack(spacing: dualSymbolSpacing(for: displayText)) {
+            Text(displayText.uppercased())
+                .font(.system(
+                    size: 12.5 * scale * adj.fontScale,
+                    weight: adj.fontWeight ?? .medium
+                ))
+                .offset(y: adj.verticalOffset * scale)
+                .foregroundStyle(foregroundColor)
+            Text(subtitle)
+                .font(.system(size: 8.5 * scale, weight: .light))
+                .foregroundStyle(foregroundColor.opacity(isSmallSize ? 0 : 0.65))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Navigation Word Content

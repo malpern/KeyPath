@@ -18,6 +18,7 @@ struct BaseKeycap: View {
     let useFloatingLabels: Bool
     let shiftLabelOverride: String?
     let isPressed: Bool
+    let isHoldActive: Bool
     let currentLayerName: String
     let isLauncherMode: Bool
     let isLayerMode: Bool
@@ -30,6 +31,26 @@ struct BaseKeycap: View {
     let isCapsLockOn: Bool
     let isInlineLayer: Bool
     let hasLayerMapping: Bool
+
+    /// Home Row Mods render like the Vallack subtitle pattern: primary key
+    /// legend above, held modifier as the smaller subtitle below.
+    var rendersHomeRowModSubtitle: Bool {
+        guard currentLayerName.lowercased() == "base",
+              let info = layerKeyInfo,
+              info.collectionId == RuleCollectionIdentifier.homeRowMods,
+              let zoneSubtitle,
+              !zoneSubtitle.isEmpty
+        else {
+            return false
+        }
+        return zoneSubtitle == info.displayLabel
+    }
+
+    /// Once the tap-hold ambiguity has resolved into hold state, show only the
+    /// resolved hold output.
+    var isResolvedHomeRowModHold: Bool {
+        rendersHomeRowModSubtitle && isPressed && isHoldActive && holdLabel != nil
+    }
 
     // MARK: - Body (Content Routing)
 

@@ -63,7 +63,8 @@ extension OverlayKeycapView {
             // Zone subtitle overlay (e.g., ⌃ under Q for hold modifier)
             // Skip when subtitle is rendered inline as a VStack in centeredContent
             if let subtitle = zoneSubtitle, !isLayerMode, !isLauncherMode,
-               !zoneSubtitleRenderedInline
+               !zoneSubtitleRenderedInline,
+               !isResolvedHomeRowModHold
             {
                 VStack(spacing: 0) {
                     Spacer()
@@ -388,6 +389,7 @@ extension OverlayKeycapView {
                 useFloatingLabels: useFloatingLabels,
                 shiftLabelOverride: shiftLabelOverride,
                 isPressed: isPressed,
+                isHoldActive: isHoldActive,
                 currentLayerName: currentLayerName,
                 isLauncherMode: isLauncherMode,
                 isLayerMode: isLayerMode,

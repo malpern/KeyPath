@@ -6,7 +6,7 @@ import SwiftUI
 ///
 /// The taxonomy is semantic: keys are colored by *what their layer does*, grouped
 /// into families (navigation = green, window/spaces = purple, symbols = blue,
-/// launcher/apps = teal, editor = steel blue, modifier-producing = orange). Anything
+/// launcher/apps = teal, editor = steel blue, modifier-producing = muted blue-gray). Anything
 /// without a vibrant category falls to the calm `keycapMapped` blue-gray — NOT orange.
 @MainActor
 final class OverlayKeycapViewColorTests: XCTestCase {
@@ -49,13 +49,14 @@ final class OverlayKeycapViewColorTests: XCTestCase {
         }
     }
 
-    func testCollectionColor_ModifierFamilyIsOrange() {
+    func testCollectionColor_ModifierFamilyIsMutedModifierColor() {
         for id in [
             RuleCollectionIdentifier.homeRowMods,
             RuleCollectionIdentifier.homeRowLayerToggles,
             RuleCollectionIdentifier.capsLockHyperKey
         ] {
-            XCTAssertEqual(KeycapSymbols.collectionColor(for: id), KeyPathColors.layerOrange)
+            XCTAssertEqual(KeycapSymbols.collectionColor(for: id), KeyPathColors.layerModifier)
+            XCTAssertNotEqual(KeycapSymbols.collectionColor(for: id), KeyPathColors.layerOrange)
         }
     }
 

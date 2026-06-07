@@ -17,6 +17,9 @@ extension BaseKeycap {
         if isLayerMode, let subtitle = zoneSubtitle {
             return subtitle
         }
+        if rendersHomeRowModSubtitle {
+            return baseLabel.isEmpty ? key.label : baseLabel
+        }
         guard let info = layerKeyInfo else {
             return baseLabel
         }
@@ -196,6 +199,8 @@ extension BaseKeycap {
 
     var zoneSubtitleRenderedInline: Bool {
         guard zoneSubtitle != nil, !isLayerMode, !isLauncherMode else { return false }
+        if isResolvedHomeRowModHold { return false }
+        if rendersHomeRowModSubtitle { return true }
         guard colorway.legendStyle == .standard else { return false }
         guard key.layoutRole == .centered else { return false }
         guard navigationSFSymbol == nil else { return false }
