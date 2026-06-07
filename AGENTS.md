@@ -35,6 +35,26 @@ Notes:
   `poltergeist start`, edit, then `poltergeist wait keypath`. Stop it before
   release work, helper/service work, broad tests, or parallel agents.
 
+### Swift Build/Test Performance
+
+- Prefer targeted tests while iterating:
+  `swift test --filter <TestClassOrMethod>`
+- Run full `swift test` before PR/merge, release-candidate work, or after
+  broad/shared changes.
+- Avoid running broad Swift builds/tests concurrently across worktrees. Before
+  full test, release-candidate, or expensive build work, check for active Swift
+  compiles:
+  `pgrep -fl 'swift-test|swift-build|swift-frontend|swift-driver'`
+- If another worktree/agent is compiling and you must continue, reduce local
+  parallelism:
+  `swift test --jobs 4`
+  `swift build --jobs 4`
+- Do not delete `.build` or run clean builds unless diagnosing cache/build-state
+  problems; preserving incremental build products is usually faster.
+- If a full suite stalls after compilation, triage it as a test failure/hang,
+  not compile slowness. Capture the failing test name and log path in the
+  handoff.
+
 ### 2. Release Candidate: signed local testing
 Use after a PR is merged when `/Applications/KeyPath.app` should match a real
 Developer ID/notarized build for manual testing:
@@ -150,6 +170,11 @@ under test.
 ### Testing
 - **Mock Time**: Do not use `Thread.sleep`. Use `Date` overrides or mock clocks.
 - **Environment**: Use `KEYPATH_USE_INSTALLER_ENGINE=1` (default now) for tests.
+- Use the narrowest meaningful test command during iteration; prefer
+  `swift test --filter <TestClassOrMethod>` for focused changes.
+- Run full `swift test` before PR/merge when practical, but do not leave hung
+  suites running. If a full run times out or stalls in an unrelated test, report
+  the failing test and keep targeted validation for the current change.
 
 ### Accessibility (CRITICAL)
 - **ALL interactive UI elements MUST have `.accessibilityIdentifier()`**
@@ -157,7 +182,7 @@ under test.
 - **Enforcement:** Pre-commit hook + CI check (currently warning only)
 - **Verification:** Run `python3 Scripts/check-accessibility.py` before committing
 - **See:** `ACCESSIBILITY_COVERAGE.md` for complete reference
-- **Rationale:** Enables automation (Peekaboo, XCUITest) and ensures testability
+- **Rationale:** Enables automation (Computer Use, XCUITest, legacy Peekaboo) and ensures testability
 
 ## Available External Tools
 
@@ -175,6 +200,13 @@ Watches source files, auto-builds, deploys to /Applications, and restarts. Insta
 | `poltergeist wait keypath` | Block until build completes |
 
 **Workflow tip:** Use `poltergeist start` only during focused single-agent app/UI iteration. After any watched Swift file edit, it runs `./Scripts/quick-deploy.sh`, deploys to `/Applications`, and restarts. Stop it before release builds, helper/service work, broad tests, or parallel agents.
+
+### Computer Use (Preferred UI QA)
+
+Use Computer Use for agent-driven UI testing and release QA. It reads the
+macOS accessibility tree, can click accessible controls, and validates the same
+automation hooks we need for 1.0 QA. Prefer Computer Use over Peekaboo unless
+the user explicitly asks for Peekaboo or Computer Use is unavailable.
 
 ### Peekaboo (UI Automation)
 macOS screenshots and GUI automation. Install: `brew install steipete/tap/peekaboo`
@@ -215,7 +247,7 @@ peekaboo hotkey "cmd+s"              # Save
 2. `poltergeist start` for focused Swift/UI iteration.
 3. Make code edits.
 4. `poltergeist wait keypath` before testing.
-5. Use Peekaboo for UI verification.
+5. Use Computer Use for UI verification.
 6. `poltergeist stop` before release work, helper/service work, broad tests, or handing off.
 
 See `docs/LLM_VISION_UI_AUTOMATION.md` for detailed architecture.

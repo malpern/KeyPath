@@ -20,6 +20,72 @@ final class HrmObservabilityServiceTests: XCTestCase {
         XCTAssertTrue(service.supportsHrmTrace)
     }
 
+    func testTraceOnlyCapabilitiesDoNotMarkStatsSupported() async {
+        let center = NotificationCenter()
+        let service = HrmObservabilityService.makeTestInstance(notificationCenter: center)
+
+        center.post(
+            name: .kanataCapabilitiesUpdated,
+            object: nil,
+            userInfo: ["capabilities": ["reload", "hrm-trace"]]
+        )
+        await Task.yield()
+        await Task.yield()
+
+        XCTAssertEqual(service.availability, .traceOnly)
+        XCTAssertEqual(service.availability.displayName, "Trace only")
+        XCTAssertFalse(service.supportsHrmStats)
+        XCTAssertTrue(service.supportsHrmTrace)
+    }
+
+    func testTraceEventWithoutStatsCapabilityKeepsTraceOnlyAvailability() async {
+        let center = NotificationCenter()
+        let service = HrmObservabilityService.makeTestInstance(notificationCenter: center)
+
+        center.post(
+            name: .kanataHrmTrace,
+            object: nil,
+            userInfo: [
+                "schemaVersion": 1,
+                "key": "f",
+                "decision": "hold",
+                "reason": "opposite-hand"
+            ]
+        )
+        await Task.yield()
+        await Task.yield()
+
+        XCTAssertEqual(service.availability, .traceOnly)
+        XCTAssertFalse(service.supportsHrmStats)
+        XCTAssertEqual(service.recentTraceEvents.count, 1)
+    }
+
+    func testTraceOnlyCapabilitiesUpgradeWhenStatsCapabilityArrives() async {
+        let center = NotificationCenter()
+        let service = HrmObservabilityService.makeTestInstance(notificationCenter: center)
+
+        center.post(
+            name: .kanataCapabilitiesUpdated,
+            object: nil,
+            userInfo: ["capabilities": ["hrm-trace"]]
+        )
+        await Task.yield()
+        await Task.yield()
+        XCTAssertEqual(service.availability, .traceOnly)
+
+        center.post(
+            name: .kanataCapabilitiesUpdated,
+            object: nil,
+            userInfo: ["capabilities": ["hrm-trace", "hrm-stats"]]
+        )
+        await Task.yield()
+        await Task.yield()
+
+        XCTAssertEqual(service.availability, .supported)
+        XCTAssertTrue(service.supportsHrmStats)
+        XCTAssertTrue(service.supportsHrmTrace)
+    }
+
     func testBuildRecommendationsReleaseBeforeTimeoutSuggestsLowerHoldDelay() {
         let service = HrmObservabilityService.makeTestInstance()
         service._testSetLatestStats(

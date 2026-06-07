@@ -11,6 +11,7 @@ final class HrmObservabilityService {
     enum AvailabilityState: String, Sendable {
         case unknown
         case supported
+        case traceOnly
         case unsupported
         case disabledInRuntimeConfig
 
@@ -18,6 +19,7 @@ final class HrmObservabilityService {
             switch self {
             case .unknown: "Unknown"
             case .supported: "Supported"
+            case .traceOnly: "Trace only"
             case .unsupported: "Unsupported"
             case .disabledInRuntimeConfig: "Disabled in runtime config"
             }
@@ -335,10 +337,12 @@ final class HrmObservabilityService {
         let normalized = Set(KanataEventListener.normalizedCapabilities(rawCapabilities))
         advertisedCapabilities = normalized
 
-        if normalized.contains("hrm-stats") || normalized.contains("hrm-trace") {
-            if availability == .unknown || availability == .unsupported {
+        if normalized.contains("hrm-stats") {
+            if availability == .unknown || availability == .unsupported || availability == .traceOnly {
                 availability = .supported
             }
+        } else if normalized.contains("hrm-trace") {
+            availability = .traceOnly
         } else {
             availability = .unsupported
             latestStats = nil
@@ -382,10 +386,10 @@ final class HrmObservabilityService {
         }
         schedulePerKeyBreakdownRebuild()
 
-        // Receiving reason data proves the build supports HRM telemetry,
-        // even if capabilities didn't advertise hrm-stats/hrm-trace yet.
+        // Receiving reason data proves the build supports HRM trace telemetry,
+        // even if capabilities didn't advertise hrm-trace yet.
         if availability == .unknown || availability == .unsupported {
-            availability = .supported
+            availability = supportsHrmStats ? .supported : .traceOnly
         }
     }
 

@@ -547,6 +547,7 @@ struct HomeRowTimingSection: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(!hrmObservability.supportsHrmStats || hrmObservability.calibrationState == .running)
                 .accessibilityIdentifier("home-row-mods-hrm-start-calibration-button")
+                .accessibilityHint(hrmCalibrationButtonAccessibilityHint)
 
                 Button("Refresh Stats") {
                     hrmObservability.refreshNow()
@@ -554,6 +555,14 @@ struct HomeRowTimingSection: View {
                 .buttonStyle(.bordered)
                 .disabled(!hrmObservability.supportsHrmStats)
                 .accessibilityIdentifier("home-row-mods-hrm-refresh-stats-button")
+                .accessibilityHint(hrmRefreshButtonAccessibilityHint)
+            }
+
+            if !hrmObservability.supportsHrmStats {
+                Text(hrmStatsUnavailableMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("home-row-mods-hrm-stats-unavailable")
             }
 
             if hrmObservability.calibrationState == .running {
@@ -723,6 +732,8 @@ struct HomeRowTimingSection: View {
         switch hrmObservability.availability {
         case .supported:
             .green
+        case .traceOnly:
+            .blue
         case .unsupported:
             .secondary
         case .disabledInRuntimeConfig:
@@ -730,6 +741,38 @@ struct HomeRowTimingSection: View {
         case .unknown:
             .secondary
         }
+    }
+
+    private var hrmStatsUnavailableMessage: String {
+        switch hrmObservability.availability {
+        case .traceOnly:
+            "Live decisions are available, but stats and calibration require Kanata's hrm-stats capability."
+        case .unsupported:
+            "Stats and calibration are unavailable because this Kanata build does not advertise HRM telemetry."
+        case .unknown:
+            "Stats and calibration are unavailable until Kanata reports HRM telemetry support."
+        case .disabledInRuntimeConfig:
+            "Stats and calibration are unavailable because HRM telemetry is disabled in the active runtime config."
+        case .supported:
+            ""
+        }
+    }
+
+    private var hrmCalibrationButtonAccessibilityHint: String {
+        if hrmObservability.calibrationState == .running {
+            return "Calibration is already running."
+        }
+        if !hrmObservability.supportsHrmStats {
+            return hrmStatsUnavailableMessage
+        }
+        return "Starts a 60 second home row mods calibration."
+    }
+
+    private var hrmRefreshButtonAccessibilityHint: String {
+        if !hrmObservability.supportsHrmStats {
+            return hrmStatsUnavailableMessage
+        }
+        return "Refreshes home row mods statistics from Kanata."
     }
 
     private func updateConfig() {
