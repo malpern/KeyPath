@@ -83,6 +83,12 @@ struct OverlayKeycapView: View {
         return zoneSubtitle == info.displayLabel
     }
 
+    /// Once Kanata resolves a tap-hold key into hold state, render the single
+    /// resolved hold output instead of the idle alpha+modifier subtitle pair.
+    var isResolvedHomeRowModHold: Bool {
+        rendersHomeRowModSubtitle && isPressed && isHoldActive && holdLabel != nil
+    }
+
     /// Whether this key has a launcher mapping
     var hasLauncherMapping: Bool {
         launcherMapping != nil

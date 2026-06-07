@@ -13,8 +13,11 @@ enum KeyPathColors {
 
     // MARK: - Layer State Colors (Overlay/HUD)
 
-    /// Orange — Vim layer, default layer mode, hold-active state
+    /// Orange — emphasis/default layer accents
     static let layerOrange = Color(red: 0.85, green: 0.45, blue: 0.15)
+
+    /// Muted blue-gray — modifier-producing keys and resolved hold state
+    static let layerModifier = Color(red: 0.34, green: 0.40, blue: 0.48)
 
     /// Green — Vallack navigation, "ready" state
     static let layerGreen = Color(red: 0.2, green: 0.7, blue: 0.4)

@@ -18,6 +18,7 @@ struct BaseKeycap: View {
     let useFloatingLabels: Bool
     let shiftLabelOverride: String?
     let isPressed: Bool
+    let isHoldActive: Bool
     let currentLayerName: String
     let isLauncherMode: Bool
     let isLayerMode: Bool
@@ -43,6 +44,12 @@ struct BaseKeycap: View {
             return false
         }
         return zoneSubtitle == info.displayLabel
+    }
+
+    /// Once the tap-hold ambiguity has resolved into hold state, show only the
+    /// resolved hold output.
+    var isResolvedHomeRowModHold: Bool {
+        rendersHomeRowModSubtitle && isPressed && isHoldActive && holdLabel != nil
     }
 
     // MARK: - Body (Content Routing)
