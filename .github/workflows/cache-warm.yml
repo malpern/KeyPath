@@ -5,8 +5,11 @@ on:
     branches: [master]
     paths:
       - 'Sources/**'
+      - 'External/kanata/**'
       - 'Package.swift'
       - 'Package.resolved'
+      - '.github/workflows/cache-warm.yml'
+      - '.github/workflows/ci.yml'
 
 jobs:
   warm-cache:
@@ -26,7 +29,33 @@ jobs:
       - name: Build Swift (warms .build cache for PR jobs)
         run: swift build
 
-      - name: Build kanata fork (warms cargo cache)
+      - name: Compute kanata cache key
+        id: kanata-cache-key
         run: |
+          KANATA_SHA=$(git rev-parse HEAD:External/kanata)
+          CARGO_LOCK_HASH=$(shasum -a 256 External/kanata/Cargo.lock | awk '{print $1}')
+          RUSTC_HASH=$(rustc --version | shasum -a 256 | awk '{print $1}')
+          echo "key=kanata-${{ runner.os }}-${{ runner.arch }}-${KANATA_SHA}-${CARGO_LOCK_HASH}-${RUSTC_HASH}" >> "$GITHUB_OUTPUT"
+          echo "Kanata submodule: $KANATA_SHA"
+
+      - name: Restore kanata binary cache
+        id: kanata-cache
+        uses: actions/cache@v4
+        with:
+          path: build/ci-kanata-cache
+          key: ${{ steps.kanata-cache-key.outputs.key }}
+
+      - name: Build kanata fork (warms cargo and binary cache)
+        run: |
+          mkdir -p build/ci-kanata-cache
+          if [[ -x build/ci-kanata-cache/kanata && -x build/ci-kanata-cache/kanata-simulator ]]; then
+            echo "✅ Kanata binary cache already warm"
+            exit 0
+          fi
           cd External/kanata
-          cargo build --release --target aarch64-apple-darwin 2>&1 | tail -3
+          cargo build --release --target aarch64-apple-darwin 2>&1 | tail -20
+          cargo build --release --target aarch64-apple-darwin -p kanata-sim 2>&1 | tail -20
+          cd ../..
+          cp External/kanata/target/aarch64-apple-darwin/release/kanata build/ci-kanata-cache/kanata
+          cp External/kanata/target/aarch64-apple-darwin/release/kanata_simulated_input build/ci-kanata-cache/kanata-simulator
+          chmod 755 build/ci-kanata-cache/kanata build/ci-kanata-cache/kanata-simulator

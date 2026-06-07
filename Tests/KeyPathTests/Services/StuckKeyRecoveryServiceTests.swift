@@ -28,26 +28,24 @@ final class StuckKeyRecoveryServiceTests: KeyPathTestCase {
 
     // MARK: - Detection Threshold
 
-    func testIgnoresNormalAutorepeat() async {
+    func testIgnoresNormalAutorepeat() {
         let correlation = makeCorrelation(
             suggestsUnmatchedAutorepeat: true,
             msSinceAnyKanataEvent: 100
         )
 
         service.handleAutorepeatMismatch(correlation)
-        try? await Task.sleep(for: .milliseconds(50))
 
         XCTAssertEqual(restartCallCount, 0, "Should not restart for normal autorepeat with active kanata")
     }
 
-    func testIgnoresNonAutorepeat() async {
+    func testIgnoresNonAutorepeat() {
         let correlation = makeCorrelation(
             suggestsUnmatchedAutorepeat: false,
             msSinceAnyKanataEvent: 5000
         )
 
         service.handleAutorepeatMismatch(correlation)
-        try? await Task.sleep(for: .milliseconds(50))
 
         XCTAssertEqual(restartCallCount, 0, "Should not restart if not an unmatched autorepeat")
     }
@@ -69,14 +67,13 @@ final class StuckKeyRecoveryServiceTests: KeyPathTestCase {
         XCTAssertTrue(lastRestartReason?.contains("t") == true)
     }
 
-    func testIgnoresNilKanataEventTime() async {
+    func testIgnoresNilKanataEventTime() {
         let correlation = makeCorrelation(
             suggestsUnmatchedAutorepeat: true,
             msSinceAnyKanataEvent: nil
         )
 
         service.handleAutorepeatMismatch(correlation)
-        try? await Task.sleep(for: .milliseconds(50))
 
         XCTAssertEqual(restartCallCount, 0, "Should not restart if kanata event time is unknown")
     }
@@ -104,7 +101,6 @@ final class StuckKeyRecoveryServiceTests: KeyPathTestCase {
             await Task.yield()
         }
         service.handleAutorepeatMismatch(correlation)
-        try? await Task.sleep(for: .milliseconds(150))
         XCTAssertEqual(restartCallCount, 1, "Should not restart again within cooldown period")
     }
 
@@ -133,7 +129,6 @@ final class StuckKeyRecoveryServiceTests: KeyPathTestCase {
 
         // Second mismatch while the first restart is still suspended must be ignored.
         service.handleAutorepeatMismatch(correlation)
-        try? await Task.sleep(for: .milliseconds(150))
 
         continueRestart?.resume()
         XCTAssertEqual(restartCallCount, 1, "Should not fire second restart while first is in progress")

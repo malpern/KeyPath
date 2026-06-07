@@ -1352,9 +1352,7 @@ class ConfigurationServiceTests: XCTestCase {
         process.standardError = errorPipe
 
         try process.run()
-        while process.isRunning {
-            usleep(1000)
-        }
+        process.waitUntilExit()
 
         let outputData = try outputPipe.fileHandleForReading.readToEnd() ?? Data()
         let errorData = try errorPipe.fileHandleForReading.readToEnd() ?? Data()

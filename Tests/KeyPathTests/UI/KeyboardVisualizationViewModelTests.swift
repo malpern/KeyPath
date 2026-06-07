@@ -467,12 +467,13 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.launcherMappings.isEmpty, "Launcher mappings should be empty by default")
     }
 
-    func testLauncherMappingsClearedWhenExitingLauncherMode() async {
+    func testLauncherMappingsClearedWhenExitingLauncherMode() {
         let viewModel = KeyboardVisualizationViewModel()
-
-        // Enter launcher mode (which triggers async loading)
         viewModel.updateLayer("launcher")
-        try? await Task.sleep(for: .milliseconds(100))
+
+        viewModel.launcherMappings = [
+            "a": LauncherMapping(key: "a", action: .launchApp(name: "Safari", bundleId: nil))
+        ]
 
         // Exit launcher mode
         viewModel.updateLayer("base")

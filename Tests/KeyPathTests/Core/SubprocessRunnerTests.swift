@@ -5,8 +5,6 @@ import Foundation
 /// Tests for SubprocessRunner actor
 /// Verifies that subprocess execution works correctly and doesn't block MainActor
 final class SubprocessRunnerTests: XCTestCase {
-    private struct TestTimeoutError: Error {}
-
     var fakeRunner: SubprocessRunnerFake!
 
     override func setUp() async throws {
@@ -199,16 +197,20 @@ final class SubprocessRunnerTests: XCTestCase {
     }
 
     func testRunCancellationTerminatesProcess() async {
+        let marker = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keypath-subprocess-started-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: marker) }
+
         let longRunningTask = Task {
             try await SubprocessRunner.shared.run(
-                "/bin/sleep",
-                args: ["5"],
+                "/bin/sh",
+                args: ["-c", "printf started > '\(marker.path)'; sleep 5"],
                 timeout: 30
             )
         }
 
-        // Allow the process to start
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        let processStarted = await waitForFile(at: marker, timeout: 2.0)
+        XCTAssertTrue(processStarted, "Process should start before cancellation")
 
         longRunningTask.cancel()
 
@@ -233,35 +235,38 @@ final class SubprocessRunnerTests: XCTestCase {
         longRunningTask.cancel()
 
         do {
-            _ = try await awaitWithTimeout(seconds: 2.0) {
-                try await longRunningTask.value
-            }
+            _ = try await longRunningTask.value
             XCTFail("Expected cancellation to throw")
         } catch is CancellationError {
             // Expected
-        } catch is TestTimeoutError {
-            XCTFail("Cancellation path hung waiting for continuation")
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
     }
 
-    private func awaitWithTimeout<T: Sendable>(
-        seconds: TimeInterval,
-        operation: @escaping @Sendable () async throws -> T
-    ) async throws -> T {
-        try await withThrowingTaskGroup(of: T.self) { group in
-            group.addTask {
-                try await operation()
-            }
-            group.addTask {
-                try await Task.sleep(for: .seconds(seconds))
-                throw TestTimeoutError()
-            }
-
-            let result = try await group.next()!
-            group.cancelAll()
-            return result
+    private func waitForFile(at url: URL, timeout: TimeInterval) async -> Bool {
+        if FileManager.default.fileExists(atPath: url.path) {
+            return true
         }
+
+        let semaphore = DispatchSemaphore(value: 0)
+        let queue = DispatchQueue(label: "com.keypath.tests.subprocess-start-poll")
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now(), repeating: .milliseconds(10))
+        timer.setEventHandler {
+            if FileManager.default.fileExists(atPath: url.path) {
+                semaphore.signal()
+                timer.cancel()
+            }
+        }
+        timer.resume()
+
+        let started = await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                continuation.resume(returning: semaphore.wait(timeout: .now() + timeout) == .success)
+            }
+        }
+        timer.cancel()
+        return started || FileManager.default.fileExists(atPath: url.path)
     }
 }

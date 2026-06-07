@@ -400,6 +400,17 @@
   <div class="section-desc">Each guide covers one major subsystem in detail: how it works, why it's designed that way, and what not to break.</div>
 
   <div class="doc-grid">
+    <a href="build-test-release-workflow.html" class="doc-card">
+      <div class="doc-header">
+        <div class="doc-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 7 H20" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><path d="M4 12 H20" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><path d="M4 17 H20" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round"/><circle cx="7" cy="7" r="2" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.2"/><circle cx="12" cy="12" r="2" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.2"/><circle cx="17" cy="17" r="2" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.2"/></svg>
+        </div>
+        <span class="doc-name">Build, Test, and Release Workflow</span>
+        <span class="doc-badge ready">Ready</span>
+      </div>
+      <div class="doc-desc">The operational ladder from fast local iteration to public release. Covers <code>quick-deploy.sh</code>, <code>run-tests-safe.sh</code>, PR CI, release candidates, public shipping, and the installed-app verification gate.</div>
+    </a>
+
     <a href="wizard-architecture.html" class="doc-card">
       <div class="doc-header">
         <div class="doc-icon">
@@ -519,7 +530,11 @@
     </div>
     <div class="ref-row">
       <div class="ref-key">Tests</div>
-      <div class="ref-val"><code>swift test</code> &mdash; 413 tests, all must pass in under 5 seconds</div>
+      <div class="ref-val"><code>KEYPATH_SNAPSHOTS=1 ./Scripts/run-tests-safe.sh</code> &mdash; CI-like guarded local test run</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Workflow levels</div>
+      <div class="ref-val"><a href="build-test-release-workflow.html" style="color: var(--blue); text-decoration: none;">Build, Test, and Release Workflow</a> &mdash; inner loop through public release</div>
     </div>
     <div class="ref-row">
       <div class="ref-key">Lint</div>

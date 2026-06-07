@@ -4,101 +4,64 @@ import KeyPathPermissions
 
 @MainActor
 final class RecordingCoordinatorTests: KeyPathTestCase {
-    private var statusMessages: [String] = []
-    private lazy var permissionProvider = StubPermissionProvider(
-        snapshot: RecordingCoordinatorTests.snapshot(accessibility: .unknown)
-    )
-    private lazy var captureStub = StubRecordingCapture()
-    private lazy var kanataManager = RuntimeCoordinator()
-    private lazy var coordinator: RecordingCoordinator = {
-        let c = RecordingCoordinator()
-        c.configure(
-            kanataManager: kanataManager,
-            statusHandler: { [weak self] message in self?.statusMessages.append(message) },
-            permissionProvider: permissionProvider,
-            keyboardCaptureFactory: { [unowned self] in captureStub }
-        )
-        return c
-    }()
-
     func testInputRecordingFailsWhenAccessibilityDenied() async {
-        statusMessages.removeAll()
-        coordinator.stopAllRecording()
-        coordinator.clearCapturedSequences()
-        permissionProvider.snapshot = Self.snapshot(accessibility: .denied)
+        let fixture = RecordingCoordinatorFixture(accessibility: .denied)
+        await fixture.drainStartupTasks()
+        let permissionChecked = expectation(description: "permission checked")
+        fixture.permissionProvider.onSnapshot = { permissionChecked.fulfill() }
 
-        coordinator.toggleInputRecording()
-        // Wait for async permission check and state update
-        try? await Task.sleep(nanoseconds: 150_000_000)
+        fixture.coordinator.toggleInputRecording()
+        await fulfillment(of: [permissionChecked], timeout: 1.0)
 
-        XCTAssertFalse(coordinator.isInputRecording())
+        XCTAssertFalse(fixture.coordinator.isInputRecording())
         XCTAssertEqual(
-            coordinator.inputDisplayText(), "⚠️ Accessibility permission required for recording"
+            fixture.coordinator.inputDisplayText(), "⚠️ Accessibility permission required for recording"
         )
-        XCTAssertTrue(statusMessages.contains { $0.contains("Accessibility") })
+        XCTAssertTrue(fixture.statusMessages.contains { $0.contains("Accessibility") })
     }
 
     func testInputRecordingCompletesWhenCaptureCallbackFires() async {
-        statusMessages.removeAll()
-        coordinator.stopAllRecording()
-        coordinator.clearCapturedSequences()
-        permissionProvider.snapshot = Self.snapshot(accessibility: .granted)
-        captureStub.autoFire = false
+        let fixture = RecordingCoordinatorFixture(accessibility: .granted)
+        await fixture.drainStartupTasks()
+        fixture.captureStub.autoFire = false
+        let captureStarted = expectation(description: "capture started")
+        fixture.captureStub.onStart = { captureStarted.fulfill() }
 
-        coordinator.toggleInputRecording()
-        // Wait for recording to start
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        fixture.coordinator.toggleInputRecording()
+        await fulfillment(of: [captureStarted], timeout: 1.0)
 
-        XCTAssertTrue(coordinator.isInputRecording())
-        XCTAssertTrue(coordinator.inputDisplayText().hasPrefix("Press"))
-        XCTAssertEqual(captureStub.startCalls, 1)
+        XCTAssertTrue(fixture.coordinator.isInputRecording())
+        XCTAssertTrue(fixture.coordinator.inputDisplayText().hasPrefix("Press"))
+        XCTAssertEqual(fixture.captureStub.startCalls, 1)
 
         let keyPress = KeyPress(baseKey: "k", modifiers: [], keyCode: 40)
         let sequence = KeySequence(keys: [keyPress], captureMode: .chord)
-        captureStub.triggerCapture(with: sequence)
-        // Wait for callback to process and stop recording
-        // Increase wait time to ensure async callback completes
-        try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+        fixture.captureStub.triggerCapture(with: sequence)
+        await Task.yield()
+        fixture.coordinator.finalizePendingCapturesForTesting()
 
-        // Recording should stop after capture callback fires
-        // Add a small retry loop for async operations
-        var recordingStopped = false
-        for _ in 0 ..< 10 {
-            if !coordinator.isInputRecording() {
-                recordingStopped = true
-                break
-            }
-            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
-        }
-
-        XCTAssertTrue(
-            recordingStopped || !coordinator.isInputRecording(),
-            "Recording should stop after capture callback fires"
-        )
-        if recordingStopped || !coordinator.isInputRecording() {
-            XCTAssertEqual(coordinator.inputDisplayText(), sequence.displayString)
-            XCTAssertEqual(coordinator.capturedInputSequence(), sequence)
-        }
+        XCTAssertFalse(fixture.coordinator.isInputRecording())
+        XCTAssertEqual(fixture.coordinator.inputDisplayText(), sequence.displayString)
+        XCTAssertEqual(fixture.coordinator.capturedInputSequence(), sequence)
     }
 
     func testOutputRecordingFailsWhenAccessibilityDenied() async {
-        statusMessages.removeAll()
-        coordinator.stopAllRecording()
-        coordinator.clearCapturedSequences()
-        permissionProvider.snapshot = Self.snapshot(accessibility: .denied)
+        let fixture = RecordingCoordinatorFixture(accessibility: .denied)
+        await fixture.drainStartupTasks()
+        let permissionChecked = expectation(description: "permission checked")
+        fixture.permissionProvider.onSnapshot = { permissionChecked.fulfill() }
 
-        coordinator.toggleOutputRecording()
-        // Wait for async permission check and state update
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        fixture.coordinator.toggleOutputRecording()
+        await fulfillment(of: [permissionChecked], timeout: 1.0)
 
-        XCTAssertFalse(coordinator.isOutputRecording())
+        XCTAssertFalse(fixture.coordinator.isOutputRecording())
         XCTAssertEqual(
-            coordinator.outputDisplayText(), "⚠️ Accessibility permission required for recording"
+            fixture.coordinator.outputDisplayText(), "⚠️ Accessibility permission required for recording"
         )
-        XCTAssertTrue(statusMessages.contains { $0.contains("Accessibility") })
+        XCTAssertTrue(fixture.statusMessages.contains { $0.contains("Accessibility") })
     }
 
-    private static func snapshot(accessibility: PermissionOracle.Status) -> PermissionOracle.Snapshot {
+    fileprivate static func snapshot(accessibility: PermissionOracle.Status) -> PermissionOracle.Snapshot {
         let permissionSet = PermissionOracle.PermissionSet(
             accessibility: accessibility,
             inputMonitoring: .granted,
@@ -114,15 +77,46 @@ final class RecordingCoordinatorTests: KeyPathTestCase {
 
 // MARK: - Test Doubles
 
+@MainActor
+private final class RecordingCoordinatorFixture {
+    var statusMessages: [String] = []
+    let permissionProvider: StubPermissionProvider
+    let captureStub = StubRecordingCapture()
+    let kanataManager = RuntimeCoordinator()
+    let coordinator = RecordingCoordinator()
+
+    init(accessibility: PermissionOracle.Status) {
+        permissionProvider = StubPermissionProvider(
+            snapshot: RecordingCoordinatorTests.snapshot(accessibility: accessibility)
+        )
+        coordinator.configure(
+            kanataManager: kanataManager,
+            statusHandler: { [weak self] message in self?.statusMessages.append(message) },
+            permissionProvider: permissionProvider,
+            keyboardCaptureFactory: { [unowned self] in captureStub }
+        )
+    }
+
+    func drainStartupTasks() async {
+        // Best-effort drain for startup tasks kicked off by configure(); tests use
+        // explicit expectations for correctness-sensitive capture and permission events.
+        for _ in 0 ..< 20 {
+            await Task.yield()
+        }
+    }
+}
+
 private final class StubPermissionProvider: PermissionSnapshotProviding, @unchecked Sendable {
     var snapshot: PermissionOracle.Snapshot
+    var onSnapshot: (() -> Void)?
 
     init(snapshot: PermissionOracle.Snapshot) {
         self.snapshot = snapshot
     }
 
     func currentSnapshot() async -> PermissionOracle.Snapshot {
-        snapshot
+        onSnapshot?()
+        return snapshot
     }
 }
 
@@ -131,6 +125,7 @@ private final class StubRecordingCapture: RecordingCapture {
     private(set) var startCalls = 0
     private var callback: ((KeySequence) -> Void)?
     var autoFire = true
+    var onStart: (() -> Void)?
 
     func setEventRouter(_: EventRouter?, kanataManager _: RuntimeCoordinator?) {
         // No-op in tests
@@ -139,6 +134,7 @@ private final class StubRecordingCapture: RecordingCapture {
     func startSequenceCapture(mode: CaptureMode, callback: @escaping (KeySequence) -> Void) {
         startCalls += 1
         self.callback = callback
+        onStart?()
         if autoFire {
             callback(Self.sampleSequence(for: mode))
         }

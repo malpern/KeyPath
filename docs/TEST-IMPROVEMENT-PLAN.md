@@ -18,7 +18,7 @@ This plan brings KeyPath's test suite from its current state (~3,615 tests, unev
 | Managers | 11 | 4 | 64% untested — ConfigReload, Recovery, Installation coordinators |
 | Services (configuration) | — | — | 24 tests/1K lines — save pipeline, rollback, error paths |
 
-**Ghost tests:** ~10 files totaling 3,000+ lines that have zero or near-zero assertions. They verify data structures exist or round-trip, not that features work. These inflate test counts while catching nothing.
+**Ghost tests:** The original audit found ~10 files totaling 3,000+ lines that had zero or near-zero assertions. The 2026-06-07 follow-up audit found several of those suites had already been strengthened, and this pass converted `WindowManagerTests` to call production frame calculation instead of mirroring the implementation in the test. Keep this section as a ratchet: listed suites should not regress to compile-only or structure-only coverage.
 
 ## Architecture Context
 
@@ -56,17 +56,17 @@ KeyPath is an SPM-only macOS app (no Xcode project). XCUITest is not viable.
 
 ### 1.1 Audit and fix zero-assertion test files
 
-These files have test methods but no meaningful assertions:
+These files were called out by the original audit. Current status after the 2026-06-07 follow-up:
 
 | File | Lines | Problem |
 |------|-------|---------|
-| `QMKLayoutParserTests` | 908 | Parses JSON, checks structure — never verifies downstream effect |
-| `MappingBehaviorTests` | 484 | Codec round-trips only — no behavioral assertions |
-| `MainAppStateControllerTests` | 314 | Calls async methods, doesn't verify results |
-| `OverlayHJKLRegressionTests` | 193 | Named for regression, doesn't test it |
-| `ViewModelSyncTests` | 121 | Property access only |
-| `OutputActionGroupingTests` | 231 | Structure tests, no behavior |
-| `WindowManagerTests` | 229 | Sanity checks only |
+| `QMKLayoutParserTests` | 908 | Audited: now includes parsing edge cases, clamping, rotation, quality scoring, and downstream QMK import coverage exists in `QMKImportServiceTests`. Keep future additions behavior-focused. |
+| `MappingBehaviorTests` | 484 | Audited: now includes validation, legacy decode, factory defaults, and model integration assertions, not just JSON round-trips. |
+| `MainAppStateControllerTests` | 314 | Audited: now includes state transitions, refresh/validation behavior, startup gate behavior, and async validation assertions. |
+| `OverlayHJKLRegressionTests` | 193 | No current file by this name; likely folded into keyboard visualization/overlay suites. Do not recreate without a concrete HJKL regression assertion. |
+| `ViewModelSyncTests` | 121 | No current file by this name; likely replaced by focused view-model suites. Do not recreate as property-access coverage. |
+| `OutputActionGroupingTests` | 231 | Audited: verifies detailed/compact grouping contracts, all-action coverage, duplicate prevention, and kanata output presence. |
+| `WindowManagerTests` | 229 | Fixed: frame calculation tests now call `WindowManager.targetFrame(...)`, the production helper, instead of duplicating the frame math inside the test file. |
 
 **For each file:**
 1. Read the source code it's supposed to test

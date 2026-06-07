@@ -269,7 +269,12 @@ public final class WindowManager {
 
     // MARK: - Frame Calculations
 
-    private func calculateFrame(for position: WindowPosition, in visibleFrame: CGRect, currentFrame: CGRect) -> CGRect {
+    nonisolated static func targetFrame(
+        for position: WindowPosition,
+        in visibleFrame: CGRect,
+        currentFrame: CGRect,
+        previousFrame: CGRect? = nil
+    ) -> CGRect {
         let x = visibleFrame.origin.x
         let y = visibleFrame.origin.y
         let width = visibleFrame.width
@@ -315,6 +320,15 @@ public final class WindowManager {
             // Handled separately
             return currentFrame
         }
+    }
+
+    private func calculateFrame(for position: WindowPosition, in visibleFrame: CGRect, currentFrame: CGRect) -> CGRect {
+        Self.targetFrame(
+            for: position,
+            in: visibleFrame,
+            currentFrame: currentFrame,
+            previousFrame: previousFrame
+        )
     }
 
     // MARK: - Space Movement
@@ -645,7 +659,7 @@ public final class WindowManager {
     }
 
     /// Check if two frames are approximately equal (within 10px)
-    private func isApproximatelyEqual(_ frame1: CGRect, _ frame2: CGRect, tolerance: CGFloat = 10) -> Bool {
+    private nonisolated static func isApproximatelyEqual(_ frame1: CGRect, _ frame2: CGRect, tolerance: CGFloat = 10) -> Bool {
         abs(frame1.origin.x - frame2.origin.x) < tolerance &&
             abs(frame1.origin.y - frame2.origin.y) < tolerance &&
             abs(frame1.width - frame2.width) < tolerance &&

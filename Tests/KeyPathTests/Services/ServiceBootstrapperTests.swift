@@ -46,7 +46,7 @@ final class ServiceBootstrapperTests: XCTestCase {
         XCTAssertFalse(result, "Unknown service should not be recently restarted")
     }
 
-    func testWasRecentlyRestartedExpiresAfterWarmupWindow() async {
+    func testWasRecentlyRestartedExpiresAfterWarmupWindow() {
         let bootstrapper = ServiceBootstrapper.shared
         let serviceID = "com.keypath.test-service"
 
@@ -57,8 +57,10 @@ final class ServiceBootstrapperTests: XCTestCase {
         let immediately = ServiceBootstrapper.wasRecentlyRestarted(serviceID, within: 0.1)
         XCTAssertTrue(immediately, "Service should be recently restarted immediately")
 
-        // Wait longer than warm-up window
-        try? await Task.sleep(nanoseconds: 150_000_000) // 150ms
+        ServiceBootstrapper.setRestartTimeForTesting(
+            Date().addingTimeInterval(-0.150),
+            serviceID: serviceID
+        )
 
         // Should no longer be recently restarted (with 0.1s window)
         let afterDelay = ServiceBootstrapper.wasRecentlyRestarted(serviceID, within: 0.1)
@@ -116,7 +118,7 @@ final class ServiceBootstrapperTests: XCTestCase {
         XCTAssertFalse(hadRecent, "Should return false when no services were recently restarted")
     }
 
-    func testHadRecentRestartWithCustomWindow() async {
+    func testHadRecentRestartWithCustomWindow() {
         let bootstrapper = ServiceBootstrapper.shared
         let serviceID = "com.keypath.test-service"
 
@@ -126,8 +128,10 @@ final class ServiceBootstrapperTests: XCTestCase {
         let immediately = ServiceBootstrapper.hadRecentRestart(within: 0.1)
         XCTAssertTrue(immediately, "Should be true immediately after restart")
 
-        // Wait longer than window
-        try? await Task.sleep(nanoseconds: 150_000_000) // 150ms
+        ServiceBootstrapper.setRestartTimeForTesting(
+            Date().addingTimeInterval(-0.150),
+            serviceID: serviceID
+        )
 
         // Should be false with short window
         let afterDelay = ServiceBootstrapper.hadRecentRestart(within: 0.1)
@@ -197,7 +201,9 @@ final class ServiceBootstrapperTests: XCTestCase {
         let plistPath = tempDir.appendingPathComponent("\(ServiceBootstrapper.kanataServiceID).plist")
         FileManager.default.createFile(atPath: plistPath.path, contents: Data(), attributes: nil)
 
-        let loaded = await bootstrapper.loadService(serviceID: ServiceBootstrapper.kanataServiceID)
+        let loaded = await withAdminOperationsSkippedForTesting {
+            await bootstrapper.loadService(serviceID: ServiceBootstrapper.kanataServiceID)
+        }
         XCTAssertTrue(loaded)
     }
 
@@ -221,25 +227,33 @@ final class ServiceBootstrapperTests: XCTestCase {
         let existing = tempDir.appendingPathComponent("\(ServiceBootstrapper.kanataServiceID).plist")
         FileManager.default.createFile(atPath: existing.path, contents: Data(), attributes: nil)
 
-        let allLoaded = await bootstrapper.loadServices([
-            ServiceBootstrapper.kanataServiceID,
-            "com.keypath.missing-service"
-        ])
+        let allLoaded = await withAdminOperationsSkippedForTesting {
+            await bootstrapper.loadServices([
+                ServiceBootstrapper.kanataServiceID,
+                "com.keypath.missing-service"
+            ])
+        }
         XCTAssertFalse(allLoaded)
     }
 
     func testUnloadAndInstallPathsReturnSuccessInTestMode() async {
         let bootstrapper = ServiceBootstrapper.shared
 
-        let unloadResult = await bootstrapper.unloadService(serviceID: ServiceBootstrapper.kanataServiceID)
+        let unloadResult = await withAdminOperationsSkippedForTesting {
+            await bootstrapper.unloadService(serviceID: ServiceBootstrapper.kanataServiceID)
+        }
         XCTAssertTrue(unloadResult)
 
-        let restartResult = await bootstrapper.restartServicesWithAdmin([
-            ServiceBootstrapper.kanataServiceID
-        ])
+        let restartResult = await withAdminOperationsSkippedForTesting {
+            await bootstrapper.restartServicesWithAdmin([
+                ServiceBootstrapper.kanataServiceID
+            ])
+        }
         XCTAssertTrue(restartResult)
 
-        let installResult = await bootstrapper.installAllServices()
+        let installResult = await withAdminOperationsSkippedForTesting {
+            await bootstrapper.installAllServices()
+        }
         XCTAssertTrue(installResult)
     }
 
@@ -270,7 +284,9 @@ final class ServiceBootstrapperTests: XCTestCase {
 
     func testRepairVHIDDaemonServicesInTestModeSetsOutput() async {
         let bootstrapper = ServiceBootstrapper.shared
-        let result = await bootstrapper.repairVHIDDaemonServices()
+        let result = await withAdminOperationsSkippedForTesting {
+            await bootstrapper.repairVHIDDaemonServices()
+        }
 
         XCTAssertTrue(result)
         XCTAssertEqual(bootstrapper.lastVHIDRepairOutput, "Skipped in test mode")
@@ -291,5 +307,20 @@ final class ServiceBootstrapperTests: XCTestCase {
         XCTAssertTrue(config.contains("/var/log/com.keypath.kanata.stdout.log"))
         XCTAssertTrue(config.contains("/var/log/com.keypath.kanata.stderr.log"))
         XCTAssertTrue(config.contains("/var/log/kanata.log"))
+    }
+
+    private func withAdminOperationsSkippedForTesting<T>(
+        _ body: () async -> T
+    ) async -> T {
+        let original = getenv("KEYPATH_USE_SUDO").map { String(cString: $0) }
+        setenv("KEYPATH_USE_SUDO", "0", 1)
+        defer {
+            if let original {
+                setenv("KEYPATH_USE_SUDO", original, 1)
+            } else {
+                unsetenv("KEYPATH_USE_SUDO")
+            }
+        }
+        return await body()
     }
 }

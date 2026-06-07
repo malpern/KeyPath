@@ -74,32 +74,33 @@ final class StatePublisherServiceTests: XCTestCase {
         publisher.configure { counter }
 
         var receivedStates: [Int] = []
-        let expectation = expectation(description: "Receive state changes")
-        expectation.expectedFulfillmentCount = 3 // Initial + 2 notifications
+        let stateChangesExpectation = expectation(description: "Receive state changes")
+        stateChangesExpectation.expectedFulfillmentCount = 3 // Initial + 2 notifications
+        let initialReceived = expectation(description: "Receive initial state")
 
         Task {
             for await state in publisher.stateChanges {
                 receivedStates.append(state)
-                expectation.fulfill()
+                stateChangesExpectation.fulfill()
+                if receivedStates.count == 1 {
+                    initialReceived.fulfill()
+                }
                 if receivedStates.count >= 3 {
                     break
                 }
             }
         }
 
-        // Wait for initial state
-        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        await fulfillment(of: [initialReceived], timeout: 1.0)
 
         // Trigger state changes
         counter = 1
         publisher.notifyStateChanged()
 
-        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
-
         counter = 2
         publisher.notifyStateChanged()
 
-        await fulfillment(of: [expectation], timeout: 1.0)
+        await fulfillment(of: [stateChangesExpectation], timeout: 1.0)
         XCTAssertEqual(receivedStates, [0, 1, 2], "Should emit all state changes")
     }
 
@@ -122,30 +123,31 @@ final class StatePublisherServiceTests: XCTestCase {
 
         var subscriberReceivedUpdate = false
 
-        let expectation = expectation(description: "Subscriber receives update")
+        let subscriberUpdateExpectation = expectation(description: "Subscriber receives update")
+        let initialStateExpectation = expectation(description: "Subscriber receives initial state")
 
         // Single subscriber test
         Task {
-            var initialReceived = false
+            var hasReceivedInitial = false
             for await _ in publisher.stateChanges {
-                if !initialReceived {
-                    initialReceived = true
+                if !hasReceivedInitial {
+                    hasReceivedInitial = true
+                    initialStateExpectation.fulfill()
                     continue // Skip initial state
                 }
                 subscriberReceivedUpdate = true
-                expectation.fulfill()
+                subscriberUpdateExpectation.fulfill()
                 break
             }
         }
 
-        // Wait for subscription to be set up
-        try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        await fulfillment(of: [initialStateExpectation], timeout: 1.0)
 
         // Trigger update
         stateCounter = 1
         publisher.notifyStateChanged()
 
-        await fulfillment(of: [expectation], timeout: 2.0)
+        await fulfillment(of: [subscriberUpdateExpectation], timeout: 2.0)
 
         XCTAssertTrue(subscriberReceivedUpdate, "Subscriber should receive update")
     }

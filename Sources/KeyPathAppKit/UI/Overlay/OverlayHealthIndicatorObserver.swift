@@ -92,6 +92,21 @@ final class OverlayHealthIndicatorObserver {
         handle(state: state, issues: issues)
     }
 
+    #if DEBUG
+        func refreshForTesting(controller: MainAppStateController) {
+            handle(state: controller.validationState, issues: controller.issues)
+        }
+
+        func completePendingDismissForTesting() {
+            dismissTask?.cancel()
+            dismissTask = nil
+            if case .healthy = currentState {
+                currentState = .dismissed
+                onDismiss()
+            }
+        }
+    #endif
+
     private func handle(
         state: MainAppStateController.ValidationState?,
         issues: [WizardIssue]

@@ -1,0 +1,89 @@
+name: KeyPath Coverage
+
+on:
+  schedule:
+    - cron: '30 8 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  narrow-coverage:
+    runs-on: [self-hosted, macOS, keypath]
+    timeout-minutes: 10
+    env:
+      COVERAGE_BASELINE_PERCENT: "0.27"
+      COVERAGE_TOLERANCE_PERCENT: "0.01"
+
+    steps:
+      - name: Clean stale git credentials
+        run: |
+          git config --global --unset-all http.https://github.com/.extraheader 2>/dev/null || true
+          git config --global --unset-all url.https://github.com/.insteadof 2>/dev/null || true
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
+
+      - name: Add Homebrew to PATH
+        run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
+
+      - name: Generate coverage
+        timeout-minutes: 5
+        env:
+          KP_SIGN_DRY_RUN: "1"
+          CI_ENVIRONMENT: "true"
+          SKIP_EVENT_TAP_TESTS: "1"
+        run: |
+          echo "Generating narrow-lane coverage..."
+          swift test --enable-code-coverage --filter 'KeyPathErrorTests|PermissionOracleTests'
+          chmod +x ./Scripts/generate-coverage.sh
+          ./Scripts/generate-coverage.sh coverage
+
+      - name: Enforce coverage non-regression
+        run: |
+          echo "Enforcing narrow-lane coverage floor (${COVERAGE_BASELINE_PERCENT}%)..."
+          if [ ! -f "coverage/coverage-summary.txt" ]; then
+            echo "Missing coverage/coverage-summary.txt"
+            exit 1
+          fi
+
+          ACTUAL_COVERAGE=$(awk '/^TOTAL/ {for(i=1;i<=NF;i++) if ($i ~ /%$/) {gsub("%","",$i); print $i; exit}}' coverage/coverage-summary.txt)
+          if [ -z "${ACTUAL_COVERAGE}" ]; then
+            echo "Could not parse TOTAL coverage from coverage/coverage-summary.txt"
+            cat coverage/coverage-summary.txt
+            exit 1
+          fi
+
+          echo "Coverage (narrow lane): ${ACTUAL_COVERAGE}%"
+          EFFECTIVE_FLOOR=$(awk -v baseline="${COVERAGE_BASELINE_PERCENT}" -v tol="${COVERAGE_TOLERANCE_PERCENT}" 'BEGIN {printf "%.2f", baseline - tol}')
+          if awk -v actual="${ACTUAL_COVERAGE}" -v floor="${EFFECTIVE_FLOOR}" 'BEGIN {exit !(actual + 0 >= floor + 0)}'; then
+            echo "Coverage is non-regressing (>= ${EFFECTIVE_FLOOR}% effective floor)"
+          else
+            echo "Coverage regression: ${ACTUAL_COVERAGE}% < ${EFFECTIVE_FLOOR}% effective floor"
+            exit 1
+          fi
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Generate coverage summary
+        if: always()
+        run: |
+          echo "## Coverage" >> $GITHUB_STEP_SUMMARY
+          if [ -f "coverage/coverage-summary.txt" ]; then
+            echo "- Summary: \`$(cat coverage/coverage-summary.txt)\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Enforced narrow-lane floor: \`${COVERAGE_BASELINE_PERCENT}%\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Coverage not generated." >> $GITHUB_STEP_SUMMARY
+          fi

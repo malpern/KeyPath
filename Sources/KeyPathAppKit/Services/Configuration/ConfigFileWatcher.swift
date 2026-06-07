@@ -310,6 +310,12 @@ class ConfigFileWatcher: @unchecked Sendable {
         await handleFileChangeEvent()
     }
 
+    #if DEBUG
+        func simulateFileEventForTesting() async {
+            await handleFileEvent(flags: .write)
+        }
+    #endif
+
     /// Rebind file monitor to handle atomic writes where the file descriptor becomes stale
     private func rebindFileMonitor(to path: String) {
         AppLogger.shared.log("🔄 [FileWatcher] Rebinding file monitor to: \(path)")

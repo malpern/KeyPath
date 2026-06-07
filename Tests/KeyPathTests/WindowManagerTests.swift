@@ -196,9 +196,9 @@ struct WindowFrameCalculationTests {
         #expect(result.size.height == largeFrame.height)
     }
 
-    // Helper: Simplified frame calculation (mirrors WindowManager logic)
+    // Helper: calls production frame calculation without needing Accessibility APIs.
     private func calculateFrame(for position: WindowPosition, in visibleFrame: CGRect) -> CGRect {
-        calculateFrameWithCurrentFrame(for: position, in: visibleFrame, currentFrame: visibleFrame)
+        WindowManager.targetFrame(for: position, in: visibleFrame, currentFrame: visibleFrame)
     }
 
     private func calculateFrameWithCurrentFrame(
@@ -206,35 +206,7 @@ struct WindowFrameCalculationTests {
         in visibleFrame: CGRect,
         currentFrame: CGRect
     ) -> CGRect {
-        let x = visibleFrame.origin.x
-        let y = visibleFrame.origin.y
-        let width = visibleFrame.width
-        let height = visibleFrame.height
-        let halfWidth = width / 2
-        let halfHeight = height / 2
-
-        switch position {
-        case .left:
-            return CGRect(x: x, y: y, width: halfWidth, height: height)
-        case .right:
-            return CGRect(x: x + halfWidth, y: y, width: halfWidth, height: height)
-        case .maximize:
-            return visibleFrame
-        case .center:
-            let centerX = x + (width - currentFrame.width) / 2
-            let centerY = y + (height - currentFrame.height) / 2
-            return CGRect(x: centerX, y: centerY, width: currentFrame.width, height: currentFrame.height)
-        case .topLeft:
-            return CGRect(x: x, y: y + halfHeight, width: halfWidth, height: halfHeight)
-        case .topRight:
-            return CGRect(x: x + halfWidth, y: y + halfHeight, width: halfWidth, height: halfHeight)
-        case .bottomLeft:
-            return CGRect(x: x, y: y, width: halfWidth, height: halfHeight)
-        case .bottomRight:
-            return CGRect(x: x + halfWidth, y: y, width: halfWidth, height: halfHeight)
-        case .nextDisplay, .previousDisplay, .nextSpace, .previousSpace, .undo:
-            return currentFrame
-        }
+        WindowManager.targetFrame(for: position, in: visibleFrame, currentFrame: currentFrame)
     }
 }
 

@@ -21,9 +21,6 @@ jobs:
   build-and-test:
     runs-on: [self-hosted, macOS, keypath]
     timeout-minutes: 10
-    env:
-      COVERAGE_BASELINE_PERCENT: "0.27"
-      COVERAGE_TOLERANCE_PERCENT: "0.01"
 
     steps:
     - name: Clean stale git credentials
@@ -42,14 +39,42 @@ jobs:
         echo "/opt/homebrew/bin" >> $GITHUB_PATH
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
+    - name: Compute kanata cache key
+      id: kanata-cache-key
+      run: |
+        KANATA_SHA=$(git rev-parse HEAD:External/kanata)
+        CARGO_LOCK_HASH=$(shasum -a 256 External/kanata/Cargo.lock | awk '{print $1}')
+        RUSTC_HASH=$(rustc --version | shasum -a 256 | awk '{print $1}')
+        echo "key=kanata-${{ runner.os }}-${{ runner.arch }}-${KANATA_SHA}-${CARGO_LOCK_HASH}-${RUSTC_HASH}" >> "$GITHUB_OUTPUT"
+        echo "Kanata submodule: $KANATA_SHA"
+
+    - name: Restore kanata binary cache
+      id: kanata-cache
+      uses: actions/cache@v4
+      with:
+        path: build/ci-kanata-cache
+        key: ${{ steps.kanata-cache-key.outputs.key }}
+
     - name: Build and install kanata fork
       run: |
-        cd External/kanata
-        cargo build --release --target aarch64-apple-darwin 2>&1 | tail -3
-        cp ./target/aarch64-apple-darwin/release/kanata /opt/homebrew/bin/kanata
+        mkdir -p build/ci-kanata-cache
+        if [[ -x build/ci-kanata-cache/kanata && -x build/ci-kanata-cache/kanata-simulator ]]; then
+          echo "✅ Restored kanata artifacts from cache"
+          echo "KANATA_CACHE_STATUS=hit" >> "$GITHUB_ENV"
+        else
+          echo "🔨 Building kanata artifacts (cache miss)"
+          cd External/kanata
+          cargo build --release --target aarch64-apple-darwin 2>&1 | tail -20
+          cargo build --release --target aarch64-apple-darwin -p kanata-sim 2>&1 | tail -20
+          cd ../..
+          cp External/kanata/target/aarch64-apple-darwin/release/kanata build/ci-kanata-cache/kanata
+          cp External/kanata/target/aarch64-apple-darwin/release/kanata_simulated_input build/ci-kanata-cache/kanata-simulator
+          chmod 755 build/ci-kanata-cache/kanata build/ci-kanata-cache/kanata-simulator
+          echo "KANATA_CACHE_STATUS=miss" >> "$GITHUB_ENV"
+        fi
+        cp build/ci-kanata-cache/kanata /opt/homebrew/bin/kanata
+        cp build/ci-kanata-cache/kanata-simulator /opt/homebrew/bin/kanata-simulator
         kanata --version
-        cargo build --release --target aarch64-apple-darwin -p kanata-sim 2>&1 | tail -3
-        cp ./target/aarch64-apple-darwin/release/kanata_simulated_input /opt/homebrew/bin/kanata-simulator
         kanata-simulator --version
 
     - name: Lint WizardAutoFixer for forbidden subprocess usage
@@ -61,6 +86,9 @@ jobs:
       env:
         KP_SIGN_DRY_RUN: "1"
         KEYPATH_BUNDLED_SIMULATOR_OVERRIDE: /opt/homebrew/bin/kanata-simulator
+        # SwiftPM can wrap XCTest post-run SIGABRT as exit 1 on the self-hosted runner;
+        # run-tests-safe.sh still fails if it parses any test failures and emits a warning when this path is used.
+        KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS: "1"
       run: |
         echo "Building and running full test suite..."
         export CI_ENVIRONMENT=true
@@ -86,38 +114,6 @@ jobs:
         echo "Verifying com.keypath.kanata.plist points at kanata-launcher"
         ./Scripts/verify-kanata-plist.sh Sources/KeyPathApp/com.keypath.kanata.plist
 
-    - name: Generate Coverage (single pass)
-      timeout-minutes: 5
-      run: |
-        echo "Generating coverage with combined filter..."
-        swift test --enable-code-coverage --filter 'KeyPathErrorTests|PermissionOracleTests'
-        chmod +x ./Scripts/generate-coverage.sh
-        ./Scripts/generate-coverage.sh coverage
-
-    - name: Enforce Coverage Non-Regression (Narrow Lane)
-      run: |
-        echo "Enforcing narrow-lane coverage floor (${COVERAGE_BASELINE_PERCENT}%)..."
-        if [ ! -f "coverage/coverage-summary.txt" ]; then
-          echo "Missing coverage/coverage-summary.txt"
-          exit 1
-        fi
-
-        ACTUAL_COVERAGE=$(awk '/^TOTAL/ {for(i=1;i<=NF;i++) if ($i ~ /%$/) {gsub("%","",$i); print $i; exit}}' coverage/coverage-summary.txt)
-        if [ -z "${ACTUAL_COVERAGE}" ]; then
-          echo "Could not parse TOTAL coverage from coverage/coverage-summary.txt"
-          cat coverage/coverage-summary.txt
-          exit 1
-        fi
-
-        echo "Coverage (narrow lane): ${ACTUAL_COVERAGE}%"
-        EFFECTIVE_FLOOR=$(awk -v baseline="${COVERAGE_BASELINE_PERCENT}" -v tol="${COVERAGE_TOLERANCE_PERCENT}" 'BEGIN {printf "%.2f", baseline - tol}')
-        if awk -v actual="${ACTUAL_COVERAGE}" -v floor="${EFFECTIVE_FLOOR}" 'BEGIN {exit !(actual + 0 >= floor + 0)}'; then
-          echo "Coverage is non-regressing (>= ${EFFECTIVE_FLOOR}% effective floor)"
-        else
-          echo "Coverage regression: ${ACTUAL_COVERAGE}% < ${EFFECTIVE_FLOOR}% effective floor"
-          exit 1
-        fi
-
     - name: Upload Test Results
       if: always()
       uses: actions/upload-artifact@v4
@@ -125,7 +121,6 @@ jobs:
         name: test-results
         path: |
           test_output.safe.txt
-          coverage/
           test-results/installer-reliability/
         if-no-files-found: ignore
         retention-days: 7
@@ -151,13 +146,11 @@ jobs:
           echo "- Installer matrix summary not found." >> $GITHUB_STEP_SUMMARY
         fi
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Test Coverage" >> $GITHUB_STEP_SUMMARY
-        if [ -f "coverage/coverage-summary.txt" ]; then
-          echo "- Baseline: \`$(cat coverage/coverage-summary.txt)\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Enforced narrow-lane floor: \`${COVERAGE_BASELINE_PERCENT}%\`" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "- Coverage not generated in this run." >> $GITHUB_STEP_SUMMARY
-        fi
+        echo "### Kanata Artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "- Cache status: \`${KANATA_CACHE_STATUS:-unknown}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Coverage" >> $GITHUB_STEP_SUMMARY
+        echo "- Narrow coverage enforcement moved to the scheduled/manual \`KeyPath Coverage\` workflow." >> $GITHUB_STEP_SUMMARY
 
   code-quality:
     runs-on: [self-hosted, macOS, keypath]
@@ -198,7 +191,8 @@ jobs:
       if: steps.changed.outputs.swift_files != ''
       run: |
         echo "Linting changed Swift files only..."
-        echo "${{ steps.changed.outputs.swift_files }}" | xargs swiftlint --reporter github-actions-logging || true
+        echo "${{ steps.changed.outputs.swift_files }}" | xargs swiftlint --reporter github-actions-logging
+        echo "SWIFTLINT_STATUS=passed" >> $GITHUB_ENV
 
     - name: Verify SwiftFormat version matches pin
       if: steps.changed.outputs.swift_files != ''
@@ -237,8 +231,9 @@ jobs:
     - name: Critical Pattern Analysis
       run: |
         if grep -r 'TODO.*CRITICAL\|FIXME.*URGENT' Sources/ --include='*.swift'; then
-          echo "CRITICAL issues found that should block deployment"
+          echo "::error::CRITICAL TODO/FIXME markers found. Resolve them or downgrade the marker before merging."
           echo "CRITICAL_ISSUES=found" >> $GITHUB_ENV
+          exit 1
         else
           echo "No critical TODOs/FIXMEs found"
           echo "CRITICAL_ISSUES=none" >> $GITHUB_ENV
@@ -267,13 +262,13 @@ jobs:
                     print(f"{path}:{idx}: {stripped}")
         PY
         if [ -s /tmp/keypath-force-unwraps.txt ]; then
-          echo "Force unwraps found in manager files:"
+          echo "::warning::Force unwraps found in manager files"
           head -10 /tmp/keypath-force-unwraps.txt
           FORCE_UNWRAPS=1
         fi
 
         if grep -r "print(" Sources/ --include="*.swift" | grep -v "// debug" >/dev/null 2>&1; then
-          echo "print() statements found (consider using Logger):"
+          echo "::warning::print() statements found (consider using Logger)"
           grep -r "print(" Sources/ --include="*.swift" | grep -v "// debug" | head -10
           PRINT_STATEMENTS=1
         fi

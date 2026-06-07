@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Build, Test, and Release Workflow &mdash; Developer Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f5f5f7;
+    --surface-2: #ebebed;
+    --border: #d2d2d7;
+    --border-light: #e8e8ed;
+    --text: #1d1d1f;
+    --text-secondary: #6e6e73;
+    --text-tertiary: #86868b;
+    --blue: #0071e3;
+    --green-bg: #e8f5e9;
+    --green: #2e7d32;
+    --orange-bg: #fff3e0;
+    --orange: #e65100;
+    --code-bg: #f5f5f7;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.58;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container { max-width: 740px; margin: 0 auto; padding: 0 24px; }
+
+  .nav { padding: 20px 0; }
+  .nav a {
+    font-size: 0.85rem; color: var(--blue); text-decoration: none; font-weight: 500;
+  }
+  .nav a:hover { text-decoration: underline; }
+
+  .hero { padding: 96px 0 64px; text-align: center; }
+  .hero-eyebrow {
+    font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 12px;
+  }
+  .hero h1 {
+    font-size: clamp(2.4rem, 5.5vw, 3.2rem); font-weight: 700;
+    letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px;
+    color: var(--text);
+  }
+  .hero p {
+    font-size: 1.15rem; color: var(--text-secondary); max-width: 540px;
+    margin: 0 auto; line-height: 1.5;
+  }
+
+  section { padding: 64px 0; }
+  .divider { height: 1px; background: var(--border-light); }
+  .section-label {
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px;
+  }
+  h2 {
+    font-size: clamp(1.6rem, 3.5vw, 2rem); font-weight: 700;
+    letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 10px;
+  }
+  h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; }
+  p { color: var(--text-secondary); margin-bottom: 14px; }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .section-desc {
+    font-size: 1rem; color: var(--text-secondary); max-width: 560px;
+    margin-bottom: 36px; line-height: 1.55;
+  }
+
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    background: var(--surface);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--text);
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border-light);
+    border-radius: 10px; padding: 18px 20px; overflow-x: auto;
+    font-size: 0.8rem; line-height: 1.75; margin: 14px 0 0;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace; color: var(--text);
+  }
+
+  .workflow {
+    margin: 36px 0;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .workflow-step {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .workflow-step:last-child { border-bottom: none; }
+  .step-num {
+    background: var(--surface);
+    border-right: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .step-body { padding: 22px 24px; }
+  .step-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .step-title h3 { margin: 0; }
+  .badge {
+    font-size: 0.65rem; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+    letter-spacing: 0.03em; text-transform: uppercase;
+    background: var(--surface); color: var(--text-tertiary); border: 1px solid var(--border-light);
+  }
+  .badge.fast { background: var(--green-bg); color: var(--green); border-color: #c8e6c9; }
+  .badge.slow { background: var(--orange-bg); color: var(--orange); border-color: #ffe0b2; }
+  .step-desc { color: var(--text-secondary); font-size: 0.92rem; line-height: 1.55; margin: 0 0 12px; }
+
+  .ref-table {
+    margin: 32px 0;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .ref-row {
+    display: grid;
+    grid-template-columns: 190px 1fr;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 0.9rem;
+  }
+  .ref-row:last-child { border-bottom: none; }
+  .ref-row > div { padding: 12px 20px; }
+  .ref-key {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text);
+    background: var(--surface);
+  }
+  .ref-val { color: var(--text-secondary); }
+
+  .rules { margin: 32px 0; border: 1px solid var(--border-light); border-radius: var(--radius); overflow: hidden; }
+  .rule-item {
+    padding: 18px 20px; display: flex; gap: 14px; align-items: start;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .rule-item:last-child { border-bottom: none; }
+  .rule-num {
+    width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700; background: var(--surface); color: var(--text-tertiary);
+  }
+  .rule-title { font-weight: 600; font-size: 0.9rem; color: var(--text); margin-bottom: 2px; }
+  .rule-desc { font-size: 0.85rem; color: var(--text-tertiary); line-height: 1.5; }
+
+  .invariant {
+    background: var(--surface); border: 1px solid var(--border-light);
+    border-radius: var(--radius); padding: 20px 24px; margin: 32px 0;
+    display: flex; gap: 14px; align-items: start;
+  }
+  .invariant-icon {
+    width: 32px; height: 32px; border-radius: 8px; background: var(--bg);
+    border: 1px solid var(--border-light);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .invariant-text { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.55; }
+  .invariant-text strong { color: var(--text); }
+
+  footer {
+    padding: 40px 0; text-align: center;
+    font-size: 0.78rem; color: var(--text-tertiary); border-top: 1px solid var(--border-light);
+  }
+
+  @media (max-width: 640px) {
+    .workflow-step, .ref-row { grid-template-columns: 1fr; }
+    .step-num { justify-content: flex-start; padding: 12px 20px; border-right: none; border-bottom: 1px solid var(--border-light); }
+    .hero { padding: 64px 0 48px; }
+    section { padding: 48px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="nav"><a href="index.html">&larr; Back to Index</a></div>
+</div>
+
+<div class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">Developer Workflow</div>
+    <h1>Build, Test, and Release</h1>
+    <p>Use the narrowest workflow that proves the change. Stay fast while editing, then add trust, runtime, and distribution checks only when the job needs them.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="container">
+
+<section>
+  <div class="section-label">Levels</div>
+  <h2>The Ladder</h2>
+  <div class="section-desc">KeyPath has five practical levels, from quick local iteration to public release artifacts. Installed-app verification is a reusable gate inside the signed lanes.</div>
+
+  <div class="workflow">
+    <div class="workflow-step">
+      <div class="step-num">01</div>
+      <div class="step-body">
+        <div class="step-title"><h3>Inner Loop</h3><span class="badge fast">Fast</span></div>
+        <p class="step-desc">Use for Swift, UI, and resource edits while you are still shaping the change. Build first, then run the smallest useful test lane. Deploy only when you need to inspect installed app behavior.</p>
+        <pre>swift build
+./Scripts/test-fast.sh --changed
+python3 Scripts/check-accessibility.py</pre>
+      </div>
+    </div>
+    <div class="workflow-step">
+      <div class="step-num">02</div>
+      <div class="step-body">
+        <div class="step-title"><h3>Local Test Gate</h3><span class="badge">Local</span></div>
+        <p class="step-desc">Use before pushing, after focused test filters pass, or when reproducing CI behavior locally. The safe runner builds tests first, supports <code>TEST_FILTER</code>/<code>TEST_SKIP</code>, uses a watchdog, isolates <code>HOME</code>, and skips event-tap paths.</p>
+        <pre>./Scripts/test-full.sh</pre>
+      </div>
+    </div>
+    <div class="workflow-step">
+      <div class="step-num">03</div>
+      <div class="step-body">
+        <div class="step-title"><h3>Pull Request CI</h3><span class="badge">Required</span></div>
+        <p class="step-desc">Runs on the self-hosted macOS runner. It restores or builds cached kanata fork artifacts, runs the safe test suite, parses the installer matrix from the test log, verifies the SMAppService plist, and enforces code quality. Coverage runs in the separate scheduled/manual <code>KeyPath Coverage</code> workflow.</p>
+        <pre>gh pr checks
+./Scripts/test-ci-locally.sh</pre>
+      </div>
+    </div>
+    <div class="workflow-step">
+      <div class="step-num">04</div>
+      <div class="step-body">
+        <div class="step-title"><h3>Release Candidate</h3><span class="badge slow">Signed</span></div>
+        <p class="step-desc">Use after merge when <code>/Applications/KeyPath.app</code> should match a real Developer ID and notarized build for manual testing. This is the normal signed local deployment lane.</p>
+        <pre>git fetch --prune origin
+git pull --ff-only origin master
+./Scripts/release-candidate.sh</pre>
+      </div>
+    </div>
+    <div class="workflow-step">
+      <div class="step-num">05</div>
+      <div class="step-body">
+        <div class="step-title"><h3>Public Release</h3><span class="badge slow">Ship</span></div>
+        <p class="step-desc">Use only when producing public artifacts. This path can bump versions, notarize and staple the app, create Sparkle and DMG artifacts, tag, publish GitHub releases, update appcast, publish website content, and update Homebrew.</p>
+        <pre>./Scripts/release-doctor.sh --ship
+./Scripts/release.sh &lt;version&gt;</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Which Lane</div>
+  <h2>Choosing Commands</h2>
+  <div class="section-desc">Most changes should climb the ladder gradually. Do not run a notarized public release path just to check a SwiftUI edit.</div>
+
+  <div class="ref-table">
+    <div class="ref-row">
+      <div class="ref-key">One Swift file</div>
+      <div class="ref-val">Run <code>./Scripts/test-fast.sh --changed</code>, <code>./Scripts/test-fast.sh &lt;area&gt;</code>, or <code>TEST_FILTER=SomeTests ./Scripts/run-tests-safe.sh</code>, then <code>swift build</code>.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">UI iteration</div>
+      <div class="ref-val">Run filtered UI tests first. Use <code>./Scripts/quick-deploy.sh</code> only when installed app behavior needs inspection. Use Poltergeist only for focused single-agent UI work, then stop it.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Helper or service</div>
+      <div class="ref-val">Avoid hot-swapping the helper by accident. Use installer-focused tests and the release-candidate lane when the installed runtime matters.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Before push</div>
+      <div class="ref-val">Run <code>./Scripts/test-full.sh</code>. The pre-push hook uses this same safe path.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">After merge</div>
+      <div class="ref-val">Deploy from the intended <code>master</code> worktree with <code>./Scripts/release-candidate.sh</code>.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Public ship</div>
+      <div class="ref-val">Run <code>./Scripts/release-doctor.sh --ship</code>, then <code>./Scripts/release.sh &lt;version&gt;</code>. Public releases must be notarized.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Quality Gates</div>
+  <h2>What Each Gate Proves</h2>
+  <div class="section-desc">Each level adds a different kind of evidence. The goal is to catch cheap failures early and reserve slow checks for places where their evidence matters.</div>
+
+  <div class="rules">
+    <div class="rule-item">
+      <div class="rule-num">1</div>
+      <div>
+        <div class="rule-title">Fast build correctness</div>
+        <div class="rule-desc"><code>swift build</code> proves the package still compiles and keeps incremental caches warm.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">2</div>
+      <div>
+        <div class="rule-title">Safe test correctness</div>
+        <div class="rule-desc"><code>run-tests-safe.sh</code> uses CI-safe environment variables and now treats non-zero exits as failures unless an escape hatch is explicitly enabled.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">3</div>
+      <div>
+        <div class="rule-title">PR quality correctness</div>
+        <div class="rule-desc">CI enforces changed-file formatting, SwiftLint, no-sleep guardrails, accessibility checks, and fails on <code>TODO CRITICAL</code> or <code>FIXME URGENT</code> markers.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">4</div>
+      <div>
+        <div class="rule-title">Distribution trust correctness</div>
+        <div class="rule-desc"><code>release-candidate.sh</code> signs, notarizes, deploys, and runs <code>verify-installed-app.sh</code> to check code signature, Gatekeeper, stapling, process launch, launchd, and TCP readiness.</div>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">5</div>
+      <div>
+        <div class="rule-title">Public artifact correctness</div>
+        <div class="rule-desc"><code>release.sh</code> is for user-facing release assets: Sparkle archive, appcast entry, DMG, GitHub release, website, and Homebrew updates.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="invariant">
+    <div class="invariant-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 12 L11 15 L16 9" stroke="#3d4852" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="invariant-text"><strong>Do not infer release health from registration alone.</strong> A signed deployment is healthy only after trust checks pass and runtime readiness is verified through process and TCP evidence.</div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Escape Hatches</div>
+  <h2>Use Sparingly</h2>
+  <div class="section-desc">These flags exist for diagnosis. If they become normal workflow, the underlying failure mode should be fixed.</div>
+
+  <div class="ref-table">
+    <div class="ref-row">
+      <div class="ref-key">Runner crash pass</div>
+      <div class="ref-val"><code>KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS=1</code> allows a signal crash to pass only when parsed test failures are zero; PR CI uses this for the known SwiftPM-wrapped XCTest post-run abort.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Non-zero test pass</div>
+      <div class="ref-val"><code>KEYPATH_ALLOW_NONZERO_TEST_SUCCESS=1</code> restores the old behavior where a non-zero test runner exit can pass if tests were parsed as passing.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Skip RC doctor</div>
+      <div class="ref-val"><code>./Scripts/release-candidate.sh --no-doctor</code> skips preflight only while debugging the release scripts.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Skip RC verify</div>
+      <div class="ref-val"><code>./Scripts/release-candidate.sh --no-verify</code> skips installed-app verification. Do not use it for manual release-candidate validation.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Debug trust only</div>
+      <div class="ref-val"><code>CHECK_RUNTIME=0 ./Scripts/verify-installed-app.sh</code> checks signature and notarization without requiring the app to be running.</div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<footer>KeyPath Developer Documentation &mdash; June 2026</footer>
+
+</body>
+</html>

@@ -55,9 +55,7 @@ final class UninstallCoordinatorTests: XCTestCase {
                 process.standardError = err
                 do {
                     try process.run()
-                    while process.isRunning {
-                        usleep(1000)
-                    }
+                    process.waitUntilExit()
                     let output =
                         String(data: (try? out.fileHandleForReading.readToEnd()) ?? Data(), encoding: .utf8) ?? ""
                     let error =

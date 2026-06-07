@@ -55,8 +55,6 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
             )
         ])
 
-        controller.startObserving()
-
         // Simulate a keyboard connect
         let event = HIDDeviceMonitor.HIDKeyboardEvent(
             vendorID: 0xCB10,
@@ -64,14 +62,7 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
             productName: "Corne Keyboard",
             isConnected: true
         )
-        NotificationCenter.default.post(
-            name: .hidKeyboardConnected,
-            object: nil,
-            userInfo: ["event": event]
-        )
-
-        // Let the async handler run
-        try? await Task.sleep(for: .milliseconds(100))
+        await controller.handleConnectedKeyboardForTesting(event)
 
         // Should have shown a toast for the detected keyboard
         XCTAssertTrue(controller.showingToast, "Toast should appear on first connect")
@@ -83,15 +74,10 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
         XCTAssertFalse(controller.showingToast)
 
         // Simulate disconnect so the VID:PID dedupe is cleared
-        NotificationCenter.default.post(
-            name: .hidKeyboardDisconnected,
-            object: nil,
-            userInfo: ["event": event]
-        )
+        controller.handleDisconnectedKeyboardForTesting(event)
 
         // Restart observation — no new plug-in event occurs
         controller.startObserving()
-        try? await Task.sleep(for: .milliseconds(100))
 
         // Should NOT have replayed the old event
         XCTAssertFalse(controller.showingToast, "Toast should NOT appear on re-subscribe without new plug-in")
@@ -114,8 +100,6 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
             )
         ])
 
-        controller.startObserving()
-
         let event = HIDDeviceMonitor.HIDKeyboardEvent(
             vendorID: 0xCB10,
             productID: 0x1256,
@@ -124,18 +108,8 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
         )
 
         // Post the same connect event twice
-        NotificationCenter.default.post(
-            name: .hidKeyboardConnected,
-            object: nil,
-            userInfo: ["event": event]
-        )
-        NotificationCenter.default.post(
-            name: .hidKeyboardConnected,
-            object: nil,
-            userInfo: ["event": event]
-        )
-
-        try? await Task.sleep(for: .milliseconds(100))
+        await controller.handleConnectedKeyboardForTesting(event)
+        await controller.handleConnectedKeyboardForTesting(event)
 
         // Should show toast exactly once (connectedVIDPIDs deduplicates)
         XCTAssertTrue(controller.showingToast)
@@ -157,8 +131,6 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
             )
         ])
 
-        controller.startObserving()
-
         let event = HIDDeviceMonitor.HIDKeyboardEvent(
             vendorID: 0xCB10,
             productID: 0x1256,
@@ -167,30 +139,15 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
         )
 
         // First connect
-        NotificationCenter.default.post(
-            name: .hidKeyboardConnected,
-            object: nil,
-            userInfo: ["event": event]
-        )
-        try? await Task.sleep(for: .milliseconds(100))
+        await controller.handleConnectedKeyboardForTesting(event)
         XCTAssertTrue(controller.showingToast, "Toast should appear on first connect")
 
         // Dismiss and disconnect
         controller.dismissToast()
-        NotificationCenter.default.post(
-            name: .hidKeyboardDisconnected,
-            object: nil,
-            userInfo: ["event": event]
-        )
-        try? await Task.sleep(for: .milliseconds(50))
+        controller.handleDisconnectedKeyboardForTesting(event)
 
         // Reconnect
-        NotificationCenter.default.post(
-            name: .hidKeyboardConnected,
-            object: nil,
-            userInfo: ["event": event]
-        )
-        try? await Task.sleep(for: .milliseconds(100))
+        await controller.handleConnectedKeyboardForTesting(event)
 
         XCTAssertTrue(controller.showingToast, "Toast should appear again after disconnect + reconnect")
     }
@@ -199,21 +156,13 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
     func testUnrecognizedKeyboardDoesNotShowToast() async {
         KeyboardDetectionIndex.seedIndex(exactEntries: []) // No matches
 
-        controller.startObserving()
-
         let event = HIDDeviceMonitor.HIDKeyboardEvent(
             vendorID: 0x1337,
             productID: 0xBEEF,
             productName: "Mystery Board",
             isConnected: true
         )
-        NotificationCenter.default.post(
-            name: .hidKeyboardConnected,
-            object: nil,
-            userInfo: ["event": event]
-        )
-
-        try? await Task.sleep(for: .milliseconds(100))
+        await controller.handleConnectedKeyboardForTesting(event)
 
         XCTAssertFalse(controller.showingToast, "No toast for unrecognized keyboards")
         XCTAssertNil(controller.pendingResult)
@@ -236,21 +185,13 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
             )
         ])
 
-        controller.startObserving()
-
         let event = HIDDeviceMonitor.HIDKeyboardEvent(
             vendorID: 0xCB10,
             productID: 0x1256,
             productName: "Corne Keyboard",
             isConnected: true
         )
-        NotificationCenter.default.post(
-            name: .hidKeyboardConnected,
-            object: nil,
-            userInfo: ["event": event]
-        )
-
-        try? await Task.sleep(for: .milliseconds(100))
+        await controller.handleConnectedKeyboardForTesting(event)
 
         XCTAssertEqual(controller.connectedKeyboards.count, 1)
         XCTAssertEqual(controller.activeKeyboard?.id, event.id)
@@ -268,8 +209,7 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
             )
         ]
 
-        controller.startObserving()
-        try? await Task.sleep(for: .milliseconds(100))
+        await controller.handleConnectedKeyboardForTesting(initialKeyboardEvents[0], showFeedback: false)
 
         XCTAssertFalse(controller.showingToast)
         XCTAssertEqual(controller.connectedKeyboards.count, 1)
@@ -295,21 +235,13 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
             ]
         )
 
-        controller.startObserving()
-
         let event = HIDDeviceMonitor.HIDKeyboardEvent(
             vendorID: 0x29EA,
             productID: 0x1001,
             productName: "mWave",
             isConnected: true
         )
-        NotificationCenter.default.post(
-            name: .hidKeyboardConnected,
-            object: nil,
-            userInfo: ["event": event]
-        )
-
-        try? await Task.sleep(for: .milliseconds(100))
+        await controller.handleConnectedKeyboardForTesting(event)
 
         XCTAssertFalse(controller.showingToast, "Low-confidence matches should not present an auto-detect toast")
         XCTAssertEqual(controller.connectedKeyboards.count, 1)
@@ -338,21 +270,13 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
             )
         ])
 
-        controller.startObserving()
-
         let event = HIDDeviceMonitor.HIDKeyboardEvent(
             vendorID: 0x29EA,
             productID: 0x1001,
             productName: "mWave",
             isConnected: true
         )
-        NotificationCenter.default.post(
-            name: .hidKeyboardConnected,
-            object: nil,
-            userInfo: ["event": event]
-        )
-
-        try? await Task.sleep(for: .milliseconds(100))
+        await controller.handleConnectedKeyboardForTesting(event)
 
         let restoredBaseline = await controller.activeKeyboardDidChange(
             from: event.id,

@@ -237,7 +237,7 @@ struct RecoveryCoordinatorFailureDiagnosisTests {
 
             // The recovery runs in a detached Task inside diagnoseKanataFailure,
             // so yield briefly to let it execute.
-            try? await Task.sleep(for: .milliseconds(50))
+            await Task.yield()
         }
     }
 
@@ -265,7 +265,7 @@ struct RecoveryCoordinatorFailureDiagnosisTests {
     }
 
     @Test("diagnoseKanataFailure does not trigger recovery for normal exit")
-    func doesNotTriggerRecoveryForNormalExit() async {
+    func doesNotTriggerRecoveryForNormalExit() {
         let coordinator = RecoveryCoordinator()
         var recoveryCalled = false
 
@@ -276,9 +276,6 @@ struct RecoveryCoordinatorFailureDiagnosisTests {
             addDiagnostic: { _ in },
             attemptRecovery: { recoveryCalled = true }
         )
-
-        // Give any potential Task a chance to run (it shouldn't)
-        try? await Task.sleep(for: .milliseconds(50))
 
         #expect(!recoveryCalled, "attemptRecovery should NOT be called for exit code 0")
     }

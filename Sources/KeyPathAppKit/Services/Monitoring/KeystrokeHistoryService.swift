@@ -368,6 +368,14 @@ final class KeystrokeHistoryService {
         rebuildSegments()
     }
 
+    #if DEBUG
+        func flushPendingEventsForTesting() {
+            batchTimer?.invalidate()
+            batchTimer = nil
+            flushPendingEvents()
+        }
+    #endif
+
     // MARK: - Threshold Lookup
 
     private func lookupThreshold(for key: String) -> Int? {

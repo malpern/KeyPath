@@ -80,6 +80,14 @@ public final class ServiceBootstrapper {
         }
     }
 
+    #if DEBUG
+        public nonisolated static func setRestartTimeForTesting(_ date: Date, serviceID: String) {
+            restartTimeLock.withLock { times in
+                times[serviceID] = date
+            }
+        }
+    #endif
+
     /// Check if a service was recently restarted (within warm-up window)
     ///
     /// - Parameters:
