@@ -4,7 +4,7 @@ import XCTest
 
 @MainActor
 final class HomeRowModsOverlayLabelTests: XCTestCase {
-    func testHomeRowModShowsHoldModifierWhenTapMatchesBaseLabel() {
+    func testHomeRowModKeepsAlphaPrimaryAndShowsHoldModifierAsSubtitle() {
         let key = PhysicalKey(keyCode: 0, label: "A", x: 0, y: 0, width: 1, height: 1)
         let info = LayerKeyInfo.mapped(
             displayLabel: "⇧",
@@ -19,11 +19,42 @@ final class HomeRowModsOverlayLabelTests: XCTestCase {
             isPressed: false,
             scale: 1.0,
             layerKeyInfo: info,
-            tapHoldIdleLabel: "A"
+            tapHoldIdleLabel: "A",
+            zoneColor: KeycapSymbols.collectionColor(for: RuleCollectionIdentifier.homeRowMods),
+            zoneSubtitle: "⇧"
         )
 
-        XCTAssertEqual(keycap.effectiveLabel, "⇧")
+        XCTAssertEqual(keycap.effectiveLabel, "A")
+        XCTAssertTrue(keycap.rendersHomeRowModSubtitle)
+        XCTAssertTrue(keycap.zoneSubtitleRenderedInline)
+        XCTAssertEqual(
+            String(describing: keycap.backgroundColor),
+            String(describing: KeycapSymbols.collectionColor(for: RuleCollectionIdentifier.homeRowMods))
+        )
         XCTAssertEqual(keycap.keycapAccessibilityLabel, "A, tap A, hold ⇧")
+    }
+
+    func testHomeRowModSemicolonUsesModifierSubtitleInsteadOfShiftedPunctuation() {
+        let key = PhysicalKey(keyCode: 41, label: ";", x: 0, y: 0, width: 1, height: 1)
+        let info = LayerKeyInfo.mapped(
+            displayLabel: "⇧",
+            outputKey: "rsft",
+            outputKeyCode: nil,
+            collectionId: RuleCollectionIdentifier.homeRowMods
+        )
+
+        let keycap = OverlayKeycapView(
+            key: key,
+            baseLabel: ";",
+            isPressed: false,
+            scale: 1.0,
+            layerKeyInfo: info,
+            tapHoldIdleLabel: ";",
+            zoneSubtitle: "⇧"
+        )
+
+        XCTAssertEqual(keycap.effectiveLabel, ";")
+        XCTAssertTrue(keycap.zoneSubtitleRenderedInline)
     }
 
     func testTapHoldPickerStyleNonMatchingIdleLabelStillShowsIdleTapLabel() {
@@ -74,13 +105,15 @@ final class HomeRowModsOverlayLabelTests: XCTestCase {
             appIcon: nil,
             faviconImage: nil,
             systemActionIcon: nil,
-            zoneSubtitle: nil,
+            zoneSubtitle: "⇧",
             isLoadingLayerMap: false,
             isCapsLockOn: false,
             isInlineLayer: false,
             hasLayerMapping: true
         )
 
-        XCTAssertEqual(keycap.effectiveLabel, "⇧")
+        XCTAssertEqual(keycap.effectiveLabel, "A")
+        XCTAssertTrue(keycap.rendersHomeRowModSubtitle)
+        XCTAssertTrue(keycap.zoneSubtitleRenderedInline)
     }
 }

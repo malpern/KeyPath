@@ -31,6 +31,20 @@ struct BaseKeycap: View {
     let isInlineLayer: Bool
     let hasLayerMapping: Bool
 
+    /// Home Row Mods render like the Vallack subtitle pattern: primary key
+    /// legend above, held modifier as the smaller subtitle below.
+    var rendersHomeRowModSubtitle: Bool {
+        guard currentLayerName.lowercased() == "base",
+              let info = layerKeyInfo,
+              info.collectionId == RuleCollectionIdentifier.homeRowMods,
+              let zoneSubtitle,
+              !zoneSubtitle.isEmpty
+        else {
+            return false
+        }
+        return zoneSubtitle == info.displayLabel
+    }
+
     // MARK: - Body (Content Routing)
 
     var body: some View {

@@ -69,6 +69,20 @@ struct OverlayKeycapView: View {
     /// Subtitle from active system pack (e.g., "⌃" under Q for hold modifier)
     var zoneSubtitle: String?
 
+    /// Home Row Mods use the same visual treatment as pack subtitles: keep the
+    /// alpha/punctuation key as the primary legend and show the held modifier below it.
+    var rendersHomeRowModSubtitle: Bool {
+        guard currentLayerName.lowercased() == "base",
+              let info = layerKeyInfo,
+              info.collectionId == RuleCollectionIdentifier.homeRowMods,
+              let zoneSubtitle,
+              !zoneSubtitle.isEmpty
+        else {
+            return false
+        }
+        return zoneSubtitle == info.displayLabel
+    }
+
     /// Whether this key has a launcher mapping
     var hasLauncherMapping: Bool {
         launcherMapping != nil
@@ -192,6 +206,10 @@ struct OverlayKeycapView: View {
         // If floating labels are disabled, always render content
         guard useFloatingLabels else { return true }
 
+        if rendersHomeRowModSubtitle {
+            return true
+        }
+
         // Special keys always render their own content
         if hasSpecialLabel { return true }
 
@@ -237,6 +255,10 @@ struct OverlayKeycapView: View {
         // In layer mode, zone subtitles become the primary label (e.g., nav icons)
         if isLayerMode, let subtitle = zoneSubtitle {
             return subtitle
+        }
+
+        if rendersHomeRowModSubtitle {
+            return baseLabel.isEmpty ? key.label : baseLabel
         }
 
         guard let info = layerKeyInfo else {
