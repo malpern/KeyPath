@@ -7,7 +7,11 @@ extension BaseKeycap {
         if isPressed, let holdLabel {
             return holdLabel
         }
-        if !isPressed, let tapHoldIdleLabel, shouldShowTapHoldIdleLabel {
+        if !isPressed,
+           let tapHoldIdleLabel,
+           shouldShowTapHoldIdleLabel,
+           !TapHoldLabelPrecedence.idleLabelMatchesBase(tapHoldIdleLabel, baseLabel: baseLabel, keyLabel: key.label)
+        {
             return tapHoldIdleLabel
         }
         if isLayerMode, let subtitle = zoneSubtitle {

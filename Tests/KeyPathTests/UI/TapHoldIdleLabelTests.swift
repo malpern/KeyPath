@@ -132,6 +132,50 @@ final class TapHoldIdleLabelTests: XCTestCase {
         XCTAssertEqual(vm.tapHoldIdleLabels.count, 2, "Should have labels for both caps and tab")
     }
 
+    @MainActor
+    func testHomeRowModsPopulateIdleTapLabels() {
+        let vm = KeyboardVisualizationViewModel()
+        let config = HomeRowModsConfig(
+            enabledKeys: ["a", "s", ";"],
+            modifierAssignments: ["a": "lsft", "s": "lctl", ";": "rsft"]
+        )
+        let collection = RuleCollection(
+            id: RuleCollectionIdentifier.homeRowMods,
+            name: "Home Row Mods",
+            summary: "",
+            category: .productivity,
+            mappings: [],
+            isEnabled: true,
+            isSystemDefault: true,
+            configuration: .homeRowMods(config)
+        )
+
+        vm.updateTapHoldIdleLabels(from: [collection])
+
+        XCTAssertEqual(vm.tapHoldIdleLabels[0], "A")
+        XCTAssertEqual(vm.tapHoldIdleLabels[1], "S")
+        XCTAssertEqual(vm.tapHoldIdleLabels[41], ";")
+    }
+
+    @MainActor
+    func testDisabledHomeRowModsDoNotPopulateIdleTapLabels() {
+        let vm = KeyboardVisualizationViewModel()
+        let collection = RuleCollection(
+            id: RuleCollectionIdentifier.homeRowMods,
+            name: "Home Row Mods",
+            summary: "",
+            category: .productivity,
+            mappings: [],
+            isEnabled: false,
+            isSystemDefault: true,
+            configuration: .homeRowMods(HomeRowModsConfig())
+        )
+
+        vm.updateTapHoldIdleLabels(from: [collection])
+
+        XCTAssertTrue(vm.tapHoldIdleLabels.isEmpty)
+    }
+
     // MARK: - kanataNameToKeyCode mapping
 
     func testKanataNameToKeyCodeMapsCommonKeys() {
@@ -144,6 +188,8 @@ final class TapHoldIdleLabelTests: XCTestCase {
         XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("escape"), 53)
         XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("enter"), 36)
         XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("ret"), 36)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode(";"), 41)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("scln"), 41)
     }
 
     func testKanataNameToKeyCodeIsCaseInsensitive() {
