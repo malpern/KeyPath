@@ -32,6 +32,18 @@ if [[ ! -x "$CLI_PATH" ]]; then
     echo "❌ Bundled CLI is missing or not executable: $CLI_PATH" >&2
     exit 1
 fi
+SPARKLE_PATH="$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle"
+if [[ ! -f "$SPARKLE_PATH" ]]; then
+    echo "❌ Sparkle.framework binary is missing: $SPARKLE_PATH" >&2
+    exit 1
+fi
+for executable in "$APP_PATH/Contents/MacOS/KeyPath" "$CLI_PATH"; do
+    if ! otool -l "$executable" | grep -q "@executable_path/../Frameworks"; then
+        echo "❌ $(basename "$executable") is missing @executable_path/../Frameworks rpath" >&2
+        echo "   Without this, dyld cannot load the embedded Sparkle.framework at launch." >&2
+        exit 1
+    fi
+done
 
 print_section "Trust Policy"
 codesign --verify --strict --verbose=2 "$APP_PATH"
