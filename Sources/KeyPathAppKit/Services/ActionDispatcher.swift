@@ -27,6 +27,7 @@ public enum ActionDispatchResult: Sendable {
 /// - `keypath://fakekey/{name}/{action}` - Trigger Kanata virtual key (tap/press/release/toggle)
 /// - `keypath://system/{action}` - Trigger macOS system actions (mission-control, spotlight, dictation, dnd, launchpad, siri)
 /// - `keypath://window/{action}` - Window management (left, right, maximize, center, top-left, top-right, bottom-left, bottom-right, next-display, previous-display, undo)
+/// - `keypath://settings/{tab}` - Open Settings to a tab (status, rules, general, advanced, repair, logs)
 /// - `keypath://folder/{path}` - Open a folder in Finder
 /// - `keypath://script/{path}` - Execute a script (requires security approval)
 @MainActor
@@ -57,6 +58,12 @@ public final class ActionDispatcher {
 
     /// Called when a rule-related action is received
     public var onRuleAction: ((String, [String]) -> Void)?
+
+    /// Called when a settings tab action is received.
+    public var onSettingsAction: ((Notification.Name) -> Void)?
+
+    /// Called when a settings navigation action carries additional target details.
+    public var onSettingsNavigationAction: ((Notification.Name, [AnyHashable: Any]?) -> Void)?
 
     /// Called when script execution needs user confirmation
     /// Parameters: script path, confirm callback, cancel callback
@@ -108,6 +115,8 @@ public final class ActionDispatcher {
             return handleSystem(uri)
         case "window":
             return handleWindow(uri)
+        case "settings":
+            return handleSettings(uri)
         case "folder":
             return handleFolder(uri)
         case "script":
@@ -134,6 +143,55 @@ public final class ActionDispatcher {
     }
 
     // MARK: - Action Handlers
+
+    /// Open Settings to a stable automation-friendly tab.
+    /// Format: keypath://settings/status, keypath://settings/rules/home-row-mods
+    private func handleSettings(_ uri: KeyPathActionURI) -> ActionDispatchResult {
+        guard let rawTab = uri.target?.lowercased() else {
+            return .missingTarget("settings")
+        }
+
+        let notification: Notification.Name
+        switch rawTab {
+        case "status", "system", "system-status", "health":
+            notification = .openSettingsStatus
+        case "rules":
+            notification = .openSettingsRules
+        case "general", "logs":
+            notification = .openSettingsGeneral
+        case "advanced", "repair", "remove", "repair-remove":
+            notification = .openSettingsAdvanced
+        default:
+            let message = "Unknown settings tab: \(rawTab)"
+            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .unknownAction("settings/\(rawTab)")
+        }
+
+        var userInfo: [AnyHashable: Any]?
+        if notification == .openSettingsRules {
+            let pathTarget = uri.pathComponents.dropFirst().joined(separator: "/")
+            let ruleTarget = uri.queryItems["collection"]
+                ?? uri.queryItems["rule"]
+                ?? (pathTarget.isEmpty ? nil : pathTarget)
+            if let ruleTarget {
+                userInfo = [SettingsNavigationUserInfo.ruleCollectionTarget: ruleTarget]
+            }
+        }
+
+        AppLogger.shared.log(
+            "🎯 [ActionDispatcher] Opening settings tab=\(rawTab) target=\(userInfo?[SettingsNavigationUserInfo.ruleCollectionTarget] as? String ?? "none")"
+        )
+
+        if let onSettingsNavigationAction {
+            onSettingsNavigationAction(notification, userInfo)
+        } else if let onSettingsAction {
+            onSettingsAction(notification)
+        } else {
+            openPreferencesTab(notification, userInfo: userInfo)
+        }
+        return .success
+    }
 
     /// Launch an application by name or bundle ID
     /// Format: keypath://launch/{app-name-or-bundle-id}

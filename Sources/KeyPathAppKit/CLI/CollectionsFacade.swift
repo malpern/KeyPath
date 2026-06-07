@@ -53,6 +53,14 @@ public struct CollectionsFacade: Sendable {
         return CLIRuleCollection(from: collections[index])
     }
 
+    public func showCollectionDetail(nameOrId: String) async throws -> CLIRuleCollectionDetail? {
+        let collections = await RuleCollectionStore.shared.loadCollections()
+        guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
+            return nil
+        }
+        return CLIRuleCollectionDetail(from: collections[index])
+    }
+
     public func createCollection(name: String, category: String?, summary: String?) async throws -> CLIRuleCollection {
         var collections = await RuleCollectionStore.shared.loadCollections()
         let cat: RuleCollectionCategory = if let category {
@@ -365,6 +373,48 @@ public struct CLIRuleCollection: Codable, Sendable {
         isEnabled = collection.isEnabled
         mappingCount = collection.mappings.count
         summary = collection.summary
+    }
+}
+
+public struct CLIRuleCollectionDetail: Codable, Sendable {
+    public let id: String
+    public let name: String
+    public let summary: String
+    public let category: String
+    public let displayStyle: String
+    public let isEnabled: Bool
+    public let isSystemDefault: Bool
+    public let owningPackID: String?
+    public let icon: String?
+    public let tags: [String]
+    public let targetLayer: String
+    public let activationHint: String?
+    public let mappingCount: Int
+    public let mappings: [KeyMapping]
+    public let configuration: RuleCollectionConfiguration
+    public let windowKeyConvention: String?
+    public let windowSnappingActivationMode: String?
+    public let functionKeyMode: String?
+
+    public init(from collection: RuleCollection) {
+        id = collection.id.uuidString
+        name = collection.name
+        summary = collection.summary
+        category = collection.category.rawValue
+        displayStyle = collection.displayStyle.rawValue
+        isEnabled = collection.isEnabled
+        isSystemDefault = collection.isSystemDefault
+        owningPackID = collection.owningPackID
+        icon = collection.icon
+        tags = collection.tags
+        targetLayer = collection.targetLayer.kanataName
+        activationHint = collection.activationHint
+        mappingCount = collection.mappings.count
+        mappings = collection.mappings
+        configuration = collection.configuration
+        windowKeyConvention = collection.windowKeyConvention?.rawValue
+        windowSnappingActivationMode = collection.windowSnappingActivationMode?.rawValue
+        functionKeyMode = collection.functionKeyMode?.rawValue
     }
 }
 

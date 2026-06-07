@@ -229,6 +229,58 @@ struct ActionDispatcherRoutingTests {
         #expect(receivedLayer == "editing")
     }
 
+    @Test("Dispatches settings action")
+    @MainActor
+    func dispatchesSettingsAction() throws {
+        var receivedNotification: Notification.Name?
+        ActionDispatcher.shared.onSettingsAction = { notification in
+            receivedNotification = notification
+        }
+        defer {
+            ActionDispatcher.shared.onSettingsAction = nil
+        }
+
+        let uri = try #require(KeyPathActionURI(string: "keypath://settings/status"))
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        #expect(result == .success)
+        #expect(receivedNotification == .openSettingsStatus)
+    }
+
+    @Test("Dispatches settings rule target action")
+    @MainActor
+    func dispatchesSettingsRuleTargetAction() throws {
+        var receivedNotification: Notification.Name?
+        var receivedUserInfo: [AnyHashable: Any]?
+        ActionDispatcher.shared.onSettingsNavigationAction = { notification, userInfo in
+            receivedNotification = notification
+            receivedUserInfo = userInfo
+        }
+        defer {
+            ActionDispatcher.shared.onSettingsNavigationAction = nil
+        }
+
+        let uri = try #require(KeyPathActionURI(string: "keypath://settings/rules/home-row-mods"))
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        #expect(result == .success)
+        #expect(receivedNotification == .openSettingsRules)
+        #expect(receivedUserInfo?[SettingsNavigationUserInfo.ruleCollectionTarget] as? String == "home-row-mods")
+    }
+
+    @Test("Returns unknownAction for unknown settings tab")
+    @MainActor
+    func returnsUnknownActionForUnknownSettingsTab() throws {
+        let uri = try #require(KeyPathActionURI(string: "keypath://settings/unknown"))
+        let result = ActionDispatcher.shared.dispatch(uri)
+
+        if case let .unknownAction(action) = result {
+            #expect(action == "settings/unknown")
+        } else {
+            Issue.record("Expected unknownAction for unknown settings tab")
+        }
+    }
+
     @Test("Dispatch message API returns unknownAction for invalid URI string")
     @MainActor
     func dispatchMessageInvalidString() {

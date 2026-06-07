@@ -1,3 +1,4 @@
+import Foundation
 import KeyPathCore
 import KeyPathInstallationWizard
 import SwiftUI
@@ -422,6 +423,9 @@ struct RulesTabView: View {
                     .padding(.vertical, 12)
                     .padding(.horizontal, 12)
                 }
+                .onReceive(NotificationCenter.default.publisher(for: .openSettingsRules)) { notification in
+                    focusRuleCollection(from: notification.userInfo, scrollProxy: scrollProxy)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -678,4 +682,87 @@ struct RulesTabView: View {
 
     // collectionMatchesSearch, openConfigInEditor, openBackupsFolder, resetToDefaultConfig → RulesSummaryView+Packs.swift
     // kindaVimRow, keystrokeHistoryRow, loadAppKeymaps, deleteAppRule → RulesSummaryView+Packs.swift
+
+    private func focusRuleCollection(from userInfo: [AnyHashable: Any]?, scrollProxy: ScrollViewProxy) {
+        guard let rawTarget = userInfo?[SettingsNavigationUserInfo.ruleCollectionTarget] as? String else {
+            return
+        }
+
+        let target = rawTarget.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !target.isEmpty else { return }
+
+        searchQuery = ""
+
+        if isCustomRulesTarget(target) {
+            AppLogger.shared.log("🎯 [Rules] Focusing custom rules from settings navigation")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    scrollProxy.scrollTo("custom-rules", anchor: .top)
+                }
+            }
+            return
+        }
+
+        guard let collection = allCollections.first(where: { collectionMatchesNavigationTarget($0, target: target) }) else {
+            AppLogger.shared.log("⚠️ [Rules] Could not find collection for settings target: \(target)")
+            return
+        }
+
+        recommendationFocusCollectionId = collection.id
+        AppLogger.shared.log("🎯 [Rules] Focusing collection \(collection.name) from settings target: \(target)")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                scrollProxy.scrollTo("collection-\(collection.id.uuidString)", anchor: .top)
+            }
+        }
+    }
+
+    private func collectionMatchesNavigationTarget(_ collection: RuleCollection, target: String) -> Bool {
+        let normalized = normalizeNavigationTarget(target)
+        guard !normalized.isEmpty else { return false }
+
+        if collection.id.uuidString.lowercased() == target.lowercased() {
+            return true
+        }
+
+        let candidates = [
+            collection.name,
+            dynamicCollectionName(for: collection),
+            collection.summary,
+        ].map(normalizeNavigationTarget)
+
+        if candidates.contains(normalized) {
+            return true
+        }
+
+        if collection.id == RuleCollectionIdentifier.homeRowMods,
+           ["home-row", "home-row-mod", "home-row-mods", "hrm", "top-row", "top-row-mods"].contains(normalized)
+        {
+            return true
+        }
+
+        return false
+    }
+
+    private func isCustomRulesTarget(_ target: String) -> Bool {
+        ["custom", "custom-rule", "custom-rules"].contains(normalizeNavigationTarget(target))
+    }
+
+    private func normalizeNavigationTarget(_ value: String) -> String {
+        let lowercased = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        var result = ""
+        var previousWasSeparator = false
+
+        for scalar in lowercased.unicodeScalars {
+            if CharacterSet.alphanumerics.contains(scalar) {
+                result.unicodeScalars.append(scalar)
+                previousWasSeparator = false
+            } else if !previousWasSeparator {
+                result.append("-")
+                previousWasSeparator = true
+            }
+        }
+
+        return result.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+    }
 }

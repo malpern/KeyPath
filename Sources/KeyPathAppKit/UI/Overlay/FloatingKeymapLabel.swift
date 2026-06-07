@@ -132,6 +132,7 @@ struct FloatingKeymapLabel: View, Equatable {
         .opacity(isVisible ? 1.0 : 0.0)
         .position(x: targetFrame.midX, y: targetFrame.midY)
         .allowsHitTesting(false)
+        .accessibilityHidden(true)
         // Only animate position during layout changes, not resize
         .animation(isLayoutChange() ? positionAnimation : nil, value: targetFrame)
         // Animate visibility changes unless disabled (e.g., launcher mode toggle)

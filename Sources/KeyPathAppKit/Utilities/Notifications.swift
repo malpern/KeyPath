@@ -90,3 +90,35 @@ extension Notification.Name {
     /// userInfo["section"] = InspectorSection.rawValue (String)
     static let commandPaletteSelectInspectorSection = Notification.Name("KeyPath.CommandPalette.SelectInspectorSection")
 }
+
+enum SettingsNavigationUserInfo {
+    static let ruleCollectionTarget = "ruleCollectionTarget"
+}
+
+struct SettingsNavigationRequest {
+    let notification: Notification.Name
+    let userInfo: [AnyHashable: Any]?
+}
+
+@MainActor
+final class SettingsNavigationCoordinator {
+    static let shared = SettingsNavigationCoordinator()
+
+    private var pendingRequest: SettingsNavigationRequest?
+
+    private init() {}
+
+    func store(notification: Notification.Name, userInfo: [AnyHashable: Any]? = nil) {
+        pendingRequest = SettingsNavigationRequest(notification: notification, userInfo: userInfo)
+    }
+
+    func consumePendingRequest() -> SettingsNavigationRequest? {
+        defer { pendingRequest = nil }
+        return pendingRequest
+    }
+
+    func clearIfMatches(_ notification: Notification.Name) {
+        guard pendingRequest?.notification == notification else { return }
+        pendingRequest = nil
+    }
+}

@@ -134,6 +134,8 @@ struct MappingRowView: View {
                                         .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityIdentifier("rules-summary-mapping-edit-\(mapping.id)")
+                                .accessibilityLabel("Edit mapping for \(prettyKeyName(mapping.input))")
                             }
 
                             if let onDelete = onDeleteMapping {
@@ -147,6 +149,8 @@ struct MappingRowView: View {
                                         .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityIdentifier("rules-summary-mapping-delete-\(mapping.id)")
+                                .accessibilityLabel("Delete mapping for \(prettyKeyName(mapping.input))")
                             }
 
                             // Spacer for alignment
@@ -173,6 +177,7 @@ struct MappingRowView: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier("rules-summary-mapping-row-button-\(mapping.id)")
         .accessibilityLabel("Edit mapping for \(prettyKeyName(mapping.input))")
+        .accessibilityValue("\(prettyKeyName(mapping.input)) to \(prettyKeyName(mapping.output))")
         .onHover { hovering in
             isHovered = hovering
             if isEditable {

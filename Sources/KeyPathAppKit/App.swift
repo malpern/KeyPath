@@ -81,11 +81,12 @@ func openFileInPreferredEditor(_ url: URL) {
 }
 
 @MainActor
-func openPreferencesTab(_ notification: Notification.Name) {
+func openPreferencesTab(_ notification: Notification.Name, userInfo: [AnyHashable: Any]? = nil) {
     AppLogger.shared.log("🎯 [App] Opening preferences tab: \(notification.rawValue)")
+    SettingsNavigationCoordinator.shared.store(notification: notification, userInfo: userInfo)
 
     // Post notification first to ensure tab switches when window opens
-    NotificationCenter.default.post(name: notification, object: nil)
+    NotificationCenter.default.post(name: notification, object: nil, userInfo: userInfo)
 
     // macOS 14+: The Settings menu item is automatically created by SwiftUI
     // Find it in the app menu and trigger it programmatically

@@ -102,6 +102,10 @@ struct MappingTableContent: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 5)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("rules-mapping-table-row-\(mapping.id)")
+                .accessibilityLabel(mapping.description ?? "Mapping")
+                .accessibilityValue(mappingAccessibilityValue(mapping))
             }
             .padding(.vertical, 4)
         }
@@ -158,6 +162,30 @@ struct MappingTableContent: View {
         raw.replacingOccurrences(of: "_", with: " ")
             .trimmingCharacters(in: .whitespaces)
             .capitalized
+    }
+
+    private func mappingAccessibilityValue(_ mapping: (
+        input: String,
+        output: String,
+        shiftedOutput: String?,
+        ctrlOutput: String?,
+        description: String?,
+        sectionBreak: Bool,
+        sectionLabel: String?,
+        enabled: Bool,
+        id: UUID,
+        behavior: MappingBehavior?
+    )) -> String {
+        var parts = [
+            "\(prettyKeyName(mapping.input)) to \(formatOutput(mapping.output))"
+        ]
+        if let shiftedOutput = mapping.shiftedOutput {
+            parts.append("shift to \(formatOutput(shiftedOutput))")
+        }
+        if let ctrlOutput = mapping.ctrlOutput {
+            parts.append("control to \(formatOutput(ctrlOutput))")
+        }
+        return parts.joined(separator: ", ")
     }
 
     /// Format key name for display in Key column (show Mac modifier names & symbols)

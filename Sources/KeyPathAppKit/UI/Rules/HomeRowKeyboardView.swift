@@ -320,6 +320,7 @@ struct HomeRowKeyChip: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier("home-row-key-chip-\(key)")
         .accessibilityLabel("Configure home row key \(keyDisplayLabel)")
+        .accessibilityValue(accessibilityValue)
         .onHover { hovering in
             onHover(hovering)
             #if os(macOS)
@@ -342,6 +343,15 @@ struct HomeRowKeyChip: View {
         } else {
             Color(NSColor.controlBackgroundColor).opacity(0.3)
         }
+    }
+
+    private var accessibilityValue: String {
+        let state = isEnabled ? "enabled" : "disabled"
+        let assignment = holdAssignment.map {
+            holdMode == .layers ? "layer \($0)" : "modifier \(modifierDisplay(for: $0))"
+        } ?? "no hold assignment"
+        let selection = isSelected ? ", selected" : ""
+        return "\(state), \(assignment)\(selection)"
     }
 
     private var textColor: Color {

@@ -1,3 +1,4 @@
+import KeyPathCore
 import SwiftUI
 #if os(macOS)
     import AppKit
@@ -23,6 +24,13 @@ struct HomeRowModsModalView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            Text("Customize home row mods")
+                .frame(width: 0, height: 0)
+                .opacity(0.01)
+                .accessibilityIdentifier("home-row-mods-modal")
+                .accessibilityLabel("Customize home row mods")
+                .accessibilityValue(homeRowModsAccessibilityValue)
+
             // Header
             HStack {
                 Text("Customize Home Row Mods")
@@ -71,6 +79,7 @@ struct HomeRowModsModalView: View {
                     .accessibilityIdentifier("home-row-mods-modal-cancel-button")
                     .accessibilityLabel("Cancel")
                 Button("Save", action: {
+                    AppLogger.shared.log("🧪 [QA] Home Row Mods modal saved: \(homeRowModsAccessibilityValue)")
                     onSave(localConfig)
                 })
                 .keyboardShortcut(.defaultAction)
@@ -114,6 +123,7 @@ struct HomeRowModsModalView: View {
             .pickerStyle(.segmented)
             .accessibilityIdentifier("home-row-mods-modal-hold-mode-picker")
             .accessibilityLabel("Hold action mode")
+            .accessibilityValue(localConfig.holdMode.displayName)
         }
         .padding(.horizontal)
     }
@@ -144,6 +154,7 @@ struct HomeRowModsModalView: View {
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("home-row-mods-modal-preset-picker")
                 .accessibilityLabel("Modifier preset selection")
+                .accessibilityValue(modifierPresetAccessibilityValue)
             } else {
                 Picker("Layer Preset", selection: Binding(
                     get: { layerPresetSelection(from: localConfig.layerAssignments) },
@@ -162,6 +173,7 @@ struct HomeRowModsModalView: View {
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("home-row-mods-modal-layer-preset-picker")
                 .accessibilityLabel("Layer preset selection")
+                .accessibilityValue(layerPresetAccessibilityValue)
 
                 Picker("Layer Mode", selection: Binding(
                     get: { localConfig.layerToggleMode },
@@ -174,6 +186,7 @@ struct HomeRowModsModalView: View {
                 .horizontalRadioGroupLayout()
                 .accessibilityIdentifier("home-row-mods-modal-layer-toggle-mode-picker")
                 .accessibilityLabel("Layer activation mode")
+                .accessibilityValue(localConfig.layerToggleMode.displayName)
             }
         }
         .padding(.horizontal)
@@ -184,6 +197,26 @@ struct HomeRowModsModalView: View {
             localConfig = newConfig
         }
         .padding(.horizontal)
+    }
+
+    private var homeRowModsAccessibilityValue: String {
+        let enabledKeys = localConfig.enabledKeys.sorted().joined(separator: ",")
+        return "mode \(localConfig.holdMode.displayName), layer activation \(localConfig.layerToggleMode.displayName), enabled keys \(enabledKeys), tap window \(localConfig.timing.tapWindow) ms, hold delay \(localConfig.timing.holdDelay) ms, opposite hand \(localConfig.oppositeHandMode.displayName)"
+    }
+
+    private var modifierPresetAccessibilityValue: String {
+        switch modifierPresetSelection(from: localConfig.modifierAssignments) {
+        case .macCAGS: "Mac CAGS"
+        case .winGACS: "Windows Linux GACS"
+        case .custom: "Custom"
+        }
+    }
+
+    private var layerPresetAccessibilityValue: String {
+        switch layerPresetSelection(from: localConfig.layerAssignments) {
+        case .default: "Default"
+        case .custom: "Custom"
+        }
     }
 }
 

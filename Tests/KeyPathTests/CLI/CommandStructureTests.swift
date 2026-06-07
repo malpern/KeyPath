@@ -52,7 +52,7 @@ final class CommandStructureTests: XCTestCase {
 
     func testConfigHasExpectedVerbs() {
         let names = subcommandNames(of: Config.self)
-        XCTAssertEqual(Set(names), ["show", "path", "check", "apply"])
+        XCTAssertEqual(Set(names), ["show", "path", "check", "apply", "backup", "restore"])
     }
 
     func testSystemHasExpectedVerbs() {

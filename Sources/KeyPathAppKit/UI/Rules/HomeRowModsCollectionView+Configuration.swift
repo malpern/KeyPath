@@ -8,6 +8,13 @@ import SwiftUI
 extension HomeRowModsCollectionView {
     var customizeWindowContent: some View {
         VStack(alignment: .leading, spacing: 0) {
+            Text("Home row preferences")
+                .frame(width: 0, height: 0)
+                .opacity(0.01)
+                .accessibilityIdentifier("home-row-mods-preferences-panel")
+                .accessibilityLabel("Home row preferences")
+                .accessibilityValue(homeRowModsAccessibilityValue)
+
             HStack {
                 Text("Home Row Preferences")
                     .font(.title3.weight(.semibold))
@@ -27,6 +34,7 @@ extension HomeRowModsCollectionView {
                 }
                 .keyboardShortcut(.defaultAction)
                 .accessibilityIdentifier("home-row-mods-done-button")
+                .accessibilityLabel("Done editing home row preferences")
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
@@ -63,6 +71,13 @@ extension HomeRowModsCollectionView {
                     .font(.headline)
                     .foregroundStyle(.secondary)
 
+                Text("Hold action mode")
+                    .frame(width: 0, height: 0)
+                    .opacity(0.01)
+                    .accessibilityIdentifier("home-row-mods-hold-mode-picker")
+                    .accessibilityLabel("Hold action mode")
+                    .accessibilityValue(config.holdMode.displayName)
+
                 HStack(spacing: 10) {
                     holdBehaviorOptionCard(
                         mode: .modifiers,
@@ -78,8 +93,6 @@ extension HomeRowModsCollectionView {
                         subtitle: "Advanced"
                     )
                 }
-                .accessibilityIdentifier("home-row-mods-hold-mode-picker")
-                .accessibilityLabel("Hold action mode")
 
                 Text(holdBehaviorExplanationText)
                     .font(.caption)
@@ -93,6 +106,13 @@ extension HomeRowModsCollectionView {
                     Text("Layer Activation")
                         .font(.headline)
                         .foregroundStyle(.secondary)
+
+                    Text("Layer activation mode")
+                        .frame(width: 0, height: 0)
+                        .opacity(0.01)
+                        .accessibilityIdentifier("home-row-mods-layer-toggle-mode-picker")
+                        .accessibilityLabel("Layer activation mode")
+                        .accessibilityValue(config.layerToggleMode.displayName)
 
                     HStack(spacing: 10) {
                         SettingsOptionCard(
@@ -108,6 +128,8 @@ extension HomeRowModsCollectionView {
                             updateConfig()
                         }
                         .accessibilityIdentifier("home-row-mods-layer-toggle-while-held")
+                        .accessibilityLabel("Layer activation while held")
+                        .accessibilityValue(config.layerToggleMode == .whileHeld ? "selected" : "not selected")
 
                         SettingsOptionCard(
                             icon: "switch.2",
@@ -122,10 +144,9 @@ extension HomeRowModsCollectionView {
                             updateConfig()
                         }
                         .accessibilityIdentifier("home-row-mods-layer-toggle-mode")
+                        .accessibilityLabel("Layer activation toggle")
+                        .accessibilityValue(config.layerToggleMode == .toggle ? "selected" : "not selected")
                     }
-                    .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("home-row-mods-layer-toggle-mode-picker")
-                    .accessibilityLabel("Layer activation mode")
 
                     Text(layerActivationExplanationText)
                         .font(.caption)
@@ -212,6 +233,8 @@ extension HomeRowModsCollectionView {
         .accessibilityIdentifier(
             mode == .modifiers ? "home-row-mods-hold-mode-modifiers" : "home-row-mods-hold-mode-layers"
         )
+        .accessibilityLabel("Use \(title) for home row holds")
+        .accessibilityValue(isSelected ? "selected" : "not selected")
     }
 
     func applyHoldMode(_ mode: HomeRowHoldMode) {
@@ -280,5 +303,7 @@ extension HomeRowModsCollectionView {
         }
         .padding(20)
         .frame(width: 360)
+        .accessibilityIdentifier("home-row-mods-new-layer-sheet")
+        .accessibilityLabel("Create new home row layer")
     }
 }

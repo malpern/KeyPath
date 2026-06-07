@@ -47,6 +47,7 @@ extension HomeRowModsCollectionView {
                 .focusable(false)
                 .accessibilityIdentifier("home-row-mods-modifier-option-\(option.kind)")
                 .accessibilityLabel("Set \(displayLabel(forCanonicalKey: key)) to \(option.symbol) \(option.label)")
+                .accessibilityValue(isModifierOptionSelected(option.kind, for: key) ? "selected" : "not selected")
 
                 if index < modifierOptions.count - 1 {
                     PopoverListDivider()
@@ -94,6 +95,7 @@ extension HomeRowModsCollectionView {
                 .focusable(false)
                 .accessibilityIdentifier("home-row-mods-layer-option-\(option.key)")
                 .accessibilityLabel("Set \(displayLabel(forCanonicalKey: key)) to \(option.label) layer")
+                .accessibilityValue(config.layerAssignments[key] == option.key ? "selected" : "not selected")
 
                 if index < layerOptions.count - 1 {
                     PopoverListDivider()
@@ -165,6 +167,7 @@ extension HomeRowModsCollectionView {
             .focusable(false)
             .accessibilityIdentifier("home-row-mods-enable-key-\(key)")
             .accessibilityLabel("Enable \(displayLabel(forCanonicalKey: key))")
+            .accessibilityValue(config.enabledKeys.contains(key) ? "enabled" : "disabled")
         }
         .padding(.vertical, 6)
         .frame(minWidth: 210)
@@ -196,6 +199,7 @@ extension HomeRowModsCollectionView {
         .focusable(false)
         .accessibilityIdentifier("home-row-mods-disable-key-\(key)")
         .accessibilityLabel("Disable \(displayLabel(forCanonicalKey: key))")
+        .accessibilityValue(config.enabledKeys.contains(key) ? "enabled" : "disabled")
     }
 
     func isModifierOptionSelected(_ kind: String, for key: String) -> Bool {
