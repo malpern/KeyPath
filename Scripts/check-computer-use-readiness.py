@@ -91,9 +91,22 @@ REQUIRED_SNIPPETS: dict[str, list[str]] = {
     ],
     "Sources/KeyPathAppKit/UI/Rules/HomeRowTimingSection.swift": [
         '"home-row-mods-feel-slider"',
+        '"home-row-mods-tap-window-field"',
+        '"home-row-mods-hold-delay-field"',
+        '"home-row-mods-prior-idle-field"',
         '"home-row-mods-fast-typing-protection-toggle"',
+        '"home-row-mods-quick-tap-term-field"',
+        '"home-row-mods-finger-\\(finger.rawValue)-field"',
         '"home-row-mods-tap-offset-\\(key)-field"',
         '"home-row-mods-hold-offset-\\(key)-field"',
+        "automationIntegerField",
+    ],
+    "Sources/KeyPathAppKit/UI/Components/AccessibleIntegerField.swift": [
+        "NSViewRepresentable",
+        "AccessibilitySettableIntegerTextField",
+        "override func setAccessibilityValue",
+        "onAccessibilityValueChanged",
+        "parent.onValueChanged(nextValue)",
     ],
     "Sources/KeyPathCLI/Commands/Config/ConfigCommand.swift": [
         "ConfigBackup.self",
