@@ -22,7 +22,11 @@ echo "🧪 Running all tests before push..."
 TMPFILE=$(mktemp)
 trap "rm -f $TMPFILE" EXIT
 
-KEYPATH_SNAPSHOTS=1 swift test > "$TMPFILE" 2>&1
+if KEYPATH_SNAPSHOTS=1 ./Scripts/run-tests-safe.sh > "$TMPFILE" 2>&1; then
+    tail -5 "$TMPFILE"
+    echo "✅ All tests passed. Pushing..."
+    exit 0
+fi
 
 # Show summary
 tail -5 "$TMPFILE"
@@ -33,7 +37,7 @@ if grep -q "Test Case.*failed" "$TMPFILE"; then
     echo "❌ Test failures detected. Push blocked."
     grep "Test Case.*failed" "$TMPFILE"
     echo ""
-    echo "💡 Run 'KEYPATH_SNAPSHOTS=1 swift test' to see full output."
+    echo "💡 Run 'KEYPATH_SNAPSHOTS=1 ./Scripts/run-tests-safe.sh' to see full output."
     exit 1
 fi
 
@@ -52,4 +56,7 @@ if ! grep -q "Test run with" "$TMPFILE" && ! grep -q "Executed" "$TMPFILE"; then
     exit 1
 fi
 
-echo "✅ All tests passed. Pushing..."
+echo ""
+echo "❌ Test command failed. Push blocked."
+echo "💡 Run 'KEYPATH_SNAPSHOTS=1 ./Scripts/run-tests-safe.sh' to see full output."
+exit 1

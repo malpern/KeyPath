@@ -79,6 +79,8 @@ Two doc systems: `guides/` (user-facing, published to gh-pages) and `docs/` (dev
 ```bash
 ./build.sh                        # Canonical build (SKIP_NOTARIZE=1 for local dev)
 ./Scripts/quick-deploy.sh         # Fast debug deploy
+./Scripts/test-fast.sh --changed  # Fast lane inferred from changed files
+./Scripts/test-full.sh            # Full safe pre-PR gate
 ./Scripts/release-doctor.sh       # Read-only release preflight
 ./Scripts/release-candidate.sh    # Signed/notarized post-merge testing
 swift test --filter <TestName>     # Focused tests while iterating
@@ -92,11 +94,19 @@ swiftlint --fix --quiet
 Use the narrowest workflow that matches the task:
 
 **Inner loop:** For normal Swift/UI iteration, prefer `swift build` and
-`./Scripts/quick-deploy.sh`. Use Poltergeist only for focused single-agent
-Swift/UI iteration: `poltergeist start`, edit, then `poltergeist wait keypath`.
-`quick-deploy.sh` updates `/Applications/KeyPath.app`, re-signs locally, and
-restarts KeyPath only if it was already running. It does not redeploy the
-privileged helper unless `KEYPATH_DEPLOY_HELPER=1` is set.
+filtered tests. Start with `./Scripts/test-fast.sh --changed`, a named area
+such as `./Scripts/test-fast.sh rules`, or `TEST_FILTER=SomeTests
+./Scripts/run-tests-safe.sh`. Run `./Scripts/quick-deploy.sh` only when you need
+to inspect installed app behavior. Use Poltergeist only for focused
+single-agent Swift/UI iteration: `poltergeist start`, edit, then
+`poltergeist wait keypath`. `quick-deploy.sh` updates
+`/Applications/KeyPath.app`, re-signs locally, and restarts KeyPath only if it
+was already running. It does not redeploy the privileged helper unless
+`KEYPATH_DEPLOY_HELPER=1` is set.
+
+**Pre-PR:** Run the full safe gate once near PR time with
+`./Scripts/test-full.sh` or `KEYPATH_SNAPSHOTS=1 ./Scripts/run-tests-safe.sh`.
+Do not run the full safe suite after every edit.
 
 ### Swift build/test performance
 

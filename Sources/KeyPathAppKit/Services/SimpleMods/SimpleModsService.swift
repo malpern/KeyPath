@@ -140,6 +140,14 @@ public final class SimpleModsService {
         }
     }
 
+    #if DEBUG
+        func flushPendingApplyForTesting() async {
+            applyDebounceTask?.cancel()
+            applyDebounceTask = nil
+            await applyChanges()
+        }
+    #endif
+
     /// Apply current mappings to config
     private func applyChanges() async {
         guard !Task.isCancelled else { return }

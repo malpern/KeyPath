@@ -22,11 +22,17 @@ release path for ordinary UI/code iteration.
 Use for Swift/UI changes while iterating:
 ```bash
 swift build
-./Scripts/quick-deploy.sh
+./Scripts/test-fast.sh --changed
 python3 Scripts/check-accessibility.py
 ```
 
 Notes:
+- Use test filters aggressively while implementing. Prefer `./Scripts/test-fast.sh
+  --changed` or a named area such as `./Scripts/test-fast.sh rules`,
+  `./Scripts/test-fast.sh ui`, or `TEST_FILTER=SomeTests
+  ./Scripts/run-tests-safe.sh` over full-suite reruns after every edit.
+- Run `./Scripts/quick-deploy.sh` only when you need to inspect installed app
+  behavior. It is not required for model/parser/service-only changes.
 - `quick-deploy.sh` updates `/Applications/KeyPath.app`, re-signs locally, and
   restarts KeyPath only if it was running.
 - It intentionally does **not** redeploy the privileged helper unless
@@ -34,6 +40,11 @@ Notes:
 - Use Poltergeist only for focused single-agent Swift/UI iteration:
   `poltergeist start`, edit, then `poltergeist wait keypath`. Stop it before
   release work, helper/service work, broad tests, or parallel agents.
+- Near PR time, run the full safe gate once with `./Scripts/test-full.sh` (or
+  `KEYPATH_SNAPSHOTS=1 ./Scripts/run-tests-safe.sh`). Do not run the full safe
+  suite after every small edit.
+- Avoid notarized builds until after merge unless the task explicitly needs
+  Developer ID/Gatekeeper behavior.
 
 ### Swift Build/Test Performance
 

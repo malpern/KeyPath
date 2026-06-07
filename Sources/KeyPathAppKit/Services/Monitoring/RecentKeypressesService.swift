@@ -67,6 +67,9 @@ final class RecentKeypressesService {
 
     @ObservationIgnored private let observers = NotificationObserverManager()
     @ObservationIgnored private let notificationCenter: NotificationCenter
+    #if DEBUG
+        @ObservationIgnored var dateProvider: () -> Date = Date.init
+    #endif
 
     private init(notificationCenter: NotificationCenter = .default) {
         self.notificationCenter = notificationCenter
@@ -106,10 +109,15 @@ final class RecentKeypressesService {
     #endif
 
     private func addEvent(key: String, action: String, metadata: KeypressObservationMetadata = .init(listenerSessionID: nil, kanataTimestamp: nil, observedAt: nil)) {
+        #if DEBUG
+            let timestamp = metadata.observedAt ?? dateProvider()
+        #else
+            let timestamp = metadata.observedAt ?? Date()
+        #endif
         let event = KeypressEvent(
             key: key,
             action: action,
-            timestamp: Date(),
+            timestamp: timestamp,
             layer: currentLayer,
             listenerSessionID: metadata.listenerSessionID,
             kanataTimestamp: metadata.kanataTimestamp
@@ -239,4 +247,29 @@ final class RecentKeypressesService {
     func toggleRecording() {
         isRecording.toggle()
     }
+
+    #if DEBUG
+        func recordKeypressForTesting(
+            key: String,
+            action: String,
+            observedAt: Date? = nil,
+            listenerSessionID: Int? = nil,
+            kanataTimestamp: UInt64? = nil
+        ) {
+            guard isRecording else { return }
+            addEvent(
+                key: key,
+                action: action,
+                metadata: KeypressObservationMetadata(
+                    listenerSessionID: listenerSessionID,
+                    kanataTimestamp: kanataTimestamp,
+                    observedAt: observedAt
+                )
+            )
+        }
+
+        func setCurrentLayerForTesting(_ layer: String) {
+            currentLayer = layer
+        }
+    #endif
 }

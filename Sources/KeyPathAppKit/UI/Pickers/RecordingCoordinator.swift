@@ -164,6 +164,24 @@ final class RecordingCoordinator {
         }
     }
 
+    #if DEBUG
+        func finalizePendingCapturesForTesting() {
+            inputFinalizeTimer?.invalidate()
+            inputFinalizeTimer = nil
+            outputFinalizeTimer?.invalidate()
+            outputFinalizeTimer = nil
+
+            if input.isRecording, input.capturedSequence != nil {
+                input.isRecording = false
+                refreshDisplayTexts()
+            }
+            if output.isRecording, output.capturedSequence != nil {
+                output.isRecording = false
+                refreshDisplayTexts()
+            }
+        }
+    #endif
+
     func saveMapping(
         kanataManager: RuntimeCoordinator,
         onSuccess: @escaping (String) -> Void,

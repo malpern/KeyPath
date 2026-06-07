@@ -20,7 +20,8 @@ final class OverlayHealthIndicatorObserverTests: KeyPathTestCase {
         controller.issues = []
 
         observer.startObserving(controller: controller)
-        try? await Task.sleep(for: .milliseconds(400))
+        await flushObserverTasks()
+        observer.completePendingDismissForTesting()
 
         XCTAssertTrue(states.contains(.healthy))
         XCTAssertEqual(states.last, .dismissed)
@@ -60,7 +61,8 @@ final class OverlayHealthIndicatorObserverTests: KeyPathTestCase {
         controller.validationState = .success
 
         observer.startObserving(controller: controller)
-        try? await Task.sleep(for: .milliseconds(400))
+        await flushObserverTasks()
+        observer.completePendingDismissForTesting()
 
         XCTAssertTrue(
             states.contains(.healthy),
@@ -112,7 +114,7 @@ final class OverlayHealthIndicatorObserverTests: KeyPathTestCase {
         controller.validationState = .failed(blockingCount: 1, totalCount: 3)
 
         observer.startObserving(controller: controller)
-        try? await Task.sleep(for: .milliseconds(400))
+        await flushObserverTasks()
 
         XCTAssertEqual(
             states.last,
@@ -137,7 +139,7 @@ final class OverlayHealthIndicatorObserverTests: KeyPathTestCase {
         controller.issues = []
 
         observer.startObserving(controller: controller)
-        try? await Task.sleep(for: .milliseconds(400))
+        await flushObserverTasks()
 
         // Now transition to failed with an issue while dismiss is gated
         controller.issues = [
@@ -152,10 +154,10 @@ final class OverlayHealthIndicatorObserverTests: KeyPathTestCase {
             ),
         ]
         controller.validationState = .failed(blockingCount: 1, totalCount: 1)
-        try? await Task.sleep(for: .milliseconds(400))
+        observer.refreshForTesting(controller: controller)
 
         gate.open()
-        try? await Task.sleep(for: .milliseconds(100))
+        await flushObserverTasks()
 
         XCTAssertEqual(states.last, .unhealthy(issueCount: 1))
     }
@@ -175,7 +177,8 @@ final class OverlayHealthIndicatorObserverTests: KeyPathTestCase {
         controller.issues = []
 
         observer.startObserving(controller: controller)
-        try? await Task.sleep(for: .milliseconds(400))
+        await flushObserverTasks()
+        observer.completePendingDismissForTesting()
 
         // At this point observer should be healthy then dismissed
         XCTAssertTrue(states.contains(.healthy))
@@ -183,10 +186,11 @@ final class OverlayHealthIndicatorObserverTests: KeyPathTestCase {
 
         // Simulate periodic revalidation: success → checking → success
         controller.validationState = .checking
-        try? await Task.sleep(for: .milliseconds(400))
+        observer.refreshForTesting(controller: controller)
 
         controller.validationState = .success
-        try? await Task.sleep(for: .milliseconds(400))
+        observer.refreshForTesting(controller: controller)
+        await flushObserverTasks()
 
         // Should NOT have flashed .checking — the observer should suppress it
         // when transitioning from healthy/dismissed
@@ -194,6 +198,14 @@ final class OverlayHealthIndicatorObserverTests: KeyPathTestCase {
             states.contains(.checking),
             "Should not flash 'checking' during periodic revalidation when already healthy"
         )
+    }
+
+    private func flushObserverTasks() async {
+        // Drains observer tasks scheduled by healthy-dismiss paths; startObserving
+        // performs its initial state handling synchronously.
+        await Task.yield()
+        await Task.yield()
+        await Task.yield()
     }
 }
 

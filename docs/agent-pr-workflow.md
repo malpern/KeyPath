@@ -10,8 +10,8 @@ End-to-end process for shepherding code from initial request through to a clean 
 ## Phase 2: Development
 
 3. **Do the work** — edit code, iterate with the user.
-4. **Build** — `swift build` must pass before any commit.
-5. **Test** — `swift test` must pass (all 532+ tests). Never commit code that breaks tests. Iterate with `swift test --filter <area>` for speed; run the **full** suite once as the pre-push gate — the final full run is required, the repeated mid-iteration full runs are the waste.
+4. **Build and narrow-test while iterating** — use `swift build` plus the smallest relevant lane. Start with `./Scripts/test-fast.sh --changed`; use `./Scripts/test-fast.sh <area>` for known areas (`rules`, `ui`, `installer`, `config`, `layout`, `packs`, `tcp`, etc.) or `TEST_FILTER=SomeTests ./Scripts/run-tests-safe.sh` for a single suite. Run `./Scripts/quick-deploy.sh` only when you need installed app behavior.
+5. **Run the full pre-PR gate once** — before pushing, run `./Scripts/test-full.sh` (equivalent to the snapshot-enabled safe runner). Never commit code that breaks tests. The final full run is required; repeated mid-iteration full runs are the waste.
 6. **Commit** — commit frequently as you work. Use descriptive messages. Include `Co-Authored-By` tag.
 
 ## Phase 2.5: Thermonuclear Review
@@ -40,6 +40,7 @@ Most PR clock-time is latency, not rigor. Cut the latency without dropping any g
 - **Risk-tier the merge.** *Mechanical / low-logic* PRs (formatting, dead-code removal with a green suite, docs, config-only) — once local build + full test + lint pass, push and `gh pr merge <n> --auto --squash`, then move on instead of sitting in a poll loop. *Logic / hot-path* PRs (runtime behavior, lifecycle, concurrency, FFI/syscalls, anything subtle) — keep the full manual babysit **and read every review comment**. **Never auto-merge a logic/hot-path PR:** review tools post real bugs as **non-blocking comments while the check still goes green** (e.g. an EPERM liveness bug that the `claude-review` check passed but a Codex comment caught — auto-merge would have shipped it).
 - **Parallelize independent PRs.** Open non-conflicting PRs together, let their CI overlap, merge each when green — don't run them strictly serially.
 - **Front-load review.** For substantive PRs, run `/code-review` locally *before* opening, with a runtime-reality lens ("what does this call actually return in the real root/unprivileged deployment?").
+- **Keep the release path out of feature iteration.** Avoid notarized/release-candidate builds until after merge unless the branch specifically changes signing, notarization, Gatekeeper, Sparkle, or installer behavior.
 
 ## Phase 5: Merge
 

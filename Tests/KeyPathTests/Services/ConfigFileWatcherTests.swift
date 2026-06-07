@@ -66,7 +66,7 @@ struct ConfigFileWatcherTests {
         watcher.suppressEvents(for: 5.0, reason: "test")
 
         try "suppressed-write".write(toFile: path, atomically: true, encoding: .utf8)
-        try await Task.sleep(for: .seconds(1))
+        await watcher.simulateFileEventForTesting()
 
         #expect(callbackCount == 0)
         watcher.stopWatching()

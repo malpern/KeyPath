@@ -441,7 +441,6 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
             // Expected
         }
 
-        try? await Task.sleep(for: .milliseconds(100))
         let result = await flag.get()
         XCTAssertFalse(result.fired, "Observer should not fire when save fails due to conflicts")
         _ = token

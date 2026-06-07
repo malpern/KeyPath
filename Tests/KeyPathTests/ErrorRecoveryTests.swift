@@ -93,7 +93,7 @@ final class ErrorRecoveryTests: XCTestCase {
     // MARK: - Health State Transitions
 
     @MainActor
-    func testHealthObserver_UnhealthyOnIssues() async {
+    func testHealthObserver_UnhealthyOnIssues() {
         var states: [HealthIndicatorState] = []
 
         let observer = OverlayHealthIndicatorObserver(
@@ -117,7 +117,6 @@ final class ErrorRecoveryTests: XCTestCase {
         ]
 
         observer.startObserving(controller: controller)
-        try? await Task.sleep(for: .milliseconds(400))
 
         XCTAssertTrue(
             states.contains(where: {
@@ -129,7 +128,7 @@ final class ErrorRecoveryTests: XCTestCase {
     }
 
     @MainActor
-    func testHealthObserver_RecoveryToHealthy() async {
+    func testHealthObserver_RecoveryToHealthy() {
         var states: [HealthIndicatorState] = []
 
         let observer = OverlayHealthIndicatorObserver(
@@ -153,12 +152,11 @@ final class ErrorRecoveryTests: XCTestCase {
         ]
 
         observer.startObserving(controller: controller)
-        try? await Task.sleep(for: .milliseconds(400))
 
         // Simulate recovery
         controller.validationState = .success
         controller.issues = []
-        try? await Task.sleep(for: .milliseconds(400))
+        observer.refreshForTesting(controller: controller)
 
         XCTAssertTrue(states.contains(.healthy),
                       "Should transition to healthy after recovery")

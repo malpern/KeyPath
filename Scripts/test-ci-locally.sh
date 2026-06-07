@@ -7,18 +7,24 @@ echo "🔍 Lint: WizardAutoFixer subprocess guard"
 chmod +x ./Scripts/lint-no-subprocess-in-autofixer.sh
 ./Scripts/lint-no-subprocess-in-autofixer.sh
 
+echo "🔍 Lint: Wizard sleep guard"
+chmod +x ./Scripts/lint-no-sleep.sh
+./Scripts/lint-no-sleep.sh
+
+echo "♿ Accessibility check"
+python3 Scripts/check-accessibility.py
+
 echo "🔨 Building..."
 swift build
 
-echo "🧪 Running smoke tests"
+echo "🧪 Running safe test suite"
 export KP_SIGN_DRY_RUN=1
-swift test --filter SigningPipelineTests || true
-swift test --filter InstallerEngineEndToEndTests || true
-
-echo "🧭 Running installer reliability matrix"
-chmod +x ./Scripts/run-installer-reliability-matrix.sh
-./Scripts/run-installer-reliability-matrix.sh
-
-# Safe test runner (matches CI script)
+export CI_ENVIRONMENT=true
+export SKIP_EVENT_TAP_TESTS=1
+export TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-300}"
 chmod +x ./Scripts/run-tests-safe.sh
 ./Scripts/run-tests-safe.sh
+
+echo "🧭 Parsing installer reliability matrix from safe test log"
+chmod +x ./Scripts/parse-installer-matrix.sh
+./Scripts/parse-installer-matrix.sh test_output.safe.txt

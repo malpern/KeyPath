@@ -20,11 +20,11 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
         center.post(name: .kanataKeyInput, object: nil, userInfo: userInfo)
     }
 
-    private func yieldForBatch() async {
-        // Wait for notification dispatch + batch timer flush (100ms)
-        try? await Task.sleep(nanoseconds: 150_000_000)
+    private func flushNotificationsAndBatch(_ service: KeystrokeHistoryService) async {
+        // Let notification handlers enqueue events, then flush the batch timer deterministically.
         await Task.yield()
         await Task.yield()
+        service.flushPendingEventsForTesting()
     }
 
     // MARK: - Event Ingestion
@@ -33,7 +33,7 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
         let center = NotificationCenter()
         let service = KeystrokeHistoryService.makeTestInstance(notificationCenter: center)
         postKeyInput(center, key: "a")
-        await yieldForBatch()
+        await flushNotificationsAndBatch(service)
         XCTAssertEqual(service.eventCount, 1)
     }
 
@@ -43,7 +43,7 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
         for key in ["h", "e", "l", "l", "o"] {
             postKeyInput(center, key: key)
         }
-        await yieldForBatch()
+        await flushNotificationsAndBatch(service)
         XCTAssertEqual(service.eventCount, 5)
         XCTAssertEqual(service.segments.count, 1)
         if case let .textRun(run) = service.segments.first {
@@ -59,7 +59,7 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
         let service = KeystrokeHistoryService.makeTestInstance(notificationCenter: center)
         postKeyInput(center, key: "a", action: "press")
         postKeyInput(center, key: "a", action: "release")
-        await yieldForBatch()
+        await flushNotificationsAndBatch(service)
         XCTAssertEqual(service.eventCount, 2)
         // Release events are not shown in segments (filtered by grouper)
         XCTAssertEqual(service.segments.count, 1)
@@ -77,7 +77,7 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
         let service = KeystrokeHistoryService.makeTestInstance(notificationCenter: center)
         XCTAssertEqual(service.currentLayer, "base")
         center.post(name: .kanataLayerChanged, object: nil, userInfo: ["layerName": "nav"])
-        await yieldForBatch()
+        await flushNotificationsAndBatch(service)
         XCTAssertEqual(service.currentLayer, "nav")
     }
 
@@ -87,7 +87,7 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
         postKeyInput(center, key: "a")
         center.post(name: .kanataLayerChanged, object: nil, userInfo: ["layerName": "nav"])
         postKeyInput(center, key: "b")
-        await yieldForBatch()
+        await flushNotificationsAndBatch(service)
         XCTAssertEqual(service.segments.count, 3)
         if case let .layerDivider(divider) = service.segments[1] {
             XCTAssertEqual(divider.layerName, "nav")
@@ -107,7 +107,7 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
             "reason": "opposite-hand",
             "kanataTimestamp": UInt64(1000),
         ])
-        await yieldForBatch()
+        await flushNotificationsAndBatch(service)
         XCTAssertEqual(service.segments.count, 1)
         if case let .eventCard(card) = service.segments.first,
            case let .tapHold(data) = card.cardKind
@@ -130,7 +130,7 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
             "reason": "release-before-timeout",
             "kanataTimestamp": UInt64(1000),
         ])
-        await yieldForBatch()
+        await flushNotificationsAndBatch(service)
         XCTAssertEqual(service.segments.count, 1)
         if case let .eventCard(card) = service.segments.first,
            case let .tapHold(data) = card.cardKind
@@ -150,7 +150,7 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
         let service = KeystrokeHistoryService.makeTestInstance(notificationCenter: center)
         service.isRecording = false
         postKeyInput(center, key: "a")
-        await yieldForBatch()
+        await flushNotificationsAndBatch(service)
         XCTAssertEqual(service.eventCount, 0)
     }
 
@@ -160,7 +160,7 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
         let center = NotificationCenter()
         let service = KeystrokeHistoryService.makeTestInstance(notificationCenter: center)
         postKeyInput(center, key: "a")
-        await yieldForBatch()
+        await flushNotificationsAndBatch(service)
         XCTAssertEqual(service.eventCount, 1)
         service.clearEvents()
         XCTAssertEqual(service.eventCount, 0)
@@ -186,7 +186,7 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
         postKeyInput(center, key: "b")
         postKeyInput(center, key: "bspc")
         postKeyInput(center, key: "c")
-        await yieldForBatch()
+        await flushNotificationsAndBatch(service)
         // Should be: textRun("ab"), eventCard(bspc), textRun("c")
         XCTAssertEqual(service.segments.count, 3)
         if case let .textRun(run) = service.segments[0] {

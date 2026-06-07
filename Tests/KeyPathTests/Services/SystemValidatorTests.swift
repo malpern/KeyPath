@@ -11,9 +11,7 @@ struct SystemValidatorTests {
     /// Setup: Reset counters before each test to ensure isolation
     private func setupTest() async {
         SystemValidator.resetCounters()
-        // Small delay to ensure reset completes before validator creation
-        // This helps prevent race conditions in parallel test execution
-        try? await Task.sleep(nanoseconds: 10_000_000) // 0.01 seconds
+        await Task.yield()
     }
 
     @Test("SystemValidator can be instantiated")
@@ -26,9 +24,6 @@ struct SystemValidatorTests {
 
         // Should not crash - validator is non-optional
         _ = validator
-
-        // Wait briefly to ensure any concurrent validations from other tests settle
-        try? await Task.sleep(nanoseconds: 50_000_000) // 0.05 seconds
 
         let stats = SystemValidator.getValidationStats()
         // In parallel execution, other tests may have active validations
@@ -48,9 +43,6 @@ struct SystemValidatorTests {
         let processManager = ProcessLifecycleManager()
         let validator = SystemValidator(processLifecycleManager: processManager)
 
-        // Wait to ensure validator initialization completes and becomes counting owner
-        try? await Task.sleep(nanoseconds: 50_000_000) // 0.05 seconds
-
         // Get baseline stats AFTER creating our validator
         // Note: baselineCount might be > 0 if other parallel tests ran, but that's okay
         let baselineStats = SystemValidator.getValidationStats()
@@ -58,9 +50,6 @@ struct SystemValidatorTests {
         // First validation - in test mode, this returns a stub immediately
         // without incrementing validation counters (this is the expected fast-path behavior)
         let snapshot = await validator.checkSystem()
-
-        // Wait for validation to complete
-        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
 
         let stats = SystemValidator.getValidationStats()
 

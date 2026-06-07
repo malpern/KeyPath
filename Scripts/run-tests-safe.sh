@@ -7,6 +7,11 @@ set -euo pipefail
 # - Adds a watchdog timeout so CI never freezes
 
 TIMEOUT_SECONDS=${TIMEOUT_SECONDS:-240}
+ALLOW_RUNNER_CRASH_SUCCESS=${KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS:-0}
+ALLOW_NONZERO_TEST_SUCCESS=${KEYPATH_ALLOW_NONZERO_TEST_SUCCESS:-0}
+TEST_FILTER=${TEST_FILTER:-}
+TEST_SKIP=${TEST_SKIP:-}
+SWIFT_TEST_ARGS=${SWIFT_TEST_ARGS:-}
 
 echo "🧪 Running tests via swift test with safety guards..."
 
@@ -40,9 +45,49 @@ fi
 
 echo "⏱️  Timeout: ${TIMEOUT_SECONDS}s"
 echo "🧪 SWIFT_TEST=$SWIFT_TEST | SKIP_EVENT_TAP_TESTS=$SKIP_EVENT_TAP_TESTS"
+declare -a TEST_SELECTOR_ARGS=()
+if [ -n "$TEST_FILTER" ]; then
+    TEST_SELECTOR_ARGS+=(--filter "$TEST_FILTER")
+fi
+if [ -n "$TEST_SKIP" ]; then
+    TEST_SELECTOR_ARGS+=(--skip "$TEST_SKIP")
+fi
+declare -a EXTRA_TEST_ARGS=()
+if [ -n "$SWIFT_TEST_ARGS" ]; then
+    # shellcheck disable=SC2206
+    EXTRA_TEST_ARGS=($SWIFT_TEST_ARGS)
+fi
+if [ "${#TEST_SELECTOR_ARGS[@]}" -gt 0 ] || [ "${#EXTRA_TEST_ARGS[@]}" -gt 0 ]; then
+    echo "🎯 Test selector args: ${TEST_SELECTOR_ARGS[*]:-(none)}"
+    echo "⚙️  Extra swift test args: ${EXTRA_TEST_ARGS[*]:-(none)}"
+else
+    echo "🎯 Test selector args: (full suite)"
+fi
+if [ "$ALLOW_RUNNER_CRASH_SUCCESS" = "1" ]; then
+    echo "⚠️  KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS=1 (signal crashes can pass only with zero parsed failures)"
+fi
+if [ "$ALLOW_NONZERO_TEST_SUCCESS" = "1" ]; then
+    echo "⚠️  KEYPATH_ALLOW_NONZERO_TEST_SUCCESS=1 (non-zero exits with parsed passes can pass)"
+fi
 if [ "$KEYPATH_USE_SUDO" = "1" ]; then
     echo "🔐 KEYPATH_USE_SUDO=1 (privileged ops via sudo, no prompts)"
 fi
+
+append_runner_crash_summary() {
+    local title="$1"
+    local details="$2"
+    if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+        {
+            echo "### $title"
+            echo ""
+            echo "- Parsed passes: \`$PASS_COUNT\`"
+            echo "- Parsed failures: \`$FAIL_COUNT\`"
+            echo "- Exit code: \`$EXIT_CODE\`"
+            echo "- Detail: $details"
+            echo ""
+        } >> "$GITHUB_STEP_SUMMARY"
+    fi
+}
 
 # 0) Isolated build/test dirs and HOME to avoid parallel-agent collisions
 # In CI, reuse the default .build/ to avoid relinking the CLI executable
@@ -75,7 +120,14 @@ echo "🚀 Launching swift test..."
 (
   set +e
   set -o pipefail
-  swift test --skip-build --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}" 2>&1 | tee "$LOG"
+  SWIFT_TEST_COMMAND=(swift test --skip-build --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}")
+  if [ "${#TEST_SELECTOR_ARGS[@]}" -gt 0 ]; then
+    SWIFT_TEST_COMMAND+=("${TEST_SELECTOR_ARGS[@]}")
+  fi
+  if [ "${#EXTRA_TEST_ARGS[@]}" -gt 0 ]; then
+    SWIFT_TEST_COMMAND+=("${EXTRA_TEST_ARGS[@]}")
+  fi
+  "${SWIFT_TEST_COMMAND[@]}" 2>&1 | tee "$LOG"
   echo $? > .xctest.exit
 ) &
 
@@ -100,6 +152,7 @@ wait $TEST_PID || true
 EXIT_CODE=$(cat .xctest.exit 2>/dev/null || echo 1)
 rm -f .xctest.exit
 kill $WATCHDOG_PID 2>/dev/null || true
+wait $WATCHDOG_PID 2>/dev/null || true
 
 # 2) Summarize
 # Count actual test failures vs passes (both XCTest and Swift Testing formats)
@@ -110,6 +163,11 @@ PASS_COUNT=${PASS_COUNT:-0}
 IS_SIGNAL_CRASH=false
 if [ "$EXIT_CODE" -gt 128 ] 2>/dev/null; then
   IS_SIGNAL_CRASH=true
+fi
+LOG_SIGNAL_CRASH_LINE=$(grep -aE "exited with unexpected signal code [0-9]+" "$LOG" 2>/dev/null | tail -n 1 || true)
+LOG_SIGNAL_CRASH=false
+if [ -n "$LOG_SIGNAL_CRASH_LINE" ]; then
+  LOG_SIGNAL_CRASH=true
 fi
 
 if [ "$EXIT_CODE" = "0" ]; then
@@ -129,10 +187,35 @@ if [ "$IS_SIGNAL_CRASH" = true ]; then
   echo "⚠️  Test runner crashed with signal $SIGNAL_NUM (exit $EXIT_CODE)"
   echo "   Passed: $PASS_COUNT | Failed: $FAIL_COUNT"
 
-  if [ "$FAIL_COUNT" -le 1 ] && [ "$PASS_COUNT" -gt 0 ]; then
-    echo "✅ Tests passed (ignoring runner crash — $PASS_COUNT passed, $FAIL_COUNT interrupted by crash)"
+  if [ "$ALLOW_RUNNER_CRASH_SUCCESS" = "1" ] && [ "$FAIL_COUNT" -eq 0 ] && [ "$PASS_COUNT" -gt 0 ]; then
+    if [ -n "${GITHUB_ACTIONS:-}" ]; then
+      echo "::warning::Allowed test runner signal crash after $PASS_COUNT parsed passes and 0 parsed failures"
+    fi
+    append_runner_crash_summary "Allowed Test Runner Signal Crash" "signal $SIGNAL_NUM"
+    echo "✅ Tests passed (ignoring allowed runner crash — $PASS_COUNT passed, 0 parsed failures)"
     exit 0
   fi
+
+  echo "❌ Treating test runner signal crash as failure"
+  exit "$EXIT_CODE"
+fi
+
+# SwiftPM can wrap an XCTest SIGABRT as exit 1 while logging the underlying signal.
+if [ "$LOG_SIGNAL_CRASH" = true ]; then
+  echo "⚠️  Test runner reported a signal crash: $LOG_SIGNAL_CRASH_LINE"
+  echo "   Exit: $EXIT_CODE | Passed: $PASS_COUNT | Failed: $FAIL_COUNT"
+
+  if [ "$ALLOW_RUNNER_CRASH_SUCCESS" = "1" ] && [ "$FAIL_COUNT" -eq 0 ] && [ "$PASS_COUNT" -gt 0 ]; then
+    if [ -n "${GITHUB_ACTIONS:-}" ]; then
+      echo "::warning::Allowed SwiftPM-wrapped test runner signal crash after $PASS_COUNT parsed passes and 0 parsed failures"
+    fi
+    append_runner_crash_summary "Allowed SwiftPM-Wrapped Test Runner Signal Crash" "$LOG_SIGNAL_CRASH_LINE"
+    echo "✅ Tests passed (ignoring allowed runner crash — $PASS_COUNT passed, 0 parsed failures)"
+    exit 0
+  fi
+
+  echo "❌ Treating test runner signal crash as failure"
+  exit "$EXIT_CODE"
 fi
 
 # Check for real test failures
@@ -143,10 +226,14 @@ if [ "$FAIL_COUNT" -gt 0 ]; then
 fi
 
 # Non-zero exit but no failures found — check for any passing output
-if [ "$PASS_COUNT" -gt 0 ]; then
-  echo "✅ Tests passed (ignoring runner exit code $EXIT_CODE — $PASS_COUNT passed)"
+if [ "$ALLOW_NONZERO_TEST_SUCCESS" = "1" ] && [ "$PASS_COUNT" -gt 0 ]; then
+  echo "✅ Tests passed (ignoring allowed runner exit code $EXIT_CODE — $PASS_COUNT passed)"
   exit 0
 fi
 
-echo "❌ Test run failed (exit $EXIT_CODE, no test output found)"
+if [ "$PASS_COUNT" -gt 0 ]; then
+  echo "❌ Test run failed (exit $EXIT_CODE despite $PASS_COUNT parsed passes)"
+else
+  echo "❌ Test run failed (exit $EXIT_CODE, no test output found)"
+fi
 exit $EXIT_CODE

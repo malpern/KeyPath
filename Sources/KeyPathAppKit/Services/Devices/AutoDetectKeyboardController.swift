@@ -302,6 +302,19 @@ final class AutoDetectKeyboardController {
         SoundPlayer.shared.playDeviceDisconnectedSound()
     }
 
+    #if DEBUG
+        func handleConnectedKeyboardForTesting(
+            _ event: HIDDeviceMonitor.HIDKeyboardEvent,
+            showFeedback: Bool = true
+        ) async {
+            await handleNewKeyboard(event, showFeedback: showFeedback)
+        }
+
+        func handleDisconnectedKeyboardForTesting(_ event: HIDDeviceMonitor.HIDKeyboardEvent) {
+            handleKeyboardDisconnected(event)
+        }
+    #endif
+
     // MARK: - User Actions
 
     func acceptDetection() {
