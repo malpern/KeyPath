@@ -9,11 +9,17 @@ import Foundation
 @MainActor
 final class PrivilegedOperationsRouterTests: XCTestCase {
     private nonisolated(unsafe) var originalExecutor: AdminCommandExecutor!
+    private nonisolated(unsafe) var originalSudoEnv: String?
+    private nonisolated(unsafe) var originalAllowAdminOperationsInTests = false
 
     override func setUp() async throws {
         try await super.setUp()
         await MainActor.run {
             originalExecutor = AdminCommandExecutorHolder.shared
+            originalSudoEnv = ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"]
+            originalAllowAdminOperationsInTests = TestEnvironment.allowAdminOperationsInTests
+            TestEnvironment.allowAdminOperationsInTests = false
+            setenv("KEYPATH_USE_SUDO", "0", 1)
         }
     }
 
@@ -26,6 +32,14 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
                 ServiceHealthChecker.runtimeSnapshotOverride = nil
                 ServiceHealthChecker.recentlyRestartedOverride = nil
             #endif
+            TestEnvironment.allowAdminOperationsInTests = originalAllowAdminOperationsInTests
+            if let originalSudoEnv {
+                setenv("KEYPATH_USE_SUDO", originalSudoEnv, 1)
+            } else {
+                unsetenv("KEYPATH_USE_SUDO")
+            }
+            originalSudoEnv = nil
+            originalAllowAdminOperationsInTests = false
         }
         try await super.tearDown()
     }

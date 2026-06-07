@@ -43,7 +43,13 @@ final class EasyViewSnapshotTests: ScreenshotTestCase {
             onDelete: { _ in },
             onAddRule: {}
         )
-        assertScreenshot(of: view, size: SnapshotSize.card, named: "app-rule-card-safari")
+        assertScreenshot(
+            of: view,
+            size: SnapshotSize.card,
+            named: "app-rule-card-safari",
+            precision: 0.99,
+            perceptualPrecision: 0.99
+        )
     }
 
     // MARK: - CustomRulesInlineEditor

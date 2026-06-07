@@ -208,7 +208,12 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         configurationManager.configPath
     }
 
-    init(engineClient: EngineClient? = nil, injectedConfigurationService: ConfigurationService? = nil, configRepairService: ConfigRepairService? = nil) {
+    init(
+        engineClient: EngineClient? = nil,
+        injectedConfigurationService: ConfigurationService? = nil,
+        injectedRuleCollectionsManager: RuleCollectionsManager? = nil,
+        configRepairService: ConfigRepairService? = nil
+    ) {
         AppLogger.shared.log("🏗️ [RuntimeCoordinator] init() called")
         let isOneShotProbeMode = AppDelegate.isOneShotProbeEnvironment()
 
@@ -255,7 +260,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         self.configBackupManager = configBackupManager
 
         // Initialize RuleCollectionsManager
-        ruleCollectionsManager = RuleCollectionsManager(
+        ruleCollectionsManager = injectedRuleCollectionsManager ?? RuleCollectionsManager(
             configurationService: configurationService
         )
 

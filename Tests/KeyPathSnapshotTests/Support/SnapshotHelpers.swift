@@ -124,6 +124,9 @@ class ScreenshotTestCase: XCTestCase {
 
     /// Upper bound so generated assets stay practical for docs/web payload size.
     private let maxSnapshotPixelsWide = 1800
+    private nonisolated(unsafe) var originalHomeEnv: String?
+    private nonisolated(unsafe) var originalFixedHomeEnv: String?
+    private nonisolated(unsafe) var isolatedHomeDirectory: URL?
 
     /// Rasterize a hosted view into an NSImage at explicit scale.
     private func rasterizedImage(from view: NSView, size: CGSize) -> NSImage {
@@ -159,12 +162,22 @@ class ScreenshotTestCase: XCTestCase {
         guard snapshotsEnabled || isRecordingMode else {
             throw XCTSkip("Snapshot tests disabled. Set KEYPATH_SNAPSHOTS=1 to enable.")
         }
+        originalHomeEnv = ProcessInfo.processInfo.environment["HOME"]
+        originalFixedHomeEnv = ProcessInfo.processInfo.environment["CFFIXED_USER_HOME"]
+        let isolatedHome = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keypath-snapshot-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: isolatedHome, withIntermediateDirectories: true)
+        isolatedHomeDirectory = isolatedHome
+        setenv("HOME", isolatedHome.path, 1)
+        setenv("CFFIXED_USER_HOME", isolatedHome.path, 1)
+
         // Ensure deterministic @AppStorage state
         let defaults: [String: Any] = [
             "selectedKeymapId": "qwerty-us",
             "keymapIncludePunctuation": "true",
             "selectedLayoutId": "ansi-100",
             "overlayColorwayId": "default",
+            "KeyPath.Overlay.UnmappedLayerKeyStyle": "baseLayer",
             "inspectorSettingsSection": "keymaps",
             "launcherWelcomeSeenForBuild": "999",
         ]
@@ -180,12 +193,29 @@ class ScreenshotTestCase: XCTestCase {
             "keymapIncludePunctuation",
             "selectedLayoutId",
             "overlayColorwayId",
+            "KeyPath.Overlay.UnmappedLayerKeyStyle",
             "inspectorSettingsSection",
             "launcherWelcomeSeenForBuild",
         ]
         for key in keys {
             Foundation.UserDefaults().removeObject(forKey: key)
         }
+        if let originalHomeEnv {
+            setenv("HOME", originalHomeEnv, 1)
+        } else {
+            unsetenv("HOME")
+        }
+        if let originalFixedHomeEnv {
+            setenv("CFFIXED_USER_HOME", originalFixedHomeEnv, 1)
+        } else {
+            unsetenv("CFFIXED_USER_HOME")
+        }
+        if let isolatedHomeDirectory {
+            try? FileManager.default.removeItem(at: isolatedHomeDirectory)
+        }
+        originalHomeEnv = nil
+        originalFixedHomeEnv = nil
+        isolatedHomeDirectory = nil
         super.tearDown()
     }
 

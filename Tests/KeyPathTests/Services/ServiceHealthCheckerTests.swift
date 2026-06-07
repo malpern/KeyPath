@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+@testable import KeyPathCore
 @testable import KeyPathInstallationWizard
 import ServiceManagement
 @preconcurrency import XCTest
@@ -8,12 +9,18 @@ final class ServiceHealthCheckerTests: XCTestCase {
     private var checker: ServiceHealthChecker!
     private var tempLaunchDaemonsDir: URL!
     private var originalLaunchDaemonsDir: String?
+    private var originalSudoEnv: String?
+    private var originalAllowAdminOperationsInTests = false
     private nonisolated(unsafe) var originalSMFactory: ((String) -> SMAppServiceProtocol)!
 
     override func setUp() async throws {
         try await super.setUp()
         checker = await MainActor.run { ServiceHealthChecker.shared }
         originalSMFactory = KanataDaemonManager.smServiceFactory
+        originalSudoEnv = ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"]
+        originalAllowAdminOperationsInTests = TestEnvironment.allowAdminOperationsInTests
+        TestEnvironment.allowAdminOperationsInTests = false
+        setenv("KEYPATH_USE_SUDO", "0", 1)
 
         tempLaunchDaemonsDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("ServiceHealthCheckerTests-\(UUID().uuidString)")
@@ -32,6 +39,12 @@ final class ServiceHealthCheckerTests: XCTestCase {
     override func tearDown() async throws {
         checker = nil
         KanataDaemonManager.smServiceFactory = originalSMFactory
+        TestEnvironment.allowAdminOperationsInTests = originalAllowAdminOperationsInTests
+        if let originalSudoEnv {
+            setenv("KEYPATH_USE_SUDO", originalSudoEnv, 1)
+        } else {
+            unsetenv("KEYPATH_USE_SUDO")
+        }
         if let originalLaunchDaemonsDir {
             setenv("KEYPATH_LAUNCH_DAEMONS_DIR", originalLaunchDaemonsDir, 1)
         } else {
@@ -46,6 +59,8 @@ final class ServiceHealthCheckerTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempLaunchDaemonsDir)
         tempLaunchDaemonsDir = nil
         originalLaunchDaemonsDir = nil
+        originalSudoEnv = nil
+        originalAllowAdminOperationsInTests = false
         originalSMFactory = nil
         try await super.tearDown()
     }

@@ -102,6 +102,7 @@ struct OverlayKeycapView: View {
         if info.appLaunchIdentifier != nil || info.systemActionIdentifier != nil || info.urlIdentifier != nil {
             return false
         }
+        if isNavIdentityMapping { return false }
         if key.layoutRole == .narrowModifier {
             return true
         }
