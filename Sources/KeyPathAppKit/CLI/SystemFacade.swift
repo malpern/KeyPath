@@ -6,14 +6,46 @@ import KeyPathInstallationWizard
 import KeyPathWizardCore
 
 public struct SystemFacade: Sendable {
-    public init() {}
+    typealias RuntimeSnapshot = ServiceHealthChecker.KanataServiceRuntimeSnapshot
+
+    private let subprocessRunner: any SubprocessRunning
+    private let runtimeSnapshotProvider: @Sendable () async -> RuntimeSnapshot
+    private let runtimeTransitionTimeoutSeconds: TimeInterval
+    private let pollDelayNanoseconds: UInt64
+    private let restartDelayNanoseconds: UInt64
+
+    public init() {
+        self.init(
+            subprocessRunner: SubprocessRunner.shared,
+            runtimeSnapshotProvider: {
+                await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot()
+            }
+        )
+    }
+
+    init(
+        subprocessRunner: any SubprocessRunning,
+        runtimeSnapshotProvider: @escaping @Sendable () async -> RuntimeSnapshot,
+        runtimeTransitionTimeoutSeconds: TimeInterval = 5,
+        pollDelayNanoseconds: UInt64 = 200_000_000,
+        restartDelayNanoseconds: UInt64 = 500_000_000
+    ) {
+        self.subprocessRunner = subprocessRunner
+        self.runtimeSnapshotProvider = runtimeSnapshotProvider
+        self.runtimeTransitionTimeoutSeconds = runtimeTransitionTimeoutSeconds
+        self.pollDelayNanoseconds = pollDelayNanoseconds
+        self.restartDelayNanoseconds = restartDelayNanoseconds
+    }
 
     // MARK: - Service Lifecycle
 
     public func startService() async -> Bool {
         do {
-            try await SubprocessRunner.shared.launchctl("kickstart", ["system/com.keypath.kanata"])
-            return true
+            let result = try await subprocessRunner.launchctl("kickstart", ["system/com.keypath.kanata"])
+            guard result.exitCode == 0 else { return false }
+            return await waitForRuntime(timeoutSeconds: runtimeTransitionTimeoutSeconds) { snapshot in
+                snapshot.isRunning && snapshot.isResponding
+            }
         } catch {
             return false
         }
@@ -21,17 +53,40 @@ public struct SystemFacade: Sendable {
 
     public func stopService() async -> Bool {
         do {
-            try await SubprocessRunner.shared.launchctl("kill", ["SIGTERM", "system/com.keypath.kanata"])
-            return true
+            let result = try await subprocessRunner.launchctl("kill", ["SIGTERM", "system/com.keypath.kanata"])
+            guard result.exitCode == 0 else { return false }
+            return await waitForRuntime(timeoutSeconds: runtimeTransitionTimeoutSeconds) { snapshot in
+                !snapshot.isRunning && !snapshot.isResponding
+            }
         } catch {
             return false
         }
     }
 
     public func restartService() async -> Bool {
-        _ = await stopService()
-        try? await Task.sleep(nanoseconds: 500_000_000)
+        guard await stopService() else { return false }
+        if restartDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: restartDelayNanoseconds)
+        }
         return await startService()
+    }
+
+    private func waitForRuntime(
+        timeoutSeconds: TimeInterval,
+        matches predicate: (RuntimeSnapshot) -> Bool
+    ) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeoutSeconds)
+        repeat {
+            let snapshot = await runtimeSnapshotProvider()
+            if predicate(snapshot) {
+                return true
+            }
+            if pollDelayNanoseconds > 0 {
+                try? await Task.sleep(nanoseconds: pollDelayNanoseconds)
+            }
+        } while Date() < deadline
+
+        return false
     }
 
     public func serviceLogs(lines: Int = 50) -> [String] {

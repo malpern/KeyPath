@@ -20,7 +20,10 @@ struct ServiceStart: AsyncParsableCommand {
                 "Kanata service started."
             }
         } else {
-            let error = CLIError.serviceUnreachable(hint: "Failed to start service. Is it installed? Run 'keypath system install'")
+            let error = CLIError.serviceControlFailed(
+                action: "start",
+                hint: "Run 'keypath service status --json' to inspect runtime health. If macOS blocks system service control, use KeyPath's repair UI."
+            )
             CLIOutput.writeError(error, context: ctx)
             throw error.code.exitCode
         }

@@ -21,7 +21,10 @@ struct ServiceRestart: AsyncParsableCommand {
                 "Kanata service restarted."
             }
         } else {
-            let error = CLIError.serviceUnreachable(hint: "Failed to restart service. Check 'keypath service status' for details")
+            let error = CLIError.serviceControlFailed(
+                action: "restart",
+                hint: "macOS may require administrator authorization for system services. Check 'keypath service status --json' or use KeyPath's repair UI."
+            )
             CLIOutput.writeError(error, context: ctx)
             throw error.code.exitCode
         }

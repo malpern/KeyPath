@@ -30,9 +30,9 @@ editing config files directly.
 ### Status & Health
 ```bash
 keypath service status --json       # Full system health check
-keypath service start               # Start Kanata service
-keypath service stop                # Stop Kanata service
-keypath service restart             # Restart Kanata service
+keypath service start               # Start Kanata service and verify runtime health
+keypath service stop                # Stop Kanata service and verify it stopped
+keypath service restart             # Restart Kanata service; may fail if macOS requires authorization
 keypath service reload              # Reload config without restart
 ```
 

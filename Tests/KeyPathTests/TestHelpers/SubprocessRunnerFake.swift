@@ -11,7 +11,7 @@ actor SubprocessRunnerFake: SubprocessRunning {
     // MARK: - Configuration
 
     /// Custom result provider for run() calls
-    var runResultProvider: ((String, [String]) -> ProcessResult)?
+    var runResultProvider: (@Sendable (String, [String]) -> ProcessResult)?
 
     /// Default result for run() calls
     var defaultRunResult = ProcessResult(
@@ -22,13 +22,13 @@ actor SubprocessRunnerFake: SubprocessRunning {
     )
 
     /// Custom result provider for pgrep() calls
-    var pgrepResultProvider: ((String) -> [pid_t])?
+    var pgrepResultProvider: (@Sendable (String) -> [pid_t])?
 
     /// Default PIDs for pgrep() calls
     var defaultPgrepResult: [pid_t] = []
 
     /// Custom result provider for launchctl() calls
-    var launchctlResultProvider: ((String, [String]) -> ProcessResult)?
+    var launchctlResultProvider: (@Sendable (String, [String]) -> ProcessResult)?
 
     /// Default result for launchctl() calls
     var defaultLaunchctlResult = ProcessResult(
@@ -67,15 +67,15 @@ actor SubprocessRunnerFake: SubprocessRunning {
 
     // MARK: - Test Configuration Helpers
 
-    func configureRunResult(_ provider: @escaping (String, [String]) -> ProcessResult) {
+    func configureRunResult(_ provider: @escaping @Sendable (String, [String]) -> ProcessResult) {
         runResultProvider = provider
     }
 
-    func configurePgrepResult(_ provider: @escaping (String) -> [pid_t]) {
+    func configurePgrepResult(_ provider: @escaping @Sendable (String) -> [pid_t]) {
         pgrepResultProvider = provider
     }
 
-    func configureLaunchctlResult(_ provider: @escaping (String, [String]) -> ProcessResult) {
+    func configureLaunchctlResult(_ provider: @escaping @Sendable (String, [String]) -> ProcessResult) {
         launchctlResultProvider = provider
     }
 

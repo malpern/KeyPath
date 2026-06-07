@@ -50,6 +50,17 @@ final class CLIErrorTests: XCTestCase {
         XCTAssertFalse(error.hint!.isEmpty)
     }
 
+    func testServiceControlFailedDescribesAction() {
+        let error = CLIError.serviceControlFailed(
+            action: "restart",
+            hint: "macOS may require administrator authorization."
+        )
+
+        XCTAssertEqual(error.code, .serviceUnreachable)
+        XCTAssertEqual(error.message, "Could not restart Kanata service")
+        XCTAssertTrue(error.hint?.contains("authorization") ?? false)
+    }
+
     func testValidationErrorHasCode3() {
         let error = CLIError.validation("bad config")
         XCTAssertEqual(error.code, .validation)
