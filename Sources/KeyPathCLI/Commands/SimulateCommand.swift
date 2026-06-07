@@ -56,15 +56,16 @@ struct Simulate: AsyncParsableCommand {
             let simContent = rawContent ?? taps.map { tap in
                 "d:\(tap.key) t:\(tap.delayMs) u:\(tap.key)"
             }.joined(separator: " ")
+            let keyCount = rawContent.map(Self.rawEventCount) ?? taps.count
 
             let preview = CLISimulateDryRun(
-                keyCount: taps.count,
+                keyCount: keyCount,
                 simContent: simContent,
                 configPath: configPath ?? "(active config)"
             )
 
             CLIOutput.write(preview, context: ctx) {
-                "Would simulate \(taps.count) key(s): \(simContent)"
+                Self.dryRunDescription(rawContent: rawContent, keyCount: keyCount, simContent: simContent)
             }
             return
         }
@@ -119,14 +120,35 @@ struct Simulate: AsyncParsableCommand {
 
     private func loadRawSimulationContent() throws -> String? {
         if let rawSimulation {
-            return rawSimulation
+            return Self.normalizedRawSimulationContent(rawSimulation)
         }
         guard let simulationFile else { return nil }
         do {
-            return try String(contentsOfFile: simulationFile, encoding: .utf8)
+            let content = try String(contentsOfFile: simulationFile, encoding: .utf8)
+            return Self.normalizedRawSimulationContent(content)
         } catch {
             throw ValidationError("Could not read --sim-file '\(simulationFile)': \(error.localizedDescription)")
         }
+    }
+
+    static func dryRunDescription(rawContent: String?, keyCount: Int, simContent: String) -> String {
+        if rawContent != nil {
+            return "Would simulate raw timeline (\(keyCount) event(s)): \(simContent)"
+        }
+        return "Would simulate \(keyCount) key(s): \(simContent)"
+    }
+
+    static func rawEventCount(in simContent: String) -> Int {
+        simContent
+            .split(whereSeparator: \.isWhitespace)
+            .filter { token in
+                token.hasPrefix("d:") || token.hasPrefix("u:")
+            }
+            .count
+    }
+
+    static func normalizedRawSimulationContent(_ content: String) -> String {
+        content.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

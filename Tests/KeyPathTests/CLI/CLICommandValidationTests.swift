@@ -177,6 +177,22 @@ final class CLICommandValidationTests: XCTestCase {
         )
     }
 
+    func testSimulateRawDryRunPreviewCountsPressReleaseEvents() {
+        let raw = "d:f t:100 d:j t:50 u:j t:50 u:f"
+        let keyCount = Simulate.rawEventCount(in: raw)
+        let message = Simulate.dryRunDescription(rawContent: raw, keyCount: keyCount, simContent: raw)
+
+        XCTAssertEqual(keyCount, 4)
+        XCTAssertEqual(message, "Would simulate raw timeline (4 event(s)): d:f t:100 d:j t:50 u:j t:50 u:f")
+    }
+
+    func testSimulateNormalizesRawTimelineWhitespace() {
+        XCTAssertEqual(
+            Simulate.normalizedRawSimulationContent("d:f t:100 u:f\n"),
+            "d:f t:100 u:f"
+        )
+    }
+
     // MARK: - System command parsing
 
     func testSystemRepairAcceptsOpenPermissions() throws {
