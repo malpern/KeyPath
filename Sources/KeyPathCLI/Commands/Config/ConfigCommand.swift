@@ -9,6 +9,8 @@ struct Config: AsyncParsableCommand {
             ConfigPath.self,
             ConfigCheck.self,
             ConfigApply.self,
+            ConfigBackup.self,
+            ConfigRestore.self,
         ]
     )
 }

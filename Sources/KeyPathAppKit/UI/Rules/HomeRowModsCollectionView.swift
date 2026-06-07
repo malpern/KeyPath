@@ -1,3 +1,4 @@
+import KeyPathCore
 import SwiftUI
 #if os(macOS)
     import AppKit
@@ -50,6 +51,13 @@ struct HomeRowModsCollectionView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            Text("Home row mods configuration")
+                .frame(width: 0, height: 0)
+                .opacity(0.01)
+                .accessibilityIdentifier("home-row-mods-config-panel")
+                .accessibilityLabel("Home row mods configuration")
+                .accessibilityValue(homeRowModsAccessibilityValue)
+
             // Visual keyboard (always visible when expanded)
             ViewThatFits(in: .horizontal) {
                 homeRowKeyboard(size: 72)
@@ -96,6 +104,8 @@ struct HomeRowModsCollectionView: View {
                     .controlSize(.small)
                     .disabled(!isCollectionEnabled)
                     .accessibilityIdentifier("home-row-mods-reset-defaults")
+                    .accessibilityLabel("Reset home row mods to defaults")
+                    .accessibilityValue(homeRowModsAccessibilityValue)
                 }
 
                 Button("Settings...") {
@@ -106,6 +116,7 @@ struct HomeRowModsCollectionView: View {
                 .disabled(!isCollectionEnabled)
                 .accessibilityIdentifier("home-row-mods-customize-button")
                 .accessibilityLabel("Home row mods settings")
+                .accessibilityValue(homeRowModsAccessibilityValue)
             }
             .padding(.horizontal, 10)
         }
@@ -170,6 +181,7 @@ struct HomeRowModsCollectionView: View {
     // MARK: - Helpers
 
     func updateConfig() {
+        AppLogger.shared.log("🧪 [QA] Home Row Mods config changed: \(homeRowModsAccessibilityValue)")
         onConfigChanged(config)
     }
 
@@ -266,6 +278,11 @@ struct HomeRowModsCollectionView: View {
         if config.modifierAssignments != baseline.modifierAssignments { return true }
         if holdTimingBinding != nil, holdTimingValue != holdTimingDefault { return true }
         return false
+    }
+
+    var homeRowModsAccessibilityValue: String {
+        let enabledKeys = config.enabledKeys.sorted().joined(separator: ",")
+        return "mode \(config.holdMode.displayName), layer activation \(config.layerToggleMode.displayName), enabled keys \(enabledKeys), tap window \(config.timing.tapWindow) ms, hold delay \(config.timing.holdDelay) ms, opposite hand \(config.oppositeHandMode.displayName)"
     }
 
     /// Reset assignments to the default for the current hold mode

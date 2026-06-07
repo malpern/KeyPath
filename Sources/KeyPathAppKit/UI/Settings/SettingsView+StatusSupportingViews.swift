@@ -36,6 +36,24 @@ struct PermissionStatusRow: View {
         .disabled(onTap == nil)
         .accessibilityIdentifier("settings-status-action-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
         .accessibilityLabel(title)
+        .accessibilityValue(accessibilityValue)
+    }
+
+    private var accessibilityValue: String {
+        guard let status else { return "checking" }
+        switch status {
+        case .granted:
+            return "granted"
+        case .denied:
+            return "denied"
+        case let .error(message):
+            return message.isEmpty ? "error" : "error: \(message)"
+        case .unknown:
+            if isKanata, !hasFullDiskAccess {
+                return "unknown: full disk access required to verify"
+            }
+            return "unknown"
+        }
     }
 
     private var statusColor: Color {
@@ -177,6 +195,7 @@ struct StatusDetailRow: View {
                         .controlSize(.small)
                         .accessibilityIdentifier("status-action-\(action.title.lowercased().replacingOccurrences(of: " ", with: "-"))")
                         .accessibilityLabel(action.title)
+                        .accessibilityValue(detail.message)
                     }
                 }
             }

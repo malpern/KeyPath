@@ -170,6 +170,7 @@ private extension SettingsSystemStatusRowsBuilder {
 }
 
 struct SettingsSystemStatusRow: View {
+    let id: String
     let title: String
     let icon: String
     let status: InstallationStatus
@@ -196,8 +197,9 @@ struct SettingsSystemStatusRow: View {
             }
             .buttonStyle(.plain)
             .disabled(onTap == nil)
-            .accessibilityIdentifier("settings-status-row-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
+            .accessibilityIdentifier("settings-status-row-button-\(id)")
             .accessibilityLabel(title)
+            .accessibilityValue(accessibilityValue)
 
             if let message, status != .completed {
                 Text(message)
@@ -221,6 +223,12 @@ struct SettingsSystemStatusRow: View {
         }
     }
 
+    private var accessibilityValue: String {
+        let value = status.accessibilityValue
+        guard let message, !message.isEmpty else { return value }
+        return "\(value): \(message)"
+    }
+
     private var statusIcon: String {
         switch status {
         case .completed:
@@ -235,6 +243,19 @@ struct SettingsSystemStatusRow: View {
             "circle"
         case .unverified:
             "questionmark.circle"
+        }
+    }
+}
+
+private extension InstallationStatus {
+    var accessibilityValue: String {
+        switch self {
+        case .notStarted: "not started"
+        case .inProgress: "in progress"
+        case .completed: "completed"
+        case .warning: "warning"
+        case .failed: "failed"
+        case .unverified: "unverified"
         }
     }
 }

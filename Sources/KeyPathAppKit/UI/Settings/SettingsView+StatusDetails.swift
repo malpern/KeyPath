@@ -13,6 +13,16 @@ extension StatusSettingsTabView {
         case critical = 2
         case checking = 3
         case disabled = 4
+
+        var accessibilityValue: String {
+            switch self {
+            case .success: "success"
+            case .warning: "warning"
+            case .critical: "critical"
+            case .checking: "checking"
+            case .disabled: "disabled"
+            }
+        }
     }
 
     var overallHealthLevel: OverallHealthLevel {

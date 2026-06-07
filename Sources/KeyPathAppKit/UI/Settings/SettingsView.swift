@@ -40,6 +40,11 @@ struct StatusSettingsTabView: View {
         localServiceRunning ?? isServiceRunning
     }
 
+    private var activeRulesCount: Int {
+        kanataManager.ruleCollections.filter(\.isEnabled).count
+            + kanataManager.customRules.filter(\.isEnabled).count
+    }
+
     var hasFullDiskAccess: Bool {
         FullDiskAccessChecker.shared.hasFullDiskAccess()
     }
@@ -95,6 +100,7 @@ struct StatusSettingsTabView: View {
                                 .buttonStyle(.plain)
                                 .accessibilityIdentifier("status-system-health-button")
                                 .accessibilityLabel("System status: \(systemHealthMessage)")
+                                .accessibilityValue(overallHealthLevel.accessibilityValue)
                             }
 
                             VStack(spacing: 4) {
@@ -113,16 +119,14 @@ struct StatusSettingsTabView: View {
                                 Button(action: {
                                     NotificationCenter.default.post(name: .openSettingsRules, object: nil)
                                 }) {
-                                    let enabledCollections = kanataManager.ruleCollections.filter(\.isEnabled).count
-                                    let enabledCustomRules = kanataManager.customRules.filter(\.isEnabled).count
-                                    let activeCount = enabledCollections + enabledCustomRules
-                                    Text(activeRulesText(count: activeCount))
+                                    Text(activeRulesText(count: activeRulesCount))
                                         .font(.body)
                                         .foregroundColor(.secondary)
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityIdentifier("status-active-rules-button")
                                 .accessibilityLabel("View active rules")
+                                .accessibilityValue(activeRulesText(count: activeRulesCount))
                             }
                         }
 
@@ -181,6 +185,7 @@ struct StatusSettingsTabView: View {
                             .controlSize(.large)
                             .accessibilityIdentifier("status-service-toggle")
                             .accessibilityLabel("KeyPath Runtime")
+                            .accessibilityValue(effectiveServiceRunning ? "on" : "off")
 
                             Text(effectiveServiceRunning ? "ON" : "OFF")
                                 .font(.body.weight(.medium))
@@ -265,6 +270,7 @@ struct StatusSettingsTabView: View {
 
                             ForEach(systemStatusRows) { row in
                                 SettingsSystemStatusRow(
+                                    id: row.id,
                                     title: row.title,
                                     icon: row.icon,
                                     status: row.status,

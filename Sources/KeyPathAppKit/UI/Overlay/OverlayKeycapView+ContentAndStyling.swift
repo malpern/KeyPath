@@ -107,7 +107,7 @@ extension OverlayKeycapView {
             iconVisible = isLauncherMode
         }
         .animation(nil, value: currentLayerName)
-        .allowsHitTesting(isInspectorVisible || isLauncherMode || key.layoutRole == .touchId)
+        .allowsHitTesting(isAutomationClickable)
         // Hover detection (must be before contentShape for hit testing)
         .contentShape(Rectangle())
         .onHover { hovering in
@@ -189,12 +189,20 @@ extension OverlayKeycapView {
         .accessibilityIdentifier(keycapAccessibilityId)
         .accessibilityLabel(keycapAccessibilityLabel)
         .accessibilityValue(keycapAccessibilityValue)
-        .accessibilityAddTraits(isInspectorVisible ? .isButton : [])
+        .accessibilityAddTraits(isAutomationClickable ? .isButton : [])
+        .accessibilityAction {
+            guard isAutomationClickable, let onKeyClick else { return }
+            onKeyClick(key, layerKeyInfo)
+        }
+    }
+
+    var isAutomationClickable: Bool {
+        isInspectorVisible || isLauncherMode || key.layoutRole == .touchId
     }
 
     /// Accessibility identifier for this keycap
     var keycapAccessibilityId: String {
-        "keycap-\(key.label.lowercased().replacingOccurrences(of: " ", with: "-"))"
+        "keycap-code-\(key.keyCode)"
     }
 
     /// Accessibility label describing the key and its current mapping

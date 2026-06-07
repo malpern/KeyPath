@@ -66,6 +66,64 @@ public struct ConfigFacade: Sendable {
         )
     }
 
+    // MARK: - Backup / Restore
+
+    public func backupConfig(outputPath: String? = nil) throws -> CLIConfigBackupResult {
+        let fileManager = FileManager.default
+        let sourceURL = URL(fileURLWithPath: KeyPathConstants.Config.directory, isDirectory: true)
+        guard fileManager.fileExists(atPath: sourceURL.path) else {
+            throw Self.error("Config directory does not exist: \(sourceURL.path)")
+        }
+
+        let destinationURL = try outputPath.map {
+            URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath, isDirectory: true)
+        } ?? defaultBackupURL()
+
+        if fileManager.fileExists(atPath: destinationURL.path) {
+            throw Self.error("Backup destination already exists: \(destinationURL.path)")
+        }
+
+        try fileManager.createDirectory(
+            at: destinationURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try fileManager.copyItem(at: sourceURL, to: destinationURL)
+
+        return try CLIConfigBackupResult(
+            sourcePath: sourceURL.path,
+            backupPath: destinationURL.path,
+            copiedItems: copiedItemNames(in: destinationURL)
+        )
+    }
+
+    public func restoreConfig(from backupPath: String, reload: Bool) async throws -> CLIConfigRestoreResult {
+        let fileManager = FileManager.default
+        let sourceURL = URL(fileURLWithPath: (backupPath as NSString).expandingTildeInPath, isDirectory: true)
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: sourceURL.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            throw Self.error("Backup directory does not exist: \(sourceURL.path)")
+        }
+
+        let destinationURL = URL(fileURLWithPath: KeyPathConstants.Config.directory, isDirectory: true)
+        try fileManager.createDirectory(
+            at: destinationURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        if fileManager.fileExists(atPath: destinationURL.path) {
+            try fileManager.removeItem(at: destinationURL)
+        }
+        try fileManager.copyItem(at: sourceURL, to: destinationURL)
+
+        let reloadSuccess = reload ? await tcpReload() : nil
+        return try CLIConfigRestoreResult(
+            sourcePath: sourceURL.path,
+            restoredPath: destinationURL.path,
+            restoredItems: copiedItemNames(in: destinationURL),
+            reloadRequested: reload,
+            reloadSuccess: reloadSuccess
+        )
+    }
+
     // MARK: - TCP
 
     func tcpClient() async -> KanataTCPClient {
@@ -116,6 +174,31 @@ public struct ConfigFacade: Sendable {
         if case .success = result { return true }
         return false
     }
+
+    private func defaultBackupURL() throws -> URL {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        let name = "keypath-config-\(formatter.string(from: Date()))"
+        let supportDirectory = try FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        return supportDirectory
+            .appendingPathComponent("KeyPath", isDirectory: true)
+            .appendingPathComponent("QA Backups", isDirectory: true)
+            .appendingPathComponent(name, isDirectory: true)
+    }
+
+    private func copiedItemNames(in directory: URL) throws -> [String] {
+        try FileManager.default.contentsOfDirectory(atPath: directory.path).sorted()
+    }
+
+    private static func error(_ message: String) -> NSError {
+        NSError(domain: "KeyPath.ConfigFacade", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
+    }
 }
 
 // MARK: - Config Types
@@ -132,6 +215,20 @@ public struct CLIApplyChangeset: Codable, Sendable {
     public let enabledCollections: [String]
     public let disabledCollections: [String]
     public let customRules: [String]
+}
+
+public struct CLIConfigBackupResult: Codable, Sendable {
+    public let sourcePath: String
+    public let backupPath: String
+    public let copiedItems: [String]
+}
+
+public struct CLIConfigRestoreResult: Codable, Sendable {
+    public let sourcePath: String
+    public let restoredPath: String
+    public let restoredItems: [String]
+    public let reloadRequested: Bool
+    public let reloadSuccess: Bool?
 }
 
 public struct CLIValidationResult: Codable, Sendable {

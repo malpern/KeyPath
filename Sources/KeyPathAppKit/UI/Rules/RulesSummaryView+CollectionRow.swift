@@ -243,6 +243,9 @@ struct ExpandableCollectionRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("rules-summary-icon-button-\(collectionId)")
+            .accessibilityLabel(isExpanded ? "Collapse \(name)" : "Expand \(name)")
+            .accessibilityValue(effectiveEnabled ? "on" : "off")
 
             // Rest of row → opens detail window (or expands if no pack)
             Button {
@@ -293,6 +296,7 @@ struct ExpandableCollectionRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("rules-summary-expand-button-\(collectionId)")
             .accessibilityLabel(isExpanded ? "Collapse \(name)" : "Expand \(name)")
+            .accessibilityValue(effectiveEnabled ? "on" : "off")
 
             // Help button (only for collections that provide one)
             if let onHelpTapped {
@@ -391,6 +395,7 @@ struct ExpandableCollectionRow: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("rules-summary-add-rule-\(collectionId)")
+                    .accessibilityLabel("Add rule to \(name)")
                 } else if displayStyle == .singleKeyPicker, let coll = collection {
                     // Segmented picker for single-key remapping
                     SingleKeyPickerContent(

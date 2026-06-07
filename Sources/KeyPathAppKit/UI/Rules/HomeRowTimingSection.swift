@@ -92,6 +92,7 @@ struct HomeRowTimingSection: View {
                 )
                 .accessibilityIdentifier("home-row-mods-raw-values-toggle")
                 .accessibilityLabel("Raw values mode")
+                .accessibilityValue(config.showExpertTiming ? "on" : "off")
                 .accessibilityAddTraits(config.showExpertTiming ? .isSelected : [])
 
                 if hasNonDefaultTiming {
@@ -138,6 +139,8 @@ struct HomeRowTimingSection: View {
                 }
                 .frame(maxWidth: 250)
                 .accessibilityIdentifier("home-row-mods-feel-slider")
+                .accessibilityLabel("Home row typing feel")
+                .accessibilityValue("tap window \(config.timing.tapWindow) ms, hold delay \(config.timing.holdDelay) ms")
                 .overlay(alignment: .top) {
                     if isEditingHoldDuration {
                         Text("\(config.timing.holdDelay)ms")
@@ -182,6 +185,8 @@ struct HomeRowTimingSection: View {
                                         ), format: .number)
                                             .textFieldStyle(.roundedBorder).frame(width: 70)
                                             .accessibilityIdentifier("home-row-mods-tap-window-field")
+                                            .accessibilityLabel("Tap window")
+                                            .accessibilityValue("\(config.timing.tapWindow) ms")
                                         Text("ms").font(.caption).foregroundColor(.secondary)
                                     }
                                 }
@@ -194,6 +199,8 @@ struct HomeRowTimingSection: View {
                                         ), format: .number)
                                             .textFieldStyle(.roundedBorder).frame(width: 70)
                                             .accessibilityIdentifier("home-row-mods-hold-delay-field")
+                                            .accessibilityLabel("Hold delay")
+                                            .accessibilityValue("\(config.timing.holdDelay) ms")
                                         Text("ms").font(.caption).foregroundColor(.secondary)
                                     }
                                 }
@@ -209,6 +216,8 @@ struct HomeRowTimingSection: View {
                                     }
                                 ), in: 0 ... 1, step: 0.05)
                                     .accessibilityIdentifier("home-row-mods-hold-duration-advanced")
+                                    .accessibilityLabel("Advanced hold duration")
+                                    .accessibilityValue("tap window \(config.timing.tapWindow) ms, hold delay \(config.timing.holdDelay) ms")
                                 Text("Modifiers feel snappy").font(.caption2).foregroundStyle(.secondary)
                             }
                         }
@@ -223,6 +232,9 @@ struct HomeRowTimingSection: View {
                             ))
                             .toggleStyle(.checkbox)
                             .font(.subheadline)
+                            .accessibilityIdentifier("home-row-mods-fast-typing-protection-toggle")
+                            .accessibilityLabel("Fast typing protection")
+                            .accessibilityValue(config.timing.requirePriorIdleMs > 0 ? "on" : "off")
                             InfoTip("How long you must pause after typing before holds are allowed. Prevents accidental modifiers mid-word.")
                         }
                         if config.timing.requirePriorIdleMs > 0 {
@@ -235,6 +247,8 @@ struct HomeRowTimingSection: View {
                                     isEditingIdleWindow = editing
                                 }
                                 .accessibilityIdentifier("home-row-mods-prior-idle-advanced")
+                                .accessibilityLabel("Fast typing protection idle window")
+                                .accessibilityValue("\(config.timing.requirePriorIdleMs) ms")
                                 .overlay(alignment: .top) {
                                     if isEditingIdleWindow {
                                         Text("\(config.timing.requirePriorIdleMs)ms")
@@ -258,6 +272,7 @@ struct HomeRowTimingSection: View {
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
+            .accessibilityIdentifier("home-row-mods-adjust-independently-disclosure")
 
             // MARK: - Opposite-Hand Activation
 
@@ -279,6 +294,7 @@ struct HomeRowTimingSection: View {
                 .frame(maxWidth: 220)
                 .accessibilityIdentifier("home-row-mods-opposite-hand-picker")
                 .accessibilityLabel("Opposite-hand activation mode")
+                .accessibilityValue(config.oppositeHandMode.displayName)
 
                 InfoTip(
                     "Hold actions (modifiers or layers) only activate when you press a key with the other hand. Same-hand typing always produces letters — no accidental modifiers during fast rolls.\n\nOn Press: Faster response, may misfire on fast same-hand rolls.\nOn Release: More forgiving — waits for the other-hand key to be released before committing."
@@ -297,6 +313,7 @@ struct HomeRowTimingSection: View {
             .toggleStyle(.checkbox)
             .accessibilityIdentifier("home-row-mods-quick-tap-toggle")
             .accessibilityLabel("Favor tap when another key is pressed (quick tap)")
+            .accessibilityValue(config.timing.quickTapEnabled ? "on" : "off")
 
             if config.timing.quickTapEnabled {
                 HStack(spacing: 8) {
@@ -450,6 +467,9 @@ struct HomeRowTimingSection: View {
                             ), format: .number)
                                 .textFieldStyle(.roundedBorder)
                                 .frame(width: 70)
+                                .accessibilityIdentifier("home-row-mods-tap-offset-\(key)-field")
+                                .accessibilityLabel("\(key.uppercased()) tap offset")
+                                .accessibilityValue("\(config.timing.tapOffsets[key] ?? 0) ms")
                         }
                     }
                     Spacer()
@@ -482,6 +502,9 @@ struct HomeRowTimingSection: View {
                             ), format: .number)
                                 .textFieldStyle(.roundedBorder)
                                 .frame(width: 70)
+                                .accessibilityIdentifier("home-row-mods-hold-offset-\(key)-field")
+                                .accessibilityLabel("\(key.uppercased()) hold offset")
+                                .accessibilityValue("\(config.timing.holdOffsets[key] ?? 0) ms")
                         }
                     }
                     Spacer()
@@ -509,6 +532,8 @@ struct HomeRowTimingSection: View {
                     .background(hrmAvailabilityColor.opacity(0.12))
                     .clipShape(Capsule())
                     .accessibilityIdentifier("home-row-mods-hrm-availability-badge")
+                    .accessibilityLabel("Home row mods telemetry availability")
+                    .accessibilityValue(hrmObservability.availability.displayName)
             }
 
             Text("Live observability for home-row tap/hold decisions. Use calibration to preview conservative timing suggestions before applying.")

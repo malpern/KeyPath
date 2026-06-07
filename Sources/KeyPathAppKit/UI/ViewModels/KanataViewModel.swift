@@ -359,6 +359,9 @@ class KanataViewModel {
     func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async {
         let wasNewlyEnabled = await manager.updateHomeRowModsConfig(collectionId: collectionId, config: config)
         ruleCollections = manager.rulesManager.ruleCollections
+        AppLogger.shared.log(
+            "🧪 [QA] Persisted Home Row Mods config collection=\(collectionId.uuidString) mode=\(config.holdMode.rawValue) keys=\(config.enabledKeys.sorted().joined(separator: ",")) tapWindow=\(config.timing.tapWindow) holdDelay=\(config.timing.holdDelay)"
+        )
         if wasNewlyEnabled {
             let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
             showToast("Turned on \(name)", type: .success)

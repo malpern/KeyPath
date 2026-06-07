@@ -32,6 +32,8 @@ final class MainWindowController: NSWindowController {
 
         // Configure window properties
         window.title = ""
+        window.setAccessibilityIdentifier("keypath-main-window")
+        window.setAccessibilityLabel("KeyPath")
         window.isOpaque = false
         window.backgroundColor = .clear
         window.isMovableByWindowBackground = false

@@ -11,7 +11,7 @@ Versioning once public release tags are established.
 
 - Release-governance docs: `SECURITY.md`, `CODE_OF_CONDUCT.md`, and this
   changelog.
-- CI/release-readiness tracking issues labeled as `release-blocker` in Linear.
+- CI/release-readiness tracking issues labeled as `release-blocker` in GitHub.
 - Mapper/overlay support for optional per-key shifted output customization:
   `Shift + key` can now send a separate output from tap/default output for
   global keystroke mappings.

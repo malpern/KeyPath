@@ -268,6 +268,7 @@ struct OverlayDragHeader: View {
 
     var body: some View {
         let buttonSize = max(10, height * 0.9)
+        let automationHitSize: CGFloat = 32
         let indicatorCornerRadius: CGFloat = 4
 
         HStack(spacing: 0) {
@@ -298,7 +299,7 @@ struct OverlayDragHeader: View {
                         Image(systemName: isInspectorOpen ? "xmark.circle" : "sidebar.right")
                             .font(.system(size: buttonSize * 0.72, weight: .semibold))
                             .foregroundStyle(drawerButtonHighlighted ? Color.accentColor : headerIconColor)
-                            .frame(width: buttonSize, height: buttonSize)
+                            .frame(width: automationHitSize, height: automationHitSize)
                             .scaleEffect(drawerButtonHighlighted ? 1.2 : 1.0)
                             .animation(.easeInOut(duration: 0.1), value: drawerButtonHighlighted)
                     }
@@ -477,6 +478,7 @@ struct OverlayDragHeader: View {
     @ViewBuilder
     private func layerPill(layerDisplayName: String, indicatorCornerRadius: CGFloat, buttonSize: CGFloat) -> some View {
         let iconName = LayerInfo.iconName(for: layerDisplayName)
+        let automationHitSize: CGFloat = 32
 
         Group {
             if shouldShowLayerName {
@@ -494,6 +496,7 @@ struct OverlayDragHeader: View {
                             .opacity(0.7)
                     }
                     .foregroundStyle(headerIconColor)
+                    .frame(minWidth: automationHitSize, minHeight: automationHitSize)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .modifier(OverlayGlassEffectModifier(
@@ -512,7 +515,7 @@ struct OverlayDragHeader: View {
                     Image(systemName: iconName)
                         .font(.system(size: buttonSize * 0.72, weight: .semibold))
                         .foregroundStyle(headerIconColor)
-                        .frame(width: buttonSize, height: buttonSize)
+                        .frame(width: automationHitSize, height: automationHitSize)
                 }
                 .modifier(OverlayGlassButtonStyleModifier(reduceTransparency: reduceTransparency))
                 .accessibilityIdentifier("overlay-layer-picker-toggle")
@@ -556,6 +559,7 @@ struct OverlayDragHeader: View {
         .help("Current layer: \(layerDisplayName). Click to see available layers.")
         .accessibilityIdentifier("overlay-layer-indicator")
         .accessibilityLabel("Current layer: \(layerDisplayName). Click to see available layers.")
+        .accessibilityValue(layerDisplayName)
     }
 
     /// Handle hover state changes with grace period
