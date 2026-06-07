@@ -86,6 +86,58 @@ final class HrmObservabilityServiceTests: XCTestCase {
         XCTAssertTrue(service.supportsHrmTrace)
     }
 
+    func testTraceOnlyCapabilitiesDoNotDowngradeStatsSupport() async {
+        let center = NotificationCenter()
+        let service = HrmObservabilityService.makeTestInstance(notificationCenter: center)
+
+        center.post(
+            name: .kanataCapabilitiesUpdated,
+            object: nil,
+            userInfo: ["capabilities": ["hrm-trace", "hrm-stats"]]
+        )
+        await Task.yield()
+        await Task.yield()
+        XCTAssertEqual(service.availability, .supported)
+
+        center.post(
+            name: .kanataCapabilitiesUpdated,
+            object: nil,
+            userInfo: ["capabilities": ["hrm-trace"]]
+        )
+        await Task.yield()
+        await Task.yield()
+
+        XCTAssertEqual(service.availability, .supported)
+        XCTAssertTrue(service.supportsHrmStats)
+        XCTAssertTrue(service.supportsHrmTrace)
+    }
+
+    func testTraceOnlyCapabilitiesDoNotOverwriteRuntimeDisabledState() async {
+        let center = NotificationCenter()
+        let service = HrmObservabilityService.makeTestInstance(notificationCenter: center)
+
+        center.post(
+            name: .kanataCapabilitiesUpdated,
+            object: nil,
+            userInfo: ["capabilities": ["hrm-trace", "hrm-stats"]]
+        )
+        await Task.yield()
+        await Task.yield()
+        service._testSetAvailability(.disabledInRuntimeConfig)
+
+        center.post(
+            name: .kanataCapabilitiesUpdated,
+            object: nil,
+            userInfo: ["capabilities": ["hrm-trace"]]
+        )
+        await Task.yield()
+        await Task.yield()
+
+        XCTAssertEqual(service.availability, .disabledInRuntimeConfig)
+        XCTAssertTrue(service.supportsHrmStats)
+        XCTAssertTrue(service.supportsHrmTrace)
+    }
+
     func testBuildRecommendationsReleaseBeforeTimeoutSuggestsLowerHoldDelay() {
         let service = HrmObservabilityService.makeTestInstance()
         service._testSetLatestStats(

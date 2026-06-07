@@ -149,6 +149,10 @@ final class HrmObservabilityService {
         func _testSetRecommendations(_ values: [TimingRecommendation]) {
             recommendations = values
         }
+
+        func _testSetAvailability(_ value: AvailabilityState) {
+            availability = value
+        }
     #endif
 
     deinit {
@@ -335,14 +339,25 @@ final class HrmObservabilityService {
 
     private func handleCapabilities(_ rawCapabilities: [String]) {
         let normalized = Set(KanataEventListener.normalizedCapabilities(rawCapabilities))
-        advertisedCapabilities = normalized
+        var nextCapabilities = normalized
+        // Treat hrm-stats as sticky once observed; reconnect/reload capability
+        // events can be trace-only even though stats remain available.
+        if advertisedCapabilities.contains("hrm-stats"),
+           normalized.contains("hrm-trace"),
+           !normalized.contains("hrm-stats")
+        {
+            nextCapabilities.insert("hrm-stats")
+        }
+        advertisedCapabilities = nextCapabilities
 
-        if normalized.contains("hrm-stats") {
+        if nextCapabilities.contains("hrm-stats") {
             if availability == .unknown || availability == .unsupported || availability == .traceOnly {
                 availability = .supported
             }
-        } else if normalized.contains("hrm-trace") {
-            availability = .traceOnly
+        } else if nextCapabilities.contains("hrm-trace") {
+            if availability == .unknown || availability == .unsupported {
+                availability = .traceOnly
+            }
         } else {
             availability = .unsupported
             latestStats = nil
