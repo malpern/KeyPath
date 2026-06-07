@@ -31,20 +31,38 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Detect workflow changes in PR
-        id: workflow-changes
+      - name: Detect PR change scope
+        id: changes
         run: |
           set -euo pipefail
           git fetch origin "${{ github.base_ref }}" --depth=1
-          if git diff --quiet "origin/${{ github.base_ref }}" -- .github/workflows/claude-code-review.yml; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
+          changed_files="$(git diff --name-only --diff-filter=d "origin/${{ github.base_ref }}"...HEAD)"
+
+          if printf '%s\n' "$changed_files" | grep -qx '.github/workflows/claude-code-review.yml'; then
+            echo "workflow_changed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "workflow_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          non_docs_files="$(printf '%s\n' "$changed_files" | awk '
+            NF == 0 { next }
+            /^docs\// { next }
+            /^[^\/]+\.md$/ { next }
+            /^\.github\/workflows\/claude\.yml$/ { next }
+            /^\.github\/workflows\/claude-code-review\.yml$/ { next }
+            /^Sources\/KeyPathAppKit\/Resources\/[^\/]+\.(md|css|png)$/ { next }
+            { print }
+          ')"
+
+          if [ -z "$non_docs_files" ]; then
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run Claude Code Review
         id: claude-review
-        if: steps.workflow-changes.outputs.changed != 'true'
+        if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only != 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -69,6 +87,11 @@ jobs:
           claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
 
       - name: Skip Claude review for workflow-file changes
-        if: steps.workflow-changes.outputs.changed == 'true'
+        if: steps.changes.outputs.workflow_changed == 'true'
         run: |
           echo "Skipping Claude review because .github/workflows/claude-code-review.yml changed in this PR."
+
+      - name: Skip Claude review for docs-only changes
+        if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only == 'true'
+        run: |
+          echo "Skipping Claude review because this PR only changes docs or docs-adjacent assets."
