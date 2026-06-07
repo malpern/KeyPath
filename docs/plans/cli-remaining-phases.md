@@ -243,9 +243,9 @@ Layers in KeyPath are defined by rule collections (`targetLayer` field). Creatin
 #### Commands
 
 ```
-keypath service start
-keypath service stop
-keypath service restart
+keypath service start               # verifies the service becomes healthy
+keypath service stop                # verifies the service stops
+keypath service restart             # fails instead of reporting success when authorization is required
 keypath service status           # (existing)
 keypath service reload           # (existing)
 keypath service logs [--lines <n>] [--follow]

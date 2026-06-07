@@ -71,6 +71,16 @@ public extension CLIError {
         )
     }
 
+    static func serviceControlFailed(action: String, hint: String, details: [String]? = nil) -> CLIError {
+        CLIError(
+            code: .serviceUnreachable,
+            message: "Could not \(action) Kanata service",
+            hint: hint,
+            details: details,
+            docsUrl: CLIDocsURL.debugging
+        )
+    }
+
     static func validation(_ message: String, hint: String? = nil, details: [String]? = nil) -> CLIError {
         CLIError(
             code: .validation,

@@ -20,7 +20,10 @@ struct ServiceStop: AsyncParsableCommand {
                 "Kanata service stopped."
             }
         } else {
-            let error = CLIError.serviceUnreachable(hint: "Failed to stop service. Is it running? Check with 'keypath service status'")
+            let error = CLIError.serviceControlFailed(
+                action: "stop",
+                hint: "macOS may require administrator authorization for system services. Check 'keypath service status --json' or use KeyPath's repair UI."
+            )
             CLIOutput.writeError(error, context: ctx)
             throw error.code.exitCode
         }
