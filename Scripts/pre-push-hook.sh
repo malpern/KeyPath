@@ -4,6 +4,19 @@
 
 cd "$(git rev-parse --show-toplevel)"
 
+if [ -t 0 ]; then
+    PUSH_UPDATES=""
+else
+    PUSH_UPDATES=$(cat)
+fi
+if [ -n "$PUSH_UPDATES" ]; then
+    NON_DELETE_UPDATES=$(printf '%s\n' "$PUSH_UPDATES" | awk '$2 !~ /^0+$/ { print; found=1 } END { exit found ? 0 : 1 }' || true)
+    if [ -z "$NON_DELETE_UPDATES" ]; then
+        echo "🧹 Branch deletion push detected; skipping pre-push tests."
+        exit 0
+    fi
+fi
+
 echo "🧪 Running all tests before push..."
 
 TMPFILE=$(mktemp)
