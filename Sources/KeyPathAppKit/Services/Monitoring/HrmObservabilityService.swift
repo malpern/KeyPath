@@ -359,11 +359,13 @@ final class HrmObservabilityService {
                 availability = .traceOnly
             }
         } else {
-            availability = .unsupported
-            latestStats = nil
-            topReasons = []
-            perKeyBreakdown = []
-            recommendations = []
+            if availability != .disabledInRuntimeConfig {
+                availability = .unsupported
+                latestStats = nil
+                topReasons = []
+                perKeyBreakdown = []
+                recommendations = []
+            }
         }
     }
 

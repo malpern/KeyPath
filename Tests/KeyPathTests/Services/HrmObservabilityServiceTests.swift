@@ -138,6 +138,24 @@ final class HrmObservabilityServiceTests: XCTestCase {
         XCTAssertTrue(service.supportsHrmTrace)
     }
 
+    func testNoHrmCapabilitiesDoNotOverwriteRuntimeDisabledState() async {
+        let center = NotificationCenter()
+        let service = HrmObservabilityService.makeTestInstance(notificationCenter: center)
+        service._testSetAvailability(.disabledInRuntimeConfig)
+
+        center.post(
+            name: .kanataCapabilitiesUpdated,
+            object: nil,
+            userInfo: ["capabilities": ["reload"]]
+        )
+        await Task.yield()
+        await Task.yield()
+
+        XCTAssertEqual(service.availability, .disabledInRuntimeConfig)
+        XCTAssertFalse(service.supportsHrmStats)
+        XCTAssertFalse(service.supportsHrmTrace)
+    }
+
     func testBuildRecommendationsReleaseBeforeTimeoutSuggestsLowerHoldDelay() {
         let service = HrmObservabilityService.makeTestInstance()
         service._testSetLatestStats(
