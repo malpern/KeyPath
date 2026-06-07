@@ -3,10 +3,13 @@ import SwiftUI
 /// Reusable horizontal option card for settings selections.
 /// Displays an icon + title/subtitle with accent-colored selected state.
 struct SettingsOptionCard: View {
+    static let settingsRowWidth: CGFloat = 240
+
     let icon: String
     let title: String
     let subtitle: String
     let isSelected: Bool
+    var cardWidth: CGFloat?
     var onHoverChanged: ((Bool) -> Void)?
     let action: () -> Void
     @State private var isHovered = false
@@ -27,14 +30,18 @@ struct SettingsOptionCard: View {
                     Text(title)
                         .font(.subheadline.weight(isSelected ? .semibold : .regular))
                         .foregroundStyle(isSelected ? .primary : .secondary)
+                        .lineLimit(1)
                     Text(subtitle)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 10)
             .padding(.horizontal, 12)
+            .frame(width: cardWidth, alignment: .leading)
+            .frame(maxWidth: cardWidth == nil ? .infinity : nil, alignment: .leading)
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -51,6 +58,8 @@ struct SettingsOptionCard: View {
             )
         }
         .buttonStyle(.plain)
+        .frame(width: cardWidth, alignment: .leading)
+        .fixedSize(horizontal: cardWidth != nil, vertical: false)
         .onHover { hovering in
             isHovered = hovering
             onHoverChanged?(hovering)
