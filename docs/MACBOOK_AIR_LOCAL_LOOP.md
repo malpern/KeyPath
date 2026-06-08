@@ -23,6 +23,11 @@ Run the smallest lane that covers the files you changed:
 | Device/system installer surface | `KEYPATH_E2E_DEVICE=1 ./Scripts/test-lane.sh device` |
 | Before a broad handoff or PR | `./Scripts/test-lane.sh full` |
 
+Use `core-isolated` when the change is limited to public `KeyPathCore` runtime,
+parser, or test-environment behavior and you want proof that the AppKit graph
+does not compile. Use `unit` when you want broader root-package parser/model
+coverage; it is still fast when warm, but it is not a build-isolated lane.
+
 For very narrow debugging, override the lane filter:
 
 ```bash
@@ -68,6 +73,15 @@ Presets:
 - `quick`: runs `smoke`.
 - `baseline`: runs `smoke`, `core-isolated`, `unit`, and `appkit`.
 - `full`: runs `smoke`, `core-isolated`, `unit`, `appkit`, and `full`.
+
+Current MacBook Air reference measurements:
+
+| Lane | Mode | Result |
+| --- | --- | --- |
+| `smoke` | warm | 2s, 12 tests, `appkit_in_log=0` |
+| `core-isolated` | clean | 15s, 13 tests, `appkit_in_log=0` |
+| `core-isolated` | warm | 2s, 13 tests, `appkit_in_log=0` |
+| `unit` | warm | 8s, 329 tests, zero warning/error summary counts |
 
 ## Clean Summary Guardrail
 
