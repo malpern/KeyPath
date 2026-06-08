@@ -84,6 +84,11 @@ Use Claude Code computer-use or Peekaboo for spot-checking specific bugs — not
 For Home Row Mods release QA, use the focused checklist and installed-app smoke
 script in [hrm-settings-release-qa.md](hrm-settings-release-qa.md).
 
+For the broader public 1.0 release gate, use
+[keypath-1.0-release-qa.md](keypath-1.0-release-qa.md). That document tracks
+the product-wide release matrix, blocking readiness issues, installed-app smoke,
+manual/Computer Use coverage, and log-review expectations.
+
 ## Anti-Patterns
 
 - **Don't use computer-use as a test harness.** It's for debugging and spot-checks, not reproducible test suites. It's non-deterministic, expensive, and can't run in CI.
