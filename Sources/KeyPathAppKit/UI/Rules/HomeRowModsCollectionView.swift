@@ -267,7 +267,7 @@ struct HomeRowModsCollectionView: View {
     }
 
     /// Whether the current assignments differ from defaults (for either mode)
-    private var baselineConfig: HomeRowModsConfig {
+    var baselineConfig: HomeRowModsConfig {
         usesTopRowKeys ? .vallackDefault : HomeRowModsConfig()
     }
 

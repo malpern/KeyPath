@@ -103,6 +103,21 @@ public struct HomeRowModsConfig: Codable, Equatable, Sendable {
         set { oppositeHandMode = newValue ? .press : .off }
     }
 
+    public mutating func enableKeyPreservingAssignment(_ key: String, fallbackConfig: HomeRowModsConfig = HomeRowModsConfig()) {
+        enabledKeys.insert(key)
+        switch holdMode {
+        case .modifiers:
+            if modifierAssignments[key] == nil {
+                modifierAssignments[key] = fallbackConfig.modifierAssignments[key] ?? Self.cagsMacDefault[key]
+            }
+        case .layers:
+            if layerAssignments[key] == nil {
+                layerAssignments[key] = fallbackConfig.layerAssignments[key] ?? Self.defaultLayerAssignments[key]
+            }
+        }
+        keySelection = .custom
+    }
+
     /// Mac-first CAGS mapping
     /// Left hand: Shift (pinky), Control (ring), Option (middle), Command (index)
     /// Right hand: Command (index), Option (middle), Control (ring), Shift (pinky)

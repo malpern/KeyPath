@@ -139,14 +139,7 @@ extension HomeRowModsCollectionView {
     func enableKeyPopoverContent(for key: String) -> some View {
         VStack(spacing: 0) {
             Button {
-                config.enabledKeys.insert(key)
-                // Restore default assignment for this key's position
-                if config.holdMode == .modifiers {
-                    config.modifierAssignments[key] = HomeRowModsConfig.cagsMacDefault[key]
-                } else {
-                    config.layerAssignments[key] = HomeRowModsConfig.defaultLayerAssignments[key]
-                }
-                config.keySelection = .custom
+                config.enableKeyPreservingAssignment(key, fallbackConfig: baselineConfig)
                 updateConfig()
                 selectedKey = nil
             } label: {
