@@ -481,6 +481,16 @@ Status:
   types and command-parse/output-contract tests; then move storage/config/packs
   facades only when their dependencies can move with them. Keep installer and
   simulator facades AppKit-backed until a measured lane shows they dominate.
+- Started the extraction by creating a pure `KeyPathCLISupport` target and
+  moving `CLIVersion` plus `printErr` out of `KeyPathAppKit`. This is a
+  foothold only: it validates the new module boundary, but `KeyPathCLI` still
+  depends on `KeyPathAppKit`.
+- Post-extraction validation:
+  - `swift build --target KeyPathCLISupport` passed in 1.33s;
+  - warm `swift build --product keypath-cli` passed in 85.79s and still
+    compiled the AppKit graph;
+  - `./Scripts/test-lane.sh cli` passed 341 tests with build=131s, test=3s,
+    total=135s, zero Swift warnings, zero app warnings, and zero app errors.
 - Do not split installer/wizard targets further unless a lane timing run shows
   they dominate a workflow we care about.
 
@@ -638,6 +648,14 @@ Milestone 7 now has enough evidence to keep the bounded isolated Core lane:
   models, schema/version helpers, and low-level facade logic; command parsing
   tests can move there first. AppKit-backed installer/simulator/system facades
   should move later, only with dependency evidence.
+- First extraction checkpoint: `KeyPathCLISupport` now owns pure CLI support
+  helpers (`CLIVersion`, `printErr`) and builds independently in 1.33s. This
+  does not yet make the CLI lane build-isolated; the warm CLI lane still spent
+  131s in prebuild and passed 341 tests. Stop the CLI/AppKit extraction here
+  for this hygiene phase: moving result models, output contracts, command-parse
+  tests, and facade logic would be architectural refactoring with a narrower
+  payoff. Revisit only when CLI-heavy work becomes frequent enough to justify a
+  dedicated architecture milestone.
   Because the root-package build dominates this lane, keep the current filter
   and treat `unit` as fast model/parser/renderer coverage, not true Core
   isolation. The `core-isolated` lane remains the true Core-only fast path.
@@ -687,8 +705,10 @@ The Mac mini workflow is deferred. Revisit it only after the MacBook Air loop is
 fast and boring enough that remote execution would solve a measured capacity
 problem instead of compensating for harness noise.
 
-Next planned milestone: treat the current lane set as the stable local loop and
-watch for regressions. CLI/AppKit extraction is worth revisiting only if a
-measured workflow needs true build isolation; the current `cli` lane already
-gives a fast, stable selection path. Installer/wizard splits should follow only
-after the remaining lane timings justify the extra dependency work.
+Next planned milestone: stop active test-hygiene performance work and treat the
+current lane set as the stable local loop. Watch for regressions in warning
+counts, log size, and lane timing while doing real product work. CLI/AppKit
+extraction is worth revisiting only if a measured workflow needs true build
+isolation; the current `cli` lane already gives a stable selection path.
+Installer/wizard splits should follow only after lane timings justify the extra
+dependency work.

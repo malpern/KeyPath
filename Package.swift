@@ -61,6 +61,10 @@ let package = Package(
             name: "KeyPathPluginKit",
             targets: ["KeyPathPluginKit"]
         ),
+        .library(
+            name: "KeyPathCLISupport",
+            targets: ["KeyPathCLISupport"]
+        ),
         .executable(
             name: "keypath-cli",
             targets: ["KeyPathCLIMain"]
@@ -119,6 +123,13 @@ let package = Package(
         .target(
             name: "KeyPathPluginKit",
             path: "Sources/KeyPathPluginKit",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        .target(
+            name: "KeyPathCLISupport",
+            path: "Sources/KeyPathCLISupport",
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
@@ -246,6 +257,7 @@ let package = Package(
         .target(
             name: "KeyPathCLI",
             dependencies: [
+                "KeyPathCLISupport",
                 "KeyPathAppKit",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ],
