@@ -155,3 +155,7 @@ assert_contains "$config" 'beh_base_s (tap-hold-press $tap-timeout 150 s lctl)' 
 assert_not_contains "$config" "beh_base_a" "disabled-key config"
 
 echo "HRM settings smoke passed. Restoring original KeyPath config."
+
+if [[ "${KEYPATH_QA_RUN_LOG_GATE:-0}" == "1" ]]; then
+  "$(cd "$(dirname "$0")" && pwd)/qa-keypath-log-gate.sh"
+fi
