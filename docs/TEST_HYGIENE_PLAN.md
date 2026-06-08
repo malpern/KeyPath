@@ -467,9 +467,22 @@ Status:
   is not a replacement for `unit`; `unit` remains the broader root-package
   parser/model/renderer lane. The harness earns its place because it proves
   cold and warm build-graph isolation without compiling AppKit.
-- Next dependency work should focus on measurement-driven CLI/AppKit
-  decoupling. Do not split installer/wizard targets further unless a lane
-  timing run shows they dominate a workflow we care about.
+- CLI/AppKit audit:
+  - clean command:
+    `rm -rf /tmp/keypath-cli-audit-build && /usr/bin/time -p swift build --product keypath-cli --scratch-path /tmp/keypath-cli-audit-build`;
+  - result: passed in 127.95s real time, 537.64s user time, 38.64s sys time;
+  - scratch size: 1.1GB;
+  - build log signal: 638 `Compiling KeyPathAppKit` lines versus 79
+    `Compiling KeyPathCLI` lines.
+- Decision: splitting the CLI product name or lane will not help while
+  `KeyPathCLI` depends on `KeyPathAppKit`. A real speed win requires extracting
+  CLI-facing models, schema/version utilities, and facade logic out of
+  `Sources/KeyPathAppKit/CLI` into a non-AppKit target. Start with pure value
+  types and command-parse/output-contract tests; then move storage/config/packs
+  facades only when their dependencies can move with them. Keep installer and
+  simulator facades AppKit-backed until a measured lane shows they dominate.
+- Do not split installer/wizard targets further unless a lane timing run shows
+  they dominate a workflow we care about.
 
 ## Relationship To Existing Issues
 
@@ -617,6 +630,14 @@ Milestone 7 now has enough evidence to keep the bounded isolated Core lane:
   with `KEYPATH_TEST_RESET_MODULE_CACHE=1`. A candidate filter that removed the
   smoke/Core-duplicated `KeyPathErrorTests` and `KanataDefseqParserTests`
   reduced coverage from 329 passed tests to 288 passed tests but still took 9s.
+- CLI/AppKit audit confirmed the next likely speed win is architectural, not a
+  lane-filter change. A clean `swift build --product keypath-cli` with an
+  isolated scratch path took 127.95s, generated a 1.1GB scratch build, and
+  compiled the AppKit UI/resource graph before compiling the CLI target. The
+  next extraction should create a non-AppKit CLI support target for pure result
+  models, schema/version helpers, and low-level facade logic; command parsing
+  tests can move there first. AppKit-backed installer/simulator/system facades
+  should move later, only with dependency evidence.
   Because the root-package build dominates this lane, keep the current filter
   and treat `unit` as fast model/parser/renderer coverage, not true Core
   isolation. The `core-isolated` lane remains the true Core-only fast path.

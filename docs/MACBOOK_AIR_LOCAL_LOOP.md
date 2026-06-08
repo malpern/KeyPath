@@ -28,6 +28,11 @@ parser, or test-environment behavior and you want proof that the AppKit graph
 does not compile. Use `unit` when you want broader root-package parser/model
 coverage; it is still fast when warm, but it is not a build-isolated lane.
 
+The `cli` lane is focused for test execution and log scope, but it is not
+build-isolated yet. `KeyPathCLI` still depends on `KeyPathAppKit`, so clean CLI
+product builds compile the app UI/resource graph. Treat CLI/AppKit decoupling
+as target extraction work, not another filter tweak.
+
 For very narrow debugging, override the lane filter:
 
 ```bash
