@@ -96,6 +96,29 @@ final class RuleCollectionCatalogTests: XCTestCase {
         XCTAssertEqual(upgraded.name, "Unknown")
     }
 
+    func testUpgradedCollection_PreservesGeneratedOptionMappings() throws {
+        let catalog = RuleCollectionCatalog()
+
+        var windowSnapping = try XCTUnwrap(catalog.defaultCollections().first { $0.id == RuleCollectionIdentifier.windowSnapping })
+        windowSnapping.windowKeyConvention = .vim
+        windowSnapping.windowSnappingActivationMode = .quickLauncher
+        windowSnapping.mappings = RuleCollectionCatalog.windowMappings(for: .vim)
+
+        let upgradedWindowSnapping = catalog.upgradedCollection(from: windowSnapping)
+        XCTAssertEqual(upgradedWindowSnapping.windowKeyConvention, .vim)
+        XCTAssertEqual(upgradedWindowSnapping.windowSnappingActivationMode, .quickLauncher)
+        XCTAssertEqual(upgradedWindowSnapping.mappings.first?.input, "h")
+        XCTAssertEqual(upgradedWindowSnapping.mappings.first?.action, .rawKanata(#"(push-msg "window:left")"#))
+
+        var functionKeys = try XCTUnwrap(catalog.defaultCollections().first { $0.id == RuleCollectionIdentifier.macFunctionKeys })
+        functionKeys.functionKeyMode = .function
+        functionKeys.mappings = RuleCollectionCatalog.functionKeyMappings(for: .function)
+
+        let upgradedFunctionKeys = catalog.upgradedCollection(from: functionKeys)
+        XCTAssertEqual(upgradedFunctionKeys.functionKeyMode, .function)
+        XCTAssertEqual(upgradedFunctionKeys.mappings.first?.action, .keystroke(key: "f1"))
+    }
+
     // MARK: - Launcher Collection
 
     func testLauncherCollection_HasCorrectID() {

@@ -50,6 +50,27 @@ struct RuleCollectionCatalog {
                 merged.configuration = existing.configuration
             }
         }
+
+        if existing.id == RuleCollectionIdentifier.windowSnapping {
+            if let convention = existing.windowKeyConvention {
+                merged.windowKeyConvention = convention
+                merged.mappings = Self.windowMappings(for: convention)
+            }
+
+            if let activationMode = existing.windowSnappingActivationMode {
+                merged.windowSnappingActivationMode = activationMode
+                merged.momentaryActivator = existing.momentaryActivator
+                merged.activationHint = existing.activationHint
+            }
+        }
+
+        if existing.id == RuleCollectionIdentifier.macFunctionKeys,
+           let mode = existing.functionKeyMode
+        {
+            merged.functionKeyMode = mode
+            merged.mappings = Self.functionKeyMappings(for: mode)
+        }
+
         return merged
     }
 
