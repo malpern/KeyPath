@@ -64,6 +64,59 @@ count_module_cache_warnings() {
   fi
 }
 
+check_summary_metric() {
+  local label="$1"
+  local value="$2"
+  local maximum="$3"
+
+  if [ "$value" -gt "$maximum" ] 2>/dev/null; then
+    echo "❌ $label exceeded guardrail: $value > $maximum"
+    return 1
+  fi
+
+  echo "✅ $label within guardrail: $value <= $maximum"
+  return 0
+}
+
+enforce_clean_summary() {
+  local build_log_swift_warning_count
+  local build_log_module_cache_warning_count
+  local test_log_swift_warning_count
+  local test_log_module_cache_warning_count
+  local test_log_app_warning_count
+  local test_log_app_error_count
+  local failures=0
+
+  if [ "${KEYPATH_TEST_ENFORCE_CLEAN_SUMMARY:-0}" != "1" ]; then
+    return 0
+  fi
+
+  build_log_swift_warning_count="$(count_swift_warnings "${BUILD_LOG:-}")"
+  build_log_module_cache_warning_count="$(count_module_cache_warnings "${BUILD_LOG:-}")"
+  test_log_swift_warning_count="$(count_swift_warnings "${LOG:-}")"
+  test_log_module_cache_warning_count="$(count_module_cache_warnings "${LOG:-}")"
+  test_log_app_warning_count="$(count_log_pattern "\\[WARN\\]" "${LOG:-}")"
+  test_log_app_error_count="$(count_log_pattern "\\[ERROR\\]" "${LOG:-}")"
+
+  echo "🧯 Enforcing clean test summary guardrails..."
+  check_summary_metric "Build log Swift warnings" "$build_log_swift_warning_count" "${KEYPATH_TEST_MAX_BUILD_SWIFT_WARNINGS:-0}" || failures=$((failures + 1))
+  check_summary_metric "Build log module-cache warnings" "$build_log_module_cache_warning_count" "${KEYPATH_TEST_MAX_BUILD_MODULE_CACHE_WARNINGS:-0}" || failures=$((failures + 1))
+  check_summary_metric "Test log Swift warnings" "$test_log_swift_warning_count" "${KEYPATH_TEST_MAX_TEST_SWIFT_WARNINGS:-0}" || failures=$((failures + 1))
+  check_summary_metric "Test log module-cache warnings" "$test_log_module_cache_warning_count" "${KEYPATH_TEST_MAX_TEST_MODULE_CACHE_WARNINGS:-0}" || failures=$((failures + 1))
+  check_summary_metric "Test log app warnings" "$test_log_app_warning_count" "${KEYPATH_TEST_MAX_TEST_APP_WARNINGS:-0}" || failures=$((failures + 1))
+  check_summary_metric "Test log app errors" "$test_log_app_error_count" "${KEYPATH_TEST_MAX_TEST_APP_ERRORS:-0}" || failures=$((failures + 1))
+
+  if [ "$failures" -ne 0 ]; then
+    echo "❌ Clean test summary guardrail failed with $failures regression(s)."
+    echo "   Build log: ${BUILD_LOG:-none}"
+    echo "   Test log: ${LOG:-none}"
+    return 1
+  fi
+
+  echo "✅ Clean test summary guardrail passed."
+  return 0
+}
+
 format_duration() {
   local value="${1:-not-run}"
   if [ "$value" = "not-run" ]; then
@@ -441,6 +494,7 @@ fi
 if [ "$EXIT_CODE" = "0" ]; then
   echo "✅ All tests passed ($PASS_COUNT passed)"
   print_run_summary "$EXIT_CODE"
+  enforce_clean_summary
   exit 0
 fi
 

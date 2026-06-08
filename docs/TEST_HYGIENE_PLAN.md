@@ -468,6 +468,10 @@ Milestone 6 is now started with the MacBook Air local loop as the target:
   can be compared without copying terminal output.
 - `docs/MACBOOK_AIR_LOCAL_LOOP.md` documents the recommended lane by change
   type, warm-cache policy, measurement presets, and when to use verbose logs.
+- `run-tests-safe.sh` now supports `KEYPATH_TEST_ENFORCE_CLEAN_SUMMARY=1` to
+  fail an otherwise passing lane when summary warning/error counts regress.
+  CI enables this guardrail for the full lane; elapsed time remains
+  informational rather than enforced.
 - Future milestone work should keep lane names stable, avoid treating filter
   strings as the final architecture, and move toward Apple-aligned test
   organization when target/package boundaries or Swift Testing suites/tags give

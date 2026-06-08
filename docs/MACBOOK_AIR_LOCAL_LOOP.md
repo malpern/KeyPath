@@ -63,6 +63,25 @@ Presets:
 - `baseline`: runs `smoke`, `unit`, and `appkit`.
 - `full`: runs `smoke`, `unit`, `appkit`, and `full`.
 
+## Clean Summary Guardrail
+
+The safe runner can fail a passing test lane when warning/error counts regress:
+
+```bash
+KEYPATH_TEST_ENFORCE_CLEAN_SUMMARY=1 ./Scripts/test-lane.sh full
+```
+
+This checks the summary counts for Swift warnings, module-cache warnings, app
+warnings, and app errors. Duration is intentionally not enforced because local
+timing varies with machine load. Override a threshold only for a deliberate
+temporary baseline:
+
+```bash
+KEYPATH_TEST_ENFORCE_CLEAN_SUMMARY=1 \
+KEYPATH_TEST_MAX_TEST_APP_WARNINGS=1 \
+./Scripts/test-lane.sh full
+```
+
 ## Debugging Noisy Failures
 
 Use the quiet defaults first. If the failure needs app diagnostics, opt into
