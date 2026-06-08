@@ -516,6 +516,8 @@ runner; `smoke` now uses the isolated harness from Milestone 4b:
   diagnostic lane rather than the fast path;
 - `unit` for fast root-package model/parser/renderer logic;
 - `cli` for focused command, facade, output contract, and import/export tests;
+- `runtime` for focused TCP, runtime coordinator, process lifecycle,
+  permission, keyboard capture, VHID, and system-support tests;
 - `appkit-ui` for focused UI/state, mapper, preference, and recommendation
   tests;
 - `appkit-config` for focused config, pack, catalog, and rule collection tests;
@@ -599,6 +601,15 @@ Milestone 6 is implemented with the MacBook Air local loop as the target:
   `cli` lane passed warm in 8s with 333 tests and zero Swift warnings,
   module-cache warnings, app warnings, or app errors. The `appkit-config` lane
   now excludes CLI facade tests.
+- Follow-up runtime-lane audit: older full-suite logs showed the remaining
+  broad-lane spillover was concentrated in TCP/client robustness, runtime
+  coordinator, process lifecycle, permission/system checks, keyboard capture,
+  VHID, helper, and low-level utility suites. A focused `runtime` lane was added
+  for that surface and selected 346 tests with a clean warning/error summary.
+  Its timing still needs a quiet-machine rerun because this first pass overlapped
+  other local testing. This lane also surfaces verbose XCTest performance metric
+  output from runtime/utility tests; treat that as a future hygiene question if
+  quiet-machine runs show log noise or instability.
 - Current warm installer audit from `./Scripts/measure-local-loop.sh
   installer`: 15s total, 266 passed, and zero Swift warnings,
   module-cache warnings, app warnings, or app errors. The measured cost is
@@ -619,9 +630,9 @@ The Mac mini workflow is deferred. Revisit it only after the MacBook Air loop is
 fast and boring enough that remote execution would solve a measured capacity
 problem instead of compensating for harness noise.
 
-Next planned milestone: continue tightening the local loop by auditing the
-remaining broad-lane spillover before taking on dependency extraction. CLI/AppKit
-extraction is worth revisiting only if a measured workflow needs true build
-isolation; the current `cli` lane already gives a fast, stable selection path.
-Installer/wizard splits should follow only after the remaining lane timings
-justify the extra dependency work.
+Next planned milestone: rerun the new `runtime` lane on a quiet machine and
+decide whether the remaining full-lane cost is acceptable as broad handoff
+coverage. CLI/AppKit extraction is worth revisiting only if a measured workflow
+needs true build isolation; the current `cli` lane already gives a fast, stable
+selection path. Installer/wizard splits should follow only after the remaining
+lane timings justify the extra dependency work.

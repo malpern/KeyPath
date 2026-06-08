@@ -11,8 +11,8 @@
 - `./Scripts/cleanup-local-build-artifacts.sh` — Dry-run cleanup of generated `.build`/`dist`/test artifacts across local worktrees. Add `--apply` to delete.
 - `./test.sh` — Run the full test suite (root)
 - `./Scripts/test-lane.sh <lane>` — Run a named SwiftPM test lane (`smoke`,
-  `core-isolated`, `smoke-root`, `unit`, `cli`, `appkit-ui`, `appkit-config`,
-  `appkit`, `installer`, `snapshot`, `device`, or `full`).
+  `core-isolated`, `smoke-root`, `unit`, `cli`, `runtime`, `appkit-ui`,
+  `appkit-config`, `appkit`, `installer`, `snapshot`, `device`, or `full`).
 - `./Scripts/measure-local-loop.sh` — Measure local feedback lanes and write a
   Markdown report under `.build/local-loop-measurements/`.
 - `./Scripts/run-installer-reliability-matrix.sh` — Automated installer reliability matrix + diagnostic artifact bundle (`test-results/installer-reliability/latest`).
@@ -44,6 +44,8 @@
   tests; this lane may still compile AppKit-facing targets.
 - `./Scripts/test-lane.sh cli` - Focused CLI command, facade, output contract,
   and import/export tests; this lane may still compile AppKit-facing targets.
+- `./Scripts/test-lane.sh runtime` - Focused TCP, runtime coordinator, process,
+  permission, keyboard capture, VHID, and system-support tests.
 - `./Scripts/test-lane.sh appkit-ui` - Focused AppKit UI/state, mapper,
   preference, and recommendation tests.
 - `./Scripts/test-lane.sh appkit-config` - Focused AppKit config, pack,
