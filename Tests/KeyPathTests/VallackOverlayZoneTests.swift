@@ -1,8 +1,9 @@
 @testable import KeyPathAppKit
 import KeyPathCore
 import SwiftUI
-import XCTest
+@preconcurrency import XCTest
 
+@MainActor
 final class VallackOverlayZoneTests: XCTestCase {
     // MARK: - Home Layer Zone Mapping
 
@@ -256,12 +257,6 @@ final class VallackOverlayZoneTests: XCTestCase {
     // MARK: - Collection Color for Vallack Nav
 
     func testCollectionColorForVallackNavReturnsGreen() {
-        let keycapView = OverlayKeycapView(
-            key: PhysicalKey(keyCode: 4, label: "H", x: 5, y: 2, width: 1, height: 1),
-            baseLabel: "H",
-            isPressed: false,
-            scale: 1.0
-        )
         let color = KeycapSymbols.collectionColor(for: RuleCollectionIdentifier.vallackNavigation)
         let expected = Color(red: 0.2, green: 0.7, blue: 0.4)
         XCTAssertEqual(String(describing: color), String(describing: expected))
@@ -474,7 +469,7 @@ final class VallackOverlayZoneTests: XCTestCase {
         let catalog = RuleCollectionCatalog().defaultCollections()
         let collection = catalog.first { $0.id == RuleCollectionIdentifier.vallackNavigation }!
         for mapping in collection.mappings {
-            let desc = mapping.description ?? ""
+            let desc = mapping.description
             XCTAssertFalse(desc.contains("Backspace"), "'\(mapping.input)' should not use verbose 'Backspace': got '\(desc)'")
             XCTAssertFalse(desc.contains("Escape"), "'\(mapping.input)' should not use verbose 'Escape': got '\(desc)'")
             XCTAssertFalse(desc.contains("Previous Tab"), "'\(mapping.input)' should use '◀tab' not 'Previous Tab': got '\(desc)'")

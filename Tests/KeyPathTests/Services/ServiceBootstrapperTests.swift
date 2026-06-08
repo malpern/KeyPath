@@ -12,6 +12,24 @@ import Foundation
 /// - Service identifier constants
 @MainActor
 final class ServiceBootstrapperTests: XCTestCase {
+    private var previousSudoEnv: String?
+
+    override func setUp() async throws {
+        try await super.setUp()
+        previousSudoEnv = ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"]
+        setenv("KEYPATH_USE_SUDO", "0", 1)
+    }
+
+    override func tearDown() async throws {
+        if let previousSudoEnv {
+            setenv("KEYPATH_USE_SUDO", previousSudoEnv, 1)
+        } else {
+            unsetenv("KEYPATH_USE_SUDO")
+        }
+        previousSudoEnv = nil
+        try await super.tearDown()
+    }
+
     // MARK: - Service Identifier Tests
 
     func testServiceIdentifiers() {

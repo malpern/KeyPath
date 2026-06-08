@@ -203,7 +203,7 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
 
         // First check: Verify process is actually running
         guard processStatus.isRunning else {
-            AppLogger.shared.warn("[HealthMonitor] Process not running")
+            AppLogger.shared.warnUnlessQuietTest("[HealthMonitor] Process not running")
             return ServiceHealthStatus.unhealthy(reason: "Process not running", shouldRestart: true)
         }
 
@@ -385,7 +385,7 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
 
     func recordStartFailure() async {
         let backoffInterval = calculateBackoffInterval(attemptCount: startAttemptCount)
-        AppLogger.shared.warn(
+        AppLogger.shared.warnUnlessQuietTest(
             "[HealthMonitor] Recorded start failure (attempt \(startAttemptCount), next backoff: \(String(format: "%.1f", backoffInterval))s)"
         )
     }
@@ -423,10 +423,10 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
         let isCrashLoop = uniquePIDs.count >= crashLoopThreshold
 
         if isCrashLoop {
-            AppLogger.shared.error(
+            AppLogger.shared.errorUnlessQuietTest(
                 "[HealthMonitor] CRASH LOOP DETECTED: \(uniquePIDs.count) different PIDs in \(crashLoopWindowSeconds)s window"
             )
-            AppLogger.shared.error(
+            AppLogger.shared.errorUnlessQuietTest(
                 "[HealthMonitor] PIDs observed: \(uniquePIDs.sorted())"
             )
 
@@ -465,7 +465,7 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
 
         let shouldTriggerRecovery = connectionFailureCount >= maxConnectionFailures
         if shouldTriggerRecovery {
-            AppLogger.shared.warn("[HealthMonitor] Max connection failures reached - recovery needed")
+            AppLogger.shared.warnUnlessQuietTest("[HealthMonitor] Max connection failures reached - recovery needed")
         }
 
         return shouldTriggerRecovery
@@ -491,14 +491,14 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
             grabRecoveryAttempts = 0
         }
         guard grabRecoveryAttempts < maxGrabRecoveryAttempts else {
-            AppLogger.shared.error(
+            AppLogger.shared.errorUnlessQuietTest(
                 "[HealthMonitor] kanata input-grab still failing after \(grabRecoveryAttempts) recovery attempts — giving up (manual intervention / reboot likely needed)"
             )
             return .giveUp(attempts: grabRecoveryAttempts)
         }
         grabRecoveryAttempts += 1
         lastGrabRecoveryAt = now
-        AppLogger.shared.warn(
+        AppLogger.shared.warnUnlessQuietTest(
             "[HealthMonitor] kanata input-grab failure — recovery attempt \(grabRecoveryAttempts)/\(maxGrabRecoveryAttempts)"
         )
         return .recover(attempt: grabRecoveryAttempts)
@@ -522,14 +522,14 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
 
         // Check if we've exceeded max attempts
         if startAttemptCount >= maxStartAttempts {
-            AppLogger.shared.error(
+            AppLogger.shared.errorUnlessQuietTest(
                 "[HealthMonitor] Max start attempts (\(maxStartAttempts)) reached - giving up"
             )
             return .giveUp(reason: "Failed to start after \(maxStartAttempts) attempts")
         }
 
         if retryAttemptCount >= maxRetryAttempts {
-            AppLogger.shared.error(
+            AppLogger.shared.errorUnlessQuietTest(
                 "[HealthMonitor] Max retry attempts (\(maxRetryAttempts)) reached - giving up"
             )
             return .giveUp(reason: "Failed to recover after \(maxRetryAttempts) retry attempts")
@@ -537,7 +537,7 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
 
         // Check if connection failures warrant full recovery
         if connectionFailureCount >= maxConnectionFailures {
-            AppLogger.shared.warn(
+            AppLogger.shared.warnUnlessQuietTest(
                 "[HealthMonitor] Connection failures detected - recommend full recovery"
             )
             return .fullRecovery

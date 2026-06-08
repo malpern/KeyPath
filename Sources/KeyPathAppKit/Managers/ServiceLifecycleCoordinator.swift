@@ -207,7 +207,7 @@ final class ServiceLifecycleCoordinator {
         }
 
         if let checker = isKarabinerDaemonRunning, await !checker() {
-            AppLogger.shared.error("❌ [Service] Cannot start Kanata - VirtualHID daemon is not running")
+            AppLogger.shared.errorUnlessQuietTest("❌ [Service] Cannot start Kanata - VirtualHID daemon is not running")
             onError?("Cannot start: Karabiner VirtualHID daemon is not running. Please complete the setup wizard.")
             onStateChanged?()
             return false
@@ -219,7 +219,9 @@ final class ServiceLifecycleCoordinator {
             serviceID: ServiceHealthChecker.vhidDaemonServiceID
         )
         if !VHIDSafetyCheck.canStartKanata(vhidDaemonHealthy: vhidHealthy) {
-            AppLogger.shared.error("❌ [Service] Cannot start kanata — VirtualHID daemon not healthy (ServiceHealthChecker)")
+            AppLogger.shared.errorUnlessQuietTest(
+                "❌ [Service] Cannot start kanata — VirtualHID daemon not healthy (ServiceHealthChecker)"
+            )
             onError?("Cannot start: VirtualHID daemon health check failed. Please reinstall drivers.")
             onStateChanged?()
             return false
@@ -267,7 +269,7 @@ final class ServiceLifecycleCoordinator {
             return true
         } catch {
             let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            AppLogger.shared.error("❌ [Service] LaunchDaemon registration failed: \(message)")
+            AppLogger.shared.errorUnlessQuietTest("❌ [Service] LaunchDaemon registration failed: \(message)")
             onError?("Failed to start Kanata: \(message)")
             onStateChanged?()
             return false
@@ -289,7 +291,7 @@ final class ServiceLifecycleCoordinator {
             return false
         }
 
-        AppLogger.shared.warn(
+        AppLogger.shared.warnUnlessQuietTest(
             "⚠️ [Service] Running Kanata binary does not match bundled binary; " +
                 "forcing privileged runtime recovery. running(pid=\(runningIdentity.pid), " +
                 "path=\(runningIdentity.executablePath)) bundled=\(bundledPath)"
@@ -518,13 +520,15 @@ final class ServiceLifecycleCoordinator {
             // Poll until the processes exit; escalate to SIGKILL past the grace window.
             let survivors = await waitForProcessesGone(pids, withinMs: WaitForExitTiming.processExitGraceMs)
             for pid in survivors {
-                AppLogger.shared.warn("⚠️ [Service] \(name) (PID \(pid)) did not exit within grace — SIGKILL")
+                AppLogger.shared.warnUnlessQuietTest("⚠️ [Service] \(name) (PID \(pid)) did not exit within grace — SIGKILL")
                 sendSignal(pid, SIGKILL)
             }
             if !survivors.isEmpty {
                 let stillAlive = await waitForProcessesGone(survivors, withinMs: WaitForExitTiming.postKillConfirmMs)
                 if !stillAlive.isEmpty {
-                    AppLogger.shared.warn("⚠️ [Service] \(name) PIDs \(stillAlive) still alive after SIGKILL — proceeding anyway")
+                    AppLogger.shared.warnUnlessQuietTest(
+                        "⚠️ [Service] \(name) PIDs \(stillAlive) still alive after SIGKILL — proceeding anyway"
+                    )
                 }
             }
         }
@@ -566,7 +570,7 @@ final class ServiceLifecycleCoordinator {
             if !listening { return true }
             if poll < maxPolls - 1 { await waitSleep(WaitForExitTiming.pollInterval) }
         }
-        AppLogger.shared.warn(
+        AppLogger.shared.warnUnlessQuietTest(
             "⚠️ [Service] TCP port \(port) still in use after wait-for-exit — proceeding anyway (grab auto-recovery is the backstop)"
         )
         return false

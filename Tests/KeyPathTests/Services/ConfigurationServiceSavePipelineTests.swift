@@ -14,9 +14,9 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
 
     private lazy var configService: ConfigurationService = .init(configDirectory: tempDirectory.path)
 
-    override func tearDown() {
+    override func tearDown() async throws {
         try? FileManager.default.removeItem(at: tempDirectory)
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Conflict Rejection Tests

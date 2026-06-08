@@ -10,6 +10,8 @@ echo "🧪 Testing CI workflow locally..."
 # Set CI environment variables
 export CI_ENVIRONMENT=true
 export KEYPATH_TESTING=false
+export SKIP_EVENT_TAP_TESTS=1
+export KP_SIGN_DRY_RUN=1
 
 # Test 1: Check if kanata is available
 echo "📦 Checking kanata availability..."
@@ -21,17 +23,29 @@ else
     brew install kanata
 fi
 
-# Test 2: Run unit tests
-echo "🧪 Running unit tests..."
-if swift test --filter ".*Tests" 2>&1 | tee local_test_output.log; then
-    echo "✅ Unit tests completed"
+# Test 2: Run smoke lane
+echo "🧪 Running smoke lane..."
+chmod +x ./Scripts/test-lane.sh
+if KEYPATH_ISOLATED_SMOKE_CLEAN=1 ./Scripts/test-lane.sh smoke 2>&1 | tee local_test_output.log; then
+    echo "✅ Smoke lane completed"
 else
-    echo "❌ Unit tests failed"
+    echo "❌ Smoke lane failed"
     cat local_test_output.log
     exit 1
 fi
 
-# Test 3: Build release
+# Test 3: Run full named lane
+echo "🧪 Running full test lane..."
+chmod +x ./Scripts/run-tests-safe.sh
+if ./Scripts/test-lane.sh full 2>&1 | tee local_test_output.log; then
+    echo "✅ Full test lane completed"
+else
+    echo "❌ Full test lane failed"
+    cat local_test_output.log
+    exit 1
+fi
+
+# Test 4: Build release
 echo "🔨 Testing release build..."
 if swift build -c release; then
     echo "✅ Release build successful"
@@ -40,7 +54,7 @@ else
     exit 1
 fi
 
-# Test 4: Verify artifacts
+# Test 5: Verify artifacts
 echo "🔍 Verifying build artifacts..."
 if [ -f ".build/release/KeyPath" ]; then
     echo "✅ KeyPath binary created successfully"

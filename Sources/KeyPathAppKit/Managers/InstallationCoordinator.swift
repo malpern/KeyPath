@@ -94,7 +94,7 @@ final class InstallationCoordinator {
             AppLogger.shared.log("✅ [Installation] Step \(stepNumber) SUCCESS: User config available at \(configPath)")
             return StepResult(stepNumber: stepNumber, totalSteps: totalSteps, success: true, warning: false)
         } else {
-            AppLogger.shared.error("❌ [Installation] Step \(stepNumber) FAILED: User config missing at \(configPath)")
+            AppLogger.shared.errorUnlessQuietTest("❌ [Installation] Step \(stepNumber) FAILED: User config missing at \(configPath)")
             return StepResult(stepNumber: stepNumber, totalSteps: totalSteps, success: false, warning: false)
         }
     }

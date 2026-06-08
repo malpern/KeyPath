@@ -218,8 +218,8 @@ final class RuleCollectionStoreTests: XCTestCase {
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         let fileURL = tempDir.appendingPathComponent("collections.json")
 
-        // Write garbage data
-        try try XCTUnwrap("this is not json at all".data(using: .utf8)?.write(to: fileURL))
+        let garbageData = try XCTUnwrap("this is not json at all".data(using: .utf8))
+        try garbageData.write(to: fileURL)
 
         let store = RuleCollectionStore.testStore(at: fileURL)
         let result = await store.loadCollectionsDetailed()

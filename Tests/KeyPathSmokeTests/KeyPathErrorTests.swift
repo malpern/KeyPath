@@ -1,5 +1,4 @@
 import Foundation
-@testable import KeyPathAppKit
 import KeyPathCore
 import Testing
 

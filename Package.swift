@@ -280,6 +280,17 @@ let package = Package(
         ),
         // Tests
         .testTarget(
+            name: "KeyPathSmokeTests",
+            dependencies: [
+                "KeyPathCore",
+                "KeyPathPermissions"
+            ],
+            path: "Tests/KeyPathSmokeTests",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        .testTarget(
             name: "KeyPathTests",
             dependencies: [
                 "KeyPathAppKit",

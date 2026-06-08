@@ -66,7 +66,7 @@ final class ConfigReloadCoordinator {
             tcpPort: PreferencesService.shared.tcpServerPort
         )
         if !healthStatus.isHealthy {
-            AppLogger.shared.warn(
+            AppLogger.shared.warnUnlessQuietTest(
                 "⚠️ [Reload] Skipping TCP reload because Kanata service is not healthy yet: \(healthStatus.reason ?? "unknown reason")"
             )
             return ReloadResult(
@@ -217,7 +217,7 @@ final class ConfigReloadCoordinator {
     func triggerReload() async {
         let result = await triggerConfigReload()
         if !result.isSuccess {
-            AppLogger.shared.warn(
+            AppLogger.shared.warnUnlessQuietTest(
                 "⚠️ [Reload] Reload failed (no automatic restart): \(result.errorMessage ?? "Unknown")"
             )
         }

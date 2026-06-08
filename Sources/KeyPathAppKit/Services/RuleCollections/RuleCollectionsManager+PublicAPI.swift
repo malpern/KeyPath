@@ -752,7 +752,8 @@ extension RuleCollectionsManager {
             if let oldActivator = ruleCollections[index].momentaryActivator {
                 ruleCollections[index].momentaryActivator = MomentaryActivator(
                     input: newKey,
-                    targetLayer: oldActivator.targetLayer
+                    targetLayer: oldActivator.targetLayer,
+                    sourceLayer: oldActivator.sourceLayer
                 )
                 AppLogger.shared.log(
                     "🔑 [RuleCollections] Updated '\(ruleCollections[index].name)' activator to '\(newKey)'"

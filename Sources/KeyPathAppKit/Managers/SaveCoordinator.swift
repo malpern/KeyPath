@@ -291,7 +291,7 @@ final class SaveCoordinator {
 
     func restoreLastGoodConfig() async throws {
         guard let backup = lastGoodConfig else {
-            AppLogger.shared.warn("⚠️ [SaveCoordinator] No backup available - writing minimal safe config")
+            AppLogger.shared.warnUnlessQuietTest("⚠️ [SaveCoordinator] No backup available - writing minimal safe config")
             try await writeMinimalSafeConfig()
             return
         }
@@ -320,7 +320,7 @@ final class SaveCoordinator {
         let configDir = URL(fileURLWithPath: configurationService.configDirectory)
         try Foundation.FileManager().createDirectory(at: configDir, withIntermediateDirectories: true)
         try safeConfig.write(to: configURL, atomically: true, encoding: .utf8)
-        AppLogger.shared.warn("🛡️ [SaveCoordinator] Wrote minimal safe config to \(configPath)")
+        AppLogger.shared.warnUnlessQuietTest("🛡️ [SaveCoordinator] Wrote minimal safe config to \(configPath)")
     }
 
     func hasBackup() -> Bool {

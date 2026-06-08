@@ -63,7 +63,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
 
     // MARK: - Recipe Execution Failure Tests
 
-    func testExecute_StopsOnFirstRecipeFailure() async {
+    func testExecute_StopsOnFirstRecipeFailure() async throws {
         let stub = StubPrivilegedOperationsCoordinator()
         stub.failOnCall = "installRequiredRuntimeServices"
         let broker = PrivilegeBroker(coordinator: stub)
@@ -72,8 +72,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         let plan = await engine.makePlan(for: .install, context: context)
 
         guard plan.status == .ready else {
-            XCTSkip("Plan is blocked — cannot test recipe execution")
-            return
+            throw XCTSkip("Plan is blocked — cannot test recipe execution")
         }
 
         let report = await engine.execute(plan: plan, using: broker)
@@ -86,7 +85,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         XCTAssertNotNil(failedRecipes.first?.error)
     }
 
-    func testExecute_SuccessfulRecipesBeforeFailureAreRecorded() async {
+    func testExecute_SuccessfulRecipesBeforeFailureAreRecorded() async throws {
         let stub = StubPrivilegedOperationsCoordinator()
         stub.failOnCall = "repairVHIDDaemonServices"
         let broker = PrivilegeBroker(coordinator: stub)
@@ -95,8 +94,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         let plan = await engine.makePlan(for: .repair, context: context)
 
         guard plan.status == .ready, plan.recipes.count > 1 else {
-            XCTSkip("Need multi-recipe plan for this test")
-            return
+            throw XCTSkip("Need multi-recipe plan for this test")
         }
 
         let report = await engine.execute(plan: plan, using: broker)
@@ -110,7 +108,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         }
     }
 
-    func testExecute_FailedRecipeIncludesErrorDescription() async {
+    func testExecute_FailedRecipeIncludesErrorDescription() async throws {
         let stub = StubPrivilegedOperationsCoordinator()
         stub.failOnCall = "installRequiredRuntimeServices"
         let broker = PrivilegeBroker(coordinator: stub)
@@ -119,8 +117,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         let plan = await engine.makePlan(for: .install, context: context)
 
         guard plan.status == .ready else {
-            XCTSkip("Plan is blocked")
-            return
+            throw XCTSkip("Plan is blocked")
         }
 
         let report = await engine.execute(plan: plan, using: broker)
@@ -237,7 +234,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
 
     // MARK: - Report Structure Tests
 
-    func testReport_FailureReasonIncludesRecipeID() async {
+    func testReport_FailureReasonIncludesRecipeID() async throws {
         let stub = StubPrivilegedOperationsCoordinator()
         stub.failOnCall = "installRequiredRuntimeServices"
         let broker = PrivilegeBroker(coordinator: stub)
@@ -246,8 +243,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         let plan = await engine.makePlan(for: .install, context: context)
 
         guard plan.status == .ready else {
-            XCTSkip("Plan is blocked")
-            return
+            throw XCTSkip("Plan is blocked")
         }
 
         let report = await engine.execute(plan: plan, using: broker)
@@ -260,7 +256,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         }
     }
 
-    func testReport_RecipeDurationsAreNonNegative() async {
+    func testReport_RecipeDurationsAreNonNegative() async throws {
         let stub = StubPrivilegedOperationsCoordinator()
         let broker = PrivilegeBroker(coordinator: stub)
 
@@ -268,8 +264,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         let plan = await engine.makePlan(for: .install, context: context)
 
         guard plan.status == .ready else {
-            XCTSkip("Plan is blocked")
-            return
+            throw XCTSkip("Plan is blocked")
         }
 
         let report = await engine.execute(plan: plan, using: broker)
@@ -296,7 +291,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
 
     // MARK: - Recipe Logs Tests
 
-    func testReport_FailedRecipeHasLogs() async {
+    func testReport_FailedRecipeHasLogs() async throws {
         let stub = StubPrivilegedOperationsCoordinator()
         stub.failOnCall = "installRequiredRuntimeServices"
         let broker = PrivilegeBroker(coordinator: stub)
@@ -305,8 +300,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         let plan = await engine.makePlan(for: .install, context: context)
 
         guard plan.status == .ready else {
-            XCTSkip("Plan is blocked")
-            return
+            throw XCTSkip("Plan is blocked")
         }
 
         let report = await engine.execute(plan: plan, using: broker)
@@ -320,7 +314,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         )
     }
 
-    func testReport_AggregatedLogsIncludeAllRecipes() async {
+    func testReport_AggregatedLogsIncludeAllRecipes() async throws {
         let stub = StubPrivilegedOperationsCoordinator()
         let broker = PrivilegeBroker(coordinator: stub)
 
@@ -328,8 +322,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         let plan = await engine.makePlan(for: .install, context: context)
 
         guard plan.status == .ready, !plan.recipes.isEmpty else {
-            XCTSkip("Need non-empty plan")
-            return
+            throw XCTSkip("Need non-empty plan")
         }
 
         let report = await engine.execute(plan: plan, using: broker)

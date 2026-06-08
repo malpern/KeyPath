@@ -526,7 +526,7 @@ extension KanataConfiguration {
         for alias in aliases {
             if let existingIndex = seen[alias.aliasName] {
                 AppLogger.shared
-                    .error(
+                    .errorUnlessQuietTest(
                         "🚨 [ConfigGen] Duplicate alias '\(alias.aliasName)' — this should have been caught by conflict detection. Keeping last definition as safety fallback. First: '\(result[existingIndex].definition.prefix(80))' → Replaced by: '\(alias.definition.prefix(80))'"
                     )
                 result[existingIndex] = alias
@@ -537,7 +537,7 @@ extension KanataConfiguration {
         }
 
         if result.count < aliases.count {
-            AppLogger.shared.error("🚨 [ConfigGen] Had to deduplicate \(aliases.count - result.count) alias(es) — investigate why conflict detection missed this")
+            AppLogger.shared.errorUnlessQuietTest("🚨 [ConfigGen] Had to deduplicate \(aliases.count - result.count) alias(es) — investigate why conflict detection missed this")
         }
 
         return result

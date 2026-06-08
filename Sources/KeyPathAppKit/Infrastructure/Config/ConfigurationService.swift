@@ -634,14 +634,14 @@ extension ConfigurationService {
         // against bugs that could wipe the user's config
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            AppLogger.shared.error("🛑 [ConfigService] BLOCKED: Attempted to write empty content to \(path)")
+            AppLogger.shared.errorUnlessQuietTest("🛑 [ConfigService] BLOCKED: Attempted to write empty content to \(path)")
             throw KeyPathError.configuration(.invalidFormat(reason: "Cannot write empty configuration"))
         }
 
         // Additional safety: config files must have minimum required structure
         if path.hasSuffix(".kbd") {
             guard trimmed.contains("defsrc") || trimmed.contains("deflayer") else {
-                AppLogger.shared.error("🛑 [ConfigService] BLOCKED: Config missing required defsrc/deflayer: \(path)")
+                AppLogger.shared.errorUnlessQuietTest("🛑 [ConfigService] BLOCKED: Config missing required defsrc/deflayer: \(path)")
                 throw KeyPathError.configuration(.invalidFormat(reason: "Configuration missing required defsrc or deflayer block"))
             }
         }
@@ -880,9 +880,11 @@ public enum KanataKeyConverter {
 
         // Unknown key name - log warning and return as-is to avoid silent breakage.
         // The downstream CLI validation (kanata --check) will catch this before save.
-        AppLogger.shared.log(
+        AppLogger.shared.warnUnlessQuietTest(
             "⚠️ [KanataKeyConverter] Unknown key name '\(trimmed)' - may not be valid kanata key",
-            level: .warn
+            file: #file,
+            function: #function,
+            line: #line
         )
         return lowercased
     }

@@ -138,8 +138,8 @@ final class PackConfigPipelineTests: XCTestCase {
         let mappings = RuleCollectionCatalog.windowMappings(for: .standard)
         XCTAssertFalse(mappings.isEmpty, "Standard convention should produce mappings")
 
-        let hasLeft = mappings.contains { ($0.description ?? "").lowercased().contains("left") }
-        let hasRight = mappings.contains { ($0.description ?? "").lowercased().contains("right") }
+        let hasLeft = mappings.contains { $0.description.lowercased().contains("left") }
+        let hasRight = mappings.contains { $0.description.lowercased().contains("right") }
         XCTAssertTrue(hasLeft, "Should have left half mapping")
         XCTAssertTrue(hasRight, "Should have right half mapping")
     }

@@ -256,11 +256,11 @@ final class MultiCollectionConflictTests: XCTestCase {
     // MARK: - Deduplicator Activator Conflicts
 
     func testDeduplicator_DuplicateActivatorRemoved() {
-        var a = collection(
+        let a = collection(
             name: "A", mappings: [("h", "left")], layer: .navigation,
             activator: MomentaryActivator(input: "space", targetLayer: .navigation)
         )
-        var b = collection(
+        let b = collection(
             name: "B", mappings: [("j", "down")], layer: .navigation,
             activator: MomentaryActivator(input: "space", targetLayer: .navigation)
         )

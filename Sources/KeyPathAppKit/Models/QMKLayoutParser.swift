@@ -258,7 +258,7 @@ enum QMKLayoutParser {
                 keys: keys
             )
         } catch {
-            AppLogger.shared.error("⚠️ [QMKLayoutParser] Failed to parse JSON: \(error)")
+            AppLogger.shared.errorUnlessQuietTest("⚠️ [QMKLayoutParser] Failed to parse JSON: \(error)")
             return nil
         }
     }
