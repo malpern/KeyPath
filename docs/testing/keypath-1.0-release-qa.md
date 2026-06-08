@@ -130,15 +130,15 @@ current UI, `TODO` not yet assessed in the 1.0 matrix.
 
 | Area | Workflow | Expected release evidence | Status |
 | --- | --- | --- | --- |
-| Rules | Simple remap | UI creates rule, config maps source to target, reload clean | TODO #819 |
-| Rules | Modifier/hyper remap | Modifier options persist and render correct Kanata output | TODO #819 |
-| Rules | Tap-hold / dual-role | Timing/options persist; config emits correct dual-role behavior | TODO #819 |
+| Rules | Simple remap | UI creates rule, config maps source to target, reload clean | PASS #819 |
+| Rules | Modifier/hyper remap | Modifier options persist and render correct Kanata output | PASS #819 |
+| Rules | Tap-hold / dual-role | Timing/options persist; config emits correct dual-role behavior | PASS #819 |
 | Rules | Home Row Mods | See [hrm-settings-release-qa.md](hrm-settings-release-qa.md) | MANUAL #804 #810 #811 |
-| Rules | Layers and navigation | Layer controls update config, overlay labels, and runtime layer state | TODO #819 |
-| Rules | Launcher/app/system/URL actions | UI actions persist and generated behavior matches expected action type | TODO #819 |
-| Rules | Function/media keys | Pack/rule options emit correct media/function mappings | TODO #819 |
-| Rules | Chords/sequences/tap dance/macros/text | Shipping options have config and persistence assertions | TODO #819 |
-| Rules | App-specific mappings | App context persists and affects generated conditional config | TODO #819 |
+| Rules | Layers and navigation | Layer controls update config, overlay labels, and runtime layer state | PASS #819 |
+| Rules | Launcher/app/system/URL actions | UI actions persist and generated behavior matches expected action type | PASS #819 |
+| Rules | Function/media keys | Pack/rule options emit correct media/function mappings | PASS #819 |
+| Rules | Chords/sequences/tap dance/macros/text | Shipping options have config and persistence assertions | PASS #819 |
+| Rules | App-specific mappings | App context persists and affects generated conditional config | PASS #819 |
 | Packs | Install/uninstall common packs | Managed collections apply, snapshot, restore, and reload cleanly | TODO #815 |
 | Packs | Vallack system | Managed HRM/nav config applies and restores without hang | FAIL #811 |
 | Overlay | Base rendering | Geometry follows physical layout; labels follow logical keymap | TODO #818 |
@@ -155,6 +155,43 @@ current UI, `TODO` not yet assessed in the 1.0 matrix.
 | Settings | Advanced/runtime controls | Controls persist, route through helper/runtime, and log cleanly | TODO #816 #817 |
 | Runtime | Config validate/apply/reload | `qa-keypath-release-smoke.sh` applies representative fixtures, validates with bundled Kanata, reloads, checks TCP, and restores config | PASS #815 |
 | Runtime | Log review | `qa-keypath-log-gate.sh` captures recent app/CLI/Kanata/unified logs and fails on unclassified high-signal errors | PASS #817 |
+
+## Per-Rule Option Coverage Matrix
+
+Automated coverage is intentionally concentrated below the full UI. The current
+per-rule matrix is covered by:
+
+- `PerRuleOptionCoverageTests`: catalog inventory, representative generated
+  Kanata fragments for each shipping collection style, key option variants, and
+  custom behavior families.
+- `RuleCollectionStorePersistenceTests.testSaveAndLoad_PreservesPerRuleOptionConfigurations`:
+  persistence round-trip for editable per-rule options.
+- Existing focused suites for app-specific mappings, HRM timing, chord groups,
+  sequences parsing/preservation, launcher key validation, keymap mappings, and
+  UI snapshots.
+
+| Rule family / collection | Config evidence | Persistence/UI wiring evidence | Release QA row |
+| --- | --- | --- | --- |
+| Simple custom remap | `caps -> esc` generated fragment asserted | Custom rule model/store tests plus manual Rules editor row | Rules: Simple remap |
+| Modifier and Hyper/Meh remaps | Hyper action expands to Kanata `multi`; shift-aware fork output asserted | Mapping behavior and rule configuration helpers | Rules: Modifier/hyper remap |
+| Tap-hold / dual-role | Caps picker and custom dual-role emit `tap-hold-press`; HRM variants cover opposite-hand and timing | Tap/hold picker selections persist | Rules: Tap-hold / dual-role |
+| Home Row Mods | Modifier, layer, timing, quick-tap, require-prior-idle, and opposite-hand fragments asserted | HRM config persists; dedicated HRM manual QA remains for real UI/runtime | Rules: Home Row Mods |
+| Home Row Layer Toggles | `layer-while-held` and `layer-toggle` variants asserted with referenced layer generation | Layer assignment/toggle mode persists | Rules: Layers and navigation |
+| Navigation layers | Vim, Neovim, Mission Control, Numpad, Function, Home Row Arrows, and Vallack layer outputs asserted | Layer preset selections persist | Rules: Layers and navigation |
+| Leader key | Leader preference emits `layer_nav_spc` and one-shot nav activation | `LeaderKeyPreference` codable/persistence tests; UI row remains manual | Rules: Layers and navigation |
+| Window Snapping | Standard and Vim conventions assert action-key placement and `push-msg "window:*"` output | Convention and activation mode persist; dependency auto-enable covered by view-model sync tests | Rules: Layers and navigation |
+| Launcher actions | App, URL, folder, script, and system action push messages asserted | Launcher grid config and mappings persist | Rules: Launcher/app/system/URL actions |
+| Function/media keys | Media mode emits brightness/volume; F-key mode removes media outputs | Function key mode and generated mapping list persist | Rules: Function/media keys |
+| Chord groups | UI-authored `defchords` block and chord outputs asserted | Chord groups config persists; conflict tests cover validation | Rules: Chords/sequences/tap dance/macros/text |
+| Sequences | Existing tests preserve parsed manual `defseq` blocks through regeneration | `SequencesConfig` persists and UI model helpers round-trip; UI-authored runtime generation should be rechecked in installed QA | Rules: Chords/sequences/tap dance/macros/text |
+| Tap dance | Custom tap-dance generated fragment asserted | Mapping behavior codable tests | Rules: Chords/sequences/tap dance/macros/text |
+| Macro / text output | Text macro generated fragment asserted; text-to-Kanata mapper tests cover conversion breadth | Mapping behavior codable tests | Rules: Chords/sequences/tap dance/macros/text |
+| Auto Shift Symbols | Shifted tap-hold output and fast-typing protection asserted | Auto-shift config persists | Rules: Chords/sequences/tap dance/macros/text |
+| Fast Navigation / Key Repeat | `managed-repeat` defcfg and per-key `defrepeat` override asserted | Key repeat config persists | Rules: Function/media keys |
+| Backup Caps Lock | Both-shift chord emits `defchordsv2` | Single-key picker configuration persists through catalog store | Rules: Chords/sequences/tap dance/macros/text |
+| Escape / Delete single-key pickers | Catalog table/picker default outputs included in generated config | Picker config helpers and store persistence cover selected output | Rules: Simple remap |
+| App-specific mappings | `AppConfigGeneratorTests` assert virtual keys, switch aliases, duplicate handling, disabled apps, and sanitized keys | `AppKeymapStoreTests` and mapper app-specific tests cover storage/model wiring | Rules: App-specific mappings |
+| Disabled/enabled state and conflicts | Disabled collections excluded from config; conflict/deduplication suites cover overlapping keys and save-time behavior | Store persistence covers enabled state; manager tests cover API wiring | Rules: Simple remap |
 
 ## Stop Doing
 
