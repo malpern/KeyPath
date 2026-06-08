@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import KeyPathAppKit
+import KeyPathCLISupport
 
 struct ServiceStatus: AsyncParsableCommand {
     static let configuration = CommandConfiguration(

@@ -1,5 +1,5 @@
 import Foundation
-import KeyPathAppKit
+import KeyPathCLISupport
 
 public struct OutputContext: Sendable {
     public let isInteractive: Bool

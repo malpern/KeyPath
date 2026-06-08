@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import KeyPathAppKit
+import KeyPathCLISupport
 
 struct Completions: ParsableCommand {
     static let configuration = CommandConfiguration(
