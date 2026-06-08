@@ -3,16 +3,16 @@
 Created: 2026-06-08
 
 This plan is about making KeyPath's existing tests faster to run, easier to
-trust, and easier to debug before we add more remote-machine orchestration. It
-does not replace `docs/TEST-IMPROVEMENT-PLAN.md`, which focuses on coverage
-gaps. This document focuses on harness behavior, log quality, lane design, and
-build graph cost.
+trust, and easier to debug on the primary development machine. It does not
+replace `docs/TEST-IMPROVEMENT-PLAN.md`, which focuses on coverage gaps. This
+document focuses on harness behavior, log quality, lane design, and build graph
+cost.
 
 ## Why This Comes First
 
-Before splitting work between the MacBook Air and Mac mini, the test loop should
-be clean enough that a remote run gives concise signal. Otherwise a faster
-machine only hides:
+The immediate priority is the MacBook Air local loop. Remote Mac mini
+orchestration is intentionally deferred until the local lanes are already clean,
+predictable, and measured. Otherwise a faster machine only hides:
 
 - broad SwiftPM builds that compile most of the app graph for routine checks;
 - noisy logs that make failures hard to find;
@@ -317,23 +317,27 @@ Status:
 
 ### Milestone 6: Measurement And Regression Guardrails
 
-Goal: we should know whether hygiene changes actually improve the loop.
+Goal: we should know whether hygiene changes actually improve the MacBook Air
+local loop.
 
 Work:
 
 - Add a lightweight timing wrapper for build time, test execution time, log size,
   and exit status.
-- Capture local and CI baseline numbers before major lane changes.
+- Capture MacBook Air local and CI baseline numbers before major lane changes.
 - Track cold versus warm build behavior separately.
-- Document recommended local commands for MacBook Air and Mac mini workflows
-  after the hygiene work lands.
+- Document recommended MacBook Air commands for common development loops.
+- Keep Mac mini orchestration out of scope for this milestone except for
+  preserving measurements that will help evaluate it later.
 
 Acceptance criteria:
 
 - Each lane reports elapsed time.
 - Full-suite log size and runtime are tracked before and after changes.
+- The recommended local workflow prioritizes the fastest reliable MacBook Air
+  command for each common change type.
 - Later Mac mini orchestration decisions can use measured data instead of
-  guesses.
+  guesses, but do not drive the current milestone.
 
 ## Relationship To Existing Issues
 
@@ -351,7 +355,8 @@ quality, lane design, dependency narrowing, and measurement.
 2. Reduce test log noise enough that failures are readable.
 3. Add named lane scripts around the current suite.
 4. Audit and split test dependencies where the payoff is clear.
-5. Clean warning hotspots and add measurement guardrails.
+5. Clean warning hotspots.
+6. Add MacBook Air local-loop measurement guardrails and workflow docs.
 
 ## Current Status
 
@@ -429,6 +434,6 @@ behavior.
 Milestone 4 started by moving the first smoke tests into `KeyPathSmokeTests`;
 see the Milestone 4 status section above for the current measurement.
 
-The Mac mini workflow should be revisited after milestones 1-3, because those
-changes determine whether the Mini should mainly run full verification, focused
-remote lanes, UI/system tests, or all of the above.
+The Mac mini workflow is deferred. Revisit it only after the MacBook Air loop is
+fast and boring enough that remote execution would solve a measured capacity
+problem instead of compensating for harness noise.
