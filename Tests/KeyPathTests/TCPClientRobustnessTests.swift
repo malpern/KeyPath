@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 @testable import KeyPathCore
+import Network
 @preconcurrency import XCTest
 
 /// Robustness tests for KanataTCPClient covering edge cases around
@@ -488,6 +489,52 @@ final class TCPClientRobustnessTests: XCTestCase {
         default:
             XCTFail("Expected networkError when server not running, got \(result)")
         }
+    }
+
+    func testReloadConfig_SilentServerReturnsWithoutHanging() async throws {
+        let (listener, assignedPort) = try makeSilentListener()
+        XCTAssertGreaterThan(assignedPort, 0)
+        defer { listener.cancel() }
+
+        let client = KanataTCPClient(port: assignedPort, timeout: 0.2)
+
+        let start = Date()
+        let result = await client.reloadConfig(timeoutMs: 100)
+        let elapsed = Date().timeIntervalSince(start)
+
+        XCTAssertLessThan(elapsed, 2.0, "Silent TCP server should not leave reload waiting indefinitely")
+        switch result {
+        case .failure, .networkError:
+            break
+        default:
+            XCTFail("Expected reload failure or networkError for silent server, got \(result)")
+        }
+    }
+
+    private func makeSilentListener() throws -> (listener: NWListener, port: Int) {
+        var lastError: Error?
+
+        for _ in 0 ..< 20 {
+            let candidate = UInt16.random(in: 38000 ... 49000)
+            guard let port = NWEndpoint.Port(rawValue: candidate) else { continue }
+
+            do {
+                let listener = try NWListener(using: .tcp, on: port)
+                listener.newConnectionHandler = { connection in
+                    connection.start(queue: .global())
+                }
+                listener.start(queue: .global())
+                return (listener, Int(candidate))
+            } catch {
+                lastError = error
+            }
+        }
+
+        throw lastError ?? NSError(
+            domain: "TCPClientRobustnessTests",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "Could not allocate a random TCP listener port"]
+        )
     }
 
     // MARK: - EngineReloadSingleFlight Tests

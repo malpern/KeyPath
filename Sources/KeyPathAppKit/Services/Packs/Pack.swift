@@ -11,6 +11,9 @@ public struct ManagedCollectionDefault: Equatable, Sendable {
     public let collectionID: UUID
     /// Whether to enable this collection on install
     public let enableOnInstall: Bool
+    /// Whether to disable this collection on install because it conflicts with
+    /// the managed pack. Its previous state is still snapshotted for uninstall.
+    public let disableOnInstall: Bool
     /// Configuration to apply on install (nil = just toggle, don't change config)
     public let defaultConfiguration: RuleCollectionConfiguration?
     /// Human-readable name for override/restore dialogs
@@ -19,11 +22,13 @@ public struct ManagedCollectionDefault: Equatable, Sendable {
     public init(
         collectionID: UUID,
         enableOnInstall: Bool = true,
+        disableOnInstall: Bool = false,
         defaultConfiguration: RuleCollectionConfiguration? = nil,
         displayName: String
     ) {
         self.collectionID = collectionID
         self.enableOnInstall = enableOnInstall
+        self.disableOnInstall = disableOnInstall
         self.defaultConfiguration = defaultConfiguration
         self.displayName = displayName
     }

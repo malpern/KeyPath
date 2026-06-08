@@ -78,6 +78,29 @@ enum LayerMappingBuilder {
                         actionByInput[overlayInput] = info
                     }
                 }
+            } else if case let .homeRowMods(config) = collection.configuration,
+                      config.holdMode == .layers
+            {
+                for key in config.enabledKeys {
+                    guard let layerName = config.layerAssignments[key]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                          !layerName.isEmpty
+                    else { continue }
+                    let input = KanataKeyConverter.convertToKanataKey(key).lowercased()
+                    let info = LayerKeyInfo.mapped(
+                        displayLabel: LayerInfo.displayName(for: layerName),
+                        outputKey: layerName,
+                        outputKeyCode: nil,
+                        collectionId: collection.id
+                    )
+                    actionByInput[input] = info
+                    // Overlay key names are not always the same canonical strings used in
+                    // saved HRM config (for example ";" vs "semicolon"). Register both
+                    // forms so physical keycode lookup still resolves the layer label.
+                    if let keyCode = KanataKeyCodeMap.keyCode(for: key) {
+                        let overlayInput = KanataKeyCodeMap.overlayName(for: keyCode).lowercased()
+                        actionByInput[overlayInput] = info
+                    }
+                }
             }
         }
 

@@ -35,10 +35,11 @@ final class PackOwnershipTests: XCTestCase {
     func testManagedCollectionIDsVallack() throws {
         let pack = try XCTUnwrap(PackRegistry.pack(id: "com.keypath.pack.vallack-system"))
         let ids = Set(pack.managedCollectionIDs)
-        XCTAssertEqual(ids.count, 3)
+        XCTAssertEqual(ids.count, 4)
         XCTAssertTrue(ids.contains(RuleCollectionIdentifier.vallackNavigation))
         XCTAssertTrue(ids.contains(RuleCollectionIdentifier.homeRowMods))
         XCTAssertTrue(ids.contains(RuleCollectionIdentifier.homeRowLayerToggles))
+        XCTAssertTrue(ids.contains(RuleCollectionIdentifier.homeRowArrows))
     }
 
     func testManagedCollectionIDsVisualOnly() throws {
@@ -76,7 +77,7 @@ final class PackOwnershipTests: XCTestCase {
         XCTAssertNil(owner)
     }
 
-    func testVallackOwnsAllThreeCollections() async throws {
+    func testVallackOwnsManagedCollections() async throws {
         let record = InstalledPackRecord(
             packID: "com.keypath.pack.vallack-system",
             version: "1.0.0"
@@ -92,10 +93,14 @@ final class PackOwnershipTests: XCTestCase {
         let togglesOwner = await InstalledPackTracker.shared.packManagingCollection(
             RuleCollectionIdentifier.homeRowLayerToggles
         )
+        let arrowsOwner = await InstalledPackTracker.shared.packManagingCollection(
+            RuleCollectionIdentifier.homeRowArrows
+        )
 
         XCTAssertEqual(navOwner?.packName, "Ben Vallack Nav")
         XCTAssertEqual(hrmOwner?.packName, "Ben Vallack Nav")
         XCTAssertEqual(togglesOwner?.packName, "Ben Vallack Nav")
+        XCTAssertEqual(arrowsOwner?.packName, "Ben Vallack Nav")
     }
 
     // MARK: - Self-managed badge filtering

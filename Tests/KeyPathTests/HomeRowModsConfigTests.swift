@@ -50,4 +50,21 @@ final class HomeRowModsConfigTests: XCTestCase {
         XCTAssertEqual(decoded.layerToggleMode, .whileHeld)
         XCTAssertEqual(decoded.layerAssignments, HomeRowModsConfig.defaultLayerAssignments)
     }
+
+    func testNewLayerAssignmentNormalizesAndAssignsPendingKey() {
+        var config = HomeRowModsConfig(holdMode: .layers)
+
+        HomeRowModsNewLayerAssignment.assign(layerName: " QA-Temp ", to: "a", config: &config)
+
+        XCTAssertEqual(config.layerAssignments["a"], "qa-temp")
+    }
+
+    func testNewLayerAssignmentIgnoresBlankLayerName() {
+        var config = HomeRowModsConfig(holdMode: .layers)
+        let original = config.layerAssignments["a"]
+
+        HomeRowModsNewLayerAssignment.assign(layerName: "   ", to: "a", config: &config)
+
+        XCTAssertEqual(config.layerAssignments["a"], original)
+    }
 }

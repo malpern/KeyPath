@@ -109,6 +109,7 @@ extension HomeRowModsCollectionView {
             PopoverListDivider()
 
             Button {
+                pendingNewLayerAssignmentKey = key
                 showingNewLayerSheet = true
             } label: {
                 HStack(spacing: 10) {

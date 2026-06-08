@@ -23,6 +23,7 @@ struct HomeRowModsCollectionView: View {
     @State var showingCustomizeWindow = false
     @State var selectedKey: String?
     @State var showingNewLayerSheet = false
+    @State var pendingNewLayerAssignmentKey: String?
     @State var newLayerName = ""
     @State var locallyCreatedLayers: Set<String> = []
     @State var hoveredHoldBehavior: HomeRowHoldMode?
