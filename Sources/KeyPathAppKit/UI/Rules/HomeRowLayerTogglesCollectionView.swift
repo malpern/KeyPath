@@ -167,15 +167,15 @@ struct HomeRowLayerTogglesCollectionView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         HStack {
-                            TextField("", value: Binding(
-                                get: { config.timing.tapWindow },
-                                set: { newValue in
-                                    config.timing.tapWindow = newValue
-                                    updateConfig()
-                                }
-                            ), format: .number)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 80)
+                            automationIntegerField(
+                                placeholder: "",
+                                value: Binding(
+                                    get: { config.timing.tapWindow },
+                                    set: { config.timing.tapWindow = $0 }
+                                ),
+                                accessibilityIdentifier: "home-row-layer-toggles-tap-window-field",
+                                accessibilityLabel: "Tap window"
+                            )
                             Text("ms")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
@@ -187,15 +187,15 @@ struct HomeRowLayerTogglesCollectionView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         HStack {
-                            TextField("", value: Binding(
-                                get: { config.timing.holdDelay },
-                                set: { newValue in
-                                    config.timing.holdDelay = newValue
-                                    updateConfig()
-                                }
-                            ), format: .number)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 80)
+                            automationIntegerField(
+                                placeholder: "",
+                                value: Binding(
+                                    get: { config.timing.holdDelay },
+                                    set: { config.timing.holdDelay = $0 }
+                                ),
+                                accessibilityIdentifier: "home-row-layer-toggles-hold-delay-field",
+                                accessibilityLabel: "Hold delay"
+                            )
                             Text("ms")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
@@ -225,6 +225,9 @@ struct HomeRowLayerTogglesCollectionView: View {
                             updateConfig()
                         }
                     ), in: 0 ... 80, step: 5)
+                        .accessibilityIdentifier("home-row-layer-toggles-quick-tap-term-slider")
+                        .accessibilityLabel("Quick tap term")
+                        .accessibilityValue("\(config.timing.quickTapTermMs) ms")
                     Text(String(localized: "\(config.timing.quickTapTermMs) ms"))
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -256,19 +259,21 @@ struct HomeRowLayerTogglesCollectionView: View {
                                         Text(displayLabel(forCanonicalKey: key))
                                             .font(.caption)
                                             .foregroundColor(.secondary)
-                                        TextField("0", value: Binding(
-                                            get: { config.timing.tapOffsets[key] ?? 0 },
-                                            set: { newValue in
-                                                if newValue == 0 {
-                                                    config.timing.tapOffsets.removeValue(forKey: key)
-                                                } else {
-                                                    config.timing.tapOffsets[key] = newValue
+                                        automationIntegerField(
+                                            placeholder: "0",
+                                            value: Binding(
+                                                get: { config.timing.tapOffsets[key] ?? 0 },
+                                                set: { newValue in
+                                                    if newValue == 0 {
+                                                        config.timing.tapOffsets.removeValue(forKey: key)
+                                                    } else {
+                                                        config.timing.tapOffsets[key] = newValue
+                                                    }
                                                 }
-                                                updateConfig()
-                                            }
-                                        ), format: .number)
-                                            .textFieldStyle(.roundedBorder)
-                                            .frame(width: 70)
+                                            ),
+                                            accessibilityIdentifier: "home-row-layer-toggles-tap-offset-\(key)-field",
+                                            accessibilityLabel: "\(displayLabel(forCanonicalKey: key)) tap offset"
+                                        )
                                     }
                                 }
                                 Spacer()
@@ -439,6 +444,33 @@ struct HomeRowLayerTogglesCollectionView: View {
             return key.uppercased()
         }
         return label.uppercased()
+    }
+
+    @ViewBuilder
+    private func automationIntegerField(
+        placeholder: String,
+        value: Binding<Int>,
+        accessibilityIdentifier: String,
+        accessibilityLabel: String
+    ) -> some View {
+        #if os(macOS)
+            AccessibleIntegerField(
+                placeholder: placeholder,
+                value: value,
+                accessibilityIdentifier: accessibilityIdentifier,
+                accessibilityLabel: accessibilityLabel,
+                onValueChanged: { _ in updateConfig() }
+            )
+            .frame(width: 70, height: 22)
+        #else
+            TextField(placeholder, value: value, format: .number)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 70)
+                .accessibilityIdentifier(accessibilityIdentifier)
+                .accessibilityLabel(accessibilityLabel)
+                .accessibilityValue("\(value.wrappedValue) ms")
+                .onChange(of: value.wrappedValue) { _ in updateConfig() }
+        #endif
     }
 
     private enum HomeRowLayerPreset: Hashable {

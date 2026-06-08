@@ -159,12 +159,15 @@ struct HomeRowLayerTogglesModalView: View {
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                                 HStack {
-                                    TextField("", value: Binding(
-                                        get: { localConfig.timing.tapWindow },
-                                        set: { localConfig.timing.tapWindow = $0 }
-                                    ), format: .number)
-                                        .textFieldStyle(.roundedBorder)
-                                        .frame(width: 80)
+                                    automationIntegerField(
+                                        placeholder: "",
+                                        value: Binding(
+                                            get: { localConfig.timing.tapWindow },
+                                            set: { localConfig.timing.tapWindow = $0 }
+                                        ),
+                                        accessibilityIdentifier: "home-row-layer-toggles-modal-tap-window-field",
+                                        accessibilityLabel: "Tap window"
+                                    )
                                     Text("ms")
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
@@ -176,12 +179,15 @@ struct HomeRowLayerTogglesModalView: View {
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                                 HStack {
-                                    TextField("", value: Binding(
-                                        get: { localConfig.timing.holdDelay },
-                                        set: { localConfig.timing.holdDelay = $0 }
-                                    ), format: .number)
-                                        .textFieldStyle(.roundedBorder)
-                                        .frame(width: 80)
+                                    automationIntegerField(
+                                        placeholder: "",
+                                        value: Binding(
+                                            get: { localConfig.timing.holdDelay },
+                                            set: { localConfig.timing.holdDelay = $0 }
+                                        ),
+                                        accessibilityIdentifier: "home-row-layer-toggles-modal-hold-delay-field",
+                                        accessibilityLabel: "Hold delay"
+                                    )
                                     Text("ms")
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
@@ -205,6 +211,7 @@ struct HomeRowLayerTogglesModalView: View {
                                 get: { Double(localConfig.timing.quickTapTermMs) },
                                 set: { localConfig.timing.quickTapTermMs = Int($0) }
                             ), in: 0 ... 80, step: 5)
+                                .accessibilityIdentifier("home-row-layer-toggles-modal-quick-tap-term-slider")
                                 .accessibilityLabel("Quick tap term")
                                 .accessibilityValue("\(localConfig.timing.quickTapTermMs) ms")
                             Text(String(localized: "\(localConfig.timing.quickTapTermMs) ms"))
@@ -237,18 +244,21 @@ struct HomeRowLayerTogglesModalView: View {
                                                 Text(displayLabel(forCanonicalKey: key))
                                                     .font(.caption)
                                                     .foregroundColor(.secondary)
-                                                TextField("0", value: Binding(
-                                                    get: { localConfig.timing.tapOffsets[key] ?? 0 },
-                                                    set: { newValue in
-                                                        if newValue == 0 {
-                                                            localConfig.timing.tapOffsets.removeValue(forKey: key)
-                                                        } else {
-                                                            localConfig.timing.tapOffsets[key] = newValue
+                                                automationIntegerField(
+                                                    placeholder: "0",
+                                                    value: Binding(
+                                                        get: { localConfig.timing.tapOffsets[key] ?? 0 },
+                                                        set: { newValue in
+                                                            if newValue == 0 {
+                                                                localConfig.timing.tapOffsets.removeValue(forKey: key)
+                                                            } else {
+                                                                localConfig.timing.tapOffsets[key] = newValue
+                                                            }
                                                         }
-                                                    }
-                                                ), format: .number)
-                                                    .textFieldStyle(.roundedBorder)
-                                                    .frame(width: 70)
+                                                    ),
+                                                    accessibilityIdentifier: "home-row-layer-toggles-modal-tap-offset-\(key)-field",
+                                                    accessibilityLabel: "\(displayLabel(forCanonicalKey: key)) tap offset"
+                                                )
                                             }
                                         }
                                         Spacer()
@@ -271,18 +281,21 @@ struct HomeRowLayerTogglesModalView: View {
                                                 Text(displayLabel(forCanonicalKey: key))
                                                     .font(.caption)
                                                     .foregroundColor(.secondary)
-                                                TextField("0", value: Binding(
-                                                    get: { localConfig.timing.holdOffsets[key] ?? 0 },
-                                                    set: { newValue in
-                                                        if newValue == 0 {
-                                                            localConfig.timing.holdOffsets.removeValue(forKey: key)
-                                                        } else {
-                                                            localConfig.timing.holdOffsets[key] = newValue
+                                                automationIntegerField(
+                                                    placeholder: "0",
+                                                    value: Binding(
+                                                        get: { localConfig.timing.holdOffsets[key] ?? 0 },
+                                                        set: { newValue in
+                                                            if newValue == 0 {
+                                                                localConfig.timing.holdOffsets.removeValue(forKey: key)
+                                                            } else {
+                                                                localConfig.timing.holdOffsets[key] = newValue
+                                                            }
                                                         }
-                                                    }
-                                                ), format: .number)
-                                                    .textFieldStyle(.roundedBorder)
-                                                    .frame(width: 70)
+                                                    ),
+                                                    accessibilityIdentifier: "home-row-layer-toggles-modal-hold-offset-\(key)-field",
+                                                    accessibilityLabel: "\(displayLabel(forCanonicalKey: key)) hold offset"
+                                                )
                                             }
                                         }
                                         Spacer()
@@ -460,6 +473,32 @@ struct HomeRowLayerTogglesModalView: View {
             return key.uppercased()
         }
         return label.uppercased()
+    }
+
+    @ViewBuilder
+    private func automationIntegerField(
+        placeholder: String,
+        value: Binding<Int>,
+        accessibilityIdentifier: String,
+        accessibilityLabel: String
+    ) -> some View {
+        #if os(macOS)
+            AccessibleIntegerField(
+                placeholder: placeholder,
+                value: value,
+                accessibilityIdentifier: accessibilityIdentifier,
+                accessibilityLabel: accessibilityLabel,
+                onValueChanged: { _ in }
+            )
+            .frame(width: 70, height: 22)
+        #else
+            TextField(placeholder, value: value, format: .number)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 70)
+                .accessibilityIdentifier(accessibilityIdentifier)
+                .accessibilityLabel(accessibilityLabel)
+                .accessibilityValue("\(value.wrappedValue) ms")
+        #endif
     }
 }
 
