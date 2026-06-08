@@ -27,17 +27,17 @@ manual or Computer Use checks for real macOS behavior.
 | Area | Current score | 1.0 target | Notes |
 | --- | ---: | ---: | --- |
 | Unit/model logic | 9/10 | 9/10 | Strong foundation. |
-| Kanata config generation | 8.5/10 | 9/10 | Add explicit per-rule option matrix. |
-| Rule collections and packs | 8/10 | 8.5/10 | Strong, but pack interop gaps remain. |
+| Kanata config generation | 9/10 | 9/10 | Explicit per-rule option matrix is covered by #819/#823. |
+| Rule collections and packs | 8.5/10 | 8.5/10 | Pack interop and installed smoke gates are covered by #815/#821 and #811/#824. |
 | CLI | 8.5/10 | 8.5/10 | Strong contract and facade coverage. |
 | Installer/runtime/service | 7.5/10 | 8/10 | Good tests, plus signed setup QA in #747. |
-| Overlay logic | 7/10 | 8/10 | Needs more live/downstate and visual coverage. |
-| Visual snapshots | 6.5/10 | 8/10 | Infrastructure exists; scenario coverage needs expansion. |
-| Settings/preferences | 3/10 | 8/10 | Largest current gap. |
-| Installed-app QA | 5.5/10 | 8/10 | Needs broad workflow smoke beyond HRM. |
-| Manual/Computer Use QA | 5/10 | 8/10 | HRM pattern needs to become product-wide. |
-| Log/error review | 5/10 | 8/10 | Needs scripted release gate. |
-| Overall 1.0 confidence | 6.5/10 | 8/10 | Good base, incomplete release qualification. |
+| Overlay logic | 8/10 | 8/10 | Snapshot and label-resolution coverage is broad; live physical downstates remain a release QA check. |
+| Visual snapshots | 8/10 | 8/10 | Scenario snapshots cover overlay, mapper, pack detail, inspector, rules, General settings, and Repair settings. |
+| Settings/preferences | 8/10 | 8/10 | Persistence, validation, layout/keymap, and runtime argument coverage landed in #816/#822. |
+| Installed-app QA | 8/10 | 8/10 | `qa-keypath-release-smoke.sh` covers representative installed-app workflows. |
+| Manual/Computer Use QA | 7.5/10 | 8/10 | Product-wide UI release checklist exists; final signed release pass remains. |
+| Log/error review | 8/10 | 8/10 | `qa-keypath-log-gate.sh` is the release gate for high-signal errors. |
+| Overall 1.0 confidence | 8/10 | 8/10 | Remaining open 1.0 risk is signed setup UX in #747 plus final release-candidate execution. |
 
 ## Blocking Issues
 
@@ -50,9 +50,9 @@ manual or Computer Use checks for real macOS behavior.
 | [#818](https://github.com/malpern/KeyPath/issues/818) | UI snapshots and Computer Use | Overlay, sidebar, menus, mapper, pack detail, and settings have deterministic snapshots or manual QA rows. |
 | [#819](https://github.com/malpern/KeyPath/issues/819) | Per-rule options | Every shipping rule family has documented config and UI/persistence coverage for key options. |
 | [#747](https://github.com/malpern/KeyPath/issues/747) | Signed setup UX | Permission and setup UX verified in a signed release build. |
-| [#804](https://github.com/malpern/KeyPath/issues/804) | HRM layer assignment | New Layer flow assigns the selected HRM key. |
-| [#810](https://github.com/malpern/KeyPath/issues/810) | HRM layer overlay | Layer-mode overlay shows assigned layer labels. |
-| [#811](https://github.com/malpern/KeyPath/issues/811) | Vallack interop | Vallack install/uninstall applies and restores managed HRM/nav config without hanging. |
+| [#804](https://github.com/malpern/KeyPath/issues/804) | HRM layer assignment | Closed by #824: New Layer flow assigns the selected HRM key. |
+| [#810](https://github.com/malpern/KeyPath/issues/810) | HRM layer overlay | Closed by #824: Layer-mode overlay shows assigned layer labels. |
+| [#811](https://github.com/malpern/KeyPath/issues/811) | Vallack interop | Closed by #824: Vallack install/uninstall applies and restores managed HRM/nav config without hanging. |
 
 ## Required Test Layers
 
@@ -111,9 +111,10 @@ notarization/stapling flags.
 
 ### Public Release Manual Gate
 
-Use the matrix below and product-specific checklists. Computer Use is appropriate
-here because it validates the real macOS accessibility tree and installed app
-behavior. It should not become the main CI test harness.
+Use the matrix below and the [UI release QA checklist](keypath-ui-release-qa.md).
+Computer Use is appropriate here because it validates the real macOS
+accessibility tree and installed app behavior. It should not become the main CI
+test harness.
 
 Required evidence per checked workflow:
 
@@ -133,26 +134,26 @@ current UI, `TODO` not yet assessed in the 1.0 matrix.
 | Rules | Simple remap | UI creates rule, config maps source to target, reload clean | PASS #819 |
 | Rules | Modifier/hyper remap | Modifier options persist and render correct Kanata output | PASS #819 |
 | Rules | Tap-hold / dual-role | Timing/options persist; config emits correct dual-role behavior | PASS #819 |
-| Rules | Home Row Mods | See [hrm-settings-release-qa.md](hrm-settings-release-qa.md) | MANUAL #804 #810 #811 |
+| Rules | Home Row Mods | See [hrm-settings-release-qa.md](hrm-settings-release-qa.md) | PASS #804 #810 #811 #824 |
 | Rules | Layers and navigation | Layer controls update config, overlay labels, and runtime layer state | PASS #819 |
 | Rules | Launcher/app/system/URL actions | UI actions persist and generated behavior matches expected action type | PASS #819 |
 | Rules | Function/media keys | Pack/rule options emit correct media/function mappings | PASS #819 |
 | Rules | Chords/sequences/tap dance/macros/text | Shipping options have config and persistence assertions | PASS #819 |
 | Rules | App-specific mappings | App context persists and affects generated conditional config | PASS #819 |
-| Packs | Install/uninstall common packs | Managed collections apply, snapshot, restore, and reload cleanly | TODO #815 |
-| Packs | Vallack system | Managed HRM/nav config applies and restores without hang | FAIL #811 |
-| Overlay | Base rendering | Geometry follows physical layout; labels follow logical keymap | TODO #818 |
-| Overlay | Layer rendering | Layer switch updates colors, labels, and unmapped key style | TODO #818 |
-| Overlay | Tap-hold/HRM labels | Primary labels, secondary labels, tint, and downstates are correct | MANUAL #810 #818 |
-| Overlay | Sidebar tabs | Tabs open, close, and reflect selected key/layer state | TODO #818 |
-| Overlay | Inspector/edit flows | Edits route to expected rule/config changes | TODO #818 |
-| Menus | Menu bar actions | Commands trigger expected app/runtime behavior and logs are clean | TODO #818 |
-| Menus | Emergency stop/resume | Runtime state changes are visible and reversible | TODO #815 #818 |
+| Packs | Install/uninstall common packs | Managed collections apply, snapshot, restore, and reload cleanly | PASS #815 #821 |
+| Packs | Vallack system | Managed HRM/nav config applies and restores without hang | PASS #811 #824 |
+| Overlay | Base rendering | Geometry follows physical layout; labels follow logical keymap | PASS/MANUAL #818 |
+| Overlay | Layer rendering | Layer switch updates colors, labels, and unmapped key style | PASS/MANUAL #818 |
+| Overlay | Tap-hold/HRM labels | Primary labels, secondary labels, tint, and downstates are correct | PASS/MANUAL #810 #818 #824 |
+| Overlay | Sidebar tabs | Tabs open, close, and reflect selected key/layer state | PASS/MANUAL #818 |
+| Overlay | Inspector/edit flows | Edits route to expected rule/config changes | PASS/MANUAL #818 |
+| Menus | Menu bar actions | Commands trigger expected app/runtime behavior and logs are clean | MANUAL #818 |
+| Menus | Emergency stop/resume | Runtime state changes are visible and reversible | MANUAL #815 #818 |
 | Settings | Status/stability | Health state is accurate and does not fabricate blocking issues | PASS #812 |
 | Settings | Permissions/setup | Signed release UX verified on real app build | MANUAL #747 |
-| Settings | Keyboard layout/keymap | Geometry/labels update according to architecture rule | TODO #816 |
-| Settings | Overlay preferences | Preferences persist and update overlay state | TODO #816 #818 |
-| Settings | Advanced/runtime controls | Controls persist, route through helper/runtime, and log cleanly | TODO #816 #817 |
+| Settings | Keyboard layout/keymap | Geometry/labels update according to architecture rule | PASS #816 #822 |
+| Settings | Overlay preferences | Preferences persist and update overlay state | PASS/MANUAL #816 #818 #822 |
+| Settings | Advanced/runtime controls | Controls persist, route through helper/runtime, and log cleanly | PASS/MANUAL #816 #817 #822 |
 | Runtime | Config validate/apply/reload | `qa-keypath-release-smoke.sh` applies representative fixtures, validates with bundled Kanata, reloads, checks TCP, and restores config | PASS #815 |
 | Runtime | Log review | `qa-keypath-log-gate.sh` captures recent app/CLI/Kanata/unified logs and fails on unclassified high-signal errors | PASS #817 |
 
