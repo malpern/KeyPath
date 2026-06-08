@@ -12,7 +12,7 @@ Run the smallest lane that covers the files you changed:
 | --- | --- |
 | Core APIs, permissions, parser smoke coverage | `./Scripts/test-lane.sh smoke` |
 | Core-only runtime, parser, and environment behavior | `./Scripts/test-lane.sh core-isolated` |
-| Pure model/parser/renderer logic | `./Scripts/test-lane.sh unit` |
+| Fast root-package model/parser/renderer logic | `./Scripts/test-lane.sh unit` |
 | AppKit-adjacent logic, services, config, packs, mappers | `./Scripts/test-lane.sh appkit` |
 | InstallerEngine, wizard, daemon lifecycle, health checks | `./Scripts/test-lane.sh installer` |
 | Snapshot or visual output changes | `./Scripts/test-lane.sh snapshot` |

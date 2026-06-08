@@ -123,7 +123,7 @@ Work:
 
 - Define named lanes for common feedback needs:
   - `smoke`: fastest sanity checks for core compile and critical unit tests.
-  - `unit`: pure logic and mocked tests.
+  - `unit`: fast root-package model/parser/renderer tests.
   - `appkit`: UI-adjacent logic that requires KeyPathAppKit.
   - `snapshot`: visual snapshots, gated by `KEYPATH_SNAPSHOTS=1`.
   - `installer`: mocked installer and service lifecycle tests.
@@ -410,6 +410,10 @@ Work:
   until measurements justify it.
 - Measure cold and warm harness runs against the current `smoke` and `unit`
   lanes, including whether `KeyPathAppKit` appears in the log.
+- Audit the remaining root-package `unit` lane before changing its filter. If
+  duplicated smoke/Core coverage does not materially affect elapsed time, keep
+  the coverage and document that `unit` is a fast root-package lane rather than
+  true Core isolation.
 - Stop the harness effort if it does not materially outperform the root
   filtered lane or if the copied-test maintenance burden starts to outweigh the
   local-loop gain.
@@ -431,6 +435,8 @@ Acceptance criteria:
 - The harness either earns a permanent lane with clear speed evidence or is
   explicitly retired so root-package organization work does not masquerade as
   build-speed work.
+- The unit-lane audit records whether trimming duplicated smoke/Core suites
+  improves elapsed time before any coverage is removed.
 - The CLI/AppKit dependency audit produces either a scoped extraction plan or a
   measured decision to defer it.
 - Installer/wizard follow-up is based on lane timing and dependency evidence,
@@ -508,7 +514,7 @@ runner; `smoke` now uses the isolated harness from Milestone 4b:
 - `smoke` for fast isolated product-level sanity coverage;
 - `smoke-root` for the root-package `KeyPathSmokeTests` target, retained as a
   diagnostic lane rather than the fast path;
-- `unit` for pure or mostly pure model/parser/renderer logic;
+- `unit` for fast root-package model/parser/renderer logic;
 - `appkit` for UI-adjacent app logic, services, packs, config, mappers, and rule
   collections;
 - `installer` for InstallerEngine, wizard, daemon/service lifecycle, and
@@ -568,6 +574,13 @@ Milestone 6 is implemented with the MacBook Air local loop as the target:
   reported `appkit_in_log=0`; the root-package lanes reported zero Swift
   warnings, module-cache warnings, app warnings, and app errors in their final
   summaries.
+- Follow-up unit-lane audit: sequential measurements passed at 9s warm and 7s
+  with `KEYPATH_TEST_RESET_MODULE_CACHE=1`. A candidate filter that removed the
+  smoke/Core-duplicated `KeyPathErrorTests` and `KanataDefseqParserTests`
+  reduced coverage from 329 passed tests to 288 passed tests but still took 9s.
+  Because the root-package build dominates this lane, keep the current filter
+  and treat `unit` as fast model/parser/renderer coverage, not true Core
+  isolation. The `core-isolated` lane remains the true Core-only fast path.
 - Current warm installer baseline from `./Scripts/measure-local-loop.sh
   installer`: 11s total, 263 passed, and zero Swift warnings,
   module-cache warnings, app warnings, or app errors. This required keeping
@@ -583,8 +596,6 @@ The Mac mini workflow is deferred. Revisit it only after the MacBook Air loop is
 fast and boring enough that remote execution would solve a measured capacity
 problem instead of compensating for harness noise.
 
-Next planned milestone: continue Milestone 7 by measuring the new
-`core-isolated` lane in the baseline preset and then auditing the remaining
-`unit` and `appkit` lanes. CLI and installer/wizard splits should follow only
-after the isolated Core harness earns its keep over repeated local runs and the
-remaining lane timings justify the extra dependency work.
+Next planned milestone: continue Milestone 7 by auditing the remaining `appkit`
+lane. CLI and installer/wizard splits should follow only after the remaining
+lane timings justify the extra dependency work.

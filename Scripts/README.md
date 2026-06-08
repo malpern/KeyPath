@@ -40,8 +40,8 @@
   only `KeyPathCore` and fails if `KeyPathAppKit` appears in the log.
 - `./Scripts/test-lane.sh smoke-root` - Root-package smoke target; useful for
   diagnostics, but not the fast path.
-- `./Scripts/test-lane.sh unit` - Pure or mostly pure model/parser/renderer
-  tests.
+- `./Scripts/test-lane.sh unit` - Fast root-package model/parser/renderer
+  tests; this lane may still compile AppKit-facing targets.
 - `./Scripts/test-lane.sh appkit` - UI-adjacent app logic, services, packs,
   config, mappers, and rule collection tests.
 - `./Scripts/test-lane.sh installer` - InstallerEngine, wizard, daemon/service

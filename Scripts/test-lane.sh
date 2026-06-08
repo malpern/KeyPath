@@ -20,7 +20,7 @@ Lanes:
   smoke-root Root-package smoke target; useful for diagnostics, not the fast path.
   core-isolated
              Experimental isolated Core harness; must avoid the KeyPathAppKit graph.
-  unit       Pure or mostly pure model/parser/renderer logic.
+  unit       Fast root-package model/parser/renderer logic; may compile AppKit-facing targets.
   appkit     UI-adjacent app logic, services, packs, config, mappers, and rule collections.
   installer  InstallerEngine, wizard, daemon/service lifecycle, and health-check tests.
   snapshot   Visual snapshot tests; sets KEYPATH_SNAPSHOTS=1.
