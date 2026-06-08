@@ -327,6 +327,11 @@ Work:
 - Capture MacBook Air local and CI baseline numbers before major lane changes.
 - Track cold versus warm build behavior separately.
 - Document recommended MacBook Air commands for common development loops.
+- Keep existing lane names stable unless a measured usability problem justifies
+  a change.
+- Treat regex-based `swift test --filter` lanes as transitional; prefer smaller
+  test targets/packages and Swift Testing suites/tags where they reduce build
+  graph cost or improve clarity.
 - Keep Mac mini orchestration out of scope for this milestone except for
   preserving measurements that will help evaluate it later.
 
@@ -336,6 +341,9 @@ Acceptance criteria:
 - Full-suite log size and runtime are tracked before and after changes.
 - The recommended local workflow prioritizes the fastest reliable MacBook Air
   command for each common change type.
+- Future lane refinements remain aligned with Apple's test-pyramid guidance:
+  many fast isolated tests, fewer integration checks, and heavier UI/device
+  validation only where it provides distinct signal.
 - Later Mac mini orchestration decisions can use measured data instead of
   guesses, but do not drive the current milestone.
 
@@ -444,6 +452,10 @@ Milestone 6 is now started with the MacBook Air local loop as the target:
   without copying terminal output.
 - `docs/MACBOOK_AIR_LOCAL_LOOP.md` documents the recommended lane by change
   type, warm-cache policy, measurement presets, and when to use verbose logs.
+- Future milestone work should keep lane names stable, avoid treating filter
+  strings as the final architecture, and move toward Apple-aligned test
+  organization when target/package boundaries or Swift Testing suites/tags give
+  measurable clarity or speed benefits.
 
 The Mac mini workflow is deferred. Revisit it only after the MacBook Air loop is
 fast and boring enough that remote execution would solve a measured capacity
