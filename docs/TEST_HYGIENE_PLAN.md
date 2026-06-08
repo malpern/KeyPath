@@ -255,6 +255,17 @@ Acceptance criteria:
 - The runner reports warning counts or a stable summary.
 - Existing warning cleanup remains linked to #750 instead of duplicating scope.
 
+Status:
+
+- Started with two repeated AppKit warning families observed during root-package
+  smoke builds:
+  - removed the dead `shouldUseKindaVimLearningStyle = false` branch from
+    `ContextHUDController.showForLayer`;
+  - made the `WindowManager` frontmost-app observer's main-actor mutation
+    explicit.
+- Local `swift build` recompiled both touched AppKit files and completed without
+  re-emitting those warnings.
+
 ### Milestone 6: Measurement And Regression Guardrails
 
 Goal: we should know whether hygiene changes actually improve the loop.
