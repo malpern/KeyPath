@@ -178,6 +178,37 @@ final class HardViewSnapshotTests: ScreenshotTestCase {
         assertDocScreenshot(of: view, size: DocSize.settingsTab, named: "settings-rules-tab")
     }
 
+    func testGeneralSettingsTabView() {
+        let vm = MockFactories.kanataViewModel()
+        let services = ServiceContainer()
+        let view = GeneralSettingsTabView()
+            .environment(vm)
+            .environment(\.services, services)
+            .frame(width: 680, height: 700)
+        assertDocScreenshot(
+            of: view,
+            size: DocSize.settingsTab,
+            named: "settings-general-tab",
+            precision: 0.98,
+            perceptualPrecision: 0.98
+        )
+    }
+
+    func testRepairSettingsTabView() {
+        let vm = MockFactories.kanataViewModel()
+        let view = AdvancedSettingsTabView()
+            .environment(vm)
+            .frame(width: 680, height: 700)
+        assertScreenshot(
+            of: view,
+            size: DocSize.settingsTab,
+            named: "settings-repair-tab",
+            precision: 0.98,
+            perceptualPrecision: 0.98,
+            colorScheme: .dark
+        )
+    }
+
     // MARK: - Full Window Composites (Keyboard + Inspector)
 
     func testFullWindowWithRulesTab() {

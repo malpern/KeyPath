@@ -89,6 +89,12 @@ For the broader public 1.0 release gate, use
 the product-wide release matrix, blocking readiness issues, installed-app smoke,
 manual/Computer Use coverage, and log-review expectations.
 
+For the UI-specific release pass, use
+[keypath-ui-release-qa.md](keypath-ui-release-qa.md). That checklist maps
+overlay, sidebar, mapper, pack detail, settings, and menu surfaces to
+deterministic snapshots, installed-app scripts, and non-destructive Computer Use
+checks.
+
 ## Anti-Patterns
 
 - **Don't use computer-use as a test harness.** It's for debugging and spot-checks, not reproducible test suites. It's non-deterministic, expensive, and can't run in CI.
@@ -96,12 +102,17 @@ manual/Computer Use coverage, and log-review expectations.
 - **Don't write shallow smoke tests.** "Gallery opens" is not a useful test. "Installing Caps Lock Remapper with Escape tap / Hyper hold produces correct overlay labels" is.
 - **Don't test permissions with real APIs in unit tests.** `PermissionOracle` logic is unit-testable; actual TCC state is not.
 
-## Immediate Next Steps
+## Historical Next Steps
 
 1. **Scenario snapshots** — Add snapshot tests for post-interaction states: pack detail views with picker selections, mapper keycap pairs with different output types, overlay keycaps with tap-hold idle labels
 2. **End-to-end integration test** — One test that exercises pack install → config generation → label map verification
 3. **Accessibility identifiers** — Add to gallery pack cards, mapper drawer, overlay keycaps using dotted naming convention
 4. **Document manual test cases** — For the ~20 flows that require real key events or permission dialogs, write structured test cases (preconditions, steps, expected result) in `docs/testing/manual-tests.md`
+
+These items are now represented by the product-wide release QA plan, the UI
+release QA checklist, scenario snapshots, Computer Use readiness checks, and the
+installed-app smoke/log gates. Keep this section only as background for why the
+current layered test strategy exists.
 
 ## Tools
 
