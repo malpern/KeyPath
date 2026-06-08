@@ -363,6 +363,81 @@ Acceptance criteria:
 - Later Mac mini orchestration decisions can use measured data instead of
   guesses, but do not drive the current milestone.
 
+### Milestone 7: Bounded Core Harness Isolation
+
+Goal: stop treating root-package test-target splits as a speed strategy and
+prove whether a small isolated Core harness can provide a genuinely faster
+local confidence path.
+
+Context:
+
+- `KeyPathTests` is still one broad target. Even a narrow
+  `swift test --filter` against that target can force SwiftPM to compile the
+  broad app graph because the target depends on `KeyPathAppKit`, `KeyPathCLI`,
+  installer modules, and supporting packages.
+- Local measurement and SwiftPM research confirmed this is a tooling
+  limitation, not just a KeyPath package-shape problem: `swift test --filter`
+  filters test execution, but it does not reliably isolate the build graph
+  inside one root package.
+- Creating a root-package `KeyPathCoreTests` target improves organization and
+  log scope, but it does not meet the cold-build isolation goal because SwiftPM
+  still builds the generated package-wide test product.
+- The hidden `--test-product` workaround can target the generated
+  `KeyPathPackageTests` product in this toolchain, but that product is
+  package-wide. It does not create a per-target `KeyPathCoreTests` product.
+- `KeyPathInstallationWizard` is already a separate target that does not depend
+  on `KeyPathAppKit`, which is useful. Further installer/wizard splitting
+  should be measurement-driven.
+- `KeyPathCLI` is a separate target, but it currently depends on
+  `KeyPathAppKit`. Splitting CLI tests only helps if the CLI dependency graph is
+  narrowed or inverted so CLI-only tests no longer pull the app target.
+- The isolated `smoke` harness has already proven the pattern: true speed comes
+  from a smaller dependency graph, not just a smaller test filter.
+
+Work:
+
+- Treat the root-package `KeyPathCoreTests` experiment as a finding, not as the
+  milestone path. Do not check it in as a build-isolation success unless a later
+  toolchain proves it actually avoids the app graph.
+- Create a small `dev-tools/core-harness` SwiftPM package, modeled after the
+  isolated smoke harness, that depends only on `KeyPathCore`.
+- Copy or port only the highest-signal Core checks into the harness first:
+  `KanataRuntimeHostTests`, `KanataHostBridgeTests`,
+  `KanataDefseqParserTests`, and `TestEnvironmentDetectionTests`.
+  Add `SubprocessRunnerTests` only if the harness remains fast and stable.
+- Add a `core-isolated` lane only if the harness proves a real speed win. Keep
+  existing root lane names stable; do not replace `unit` with a harness command
+  until measurements justify it.
+- Measure cold and warm harness runs against the current `smoke` and `unit`
+  lanes, including whether `KeyPathAppKit` appears in the log.
+- Stop the harness effort if it does not materially outperform the root
+  filtered lane or if the copied-test maintenance burden starts to outweigh the
+  local-loop gain.
+- Audit `KeyPathCLI`'s dependency on `KeyPathAppKit`. If CLI tests remain a
+  meaningful local-loop cost, identify the smallest extraction that moves
+  CLI-facing models/facades/protocols into a non-AppKit target.
+- Revisit installer/wizard boundaries only after Core and CLI measurements. If
+  installer tests still dominate a lane we care about, split pure installer or
+  service lifecycle logic from SwiftUI wizard view code.
+- Keep the Mac mini/MacBook split deferred until local build graph isolation is
+  measured and no longer the main bottleneck.
+
+Acceptance criteria:
+
+- A cold isolated Core harness builds and runs without compiling
+  `KeyPathAppKit`.
+- The plan records before/after measurements for the current filtered unit lane,
+  the isolated smoke lane, and the isolated Core harness.
+- The harness either earns a permanent lane with clear speed evidence or is
+  explicitly retired so root-package organization work does not masquerade as
+  build-speed work.
+- The CLI/AppKit dependency audit produces either a scoped extraction plan or a
+  measured decision to defer it.
+- Installer/wizard follow-up is based on lane timing and dependency evidence,
+  not on target-count preferences.
+- Existing lane names remain stable unless a measured workflow problem justifies
+  a new name.
+
 ## Relationship To Existing Issues
 
 - #604 covers the broad long-term test improvement plan.
@@ -381,6 +456,9 @@ quality, lane design, dependency narrowing, and measurement.
 4. Audit and split test dependencies where the payoff is clear.
 5. Clean warning hotspots.
 6. Add MacBook Air local-loop measurement guardrails and workflow docs.
+7. Isolate the build graph for routine local checks with a bounded isolated
+   Core harness, then audit CLI/AppKit decoupling, then revisit
+   installer/wizard boundaries only if measurements justify it.
 
 ## Current Status
 
@@ -460,7 +538,7 @@ behavior.
 Milestone 4 started by moving the first smoke tests into `KeyPathSmokeTests`;
 see the Milestone 4 status section above for the current measurement.
 
-Milestone 6 is now started with the MacBook Air local loop as the target:
+Milestone 6 is implemented with the MacBook Air local loop as the target:
 
 - `unit`, `appkit`, `installer`, `snapshot`, and `full` lanes reuse the
   normalized module cache by default for faster warm local feedback.
@@ -469,6 +547,13 @@ Milestone 6 is now started with the MacBook Air local loop as the target:
   can be compared without copying terminal output.
 - `docs/MACBOOK_AIR_LOCAL_LOOP.md` documents the recommended lane by change
   type, warm-cache policy, measurement presets, and when to use verbose logs.
+- `core-isolated` now runs a separate `dev-tools/core-harness` package that
+  depends only on `KeyPathCore`; a clean run passed in 15s and a warm run passed
+  in 4s, both with `appkit_in_log=0`.
+- Follow-up measurements refined that baseline: `./Scripts/measure-local-loop.sh
+  --clean-core core-isolated` passed in 12s with `appkit_in_log=0`, and
+  `./Scripts/measure-local-loop.sh core-isolated` passed in 3s with
+  `appkit_in_log=0`.
 - `run-tests-safe.sh` now supports `KEYPATH_TEST_ENFORCE_CLEAN_SUMMARY=1` to
   fail an otherwise passing lane when summary warning/error counts regress.
   CI enables this guardrail for the full lane; elapsed time remains
@@ -478,9 +563,11 @@ Milestone 6 is now started with the MacBook Air local loop as the target:
   organization when target/package boundaries or Swift Testing suites/tags give
   measurable clarity or speed benefits.
 - Current warm MacBook Air baseline from
-  `./Scripts/measure-local-loop.sh --preset baseline`: `smoke` 3s,
-  `unit` 5s, and `appkit` 25s. All three lanes reported zero Swift warnings,
-  module-cache warnings, app warnings, and app errors in their final summaries.
+  `./Scripts/measure-local-loop.sh --preset baseline`: `smoke` 2s,
+  `core-isolated` 3s, `unit` 16s, and `appkit` 22s. The isolated lanes both
+  reported `appkit_in_log=0`; the root-package lanes reported zero Swift
+  warnings, module-cache warnings, app warnings, and app errors in their final
+  summaries.
 - Current warm installer baseline from `./Scripts/measure-local-loop.sh
   installer`: 11s total, 263 passed, and zero Swift warnings,
   module-cache warnings, app warnings, or app errors. This required keeping
@@ -495,3 +582,9 @@ Milestone 6 is now started with the MacBook Air local loop as the target:
 The Mac mini workflow is deferred. Revisit it only after the MacBook Air loop is
 fast and boring enough that remote execution would solve a measured capacity
 problem instead of compensating for harness noise.
+
+Next planned milestone: continue Milestone 7 by measuring the new
+`core-isolated` lane in the baseline preset and then auditing the remaining
+`unit` and `appkit` lanes. CLI and installer/wizard splits should follow only
+after the isolated Core harness earns its keep over repeated local runs and the
+remaining lane timings justify the extra dependency work.

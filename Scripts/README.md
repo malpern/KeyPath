@@ -11,7 +11,8 @@
 - `./Scripts/cleanup-local-build-artifacts.sh` — Dry-run cleanup of generated `.build`/`dist`/test artifacts across local worktrees. Add `--apply` to delete.
 - `./test.sh` — Run the full test suite (root)
 - `./Scripts/test-lane.sh <lane>` — Run a named SwiftPM test lane (`smoke`,
-  `smoke-root`, `unit`, `appkit`, `installer`, `snapshot`, `device`, or `full`).
+  `core-isolated`, `smoke-root`, `unit`, `appkit`, `installer`, `snapshot`,
+  `device`, or `full`).
 - `./Scripts/measure-local-loop.sh` — Measure local feedback lanes and write a
   Markdown report under `.build/local-loop-measurements/`.
 - `./Scripts/run-installer-reliability-matrix.sh` — Automated installer reliability matrix + diagnostic artifact bundle (`test-results/installer-reliability/latest`).
@@ -35,6 +36,8 @@
 - `test.sh` (in root) - All tests
 - `test-*.sh` (in Scripts/) - Individual test suites
 - `./Scripts/test-lane.sh smoke` - Fast isolated product-level sanity lane.
+- `./Scripts/test-lane.sh core-isolated` - Isolated Core harness that builds
+  only `KeyPathCore` and fails if `KeyPathAppKit` appears in the log.
 - `./Scripts/test-lane.sh smoke-root` - Root-package smoke target; useful for
   diagnostics, but not the fast path.
 - `./Scripts/test-lane.sh unit` - Pure or mostly pure model/parser/renderer
@@ -55,7 +58,7 @@
   cache by default; set `KEYPATH_TEST_RESET_MODULE_CACHE=1` when a narrow local
   lane should intentionally reset it.
 - `./Scripts/measure-local-loop.sh --preset baseline` - Measure the standard
-  MacBook Air local baseline (`smoke`, `unit`, `appkit`) and write
+  MacBook Air local baseline (`smoke`, `core-isolated`, `unit`, `appkit`) and write
   `.build/local-loop-measurements/latest.md`.
 - See `docs/MACBOOK_AIR_LOCAL_LOOP.md` for the recommended command by change
   type.

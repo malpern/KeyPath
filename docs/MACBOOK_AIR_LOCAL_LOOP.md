@@ -11,6 +11,7 @@ Run the smallest lane that covers the files you changed:
 | Change type | Command |
 | --- | --- |
 | Core APIs, permissions, parser smoke coverage | `./Scripts/test-lane.sh smoke` |
+| Core-only runtime, parser, and environment behavior | `./Scripts/test-lane.sh core-isolated` |
 | Pure model/parser/renderer logic | `./Scripts/test-lane.sh unit` |
 | AppKit-adjacent logic, services, config, packs, mappers | `./Scripts/test-lane.sh appkit` |
 | InstallerEngine, wizard, daemon lifecycle, health checks | `./Scripts/test-lane.sh installer` |
@@ -47,6 +48,7 @@ feedback:
 ./Scripts/measure-local-loop.sh
 ./Scripts/measure-local-loop.sh --preset baseline
 ./Scripts/measure-local-loop.sh --clean-smoke smoke
+./Scripts/measure-local-loop.sh --clean-core core-isolated
 ```
 
 Reports are written under `.build/local-loop-measurements/`, with the latest
@@ -60,8 +62,8 @@ Markdown and TSV reports linked at:
 Presets:
 
 - `quick`: runs `smoke`.
-- `baseline`: runs `smoke`, `unit`, and `appkit`.
-- `full`: runs `smoke`, `unit`, `appkit`, and `full`.
+- `baseline`: runs `smoke`, `core-isolated`, `unit`, and `appkit`.
+- `full`: runs `smoke`, `core-isolated`, `unit`, `appkit`, and `full`.
 
 ## Clean Summary Guardrail
 

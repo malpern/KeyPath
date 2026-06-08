@@ -10,22 +10,24 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 PRESET="quick"
 OUTPUT_DIR="${KEYPATH_LOCAL_LOOP_OUT:-$PROJECT_DIR/.build/local-loop-measurements}"
 CLEAN_SMOKE="${KEYPATH_LOCAL_LOOP_CLEAN_SMOKE:-0}"
+CLEAN_CORE="${KEYPATH_LOCAL_LOOP_CLEAN_CORE:-0}"
 LANES=()
 
 usage() {
   cat <<'USAGE'
-Usage: ./Scripts/measure-local-loop.sh [--preset quick|baseline|full] [--out DIR] [--clean-smoke] [lane ...]
+Usage: ./Scripts/measure-local-loop.sh [--preset quick|baseline|full] [--out DIR] [--clean-smoke] [--clean-core] [lane ...]
 
 Presets:
   quick     Run the fastest local sanity lane: smoke.
-  baseline  Run the usual MacBook Air development baseline: smoke, unit, appkit.
-  full      Run smoke, unit, appkit, and full.
+  baseline  Run the usual MacBook Air development baseline: smoke, core-isolated, unit, appkit.
+  full      Run smoke, core-isolated, unit, appkit, and full.
 
 If explicit lanes are provided, they override the preset.
 
 Environment:
   KEYPATH_LOCAL_LOOP_OUT          Output directory. Defaults to .build/local-loop-measurements.
   KEYPATH_LOCAL_LOOP_CLEAN_SMOKE  Set to 1 to cold-build the isolated smoke lane.
+  KEYPATH_LOCAL_LOOP_CLEAN_CORE   Set to 1 to cold-build the isolated Core lane.
   TIMEOUT_SECONDS                 Passed through to safe-runner lanes.
 USAGE
 }
@@ -52,6 +54,10 @@ while [ "$#" -gt 0 ]; do
       CLEAN_SMOKE=1
       shift
       ;;
+    --clean-core)
+      CLEAN_CORE=1
+      shift
+      ;;
     -h|--help|help)
       usage
       exit 0
@@ -74,10 +80,10 @@ if [ "${#LANES[@]}" -eq 0 ]; then
       LANES=(smoke)
       ;;
     baseline)
-      LANES=(smoke unit appkit)
+      LANES=(smoke core-isolated unit appkit)
       ;;
     full)
-      LANES=(smoke unit appkit full)
+      LANES=(smoke core-isolated unit appkit full)
       ;;
     *)
       echo "Unknown preset: $PRESET" >&2
@@ -125,6 +131,10 @@ run_lane() {
     KEYPATH_ISOLATED_SMOKE_CLEAN=1 \
       KEYPATH_TEST_LOG="$test_log" \
       "$SCRIPT_DIR/test-lane.sh" "$lane" 2>&1 | tee "$wrapper_log"
+  elif [ "$lane" = "core-isolated" ] && [ "$CLEAN_CORE" = "1" ]; then
+    KEYPATH_ISOLATED_CORE_CLEAN=1 \
+      KEYPATH_TEST_LOG="$test_log" \
+      "$SCRIPT_DIR/test-lane.sh" "$lane" 2>&1 | tee "$wrapper_log"
   else
     KEYPATH_TEST_LOG="$test_log" \
       "$SCRIPT_DIR/test-lane.sh" "$lane" 2>&1 | tee "$wrapper_log"
@@ -133,7 +143,7 @@ run_lane() {
   set -e
 
   elapsed_seconds="$(( $(date +%s) - start_seconds ))"
-  summary_line="$(awk '/Runner summary:|Isolated smoke summary:/ { line=$0 } END { print line }' "$wrapper_log")"
+  summary_line="$(awk '/Runner summary:|Isolated smoke summary:|Isolated Core summary:/ { line=$0 } END { print line }' "$wrapper_log")"
   if [ -z "$summary_line" ]; then
     summary_line="no summary line found"
   fi
