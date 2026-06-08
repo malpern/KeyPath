@@ -14,6 +14,8 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        previousSudoEnv = ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"]
+        setenv("KEYPATH_USE_SUDO", "0", 1)
         await MainActor.run {
             originalExecutor = AdminCommandExecutorHolder.shared
             originalSudoEnv = ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"]
@@ -41,6 +43,12 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
             originalSudoEnv = nil
             originalAllowAdminOperationsInTests = false
         }
+        if let previousSudoEnv {
+            setenv("KEYPATH_USE_SUDO", previousSudoEnv, 1)
+        } else {
+            unsetenv("KEYPATH_USE_SUDO")
+        }
+        previousSudoEnv = nil
         try await super.tearDown()
     }
 

@@ -289,6 +289,15 @@ Status:
 - Updated `run-tests-safe.sh` to capture the prebuild phase in a separate build
   log and report `build_log_swift_warnings` alongside test-log warning counts;
   the same focused appkit lane reported both warning counts as zero.
+- Isolated service/privileged tests from the local runner's sudo auto-detection
+  by forcing `KEYPATH_USE_SUDO=0` inside those test classes and restoring the
+  prior environment afterward.
+- After that isolation fix, the broad `appkit` lane reached the existing
+  pass condition: 1,338 XCTest tests passed, 18 skipped, no test failures,
+  `build_log_swift_warnings=0`, and `test_log_swift_warnings=0`. Remaining
+  signal issues are app-log noise (`test_log_app_errors=30`,
+  `test_log_app_warnings=2`) and SwiftPM's post-suite signal-5 helper exit,
+  which the runner already treats as pass when tests succeeded.
 
 ### Milestone 6: Measurement And Regression Guardrails
 
