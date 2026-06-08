@@ -275,6 +275,9 @@ Status:
     an explicit main-actor helper.
 - After those fixes, `./Scripts/test-lane.sh smoke-root` passed in 28s with a
   6,647-byte log and `test_log_swift_warnings=0`.
+- Removed redundant `await` annotations from `PackDetailView+LiveState` live
+  rule-collection reads; local `swift build` recompiled the file without
+  re-emitting the warning.
 
 ### Milestone 6: Measurement And Regression Guardrails
 
