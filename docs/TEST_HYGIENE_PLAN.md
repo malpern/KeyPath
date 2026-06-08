@@ -448,14 +448,18 @@ Milestone 6 is now started with the MacBook Air local loop as the target:
   module cache by default for faster warm local feedback; `full` keeps the
   stricter reset default.
 - `Scripts/measure-local-loop.sh` records lane summaries into
-  `.build/local-loop-measurements/` so local timing changes can be compared
-  without copying terminal output.
+  `.build/local-loop-measurements/` as Markdown and TSV so local timing changes
+  can be compared without copying terminal output.
 - `docs/MACBOOK_AIR_LOCAL_LOOP.md` documents the recommended lane by change
   type, warm-cache policy, measurement presets, and when to use verbose logs.
 - Future milestone work should keep lane names stable, avoid treating filter
   strings as the final architecture, and move toward Apple-aligned test
   organization when target/package boundaries or Swift Testing suites/tags give
   measurable clarity or speed benefits.
+- Current warm MacBook Air baseline from
+  `./Scripts/measure-local-loop.sh --preset baseline`: `smoke` 3s,
+  `unit` 6s, and `appkit` 22s. All three lanes reported zero Swift warnings,
+  module-cache warnings, app warnings, and app errors in their final summaries.
 
 The Mac mini workflow is deferred. Revisit it only after the MacBook Air loop is
 fast and boring enough that remote execution would solve a measured capacity

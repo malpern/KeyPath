@@ -50,10 +50,11 @@ feedback:
 ```
 
 Reports are written under `.build/local-loop-measurements/`, with the latest
-report linked at:
+Markdown and TSV reports linked at:
 
 ```bash
 .build/local-loop-measurements/latest.md
+.build/local-loop-measurements/latest.tsv
 ```
 
 Presets:

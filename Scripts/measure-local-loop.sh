@@ -90,6 +90,7 @@ fi
 mkdir -p "$OUTPUT_DIR"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 REPORT="$OUTPUT_DIR/$STAMP.md"
+TSV_REPORT="$OUTPUT_DIR/$STAMP.tsv"
 
 {
   echo "# Local Loop Measurement"
@@ -102,6 +103,8 @@ REPORT="$OUTPUT_DIR/$STAMP.md"
   echo "| Lane | Exit | Elapsed | Summary | Wrapper log | Test log |"
   echo "| --- | ---: | ---: | --- | --- | --- |"
 } > "$REPORT"
+
+printf "timestamp\tpreset\tlane\texit\telapsed_seconds\tsummary\twrapper_log\ttest_log\n" > "$TSV_REPORT"
 
 failed_lanes=0
 
@@ -138,6 +141,15 @@ run_lane() {
   {
     echo "| \`$lane\` | \`$exit_code\` | \`${elapsed_seconds}s\` | \`$summary_line\` | \`$wrapper_log\` | \`$test_log\` |"
   } >> "$REPORT"
+  printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+    "$STAMP" \
+    "$PRESET" \
+    "$lane" \
+    "$exit_code" \
+    "$elapsed_seconds" \
+    "$summary_line" \
+    "$wrapper_log" \
+    "$test_log" >> "$TSV_REPORT"
 
   if [ "$exit_code" -ne 0 ]; then
     failed_lanes=$((failed_lanes + 1))
@@ -149,10 +161,13 @@ for lane in "${LANES[@]}"; do
 done
 
 ln -sfn "$REPORT" "$OUTPUT_DIR/latest.md"
+ln -sfn "$TSV_REPORT" "$OUTPUT_DIR/latest.tsv"
 
 echo ""
 echo "Report: $REPORT"
+echo "TSV: $TSV_REPORT"
 echo "Latest: $OUTPUT_DIR/latest.md"
+echo "Latest TSV: $OUTPUT_DIR/latest.tsv"
 
 if [ "$failed_lanes" -ne 0 ]; then
   echo "Local loop measurement completed with $failed_lanes failing lane(s)." >&2
