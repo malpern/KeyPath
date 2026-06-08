@@ -181,7 +181,7 @@ final class PreferencesService: @unchecked Sendable {
     var tcpServerPort: Int {
         didSet {
             // Validate port range and revert if invalid
-            if !isValidPort(tcpServerPort) {
+            if !Self.isValidPort(tcpServerPort) {
                 AppLogger.shared.log(
                     "❌ [PreferencesService] Invalid TCP port \(tcpServerPort), reverting to \(oldValue)"
                 )
@@ -330,7 +330,7 @@ final class PreferencesService: @unchecked Sendable {
     /// Auto-dismiss timeout for the Context HUD (seconds, 1-10)
     var contextHUDTimeout: TimeInterval {
         didSet {
-            let clamped = min(max(contextHUDTimeout, 1), 10)
+            let clamped = Self.clampedContextHUDTimeout(contextHUDTimeout)
             if clamped != contextHUDTimeout {
                 contextHUDTimeout = clamped
             } else {
@@ -352,7 +352,7 @@ final class PreferencesService: @unchecked Sendable {
     /// Custom hold duration in milliseconds (used when preset is `.custom`).
     var contextHUDHoldDelayCustomMs: Int {
         didSet {
-            let clamped = min(max(contextHUDHoldDelayCustomMs, 100), 2000)
+            let clamped = Self.clampedContextHUDHoldDelayCustomMs(contextHUDHoldDelayCustomMs)
             if clamped != contextHUDHoldDelayCustomMs {
                 contextHUDHoldDelayCustomMs = clamped
             } else {
@@ -473,6 +473,12 @@ final class PreferencesService: @unchecked Sendable {
             AppLogger.shared.log(
                 "🔧 [PreferencesService] Migrated legacy TCP port \(storedTCPPort) → \(Defaults.tcpServerPort)"
             )
+        } else if let storedTCPPort, !Self.isValidPort(storedTCPPort) {
+            UserDefaults.standard.removeObject(forKey: Keys.tcpServerPort)
+            tcpServerPort = Defaults.tcpServerPort
+            AppLogger.shared.log(
+                "🔧 [PreferencesService] Removed invalid TCP port \(storedTCPPort); using \(Defaults.tcpServerPort)"
+            )
         } else {
             tcpServerPort = storedTCPPort ?? Defaults.tcpServerPort
         }
@@ -541,17 +547,26 @@ final class PreferencesService: @unchecked Sendable {
         contextHUDTriggerMode = ContextHUDTriggerMode(rawValue: triggerModeString)
             ?? Defaults.contextHUDTriggerMode
 
-        contextHUDTimeout = UserDefaults.standard.object(forKey: Keys.contextHUDTimeout) as? TimeInterval
-            ?? Defaults.contextHUDTimeout
+        let storedTimeout = UserDefaults.standard.object(forKey: Keys.contextHUDTimeout) as? TimeInterval
+        let rawTimeout = storedTimeout ?? Defaults.contextHUDTimeout
+        let sanitizedTimeout = Self.clampedContextHUDTimeout(rawTimeout)
+        contextHUDTimeout = sanitizedTimeout
+        if storedTimeout != nil, sanitizedTimeout != rawTimeout {
+            UserDefaults.standard.set(sanitizedTimeout, forKey: Keys.contextHUDTimeout)
+        }
 
         let holdDelayPresetString = UserDefaults.standard.string(forKey: Keys.contextHUDHoldDelayPreset)
             ?? Defaults.contextHUDHoldDelayPreset.rawValue
         contextHUDHoldDelayPreset = ContextHUDHoldDelayPreset(rawValue: holdDelayPresetString)
             ?? Defaults.contextHUDHoldDelayPreset
 
-        contextHUDHoldDelayCustomMs =
-            UserDefaults.standard.object(forKey: Keys.contextHUDHoldDelayCustomMs) as? Int
-                ?? Defaults.contextHUDHoldDelayCustomMs
+        let storedCustomDelay = UserDefaults.standard.object(forKey: Keys.contextHUDHoldDelayCustomMs) as? Int
+        let rawCustomDelay = storedCustomDelay ?? Defaults.contextHUDHoldDelayCustomMs
+        let sanitizedCustomDelay = Self.clampedContextHUDHoldDelayCustomMs(rawCustomDelay)
+        contextHUDHoldDelayCustomMs = sanitizedCustomDelay
+        if storedCustomDelay != nil, sanitizedCustomDelay != rawCustomDelay {
+            UserDefaults.standard.set(sanitizedCustomDelay, forKey: Keys.contextHUDHoldDelayCustomMs)
+        }
 
         let kindaVimHUDModeString = UserDefaults.standard.string(forKey: Keys.kindaVimLeaderHUDMode)
             ?? Defaults.kindaVimLeaderHUDMode.rawValue
@@ -589,12 +604,26 @@ final class PreferencesService: @unchecked Sendable {
 
     /// Validate port is in acceptable range
     func isValidPort(_ port: Int) -> Bool {
-        port >= 1024 && port <= 65535
+        Self.isValidPort(port)
     }
 
     /// Get current communication configuration as string for logging
     var communicationConfigDescription: String {
         "TCP on port \(tcpServerPort) (no authentication required)"
+    }
+}
+
+private extension PreferencesService {
+    static func isValidPort(_ port: Int) -> Bool {
+        port >= 1024 && port <= 65535
+    }
+
+    static func clampedContextHUDTimeout(_ timeout: TimeInterval) -> TimeInterval {
+        min(max(timeout, 1), 10)
+    }
+
+    static func clampedContextHUDHoldDelayCustomMs(_ delay: Int) -> Int {
+        min(max(delay, 100), 2000)
     }
 }
 
