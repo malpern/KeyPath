@@ -46,6 +46,24 @@ count_log_pattern() {
   fi
 }
 
+count_swift_warnings() {
+  local path="${1:-}"
+  if [ -n "$path" ] && [ -f "$path" ]; then
+    awk '/warning:/ && $0 !~ /\.pcm: No such file or directory/ { count++ } END { print count + 0 }' "$path"
+  else
+    echo "0"
+  fi
+}
+
+count_module_cache_warnings() {
+  local path="${1:-}"
+  if [ -n "$path" ] && [ -f "$path" ]; then
+    awk '/warning: .*\.pcm: No such file or directory/ { count++ } END { print count + 0 }' "$path"
+  else
+    echo "0"
+  fi
+}
+
 format_duration() {
   local value="${1:-not-run}"
   if [ "$value" = "not-run" ]; then
@@ -64,7 +82,9 @@ print_run_summary() {
   local build_duration
   local test_duration
   local build_log_swift_warning_count
+  local build_log_module_cache_warning_count
   local test_log_swift_warning_count
+  local test_log_module_cache_warning_count
   local test_log_app_warning_count
   local test_log_app_error_count
   local filter_value
@@ -80,14 +100,16 @@ print_run_summary() {
   build_log_size="$(log_size_bytes "${BUILD_LOG:-}")"
   build_duration="$(format_duration "$BUILD_DURATION_SECONDS")"
   test_duration="$(format_duration "$TEST_DURATION_SECONDS")"
-  build_log_swift_warning_count="$(count_log_pattern "warning:" "${BUILD_LOG:-}")"
-  test_log_swift_warning_count="$(count_log_pattern "warning:" "${LOG:-}")"
+  build_log_swift_warning_count="$(count_swift_warnings "${BUILD_LOG:-}")"
+  build_log_module_cache_warning_count="$(count_module_cache_warnings "${BUILD_LOG:-}")"
+  test_log_swift_warning_count="$(count_swift_warnings "${LOG:-}")"
+  test_log_module_cache_warning_count="$(count_module_cache_warnings "${LOG:-}")"
   test_log_app_warning_count="$(count_log_pattern "\\[WARN\\]" "${LOG:-}")"
   test_log_app_error_count="$(count_log_pattern "\\[ERROR\\]" "${LOG:-}")"
   filter_value="${TEST_FILTER:-none}"
   skip_value="${TEST_SKIP:-none}"
 
-  echo "📊 Runner summary: lane=${TEST_LANE} exit=${exit_code} prebuild=${TEST_PREBUILD} disable_xctest=${TEST_DISABLE_XCTEST} reset_module_cache=${TEST_RESET_MODULE_CACHE} build=${build_duration} test=${test_duration} total=${total_duration}s build_log=${build_log_size} bytes build_log_swift_warnings=${build_log_swift_warning_count} log=${log_size} bytes test_log_swift_warnings=${test_log_swift_warning_count} test_log_app_warnings=${test_log_app_warning_count} test_log_app_errors=${test_log_app_error_count}"
+  echo "📊 Runner summary: lane=${TEST_LANE} exit=${exit_code} prebuild=${TEST_PREBUILD} disable_xctest=${TEST_DISABLE_XCTEST} reset_module_cache=${TEST_RESET_MODULE_CACHE} build=${build_duration} test=${test_duration} total=${total_duration}s build_log=${build_log_size} bytes build_log_swift_warnings=${build_log_swift_warning_count} build_log_module_cache_warnings=${build_log_module_cache_warning_count} log=${log_size} bytes test_log_swift_warnings=${test_log_swift_warning_count} test_log_module_cache_warnings=${test_log_module_cache_warning_count} test_log_app_warnings=${test_log_app_warning_count} test_log_app_errors=${test_log_app_error_count}"
 
   if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     {
@@ -107,8 +129,10 @@ print_run_summary() {
       echo "| Total duration | \`${total_duration}s\` |"
       echo "| Build log size | \`${build_log_size} bytes\` |"
       echo "| Build log Swift warnings | \`${build_log_swift_warning_count}\` |"
+      echo "| Build log module-cache warnings | \`${build_log_module_cache_warning_count}\` |"
       echo "| Log size | \`${log_size} bytes\` |"
       echo "| Test log Swift warnings | \`${test_log_swift_warning_count}\` |"
+      echo "| Test log module-cache warnings | \`${test_log_module_cache_warning_count}\` |"
       echo "| Test log app warnings | \`${test_log_app_warning_count}\` |"
       echo "| Test log app errors | \`${test_log_app_error_count}\` |"
       if [ -n "${BUILD_LOG:-}" ]; then

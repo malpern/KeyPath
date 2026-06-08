@@ -289,6 +289,9 @@ Status:
 - Updated `run-tests-safe.sh` to capture the prebuild phase in a separate build
   log and report `build_log_swift_warnings` alongside test-log warning counts;
   the same focused appkit lane reported both warning counts as zero.
+- Refined the warning summary so missing Clang PCM/module-cache rebuild
+  messages are reported as `*_module_cache_warnings` instead of inflating the
+  Swift source-warning counts.
 - Isolated service/privileged tests from the local runner's sudo auto-detection
   by forcing `KEYPATH_USE_SUDO=0` inside those test classes and restoring the
   prior environment afterward.
