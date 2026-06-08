@@ -11,8 +11,8 @@
 - `./Scripts/cleanup-local-build-artifacts.sh` — Dry-run cleanup of generated `.build`/`dist`/test artifacts across local worktrees. Add `--apply` to delete.
 - `./test.sh` — Run the full test suite (root)
 - `./Scripts/test-lane.sh <lane>` — Run a named SwiftPM test lane (`smoke`,
-  `core-isolated`, `smoke-root`, `unit`, `appkit`, `installer`, `snapshot`,
-  `device`, or `full`).
+  `core-isolated`, `smoke-root`, `unit`, `appkit-ui`, `appkit-config`,
+  `appkit`, `installer`, `snapshot`, `device`, or `full`).
 - `./Scripts/measure-local-loop.sh` — Measure local feedback lanes and write a
   Markdown report under `.build/local-loop-measurements/`.
 - `./Scripts/run-installer-reliability-matrix.sh` — Automated installer reliability matrix + diagnostic artifact bundle (`test-results/installer-reliability/latest`).
@@ -42,8 +42,11 @@
   diagnostics, but not the fast path.
 - `./Scripts/test-lane.sh unit` - Fast root-package model/parser/renderer
   tests; this lane may still compile AppKit-facing targets.
-- `./Scripts/test-lane.sh appkit` - UI-adjacent app logic, services, packs,
-  config, mappers, and rule collection tests.
+- `./Scripts/test-lane.sh appkit-ui` - Focused AppKit UI/state, mapper,
+  preference, and recommendation tests.
+- `./Scripts/test-lane.sh appkit-config` - Focused AppKit config, pack,
+  catalog, and rule collection tests.
+- `./Scripts/test-lane.sh appkit` - Broad AppKit-adjacent catch-all lane.
 - `./Scripts/test-lane.sh installer` - InstallerEngine, wizard, daemon/service
   lifecycle, and health-check tests.
 - `./Scripts/test-lane.sh snapshot` - Visual snapshot tests; sets

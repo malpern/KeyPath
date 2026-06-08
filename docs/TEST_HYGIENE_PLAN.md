@@ -515,8 +515,10 @@ runner; `smoke` now uses the isolated harness from Milestone 4b:
 - `smoke-root` for the root-package `KeyPathSmokeTests` target, retained as a
   diagnostic lane rather than the fast path;
 - `unit` for fast root-package model/parser/renderer logic;
-- `appkit` for UI-adjacent app logic, services, packs, config, mappers, and rule
-  collections;
+- `appkit-ui` for focused UI/state, mapper, preference, and recommendation
+  tests;
+- `appkit-config` for focused config, pack, catalog, and rule collection tests;
+- `appkit` for the broad AppKit-adjacent catch-all lane;
 - `installer` for InstallerEngine, wizard, daemon/service lifecycle, and
   health-check tests;
 - `snapshot` for visual snapshot tests with `KEYPATH_SNAPSHOTS=1`;
@@ -581,6 +583,13 @@ Milestone 6 is implemented with the MacBook Air local loop as the target:
   Because the root-package build dominates this lane, keep the current filter
   and treat `unit` as fast model/parser/renderer coverage, not true Core
   isolation. The `core-isolated` lane remains the true Core-only fast path.
+- Follow-up appkit-lane audit: the broad `appkit` lane passed in 26s with 1,429
+  tests, with 6s spent building and 20s in test execution. A focused
+  `appkit-ui` lane passed in 11s with 442 tests, and a focused
+  `appkit-config` lane passed in 15s with 861 tests after tightening the pack
+  filter to avoid CLI/package-manager spillover. Keep the broad `appkit` lane
+  as a catch-all, but use the focused lanes for ordinary UI/state and
+  config/pack edits.
 - Current warm installer baseline from `./Scripts/measure-local-loop.sh
   installer`: 11s total, 263 passed, and zero Swift warnings,
   module-cache warnings, app warnings, or app errors. This required keeping
@@ -596,6 +605,6 @@ The Mac mini workflow is deferred. Revisit it only after the MacBook Air loop is
 fast and boring enough that remote execution would solve a measured capacity
 problem instead of compensating for harness noise.
 
-Next planned milestone: continue Milestone 7 by auditing the remaining `appkit`
-lane. CLI and installer/wizard splits should follow only after the remaining
-lane timings justify the extra dependency work.
+Next planned milestone: audit CLI spillover now that the appkit lane has
+focused local-loop variants. Installer/wizard splits should follow only after
+the remaining lane timings justify the extra dependency work.
