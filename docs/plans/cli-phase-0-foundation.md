@@ -235,7 +235,7 @@ The CLI is an agent contract — if a JSON field changes or an exit code shifts,
 
 #### New test files
 
-**`Tests/KeyPathTests/CLI/OutputTests.swift`** — Output infrastructure
+**`Tests/KeyPathTests/CLI/CLIOutputTests.swift`** — Output infrastructure
 - `testShouldOutputJSON_whenForceJSON` — `--json` flag forces JSON even in TTY
 - `testShouldOutputJSON_whenNotInteractive` — piped output auto-selects JSON
 - `testShouldOutputHuman_whenInteractiveNoFlags` — TTY defaults to human
@@ -250,7 +250,7 @@ The CLI is an agent contract — if a JSON field changes or an exit code shifts,
 - `testErrorHintIsNonEmpty` — every CLIError factory method provides a hint (agents need actionable guidance)
 - `testNotFoundErrorSuggestsListCommand` — hint for `.notFound` includes the relevant `list` subcommand
 
-**`Tests/KeyPathTests/CLI/OutputContractTests.swift`** — JSON shape stability (snapshot-style)
+**`Tests/KeyPathTests/CLI/CLIOutputContractTests.swift`** — JSON shape stability (snapshot-style)
 - `testStatusJSONShape` — CLIStatusResult encodes with every expected key; new keys are additive-only
 - `testRuleCollectionJSONShape` — CLIRuleCollection JSON has id, name, isEnabled, mappingCount, summary
 - `testApplyResultJSONShape` — CLIApplyResult JSON has collectionsCount, enabledCount, customRulesCount, reloadSuccess
@@ -369,9 +369,9 @@ All files in the new directory structure (Section 4), plus:
 - `Sources/KeyPathCLI/Utilities/CLIError.swift`
 - `Sources/KeyPathCLI/Utilities/GlobalOptions.swift`
 - `Sources/KeyPathAppKit/CLI/CLIActionDescription.swift` (parity guard)
-- `Tests/KeyPathTests/CLI/OutputTests.swift`
+- `Tests/KeyPathTests/CLI/CLIOutputTests.swift`
 - `Tests/KeyPathTests/CLI/CLIErrorTests.swift`
-- `Tests/KeyPathTests/CLI/OutputContractTests.swift`
+- `Tests/KeyPathTests/CLI/CLIOutputContractTests.swift`
 - `Tests/KeyPathTests/CLI/CommandStructureTests.swift`
 - `Tests/KeyPathTests/CLI/CLIParityTests.swift`
 

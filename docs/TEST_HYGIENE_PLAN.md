@@ -515,6 +515,7 @@ runner; `smoke` now uses the isolated harness from Milestone 4b:
 - `smoke-root` for the root-package `KeyPathSmokeTests` target, retained as a
   diagnostic lane rather than the fast path;
 - `unit` for fast root-package model/parser/renderer logic;
+- `cli` for focused command, facade, output contract, and import/export tests;
 - `appkit-ui` for focused UI/state, mapper, preference, and recommendation
   tests;
 - `appkit-config` for focused config, pack, catalog, and rule collection tests;
@@ -585,11 +586,19 @@ Milestone 6 is implemented with the MacBook Air local loop as the target:
   isolation. The `core-isolated` lane remains the true Core-only fast path.
 - Follow-up appkit-lane audit: the broad `appkit` lane passed in 26s with 1,429
   tests, with 6s spent building and 20s in test execution. A focused
-  `appkit-ui` lane passed in 11s with 442 tests, and a focused
-  `appkit-config` lane passed in 15s with 861 tests after tightening the pack
-  filter to avoid CLI/package-manager spillover. Keep the broad `appkit` lane
-  as a catch-all, but use the focused lanes for ordinary UI/state and
-  config/pack edits.
+  `appkit-ui` lane passed in 11s with 442 tests. After removing CLI facade
+  spillover, the focused `appkit-config` lane passed in 14s with 835 tests and
+  zero Swift warnings, module-cache warnings, app warnings, or app errors. Keep
+  the broad `appkit` lane as a catch-all, but use the focused lanes for ordinary
+  UI/state and config/pack edits.
+- Follow-up CLI-lane audit: `KeyPathCLI` still depends on `KeyPathAppKit`, so
+  a focused root-package CLI lane improves test selection and log scope but is
+  not build isolation. Ambiguous `OutputTests` and `OutputContractTests` were
+  renamed to `CLIOutputTests` and `CLIOutputContractTests` so the lane can
+  select CLI output coverage without pulling unrelated output suites. The
+  `cli` lane passed warm in 8s with 333 tests and zero Swift warnings,
+  module-cache warnings, app warnings, or app errors. The `appkit-config` lane
+  now excludes CLI facade tests.
 - Current warm installer baseline from `./Scripts/measure-local-loop.sh
   installer`: 11s total, 263 passed, and zero Swift warnings,
   module-cache warnings, app warnings, or app errors. This required keeping
@@ -605,6 +614,9 @@ The Mac mini workflow is deferred. Revisit it only after the MacBook Air loop is
 fast and boring enough that remote execution would solve a measured capacity
 problem instead of compensating for harness noise.
 
-Next planned milestone: audit CLI spillover now that the appkit lane has
-focused local-loop variants. Installer/wizard splits should follow only after
-the remaining lane timings justify the extra dependency work.
+Next planned milestone: continue tightening the local loop by auditing the
+remaining broad-lane spillover before taking on dependency extraction. CLI/AppKit
+extraction is worth revisiting only if a measured workflow needs true build
+isolation; the current `cli` lane already gives a fast, stable selection path.
+Installer/wizard splits should follow only after the remaining lane timings
+justify the extra dependency work.
