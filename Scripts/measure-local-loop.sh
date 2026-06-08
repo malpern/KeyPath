@@ -94,6 +94,7 @@ if [ "${#LANES[@]}" -eq 0 ]; then
 fi
 
 mkdir -p "$OUTPUT_DIR"
+OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd -P)"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 REPORT="$OUTPUT_DIR/$STAMP.md"
 TSV_REPORT="$OUTPUT_DIR/$STAMP.tsv"

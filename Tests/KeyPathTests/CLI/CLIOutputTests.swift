@@ -1,7 +1,7 @@
 @testable import KeyPathCLI
 import XCTest
 
-final class OutputTests: XCTestCase {
+final class CLIOutputTests: XCTestCase {
     func testShouldOutputJSON_whenForceJSON() {
         let ctx = OutputContext(isInteractive: true, forceJSON: true, forceHuman: false, noColor: false)
         XCTAssertTrue(ctx.shouldOutputJSON)

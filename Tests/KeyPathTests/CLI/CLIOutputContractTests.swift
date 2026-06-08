@@ -1,7 +1,7 @@
 @testable import KeyPathAppKit
 import XCTest
 
-final class OutputContractTests: XCTestCase {
+final class CLIOutputContractTests: XCTestCase {
     private let encoder: JSONEncoder = {
         let e = JSONEncoder()
         e.outputFormatting = [.sortedKeys]

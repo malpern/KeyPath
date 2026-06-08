@@ -123,7 +123,7 @@ Work:
 
 - Define named lanes for common feedback needs:
   - `smoke`: fastest sanity checks for core compile and critical unit tests.
-  - `unit`: pure logic and mocked tests.
+  - `unit`: fast root-package model/parser/renderer tests.
   - `appkit`: UI-adjacent logic that requires KeyPathAppKit.
   - `snapshot`: visual snapshots, gated by `KEYPATH_SNAPSHOTS=1`.
   - `installer`: mocked installer and service lifecycle tests.
@@ -410,6 +410,10 @@ Work:
   until measurements justify it.
 - Measure cold and warm harness runs against the current `smoke` and `unit`
   lanes, including whether `KeyPathAppKit` appears in the log.
+- Audit the remaining root-package `unit` lane before changing its filter. If
+  duplicated smoke/Core coverage does not materially affect elapsed time, keep
+  the coverage and document that `unit` is a fast root-package lane rather than
+  true Core isolation.
 - Stop the harness effort if it does not materially outperform the root
   filtered lane or if the copied-test maintenance burden starts to outweigh the
   local-loop gain.
@@ -431,6 +435,8 @@ Acceptance criteria:
 - The harness either earns a permanent lane with clear speed evidence or is
   explicitly retired so root-package organization work does not masquerade as
   build-speed work.
+- The unit-lane audit records whether trimming duplicated smoke/Core suites
+  improves elapsed time before any coverage is removed.
 - The CLI/AppKit dependency audit produces either a scoped extraction plan or a
   measured decision to defer it.
 - Installer/wizard follow-up is based on lane timing and dependency evidence,
@@ -508,9 +514,14 @@ runner; `smoke` now uses the isolated harness from Milestone 4b:
 - `smoke` for fast isolated product-level sanity coverage;
 - `smoke-root` for the root-package `KeyPathSmokeTests` target, retained as a
   diagnostic lane rather than the fast path;
-- `unit` for pure or mostly pure model/parser/renderer logic;
-- `appkit` for UI-adjacent app logic, services, packs, config, mappers, and rule
-  collections;
+- `unit` for fast root-package model/parser/renderer logic;
+- `cli` for focused command, facade, output contract, and import/export tests;
+- `runtime` for focused TCP, runtime coordinator, process lifecycle,
+  permission, keyboard capture, VHID, and system-support tests;
+- `appkit-ui` for focused UI/state, mapper, preference, and recommendation
+  tests;
+- `appkit-config` for focused config, pack, catalog, and rule collection tests;
+- `appkit` for the broad AppKit-adjacent catch-all lane;
 - `installer` for InstallerEngine, wizard, daemon/service lifecycle, and
   health-check tests;
 - `snapshot` for visual snapshot tests with `KEYPATH_SNAPSHOTS=1`;
@@ -568,23 +579,61 @@ Milestone 6 is implemented with the MacBook Air local loop as the target:
   reported `appkit_in_log=0`; the root-package lanes reported zero Swift
   warnings, module-cache warnings, app warnings, and app errors in their final
   summaries.
-- Current warm installer baseline from `./Scripts/measure-local-loop.sh
-  installer`: 11s total, 263 passed, and zero Swift warnings,
-  module-cache warnings, app warnings, or app errors. This required keeping
-  `run-tests-safe.sh` hermetic by default (`KEYPATH_USE_SUDO=0` unless
-  explicitly overridden) and downgrading expected installer failure-path
-  diagnostics to debug in quiet test runs.
-- Current warm full baseline from `./Scripts/measure-local-loop.sh full`: 45s
-  total, 4s build, 40s test execution, zero Swift warnings, zero module-cache
-  warnings, zero app warnings, and zero app errors. This is now suitable as the
-  broad local confidence check when the narrower lane for a change passes first.
+- Follow-up unit-lane audit: sequential measurements passed at 9s warm and 7s
+  with `KEYPATH_TEST_RESET_MODULE_CACHE=1`. A candidate filter that removed the
+  smoke/Core-duplicated `KeyPathErrorTests` and `KanataDefseqParserTests`
+  reduced coverage from 329 passed tests to 288 passed tests but still took 9s.
+  Because the root-package build dominates this lane, keep the current filter
+  and treat `unit` as fast model/parser/renderer coverage, not true Core
+  isolation. The `core-isolated` lane remains the true Core-only fast path.
+- Follow-up appkit-lane audit: the broad `appkit` lane passed in 26s with 1,429
+  tests, with 6s spent building and 20s in test execution. A focused
+  `appkit-ui` lane passed in 11s with 442 tests. After removing CLI facade
+  spillover, the focused `appkit-config` lane passed in 14s with 835 tests and
+  zero Swift warnings, module-cache warnings, app warnings, or app errors. Keep
+  the broad `appkit` lane as a catch-all, but use the focused lanes for ordinary
+  UI/state and config/pack edits.
+- Follow-up CLI-lane audit: `KeyPathCLI` still depends on `KeyPathAppKit`, so
+  a focused root-package CLI lane improves test selection and log scope but is
+  not build isolation. Ambiguous `OutputTests` and `OutputContractTests` were
+  renamed to `CLIOutputTests` and `CLIOutputContractTests` so the lane can
+  select CLI output coverage without pulling unrelated output suites. The
+  `cli` lane passed warm in 8s with 333 tests and zero Swift warnings,
+  module-cache warnings, app warnings, or app errors. The `appkit-config` lane
+  now excludes CLI facade tests.
+- Follow-up runtime-lane audit: older full-suite logs showed the remaining
+  broad-lane spillover was concentrated in TCP/client robustness, runtime
+  coordinator, process lifecycle, permission/system checks, keyboard capture,
+  VHID, helper, and low-level utility suites. A focused `runtime` lane was added
+  for that surface. A quiet-machine run of `./Scripts/measure-local-loop.sh
+  runtime` passed in 18s total, with 5s build time, 12s test execution, 346
+  passed tests, and zero Swift warnings, module-cache warnings, app warnings, or
+  app errors. This lane also surfaces verbose XCTest performance metric output
+  from runtime/utility tests; treat that as a future hygiene question if runs
+  show log noise or instability.
+- Current warm installer audit from `./Scripts/measure-local-loop.sh
+  installer`: 15s total, 266 passed, and zero Swift warnings,
+  module-cache warnings, app warnings, or app errors. The measured cost is
+  mostly shared build time plus `InstallerEngineTests`, `PackageManagerTests`,
+  and `MockPackageManagerTests`; wizard-specific coverage is not the dominant
+  cost. Do not split installer/wizard lanes yet. Keep the existing installer
+  lane as the right local check unless future edits show a repeated need for
+  narrower package-manager or wizard feedback.
+- Installer-lane hygiene required keeping `run-tests-safe.sh` hermetic by
+  default (`KEYPATH_USE_SUDO=0` unless explicitly overridden) and downgrading
+  expected installer failure-path diagnostics to debug in quiet test runs.
+- Current quiet warm full baseline from `./Scripts/measure-local-loop.sh full`:
+  33s total, 4s build, 29s test execution, 4,227 passed tests, and zero Swift
+  warnings, zero module-cache warnings, zero app warnings, and zero app errors.
+  This is now suitable as the broad local confidence check when the narrower
+  lane for a change passes first.
 
 The Mac mini workflow is deferred. Revisit it only after the MacBook Air loop is
 fast and boring enough that remote execution would solve a measured capacity
 problem instead of compensating for harness noise.
 
-Next planned milestone: continue Milestone 7 by measuring the new
-`core-isolated` lane in the baseline preset and then auditing the remaining
-`unit` and `appkit` lanes. CLI and installer/wizard splits should follow only
-after the isolated Core harness earns its keep over repeated local runs and the
-remaining lane timings justify the extra dependency work.
+Next planned milestone: treat the current lane set as the stable local loop and
+watch for regressions. CLI/AppKit extraction is worth revisiting only if a
+measured workflow needs true build isolation; the current `cli` lane already
+gives a fast, stable selection path. Installer/wizard splits should follow only
+after the remaining lane timings justify the extra dependency work.

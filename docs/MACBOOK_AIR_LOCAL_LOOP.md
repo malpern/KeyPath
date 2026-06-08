@@ -12,8 +12,12 @@ Run the smallest lane that covers the files you changed:
 | --- | --- |
 | Core APIs, permissions, parser smoke coverage | `./Scripts/test-lane.sh smoke` |
 | Core-only runtime, parser, and environment behavior | `./Scripts/test-lane.sh core-isolated` |
-| Pure model/parser/renderer logic | `./Scripts/test-lane.sh unit` |
-| AppKit-adjacent logic, services, config, packs, mappers | `./Scripts/test-lane.sh appkit` |
+| Fast root-package model/parser/renderer logic | `./Scripts/test-lane.sh unit` |
+| CLI commands, facades, output contracts, import/export | `./Scripts/test-lane.sh cli` |
+| TCP, runtime coordinator, process, permissions, keyboard capture, system support | `./Scripts/test-lane.sh runtime` |
+| AppKit UI/state, mappers, preferences, recommendations | `./Scripts/test-lane.sh appkit-ui` |
+| AppKit config, packs, catalog, rule collections | `./Scripts/test-lane.sh appkit-config` |
+| Broad AppKit-adjacent handoff check | `./Scripts/test-lane.sh appkit` |
 | InstallerEngine, wizard, daemon lifecycle, health checks | `./Scripts/test-lane.sh installer` |
 | Snapshot or visual output changes | `./Scripts/test-lane.sh snapshot` |
 | Device/system installer surface | `KEYPATH_E2E_DEVICE=1 ./Scripts/test-lane.sh device` |
@@ -27,9 +31,9 @@ KEYPATH_TEST_FILTER=SaveCoordinatorTests ./Scripts/test-lane.sh appkit
 
 ## Warm Cache Policy
 
-The local named lanes `unit`, `appkit`, `installer`, and `snapshot` reuse the
-normalized Swift module cache by default. This is the right default for the
-MacBook Air edit-test loop.
+The local named lanes `unit`, `cli`, `runtime`, `appkit-ui`, `appkit-config`,
+`appkit`, `installer`, and `snapshot` reuse the normalized Swift module cache by
+default. This is the right default for the MacBook Air edit-test loop.
 
 The `full` lane keeps the stricter reset behavior by default. Override either
 mode explicitly when needed:

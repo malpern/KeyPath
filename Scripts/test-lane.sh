@@ -20,8 +20,13 @@ Lanes:
   smoke-root Root-package smoke target; useful for diagnostics, not the fast path.
   core-isolated
              Experimental isolated Core harness; must avoid the KeyPathAppKit graph.
-  unit       Pure or mostly pure model/parser/renderer logic.
-  appkit     UI-adjacent app logic, services, packs, config, mappers, and rule collections.
+  unit       Fast root-package model/parser/renderer logic; may compile AppKit-facing targets.
+  cli        Focused CLI command, facade, output contract, and import/export tests.
+  runtime    Focused TCP, runtime coordinator, process, permission, and system-support tests.
+  appkit-ui  Focused AppKit UI/state, mapper, preference, and recommendation tests.
+  appkit-config
+             Focused AppKit config, pack, catalog, and rule collection tests.
+  appkit     Broad AppKit-adjacent catch-all lane.
   installer  InstallerEngine, wizard, daemon/service lifecycle, and health-check tests.
   snapshot   Visual snapshot tests; sets KEYPATH_SNAPSHOTS=1.
   device     Opt-in real-system installer smoke; requires KEYPATH_E2E_DEVICE=1.
@@ -171,6 +176,11 @@ run_isolated_core_lane() {
   return "$exit_code"
 }
 
+APPKIT_UI_FILTER="AppContextServiceTests|Mapper.*Tests|KeyboardVisualizationViewModel.*Tests|KeyboardDisplayContextStoreTests|OverlayKeyboardViewTests|ContentViewDebounceTests|ContextHUD.*Tests|PreferencesService.*Tests|RecordingCoordinatorTests|RecommendationEngineTests|RulesRecommendationEngineTests|MainAppState|SaveCoordinatorTests|StatePublisherServiceTests"
+APPKIT_CONFIG_FILTER="AppConfigGeneratorTests|AliasDeduplicationTests|ConfigApplyTypes.*Tests|ConfigBackupManagerTests|ConfigGenerationEndToEndTests|ConfigGoldenFileTests|ConfigHotReloadServiceTests|ConfigRoundTripTests|ConfigValidationTests|ConfigurationService.*Tests|DeviceSwitchConfigTests|ExternalizedDataTests|GenericPackConfigTests|HomeRowModsConfigTests|InstalledPackTrackerTests|KanataConfig.*Tests|KanataConfigurationGeneratorSnapshotTests|LauncherGridConfigKeyValidationTests|PackCollectionIntegrationTests|PackConfigPipelineTests|PackDependency.*Tests|PackDetailWindowTests|PackInstallIntegrationTests|PackInstallerRenderTests|PackOwnershipTests|PackRegistryTests|PackRuntimeBehaviorTests|PackSummaryProviderTests|PackZoneResolverTests|PerRuleOptionCoverageTests|QMKImportServiceTests|QMKKeyboardDatabaseTests|RuleCollection.*Tests|RuleCollections.*Tests|SequencesConfigTests|SimpleModsWriterTests|Vallack.*Tests"
+CLI_FILTER="CLICollectionCRUDTests|CLICommandValidationTests|CLIErrorTests|CLIExportImportTests|CLIHelpSchemasTests|CLIKarabinerImportTests|CLILayerCRUDTests|CLIOutputContractTests|CLIOutputSnapshotTests|CLIOutputTests|CLIPackCRUDTests|CLIParityTests|CLIRuleAddIntegrationTests|CLIRuleCRUDTests|CLIServiceTests|CLISimulateIntegrationTests|CLISimulateTests|CLISmokeTests|CollectionsFacadeResolutionTests|CollectionsFacadeTests|CommandStructureTests|ConfigFacadeTests|ConflictMergeTests|FuzzyMatchTests|HelpExamplesTests|PacksFacadeTests|SimulatorFacadeTests|UpdateCheckerTests"
+RUNTIME_FILTER="TCPClient.*Tests|TCPConnectionLeakTests|TCPReadBufferTests|TCPEventParsingTests|RuntimeCoordinator.*Tests|ProcessLifecycle.*Tests|FDADetectionTests|KeyboardCaptureTests|PermissionOracle.*Tests|PermissionGateEvaluationTests|SystemRequirementsTests|SystemValidatorTests|SystemInspectorInputCaptureTests|SystemContextAdapterPermissionSeverityTests|FullDiskAccessCheckerTests|SafetyTimeoutServiceTests|StuckKeyRecoveryServiceTests|VHIDDeviceManagerTests|VHIDSafetyInvariantTests|KanataInputGrab.*Tests|GrabRecoveryGateTests|EngineReloadSingleFlightTests|KeychainServiceTests|SubprocessRunnerTests|HelperManagerTests|ErrorHandlingTests|UtilitiesTests|SystemKeyLabelProviderTests"
+
 case "$LANE" in
   smoke)
     run_isolated_smoke_lane "$LANE"
@@ -186,6 +196,18 @@ case "$LANE" in
     ;;
   unit)
     run_safe_lane "$LANE" "KeyPathErrorTests|TextToKanataKeyMapperTests|KanataBehaviorParserTests|KanataBehaviorRendererTests|KanataDefseqParserTests|PhysicalLayoutTests|MappingBehaviorTests|LayerKeyMapperNormalizeTests|LayerKeyMapperLabelTests|LayerKeyInfoExtractionTests|LabelMetadataTests|ConfigApplyTypesTests|VirtualKeyParserTests|QMKLayoutParserTests|HandAssignmentTests|TypingFeelMappingTests|KindaVimTelemetryStoreTests|GlobalHotkeyMatcherTests|VimSequenceObserverTests" 180 0
+    ;;
+  cli)
+    run_safe_lane "$LANE" "$CLI_FILTER" 180 0
+    ;;
+  runtime)
+    run_safe_lane "$LANE" "$RUNTIME_FILTER" 240 0
+    ;;
+  appkit-ui)
+    run_safe_lane "$LANE" "$APPKIT_UI_FILTER" 180 0
+    ;;
+  appkit-config)
+    run_safe_lane "$LANE" "$APPKIT_CONFIG_FILTER" 240 0
     ;;
   appkit)
     run_safe_lane "$LANE" "AppContext|Mapper|RuleCollections|Config|RuntimeCoordinator|Pack|Services|Preferences|Keyboard|MainAppState|ContentView|FDADetection|RecordingCoordinator|RecommendationEngine|Vallack|GenericPack" 240 0
