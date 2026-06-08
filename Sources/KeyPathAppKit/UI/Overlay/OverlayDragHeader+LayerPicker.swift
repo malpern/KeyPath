@@ -194,8 +194,43 @@ extension OverlayDragHeader {
             RoundedRectangle(cornerRadius: 6)
                 .fill(Color.primary.opacity(isCurrentLayer ? 0.05 : (isHovered ? 0.03 : 0)))
         )
+        .accessibilityIdentifier("layer-picker-row-\(layer)")
+        .accessibilityLabel("\(displayName) layer")
+        .accessibilityValue(isCurrentLayer ? "selected" : (canDelete ? "custom" : "system"))
+        .accessibilityHint(canDelete ? "Use Select or Delete actions to manage this layer." : "Use Select to switch to this layer.")
+        .accessibilityAction(named: "Select") {
+            isLayerPickerOpen = false
+            onLayerSelected(layer)
+        }
+        .modifier(
+            LayerPickerDeleteAccessibilityAction(
+                layer: layer,
+                canDelete: canDelete,
+                closePicker: { isLayerPickerOpen = false },
+                onDeleteLayer: onDeleteLayer
+            )
+        )
         .onHover { hovering in
             hoveredLayer = hovering ? layer : nil
+        }
+    }
+
+    struct LayerPickerDeleteAccessibilityAction: ViewModifier {
+        let layer: String
+        let canDelete: Bool
+        let closePicker: () -> Void
+        let onDeleteLayer: ((String) -> Void)?
+
+        func body(content: Content) -> some View {
+            if canDelete {
+                content
+                    .accessibilityAction(named: "Delete") {
+                        closePicker()
+                        onDeleteLayer?(layer)
+                    }
+            } else {
+                content
+            }
         }
     }
 

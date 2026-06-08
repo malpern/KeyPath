@@ -265,6 +265,7 @@ struct MappingBehaviorEditor: View {
                                 }
                             ))
                             .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("mapping-behavior-tap-dance-step-\(index)-field")
 
                             if tapDanceSteps.count > 1 {
                                 Button {

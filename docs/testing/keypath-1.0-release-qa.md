@@ -35,7 +35,7 @@ manual or Computer Use checks for real macOS behavior.
 | Visual snapshots | 8/10 | 8/10 | Scenario snapshots cover overlay, mapper, pack detail, inspector, rules, General settings, and Repair settings. |
 | Settings/preferences | 8/10 | 8/10 | Persistence, validation, layout/keymap, and runtime argument coverage landed in #816/#822. |
 | Installed-app QA | 8/10 | 8/10 | `qa-keypath-release-smoke.sh` covers representative installed-app workflows. |
-| Manual/Computer Use QA | 7.5/10 | 8/10 | Product-wide UI release checklist exists; final signed release pass remains. |
+| Manual/Computer Use QA | 7.5/10 | 8/10 | Product-wide UI release checklist exists with explicit CU/manual/script boundaries; final signed release pass remains. |
 | Log/error review | 8/10 | 8/10 | `qa-keypath-log-gate.sh` is the release gate for high-signal errors. |
 | Overall 1.0 confidence | 8/10 | 8/10 | Remaining open 1.0 risk is signed setup UX in #747 plus final release-candidate execution. |
 
@@ -49,6 +49,8 @@ manual or Computer Use checks for real macOS behavior.
 | [#817](https://github.com/malpern/KeyPath/issues/817) | Logs/errors | Release QA fails on unclassified high-signal app/helper/Kanata errors. |
 | [#818](https://github.com/malpern/KeyPath/issues/818) | UI snapshots and Computer Use | Overlay, sidebar, menus, mapper, pack detail, and settings have deterministic snapshots or manual QA rows. |
 | [#819](https://github.com/malpern/KeyPath/issues/819) | Per-rule options | Every shipping rule family has documented config and UI/persistence coverage for key options. |
+| [#835](https://github.com/malpern/KeyPath/issues/835) | Computer Use contracts | Remaining CU-targeted audited surfaces have explicit source contracts or documented manual/script-only exceptions. |
+| [#836](https://github.com/malpern/KeyPath/issues/836) | Overlay layer picker | User-layer deletion is reachable through a stable Computer Use action, not hover choreography. |
 | [#747](https://github.com/malpern/KeyPath/issues/747) | Signed setup UX | Permission and setup UX verified in a signed release build. |
 | [#804](https://github.com/malpern/KeyPath/issues/804) | HRM layer assignment | Closed by #824: New Layer flow assigns the selected HRM key. |
 | [#810](https://github.com/malpern/KeyPath/issues/810) | HRM layer overlay | Closed by #824: Layer-mode overlay shows assigned layer labels. |
@@ -63,6 +65,7 @@ Use for ordinary development and focused fixes:
 ```bash
 ./Scripts/test-fast.sh --changed
 python3 Scripts/check-accessibility.py
+python3 Scripts/check-computer-use-readiness.py
 ```
 
 Run the full safe suite before PR/merge for broad changes:
@@ -75,7 +78,7 @@ PR gate expectations:
 
 - Unit/model/config tests pass.
 - Relevant golden and snapshot tests pass when touched.
-- Accessibility identifiers remain present.
+- Accessibility identifiers and Computer Use readiness contracts remain present.
 - New behavior has focused tests at the lowest deterministic layer.
 
 ### Release Candidate Installed-App Gate
@@ -115,6 +118,12 @@ Use the matrix below and the [UI release QA checklist](keypath-ui-release-qa.md)
 Computer Use is appropriate here because it validates the real macOS
 accessibility tree and installed app behavior. It should not become the main CI
 test harness.
+
+Use the boundary in [keypath-ui-release-qa.md](keypath-ui-release-qa.md):
+stable AX-visible app windows and controls are Computer Use targets; physical
+keyboard timing, menu-bar/status-item commands, destructive runtime actions, and
+URL/deep-link surfaces remain manual or script-only release checks unless a
+future issue explicitly productizes them for Computer Use.
 
 Required evidence per checked workflow:
 
