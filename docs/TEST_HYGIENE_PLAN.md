@@ -169,11 +169,13 @@ Status:
   `KeyPathCore` and `KeyPathPermissions`.
 - Moved `KeyPathErrorTests` and `PermissionOracleFastModeTests` into that
   target, removing their accidental `KeyPathAppKit` imports.
+- Added focused `KanataDefseqParser` coverage to the smoke target so core
+  parser regressions are still covered without importing `KeyPathAppKit`.
 - Updated `./Scripts/test-lane.sh smoke` to run `KeyPathSmokeTests` with
   XCTest disabled, no separate `swift build --build-tests` prebuild, and module
   cache reuse.
 
-Current Milestone 4 local smoke lane measurement:
+Current Milestone 4 local smoke lane measurements:
 
 - command: `CI_ENVIRONMENT=true KP_SIGN_DRY_RUN=1 KEYPATH_BUNDLED_SIMULATOR_OVERRIDE=/opt/homebrew/bin/kanata-simulator ./Scripts/test-lane.sh smoke`;
 - build: 0s separate prebuild, 6.49s SwiftPM incremental build inside
@@ -183,10 +185,23 @@ Current Milestone 4 local smoke lane measurement:
 - test log size: 4,941 bytes;
 - test log Swift warnings: 0;
 - result: 31 Swift Testing tests in 2 suites passed.
+- after adding parser smoke coverage, the same lane passed 36 Swift Testing
+  tests in 3 suites, but a later repeat run timed out at 120s while compiling
+  `KeyPathAppKit` before reaching test execution.
 - `swift test list --disable-xctest` still works and lists the
   `KeyPathSmokeTests.*` entries, but SwiftPM builds the package-wide test runner
   for that command; the local measurement was 231s and should not be used as
   the smoke lane fast-path benchmark.
+- `swift test --target KeyPathSmokeTests` is not available in SwiftPM, and
+  `swift test --specifier KeyPathSmokeTests --disable-xctest` still compiled
+  the broad package graph in local probing.
+
+Conclusion: this slice improves smoke lane selection, removes accidental AppKit
+imports from migrated tests, and keeps logs/test execution narrow once the
+runner reaches execution. It does not yet satisfy the cold-build isolation goal.
+True isolation will likely require a separate minimal package/test harness or a
+different runner strategy, not only more `swift test --filter` usage in the
+current package.
 
 ### Milestone 5: Warning And Failure Signal Cleanup
 
