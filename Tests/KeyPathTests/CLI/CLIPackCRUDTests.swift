@@ -206,6 +206,22 @@ final class CLIPackCRUDTests: XCTestCase {
         XCTAssertEqual(result.quickSettingValues["holdTimeout"], 200)
     }
 
+    func testInstallRejectsOutOfRangeQuickSetting() async throws {
+        try await ensureUninstalled("com.keypath.pack.home-row-mods")
+
+        do {
+            _ = try await facade.installPack(
+                nameOrId: "home-row-mods",
+                settingValues: ["holdTimeout": 999],
+                dryRun: true
+            )
+            XCTFail("Should throw CLIPackSettingValueError")
+        } catch let error as CLIPackSettingValueError {
+            XCTAssertEqual(error.settingKey, "holdTimeout")
+            XCTAssertTrue(error.description.contains("between 120 ms and 300 ms"))
+        }
+    }
+
     // MARK: - configurePack
 
     func testConfigurePackUpdatesSettings() async throws {
@@ -235,6 +251,23 @@ final class CLIPackCRUDTests: XCTestCase {
         // Verify actual value unchanged
         let current = await InstalledPackTracker.shared.record(for: "com.keypath.pack.home-row-mods")
         XCTAssertEqual(current?.quickSettingValues["holdTimeout"], 200)
+    }
+
+    func testConfigurePackRejectsOutOfRangeQuickSetting() async throws {
+        try await ensureUninstalled("com.keypath.pack.home-row-mods")
+        _ = try await facade.installPack(nameOrId: "home-row-mods", settingValues: ["holdTimeout": 200])
+
+        do {
+            _ = try await facade.configurePack(
+                nameOrId: "home-row-mods",
+                settingValues: ["holdTimeout": 999],
+                dryRun: true
+            )
+            XCTFail("Should throw CLIPackSettingValueError")
+        } catch let error as CLIPackSettingValueError {
+            XCTAssertEqual(error.settingKey, "holdTimeout")
+            XCTAssertTrue(error.description.contains("between 120 ms and 300 ms"))
+        }
     }
 
     func testConfigurePackNotInstalledReturnsNotInstalled() async throws {

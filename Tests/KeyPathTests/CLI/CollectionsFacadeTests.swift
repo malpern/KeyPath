@@ -28,6 +28,40 @@ final class CollectionsFacadeTests: XCTestCase {
         XCTAssertEqual(index, 1)
     }
 
+    func testResolveByHyphenatedSlug() throws {
+        let collections = makeCollections(["Home Row Mods", "Vim Layer"])
+        let index = try facade.resolveCollectionIndex(nameOrId: "home-row-mods", in: collections)
+        XCTAssertEqual(index, 0)
+    }
+
+    func testResolveHomeRowAlias() throws {
+        let collections = [
+            RuleCollection(
+                id: RuleCollectionIdentifier.homeRowMods,
+                name: "Home Row Mods",
+                summary: "Test collection",
+                category: .productivity,
+                mappings: []
+            ),
+            RuleCollection(
+                id: RuleCollectionIdentifier.homeRowLayerToggles,
+                name: "Home Row Toggles",
+                summary: "Test collection",
+                category: .productivity,
+                mappings: []
+            ),
+        ]
+
+        let index = try facade.resolveCollectionIndex(nameOrId: "home-row", in: collections)
+        XCTAssertEqual(index, 0)
+    }
+
+    func testResolveHomeRowAliasAbsentReturnsNil() throws {
+        let collections = makeCollections(["Home Row Toggles", "Vim Layer"])
+        let index = try facade.resolveCollectionIndex(nameOrId: "home-row", in: collections)
+        XCTAssertNil(index)
+    }
+
     func testResolveReturnsNilWhenNotFound() throws {
         let collections = makeCollections(["Home Row Mods"])
         let index = try facade.resolveCollectionIndex(nameOrId: "nonexistent", in: collections)
