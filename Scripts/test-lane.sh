@@ -149,7 +149,7 @@ case "$LANE" in
     "$SCRIPT_DIR/test-installer-device.sh"
     ;;
   full)
-    run_safe_lane "$LANE" "" "${TIMEOUT_SECONDS:-300}"
+    run_safe_lane "$LANE" "" "${TIMEOUT_SECONDS:-300}" 0
     ;;
   -h|--help|help)
     usage

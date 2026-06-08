@@ -221,6 +221,7 @@ struct OutputActionGroupingTests {
 
 // MARK: - KeystrokePresetGridView
 
+@MainActor
 @Suite("KeystrokePresetGridView")
 struct KeystrokePresetGridViewTests {
     @Test("presets have unique keys")

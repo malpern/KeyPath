@@ -387,7 +387,9 @@ quality, lane design, dependency narrowing, and measurement.
 As of 2026-06-08, Milestone 1 is implemented in `Scripts/run-tests-safe.sh`:
 
 - scratch, `HOME`, and module-cache paths are normalized to absolute paths;
-- generated module caches are reset before build to avoid stale PCM path aliases;
+- generated module caches live under the normalized scratch path and are reused
+  by default for warm local/CI lanes; set `KEYPATH_TEST_RESET_MODULE_CACHE=1`
+  for an intentional cache-reset diagnostic run.
 - the runner traps interruption/exit and cleans the SwiftPM test process tree;
 - full-run timing and log-size summaries are printed locally and in GitHub step
   summaries.
@@ -460,9 +462,8 @@ see the Milestone 4 status section above for the current measurement.
 
 Milestone 6 is now started with the MacBook Air local loop as the target:
 
-- `unit`, `appkit`, `installer`, and `snapshot` lanes reuse the normalized
-  module cache by default for faster warm local feedback; `full` keeps the
-  stricter reset default.
+- `unit`, `appkit`, `installer`, `snapshot`, and `full` lanes reuse the
+  normalized module cache by default for faster warm local feedback.
 - `Scripts/measure-local-loop.sh` records lane summaries into
   `.build/local-loop-measurements/` as Markdown and TSV so local timing changes
   can be compared without copying terminal output.

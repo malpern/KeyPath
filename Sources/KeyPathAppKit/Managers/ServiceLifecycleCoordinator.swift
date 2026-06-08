@@ -291,7 +291,7 @@ final class ServiceLifecycleCoordinator {
             return false
         }
 
-        AppLogger.shared.warn(
+        AppLogger.shared.warnUnlessQuietTest(
             "⚠️ [Service] Running Kanata binary does not match bundled binary; " +
                 "forcing privileged runtime recovery. running(pid=\(runningIdentity.pid), " +
                 "path=\(runningIdentity.executablePath)) bundled=\(bundledPath)"

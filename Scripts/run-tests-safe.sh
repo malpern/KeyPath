@@ -11,9 +11,24 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 TIMEOUT_SECONDS=${TIMEOUT_SECONDS:-240}
 ALLOW_RUNNER_CRASH_SUCCESS=${KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS:-0}
 ALLOW_NONZERO_TEST_SUCCESS=${KEYPATH_ALLOW_NONZERO_TEST_SUCCESS:-0}
-TEST_FILTER=${TEST_FILTER:-}
-TEST_SKIP=${TEST_SKIP:-}
-SWIFT_TEST_ARGS=${SWIFT_TEST_ARGS:-}
+RUNNER_START_SECONDS="$(date +%s)"
+BUILD_DURATION_SECONDS="not-run"
+TEST_DURATION_SECONDS="not-run"
+SUMMARY_PRINTED=0
+TEST_PID=""
+WATCHDOG_PID=""
+EXIT_FILE=""
+TIMEOUT_FILE=""
+CLEANUP_ARMED=1
+TEST_LANE="${KEYPATH_TEST_LANE:-full}"
+TEST_FILTER="${KEYPATH_TEST_FILTER:-${TEST_FILTER:-}}"
+TEST_SKIP="${KEYPATH_TEST_SKIP:-${TEST_SKIP:-}}"
+TEST_PREBUILD="${KEYPATH_TEST_PREBUILD:-1}"
+TEST_DISABLE_XCTEST="${KEYPATH_TEST_DISABLE_XCTEST:-0}"
+TEST_RESET_MODULE_CACHE="${KEYPATH_TEST_RESET_MODULE_CACHE:-1}"
+LOG="${KEYPATH_TEST_LOG:-$PROJECT_DIR/test_output.safe.txt}"
+BUILD_LOG="${KEYPATH_TEST_BUILD_LOG:-$LOG.build}"
+EXTRA_SWIFT_TEST_ARGS="${SWIFT_TEST_ARGS:-}"
 
 echo "🧪 Running tests via swift test with safety guards..."
 
@@ -328,24 +343,7 @@ if [ -n "$TEST_SKIP" ]; then
 fi
 echo "🏗️  Test prebuild: $TEST_PREBUILD | disable XCTest: $TEST_DISABLE_XCTEST | reset module cache: $TEST_RESET_MODULE_CACHE"
 echo "🧪 SWIFT_TEST=$SWIFT_TEST | SKIP_EVENT_TAP_TESTS=$SKIP_EVENT_TAP_TESTS"
-declare -a TEST_SELECTOR_ARGS=()
-if [ -n "$TEST_FILTER" ]; then
-    TEST_SELECTOR_ARGS+=(--filter "$TEST_FILTER")
-fi
-if [ -n "$TEST_SKIP" ]; then
-    TEST_SELECTOR_ARGS+=(--skip "$TEST_SKIP")
-fi
-declare -a EXTRA_TEST_ARGS=()
-if [ -n "$SWIFT_TEST_ARGS" ]; then
-    # shellcheck disable=SC2206
-    EXTRA_TEST_ARGS=($SWIFT_TEST_ARGS)
-fi
-if [ "${#TEST_SELECTOR_ARGS[@]}" -gt 0 ] || [ "${#EXTRA_TEST_ARGS[@]}" -gt 0 ]; then
-    echo "🎯 Test selector args: ${TEST_SELECTOR_ARGS[*]:-(none)}"
-    echo "⚙️  Extra swift test args: ${EXTRA_TEST_ARGS[*]:-(none)}"
-else
-    echo "🎯 Test selector args: (full suite)"
-fi
+echo "🪵 KEYPATH_LOG_LEVEL=$KEYPATH_LOG_LEVEL | KEYPATH_TEST_VERBOSE_LOGS=${KEYPATH_TEST_VERBOSE_LOGS:-0}"
 if [ "$ALLOW_RUNNER_CRASH_SUCCESS" = "1" ]; then
     echo "⚠️  KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS=1 (signal crashes can pass only with zero parsed failures)"
 fi
@@ -395,15 +393,25 @@ HOME="$(absolute_dir "$HOME")"
 export CLANG_MODULECACHE_PATH="$MODULE_CACHE"
 export SWIFT_MODULECACHE_PATH="$MODULE_CACHE"
 MODULE_CACHE_FLAGS=(-Xcc "-fmodules-cache-path=$MODULE_CACHE")
-SWIFT_TEST_ARGS=()
+SWIFT_TEST_COMMAND_ARGS=()
 if [ -n "$TEST_FILTER" ]; then
-  SWIFT_TEST_ARGS+=(--filter "$TEST_FILTER")
+  SWIFT_TEST_COMMAND_ARGS+=(--filter "$TEST_FILTER")
 fi
 if [ -n "$TEST_SKIP" ]; then
-  SWIFT_TEST_ARGS+=(--skip "$TEST_SKIP")
+  SWIFT_TEST_COMMAND_ARGS+=(--skip "$TEST_SKIP")
 fi
 if [ "$TEST_DISABLE_XCTEST" = "1" ]; then
-  SWIFT_TEST_ARGS+=(--disable-xctest)
+  SWIFT_TEST_COMMAND_ARGS+=(--disable-xctest)
+fi
+if [ -n "$EXTRA_SWIFT_TEST_ARGS" ]; then
+  # shellcheck disable=SC2206
+  EXTRA_TEST_ARGS=($EXTRA_SWIFT_TEST_ARGS)
+  SWIFT_TEST_COMMAND_ARGS+=("${EXTRA_TEST_ARGS[@]}")
+fi
+if [ "${#SWIFT_TEST_COMMAND_ARGS[@]}" -gt 0 ]; then
+  echo "🎯 Swift test args: ${SWIFT_TEST_COMMAND_ARGS[*]}"
+else
+  echo "🎯 Swift test args: (full suite)"
 fi
 echo "📦 Scratch: $SCRATCH_PATH | HOME=$HOME"
 echo "🗂️  Module cache: $MODULE_CACHE"
@@ -439,15 +447,19 @@ TEST_START_SECONDS="$(date +%s)"
 (
   set +e
   set -o pipefail
-  SWIFT_TEST_COMMAND=(swift test --skip-build --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}")
-  if [ "${#TEST_SELECTOR_ARGS[@]}" -gt 0 ]; then
-    SWIFT_TEST_COMMAND+=("${TEST_SELECTOR_ARGS[@]}")
+  SWIFT_TEST_COMMAND=(swift test --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}")
+  if [ "$TEST_PREBUILD" != "0" ]; then
+    SWIFT_TEST_COMMAND+=(--skip-build)
   fi
-  if [ "${#EXTRA_TEST_ARGS[@]}" -gt 0 ]; then
-    SWIFT_TEST_COMMAND+=("${EXTRA_TEST_ARGS[@]}")
+  if [ "${#SWIFT_TEST_COMMAND_ARGS[@]}" -gt 0 ]; then
+    "${SWIFT_TEST_COMMAND[@]}" "${SWIFT_TEST_COMMAND_ARGS[@]}" 2>&1 | tee "$LOG"
+  else
+    "${SWIFT_TEST_COMMAND[@]}" 2>&1 | tee "$LOG"
   fi
-  "${SWIFT_TEST_COMMAND[@]}" 2>&1 | tee "$LOG"
-  echo $? > .xctest.exit
+  TEST_EXIT_CODE=$?
+  if [ ! -f "$EXIT_FILE" ]; then
+    echo "$TEST_EXIT_CODE" > "$EXIT_FILE"
+  fi
 ) &
 
 TEST_PID=$!
@@ -470,10 +482,20 @@ TEST_PID=$!
 ) & WATCHDOG_PID=$!
 
 wait $TEST_PID || true
-EXIT_CODE=$(cat .xctest.exit 2>/dev/null || echo 1)
-rm -f .xctest.exit
-kill $WATCHDOG_PID 2>/dev/null || true
-wait $WATCHDOG_PID 2>/dev/null || true
+TEST_DURATION_SECONDS=$(($(date +%s) - TEST_START_SECONDS))
+if [ -f "$TIMEOUT_FILE" ]; then
+  EXIT_CODE=124
+else
+  EXIT_CODE=$(cat "$EXIT_FILE" 2>/dev/null || echo 1)
+fi
+rm -f "$EXIT_FILE"
+rm -f "$TIMEOUT_FILE"
+if [ -n "$WATCHDOG_PID" ]; then
+  wait "$WATCHDOG_PID" 2>/dev/null || true
+fi
+cleanup_orphaned_xctest
+TEST_PID=""
+WATCHDOG_PID=""
 
 # 2) Summarize
 # Count actual test failures vs passes (both XCTest and Swift Testing formats)
@@ -517,10 +539,13 @@ if [ "$IS_SIGNAL_CRASH" = true ]; then
     fi
     append_runner_crash_summary "Allowed Test Runner Signal Crash" "signal $SIGNAL_NUM"
     echo "✅ Tests passed (ignoring allowed runner crash — $PASS_COUNT passed, 0 parsed failures)"
+    print_run_summary "$EXIT_CODE"
+    enforce_clean_summary
     exit 0
   fi
 
   echo "❌ Treating test runner signal crash as failure"
+  print_run_summary "$EXIT_CODE"
   exit "$EXIT_CODE"
 fi
 
@@ -535,10 +560,13 @@ if [ "$LOG_SIGNAL_CRASH" = true ]; then
     fi
     append_runner_crash_summary "Allowed SwiftPM-Wrapped Test Runner Signal Crash" "$LOG_SIGNAL_CRASH_LINE"
     echo "✅ Tests passed (ignoring allowed runner crash — $PASS_COUNT passed, 0 parsed failures)"
+    print_run_summary "$EXIT_CODE"
+    enforce_clean_summary
     exit 0
   fi
 
   echo "❌ Treating test runner signal crash as failure"
+  print_run_summary "$EXIT_CODE"
   exit "$EXIT_CODE"
 fi
 
@@ -553,6 +581,8 @@ fi
 # Non-zero exit but no failures found — check for any passing output
 if [ "$ALLOW_NONZERO_TEST_SUCCESS" = "1" ] && [ "$PASS_COUNT" -gt 0 ]; then
   echo "✅ Tests passed (ignoring allowed runner exit code $EXIT_CODE — $PASS_COUNT passed)"
+  print_run_summary "$EXIT_CODE"
+  enforce_clean_summary
   exit 0
 fi
 
@@ -561,4 +591,5 @@ if [ "$PASS_COUNT" -gt 0 ]; then
 else
   echo "❌ Test run failed (exit $EXIT_CODE, no test output found)"
 fi
+print_run_summary "$EXIT_CODE"
 exit $EXIT_CODE

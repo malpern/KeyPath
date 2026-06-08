@@ -75,7 +75,7 @@ actor KeyboardDisplayContextStore {
             let data = try Data(contentsOf: fileURL)
             return try decoder.decode([Context].self, from: data)
         } catch {
-            AppLogger.shared.warn("⚠️ [KeyboardDisplayContextStore] Failed to load contexts: \(error)")
+            AppLogger.shared.warnUnlessQuietTest("⚠️ [KeyboardDisplayContextStore] Failed to load contexts: \(error)")
             return []
         }
     }

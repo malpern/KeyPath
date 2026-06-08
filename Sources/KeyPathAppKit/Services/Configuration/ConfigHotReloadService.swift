@@ -232,7 +232,7 @@ final class ConfigHotReloadService {
             }
 
             let message = reloadOutcome.message ?? "Hot reload failed"
-            AppLogger.shared.error("❌ [ConfigHotReload] \(message)")
+            AppLogger.shared.errorUnlessQuietTest("❌ [ConfigHotReload] \(message)")
             let result = ReloadResult.failure(message)
             callbacks.onFailure?(result.message)
             scheduleStatusReset()

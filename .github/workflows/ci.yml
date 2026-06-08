@@ -89,6 +89,8 @@ jobs:
         # SwiftPM can wrap XCTest post-run SIGABRT as exit 1 on the self-hosted runner;
         # run-tests-safe.sh still fails if it parses any test failures and emits a warning when this path is used.
         KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS: "1"
+        KEYPATH_TEST_ENFORCE_CLEAN_SUMMARY: "1"
+        KEYPATH_TEST_RESET_MODULE_CACHE: "0"
       run: |
         echo "Running full named test lane..."
         export CI_ENVIRONMENT=true

@@ -10,6 +10,7 @@ import Foundation
 final class PrivilegedOperationsRouterTests: XCTestCase {
     private nonisolated(unsafe) var originalExecutor: AdminCommandExecutor!
     private nonisolated(unsafe) var originalSudoEnv: String?
+    private var previousSudoEnv: String?
     private nonisolated(unsafe) var originalAllowAdminOperationsInTests = false
 
     override func setUp() async throws {

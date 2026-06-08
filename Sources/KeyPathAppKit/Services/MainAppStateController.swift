@@ -356,7 +356,7 @@ class MainAppStateController {
     /// Optimization: Skips validation if completed within cooldown period (30s) to avoid redundant work on rapid restarts
     func performInitialValidation() async {
         guard serviceLifecycle != nil else {
-            AppLogger.shared.warn("⚠️ [MainAppStateController] Cannot validate - not configured")
+            AppLogger.shared.warnUnlessQuietTest("⚠️ [MainAppStateController] Cannot validate - not configured")
             return
         }
 
@@ -468,7 +468,7 @@ class MainAppStateController {
 
     private func performValidation() async {
         guard let validator else {
-            AppLogger.shared.warn("⚠️ [MainAppStateController] Cannot validate - validator not configured")
+            AppLogger.shared.warnUnlessQuietTest("⚠️ [MainAppStateController] Cannot validate - validator not configured")
             validationState = .checking
             issues = []
             lastValidationDate = Date()

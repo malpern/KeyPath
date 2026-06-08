@@ -7,7 +7,7 @@ let package = Package(
         .macOS(.v15)
     ],
     dependencies: [
-        .package(path: "../..")
+        .package(name: "KeyPath", path: "../..")
     ],
     targets: [
         .testTarget(
