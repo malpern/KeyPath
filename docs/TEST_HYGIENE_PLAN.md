@@ -314,6 +314,22 @@ Status:
   warm `appkit` lane passed its existing condition with 1,338 XCTest tests
   passed, 18 skipped, `test_log_app_warnings=0`, `test_log_app_errors=0`,
   `test_log_swift_warnings=0`, and `build_log_swift_warnings=0`.
+- Fixed the unfiltered `full` lane invocation path in `run-tests-safe.sh` so
+  lanes with no filter/skip arguments do not trip `set -u` on an empty
+  `SWIFT_TEST_ARGS` array.
+- Quieted expected full-lane negative-path diagnostics from state publishing,
+  stuck-key recovery, TCP server probes, and subprocess launch failures while
+  preserving warning/error severity in normal app usage.
+- Made `PIDFileManager.removePID()` idempotent when another parallel test
+  removes the PID file between the existence check and `removeItem`.
+- Made the `OverlayHealthIndicatorObserverTests` async gate cancellation-aware
+  so the dismiss-cancellation test no longer leaks a checked continuation.
+- Current `./Scripts/measure-local-loop.sh full` baseline: build 4s, test 40s,
+  total 45s, test log 896,341 bytes, zero Swift warnings, zero module-cache
+  warnings, zero app warnings, and zero app errors. SwiftPM still emits the
+  known post-suite `swiftpm-testing-helper` signal 5 after tests pass; the safe
+  runner classifies that as a harness exit when the suite reports passing tests
+  and no failures.
 
 ### Milestone 6: Measurement And Regression Guardrails
 
@@ -466,6 +482,10 @@ Milestone 6 is now started with the MacBook Air local loop as the target:
   `run-tests-safe.sh` hermetic by default (`KEYPATH_USE_SUDO=0` unless
   explicitly overridden) and downgrading expected installer failure-path
   diagnostics to debug in quiet test runs.
+- Current warm full baseline from `./Scripts/measure-local-loop.sh full`: 45s
+  total, 4s build, 40s test execution, zero Swift warnings, zero module-cache
+  warnings, zero app warnings, and zero app errors. This is now suitable as the
+  broad local confidence check when the narrower lane for a change passes first.
 
 The Mac mini workflow is deferred. Revisit it only after the MacBook Air loop is
 fast and boring enough that remote execution would solve a measured capacity

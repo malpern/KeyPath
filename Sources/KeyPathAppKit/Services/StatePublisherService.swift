@@ -67,7 +67,7 @@ final class StatePublisherService<State: Sendable> {
     /// The configured state provider will be invoked to create a new snapshot.
     func notifyStateChanged() {
         guard let provider = stateProvider else {
-            AppLogger.shared.warn("⚠️ [StatePublisher] notifyStateChanged called but no provider configured")
+            AppLogger.shared.warnUnlessQuietTest("⚠️ [StatePublisher] notifyStateChanged called but no provider configured")
             return
         }
         let state = provider()

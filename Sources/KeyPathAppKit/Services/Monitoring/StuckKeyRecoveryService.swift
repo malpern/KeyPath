@@ -47,7 +47,7 @@ final class StuckKeyRecoveryService {
 
         isRecovering = true
 
-        AppLogger.shared.error(
+        AppLogger.shared.errorUnlessQuietTest(
             "🚨 [StuckKeyRecovery] Stuck key detected: \(correlation.key) repeating with kanata unresponsive for \(msSinceKanata)ms — triggering automatic restart"
         )
 
@@ -63,10 +63,12 @@ final class StuckKeyRecoveryService {
                 if success {
                     AppLogger.shared.info("✅ [StuckKeyRecovery] Kanata restarted — stuck key should be cleared")
                 } else {
-                    AppLogger.shared.error("❌ [StuckKeyRecovery] Kanata restart failed — user may need to intervene")
+                    AppLogger.shared.errorUnlessQuietTest(
+                        "❌ [StuckKeyRecovery] Kanata restart failed — user may need to intervene"
+                    )
                 }
             } else {
-                AppLogger.shared.error("❌ [StuckKeyRecovery] No restart handler configured — cannot recover")
+                AppLogger.shared.errorUnlessQuietTest("❌ [StuckKeyRecovery] No restart handler configured — cannot recover")
             }
         }
     }

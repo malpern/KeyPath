@@ -247,7 +247,7 @@ extension KanataTCPClient {
 
             return false
         } catch {
-            AppLogger.shared.warn("❌ [TCP] Server check failed: \(error)")
+            AppLogger.shared.warnUnlessQuietTest("❌ [TCP] Server check failed: \(error)")
             // FIX #3: Close connection on error so next call gets fresh connection
             if shouldRetry(error) {
                 AppLogger.shared.debug("🌐 [TCP] Closing connection after server check failure")

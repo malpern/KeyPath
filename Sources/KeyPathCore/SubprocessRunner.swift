@@ -100,7 +100,7 @@ public actor SubprocessRunner: SubprocessRunning {
 
                     // Log completion
                     if duration > 5.0 {
-                        AppLogger.shared.warn(
+                        AppLogger.shared.warnUnlessQuietTest(
                             "⚠️ [SubprocessRunner] \(executable) took \(String(format: "%.2f", duration))s (>5s threshold)"
                         )
                     } else {
@@ -136,7 +136,7 @@ public actor SubprocessRunner: SubprocessRunning {
                     try task.run()
                 } catch {
                     runContext.timeoutTask?.cancel()
-                    AppLogger.shared.error("❌ [SubprocessRunner] Failed to launch \(executable): \(error)")
+                    AppLogger.shared.errorUnlessQuietTest("❌ [SubprocessRunner] Failed to launch \(executable): \(error)")
                     runContext.resume(
                         with: .failure(SubprocessError.launchFailed(executable: executable, error: error))
                     )
