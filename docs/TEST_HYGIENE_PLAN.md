@@ -203,6 +203,32 @@ True isolation will likely require a separate minimal package/test harness or a
 different runner strategy, not only more `swift test --filter` usage in the
 current package.
 
+Milestone 4b isolated smoke harness:
+
+- Added `dev-tools/smoke-harness`, a separate SwiftPM package that depends on
+  the root package by path but imports only the `KeyPathCore` and
+  `KeyPathPermissions` products.
+- Added `./Scripts/test-lane.sh smoke-isolated` as an experimental lane that
+  runs the harness with its own build directory and reports whether
+  `KeyPathAppKit` appeared in the build log.
+- Seeded the harness with public-API smoke coverage for `KeyPathError`,
+  `KanataDefseqParser`, and `PermissionOracle` fast/test mode.
+
+Current isolated smoke measurements:
+
+- clean command: `KEYPATH_ISOLATED_SMOKE_CLEAN=1 ./Scripts/test-lane.sh smoke-isolated`;
+- clean total: 10-14s;
+- warm command: `./Scripts/test-lane.sh smoke-isolated`;
+- warm total: 1-3s;
+- result: 12 Swift Testing tests in 3 suites passed;
+- `appkit_in_log=0` for both runs.
+
+Conclusion: the separate harness satisfies the cold-build isolation goal for
+core/product-level smoke coverage. The next dependency-audit work should use
+this lane as the fast proof point and only extract additional non-UI targets
+from `KeyPathAppKit` when important smoke coverage cannot be expressed through
+existing public products.
+
 ### Milestone 5: Warning And Failure Signal Cleanup
 
 Goal: warnings and failure output should support triage instead of burying it.

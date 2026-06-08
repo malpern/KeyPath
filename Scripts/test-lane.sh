@@ -17,6 +17,8 @@ Usage: ./Scripts/test-lane.sh <lane>
 
 Lanes:
   smoke      Fast sanity checks from the narrow smoke test target.
+  smoke-isolated
+             Experimental smoke harness that depends only on core products.
   unit       Pure or mostly pure model/parser/renderer logic.
   appkit     UI-adjacent app logic, services, packs, config, mappers, and rule collections.
   installer  InstallerEngine, wizard, daemon/service lifecycle, and health-check tests.
@@ -32,6 +34,10 @@ Environment:
                              Set to 0 to reuse the Swift module cache.
   KEYPATH_TEST_FILTER        Overrides the lane's default Swift test filter.
   KEYPATH_TEST_SKIP          Optional Swift test skip regex.
+  KEYPATH_ISOLATED_SMOKE_CLEAN
+                             Set to 1 to remove the isolated harness build dir first.
+  KEYPATH_ISOLATED_SMOKE_ALLOW_APPKIT
+                             Set to 1 to allow KeyPathAppKit mentions in the isolated lane log.
 USAGE
 }
 
@@ -58,12 +64,64 @@ run_safe_lane() {
   "$SCRIPT_DIR/run-tests-safe.sh"
 }
 
+run_isolated_smoke_lane() {
+  local harness_dir="$PROJECT_DIR/dev-tools/smoke-harness"
+  local log_path="${KEYPATH_TEST_LOG:-$PROJECT_DIR/test_output.smoke-isolated.txt}"
+  local build_path="${KEYPATH_ISOLATED_SMOKE_BUILD_PATH:-$harness_dir/.build}"
+
+  if [ "${KEYPATH_ISOLATED_SMOKE_CLEAN:-0}" = "1" ]; then
+    rm -rf "$build_path"
+  fi
+
+  mkdir -p "$(dirname "$log_path")"
+
+  echo "🛣️  Running KeyPath test lane: smoke-isolated"
+  echo "📦 Harness: $harness_dir"
+  echo "🧱 Build path: $build_path"
+  echo "📄 Log: $log_path"
+
+  local start elapsed exit_code
+  start="$(date +%s)"
+  set +e
+  (
+    cd "$harness_dir"
+    SWIFT_TEST=1 \
+      SKIP_EVENT_TAP_TESTS=1 \
+      KEYPATH_LOG_LEVEL="${KEYPATH_LOG_LEVEL:-3}" \
+      swift test \
+        --scratch-path "$build_path" \
+        --disable-xctest
+  ) 2>&1 | tee "$log_path"
+  exit_code="${PIPESTATUS[0]}"
+  set -e
+  elapsed="$(( $(date +%s) - start ))"
+
+  local appkit_compiles=0
+  if grep -q "KeyPathAppKit" "$log_path"; then
+    appkit_compiles=1
+  fi
+
+  echo "📊 Isolated smoke summary: exit=$exit_code total=${elapsed}s appkit_in_log=$appkit_compiles log=$(wc -c < "$log_path") bytes"
+
+  if [ "$appkit_compiles" = "1" ]; then
+    echo "⚠️  Isolated smoke log mentioned KeyPathAppKit; cold-build isolation was not proven."
+    if [ "${KEYPATH_ISOLATED_SMOKE_ALLOW_APPKIT:-0}" != "1" ]; then
+      return 1
+    fi
+  fi
+
+  return "$exit_code"
+}
+
 case "$LANE" in
   smoke)
     export KEYPATH_TEST_PREBUILD="${KEYPATH_TEST_PREBUILD:-0}"
     export KEYPATH_TEST_DISABLE_XCTEST="${KEYPATH_TEST_DISABLE_XCTEST:-1}"
     export KEYPATH_TEST_RESET_MODULE_CACHE="${KEYPATH_TEST_RESET_MODULE_CACHE:-0}"
     run_safe_lane "$LANE" "KeyPathSmokeTests" 120
+    ;;
+  smoke-isolated)
+    run_isolated_smoke_lane
     ;;
   unit)
     run_safe_lane "$LANE" "KeyPathErrorTests|TextToKanataKeyMapperTests|KanataBehaviorParserTests|KanataBehaviorRendererTests|KanataDefseqParserTests|PhysicalLayoutTests|MappingBehaviorTests|LayerKeyMapperNormalizeTests|LayerKeyMapperLabelTests|LayerKeyInfoExtractionTests|LabelMetadataTests|ConfigApplyTypesTests|VirtualKeyParserTests|QMKLayoutParserTests|HandAssignmentTests|TypingFeelMappingTests|KindaVimTelemetryStoreTests|GlobalHotkeyMatcherTests|VimSequenceObserverTests" 180
