@@ -444,6 +444,33 @@ Acceptance criteria:
 - Existing lane names remain stable unless a measured workflow problem justifies
   a new name.
 
+Status:
+
+- Implemented `dev-tools/core-harness`, a separate SwiftPM package that depends
+  only on the root `KeyPathCore` product.
+- Added the `core-isolated` lane in `Scripts/test-lane.sh`; the lane fails if
+  `KeyPathAppKit` appears in its build/test log unless explicitly overridden.
+- Seeded the harness with the bounded high-signal Core checks from
+  `KanataRuntimeHost`, `KanataHostBridge`, `KanataDefseqParser`, and
+  `TestEnvironment`.
+- Current MacBook Air measurements:
+  - clean `KEYPATH_ISOLATED_CORE_CLEAN=1 ./Scripts/test-lane.sh core-isolated`:
+    15s total, 13 Swift Testing tests in 4 suites, `appkit_in_log=0`, 5,283-byte
+    log;
+  - warm `./Scripts/test-lane.sh core-isolated`: 2s total, 13 tests,
+    `appkit_in_log=0`, 2,990-byte log;
+  - warm `./Scripts/test-lane.sh smoke`: 2s total, 12 tests,
+    `appkit_in_log=0`, 2,548-byte log;
+  - warm root-package `./Scripts/test-lane.sh unit`: 8s total, 329 tests,
+    zero Swift/module/app warnings or errors.
+- Decision: keep `core-isolated` as a permanent fast Core confidence lane. It
+  is not a replacement for `unit`; `unit` remains the broader root-package
+  parser/model/renderer lane. The harness earns its place because it proves
+  cold and warm build-graph isolation without compiling AppKit.
+- Next dependency work should focus on measurement-driven CLI/AppKit
+  decoupling. Do not split installer/wizard targets further unless a lane
+  timing run shows they dominate a workflow we care about.
+
 ## Relationship To Existing Issues
 
 - #604 covers the broad long-term test improvement plan.
@@ -558,9 +585,16 @@ Milestone 6 is implemented with the MacBook Air local loop as the target:
   can be compared without copying terminal output.
 - `docs/MACBOOK_AIR_LOCAL_LOOP.md` documents the recommended lane by change
   type, warm-cache policy, measurement presets, and when to use verbose logs.
-- `core-isolated` now runs a separate `dev-tools/core-harness` package that
-  depends only on `KeyPathCore`; a clean run passed in 15s and a warm run passed
-  in 4s, both with `appkit_in_log=0`.
+
+Milestone 7 now has enough evidence to keep the bounded isolated Core lane:
+
+- `core-isolated` runs a separate `dev-tools/core-harness` package that depends
+  only on `KeyPathCore`.
+- Latest direct lane measurements: clean `core-isolated` passed in 15s, warm
+  `core-isolated` passed in 2s, and warm `smoke` passed in 2s; all reported
+  `appkit_in_log=0`.
+- `unit` remains useful and fast when warm at 8s, but it is a broader
+  root-package lane rather than a build-isolated Core lane.
 - Follow-up measurements refined that baseline: `./Scripts/measure-local-loop.sh
   --clean-core core-isolated` passed in 12s with `appkit_in_log=0`, and
   `./Scripts/measure-local-loop.sh core-isolated` passed in 3s with
