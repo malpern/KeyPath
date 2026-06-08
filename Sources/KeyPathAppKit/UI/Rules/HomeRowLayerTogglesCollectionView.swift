@@ -225,9 +225,9 @@ struct HomeRowLayerTogglesCollectionView: View {
                             updateConfig()
                         }
                     ), in: 0 ... 80, step: 5)
-                    .accessibilityIdentifier("home-row-layer-toggles-quick-tap-term-slider")
-                    .accessibilityLabel("Quick tap term")
-                    .accessibilityValue("\(config.timing.quickTapTermMs) ms")
+                        .accessibilityIdentifier("home-row-layer-toggles-quick-tap-term-slider")
+                        .accessibilityLabel("Quick tap term")
+                        .accessibilityValue("\(config.timing.quickTapTermMs) ms")
                     Text(String(localized: "\(config.timing.quickTapTermMs) ms"))
                         .font(.caption)
                         .foregroundColor(.secondary)
