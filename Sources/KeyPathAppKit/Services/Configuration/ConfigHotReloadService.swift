@@ -144,7 +144,7 @@ final class ConfigHotReloadService {
 
         // Check file exists
         guard Foundation.FileManager().fileExists(atPath: configPath) else {
-            AppLogger.shared.error("❌ [ConfigHotReload] Config file no longer exists: \(configPath)")
+            AppLogger.shared.errorUnlessQuietTest("❌ [ConfigHotReload] Config file no longer exists: \(configPath)")
             let result = ReloadResult.failure("Config file was deleted")
             callbacks.onFailure?(result.message)
             scheduleStatusReset()
@@ -159,7 +159,7 @@ final class ConfigHotReloadService {
                 "📁 [ConfigHotReload] Read \(configContent.count) characters from external file"
             )
         } catch {
-            AppLogger.shared.error("❌ [ConfigHotReload] Failed to read external config: \(error)")
+            AppLogger.shared.errorUnlessQuietTest("❌ [ConfigHotReload] Failed to read external config: \(error)")
             let result = ReloadResult.failure("Failed to read config: \(error.localizedDescription)")
             callbacks.onFailure?(result.message)
             scheduleStatusReset()
@@ -168,7 +168,7 @@ final class ConfigHotReloadService {
 
         // Validate configuration
         guard let configService = configurationService else {
-            AppLogger.shared.error("❌ [ConfigHotReload] ConfigurationService not configured")
+            AppLogger.shared.errorUnlessQuietTest("❌ [ConfigHotReload] ConfigurationService not configured")
             let result = ReloadResult.failure("Service not configured")
             callbacks.onFailure?(result.message)
             scheduleStatusReset()
@@ -178,7 +178,7 @@ final class ConfigHotReloadService {
         let validationResult = await configService.validateConfiguration(configContent)
         if !validationResult.isValid {
             let errorMsg = validationResult.errors.first ?? "Unknown validation error"
-            AppLogger.shared.error(
+            AppLogger.shared.errorUnlessQuietTest(
                 "❌ [ConfigHotReload] Validation failed: \(validationResult.errors.joined(separator: ", "))"
             )
             let result = ReloadResult.failure("Invalid config: \(errorMsg)")
@@ -189,7 +189,7 @@ final class ConfigHotReloadService {
 
         // Trigger hot reload via TCP
         guard let handler = reloadHandler else {
-            AppLogger.shared.error("❌ [ConfigHotReload] Reload handler not configured")
+            AppLogger.shared.errorUnlessQuietTest("❌ [ConfigHotReload] Reload handler not configured")
             let result = ReloadResult.failure("Reload handler not configured")
             callbacks.onFailure?(result.message)
             scheduleStatusReset()

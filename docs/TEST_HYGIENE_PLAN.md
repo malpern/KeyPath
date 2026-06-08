@@ -298,6 +298,14 @@ Status:
   signal issues are app-log noise (`test_log_app_errors=30`,
   `test_log_app_warnings=2`) and SwiftPM's post-suite signal-5 helper exit,
   which the runner already treats as pass when tests succeeded.
+- Added `AppLogger.errorUnlessQuietTest` for expected negative-path diagnostics
+  that should remain errors in normal app use but should not pollute quiet test
+  logs. Applied it to config write guards, duplicate alias fallback logging, hot
+  reload failure branches, and simple-mods invalid-config guards. The broad
+  `appkit` lane then passed with `test_log_app_errors=0`,
+  `test_log_app_warnings=2`, and `test_log_swift_warnings=0`. The remaining
+  reported `build_log_swift_warnings=35` were stale Clang PCM/module-cache
+  warnings during the reset/rebuild path, not Swift source diagnostics.
 
 ### Milestone 6: Measurement And Regression Guardrails
 

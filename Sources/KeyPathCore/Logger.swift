@@ -240,6 +240,15 @@ public final class AppLogger {
         log(message, level: level, file: file, function: function, line: line)
     }
 
+    /// Log an expected failure-path diagnostic as an error in normal use, but
+    /// downgrade it to debug during quiet test runs.
+    public func errorUnlessQuietTest(
+        _ message: String, file: String = #file, function: String = #function, line: Int = #line
+    ) {
+        let level: AppLogLevel = TestEnvironment.shouldQuietExpectedTestDiagnostics ? .debug : .error
+        log(message, level: level, file: file, function: function, line: line)
+    }
+
     public func error(
         _ message: String, file: String = #file, function: String = #function, line: Int = #line
     ) {

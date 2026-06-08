@@ -68,7 +68,7 @@ public final class SimpleModsWriter: Sendable {
                 // SAFETY: Never write empty config - this would break kanata
                 let trimmed = newContent.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !trimmed.isEmpty, trimmed.contains("defsrc") || trimmed.contains("deflayer") else {
-                    AppLogger.shared.error("🛑 [SimpleModsWriter] BLOCKED: Would have written invalid config")
+                    AppLogger.shared.errorUnlessQuietTest("🛑 [SimpleModsWriter] BLOCKED: Would have written invalid config")
                     throw KeyPathError.configuration(.invalidFormat(reason: "Cannot write empty or invalid configuration"))
                 }
 
