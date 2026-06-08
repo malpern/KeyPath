@@ -98,7 +98,7 @@ final class RecoveryCoordinator {
     ) async {
         // Check if VirtualHID daemon is running first
         if await !isKarabinerDaemonRunning() {
-            AppLogger.shared.warn("⚠️ [Recovery] Karabiner daemon not running - recovery failed")
+            AppLogger.shared.warnUnlessQuietTest("⚠️ [Recovery] Karabiner daemon not running - recovery failed")
             onError("Recovery failed: Karabiner daemon not available")
             return
         }
@@ -106,7 +106,7 @@ final class RecoveryCoordinator {
         // Try starting the runtime normally via the runtime coordinator
         let started = await startKanata()
         if !started {
-            AppLogger.shared.error("❌ [Recovery] Failed to start Kanata during validation")
+            AppLogger.shared.errorUnlessQuietTest("❌ [Recovery] Failed to start Kanata during validation")
         }
     }
 
@@ -164,7 +164,7 @@ final class RecoveryCoordinator {
             AppLogger.shared.log("🛑 [Mappings] Paused by killing Kanata processes")
             return true
         } catch {
-            AppLogger.shared.warn("⚠️ [Mappings] Failed to pause mappings: \(error)")
+            AppLogger.shared.warnUnlessQuietTest("⚠️ [Mappings] Failed to pause mappings: \(error)")
             return false
         }
     }
@@ -179,7 +179,7 @@ final class RecoveryCoordinator {
             try? await Task.sleep(for: .milliseconds(200))
             AppLogger.shared.info("🚀 [Mappings] Resumed by restarting service")
         } else {
-            AppLogger.shared.warn("⚠️ [Mappings] Failed to resume mappings")
+            AppLogger.shared.warnUnlessQuietTest("⚠️ [Mappings] Failed to resume mappings")
         }
         return success
     }

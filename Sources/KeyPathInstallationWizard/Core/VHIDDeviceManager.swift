@@ -611,7 +611,7 @@ public final class VHIDDeviceManager: @unchecked Sendable {
         // Step 2: Use bundled pkg (required - no download fallback)
         let bundledPkgPath = WizardSystemPaths.bundledVHIDDriverPkgPath
         guard WizardSystemPaths.bundledVHIDDriverPkgExists else {
-            AppLogger.shared.error(
+            AppLogger.shared.errorUnlessQuietTest(
                 "❌ [VHIDManager] Bundled VHID driver pkg not found at: \(bundledPkgPath). " +
                     "This indicates a corrupt KeyPath installation."
             )

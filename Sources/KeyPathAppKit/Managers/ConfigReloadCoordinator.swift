@@ -217,7 +217,7 @@ final class ConfigReloadCoordinator {
     func triggerReload() async {
         let result = await triggerConfigReload()
         if !result.isSuccess {
-            AppLogger.shared.warn(
+            AppLogger.shared.warnUnlessQuietTest(
                 "⚠️ [Reload] Reload failed (no automatic restart): \(result.errorMessage ?? "Unknown")"
             )
         }

@@ -458,8 +458,14 @@ Milestone 6 is now started with the MacBook Air local loop as the target:
   measurable clarity or speed benefits.
 - Current warm MacBook Air baseline from
   `./Scripts/measure-local-loop.sh --preset baseline`: `smoke` 3s,
-  `unit` 6s, and `appkit` 22s. All three lanes reported zero Swift warnings,
+  `unit` 5s, and `appkit` 25s. All three lanes reported zero Swift warnings,
   module-cache warnings, app warnings, and app errors in their final summaries.
+- Current warm installer baseline from `./Scripts/measure-local-loop.sh
+  installer`: 11s total, 263 passed, and zero Swift warnings,
+  module-cache warnings, app warnings, or app errors. This required keeping
+  `run-tests-safe.sh` hermetic by default (`KEYPATH_USE_SUDO=0` unless
+  explicitly overridden) and downgrading expected installer failure-path
+  diagnostics to debug in quiet test runs.
 
 The Mac mini workflow is deferred. Revisit it only after the MacBook Air loop is
 fast and boring enough that remote execution would solve a measured capacity
