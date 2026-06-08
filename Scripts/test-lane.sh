@@ -18,6 +18,8 @@ Usage: ./Scripts/test-lane.sh <lane>
 Lanes:
   smoke      Fast isolated sanity checks against core products.
   smoke-root Root-package smoke target; useful for diagnostics, not the fast path.
+  core-isolated
+             Experimental isolated Core harness; must avoid the KeyPathAppKit graph.
   unit       Pure or mostly pure model/parser/renderer logic.
   appkit     UI-adjacent app logic, services, packs, config, mappers, and rule collections.
   installer  InstallerEngine, wizard, daemon/service lifecycle, and health-check tests.
@@ -37,6 +39,10 @@ Environment:
                              Set to 1 to remove the isolated harness build dir first.
   KEYPATH_ISOLATED_SMOKE_ALLOW_APPKIT
                              Set to 1 to allow KeyPathAppKit mentions in the isolated lane log.
+  KEYPATH_ISOLATED_CORE_CLEAN
+                             Set to 1 to remove the isolated Core harness build dir first.
+  KEYPATH_ISOLATED_CORE_ALLOW_APPKIT
+                             Set to 1 to allow KeyPathAppKit mentions in the isolated Core log.
 USAGE
 }
 
@@ -115,9 +121,62 @@ run_isolated_smoke_lane() {
   return "$exit_code"
 }
 
+run_isolated_core_lane() {
+  local lane="${1:-core-isolated}"
+  local harness_dir="$PROJECT_DIR/dev-tools/core-harness"
+  local log_path="${KEYPATH_TEST_LOG:-$PROJECT_DIR/test_output.${lane}.txt}"
+  local build_path="${KEYPATH_ISOLATED_CORE_BUILD_PATH:-$harness_dir/.build}"
+
+  if [ "${KEYPATH_ISOLATED_CORE_CLEAN:-0}" = "1" ]; then
+    rm -rf "$build_path"
+  fi
+
+  mkdir -p "$(dirname "$log_path")"
+
+  echo "🛣️  Running KeyPath test lane: $lane"
+  echo "📦 Harness: $harness_dir"
+  echo "🧱 Build path: $build_path"
+  echo "📄 Log: $log_path"
+
+  local start elapsed exit_code
+  start="$(date +%s)"
+  set +e
+  (
+    cd "$harness_dir"
+    SWIFT_TEST=1 \
+      SKIP_EVENT_TAP_TESTS=1 \
+      KEYPATH_LOG_LEVEL="${KEYPATH_LOG_LEVEL:-3}" \
+      swift test \
+        --scratch-path "$build_path" \
+        --disable-xctest
+  ) 2>&1 | tee "$log_path"
+  exit_code="${PIPESTATUS[0]}"
+  set -e
+  elapsed="$(( $(date +%s) - start ))"
+
+  local appkit_compiles=0
+  if grep -q "KeyPathAppKit" "$log_path"; then
+    appkit_compiles=1
+  fi
+
+  echo "📊 Isolated Core summary: exit=$exit_code total=${elapsed}s appkit_in_log=$appkit_compiles log=$(wc -c < "$log_path") bytes"
+
+  if [ "$appkit_compiles" = "1" ]; then
+    echo "⚠️  Isolated Core log mentioned KeyPathAppKit; cold-build isolation was not proven."
+    if [ "${KEYPATH_ISOLATED_CORE_ALLOW_APPKIT:-0}" != "1" ]; then
+      return 1
+    fi
+  fi
+
+  return "$exit_code"
+}
+
 case "$LANE" in
   smoke)
     run_isolated_smoke_lane "$LANE"
+    ;;
+  core-isolated)
+    run_isolated_core_lane "$LANE"
     ;;
   smoke-root)
     export KEYPATH_TEST_PREBUILD="${KEYPATH_TEST_PREBUILD:-0}"
