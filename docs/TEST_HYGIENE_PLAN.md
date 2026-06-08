@@ -599,12 +599,17 @@ Milestone 6 is implemented with the MacBook Air local loop as the target:
   `cli` lane passed warm in 8s with 333 tests and zero Swift warnings,
   module-cache warnings, app warnings, or app errors. The `appkit-config` lane
   now excludes CLI facade tests.
-- Current warm installer baseline from `./Scripts/measure-local-loop.sh
-  installer`: 11s total, 263 passed, and zero Swift warnings,
-  module-cache warnings, app warnings, or app errors. This required keeping
-  `run-tests-safe.sh` hermetic by default (`KEYPATH_USE_SUDO=0` unless
-  explicitly overridden) and downgrading expected installer failure-path
-  diagnostics to debug in quiet test runs.
+- Current warm installer audit from `./Scripts/measure-local-loop.sh
+  installer`: 15s total, 266 passed, and zero Swift warnings,
+  module-cache warnings, app warnings, or app errors. The measured cost is
+  mostly shared build time plus `InstallerEngineTests`, `PackageManagerTests`,
+  and `MockPackageManagerTests`; wizard-specific coverage is not the dominant
+  cost. Do not split installer/wizard lanes yet. Keep the existing installer
+  lane as the right local check unless future edits show a repeated need for
+  narrower package-manager or wizard feedback.
+- Installer-lane hygiene required keeping `run-tests-safe.sh` hermetic by
+  default (`KEYPATH_USE_SUDO=0` unless explicitly overridden) and downgrading
+  expected installer failure-path diagnostics to debug in quiet test runs.
 - Current warm full baseline from `./Scripts/measure-local-loop.sh full`: 45s
   total, 4s build, 40s test execution, zero Swift warnings, zero module-cache
   warnings, zero app warnings, and zero app errors. This is now suitable as the
