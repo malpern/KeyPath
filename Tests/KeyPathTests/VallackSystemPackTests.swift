@@ -160,7 +160,7 @@ final class VallackSystemPackTests: XCTestCase {
 
     func testVallackSystemPackIsSystemPack() {
         XCTAssertTrue(PackRegistry.vallackSystem.isSystemPack)
-        XCTAssertEqual(PackRegistry.vallackSystem.managedDefaults.count, 3)
+        XCTAssertEqual(PackRegistry.vallackSystem.managedDefaults.count, 4)
     }
 
     func testManagedCollectionIDsDerivedFromDefaults() {
@@ -168,6 +168,7 @@ final class VallackSystemPackTests: XCTestCase {
         XCTAssertTrue(ids.contains(RuleCollectionIdentifier.vallackNavigation))
         XCTAssertTrue(ids.contains(RuleCollectionIdentifier.homeRowMods))
         XCTAssertTrue(ids.contains(RuleCollectionIdentifier.homeRowLayerToggles))
+        XCTAssertTrue(ids.contains(RuleCollectionIdentifier.homeRowArrows))
     }
 
     func testNonSystemPackIsNotSystemPack() {
@@ -217,6 +218,45 @@ final class VallackSystemPackTests: XCTestCase {
         } else {
             XCTFail("Layer Toggles should have homeRowLayerTogglesConfig after Vallack install")
         }
+
+        let arrowsCollection = collections.first { $0.id == RuleCollectionIdentifier.homeRowArrows }
+        XCTAssertFalse(arrowsCollection?.isEnabled ?? true, "Vallack install should disable conflicting Home Row Arrows")
+
+        let persisted = await manager.ruleCollectionStore.loadCollections()
+        let persistedMods = persisted.first { $0.id == RuleCollectionIdentifier.homeRowMods }
+        XCTAssertTrue(persistedMods?.isEnabled ?? false, "Home Row Mods preset should be persisted")
+        XCTAssertEqual(
+            persistedMods?.configuration.homeRowModsConfig?.modifierAssignments,
+            HomeRowModsConfig.vallackTwoRowSplit,
+            "Persisted Home Row Mods config should use Vallack top-row modifiers"
+        )
+    }
+
+    @MainActor
+    func testVallackInstallFromDefaultCatalogAppliesWithoutHomeRowArrowConflict() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let (manager, tempDir) = try makeTestManager()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
+
+        _ = try await PackInstaller.shared.install(PackRegistry.vallackSystem, manager: manager)
+
+        XCTAssertFalse(
+            manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.homeRowArrows }?.isEnabled ?? true,
+            "Full-catalog Vallack install should disable Home Row Arrows before regenerating"
+        )
+        XCTAssertTrue(
+            manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.vallackNavigation }?.isEnabled ?? false,
+            "Full-catalog Vallack install should enable Vallack navigation"
+        )
+        XCTAssertEqual(
+            manager.ruleCollections
+                .first { $0.id == RuleCollectionIdentifier.homeRowMods }?
+                .configuration.homeRowModsConfig?.modifierAssignments,
+            HomeRowModsConfig.vallackTwoRowSplit
+        )
     }
 
     @MainActor
@@ -252,6 +292,7 @@ final class VallackSystemPackTests: XCTestCase {
 
         let (manager, tempDir) = try makeTestManager()
         defer { try? FileManager.default.removeItem(at: tempDir) }
+        manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
 
         let snapshotURL = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".config/keypath/pack-snapshots/com.keypath.pack.vallack-system.json")
@@ -262,6 +303,9 @@ final class VallackSystemPackTests: XCTestCase {
             .first { $0.id == RuleCollectionIdentifier.homeRowMods }?.isEnabled ?? false
         let preTogglesEnabled = manager.ruleCollections
             .first { $0.id == RuleCollectionIdentifier.homeRowLayerToggles }?.isEnabled ?? false
+        if let arrowsIndex = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowArrows }) {
+            manager.ruleCollections[arrowsIndex].isEnabled = true
+        }
 
         // Install then uninstall
         _ = try await PackInstaller.shared.install(PackRegistry.vallackSystem, manager: manager)
@@ -289,10 +333,124 @@ final class VallackSystemPackTests: XCTestCase {
             "Layer Toggles enabled state should revert"
         )
 
+        let arrowsCollection = collections.first { $0.id == RuleCollectionIdentifier.homeRowArrows }
+        XCTAssertTrue(arrowsCollection?.isEnabled ?? false, "Home Row Arrows should restore after uninstall")
+
         // Snapshot file should be cleaned up
         XCTAssertFalse(
             FileManager.default.fileExists(atPath: snapshotURL.path),
             "Snapshot file should be removed after uninstall"
+        )
+
+        let persisted = await manager.ruleCollectionStore.loadCollections()
+        let persistedNav = persisted.first { $0.id == RuleCollectionIdentifier.vallackNavigation }
+        XCTAssertFalse(persistedNav?.isEnabled ?? true, "Persisted Vallack nav should be disabled after uninstall")
+    }
+
+    @MainActor
+    func testVallackUninstallRestoresHRMWhenPriorArrowStateWouldConflict() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let (manager, tempDir) = try makeTestManager()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
+
+        let snapshotURL = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".config/keypath/pack-snapshots/com.keypath.pack.vallack-system.json")
+        defer { try? FileManager.default.removeItem(at: snapshotURL) }
+
+        guard let modsIndex = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowMods }),
+              let arrowsIndex = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowArrows })
+        else {
+            XCTFail("Expected HRM and Home Row Arrows catalog collections")
+            return
+        }
+
+        var preInstallHRM = HomeRowModsConfig()
+        preInstallHRM.holdMode = HomeRowHoldMode.modifiers
+        preInstallHRM.enabledKeys = Set(["a", "s", "d", "f", "j", "k", "l", ";"])
+        manager.ruleCollections[modsIndex].configuration = .homeRowMods(preInstallHRM)
+        manager.ruleCollections[modsIndex].isEnabled = true
+        manager.ruleCollections[arrowsIndex].isEnabled = true
+
+        _ = try await PackInstaller.shared.install(PackRegistry.vallackSystem, manager: manager)
+        try await PackInstaller.shared.uninstall(packID: PackRegistry.vallackSystem.id, manager: manager)
+
+        let restoredMods = try XCTUnwrap(
+            manager.ruleCollections
+                .first { $0.id == RuleCollectionIdentifier.homeRowMods }?
+                .configuration.homeRowModsConfig
+        )
+        XCTAssertEqual(restoredMods.enabledKeys, preInstallHRM.enabledKeys)
+        XCTAssertEqual(restoredMods.modifierAssignments, preInstallHRM.modifierAssignments)
+
+        let arrowsCollection = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.homeRowArrows }
+        XCTAssertFalse(
+            arrowsCollection?.isEnabled ?? true,
+            "Home Row Arrows should stay disabled when restoring it would conflict with restored HRM"
+        )
+
+        let isInstalled = await InstalledPackTracker.shared.isInstalled(packID: PackRegistry.vallackSystem.id)
+        XCTAssertFalse(isInstalled, "Vallack install record should be removed after successful uninstall")
+        XCTAssertNil(PackCollectionSnapshot.load(for: PackRegistry.vallackSystem.id))
+    }
+
+    @MainActor
+    func testVallackInstallDoesNotRecordWhenManagedApplyFails() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        try? await InstalledPackTracker.shared.remove(packID: PackRegistry.vallackSystem.id)
+        PackCollectionSnapshot.remove(for: PackRegistry.vallackSystem.id)
+
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("vallack-apply-fail-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: tempDir)
+            PackCollectionSnapshot.remove(for: PackRegistry.vallackSystem.id)
+        }
+
+        let blockedConfigDirectory = tempDir.appendingPathComponent("not-a-directory")
+        try "file blocks config directory".write(to: blockedConfigDirectory, atomically: true, encoding: .utf8)
+
+        let manager = RuleCollectionsManager(
+            ruleCollectionStore: RuleCollectionStore(
+                fileURL: tempDir.appendingPathComponent("RuleCollections.json")
+            ),
+            customRulesStore: CustomRulesStore(
+                fileURL: tempDir.appendingPathComponent("CustomRules.json")
+            ),
+            configurationService: ConfigurationService(configDirectory: blockedConfigDirectory.path),
+            eventListener: KanataEventListener()
+        )
+        manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
+        let originalCollections = manager.ruleCollections
+
+        do {
+            _ = try await PackInstaller.shared.install(PackRegistry.vallackSystem, manager: manager)
+            XCTFail("Install should fail when managed defaults cannot be applied")
+        } catch let error as PackInstaller.InstallError {
+            guard case .saveFailed = error else {
+                XCTFail("Expected saveFailed, got \(error)")
+                return
+            }
+        }
+
+        let isInstalled = await InstalledPackTracker.shared.isInstalled(packID: PackRegistry.vallackSystem.id)
+        XCTAssertFalse(
+            isInstalled,
+            "Failed managed install must not record the pack as installed"
+        )
+        XCTAssertEqual(
+            manager.ruleCollections,
+            originalCollections,
+            "Failed managed install should restore in-memory collections"
+        )
+        XCTAssertNil(
+            PackCollectionSnapshot.load(for: PackRegistry.vallackSystem.id),
+            "Failed managed install should not leave an uninstall snapshot behind"
         )
     }
 

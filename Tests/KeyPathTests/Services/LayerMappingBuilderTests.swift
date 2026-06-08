@@ -272,8 +272,8 @@ struct LayerMappingBuilderTests {
         #expect(result[0]?.displayLabel == "←")
     }
 
-    @Test("home row mods layer hold mode does not inject modifier labels")
-    func homeRowModsLayerHoldModeDoesNotInjectModifierLabels() {
+    @Test("home row mods layer hold mode injects assigned layer labels")
+    func homeRowModsLayerHoldModeInjectsAssignedLayerLabels() {
         let mapping: [UInt16: LayerKeyInfo] = [
             0: LayerKeyInfo(
                 displayLabel: "A",
@@ -282,10 +282,18 @@ struct LayerMappingBuilderTests {
                 isTransparent: true,
                 isLayerSwitch: false
             ),
+            41: LayerKeyInfo(
+                displayLabel: ";",
+                outputKey: "semicolon",
+                outputKeyCode: 41,
+                isTransparent: true,
+                isLayerSwitch: false
+            ),
         ]
         let config = HomeRowModsConfig(
-            enabledKeys: ["a"],
+            enabledKeys: ["a", ";"],
             modifierAssignments: ["a": "lsft"],
+            layerAssignments: ["a": "nav", ";": "fun"],
             holdMode: .layers
         )
         let collection = RuleCollection(
@@ -306,7 +314,9 @@ struct LayerMappingBuilderTests {
             currentLayerName: "base"
         )
 
-        #expect(result[0]?.displayLabel == "A")
-        #expect(result[0]?.collectionId == nil)
+        #expect(result[0]?.displayLabel == "Nav")
+        #expect(result[41]?.displayLabel == "Fun")
+        #expect(result[0]?.collectionId == RuleCollectionIdentifier.homeRowMods)
+        #expect(result[0]?.isTransparent == false)
     }
 }

@@ -98,23 +98,19 @@ public final class PackInstaller {
 
         // System packs batch all collection changes into a single config regen.
         if pack.isSystemPack {
-            // Record the install BEFORE applying configs so that when
-            // regenerateConfigFromCollections posts .ruleCollectionsChanged,
-            // any listener querying packManagingCollection already finds
-            // the ownership record.
             let record = InstalledPackRecord(
                 packID: pack.id,
                 version: pack.version,
                 installedAt: Date(),
                 quickSettingValues: resolvedSettings
             )
-            try await InstalledPackTracker.shared.upsert(record)
             do {
                 try await applyManagedDefaults(pack: pack, manager: manager)
             } catch {
                 try? await InstalledPackTracker.shared.remove(packID: pack.id)
                 throw error
             }
+            try await InstalledPackTracker.shared.upsert(record)
             AppLogger.shared.log(
                 "✅ [PackInstaller] Installed system pack '\(pack.name)'"
             )
@@ -200,13 +196,27 @@ public final class PackInstaller {
 
         // System packs batch all collection changes into a single config regen.
         if let pack = PackRegistry.pack(id: packID), pack.isSystemPack {
+            let originalCollections = manager.ruleCollections
             let didRestore = await restoreOrKeepOnUninstall(pack: pack, manager: manager)
             if let collectionID = pack.associatedCollectionID,
                let i = manager.ruleCollections.firstIndex(where: { $0.id == collectionID })
             {
                 manager.ruleCollections[i].isEnabled = false
             }
-            await manager.regenerateConfigFromCollections()
+
+            var applied = await manager.regenerateConfigFromCollections()
+            if !applied, didRestore, disableRestoreConflictCollections(for: pack, manager: manager) {
+                AppLogger.shared.log(
+                    "⚠️ [PackInstaller] Retrying managed restore for '\(packID)' after disabling install-conflict collections"
+                )
+                applied = await manager.regenerateConfigFromCollections()
+            }
+
+            guard applied else {
+                manager.ruleCollections = originalCollections
+                throw InstallError.saveFailed("could not apply managed collection restore")
+            }
+            removeManagedSnapshot(for: pack)
             try await InstalledPackTracker.shared.remove(packID: packID)
             AppLogger.shared.log(
                 "✅ [PackInstaller] Uninstalled system pack '\(packID)' (restored=\(didRestore))"
@@ -556,6 +566,7 @@ public final class PackInstaller {
         manager: RuleCollectionsManager
     ) async throws {
         let snapshot = snapshotManagedCollections(pack: pack, manager: manager)
+        let originalCollections = manager.ruleCollections
 
         let catalog = RuleCollectionCatalog().defaultCollections()
 
@@ -585,14 +596,24 @@ public final class PackInstaller {
                 }
             }
 
-            if managed.enableOnInstall {
+            if managed.disableOnInstall {
+                manager.ruleCollections[i].isEnabled = false
+            } else if managed.enableOnInstall {
                 manager.ruleCollections[i].isEnabled = true
             }
         }
 
         try PackCollectionSnapshot.save(snapshot)
 
-        await manager.regenerateConfigFromCollections()
+        let applied = await manager.regenerateConfigFromCollections()
+        guard applied else {
+            manager.ruleCollections = originalCollections
+            PackCollectionSnapshot.remove(for: pack.id)
+            if pack.id == "com.keypath.pack.vallack-system" {
+                PackCollectionSnapshot.removeLegacyVallack()
+            }
+            throw InstallError.saveFailed("could not apply managed collection defaults")
+        }
         AppLogger.shared.log("📦 [PackInstaller] Applied managed defaults for '\(pack.name)'")
     }
 
@@ -749,13 +770,38 @@ public final class PackInstaller {
             }
         }
 
+        AppLogger.shared.log("📦 [PackInstaller] Uninstall restore for '\(pack.id)': restored=\(shouldRestore)")
+        return shouldRestore
+    }
+
+    private func removeManagedSnapshot(for pack: Pack) {
         PackCollectionSnapshot.remove(for: pack.id)
         if pack.id == "com.keypath.pack.vallack-system" {
             PackCollectionSnapshot.removeLegacyVallack()
         }
+    }
 
-        AppLogger.shared.log("📦 [PackInstaller] Uninstall restore for '\(pack.id)': restored=\(shouldRestore)")
-        return shouldRestore
+    private func disableRestoreConflictCollections(
+        for pack: Pack,
+        manager: RuleCollectionsManager
+    ) -> Bool {
+        var changed = false
+
+        for managed in pack.managedDefaults where managed.disableOnInstall {
+            guard let i = manager.ruleCollections.firstIndex(where: { $0.id == managed.collectionID }),
+                  manager.ruleCollections[i].isEnabled
+            else {
+                continue
+            }
+
+            manager.ruleCollections[i].isEnabled = false
+            changed = true
+            AppLogger.shared.log(
+                "⚠️ [PackInstaller] Leaving '\(managed.displayName)' disabled because restored settings conflicted during uninstall"
+            )
+        }
+
+        return changed
     }
 
     private static func buildComparisonView(

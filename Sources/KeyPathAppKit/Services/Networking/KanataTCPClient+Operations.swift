@@ -50,9 +50,7 @@ extension KanataTCPClient {
 
             while CFAbsoluteTimeGetCurrent() < deadline, attempts < 5 {
                 let remaining = max(0.1, deadline - CFAbsoluteTimeGetCurrent())
-                let nextLine = try await withTimeout(seconds: remaining) {
-                    try await self.readUntilNewline(on: connection)
-                }
+                let nextLine = try await readUntilNewline(on: connection, timeout: remaining)
                 attempts += 1
                 lastLine = nextLine
 
@@ -289,6 +287,7 @@ extension KanataTCPClient {
 
                 group.addTask {
                     try await Task.sleep(for: .milliseconds(timeoutMs + 1000))
+                    await self.closeConnection()
                     throw KeyPathError.communication(.timeout)
                 }
 
@@ -329,9 +328,7 @@ extension KanataTCPClient {
 
             while CFAbsoluteTimeGetCurrent() < deadline, attempts < 25 {
                 let remaining = max(0.1, deadline - CFAbsoluteTimeGetCurrent())
-                let nextLine = try await withTimeout(seconds: remaining) {
-                    try await self.readUntilNewline(on: connection)
-                }
+                let nextLine = try await readUntilNewline(on: connection, timeout: remaining)
                 attempts += 1
 
                 if !isCommandResponse(nextLine) {

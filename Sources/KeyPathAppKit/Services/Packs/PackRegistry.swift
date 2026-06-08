@@ -687,6 +687,12 @@ public enum PackRegistry {
                 )),
                 displayName: "Vallack Layer Toggles"
             ),
+            ManagedCollectionDefault(
+                collectionID: RuleCollectionIdentifier.homeRowArrows,
+                enableOnInstall: false,
+                disableOnInstall: true,
+                displayName: "Home Row Arrows"
+            ),
         ]
     )
 

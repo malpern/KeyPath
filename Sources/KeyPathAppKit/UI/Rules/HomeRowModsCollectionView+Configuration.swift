@@ -276,6 +276,7 @@ extension HomeRowModsCollectionView {
                 Spacer()
                 Button("Cancel") {
                     newLayerName = ""
+                    pendingNewLayerAssignmentKey = nil
                     showingNewLayerSheet = false
                 }
                 .keyboardShortcut(.cancelAction)
@@ -287,11 +288,12 @@ extension HomeRowModsCollectionView {
                         guard !raw.isEmpty else { return }
                         await onEnsureLayersExist([raw])
                         locallyCreatedLayers.insert(raw)
-                        if let selectedKey {
-                            config.layerAssignments[selectedKey] = raw
+                        if let assignmentKey = pendingNewLayerAssignmentKey ?? selectedKey {
+                            HomeRowModsNewLayerAssignment.assign(layerName: raw, to: assignmentKey, config: &config)
                             updateConfig()
                         }
                         newLayerName = ""
+                        pendingNewLayerAssignmentKey = nil
                         showingNewLayerSheet = false
                     }
                 }
@@ -305,5 +307,13 @@ extension HomeRowModsCollectionView {
         .frame(width: 360)
         .accessibilityIdentifier("home-row-mods-new-layer-sheet")
         .accessibilityLabel("Create new home row layer")
+    }
+}
+
+enum HomeRowModsNewLayerAssignment {
+    static func assign(layerName: String, to key: String, config: inout HomeRowModsConfig) {
+        let normalizedLayer = layerName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalizedLayer.isEmpty else { return }
+        config.layerAssignments[key] = normalizedLayer
     }
 }

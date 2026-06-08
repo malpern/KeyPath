@@ -38,6 +38,7 @@ extension KanataTCPClient {
             // Timeout task
             group.addTask {
                 try await Task.sleep(for: .seconds(self.timeout))
+                await self.closeConnection()
                 throw KeyPathError.communication(.timeout)
             }
 
@@ -52,7 +53,7 @@ extension KanataTCPClient {
     /// Returns exactly ONE complete line (ending with \n) from the connection.
     /// Uses a persistent buffer to handle cases where Kanata sends multiple
     /// lines in a single TCP packet.
-    func readUntilNewline(on connection: NWConnection) async throws -> Data {
+    func readUntilNewline(on connection: NWConnection, timeout seconds: TimeInterval? = nil) async throws -> Data {
         // Validate connection is ready before attempting read
         guard connection.state == .ready else {
             AppLogger.shared.log("❌ [TCP] readUntilNewline called on non-ready connection (state=\(connection.state))")
@@ -78,46 +79,32 @@ extension KanataTCPClient {
 
         // Start with existing buffer contents
         let accumulator = Accumulator(initial: readBuffer)
+        let deadline = seconds.map { CFAbsoluteTimeGetCurrent() + $0 }
 
         // No complete line in buffer, need to read from connection
         while true {
-            try await withCheckedThrowingContinuation {
-                (continuation: CheckedContinuation<Void, Error>) in
-                connection.receive(minimumIncompleteLength: 1, maximumLength: maxLength) {
-                    content, _, isComplete, error in
-                    if let error {
-                        continuation.resume(
-                            throwing: KeyPathError.communication(
-                                .connectionFailed(reason: error.localizedDescription)
-                            )
-                        )
-                        return
-                    }
+            let remaining: TimeInterval?
+            if let deadline {
+                let timeLeft = deadline - CFAbsoluteTimeGetCurrent()
+                guard timeLeft > 0 else {
+                    closeConnection()
+                    throw TCPTimeoutError()
+                }
+                remaining = timeLeft
+            } else {
+                remaining = nil
+            }
 
-                    if let content {
-                        accumulator.data.append(content)
-                        // Check if we now have at least one complete line (ending with \n)
-                        if accumulator.data.contains(0x0A) {
-                            continuation.resume()
-                            return
-                        }
-                    }
+            let chunk = try await receiveChunk(on: connection, maxLength: maxLength, timeout: remaining)
 
-                    if isComplete {
-                        // Connection closed - return what we have if we have data, otherwise error
-                        if accumulator.data.isEmpty {
-                            continuation.resume(
-                                throwing: KeyPathError.communication(.connectionFailed(reason: "Connection closed"))
-                            )
-                        } else {
-                            // Return partial data if connection closed (may be valid for last line)
-                            continuation.resume()
-                        }
-                        return
-                    }
+            if let content = chunk.content {
+                accumulator.data.append(content)
+            }
 
-                    // No data yet, continue reading
-                    continuation.resume()
+            if chunk.isComplete {
+                // Connection closed - return what we have if we have data, otherwise error
+                if accumulator.data.isEmpty {
+                    throw KeyPathError.communication(.connectionFailed(reason: "Connection closed"))
                 }
             }
 
@@ -134,6 +121,56 @@ extension KanataTCPClient {
                 throw KeyPathError.communication(
                     .connectionFailed(reason: "Response too large or malformed")
                 )
+            }
+
+            if chunk.isComplete, !accumulator.data.isEmpty {
+                readBuffer.removeAll()
+                return accumulator.data
+            }
+        }
+    }
+
+    /// Receive one TCP chunk with an optional real-time deadline.
+    ///
+    /// `NWConnection.receive` is callback-based and does not observe Swift task
+    /// cancellation. The timeout path resumes the continuation itself and
+    /// tears down the underlying connection so callers cannot hang waiting for
+    /// a callback that may never arrive.
+    private func receiveChunk(
+        on connection: NWConnection,
+        maxLength: Int,
+        timeout seconds: TimeInterval?
+    ) async throws -> (content: Data?, isComplete: Bool) {
+        let completionFlag = CompletionFlag()
+
+        return try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<(content: Data?, isComplete: Bool), Error>) in
+            if let seconds {
+                DispatchQueue.global().asyncAfter(deadline: .now() + seconds) {
+                    if completionFlag.markCompleted() {
+                        connection.cancel()
+                        continuation.resume(throwing: TCPTimeoutError())
+                        Task {
+                            await self.closeConnection()
+                        }
+                    }
+                }
+            }
+
+            connection.receive(minimumIncompleteLength: 1, maximumLength: maxLength) {
+                content, _, isComplete, error in
+                guard completionFlag.markCompleted() else { return }
+
+                if let error {
+                    continuation.resume(
+                        throwing: KeyPathError.communication(
+                            .connectionFailed(reason: error.localizedDescription)
+                        )
+                    )
+                    return
+                }
+
+                continuation.resume(returning: (content, isComplete))
             }
         }
     }
@@ -195,9 +232,10 @@ extension KanataTCPClient {
                                     throw KeyPathError.communication(.timeout)
                                 }
                                 let remaining = max(0.05, deadline - now)
-                                responseData = try await withTimeout(seconds: remaining) {
-                                    try await self.readUntilNewline(on: connection)
-                                }
+                                responseData = try await self.readUntilNewline(
+                                    on: connection,
+                                    timeout: remaining
+                                )
 
                                 // First check: is this a command response?
                                 if !self.isCommandResponse(responseData) {

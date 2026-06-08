@@ -242,12 +242,13 @@ final class PackInstallerRenderTests: XCTestCase {
         XCTAssertEqual(pack.managedCollectionIDs, [RuleCollectionIdentifier.capsLockRemap])
     }
 
-    func testManagedCollectionIDs_VallackSystem_ReturnsThreeCollections() {
+    func testManagedCollectionIDs_VallackSystem_ReturnsManagedCollections() {
         let pack = PackRegistry.vallackSystem
-        XCTAssertEqual(pack.managedCollectionIDs.count, 3)
+        XCTAssertEqual(pack.managedCollectionIDs.count, 4)
         XCTAssertTrue(pack.managedCollectionIDs.contains(RuleCollectionIdentifier.vallackNavigation))
         XCTAssertTrue(pack.managedCollectionIDs.contains(RuleCollectionIdentifier.homeRowMods))
         XCTAssertTrue(pack.managedCollectionIDs.contains(RuleCollectionIdentifier.homeRowLayerToggles))
+        XCTAssertTrue(pack.managedCollectionIDs.contains(RuleCollectionIdentifier.homeRowArrows))
     }
 
     func testPreferredDetailWidth_WidePacksReturn760() {
