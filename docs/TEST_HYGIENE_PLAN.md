@@ -208,9 +208,9 @@ Milestone 4b isolated smoke harness:
 - Added `dev-tools/smoke-harness`, a separate SwiftPM package that depends on
   the root package by path but imports only the `KeyPathCore` and
   `KeyPathPermissions` products.
-- Added `./Scripts/test-lane.sh smoke-isolated` as an experimental lane that
-  runs the harness with its own build directory and reports whether
-  `KeyPathAppKit` appeared in the build log.
+- Added `./Scripts/test-lane.sh smoke-isolated` as a fast lane that runs the
+  harness with its own build directory and fails if `KeyPathAppKit` appears in
+  the build log, unless explicitly overridden.
 - Seeded the harness with public-API smoke coverage for `KeyPathError`,
   `KanataDefseqParser`, and `PermissionOracle` fast/test mode.
 
@@ -228,6 +228,10 @@ core/product-level smoke coverage. The next dependency-audit work should use
 this lane as the fast proof point and only extract additional non-UI targets
 from `KeyPathAppKit` when important smoke coverage cannot be expressed through
 existing public products.
+
+CI now runs `smoke-isolated` as an early fail-fast lane before building the
+kanata fork or running the full test lane. The full lane remains the broad
+verification gate.
 
 ### Milestone 5: Warning And Failure Signal Cleanup
 
@@ -340,9 +344,9 @@ filters over the existing safe runner:
 - `device` for opt-in real-system installer smoke under `KEYPATH_E2E_DEVICE=1`;
 - `full` for the existing full safe SwiftPM suite.
 
-CI now calls the named `full` lane instead of embedding the raw safe-runner
-command. This gives developers and CI a shared vocabulary before Milestone 4
-changes the SwiftPM test target graph.
+CI now calls the named `smoke-isolated` lane before the named `full` lane. This
+gives developers and CI a shared vocabulary for the fast product-level smoke
+check and the broad verification gate.
 
 Latest local smoke lane measurement:
 
