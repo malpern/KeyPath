@@ -11,8 +11,16 @@ End-to-end process for shepherding code from initial request through to a clean 
 
 3. **Do the work** — edit code, iterate with the user.
 4. **Build and narrow-test while iterating** — use `swift build` plus the smallest relevant lane. Start with `./Scripts/test-fast.sh --changed`; use `./Scripts/test-fast.sh <area>` for known areas (`rules`, `ui`, `installer`, `config`, `layout`, `packs`, `tcp`, etc.) or `TEST_FILTER=SomeTests ./Scripts/run-tests-safe.sh` for a single suite. Run `./Scripts/quick-deploy.sh` only when you need installed app behavior.
-5. **Run the full pre-PR gate once** — before pushing, run `./Scripts/test-full.sh` (equivalent to the snapshot-enabled safe runner). Never commit code that breaks tests. The final full run is required; repeated mid-iteration full runs are the waste.
-6. **Commit** — commit frequently as you work. Use descriptive messages. Include `Co-Authored-By` tag.
+5. **Freshen before expensive gates** — before running the final broad local gate, fetch `origin/master` and make sure the branch is current:
+
+   ```bash
+   git fetch origin master
+   git rev-list --left-right --count origin/master...HEAD
+   ```
+
+   The first number must be `0`. If it is not, rebase or merge `origin/master`, resolve conflicts, then run the final local gate on the updated branch. This prevents wasting the full local run, CI, and Claude review on a branch GitHub will later mark as behind.
+6. **Run the full pre-PR gate once** — before pushing, run `./Scripts/test-full.sh` (equivalent to the snapshot-enabled safe runner). Never commit code that breaks tests. The final full run is required; repeated mid-iteration full runs are the waste.
+7. **Commit** — commit frequently as you work. Use descriptive messages. Include `Co-Authored-By` tag.
 
 ## Phase 2.5: Thermonuclear Review
 
@@ -20,18 +28,19 @@ End-to-end process for shepherding code from initial request through to a clean 
 
 ## Phase 3: PR Creation
 
-7. **Squash commits** — `git reset --soft master && git commit` with a comprehensive message covering all changes.
-8. **Push the branch** — `git push -u origin <branch-name>`.
-9. **Link issues** — check if any open GitHub issues are addressed by this work (`gh issue list --state open`). Include `Fixes #NNN` in the PR body for each one so GitHub auto-closes them on merge.
-10. **Create the PR** — `gh pr create` with a summary, `Fixes` references, and test plan. Return the URL to the user.
+8. **Squash commits** — after the freshness check above, `git reset --soft origin/master && git commit` with a comprehensive message covering all changes.
+9. **Push the branch** — `git push -u origin <branch-name>`.
+10. **Link issues** — check if any open GitHub issues are addressed by this work (`gh issue list --state open`). Include `Fixes #NNN` in the PR body for each one so GitHub auto-closes them on merge.
+11. **Create the PR** — `gh pr create` with a summary, `Fixes` references, and test plan. Return the URL to the user.
 
 ## Phase 4: Babysit the PR
 
-11. **Wait for CI** — poll `gh pr checks <number>` until all checks complete. Don't guess — wait for actual results.
-12. **Address review comments** — read `gh api repos/owner/repo/pulls/<number>/comments`, fix each issue, amend the commit, force-push.
-13. **Resolve conflicts** — if master has moved ahead, `git fetch origin master && git merge origin/master`, resolve conflicts, commit the merge, push.
-14. **Re-check CI** — after any push, wait for all checks to go green again.
-15. **Repeat 11-14** until all checks pass and no unaddressed review comments remain.
+12. **Confirm PR freshness before watching CI** — immediately after opening or pushing the PR, run the same freshness check against `origin/master`. If the branch is already behind, update it before waiting on CI/Claude so those expensive checks run once on the mergeable branch.
+13. **Wait for CI** — poll `gh pr checks <number>` until all checks complete. Don't guess — wait for actual results.
+14. **Address review comments** — read `gh api repos/owner/repo/pulls/<number>/comments`, fix each issue, amend the commit, force-push.
+15. **Resolve conflicts or behind state** — if master has moved ahead, `git fetch origin master && git rebase origin/master` (or merge if preserving branch topology matters), resolve conflicts, push, and restart the CI wait. Do this before a second CI/Claude wait, not after.
+16. **Re-check CI** — after any push, wait for all checks to go green again.
+17. **Repeat 12-16** until all checks pass and no unaddressed review comments remain.
 
 ### Velocity — risk-tier the babysit (don't poll when you don't need to)
 
@@ -44,36 +53,38 @@ Most PR clock-time is latency, not rigor. Cut the latency without dropping any g
 
 ## Phase 5: Merge
 
-16. **Ask the user for permission to merge** — never merge without explicit approval.
-17. **Merge** — `gh pr merge <number> --merge --delete-branch` unless the PR explicitly needs another merge mode. This matches the repo's recent merge-commit history and preserves individual commits when a PR intentionally has more than one. If multiple worktrees are active, prefer `gh pr merge <number> --repo malpern/KeyPath --merge --delete-branch` from outside the repo so `gh` does not try to switch a local worktree to `master`. If a local worktree error appears, verify GitHub state before retrying; the PR may already be merged.
-18. **Verify the merge** — `gh pr view <number> --json state` should show `"state": "MERGED"`.
-19. **Verify issues closed** — for each `Fixes #NNN` reference, confirm the issue is now closed: `gh issue view <number> --json state`.
+18. **Ask the user for permission to merge** — never merge without explicit approval.
+19. **Final freshness check** — before merging, verify `gh pr view <number> --json mergeStateStatus,mergeable` reports a clean, mergeable PR. If it is behind, update first and let checks rerun once.
+20. **Merge** — `gh pr merge <number> --merge --delete-branch` unless the PR explicitly needs another merge mode. This matches the repo's recent merge-commit history and preserves individual commits when a PR intentionally has more than one. If multiple worktrees are active, prefer `gh pr merge <number> --repo malpern/KeyPath --merge --delete-branch` from outside the repo so `gh` does not try to switch a local worktree to `master`. If a local worktree error appears, verify GitHub state before retrying; the PR may already be merged.
+21. **Verify the merge** — `gh pr view <number> --json state` should show `"state": "MERGED"`.
+22. **Verify issues closed** — for each `Fixes #NNN` reference, confirm the issue is now closed: `gh issue view <number> --json state`.
 
 ## Phase 5.5: Publish Documentation
 
 If the PR added or changed files in `guides/`:
 
-19b. **Copy guides to gh-pages** — use the gh-pages worktree at `.worktrees/gh-pages` (or `Scripts/publish-guides.sh`). Copy new/changed `guides/*.md` files, update `docs.md` if new guides need links in the landing page.
-19c. **Push gh-pages** — `cd .worktrees/gh-pages && git add -A && git commit -m "Publish <guide names>" && git push origin gh-pages`.
+22b. **Copy guides to gh-pages** — use the gh-pages worktree at `.worktrees/gh-pages` (or `Scripts/publish-guides.sh`). Copy new/changed `guides/*.md` files, update `docs.md` if new guides need links in the landing page.
+22c. **Push gh-pages** — `cd .worktrees/gh-pages && git add -A && git commit -m "Publish <guide names>" && git push origin gh-pages`.
 
 ## Phase 6: Cleanup
 
-20. **Exit the worktree** — `ExitWorktree` with `action: "remove"` and `discard_changes: true` (safe because all work is merged). This deletes the worktree directory and branch.
-21. **Pull master** — `git fetch --prune origin && git pull --ff-only origin master` from the intended master worktree. Verify it fast-forwards to include your merged PR. If another worktree owns `master`, do the pull and deploy from that worktree.
-22. **Deploy from master** — run `./Scripts/release-candidate.sh` so the running app matches merged master with a signed/notarized local build. For fast dev-only handoffs where notarization is explicitly unnecessary, use `./Scripts/quick-deploy.sh` and say that you did not produce a notarized build.
-23. **Confirm to the user** — state explicitly: PR merged, issues closed, master pulled, deployed, worktree cleaned up.
+23. **Exit the worktree** — `ExitWorktree` with `action: "remove"` and `discard_changes: true` (safe because all work is merged). This deletes the worktree directory and branch.
+24. **Pull master** — `git fetch --prune origin && git pull --ff-only origin master` from the intended master worktree. Verify it fast-forwards to include your merged PR. If another worktree owns `master`, do the pull and deploy from that worktree.
+25. **Deploy from master** — run `./Scripts/release-candidate.sh` so the running app matches merged master with a signed/notarized local build. For fast dev-only handoffs where notarization is explicitly unnecessary, use `./Scripts/quick-deploy.sh` and say that you did not produce a notarized build.
+26. **Confirm to the user** — state explicitly: PR merged, issues closed, master pulled, deployed, worktree cleaned up.
 
 ## What Can Go Wrong
 
 | Symptom | Cause | Prevention |
 |---------|-------|------------|
-| Work "disappears" after merge | Merged to GitHub but never pulled to local master, or deployed from worktree not master | Always do Phase 6 steps 21-22 |
+| Work "disappears" after merge | Merged to GitHub but never pulled to local master, or deployed from worktree not master | Always do Phase 6 steps 24-25 |
 | `gh pr merge` reports a local worktree error | The PR merged on GitHub, then `gh` tried to switch/delete a branch owned by another worktree | Verify `gh pr view <number> --json state,mergeCommit`, fetch/prune, then pull/deploy from the master worktree |
-| Issues stay open after merge | PR body didn't include `Fixes #NNN` keywords | Step 9: link issues before creating the PR |
-| PR shows conflicts after merge | Another PR merged first, moving master ahead | Resolve conflicts before merging (step 13) |
-| CI passes but app is broken | Tests don't cover the feature; only tested in worktree | Deploy from master (step 22) and have user verify |
+| Issues stay open after merge | PR body didn't include `Fixes #NNN` keywords | Step 10: link issues before creating the PR |
+| CI/Claude run twice for the same PR | Branch was behind `master` when the PR was opened or watched | Run the freshness check before the full local gate, before opening the PR, and again before waiting on CI |
+| PR shows conflicts after merge | Another PR merged first, moving master ahead | Resolve conflicts before merging (step 15) |
+| CI passes but app is broken | Tests don't cover the feature; only tested in worktree | Deploy from master (step 25) and have user verify |
 | Worktree left behind | Agent exited without cleanup | Always exit worktree on completion |
-| Stale build running | Deployed from worktree during dev, never redeployed from master | Step 22 is mandatory, not optional |
+| Stale build running | Deployed from worktree during dev, never redeployed from master | Step 25 is mandatory, not optional |
 | Amending a commit after merge | Force-push after squash-merge creates a diverged branch | Never push after merge — go straight to cleanup |
 
 ## Non-Negotiable Rules

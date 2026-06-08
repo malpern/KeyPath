@@ -11,6 +11,9 @@ What must be true at each phase boundary. The agent's job is to make these true 
 
 - [ ] `swift build` passes
 - [ ] `swift test` passes (all tests, zero failures)
+- [ ] Branch is current with `origin/master` before the final broad local gate
+      (`git rev-list --left-right --count origin/master...HEAD` reports `0`
+      as the first number)
 - [ ] Changes are committed with descriptive messages
 
 ## After Development — Documentation Check
@@ -29,6 +32,7 @@ What must be true at each phase boundary. The agent's job is to make these true 
 - [ ] Single squashed commit on the branch
 - [ ] Branch pushed to origin
 - [ ] PR exists on GitHub with summary and test plan
+- [ ] PR branch is not behind `master` before waiting on CI/Claude
 - [ ] Every open issue addressed by this work has `Fixes #NNN` in the PR body
 
 ## Required Status Checks
@@ -40,6 +44,7 @@ What must be true at each phase boundary. The agent's job is to make these true 
 - [ ] All CI checks green
 - [ ] Zero unaddressed review comments
 - [ ] No merge conflicts with master
+- [ ] Branch is still current with `master`; if not, update first and rerun checks
 - [ ] User has approved the merge
 
 ## After Merge — The Completion Gate
