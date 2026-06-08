@@ -100,6 +100,12 @@ Target after #815:
 REQUIRE_NOTARIZED=0 REQUIRE_STAPLED=0 ./Scripts/verify-installed-app.sh
 ```
 
+Log review can also be run independently after installed-app or manual QA:
+
+```bash
+./Scripts/qa-keypath-log-gate.sh
+```
+
 For notarized release-candidate builds, run verification without relaxed
 notarization/stapling flags.
 
@@ -147,8 +153,8 @@ current UI, `TODO` not yet assessed in the 1.0 matrix.
 | Settings | Keyboard layout/keymap | Geometry/labels update according to architecture rule | TODO #816 |
 | Settings | Overlay preferences | Preferences persist and update overlay state | TODO #816 #818 |
 | Settings | Advanced/runtime controls | Controls persist, route through helper/runtime, and log cleanly | TODO #816 #817 |
-| Runtime | Config validate/apply/reload | Installed app path validates config and reloads Kanata | TODO #815 |
-| Runtime | Log review | Scripts fail on unclassified high-signal errors | TODO #817 |
+| Runtime | Config validate/apply/reload | `qa-keypath-release-smoke.sh` applies representative fixtures, validates with bundled Kanata, reloads, checks TCP, and restores config | PASS #815 |
+| Runtime | Log review | `qa-keypath-log-gate.sh` captures recent app/CLI/Kanata/unified logs and fails on unclassified high-signal errors | PASS #817 |
 
 ## Stop Doing
 
