@@ -278,6 +278,14 @@ Status:
 - Removed redundant `await` annotations from `PackDetailView+LiveState` live
   rule-collection reads; local `swift build` recompiled the file without
   re-emitting the warning.
+- Cleaned two repeated test warning families:
+  - made `UnmappedLayerKeyStyleTests` use the existing main-actor async XCTest
+    lifecycle pattern for shared preferences and `OverlayKeycapView` access;
+  - made `VallackOverlayZoneTests` main-actor aware, removed an unused keycap
+    construction, and removed a redundant nil-coalescing expression.
+- Focused appkit lane validation passed for
+  `UnmappedLayerKeyStyleTests|VallackOverlayZoneTests` with 58 XCTest tests and
+  `test_log_swift_warnings=0`.
 
 ### Milestone 6: Measurement And Regression Guardrails
 

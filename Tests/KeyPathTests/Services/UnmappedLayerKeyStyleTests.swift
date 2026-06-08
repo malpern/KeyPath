@@ -1,7 +1,7 @@
 @testable import KeyPathAppKit
 import KeyPathCore
 import SwiftUI
-import XCTest
+@preconcurrency import XCTest
 
 /// Tests for the "unmapped keys on layers" overlay setting: a transparent
 /// (unmapped) key leaves layer mode — rendering base-style — when the user
@@ -10,8 +10,8 @@ import XCTest
 final class UnmappedLayerKeyStyleTests: KeyPathTestCase {
     private var savedStyle: UnmappedLayerKeyStyle!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         // Tripwire: the isLayerMode tests drive the view through
         // PreferencesService.shared, which only works because the default
         // @Environment(\.services) ServiceContainer uses `.shared` for its
@@ -23,9 +23,9 @@ final class UnmappedLayerKeyStyleTests: KeyPathTestCase {
         savedStyle = PreferencesService.shared.unmappedLayerKeyStyle
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         PreferencesService.shared.unmappedLayerKeyStyle = savedStyle
-        super.tearDown()
+        try await super.tearDown()
     }
 
     private func keycap(layer: String, info: LayerKeyInfo?, zoneSubtitle: String? = nil) -> OverlayKeycapView {
