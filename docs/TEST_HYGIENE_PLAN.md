@@ -306,6 +306,11 @@ Status:
   `test_log_app_warnings=2`, and `test_log_swift_warnings=0`. The remaining
   reported `build_log_swift_warnings=35` were stale Clang PCM/module-cache
   warnings during the reset/rebuild path, not Swift source diagnostics.
+- Quieted the last expected fallback warnings in `SaveCoordinator`; a focused
+  `SaveCoordinatorTests` run passed with zero app warnings/errors, and a broad
+  warm `appkit` lane passed its existing condition with 1,338 XCTest tests
+  passed, 18 skipped, `test_log_app_warnings=0`, `test_log_app_errors=0`,
+  `test_log_swift_warnings=0`, and `build_log_swift_warnings=0`.
 
 ### Milestone 6: Measurement And Regression Guardrails
 
