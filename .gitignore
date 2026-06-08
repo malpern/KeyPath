@@ -64,6 +64,7 @@ peekaboo/
 *.tmp
 temp_*
 test_output.safe.txt
+test_output.smoke.txt
 test_output.smoke-isolated.txt
 
 # Local-only test security setup (DO NOT COMMIT)

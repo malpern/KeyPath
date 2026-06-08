@@ -142,11 +142,11 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Fast Smoke Lane" >> $GITHUB_STEP_SUMMARY
         if [ "${SMOKE_STATUS:-unknown}" = "failed" ]; then
-          echo "- \`smoke-isolated\`: failed" >> $GITHUB_STEP_SUMMARY
+          echo "- \`smoke\`: failed" >> $GITHUB_STEP_SUMMARY
         elif [ "${SMOKE_STATUS:-unknown}" = "passed" ]; then
-          echo "- \`smoke-isolated\`: passed" >> $GITHUB_STEP_SUMMARY
+          echo "- \`smoke\`: passed" >> $GITHUB_STEP_SUMMARY
         else
-          echo "- \`smoke-isolated\`: status unknown" >> $GITHUB_STEP_SUMMARY
+          echo "- \`smoke\`: status unknown" >> $GITHUB_STEP_SUMMARY
         fi
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Installer Reliability Matrix" >> $GITHUB_STEP_SUMMARY

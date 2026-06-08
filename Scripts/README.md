@@ -11,7 +11,7 @@
 - `./Scripts/cleanup-local-build-artifacts.sh` — Dry-run cleanup of generated `.build`/`dist`/test artifacts across local worktrees. Add `--apply` to delete.
 - `./test.sh` — Run the full test suite (root)
 - `./Scripts/test-lane.sh <lane>` — Run a named SwiftPM test lane (`smoke`,
-  `unit`, `appkit`, `installer`, `snapshot`, `device`, or `full`).
+  `smoke-root`, `unit`, `appkit`, `installer`, `snapshot`, `device`, or `full`).
 - `./Scripts/run-installer-reliability-matrix.sh` — Automated installer reliability matrix + diagnostic artifact bundle (`test-results/installer-reliability/latest`).
 - `./Scripts/repro-duplicate-keys.sh` — CPU-load repro harness for duplicate keypress detection (filters navigation keys by default). Supports `--auto-type osascript` or `--auto-type peekaboo` for deterministic automated keystroke generation, and continuously samples Kanata process metrics (CPU%, memory, threads, priority).
 
@@ -32,8 +32,9 @@
 ## Testing
 - `test.sh` (in root) - All tests
 - `test-*.sh` (in Scripts/) - Individual test suites
-- `./Scripts/test-lane.sh smoke` - Fast sanity lane from the narrow
-  `KeyPathSmokeTests` target.
+- `./Scripts/test-lane.sh smoke` - Fast isolated product-level sanity lane.
+- `./Scripts/test-lane.sh smoke-root` - Root-package smoke target; useful for
+  diagnostics, but not the fast path.
 - `./Scripts/test-lane.sh unit` - Pure or mostly pure model/parser/renderer
   tests.
 - `./Scripts/test-lane.sh appkit` - UI-adjacent app logic, services, packs,
@@ -51,8 +52,7 @@
   noisy test investigation. Set `KEYPATH_TEST_RESET_MODULE_CACHE=0` when a
   narrow local lane should reuse the Swift module cache.
 - CI also runs:
-  - `swift test --filter SigningPipelineTests` (verifies signing/notary wrappers surface failures and honor dry-run)
-  - `swift test --filter InstallerEngineEndToEndTests` (ensures InstallerEngine executes plans and stops on broker failures)
+  - `./Scripts/test-lane.sh smoke` as the early fail-fast lane.
   - `./Scripts/run-installer-reliability-matrix.sh` (pre/during/post install lanes + inspect snapshot artifact)
   - Optional/local: `KEYPATH_E2E_DEVICE=1 swift test --filter InstallerDeviceTests` or `./Scripts/test-installer-device.sh` for real-surface installer smoke
 

@@ -23,13 +23,13 @@ else
     brew install kanata
 fi
 
-# Test 2: Run isolated smoke lane
-echo "🧪 Running isolated smoke lane..."
+# Test 2: Run smoke lane
+echo "🧪 Running smoke lane..."
 chmod +x ./Scripts/test-lane.sh
-if KEYPATH_ISOLATED_SMOKE_CLEAN=1 ./Scripts/test-lane.sh smoke-isolated 2>&1 | tee local_test_output.log; then
-    echo "✅ Isolated smoke lane completed"
+if KEYPATH_ISOLATED_SMOKE_CLEAN=1 ./Scripts/test-lane.sh smoke 2>&1 | tee local_test_output.log; then
+    echo "✅ Smoke lane completed"
 else
-    echo "❌ Isolated smoke lane failed"
+    echo "❌ Smoke lane failed"
     cat local_test_output.log
     exit 1
 fi

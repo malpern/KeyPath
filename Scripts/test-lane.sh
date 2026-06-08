@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # KeyPath named test lanes.
-# Most lanes are filters over the existing safe runner. The smoke lane uses a
-# smaller SwiftPM test target so local sanity checks avoid the AppKit test graph.
+# Most lanes are filters over the existing safe runner. The default smoke lane
+# uses an isolated SwiftPM harness so local sanity checks avoid the AppKit graph.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
@@ -16,9 +16,8 @@ usage() {
 Usage: ./Scripts/test-lane.sh <lane>
 
 Lanes:
-  smoke      Fast sanity checks from the narrow smoke test target.
-  smoke-isolated
-             Experimental smoke harness that depends only on core products.
+  smoke      Fast isolated sanity checks against core products.
+  smoke-root Root-package smoke target; useful for diagnostics, not the fast path.
   unit       Pure or mostly pure model/parser/renderer logic.
   appkit     UI-adjacent app logic, services, packs, config, mappers, and rule collections.
   installer  InstallerEngine, wizard, daemon/service lifecycle, and health-check tests.
@@ -65,8 +64,9 @@ run_safe_lane() {
 }
 
 run_isolated_smoke_lane() {
+  local lane="${1:-smoke}"
   local harness_dir="$PROJECT_DIR/dev-tools/smoke-harness"
-  local log_path="${KEYPATH_TEST_LOG:-$PROJECT_DIR/test_output.smoke-isolated.txt}"
+  local log_path="${KEYPATH_TEST_LOG:-$PROJECT_DIR/test_output.${lane}.txt}"
   local build_path="${KEYPATH_ISOLATED_SMOKE_BUILD_PATH:-$harness_dir/.build}"
 
   if [ "${KEYPATH_ISOLATED_SMOKE_CLEAN:-0}" = "1" ]; then
@@ -75,7 +75,7 @@ run_isolated_smoke_lane() {
 
   mkdir -p "$(dirname "$log_path")"
 
-  echo "🛣️  Running KeyPath test lane: smoke-isolated"
+  echo "🛣️  Running KeyPath test lane: $lane"
   echo "📦 Harness: $harness_dir"
   echo "🧱 Build path: $build_path"
   echo "📄 Log: $log_path"
@@ -115,13 +115,13 @@ run_isolated_smoke_lane() {
 
 case "$LANE" in
   smoke)
+    run_isolated_smoke_lane "$LANE"
+    ;;
+  smoke-root)
     export KEYPATH_TEST_PREBUILD="${KEYPATH_TEST_PREBUILD:-0}"
     export KEYPATH_TEST_DISABLE_XCTEST="${KEYPATH_TEST_DISABLE_XCTEST:-1}"
     export KEYPATH_TEST_RESET_MODULE_CACHE="${KEYPATH_TEST_RESET_MODULE_CACHE:-0}"
     run_safe_lane "$LANE" "KeyPathSmokeTests" 120
-    ;;
-  smoke-isolated)
-    run_isolated_smoke_lane
     ;;
   unit)
     run_safe_lane "$LANE" "KeyPathErrorTests|TextToKanataKeyMapperTests|KanataBehaviorParserTests|KanataBehaviorRendererTests|KanataDefseqParserTests|PhysicalLayoutTests|MappingBehaviorTests|LayerKeyMapperNormalizeTests|LayerKeyMapperLabelTests|LayerKeyInfoExtractionTests|LabelMetadataTests|ConfigApplyTypesTests|VirtualKeyParserTests|QMKLayoutParserTests|HandAssignmentTests|TypingFeelMappingTests|KindaVimTelemetryStoreTests|GlobalHotkeyMatcherTests|VimSequenceObserverTests" 180
