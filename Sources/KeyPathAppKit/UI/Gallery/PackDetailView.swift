@@ -677,6 +677,7 @@ struct PackDetailView: View {
                     step: Double(step)
                 )
                 .frame(maxWidth: 200)
+                .accessibilityIdentifier("pack-detail-quick-setting-\(setting.id)")
                 .accessibilityLabel(setting.label)
                 .accessibilityValue("\(quickSettingValues[setting.id] ?? 0)\(suffix)")
                 Text("\(quickSettingValues[setting.id] ?? 0)\(suffix)")
