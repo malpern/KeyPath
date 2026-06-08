@@ -605,11 +605,12 @@ Milestone 6 is implemented with the MacBook Air local loop as the target:
   broad-lane spillover was concentrated in TCP/client robustness, runtime
   coordinator, process lifecycle, permission/system checks, keyboard capture,
   VHID, helper, and low-level utility suites. A focused `runtime` lane was added
-  for that surface and selected 346 tests with a clean warning/error summary.
-  Its timing still needs a quiet-machine rerun because this first pass overlapped
-  other local testing. This lane also surfaces verbose XCTest performance metric
-  output from runtime/utility tests; treat that as a future hygiene question if
-  quiet-machine runs show log noise or instability.
+  for that surface. A quiet-machine run of `./Scripts/measure-local-loop.sh
+  runtime` passed in 18s total, with 5s build time, 12s test execution, 346
+  passed tests, and zero Swift warnings, module-cache warnings, app warnings, or
+  app errors. This lane also surfaces verbose XCTest performance metric output
+  from runtime/utility tests; treat that as a future hygiene question if runs
+  show log noise or instability.
 - Current warm installer audit from `./Scripts/measure-local-loop.sh
   installer`: 15s total, 266 passed, and zero Swift warnings,
   module-cache warnings, app warnings, or app errors. The measured cost is
@@ -621,18 +622,18 @@ Milestone 6 is implemented with the MacBook Air local loop as the target:
 - Installer-lane hygiene required keeping `run-tests-safe.sh` hermetic by
   default (`KEYPATH_USE_SUDO=0` unless explicitly overridden) and downgrading
   expected installer failure-path diagnostics to debug in quiet test runs.
-- Current warm full baseline from `./Scripts/measure-local-loop.sh full`: 45s
-  total, 4s build, 40s test execution, zero Swift warnings, zero module-cache
-  warnings, zero app warnings, and zero app errors. This is now suitable as the
-  broad local confidence check when the narrower lane for a change passes first.
+- Current quiet warm full baseline from `./Scripts/measure-local-loop.sh full`:
+  33s total, 4s build, 29s test execution, 4,227 passed tests, and zero Swift
+  warnings, zero module-cache warnings, zero app warnings, and zero app errors.
+  This is now suitable as the broad local confidence check when the narrower
+  lane for a change passes first.
 
 The Mac mini workflow is deferred. Revisit it only after the MacBook Air loop is
 fast and boring enough that remote execution would solve a measured capacity
 problem instead of compensating for harness noise.
 
-Next planned milestone: rerun the new `runtime` lane on a quiet machine and
-decide whether the remaining full-lane cost is acceptable as broad handoff
-coverage. CLI/AppKit extraction is worth revisiting only if a measured workflow
-needs true build isolation; the current `cli` lane already gives a fast, stable
-selection path. Installer/wizard splits should follow only after the remaining
-lane timings justify the extra dependency work.
+Next planned milestone: treat the current lane set as the stable local loop and
+watch for regressions. CLI/AppKit extraction is worth revisiting only if a
+measured workflow needs true build isolation; the current `cli` lane already
+gives a fast, stable selection path. Installer/wizard splits should follow only
+after the remaining lane timings justify the extra dependency work.
