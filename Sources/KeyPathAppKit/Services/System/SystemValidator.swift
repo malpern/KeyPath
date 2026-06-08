@@ -40,6 +40,19 @@ public class SystemValidator {
     private let vhidDeviceManager: VHIDDeviceManager
     private let processLifecycleManager: ProcessLifecycleManager
     private weak var kanataManager: RuntimeCoordinator?
+    private var cachedComponentFacts: ComponentInstallationFacts?
+
+    private struct ComponentInstallationFacts: Sendable {
+        let kanataBinaryInstalled: Bool
+        let vhidInstalled: Bool
+        let vhidVersionMismatch: Bool
+        let karabinerDriverExtensionEnabled: Bool
+        let timestamp: Date
+
+        func isFresh(ttl: TimeInterval) -> Bool {
+            Date().timeIntervalSince(timestamp) < ttl
+        }
+    }
 
     init(
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
@@ -99,6 +112,11 @@ public class SystemValidator {
         defer { inProgressValidation = nil }
 
         return await validationTask.value
+    }
+
+    func invalidateCaches() {
+        cachedComponentFacts = nil
+        ServiceHealthChecker.shared.invalidateHealthCache()
     }
 
     /// Perform the actual validation work
@@ -390,20 +408,16 @@ public class SystemValidator {
     private func checkComponents() async -> ComponentStatus {
         AppLogger.shared.log("🔍 [SystemValidator] Checking components")
 
-        // Check Kanata binary installation (canonical identity).
-        // The bundled binary at Contents/Library/KeyPath/kanata is the canonical path.
-        // TCC permissions survive app rebuilds at /Applications/KeyPath.app.
-        let kanataBinaryDetector = KanataBinaryDetector.shared
-        let kanataBinaryInstalled = kanataBinaryDetector.isInstalled()
-
-        // Check VirtualHID Device installation (fast sync check)
-        let vhidInstalled = vhidDeviceManager.detectInstallation()
-        let vhidVersionMismatch = vhidDeviceManager.hasVersionMismatch()
+        let facts = await componentInstallationFacts()
 
         // Check LaunchDaemon services via ServiceHealthChecker FIRST
         // This uses launchctl (fast) and provides VHID health, avoiding duplicate pgrep calls
         // that could contend with checkHealth()'s detectConnectionHealth() call
+        let daemonStatusStart = Date()
         let daemonStatus = await ServiceHealthChecker.shared.getServiceStatus()
+        AppLogger.shared.log(
+            "⏱️ [TIMING] SystemValidator.checkComponents daemon status completed in \(String(format: "%.3f", Date().timeIntervalSince(daemonStatusStart)))s"
+        )
         let vhidServicesHealthy = daemonStatus.vhidServicesHealthy
         // Use launchctl-based VHID daemon health instead of pgrep-based detectConnectionHealth
         // to avoid concurrent pgrep calls that can cause hangs (see checkHealth which also calls it)
@@ -413,27 +427,65 @@ public class SystemValidator {
         // Treat the driver as installed if either the extension is enabled or a VHID device is present.
         // This avoids false negatives when launchd state is stale but the driver is already active.
         let karabinerDriverInstalled =
-            await (kanataManager?.isKarabinerDriverExtensionEnabled() ?? false)
-                || vhidInstalled || vhidHealthy
-        // Use launchctl-based check instead of unreliable pgrep (same as checkHealth)
-        let karabinerDaemonRunning = await ServiceHealthChecker.shared.isServiceHealthy(
-            serviceID: "com.keypath.karabiner-vhiddaemon"
-        )
+            facts.karabinerDriverExtensionEnabled || facts.vhidInstalled || vhidHealthy
+        let karabinerDaemonRunning = daemonStatus.vhidDaemonServiceHealthy
 
         AppLogger.shared
             .log(
-                "🔍 [SystemValidator] Components: kanata=\(kanataBinaryInstalled), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidServices=\(vhidServicesHealthy), vhidVersionMismatch=\(vhidVersionMismatch)"
+                "🔍 [SystemValidator] Components: kanata=\(facts.kanataBinaryInstalled), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidServices=\(vhidServicesHealthy), vhidVersionMismatch=\(facts.vhidVersionMismatch)"
             )
 
         return ComponentStatus(
-            kanataBinaryInstalled: kanataBinaryInstalled,
+            kanataBinaryInstalled: facts.kanataBinaryInstalled,
             karabinerDriverInstalled: karabinerDriverInstalled,
             karabinerDaemonRunning: karabinerDaemonRunning,
-            vhidDeviceInstalled: vhidInstalled,
+            vhidDeviceInstalled: facts.vhidInstalled,
             vhidDeviceHealthy: vhidHealthy,
             vhidServicesHealthy: vhidServicesHealthy,
-            vhidVersionMismatch: vhidVersionMismatch
+            vhidVersionMismatch: facts.vhidVersionMismatch
         )
+    }
+
+    private func componentInstallationFacts() async -> ComponentInstallationFacts {
+        if let cachedComponentFacts, cachedComponentFacts.isFresh(ttl: 15.0) {
+            AppLogger.shared.log("🔍 [SystemValidator] Component installation facts CACHE HIT")
+            return cachedComponentFacts
+        }
+
+        let start = Date()
+
+        // Check Kanata binary installation (canonical identity).
+        // The bundled binary at Contents/Library/KeyPath/kanata is the canonical path.
+        // TCC permissions survive app rebuilds at /Applications/KeyPath.app.
+        let kanataBinaryDetector = KanataBinaryDetector.shared
+        let kanataBinaryInstalled = kanataBinaryDetector.isInstalled()
+
+        let vhidStart = Date()
+        let vhidInstalled = vhidDeviceManager.detectInstallation()
+        let vhidVersionMismatch = vhidDeviceManager.hasVersionMismatch()
+        AppLogger.shared.log(
+            "⏱️ [TIMING] SystemValidator.checkComponents VHID static facts completed in \(String(format: "%.3f", Date().timeIntervalSince(vhidStart)))s"
+        )
+
+        let karabinerStart = Date()
+        let karabinerDriverExtensionEnabled =
+            await (kanataManager?.isKarabinerDriverExtensionEnabled() ?? false)
+        AppLogger.shared.log(
+            "⏱️ [TIMING] SystemValidator.checkComponents Karabiner extension check completed in \(String(format: "%.3f", Date().timeIntervalSince(karabinerStart)))s"
+        )
+
+        let facts = ComponentInstallationFacts(
+            kanataBinaryInstalled: kanataBinaryInstalled,
+            vhidInstalled: vhidInstalled,
+            vhidVersionMismatch: vhidVersionMismatch,
+            karabinerDriverExtensionEnabled: karabinerDriverExtensionEnabled,
+            timestamp: Date()
+        )
+        cachedComponentFacts = facts
+        AppLogger.shared.log(
+            "⏱️ [TIMING] SystemValidator.checkComponents static facts completed in \(String(format: "%.3f", Date().timeIntervalSince(start)))s"
+        )
+        return facts
     }
 
     // MARK: - Conflict Detection
@@ -506,18 +558,19 @@ public class SystemValidator {
         // is running via pgrep.
         AppLogger.shared.log("🔍 [SystemValidator] checkHealth() - About to check Kanata service health...")
         let kanataStart = Date()
-        let kanataHealth = await ServiceHealthChecker.shared.checkKanataServiceHealth(
+        let kanataHealth = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot(
             tcpPort: PreferencesService.shared.tcpServerPort
         )
         let kanataRunning = kanataHealth.isRunning
         let stderrDiagnosis = await ServiceHealthChecker.shared.diagnoseDaemonStderr()
-        // Layer kanata's authoritative InputGrab signal (#630) over the stderr
-        // detector, identical to checkKanataServiceRuntimeSnapshot, so both
-        // health pipelines agree on input-capture readiness.
-        let inputCapture = ServiceHealthChecker.resolveInputCaptureStatus(stderrFallback: stderrDiagnosis.inputCapture)
+        let configParseError = Self.effectiveConfigParseError(
+            stderrDiagnosis.configParseError,
+            kanataRunning: kanataHealth.isRunning,
+            tcpResponding: kanataHealth.isResponding
+        )
         let kanataDuration = Date().timeIntervalSince(kanataStart)
         AppLogger.shared.log(
-            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: hostRunning=\(kanataHealth.isRunning), tcpResponding=\(kanataHealth.isResponding), healthy=\(kanataRunning), inputCaptureReady=\(inputCapture.isReady), permRejected=\(stderrDiagnosis.permissionRejected) (took \(String(format: "%.3f", kanataDuration))s)"
+            "🔍 [SystemValidator] checkHealth() - Kanata service check complete: hostRunning=\(kanataHealth.isRunning), tcpResponding=\(kanataHealth.isResponding), healthy=\(kanataRunning), inputCaptureReady=\(kanataHealth.inputCaptureReady), permRejected=\(stderrDiagnosis.permissionRejected) (took \(String(format: "%.3f", kanataDuration))s)"
         )
 
         // Use launchctl-based check instead of unreliable pgrep
@@ -546,7 +599,11 @@ public class SystemValidator {
             "🔍 [SystemValidator] checkHealth() EXIT - Health: kanata=\(kanataRunning), daemon=\(karabinerDaemonRunning) (launchctl), vhid=\(vhidHealthy), permRejected=\(stderrDiagnosis.permissionRejected) (total: \(String(format: "%.3f", totalDuration))s)"
         )
 
-        if let configError = stderrDiagnosis.configParseError {
+        if stderrDiagnosis.configParseError != nil, configParseError == nil {
+            AppLogger.shared.warn(
+                "🔍 [SystemValidator] checkHealth() - Ignoring stale stderr config parse error because Kanata is running and TCP-responsive"
+            )
+        } else if let configError = configParseError {
             AppLogger.shared.error("🔍 [SystemValidator] checkHealth() - Config parse error detected: \(configError)")
         }
 
@@ -554,11 +611,20 @@ public class SystemValidator {
             kanataRunning: kanataRunning,
             karabinerDaemonRunning: karabinerDaemonRunning,
             vhidHealthy: vhidHealthy,
-            kanataInputCaptureReady: inputCapture.isReady,
-            kanataInputCaptureIssue: inputCapture.issue,
+            kanataInputCaptureReady: kanataHealth.inputCaptureReady,
+            kanataInputCaptureIssue: kanataHealth.inputCaptureIssue,
             kanataPermissionRejected: stderrDiagnosis.permissionRejected,
-            configParseError: stderrDiagnosis.configParseError
+            configParseError: configParseError
         )
+    }
+
+    static func effectiveConfigParseError(
+        _ stderrConfigParseError: String?,
+        kanataRunning: Bool,
+        tcpResponding: Bool
+    ) -> String? {
+        guard let stderrConfigParseError else { return nil }
+        return kanataRunning && tcpResponding ? nil : stderrConfigParseError
     }
 
     // MARK: - Debug Support

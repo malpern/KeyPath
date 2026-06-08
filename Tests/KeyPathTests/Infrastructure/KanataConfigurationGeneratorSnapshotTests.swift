@@ -216,6 +216,19 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
         )
     }
 
+    private func makeHomeRowModsCollection(_ config: HomeRowModsConfig) throws -> RuleCollection {
+        try makeCollection(
+            id: XCTUnwrap(UUID(uuidString: "22222222-2222-2222-2222-222222222222")),
+            name: "Home Row Mods",
+            summary: "HRM",
+            category: .custom,
+            mappings: [],
+            targetLayer: .base,
+            momentaryActivator: nil,
+            configuration: .homeRowMods(config)
+        )
+    }
+
     // MARK: - defhands + require-prior-idle Integration
 
     func testOppositeHandActivation_EmitsDefhandsBlock() throws {
@@ -321,6 +334,77 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
         let config = KanataConfiguration.generateFromCollections([hrmCollection])
 
         XCTAssertFalse(config.contains("require-prior-idle"), "Should not contain require-prior-idle when 0")
+    }
+
+    func testHomeRowModsUiMatrix_OffModeTimingAndDisabledKeysRenderCorrectly() throws {
+        var timing = TimingConfig.default
+        timing.tapWindow = 230
+        timing.holdDelay = 180
+        timing.quickTapEnabled = true
+        timing.quickTapTermMs = 25
+        timing.tapOffsets = ["a": 40]
+        timing.holdOffsets = ["a": 30]
+        timing.requirePriorIdleMs = 220
+
+        let collection = try makeHomeRowModsCollection(HomeRowModsConfig(
+            enabledKeys: ["a"],
+            modifierAssignments: ["a": "lsft", "s": "lctl"],
+            holdMode: .modifiers,
+            timing: timing,
+            keySelection: .custom,
+            oppositeHandMode: .off
+        ))
+
+        let config = KanataConfiguration.generateFromCollections([collection])
+
+        assertContains(config, "tap-hold-require-prior-idle 220")
+        assertContains(config, "beh_base_a (tap-hold-press 295 210 a lsft)")
+        XCTAssertFalse(config.contains("defhands"), "Opposite-hand off should not emit defhands")
+        XCTAssertFalse(config.contains("beh_base_s"), "Disabled HRM keys should not emit aliases")
+    }
+
+    func testHomeRowModsUiMatrix_OppositeHandReleaseRendersReleaseVariant() throws {
+        let collection = try makeHomeRowModsCollection(HomeRowModsConfig(
+            enabledKeys: ["a"],
+            modifierAssignments: ["a": "lsft"],
+            holdMode: .modifiers,
+            oppositeHandMode: .release
+        ))
+
+        let config = KanataConfiguration.generateFromCollections([collection])
+
+        assertContains(config, "(defhands")
+        assertContains(config, "beh_base_a (tap-hold-opposite-hand-release 150 a lsft)")
+    }
+
+    func testHomeRowModsUiMatrix_LayerModeRendersBothActivationVariants() throws {
+        let whileHeldCollection = try makeHomeRowModsCollection(HomeRowModsConfig(
+            enabledKeys: ["f"],
+            layerAssignments: ["f": "nav"],
+            holdMode: .layers,
+            layerToggleMode: .whileHeld,
+            keySelection: .custom,
+            oppositeHandMode: .off
+        ))
+        let whileHeldConfig = KanataConfiguration.generateFromCollections([whileHeldCollection])
+        assertContains(
+            whileHeldConfig,
+            "beh_base_f (tap-hold-press $tap-timeout 150 f (layer-while-held nav))"
+        )
+
+        let toggleCollection = try makeHomeRowModsCollection(HomeRowModsConfig(
+            enabledKeys: ["f"],
+            layerAssignments: ["f": "nav"],
+            holdMode: .layers,
+            layerToggleMode: .toggle,
+            keySelection: .custom,
+            oppositeHandMode: .off
+        ))
+        let toggleConfig = KanataConfiguration.generateFromCollections([toggleCollection])
+        assertContains(
+            toggleConfig,
+            "beh_base_f (tap-hold-press $tap-timeout 150 f (layer-toggle nav))"
+        )
     }
 
     // MARK: - Layer Reference Completeness

@@ -436,6 +436,7 @@ class MainAppStateController {
         if force {
             // Force refresh: clear cooldown
             lastValidationTime = nil
+            validator?.invalidateCaches()
             AppLogger.shared.log("🔄 [MainAppStateController] Force refresh - cooldown cleared")
         }
         await performValidation()
@@ -445,6 +446,7 @@ class MainAppStateController {
     /// Called automatically when wizard closes to ensure fresh validation after setup changes
     func invalidateValidationCooldown() {
         lastValidationTime = nil
+        validator?.invalidateCaches()
         AppLogger.shared.log("🔄 [MainAppStateController] Validation cooldown invalidated")
     }
 
@@ -452,6 +454,7 @@ class MainAppStateController {
     func revalidate() async {
         AppLogger.shared.log("🔄 [MainAppStateController] Revalidate requested - clearing cooldown")
         lastValidationTime = nil
+        validator?.invalidateCaches()
         await performValidation()
     }
 
@@ -511,18 +514,15 @@ class MainAppStateController {
                 return first
             }
         } catch {
-            AppLogger.shared.error("⏱️ [MainAppStateController] Validation watchdog fired – routing through adapter with timedOut context")
-            let timedOutContext = SystemContext.timedOut
-            let adapted = SystemContextAdapter.adapt(timedOutContext)
-            lastValidatedSystemContext = timedOutContext
-            issues = adapted.issues
+            AppLogger.shared.error("⏱️ [MainAppStateController] Validation watchdog fired – preserving last state and surfacing timeout warning")
+            issues = [Self.validationTimeoutIssue()]
             lastValidationDate = Date()
             lastValidationTime = Date()
+            if let lastValidatedSystemContext {
+                lastAdaptedState = SystemContextAdapter.adapt(lastValidatedSystemContext).state
+            }
 
-            let blockingCount = issues.filter { $0.severity == .critical || $0.severity == .error }.count
-            validationState = blockingCount > 0
-                ? .failed(blockingCount: blockingCount, totalCount: issues.count)
-                : .failed(blockingCount: 0, totalCount: issues.count)
+            validationState = .failed(blockingCount: 0, totalCount: issues.count)
             return
         }
 
@@ -700,6 +700,18 @@ class MainAppStateController {
             )
             validationState = .checking
         }
+    }
+
+    static func validationTimeoutIssue() -> WizardIssue {
+        WizardIssue(
+            identifier: .validationTimeout,
+            severity: .warning,
+            category: .daemon,
+            title: "Status check timed out",
+            description: "System validation exceeded the 12s watchdog. This is usually transient; the next check should succeed.",
+            autoFixAction: nil,
+            userAction: "If this persists, try restarting KeyPath."
+        )
     }
 
     private func evaluateKanataStartupGate() async -> KanataStartupGateResult {

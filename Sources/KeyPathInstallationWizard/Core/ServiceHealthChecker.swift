@@ -41,13 +41,41 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         }
     }
 
+    private struct RuntimeCacheEntry {
+        let snapshot: KanataServiceRuntimeSnapshot
+        let timestamp: Date
+        func isValid(ttl: TimeInterval) -> Bool {
+            Date().timeIntervalSince(timestamp) < ttl
+        }
+    }
+
+    private struct RuntimeCacheState {
+        var entry: RuntimeCacheEntry?
+        var inFlight: Task<KanataServiceRuntimeSnapshot, Never>?
+    }
+
+    private struct ServiceStatusCacheEntry {
+        let status: LaunchDaemonStatus
+        let timestamp: Date
+        func isValid(ttl: TimeInterval) -> Bool {
+            Date().timeIntervalSince(timestamp) < ttl
+        }
+    }
+
     private nonisolated static let healthCacheTTL: TimeInterval = 2.0
 
     private let healthCache = OSAllocatedUnfairLock(initialState: [String: HealthCacheEntry]())
+    private let runtimeCache = OSAllocatedUnfairLock(initialState: RuntimeCacheState())
+    private let serviceStatusCache = OSAllocatedUnfairLock(initialState: ServiceStatusCacheEntry?.none)
 
     /// Clear cached health results. Useful in tests or after service state changes.
     public nonisolated func invalidateHealthCache() {
         healthCache.withLock { $0.removeAll() }
+        runtimeCache.withLock {
+            $0.entry = nil
+            $0.inFlight = nil
+        }
+        serviceStatusCache.withLock { $0 = nil }
     }
 
     // MARK: - Dependencies
@@ -394,6 +422,13 @@ public final class ServiceHealthChecker: @unchecked Sendable {
     ///
     /// - Returns: `LaunchDaemonStatus` with loaded and healthy status for all services
     public nonisolated func getServiceStatus() async -> LaunchDaemonStatus {
+        if let cached = serviceStatusCache.withLock({ $0 }),
+           cached.isValid(ttl: Self.healthCacheTTL)
+        {
+            AppLogger.shared.log("🔍 [ServiceHealthChecker] getServiceStatus() CACHE HIT")
+            return cached.status
+        }
+
         // Fast path: Check Kanata state first to avoid expensive checks if SMAppService is managing it
         let kanataState = await getDaemonManager()?.refreshManagementState() ?? Self.fallbackManagementState
         let kanataLoaded: Bool
@@ -414,12 +449,12 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         }
 
         // VHID services always use launchctl (no SMAppService option)
-        let vhidDaemonLoaded = await isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
-        let vhidManagerLoaded = await isServiceLoaded(serviceID: Self.vhidManagerServiceID)
-        let vhidDaemonHealthy = await isServiceHealthy(serviceID: Self.vhidDaemonServiceID)
-        let vhidManagerHealthy = await isServiceHealthy(serviceID: Self.vhidManagerServiceID)
+        async let vhidDaemonLoaded = isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
+        async let vhidManagerLoaded = isServiceLoaded(serviceID: Self.vhidManagerServiceID)
+        async let vhidDaemonHealthy = isServiceHealthy(serviceID: Self.vhidDaemonServiceID)
+        async let vhidManagerHealthy = isServiceHealthy(serviceID: Self.vhidManagerServiceID)
 
-        return LaunchDaemonStatus(
+        let status = await LaunchDaemonStatus(
             kanataServiceLoaded: kanataLoaded,
             vhidDaemonServiceLoaded: vhidDaemonLoaded,
             vhidManagerServiceLoaded: vhidManagerLoaded,
@@ -427,6 +462,10 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             vhidDaemonServiceHealthy: vhidDaemonHealthy,
             vhidManagerServiceHealthy: vhidManagerHealthy
         )
+        serviceStatusCache.withLock {
+            $0 = ServiceStatusCacheEntry(status: status, timestamp: Date())
+        }
+        return status
     }
 
     // MARK: - Kanata-Specific Health Check
@@ -483,6 +522,43 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             }
         #endif
 
+        if tcpPort == KeyPathConstants.Networking.defaultTCPPort, timeoutMs == 300,
+           ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"] == nil
+        {
+            if let cached = runtimeCache.withLock({ $0.entry }),
+               cached.isValid(ttl: Self.healthCacheTTL)
+            {
+                AppLogger.shared.log("🔍 [ServiceHealthChecker] Kanata runtime snapshot CACHE HIT")
+                return cached.snapshot
+            }
+
+            if let inFlight = runtimeCache.withLock({ $0.inFlight }) {
+                AppLogger.shared.log("🔍 [ServiceHealthChecker] Kanata runtime snapshot IN-FLIGHT HIT")
+                return await inFlight.value
+            }
+
+            let task = Task<KanataServiceRuntimeSnapshot, Never> {
+                await self.checkKanataServiceRuntimeSnapshotUncached(
+                    tcpPort: tcpPort,
+                    timeoutMs: timeoutMs
+                )
+            }
+            runtimeCache.withLock { $0.inFlight = task }
+            let snapshot = await task.value
+            runtimeCache.withLock {
+                $0.entry = RuntimeCacheEntry(snapshot: snapshot, timestamp: Date())
+                $0.inFlight = nil
+            }
+            return snapshot
+        }
+
+        return await checkKanataServiceRuntimeSnapshotUncached(tcpPort: tcpPort, timeoutMs: timeoutMs)
+    }
+
+    private nonisolated func checkKanataServiceRuntimeSnapshotUncached(
+        tcpPort: Int,
+        timeoutMs: Int
+    ) async -> KanataServiceRuntimeSnapshot {
         let managementState = await getDaemonManager()?.refreshManagementState() ?? Self.fallbackManagementState
         let staleEnabledRegistration: Bool = if managementState == .smappserviceActive {
             await getDaemonManager()?.isRegisteredButNotLoaded() ?? false

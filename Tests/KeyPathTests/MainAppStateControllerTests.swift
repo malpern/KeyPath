@@ -43,6 +43,19 @@ struct MainAppStateControllerTests {
         )
     }
 
+    @Test("Validation timeout issue is non-blocking")
+    func validationTimeoutIssueIsNonBlocking() {
+        let issue = MainAppStateController.validationTimeoutIssue()
+
+        #expect(issue.identifier == .validationTimeout)
+        #expect(issue.severity == .warning)
+        #expect(issue.autoFixAction == nil)
+        #expect(
+            MainAppStateController.ValidationState.failed(blockingCount: 0, totalCount: 1)
+                .hasCriticalIssues == false
+        )
+    }
+
     @Test("ValidationState equality works correctly")
     func validationStateEquality() {
         #expect(MainAppStateController.ValidationState.success == .success)
