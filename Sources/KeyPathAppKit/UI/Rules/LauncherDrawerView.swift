@@ -308,6 +308,13 @@ private struct LauncherMappingCard: View {
         }
         .accessibilityIdentifier("launcher-card-\(mapping.key)")
         .accessibilityLabel("\(mapping.userDescription ?? mapping.action.displayName), key \(displayKey)")
+        .accessibilityValue(mapping.isEnabled ? "enabled" : "disabled")
+        .accessibilityHint("Use the Edit, Enable, Disable, or Delete accessibility actions to manage this launcher.")
+        .accessibilityAction(named: "Edit") { onEdit() }
+        .accessibilityAction(named: mapping.isEnabled ? "Disable" : "Enable") {
+            onToggleEnabled?(!mapping.isEnabled)
+        }
+        .accessibilityAction(named: "Delete") { onDelete() }
         .task { await loadIcon() }
     }
 

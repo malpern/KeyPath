@@ -295,7 +295,7 @@ private struct LauncherMappingRow: View {
                             .controlSize(.small)
                             .frame(width: 16, height: 16)
                             .accessibilityIdentifier("overlay-launcher-toggle-\(mapping.key)")
-                            .accessibilityLabel("Toggle \(mapping.userDescription ?? mapping.action.displayName)")
+                            .accessibilityLabel("Toggle \(displayName)")
                     } else if let icon {
                         Image(nsImage: icon)
                             .resizable()
@@ -383,6 +383,15 @@ private struct LauncherMappingRow: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("overlay-launcher-row-\(mapping.key)")
+        .accessibilityLabel("\(displayName), key \(displayKey)")
+        .accessibilityValue(isEnabled ? "enabled" : "disabled")
+        .accessibilityHint("Use the Edit, Enable, Disable, or Delete accessibility actions to manage this launcher.")
+        .accessibilityAction(named: "Edit") { onTap() }
+        .accessibilityAction(named: isEnabled ? "Disable" : "Enable") {
+            isEnabled.toggle()
+        }
+        .accessibilityAction(named: "Delete") { onDelete?() }
         .onHover { hovering in
             isHovering = hovering
             // Notify parent for keyboard highlighting
