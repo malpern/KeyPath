@@ -30,6 +30,10 @@
 ## Testing
 - `test.sh` (in root) - All tests
 - `test-*.sh` (in Scripts/) - Individual test suites
+- `./Scripts/run-tests-safe.sh` - CI-style safe test runner. Defaults to quiet
+  app logs (`KEYPATH_LOG_LEVEL=3`) and prints build/test timing plus log size.
+  Set `KEYPATH_TEST_VERBOSE_LOGS=1` for debug-level app diagnostics during a
+  noisy test investigation.
 - CI also runs:
   - `swift test --filter SigningPipelineTests` (verifies signing/notary wrappers surface failures and honor dry-run)
   - `swift test --filter InstallerEngineEndToEndTests` (ensures InstallerEngine executes plans and stops on broker failures)

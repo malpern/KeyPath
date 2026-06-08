@@ -6,6 +6,8 @@ set -euo pipefail
 # - Skips CGEvent taps in code under test to prevent hangs
 # - Adds a watchdog timeout so CI never freezes
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 TIMEOUT_SECONDS=${TIMEOUT_SECONDS:-240}
 ALLOW_RUNNER_CRASH_SUCCESS=${KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS:-0}
 ALLOW_NONZERO_TEST_SUCCESS=${KEYPATH_ALLOW_NONZERO_TEST_SUCCESS:-0}
@@ -15,11 +17,163 @@ SWIFT_TEST_ARGS=${SWIFT_TEST_ARGS:-}
 
 echo "🧪 Running tests via swift test with safety guards..."
 
+absolute_dir() {
+  local path="$1"
+  case "$path" in
+    /*) ;;
+    *) path="$PROJECT_DIR/$path" ;;
+  esac
+  mkdir -p "$path"
+  (cd "$path" && pwd -P)
+}
+
+log_size_bytes() {
+  local path="${1:-}"
+  if [ -n "$path" ] && [ -f "$path" ]; then
+    wc -c < "$path" | tr -d '[:space:]'
+  else
+    echo "0"
+  fi
+}
+
+format_duration() {
+  local value="${1:-not-run}"
+  if [ "$value" = "not-run" ]; then
+    echo "not-run"
+  else
+    echo "${value}s"
+  fi
+}
+
+print_run_summary() {
+  local exit_code="${1:-unknown}"
+  local now_seconds
+  local total_duration
+  local log_size
+  local build_duration
+  local test_duration
+
+  if [ "$SUMMARY_PRINTED" = "1" ]; then
+    return 0
+  fi
+
+  now_seconds="$(date +%s)"
+  total_duration=$((now_seconds - RUNNER_START_SECONDS))
+  log_size="$(log_size_bytes "${LOG:-}")"
+  build_duration="$(format_duration "$BUILD_DURATION_SECONDS")"
+  test_duration="$(format_duration "$TEST_DURATION_SECONDS")"
+
+  echo "📊 Runner summary: exit=${exit_code} build=${build_duration} test=${test_duration} total=${total_duration}s log=${log_size} bytes"
+
+  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+    {
+      echo "### KeyPath Safe Test Runner"
+      echo ""
+      echo "| Metric | Value |"
+      echo "| --- | --- |"
+      echo "| Exit code | \`${exit_code}\` |"
+      echo "| Build duration | \`${build_duration}\` |"
+      echo "| Test duration | \`${test_duration}\` |"
+      echo "| Total duration | \`${total_duration}s\` |"
+      echo "| Log size | \`${log_size} bytes\` |"
+      if [ -n "${LOG:-}" ]; then
+        echo "| Log path | \`${LOG}\` |"
+      fi
+      echo ""
+    } >> "$GITHUB_STEP_SUMMARY"
+  fi
+
+  SUMMARY_PRINTED=1
+}
+
+kill_process_tree() {
+  local pid="${1:-}"
+  local child
+
+  if [ -z "$pid" ] || ! kill -0 "$pid" 2>/dev/null; then
+    return 0
+  fi
+
+  while read -r child; do
+    [ -z "$child" ] && continue
+    kill_process_tree "$child"
+  done < <(pgrep -P "$pid" 2>/dev/null || true)
+
+  kill -TERM "$pid" 2>/dev/null || true
+  sleep 0.2
+  kill -KILL "$pid" 2>/dev/null || true
+}
+
+terminate_process_tree() {
+  local pid="${1:-}"
+  kill_process_tree "$pid"
+  if [ -n "$pid" ]; then
+    wait "$pid" 2>/dev/null || true
+  fi
+}
+
+cleanup_orphaned_xctest() {
+  [ -z "${SCRATCH_PATH:-}" ] && return 0
+
+  while read -r pid; do
+    [ -z "$pid" ] && continue
+    local command_line
+    command_line="$(ps -p "$pid" -o command= 2>/dev/null || true)"
+    case "$command_line" in
+      *"$SCRATCH_PATH"*) ;;
+      *) continue ;;
+    esac
+    echo "🧹 Cleaning up orphaned KeyPathPackageTests.xctest process (pid=$pid)"
+    terminate_process_tree "$pid"
+  done < <(pgrep -f "KeyPathPackageTests\\.xctest" 2>/dev/null || true)
+}
+
+cleanup() {
+  local exit_code=$?
+
+  [ "${CLEANUP_ARMED:-1}" = "1" ] || return "$exit_code"
+
+  if [ -n "${WATCHDOG_PID:-}" ] && kill -0 "$WATCHDOG_PID" 2>/dev/null; then
+    terminate_process_tree "$WATCHDOG_PID"
+  fi
+
+  if [ -n "${TEST_PID:-}" ] && kill -0 "$TEST_PID" 2>/dev/null; then
+    terminate_process_tree "$TEST_PID"
+  fi
+
+  cleanup_orphaned_xctest
+  [ -n "${EXIT_FILE:-}" ] && rm -f "$EXIT_FILE"
+  [ -n "${TIMEOUT_FILE:-}" ] && rm -f "$TIMEOUT_FILE"
+
+  return "$exit_code"
+}
+
+on_signal() {
+  local signal="$1"
+  echo "⚠️  Received $signal; cleaning up test processes..."
+  cleanup
+  print_run_summary 130
+  exit 130
+}
+
+trap cleanup EXIT
+trap 'on_signal INT' INT
+trap 'on_signal TERM' TERM
+trap 'on_signal HUP' HUP
+
 # 1) Environment for test-safe code paths
 export SWIFT_TEST=1
 export SKIP_EVENT_TAP_TESTS=1
 export CI_ENVIRONMENT=${CI_ENVIRONMENT:-false}
 export NSUnbufferedIO=YES
+
+# Keep default test output focused. AppLogger uses numeric levels:
+# trace=0, debug=1, info=2, warn=3, error=4.
+if [ "${KEYPATH_TEST_VERBOSE_LOGS:-0}" = "1" ]; then
+    export KEYPATH_LOG_LEVEL=${KEYPATH_LOG_LEVEL:-1}
+else
+    export KEYPATH_LOG_LEVEL=${KEYPATH_LOG_LEVEL:-3}
+fi
 
 # Optional: Enable sudo mode for fully autonomous privileged operations
 # Set KEYPATH_USE_SUDO=1 to use sudo instead of osascript admin prompts
@@ -94,13 +248,19 @@ append_runner_crash_summary() {
 # (keypath depends on KeyPathAppKit → SwiftUI, which can fail to link from a
 # fresh scratch path on Xcode 16.4 due to SwiftUICore client restrictions).
 if [ "${CI_ENVIRONMENT}" = "true" ] || [ -n "${GITHUB_ACTIONS:-}" ]; then
-    SCRATCH_PATH=${SCRATCH_PATH:-.build}
+    SCRATCH_PATH=${SCRATCH_PATH:-"$PROJECT_DIR/.build"}
 else
-    SCRATCH_PATH=${SCRATCH_PATH:-.build-ci}
+    SCRATCH_PATH=${SCRATCH_PATH:-"$PROJECT_DIR/.build-ci"}
 fi
 export HOME=${TEST_HOME:-$(mktemp -d 2>/dev/null || mktemp -d -t keypath-tests)}
+SCRATCH_PATH="$(absolute_dir "$SCRATCH_PATH")"
 MODULE_CACHE="$SCRATCH_PATH/ModuleCache.noindex"
-mkdir -p "$SCRATCH_PATH" "$MODULE_CACHE"
+if [ -d "$MODULE_CACHE" ]; then
+  echo "🧹 Resetting generated module cache: $MODULE_CACHE"
+  rm -rf "$MODULE_CACHE"
+fi
+MODULE_CACHE="$(absolute_dir "$MODULE_CACHE")"
+HOME="$(absolute_dir "$HOME")"
 export CLANG_MODULECACHE_PATH="$MODULE_CACHE"
 export SWIFT_MODULECACHE_PATH="$MODULE_CACHE"
 MODULE_CACHE_FLAGS=(-Xcc "-fmodules-cache-path=$MODULE_CACHE")
@@ -109,13 +269,26 @@ echo "🗂️  Module cache: $MODULE_CACHE"
 
 # 1) Build tests first (doesn't count against watchdog timeout)
 echo "🔨 Building tests..."
+BUILD_START_SECONDS="$(date +%s)"
+set +e
 swift build --build-tests --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}"
+BUILD_EXIT_CODE=$?
+set -e
+BUILD_DURATION_SECONDS=$(($(date +%s) - BUILD_START_SECONDS))
+if [ "$BUILD_EXIT_CODE" != "0" ]; then
+  echo "❌ Test build failed (exit $BUILD_EXIT_CODE)"
+  print_run_summary "$BUILD_EXIT_CODE"
+  exit "$BUILD_EXIT_CODE"
+fi
 
 # 2) Run with watchdog
-LOG=./test_output.safe.txt
+LOG="$PROJECT_DIR/test_output.safe.txt"
+EXIT_FILE="$PROJECT_DIR/.xctest.exit.$$"
+TIMEOUT_FILE="$PROJECT_DIR/.xctest.timeout.$$"
 rm -f "$LOG"
 
 echo "🚀 Launching swift test..."
+TEST_START_SECONDS="$(date +%s)"
 
 (
   set +e
@@ -141,8 +314,10 @@ TEST_PID=$!
     SECS=$((SECS+1))
     if [ $SECS -ge $TIMEOUT_SECONDS ]; then
       echo "⏰ Timeout after ${TIMEOUT_SECONDS}s. Killing tests (pid=$TEST_PID)."
-      kill -9 $TEST_PID 2>/dev/null || true
-      echo "124" > .xctest.exit
+      echo "1" > "$TIMEOUT_FILE"
+      kill_process_tree "$TEST_PID"
+      cleanup_orphaned_xctest
+      echo "124" > "$EXIT_FILE"
       break
     fi
   done
@@ -172,11 +347,13 @@ fi
 
 if [ "$EXIT_CODE" = "0" ]; then
   echo "✅ All tests passed ($PASS_COUNT passed)"
+  print_run_summary "$EXIT_CODE"
   exit 0
 fi
 
 if [ "$EXIT_CODE" = "124" ]; then
   echo "⚠️  Tests timed out; see $LOG"
+  print_run_summary "$EXIT_CODE"
   exit 124
 fi
 
@@ -222,6 +399,7 @@ fi
 if [ "$FAIL_COUNT" -gt 0 ]; then
   echo "❌ $FAIL_COUNT test(s) failed ($PASS_COUNT passed)"
   grep -E "Test Case '.*' failed|Test .* failed after" "$LOG" || true
+  print_run_summary "$EXIT_CODE"
   exit 1
 fi
 

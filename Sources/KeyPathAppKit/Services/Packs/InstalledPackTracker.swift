@@ -42,6 +42,10 @@ public actor InstalledPackTracker {
     public init(fileURL: URL? = nil) {
         if let fileURL {
             self.fileURL = fileURL
+        } else if TestEnvironment.isRunningTests {
+            self.fileURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("keypath-installed-packs-\(ProcessInfo.processInfo.processIdentifier)-\(UUID().uuidString)", isDirectory: true)
+                .appendingPathComponent("installed-packs.json")
         } else {
             // ~/.config/keypath/installed-packs.json
             let home = FileManager.default.homeDirectoryForCurrentUser
