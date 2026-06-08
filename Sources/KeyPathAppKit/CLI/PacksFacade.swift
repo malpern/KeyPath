@@ -52,15 +52,7 @@ public struct PacksFacade: Sendable {
             )
         }
 
-        for key in settingValues.keys {
-            guard pack.quickSettings.contains(where: { $0.id == key }) else {
-                throw CLIPackSettingError(
-                    packName: pack.name,
-                    settingKey: key,
-                    validKeys: pack.quickSettings.map(\.id)
-                )
-            }
-        }
+        try validateQuickSettings(settingValues, for: pack)
 
         if dryRun {
             var warnings: [String] = []
@@ -174,15 +166,7 @@ public struct PacksFacade: Sendable {
             )
         }
 
-        for key in settingValues.keys {
-            guard pack.quickSettings.contains(where: { $0.id == key }) else {
-                throw CLIPackSettingError(
-                    packName: pack.name,
-                    settingKey: key,
-                    validKeys: pack.quickSettings.map(\.id)
-                )
-            }
-        }
+        try validateQuickSettings(settingValues, for: pack)
 
         if dryRun {
             let current = await PackInstaller.shared.quickSettings(for: pack.id)
@@ -278,6 +262,34 @@ public struct PacksFacade: Sendable {
         manager.ruleCollections = RuleCollectionDeduplicator.dedupe(collections)
         manager.customRules = customRules
         return manager
+    }
+
+    private func validateQuickSettings(_ values: [String: Int], for pack: Pack) throws {
+        let settingsByID = Dictionary(uniqueKeysWithValues: pack.quickSettings.map { ($0.id, $0) })
+        for (key, value) in values {
+            guard let setting = settingsByID[key] else {
+                throw CLIPackSettingError(
+                    packName: pack.name,
+                    settingKey: key,
+                    validKeys: pack.quickSettings.map(\.id)
+                )
+            }
+            try validateQuickSettingValue(value, setting: setting, packName: pack.name)
+        }
+    }
+
+    private func validateQuickSettingValue(_ value: Int, setting: PackQuickSetting, packName: String) throws {
+        switch setting.kind {
+        case let .slider(_, min, max, _, unitSuffix):
+            guard value >= min, value <= max else {
+                throw CLIPackSettingValueError(
+                    packName: packName,
+                    settingKey: setting.id,
+                    value: value,
+                    reason: "must be between \(min)\(unitSuffix) and \(max)\(unitSuffix)"
+                )
+            }
+        }
     }
 }
 
@@ -420,6 +432,17 @@ public struct CLIPackSettingError: Error, CustomStringConvertible {
             return "Pack '\(packName)' has no quick settings, but --setting \(settingKey) was provided"
         }
         return "Unknown setting '\(settingKey)' for pack '\(packName)'. Valid keys: \(validKeys.joined(separator: ", "))"
+    }
+}
+
+public struct CLIPackSettingValueError: Error, CustomStringConvertible {
+    public let packName: String
+    public let settingKey: String
+    public let value: Int
+    public let reason: String
+
+    public var description: String {
+        "Invalid value \(value) for setting '\(settingKey)' on pack '\(packName)': \(reason)"
     }
 }
 

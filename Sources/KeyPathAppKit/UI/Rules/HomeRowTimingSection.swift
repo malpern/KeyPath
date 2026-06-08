@@ -125,7 +125,9 @@ struct HomeRowTimingSection: View {
                         set: { inverted in
                             let pos = 1.0 - inverted
                             let values = TypingFeelMapping.timingValues(forSliderPosition: pos)
-                            config.timing.tapWindow = values.tapWindow
+                            if usesTimedTapWindow {
+                                config.timing.tapWindow = values.tapWindow
+                            }
                             config.timing.holdDelay = values.holdDelay
                             let idleFraction = 1.0 - pos
                             config.timing.requirePriorIdleMs = max(0, Int(50 + idleFraction * 200))
@@ -140,7 +142,7 @@ struct HomeRowTimingSection: View {
                 .frame(maxWidth: 250)
                 .accessibilityIdentifier("home-row-mods-feel-slider")
                 .accessibilityLabel("Home row typing feel")
-                .accessibilityValue("tap window \(config.timing.tapWindow) ms, hold delay \(config.timing.holdDelay) ms")
+                .accessibilityValue(timingSliderAccessibilityValue)
                 .overlay(alignment: .top) {
                     if isEditingHoldDuration {
                         Text("\(config.timing.holdDelay)ms")
@@ -176,20 +178,22 @@ struct HomeRowTimingSection: View {
                         }
                         if config.showExpertTiming {
                             HStack(spacing: 16) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Tap window").font(.caption).foregroundColor(.secondary)
-                                    HStack(spacing: 4) {
-                                        automationIntegerField(
-                                            placeholder: "",
-                                            value: Binding(
-                                                get: { config.timing.tapWindow },
-                                                set: { config.timing.tapWindow = $0 }
-                                            ),
-                                            range: 80 ... 350,
-                                            accessibilityIdentifier: "home-row-mods-tap-window-field",
-                                            accessibilityLabel: "Tap window"
-                                        )
-                                        Text("ms").font(.caption).foregroundColor(.secondary)
+                                if usesTimedTapWindow {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Tap window").font(.caption).foregroundColor(.secondary)
+                                        HStack(spacing: 4) {
+                                            automationIntegerField(
+                                                placeholder: "",
+                                                value: Binding(
+                                                    get: { config.timing.tapWindow },
+                                                    set: { config.timing.tapWindow = $0 }
+                                                ),
+                                                range: 80 ... 350,
+                                                accessibilityIdentifier: "home-row-mods-tap-window-field",
+                                                accessibilityLabel: "Tap window"
+                                            )
+                                            Text("ms").font(.caption).foregroundColor(.secondary)
+                                        }
                                     }
                                 }
                                 VStack(alignment: .leading, spacing: 4) {
@@ -215,13 +219,17 @@ struct HomeRowTimingSection: View {
                                 Slider(value: Binding(
                                     get: { 1.0 - effectiveSliderPosition },
                                     set: {
-                                        let v = TypingFeelMapping.timingValues(forSliderPosition: 1.0 - $0); config.timing.tapWindow = v.tapWindow; config.timing.holdDelay = v
-                                            .holdDelay; debouncedUpdateConfig()
+                                        let v = TypingFeelMapping.timingValues(forSliderPosition: 1.0 - $0)
+                                        if usesTimedTapWindow {
+                                            config.timing.tapWindow = v.tapWindow
+                                        }
+                                        config.timing.holdDelay = v.holdDelay
+                                        debouncedUpdateConfig()
                                     }
                                 ), in: 0 ... 1, step: 0.05)
                                     .accessibilityIdentifier("home-row-mods-hold-duration-advanced")
                                     .accessibilityLabel("Advanced hold duration")
-                                    .accessibilityValue("tap window \(config.timing.tapWindow) ms, hold delay \(config.timing.holdDelay) ms")
+                                    .accessibilityValue(timingSliderAccessibilityValue)
                                 Text("Modifiers feel snappy").font(.caption2).foregroundStyle(.secondary)
                             }
                         }
@@ -755,6 +763,17 @@ struct HomeRowTimingSection: View {
             return "No extra time added. Uses base tap window only."
         }
         return "Adds \(config.timing.quickTapTermMs)ms to the tap window during key rolls."
+    }
+
+    private var usesTimedTapWindow: Bool {
+        !config.oppositeHandMode.isEnabled
+    }
+
+    private var timingSliderAccessibilityValue: String {
+        if usesTimedTapWindow {
+            return "tap window \(config.timing.tapWindow) ms, hold delay \(config.timing.holdDelay) ms"
+        }
+        return "hold delay \(config.timing.holdDelay) ms"
     }
 
     private var hasNonDefaultTiming: Bool {

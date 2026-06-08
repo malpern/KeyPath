@@ -333,6 +333,27 @@ public struct CollectionsFacade: Sendable {
             )
         }
 
+        let normalizedQuery = nameOrId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let slugMatches = collections.enumerated().filter {
+            Self.slug(for: $0.element.name) == normalizedQuery
+        }
+        if slugMatches.count == 1 {
+            return slugMatches[0].offset
+        }
+        if slugMatches.count > 1 {
+            throw AmbiguousCollectionMatch(
+                query: nameOrId,
+                matches: slugMatches.map { .init(name: $0.element.name, id: $0.element.id.uuidString) },
+                hint: "Multiple collections match this slug. Use the ID to disambiguate."
+            )
+        }
+
+        if let aliasID = Self.collectionAliasIDs[normalizedQuery],
+           let index = collections.firstIndex(where: { $0.id == aliasID })
+        {
+            return index
+        }
+
         let substringMatches = collections.enumerated().filter {
             $0.element.name.localizedCaseInsensitiveContains(nameOrId)
         }
@@ -355,6 +376,27 @@ public struct CollectionsFacade: Sendable {
         case "nav", "navigation": .navigation
         default: .custom(name)
         }
+    }
+
+    private static let collectionAliasIDs: [String: UUID] = [
+        "home-row": RuleCollectionIdentifier.homeRowMods,
+        "home-row-mod": RuleCollectionIdentifier.homeRowMods,
+        "hrm": RuleCollectionIdentifier.homeRowMods,
+    ]
+
+    private static func slug(for name: String) -> String {
+        var result = ""
+        var previousWasSeparator = false
+        for scalar in name.lowercased().unicodeScalars {
+            if CharacterSet.alphanumerics.contains(scalar) {
+                result.unicodeScalars.append(scalar)
+                previousWasSeparator = false
+            } else if !previousWasSeparator {
+                result.append("-")
+                previousWasSeparator = true
+            }
+        }
+        return result.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
     }
 }
 
@@ -426,6 +468,7 @@ public struct CLIExportedCollection: Codable, Sendable {
     public let category: String
     public let isEnabled: Bool
     public let targetLayer: String
+    public let configuration: RuleCollectionConfiguration?
     public let mappings: [CLIExportedMapping]
 
     public init(from collection: RuleCollection) {
@@ -434,6 +477,7 @@ public struct CLIExportedCollection: Codable, Sendable {
         category = collection.category.rawValue
         isEnabled = collection.isEnabled
         targetLayer = collection.targetLayer.kanataName
+        configuration = collection.configuration
         mappings = collection.mappings.map { CLIExportedMapping(from: $0) }
     }
 
@@ -450,7 +494,8 @@ public struct CLIExportedCollection: Codable, Sendable {
             category: cat,
             mappings: mappings.map { $0.toKeyMapping() },
             isEnabled: isEnabled,
-            targetLayer: layer
+            targetLayer: layer,
+            configuration: configuration ?? .list
         )
     }
 }

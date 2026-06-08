@@ -42,6 +42,57 @@ final class CLIExportImportTests: XCTestCase {
         XCTAssertTrue(names.contains("Second"))
     }
 
+    func testExportCollectionIncludesHomeRowModsConfiguration() async throws {
+        var config = HomeRowModsConfig()
+        config.holdMode = .layers
+        config.hasUserSelectedHoldMode = true
+        config.layerAssignments["a"] = "nav"
+        config.timing.tapWindow = 240
+        config.timing.holdDelay = 260
+        config.timing.requirePriorIdleMs = 120
+        config.oppositeHandMode = .press
+
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        collections.append(RuleCollection(
+            name: "Exportable HRM",
+            summary: "Config-backed",
+            category: .productivity,
+            mappings: [],
+            configuration: .homeRowMods(config)
+        ))
+        try await RuleCollectionStore.shared.saveCollections(collections)
+
+        let exportedResult = try await facade.exportCollection(nameOrId: "Exportable HRM")
+        let exported = try XCTUnwrap(exportedResult)
+        guard case let .homeRowMods(exportedConfig)? = exported.configuration else {
+            XCTFail("Expected Home Row Mods configuration in export")
+            return
+        }
+        XCTAssertEqual(exported.mappings.count, 0)
+        XCTAssertEqual(exportedConfig.holdMode, .layers)
+        XCTAssertEqual(exportedConfig.layerAssignments["a"], "nav")
+        XCTAssertEqual(exportedConfig.timing.tapWindow, 240)
+        XCTAssertEqual(exportedConfig.timing.holdDelay, 260)
+        XCTAssertEqual(exportedConfig.timing.requirePriorIdleMs, 120)
+        XCTAssertEqual(exportedConfig.oppositeHandMode, .press)
+    }
+
+    func testExportCollectionResolvesHomeRowAlias() async throws {
+        var collections = await RuleCollectionStore.shared.loadCollections()
+        collections.append(RuleCollection(
+            id: RuleCollectionIdentifier.homeRowMods,
+            name: "Home Row Mods",
+            summary: "Config-backed",
+            category: .productivity,
+            mappings: [],
+            configuration: .homeRowMods(HomeRowModsConfig())
+        ))
+        try await RuleCollectionStore.shared.saveCollections(collections)
+
+        let exported = try await facade.exportCollection(nameOrId: "home-row")
+        XCTAssertEqual(exported?.name, "Home Row Mods")
+    }
+
     // MARK: - Import
 
     func testImportCollectionCreatesNew() async throws {
@@ -117,5 +168,34 @@ final class CLIExportImportTests: XCTestCase {
         _ = try await facade.deleteCollection(nameOrId: "Round Trip")
         let imported = try await facade.importCollection(decoded)
         XCTAssertEqual(imported.name, "Round Trip")
+    }
+
+    func testExportImportRoundTripPreservesConfiguration() throws {
+        var config = HomeRowModsConfig()
+        config.holdMode = .layers
+        config.layerAssignments["f"] = "nav"
+        config.timing.holdDelay = 260
+
+        let collection = RuleCollection(
+            name: "Round Trip HRM",
+            summary: "Config-backed",
+            category: .productivity,
+            mappings: [],
+            configuration: .homeRowMods(config)
+        )
+        let exported = CLIExportedCollection(from: collection)
+
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(exported)
+        let decoded = try JSONDecoder().decode(CLIExportedCollection.self, from: data)
+        let restored = decoded.toRuleCollection()
+
+        guard case let .homeRowMods(restoredConfig) = restored.configuration else {
+            XCTFail("Expected Home Row Mods configuration after round trip")
+            return
+        }
+        XCTAssertEqual(restoredConfig.holdMode, .layers)
+        XCTAssertEqual(restoredConfig.layerAssignments["f"], "nav")
+        XCTAssertEqual(restoredConfig.timing.holdDelay, 260)
     }
 }

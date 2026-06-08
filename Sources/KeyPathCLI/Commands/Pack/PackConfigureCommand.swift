@@ -88,6 +88,10 @@ struct PackConfigure: AsyncParsableCommand {
             let error = CLIError.validation(settingErr.description)
             CLIOutput.writeError(error, context: ctx)
             throw error.code.exitCode
+        } catch let valueErr as CLIPackSettingValueError {
+            let error = CLIError.validation(valueErr.description)
+            CLIOutput.writeError(error, context: ctx)
+            throw error.code.exitCode
         }
     }
 }

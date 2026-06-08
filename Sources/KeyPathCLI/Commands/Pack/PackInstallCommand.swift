@@ -110,6 +110,11 @@ struct PackInstall: AsyncParsableCommand {
             let error = CLIError.validation(settingErr.description)
             CLIOutput.writeError(error, context: ctx)
             throw error.code.exitCode
+        } catch let valueErr as CLIPackSettingValueError {
+            spinner.fail("Invalid setting")
+            let error = CLIError.validation(valueErr.description)
+            CLIOutput.writeError(error, context: ctx)
+            throw error.code.exitCode
         } catch let installErr as PackInstaller.InstallError {
             spinner.fail("Install failed")
             let error = switch installErr {
