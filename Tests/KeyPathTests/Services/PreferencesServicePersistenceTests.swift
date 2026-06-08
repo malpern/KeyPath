@@ -3,6 +3,233 @@
 
 @MainActor
 final class PreferencesServicePersistenceTests: XCTestCase {
+    private static let preferenceKeys = [
+        "KeyPath.Communication.Protocol",
+        "KeyPath.TCP.ServerPort",
+        "KeyPath.Notifications.Enabled",
+        "KeyPath.Recording.ApplyMappingsDuringRecording",
+        "KeyPath.Recording.IsSequenceMode",
+        "KeyPath.Diagnostics.VerboseKanataLogging",
+        "KeyPath.Testing.AccessibilityTestMode",
+        "KeyPath.LeaderKey.Preference",
+        "KeyPath.ContextHUD.DisplayMode",
+        "KeyPath.ContextHUD.TriggerMode",
+        "KeyPath.ContextHUD.Timeout",
+        "KeyPath.ContextHUD.HoldDelayPreset",
+        "KeyPath.ContextHUD.HoldDelayCustomMs",
+        "KeyPath.KindaVim.LeaderHUDMode",
+        "KeyPath.Neovim.ReferenceTopics",
+        "KeyPath.Neovim.ReferenceTopicsVersion",
+        "KeyPath.Display.KeyLabelStyle",
+        "KeyPath.Overlay.UnmappedLayerKeyStyle",
+        "KeyPath.Education.OverlayHiddenHintShowCount",
+        "KeyPath.Overlay.SuppressedBundleIDs",
+    ]
+
+    private func withPreservedDefaults<T>(
+        keys: [String] = PreferencesServicePersistenceTests.preferenceKeys,
+        _ body: () throws -> T
+    ) rethrows -> T {
+        let savedValues = Dictionary(uniqueKeysWithValues: keys.map { ($0, UserDefaults.standard.object(forKey: $0)) })
+        defer {
+            for key in keys {
+                if let value = savedValues[key] {
+                    UserDefaults.standard.set(value, forKey: key)
+                } else {
+                    UserDefaults.standard.removeObject(forKey: key)
+                }
+            }
+        }
+        return try body()
+    }
+
+    // MARK: - Critical Preference Round Trips
+
+    func testCriticalSettings_RoundTripThroughUserDefaults() {
+        withPreservedDefaults {
+            for key in Self.preferenceKeys {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+
+            let leader = LeaderKeyPreference(
+                key: "tab",
+                targetLayer: .custom("window"),
+                enabled: false
+            )
+            let writer = PreferencesService()
+            writer.tcpServerPort = 45678
+            writer.notificationsEnabled = false
+            writer.applyMappingsDuringRecording = false
+            writer.isSequenceMode = false
+            writer.verboseKanataLogging = false
+            writer.accessibilityTestMode = true
+            writer.keyLabelStyle = .text
+            writer.unmappedLayerKeyStyle = .dimmed
+            writer.leaderKeyPreference = leader
+            writer.overlayHiddenHintShowCount = 3
+            writer.overlaySuppressedBundleIDs = Set(["com.example.Editor", "com.example.Terminal"])
+            writer.contextHUDDisplayMode = .both
+            writer.contextHUDTriggerMode = .tapToToggle
+            writer.contextHUDTimeout = 6.5
+            writer.contextHUDHoldDelayPreset = .custom
+            writer.contextHUDHoldDelayCustomMs = 750
+            writer.kindaVimLeaderHUDMode = .cheatSheetOnly
+            writer.neovimReferenceTopics = Set([
+                NeovimTerminalCategory.basicMotions.rawValue,
+                NeovimTerminalCategory.search.rawValue,
+            ])
+
+            let loaded = PreferencesService()
+
+            XCTAssertEqual(loaded.tcpServerPort, 45678)
+            XCTAssertFalse(loaded.notificationsEnabled)
+            XCTAssertFalse(loaded.applyMappingsDuringRecording)
+            XCTAssertFalse(loaded.isSequenceMode)
+            XCTAssertFalse(loaded.verboseKanataLogging)
+            XCTAssertTrue(loaded.accessibilityTestMode)
+            XCTAssertEqual(loaded.keyLabelStyle, .text)
+            XCTAssertEqual(loaded.unmappedLayerKeyStyle, .dimmed)
+            XCTAssertEqual(loaded.leaderKeyPreference, leader)
+            XCTAssertEqual(loaded.overlayHiddenHintShowCount, 3)
+            XCTAssertEqual(loaded.overlaySuppressedBundleIDs, Set(["com.example.Editor", "com.example.Terminal"]))
+            XCTAssertEqual(loaded.contextHUDDisplayMode, .both)
+            XCTAssertEqual(loaded.contextHUDTriggerMode, .tapToToggle)
+            XCTAssertEqual(loaded.contextHUDTimeout, 6.5)
+            XCTAssertEqual(loaded.contextHUDHoldDelayPreset, .custom)
+            XCTAssertEqual(loaded.contextHUDHoldDelayCustomMs, 750)
+            XCTAssertEqual(loaded.contextHUDHoldDelayMs, 750)
+            XCTAssertEqual(loaded.kindaVimLeaderHUDMode, .cheatSheetOnly)
+            XCTAssertEqual(
+                loaded.neovimReferenceTopics,
+                Set([
+                    NeovimTerminalCategory.basicMotions.rawValue,
+                    NeovimTerminalCategory.search.rawValue,
+                ])
+            )
+        }
+    }
+
+    func testLoadClampsInvalidPersistedRuntimeAndHUDValues() {
+        withPreservedDefaults {
+            UserDefaults.standard.set(80, forKey: "KeyPath.TCP.ServerPort")
+            UserDefaults.standard.set(99.0, forKey: "KeyPath.ContextHUD.Timeout")
+            UserDefaults.standard.set(-25, forKey: "KeyPath.ContextHUD.HoldDelayCustomMs")
+
+            let prefs = PreferencesService()
+
+            XCTAssertEqual(prefs.tcpServerPort, 37001)
+            XCTAssertNil(UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerPort"))
+            XCTAssertEqual(prefs.contextHUDTimeout, 10.0)
+            XCTAssertEqual(UserDefaults.standard.double(forKey: "KeyPath.ContextHUD.Timeout"), 10.0)
+            XCTAssertEqual(prefs.contextHUDHoldDelayCustomMs, 100)
+            XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.ContextHUD.HoldDelayCustomMs"), 100)
+        }
+    }
+
+    func testLoadFallsBackForInvalidStoredEnumsAndLeaderPreference() {
+        withPreservedDefaults {
+            UserDefaults.standard.set("udp", forKey: "KeyPath.Communication.Protocol")
+            UserDefaults.standard.set("emoji", forKey: "KeyPath.Display.KeyLabelStyle")
+            UserDefaults.standard.set("invisible", forKey: "KeyPath.Overlay.UnmappedLayerKeyStyle")
+            UserDefaults.standard.set("drawer", forKey: "KeyPath.ContextHUD.DisplayMode")
+            UserDefaults.standard.set("doubleTap", forKey: "KeyPath.ContextHUD.TriggerMode")
+            UserDefaults.standard.set("instant", forKey: "KeyPath.ContextHUD.HoldDelayPreset")
+            UserDefaults.standard.set("coach", forKey: "KeyPath.KindaVim.LeaderHUDMode")
+            UserDefaults.standard.set(Data("not-json".utf8), forKey: "KeyPath.LeaderKey.Preference")
+            UserDefaults.standard.set(["search", "bogus-topic"], forKey: "KeyPath.Neovim.ReferenceTopics")
+            UserDefaults.standard.set(2, forKey: "KeyPath.Neovim.ReferenceTopicsVersion")
+
+            let prefs = PreferencesService()
+
+            XCTAssertEqual(prefs.communicationProtocol, .tcp)
+            XCTAssertEqual(prefs.keyLabelStyle, .symbols)
+            XCTAssertEqual(prefs.unmappedLayerKeyStyle, .baseLayer)
+            XCTAssertEqual(prefs.contextHUDDisplayMode, .overlayOnly)
+            XCTAssertEqual(prefs.contextHUDTriggerMode, .holdToShow)
+            XCTAssertEqual(prefs.contextHUDHoldDelayPreset, .long)
+            XCTAssertEqual(prefs.kindaVimLeaderHUDMode, .off)
+            XCTAssertEqual(prefs.leaderKeyPreference, .default)
+            XCTAssertEqual(prefs.neovimReferenceTopics, Set([NeovimTerminalCategory.search.rawValue]))
+        }
+    }
+
+    func testRuntimeAffectingPreferenceChangesPostNotifications() {
+        withPreservedDefaults {
+            let prefs = PreferencesService()
+            let recorder = NotificationRecorder()
+            let center = NotificationCenter.default
+            let observedNames: [Notification.Name] = [
+                .verboseLoggingChanged,
+                .accessibilityTestModeChanged,
+                .overlaySuppressedBundleIDsChanged,
+                .configAffectingPreferenceChanged,
+            ]
+            let observers = observedNames.map { name in
+                center.addObserver(forName: name, object: nil, queue: nil) { notification in
+                    recorder.record(notification.name)
+                }
+            }
+            defer {
+                for observer in observers {
+                    center.removeObserver(observer)
+                }
+            }
+
+            prefs.verboseKanataLogging.toggle()
+            prefs.accessibilityTestMode.toggle()
+            prefs.overlaySuppressedBundleIDs = Set(["com.example.SuppressMe"])
+            prefs.contextHUDTriggerMode = prefs.contextHUDTriggerMode == .holdToShow ? .tapToToggle : .holdToShow
+            prefs.contextHUDHoldDelayPreset = .custom
+            prefs.contextHUDHoldDelayCustomMs = 444
+
+            let postedNames = recorder.names
+            XCTAssertTrue(postedNames.contains(.verboseLoggingChanged))
+            XCTAssertTrue(postedNames.contains(.accessibilityTestModeChanged))
+            XCTAssertTrue(postedNames.contains(.overlaySuppressedBundleIDsChanged))
+            XCTAssertGreaterThanOrEqual(
+                postedNames.filter { $0 == .configAffectingPreferenceChanged }.count,
+                3
+            )
+        }
+    }
+
+    func testRuntimePreferencesAffectKanataLaunchArguments() {
+        withPreservedDefaults {
+            let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+                .appendingPathComponent("PreferencesServiceConfigArgs-\(UUID().uuidString)", isDirectory: true)
+            defer { try? FileManager.default.removeItem(at: tempDir) }
+
+            let configService = ConfigurationService(configDirectory: tempDir.path)
+            let manager = ConfigurationManager(
+                configurationService: configService,
+                configBackupManager: ConfigBackupManager(configPath: configService.configurationPath),
+                configFileWatcher: nil
+            )
+
+            let prefs = PreferencesService.shared
+            let originalPort = prefs.tcpServerPort
+            let originalVerboseLogging = prefs.verboseKanataLogging
+            defer {
+                prefs.tcpServerPort = originalPort
+                prefs.verboseKanataLogging = originalVerboseLogging
+            }
+
+            prefs.tcpServerPort = 45678
+            prefs.verboseKanataLogging = true
+
+            let verboseArgs = manager.buildKanataArguments(checkOnly: false)
+            XCTAssertEqual(verboseArgs.portArgumentValue, "45678")
+            XCTAssertTrue(verboseArgs.contains("--trace"))
+            XCTAssertTrue(verboseArgs.contains("--log-layer-changes"))
+
+            prefs.verboseKanataLogging = false
+            let normalArgs = manager.buildKanataArguments(checkOnly: false)
+            XCTAssertEqual(normalArgs.portArgumentValue, "45678")
+            XCTAssertFalse(normalArgs.contains("--trace"))
+            XCTAssertTrue(normalArgs.contains("--log-layer-changes"))
+        }
+    }
+
     // MARK: - Value Clamping Tests
 
     func testContextHUDTimeout_ClampedToMinimum() {
@@ -438,5 +665,29 @@ final class PreferencesServicePersistenceTests: XCTestCase {
 
     func testNeovimTerminalCategory_InvalidRawValue() {
         XCTAssertNil(NeovimTerminalCategory(rawValue: "nonexistent"))
+    }
+}
+
+private extension [String] {
+    var portArgumentValue: String? {
+        guard let index = firstIndex(of: "--port"), index + 1 < count else { return nil }
+        return self[index + 1]
+    }
+}
+
+private final class NotificationRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var recordedNames: [Notification.Name] = []
+
+    var names: [Notification.Name] {
+        lock.lock()
+        defer { lock.unlock() }
+        return recordedNames
+    }
+
+    func record(_ name: Notification.Name) {
+        lock.lock()
+        recordedNames.append(name)
+        lock.unlock()
     }
 }
