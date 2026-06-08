@@ -67,4 +67,27 @@ final class HomeRowModsConfigTests: XCTestCase {
 
         XCTAssertEqual(config.layerAssignments["a"], original)
     }
+
+    func testEnableKeyPreservesCustomLayerAssignment() {
+        var config = HomeRowModsConfig(holdMode: .layers)
+        config.layerAssignments["a"] = "nav"
+        config.enabledKeys.remove("a")
+
+        config.enableKeyPreservingAssignment("a")
+
+        XCTAssertTrue(config.enabledKeys.contains("a"))
+        XCTAssertEqual(config.layerAssignments["a"], "nav")
+        XCTAssertEqual(config.keySelection, .custom)
+    }
+
+    func testEnableKeyRestoresFallbackOnlyWhenAssignmentMissing() {
+        var config = HomeRowModsConfig(holdMode: .layers)
+        config.layerAssignments["a"] = nil
+        config.enabledKeys.remove("a")
+
+        config.enableKeyPreservingAssignment("a")
+
+        XCTAssertTrue(config.enabledKeys.contains("a"))
+        XCTAssertEqual(config.layerAssignments["a"], HomeRowModsConfig.defaultLayerAssignments["a"])
+    }
 }
