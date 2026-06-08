@@ -65,6 +65,8 @@ print_run_summary() {
   local test_log_swift_warning_count
   local test_log_app_warning_count
   local test_log_app_error_count
+  local filter_value
+  local skip_value
 
   if [ "$SUMMARY_PRINTED" = "1" ]; then
     return 0
@@ -78,8 +80,10 @@ print_run_summary() {
   test_log_swift_warning_count="$(count_log_pattern "warning:" "${LOG:-}")"
   test_log_app_warning_count="$(count_log_pattern "\\[WARN\\]" "${LOG:-}")"
   test_log_app_error_count="$(count_log_pattern "\\[ERROR\\]" "${LOG:-}")"
+  filter_value="${TEST_FILTER:-none}"
+  skip_value="${TEST_SKIP:-none}"
 
-  echo "📊 Runner summary: exit=${exit_code} build=${build_duration} test=${test_duration} total=${total_duration}s log=${log_size} bytes test_log_swift_warnings=${test_log_swift_warning_count} test_log_app_warnings=${test_log_app_warning_count} test_log_app_errors=${test_log_app_error_count}"
+  echo "📊 Runner summary: lane=${TEST_LANE} exit=${exit_code} build=${build_duration} test=${test_duration} total=${total_duration}s log=${log_size} bytes test_log_swift_warnings=${test_log_swift_warning_count} test_log_app_warnings=${test_log_app_warning_count} test_log_app_errors=${test_log_app_error_count}"
 
   if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     {
@@ -87,6 +91,9 @@ print_run_summary() {
       echo ""
       echo "| Metric | Value |"
       echo "| --- | --- |"
+      echo "| Lane | \`${TEST_LANE}\` |"
+      echo "| Filter | \`${filter_value}\` |"
+      echo "| Skip | \`${skip_value}\` |"
       echo "| Exit code | \`${exit_code}\` |"
       echo "| Build duration | \`${build_duration}\` |"
       echo "| Test duration | \`${test_duration}\` |"
@@ -217,6 +224,13 @@ else
 fi
 
 echo "⏱️  Timeout: ${TIMEOUT_SECONDS}s"
+echo "🛣️  Test lane: $TEST_LANE"
+if [ -n "$TEST_FILTER" ]; then
+    echo "🔎 Test filter: $TEST_FILTER"
+fi
+if [ -n "$TEST_SKIP" ]; then
+    echo "⏭️  Test skip: $TEST_SKIP"
+fi
 echo "🧪 SWIFT_TEST=$SWIFT_TEST | SKIP_EVENT_TAP_TESTS=$SKIP_EVENT_TAP_TESTS"
 declare -a TEST_SELECTOR_ARGS=()
 if [ -n "$TEST_FILTER" ]; then
@@ -283,6 +297,13 @@ HOME="$(absolute_dir "$HOME")"
 export CLANG_MODULECACHE_PATH="$MODULE_CACHE"
 export SWIFT_MODULECACHE_PATH="$MODULE_CACHE"
 MODULE_CACHE_FLAGS=(-Xcc "-fmodules-cache-path=$MODULE_CACHE")
+SWIFT_TEST_ARGS=()
+if [ -n "$TEST_FILTER" ]; then
+  SWIFT_TEST_ARGS+=(--filter "$TEST_FILTER")
+fi
+if [ -n "$TEST_SKIP" ]; then
+  SWIFT_TEST_ARGS+=(--skip "$TEST_SKIP")
+fi
 echo "📦 Scratch: $SCRATCH_PATH | HOME=$HOME"
 echo "🗂️  Module cache: $MODULE_CACHE"
 
@@ -301,9 +322,10 @@ if [ "$BUILD_EXIT_CODE" != "0" ]; then
 fi
 
 # 2) Run with watchdog
-LOG="$PROJECT_DIR/test_output.safe.txt"
+LOG="${KEYPATH_TEST_LOG:-$PROJECT_DIR/test_output.safe.txt}"
 EXIT_FILE="$PROJECT_DIR/.xctest.exit.$$"
 TIMEOUT_FILE="$PROJECT_DIR/.xctest.timeout.$$"
+mkdir -p "$(dirname "$LOG")"
 rm -f "$LOG"
 
 echo "🚀 Launching swift test..."

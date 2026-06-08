@@ -10,6 +10,8 @@
 - `./Scripts/release.sh <version>` — Public distribution release flow. Run `./Scripts/release-doctor.sh --ship` first.
 - `./Scripts/cleanup-local-build-artifacts.sh` — Dry-run cleanup of generated `.build`/`dist`/test artifacts across local worktrees. Add `--apply` to delete.
 - `./test.sh` — Run the full test suite (root)
+- `./Scripts/test-lane.sh <lane>` — Run a named SwiftPM test lane (`smoke`,
+  `unit`, `appkit`, `installer`, `snapshot`, `device`, or `full`).
 - `./Scripts/run-installer-reliability-matrix.sh` — Automated installer reliability matrix + diagnostic artifact bundle (`test-results/installer-reliability/latest`).
 - `./Scripts/repro-duplicate-keys.sh` — CPU-load repro harness for duplicate keypress detection (filters navigation keys by default). Supports `--auto-type osascript` or `--auto-type peekaboo` for deterministic automated keystroke generation, and continuously samples Kanata process metrics (CPU%, memory, threads, priority).
 
@@ -30,6 +32,19 @@
 ## Testing
 - `test.sh` (in root) - All tests
 - `test-*.sh` (in Scripts/) - Individual test suites
+- `./Scripts/test-lane.sh smoke` - Fast sanity lane across core parsing,
+  permissions, installer planning, CLI, and layout tracer tests.
+- `./Scripts/test-lane.sh unit` - Pure or mostly pure model/parser/renderer
+  tests.
+- `./Scripts/test-lane.sh appkit` - UI-adjacent app logic, services, packs,
+  config, mappers, and rule collection tests.
+- `./Scripts/test-lane.sh installer` - InstallerEngine, wizard, daemon/service
+  lifecycle, and health-check tests.
+- `./Scripts/test-lane.sh snapshot` - Visual snapshot tests; sets
+  `KEYPATH_SNAPSHOTS=1`.
+- `KEYPATH_E2E_DEVICE=1 ./Scripts/test-lane.sh device` - Opt-in real-system
+  installer smoke.
+- `./Scripts/test-lane.sh full` - Full safe SwiftPM test suite.
 - `./Scripts/run-tests-safe.sh` - CI-style safe test runner. Defaults to quiet
   app logs (`KEYPATH_LOG_LEVEL=3`) and prints build/test timing plus log size.
   Set `KEYPATH_TEST_VERBOSE_LOGS=1` for debug-level app diagnostics during a

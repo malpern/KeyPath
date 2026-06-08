@@ -4,7 +4,7 @@ import Foundation
 @testable import KeyPathPermissions
 import Testing
 
-@Suite("PermissionOracle Fast/Test Mode")
+@Suite("PermissionOracle Fast/Test Mode", .serialized)
 struct PermissionOracleFastModeTests {
     @Test("Snapshot in test mode completes under 1 second")
     @MainActor

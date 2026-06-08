@@ -257,6 +257,39 @@ The remaining high-volume noise is mostly build-time Swift compiler warnings,
 not app diagnostics in the test log. The next cleanup pass should focus on the
 largest repeated warning families before changing runner behavior further.
 
+Milestone 3 is now started with named lane entry points in
+`Scripts/test-lane.sh`. The initial implementation deliberately uses SwiftPM
+filters over the existing safe runner:
+
+- `smoke` for fast sanity coverage across core parsing, permissions, installer
+  planning, CLI, and layout tracer tests;
+- `unit` for pure or mostly pure model/parser/renderer logic;
+- `appkit` for UI-adjacent app logic, services, packs, config, mappers, and rule
+  collections;
+- `installer` for InstallerEngine, wizard, daemon/service lifecycle, and
+  health-check tests;
+- `snapshot` for visual snapshot tests with `KEYPATH_SNAPSHOTS=1`;
+- `device` for opt-in real-system installer smoke under `KEYPATH_E2E_DEVICE=1`;
+- `full` for the existing full safe SwiftPM suite.
+
+CI now calls the named `full` lane instead of embedding the raw safe-runner
+command. This gives developers and CI a shared vocabulary before Milestone 4
+changes the SwiftPM test target graph.
+
+Latest local smoke lane measurement:
+
+- command: `CI_ENVIRONMENT=true ./Scripts/test-lane.sh smoke`;
+- build: 213s;
+- test: 3s;
+- total: 216s;
+- test log size: 18,939 bytes;
+- result: 102 passed, 0 failures.
+
+This confirms that filters make execution and logs small, but the current
+`KeyPathTests` target still forces a broad build. Milestone 4 should prioritize
+moving smoke/unit tests that only need `KeyPathCore`, `KeyPathPermissions`, or
+`KeyPathLayoutTracerKit` into narrower targets.
+
 The Mac mini workflow should be revisited after milestones 1-3, because those
 changes determine whether the Mini should mainly run full verification, focused
 remote lanes, UI/system tests, or all of the above.
