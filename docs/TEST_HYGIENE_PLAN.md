@@ -240,6 +240,23 @@ SwiftPM still reports a post-suite `swiftpm-testing-helper` signal 5 exit after
 the test suite has passed. The runner currently treats that as a harness exit,
 not a test failure, when there are passing tests and no failed tests in the log.
 
+Milestone 2 is partially implemented. The runner now defaults expected fixture
+diagnostics to debug level in quiet test runs while preserving warning-level
+output in normal app usage and under `KEYPATH_TEST_VERBOSE_LOGS=1`. The latest
+local full safe-runner measurement after this change:
+
+- build: 139s;
+- test: 53s;
+- total: 193s;
+- test log size: 919,538 bytes;
+- test log app warnings: 28;
+- test log app errors: 63;
+- result: 3,477 executed, 100 skipped, 0 failures.
+
+The remaining high-volume noise is mostly build-time Swift compiler warnings,
+not app diagnostics in the test log. The next cleanup pass should focus on the
+largest repeated warning families before changing runner behavior further.
+
 The Mac mini workflow should be revisited after milestones 1-3, because those
 changes determine whether the Mini should mainly run full verification, focused
 remote lanes, UI/system tests, or all of the above.

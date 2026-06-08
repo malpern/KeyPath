@@ -261,7 +261,7 @@ final class ConfigHotReloadService {
         do {
             return try parser(configContent)
         } catch {
-            AppLogger.shared.warn("⚠️ [ConfigHotReload] Failed to parse config: \(error)")
+            AppLogger.shared.warnUnlessQuietTest("⚠️ [ConfigHotReload] Failed to parse config: \(error)")
             return nil
         }
     }

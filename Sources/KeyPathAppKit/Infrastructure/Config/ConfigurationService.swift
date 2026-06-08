@@ -880,9 +880,11 @@ public enum KanataKeyConverter {
 
         // Unknown key name - log warning and return as-is to avoid silent breakage.
         // The downstream CLI validation (kanata --check) will catch this before save.
-        AppLogger.shared.log(
+        AppLogger.shared.warnUnlessQuietTest(
             "⚠️ [KanataKeyConverter] Unknown key name '\(trimmed)' - may not be valid kanata key",
-            level: .warn
+            file: #file,
+            function: #function,
+            line: #line
         )
         return lowercased
     }

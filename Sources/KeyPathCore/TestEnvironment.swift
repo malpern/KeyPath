@@ -121,6 +121,12 @@ public enum TestEnvironment {
         isRunningTests
     }
 
+    /// True when tests should keep expected fixture/setup diagnostics out of
+    /// default warning output. Set `KEYPATH_TEST_VERBOSE_LOGS=1` to show them.
+    public static var shouldQuietExpectedTestDiagnostics: Bool {
+        isRunningTests && ProcessInfo.processInfo.environment["KEYPATH_TEST_VERBOSE_LOGS"] != "1"
+    }
+
     /// Force test mode (for manual testing)
     /// Thread-safe: Uses atomic access pattern to avoid MainActor isolation issues
     private static let _forceTestModeLock = NSLock()

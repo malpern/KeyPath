@@ -203,7 +203,7 @@ final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
 
         // First check: Verify process is actually running
         guard processStatus.isRunning else {
-            AppLogger.shared.warn("[HealthMonitor] Process not running")
+            AppLogger.shared.warnUnlessQuietTest("[HealthMonitor] Process not running")
             return ServiceHealthStatus.unhealthy(reason: "Process not running", shouldRestart: true)
         }
 

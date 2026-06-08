@@ -36,6 +36,16 @@ log_size_bytes() {
   fi
 }
 
+count_log_pattern() {
+  local pattern="$1"
+  local path="${2:-}"
+  if [ -n "$path" ] && [ -f "$path" ]; then
+    grep -cE "$pattern" "$path" 2>/dev/null || true
+  else
+    echo "0"
+  fi
+}
+
 format_duration() {
   local value="${1:-not-run}"
   if [ "$value" = "not-run" ]; then
@@ -52,6 +62,9 @@ print_run_summary() {
   local log_size
   local build_duration
   local test_duration
+  local test_log_swift_warning_count
+  local test_log_app_warning_count
+  local test_log_app_error_count
 
   if [ "$SUMMARY_PRINTED" = "1" ]; then
     return 0
@@ -62,8 +75,11 @@ print_run_summary() {
   log_size="$(log_size_bytes "${LOG:-}")"
   build_duration="$(format_duration "$BUILD_DURATION_SECONDS")"
   test_duration="$(format_duration "$TEST_DURATION_SECONDS")"
+  test_log_swift_warning_count="$(count_log_pattern "warning:" "${LOG:-}")"
+  test_log_app_warning_count="$(count_log_pattern "\\[WARN\\]" "${LOG:-}")"
+  test_log_app_error_count="$(count_log_pattern "\\[ERROR\\]" "${LOG:-}")"
 
-  echo "📊 Runner summary: exit=${exit_code} build=${build_duration} test=${test_duration} total=${total_duration}s log=${log_size} bytes"
+  echo "📊 Runner summary: exit=${exit_code} build=${build_duration} test=${test_duration} total=${total_duration}s log=${log_size} bytes test_log_swift_warnings=${test_log_swift_warning_count} test_log_app_warnings=${test_log_app_warning_count} test_log_app_errors=${test_log_app_error_count}"
 
   if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     {
@@ -76,6 +92,9 @@ print_run_summary() {
       echo "| Test duration | \`${test_duration}\` |"
       echo "| Total duration | \`${total_duration}s\` |"
       echo "| Log size | \`${log_size} bytes\` |"
+      echo "| Test log Swift warnings | \`${test_log_swift_warning_count}\` |"
+      echo "| Test log app warnings | \`${test_log_app_warning_count}\` |"
+      echo "| Test log app errors | \`${test_log_app_error_count}\` |"
       if [ -n "${LOG:-}" ]; then
         echo "| Log path | \`${LOG}\` |"
       fi

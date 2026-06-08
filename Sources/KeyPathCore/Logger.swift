@@ -231,6 +231,15 @@ public final class AppLogger {
         log(message, level: .warn, file: file, function: function, line: line)
     }
 
+    /// Log an expected fixture/setup diagnostic as a warning in normal use, but
+    /// downgrade it to debug during quiet test runs.
+    public func warnUnlessQuietTest(
+        _ message: String, file: String = #file, function: String = #function, line: Int = #line
+    ) {
+        let level: AppLogLevel = TestEnvironment.shouldQuietExpectedTestDiagnostics ? .debug : .warn
+        log(message, level: level, file: file, function: function, line: line)
+    }
+
     public func error(
         _ message: String, file: String = #file, function: String = #function, line: Int = #line
     ) {
