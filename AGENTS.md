@@ -43,6 +43,11 @@ Notes:
 - Near PR time, run the full safe gate once with `./Scripts/test-full.sh` (or
   `KEYPATH_SNAPSHOTS=1 ./Scripts/run-tests-safe.sh`). Do not run the full safe
   suite after every small edit.
+- Before that final broad gate and before opening/watching a PR, fetch
+  `origin/master` and confirm the branch is current:
+  `git rev-list --left-right --count origin/master...HEAD` should report `0` as
+  the first number. If not, rebase or merge first so CI and review run only once
+  on a mergeable branch.
 - Avoid notarized builds until after merge unless the task explicitly needs
   Developer ID/Gatekeeper behavior.
 
