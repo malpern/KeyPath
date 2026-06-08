@@ -143,4 +143,26 @@ struct SystemValidatorTests {
         // validate() should assert in debug builds
         // (We can't test this directly without crashing the test)
     }
+
+    @Test("Healthy TCP-responsive Kanata suppresses stale stderr config parse errors")
+    func staleConfigParseErrorSuppressedWhenRuntimeResponsive() {
+        let error = SystemValidator.effectiveConfigParseError(
+            "Duplicate alias: beh_base_a",
+            kanataRunning: true,
+            tcpResponding: true
+        )
+
+        #expect(error == nil)
+    }
+
+    @Test("Non-responsive Kanata keeps stderr config parse errors")
+    func configParseErrorKeptWhenRuntimeIsNotResponsive() {
+        let error = SystemValidator.effectiveConfigParseError(
+            "Duplicate alias: beh_base_a",
+            kanataRunning: true,
+            tcpResponding: false
+        )
+
+        #expect(error == "Duplicate alias: beh_base_a")
+    }
 }

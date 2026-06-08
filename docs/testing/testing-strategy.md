@@ -81,6 +81,9 @@ For behaviors that can't be automated: real key events through the CGEvent tap, 
 
 Use Claude Code computer-use or Peekaboo for spot-checking specific bugs — not as a test harness.
 
+For Home Row Mods release QA, use the focused checklist and installed-app smoke
+script in [hrm-settings-release-qa.md](hrm-settings-release-qa.md).
+
 ## Anti-Patterns
 
 - **Don't use computer-use as a test harness.** It's for debugging and spot-checks, not reproducible test suites. It's non-deterministic, expensive, and can't run in CI.
