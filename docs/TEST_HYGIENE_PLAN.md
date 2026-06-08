@@ -265,6 +265,16 @@ Status:
     explicit.
 - Local `swift build` recompiled both touched AppKit files and completed without
   re-emitting those warnings.
+- A root-package `smoke-root` diagnostic then passed in 115s with
+  `test_log_swift_warnings=2498`, surfacing the next repeated production warning
+  families.
+- Cleaned the next two repeated production warning families:
+  - routed `DragToAuthorizeController` animation-completion state transitions
+    through an explicit main-actor helper;
+  - routed `DistributedNotificationBridge` layer-change observer work through
+    an explicit main-actor helper.
+- After those fixes, `./Scripts/test-lane.sh smoke-root` passed in 28s with a
+  6,647-byte log and `test_log_swift_warnings=0`.
 
 ### Milestone 6: Measurement And Regression Guardrails
 

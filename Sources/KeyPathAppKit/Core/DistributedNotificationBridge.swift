@@ -41,6 +41,24 @@ enum DistributedNotificationBridge {
         }
     }
 
+    private static func postLayerChanged(_ layerName: String) {
+        guard layerName != previousLayer else { return }
+
+        let previous = previousLayer
+        previousLayer = layerName
+        currentLayer = layerName
+
+        DistributedNotificationCenter.default().postNotificationName(
+            layerChangedName,
+            object: "com.keypath.app",
+            userInfo: [
+                "layer": layerName,
+                "previous": previous,
+            ],
+            deliverImmediately: true
+        )
+    }
+
     static func postServiceState(_ state: String) {
         DistributedNotificationCenter.default().postNotificationName(
             serviceStateChangedName,
