@@ -66,6 +66,8 @@ temp_*
 test_output.safe.txt
 test_output.smoke.txt
 test_output.smoke-isolated.txt
+test_output.*.txt
+test_output.*.txt.build
 
 # Local-only test security setup (DO NOT COMMIT)
 Scripts/setup-test-sudoers.sh

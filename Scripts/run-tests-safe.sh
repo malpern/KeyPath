@@ -60,8 +60,10 @@ print_run_summary() {
   local now_seconds
   local total_duration
   local log_size
+  local build_log_size
   local build_duration
   local test_duration
+  local build_log_swift_warning_count
   local test_log_swift_warning_count
   local test_log_app_warning_count
   local test_log_app_error_count
@@ -75,15 +77,17 @@ print_run_summary() {
   now_seconds="$(date +%s)"
   total_duration=$((now_seconds - RUNNER_START_SECONDS))
   log_size="$(log_size_bytes "${LOG:-}")"
+  build_log_size="$(log_size_bytes "${BUILD_LOG:-}")"
   build_duration="$(format_duration "$BUILD_DURATION_SECONDS")"
   test_duration="$(format_duration "$TEST_DURATION_SECONDS")"
+  build_log_swift_warning_count="$(count_log_pattern "warning:" "${BUILD_LOG:-}")"
   test_log_swift_warning_count="$(count_log_pattern "warning:" "${LOG:-}")"
   test_log_app_warning_count="$(count_log_pattern "\\[WARN\\]" "${LOG:-}")"
   test_log_app_error_count="$(count_log_pattern "\\[ERROR\\]" "${LOG:-}")"
   filter_value="${TEST_FILTER:-none}"
   skip_value="${TEST_SKIP:-none}"
 
-  echo "📊 Runner summary: lane=${TEST_LANE} exit=${exit_code} prebuild=${TEST_PREBUILD} disable_xctest=${TEST_DISABLE_XCTEST} reset_module_cache=${TEST_RESET_MODULE_CACHE} build=${build_duration} test=${test_duration} total=${total_duration}s log=${log_size} bytes test_log_swift_warnings=${test_log_swift_warning_count} test_log_app_warnings=${test_log_app_warning_count} test_log_app_errors=${test_log_app_error_count}"
+  echo "📊 Runner summary: lane=${TEST_LANE} exit=${exit_code} prebuild=${TEST_PREBUILD} disable_xctest=${TEST_DISABLE_XCTEST} reset_module_cache=${TEST_RESET_MODULE_CACHE} build=${build_duration} test=${test_duration} total=${total_duration}s build_log=${build_log_size} bytes build_log_swift_warnings=${build_log_swift_warning_count} log=${log_size} bytes test_log_swift_warnings=${test_log_swift_warning_count} test_log_app_warnings=${test_log_app_warning_count} test_log_app_errors=${test_log_app_error_count}"
 
   if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     {
@@ -101,10 +105,15 @@ print_run_summary() {
       echo "| Build duration | \`${build_duration}\` |"
       echo "| Test duration | \`${test_duration}\` |"
       echo "| Total duration | \`${total_duration}s\` |"
+      echo "| Build log size | \`${build_log_size} bytes\` |"
+      echo "| Build log Swift warnings | \`${build_log_swift_warning_count}\` |"
       echo "| Log size | \`${log_size} bytes\` |"
       echo "| Test log Swift warnings | \`${test_log_swift_warning_count}\` |"
       echo "| Test log app warnings | \`${test_log_app_warning_count}\` |"
       echo "| Test log app errors | \`${test_log_app_error_count}\` |"
+      if [ -n "${BUILD_LOG:-}" ]; then
+        echo "| Build log path | \`${BUILD_LOG}\` |"
+      fi
       if [ -n "${LOG:-}" ]; then
         echo "| Log path | \`${LOG}\` |"
       fi
@@ -315,6 +324,8 @@ if [ "$TEST_DISABLE_XCTEST" = "1" ]; then
 fi
 echo "📦 Scratch: $SCRATCH_PATH | HOME=$HOME"
 echo "🗂️  Module cache: $MODULE_CACHE"
+mkdir -p "$(dirname "$LOG")" "$(dirname "$BUILD_LOG")"
+rm -f "$LOG" "$BUILD_LOG"
 
 # 1) Build tests first (doesn't count against watchdog timeout)
 echo "🔨 Building tests..."
@@ -324,8 +335,8 @@ if [ "$TEST_PREBUILD" = "0" ]; then
   echo "⏭️  Skipping separate swift build --build-tests step"
   BUILD_EXIT_CODE=0
 else
-  swift build --build-tests --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}"
-  BUILD_EXIT_CODE=$?
+  swift build --build-tests --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}" 2>&1 | tee "$BUILD_LOG"
+  BUILD_EXIT_CODE="${PIPESTATUS[0]}"
 fi
 set -e
 BUILD_DURATION_SECONDS=$(($(date +%s) - BUILD_START_SECONDS))
@@ -336,11 +347,8 @@ if [ "$BUILD_EXIT_CODE" != "0" ]; then
 fi
 
 # 2) Run with watchdog
-LOG="${KEYPATH_TEST_LOG:-$PROJECT_DIR/test_output.safe.txt}"
 EXIT_FILE="$PROJECT_DIR/.xctest.exit.$$"
 TIMEOUT_FILE="$PROJECT_DIR/.xctest.timeout.$$"
-mkdir -p "$(dirname "$LOG")"
-rm -f "$LOG"
 
 echo "🚀 Launching swift test..."
 TEST_START_SECONDS="$(date +%s)"

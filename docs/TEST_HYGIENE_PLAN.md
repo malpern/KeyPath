@@ -286,6 +286,9 @@ Status:
 - Focused appkit lane validation passed for
   `UnmappedLayerKeyStyleTests|VallackOverlayZoneTests` with 58 XCTest tests and
   `test_log_swift_warnings=0`.
+- Updated `run-tests-safe.sh` to capture the prebuild phase in a separate build
+  log and report `build_log_swift_warnings` alongside test-log warning counts;
+  the same focused appkit lane reported both warning counts as zero.
 
 ### Milestone 6: Measurement And Regression Guardrails
 
