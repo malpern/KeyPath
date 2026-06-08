@@ -32,8 +32,8 @@
 ## Testing
 - `test.sh` (in root) - All tests
 - `test-*.sh` (in Scripts/) - Individual test suites
-- `./Scripts/test-lane.sh smoke` - Fast sanity lane across core parsing,
-  permissions, installer planning, CLI, and layout tracer tests.
+- `./Scripts/test-lane.sh smoke` - Fast sanity lane from the narrow
+  `KeyPathSmokeTests` target.
 - `./Scripts/test-lane.sh unit` - Pure or mostly pure model/parser/renderer
   tests.
 - `./Scripts/test-lane.sh appkit` - UI-adjacent app logic, services, packs,
@@ -48,7 +48,8 @@
 - `./Scripts/run-tests-safe.sh` - CI-style safe test runner. Defaults to quiet
   app logs (`KEYPATH_LOG_LEVEL=3`) and prints build/test timing plus log size.
   Set `KEYPATH_TEST_VERBOSE_LOGS=1` for debug-level app diagnostics during a
-  noisy test investigation.
+  noisy test investigation. Set `KEYPATH_TEST_RESET_MODULE_CACHE=0` when a
+  narrow local lane should reuse the Swift module cache.
 - CI also runs:
   - `swift test --filter SigningPipelineTests` (verifies signing/notary wrappers surface failures and honor dry-run)
   - `swift test --filter InstallerEngineEndToEndTests` (ensures InstallerEngine executes plans and stops on broker failures)

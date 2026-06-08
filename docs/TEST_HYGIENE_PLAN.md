@@ -161,6 +161,33 @@ Acceptance criteria:
   pressure.
 - `swift test --list-tests` and lane scripts still work locally and in CI.
 
+Status:
+
+- Started with the smoke lane because it is the fastest developer feedback
+  path.
+- Added a narrow `KeyPathSmokeTests` SwiftPM target that depends only on
+  `KeyPathCore` and `KeyPathPermissions`.
+- Moved `KeyPathErrorTests` and `PermissionOracleFastModeTests` into that
+  target, removing their accidental `KeyPathAppKit` imports.
+- Updated `./Scripts/test-lane.sh smoke` to run `KeyPathSmokeTests` with
+  XCTest disabled, no separate `swift build --build-tests` prebuild, and module
+  cache reuse.
+
+Current Milestone 4 local smoke lane measurement:
+
+- command: `CI_ENVIRONMENT=true KP_SIGN_DRY_RUN=1 KEYPATH_BUNDLED_SIMULATOR_OVERRIDE=/opt/homebrew/bin/kanata-simulator ./Scripts/test-lane.sh smoke`;
+- build: 0s separate prebuild, 6.49s SwiftPM incremental build inside
+  `swift test`;
+- test: 13s;
+- total: 13s;
+- test log size: 4,941 bytes;
+- test log Swift warnings: 0;
+- result: 31 Swift Testing tests in 2 suites passed.
+- `swift test list --disable-xctest` still works and lists the
+  `KeyPathSmokeTests.*` entries, but SwiftPM builds the package-wide test runner
+  for that command; the local measurement was 231s and should not be used as
+  the smoke lane fast-path benchmark.
+
 ### Milestone 5: Warning And Failure Signal Cleanup
 
 Goal: warnings and failure output should support triage instead of burying it.
@@ -289,6 +316,9 @@ This confirms that filters make execution and logs small, but the current
 `KeyPathTests` target still forces a broad build. Milestone 4 should prioritize
 moving smoke/unit tests that only need `KeyPathCore`, `KeyPathPermissions`, or
 `KeyPathLayoutTracerKit` into narrower targets.
+
+Milestone 4 started by moving the first smoke tests into `KeyPathSmokeTests`;
+see the Milestone 4 status section above for the current measurement.
 
 The Mac mini workflow should be revisited after milestones 1-3, because those
 changes determine whether the Mini should mainly run full verification, focused

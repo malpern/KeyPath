@@ -2,9 +2,8 @@
 set -euo pipefail
 
 # KeyPath named test lanes.
-# These lanes intentionally start as filters over the existing safe runner.
-# Milestone 4 can narrow SwiftPM test target dependencies once timings show
-# which lanes justify package graph changes.
+# Most lanes are filters over the existing safe runner. The smoke lane uses a
+# smaller SwiftPM test target so local sanity checks avoid the AppKit test graph.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
@@ -17,7 +16,7 @@ usage() {
 Usage: ./Scripts/test-lane.sh <lane>
 
 Lanes:
-  smoke      Fast sanity checks across core parsing, permissions, installer planning, CLI, and layout tracer.
+  smoke      Fast sanity checks from the narrow smoke test target.
   unit       Pure or mostly pure model/parser/renderer logic.
   appkit     UI-adjacent app logic, services, packs, config, mappers, and rule collections.
   installer  InstallerEngine, wizard, daemon/service lifecycle, and health-check tests.
@@ -28,6 +27,9 @@ Lanes:
 Environment:
   TIMEOUT_SECONDS            Watchdog timeout passed through to run-tests-safe.sh.
   KEYPATH_TEST_VERBOSE_LOGS  Set to 1 for debug-level app diagnostics.
+  KEYPATH_TEST_PREBUILD      Set to 0 to let swift test handle the build.
+  KEYPATH_TEST_RESET_MODULE_CACHE
+                             Set to 0 to reuse the Swift module cache.
   KEYPATH_TEST_FILTER        Overrides the lane's default Swift test filter.
   KEYPATH_TEST_SKIP          Optional Swift test skip regex.
 USAGE
@@ -58,7 +60,10 @@ run_safe_lane() {
 
 case "$LANE" in
   smoke)
-    run_safe_lane "$LANE" "KeyPathErrorTests|PermissionOracleFastModeTests|TextToKanataKeyMapperTests|KanataDefseqParserTests|RuleCollectionCatalogTests|InstallerEnginePlanTests|CLISmokeTests|LayoutTracerExporterTests" 120
+    export KEYPATH_TEST_PREBUILD="${KEYPATH_TEST_PREBUILD:-0}"
+    export KEYPATH_TEST_DISABLE_XCTEST="${KEYPATH_TEST_DISABLE_XCTEST:-1}"
+    export KEYPATH_TEST_RESET_MODULE_CACHE="${KEYPATH_TEST_RESET_MODULE_CACHE:-0}"
+    run_safe_lane "$LANE" "KeyPathSmokeTests" 120
     ;;
   unit)
     run_safe_lane "$LANE" "KeyPathErrorTests|TextToKanataKeyMapperTests|KanataBehaviorParserTests|KanataBehaviorRendererTests|KanataDefseqParserTests|PhysicalLayoutTests|MappingBehaviorTests|LayerKeyMapperNormalizeTests|LayerKeyMapperLabelTests|LayerKeyInfoExtractionTests|LabelMetadataTests|ConfigApplyTypesTests|VirtualKeyParserTests|QMKLayoutParserTests|HandAssignmentTests|TypingFeelMappingTests|KindaVimTelemetryStoreTests|GlobalHotkeyMatcherTests|VimSequenceObserverTests" 180

@@ -83,7 +83,7 @@ print_run_summary() {
   filter_value="${TEST_FILTER:-none}"
   skip_value="${TEST_SKIP:-none}"
 
-  echo "📊 Runner summary: lane=${TEST_LANE} exit=${exit_code} build=${build_duration} test=${test_duration} total=${total_duration}s log=${log_size} bytes test_log_swift_warnings=${test_log_swift_warning_count} test_log_app_warnings=${test_log_app_warning_count} test_log_app_errors=${test_log_app_error_count}"
+  echo "📊 Runner summary: lane=${TEST_LANE} exit=${exit_code} prebuild=${TEST_PREBUILD} disable_xctest=${TEST_DISABLE_XCTEST} reset_module_cache=${TEST_RESET_MODULE_CACHE} build=${build_duration} test=${test_duration} total=${total_duration}s log=${log_size} bytes test_log_swift_warnings=${test_log_swift_warning_count} test_log_app_warnings=${test_log_app_warning_count} test_log_app_errors=${test_log_app_error_count}"
 
   if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     {
@@ -94,6 +94,9 @@ print_run_summary() {
       echo "| Lane | \`${TEST_LANE}\` |"
       echo "| Filter | \`${filter_value}\` |"
       echo "| Skip | \`${skip_value}\` |"
+      echo "| Prebuild | \`${TEST_PREBUILD}\` |"
+      echo "| Disable XCTest | \`${TEST_DISABLE_XCTEST}\` |"
+      echo "| Reset module cache | \`${TEST_RESET_MODULE_CACHE}\` |"
       echo "| Exit code | \`${exit_code}\` |"
       echo "| Build duration | \`${build_duration}\` |"
       echo "| Test duration | \`${test_duration}\` |"
@@ -231,6 +234,7 @@ fi
 if [ -n "$TEST_SKIP" ]; then
     echo "⏭️  Test skip: $TEST_SKIP"
 fi
+echo "🏗️  Test prebuild: $TEST_PREBUILD | disable XCTest: $TEST_DISABLE_XCTEST | reset module cache: $TEST_RESET_MODULE_CACHE"
 echo "🧪 SWIFT_TEST=$SWIFT_TEST | SKIP_EVENT_TAP_TESTS=$SKIP_EVENT_TAP_TESTS"
 declare -a TEST_SELECTOR_ARGS=()
 if [ -n "$TEST_FILTER" ]; then
@@ -288,9 +292,11 @@ fi
 export HOME=${TEST_HOME:-$(mktemp -d 2>/dev/null || mktemp -d -t keypath-tests)}
 SCRATCH_PATH="$(absolute_dir "$SCRATCH_PATH")"
 MODULE_CACHE="$SCRATCH_PATH/ModuleCache.noindex"
-if [ -d "$MODULE_CACHE" ]; then
+if [ "$TEST_RESET_MODULE_CACHE" = "1" ] && [ -d "$MODULE_CACHE" ]; then
   echo "🧹 Resetting generated module cache: $MODULE_CACHE"
   rm -rf "$MODULE_CACHE"
+elif [ "$TEST_RESET_MODULE_CACHE" != "1" ]; then
+  echo "♻️  Reusing generated module cache: $MODULE_CACHE"
 fi
 MODULE_CACHE="$(absolute_dir "$MODULE_CACHE")"
 HOME="$(absolute_dir "$HOME")"
@@ -304,6 +310,9 @@ fi
 if [ -n "$TEST_SKIP" ]; then
   SWIFT_TEST_ARGS+=(--skip "$TEST_SKIP")
 fi
+if [ "$TEST_DISABLE_XCTEST" = "1" ]; then
+  SWIFT_TEST_ARGS+=(--disable-xctest)
+fi
 echo "📦 Scratch: $SCRATCH_PATH | HOME=$HOME"
 echo "🗂️  Module cache: $MODULE_CACHE"
 
@@ -311,8 +320,13 @@ echo "🗂️  Module cache: $MODULE_CACHE"
 echo "🔨 Building tests..."
 BUILD_START_SECONDS="$(date +%s)"
 set +e
-swift build --build-tests --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}"
-BUILD_EXIT_CODE=$?
+if [ "$TEST_PREBUILD" = "0" ]; then
+  echo "⏭️  Skipping separate swift build --build-tests step"
+  BUILD_EXIT_CODE=0
+else
+  swift build --build-tests --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}"
+  BUILD_EXIT_CODE=$?
+fi
 set -e
 BUILD_DURATION_SECONDS=$(($(date +%s) - BUILD_START_SECONDS))
 if [ "$BUILD_EXIT_CODE" != "0" ]; then
