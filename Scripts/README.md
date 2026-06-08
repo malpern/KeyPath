@@ -12,6 +12,8 @@
 - `./test.sh` — Run the full test suite (root)
 - `./Scripts/test-lane.sh <lane>` — Run a named SwiftPM test lane (`smoke`,
   `smoke-root`, `unit`, `appkit`, `installer`, `snapshot`, `device`, or `full`).
+- `./Scripts/measure-local-loop.sh` — Measure local feedback lanes and write a
+  Markdown report under `.build/local-loop-measurements/`.
 - `./Scripts/run-installer-reliability-matrix.sh` — Automated installer reliability matrix + diagnostic artifact bundle (`test-results/installer-reliability/latest`).
 - `./Scripts/repro-duplicate-keys.sh` — CPU-load repro harness for duplicate keypress detection (filters navigation keys by default). Supports `--auto-type osascript` or `--auto-type peekaboo` for deterministic automated keystroke generation, and continuously samples Kanata process metrics (CPU%, memory, threads, priority).
 
@@ -49,8 +51,14 @@
 - `./Scripts/run-tests-safe.sh` - CI-style safe test runner. Defaults to quiet
   app logs (`KEYPATH_LOG_LEVEL=3`) and prints build/test timing plus log size.
   Set `KEYPATH_TEST_VERBOSE_LOGS=1` for debug-level app diagnostics during a
-  noisy test investigation. Set `KEYPATH_TEST_RESET_MODULE_CACHE=0` when a
-  narrow local lane should reuse the Swift module cache.
+  noisy test investigation. Local named lanes reuse the normalized Swift module
+  cache by default; set `KEYPATH_TEST_RESET_MODULE_CACHE=1` when a narrow local
+  lane should intentionally reset it.
+- `./Scripts/measure-local-loop.sh --preset baseline` - Measure the standard
+  MacBook Air local baseline (`smoke`, `unit`, `appkit`) and write
+  `.build/local-loop-measurements/latest.md`.
+- See `docs/MACBOOK_AIR_LOCAL_LOOP.md` for the recommended command by change
+  type.
 - CI also runs:
   - `./Scripts/test-lane.sh smoke` as the early fail-fast lane.
   - `./Scripts/run-installer-reliability-matrix.sh` (pre/during/post install lanes + inspect snapshot artifact)

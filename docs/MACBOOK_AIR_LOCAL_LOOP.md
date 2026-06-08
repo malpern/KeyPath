@@ -1,0 +1,88 @@
+# MacBook Air Local Test Loop
+
+This workflow optimizes for fast, reliable feedback on the primary development
+MacBook Air. Mac mini orchestration is intentionally deferred until local lane
+measurements show a capacity problem that remote execution would actually solve.
+
+## Default Loop
+
+Run the smallest lane that covers the files you changed:
+
+| Change type | Command |
+| --- | --- |
+| Core APIs, permissions, parser smoke coverage | `./Scripts/test-lane.sh smoke` |
+| Pure model/parser/renderer logic | `./Scripts/test-lane.sh unit` |
+| AppKit-adjacent logic, services, config, packs, mappers | `./Scripts/test-lane.sh appkit` |
+| InstallerEngine, wizard, daemon lifecycle, health checks | `./Scripts/test-lane.sh installer` |
+| Snapshot or visual output changes | `./Scripts/test-lane.sh snapshot` |
+| Device/system installer surface | `KEYPATH_E2E_DEVICE=1 ./Scripts/test-lane.sh device` |
+| Before a broad handoff or PR | `./Scripts/test-lane.sh full` |
+
+For very narrow debugging, override the lane filter:
+
+```bash
+KEYPATH_TEST_FILTER=SaveCoordinatorTests ./Scripts/test-lane.sh appkit
+```
+
+## Warm Cache Policy
+
+The local named lanes `unit`, `appkit`, `installer`, and `snapshot` reuse the
+normalized Swift module cache by default. This is the right default for the
+MacBook Air edit-test loop.
+
+The `full` lane keeps the stricter reset behavior by default. Override either
+mode explicitly when needed:
+
+```bash
+KEYPATH_TEST_RESET_MODULE_CACHE=1 ./Scripts/test-lane.sh appkit
+KEYPATH_TEST_RESET_MODULE_CACHE=0 ./Scripts/test-lane.sh full
+```
+
+## Measuring The Loop
+
+Use the measurement wrapper when changing lane behavior or comparing cold/warm
+feedback:
+
+```bash
+./Scripts/measure-local-loop.sh
+./Scripts/measure-local-loop.sh --preset baseline
+./Scripts/measure-local-loop.sh --clean-smoke smoke
+```
+
+Reports are written under `.build/local-loop-measurements/`, with the latest
+report linked at:
+
+```bash
+.build/local-loop-measurements/latest.md
+```
+
+Presets:
+
+- `quick`: runs `smoke`.
+- `baseline`: runs `smoke`, `unit`, and `appkit`.
+- `full`: runs `smoke`, `unit`, `appkit`, and `full`.
+
+## Debugging Noisy Failures
+
+Use the quiet defaults first. If the failure needs app diagnostics, opt into
+verbose logs for that run only:
+
+```bash
+KEYPATH_TEST_VERBOSE_LOGS=1 KEYPATH_TEST_FILTER=ConfigHotReloadServiceTests ./Scripts/test-lane.sh appkit
+```
+
+If a filtered lane passes but the full lane fails, treat that as either a broad
+build/test-runner interaction or cross-target coupling. Preserve the focused
+passing command in the issue or PR notes before escalating to broader runs.
+
+## Build And UI Iteration
+
+For app iteration rather than test verification, keep Poltergeist running:
+
+```bash
+poltergeist start
+poltergeist wait keypath
+```
+
+Use this for deploy/relaunch feedback. Use the lane commands above for test
+signal.

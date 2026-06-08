@@ -44,6 +44,7 @@ run_safe_lane() {
   local lane="$1"
   local default_filter="${2:-}"
   local default_timeout="${3:-240}"
+  local default_reset_module_cache="${4:-1}"
   local default_log="$PROJECT_DIR/test_output.${lane}.txt"
 
   if [ "$lane" = "full" ]; then
@@ -53,6 +54,7 @@ run_safe_lane() {
   export KEYPATH_TEST_LANE="$lane"
   export KEYPATH_TEST_FILTER="${KEYPATH_TEST_FILTER:-$default_filter}"
   export KEYPATH_TEST_LOG="${KEYPATH_TEST_LOG:-$default_log}"
+  export KEYPATH_TEST_RESET_MODULE_CACHE="${KEYPATH_TEST_RESET_MODULE_CACHE:-$default_reset_module_cache}"
   export TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-$default_timeout}"
 
   if [ -z "$KEYPATH_TEST_FILTER" ]; then
@@ -124,17 +126,17 @@ case "$LANE" in
     run_safe_lane "$LANE" "KeyPathSmokeTests" 120
     ;;
   unit)
-    run_safe_lane "$LANE" "KeyPathErrorTests|TextToKanataKeyMapperTests|KanataBehaviorParserTests|KanataBehaviorRendererTests|KanataDefseqParserTests|PhysicalLayoutTests|MappingBehaviorTests|LayerKeyMapperNormalizeTests|LayerKeyMapperLabelTests|LayerKeyInfoExtractionTests|LabelMetadataTests|ConfigApplyTypesTests|VirtualKeyParserTests|QMKLayoutParserTests|HandAssignmentTests|TypingFeelMappingTests|KindaVimTelemetryStoreTests|GlobalHotkeyMatcherTests|VimSequenceObserverTests" 180
+    run_safe_lane "$LANE" "KeyPathErrorTests|TextToKanataKeyMapperTests|KanataBehaviorParserTests|KanataBehaviorRendererTests|KanataDefseqParserTests|PhysicalLayoutTests|MappingBehaviorTests|LayerKeyMapperNormalizeTests|LayerKeyMapperLabelTests|LayerKeyInfoExtractionTests|LabelMetadataTests|ConfigApplyTypesTests|VirtualKeyParserTests|QMKLayoutParserTests|HandAssignmentTests|TypingFeelMappingTests|KindaVimTelemetryStoreTests|GlobalHotkeyMatcherTests|VimSequenceObserverTests" 180 0
     ;;
   appkit)
-    run_safe_lane "$LANE" "AppContext|Mapper|RuleCollections|Config|RuntimeCoordinator|Pack|Services|Preferences|Keyboard|MainAppState|ContentView|FDADetection|RecordingCoordinator|RecommendationEngine|Vallack|GenericPack" 240
+    run_safe_lane "$LANE" "AppContext|Mapper|RuleCollections|Config|RuntimeCoordinator|Pack|Services|Preferences|Keyboard|MainAppState|ContentView|FDADetection|RecordingCoordinator|RecommendationEngine|Vallack|GenericPack" 240 0
     ;;
   installer)
-    run_safe_lane "$LANE" "InstallerEngine|InstallationWizard|PackageManager|ServiceLifecycle|ServiceHealth|ConfigReloadCoordinator|KanataDaemon|PlistGenerator|PrivilegedExecutor|RecoveryCoordinator|ServiceInstallGuard" 240
+    run_safe_lane "$LANE" "InstallerEngine|InstallationWizard|PackageManager|ServiceLifecycle|ServiceHealth|ConfigReloadCoordinator|KanataDaemon|PlistGenerator|PrivilegedExecutor|RecoveryCoordinator|ServiceInstallGuard" 240 0
     ;;
   snapshot)
     export KEYPATH_SNAPSHOTS=1
-    run_safe_lane "$LANE" "KeyPathSnapshotTests" 240
+    run_safe_lane "$LANE" "KeyPathSnapshotTests" 240 0
     ;;
   device)
     if [ "${KEYPATH_E2E_DEVICE:-0}" != "1" ]; then

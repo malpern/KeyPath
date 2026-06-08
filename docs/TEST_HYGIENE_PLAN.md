@@ -434,6 +434,17 @@ behavior.
 Milestone 4 started by moving the first smoke tests into `KeyPathSmokeTests`;
 see the Milestone 4 status section above for the current measurement.
 
+Milestone 6 is now started with the MacBook Air local loop as the target:
+
+- `unit`, `appkit`, `installer`, and `snapshot` lanes reuse the normalized
+  module cache by default for faster warm local feedback; `full` keeps the
+  stricter reset default.
+- `Scripts/measure-local-loop.sh` records lane summaries into
+  `.build/local-loop-measurements/` so local timing changes can be compared
+  without copying terminal output.
+- `docs/MACBOOK_AIR_LOCAL_LOOP.md` documents the recommended lane by change
+  type, warm-cache policy, measurement presets, and when to use verbose logs.
+
 The Mac mini workflow is deferred. Revisit it only after the MacBook Air loop is
 fast and boring enough that remote execution would solve a measured capacity
 problem instead of compensating for harness noise.
