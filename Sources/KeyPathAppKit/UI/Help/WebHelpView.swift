@@ -32,6 +32,12 @@ enum HelpLoadError: Equatable {
 
 /// Loads a help article from the KeyPath website, with an offline/404 fallback.
 struct WebHelpView: View {
+    /// GitHub issues URL used by the "Report a broken link" fallback.
+    /// Hardcoded constant — the fallback is a degenerate file URL to avoid a
+    /// force-unwrap at the call site if the string is ever typoed.
+    private static let reportIssueURL: URL = .init(string: "https://github.com/malpern/KeyPath/issues")
+        ?? URL(fileURLWithPath: "/")
+
     let url: URL
     var onHelpLinkClicked: ((String) -> Void)?
 
@@ -94,7 +100,7 @@ struct WebHelpView: View {
             .padding(.top, 4)
 
             if error == .notFound {
-                Link("Report a broken link", destination: URL(string: "https://github.com/malpern/KeyPath/issues")!)
+                Link("Report a broken link", destination: Self.reportIssueURL)
                     .font(.caption)
                     .accessibilityIdentifier("help-fallback-report-link")
             }
