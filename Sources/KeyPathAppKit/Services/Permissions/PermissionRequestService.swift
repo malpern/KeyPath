@@ -3,6 +3,7 @@ import AppKit
 import Foundation
 import IOKit.hid
 import KeyPathCore
+import KeyPathPermissions
 
 /// Centralized utilities for requesting system permissions using Apple's standard APIs.
 /// - Requests are debounced to avoid nagging the user.
@@ -74,14 +75,22 @@ public final class PermissionRequestService {
     // MARK: - Public API
 
     /// Request Input Monitoring permission using IOHIDRequestAccess().
-    /// - Returns: true if already granted (no prompt shown), false otherwise.
+    /// Permission state reads come from PermissionOracle; IOHIDRequestAccess is only used to prompt.
+    /// - Returns: true if the Oracle reports granted before or immediately after the prompt.
     @discardableResult
-    public func requestInputMonitoringPermission(ignoreCooldown: Bool = false) -> Bool {
+    public func requestInputMonitoringPermission(ignoreCooldown: Bool = false) async -> Bool {
         // Wizard context guard: block prompts outside wizard/user-initiated flows
         guard wizardContextActive else {
             AppLogger.shared.warn("⚠️ [PermissionRequest] Blocked IOHIDRequestAccess — not in wizard context")
             return false
         }
+
+        let beforePrompt = await PermissionOracle.shared.currentSnapshot()
+        if beforePrompt.keyPath.inputMonitoring.isReady {
+            AppLogger.shared.log("✅ [PermissionRequest] Input Monitoring already granted (Oracle)")
+            return true
+        }
+
         // Foreground and cooldown guards
         ensureForeground()
         if !isForeground() {
@@ -97,13 +106,15 @@ public final class PermissionRequestService {
         markPrompt(lastPromptIMKey)
 
         // IOHIDRequestAccess() automatically shows the system dialog if not granted.
-        // Returns true if granted, false otherwise.
+        // Do not use its return value as permission state; refresh the Oracle instead.
         AppLogger.shared.log(
             "🔐 [PermissionRequest] Requesting Input Monitoring via IOHIDRequestAccess()"
         )
-        let granted = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+        _ = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+        let refreshed = await PermissionOracle.shared.forceRefresh()
+        let granted = refreshed.keyPath.inputMonitoring.isReady
         if granted {
-            AppLogger.shared.log("✅ [PermissionRequest] Input Monitoring already granted")
+            AppLogger.shared.log("✅ [PermissionRequest] Input Monitoring granted after Oracle refresh")
         } else {
             AppLogger.shared.log("⏳ [PermissionRequest] Input Monitoring prompt likely shown")
         }
@@ -111,14 +122,22 @@ public final class PermissionRequestService {
     }
 
     /// Request Accessibility permission using AXIsProcessTrustedWithOptions().
-    /// - Returns: true if already granted (no prompt shown), false otherwise.
+    /// Permission state reads come from PermissionOracle; AXIsProcessTrustedWithOptions is only used to prompt.
+    /// - Returns: true if the Oracle reports granted before or immediately after the prompt.
     @discardableResult
-    public func requestAccessibilityPermission(ignoreCooldown: Bool = false) -> Bool {
+    public func requestAccessibilityPermission(ignoreCooldown: Bool = false) async -> Bool {
         // Wizard context guard: block prompts outside wizard/user-initiated flows
         guard wizardContextActive else {
             AppLogger.shared.warn("⚠️ [PermissionRequest] Blocked AX prompt — not in wizard context")
             return false
         }
+
+        let beforePrompt = await PermissionOracle.shared.currentSnapshot()
+        if beforePrompt.keyPath.accessibility.isReady {
+            AppLogger.shared.log("✅ [PermissionRequest] Accessibility already granted (Oracle)")
+            return true
+        }
+
         // Foreground and cooldown guards
         ensureForeground()
         if !isForeground() {
@@ -137,9 +156,11 @@ public final class PermissionRequestService {
         AppLogger.shared.log(
             "🔐 [PermissionRequest] Requesting Accessibility via AXIsProcessTrustedWithOptions()"
         )
-        let trusted = AXIsProcessTrustedWithOptions(options)
+        _ = AXIsProcessTrustedWithOptions(options)
+        let refreshed = await PermissionOracle.shared.forceRefresh()
+        let trusted = refreshed.keyPath.accessibility.isReady
         if trusted {
-            AppLogger.shared.log("✅ [PermissionRequest] Accessibility already granted")
+            AppLogger.shared.log("✅ [PermissionRequest] Accessibility granted after Oracle refresh")
         } else {
             AppLogger.shared.log("⏳ [PermissionRequest] Accessibility prompt likely shown")
         }
@@ -148,9 +169,9 @@ public final class PermissionRequestService {
 
     /// Request both permissions (convenience for wizard flows).
     func requestAllPermissions() async -> (inputMonitoring: Bool, accessibility: Bool) {
-        let im = requestInputMonitoringPermission()
+        let im = await requestInputMonitoringPermission()
         try? await Task.sleep(for: .milliseconds(500)) // small delay
-        let ax = requestAccessibilityPermission()
+        let ax = await requestAccessibilityPermission()
         return (im, ax)
     }
 }

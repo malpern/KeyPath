@@ -421,19 +421,19 @@ public struct WizardInputMonitoringPage: View {
             AppLogger.shared.log("⚠️ [WizardInputMonitoringPage] permissionRequestService not configured")
             return
         }
-        let alreadyGranted = permissionRequestService.requestInputMonitoringPermission(
-            ignoreCooldown: true
-        )
-        if alreadyGranted {
-            Task { await onRefresh() }
-            return
-        }
-
-        // Poll for grant (KeyPath + Kanata) using Oracle snapshot
-        startPermissionPolling(for: .inputMonitoring)
-
-        // Fallback: if still not granted shortly after, open System Settings panel
         Task { @MainActor in
+            let alreadyGranted = await permissionRequestService.requestInputMonitoringPermission(
+                ignoreCooldown: true
+            )
+            if alreadyGranted {
+                await onRefresh()
+                return
+            }
+
+            // Poll for grant (KeyPath + Kanata) using Oracle snapshot
+            startPermissionPolling(for: .inputMonitoring)
+
+            // Fallback: if still not granted shortly after, open System Settings panel
             for _ in 0 ..< 6 { // ~1.5s at 250ms
                 _ = await WizardSleep.ms(250)
                 let snapshot = await PermissionOracle.shared.forceRefresh()
