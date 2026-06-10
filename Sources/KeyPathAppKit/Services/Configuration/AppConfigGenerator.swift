@@ -268,9 +268,7 @@ public enum AppConfigGenerator {
     private static func wrapForValidation(_ content: String) -> String {
         """
         ;; Validation wrapper - provides minimal context for include file validation
-        (defcfg
-          process-unmapped-keys yes
-        )
+        \(KanataDefcfg.validationWrapper.render())
 
         (defsrc a b c d e f g h i j k l m n o p q r s t u v w x y z)
 

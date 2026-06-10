@@ -309,9 +309,7 @@ final class SaveCoordinator {
     private func writeMinimalSafeConfig() async throws {
         let safeConfig = """
         ;; Minimal safe config written by SaveCoordinator after rollback failure
-        (defcfg
-          process-unmapped-keys yes
-        )
+        \(KanataDefcfg.minimalSafe.render())
         (defsrc)
         (deflayer base)
         """

@@ -460,15 +460,9 @@ public final class ConfigurationService: FileConfigurationProviding {
 
             // Fix common syntax errors
             if lowerError.contains("missing"), lowerError.contains("defcfg") {
-                // Add missing defcfg using the same safe defaults as our generator
+                // Add missing defcfg using the shared single-source-of-truth header.
                 if !repairedConfig.contains("(defcfg") {
-                    let defcfgSection = """
-                    (defcfg
-                      process-unmapped-keys yes
-                      danger-enable-cmd yes
-                    )
-
-                    """
+                    let defcfgSection = KanataDefcfg.repairFallback.render() + "\n\n"
                     repairedConfig = defcfgSection + repairedConfig
                 }
             }
