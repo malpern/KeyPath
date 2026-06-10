@@ -94,6 +94,13 @@ jobs:
   # numbers are trusted, a realistic per-file floor can be added here.
   full-coverage:
     runs-on: [self-hosted, macOS, keypath]
+    # Sequence after the narrow lane: the two jobs share the self-hosted runner's
+    # workspace/.build, so running them in parallel risks clobbering each other's
+    # default.profdata (CLAUDE.md: avoid concurrent broad Swift builds). `needs`
+    # serializes them; `if: always()` still surfaces full numbers when the narrow
+    # floor regresses or a filtered test fails.
+    needs: [narrow-coverage]
+    if: always()
     timeout-minutes: 40
     steps:
       - name: Clean stale git credentials
