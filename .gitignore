@@ -82,6 +82,17 @@ run-tests-automated.sh
 output/
 test-results/
 
+# Generated coverage reports (produced in CI; never commit)
+coverage/
+coverage-full/
+
+# Generated Jekyll search index
+search-index.json
+
+# Tilde-expansion accident guard: a literal "~/..." path created when a script
+# or test fails to expand $HOME. Never commit a "~" directory at the repo root.
+/~/
+
 # UI test screenshots and logs
 Scripts/ui-tests/results/
 
