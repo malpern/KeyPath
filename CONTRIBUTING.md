@@ -37,7 +37,7 @@ For potential vulnerabilities, do **not** open a public issue.
   - https://github.com/malpern/KeyPath/security/advisories/new
 - Fallback: malpern@gmail.com
 
-See `/Users/malpern/local-code/KeyPath/SECURITY.md` for full policy and response expectations.
+See [`SECURITY.md`](SECURITY.md) for full policy and response expectations.
 
 ## Community Build Mode vs Release Build
 
@@ -58,27 +58,27 @@ Release/distribution validation requires signed/notarized artifacts and Apple cr
 ## I Want To...
 
 ### Add a keyboard shortcut
-**Edit:** `Sources/KeyPath/UI/RecordingCoordinator.swift`
+**Edit:** `Sources/KeyPathAppKit/UI/Pickers/RecordingCoordinator.swift`
 **What:** This handles keyboard input recording for creating mappings.
 
 ### Change the main UI
-**Edit:** `Sources/KeyPath/UI/ContentView.swift`
-**What:** Main app window with status, mappings list, and controls.
+**Edit:** `Sources/KeyPathAppKit/App.swift` (root scene) and the modular views under `Sources/KeyPathAppKit/UI/`
+**What:** The UI is composed of many SwiftUI views — there is no single `ContentView`.
 
 ### Fix a bug in key mapping
-**Edit:** `Sources/KeyPath/Services/KanataConfigGenerator.swift`
-**What:** Converts key mappings to Kanata config format.
+**Edit:** `Sources/KeyPathAppKit/Infrastructure/Config/` (config generation and parsing)
+**What:** Converts key mappings to Kanata config format. The `(defcfg ...)` header is centralized in `KanataDefcfg.swift`.
 
 ### Add a new service check to the wizard
-**Edit:** `Sources/KeyPath/InstallationWizard/Core/SystemStatusChecker.swift`
-**What:** Detects system state and determines wizard flow.
+**Edit:** `Sources/KeyPathInstallationWizard/Core/SystemInspector.swift` (and `InstallerEngine.swift`)
+**What:** Inspects system state; `WizardStateMachine.swift` determines wizard flow.
 
 ### Add a notification
-**Edit:** `Sources/KeyPath/Services/UserNotificationService.swift`
+**Edit:** `Sources/KeyPathAppKit/Services/UserNotificationService.swift`
 **What:** Handles macOS notifications with actions.
 
 ### Improve error handling
-**Edit:** `Sources/KeyPath/Core/KeyPathError.swift`
+**Edit:** `Sources/KeyPathCore/KeyPathError.swift`
 **What:** Centralized error hierarchy for the entire app.
 
 ### Add a test

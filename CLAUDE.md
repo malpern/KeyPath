@@ -217,7 +217,7 @@ an unpinned version.
 **"df"** → Run `./Scripts/quick-deploy.sh`, respond **"Eye eye Cap, fast deploying!"**
 **"ds"** → Development ship workflow for the current changes, end to end: branch off master → format/lint + commit → review gate → push + open PR → babysit CI → address feedback → merge → pull master → `./Scripts/release-candidate.sh` from master for signed/notarized manual testing. Follow [`docs/agent-pr-workflow.md`](docs/agent-pr-workflow.md) and its invariants; risk-tier the babysit (auto-merge mechanical PRs, full babysit for logic/hot-path). Public distribution is a separate explicit release: `./Scripts/release-doctor.sh --ship && ./Scripts/release.sh <version>`.
 
-Test targets: `Tests/KeyPathTests/` (target: `KeyPathTests`). Files in `Tests/KeyPathAppKitTests/` are NOT compiled. Snapshot tests in `Tests/KeyPathSnapshotTests/`.
+Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`, `KeyPathSnapshotTests`, and `KeyPathLayoutTracerTests` — all compiled and run by `swift test`.
 
 ## Poltergeist (Auto-Deploy)
 
