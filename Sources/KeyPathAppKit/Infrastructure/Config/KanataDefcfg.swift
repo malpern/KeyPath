@@ -1,5 +1,3 @@
-import Foundation
-
 /// Single source of truth for the kanata `(defcfg ...)` header block.
 ///
 /// Every config KeyPath writes — generated, repaired, validated, or recovered —
