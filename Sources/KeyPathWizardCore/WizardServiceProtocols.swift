@@ -39,8 +39,8 @@ public protocol WizardFullDiskAccessChecking: AnyObject, Sendable {
 
 @MainActor
 public protocol WizardPermissionRequesting: AnyObject, Sendable {
-    func requestInputMonitoringPermission(ignoreCooldown: Bool) -> Bool
-    func requestAccessibilityPermission(ignoreCooldown: Bool) -> Bool
+    func requestInputMonitoringPermission(ignoreCooldown: Bool) async -> Bool
+    func requestAccessibilityPermission(ignoreCooldown: Bool) async -> Bool
 }
 
 // MARK: - PermissionService Protocol

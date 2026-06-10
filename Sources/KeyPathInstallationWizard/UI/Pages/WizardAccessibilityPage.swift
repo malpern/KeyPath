@@ -350,46 +350,46 @@ public struct WizardAccessibilityPage: View {
             AppLogger.shared.log("⚠️ [WizardAccessibilityPage] permissionRequestService not configured")
             return
         }
-        let alreadyGranted = permissionRequestService.requestAccessibilityPermission(
-            ignoreCooldown: true
-        )
-        if alreadyGranted {
-            Task { await onRefresh() }
-            return
-        }
-        // Poll for grant (KeyPath + Kanata) using Oracle snapshot
-        permissionPollingTask?.cancel()
-        permissionPollingTask = Task { [onRefresh] in
-            var attempts = 0
-            let maxAttempts = 30
-            var lastKeyPathGranted: Bool?
-            var lastKanataGranted: Bool?
-            while attempts < maxAttempts {
-                _ = await WizardSleep.ms(1000)
-                attempts += 1
-                let snapshot = await PermissionOracle.shared.forceRefresh()
-                let kpGranted = snapshot.keyPath.accessibility.isReady
-                let kaGranted = snapshot.kanata.accessibility.isReady
-
-                // Incremental refresh: update UI when either flips, not only when both are ready
-                if lastKeyPathGranted != kpGranted || lastKanataGranted != kaGranted {
-                    AppLogger.shared.log(
-                        "🔁 [WizardAccessibilityPage] Detected permission change (AX) - KeyPath: \(kpGranted), Kanata: \(kaGranted). Refreshing UI."
-                    )
-                    lastKeyPathGranted = kpGranted
-                    lastKanataGranted = kaGranted
-                    await onRefresh()
-                }
-
-                if kpGranted, kaGranted {
-                    // Both ready – stop polling
-                    return
-                }
-                if Task.isCancelled { return }
-            }
-        }
-        // Fallback: if not granted shortly, open Accessibility settings so the user can toggle
         Task { @MainActor in
+            let alreadyGranted = await permissionRequestService.requestAccessibilityPermission(
+                ignoreCooldown: true
+            )
+            if alreadyGranted {
+                await onRefresh()
+                return
+            }
+            // Poll for grant (KeyPath + Kanata) using Oracle snapshot
+            permissionPollingTask?.cancel()
+            permissionPollingTask = Task { [onRefresh] in
+                var attempts = 0
+                let maxAttempts = 30
+                var lastKeyPathGranted: Bool?
+                var lastKanataGranted: Bool?
+                while attempts < maxAttempts {
+                    _ = await WizardSleep.ms(1000)
+                    attempts += 1
+                    let snapshot = await PermissionOracle.shared.forceRefresh()
+                    let kpGranted = snapshot.keyPath.accessibility.isReady
+                    let kaGranted = snapshot.kanata.accessibility.isReady
+
+                    // Incremental refresh: update UI when either flips, not only when both are ready
+                    if lastKeyPathGranted != kpGranted || lastKanataGranted != kaGranted {
+                        AppLogger.shared.log(
+                            "🔁 [WizardAccessibilityPage] Detected permission change (AX) - KeyPath: \(kpGranted), Kanata: \(kaGranted). Refreshing UI."
+                        )
+                        lastKeyPathGranted = kpGranted
+                        lastKanataGranted = kaGranted
+                        await onRefresh()
+                    }
+
+                    if kpGranted, kaGranted {
+                        // Both ready – stop polling
+                        return
+                    }
+                    if Task.isCancelled { return }
+                }
+            }
+            // Fallback: if not granted shortly, open Accessibility settings so the user can toggle
             _ = await WizardSleep.ms(1500) // 1.5s
             let snapshot = await PermissionOracle.shared.forceRefresh()
             let granted =
