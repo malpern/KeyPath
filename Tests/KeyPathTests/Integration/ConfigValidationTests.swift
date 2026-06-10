@@ -12,6 +12,14 @@ import XCTest
 /// Requires: a current KeyPath kanata binary, preferably via
 /// KEYPATH_KANATA_PATH, the repo-built fork, or the app-bundled fork.
 final class ConfigValidationTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        // Per-pack assertions in testEachPackProducesValidConfigIndividually
+        // should all run even when one pack fails. Without this, XCTest stops
+        // at the first failure and later packs aren't tested.
+        continueAfterFailure = true
+    }
+
     private func findKanataBinary() -> String? {
         let candidates: [String] = [
             ProcessInfo.processInfo.environment["KEYPATH_KANATA_PATH"],
@@ -174,22 +182,60 @@ final class ConfigValidationTests: XCTestCase {
 
     @MainActor
     func testEachPackProducesValidConfigIndividually() async throws {
-        let catalog = RuleCollectionCatalog().defaultCollections()
-
+        // With continueAfterFailure = true (see setUp), every pack runs even
+        // if one fails; each assertion failure names the offending pack.
         for pack in PackRegistry.starterKit where !pack.visualOnly {
             guard let collectionID = pack.associatedCollectionID else { continue }
-
-            var collections = catalog
-            for i in collections.indices {
-                collections[i].isEnabled = collections[i].id == collectionID
-                    || collections[i].isSystemDefault
-            }
-
-            let config = KanataConfiguration.generateFromCollections(collections)
+            let config = MatrixTestHelpers.enabledCollectionConfig(collectionID)
             let result = try await validateWithKanata(config)
             XCTAssertTrue(
                 result.isValid,
-                "Pack '\(pack.name)' should produce valid config. Errors: \(result.errors)"
+                "Pack '\(pack.name)' (\(pack.id)) produced invalid kanata config. Errors: \(result.errors)"
+            )
+        }
+    }
+
+    // MARK: - Per-Catalog-Family Kanata Syntax Validation
+
+    //
+    // One assertion per catalog family. With continueAfterFailure = true,
+    // every family is exercised even when one fails — so a regression in a
+    // single family doesn't hide regressions in the others.
+
+    @MainActor
+    func testEveryCatalogFamilyProducesValidKanataConfig() async throws {
+        // Excludes families that are already covered by dedicated tests above
+        // (capsLockRemap, homeRowMods) to avoid double-work in the kanata
+        // validation loop, which is the slowest part of the suite.
+        let families: [(name: String, id: UUID)] = [
+            ("Vim Navigation", RuleCollectionIdentifier.vimNavigation),
+            ("Neovim Terminal", RuleCollectionIdentifier.neovimTerminal),
+            ("Mission Control", RuleCollectionIdentifier.missionControl),
+            ("Window Snapping", RuleCollectionIdentifier.windowSnapping),
+            ("macOS Function Keys", RuleCollectionIdentifier.macFunctionKeys),
+            ("Backup Caps Lock", RuleCollectionIdentifier.backupCapsLock),
+            ("Escape", RuleCollectionIdentifier.escapeRemap),
+            ("Delete Enhancement", RuleCollectionIdentifier.deleteRemap),
+            ("Leader Key", RuleCollectionIdentifier.leaderKey),
+            ("Home Row Layer Toggles", RuleCollectionIdentifier.homeRowLayerToggles),
+            ("Chord Groups", RuleCollectionIdentifier.chordGroups),
+            ("Sequences", RuleCollectionIdentifier.sequences),
+            ("Numpad", RuleCollectionIdentifier.numpadLayer),
+            ("Symbol Layer", RuleCollectionIdentifier.symbolLayer),
+            ("Function Layer", RuleCollectionIdentifier.funLayer),
+            ("Auto Shift Symbols", RuleCollectionIdentifier.autoShiftSymbols),
+            ("Fast Navigation", RuleCollectionIdentifier.keyRepeatControl),
+            ("Home Row Arrows", RuleCollectionIdentifier.homeRowArrows),
+            ("Ben Vallack Nav", RuleCollectionIdentifier.vallackNavigation),
+            ("Quick Launcher", RuleCollectionIdentifier.launcher)
+        ]
+
+        for family in families {
+            let config = MatrixTestHelpers.enabledCollectionConfig(family.id)
+            let result = try await validateWithKanata(config)
+            XCTAssertTrue(
+                result.isValid,
+                "Family '\(family.name)' produced invalid kanata config. Errors: \(result.errors)"
             )
         }
     }
