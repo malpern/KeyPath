@@ -59,6 +59,16 @@ public struct KanataDefcfg: Sendable, Equatable {
 
     /// Render the `(defcfg ... )` block. Each option line is indented two spaces.
     public func render() -> String {
+        // `trailer` is spliced verbatim before the closing paren, so a non-empty
+        // trailer that doesn't start with a newline would weld onto the last option
+        // line and emit invalid kanata. The only producer (device targeting) already
+        // satisfies this; assert so a future producer can't violate it silently.
+        assert(trailer.isEmpty || trailer.hasPrefix("\n"),
+               "KanataDefcfg.trailer must begin with a newline when non-empty")
+        // managed-repeat delay/interval are a logical pair; emitting one without the
+        // other yields a half-configured block kanata may reject.
+        assert((managedRepeatDelayMs == nil) == (managedRepeatIntervalMs == nil),
+               "managed-repeat delay and interval must both be set or both be nil")
         var lines = ["  process-unmapped-keys \(processUnmappedKeys ? "yes" : "no")"]
         if allowCommandActions {
             lines.append("  danger-enable-cmd yes")
@@ -92,14 +102,15 @@ public extension KanataDefcfg {
     ///   - allowCommandActions: whether to emit `danger-enable-cmd yes`.
     ///   - managedRepeatDelayMs / managedRepeatIntervalMs: emitted only when non-nil
     ///     (the caller passes nil when key-repeat control is absent or disabled).
-    ///   - requirePriorIdleMs: emitted as `tap-hold-require-prior-idle` when > 0.
+    ///   - requirePriorIdleMs: `tap-hold-require-prior-idle` value, or nil to omit.
+    ///     The caller maps its "0 means disabled" sentinel to nil.
     ///   - hasChords: emits `concurrent-tap-hold yes` (required by `defchordsv2`).
     ///   - deviceTargeting: verbatim macOS device-targeting trailer ("" when none).
     static func standard(
         allowCommandActions: Bool,
         managedRepeatDelayMs: Int?,
         managedRepeatIntervalMs: Int?,
-        requirePriorIdleMs: Int,
+        requirePriorIdleMs: Int?,
         hasChords: Bool,
         deviceTargeting: String
     ) -> KanataDefcfg {
@@ -110,7 +121,7 @@ public extension KanataDefcfg {
             managedRepeatUnlisted: false,
             managedRepeatDelayMs: managedRepeatDelayMs,
             managedRepeatIntervalMs: managedRepeatIntervalMs,
-            tapHoldRequirePriorIdleMs: requirePriorIdleMs > 0 ? requirePriorIdleMs : nil,
+            tapHoldRequirePriorIdleMs: requirePriorIdleMs,
             concurrentTapHold: hasChords,
             trailer: deviceTargeting
         )
@@ -118,7 +129,12 @@ public extension KanataDefcfg {
 
     /// Crash-loop recovery fallback written after a rollback failure.
     /// Intentionally omits command execution and repeat tuning — recovery must never
-    /// (re)enable `cmd` actions or fail validation on optional tuning.
+    /// (re)enable `cmd` actions or fail validation on optional tuning. `allowCommandActions:
+    /// false` omits the `danger-enable-cmd` line entirely, which kanata treats as disabled.
+    ///
+    /// Currently renders identically to `validationWrapper`; the separate names preserve
+    /// the option to diverge (e.g. if recovery later needs repeat tuning) and document
+    /// the distinct call sites.
     static let minimalSafe = KanataDefcfg(
         processUnmappedKeys: true,
         allowCommandActions: false
@@ -126,6 +142,7 @@ public extension KanataDefcfg {
 
     /// Throwaway header used only to validate include files (`keypath-apps.kbd`),
     /// which are not standalone and need minimal `defcfg`/`defsrc` context.
+    /// Renders identically to `minimalSafe` today; see that profile's note.
     static let validationWrapper = KanataDefcfg(
         processUnmappedKeys: true,
         allowCommandActions: false

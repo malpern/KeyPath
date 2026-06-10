@@ -15,7 +15,7 @@ final class KanataDefcfgTests: XCTestCase {
             allowCommandActions: true,
             managedRepeatDelayMs: 500,
             managedRepeatIntervalMs: 30,
-            requirePriorIdleMs: 0,
+            requirePriorIdleMs: nil,
             hasChords: false,
             deviceTargeting: ""
         )
@@ -60,7 +60,7 @@ final class KanataDefcfgTests: XCTestCase {
             allowCommandActions: true,
             managedRepeatDelayMs: nil,
             managedRepeatIntervalMs: nil,
-            requirePriorIdleMs: 0,
+            requirePriorIdleMs: nil,
             hasChords: false,
             deviceTargeting: ""
         )
@@ -82,7 +82,7 @@ final class KanataDefcfgTests: XCTestCase {
             allowCommandActions: true,
             managedRepeatDelayMs: nil,
             managedRepeatIntervalMs: nil,
-            requirePriorIdleMs: 0,
+            requirePriorIdleMs: nil,
             hasChords: false,
             deviceTargeting: trailer
         )
@@ -105,7 +105,7 @@ final class KanataDefcfgTests: XCTestCase {
             allowCommandActions: false,
             managedRepeatDelayMs: nil,
             managedRepeatIntervalMs: nil,
-            requirePriorIdleMs: 0,
+            requirePriorIdleMs: nil,
             hasChords: false,
             deviceTargeting: ""
         )
@@ -131,6 +131,13 @@ final class KanataDefcfgTests: XCTestCase {
           process-unmapped-keys yes
         )
         """)
+    }
+
+    func testMinimalSafeAndValidationWrapperShareOutputByDesign() {
+        // Identical today by design. If one diverges (e.g. validationWrapper gains an
+        // option), this assertion should be updated deliberately — it guards against
+        // accidental convergence/divergence in either direction.
+        XCTAssertEqual(KanataDefcfg.minimalSafe, KanataDefcfg.validationWrapper)
     }
 
     func testRepairFallbackProfile() {
