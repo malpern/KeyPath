@@ -103,11 +103,13 @@ public struct KanataConfiguration: Sendable {
         // All defcfg header construction flows through KanataDefcfg (single source of truth).
         // `concurrent-tap-hold` is required by kanata whenever defchordsv2 is emitted, which
         // happens iff an enabled collection has chord inputs (→ non-empty chordMappings).
-        let keyRepeatEnabled = keyRepeatConfig?.isEnabled == true
+        let repeatTiming: (delayMs: Int, intervalMs: Int)? = {
+            guard let krc = keyRepeatConfig, krc.isEnabled else { return nil }
+            return (krc.globalDelayMs, krc.globalIntervalMs)
+        }()
         let defcfg = KanataDefcfg.standard(
             allowCommandActions: true,
-            managedRepeatDelayMs: keyRepeatEnabled ? keyRepeatConfig?.globalDelayMs : nil,
-            managedRepeatIntervalMs: keyRepeatEnabled ? keyRepeatConfig?.globalIntervalMs : nil,
+            managedRepeatTiming: repeatTiming,
             requirePriorIdleMs: requirePriorIdleMs > 0 ? requirePriorIdleMs : nil,
             hasChords: !chordMappings.isEmpty,
             deviceTargeting: macosDeviceTargeting

@@ -13,8 +13,7 @@ final class KanataDefcfgTests: XCTestCase {
         // Mirrors GoldenConfigs/default.kbd (key-repeat enabled, no prior-idle, no chords).
         let defcfg = KanataDefcfg.standard(
             allowCommandActions: true,
-            managedRepeatDelayMs: 500,
-            managedRepeatIntervalMs: 30,
+            managedRepeatTiming: (delayMs: 500, intervalMs: 30),
             requirePriorIdleMs: nil,
             hasChords: false,
             deviceTargeting: ""
@@ -35,8 +34,7 @@ final class KanataDefcfgTests: XCTestCase {
         // Mirrors GoldenConfigs/home-row-mods.kbd plus a chord-triggered concurrent-tap-hold.
         let defcfg = KanataDefcfg.standard(
             allowCommandActions: true,
-            managedRepeatDelayMs: 500,
-            managedRepeatIntervalMs: 30,
+            managedRepeatTiming: (delayMs: 500, intervalMs: 30),
             requirePriorIdleMs: 150,
             hasChords: true,
             deviceTargeting: ""
@@ -58,8 +56,7 @@ final class KanataDefcfgTests: XCTestCase {
     func testStandardWithoutKeyRepeatOmitsRepeatTuning() {
         let defcfg = KanataDefcfg.standard(
             allowCommandActions: true,
-            managedRepeatDelayMs: nil,
-            managedRepeatIntervalMs: nil,
+            managedRepeatTiming: nil,
             requirePriorIdleMs: nil,
             hasChords: false,
             deviceTargeting: ""
@@ -80,8 +77,7 @@ final class KanataDefcfgTests: XCTestCase {
         let trailer = "\n  macos-dev-names-exclude (\n    \"vhid\"\n  )"
         let defcfg = KanataDefcfg.standard(
             allowCommandActions: true,
-            managedRepeatDelayMs: nil,
-            managedRepeatIntervalMs: nil,
+            managedRepeatTiming: nil,
             requirePriorIdleMs: nil,
             hasChords: false,
             deviceTargeting: trailer
@@ -103,8 +99,7 @@ final class KanataDefcfgTests: XCTestCase {
         // Forward-looking: the danger-enable-cmd gate flips this single flag.
         let defcfg = KanataDefcfg.standard(
             allowCommandActions: false,
-            managedRepeatDelayMs: nil,
-            managedRepeatIntervalMs: nil,
+            managedRepeatTiming: nil,
             requirePriorIdleMs: nil,
             hasChords: false,
             deviceTargeting: ""

@@ -66,7 +66,9 @@ public struct KanataDefcfg: Sendable, Equatable {
         assert(trailer.isEmpty || trailer.hasPrefix("\n"),
                "KanataDefcfg.trailer must begin with a newline when non-empty")
         // managed-repeat delay/interval are a logical pair; emitting one without the
-        // other yields a half-configured block kanata may reject.
+        // other yields a half-configured block kanata may reject. The `standard`
+        // factory enforces this structurally (single tuple param); this backstops the
+        // internal `init`. assert() is debug-only, which is sufficient for that path.
         assert((managedRepeatDelayMs == nil) == (managedRepeatIntervalMs == nil),
                "managed-repeat delay and interval must both be set or both be nil")
         var lines = ["  process-unmapped-keys \(processUnmappedKeys ? "yes" : "no")"]
@@ -100,16 +102,19 @@ public extension KanataDefcfg {
     ///
     /// - Parameters:
     ///   - allowCommandActions: whether to emit `danger-enable-cmd yes`.
-    ///   - managedRepeatDelayMs / managedRepeatIntervalMs: emitted only when non-nil
-    ///     (the caller passes nil when key-repeat control is absent or disabled).
+    ///   - managedRepeatTiming: the `(delay, interval)` pair, or nil to omit both.
+    ///     Taken as a single tuple so delay and interval can never be half-set at this
+    ///     entry point (the `render()` assert backstops the internal `init`).
     ///   - requirePriorIdleMs: `tap-hold-require-prior-idle` value, or nil to omit.
     ///     The caller maps its "0 means disabled" sentinel to nil.
     ///   - hasChords: emits `concurrent-tap-hold yes` (required by `defchordsv2`).
     ///   - deviceTargeting: verbatim macOS device-targeting trailer ("" when none).
+    ///
+    /// `managed-repeat`/`managed-repeat-unlisted` are always emitted; when
+    /// `managedRepeatTiming` is nil, kanata uses its own defaults for delay/interval.
     static func standard(
         allowCommandActions: Bool,
-        managedRepeatDelayMs: Int?,
-        managedRepeatIntervalMs: Int?,
+        managedRepeatTiming: (delayMs: Int, intervalMs: Int)?,
         requirePriorIdleMs: Int?,
         hasChords: Bool,
         deviceTargeting: String
@@ -119,8 +124,8 @@ public extension KanataDefcfg {
             allowCommandActions: allowCommandActions,
             managedRepeat: true,
             managedRepeatUnlisted: false,
-            managedRepeatDelayMs: managedRepeatDelayMs,
-            managedRepeatIntervalMs: managedRepeatIntervalMs,
+            managedRepeatDelayMs: managedRepeatTiming?.delayMs,
+            managedRepeatIntervalMs: managedRepeatTiming?.intervalMs,
             tapHoldRequirePriorIdleMs: requirePriorIdleMs,
             concurrentTapHold: hasChords,
             trailer: deviceTargeting
