@@ -165,9 +165,9 @@ final class PermissionGate {
         for perm in eval.missingKeyPath {
             switch perm {
             case .inputMonitoring:
-                _ = permissionService.requestInputMonitoringPermission()
+                _ = await permissionService.requestInputMonitoringPermission()
             case .accessibility:
-                _ = permissionService.requestAccessibilityPermission()
+                _ = await permissionService.requestAccessibilityPermission()
             }
             try? await Task.sleep(for: .milliseconds(400))
         }
