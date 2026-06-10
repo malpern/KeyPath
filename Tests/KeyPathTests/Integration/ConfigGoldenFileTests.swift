@@ -91,21 +91,13 @@ final class ConfigGoldenFileTests: XCTestCase {
 
     @MainActor
     func testCapsLockEscapeHyper_Golden() {
-        var collections = RuleCollectionCatalog().defaultCollections()
-        if let idx = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.capsLockRemap }) {
-            collections[idx].isEnabled = true
-        }
-        let config = KanataConfiguration.generateFromCollections(collections)
+        let config = MatrixTestHelpers.enabledCollectionConfig(RuleCollectionIdentifier.capsLockRemap)
         assertGoldenConfig(config, named: "caps-escape-hyper")
     }
 
     @MainActor
     func testHomeRowMods_Golden() {
-        var collections = RuleCollectionCatalog().defaultCollections()
-        if let idx = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowMods }) {
-            collections[idx].isEnabled = true
-        }
-        let config = KanataConfiguration.generateFromCollections(collections)
+        let config = MatrixTestHelpers.enabledCollectionConfig(RuleCollectionIdentifier.homeRowMods)
         assertGoldenConfig(config, named: "home-row-mods")
     }
 
@@ -130,18 +122,11 @@ final class ConfigGoldenFileTests: XCTestCase {
     }
 
     @MainActor
-    func testVimNavigation_Golden() {
-        guard let pack = PackRegistry.pack(id: "com.keypath.pack.vim-navigation"),
-              let collectionID = pack.associatedCollectionID
-        else {
-            return XCTFail("Vim navigation pack not found")
-        }
-
-        var collections = RuleCollectionCatalog().defaultCollections()
-        if let idx = collections.firstIndex(where: { $0.id == collectionID }) {
-            collections[idx].isEnabled = true
-        }
-        let config = KanataConfiguration.generateFromCollections(collections)
+    func testVimNavigation_Golden() throws {
+        let config = try XCTUnwrap(
+            MatrixTestHelpers.enabledPackConfig("com.keypath.pack.vim-navigation"),
+            "Vim navigation pack not found"
+        )
         assertGoldenConfig(config, named: "vim-navigation")
     }
 }
