@@ -80,10 +80,79 @@ jobs:
       - name: Generate coverage summary
         if: always()
         run: |
-          echo "## Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "## Coverage (narrow lane)" >> $GITHUB_STEP_SUMMARY
           if [ -f "coverage/coverage-summary.txt" ]; then
             echo "- Summary: \`$(cat coverage/coverage-summary.txt)\`" >> $GITHUB_STEP_SUMMARY
             echo "- Enforced narrow-lane floor: \`${COVERAGE_BASELINE_PERCENT}%\`" >> $GITHUB_STEP_SUMMARY
           else
             echo "- Coverage not generated." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Visibility-only: runs the WHOLE suite under coverage instrumentation and
+  # reports real numbers (total + the core business-logic files). It does NOT
+  # enforce a floor yet — the narrow lane above is the only gate. Once these
+  # numbers are trusted, a realistic per-file floor can be added here.
+  full-coverage:
+    runs-on: [self-hosted, macOS, keypath]
+    # Sequence after the narrow lane: the two jobs share the self-hosted runner's
+    # workspace/.build, so running them in parallel risks clobbering each other's
+    # default.profdata (CLAUDE.md: avoid concurrent broad Swift builds). `needs`
+    # serializes them; `if: always()` still surfaces full numbers when the narrow
+    # floor regresses or a filtered test fails.
+    needs: [narrow-coverage]
+    if: always()
+    timeout-minutes: 40
+    steps:
+      - name: Clean stale git credentials
+        run: |
+          git config --global --unset-all http.https://github.com/.extraheader 2>/dev/null || true
+          git config --global --unset-all url.https://github.com/.insteadof 2>/dev/null || true
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
+
+      - name: Add Homebrew to PATH
+        run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
+
+      - name: Generate full-suite coverage
+        timeout-minutes: 30
+        env:
+          KP_SIGN_DRY_RUN: "1"
+          CI_ENVIRONMENT: "true"
+          SKIP_EVENT_TAP_TESTS: "1"
+        run: |
+          echo "Generating full-suite coverage (no filter)..."
+          swift test --enable-code-coverage
+          chmod +x ./Scripts/generate-coverage.sh
+          ./Scripts/generate-coverage.sh coverage-full
+
+      - name: Upload full coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-full
+          path: coverage-full/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Report full coverage
+        if: always()
+        run: |
+          echo "## Coverage (full suite — visibility only, not enforced)" >> $GITHUB_STEP_SUMMARY
+          if [ -f "coverage-full/coverage-summary.txt" ]; then
+            echo "- Total: \`$(cat coverage-full/coverage-summary.txt)\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Coverage not generated." >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -s "coverage-full/coverage-core.txt" ]; then
+            {
+              echo ""
+              echo "### Core business-logic files"
+              echo '```'
+              cat "coverage-full/coverage-core.txt"
+              echo '```'
+            } >> $GITHUB_STEP_SUMMARY
           fi

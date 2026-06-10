@@ -40,4 +40,16 @@ else
   echo "WARN: TOTAL coverage line not found" | tee "$OUT_DIR/coverage-summary.txt"
 fi
 
+# Core business-logic files we care about most (privileged install, config
+# generation/parsing, service health, permissions). The full llvm-cov report
+# already lists every file; extract just these so the per-file signal isn't
+# lost in the noise. Empty when running the narrow lane (those files aren't
+# instrumented), which is expected.
+CORE_FILES_PATTERN='InstallerEngine|ConfigurationService|ServiceHealthChecker|PermissionOracle|KanataConfigurationGenerator|KanataDefcfg|VHIDDeviceManager|ServiceBootstrapper'
+grep -E "$CORE_FILES_PATTERN" "$OUT_DIR/coverage-report.txt" > "$OUT_DIR/coverage-core.txt" || true
+if [[ -s "$OUT_DIR/coverage-core.txt" ]]; then
+  echo "Core-file coverage:"
+  cat "$OUT_DIR/coverage-core.txt"
+fi
+
 echo "Coverage artifacts written to: $OUT_DIR"
