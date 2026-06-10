@@ -125,13 +125,7 @@ struct LayerMappingBuilderTests {
         #expect(result == nil)
     }
 
-    // MARK: - Static push-msg regex compilation guards
-
-    //
-    // The four push-msg regexes in LayerMappingBuilder are compiled with `try!`
-    // as `private static let` properties (issue #854). These tests exercise each
-    // regex once so any malformed pattern crashes the test suite at access time
-    // — not at app launch — until/unless a centralized safe-regex factory lands.
+    // MARK: - Static push-msg regex compilation guards (#854 — fail at test time, not app launch)
 
     @Test("extractAppLaunchIdentifier exercises pushMsgLaunchRegex")
     func extractAppLaunchIdentifierMatches() {

@@ -53,9 +53,7 @@ let package = Package(
             name: "KeyPathLayoutTracer",
             targets: ["KeyPathLayoutTracer"]
         ),
-        // Note: smappservice-poc is a dev-only proof-of-concept (issue #856).
-        // The SMAppServicePOC target still builds — run with `swift run smappservice-poc`
-        // — but it is intentionally not exposed as a public product.
+        // smappservice-poc is a dev-only target (#856) — `swift run smappservice-poc` still works.
         .library(
             name: "KeyPathPluginKit",
             targets: ["KeyPathPluginKit"]
