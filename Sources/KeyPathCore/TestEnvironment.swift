@@ -16,6 +16,9 @@ public enum TestEnvironment {
     /// - `__XCODE_BUILT_PRODUCTS_DIR_PATHS` — Xcode sets it for any scheme run,
     ///   including launching the real app
     /// - `DYLD_LIBRARY_PATH` containing ".build" — leaks from any `swift run` shell
+    /// - `SWIFTPM_MODULECACHE_OVERRIDE` (formerly checked by AppRestarter) — a
+    ///   SwiftPM build setting any SwiftPM shell can carry, not a test marker;
+    ///   in-process signals cover every real test invocation
     /// - the generic `CI` env var — set by various tools/editors
     public static var isRunningTests: Bool {
         detectionSignals.contains(where: \.present)
