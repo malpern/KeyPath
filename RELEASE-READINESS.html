@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>KeyPath 1.0 — Release Readiness</title>
+<style>
+  :root {
+    --bg: #0b0f15;
+    --bg-2: #0f141c;
+    --card: #141a24;
+    --card-2: #1a2230;
+    --border: #232c3d;
+    --border-2: #2e3a52;
+    --text: #e8edf5;
+    --text-dim: #97a2b6;
+    --text-faint: #6b7587;
+    --accent: #5fa8ff;
+    --accent-2: #7ec0ff;
+    --success: #3fb96b;
+    --warning: #e0a83a;
+    --danger: #f25d6e;
+    --info: #79c0ff;
+    --purple: #b58cff;
+    --pink: #ff8aa8;
+    --teal: #4fd1c5;
+    --shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px rgba(0,0,0,0.35);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--text); margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    background:
+      radial-gradient(1200px 600px at 80% -100px, rgba(95,168,255,0.08), transparent 60%),
+      radial-gradient(900px 500px at -10% 10%, rgba(181,140,255,0.06), transparent 60%),
+      var(--bg);
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 32px 28px 64px; }
+
+  /* Header */
+  .hero {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .hero-left h1 {
+    font-size: 34px;
+    line-height: 1.1;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0 0 8px;
+    background: linear-gradient(180deg, #ffffff 0%, #b9c4d8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .hero-left .sub {
+    color: var(--text-dim);
+    font-size: 14px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .hero-left .sub .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 12px rgba(63,185,107,0.6);
+  }
+  .countdown {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 12px 20px;
+    background: var(--card);
+    border: 1px solid var(--border-2);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+  }
+  .countdown .num { font-size: 30px; font-weight: 700; line-height: 1; }
+  .countdown .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); }
+
+  /* KPI row */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(160deg, rgba(255,255,255,0.04), transparent 50%);
+    pointer-events: none;
+  }
+  .kpi .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 6px; }
+  .kpi .value { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+  .kpi .meta { font-size: 12px; color: var(--text-faint); margin-top: 4px; }
+  .kpi.accent .value { color: var(--accent); }
+  .kpi.warn .value { color: var(--warning); }
+  .kpi.good .value { color: var(--success); }
+  .kpi.danger .value { color: var(--danger); }
+
+  /* Section */
+  .section { margin-bottom: 28px; }
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-faint);
+    font-weight: 600;
+    margin: 0 0 10px;
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+
+  /* Card */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+  .card h3 {
+    margin: 0 0 14px;
+    font-size: 14px;
+    letter-spacing: 0.01em;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card .tag {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-faint);
+    font-weight: 600;
+  }
+
+  /* Pills */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1.6;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .pill.full    { background: rgba(63,185,107,0.13);  color: #79e09a; border-color: rgba(63,185,107,0.32); }
+  .pill.good    { background: rgba(95,168,255,0.13);  color: #9ec5ff; border-color: rgba(95,168,255,0.32); }
+  .pill.partial { background: rgba(224,168,58,0.13);  color: #f1c674; border-color: rgba(224,168,58,0.32); }
+  .pill.none    { background: rgba(242,93,110,0.13);  color: #ff8c98; border-color: rgba(242,93,110,0.36); }
+  .pill.exp     { background: rgba(181,140,255,0.13); color: #cdb1ff; border-color: rgba(181,140,255,0.34); }
+  .pill.prod    { background: rgba(63,185,107,0.12);  color: #79e09a; border-color: rgba(63,185,107,0.28); }
+  .pill.nav     { background: rgba(95,168,255,0.12);  color: #9ec5ff; border-color: rgba(95,168,255,0.28); }
+  .pill.layer   { background: rgba(79,209,197,0.12);  color: #7ee0d6; border-color: rgba(79,209,197,0.28); }
+  .pill.sys     { background: rgba(255,138,168,0.12); color: #ffa7be; border-color: rgba(255,138,168,0.28); }
+  .pill.low     { background: rgba(63,185,107,0.13);  color: #79e09a; border-color: rgba(63,185,107,0.32); }
+  .pill.med     { background: rgba(224,168,58,0.13);  color: #f1c674; border-color: rgba(224,168,58,0.32); }
+  .pill.high    { background: rgba(242,93,110,0.13);  color: #ff8c98; border-color: rgba(242,93,110,0.36); }
+  .pill.done    { background: rgba(63,185,107,0.13);  color: #79e09a; border-color: rgba(63,185,107,0.32); }
+  .pill.wip     { background: rgba(95,168,255,0.13);  color: #9ec5ff; border-color: rgba(95,168,255,0.32); }
+  .pill.idle    { background: rgba(150,160,180,0.10); color: var(--text-dim); border-color: rgba(150,160,180,0.22); }
+
+  /* Decisions */
+  .decision {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .decision:last-child { border-bottom: 0; padding-bottom: 0; }
+  .decision:first-child { padding-top: 0; }
+  .decision .check {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(63,185,107,0.16);
+    color: var(--success);
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    font-size: 13px;
+    border: 1px solid rgba(63,185,107,0.32);
+    flex: none;
+    margin-top: 1px;
+  }
+  .decision .body { flex: 1; }
+  .decision .body .key {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .decision .body .title { font-weight: 600; margin: 2px 0 4px; }
+  .decision .body .note { font-size: 12.5px; color: var(--text-dim); }
+
+  /* Schedule */
+  .schedule {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+  .day {
+    padding: 12px;
+    border-radius: 10px;
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .day.today { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(95,168,255,0.18); }
+  .day.done { opacity: 0.65; }
+  .day .name {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-faint);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .day .date { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+  .day .focus { font-weight: 600; margin-top: 6px; font-size: 13px; }
+  .day .detail { color: var(--text-dim); font-size: 12px; margin-top: 4px; line-height: 1.4; }
+  .day .now-tag {
+    background: var(--accent); color: #0b0f15; font-weight: 700;
+    border-radius: 4px; padding: 1px 6px; font-size: 9px; letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* Table */
+  .table-wrap {
+    border-radius: 10px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    background: var(--bg-2);
+    max-height: 540px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: left;
+    background: var(--card-2);
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 10px 12px;
+    position: sticky; top: 0;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(6px);
+  }
+  tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: rgba(255,255,255,0.018); }
+  td.muted { color: var(--text-dim); }
+  td.idx { font-family: var(--mono); color: var(--text-faint); font-size: 11.5px; text-align: right; width: 24px; }
+  td.name { font-weight: 600; color: var(--text); }
+  td.center { text-align: center; }
+
+  /* Complexity bar */
+  .complexity {
+    display: inline-flex;
+    gap: 2px;
+    align-items: center;
+  }
+  .complexity span {
+    width: 6px; height: 10px;
+    background: var(--border-2);
+    border-radius: 1px;
+  }
+  .complexity.high span:nth-child(-n+3) { background: var(--danger); }
+  .complexity.med  span:nth-child(-n+2) { background: var(--warning); }
+  .complexity.low  span:nth-child(-n+1) { background: var(--success); }
+
+  /* Charts */
+  .donut-card { display: flex; align-items: center; gap: 24px; }
+  .donut-card svg { flex: none; }
+  .legend { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+  .legend .row { display: flex; align-items: center; gap: 10px; }
+  .legend .swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .legend .num { color: var(--text); font-weight: 600; min-width: 24px; text-align: right; font-variant-numeric: tabular-nums; }
+  .legend .lbl { color: var(--text-dim); flex: 1; }
+
+  .bars { display: flex; flex-direction: column; gap: 10px; }
+  .bars .row { display: grid; grid-template-columns: 110px 1fr 32px; align-items: center; gap: 10px; font-size: 12.5px; }
+  .bars .row .cat { color: var(--text-dim); }
+  .bars .row .num { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+  .bars .bar {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--card-2);
+    overflow: hidden;
+  }
+  .bars .bar .fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  }
+
+  /* Sidebar tabs grid */
+  .tabs-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+  }
+  .tab-cell {
+    padding: 12px;
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .tab-cell.danger { border-color: rgba(242,93,110,0.4); background: linear-gradient(160deg, rgba(242,93,110,0.06), var(--card-2)); }
+  .tab-cell .name { font-weight: 600; margin-bottom: 4px; }
+  .tab-cell .num { color: var(--text-dim); font-size: 12px; }
+  .tab-cell .badge { float: right; }
+
+  /* Findings timeline */
+  .timeline { display: flex; flex-direction: column; gap: 14px; }
+  .finding {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 16px;
+    padding: 12px;
+    border-radius: 10px;
+    background: var(--card-2);
+    border-left: 3px solid var(--border);
+  }
+  .finding.refuted  { border-left-color: var(--success); }
+  .finding.confirmed { border-left-color: var(--warning); }
+  .finding.open     { border-left-color: var(--danger); }
+  .finding .when { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+  .finding .title { font-weight: 600; margin-bottom: 4px; }
+  .finding .desc  { color: var(--text-dim); font-size: 12.5px; }
+  .finding .desc code, .finding .desc a { font-family: var(--mono); font-size: 12px; color: var(--accent); text-decoration: none; }
+
+  /* Wave 1 status */
+  .wave-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .wave-item {
+    padding: 14px;
+    background: var(--card-2);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .wave-item .id { font-family: var(--mono); color: var(--text-faint); font-size: 12px; margin-bottom: 4px; }
+  .wave-item .name { font-weight: 600; margin-bottom: 8px; }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 11.5px;
+    margin-top: 36px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+  .footer code { font-family: var(--mono); }
+
+  /* Misc */
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code.inline { font-family: var(--mono); font-size: 12px; padding: 1px 6px; background: rgba(255,255,255,0.05); border-radius: 4px; color: var(--accent-2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-left">
+      <h1>KeyPath 1.0 — Release Readiness</h1>
+      <div class="sub">
+        <span class="dot"></span>
+        <span>Wed 2026-06-10 late — eng gates ahead · docs+marketing scope added · Thu AM scope call needed</span>
+        <span style="color: var(--border-2)">·</span>
+        <a href="RELEASE-READINESS.md">View markdown source</a>
+      </div>
+    </div>
+    <div class="countdown">
+      <span class="num">3</span>
+      <span class="label">days to ship<br>Sat 2026-06-13</span>
+    </div>
+  </header>
+
+  <!-- ============ SHIP GATE: the only section you need to read ============ -->
+  <section class="section">
+    <div class="grid-2-1">
+
+      <!-- Exit criteria checklist -->
+      <div class="card" style="border-color: rgba(95,168,255,0.35);">
+        <h3>Ship gate — 10 exit criteria <span class="tag">4 closed · 6 open · 2 added Wed night</span></h3>
+        <div class="table-wrap" style="border: 0; max-height: none;">
+          <table>
+            <thead>
+              <tr><th style="width:30px">#</th><th>Exit criterion</th><th style="width:110px">Status</th><th style="width:90px">Day</th><th style="width:70px">Est. hrs left</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="idx">1</td><td class="name">All 22 families kanata-syntax valid</td><td><span class="pill done">closed</span></td><td class="muted">Wed</td><td class="center muted">—</td></tr>
+              <tr><td class="idx">2</td><td class="name">High-complexity families per-option coverage</td><td><span class="pill done">closed</span></td><td class="muted">Wed</td><td class="center muted">—</td></tr>
+              <tr><td class="idx">3</td><td class="name">Release-blocker findings fixed + live-verified</td><td><span class="pill done">closed</span></td><td class="muted">Wed</td><td class="center muted">—</td></tr>
+              <tr><td class="idx">4</td><td class="name">6 family smoke scripts pass on installed app — <a href="https://github.com/malpern/KeyPath/issues/881">#881</a> fixed (<a href="https://github.com/malpern/KeyPath/pull/884">#884</a>), lib manifest-hardened (<a href="https://github.com/malpern/KeyPath/pull/880">#880</a>), 6/6 re-verified on the fixed app</td><td><span class="pill done">closed</span></td><td class="muted">Thu AM</td><td class="center muted">—</td></tr>
+              <tr><td class="idx">5</td><td class="name">Design review pass across catalog — <a href="https://github.com/malpern/KeyPath/issues/888">#888</a> post-1.0 backlog, <a href="https://github.com/malpern/KeyPath/issues/889">#889</a> Fri must-fix candidate</td><td><span class="pill done">closed</span></td><td class="muted">Thu</td><td class="center muted">—</td></tr>
+              <tr><td class="idx">6</td><td class="name">Findings triage → must-fix list closed</td><td><span class="pill idle">open</span></td><td class="muted">Fri</td><td class="center">≤8</td></tr>
+              <tr><td class="idx">7</td><td class="name">RC built, signed, notarized, smoke-verified</td><td><span class="pill idle">open</span></td><td class="muted">Sat</td><td class="center">~3</td></tr>
+              <tr><td class="idx">8</td><td class="name">Release notes incl. known limitations</td><td><span class="pill idle">draft</span></td><td class="muted">Fri/Sat</td><td class="center">~1</td></tr>
+              <tr style="background: rgba(224,168,58,0.05);"><td class="idx">9</td><td class="name">Docs complete — 12 guides missing header illustrations · ~6 packs missing detail/guide pages · screenshots current</td><td><span class="pill partial">new scope</span></td><td class="muted">Thu–Fri</td><td class="center">~8</td></tr>
+              <tr style="background: rgba(224,168,58,0.05);"><td class="idx">10</td><td class="name">Marketing basics — website video recorded + landing copy</td><td><span class="pill partial">new scope</span></td><td class="muted">Fri/Sat</td><td class="center">~5</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top: 10px; font-size: 11.5px; color: var(--text-dim);">
+          Gates 9–10 added Wed night per Micah. Open item: the in-app "orange box" marker for rules lacking detail pages — couldn't locate in source; confirm one example Thu AM and I'll enumerate the exact list. Grep-based gap list: backup-caps-lock, delete-enhancement, escape-remap, home-row-arrows, keystroke-history, mission-control.
+        </div>
+      </div>
+
+      <!-- Verdict + burndown -->
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div class="card" style="background: linear-gradient(160deg, rgba(224,168,58,0.10), var(--card)); border-color: rgba(224,168,58,0.45);">
+          <h3>Verdict <span class="tag">vs plan</span></h3>
+          <div style="font-size: 26px; font-weight: 700; color: var(--warning); margin-bottom: 6px;">At risk — trending well</div>
+          <div style="font-size: 12.5px; color: var(--text-dim); line-height: 1.55;">
+            Thu AM: <a href="https://github.com/malpern/KeyPath/issues/881">#881</a> root-caused from the smoke logs, fixed (<a href="https://github.com/malpern/KeyPath/pull/884">#884</a>), lib manifest-hardened (<a href="https://github.com/malpern/KeyPath/pull/880">#880</a>), redeployed, 6/6 re-verified with zero restore warnings. <strong style="color: var(--text);">4 of 10 gates closed. ~21 hrs vs ~18 available — ~3–6 hr gap.</strong>
+            <br><br><strong style="color: var(--text);">Still needed:</strong> the scope call (cut illustrations / weekend hrs / slip) + the orange-box example. Two new findings for design review: Leader Key selectedOutput is display-only; Launcher leaderSequence config-identical to holdHyper.
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Burndown <span class="tag">est. hrs to gate</span></h3>
+          <!-- Hours remaining to close all gates, end of each day.
+               Actual: start 36 → Tue 30 → Wed 18, then +13h scope add Wed night → 31.
+               Projection at ~22 available hrs (Thu 10, Fri 8, Sat 4): Thu 21 → Fri 13 → Sat 9 (gap).
+               Plot: y: 0 hrs = 130, 36 hrs = 10 (scale 3.33px/hr). x: start 20 → Sat 250. -->
+          <svg width="100%" height="170" viewBox="0 0 270 170" preserveAspectRatio="xMidYMid meet">
+            <!-- gridlines -->
+            <line x1="20" y1="130" x2="250" y2="130" stroke="var(--border)" stroke-width="1"/>
+            <line x1="20" y1="70" x2="250" y2="70" stroke="var(--border)" stroke-width="0.5" stroke-dasharray="3 3"/>
+            <line x1="20" y1="10" x2="250" y2="10" stroke="var(--border)" stroke-width="0.5" stroke-dasharray="3 3"/>
+            <text x="14" y="133" font-size="8" fill="var(--text-faint)" text-anchor="end">0</text>
+            <text x="14" y="73" font-size="8" fill="var(--text-faint)" text-anchor="end">18</text>
+            <text x="14" y="13" font-size="8" fill="var(--text-faint)" text-anchor="end">36</text>
+            <!-- ideal line: 36 at start → 0 at Sat -->
+            <line x1="20" y1="10" x2="250" y2="130" stroke="var(--text-faint)" stroke-width="1" stroke-dasharray="4 4"/>
+            <!-- actual: start 36 → Tue 30 → Wed 18 -->
+            <polyline points="20,10 66,30 112,70" fill="none" stroke="#3fb96b" stroke-width="2.5" stroke-linecap="round"/>
+            <!-- scope add: vertical jump Wed 18 → 31 -->
+            <line x1="112" y1="70" x2="112" y2="26.7" stroke="#e0a83a" stroke-width="2.5" stroke-dasharray="3 3"/>
+            <text x="118" y="44" font-size="8" fill="#e0a83a">+13h scope</text>
+            <!-- projection from 31: Thu 21 → Fri 13 → Sat 9 -->
+            <polyline points="112,26.7 158,60 204,86.7 250,100" fill="none" stroke="#5fa8ff" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round"/>
+            <!-- the gap at Sat -->
+            <line x1="250" y1="100" x2="250" y2="130" stroke="#f25d6e" stroke-width="2"/>
+            <text x="245" y="120" font-size="8" fill="#f25d6e" text-anchor="end">~9h gap</text>
+            <!-- actual dots -->
+            <circle cx="20" cy="10" r="3.5" fill="#3fb96b"/>
+            <circle cx="66" cy="30" r="3.5" fill="#3fb96b"/>
+            <circle cx="112" cy="70" r="4.5" fill="#3fb96b" stroke="#0b0f15" stroke-width="1.5"/>
+            <circle cx="112" cy="26.7" r="3.5" fill="#e0a83a"/>
+            <!-- projected dots -->
+            <circle cx="158" cy="60" r="3" fill="none" stroke="#5fa8ff" stroke-width="1.5"/>
+            <circle cx="204" cy="86.7" r="3" fill="none" stroke="#5fa8ff" stroke-width="1.5"/>
+            <circle cx="250" cy="100" r="3" fill="none" stroke="#5fa8ff" stroke-width="1.5"/>
+            <!-- x labels -->
+            <text x="20" y="146" font-size="8.5" fill="var(--text-faint)" text-anchor="middle">start</text>
+            <text x="66" y="146" font-size="8.5" fill="var(--text-dim)" text-anchor="middle">Tue</text>
+            <text x="112" y="146" font-size="8.5" fill="var(--text)" font-weight="700" text-anchor="middle">Wed ◀</text>
+            <text x="158" y="146" font-size="8.5" fill="var(--text-faint)" text-anchor="middle">Thu</text>
+            <text x="204" y="146" font-size="8.5" fill="var(--text-faint)" text-anchor="middle">Fri</text>
+            <text x="250" y="146" font-size="8.5" fill="var(--text-faint)" text-anchor="middle">Sat</text>
+            <!-- legend -->
+            <line x1="20" y1="160" x2="34" y2="160" stroke="#3fb96b" stroke-width="2.5"/>
+            <text x="37" y="163" font-size="8" fill="var(--text-dim)">actual</text>
+            <line x1="70" y1="160" x2="84" y2="160" stroke="#e0a83a" stroke-width="2.5" stroke-dasharray="3 3"/>
+            <text x="87" y="163" font-size="8" fill="var(--text-dim)">scope add</text>
+            <line x1="132" y1="160" x2="146" y2="160" stroke="#5fa8ff" stroke-width="2" stroke-dasharray="5 4"/>
+            <text x="149" y="163" font-size="8" fill="var(--text-dim)">projected</text>
+            <line x1="195" y1="160" x2="209" y2="160" stroke="var(--text-faint)" stroke-width="1" stroke-dasharray="4 4"/>
+            <text x="212" y="163" font-size="8" fill="var(--text-dim)">ideal</text>
+          </svg>
+          <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 4px;">
+            Engineering burn was ahead of ideal through Wed; the +13h scope add then a late-Wed smoke-suite sprint (gate 4 closed, −4h) nets <strong>~27h remaining</strong>. Projection: <strong style="color: var(--danger);">~5 hrs unfinished at Sat</strong> — close via scope cut, weekend hours, or slip.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Week schedule: full-width so day cells stay legible -->
+  <section class="section">
+    <div class="card">
+      <h3>This week <span class="tag">5-day push · Sat 06·13 target</span></h3>
+      <div class="schedule">
+        <div class="day done">
+          <div class="name"><span>Tue</span><span class="date">06·09</span></div>
+          <div class="focus">✓ Inventory + decisions</div>
+          <div class="detail">Mapper de-risked, 3 decisions locked</div>
+        </div>
+        <div class="day done">
+          <div class="name"><span>Wed</span><span class="date">06·10</span></div>
+          <div class="focus">✓ Tests + safety net</div>
+          <div class="detail">6 PRs merged, fix live-verified</div>
+        </div>
+        <div class="day today">
+          <div class="name"><span>Thu</span> <span class="now-tag">Next</span></div>
+          <div class="date">06·11</div>
+          <div class="focus">Smokes + design review</div>
+          <div class="detail">5 smoke scripts, docs scope call</div>
+        </div>
+        <div class="day">
+          <div class="name"><span>Fri</span><span class="date">06·12</span></div>
+          <div class="focus">Triage + docs</div>
+          <div class="detail">Must-fix ≤1 day, illustrations</div>
+        </div>
+        <div class="day">
+          <div class="name"><span>Sat</span><span class="date">06·13</span></div>
+          <div class="focus">RC + ship</div>
+          <div class="detail">Or call the slip</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Decisions + Coverage donut -->
+  <section class="section">
+    <div class="grid-2">
+
+      <div class="card">
+        <h3>Decisions <span class="tag">Locked tonight</span></h3>
+        <div class="decision">
+          <div class="check">✓</div>
+          <div class="body">
+            <div class="key">D1 · HRM tier</div>
+            <div class="title">Shipping (no change needed)</div>
+            <div class="note">Already <code class="inline">category: "productivity"</code>. The "experimental" label was synthesized, not real.</div>
+          </div>
+        </div>
+        <div class="decision">
+          <div class="check">✓</div>
+          <div class="body">
+            <div class="key">D2 · Tier expanded — ship everything</div>
+            <div class="title">All 22 families ship for 1.0</div>
+            <div class="note">User call: "move everything into production, including autoshift. expand the test target." Auto Shift promoted in <a href="https://github.com/malpern/KeyPath/pull/857">PR #857</a>.</div>
+          </div>
+        </div>
+        <div class="decision">
+          <div class="check">✓</div>
+          <div class="body">
+            <div class="key">D3 · Mapper strategy</div>
+            <div class="title">Defend — correctness only</div>
+            <div class="note">UX polish becomes known-limitations release notes.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Coverage distribution <span class="tag">post-Wed</span></h3>
+        <div class="donut-card">
+          <!-- Donut: FULL 6, GOOD 16, PARTIAL 0. Total 22.
+               After #862 (per-family kanata --check) + #864 (per-option matrix for 4 high-complexity families).
+               Angles: FULL = 6/22 * 360 = 98.18°; GOOD = 16/22 * 360 = 261.82°. -->
+          <svg width="170" height="170" viewBox="0 0 170 170">
+            <g transform="translate(85,85)">
+              <!-- background ring -->
+              <circle r="65" fill="none" stroke="var(--border)" stroke-width="22" />
+              <!-- Circumference = 2π*65 ≈ 408.41 -->
+              <!-- FULL: arc length = 6/22 * 408.41 = 111.39 -->
+              <circle r="65" fill="none" stroke="#3fb96b" stroke-width="22"
+                      stroke-dasharray="111.39 297.02" stroke-dashoffset="0"
+                      transform="rotate(-90)" />
+              <!-- GOOD: arc length = 16/22 * 408.41 = 297.02, offset by 111.39 -->
+              <circle r="65" fill="none" stroke="#5fa8ff" stroke-width="22"
+                      stroke-dasharray="297.02 111.39" stroke-dashoffset="-111.39"
+                      transform="rotate(-90)" />
+              <text text-anchor="middle" dominant-baseline="central" y="-6"
+                    font-size="22" font-weight="700" fill="#e8edf5">22</text>
+              <text text-anchor="middle" dominant-baseline="central" y="14"
+                    font-size="10" fill="#6b7587" letter-spacing="1.4">FAMILIES</text>
+            </g>
+          </svg>
+          <div class="legend">
+            <div class="row">
+              <span class="swatch" style="background:#3fb96b"></span>
+              <span class="lbl">Full coverage</span>
+              <span class="num">6</span>
+            </div>
+            <div class="row">
+              <span class="swatch" style="background:#5fa8ff"></span>
+              <span class="lbl">Good coverage</span>
+              <span class="num">16</span>
+            </div>
+            <div class="row" style="margin-top: 6px; padding-top: 8px; border-top: 1px dashed var(--border);">
+              <span class="swatch" style="background:var(--card-2); border:1px solid var(--border-2)"></span>
+              <span class="lbl">Partial / none</span>
+              <span class="num">0</span>
+            </div>
+            <div class="row" style="color: var(--text-faint); font-size: 11.5px;">
+              <span class="swatch" style="background:transparent"></span>
+              <span class="lbl">Tue: 2 full · 3 good · 17 partial</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Category breakdown + Sidebar tabs -->
+  <section class="section">
+    <div class="grid-2">
+      <div class="card">
+        <h3>Families by UI category <span class="tag">canonical from catalog.json</span></h3>
+        <div class="bars">
+          <div class="row">
+            <span class="cat">productivity</span>
+            <div class="bar"><div class="fill" style="width: 100%; background: linear-gradient(90deg, #3fb96b, #79e09a);"></div></div>
+            <span class="num">9</span>
+          </div>
+          <div class="row">
+            <span class="cat">navigation</span>
+            <div class="bar"><div class="fill" style="width: 55.5%;"></div></div>
+            <span class="num">5</span>
+          </div>
+          <div class="row">
+            <span class="cat">layers</span>
+            <div class="bar"><div class="fill" style="width: 44.4%; background: linear-gradient(90deg, #4fd1c5, #7ee0d6);"></div></div>
+            <span class="num">4</span>
+          </div>
+          <div class="row">
+            <span class="cat">system</span>
+            <div class="bar"><div class="fill" style="width: 33.3%; background: linear-gradient(90deg, #ff8aa8, #ffa7be);"></div></div>
+            <span class="num">3</span>
+          </div>
+          <div class="row">
+            <span class="cat">experimental</span>
+            <div class="bar"><div class="fill" style="width: 11.1%; background: linear-gradient(90deg, #b58cff, #cdb1ff);"></div></div>
+            <span class="num">1</span>
+          </div>
+        </div>
+        <div style="margin-top: 14px; font-size: 12px; color: var(--text-dim);">
+          Only <strong>Auto Shift Symbols</strong> sits in the Experimental section. The "hidden" tier I described earlier was a synthesis — those families ship in user-facing UI sections too.
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Overlay sidebar <span class="tag">10 tabs · ~40 controls</span></h3>
+        <div class="tabs-grid">
+          <div class="tab-cell danger">
+            <div class="name">Mapper <span class="pill high badge">17</span></div>
+            <div class="num">Core surface · highest risk</div>
+          </div>
+          <div class="tab-cell">
+            <div class="name">Custom Rules <span class="pill med badge">7</span></div>
+            <div class="num">Reset = destructive</div>
+          </div>
+          <div class="tab-cell">
+            <div class="name">Launchers <span class="pill med badge">2+</span></div>
+            <div class="num">Async save race (low)</div>
+          </div>
+          <div class="tab-cell">
+            <div class="name">Keymap <span class="pill med badge">4</span></div>
+            <div class="num">Logical layout switch</div>
+          </div>
+          <div class="tab-cell">
+            <div class="name">Devices <span class="pill med badge">1</span></div>
+            <div class="num">Device selection</div>
+          </div>
+          <div class="tab-cell">
+            <div class="name">Layout <span class="pill low badge">1</span></div>
+            <div class="num">Physical layout grid</div>
+          </div>
+          <div class="tab-cell">
+            <div class="name">Keycaps <span class="pill low badge">1</span></div>
+            <div class="num">Colorway grid</div>
+          </div>
+          <div class="tab-cell">
+            <div class="name">Sounds <span class="pill low badge">~</span></div>
+            <div class="num">Typing sounds</div>
+          </div>
+          <div class="tab-cell">
+            <div class="name">History <span class="pill low badge">1</span></div>
+            <div class="num">Read-only view</div>
+          </div>
+          <div class="tab-cell">
+            <div class="name">Settings <span class="pill low badge">1</span></div>
+            <div class="num">Gear toggle</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Rule family inventory -->
+  <section class="section">
+    <h2 class="section-title">Rule family inventory · 22 families</h2>
+    <div class="card" style="padding: 0;">
+      <div class="table-wrap" style="border: 0; border-radius: 14px;">
+        <table>
+          <thead>
+            <tr>
+              <th class="idx">#</th>
+              <th>Family</th>
+              <th>Category</th>
+              <th>Coverage</th>
+              <th>Complexity</th>
+              <th>Action this week</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="idx">1</td><td class="name">Home Row Mods</td><td><span class="pill prod">productivity</span></td><td><span class="pill full">full</span></td><td><span class="complexity high"><span></span><span></span><span></span></span></td><td class="muted">Walkthrough only — covered</td></tr>
+            <tr><td class="idx">2</td><td class="name">Caps Lock Remap</td><td><span class="pill prod">productivity</span></td><td><span class="pill full">full</span></td><td><span class="complexity low"><span></span><span></span><span></span></span></td><td class="muted">Walkthrough only — covered</td></tr>
+            <tr><td class="idx">3</td><td class="name">Chord Groups</td><td><span class="pill prod">productivity</span></td><td><span class="pill good">good</span></td><td><span class="complexity high"><span></span><span></span><span></span></span></td><td class="muted">Top-up matrix · walkthrough</td></tr>
+            <tr><td class="idx">4</td><td class="name">Sequences</td><td><span class="pill prod">productivity</span></td><td><span class="pill good">good</span></td><td><span class="complexity high"><span></span><span></span><span></span></span></td><td class="muted">Top-up matrix · walkthrough</td></tr>
+            <tr><td class="idx">5</td><td class="name">Vim Navigation</td><td><span class="pill nav">navigation</span></td><td><span class="pill good">good</span></td><td><span class="complexity low"><span></span><span></span><span></span></span></td><td class="muted">Per-option matrix</td></tr>
+            <tr><td class="idx">6</td><td class="name">Home Row Arrows</td><td><span class="pill nav">navigation</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity low"><span></span><span></span><span></span></span></td><td>Golden + matrix</td></tr>
+            <tr><td class="idx">7</td><td class="name">Quick Launcher</td><td><span class="pill layer">layers</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity high"><span></span><span></span><span></span></span></td><td>Golden + matrix + walkthrough</td></tr>
+            <tr><td class="idx">8</td><td class="name">Fast Navigation</td><td><span class="pill sys">system</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity med"><span></span><span></span><span></span></span></td><td>Golden + matrix</td></tr>
+            <tr><td class="idx">9</td><td class="name">macOS Function Keys</td><td><span class="pill sys">system</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity low"><span></span><span></span><span></span></span></td><td>Golden + walkthrough</td></tr>
+            <tr><td class="idx">10</td><td class="name">Home Row Layer Toggles</td><td><span class="pill prod">productivity</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity high"><span></span><span></span><span></span></span></td><td>Matrix · candidate for demote</td></tr>
+            <tr><td class="idx">11</td><td class="name">Auto Shift Symbols</td><td><span class="pill exp">experimental</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity med"><span></span><span></span><span></span></span></td><td class="muted">Already experimental — golden only</td></tr>
+            <tr><td class="idx">12</td><td class="name">Window Snapping</td><td><span class="pill prod">productivity</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity low"><span></span><span></span><span></span></span></td><td>Golden (mode variants)</td></tr>
+            <tr><td class="idx">13</td><td class="name">Leader Key</td><td><span class="pill sys">system</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity low"><span></span><span></span><span></span></span></td><td>Per-preset golden</td></tr>
+            <tr><td class="idx">14</td><td class="name">Escape</td><td><span class="pill prod">productivity</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity low"><span></span><span></span><span></span></span></td><td>Per-preset golden</td></tr>
+            <tr><td class="idx">15</td><td class="name">Delete Enhancement</td><td><span class="pill prod">productivity</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity low"><span></span><span></span><span></span></span></td><td>Per-preset golden</td></tr>
+            <tr><td class="idx">16</td><td class="name">Backup Caps Lock</td><td><span class="pill prod">productivity</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity low"><span></span><span></span><span></span></span></td><td>Per-preset golden</td></tr>
+            <tr><td class="idx">17</td><td class="name">Neovim Terminal</td><td><span class="pill nav">navigation</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity low"><span></span><span></span><span></span></span></td><td>Cheap golden</td></tr>
+            <tr><td class="idx">18</td><td class="name">Mission Control</td><td><span class="pill nav">navigation</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity low"><span></span><span></span><span></span></span></td><td>Cheap golden</td></tr>
+            <tr><td class="idx">19</td><td class="name">Ben Vallack Nav</td><td><span class="pill nav">navigation</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity low"><span></span><span></span><span></span></span></td><td>Cheap golden</td></tr>
+            <tr><td class="idx">20</td><td class="name">Numpad</td><td><span class="pill layer">layers</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity low"><span></span><span></span><span></span></span></td><td>Cheap golden</td></tr>
+            <tr><td class="idx">21</td><td class="name">Symbol Layer</td><td><span class="pill layer">layers</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity low"><span></span><span></span><span></span></span></td><td>Per-preset golden</td></tr>
+            <tr><td class="idx">22</td><td class="name">Function Keys (right hand)</td><td><span class="pill layer">layers</span></td><td><span class="pill partial">partial</span></td><td><span class="complexity low"><span></span><span></span><span></span></span></td><td>Cheap golden</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Findings log -->
+  <section class="section">
+    <h2 class="section-title">Findings log · Tuesday verification</h2>
+    <div class="grid-2-1">
+      <div class="card">
+        <h3>Mapper bug claims — verified</h3>
+        <div class="timeline">
+          <div class="finding refuted">
+            <div>
+              <div class="when">Tue PM · task #1</div>
+              <span class="pill done" style="margin-top: 6px;">refuted</span>
+            </div>
+            <div>
+              <div class="title">State-persistence "bug" overstated</div>
+              <div class="desc">
+                Picker mode (slot/count/output-mode) is ephemeral <code>@State</code>, but the actual configured actions live on <code>MapperViewModel.advancedBehavior</code> and are restored on each <code>onAppear</code> via <code>loadBehaviorFromExistingRule()</code>. <code>configuredBehaviorSlots</code> set gives visual indicator. <strong>No data loss.</strong>
+                <br><br>Disposition: known-limitation line — "Mapper opens to Tap slot — click Hold/Shift to see actions you configured for that slot."
+              </div>
+            </div>
+          </div>
+          <div class="finding refuted">
+            <div>
+              <div class="when">Tue PM · task #2</div>
+              <span class="pill done" style="margin-top: 6px;">refuted</span>
+            </div>
+            <div>
+              <div class="title">"No recording mutex" — wrong</div>
+              <div class="desc">
+                Every <code>toggle*Recording()</code> in <code>MapperViewModel.swift:651-758</code> explicitly stops other recorders before activating itself. MainActor serializes the toggles. Hold and double-tap also have explicit conflict dialogs. <strong>Close.</strong>
+              </div>
+            </div>
+          </div>
+          <div class="finding confirmed">
+            <div>
+              <div class="when">Tue PM · task #3</div>
+              <span class="pill med" style="margin-top: 6px;">confirmed — low impact</span>
+            </div>
+            <div>
+              <div class="title">Launcher async-save race</div>
+              <div class="desc">
+                <code>saveLauncherConfig()</code> spawns unbounded <code>Task</code> per toggle. Store is actor-isolated and final UI state drives final save. Worst case: momentary persisted state lags by one toggle. <strong>Not a release blocker.</strong> Post-1.0 cleanup.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>What this means</h3>
+        <p style="margin: 0 0 12px; color: var(--text-dim); font-size: 13px;">
+          The inventory agent reading SwiftUI source statically over-reported the Mapper's risk. Two of three "HIGH" claims don't hold up.
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="padding: 12px; background: rgba(63,185,107,0.07); border: 1px solid rgba(63,185,107,0.25); border-radius: 8px;">
+            <strong style="color: var(--success);">D3 holds.</strong>
+            <div style="color: var(--text-dim); font-size: 12.5px; margin-top: 4px;">Defend Mapper in place. No new must-fix work from these findings.</div>
+          </div>
+          <div style="padding: 12px; background: rgba(95,168,255,0.07); border: 1px solid rgba(95,168,255,0.25); border-radius: 8px;">
+            <strong style="color: var(--accent);">Time freed up.</strong>
+            <div style="color: var(--text-dim); font-size: 12.5px; margin-top: 4px;">Held ~1 day of Wed budget for Mapper fixes; now goes to broader golden-test coverage.</div>
+          </div>
+          <div style="padding: 12px; background: rgba(224,168,58,0.07); border: 1px solid rgba(224,168,58,0.25); border-radius: 8px;">
+            <strong style="color: var(--warning);">Bias-check pending.</strong>
+            <div style="color: var(--text-dim); font-size: 12.5px; margin-top: 4px;">I refuted these from static reading too. Wed golden tests + walkthroughs will exercise actual paths and either confirm or surface what I missed.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Wednesday merge train -->
+  <section class="section">
+    <h2 class="section-title">Wednesday merge train · 6 PRs landed on master</h2>
+    <div class="card">
+      <div class="wave-grid" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="wave-item">
+          <div class="id"><a href="https://github.com/malpern/KeyPath/pull/857">#857</a></div>
+          <div class="name">Release prep: Wave 1 + Auto Shift promotion</div>
+          <span class="pill done">merged</span>
+          <div style="margin-top: 8px; color: var(--text-dim); font-size: 12px;">Closes #853, #854, #856 audit nits. Auto Shift Symbols moved <code>experimental</code> → <code>productivity</code>.</div>
+        </div>
+        <div class="wave-item">
+          <div class="id"><a href="https://github.com/malpern/KeyPath/pull/862">#862</a></div>
+          <div class="name">Test infra: MatrixTestHelpers + whole-catalog assertion</div>
+          <span class="pill done">merged</span>
+          <div style="margin-top: 8px; color: var(--text-dim); font-size: 12px;">Every shipping family kanata-syntax valid (1.47s assertion). Helpers cut duplication across the existing integration tests.</div>
+        </div>
+        <div class="wave-item">
+          <div class="id"><a href="https://github.com/malpern/KeyPath/pull/864">#864</a></div>
+          <div class="name">Per-option matrix tests (15 new)</div>
+          <span class="pill done">merged</span>
+          <div style="margin-top: 8px; color: var(--text-dim); font-size: 12px;">HRL Toggles · Quick Launcher · Window Snapping · Auto Shift. Surfaced the orphan-layer finding.</div>
+        </div>
+        <div class="wave-item">
+          <div class="id"><a href="https://github.com/malpern/KeyPath/pull/871">#871</a></div>
+          <div class="name">Generator stub-deflayer safety net</div>
+          <span class="pill done">merged</span>
+          <div style="margin-top: 8px; color: var(--text-dim); font-size: 12px;">One-regex addition catches <code>layer-toggle</code> orphan references. Kanata accepts; orphan keys silently no-op.</div>
+        </div>
+        <div class="wave-item">
+          <div class="id"><a href="https://github.com/malpern/KeyPath/pull/872">#872</a></div>
+          <div class="name">HRL Toggles release-readiness smoke script</div>
+          <span class="pill done">merged</span>
+          <div style="margin-top: 8px; color: var(--text-dim); font-size: 12px;">Template for the remaining 5 family-smokes. Modifies RuleCollections.json via CLI; backup/restore-safe.</div>
+        </div>
+        <div class="wave-item">
+          <div class="id"><a href="https://github.com/malpern/KeyPath/pull/875">#875</a></div>
+          <div class="name">Smoke fix: drop f/j to sidestep Home Row Arrows collision</div>
+          <span class="pill done">merged</span>
+          <div style="margin-top: 8px; color: var(--text-dim); font-size: 12px;">Bonus finding — the existing collision detector already protects users; safety net is the second line of defense.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sprint 1.1 epic -->
+  <section class="section">
+    <h2 class="section-title">Sprint 1.1 captured · post-release UX for the prerequisite-detection gap</h2>
+    <div class="card">
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+        <a href="https://github.com/malpern/KeyPath/issues/865" class="tab-cell" style="grid-column: span 2; background: linear-gradient(160deg, rgba(181,140,255,0.10), var(--card-2)); border-color: rgba(181,140,255,0.32);">
+          <div class="name">#865 <span class="pill exp" style="margin-left:6px;">epic</span></div>
+          <div class="num">Bidirectional prerequisite detection — forward (enable / config-edit) + reverse (disable). Sprint goal: dialog flow next to the existing collision detector.</div>
+        </a>
+        <a href="https://github.com/malpern/KeyPath/issues/870" class="tab-cell"><div class="name">#870 <span class="pill wip" style="margin-left:4px;">start here</span></div><div class="num">Dependency graph data model + builder</div></a>
+        <a href="https://github.com/malpern/KeyPath/issues/866" class="tab-cell"><div class="name">#866</div><div class="num">Detector module (forward + reverse queries)</div></a>
+        <a href="https://github.com/malpern/KeyPath/issues/867" class="tab-cell"><div class="name">#867</div><div class="num">Per-family dependency catalog</div></a>
+        <a href="https://github.com/malpern/KeyPath/issues/869" class="tab-cell"><div class="name">#869</div><div class="num">Forward dialog UI (enable / config-edit)</div></a>
+        <a href="https://github.com/malpern/KeyPath/issues/868" class="tab-cell"><div class="name">#868</div><div class="num">Reverse dialog UI (disable)</div></a>
+        <a href="https://github.com/malpern/KeyPath/issues/873" class="tab-cell" style="grid-column: span 2;"><div class="name">#873 <span class="pill idle" style="margin-left:4px;">follow-up</span></div><div class="num">Refactor kanata-check test helper (pipe deadlock + MainActor). Deferred from #871's review.</div></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Verification loop -->
+  <section class="section">
+    <h2 class="section-title">Verification loop · closed end-to-end</h2>
+    <div class="card">
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;">
+        <div style="padding: 14px; background: rgba(63,185,107,0.07); border: 1px solid rgba(63,185,107,0.25); border-radius: 10px;">
+          <strong style="color: var(--success);">1. Find</strong>
+          <div style="color: var(--text-dim); font-size: 12.5px; margin-top: 6px;">Per-option matrix tests in <a href="https://github.com/malpern/KeyPath/pull/864">#864</a> surfaced HRL Toggles toggle-mode-alone producing a kanata-rejected config.</div>
+        </div>
+        <div style="padding: 14px; background: rgba(95,168,255,0.07); border: 1px solid rgba(95,168,255,0.25); border-radius: 10px;">
+          <strong style="color: var(--accent);">2. Fix</strong>
+          <div style="color: var(--text-dim); font-size: 12.5px; margin-top: 6px;"><a href="https://github.com/malpern/KeyPath/pull/871">#871</a> added <code>layer-toggle</code> to the existing orphan-layer scanner. 1 regex. 3 new tests.</div>
+        </div>
+        <div style="padding: 14px; background: rgba(63,185,107,0.07); border: 1px solid rgba(63,185,107,0.25); border-radius: 10px;">
+          <strong style="color: var(--success);">3. Verify</strong>
+          <div style="color: var(--text-dim); font-size: 12.5px; margin-top: 6px;"><code>quick-deploy.sh</code> + <code>qa-hrl-toggles-smoke.sh</code> — all 3 cases passed against the installed app. Bug → fix → ship → verify in one day.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer">
+    Updated Wed 2026-06-10 PM · Auto-synced from <code>RELEASE-READINESS.md</code> · Update by hand as the week progresses
+  </div>
+</div>
+</body>
+</html>
