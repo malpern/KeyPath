@@ -133,7 +133,7 @@ struct AutoShiftKanataRenderingTests {
             id: RuleCollectionIdentifier.autoShiftSymbols,
             name: "Auto Shift Symbols",
             summary: "Test",
-            category: .experimental,
+            category: .productivity,
             mappings: [],
             isEnabled: true,
             configuration: .autoShiftSymbols(config)
@@ -152,7 +152,7 @@ struct AutoShiftKanataRenderingTests {
             id: RuleCollectionIdentifier.autoShiftSymbols,
             name: "Auto Shift Symbols",
             summary: "Test",
-            category: .experimental,
+            category: .productivity,
             mappings: [],
             isEnabled: true,
             configuration: .autoShiftSymbols(config)
@@ -169,7 +169,7 @@ struct AutoShiftKanataRenderingTests {
             id: RuleCollectionIdentifier.autoShiftSymbols,
             name: "Auto Shift Symbols",
             summary: "Test",
-            category: .experimental,
+            category: .productivity,
             mappings: [],
             isEnabled: true,
             configuration: .autoShiftSymbols(config)
@@ -191,7 +191,7 @@ struct AutoShiftCatalogTests {
         let autoShift = collections.first { $0.id == RuleCollectionIdentifier.autoShiftSymbols }
         #expect(autoShift != nil)
         #expect(autoShift?.name == "Auto Shift Symbols")
-        #expect(autoShift?.category == .experimental)
+        #expect(autoShift?.category == .productivity)
         #expect(autoShift?.isEnabled == false)
     }
 

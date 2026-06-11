@@ -2686,7 +2686,7 @@
   },
   {
     "activationHint" : "11 keys · 180ms hold",
-    "category" : "experimental",
+    "category" : "productivity",
     "configuration" : {
       "enabledKeys" : [
         "eql",
@@ -2716,8 +2716,7 @@
     "summary" : "Hold symbol keys slightly longer for shifted output",
     "tags" : [
       "auto-shift",
-      "symbols",
-      "experimental"
+      "symbols"
     ],
     "targetLayer" : "base"
   },

@@ -125,6 +125,40 @@ struct LayerMappingBuilderTests {
         #expect(result == nil)
     }
 
+    // MARK: - Static push-msg regex compilation guards (#854 — fail at test time, not app launch)
+
+    @Test("extractAppLaunchIdentifier exercises pushMsgLaunchRegex")
+    func extractAppLaunchIdentifierMatches() {
+        let output = #"(push-msg "launch:Safari")"#
+
+        #expect(LayerMappingBuilder.extractAppLaunchIdentifier(from: output) == "Safari")
+        #expect(LayerMappingBuilder.extractAppLaunchIdentifier(from: "noop") == nil)
+    }
+
+    @Test("extractUrlIdentifier exercises pushMsgOpenRegex")
+    func extractURLIdentifierMatches() {
+        let output = #"(push-msg "open:github.com")"#
+
+        #expect(LayerMappingBuilder.extractUrlIdentifier(from: output) != nil)
+        #expect(LayerMappingBuilder.extractUrlIdentifier(from: "noop") == nil)
+    }
+
+    @Test("extractSystemActionIdentifier exercises pushMsgSystemRegex")
+    func extractSystemActionIdentifierMatches() {
+        let output = #"(push-msg "system:spotlight")"#
+
+        #expect(LayerMappingBuilder.extractSystemActionIdentifier(from: output) == "spotlight")
+        #expect(LayerMappingBuilder.extractSystemActionIdentifier(from: "noop") == nil)
+    }
+
+    @Test("extractPushMsgInfo exercises pushMsgTypeValueRegex")
+    func extractPushMsgInfoMatches() {
+        let output = #"(push-msg "launch:Safari")"#
+
+        #expect(LayerMappingBuilder.extractPushMsgInfo(from: output, description: nil) != nil)
+        #expect(LayerMappingBuilder.extractPushMsgInfo(from: "noop", description: nil) == nil)
+    }
+
     // MARK: - Pipeline invariant: vimLabels survive augmentation
 
     @Test("all four HJKL vimLabels survive mergeAugmentation")
