@@ -95,11 +95,11 @@ final class StuckKeyRecoveryService {
         )
 
         await Task.detached(priority: .utility) {
-            Self.writeSnapshotToDisk(snapshot)
+            await Self.writeSnapshotToDisk(snapshot)
         }.value
     }
 
-    private nonisolated static func writeSnapshotToDisk(_ snapshot: DiagnosticSnapshotData) {
+    private nonisolated static func writeSnapshotToDisk(_ snapshot: DiagnosticSnapshotData) async {
         let diagnosticsDir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Logs/KeyPath/stuck-key-incidents")
 
@@ -133,11 +133,11 @@ final class StuckKeyRecoveryService {
         lines.append("")
 
         lines.append("=== System Load ===")
-        lines.append(contentsOf: systemLoadLines())
+        await lines.append(contentsOf: systemLoadLines())
         lines.append("")
 
         lines.append("=== Kanata Stderr (last 50 lines) ===")
-        lines.append(contentsOf: logTail(path: "/var/log/com.keypath.kanata.stderr.log", maxLines: 50))
+        lines.append(contentsOf: logTail(path: KeyPathConstants.Logs.kanataStderr, maxLines: 50))
         lines.append("")
 
         // The pqrs driver-connection evidence (connected / driver connected / output backend
@@ -146,7 +146,7 @@ final class StuckKeyRecoveryService {
         // kept because they indicate driver disconnects.
         lines.append("=== Kanata Stdout (last 200 lines, vhid-ready spam filtered) ===")
         lines.append(contentsOf: logTail(
-            path: "/var/log/com.keypath.kanata.stdout.log",
+            path: KeyPathConstants.Logs.kanataStdout,
             maxLines: 200,
             excludingLinesContaining: "virtual_hid_keyboard_ready true"
         ))
@@ -194,23 +194,28 @@ final class StuckKeyRecoveryService {
         maxLines: Int,
         excludingLinesContaining filter: String? = nil
     ) -> [String] {
+        let unreadable = ["(file not readable)"]
         guard let handle = FileHandle(forReadingAtPath: path) else {
-            return ["(file not readable)"]
+            return unreadable
         }
         defer { try? handle.close() }
 
         let maxBytes: UInt64 = 1024 * 1024
         guard let size = try? handle.seekToEnd() else {
-            return ["(file not readable)"]
+            return unreadable
         }
-        try? handle.seek(toOffset: size > maxBytes ? size - maxBytes : 0)
-        guard let data = try? handle.readToEnd(),
-              let content = String(data: data, encoding: .utf8)
-        else {
-            return ["(file not readable)"]
+        let offset = size > maxBytes ? size - maxBytes : 0
+        try? handle.seek(toOffset: offset)
+        guard let data = try? handle.readToEnd() else {
+            return unreadable
         }
 
-        var tail = content.components(separatedBy: .newlines)
+        // Lossy decode: a truncated read can start mid-multibyte-character, which would
+        // make String(data:encoding:) fail for the whole chunk.
+        var tail = String(decoding: data, as: UTF8.self).components(separatedBy: .newlines)
+        if offset > 0 {
+            tail = Array(tail.dropFirst()) // first line of a truncated read is partial
+        }
         if let filter {
             tail = tail.filter { !$0.contains(filter) }
         }
@@ -219,7 +224,7 @@ final class StuckKeyRecoveryService {
 
     /// Load average plus the top CPU consumers — the leading MAL-57 hypothesis is
     /// CPU-starvation-induced heartbeat misses, so each capture needs load context.
-    nonisolated static func systemLoadLines() -> [String] {
+    nonisolated static func systemLoadLines() async -> [String] {
         var lines: [String] = []
         var loads = [Double](repeating: 0, count: 3)
         if getloadavg(&loads, 3) == 3 {
@@ -228,32 +233,26 @@ final class StuckKeyRecoveryService {
             lines.append("loadavg: (unavailable)")
         }
         lines.append("top_cpu_processes:")
-        lines.append(contentsOf: topCPUProcessLines(limit: 5))
+        await lines.append(contentsOf: topCPUProcessLines(limit: 5))
         return lines
     }
 
     /// Top CPU-consuming processes via `ps`. Skipped under tests — spawning process-listing
-    /// tools in the test environment can deadlock (see KeyPathTestCase).
-    nonisolated static func topCPUProcessLines(limit: Int) -> [String] {
+    /// tools in the test environment can deadlock (see KeyPathTestCase). The timeout keeps a
+    /// slow `ps` (plausible under the very CPU starvation being diagnosed) from stalling the
+    /// snapshot that recovery awaits before restarting kanata.
+    nonisolated static func topCPUProcessLines(limit: Int) async -> [String] {
         guard !TestEnvironment.isRunningTests else {
             return ["  (skipped in tests)"]
         }
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/ps")
-        process.arguments = ["-Aceo", "pcpu,pid,comm", "-r"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = FileHandle.nullDevice
-
         do {
-            try process.run()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-            guard let output = String(data: data, encoding: .utf8) else {
-                return ["  (ps output unreadable)"]
-            }
-            let rows = output.components(separatedBy: .newlines)
+            let result = try await SubprocessRunner.shared.run(
+                "/bin/ps",
+                args: ["-Aceo", "pcpu,pid,comm", "-r"],
+                timeout: 5
+            )
+            let rows = result.stdout.components(separatedBy: .newlines)
                 .dropFirst() // header
                 .map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty }

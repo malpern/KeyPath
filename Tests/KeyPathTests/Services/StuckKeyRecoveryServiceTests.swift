@@ -164,13 +164,33 @@ final class StuckKeyRecoveryServiceTests: KeyPathTestCase {
         XCTAssertTrue(tail.contains("virtual_hid_keyboard_ready false"), "Driver-disconnect lines must survive the filter")
     }
 
+    func testLogTailTruncatedReadDropsPartialFirstLine() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("stuck-key-logtail-big-\(UUID().uuidString).log")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        // Over the 1MB tail-read cap, with multibyte characters so the seek boundary can
+        // land mid-character — the tail must still decode and contain only complete lines.
+        let padding = "héartbéat " + String(repeating: "x", count: 100)
+        let lineCount = 12000
+        let content = (0 ..< lineCount).map { "line \($0) \(padding)" }.joined(separator: "\n")
+        XCTAssertGreaterThan(content.utf8.count, 1024 * 1024, "Fixture must exceed the tail-read cap")
+        try content.write(to: fileURL, atomically: true, encoding: .utf8)
+
+        let tail = StuckKeyRecoveryService.logTail(path: fileURL.path, maxLines: 10)
+
+        XCTAssertEqual(tail.count, 10)
+        XCTAssertTrue(tail.allSatisfy { $0.hasPrefix("line ") }, "No partial first line should survive truncation")
+        XCTAssertEqual(tail.last, "line \(lineCount - 1) \(padding)")
+    }
+
     func testLogTailHandlesMissingFile() {
         let tail = StuckKeyRecoveryService.logTail(path: "/nonexistent/keypath-test.log", maxLines: 50)
         XCTAssertEqual(tail, ["(file not readable)"])
     }
 
-    func testSystemLoadLinesSkipProcessListingInTests() {
-        let lines = StuckKeyRecoveryService.systemLoadLines()
+    func testSystemLoadLinesSkipProcessListingInTests() async {
+        let lines = await StuckKeyRecoveryService.systemLoadLines()
 
         XCTAssertTrue(
             lines.first?.hasPrefix("loadavg: ") == true,
