@@ -21,8 +21,7 @@ public enum ClaudeAPIPricing {
     }
 }
 
-/// Centralized cost tracking for AI API usage
-/// Shared between KanataConfigGenerator and AnthropicConfigRepairService
+/// Centralized cost tracking for AI API usage (AnthropicConfigRepairService)
 @MainActor
 public final class AICostTracker {
     /// Shared instance
@@ -52,7 +51,6 @@ public final class AICostTracker {
 
     /// Source of the AI API call for tracking
     public enum CostSource: String {
-        case configGenerator = "config-generator"
         case configRepair = "config-repair"
     }
 

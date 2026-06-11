@@ -164,15 +164,4 @@ public extension KanataDefcfg {
         )
     }
 
-    /// Header prepended to AI-generated configs (`KanataConfigGenerator`). The model's
-    /// own `defcfg` output is stripped and replaced with this — the safety header is
-    /// never trusted to LLM output. Renders identically to `repairFallback` today;
-    /// the separate name documents the distinct call site (see the note on
-    /// `minimalSafe`/`validationWrapper` about intentional named variation).
-    static func aiGenerated(allowCommandActions: Bool) -> KanataDefcfg {
-        KanataDefcfg(
-            processUnmappedKeys: true,
-            allowCommandActions: allowCommandActions
-        )
-    }
 }
