@@ -14,10 +14,14 @@ import Foundation
 /// Allowed, by construction:
 /// - comment lines,
 /// - *detection* of the literal in existing text (`contains(`/`range(of:` calls,
-///   used by repair and the defcfg-stripping canonicalizer — they inspect configs,
-///   they don't emit headers),
+///   used by repair — they inspect configs, they don't emit headers),
 /// - Swift string interpolation that merely starts with the letters `defcfg`
 ///   (`\(defcfgInstruction)`).
+///
+/// The detection exemptions are deliberately literal: exactly `contains("(defcfg`
+/// and `range(of: "(defcfg`. If you add a new *detection* call site using another
+/// idiom (`hasPrefix`, raw-string literals `#"(defcfg"#`, `firstRange(of:)`, …),
+/// extend the exemption list here in the same change — don't weaken the match.
 final class DefcfgEmitterLintTests: XCTestCase {
     func testNoHandBuiltDefcfgOutsideKanataDefcfg() throws {
         let sourcesDir = repositoryRoot().appendingPathComponent("Sources")
@@ -32,7 +36,9 @@ final class DefcfgEmitterLintTests: XCTestCase {
 
         var violations: [String] = []
         for case let url as URL in enumerator where url.pathExtension == "swift" {
-            if url.lastPathComponent == "KanataDefcfg.swift" { continue }
+            // Path-suffix match so a rename/move of the canonical emitter breaks this
+            // test loudly instead of silently flagging the emitter itself.
+            if url.path.hasSuffix("Infrastructure/Config/KanataDefcfg.swift") { continue }
             guard let contents = try? String(contentsOf: url, encoding: .utf8) else { continue }
             guard contents.contains("(defcfg") else { continue }
 

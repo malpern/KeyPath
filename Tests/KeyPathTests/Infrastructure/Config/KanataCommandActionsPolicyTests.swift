@@ -143,6 +143,15 @@ final class KanataCommandActionsPolicyTests: XCTestCase {
         XCTAssertTrue(enforced.contains("(defsrc caps)"))
     }
 
+    func testEnforcingPolicyStripsExplicitNoWhenDisabled() {
+        // The strip is line-surgical and value-blind: an explicit (redundant)
+        // `danger-enable-cmd no` from the model doesn't survive either.
+        let repaired = "(defcfg\n  danger-enable-cmd no\n  process-unmapped-keys yes\n)"
+        let enforced = KanataCommandActionsPolicy.enforcingPolicy(on: repaired, defaults: defaults)
+        XCTAssertFalse(enforced.contains("danger-enable-cmd"))
+        XCTAssertTrue(enforced.contains("process-unmapped-keys yes"))
+    }
+
     func testEnforcingPolicyPassesThroughWhenEnabled() {
         KanataCommandActionsPolicy.setEnabled(true, defaults: defaults)
         let repaired = "(defcfg\n  danger-enable-cmd yes\n)"
