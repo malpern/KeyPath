@@ -10,7 +10,8 @@ final class KanataDefcfgTests: XCTestCase {
     // MARK: - standard()
 
     func testStandardDefaultMatchesGeneratedHeader() {
-        // Mirrors GoldenConfigs/default.kbd (key-repeat enabled, no prior-idle, no chords).
+        // Opted-in variant of GoldenConfigs/default.kbd (key-repeat enabled, no prior-idle,
+        // no chords). The golden itself renders with allowCommandActions: false since M1.1.
         let defcfg = KanataDefcfg.standard(
             allowCommandActions: true,
             managedRepeatTiming: (delayMs: 500, intervalMs: 30),
@@ -31,7 +32,8 @@ final class KanataDefcfgTests: XCTestCase {
     }
 
     func testStandardWithPriorIdleAndChords() {
-        // Mirrors GoldenConfigs/home-row-mods.kbd plus a chord-triggered concurrent-tap-hold.
+        // Opted-in variant of GoldenConfigs/home-row-mods.kbd plus a chord-triggered
+        // concurrent-tap-hold. The golden renders with allowCommandActions: false since M1.1.
         let defcfg = KanataDefcfg.standard(
             allowCommandActions: true,
             managedRepeatTiming: (delayMs: 500, intervalMs: 30),
@@ -135,12 +137,18 @@ final class KanataDefcfgTests: XCTestCase {
         XCTAssertEqual(KanataDefcfg.minimalSafe, KanataDefcfg.validationWrapper)
     }
 
-    func testRepairFallbackProfile() {
-        // ConfigurationService rule-based repair injection (mirrors generator posture).
-        XCTAssertEqual(KanataDefcfg.repairFallback.render(), """
+    func testRepairFallbackProfileFollowsPolicy() {
+        // ConfigurationService rule-based repair injection mirrors the user's
+        // command-actions policy instead of hardcoding danger-enable-cmd.
+        XCTAssertEqual(KanataDefcfg.repairFallback(allowCommandActions: true).render(), """
         (defcfg
           process-unmapped-keys yes
           danger-enable-cmd yes
+        )
+        """)
+        XCTAssertEqual(KanataDefcfg.repairFallback(allowCommandActions: false).render(), """
+        (defcfg
+          process-unmapped-keys yes
         )
         """)
     }
@@ -149,8 +157,8 @@ final class KanataDefcfgTests: XCTestCase {
 
     func testRepairFallbackSpliceMatchesLegacyString() {
         // ConfigurationService injects the block followed by a blank line. The legacy
-        // multiline literal rendered to exactly this byte sequence.
-        let spliced = KanataDefcfg.repairFallback.render() + "\n\n"
+        // multiline literal rendered to exactly this byte sequence (for an opted-in user).
+        let spliced = KanataDefcfg.repairFallback(allowCommandActions: true).render() + "\n\n"
         let legacy = "(defcfg\n  process-unmapped-keys yes\n  danger-enable-cmd yes\n)\n\n"
         XCTAssertEqual(spliced, legacy)
     }

@@ -758,7 +758,72 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertTrue(safeContent.contains("esc"), "Safe config should use escape key")
     }
 
+    /// Regression: startup bootstrap regenerates (and saves) the config without any
+    /// prior reload(), so generateConfiguration must grandfather the cmd-actions
+    /// policy from the on-disk config BEFORE generating — otherwise a hand-written
+    /// (cmd ...) config would be overwritten with the header stripped.
+    func testGenerateConfiguration_GrandfathersCmdUsageFromExistingConfigBeforeRegenerating() async throws {
+        UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey)
+        defer { UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey) }
+
+        let existingConfig = """
+        (defcfg
+          process-unmapped-keys yes
+          danger-enable-cmd yes
+        )
+        (defalias open-notes (cmd open -a Notes))
+        (defsrc caps)
+        (deflayer base @open-notes)
+        """
+        try existingConfig.write(
+            toFile: configService.configurationPath, atomically: true, encoding: .utf8
+        )
+
+        let generated = try await configService.generateConfiguration(ruleCollections: [])
+
+        XCTAssertTrue(
+            KanataCommandActionsPolicy.isEnabled(),
+            "Regenerating over a config that uses (cmd ...) must grandfather the policy ON"
+        )
+        XCTAssertTrue(
+            generated.content.contains("danger-enable-cmd yes"),
+            "Grandfathered regeneration must keep emitting the danger-enable-cmd header"
+        )
+    }
+
+    func testGenerateConfiguration_HeaderOnlyLegacyConfigDoesNotGrandfather() async throws {
+        UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey)
+        defer { UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey) }
+
+        let legacyGenerated = """
+        (defcfg
+          process-unmapped-keys yes
+          danger-enable-cmd yes
+        )
+        (defsrc caps)
+        (deflayer base (push-msg "layer:base"))
+        """
+        try legacyGenerated.write(
+            toFile: configService.configurationPath, atomically: true, encoding: .utf8
+        )
+
+        let generated = try await configService.generateConfiguration(ruleCollections: [])
+
+        XCTAssertFalse(
+            KanataCommandActionsPolicy.isEnabled(),
+            "The legacy hardcoded header alone must not grandfather cmd execution back on"
+        )
+        XCTAssertFalse(
+            generated.content.contains("danger-enable-cmd"),
+            "Regenerated config must drop the unused danger-enable-cmd grant"
+        )
+    }
+
     func testRepairConfiguration_MissingDefcfg() async throws {
+        // Pin the command-actions policy to its default (unset → OFF) so the
+        // repaired header is deterministic regardless of prior test-runner state.
+        UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey)
+        defer { UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey) }
         let brokenConfig = """
         (defsrc caps)
         (deflayer base esc)
@@ -777,9 +842,9 @@ class ConfigurationServiceTests: XCTestCase {
             repairedConfig.contains("process-unmapped-keys yes"),
             "Repaired config should have safe defaults"
         )
-        XCTAssertTrue(
-            repairedConfig.contains("danger-enable-cmd yes"),
-            "Repaired config should include command key safety toggle"
+        XCTAssertFalse(
+            repairedConfig.contains("danger-enable-cmd"),
+            "Repaired config must not grant cmd execution unless the user opted in (KanataCommandActionsPolicy defaults OFF)"
         )
     }
 

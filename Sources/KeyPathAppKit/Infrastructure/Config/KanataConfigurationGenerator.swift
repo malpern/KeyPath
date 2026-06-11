@@ -38,13 +38,16 @@ public struct KanataConfiguration: Sendable {
 
     /// Generate configuration content from rule collections.
     /// Flattens enabled collections to `defsrc`/`deflayer` for backward compatibility with Kanata config format.
+    /// `allowCommandActions` controls the `danger-enable-cmd` defcfg line; it defaults to the
+    /// user's recorded `KanataCommandActionsPolicy` (OFF unless opted in or grandfathered).
     public static func generateFromCollections(
         _ collections: [RuleCollection],
         leaderKeyPreference: LeaderKeyPreference? = nil,
         navActivationMode: ContextHUDTriggerMode = .tapToToggle,
         navHoldDelayMs: Int = 200,
         chordGroups: [ChordGroupConfig] = [],
-        sequences: [KanataDefseqParser.ParsedSequence] = []
+        sequences: [KanataDefseqParser.ParsedSequence] = [],
+        allowCommandActions: Bool = KanataCommandActionsPolicy.isEnabled()
     ) -> String {
         var resolvedCollections = collections.isEmpty ? defaultSystemCollections : collections
         if !resolvedCollections.contains(where: { $0.id == RuleCollectionIdentifier.macFunctionKeys }) {
@@ -108,7 +111,7 @@ public struct KanataConfiguration: Sendable {
             return (krc.globalDelayMs, krc.globalIntervalMs)
         }()
         let defcfg = KanataDefcfg.standard(
-            allowCommandActions: true,
+            allowCommandActions: allowCommandActions,
             managedRepeatTiming: repeatTiming,
             requirePriorIdleMs: requirePriorIdleMs > 0 ? requirePriorIdleMs : nil,
             hasChords: !chordMappings.isEmpty,

@@ -18,6 +18,13 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
     }
 
     public func repairConfig(config: String, errors: [String], mappings: [KeyMapping]) async throws -> String {
+        // Mirror the user's command-actions policy: repair must not (re)enable cmd
+        // execution for users who have it off, nor strip it for grandfathered users.
+        // process-unmapped-keys yes matches KanataDefcfg.repairFallback (the prompt
+        // previously said "no", contradicting the rule-based injector).
+        let defcfgInstruction = KanataCommandActionsPolicy.isEnabled()
+            ? "Includes defcfg with process-unmapped-keys yes and danger-enable-cmd yes"
+            : "Includes defcfg with process-unmapped-keys yes, and does NOT include danger-enable-cmd or any (cmd ...) actions"
         let prompt = """
         The following Kanata keyboard configuration file is invalid and needs to be repaired:
 
@@ -36,7 +43,7 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
         1. Fixes all validation errors
         2. Preserves the intended key mappings
         3. Uses proper Kanata syntax
-        4. Includes defcfg with process-unmapped-keys no and danger-enable-cmd yes
+        4. \(defcfgInstruction)
         5. Has proper defsrc and deflayer sections
 
         Return ONLY the corrected configuration file content, no explanations.

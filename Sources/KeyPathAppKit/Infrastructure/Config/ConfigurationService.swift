@@ -91,6 +91,11 @@ public final class ConfigurationService: FileConfigurationProviding {
         do {
             let content = try await readFileAsync(path: configurationPath)
 
+            // One-time migration for the danger-enable-cmd default flip: a pre-existing
+            // config that uses (cmd ...) actions grandfathers the policy ON before any
+            // regeneration could strip the header line. No-op once decided.
+            KanataCommandActionsPolicy.grandfatherIfNeeded(configContent: content)
+
             let contentHash = SHA256.hash(data: Data(content.utf8))
                 .map { String(format: "%02x", $0) }.joined()
             if contentHash == lastContentHash, let cached = currentConfiguration {
@@ -272,6 +277,22 @@ public final class ConfigurationService: FileConfigurationProviding {
         ruleCollections: [RuleCollection],
         customRules: [CustomRule] = []
     ) async throws -> KanataConfiguration {
+        // Grandfather the cmd-actions policy against the on-disk config BEFORE
+        // generating: startup bootstrap regenerates (and saves) without any prior
+        // reload(), so the reload() hook alone would run too late — after the
+        // hand-written (cmd ...) config this migration must inspect was already
+        // overwritten. Generation below evaluates the policy via the
+        // allowCommandActions default, so the decision must be recorded first.
+        // Check-then-act is safe here: grandfatherIfNeeded re-checks internally
+        // and always records the same value for the same config (idempotent), so
+        // concurrent callers can't disagree.
+        if !KanataCommandActionsPolicy.hasRecordedDecision(),
+           Foundation.FileManager.default.fileExists(atPath: configurationPath),
+           let existingContent = try? String(contentsOfFile: configurationPath, encoding: .utf8)
+        {
+            KanataCommandActionsPolicy.grandfatherIfNeeded(configContent: existingContent)
+        }
+
         // Custom rules come first so they take priority over preset collections
         let customRuleCollections = customRules.asRuleCollections()
         AppLogger.shared.log("🔧 [ConfigService] Converting \(customRules.count) custom rules to \(customRuleCollections.count) collections")
@@ -462,7 +483,9 @@ public final class ConfigurationService: FileConfigurationProviding {
             if lowerError.contains("missing"), lowerError.contains("defcfg") {
                 // Add missing defcfg using the shared single-source-of-truth header.
                 if !repairedConfig.contains("(defcfg") {
-                    let defcfgSection = KanataDefcfg.repairFallback.render() + "\n\n"
+                    let defcfgSection = KanataDefcfg.repairFallback(
+                        allowCommandActions: KanataCommandActionsPolicy.isEnabled()
+                    ).render() + "\n\n"
                     repairedConfig = defcfgSection + repairedConfig
                 }
             }

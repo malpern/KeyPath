@@ -154,9 +154,13 @@ public extension KanataDefcfg {
     )
 
     /// Minimal header injected by rule-based repair when a config is missing its
-    /// `defcfg` entirely. Mirrors the generator's command-execution posture.
-    static let repairFallback = KanataDefcfg(
-        processUnmappedKeys: true,
-        allowCommandActions: true
-    )
+    /// `defcfg` entirely. The caller passes the user's `KanataCommandActionsPolicy`
+    /// so repair mirrors the generator's command-execution posture instead of
+    /// silently (re)enabling `cmd` actions.
+    static func repairFallback(allowCommandActions: Bool) -> KanataDefcfg {
+        KanataDefcfg(
+            processUnmappedKeys: true,
+            allowCommandActions: allowCommandActions
+        )
+    }
 }
