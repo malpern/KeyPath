@@ -59,6 +59,14 @@ assert_not_contains() {
 # Apply a desired enabled-state to a set of collections and (optionally)
 # flip HRL Toggles' toggleMode. Identifies collections by name to stay
 # robust against UUID drift.
+#
+# Home Row Arrows is a system-default that maps the `f` key to its
+# Home-Arrows layer. The catalog default HRL Toggles config also assigns
+# `f` to its `nav` mapping, which triggers the existing collision detector
+# (good — that's working as intended). To exercise the safety-net code
+# path under test, the script drops `f` from HRL Toggles' enabled keys so
+# the smoke runs past the collision check. Realistic users would either
+# disable Home Row Arrows or reconfigure HRL Toggles' keys.
 apply_state() {
   local toggle_mode="$1"      # whileHeld | toggle
   local enable_companions="$2" # true | false
@@ -91,6 +99,16 @@ for collection in collections:
                 f"Unexpected configuration type for HRL Toggles: {configuration.get('type')}"
             )
         configuration["toggleMode"] = toggle_mode
+        # Drop `f` and `j` to sidestep the Home Row Arrows collision (both nav-targeted).
+        # The remaining keys still reference fun/sym/num, which is what exercises the
+        # stub-deflayer safety net.
+        configuration["enabledKeys"] = ["a", "s", "d", "k", "l", ";"]
+        if isinstance(configuration.get("layerAssignments"), dict):
+            for key in ("f", "j"):
+                configuration["layerAssignments"].pop(key, None)
+        if isinstance(configuration.get("modifierAssignments"), dict):
+            for key in ("f", "j"):
+                configuration["modifierAssignments"].pop(key, None)
         collection["configuration"] = configuration
     elif name in companion_names:
         collection["isEnabled"] = enable_companions
