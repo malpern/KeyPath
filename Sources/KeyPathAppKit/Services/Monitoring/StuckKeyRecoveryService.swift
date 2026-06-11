@@ -94,9 +94,21 @@ final class StuckKeyRecoveryService {
         }.value
     }
 
+    /// Where incident snapshots are written. Tests must never touch the real directory:
+    /// it holds genuine stuck-key evidence and the prune-to-20 pass in
+    /// `writeSnapshotToDisk` would silently delete it, so test runs are redirected to a
+    /// temp location.
+    nonisolated static var diagnosticsDirectory: URL {
+        if TestEnvironment.isRunningTests {
+            return FileManager.default.temporaryDirectory
+                .appendingPathComponent("KeyPathTests/stuck-key-incidents", isDirectory: true)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Logs/KeyPath/stuck-key-incidents", isDirectory: true)
+    }
+
     private nonisolated static func writeSnapshotToDisk(_ snapshot: DiagnosticSnapshotData) {
-        let diagnosticsDir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Logs/KeyPath/stuck-key-incidents")
+        let diagnosticsDir = diagnosticsDirectory
 
         let timestamp = ISO8601DateFormatter().string(from: Date())
         let safeTimestamp = timestamp.replacingOccurrences(of: ":", with: "-")

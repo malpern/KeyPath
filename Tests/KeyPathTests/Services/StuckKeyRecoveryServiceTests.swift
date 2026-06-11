@@ -134,6 +134,25 @@ final class StuckKeyRecoveryServiceTests: KeyPathTestCase {
         XCTAssertEqual(restartCallCount, 1, "Should not fire second restart while first is in progress")
     }
 
+    // MARK: - Diagnostic Snapshot Isolation
+
+    func testDiagnosticSnapshotsRedirectToTempDirectoryDuringTests() {
+        let dir = StuckKeyRecoveryService.diagnosticsDirectory
+        let realDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Logs/KeyPath/stuck-key-incidents")
+
+        XCTAssertNotEqual(
+            dir.standardizedFileURL.path, realDir.standardizedFileURL.path,
+            "Test runs must not write into the real incident directory — the prune-to-20 pass would delete genuine stuck-key evidence"
+        )
+        XCTAssertTrue(
+            dir.standardizedFileURL.path.hasPrefix(
+                FileManager.default.temporaryDirectory.standardizedFileURL.path
+            ),
+            "Test snapshots should land in the temp directory, got \(dir.standardizedFileURL.path)"
+        )
+    }
+
     // MARK: - Helpers
 
     private func makeCorrelation(
