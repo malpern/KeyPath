@@ -8,7 +8,12 @@ import Security
 public actor ActivityLogEncryption {
     // MARK: - Constants
 
-    private static let keychainService = "com.keypath.activitylog"
+    /// Unit tests use a separate Keychain service so a test calling
+    /// `deleteKey()` (e.g. via `ActivityLogStorage.clearAll()`) can never
+    /// delete the production key and orphan real encrypted logs.
+    static let keychainService = TestEnvironment.isRunningTests
+        ? "com.keypath.activitylog.tests"
+        : "com.keypath.activitylog"
     private static let keychainAccount = "encryption-key"
 
     // MARK: - Errors
