@@ -3,6 +3,7 @@ layout: default
 title: "Hammerspoon Integration"
 description: "React to KeyPath layer changes in Hammerspoon for layer-aware desktop automation"
 theme: parchment
+header_image: header-hammerspoon.png
 permalink: /guides/hammerspoon/
 ---
 

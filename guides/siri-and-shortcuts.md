@@ -3,6 +3,7 @@ layout: default
 title: "Siri & Shortcuts"
 description: "Control KeyPath with your voice or automate it with Shortcuts"
 theme: parchment
+header_image: header-siri-and-shortcuts.png
 permalink: /guides/siri-and-shortcuts/
 ---
 

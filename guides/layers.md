@@ -3,6 +3,7 @@ layout: default
 title: "Layers"
 description: "A whole second keyboard under your fingers — navigation, numbers, symbols, and more"
 theme: parchment
+header_image: header-layers.png
 permalink: /guides/layers/
 ---
 
