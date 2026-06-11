@@ -759,6 +759,9 @@ class ConfigurationServiceTests: XCTestCase {
     }
 
     func testRepairConfiguration_MissingDefcfg() async throws {
+        // Pin the command-actions policy to its default (unset → OFF) so the
+        // repaired header is deterministic regardless of prior test-runner state.
+        UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey)
         let brokenConfig = """
         (defsrc caps)
         (deflayer base esc)
@@ -777,9 +780,9 @@ class ConfigurationServiceTests: XCTestCase {
             repairedConfig.contains("process-unmapped-keys yes"),
             "Repaired config should have safe defaults"
         )
-        XCTAssertTrue(
-            repairedConfig.contains("danger-enable-cmd yes"),
-            "Repaired config should include command key safety toggle"
+        XCTAssertFalse(
+            repairedConfig.contains("danger-enable-cmd"),
+            "Repaired config must not grant cmd execution unless the user opted in (KanataCommandActionsPolicy defaults OFF)"
         )
     }
 

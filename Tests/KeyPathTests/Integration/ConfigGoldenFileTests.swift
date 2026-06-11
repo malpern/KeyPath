@@ -21,6 +21,9 @@ final class ConfigGoldenFileTests: XCTestCase {
 
     override func setUpWithError() throws {
         try super.setUpWithError()
+        // Pin the command-actions policy to its default (unset → OFF) so golden
+        // output doesn't depend on test-runner UserDefaults state.
+        UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey)
         if shouldUpdate {
             try FileManager.default.createDirectory(at: goldenDir, withIntermediateDirectories: true)
         }

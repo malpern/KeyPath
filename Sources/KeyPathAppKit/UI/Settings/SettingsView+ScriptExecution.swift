@@ -114,6 +114,80 @@ struct ScriptExecutionSettingsSection: View {
     }
 }
 
+// MARK: - Config Command Actions Settings Section
+
+/// Settings section for kanata `(cmd ...)` actions in hand-edited configs.
+///
+/// KeyPath's own features (launchers, system actions, …) use `push-msg` and never
+/// need this; the toggle exists only for users who hand-write `(cmd ...)` actions.
+/// Default is OFF because kanata runs as root — see `KanataCommandActionsPolicy`.
+struct CommandActionsSettingsSection: View {
+    @State private var commandActionsEnabled = KanataCommandActionsPolicy.isEnabled()
+    @State private var showingEnableConfirmation = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.shield")
+                    .foregroundColor(.orange)
+                    .font(.body)
+                Text("Config Command Actions")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+            }
+
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Allow (cmd ...) actions in the Kanata config")
+                        .font(.body)
+                        .fontWeight(.medium)
+                    Text("Only needed for hand-written (cmd ...) actions. The keyboard engine runs with root privileges, so enabled commands run as root. KeyPath's own launchers and actions don't use this.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Toggle("", isOn: Binding(
+                    get: { commandActionsEnabled },
+                    set: { newValue in
+                        if newValue {
+                            // Enabling grants root command execution — confirm it.
+                            showingEnableConfirmation = true
+                        } else {
+                            applyChange(false)
+                        }
+                    }
+                ))
+                .toggleStyle(.switch)
+                .labelsHidden()
+            }
+            .accessibilityIdentifier("settings-command-actions-toggle")
+            .accessibilityLabel("Allow command actions in config")
+            .confirmationDialog(
+                "Allow the keyboard engine to run shell commands?",
+                isPresented: $showingEnableConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Allow Command Actions", role: .destructive) {
+                    applyChange(true)
+                }
+                .accessibilityIdentifier("settings-command-actions-confirm")
+                Button("Cancel", role: .cancel) {}
+                    .accessibilityIdentifier("settings-command-actions-cancel")
+            } message: {
+                Text("Any (cmd ...) action in your config will execute as root. Only enable this if you hand-edited your config and trust every command in it.")
+            }
+        }
+    }
+
+    private func applyChange(_ enabled: Bool) {
+        commandActionsEnabled = enabled
+        KanataCommandActionsPolicy.setEnabled(enabled)
+        // Regenerate + reload the config so the danger-enable-cmd header reflects
+        // the new policy immediately (handled by RuntimeCoordinator's observer).
+        NotificationCenter.default.post(name: .configAffectingPreferenceChanged, object: nil)
+    }
+}
+
 // MARK: - Script Execution Log View
 
 /// Shows the history of script executions for audit purposes

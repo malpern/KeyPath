@@ -91,6 +91,11 @@ public final class ConfigurationService: FileConfigurationProviding {
         do {
             let content = try await readFileAsync(path: configurationPath)
 
+            // One-time migration for the danger-enable-cmd default flip: a pre-existing
+            // config that uses (cmd ...) actions grandfathers the policy ON before any
+            // regeneration could strip the header line. No-op once decided.
+            KanataCommandActionsPolicy.grandfatherIfNeeded(configContent: content)
+
             let contentHash = SHA256.hash(data: Data(content.utf8))
                 .map { String(format: "%02x", $0) }.joined()
             if contentHash == lastContentHash, let cached = currentConfiguration {
@@ -462,7 +467,9 @@ public final class ConfigurationService: FileConfigurationProviding {
             if lowerError.contains("missing"), lowerError.contains("defcfg") {
                 // Add missing defcfg using the shared single-source-of-truth header.
                 if !repairedConfig.contains("(defcfg") {
-                    let defcfgSection = KanataDefcfg.repairFallback.render() + "\n\n"
+                    let defcfgSection = KanataDefcfg.repairFallback(
+                        allowCommandActions: KanataCommandActionsPolicy.isEnabled()
+                    ).render() + "\n\n"
                     repairedConfig = defcfgSection + repairedConfig
                 }
             }
