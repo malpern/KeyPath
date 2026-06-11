@@ -95,7 +95,7 @@ final class StuckKeyRecoveryService {
         )
 
         await Task.detached(priority: .utility) {
-            Self.writeSnapshotToDisk(snapshot)
+            await Self.writeSnapshotToDisk(snapshot)
         }.value
     }
 
@@ -107,7 +107,7 @@ final class StuckKeyRecoveryService {
         AppPaths.logsDirectory.appendingPathComponent("stuck-key-incidents", isDirectory: true)
     }
 
-    private nonisolated static func writeSnapshotToDisk(_ snapshot: DiagnosticSnapshotData) {
+    private nonisolated static func writeSnapshotToDisk(_ snapshot: DiagnosticSnapshotData) async {
         let diagnosticsDir = diagnosticsDirectory
 
         let timestamp = ISO8601DateFormatter().string(from: Date())
@@ -140,23 +140,20 @@ final class StuckKeyRecoveryService {
         lines.append("")
 
         lines.append("=== Kanata Stderr (last 50 lines) ===")
-        if let data = FileManager.default.contents(atPath: "/var/log/com.keypath.kanata.stderr.log"),
-           let content = String(data: data, encoding: .utf8)
-        {
-            lines.append(contentsOf: content.components(separatedBy: .newlines).suffix(50))
-        } else {
-            lines.append("(file not readable)")
-        }
+        lines.append(contentsOf: logTail(path: KeyPathConstants.Logs.kanataStderr, maxLines: 50))
         lines.append("")
 
-        // The diagnostic gold lives in stdout, not stderr: key-input traces,
-        // VHID connection events ("connected", "driver connected:",
-        // "output backend unavailable during write", "dropping KEY_X Release").
-        // The 2026-06-10 MAL-57 incidents were diagnosed entirely from stdout.
-        lines.append("=== Kanata Stdout (last 120 lines) ===")
-        lines.append(contentsOf: tailOfFile(
-            atPath: KeyPathConstants.Logs.kanataStdout,
-            lineCount: 120
+        // The diagnostic gold lives in stdout, not stderr: key-input traces, VHID
+        // connection events ("connected", "driver connected:", "output backend
+        // unavailable during write", "dropping KEY_X Release"). The 2026-06-10 MAL-57
+        // incidents were diagnosed entirely from stdout. The high-volume
+        // "virtual_hid_keyboard_ready true" heartbeat is filtered out; "... false"
+        // lines are kept because they indicate driver disconnects.
+        lines.append("=== Kanata Stdout (last 200 lines, vhid-ready spam filtered) ===")
+        lines.append(contentsOf: logTail(
+            path: KeyPathConstants.Logs.kanataStdout,
+            maxLines: 200,
+            excludingLinesContaining: "virtual_hid_keyboard_ready true"
         ))
         lines.append("")
 
@@ -164,17 +161,7 @@ final class StuckKeyRecoveryService {
         // behind stuck keys (MAL-57); record load so incidents can confirm or
         // refute the correlation without a live investigation.
         lines.append("=== System Load ===")
-        var loads = [Double](repeating: 0, count: 3)
-        if getloadavg(&loads, 3) == 3 {
-            lines.append("loadavg_1m_5m_15m: \(loads[0]) \(loads[1]) \(loads[2])")
-        } else {
-            lines.append("loadavg_1m_5m_15m: (unavailable)")
-        }
-        lines.append("active_cpu_count: \(ProcessInfo.processInfo.activeProcessorCount)")
-        if !TestEnvironment.isRunningTests {
-            lines.append("top_cpu_processes:")
-            lines.append(contentsOf: topCPUProcesses())
-        }
+        await lines.append(contentsOf: systemLoadLines())
         lines.append("")
 
         lines.append("=== Recovery History ===")
@@ -210,53 +197,94 @@ final class StuckKeyRecoveryService {
         }
     }
 
-    /// Bounded tail of a possibly-huge log file. The kanata stdout log can
-    /// exceed 100MB; never load it whole. Internal for testability.
-    nonisolated static func tailOfFile(
-        atPath path: String,
-        lineCount: Int,
-        maxBytes: Int = 64 * 1024
-    ) -> [String] {
-        guard let fileHandle = FileHandle(forReadingAtPath: path) else {
-            return ["(file not readable)"]
-        }
-        defer { try? fileHandle.close() }
+    // MARK: - Capture Helpers
 
-        let fileSize: UInt64 = (try? fileHandle.seekToEnd()) ?? 0
-        let offset = fileSize > UInt64(maxBytes) ? fileSize - UInt64(maxBytes) : 0
-        try? fileHandle.seek(toOffset: offset)
-        guard let data = try? fileHandle.readToEnd(),
-              let content = String(data: data, encoding: .utf8)
-        else {
-            return ["(file not readable)"]
+    /// Last `maxLines` non-empty lines of a log file, optionally dropping lines that
+    /// contain `filter`. Reads only the trailing `maxBytes` of the file — the kanata
+    /// stdout log can exceed 100MB; never load it whole. When the read is truncated, a
+    /// marker line is prepended (on top of `maxLines`, so the result can be
+    /// `maxLines + 1` long) so a capture dominated by filtered spam can't masquerade
+    /// as the full history.
+    nonisolated static func logTail(
+        path: String,
+        maxLines: Int,
+        maxBytes: UInt64 = 1024 * 1024,
+        excludingLinesContaining filter: String? = nil
+    ) -> [String] {
+        let unreadable = ["(file not readable)"]
+        guard let handle = FileHandle(forReadingAtPath: path) else {
+            return unreadable
         }
-        return Array(content.components(separatedBy: .newlines).suffix(lineCount))
+        defer { try? handle.close() }
+
+        guard let size = try? handle.seekToEnd() else {
+            return unreadable
+        }
+        let offset = size > maxBytes ? size - maxBytes : 0
+        try? handle.seek(toOffset: offset)
+        guard let data = try? handle.readToEnd() else {
+            return unreadable
+        }
+
+        // Lossy decode: a truncated read can start mid-multibyte-character, which would
+        // make String(data:encoding:) fail for the whole chunk.
+        var tail = String(decoding: data, as: UTF8.self).components(separatedBy: .newlines)
+        if offset > 0 {
+            tail = Array(tail.dropFirst()) // first line of a truncated read is partial
+        }
+        // Drop empties (including the artifact of a trailing newline) and filtered spam.
+        tail = tail.filter { line in
+            guard !line.isEmpty else { return false }
+            guard let filter else { return true }
+            return !line.contains(filter)
+        }
+        var result = Array(tail.suffix(maxLines))
+        if offset > 0 {
+            result.insert("(… older output truncated: tail window is the last \(maxBytes / 1024)KB of the file)", at: 0)
+        }
+        return result
     }
 
-    /// Top CPU consumers at capture time. Spawns `ps`; callers must not invoke
-    /// this in tests (subprocess spawning is forbidden there — see KeyPathTestCase).
-    private nonisolated static func topCPUProcesses(count: Int = 5) -> [String] {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/ps")
-        process.arguments = ["-Aceo", "pcpu,comm", "-r"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
+    /// Load average, core count, and the top CPU consumers — the leading MAL-57
+    /// hypothesis is CPU-starvation-induced heartbeat misses, so each capture
+    /// needs load context.
+    nonisolated static func systemLoadLines() async -> [String] {
+        var lines: [String] = []
+        var loads = [Double](repeating: 0, count: 3)
+        if getloadavg(&loads, 3) == 3 {
+            lines.append(String(format: "loadavg_1m_5m_15m: %.2f %.2f %.2f", loads[0], loads[1], loads[2]))
+        } else {
+            lines.append("loadavg_1m_5m_15m: (unavailable)")
+        }
+        lines.append("active_cpu_count: \(ProcessInfo.processInfo.activeProcessorCount)")
+        lines.append("top_cpu_processes:")
+        await lines.append(contentsOf: topCPUProcessLines(limit: 5))
+        return lines
+    }
+
+    /// Top CPU-consuming processes via `ps`. Skipped under tests — spawning process-listing
+    /// tools in the test environment can deadlock (see KeyPathTestCase). The timeout keeps a
+    /// slow `ps` (plausible under the very CPU starvation being diagnosed) from stalling the
+    /// snapshot that recovery awaits before restarting kanata.
+    nonisolated static func topCPUProcessLines(limit: Int) async -> [String] {
+        guard !TestEnvironment.isRunningTests else {
+            return ["  (skipped in tests)"]
+        }
+
         do {
-            try process.run()
+            let result = try await SubprocessRunner.shared.run(
+                "/bin/ps",
+                args: ["-Aceo", "pcpu,pid,comm", "-r"],
+                timeout: 5
+            )
+            let rows = result.stdout.components(separatedBy: .newlines)
+                .dropFirst() // header
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            return rows.prefix(limit).map { "  \($0)" }
         } catch {
-            return ["  (ps failed to launch: \(error.localizedDescription))"]
+            return ["  (ps failed: \(error.localizedDescription))"]
         }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        guard let output = String(data: data, encoding: .utf8) else {
-            return ["  (ps output unreadable)"]
-        }
-        return output
-            .components(separatedBy: .newlines)
-            .dropFirst() // header
-            .prefix(count)
-            .map { "  \($0.trimmingCharacters(in: .whitespaces))" }
     }
 }
 

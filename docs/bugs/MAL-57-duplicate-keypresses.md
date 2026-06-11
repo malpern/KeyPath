@@ -137,9 +137,14 @@ process key reports.
   Telemetry shipped alongside: all VHID client connection lines are
   timestamped (`vhid-client:` prefix), and the previously silent
   heartbeat-deadline reconnect path logs a stamped reason. Incident capture
-  (`StuckKeyRecoveryService`, #897) now snapshots the kanata *stdout* tail
-  (where the diagnostic evidence lives), loadavg/core count, and top CPU
-  consumers; the detector's GUI-only limitation is documented in the class.
+  (`StuckKeyRecoveryService`, #897/#907) now snapshots the kanata *stdout* tail
+  (where the diagnostic evidence lives) with the `virtual_hid_keyboard_ready
+  true` heartbeat spam filtered out (`... false` lines are kept — they mark
+  driver disconnects) and an explicit marker when the 1MB tail window
+  truncates older output; plus loadavg/core count and top CPU consumers
+  (via `SubprocessRunner` with a timeout, so a starved `ps` cannot delay the
+  recovery restart). The detector's GUI-only limitation is documented in the
+  class.
 
 Residual gap no fix can fully close: a release written into a socket that is
 dying but not yet declared dead is unrecoverable in transit; Layer 2 bounds the

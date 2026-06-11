@@ -153,27 +153,102 @@ final class StuckKeyRecoveryServiceTests: KeyPathTestCase {
         )
     }
 
-    // MARK: - Incident Capture Helpers
+    // MARK: - Capture Helpers
 
-    func testTailOfFileReturnsLastLinesWithoutLoadingWholeFile() throws {
+    func testLogTailReturnsLastLinesWithoutLoadingWholeFile() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("stuck-key-tail-test-\(UUID().uuidString).log")
         defer { try? FileManager.default.removeItem(at: url) }
 
+        // Trailing newline matches real log files; the tail must not end with an
+        // empty-string artifact from splitting on it.
         let lines = (1 ... 500).map { "line \($0)" }
-        try lines.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+        try (lines.joined(separator: "\n") + "\n").write(to: url, atomically: true, encoding: .utf8)
 
-        let tail = StuckKeyRecoveryService.tailOfFile(atPath: url.path, lineCount: 3)
+        let tail = StuckKeyRecoveryService.logTail(path: url.path, maxLines: 3)
         XCTAssertEqual(tail, ["line 498", "line 499", "line 500"])
 
         // Bounded read: a tiny maxBytes window must still return the newest
         // lines, proving we read from the end rather than the start.
-        let bounded = StuckKeyRecoveryService.tailOfFile(atPath: url.path, lineCount: 2, maxBytes: 64)
+        let bounded = StuckKeyRecoveryService.logTail(path: url.path, maxLines: 2, maxBytes: 64)
         XCTAssertEqual(bounded.suffix(1), ["line 500"])
+        XCTAssertTrue(
+            bounded.first?.contains("truncated") == true,
+            "A truncated tail window must announce itself"
+        )
+    }
 
-        XCTAssertEqual(
-            StuckKeyRecoveryService.tailOfFile(atPath: "/nonexistent/path.log", lineCount: 3),
-            ["(file not readable)"]
+    func testLogTailFiltersSpamAndLimitsLines() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("stuck-key-logtail-\(UUID().uuidString).log")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        // Interleave useful lines with the heartbeat spam the filter must drop. The
+        // "false" variant is diagnostic (driver disconnect) and must survive the filter.
+        var content: [String] = []
+        for index in 0 ..< 300 {
+            content.append("virtual_hid_keyboard_ready true")
+            content.append("useful line \(index)")
+        }
+        content.append("virtual_hid_keyboard_ready false")
+        content.append("dropping KEY_T Release")
+        try content.joined(separator: "\n").write(to: fileURL, atomically: true, encoding: .utf8)
+
+        let tail = StuckKeyRecoveryService.logTail(
+            path: fileURL.path,
+            maxLines: 200,
+            excludingLinesContaining: "virtual_hid_keyboard_ready true"
+        )
+
+        XCTAssertEqual(tail.count, 200)
+        XCTAssertFalse(tail.contains("virtual_hid_keyboard_ready true"), "Heartbeat spam should be filtered")
+        XCTAssertEqual(tail.last, "dropping KEY_T Release", "Most recent lines should be kept")
+        XCTAssertTrue(tail.contains("virtual_hid_keyboard_ready false"), "Driver-disconnect lines must survive the filter")
+    }
+
+    func testLogTailTruncatedReadDropsPartialFirstLine() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("stuck-key-logtail-big-\(UUID().uuidString).log")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        // Over the 1MB tail-read cap, with multibyte characters so the seek boundary can
+        // land mid-character — the tail must still decode and contain only complete lines.
+        let padding = "héartbéat " + String(repeating: "x", count: 100)
+        let lineCount = 12000
+        let content = (0 ..< lineCount).map { "line \($0) \(padding)" }.joined(separator: "\n")
+        XCTAssertGreaterThan(content.utf8.count, 1024 * 1024, "Fixture must exceed the tail-read cap")
+        try content.write(to: fileURL, atomically: true, encoding: .utf8)
+
+        let tail = StuckKeyRecoveryService.logTail(path: fileURL.path, maxLines: 10)
+
+        XCTAssertEqual(tail.count, 11, "10 content lines plus the truncation marker")
+        XCTAssertTrue(
+            tail.first?.contains("truncated") == true,
+            "A truncated tail window must announce itself"
+        )
+        XCTAssertTrue(
+            tail.dropFirst().allSatisfy { $0.hasPrefix("line ") },
+            "No partial first line should survive truncation"
+        )
+        XCTAssertEqual(tail.last, "line \(lineCount - 1) \(padding)")
+    }
+
+    func testLogTailHandlesMissingFile() {
+        let tail = StuckKeyRecoveryService.logTail(path: "/nonexistent/keypath-test.log", maxLines: 50)
+        XCTAssertEqual(tail, ["(file not readable)"])
+    }
+
+    func testSystemLoadLinesSkipProcessListingInTests() async {
+        let lines = await StuckKeyRecoveryService.systemLoadLines()
+
+        XCTAssertTrue(
+            lines.first?.hasPrefix("loadavg_1m_5m_15m: ") == true,
+            "Load average should always be captured (libc call, safe in tests)"
+        )
+        XCTAssertTrue(lines.contains("top_cpu_processes:"))
+        XCTAssertTrue(
+            lines.contains("  (skipped in tests)"),
+            "Process listing must not shell out under tests"
         )
     }
 
