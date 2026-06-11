@@ -752,29 +752,11 @@ public enum PackRegistry {
         category: "Navigation",
         iconSymbol: "terminal",
         quickSettings: [],
-        // Bindings mirror the collection's 19 mappings 1:1 —
-        // testPackBindingsMatchCollectionMappings enforces the count.
-        bindings: [
-            PackBindingTemplate(input: "h", output: "left", title: "H → Left"),
-            PackBindingTemplate(input: "j", output: "down", title: "J → Down"),
-            PackBindingTemplate(input: "k", output: "up", title: "K → Up"),
-            PackBindingTemplate(input: "l", output: "right", title: "L → Right"),
-            PackBindingTemplate(input: "w", output: "A-right", title: "W → Word forward"),
-            PackBindingTemplate(input: "b", output: "A-left", title: "B → Word back"),
-            PackBindingTemplate(input: "e", output: "A-right", title: "E → End of word"),
-            PackBindingTemplate(input: "0", output: "M-left", title: "0 → Line start"),
-            PackBindingTemplate(input: "4", output: "M-right", title: "$ → Line end"),
-            PackBindingTemplate(input: "g", output: "M-up", title: "G → Document top/bottom"),
-            PackBindingTemplate(input: "/", output: "M-f", title: "/ → Find"),
-            PackBindingTemplate(input: "n", output: "M-g", title: "N → Next match"),
-            PackBindingTemplate(input: "y", output: "M-c", title: "Y → Yank (copy)"),
-            PackBindingTemplate(input: "p", output: "M-v", title: "P → Put (paste)"),
-            PackBindingTemplate(input: "x", output: "del", title: "X → Delete character"),
-            PackBindingTemplate(input: "r", output: "M-S-z", title: "R → Redo"),
-            PackBindingTemplate(input: "d", output: "A-bspc", title: "D → Delete previous word"),
-            PackBindingTemplate(input: "u", output: "M-z", title: "U → Undo"),
-            PackBindingTemplate(input: "o", output: "M-right ret", title: "O → Open line below"),
-        ],
+        // Intentionally empty: table-style packs (Vim Navigation, Mission
+        // Control, Numpad) leave bindings empty so Pack Detail renders the
+        // collection's mappings via MappingTableContent — the collection's
+        // 19 motions are the single source of truth.
+        bindings: [],
         associatedCollectionID: RuleCollectionIdentifier.neovimTerminal
     )
 
