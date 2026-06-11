@@ -277,6 +277,19 @@ public final class ConfigurationService: FileConfigurationProviding {
         ruleCollections: [RuleCollection],
         customRules: [CustomRule] = []
     ) async throws -> KanataConfiguration {
+        // Grandfather the cmd-actions policy against the on-disk config BEFORE
+        // generating: startup bootstrap regenerates (and saves) without any prior
+        // reload(), so the reload() hook alone would run too late — after the
+        // hand-written (cmd ...) config this migration must inspect was already
+        // overwritten. Generation below evaluates the policy via the
+        // allowCommandActions default, so the decision must be recorded first.
+        if !KanataCommandActionsPolicy.hasRecordedDecision(),
+           Foundation.FileManager().fileExists(atPath: configurationPath),
+           let existingContent = try? String(contentsOfFile: configurationPath, encoding: .utf8)
+        {
+            KanataCommandActionsPolicy.grandfatherIfNeeded(configContent: existingContent)
+        }
+
         // Custom rules come first so they take priority over preset collections
         let customRuleCollections = customRules.asRuleCollections()
         AppLogger.shared.log("🔧 [ConfigService] Converting \(customRules.count) custom rules to \(customRuleCollections.count) collections")

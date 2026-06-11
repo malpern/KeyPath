@@ -177,6 +177,12 @@ struct CommandActionsSettingsSection: View {
                 Text("Any (cmd ...) action in your config will execute as root. Only enable this if you hand-edited your config and trust every command in it.")
             }
         }
+        // The policy lives in UserDefaults (not an observable object), so re-read it
+        // whenever the section appears — grandfathering may have flipped it ON after
+        // this view's @State captured its initial snapshot.
+        .onAppear {
+            commandActionsEnabled = KanataCommandActionsPolicy.isEnabled()
+        }
     }
 
     private func applyChange(_ enabled: Bool) {
