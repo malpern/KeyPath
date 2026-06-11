@@ -325,4 +325,3 @@ final class AIConfigGenerationTests: XCTestCase {
         XCTAssertTrue(assertionTriggered)
     }
 }
-

@@ -163,5 +163,4 @@ public extension KanataDefcfg {
             allowCommandActions: allowCommandActions
         )
     }
-
 }
