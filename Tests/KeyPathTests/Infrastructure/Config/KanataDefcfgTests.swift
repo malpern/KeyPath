@@ -153,6 +153,19 @@ final class KanataDefcfgTests: XCTestCase {
         """)
     }
 
+    func testAiGeneratedProfileMatchesRepairFallbackByDesign() {
+        // The AI-generation header renders identically to repairFallback today; the
+        // separate name documents the call site. Update deliberately if they diverge.
+        XCTAssertEqual(
+            KanataDefcfg.aiGenerated(allowCommandActions: false),
+            KanataDefcfg.repairFallback(allowCommandActions: false)
+        )
+        XCTAssertEqual(
+            KanataDefcfg.aiGenerated(allowCommandActions: true),
+            KanataDefcfg.repairFallback(allowCommandActions: true)
+        )
+    }
+
     // MARK: - Call-site splice equivalence
 
     func testRepairFallbackSpliceMatchesLegacyString() {
