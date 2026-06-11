@@ -47,11 +47,7 @@ enum AppRestarter {
         AppLogger.shared.log("💾 [AppRestarter] Saved wizard state: \(wizardPage)")
 
         // Skip actual restart in test environment (UserDefaults save is what we test)
-        let env = ProcessInfo.processInfo.environment
-        if env["XCTestConfigurationFilePath"] != nil
-            || ProcessInfo.processInfo.processName.lowercased().contains("xctest")
-            || env["SWIFTPM_MODULECACHE_OVERRIDE"] != nil
-        {
+        if TestEnvironment.isRunningTests {
             AppLogger.shared.log("🧪 [AppRestarter] Test mode - skipping app restart")
             return
         }

@@ -18,45 +18,45 @@ public enum TestEnvironment {
     /// - `DYLD_LIBRARY_PATH` containing ".build" — leaks from any `swift run` shell
     /// - the generic `CI` env var — set by various tools/editors
     public static var isRunningTests: Bool {
-        // Check if a test bundle is actually loaded (not just XCTest classes existing).
-        // On macOS 26+, XCTestSupport.framework is loaded into all apps, making
-        // NSClassFromString("XCTestCase") unreliable for test detection.
-        if Bundle.allBundles.contains(where: { $0.bundlePath.hasSuffix(".xctest") }) {
-            return true
-        }
+        detectionSignals.contains(where: \.present)
+    }
 
-        // Set by the XCTest/Xcode harness only for actual test invocations
-        // (unlike __XCODE_BUILT_PRODUCTS_DIR_PATHS, which any Xcode run gets).
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-            || ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil
-        {
-            return true
-        }
+    /// Specific CI systems only, NOT the generic "CI" env var — that one is too
+    /// common (set by various tools, editors, etc.) and causes false positives
+    /// when inherited from a user's shell environment.
+    private static let ciIndicators = ["GITHUB_ACTIONS", "TRAVIS", "CIRCLE_CI", "JENKINS_URL"]
 
-        // Explicit project opt-in, exported by the test scripts
-        // (run-tests-safe.sh, test-lane.sh, run-installer-reliability-matrix.sh)
-        // and inherited by any subprocess they spawn.
-        if ProcessInfo.processInfo.environment["SWIFT_TEST"] != nil {
-            return true
-        }
-
-        // Check for test process names
+    /// The named signals behind `isRunningTests`, in evaluation order. Shared
+    /// with `logEnvironmentStatus()` and the detection regression tests so the
+    /// implementation, diagnostics, and tests cannot drift apart.
+    public static var detectionSignals: [(name: String, present: Bool)] {
+        let env = ProcessInfo.processInfo.environment
         let processName = ProcessInfo.processInfo.processName
-        if processName.contains("xctest") || processName.contains("KeyPathPackageTests")
-            || processName.contains("swift-test") || processName.contains("swiftpm-testing")
-        {
-            return true
-        }
-
-        // Check for CI environment variables - but only specific CI systems, NOT just "CI"
-        // The generic "CI" env var is too common (can be set by various tools, editors, etc.)
-        // and causes false positives when inherited from user's shell environment
-        let ciIndicators = ["GITHUB_ACTIONS", "TRAVIS", "CIRCLE_CI", "JENKINS_URL"]
-        for indicator in ciIndicators where ProcessInfo.processInfo.environment[indicator] != nil {
-            return true
-        }
-
-        return false
+        return [
+            // A test bundle is actually loaded (not just XCTest classes existing).
+            // On macOS 26+, XCTestSupport.framework is loaded into all apps, making
+            // NSClassFromString("XCTestCase") unreliable for test detection.
+            (
+                "xctest-bundle-loaded",
+                Bundle.allBundles.contains { $0.bundlePath.hasSuffix(".xctest") }
+            ),
+            // Set by the XCTest/Xcode harness only for actual test invocations
+            // (unlike __XCODE_BUILT_PRODUCTS_DIR_PATHS, which any Xcode run gets).
+            ("XCTestConfigurationFilePath", env["XCTestConfigurationFilePath"] != nil),
+            ("XCTestSessionIdentifier", env["XCTestSessionIdentifier"] != nil),
+            // Explicit project opt-in, exported by the test scripts
+            // (run-tests-safe.sh, test-lane.sh, run-installer-reliability-matrix.sh)
+            // and inherited by any subprocess they spawn.
+            ("SWIFT_TEST", env["SWIFT_TEST"] != nil),
+            // Test runner process names. swiftpm-testing-helper hosts Swift Testing
+            // (@Test) runs, which load no .xctest bundle.
+            (
+                "test-process-name",
+                processName.contains("xctest") || processName.contains("KeyPathPackageTests")
+                    || processName.contains("swift-test") || processName.contains("swiftpm-testing")
+            ),
+            ("ci-environment", ciIndicators.contains { env[$0] != nil })
+        ]
     }
 
     /// Allow tests to override admin operation skipping
@@ -174,18 +174,9 @@ public enum TestEnvironment {
         AppLogger.shared.log("🧪 [TestEnvironment] Process name: \(ProcessInfo.processInfo.processName)")
 
         if isRunningTests {
-            let xctestExists = NSClassFromString("XCTestCase") != nil
-            let swiftTestEnv = ProcessInfo.processInfo.environment["SWIFT_TEST"] != nil
-            let ciDetected = ["CI", "GITHUB_ACTIONS", "TRAVIS", "CIRCLE_CI", "JENKINS_URL"].contains {
-                ProcessInfo.processInfo.environment[$0] != nil
-            }
-            let testIndicators = [
-                "XCTest class exists: \(xctestExists)",
-                "SWIFT_TEST env: \(swiftTestEnv)",
-                "CI env detected: \(ciDetected)"
-            ]
+            let active = detectionSignals.filter(\.present).map(\.name)
             AppLogger.shared.log(
-                "🧪 [TestEnvironment] Test indicators: \(testIndicators.joined(separator: ", "))"
+                "🧪 [TestEnvironment] Active test signals: \(active.joined(separator: ", "))"
             )
         }
     }

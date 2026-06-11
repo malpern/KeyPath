@@ -34,22 +34,11 @@ final class TestEnvironmentDetectionTests: XCTestCase {
         // __XCODE_BUILT_PRODUCTS_DIR_PATHS, DYLD_LIBRARY_PATH containing
         // ".build"). A false positive redirects real user data into a purgeable
         // temp sandbox via AppPaths. This test verifies every real test run
-        // carries at least one strong in-process signal, so the leak-prone vars
-        // are never needed for detection.
-        let env = ProcessInfo.processInfo.environment
-        let processName = ProcessInfo.processInfo.processName
-        let strongSignals = [
-            Bundle.allBundles.contains { $0.bundlePath.hasSuffix(".xctest") },
-            env["XCTestConfigurationFilePath"] != nil,
-            env["XCTestSessionIdentifier"] != nil,
-            env["SWIFT_TEST"] != nil,
-            processName.contains("xctest"),
-            processName.contains("KeyPathPackageTests"),
-            processName.contains("swift-test"),
-            processName.contains("swiftpm-testing")
-        ]
+        // carries at least one strong signal besides the CI env vars, so the
+        // leak-prone vars are never needed for detection.
+        let strongSignals = TestEnvironment.detectionSignals.filter { $0.name != "ci-environment" }
         XCTAssertTrue(
-            strongSignals.contains(true),
+            strongSignals.contains(where: \.present),
             """
             No strong test signal present in this test run. If detection needs a \
             new signal for this runner, add an in-process or explicitly \
