@@ -10,8 +10,10 @@ import XCTest
 @MainActor
 final class AppPathsTestSandboxTests: XCTestCase {
     /// Remove the per-process sandbox so repeated local runs don't accumulate
-    /// artifacts in $TMPDIR. Safe even if other suites run afterwards: every
-    /// production writer creates its directory before writing.
+    /// artifacts in $TMPDIR. Safe because XCTest runs suites sequentially in a
+    /// process, so no other sandbox writer is live during tearDown, and any
+    /// suite that runs later recreates its directory before writing. Revisit
+    /// if in-process parallel suite execution is ever enabled.
     override class func tearDown() {
         try? FileManager.default.removeItem(at: AppPaths.testSandboxDirectory)
         super.tearDown()
