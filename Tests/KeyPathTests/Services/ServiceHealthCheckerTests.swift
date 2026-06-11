@@ -16,6 +16,11 @@ final class ServiceHealthCheckerTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         checker = await MainActor.run { ServiceHealthChecker.shared }
+        // The shared singleton's 2s-TTL health cache can carry entries from
+        // other suites in the same process (e.g. InstallerEngine tests that
+        // probed services against a different launch-daemons dir). Clear it
+        // so plist-existence checks here see this test's temp dir.
+        checker.invalidateHealthCache()
         originalSMFactory = KanataDaemonManager.smServiceFactory
         originalSudoEnv = ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"]
         originalAllowAdminOperationsInTests = TestEnvironment.allowAdminOperationsInTests
@@ -77,7 +82,10 @@ final class ServiceHealthCheckerTests: XCTestCase {
         FileManager.default.createFile(atPath: url.path, contents: Data(), attributes: nil)
     }
 
-    private func writeVHIDPlist(programPath: String, processType: String? = "Interactive") throws {
+    private func writeVHIDPlist(
+        programPath: String = PlistGenerator.vhidDaemonPath,
+        processType: String? = "Interactive"
+    ) throws {
         var dict: [String: Any] = [
             "ProgramArguments": [programPath]
         ]
@@ -262,9 +270,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
     }
 
     func testIsVHIDDaemonConfiguredCorrectlyReadsProgramArguments() throws {
-        let expectedPath =
-            "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
-        try writeVHIDPlist(programPath: expectedPath)
+        try writeVHIDPlist()
         XCTAssertTrue(checker.isVHIDDaemonConfiguredCorrectly())
     }
 
@@ -276,9 +282,42 @@ final class ServiceHealthCheckerTests: XCTestCase {
     /// Plists from before the MAL-57 starvation fix lack ProcessType=Interactive
     /// and must report misconfigured so repair rewrites them.
     func testIsVHIDDaemonConfiguredCorrectlyReturnsFalseWithoutProcessType() throws {
-        let expectedPath =
-            "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
-        try writeVHIDPlist(programPath: expectedPath, processType: nil)
+        try writeVHIDPlist(processType: nil)
         XCTAssertFalse(checker.isVHIDDaemonConfiguredCorrectly())
+    }
+
+    // MARK: - isVHIDDaemonPlistPresentButMisconfigured (proactive MAL-57 migration)
+
+    /// No plist at all is "services not installed", not "misconfigured" —
+    /// that case is owned by service health, not the plist-content check.
+    func testVHIDPlistMisconfiguredReturnsFalseWhenPlistMissing() {
+        XCTAssertFalse(checker.isVHIDDaemonPlistPresentButMisconfigured())
+    }
+
+    func testVHIDPlistMisconfiguredReturnsFalseForCorrectPlist() throws {
+        try writeVHIDPlist()
+        XCTAssertFalse(checker.isVHIDDaemonPlistPresentButMisconfigured())
+    }
+
+    /// A pre-MAL-57 plist (exists, correct path, no ProcessType=Interactive)
+    /// must report misconfigured so existing installs migrate via repair.
+    func testVHIDPlistMisconfiguredReturnsTrueWithoutProcessType() throws {
+        try writeVHIDPlist(processType: nil)
+        XCTAssertTrue(checker.isVHIDDaemonPlistPresentButMisconfigured())
+    }
+
+    func testVHIDPlistMisconfiguredReturnsTrueForWrongProgramPath() throws {
+        try writeVHIDPlist(programPath: "/wrong/path")
+        XCTAssertTrue(checker.isVHIDDaemonPlistPresentButMisconfigured())
+    }
+
+    /// A present-but-unparseable plist is misconfigured (repair rewrites it),
+    /// not "missing" — only true absence is owned by service health.
+    func testVHIDPlistMisconfiguredReturnsTrueForCorruptPlist() throws {
+        let url = tempLaunchDaemonsDir.appendingPathComponent(
+            "\(ServiceHealthChecker.vhidDaemonServiceID).plist"
+        )
+        try Data("not a plist".utf8).write(to: url)
+        XCTAssertTrue(checker.isVHIDDaemonPlistPresentButMisconfigured())
     }
 }

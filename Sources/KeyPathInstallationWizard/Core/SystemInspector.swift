@@ -256,6 +256,24 @@ public enum SystemInspector {
                 userAction: nil
             ))
         }
+        // Gated on healthy services: when they're down, the issue above
+        // already carries the same fix and the rewrite happens anyway.
+        // Severity .warning, not .error: the daemon still works day-to-day,
+        // so this must nudge toward a one-click migration without flipping
+        // the whole app to a failed state (MainAppStateController counts
+        // .error issues as blocking). Wizard routing and the fix button are
+        // identifier-based and severity-agnostic, so the repair path is intact.
+        if context.components.vhidDaemonPlistMisconfigured, context.components.vhidServicesHealthy {
+            issues.append(WizardIssue(
+                identifier: .component(.vhidDaemonMisconfigured),
+                severity: .warning,
+                category: .installation,
+                title: "VHID Daemon Configuration Outdated",
+                description: "The Karabiner VirtualHID daemon service uses an outdated configuration that can cause stuck or repeating keys under heavy CPU load. Repair reinstalls the service with the corrected settings.",
+                autoFixAction: .installRequiredRuntimeServices,
+                userAction: nil
+            ))
+        }
     }
 
     // MARK: - Conflict Issues

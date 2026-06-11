@@ -183,6 +183,11 @@ public struct ComponentStatus: Sendable {
     /// VHID services health (daemon + manager) independent of Kanata service
     /// Use for Karabiner Components page which should only care about VHID, not Kanata
     public let vhidServicesHealthy: Bool
+    /// True when the installed VHID daemon plist exists but predates the
+    /// MAL-57 fix (wrong program path or missing ProcessType=Interactive).
+    /// The daemon may be running fine, but it is vulnerable to starvation
+    /// under CPU load and the plist should be rewritten via repair.
+    public let vhidDaemonPlistMisconfigured: Bool
     public let vhidVersionMismatch: Bool
 
     public init(
@@ -192,6 +197,7 @@ public struct ComponentStatus: Sendable {
         vhidDeviceInstalled: Bool,
         vhidDeviceHealthy: Bool,
         vhidServicesHealthy: Bool,
+        vhidDaemonPlistMisconfigured: Bool = false,
         vhidVersionMismatch: Bool
     ) {
         self.kanataBinaryInstalled = kanataBinaryInstalled
@@ -200,13 +206,25 @@ public struct ComponentStatus: Sendable {
         self.vhidDeviceInstalled = vhidDeviceInstalled
         self.vhidDeviceHealthy = vhidDeviceHealthy
         self.vhidServicesHealthy = vhidServicesHealthy
+        self.vhidDaemonPlistMisconfigured = vhidDaemonPlistMisconfigured
         self.vhidVersionMismatch = vhidVersionMismatch
     }
 
     /// Required components for the normal split-runtime architecture.
+    /// Deliberately excludes `vhidDaemonPlistMisconfigured`: a stale plist
+    /// still runs day-to-day, so it surfaces as a repairable wizard issue
+    /// rather than a missing component that would fail readiness app-wide.
     public var hasAllRequired: Bool {
         kanataBinaryInstalled && karabinerDriverInstalled && karabinerDaemonRunning && vhidDeviceHealthy
             && vhidServicesHealthy && !vhidVersionMismatch
+    }
+
+    /// The VHID runtime services need (re)installation: either they are
+    /// unhealthy, or the installed daemon plist predates the MAL-57 fix and
+    /// must be rewritten. Single source for the installRequiredRuntimeServices
+    /// trigger so repair and install plans cannot drift apart.
+    public var vhidRuntimeServicesNeedRepair: Bool {
+        !vhidServicesHealthy || vhidDaemonPlistMisconfigured
     }
 
     /// Convenience factory for empty/fallback state
