@@ -126,16 +126,18 @@ final class PerOptionMatrixTests: XCTestCase {
         try await assertKanataValid(config, "HRL Toggles toggle + companion layers")
     }
 
-    /// Documents the integration finding from the release-readiness push: enabling
-    /// HRL Toggles in toggle mode *alone* produces a config that kanata rejects
-    /// because the referenced layers (`fun`, `sym`, `num`) are not declared in
-    /// any `deflayer` block when their owning families (Function, Symbol,
-    /// Numpad) are disabled. Either the catalog should auto-enable companions,
-    /// the UI should require them, or the generator should emit empty stub
-    /// deflayers. Until that's resolved, this test asserts the current
-    /// behavior so it surfaces in CI if anything changes.
+    /// Locks in the post-#871 safety-net behavior: enabling HRL Toggles in
+    /// toggle mode *alone* (Function/Symbol/Numpad disabled) emits
+    /// `(layer-toggle fun)`, `(layer-toggle sym)`, `(layer-toggle num)`
+    /// actions AND matching stub `(deflayer ...)` blocks so kanata accepts
+    /// the config. The orphan home-row keys silently no-op rather than
+    /// failing the whole config. See StubDeflayerSafetyNetTests for the
+    /// focused unit coverage.
+    ///
+    /// The proper UX (configure-time prompt to enable the supporting layer
+    /// families) is queued as the next-sprint epic in #865.
     @MainActor
-    func testHRLToggles_ToggleMode_WithoutCompanionLayers_Documented() throws {
+    func testHRLToggles_ToggleMode_WithoutCompanionLayers_SafetyNetCovers() async throws {
         let config = MatrixTestHelpers.enabledCollectionConfig(RuleCollectionIdentifier.homeRowLayerToggles) { coll in
             if case var .homeRowLayerToggles(cfg) = coll.configuration {
                 cfg.toggleMode = .toggle
@@ -144,37 +146,13 @@ final class PerOptionMatrixTests: XCTestCase {
         }
 
         XCTAssertTrue(
-            config.contains("layer-toggle"),
-            "HRL Toggles in toggle mode should emit layer-toggle actions"
+            config.contains("(layer-toggle "),
+            "HRL Toggles toggle mode should emit (layer-toggle ...) actions"
         )
-
-        // Current behavior: kanata rejects this config. If a future change
-        // makes it valid (auto-enabling companions, stub deflayers, etc.),
-        // this test starts passing the kanata-valid check, which is the
-        // signal to revisit the limitation note in RELEASE-READINESS.md.
-        guard let binary = findKanataBinary() else {
-            throw XCTSkip("Kanata binary not found — skipping CLI validation")
-        }
-
-        let tempFile = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kanata-test-\(UUID().uuidString).kbd")
-        try config.write(to: tempFile, atomically: true, encoding: .utf8)
-        defer { try? FileManager.default.removeItem(at: tempFile) }
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: binary)
-        process.arguments = ["--cfg", tempFile.path, "--check"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-        try process.run()
-        process.waitUntilExit()
-
-        XCTAssertNotEqual(
-            process.terminationStatus, 0,
-            "Expected kanata to reject HRL Toggles toggle-mode without companion layers. " +
-                "If this test starts failing, the catalog integration was fixed — revisit the limitation note."
-        )
+        XCTAssertTrue(config.contains("(deflayer fun"), "Safety net should emit stub (deflayer fun ...)")
+        XCTAssertTrue(config.contains("(deflayer sym"), "Safety net should emit stub (deflayer sym ...)")
+        XCTAssertTrue(config.contains("(deflayer num"), "Safety net should emit stub (deflayer num ...)")
+        try await assertKanataValid(config, "HRL Toggles toggle + safety-net stubs")
     }
 
     @MainActor
