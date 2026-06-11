@@ -122,14 +122,42 @@ process key reports.
   sent after ready transition` fired on every recovery; keyboard re-grabbed
   ~3s after the daemon became reachable (including kanata's deliberate 1s
   settle delay).
-- **Layer 3 (open, kanata fork — malpern/kanata#27):** never silently drop a
-  Release. `drop_if_sink_disconnected` treats all events equally; dropped
-  Releases are the toxic case and should be remembered and replayed after
-  reconnect (`output_pressed_since` tracking already exists).
+- **Layer 3 (done, kanata fork — malpern/kanata#28, bundled via #898):** the
+  original "replay dropped Releases" framing turned out to be covered already
+  (a dropped Release stays in `output_pressed_since`; recovery's
+  `release_tracked_output_keys` re-sends it, and Layer 2's reset clears the
+  device). The real residual was **report-set divergence in the C wrapper**:
+  `send_key` returned unready *before* the per-usage-page template mutated the
+  full-state key set, so a dropped Release left a stale key that the next
+  report re-pressed — indefinitely, since the Rust side believed it released.
+  Fixed by moving the readiness check after the set mutation: dropped events
+  still update intent, only the post is skipped, and the next successful
+  report converges.
+
+  Telemetry shipped alongside: all VHID client connection lines are
+  timestamped (`vhid-client:` prefix), and the previously silent
+  heartbeat-deadline reconnect path logs a stamped reason. Incident capture
+  (`StuckKeyRecoveryService`, #897) now snapshots the kanata *stdout* tail
+  (where the diagnostic evidence lives), loadavg/core count, and top CPU
+  consumers; the detector's GUI-only limitation is documented in the class.
 
 Residual gap no fix can fully close: a release written into a socket that is
 dying but not yet declared dead is unrecoverable in transit; Layer 2 bounds the
-damage to the reconnect latency.
+damage to the reconnect latency, and after Layer 3 the next successful report
+self-corrects all state.
+
+### Verification metric
+
+Pre-fix baseline (engine log lifetime through 2026-06-10): 50 occurrences of
+`output backend unavailable during write`, ~2,450 silent reconnects. After a
+few days of heavy multi-agent build load, compare:
+
+```bash
+grep -c 'output backend unavailable during write' /var/log/com.keypath.kanata.stdout.log
+grep -c 'heartbeat deadline exceeded' /var/log/com.keypath.kanata.stdout.log
+```
+
+If rates are near zero under load, MAL-57 can be closed.
 
 ## Problem Statement
 
