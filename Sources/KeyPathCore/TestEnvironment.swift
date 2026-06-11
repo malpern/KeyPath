@@ -3,6 +3,20 @@ import Foundation
 /// Utility for detecting test environment and controlling system operations during testing
 public enum TestEnvironment {
     /// Check if code is running in test environment
+    ///
+    /// A false positive here is destructive, not just cosmetic: AppPaths redirects
+    /// real user data (~/Library/Logs/KeyPath, ~/Library/Application Support/KeyPath)
+    /// into a purgeable temp sandbox, and ActivityLogEncryption switches Keychain
+    /// keys. Every signal below must therefore be either in-process proof of a test
+    /// run or an explicit test-only opt-in — never an env var that can leak from a
+    /// developer's shell into a real KeyPath.app/keypath-cli launch. Signals
+    /// rejected for exactly that reason:
+    /// - `KEYPATH_USE_SUDO=1` — a dev-workflow flag for *real* app runs (see
+    ///   useSudoForPrivilegedOps); it proves nothing about tests
+    /// - `__XCODE_BUILT_PRODUCTS_DIR_PATHS` — Xcode sets it for any scheme run,
+    ///   including launching the real app
+    /// - `DYLD_LIBRARY_PATH` containing ".build" — leaks from any `swift run` shell
+    /// - the generic `CI` env var — set by various tools/editors
     public static var isRunningTests: Bool {
         // Check if a test bundle is actually loaded (not just XCTest classes existing).
         // On macOS 26+, XCTestSupport.framework is loaded into all apps, making
@@ -11,14 +25,18 @@ public enum TestEnvironment {
             return true
         }
 
-        // Check for Swift test runner env var
-        if ProcessInfo.processInfo.environment["SWIFT_TEST"] != nil {
+        // Set by the XCTest/Xcode harness only for actual test invocations
+        // (unlike __XCODE_BUILT_PRODUCTS_DIR_PATHS, which any Xcode run gets).
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil
+        {
             return true
         }
 
-        // Check for KEYPATH_USE_SUDO - if set, we're definitely in test mode
-        // This is the explicit test environment flag
-        if ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"] == "1" {
+        // Explicit project opt-in, exported by the test scripts
+        // (run-tests-safe.sh, test-lane.sh, run-installer-reliability-matrix.sh)
+        // and inherited by any subprocess they spawn.
+        if ProcessInfo.processInfo.environment["SWIFT_TEST"] != nil {
             return true
         }
 
@@ -26,14 +44,6 @@ public enum TestEnvironment {
         let processName = ProcessInfo.processInfo.processName
         if processName.contains("xctest") || processName.contains("KeyPathPackageTests")
             || processName.contains("swift-test") || processName.contains("swiftpm-testing")
-        {
-            return true
-        }
-
-        // Check if running in swift-testing worker process
-        // Swift Testing uses worker processes with specific environment
-        if ProcessInfo.processInfo.environment["__XCODE_BUILT_PRODUCTS_DIR_PATHS"] != nil
-            || ProcessInfo.processInfo.environment["DYLD_LIBRARY_PATH"]?.contains(".build") == true
         {
             return true
         }
