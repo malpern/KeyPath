@@ -61,6 +61,30 @@ final class KanataConfigGeneratorCanonicalizationTests: XCTestCase {
         XCTAssertTrue(stripped.contains("(deflayer base esc)"))
     }
 
+    func testParensInsideQuotedStringsDoNotAffectBlockBoundaries() {
+        // A lone paren inside a quoted device name must not terminate the block
+        // early (leaving header fragments like danger-enable-cmd behind) or
+        // extend it past its real close.
+        let loneClose = """
+        (defcfg
+          macos-dev-names-exclude (
+            "weird)name"
+          )
+          danger-enable-cmd yes
+        )
+        (defsrc caps)
+        """
+        let strippedClose = KanataConfigGenerator.removingDefcfgBlocks(from: loneClose)
+        XCTAssertFalse(strippedClose.contains("danger-enable-cmd"))
+        XCTAssertFalse(strippedClose.contains("defcfg"))
+        XCTAssertTrue(strippedClose.contains("(defsrc caps)"))
+
+        let balancedInString = "(defcfg macos-dev-names-include (\"Keyboard (v2)\"))\n(defsrc a)"
+        let strippedBalanced = KanataConfigGenerator.removingDefcfgBlocks(from: balancedInString)
+        XCTAssertFalse(strippedBalanced.contains("defcfg"))
+        XCTAssertTrue(strippedBalanced.contains("(defsrc a)"))
+    }
+
     func testLeavesConfigWithoutDefcfgUntouched() {
         let body = "(defsrc caps)\n(deflayer base esc)"
         XCTAssertEqual(KanataConfigGenerator.removingDefcfgBlocks(from: body), body)

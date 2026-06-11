@@ -123,19 +123,26 @@ public class KanataConfigGenerator {
 
     /// Remove every balanced `(defcfg ... )` block from `config`, tracking paren
     /// depth so nested lists inside the block (e.g. device targeting) are consumed.
+    /// Parens inside double-quoted strings (e.g. a device name like "Keyboard (v2)")
+    /// don't count toward the depth, so a lone paren in a quoted value can't
+    /// terminate the block early and leave header fragments behind.
     static func removingDefcfgBlocks(from config: String) -> String {
         var result = ""
         var remainder = Substring(config)
         while let start = remainder.range(of: "(defcfg") {
             result += remainder[..<start.lowerBound]
             var depth = 0
+            var inString = false
             var index = start.lowerBound
             while index < remainder.endIndex {
                 let char = remainder[index]
-                if char == "(" { depth += 1 }
-                if char == ")" {
-                    depth -= 1
-                    if depth == 0 { break }
+                if char == "\"" { inString.toggle() }
+                if !inString {
+                    if char == "(" { depth += 1 }
+                    if char == ")" {
+                        depth -= 1
+                        if depth == 0 { break }
+                    }
                 }
                 index = remainder.index(after: index)
             }
