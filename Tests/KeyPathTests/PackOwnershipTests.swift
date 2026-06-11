@@ -202,4 +202,25 @@ final class PackOwnershipTests: XCTestCase {
             // expected
         }
     }
+
+    // MARK: - Rules-tab coverage (no orange boxes)
+
+    /// Every catalog collection the Rules tab renders as its own row
+    /// (not a system default, not hidden behind an owningPackID) must have
+    /// an associated pack in the starter kit. Rows without one render with
+    /// the orange "no detail page" border in RulesSummaryView+RowBuilder —
+    /// Neovim Terminal and Sequences shipped that way until their packs
+    /// were added for 1.0. This pins the invariant.
+    func testEveryRenderedCatalogCollectionHasAnAssociatedPack() {
+        let packCoveredIDs = Set(PackRegistry.starterKit.compactMap(\.associatedCollectionID))
+        let uncovered = RuleCollectionCatalog().defaultCollections().filter { collection in
+            !collection.isSystemDefault
+                && collection.owningPackID == nil
+                && !packCoveredIDs.contains(collection.id)
+        }
+        XCTAssertTrue(
+            uncovered.isEmpty,
+            "Collections rendered without a pack detail page (orange box): \(uncovered.map(\.name))"
+        )
+    }
 }
