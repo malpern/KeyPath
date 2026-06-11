@@ -33,8 +33,12 @@ public enum AppPaths {
         logsDirectory.appendingPathComponent("crashes.log")
     }
 
+    /// Cached: isRunningTests scans Bundle.allBundles on every call and its
+    /// result cannot change within a process.
+    private static let isSandboxed = TestEnvironment.isRunningTests
+
     private static func userDirectory(_ relativePath: String) -> URL {
-        let root = TestEnvironment.isRunningTests
+        let root = isSandboxed
             ? testSandboxDirectory
             : FileManager.default.homeDirectoryForCurrentUser
         return root.appendingPathComponent(relativePath, isDirectory: true)
