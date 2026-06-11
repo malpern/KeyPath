@@ -38,11 +38,6 @@ struct ExperimentalSettingsSection: View {
                     ScriptExecutionSettingsSection()
                 }
 
-                // Config Command Actions Section
-                SettingsCard {
-                    CommandActionsSettingsSection()
-                }
-
                 // AI Config Section
                 SettingsCard {
                     VStack(alignment: .leading, spacing: 12) {

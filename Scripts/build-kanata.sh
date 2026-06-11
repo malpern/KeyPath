@@ -119,10 +119,17 @@ rustup target add x86_64-apple-darwin >/dev/null 2>&1 || true
 # Build for ARM64 (Apple Silicon)
 echo "🔨 Building for ARM64 (Apple Silicon)..."
 cd "$KANATA_SOURCE"
+# NOTE: the `cmd` feature is intentionally omitted (issue #879). KeyPath actions
+# are all push-msg/TCP dispatched in-app; nothing uses kanata's in-engine `(cmd …)`.
+# Compiling it out removes the capability — not just a config flag — so a
+# user-writable config can no longer make the root daemon spawn arbitrary
+# processes. Configs that merely carry `danger-enable-cmd yes` still load (the
+# defcfg flag parses and is ignored); only actual `(cmd …)` actions fail at parse
+# with a clear "cmd is not enabled for this executable" message.
 MACOSX_DEPLOYMENT_TARGET=11.0 \
 cargo build \
     --release \
-    --features cmd,tcp_server \
+    --features tcp_server \
     --target aarch64-apple-darwin
 
 # Return to project root
