@@ -3,6 +3,7 @@ layout: default
 title: "Running Scripts"
 description: "Trigger shell scripts, AppleScript, Python, and more from your keyboard"
 theme: parchment
+header_image: header-script-execution.png
 permalink: /guides/script-execution/
 ---
 

@@ -3,6 +3,7 @@ layout: default
 title: "Custom Keyboards (QMK)"
 description: "Import your QMK keyboard layout so KeyPath's overlay matches your physical keyboard"
 theme: parchment
+header_image: header-qmk-import.png
 permalink: /guides/qmk-import/
 ---
 
