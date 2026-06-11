@@ -873,7 +873,12 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         return Foundation.FileManager().fileExists(atPath: plistPath)
     }
 
-    /// Verifies that the installed VHID LaunchDaemon plist points to the DriverKit daemon path.
+    /// Verifies that the installed VHID LaunchDaemon plist points to the DriverKit daemon path
+    /// and carries the required ProcessType=Interactive key.
+    ///
+    /// ProcessType=Interactive keeps the daemon from being starved under CPU
+    /// load (MAL-57 stuck-key autorepeat). A plist without it predates the fix
+    /// and should be treated as misconfigured so repair rewrites it.
     ///
     /// - Returns: `true` if the plist is correctly configured
     public func isVHIDDaemonConfiguredCorrectly() -> Bool {
@@ -889,11 +894,12 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
 
         if let args = dict["ProgramArguments"] as? [String], let first = args.first {
-            let ok = first == expectedPath
+            let pathOK = first == expectedPath
+            let processTypeOK = (dict["ProcessType"] as? String) == "Interactive"
             AppLogger.shared.log(
-                "🔍 [ServiceHealthChecker] VHID plist ProgramArguments[0]=\(first) | expected=\(expectedPath) | ok=\(ok)"
+                "🔍 [ServiceHealthChecker] VHID plist ProgramArguments[0]=\(first) | pathOK=\(pathOK) | processTypeOK=\(processTypeOK)"
             )
-            return ok
+            return pathOK && processTypeOK
         }
         AppLogger.shared.log(
             "🔍 [ServiceHealthChecker] VHID plist ProgramArguments missing or malformed"
