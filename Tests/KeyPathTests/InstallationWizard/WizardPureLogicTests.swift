@@ -190,6 +190,64 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertEqual(serviceIssue?.autoFixAction, .installRequiredRuntimeServices)
     }
 
+    /// A pre-MAL-57 plist (missing ProcessType=Interactive) on an otherwise
+    /// healthy system must surface proactively with a one-click repair —
+    /// old installs never migrate otherwise.
+    func test_inspect_vhidDaemonPlistMisconfigured_producesMisconfiguredIssueWithAutoFix() {
+        let components = ComponentStatus(
+            kanataBinaryInstalled: true,
+            karabinerDriverInstalled: true,
+            karabinerDaemonRunning: true,
+            vhidDeviceInstalled: true,
+            vhidDeviceHealthy: true,
+            vhidServicesHealthy: true,
+            vhidDaemonPlistMisconfigured: true,
+            vhidVersionMismatch: false
+        )
+        let context = makeContext(components: components)
+        let (state, issues) = SystemInspector.inspect(context: context)
+
+        let issue = issues.first { $0.identifier == .component(.vhidDaemonMisconfigured) }
+        XCTAssertNotNil(issue, "Stale VHID daemon plist should generate a misconfigured issue")
+        XCTAssertEqual(issue?.category, .installation, "Must be .installation so the router sends it to the Karabiner components page")
+        XCTAssertEqual(
+            issue?.severity, .warning,
+            "Daemon still works — warning nudges migration without flipping the app to a failed state"
+        )
+        XCTAssertEqual(issue?.autoFixAction, .installRequiredRuntimeServices)
+
+        // The daemon is still running — state stays .active; the issue alone
+        // drives routing and the components-page repair button.
+        XCTAssertEqual(state, .active)
+    }
+
+    /// When the VHID services are already down, the unhealthy-services issue
+    /// carries the same fix — don't double-alarm for one root cause.
+    func test_inspect_vhidDaemonPlistMisconfiguredAndServicesUnhealthy_emitsSingleIssue() {
+        let components = ComponentStatus(
+            kanataBinaryInstalled: true,
+            karabinerDriverInstalled: true,
+            karabinerDaemonRunning: true,
+            vhidDeviceInstalled: true,
+            vhidDeviceHealthy: true,
+            vhidServicesHealthy: false,
+            vhidDaemonPlistMisconfigured: true,
+            vhidVersionMismatch: false
+        )
+        let context = makeContext(components: components)
+        let (_, issues) = SystemInspector.inspect(context: context)
+
+        XCTAssertNil(
+            issues.first { $0.identifier == .component(.vhidDaemonMisconfigured) },
+            "Misconfigured-plist issue is suppressed while services are unhealthy"
+        )
+        let serviceIssue = issues.first { $0.identifier == .component(.vhidDeviceManager) }
+        XCTAssertEqual(
+            serviceIssue?.autoFixAction, .installRequiredRuntimeServices,
+            "The unhealthy-services issue carries the same repair"
+        )
+    }
+
     func test_inspect_multipleIssues_allReported() {
         let components = ComponentStatus(
             kanataBinaryInstalled: true,
@@ -1025,7 +1083,41 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertTrue(actions.contains(.installRequiredRuntimeServices))
     }
 
+    func test_determineRepairActions_vhidDaemonPlistMisconfigured_includesInstallRuntimeServices() {
+        let components = ComponentStatus(
+            kanataBinaryInstalled: true,
+            karabinerDriverInstalled: true,
+            karabinerDaemonRunning: true,
+            vhidDeviceInstalled: true,
+            vhidDeviceHealthy: true,
+            vhidServicesHealthy: true,
+            vhidDaemonPlistMisconfigured: true,
+            vhidVersionMismatch: false
+        )
+        let context = makeContext(components: components)
+        let actions = ActionDeterminer.determineRepairActions(context: context)
+        XCTAssertTrue(actions.contains(.installRequiredRuntimeServices),
+                      "Stale VHID daemon plist needs the runtime-services rewrite even when the daemon is healthy")
+    }
+
     // MARK: - ActionDeterminer: Install Actions
+
+    func test_determineInstallActions_vhidDaemonPlistMisconfigured_includesInstallRuntimeServices() {
+        let components = ComponentStatus(
+            kanataBinaryInstalled: true,
+            karabinerDriverInstalled: true,
+            karabinerDaemonRunning: true,
+            vhidDeviceInstalled: true,
+            vhidDeviceHealthy: true,
+            vhidServicesHealthy: true,
+            vhidDaemonPlistMisconfigured: true,
+            vhidVersionMismatch: false
+        )
+        let context = makeContext(components: components)
+        let actions = ActionDeterminer.determineInstallActions(context: context)
+        XCTAssertTrue(actions.contains(.installRequiredRuntimeServices),
+                      "Install plans share the vhidRuntimeServicesNeedRepair trigger with repair plans")
+    }
 
     func test_determineInstallActions_allHealthy_returnsEmpty() {
         let context = makeContext()
