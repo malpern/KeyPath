@@ -23,15 +23,40 @@ require_file() {
   fi
 }
 
+# Restore the user's config and VERIFY the restore actually round-tripped.
+# A restore failure or manifest mismatch escalates to a non-zero exit even if
+# the test assertions passed — a damaged user config must never hide behind a
+# PASS (that is exactly how #881 went unnoticed on its first run).
 smoke_cleanup() {
   local status=$?
   if [[ -n "$BACKUP_PATH" ]]; then
-    "$CLI" config restore --json --quiet "$BACKUP_PATH" --reload >/dev/null || {
-      echo "warning: failed to restore KeyPath config from $BACKUP_PATH" >&2
-    }
+    if ! "$CLI" config restore --json --quiet "$BACKUP_PATH" --reload >/dev/null; then
+      echo "ERROR: failed to restore KeyPath config from $BACKUP_PATH" >&2
+      echo "ERROR: your config may be modified — inspect $CONFIG_DIR against $BACKUP_PATH" >&2
+      status=70
+    elif ! verify_restore_manifest; then
+      status=70
+    fi
   fi
-  [[ -n "$TMP_DIR" ]] && rm -rf "$TMP_DIR"
+  if [[ "$status" -eq 0 && -n "$TMP_DIR" ]]; then
+    rm -rf "$TMP_DIR"
+  elif [[ -n "$TMP_DIR" ]]; then
+    echo "note: leaving $TMP_DIR in place for forensics (contains the config backup)" >&2
+  fi
   exit "$status"
+}
+
+# Every item in the backup must exist in the live config dir after restore.
+verify_restore_manifest() {
+  local missing=0 name
+  while IFS= read -r name; do
+    [[ -z "$name" ]] && continue
+    if [[ ! -e "$CONFIG_DIR/$name" ]]; then
+      echo "ERROR: restore manifest mismatch — '$name' in backup but missing from $CONFIG_DIR" >&2
+      missing=1
+    fi
+  done < <(/bin/ls -A "$BACKUP_PATH" 2>/dev/null)
+  return "$missing"
 }
 
 smoke_init() {

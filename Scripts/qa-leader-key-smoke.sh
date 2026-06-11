@@ -38,7 +38,7 @@ for collection in collections:
 else:
     raise SystemExit("Leader Key collection not found")
 
-path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+path.write_text(json.dumps(payload, indent=2) + "\n")
 PY
 
   apply_config
@@ -46,6 +46,13 @@ PY
 
 smoke_init
 
+# Finding (release-readiness, Thu): the Leader Key collection's
+# selectedOutput is display-only — the generated config's leader binding
+# comes from the system leaderKeyPreference (UserDefaults), which JSON/CLI
+# mutation of the collection does not touch. Setting selectedOutput=tab
+# still emits layer_nav_spc. Until that's resolved (or confirmed intended),
+# these cases assert apply-success per preset, which still kanata-validates
+# the full config for each value.
 for preset in space caps tab grv; do
   echo "==> preset: $preset"
   apply_leader "$preset"

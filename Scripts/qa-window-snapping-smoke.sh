@@ -31,7 +31,7 @@ for collection in collections:
 else:
     raise SystemExit("Window Snapping collection not found")
 
-path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+path.write_text(json.dumps(payload, indent=2) + "\n")
 PY
 
   apply_config

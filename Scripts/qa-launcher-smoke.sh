@@ -37,7 +37,7 @@ for collection in collections:
 else:
     raise SystemExit("Quick Launcher collection not found")
 
-path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+path.write_text(json.dumps(payload, indent=2) + "\n")
 PY
 
   apply_config
@@ -50,15 +50,23 @@ apply_launcher "holdHyper" "hold"
 config="$(show_config)"
 assert_contains "$config" "act_launcher_" "holdHyper+hold config emits launcher action aliases"
 assert_contains "$config" "(layer-while-held launcher)" "holdHyper+hold activates launcher while held"
+assert_not_contains "$config" "one-shot-press 5000 (layer-while-held launcher)" "hold mode does not wrap activation in a one-shot"
 
 echo "==> case 2: holdHyper + tap"
 apply_launcher "holdHyper" "tap"
 config="$(show_config)"
 assert_contains "$config" "act_launcher_" "holdHyper+tap config emits launcher action aliases"
+# Tap mode wraps the launcher activation in a one-shot so a tap toggles the
+# layer until the next key, instead of requiring a continuous hold.
+assert_contains "$config" "one-shot-press 5000 (layer-while-held launcher)" "tap mode wraps activation in a one-shot"
 
 echo "==> case 3: leaderSequence"
 apply_launcher "leaderSequence" "hold"
 config="$(show_config)"
 assert_contains "$config" "act_launcher_" "leaderSequence config emits launcher action aliases"
+# Finding (release-readiness, Thu): activationMode=leaderSequence currently
+# generates a config byte-identical to holdHyper+hold — the Hyper hold path
+# stays active. Whether that's intended (both routes coexist) is a design
+# review question; until resolved this case asserts apply-success only.
 
 echo "Quick Launcher smoke passed. Restoring original KeyPath config."

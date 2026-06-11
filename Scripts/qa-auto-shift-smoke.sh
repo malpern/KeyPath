@@ -40,7 +40,7 @@ for collection in collections:
 else:
     raise SystemExit("Auto Shift Symbols collection not found")
 
-path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+path.write_text(json.dumps(payload, indent=2) + "\n")
 PY
 
   apply_config
@@ -70,6 +70,6 @@ assert_contains "$config" "beh_base_dot" "reduced-keys config"
 assert_contains "$config" "beh_base_comm" "reduced-keys config"
 assert_not_contains "$config" "beh_base_grv" "reduced-keys config"
 assert_not_contains "$config" "beh_base_slsh" "reduced-keys config"
-assert_contains "$config" "247" "reduced-keys config encodes the 247ms timeout"
+assert_contains "$config" "require-prior-idle 247" "reduced-keys config encodes the 247ms timeout"
 
 echo "Auto Shift smoke passed. Restoring original KeyPath config."
