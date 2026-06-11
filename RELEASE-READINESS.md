@@ -2,7 +2,7 @@
 
 **Target ship date:** Saturday 2026-06-13
 **Started:** Tuesday 2026-06-09
-**Days remaining:** 5
+**Last updated:** Thursday 2026-06-11 (evening)
 
 Working doc for the pre-1.0 verification push. Keep open all week.
 
@@ -21,7 +21,7 @@ Two new product findings from this morning's deeper assertions, queued for desig
 | 3 | Release-blocker findings fixed + live-verified | ✅ closed | Wed | — |
 | 4 | 6 family smoke scripts pass on installed app | ✅ closed — [#880](https://github.com/malpern/KeyPath/pull/880)+[#884](https://github.com/malpern/KeyPath/pull/884) merged, [#881](https://github.com/malpern/KeyPath/issues/881) fixed & live-verified | Thu AM | — |
 | 5 | Design review pass across catalog | ✅ closed — findings triaged; [#888](https://github.com/malpern/KeyPath/issues/888) (post-1.0 backlog), [#889](https://github.com/malpern/KeyPath/issues/889) (Fri must-fix candidate) | Thu | — |
-| 6 | Findings triage → must-fix list closed | ⬜ open | Fri | ≤8 (capped) |
+| 6 | Findings triage → must-fix list closed | ✅ closed early — must-fix list **EMPTY** (see Gate 6 section below) | Thu PM | — |
 | 7 | RC built, signed, notarized, smoke-verified | ⬜ open | Sat | ~3 |
 | 8 | Release notes incl. known limitations | ⬜ draft | Fri/Sat | ~1 |
 | 9 | **Docs complete** — in-app detail pages ✅ ([#893](https://github.com/malpern/KeyPath/pull/893) merged); 12 illustrations ✅ ([#894](https://github.com/malpern/KeyPath/pull/894) in CI); remaining: screenshot check + gh-pages publish (Sat flow) | 🟡 nearly closed | Fri | ~1 |
@@ -33,7 +33,7 @@ Two new product findings from this morning's deeper assertions, queued for desig
 
 - **Guides missing header illustrations (12):** activity-insights, cli, diagnostics, hammerspoon, installation-wizard, layers, packs, qmk-import, remapping, script-execution, siri-and-shortcuts, vallack-nav. (Generate per [keypath-docs](docs/help-content-philosophy.md) watercolor workflow.)
 - **Packs likely missing dedicated detail/guide pages (~6):** backup-caps-lock, delete-enhancement, escape-remap, home-row-arrows, keystroke-history, mission-control. (caps-lock-to-escape probably covered by tap-hold.md — verify.)
-- **Open question:** Micah recalls an in-app "orange box" marking rules lacking detail pages — not found in source (closest match is the orange "Requires" dependency badge in PackDetailView.swift:536). Confirm one example Thu AM to enumerate the authoritative list.
+- **Resolved (D6):** the orange boxes mark in-app rules lacking a pack detail page — drawn by RulesSummaryView+RowBuilder when `packForCollection == nil`. The authoritative list was Neovim Terminal + Sequences; fixed in #893 (new packs + invariant test). The grep-derived website-guide gaps above were a separate, real-but-unrequested gap — parked post-1.0.
 
 ## Plan at a glance
 
