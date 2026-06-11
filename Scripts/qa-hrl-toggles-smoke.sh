@@ -138,10 +138,16 @@ assert_contains "$config" "(deflayer fun" "real Function deflayer emitted"
 assert_contains "$config" "(deflayer sym" "real Symbol deflayer emitted"
 assert_contains "$config" "(deflayer num" "real Numpad deflayer emitted"
 # When companions are enabled, the deflayers should have real content,
-# not just transparent stubs. Check for any non-transparent token in
-# the fun layer block (rough heuristic: stub layers are all "_").
+# not just transparent stubs. Stub layers are pure `_` placeholders; real
+# layers contain key tokens (`fwd`, `bspc`, `tab`, digits, etc.). Test
+# for the presence of any non-`_` non-paren non-whitespace non-keyword
+# token in the deflayer block. Use grep -E for clarity over a fragile
+# bash regex.
 fun_layer_block="$(printf '%s\n' "$config" | awk '/^\(deflayer fun/{flag=1} flag; /^\)/{if (flag) exit}')"
-if [[ "$fun_layer_block" =~ ^[[:space:]_()defalyrun]+$ ]]; then
+# Strip the "(deflayer fun" header line, then check for any token that
+# isn't `_`, paren, or whitespace. If none found → stub-only → fail.
+real_content="$(printf '%s\n' "$fun_layer_block" | sed -n '2,$p' | tr -d '() \t' | tr -s '_' '_' | tr -d '_')"
+if [[ -z "$real_content" ]]; then
   echo "error: real Function layer appears to contain only transparent placeholders" >&2
   echo "$fun_layer_block" >&2
   exit 1
