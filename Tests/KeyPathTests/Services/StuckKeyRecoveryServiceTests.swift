@@ -134,7 +134,47 @@ final class StuckKeyRecoveryServiceTests: KeyPathTestCase {
         XCTAssertEqual(restartCallCount, 1, "Should not fire second restart while first is in progress")
     }
 
+    // MARK: - Diagnostic Snapshot Isolation
+
+    func testDiagnosticSnapshotsRedirectToTempDirectoryDuringTests() {
+        let dir = StuckKeyRecoveryService.diagnosticsDirectory
+        let realDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Logs/KeyPath/stuck-key-incidents")
+
+        XCTAssertNotEqual(
+            dir.standardizedFileURL.path, realDir.standardizedFileURL.path,
+            "Test runs must not write into the real incident directory — the prune-to-20 pass would delete genuine stuck-key evidence"
+        )
+        XCTAssertTrue(
+            dir.standardizedFileURL.path.hasPrefix(
+                FileManager.default.temporaryDirectory.standardizedFileURL.path
+            ),
+            "Test snapshots should land in the temp directory, got \(dir.standardizedFileURL.path)"
+        )
+    }
+
     // MARK: - Capture Helpers
+
+    func testLogTailReturnsLastLinesWithoutLoadingWholeFile() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("stuck-key-tail-test-\(UUID().uuidString).log")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let lines = (1 ... 500).map { "line \($0)" }
+        try lines.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+
+        let tail = StuckKeyRecoveryService.logTail(path: url.path, maxLines: 3)
+        XCTAssertEqual(tail, ["line 498", "line 499", "line 500"])
+
+        // Bounded read: a tiny maxBytes window must still return the newest
+        // lines, proving we read from the end rather than the start.
+        let bounded = StuckKeyRecoveryService.logTail(path: url.path, maxLines: 2, maxBytes: 64)
+        XCTAssertEqual(bounded.suffix(1), ["line 500"])
+        XCTAssertTrue(
+            bounded.first?.contains("truncated") == true,
+            "A truncated tail window must announce itself"
+        )
+    }
 
     func testLogTailFiltersSpamAndLimitsLines() throws {
         let fileURL = FileManager.default.temporaryDirectory
@@ -179,8 +219,15 @@ final class StuckKeyRecoveryServiceTests: KeyPathTestCase {
 
         let tail = StuckKeyRecoveryService.logTail(path: fileURL.path, maxLines: 10)
 
-        XCTAssertEqual(tail.count, 10)
-        XCTAssertTrue(tail.allSatisfy { $0.hasPrefix("line ") }, "No partial first line should survive truncation")
+        XCTAssertEqual(tail.count, 11, "10 content lines plus the truncation marker")
+        XCTAssertTrue(
+            tail.first?.contains("truncated") == true,
+            "A truncated tail window must announce itself"
+        )
+        XCTAssertTrue(
+            tail.dropFirst().allSatisfy { $0.hasPrefix("line ") },
+            "No partial first line should survive truncation"
+        )
         XCTAssertEqual(tail.last, "line \(lineCount - 1) \(padding)")
     }
 
@@ -193,7 +240,7 @@ final class StuckKeyRecoveryServiceTests: KeyPathTestCase {
         let lines = await StuckKeyRecoveryService.systemLoadLines()
 
         XCTAssertTrue(
-            lines.first?.hasPrefix("loadavg: ") == true,
+            lines.first?.hasPrefix("loadavg_1m_5m_15m: ") == true,
             "Load average should always be captured (libc call, safe in tests)"
         )
         XCTAssertTrue(lines.contains("top_cpu_processes:"))

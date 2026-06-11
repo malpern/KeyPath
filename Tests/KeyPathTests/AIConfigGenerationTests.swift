@@ -292,7 +292,6 @@ final class AIConfigGenerationTests: XCTestCase {
 
     func testAICostTrackerCostSourceEnumValues() {
         // Verify source enum values for debugging
-        XCTAssertEqual(AICostTracker.CostSource.configGenerator.rawValue, "config-generator")
         XCTAssertEqual(AICostTracker.CostSource.configRepair.rawValue, "config-repair")
     }
 
@@ -324,17 +323,5 @@ final class AIConfigGenerationTests: XCTestCase {
         assertionTriggered = true
 
         XCTAssertTrue(assertionTriggered)
-    }
-}
-
-// MARK: - ConfigGeneratorError Tests
-
-extension AIConfigGenerationTests {
-    func testConfigGeneratorErrorDescriptions() {
-        let authCancelled = KanataConfigGenerator.ConfigGeneratorError.authenticationCancelled
-        XCTAssertEqual(authCancelled.errorDescription, "Authentication was cancelled")
-
-        let noAPIKey = KanataConfigGenerator.ConfigGeneratorError.noAPIKey
-        XCTAssertTrue(noAPIKey.errorDescription?.contains("API key") ?? false)
     }
 }

@@ -52,6 +52,24 @@ public enum KanataCommandActionsPolicy {
         content.range(of: #"\(\s*cmd[\s)-]"#, options: .regularExpression) != nil
     }
 
+    /// Enforce the policy on externally-sourced config content: when the policy is
+    /// OFF, strip any `danger-enable-cmd` line before the content reaches disk.
+    /// Used for AI-repaired configs — the model is *prompted* to respect the policy
+    /// but never trusted with the safety header. Deliberately line-surgical (not full
+    /// header canonicalization) so legitimate options the model preserved from the
+    /// user's original config (device targeting, repeat tuning) survive. When the
+    /// policy is ON the content passes through unchanged.
+    public static func enforcingPolicy(
+        on config: String,
+        defaults: UserDefaults = .standard
+    ) -> String {
+        guard !isEnabled(defaults: defaults) else { return config }
+        let lines = config.components(separatedBy: "\n").filter { line in
+            !line.trimmingCharacters(in: .whitespaces).hasPrefix("danger-enable-cmd")
+        }
+        return lines.joined(separator: "\n")
+    }
+
     /// One-time migration run when an existing config is first loaded after the
     /// default flipped to OFF. Records `true` when the config actually uses
     /// `(cmd ...)` actions (preserving the user's mappings across regeneration)

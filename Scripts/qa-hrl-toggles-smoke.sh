@@ -9,52 +9,7 @@ set -euo pipefail
 # Function/Symbol/Numpad which aren't enabled by default. Pre-#871 this
 # combination produced a config kanata rejected.
 
-CLI="${KEYPATH_CLI:-/Applications/KeyPath.app/Contents/MacOS/keypath-cli}"
-CONFIG_DIR="${KEYPATH_CONFIG_DIR:-$HOME/.config/keypath}"
-COLLECTIONS_JSON="$CONFIG_DIR/RuleCollections.json"
-TMP_DIR="$(mktemp -d)"
-BACKUP_PATH=""
-
-cleanup() {
-  local status=$?
-  if [[ -n "$BACKUP_PATH" ]]; then
-    "$CLI" config restore --json --quiet "$BACKUP_PATH" --reload >/dev/null || {
-      echo "warning: failed to restore KeyPath config from $BACKUP_PATH" >&2
-    }
-  fi
-  rm -rf "$TMP_DIR"
-  exit "$status"
-}
-trap cleanup EXIT
-
-require_file() {
-  if [[ ! -e "$1" ]]; then
-    echo "error: required file not found: $1" >&2
-    exit 1
-  fi
-}
-
-assert_contains() {
-  local haystack="$1"
-  local needle="$2"
-  local label="$3"
-  if [[ "$haystack" != *"$needle"* ]]; then
-    echo "error: $label did not contain expected snippet:" >&2
-    echo "  $needle" >&2
-    exit 1
-  fi
-}
-
-assert_not_contains() {
-  local haystack="$1"
-  local needle="$2"
-  local label="$3"
-  if [[ "$haystack" == *"$needle"* ]]; then
-    echo "error: $label unexpectedly contained snippet:" >&2
-    echo "  $needle" >&2
-    exit 1
-  fi
-}
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/qa-smoke-lib.sh"
 
 # Apply a desired enabled-state to a set of collections and (optionally)
 # flip HRL Toggles' toggleMode. Identifies collections by name to stay
@@ -116,21 +71,13 @@ for collection in collections:
 if not found_hrl:
     raise SystemExit("Home Row Layer Toggles collection not found")
 
-path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+path.write_text(json.dumps(payload, indent=2) + "\n")
 PY
 
-  "$CLI" config apply --json --quiet >/dev/null
+  apply_config
 }
 
-show_config() {
-  "$CLI" config show --no-json --quiet
-}
-
-require_file "$CLI"
-require_file "$COLLECTIONS_JSON"
-
-backup_json="$("$CLI" config backup --json --quiet --output "$TMP_DIR/keypath-config-backup")"
-BACKUP_PATH="$(python3 -c 'import json, sys; print(json.load(sys.stdin)["data"]["backupPath"])' <<< "$backup_json")"
+smoke_init
 
 echo "==> case 1: HRL Toggles whileHeld mode, companions disabled"
 apply_state "whileHeld" "false"

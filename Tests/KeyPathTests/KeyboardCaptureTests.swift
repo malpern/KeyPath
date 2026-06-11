@@ -115,18 +115,32 @@ final class KeyboardCaptureTests: KeyPathTestCase {
         receivedNotifications.removeAll()
         var capturedKeys: [String] = []
         let expectation = expectation(description: "Single key capture")
+        let lock = NSLock()
+        var didFulfill = false
+
+        // Same one-shot guard as testContinuousCaptureLifecycle: the capture callback
+        // and the asyncAfter fallback can BOTH fire, and the loser may land after the
+        // test ends — a second fulfill() then crashes the whole XCTest runner mid-way
+        // through an unrelated test (first seen in the instrumented full-coverage run).
+        let fulfillOnce = {
+            lock.lock()
+            defer { lock.unlock() }
+            guard !didFulfill else { return }
+            didFulfill = true
+            expectation.fulfill()
+        }
 
         // Test starting capture
         capture.startCapture { key in
             capturedKeys.append(key)
-            expectation.fulfill()
+            fulfillOnce()
         }
 
         // If we don't have permissions, should post notification
         if !capture.checkAccessibilityPermissionsSilently() {
             // Wait for notification
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                expectation.fulfill()
+                fulfillOnce()
             }
 
             wait(for: [expectation], timeout: 1.0)
@@ -148,7 +162,7 @@ final class KeyboardCaptureTests: KeyPathTestCase {
             // If we have permissions, capture should start
             // We can't simulate key events in tests, so we just verify setup
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                expectation.fulfill()
+                fulfillOnce()
             }
 
             wait(for: [expectation], timeout: 1.0)

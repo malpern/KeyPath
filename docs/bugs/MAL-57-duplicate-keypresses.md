@@ -10,6 +10,159 @@ as previous conclusions, not final truth.
 Latest investigation summary:
 
 - [`docs/analysis/2026-03-07-duplicate-key-under-load-investigation.md`](/Users/malpern/local-code/KeyPath/.worktrees/duplicate-key-investigation/docs/analysis/2026-03-07-duplicate-key-under-load-investigation.md)
+- 2026-06-10 live incident evidence below (strongest capture so far; mechanism confirmed end to end)
+
+## 2026-06-10 Incident Evidence (mechanism confirmed)
+
+Two live incidents were captured with full logs on all three layers (kanata, the
+Karabiner VHID daemon, and KeyPath). Both produced multi-second autorepeat bursts
+of a single letter while typing ("togggggg…", "hteeeeee…"). Machine context: several
+agent worktrees running parallel Swift builds and `quick-deploy.sh` at the time of
+both incidents. The KeyPath GUI (and therefore the stuck-key detector/recovery)
+was **not** running.
+
+### Timeline (from `/var/log/com.keypath.kanata.stdout.log` and `/var/log/karabiner/virtual_hid_device_service.log`)
+
+Incident 1 — 21:42:17 (the "g" burst):
+
+```
+driver connected: false / driver connected: true   (repeated flapping for minutes prior)
+21:42:17.3224 [WARN] output backend unavailable during write — releasing input devices
+21:42:17.3265 [WARN] output backend suspended: recovery-entry
+21:42:18.4464 [INFO] output backend and console session ready — re-grabbing input devices
+21:42:18.5345 [KeyInput] sent key=backspace ...      <- user deleting the repeated g's
+21:42:18.7421 managed repeat BSpace (x8)
+```
+
+Incident 2 — 22:00:08-09 (the "e" burst). Kanata logged the user typing
+"check hte logs … and", then:
+
+```
+22:00:08.5099 [KeyInput] sent key=e action=Press
+22:00:08.6263 [KeyInput] sent key=e action=Release   <- written into a dying socket; never took effect
+22:00:09.6736 [KeyInput] sent key=d action=Press
+connected                                            <- pqrs client reconnected
+22:00:09.7820 [WARN] output backend unavailable during write — releasing input devices
+22:00:09.7821 [WARN] dropping KEY_D Release: output backend unavailable (will recover)
+driver connected: false
+driver connected: true
+22:00:14.2039 [INFO] output backend and console session ready — re-grabbing input devices
+```
+
+Daemon side (`virtual_hid_device_service.log`): new client socket connected at
+22:00:10.150; the old client (and with it the virtual keyboard state holding the
+stuck key) was not torn down until 22:00:11.378-11.744. From the lost `e` release
+at 22:00:08.6 that is ~3 seconds of OS-level autorepeat.
+
+Both the dext (pid 736) and the Karabiner-VirtualHIDDevice-Daemon (pid 814) ran
+continuously through both incidents — no crashes. The failure is purely the
+socket between kanata and the daemon.
+
+### Confirmed causal chain
+
+1. Kanata talks to the VHID daemon via the pqrs client in the `karabiner-driverkit`
+   crate. The client pings the daemon every 3s and declares the connection dead on a
+   missed heartbeat deadline (`virtual_hid_device_service/client.hpp`:
+   `set_server_check_interval(3000ms)`, `next_heartbeat_deadline_exceeded`).
+2. Under CPU load the heartbeat misses and the connection drops. Key releases
+   in flight are lost: either written into the dying socket (the `e`) or
+   explicitly dropped by `drop_if_sink_disconnected` in
+   `External/kanata/src/oskbd/macos.rs` (the `d` — `dropping KEY_D Release`).
+3. The virtual HID keyboard keeps the key logically down until the daemon tears
+   down the old client (~1.2s after the new client connects). macOS autorepeats
+   the stuck key for the whole window.
+4. The fork's recovery (`release_tracked_output_keys` in
+   `External/kanata/src/kanata/macos.rs`) runs at re-grab — *after* the damage
+   window has already closed on its own, so it cannot shorten the burst.
+
+### Why the daemon starves: launchd priority asymmetry
+
+The kanata daemon plist sets `ProcessType=Interactive`; the KeyPath-installed
+`com.keypath.karabiner-vhiddaemon.plist` set **no** `ProcessType`, so under load
+macOS may deprioritize exactly the process that must answer heartbeats and
+process key reports.
+
+### Fix layers
+
+- **Layer 1 (done, this repo):** `ProcessType=Interactive` added to the VHID
+  daemon plist in `PlistGenerator.generateVHIDDaemonPlist()`, the helper's
+  copy in `HelperService.swift`, the legacy kanata generators (the shipped
+  SMAppService plist `Sources/KeyPathApp/com.keypath.kanata.plist` already had
+  it), and the debug script template. `isVHIDDaemonConfiguredCorrectly()` now
+  also requires the key, so a pre-fix plist reports misconfigured and repair
+  rewrites it (`installOrRepairVHIDServices` / `repairVHIDDaemonServices`
+  rewrite unconditionally). Note: that check currently feeds only the repair
+  postflight — wiring plist-content validation into `getServiceStatus()` so the
+  wizard proactively flags stale plists on old installs is a follow-up.
+  Expected effect: fewer heartbeat-miss disconnects, so far fewer incidents.
+- **Layer 2 (done, kanata fork — malpern/kanata#26, bundled via #885):** shrink
+  the autorepeat window. The fork vendors `karabiner-driverkit` 0.3.1
+  (`[patch.crates-io]` → `driverkit/`) with three changes:
+  1. *Stable per-PID client socket path.* The daemon keys per-client state —
+     including the DriverKit virtual keyboard instance — by the client socket
+     path, so a reconnect under the same path reuses the existing keyboard
+     instead of spawning a second instance while the stuck one autorepeats
+     until garbage collection.
+  2. *`virtual_hid_keyboard_reset` on the keyboard-ready rising edge.* Clears
+     stuck keys as soon as the connection recovers. Held keys survive because
+     every report kanata posts carries absolute full state (the `send_key`
+     template in `driverkit/c_src/driverkit.cpp` maintains the complete
+     pressed-key set and posts the whole report per event).
+  3. *Client server-check interval 3000ms → 1000ms*, matching the daemon's own
+     per-client ping rate, so dead connections are detected ~2s sooner.
+
+  Side effect: the once-per-second `virtual_hid_keyboard_ready` stdout spam
+  (95%+ of daemon log volume) is now logged on transitions only.
+
+  **Verified live 2026-06-11** (SIGSTOP/SIGCONT the daemon while typing,
+  entangled with an unrelated daemon SIGTERM+restart from a parallel QA
+  session — an even harsher scenario): no autorepeat burst at any point;
+  detection mid-write was immediate; the stable path's "client already exists"
+  reuse appeared in the daemon log (`ba49.sock`); `virtual_hid_keyboard_reset
+  sent after ready transition` fired on every recovery; keyboard re-grabbed
+  ~3s after the daemon became reachable (including kanata's deliberate 1s
+  settle delay).
+- **Layer 3 (done, kanata fork — malpern/kanata#28, bundled via #898):** the
+  original "replay dropped Releases" framing turned out to be covered already
+  (a dropped Release stays in `output_pressed_since`; recovery's
+  `release_tracked_output_keys` re-sends it, and Layer 2's reset clears the
+  device). The real residual was **report-set divergence in the C wrapper**:
+  `send_key` returned unready *before* the per-usage-page template mutated the
+  full-state key set, so a dropped Release left a stale key that the next
+  report re-pressed — indefinitely, since the Rust side believed it released.
+  Fixed by moving the readiness check after the set mutation: dropped events
+  still update intent, only the post is skipped, and the next successful
+  report converges.
+
+  Telemetry shipped alongside: all VHID client connection lines are
+  timestamped (`vhid-client:` prefix), and the previously silent
+  heartbeat-deadline reconnect path logs a stamped reason. Incident capture
+  (`StuckKeyRecoveryService`, #897/#907) now snapshots the kanata *stdout* tail
+  (where the diagnostic evidence lives) with the `virtual_hid_keyboard_ready
+  true` heartbeat spam filtered out (`... false` lines are kept — they mark
+  driver disconnects) and an explicit marker when the 1MB tail window
+  truncates older output; plus loadavg/core count and top CPU consumers
+  (via `SubprocessRunner` with a timeout, so a starved `ps` cannot delay the
+  recovery restart). The detector's GUI-only limitation is documented in the
+  class.
+
+Residual gap no fix can fully close: a release written into a socket that is
+dying but not yet declared dead is unrecoverable in transit; Layer 2 bounds the
+damage to the reconnect latency, and after Layer 3 the next successful report
+self-corrects all state.
+
+### Verification metric
+
+Pre-fix baseline (engine log lifetime through 2026-06-10): 50 occurrences of
+`output backend unavailable during write`, ~2,450 silent reconnects. After a
+few days of heavy multi-agent build load, compare:
+
+```bash
+grep -c 'output backend unavailable during write' /var/log/com.keypath.kanata.stdout.log
+grep -c 'heartbeat deadline exceeded' /var/log/com.keypath.kanata.stdout.log
+```
+
+If rates are near zero under load, MAL-57 can be closed.
 
 ## Problem Statement
 
@@ -680,33 +833,6 @@ For the next repro runs, inspect:
   - `release-without-tracked-press`
   - reload boundaries with held keys present
   - `SystemKeyEvent is_autorepeat=true` without a matching Kanata `repeat`
-
----
-
-## 2026-06-10 Incident Evidence
-
-Two stuck-key/duplicate-keypress incidents occurred on 2026-06-10. Neither produced a
-capture file in `~/Library/Logs/KeyPath/stuck-key-incidents/`, and post-hoc analysis had
-to be reconstructed from `/var/log/com.keypath.kanata.stdout.log`. Three gaps in the
-incident capture (`StuckKeyRecoveryService.writeSnapshotToDisk`) explain why:
-
-1. **Wrong log captured.** The incident file snapshotted the kanata *stderr* tail, but the
-   diagnostic evidence lives in *stdout*: pqrs driver/client connection events such as
-   `connected`, `driver connected: false`, `output backend unavailable during write`, and
-   `dropping KEY_* Release`. Fixed: captures now include the last 200 lines of stdout with
-   the high-volume `virtual_hid_keyboard_ready true` heartbeat filtered out (the `false`
-   variant is kept — it indicates driver disconnects).
-
-2. **No system-load context.** The leading hypothesis for these incidents is
-   CPU-starvation-induced heartbeat misses, but captures recorded nothing about load.
-   Fixed: each capture now includes a `=== System Load ===` section with `loadavg` and the
-   top 5 CPU-consuming processes at capture time.
-
-3. **Detector only runs while the GUI is open.** `StuckKeyRecoveryService` lives in
-   KeyPath.app; both 2026-06-10 incidents were missed entirely because the GUI was closed
-   at the time — no detection, no recovery, no capture. This remains an open gap: closing
-   it requires moving (or duplicating) detection into a component that runs whenever the
-   kanata daemon does (e.g. the LaunchDaemon side or a lightweight agent).
 
 ---
 

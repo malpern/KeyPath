@@ -3,6 +3,7 @@ layout: default
 title: "Ben Vallack Navigation"
 description: "A complete home row navigation system inspired by keyboard minimalist Ben Vallack"
 theme: parchment
+header_image: header-vallack-nav.png
 permalink: /guides/vallack-nav/
 ---
 

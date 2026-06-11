@@ -3,6 +3,7 @@ layout: default
 title: "Remapping Keys"
 description: "Change what any key does — from fixing one annoying key to redesigning your whole keyboard"
 theme: parchment
+header_image: header-remapping.png
 permalink: /guides/remapping/
 ---
 

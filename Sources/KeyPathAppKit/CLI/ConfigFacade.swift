@@ -156,8 +156,17 @@ public struct ConfigFacade: Sendable {
             throw Self.error("Backup path resolves to the active config directory: \(sourceURL.path)")
         }
 
-        try removeDirectoryContents(at: restoreTargetURL, fileManager: fileManager)
-        try copyDirectoryContents(from: resolvedSourceURL, to: restoreTargetURL, fileManager: fileManager)
+        // Copy-over first, prune extras second: a failure at any point leaves the
+        // user with a superset of their config, never a gutted directory. The
+        // previous wipe-then-copy ordering lost data when a transient
+        // temp_validation_*.kbd file vanished mid-wipe and aborted the restore
+        // before anything was copied back (#881).
+        try overwriteDirectoryContents(from: resolvedSourceURL, to: restoreTargetURL, fileManager: fileManager)
+        try pruneExtraneousItems(
+            at: restoreTargetURL,
+            keeping: Set(fileManager.contentsOfDirectory(atPath: resolvedSourceURL.path)),
+            fileManager: fileManager
+        )
 
         let reloadSuccess = reload ? await tcpReload() : nil
         return try CLIConfigRestoreResult(
@@ -275,21 +284,75 @@ public struct ConfigFacade: Sendable {
             includingPropertiesForKeys: nil
         )
         for item in contents {
-            try fileManager.copyItem(
-                at: item,
-                to: destination.appendingPathComponent(item.lastPathComponent)
-            )
+            if isTransientValidationArtifact(item.lastPathComponent) { continue }
+            do {
+                try fileManager.copyItem(
+                    at: item,
+                    to: destination.appendingPathComponent(item.lastPathComponent)
+                )
+            } catch where isFileNotFound(error) {
+                // Vanished between enumeration and copy — transient, skip.
+            }
         }
     }
 
-    private func removeDirectoryContents(at directory: URL, fileManager: FileManager) throws {
+    /// Copy every backup item over the destination, replacing existing entries
+    /// in place. Unlike wipe-then-copy, an interruption never leaves the
+    /// destination with less data than it started with.
+    private func overwriteDirectoryContents(from source: URL, to destination: URL, fileManager: FileManager) throws {
+        let contents = try fileManager.contentsOfDirectory(
+            at: source,
+            includingPropertiesForKeys: nil
+        )
+        for item in contents {
+            if isTransientValidationArtifact(item.lastPathComponent) { continue }
+            let target = destination.appendingPathComponent(item.lastPathComponent)
+            do {
+                try fileManager.removeItem(at: target)
+            } catch where isFileNotFound(error) {
+                // Nothing to replace — fine.
+            }
+            try fileManager.copyItem(at: item, to: target)
+        }
+    }
+
+    /// Remove destination items that aren't part of the backup. Tolerates
+    /// files that vanish mid-iteration (their owner cleaned up — that's the
+    /// goal state) and skips transient validation artifacts entirely.
+    private func pruneExtraneousItems(at directory: URL, keeping names: Set<String>, fileManager: FileManager) throws {
         let contents = try fileManager.contentsOfDirectory(
             at: directory,
             includingPropertiesForKeys: nil
         )
         for item in contents {
-            try fileManager.removeItem(at: item)
+            let name = item.lastPathComponent
+            if names.contains(name) || isTransientValidationArtifact(name) { continue }
+            do {
+                try fileManager.removeItem(at: item)
+            } catch where isFileNotFound(error) {
+                // Already gone — pruning succeeded by other means.
+            }
         }
+    }
+
+    /// `temp_validation_*.kbd` files (and their `.sb-*` safe-save shadows) are
+    /// written into the config directory by ConfigurationService validation and
+    /// cleaned up by their owner. Racing that cleanup aborted restores (#881).
+    private func isTransientValidationArtifact(_ name: String) -> Bool {
+        name.hasPrefix("temp_validation_")
+    }
+
+    private func isFileNotFound(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        if nsError.domain == NSCocoaErrorDomain,
+           nsError.code == NSFileNoSuchFileError || nsError.code == NSFileReadNoSuchFileError
+        {
+            return true
+        }
+        if nsError.domain == NSPOSIXErrorDomain, nsError.code == Int(ENOENT) {
+            return true
+        }
+        return false
     }
 
     private func sameResolvedPath(_ lhs: URL, _ rhs: URL) -> Bool {

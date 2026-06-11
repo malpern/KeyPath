@@ -43,6 +43,10 @@ public actor InstalledPackTracker {
         if let fileURL {
             self.fileURL = fileURL
         } else if TestEnvironment.isRunningTests {
+            // Intentionally NOT AppPaths.testSandboxDirectory: each tracker
+            // instance gets its own UUID directory so parallel test instances
+            // never see each other's records. AppPaths' shared per-process
+            // sandbox would make them collide.
             self.fileURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent("keypath-installed-packs-\(ProcessInfo.processInfo.processIdentifier)-\(UUID().uuidString)", isDirectory: true)
                 .appendingPathComponent("installed-packs.json")

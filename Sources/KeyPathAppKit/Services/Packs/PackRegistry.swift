@@ -16,6 +16,7 @@ public enum PackRegistry {
         deleteEnhancement,
         backupCapsLock,
         vimNavigation,
+        neovimTerminal,
         windowSnapping,
         missionControl,
         autoShiftSymbols,
@@ -26,6 +27,7 @@ public enum PackRegistry {
         leaderKey,
         keyRepeatControl,
         chordGroups,
+        sequences,
         vallackSystem,
         kindaVim,
         keystrokeHistory
@@ -735,6 +737,62 @@ public enum PackRegistry {
             PackBindingTemplate(input: "e+r", output: "C-z", title: "E+R → Undo"),
         ],
         associatedCollectionID: RuleCollectionIdentifier.chordGroups
+    )
+
+    // MARK: - Pack: Neovim Terminal
+
+    public static let neovimTerminal = Pack(
+        id: "com.keypath.pack.neovim-terminal",
+        version: "1.0.0",
+        name: "Neovim Terminal",
+        tagline: "Vim motions in your terminal — words, lines, and search",
+        shortDescription:
+        "Hold Leader for Neovim-style motions inside approved terminal apps: h/j/k/l arrows, w/b word jumps, 0/$ line ends, undo, yank, and put. App-scoped — it activates only in terminals and coexists with the other Navigation rules.",
+        longDescription: "",
+        category: "Navigation",
+        iconSymbol: "terminal",
+        quickSettings: [],
+        // Bindings mirror the collection's 19 mappings 1:1 —
+        // testPackBindingsMatchCollectionMappings enforces the count.
+        bindings: [
+            PackBindingTemplate(input: "h", output: "left", title: "H → Left"),
+            PackBindingTemplate(input: "j", output: "down", title: "J → Down"),
+            PackBindingTemplate(input: "k", output: "up", title: "K → Up"),
+            PackBindingTemplate(input: "l", output: "right", title: "L → Right"),
+            PackBindingTemplate(input: "w", output: "A-right", title: "W → Word forward"),
+            PackBindingTemplate(input: "b", output: "A-left", title: "B → Word back"),
+            PackBindingTemplate(input: "e", output: "A-right", title: "E → End of word"),
+            PackBindingTemplate(input: "0", output: "M-left", title: "0 → Line start"),
+            PackBindingTemplate(input: "4", output: "M-right", title: "$ → Line end"),
+            PackBindingTemplate(input: "g", output: "M-up", title: "G → Document top/bottom"),
+            PackBindingTemplate(input: "/", output: "M-f", title: "/ → Find"),
+            PackBindingTemplate(input: "n", output: "M-g", title: "N → Next match"),
+            PackBindingTemplate(input: "y", output: "M-c", title: "Y → Yank (copy)"),
+            PackBindingTemplate(input: "p", output: "M-v", title: "P → Put (paste)"),
+            PackBindingTemplate(input: "x", output: "del", title: "X → Delete character"),
+            PackBindingTemplate(input: "r", output: "M-S-z", title: "R → Redo"),
+            PackBindingTemplate(input: "d", output: "A-bspc", title: "D → Delete previous word"),
+            PackBindingTemplate(input: "u", output: "M-z", title: "U → Undo"),
+            PackBindingTemplate(input: "o", output: "M-right ret", title: "O → Open line below"),
+        ],
+        associatedCollectionID: RuleCollectionIdentifier.neovimTerminal
+    )
+
+    // MARK: - Pack: Sequences
+
+    public static let sequences = Pack(
+        id: "com.keypath.pack.sequences",
+        version: "1.0.0",
+        name: "Sequences",
+        tagline: "Press keys one after another to trigger layers and actions",
+        shortDescription:
+        "Build multi-key sequences like Leader → W → M that activate layers or run actions. Like chords, but ordered — keys are pressed in succession instead of together. Starts empty; add your own sequences in the editor.",
+        longDescription: "",
+        category: "Productivity",
+        iconSymbol: "arrow.right.arrow.left.circle",
+        quickSettings: [],
+        bindings: [],
+        associatedCollectionID: RuleCollectionIdentifier.sequences
     )
 
     // MARK: - Pack: KindaVim

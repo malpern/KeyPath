@@ -8,10 +8,10 @@ import KeyPathCore
 /// condition via AutorepeatMismatch correlations and triggers a kanata restart to clear the
 /// stale virtual HID state (kanata's startup F24 flush handles the actual key release).
 ///
-/// LIMITATION (MAL-57): This detector lives in the GUI app and only runs while KeyPath.app
-/// is open. Stuck-key incidents that occur while the GUI is closed are neither recovered nor
-/// captured — both 2026-06-10 MAL-57 incidents were missed for this reason. Daemon-side
-/// detection would be needed to close that gap.
+/// Limitation: this service lives in the GUI app, so incidents that occur while
+/// KeyPath.app is not running are neither detected nor captured (both MAL-57
+/// incidents on 2026-06-10 were missed this way). Daemon-side capture would
+/// require moving detection out of the app.
 @MainActor
 final class StuckKeyRecoveryService {
     static let shared = StuckKeyRecoveryService()
@@ -99,9 +99,16 @@ final class StuckKeyRecoveryService {
         }.value
     }
 
+    /// ~/Library/Logs/KeyPath/stuck-key-incidents
+    /// (redirected to a temp sandbox during tests via AppPaths). Tests must
+    /// never touch the real directory: it holds genuine stuck-key evidence and
+    /// the prune-to-20 pass in `writeSnapshotToDisk` would silently delete it.
+    nonisolated static var diagnosticsDirectory: URL {
+        AppPaths.logsDirectory.appendingPathComponent("stuck-key-incidents", isDirectory: true)
+    }
+
     private nonisolated static func writeSnapshotToDisk(_ snapshot: DiagnosticSnapshotData) async {
-        let diagnosticsDir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Logs/KeyPath/stuck-key-incidents")
+        let diagnosticsDir = diagnosticsDirectory
 
         let timestamp = ISO8601DateFormatter().string(from: Date())
         let safeTimestamp = timestamp.replacingOccurrences(of: ":", with: "-")
@@ -132,24 +139,29 @@ final class StuckKeyRecoveryService {
         lines.append("session_id: \(snapshot.tracker.sessionID.map(String.init) ?? "none")")
         lines.append("")
 
-        lines.append("=== System Load ===")
-        await lines.append(contentsOf: systemLoadLines())
-        lines.append("")
-
         lines.append("=== Kanata Stderr (last 50 lines) ===")
         lines.append(contentsOf: logTail(path: KeyPathConstants.Logs.kanataStderr, maxLines: 50))
         lines.append("")
 
-        // The pqrs driver-connection evidence (connected / driver connected / output backend
-        // unavailable / dropping KEY_* Release) goes to stdout, not stderr. The high-volume
-        // "virtual_hid_keyboard_ready true" heartbeat is filtered out; "... false" lines are
-        // kept because they indicate driver disconnects.
+        // The diagnostic gold lives in stdout, not stderr: key-input traces, VHID
+        // connection events ("connected", "driver connected:", "output backend
+        // unavailable during write", "dropping KEY_X Release"). The 2026-06-10 MAL-57
+        // incidents were diagnosed entirely from stdout. The high-volume
+        // "virtual_hid_keyboard_ready true" heartbeat is filtered out; "... false"
+        // lines are kept because they indicate driver disconnects.
         lines.append("=== Kanata Stdout (last 200 lines, vhid-ready spam filtered) ===")
         lines.append(contentsOf: logTail(
             path: KeyPathConstants.Logs.kanataStdout,
             maxLines: 200,
             excludingLinesContaining: "virtual_hid_keyboard_ready true"
         ))
+        lines.append("")
+
+        // CPU starvation is the leading trigger for the VHID disconnects
+        // behind stuck keys (MAL-57); record load so incidents can confirm or
+        // refute the correlation without a live investigation.
+        lines.append("=== System Load ===")
+        await lines.append(contentsOf: systemLoadLines())
         lines.append("")
 
         lines.append("=== Recovery History ===")
@@ -188,10 +200,13 @@ final class StuckKeyRecoveryService {
     // MARK: - Capture Helpers
 
     /// Last `maxLines` lines of a log file, optionally dropping lines that contain `filter`.
-    /// Reads only the trailing chunk of the file — kanata's stdout log grows to hundreds of MB.
+    /// Reads only the trailing `maxBytes` of the file — the kanata stdout log can exceed
+    /// 100MB; never load it whole. When the read is truncated, a marker line is prepended
+    /// so a capture dominated by filtered spam can't masquerade as the full history.
     nonisolated static func logTail(
         path: String,
         maxLines: Int,
+        maxBytes: UInt64 = 1024 * 1024,
         excludingLinesContaining filter: String? = nil
     ) -> [String] {
         let unreadable = ["(file not readable)"]
@@ -200,7 +215,6 @@ final class StuckKeyRecoveryService {
         }
         defer { try? handle.close() }
 
-        let maxBytes: UInt64 = 1024 * 1024
         guard let size = try? handle.seekToEnd() else {
             return unreadable
         }
@@ -219,19 +233,25 @@ final class StuckKeyRecoveryService {
         if let filter {
             tail = tail.filter { !$0.contains(filter) }
         }
-        return Array(tail.suffix(maxLines))
+        var result = Array(tail.suffix(maxLines))
+        if offset > 0 {
+            result.insert("(… older output truncated: tail window is the last \(maxBytes / 1024)KB of the file)", at: 0)
+        }
+        return result
     }
 
-    /// Load average plus the top CPU consumers — the leading MAL-57 hypothesis is
-    /// CPU-starvation-induced heartbeat misses, so each capture needs load context.
+    /// Load average, core count, and the top CPU consumers — the leading MAL-57
+    /// hypothesis is CPU-starvation-induced heartbeat misses, so each capture
+    /// needs load context.
     nonisolated static func systemLoadLines() async -> [String] {
         var lines: [String] = []
         var loads = [Double](repeating: 0, count: 3)
         if getloadavg(&loads, 3) == 3 {
-            lines.append(String(format: "loadavg: %.2f %.2f %.2f", loads[0], loads[1], loads[2]))
+            lines.append(String(format: "loadavg_1m_5m_15m: %.2f %.2f %.2f", loads[0], loads[1], loads[2]))
         } else {
-            lines.append("loadavg: (unavailable)")
+            lines.append("loadavg_1m_5m_15m: (unavailable)")
         }
+        lines.append("active_cpu_count: \(ProcessInfo.processInfo.activeProcessorCount)")
         lines.append("top_cpu_processes:")
         await lines.append(contentsOf: topCPUProcessLines(limit: 5))
         return lines

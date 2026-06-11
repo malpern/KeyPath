@@ -305,6 +305,7 @@ let package = Package(
                 "KeyPathAppKit",
                 "KeyPathCLI",
                 "KeyPathCore",
+                "KeyPathInsights",
                 "KeyPathPermissions",
                 "KeyPathDaemonLifecycle",
                 "KeyPathWizardCore",

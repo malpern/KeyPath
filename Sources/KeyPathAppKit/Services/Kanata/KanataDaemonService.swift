@@ -291,10 +291,10 @@ final class KanataDaemonService {
     }
 
     /// Log service state failures to persistent crash log for later analysis
+    /// (redirected to a temp sandbox during tests via AppPaths).
     private func logServiceFailure(from oldState: ServiceState, reason: String) {
-        let crashLogDir = Foundation.FileManager().homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Logs/KeyPath")
-        let crashLogPath = crashLogDir.appendingPathComponent("crashes.log")
+        let crashLogDir = AppPaths.logsDirectory
+        let crashLogPath = AppPaths.crashLogFile
 
         // Ensure directory exists
         do {

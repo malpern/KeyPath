@@ -212,6 +212,21 @@ final class PlistGeneratorTests: XCTestCase {
         XCTAssertTrue(plist.contains(PlistGenerator.vhidDaemonPath))
     }
 
+    /// ProcessType=Interactive prevents the VHID daemon from being starved
+    /// under CPU load, which drops Kanata's output connection mid-keystroke
+    /// and causes stuck-key autorepeat bursts (MAL-57).
+    func testGenerateVHIDDaemonPlistUsesInteractiveProcessType() {
+        let plist = PlistGenerator.generateVHIDDaemonPlist()
+
+        guard let data = plist.data(using: .utf8),
+              let dict = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any]
+        else {
+            XCTFail("Generated VHID daemon plist is not valid XML/plist format")
+            return
+        }
+        XCTAssertEqual(dict["ProcessType"] as? String, "Interactive")
+    }
+
     func testGenerateVHIDDaemonPlistValidXML() {
         let plist = PlistGenerator.generateVHIDDaemonPlist()
 

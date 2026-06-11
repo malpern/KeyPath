@@ -51,9 +51,13 @@ echo "📁 Build directory: $BUILD_DIR"
 
 # TCC-Safe Caching Logic
 function calculate_source_hash() {
-    # Generate hash based on kanata source files (excluding build artifacts)
+    # Generate hash based on kanata source files (excluding build artifacts).
+    # Includes C/C++ sources: the fork vendors the karabiner-driverkit crate
+    # (driverkit/c_src), and a .cpp/.hpp-only change must invalidate the cache
+    # or a stale engine silently ships (bit MAL-57 Layer 3).
     cd "$KANATA_SOURCE"
-    find . \( -name "*.rs" -o -name "*.toml" -o -name "*.lock" \) \
+    find . \( -name "*.rs" -o -name "*.toml" -o -name "*.lock" \
+              -o -name "*.c" -o -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) \
         -not -path "./target/*" \
         -exec shasum -a 256 {} + 2>/dev/null | shasum -a 256 | cut -d' ' -f1
 }
