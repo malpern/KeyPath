@@ -176,8 +176,14 @@ public struct Pack: Identifiable, Equatable, Sendable {
 
     /// Preferred width for Pack Detail presentation (window or sheet).
     public var preferredDetailWidth: CGFloat {
+        // Table-style packs render MappingTableContent (Key / Description /
+        // Action / +Shift / +Ctrl), which needs the wide layout. When adding
+        // a table pack, add it here too or its detail sheet clips horizontally
+        // (Neovim Terminal shipped clipped at the 560 default before being
+        // listed).
         let widePacks: Set = [
             "com.keypath.pack.vim-navigation",
+            "com.keypath.pack.neovim-terminal",
             "com.keypath.pack.window-snapping",
             "com.keypath.pack.mission-control",
             "com.keypath.pack.numpad-layer",
