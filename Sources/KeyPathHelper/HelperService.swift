@@ -879,6 +879,8 @@ extension HelperService {
             <true/>
             <key>KeepAlive</key>
             <false/>
+            <key>ProcessType</key>
+            <string>Interactive</string>
             <key>StandardOutPath</key>
             <string>/var/log/com.keypath.kanata.stdout.log</string>
             <key>StandardErrorPath</key>
@@ -914,6 +916,8 @@ extension HelperService {
             <true/>
             <key>KeepAlive</key>
             <true/>
+            <key>ProcessType</key>
+            <string>Interactive</string>
             <key>StandardOutPath</key>
             <string>/var/log/karabiner-vhid-daemon.log</string>
             <key>StandardErrorPath</key>

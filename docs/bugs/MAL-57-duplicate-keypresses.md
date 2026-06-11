@@ -10,6 +10,104 @@ as previous conclusions, not final truth.
 Latest investigation summary:
 
 - [`docs/analysis/2026-03-07-duplicate-key-under-load-investigation.md`](/Users/malpern/local-code/KeyPath/.worktrees/duplicate-key-investigation/docs/analysis/2026-03-07-duplicate-key-under-load-investigation.md)
+- 2026-06-10 live incident evidence below (strongest capture so far; mechanism confirmed end to end)
+
+## 2026-06-10 Incident Evidence (mechanism confirmed)
+
+Two live incidents were captured with full logs on all three layers (kanata, the
+Karabiner VHID daemon, and KeyPath). Both produced multi-second autorepeat bursts
+of a single letter while typing ("togggggg…", "hteeeeee…"). Machine context: several
+agent worktrees running parallel Swift builds and `quick-deploy.sh` at the time of
+both incidents. The KeyPath GUI (and therefore the stuck-key detector/recovery)
+was **not** running.
+
+### Timeline (from `/var/log/com.keypath.kanata.stdout.log` and `/var/log/karabiner/virtual_hid_device_service.log`)
+
+Incident 1 — 21:42:17 (the "g" burst):
+
+```
+driver connected: false / driver connected: true   (repeated flapping for minutes prior)
+21:42:17.3224 [WARN] output backend unavailable during write — releasing input devices
+21:42:17.3265 [WARN] output backend suspended: recovery-entry
+21:42:18.4464 [INFO] output backend and console session ready — re-grabbing input devices
+21:42:18.5345 [KeyInput] sent key=backspace ...      <- user deleting the repeated g's
+21:42:18.7421 managed repeat BSpace (x8)
+```
+
+Incident 2 — 22:00:08-09 (the "e" burst). Kanata logged the user typing
+"check hte logs … and", then:
+
+```
+22:00:08.5099 [KeyInput] sent key=e action=Press
+22:00:08.6263 [KeyInput] sent key=e action=Release   <- written into a dying socket; never took effect
+22:00:09.6736 [KeyInput] sent key=d action=Press
+connected                                            <- pqrs client reconnected
+22:00:09.7820 [WARN] output backend unavailable during write — releasing input devices
+22:00:09.7821 [WARN] dropping KEY_D Release: output backend unavailable (will recover)
+driver connected: false
+driver connected: true
+22:00:14.2039 [INFO] output backend and console session ready — re-grabbing input devices
+```
+
+Daemon side (`virtual_hid_device_service.log`): new client socket connected at
+22:00:10.150; the old client (and with it the virtual keyboard state holding the
+stuck key) was not torn down until 22:00:11.378-11.744. From the lost `e` release
+at 22:00:08.6 that is ~3 seconds of OS-level autorepeat.
+
+Both the dext (pid 736) and the Karabiner-VirtualHIDDevice-Daemon (pid 814) ran
+continuously through both incidents — no crashes. The failure is purely the
+socket between kanata and the daemon.
+
+### Confirmed causal chain
+
+1. Kanata talks to the VHID daemon via the pqrs client in the `karabiner-driverkit`
+   crate. The client pings the daemon every 3s and declares the connection dead on a
+   missed heartbeat deadline (`virtual_hid_device_service/client.hpp`:
+   `set_server_check_interval(3000ms)`, `next_heartbeat_deadline_exceeded`).
+2. Under CPU load the heartbeat misses and the connection drops. Key releases
+   in flight are lost: either written into the dying socket (the `e`) or
+   explicitly dropped by `drop_if_sink_disconnected` in
+   `External/kanata/src/oskbd/macos.rs` (the `d` — `dropping KEY_D Release`).
+3. The virtual HID keyboard keeps the key logically down until the daemon tears
+   down the old client (~1.2s after the new client connects). macOS autorepeats
+   the stuck key for the whole window.
+4. The fork's recovery (`release_tracked_output_keys` in
+   `External/kanata/src/kanata/macos.rs`) runs at re-grab — *after* the damage
+   window has already closed on its own, so it cannot shorten the burst.
+
+### Why the daemon starves: launchd priority asymmetry
+
+The kanata daemon plist sets `ProcessType=Interactive`; the KeyPath-installed
+`com.keypath.karabiner-vhiddaemon.plist` set **no** `ProcessType`, so under load
+macOS may deprioritize exactly the process that must answer heartbeats and
+process key reports.
+
+### Fix layers
+
+- **Layer 1 (done, this repo):** `ProcessType=Interactive` added to the VHID
+  daemon plist in `PlistGenerator.generateVHIDDaemonPlist()`, the helper's
+  copy in `HelperService.swift`, the legacy kanata generators (the shipped
+  SMAppService plist `Sources/KeyPathApp/com.keypath.kanata.plist` already had
+  it), and the debug script template. `isVHIDDaemonConfiguredCorrectly()` now
+  also requires the key, so a pre-fix plist reports misconfigured and repair
+  rewrites it (`installOrRepairVHIDServices` / `repairVHIDDaemonServices`
+  rewrite unconditionally). Note: that check currently feeds only the repair
+  postflight — wiring plist-content validation into `getServiceStatus()` so the
+  wizard proactively flags stale plists on old installs is a follow-up.
+  Expected effect: fewer heartbeat-miss disconnects, so far fewer incidents.
+- **Layer 2 (open, kanata fork):** shrink the autorepeat window. On reconnect the
+  client's `connected` callback only calls `virtual_hid_keyboard_initialize`;
+  also issuing `virtual_hid_keyboard_reset` would clear stuck keys immediately
+  (~10.2s in the timeline above instead of 11.7s). Force-closing the old client
+  object as soon as `sink_ready` flips false would help further.
+- **Layer 3 (open, kanata fork):** never silently drop a Release.
+  `drop_if_sink_disconnected` treats all events equally; dropped Releases are the
+  toxic case and should be remembered and replayed after reconnect
+  (`output_pressed_since` tracking already exists).
+
+Residual gap no fix can fully close: a release written into a socket that is
+dying but not yet declared dead is unrecoverable in transit; Layer 2 bounds the
+damage to the reconnect latency.
 
 ## Problem Statement
 

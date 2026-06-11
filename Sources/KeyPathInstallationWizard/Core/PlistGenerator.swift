@@ -105,6 +105,8 @@ public enum PlistGenerator {
             <true/>
             <key>KeepAlive</key>
             <false/>
+            <key>ProcessType</key>
+            <string>Interactive</string>
             <key>StandardOutPath</key>
             <string>/var/log/com.keypath.kanata.stdout.log</string>
             <key>StandardErrorPath</key>
@@ -138,8 +140,15 @@ public enum PlistGenerator {
     /// - Automatic restart (KeepAlive)
     /// - Logging to /var/log/karabiner-vhid-daemon.log
     /// - Throttle protection to prevent rapid restart loops
+    /// - Interactive process type so the daemon is not starved under CPU load
     ///
     /// This daemon is required for Kanata to access the virtual keyboard device.
+    ///
+    /// ProcessType=Interactive matches the Kanata daemon plist. Without it,
+    /// heavy system load (e.g. parallel builds) can starve the daemon long
+    /// enough to miss the pqrs client's 3s heartbeat, dropping Kanata's output
+    /// connection mid-keystroke and leaving a key stuck down (autorepeat
+    /// bursts). See docs/bugs/MAL-57-duplicate-keypresses.md.
     ///
     /// - Returns: Complete plist XML string ready to write to disk
     public static func generateVHIDDaemonPlist() -> String {
@@ -158,6 +167,8 @@ public enum PlistGenerator {
             <true/>
             <key>KeepAlive</key>
             <true/>
+            <key>ProcessType</key>
+            <string>Interactive</string>
             <key>StandardOutPath</key>
             <string>/var/log/karabiner-vhid-daemon.log</string>
             <key>StandardErrorPath</key>

@@ -61,6 +61,8 @@ cat > "$VHID_DAEMON_TEMP" << 'EOF'
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>ProcessType</key>
+    <string>Interactive</string>
     <key>StandardOutPath</key>
     <string>/var/log/karabiner-vhid-daemon.log</string>
     <key>StandardErrorPath</key>

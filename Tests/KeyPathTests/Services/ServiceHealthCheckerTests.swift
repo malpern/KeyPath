@@ -77,10 +77,13 @@ final class ServiceHealthCheckerTests: XCTestCase {
         FileManager.default.createFile(atPath: url.path, contents: Data(), attributes: nil)
     }
 
-    private func writeVHIDPlist(programPath: String) throws {
-        let dict: [String: Any] = [
+    private func writeVHIDPlist(programPath: String, processType: String? = "Interactive") throws {
+        var dict: [String: Any] = [
             "ProgramArguments": [programPath]
         ]
+        if let processType {
+            dict["ProcessType"] = processType
+        }
         let url = tempLaunchDaemonsDir.appendingPathComponent("\(ServiceHealthChecker.vhidDaemonServiceID).plist")
         let data = try PropertyListSerialization.data(fromPropertyList: dict, format: .xml, options: 0)
         try data.write(to: url)
@@ -267,6 +270,15 @@ final class ServiceHealthCheckerTests: XCTestCase {
 
     func testIsVHIDDaemonConfiguredCorrectlyReturnsFalseForWrongPath() throws {
         try writeVHIDPlist(programPath: "/wrong/path")
+        XCTAssertFalse(checker.isVHIDDaemonConfiguredCorrectly())
+    }
+
+    /// Plists from before the MAL-57 starvation fix lack ProcessType=Interactive
+    /// and must report misconfigured so repair rewrites them.
+    func testIsVHIDDaemonConfiguredCorrectlyReturnsFalseWithoutProcessType() throws {
+        let expectedPath =
+            "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
+        try writeVHIDPlist(programPath: expectedPath, processType: nil)
         XCTAssertFalse(checker.isVHIDDaemonConfiguredCorrectly())
     }
 }
