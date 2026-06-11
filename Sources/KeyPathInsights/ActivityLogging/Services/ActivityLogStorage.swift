@@ -50,7 +50,7 @@ public actor ActivityLogStorage {
     /// degrade gracefully rather than crash the whole app. AppPaths resolves
     /// the conventional home-relative path (the same one the old
     /// `FileManager.urls(for:)` fallback produced) and cannot fail.
-    public static var defaultBaseDirectory: URL {
+    static var defaultBaseDirectory: URL {
         AppPaths.applicationSupportDirectory
             .appendingPathComponent(directoryName, isDirectory: true)
     }
