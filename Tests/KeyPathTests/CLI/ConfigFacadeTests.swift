@@ -57,6 +57,74 @@ final class ConfigFacadeTests: XCTestCase {
         XCTAssertTrue(isSymbolicLink(configLink), "Restore should preserve the configured ~/.config/keypath symlink.")
     }
 
+    // MARK: - #881 regression: restore must never gut the config dir
+
+    func testRestoreConfigPrunesExtraneousItemsButKeepsBackupContents() async throws {
+        let configDir = tempRoot.appendingPathComponent("config", isDirectory: true)
+        let backup = tempRoot.appendingPathComponent("backup", isDirectory: true)
+        try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+
+        try "rules".write(to: configDir.appendingPathComponent("RuleCollections.json"), atomically: true, encoding: .utf8)
+        try "kbd".write(to: configDir.appendingPathComponent("keypath.kbd"), atomically: true, encoding: .utf8)
+
+        let facade = ConfigFacade(configDirectory: configDir.path)
+        _ = try facade.backupConfig(outputPath: backup.path)
+
+        // Post-backup drift: one mutation, one new file that isn't in the backup.
+        try "mutated".write(to: configDir.appendingPathComponent("RuleCollections.json"), atomically: true, encoding: .utf8)
+        try "extra".write(to: configDir.appendingPathComponent("DeviceSelection.json"), atomically: true, encoding: .utf8)
+
+        _ = try await facade.restoreConfig(from: backup.path, reload: false)
+
+        let items = try FileManager.default.contentsOfDirectory(atPath: configDir.path).sorted()
+        XCTAssertEqual(items, ["RuleCollections.json", "keypath.kbd"], "Extraneous post-backup files should be pruned")
+        XCTAssertEqual(
+            try String(contentsOf: configDir.appendingPathComponent("RuleCollections.json"), encoding: .utf8),
+            "rules",
+            "Mutated file should be restored to its backup contents"
+        )
+    }
+
+    func testRestoreConfigSucceedsDespiteTransientValidationArtifact() async throws {
+        let configDir = tempRoot.appendingPathComponent("config", isDirectory: true)
+        let backup = tempRoot.appendingPathComponent("backup", isDirectory: true)
+        try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+
+        try "rules".write(to: configDir.appendingPathComponent("RuleCollections.json"), atomically: true, encoding: .utf8)
+
+        let facade = ConfigFacade(configDirectory: configDir.path)
+        _ = try facade.backupConfig(outputPath: backup.path)
+
+        // The #881 trigger: a transient validation temp file appears in the
+        // config dir before restore. The restore must neither fail on it nor
+        // treat it as data to prune-race against.
+        try "tmp".write(
+            to: configDir.appendingPathComponent("temp_validation_5C63A449.kbd.sb-d92874d0-FutVpa"),
+            atomically: true, encoding: .utf8
+        )
+
+        _ = try await facade.restoreConfig(from: backup.path, reload: false)
+
+        XCTAssertEqual(
+            try String(contentsOf: configDir.appendingPathComponent("RuleCollections.json"), encoding: .utf8),
+            "rules"
+        )
+    }
+
+    func testBackupConfigSkipsTransientValidationArtifacts() throws {
+        let configDir = tempRoot.appendingPathComponent("config", isDirectory: true)
+        let backup = tempRoot.appendingPathComponent("backup", isDirectory: true)
+        try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+
+        try "rules".write(to: configDir.appendingPathComponent("RuleCollections.json"), atomically: true, encoding: .utf8)
+        try "tmp".write(to: configDir.appendingPathComponent("temp_validation_AB12.kbd"), atomically: true, encoding: .utf8)
+
+        let facade = ConfigFacade(configDirectory: configDir.path)
+        let result = try facade.backupConfig(outputPath: backup.path)
+
+        XCTAssertEqual(result.copiedItems, ["RuleCollections.json"], "Backups should not capture transient validation temp files")
+    }
+
     func testRestoreConfigRejectsBackupPathThatResolvesToActiveConfigDirectory() async throws {
         let liveTarget = tempRoot.appendingPathComponent("dotfiles-keypath", isDirectory: true)
         let configLink = tempRoot.appendingPathComponent(".config/keypath", isDirectory: true)
