@@ -43,24 +43,22 @@ public actor ActivityLogStorage {
 
     public static let shared = ActivityLogStorage()
 
+    /// ~/Library/Application Support/KeyPath/ActivityLog
+    /// (redirected to a temp sandbox during tests via AppPaths).
+    ///
+    /// Activity logging is an optional, opt-in feature — path resolution must
+    /// degrade gracefully rather than crash the whole app. AppPaths resolves
+    /// the conventional home-relative path (the same one the old
+    /// `FileManager.urls(for:)` fallback produced) and cannot fail.
+    public static var defaultBaseDirectory: URL {
+        AppPaths.applicationSupportDirectory
+            .appendingPathComponent(directoryName, isDirectory: true)
+    }
+
     private init() {
         encryption = ActivityLogEncryption.shared
 
-        // Use ~/Library/Application Support/KeyPath/ActivityLog/
-        // Activity logging is an optional, opt-in feature — a missing
-        // Application Support directory must degrade gracefully rather than
-        // crash the whole app, so fall back to the conventional home-relative
-        // path if the API lookup ever fails.
-        let appSupportResult = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
-        if appSupportResult.isEmpty {
-            AppLogger.shared.warn("⚠️ [ActivityLogStorage] Application Support directory unavailable — using NSHomeDirectory fallback")
-        }
-        let appSupport = appSupportResult.first ?? URL(fileURLWithPath: NSHomeDirectory())
-            .appendingPathComponent("Library")
-            .appendingPathComponent("Application Support")
-        baseDirectory = appSupport
-            .appendingPathComponent("KeyPath")
-            .appendingPathComponent(Self.directoryName)
+        baseDirectory = Self.defaultBaseDirectory
 
         encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
