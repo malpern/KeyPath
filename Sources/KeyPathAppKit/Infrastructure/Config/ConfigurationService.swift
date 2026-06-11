@@ -523,6 +523,15 @@ public final class ConfigurationService: FileConfigurationProviding {
     }
 
     /// Save a repaired config (from AI repair)
+    ///
+    /// No `danger-enable-cmd` sanitization is performed here on purpose. The
+    /// bundled kanata engine is compiled without the `cmd` feature (#879), so a
+    /// legacy `danger-enable-cmd yes` header is inert — kanata loads the config
+    /// and logs "compiled to never allow cmd"; only configs that actually *use*
+    /// `(cmd ...)` fail validation. The runtime stripping that used to live here
+    /// (KanataCommandActionsPolicy.enforcingPolicy) is therefore redundant and
+    /// was removed with the policy. The repair prompt also instructs the model
+    /// not to emit the header.
     public func saveRepairedConfig(_ repairedContent: String) async throws {
         AppLogger.shared.log("💾 [Config] Saving AI-repaired config")
 
