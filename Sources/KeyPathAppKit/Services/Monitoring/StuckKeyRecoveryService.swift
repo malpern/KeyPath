@@ -7,6 +7,11 @@ import KeyPathCore
 /// event, causing macOS to generate infinite autorepeat. This service monitors for that
 /// condition via AutorepeatMismatch correlations and triggers a kanata restart to clear the
 /// stale virtual HID state (kanata's startup F24 flush handles the actual key release).
+///
+/// LIMITATION (MAL-57): This detector lives in the GUI app and only runs while KeyPath.app
+/// is open. Stuck-key incidents that occur while the GUI is closed are neither recovered nor
+/// captured — both 2026-06-10 MAL-57 incidents were missed for this reason. Daemon-side
+/// detection would be needed to close that gap.
 @MainActor
 final class StuckKeyRecoveryService {
     static let shared = StuckKeyRecoveryService()
@@ -127,14 +132,24 @@ final class StuckKeyRecoveryService {
         lines.append("session_id: \(snapshot.tracker.sessionID.map(String.init) ?? "none")")
         lines.append("")
 
+        lines.append("=== System Load ===")
+        lines.append(contentsOf: systemLoadLines())
+        lines.append("")
+
         lines.append("=== Kanata Stderr (last 50 lines) ===")
-        if let data = FileManager.default.contents(atPath: "/var/log/com.keypath.kanata.stderr.log"),
-           let content = String(data: data, encoding: .utf8)
-        {
-            lines.append(contentsOf: content.components(separatedBy: .newlines).suffix(50))
-        } else {
-            lines.append("(file not readable)")
-        }
+        lines.append(contentsOf: logTail(path: "/var/log/com.keypath.kanata.stderr.log", maxLines: 50))
+        lines.append("")
+
+        // The pqrs driver-connection evidence (connected / driver connected / output backend
+        // unavailable / dropping KEY_* Release) goes to stdout, not stderr. The high-volume
+        // "virtual_hid_keyboard_ready true" heartbeat is filtered out; "... false" lines are
+        // kept because they indicate driver disconnects.
+        lines.append("=== Kanata Stdout (last 200 lines, vhid-ready spam filtered) ===")
+        lines.append(contentsOf: logTail(
+            path: "/var/log/com.keypath.kanata.stdout.log",
+            maxLines: 200,
+            excludingLinesContaining: "virtual_hid_keyboard_ready true"
+        ))
         lines.append("")
 
         lines.append("=== Recovery History ===")
@@ -167,6 +182,84 @@ final class StuckKeyRecoveryService {
             for (url, _) in sorted.dropFirst(20) {
                 try? FileManager.default.removeItem(at: url)
             }
+        }
+    }
+
+    // MARK: - Capture Helpers
+
+    /// Last `maxLines` lines of a log file, optionally dropping lines that contain `filter`.
+    /// Reads only the trailing chunk of the file — kanata's stdout log grows to hundreds of MB.
+    nonisolated static func logTail(
+        path: String,
+        maxLines: Int,
+        excludingLinesContaining filter: String? = nil
+    ) -> [String] {
+        guard let handle = FileHandle(forReadingAtPath: path) else {
+            return ["(file not readable)"]
+        }
+        defer { try? handle.close() }
+
+        let maxBytes: UInt64 = 1024 * 1024
+        guard let size = try? handle.seekToEnd() else {
+            return ["(file not readable)"]
+        }
+        try? handle.seek(toOffset: size > maxBytes ? size - maxBytes : 0)
+        guard let data = try? handle.readToEnd(),
+              let content = String(data: data, encoding: .utf8)
+        else {
+            return ["(file not readable)"]
+        }
+
+        var tail = content.components(separatedBy: .newlines)
+        if let filter {
+            tail = tail.filter { !$0.contains(filter) }
+        }
+        return Array(tail.suffix(maxLines))
+    }
+
+    /// Load average plus the top CPU consumers — the leading MAL-57 hypothesis is
+    /// CPU-starvation-induced heartbeat misses, so each capture needs load context.
+    nonisolated static func systemLoadLines() -> [String] {
+        var lines: [String] = []
+        var loads = [Double](repeating: 0, count: 3)
+        if getloadavg(&loads, 3) == 3 {
+            lines.append(String(format: "loadavg: %.2f %.2f %.2f", loads[0], loads[1], loads[2]))
+        } else {
+            lines.append("loadavg: (unavailable)")
+        }
+        lines.append("top_cpu_processes:")
+        lines.append(contentsOf: topCPUProcessLines(limit: 5))
+        return lines
+    }
+
+    /// Top CPU-consuming processes via `ps`. Skipped under tests — spawning process-listing
+    /// tools in the test environment can deadlock (see KeyPathTestCase).
+    nonisolated static func topCPUProcessLines(limit: Int) -> [String] {
+        guard !TestEnvironment.isRunningTests else {
+            return ["  (skipped in tests)"]
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/ps")
+        process.arguments = ["-Aceo", "pcpu,pid,comm", "-r"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+
+        do {
+            try process.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            guard let output = String(data: data, encoding: .utf8) else {
+                return ["  (ps output unreadable)"]
+            }
+            let rows = output.components(separatedBy: .newlines)
+                .dropFirst() // header
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            return rows.prefix(limit).map { "  \($0)" }
+        } catch {
+            return ["  (ps failed: \(error.localizedDescription))"]
         }
     }
 }

@@ -683,6 +683,33 @@ For the next repro runs, inspect:
 
 ---
 
+## 2026-06-10 Incident Evidence
+
+Two stuck-key/duplicate-keypress incidents occurred on 2026-06-10. Neither produced a
+capture file in `~/Library/Logs/KeyPath/stuck-key-incidents/`, and post-hoc analysis had
+to be reconstructed from `/var/log/com.keypath.kanata.stdout.log`. Three gaps in the
+incident capture (`StuckKeyRecoveryService.writeSnapshotToDisk`) explain why:
+
+1. **Wrong log captured.** The incident file snapshotted the kanata *stderr* tail, but the
+   diagnostic evidence lives in *stdout*: pqrs driver/client connection events such as
+   `connected`, `driver connected: false`, `output backend unavailable during write`, and
+   `dropping KEY_* Release`. Fixed: captures now include the last 200 lines of stdout with
+   the high-volume `virtual_hid_keyboard_ready true` heartbeat filtered out (the `false`
+   variant is kept — it indicates driver disconnects).
+
+2. **No system-load context.** The leading hypothesis for these incidents is
+   CPU-starvation-induced heartbeat misses, but captures recorded nothing about load.
+   Fixed: each capture now includes a `=== System Load ===` section with `loadavg` and the
+   top 5 CPU-consuming processes at capture time.
+
+3. **Detector only runs while the GUI is open.** `StuckKeyRecoveryService` lives in
+   KeyPath.app; both 2026-06-10 incidents were missed entirely because the GUI was closed
+   at the time — no detection, no recovery, no capture. This remains an open gap: closing
+   it requires moving (or duplicating) detection into a component that runs whenever the
+   kanata daemon does (e.g. the LaunchDaemon side or a lightweight agent).
+
+---
+
 ## References
 
 - `Sources/KeyPathAppKit/Services/KanataTCPClient.swift` - Lines 892-983

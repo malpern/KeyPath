@@ -134,6 +134,55 @@ final class StuckKeyRecoveryServiceTests: KeyPathTestCase {
         XCTAssertEqual(restartCallCount, 1, "Should not fire second restart while first is in progress")
     }
 
+    // MARK: - Capture Helpers
+
+    func testLogTailFiltersSpamAndLimitsLines() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("stuck-key-logtail-\(UUID().uuidString).log")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        // Interleave useful lines with the heartbeat spam the filter must drop. The
+        // "false" variant is diagnostic (driver disconnect) and must survive the filter.
+        var content: [String] = []
+        for index in 0 ..< 300 {
+            content.append("virtual_hid_keyboard_ready true")
+            content.append("useful line \(index)")
+        }
+        content.append("virtual_hid_keyboard_ready false")
+        content.append("dropping KEY_T Release")
+        try content.joined(separator: "\n").write(to: fileURL, atomically: true, encoding: .utf8)
+
+        let tail = StuckKeyRecoveryService.logTail(
+            path: fileURL.path,
+            maxLines: 200,
+            excludingLinesContaining: "virtual_hid_keyboard_ready true"
+        )
+
+        XCTAssertEqual(tail.count, 200)
+        XCTAssertFalse(tail.contains("virtual_hid_keyboard_ready true"), "Heartbeat spam should be filtered")
+        XCTAssertEqual(tail.last, "dropping KEY_T Release", "Most recent lines should be kept")
+        XCTAssertTrue(tail.contains("virtual_hid_keyboard_ready false"), "Driver-disconnect lines must survive the filter")
+    }
+
+    func testLogTailHandlesMissingFile() {
+        let tail = StuckKeyRecoveryService.logTail(path: "/nonexistent/keypath-test.log", maxLines: 50)
+        XCTAssertEqual(tail, ["(file not readable)"])
+    }
+
+    func testSystemLoadLinesSkipProcessListingInTests() {
+        let lines = StuckKeyRecoveryService.systemLoadLines()
+
+        XCTAssertTrue(
+            lines.first?.hasPrefix("loadavg: ") == true,
+            "Load average should always be captured (libc call, safe in tests)"
+        )
+        XCTAssertTrue(lines.contains("top_cpu_processes:"))
+        XCTAssertTrue(
+            lines.contains("  (skipped in tests)"),
+            "Process listing must not shell out under tests"
+        )
+    }
+
     // MARK: - Helpers
 
     private func makeCorrelation(
