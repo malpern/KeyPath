@@ -262,15 +262,24 @@ final class PerOptionMatrixTests: XCTestCase {
     }
 
     @MainActor
-    func testWindowSnapping_Vim_EmitsHJKLMappings() async throws {
+    func testWindowSnapping_Vim_RoutesThroughHJKL() async throws {
         let config = MatrixTestHelpers.enabledCollectionConfig(RuleCollectionIdentifier.windowSnapping) { coll in
             coll.windowKeyConvention = .vim
             coll.mappings = RuleCollectionCatalog.windowMappings(for: .vim)
         }
 
-        // Vim convention still emits window:left/right but routes through h/l keys
+        // Vim convention still emits the same window:* push-msg payloads but
+        // routes them through h/j/k/l keys instead of the standard L/R/U/D set.
         XCTAssertTrue(config.contains(#"window:left"#), "Vim convention should still emit window:left")
         XCTAssertTrue(config.contains(#"window:right"#), "Vim convention should still emit window:right")
+        XCTAssertTrue(
+            config.contains("act_window_h"),
+            "Vim convention should map left through the h key alias (act_window_h)"
+        )
+        XCTAssertTrue(
+            config.contains("act_window_l"),
+            "Vim convention should map right through the l key alias (act_window_l)"
+        )
         try await assertKanataValid(config, "Window Snapping vim")
     }
 
@@ -319,9 +328,13 @@ final class PerOptionMatrixTests: XCTestCase {
             }
         }
 
+        // Auto Shift's timeoutMs flows into the tap-hold timing for each enabled
+        // key. Look for a tap-hold operation referencing the 100ms value on a
+        // known symbol key (`dot`) rather than the bare "100" digit.
         XCTAssertTrue(
-            config.contains("100"),
-            "Auto Shift with timeoutMs=100 should encode the 100 value in the output"
+            config.contains("beh_base_dot (tap-hold")
+                && config.contains("100"),
+            "Auto Shift with timeoutMs=100 should encode the 100 value in the dot tap-hold"
         )
         try await assertKanataValid(config, "Auto Shift timeoutMs=100")
     }
@@ -336,8 +349,9 @@ final class PerOptionMatrixTests: XCTestCase {
         }
 
         XCTAssertTrue(
-            config.contains("250"),
-            "Auto Shift with timeoutMs=250 should encode the 250 value in the output"
+            config.contains("beh_base_dot (tap-hold")
+                && config.contains("250"),
+            "Auto Shift with timeoutMs=250 should encode the 250 value in the dot tap-hold"
         )
         try await assertKanataValid(config, "Auto Shift timeoutMs=250")
     }
