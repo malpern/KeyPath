@@ -823,6 +823,7 @@ class ConfigurationServiceTests: XCTestCase {
         // Pin the command-actions policy to its default (unset → OFF) so the
         // repaired header is deterministic regardless of prior test-runner state.
         UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey)
+        defer { UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey) }
         let brokenConfig = """
         (defsrc caps)
         (deflayer base esc)

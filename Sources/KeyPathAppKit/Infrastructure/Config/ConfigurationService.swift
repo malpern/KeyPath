@@ -284,7 +284,7 @@ public final class ConfigurationService: FileConfigurationProviding {
         // overwritten. Generation below evaluates the policy via the
         // allowCommandActions default, so the decision must be recorded first.
         if !KanataCommandActionsPolicy.hasRecordedDecision(),
-           Foundation.FileManager().fileExists(atPath: configurationPath),
+           Foundation.FileManager.default.fileExists(atPath: configurationPath),
            let existingContent = try? String(contentsOfFile: configurationPath, encoding: .utf8)
         {
             KanataCommandActionsPolicy.grandfatherIfNeeded(configContent: existingContent)

@@ -141,7 +141,7 @@ struct CommandActionsSettingsSection: View {
                     Text("Allow (cmd ...) actions in the Kanata config")
                         .font(.body)
                         .fontWeight(.medium)
-                    Text("Only needed for hand-written (cmd ...) actions. The keyboard engine runs with root privileges, so enabled commands run as root. KeyPath's own launchers and actions don't use this.")
+                    Text("Only for hand-written (cmd ...) actions — KeyPath's own launchers and actions don't use this. The keyboard engine runs as root, so enabled commands run as root.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -185,6 +185,7 @@ struct CommandActionsSettingsSection: View {
         }
     }
 
+    @MainActor
     private func applyChange(_ enabled: Bool) {
         commandActionsEnabled = enabled
         KanataCommandActionsPolicy.setEnabled(enabled)
