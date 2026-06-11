@@ -473,12 +473,10 @@ struct PackDetailView: View {
     /// interactive keyboard + modifier controls instead of the generic
     /// tap-hold picker.
     var isHomeRowModsPack: Bool {
-        let homeRowKeys: Set = ["a", "s", "d", "f", "j", "k", "l", "scln", ";"]
-        let inputs = Set(pack.bindings.map { $0.input.lowercased() })
-        // Consider it a home-row pack if at least 4 of its bindings are on
-        // the home row — covers light and full variants without listing
-        // every combination.
-        return inputs.intersection(homeRowKeys).count >= 4
+        // Exact match — the old ≥4-home-row-bindings heuristic misfired on
+        // any Vim-flavored pack whose bindings happen to use j/k/l/d
+        // (Neovim Terminal rendered the HRM editor as its detail body).
+        pack.associatedCollectionID == RuleCollectionIdentifier.homeRowMods
     }
 
     /// Match the pack to an existing `RuleCollection` that carries a
