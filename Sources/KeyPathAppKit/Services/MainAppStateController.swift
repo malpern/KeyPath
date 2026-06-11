@@ -178,10 +178,10 @@ class MainAppStateController {
 
     /// Log crash events to persistent storage for later analysis.
     /// Crashes are logged to ~/Library/Logs/KeyPath/crashes.log
+    /// (redirected to a temp sandbox during tests via AppPaths).
     private func logCrashEvent(_ error: KanataError) {
-        let crashLogDir = Foundation.FileManager().homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Logs/KeyPath")
-        let crashLogPath = crashLogDir.appendingPathComponent("crashes.log")
+        let crashLogDir = AppPaths.logsDirectory
+        let crashLogPath = AppPaths.crashLogFile
 
         // Ensure directory exists
         do {
