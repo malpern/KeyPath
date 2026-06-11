@@ -153,6 +153,30 @@ final class StuckKeyRecoveryServiceTests: KeyPathTestCase {
         )
     }
 
+    // MARK: - Incident Capture Helpers
+
+    func testTailOfFileReturnsLastLinesWithoutLoadingWholeFile() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("stuck-key-tail-test-\(UUID().uuidString).log")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let lines = (1 ... 500).map { "line \($0)" }
+        try lines.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+
+        let tail = StuckKeyRecoveryService.tailOfFile(atPath: url.path, lineCount: 3)
+        XCTAssertEqual(tail, ["line 498", "line 499", "line 500"])
+
+        // Bounded read: a tiny maxBytes window must still return the newest
+        // lines, proving we read from the end rather than the start.
+        let bounded = StuckKeyRecoveryService.tailOfFile(atPath: url.path, lineCount: 2, maxBytes: 64)
+        XCTAssertEqual(bounded.suffix(1), ["line 500"])
+
+        XCTAssertEqual(
+            StuckKeyRecoveryService.tailOfFile(atPath: "/nonexistent/path.log", lineCount: 3),
+            ["(file not readable)"]
+        )
+    }
+
     // MARK: - Helpers
 
     private func makeCorrelation(

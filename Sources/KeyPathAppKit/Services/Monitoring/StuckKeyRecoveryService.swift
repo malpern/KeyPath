@@ -7,6 +7,11 @@ import KeyPathCore
 /// event, causing macOS to generate infinite autorepeat. This service monitors for that
 /// condition via AutorepeatMismatch correlations and triggers a kanata restart to clear the
 /// stale virtual HID state (kanata's startup F24 flush handles the actual key release).
+///
+/// Limitation: this service lives in the GUI app, so incidents that occur while
+/// KeyPath.app is not running are neither detected nor captured (both MAL-57
+/// incidents on 2026-06-10 were missed this way). Daemon-side capture would
+/// require moving detection out of the app.
 @MainActor
 final class StuckKeyRecoveryService {
     static let shared = StuckKeyRecoveryService()
@@ -149,6 +154,34 @@ final class StuckKeyRecoveryService {
         }
         lines.append("")
 
+        // The diagnostic gold lives in stdout, not stderr: key-input traces,
+        // VHID connection events ("connected", "driver connected:",
+        // "output backend unavailable during write", "dropping KEY_X Release").
+        // The 2026-06-10 MAL-57 incidents were diagnosed entirely from stdout.
+        lines.append("=== Kanata Stdout (last 120 lines) ===")
+        lines.append(contentsOf: tailOfFile(
+            atPath: KeyPathConstants.Logs.kanataStdout,
+            lineCount: 120
+        ))
+        lines.append("")
+
+        // CPU starvation is the leading trigger for the VHID disconnects
+        // behind stuck keys (MAL-57); record load so incidents can confirm or
+        // refute the correlation without a live investigation.
+        lines.append("=== System Load ===")
+        var loads = [Double](repeating: 0, count: 3)
+        if getloadavg(&loads, 3) == 3 {
+            lines.append("loadavg_1m_5m_15m: \(loads[0]) \(loads[1]) \(loads[2])")
+        } else {
+            lines.append("loadavg_1m_5m_15m: (unavailable)")
+        }
+        lines.append("active_cpu_count: \(ProcessInfo.processInfo.activeProcessorCount)")
+        if !TestEnvironment.isRunningTests {
+            lines.append("top_cpu_processes:")
+            lines.append(contentsOf: topCPUProcesses())
+        }
+        lines.append("")
+
         lines.append("=== Recovery History ===")
         lines.append("last_recovery_at: \(snapshot.lastRecoveryDescription)")
         lines.append("")
@@ -180,6 +213,55 @@ final class StuckKeyRecoveryService {
                 try? FileManager.default.removeItem(at: url)
             }
         }
+    }
+
+    /// Bounded tail of a possibly-huge log file. The kanata stdout log can
+    /// exceed 100MB; never load it whole. Internal for testability.
+    nonisolated static func tailOfFile(
+        atPath path: String,
+        lineCount: Int,
+        maxBytes: Int = 64 * 1024
+    ) -> [String] {
+        guard let fileHandle = FileHandle(forReadingAtPath: path) else {
+            return ["(file not readable)"]
+        }
+        defer { try? fileHandle.close() }
+
+        let fileSize: UInt64 = (try? fileHandle.seekToEnd()) ?? 0
+        let offset = fileSize > UInt64(maxBytes) ? fileSize - UInt64(maxBytes) : 0
+        try? fileHandle.seek(toOffset: offset)
+        guard let data = try? fileHandle.readToEnd(),
+              let content = String(data: data, encoding: .utf8)
+        else {
+            return ["(file not readable)"]
+        }
+        return Array(content.components(separatedBy: .newlines).suffix(lineCount))
+    }
+
+    /// Top CPU consumers at capture time. Spawns `ps`; callers must not invoke
+    /// this in tests (subprocess spawning is forbidden there — see KeyPathTestCase).
+    private nonisolated static func topCPUProcesses(count: Int = 5) -> [String] {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/ps")
+        process.arguments = ["-Aceo", "pcpu,comm", "-r"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+        do {
+            try process.run()
+        } catch {
+            return ["  (ps failed to launch: \(error.localizedDescription))"]
+        }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        guard let output = String(data: data, encoding: .utf8) else {
+            return ["  (ps output unreadable)"]
+        }
+        return output
+            .components(separatedBy: .newlines)
+            .dropFirst() // header
+            .prefix(count)
+            .map { "  \($0.trimmingCharacters(in: .whitespaces))" }
     }
 }
 
