@@ -549,13 +549,19 @@ public final class ConfigurationService: FileConfigurationProviding {
     public func saveRepairedConfig(_ repairedContent: String) async throws {
         AppLogger.shared.log("💾 [Config] Saving AI-repaired config")
 
+        // The repair model is prompted to respect the command-actions policy but is
+        // never trusted with the safety header: with the policy OFF, any
+        // danger-enable-cmd grant in model output is stripped before it reaches the
+        // root daemon's config (#860).
+        let enforcedContent = KanataCommandActionsPolicy.enforcingPolicy(on: repairedContent)
+
         let configURL = URL(fileURLWithPath: configurationPath)
-        try await writeFileURLAsync(string: repairedContent, to: configURL)
+        try await writeFileURLAsync(string: enforcedContent, to: configURL)
 
         // Update current configuration
         setCurrentConfiguration(
             KanataConfiguration(
-                content: repairedContent,
+                content: enforcedContent,
                 keyMappings: [], // Will be re-parsed on next reload
                 lastModified: Date(),
                 path: configurationPath

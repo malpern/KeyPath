@@ -123,6 +123,44 @@ final class KanataCommandActionsPolicyTests: XCTestCase {
         XCTAssertFalse(KanataCommandActionsPolicy.isEnabled(defaults: defaults))
     }
 
+    // MARK: - Policy enforcement on external content
+
+    func testEnforcingPolicyStripsGrantWhenDisabled() {
+        let repaired = """
+        (defcfg
+          process-unmapped-keys yes
+          danger-enable-cmd yes
+          managed-repeat yes
+        )
+        (defsrc caps)
+        """
+        let enforced = KanataCommandActionsPolicy.enforcingPolicy(on: repaired, defaults: defaults)
+        XCTAssertFalse(enforced.contains("danger-enable-cmd"))
+        XCTAssertTrue(
+            enforced.contains("managed-repeat yes"),
+            "Enforcement is line-surgical — other header options must survive"
+        )
+        XCTAssertTrue(enforced.contains("(defsrc caps)"))
+    }
+
+    func testEnforcingPolicyStripsExplicitNoWhenDisabled() {
+        // The strip is line-surgical and value-blind: an explicit (redundant)
+        // `danger-enable-cmd no` from the model doesn't survive either.
+        let repaired = "(defcfg\n  danger-enable-cmd no\n  process-unmapped-keys yes\n)"
+        let enforced = KanataCommandActionsPolicy.enforcingPolicy(on: repaired, defaults: defaults)
+        XCTAssertFalse(enforced.contains("danger-enable-cmd"))
+        XCTAssertTrue(enforced.contains("process-unmapped-keys yes"))
+    }
+
+    func testEnforcingPolicyPassesThroughWhenEnabled() {
+        KanataCommandActionsPolicy.setEnabled(true, defaults: defaults)
+        let repaired = "(defcfg\n  danger-enable-cmd yes\n)"
+        XCTAssertEqual(
+            KanataCommandActionsPolicy.enforcingPolicy(on: repaired, defaults: defaults),
+            repaired
+        )
+    }
+
     // MARK: - Generator integration
 
     @MainActor
