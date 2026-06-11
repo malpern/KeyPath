@@ -283,6 +283,9 @@ public final class ConfigurationService: FileConfigurationProviding {
         // hand-written (cmd ...) config this migration must inspect was already
         // overwritten. Generation below evaluates the policy via the
         // allowCommandActions default, so the decision must be recorded first.
+        // Check-then-act is safe here: grandfatherIfNeeded re-checks internally
+        // and always records the same value for the same config (idempotent), so
+        // concurrent callers can't disagree.
         if !KanataCommandActionsPolicy.hasRecordedDecision(),
            Foundation.FileManager.default.fileExists(atPath: configurationPath),
            let existingContent = try? String(contentsOfFile: configurationPath, encoding: .utf8)

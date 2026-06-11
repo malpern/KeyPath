@@ -29,6 +29,12 @@ final class ConfigGoldenFileTests: XCTestCase {
         }
     }
 
+    override func tearDownWithError() throws {
+        // Mirror setUp: never leak policy state to later test classes.
+        UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey)
+        try super.tearDownWithError()
+    }
+
     // MARK: - Assertions
 
     private func normalizeConfig(_ config: String) -> String {
