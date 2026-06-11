@@ -889,22 +889,46 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             )
             return false
         }
+        return Self.vhidDaemonPlistContentIsValid(dict)
+    }
 
-        let expectedPath =
-            "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon"
+    /// Whether an installed VHID daemon plist predates the MAL-57 fix and needs rewriting.
+    ///
+    /// Presence-gated: a missing plist returns `false` — that situation is
+    /// "services not installed" and is already surfaced via service health.
+    /// A plist that exists but has stale content (wrong program path or
+    /// missing ProcessType=Interactive) counts as misconfigured, so existing
+    /// installs migrate via a wizard repair. A present-but-unparseable plist
+    /// also counts: repair rewrites it either way.
+    ///
+    /// - Returns: `true` if the plist exists but is misconfigured
+    public func isVHIDDaemonPlistPresentButMisconfigured() -> Bool {
+        let plistPath = getPlistPath(for: Self.vhidDaemonServiceID)
+        guard let dict = NSDictionary(contentsOfFile: plistPath) as? [String: Any] else {
+            return Foundation.FileManager().fileExists(atPath: plistPath)
+        }
+        return !Self.vhidDaemonPlistContentIsValid(dict)
+    }
 
-        if let args = dict["ProgramArguments"] as? [String], let first = args.first {
-            let pathOK = first == expectedPath
-            let processTypeOK = (dict["ProcessType"] as? String) == "Interactive"
+    /// Shared content check for the VHID daemon plist: DriverKit daemon path
+    /// in ProgramArguments plus the MAL-57 ProcessType=Interactive key.
+    /// Logs only when the content is invalid — this runs on every validation
+    /// cycle via SystemValidator, not just during install/repair.
+    private static func vhidDaemonPlistContentIsValid(_ dict: [String: Any]) -> Bool {
+        guard let args = dict["ProgramArguments"] as? [String], let first = args.first else {
+            AppLogger.shared.log(
+                "🔍 [ServiceHealthChecker] VHID plist ProgramArguments missing or malformed"
+            )
+            return false
+        }
+        let pathOK = first == PlistGenerator.vhidDaemonPath
+        let processTypeOK = (dict["ProcessType"] as? String) == "Interactive"
+        if !pathOK || !processTypeOK {
             AppLogger.shared.log(
                 "🔍 [ServiceHealthChecker] VHID plist ProgramArguments[0]=\(first) | pathOK=\(pathOK) | processTypeOK=\(processTypeOK)"
             )
-            return pathOK && processTypeOK
         }
-        AppLogger.shared.log(
-            "🔍 [ServiceHealthChecker] VHID plist ProgramArguments missing or malformed"
-        )
-        return false
+        return pathOK && processTypeOK
     }
 
     // MARK: - Private Helpers

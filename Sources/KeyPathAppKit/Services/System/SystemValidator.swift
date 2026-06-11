@@ -47,6 +47,7 @@ public class SystemValidator {
         let vhidInstalled: Bool
         let vhidVersionMismatch: Bool
         let karabinerDriverExtensionEnabled: Bool
+        let vhidDaemonPlistMisconfigured: Bool
         let timestamp: Date
 
         func isFresh(ttl: TimeInterval) -> Bool {
@@ -432,7 +433,7 @@ public class SystemValidator {
 
         AppLogger.shared
             .log(
-                "🔍 [SystemValidator] Components: kanata=\(facts.kanataBinaryInstalled), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidServices=\(vhidServicesHealthy), vhidVersionMismatch=\(facts.vhidVersionMismatch)"
+                "🔍 [SystemValidator] Components: kanata=\(facts.kanataBinaryInstalled), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidServices=\(vhidServicesHealthy), vhidPlistMisconfigured=\(facts.vhidDaemonPlistMisconfigured), vhidVersionMismatch=\(facts.vhidVersionMismatch)"
             )
 
         return ComponentStatus(
@@ -442,6 +443,7 @@ public class SystemValidator {
             vhidDeviceInstalled: facts.vhidInstalled,
             vhidDeviceHealthy: vhidHealthy,
             vhidServicesHealthy: vhidServicesHealthy,
+            vhidDaemonPlistMisconfigured: facts.vhidDaemonPlistMisconfigured,
             vhidVersionMismatch: facts.vhidVersionMismatch
         )
     }
@@ -474,11 +476,22 @@ public class SystemValidator {
             "⏱️ [TIMING] SystemValidator.checkComponents Karabiner extension check completed in \(String(format: "%.3f", Date().timeIntervalSince(karabinerStart)))s"
         )
 
+        // A VHID daemon plist from before the MAL-57 fix (missing
+        // ProcessType=Interactive) keeps the daemon running day-to-day but
+        // leaves it vulnerable to starvation under CPU load (stuck-key
+        // autorepeat). Surface it so the wizard offers a one-click repair
+        // that rewrites the plist — old installs never migrate otherwise.
+        // Lives in the cached facts so the plist read doesn't run on every
+        // validation cycle; invalidateCaches() refreshes it after repairs.
+        let vhidDaemonPlistMisconfigured =
+            ServiceHealthChecker.shared.isVHIDDaemonPlistPresentButMisconfigured()
+
         let facts = ComponentInstallationFacts(
             kanataBinaryInstalled: kanataBinaryInstalled,
             vhidInstalled: vhidInstalled,
             vhidVersionMismatch: vhidVersionMismatch,
             karabinerDriverExtensionEnabled: karabinerDriverExtensionEnabled,
+            vhidDaemonPlistMisconfigured: vhidDaemonPlistMisconfigured,
             timestamp: Date()
         )
         cachedComponentFacts = facts

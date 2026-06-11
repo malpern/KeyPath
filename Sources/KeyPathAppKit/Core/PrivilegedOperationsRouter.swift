@@ -95,6 +95,22 @@ public final class PrivilegedOperationsRouter {
         case .privilegedHelper:
             do {
                 try await helperManager.installRequiredRuntimeServices()
+                // Stale-helper guard (MAL-57): a resident helper from before
+                // the ProcessType=Interactive template fix reports success but
+                // rewrites the old plist — the helper binary only refreshes on
+                // process restart, so it can lag the app across an update.
+                // Verify the result and redo the rewrite via the in-app sudo
+                // path (ServiceBootstrapper + current PlistGenerator, with its
+                // own configured-postflight). Must NOT route back through the
+                // helper — sudoInstallRequiredRuntimeServices would, via
+                // InstallerEngine → PrivilegeBroker → this router's
+                // helper-first repairVHIDDaemonServices.
+                if serviceHealthChecker.isVHIDDaemonPlistPresentButMisconfigured() {
+                    AppLogger.shared.warn(
+                        "⚠️ [PrivilegedOperationsRouter] VHID daemon plist still misconfigured after helper install — stale helper template, rewriting via in-app sudo path"
+                    )
+                    try await sudoRepairVHIDServices()
+                }
             } catch {
                 try await sudoInstallRequiredRuntimeServices()
             }

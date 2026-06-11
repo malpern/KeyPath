@@ -53,7 +53,9 @@ public enum ActionDeterminer {
             }
         }
 
-        if !context.components.vhidServicesHealthy {
+        // Covers a pre-MAL-57 plist (missing ProcessType=Interactive) too:
+        // it needs the rewrite even when the daemon is otherwise healthy.
+        if context.components.vhidRuntimeServicesNeedRepair {
             actions.append(.installRequiredRuntimeServices)
         }
 
@@ -115,7 +117,7 @@ public enum ActionDeterminer {
             actions.append(.installPrivilegedHelper)
         }
 
-        if !context.components.vhidServicesHealthy {
+        if context.components.vhidRuntimeServicesNeedRepair {
             actions.append(.installRequiredRuntimeServices)
         }
 
