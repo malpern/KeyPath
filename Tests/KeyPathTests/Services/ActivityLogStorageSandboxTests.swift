@@ -1,5 +1,5 @@
 import KeyPathCore
-import KeyPathInsights
+@testable import KeyPathInsights
 import XCTest
 
 /// Guards against activity-log tests writing to (or deleting from) the real
@@ -18,15 +18,22 @@ final class ActivityLogStorageSandboxTests: XCTestCase {
         // so a detection regression fails loudly instead of vacuously passing.
         XCTAssertTrue(TestEnvironment.isRunningTests)
 
-        let dir = ActivityLogStorage.defaultBaseDirectory
+        let dir = ActivityLogStorage.defaultBaseDirectory.standardizedFileURL
+        let sandbox = AppPaths.testSandboxDirectory.standardizedFileURL
         XCTAssertTrue(
-            dir.path.hasPrefix(AppPaths.testSandboxDirectory.path),
-            "\(dir.path) must live under the test sandbox \(AppPaths.testSandboxDirectory.path)"
+            dir.path.hasPrefix(sandbox.path),
+            "\(dir.path) must live under the test sandbox \(sandbox.path)"
         )
         XCTAssertFalse(
             dir.path.hasPrefix(realSupportDir),
             "\(dir.path) must not point at the real Application Support directory during tests"
         )
         XCTAssertEqual(dir.lastPathComponent, "ActivityLog")
+    }
+
+    func testKeychainServiceIsSandboxed() {
+        // clearAll() deletes the encryption key; during tests that must target
+        // a separate Keychain item, never the production key.
+        XCTAssertEqual(ActivityLogEncryption.keychainService, "com.keypath.activitylog.tests")
     }
 }
