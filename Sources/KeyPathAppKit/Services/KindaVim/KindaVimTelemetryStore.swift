@@ -128,12 +128,11 @@ final class KindaVimTelemetryStore {
     /// `UserDefaults` key.
     static let optInKey = "kindaVim.telemetryEnabled"
 
+    /// ~/Library/Application Support/KeyPath/kindavim-telemetry.json
+    /// (redirected to a temp sandbox during tests via AppPaths).
     static var defaultFileURL: URL {
-        let support = FileManager.default
-            .homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support", isDirectory: true)
-            .appendingPathComponent("KeyPath", isDirectory: true)
-        return support.appendingPathComponent("kindavim-telemetry.json")
+        AppPaths.applicationSupportDirectory
+            .appendingPathComponent("kindavim-telemetry.json")
     }
 
     private let fileURL: URL

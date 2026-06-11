@@ -9,13 +9,11 @@ import Foundation
 /// type instead of hand-rolling `TestEnvironment.isRunningTests` checks.
 public enum AppPaths {
     /// Per-process sandbox root used in place of the real home directory while tests run.
-    public static var testSandboxDirectory: URL {
-        FileManager.default.temporaryDirectory
-            .appendingPathComponent(
-                "keypath-tests-\(ProcessInfo.processInfo.processIdentifier)",
-                isDirectory: true
-            )
-    }
+    public static let testSandboxDirectory: URL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(
+            "keypath-tests-\(ProcessInfo.processInfo.processIdentifier)",
+            isDirectory: true
+        )
 
     /// `~/Library/Logs/KeyPath` (sandboxed during tests).
     public static var logsDirectory: URL {
@@ -33,8 +31,14 @@ public enum AppPaths {
         logsDirectory.appendingPathComponent("crashes.log")
     }
 
+    /// Cached: isRunningTests scans Bundle.allBundles on every call and its
+    /// result cannot change within a process. The mutable
+    /// TestEnvironment.forceTestMode is intentionally excluded — flipping it
+    /// mid-process must not make early- and late-resolved paths disagree.
+    private static let isSandboxed = TestEnvironment.isRunningTests
+
     private static func userDirectory(_ relativePath: String) -> URL {
-        let root = TestEnvironment.isRunningTests
+        let root = isSandboxed
             ? testSandboxDirectory
             : FileManager.default.homeDirectoryForCurrentUser
         return root.appendingPathComponent(relativePath, isDirectory: true)
