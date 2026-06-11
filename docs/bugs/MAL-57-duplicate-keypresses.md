@@ -95,15 +95,37 @@ process key reports.
   postflight — wiring plist-content validation into `getServiceStatus()` so the
   wizard proactively flags stale plists on old installs is a follow-up.
   Expected effect: fewer heartbeat-miss disconnects, so far fewer incidents.
-- **Layer 2 (open, kanata fork):** shrink the autorepeat window. On reconnect the
-  client's `connected` callback only calls `virtual_hid_keyboard_initialize`;
-  also issuing `virtual_hid_keyboard_reset` would clear stuck keys immediately
-  (~10.2s in the timeline above instead of 11.7s). Force-closing the old client
-  object as soon as `sink_ready` flips false would help further.
-- **Layer 3 (open, kanata fork):** never silently drop a Release.
-  `drop_if_sink_disconnected` treats all events equally; dropped Releases are the
-  toxic case and should be remembered and replayed after reconnect
-  (`output_pressed_since` tracking already exists).
+- **Layer 2 (done, kanata fork — malpern/kanata#26, bundled via #885):** shrink
+  the autorepeat window. The fork vendors `karabiner-driverkit` 0.3.1
+  (`[patch.crates-io]` → `driverkit/`) with three changes:
+  1. *Stable per-PID client socket path.* The daemon keys per-client state —
+     including the DriverKit virtual keyboard instance — by the client socket
+     path, so a reconnect under the same path reuses the existing keyboard
+     instead of spawning a second instance while the stuck one autorepeats
+     until garbage collection.
+  2. *`virtual_hid_keyboard_reset` on the keyboard-ready rising edge.* Clears
+     stuck keys as soon as the connection recovers. Held keys survive because
+     every report kanata posts carries absolute full state (the `send_key`
+     template in `driverkit/c_src/driverkit.cpp` maintains the complete
+     pressed-key set and posts the whole report per event).
+  3. *Client server-check interval 3000ms → 1000ms*, matching the daemon's own
+     per-client ping rate, so dead connections are detected ~2s sooner.
+
+  Side effect: the once-per-second `virtual_hid_keyboard_ready` stdout spam
+  (95%+ of daemon log volume) is now logged on transitions only.
+
+  **Verified live 2026-06-11** (SIGSTOP/SIGCONT the daemon while typing,
+  entangled with an unrelated daemon SIGTERM+restart from a parallel QA
+  session — an even harsher scenario): no autorepeat burst at any point;
+  detection mid-write was immediate; the stable path's "client already exists"
+  reuse appeared in the daemon log (`ba49.sock`); `virtual_hid_keyboard_reset
+  sent after ready transition` fired on every recovery; keyboard re-grabbed
+  ~3s after the daemon became reachable (including kanata's deliberate 1s
+  settle delay).
+- **Layer 3 (open, kanata fork — malpern/kanata#27):** never silently drop a
+  Release. `drop_if_sink_disconnected` treats all events equally; dropped
+  Releases are the toxic case and should be remembered and replayed after
+  reconnect (`output_pressed_since` tracking already exists).
 
 Residual gap no fix can fully close: a release written into a socket that is
 dying but not yet declared dead is unrecoverable in transit; Layer 2 bounds the
