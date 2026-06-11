@@ -18,6 +18,8 @@ import XCTest
 final class StubDeflayerSafetyNetTests: XCTestCase {
     override func setUp() {
         super.setUp()
+        // Run every assertion in this suite even if one fails — surfacing all
+        // safety-net regressions in one CI run instead of stopping at the first.
         continueAfterFailure = true
     }
 
