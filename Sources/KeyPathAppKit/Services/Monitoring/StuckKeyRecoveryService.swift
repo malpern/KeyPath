@@ -199,10 +199,12 @@ final class StuckKeyRecoveryService {
 
     // MARK: - Capture Helpers
 
-    /// Last `maxLines` lines of a log file, optionally dropping lines that contain `filter`.
-    /// Reads only the trailing `maxBytes` of the file — the kanata stdout log can exceed
-    /// 100MB; never load it whole. When the read is truncated, a marker line is prepended
-    /// so a capture dominated by filtered spam can't masquerade as the full history.
+    /// Last `maxLines` non-empty lines of a log file, optionally dropping lines that
+    /// contain `filter`. Reads only the trailing `maxBytes` of the file — the kanata
+    /// stdout log can exceed 100MB; never load it whole. When the read is truncated, a
+    /// marker line is prepended (on top of `maxLines`, so the result can be
+    /// `maxLines + 1` long) so a capture dominated by filtered spam can't masquerade
+    /// as the full history.
     nonisolated static func logTail(
         path: String,
         maxLines: Int,
@@ -230,8 +232,11 @@ final class StuckKeyRecoveryService {
         if offset > 0 {
             tail = Array(tail.dropFirst()) // first line of a truncated read is partial
         }
-        if let filter {
-            tail = tail.filter { !$0.contains(filter) }
+        // Drop empties (including the artifact of a trailing newline) and filtered spam.
+        tail = tail.filter { line in
+            guard !line.isEmpty else { return false }
+            guard let filter else { return true }
+            return !line.contains(filter)
         }
         var result = Array(tail.suffix(maxLines))
         if offset > 0 {

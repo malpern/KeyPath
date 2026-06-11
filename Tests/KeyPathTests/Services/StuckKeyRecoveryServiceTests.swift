@@ -160,8 +160,10 @@ final class StuckKeyRecoveryServiceTests: KeyPathTestCase {
             .appendingPathComponent("stuck-key-tail-test-\(UUID().uuidString).log")
         defer { try? FileManager.default.removeItem(at: url) }
 
+        // Trailing newline matches real log files; the tail must not end with an
+        // empty-string artifact from splitting on it.
         let lines = (1 ... 500).map { "line \($0)" }
-        try lines.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+        try (lines.joined(separator: "\n") + "\n").write(to: url, atomically: true, encoding: .utf8)
 
         let tail = StuckKeyRecoveryService.logTail(path: url.path, maxLines: 3)
         XCTAssertEqual(tail, ["line 498", "line 499", "line 500"])
