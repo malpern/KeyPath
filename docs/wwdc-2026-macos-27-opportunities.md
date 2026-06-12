@@ -51,18 +51,21 @@ tagged `wwdc26` + `post-1.0`.
 
 ## Ranked opportunities
 
-| # | Opportunity | Reward | Effort | Verdict |
-|---|------------|--------|--------|---------|
-| 1 | Foundation Models behind the AI config-repair service | Very high | Medium | Do it |
-| 2 | App Intents Entity/Intent Schemas → Siri AI & Spotlight | High | Low–Med | Do it |
-| 3 | App Intents Testing Framework | Medium | Low | Easy win |
-| 4 | AppKit auto-observation (back-deploys to macOS 15) | Medium | Low | Easy win |
-| 5 | Xcode 27 + Swift 6.4 toolchain upgrade | Medium | Very low | Free |
-| 6 | Evaluations framework for the AI repair feature | Medium | Medium | Worthwhile |
-| 7 | Swift Testing migration via XCTest interop | Medium | High (amortizable) | Policy change, not a project |
-| 8 | SwiftUI reorderable containers + perf APIs | Low–Med | Low | Opportunistic |
-| 9 | macOS 27 design refresh pass | Low | Low | When on the 27 SDK |
-| 10 | SwiftData / Core AI / Document API | ~None | — | Skip |
+| # | Opportunity | Reward | Effort | Verdict | Issue |
+|---|------------|--------|--------|---------|-------|
+| 1 | Foundation Models behind the AI config-repair service | Very high | Medium | Do it | [#912](https://github.com/malpern/KeyPath/issues/912) |
+| 2 | App Intents Entity/Intent Schemas → Siri AI & Spotlight | High | Low–Med | Do it | [#913](https://github.com/malpern/KeyPath/issues/913) |
+| 3 | App Intents Testing Framework | Medium | Low | Easy win | [#914](https://github.com/malpern/KeyPath/issues/914) |
+| 4 | AppKit auto-observation (back-deploys to macOS 15) | Medium | Low | Easy win | [#915](https://github.com/malpern/KeyPath/issues/915) |
+| 5 | Xcode 27 + Swift 6.4 toolchain upgrade | Medium | Very low | Free | [#916](https://github.com/malpern/KeyPath/issues/916) |
+| 6 | Evaluations framework for the AI repair feature | Medium | Medium | Worthwhile | [#917](https://github.com/malpern/KeyPath/issues/917) |
+| 7 | Swift Testing migration via XCTest interop | Medium | High (amortizable) | Policy change, not a project | [#918](https://github.com/malpern/KeyPath/issues/918) |
+| 8 | SwiftUI reorderable containers + perf APIs | Low–Med | Low | Opportunistic | — |
+| 9 | macOS 27 design refresh pass | Low | Low | When on the 27 SDK | — |
+| 10 | SwiftData / Core AI / Document API | ~None | — | Skip | — |
+
+Risk item (not an opportunity): regression-test permissions/daemon/TCC on the
+macOS 27 betas — [#919](https://github.com/malpern/KeyPath/issues/919).
 
 ### 1. Foundation Models for AI config repair
 
