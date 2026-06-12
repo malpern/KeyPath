@@ -398,13 +398,13 @@
       <h1>KeyPath 1.0 — Release Readiness</h1>
       <div class="sub">
         <span class="dot"></span>
-        <span>End of Thu 2026-06-11 — triage closed EMPTY a day early · 6 of 10 gates done · RC staged for Sat</span>
+        <span>Fri 2026-06-12 AM — 6 gates closed · 2 detail-page bugs fixed overnight · today is light: notes + screenshots</span>
         <span style="color: var(--border-2)">·</span>
         <a href="RELEASE-READINESS.md">View markdown source</a>
       </div>
     </div>
     <div class="countdown">
-      <span class="num">2</span>
+      <span class="num">1</span>
       <span class="label">days to ship<br>Sat 2026-06-13</span>
     </div>
   </header>
@@ -415,7 +415,7 @@
 
       <!-- Exit criteria checklist -->
       <div class="card" style="border-color: rgba(95,168,255,0.35);">
-        <h3>Ship gate — 10 exit criteria <span class="tag">6 closed · 2 nearly closed · 2 scheduled (Sat)</span></h3>
+        <h3>Ship gate — 10 exit criteria <span class="tag">6 closed · gates 8–9 finish today · 7, 10 on Sat</span></h3>
         <div class="table-wrap" style="border: 0; max-height: none;">
           <table>
             <thead>
@@ -429,8 +429,8 @@
               <tr><td class="idx">5</td><td class="name">Design review pass across catalog — <a href="https://github.com/malpern/KeyPath/issues/888">#888</a> post-1.0 backlog, <a href="https://github.com/malpern/KeyPath/issues/889">#889</a> probed → downgraded post-1.0</td><td><span class="pill done">closed</span></td><td class="muted">Thu</td><td class="center muted">—</td></tr>
               <tr><td class="idx">6</td><td class="name">Findings triage → must-fix list closed <strong>EMPTY</strong> — #889 downgraded after wiring probe; hints verified accurate; rest fixed or noted</td><td><span class="pill done">closed early</span></td><td class="muted">Thu PM</td><td class="center muted">—</td></tr>
               <tr><td class="idx">7</td><td class="name">RC built, signed, notarized, smoke-verified</td><td><span class="pill idle">open</span></td><td class="muted">Sat</td><td class="center">~3</td></tr>
-              <tr><td class="idx">8</td><td class="name">Release notes incl. known limitations — 4 bullets drafted, final wording Fri</td><td><span class="pill wip">drafted</span></td><td class="muted">Fri AM</td><td class="center">~0.5</td></tr>
-              <tr><td class="idx">9</td><td class="name">Docs complete — detail pages ✅ (<a href="https://github.com/malpern/KeyPath/pull/893">#893</a>) · 12 illustrations ✅ (<a href="https://github.com/malpern/KeyPath/pull/894">#894</a>) · screenshot check + gh-pages publish remain</td><td><span class="pill wip">nearly closed</span></td><td class="muted">Fri / Sat</td><td class="center">~1</td></tr>
+              <tr><td class="idx">8</td><td class="name">Release notes incl. known limitations — 4 bullets drafted (+ cmd-removal note); final wording today</td><td><span class="pill wip">drafted · today</span></td><td class="muted">Fri AM</td><td class="center">~0.5</td></tr>
+              <tr><td class="idx">9</td><td class="name">Docs complete — detail pages ✅ (<a href="https://github.com/malpern/KeyPath/pull/893">#893</a>) + 2 follow-up bugs fixed (<a href="https://github.com/malpern/KeyPath/pull/903">#903</a>, <a href="https://github.com/malpern/KeyPath/pull/908">#908</a>) · 12 illustrations ✅ on master · screenshot pass + gh-pages publish remain</td><td><span class="pill wip">screenshot pass today</span></td><td class="muted">Fri / Sat</td><td class="center">~1</td></tr>
               <tr><td class="idx">10</td><td class="name">Marketing basics — website video + landing copy (Option B: may trail binary to Sun)</td><td><span class="pill idle">scheduled</span></td><td class="muted">Sat/Sun</td><td class="center">~5</td></tr>
             </tbody>
           </table>
@@ -446,8 +446,8 @@
           <h3>Verdict <span class="tag">vs plan</span></h3>
           <div style="font-size: 26px; font-weight: 700; color: var(--success); margin-bottom: 6px;">On track — RC staged</div>
           <div style="font-size: 12.5px; color: var(--text-dim); line-height: 1.55;">
-            Thursday closed gates 4, 5, 6, and (essentially) 9 in one day: #881 fixed &amp; live-verified, design review done, triage closed with an <strong style="color: var(--text);">empty must-fix list</strong>, detail pages + all 12 illustrations merged. <strong style="color: var(--text);">6 of 10 gates closed; ~10 hrs remain vs ~16+ available</strong> (Fri + Sat + optional Sun per Option B).
-            <br><br><strong style="color: var(--text);">What's left is mechanical:</strong> Fri = notes wording + screenshot check (~1h). Sat = RC build + smoke verify + gh-pages publish. Video may trail to Sun. No open decisions, no open PR blockers.
+            All Thursday work is on master, including the two Neovim detail-page bugs caught in your visual pass (#903 wrong component, #908 sheet clipping). <strong style="color: var(--text);">6 of 10 gates closed; ~9 hrs of work remain vs the full Fri + Sat (+ optional Sun) ahead.</strong>
+            <br><br><strong style="color: var(--text);">Today is light:</strong> finalize the 5 release-note bullets (~30m) and the screenshot currency pass (~30m) — that closes gates 8 and 9. Saturday is RC build + smoke verify + gh-pages publish + video. No open decisions; no PR blockers (the cmd-removal PR #899 is the other workstream's to merge).
           </div>
         </div>
 
@@ -527,13 +527,13 @@
         <div class="day done">
           <div class="name"><span>Thu</span><span class="date">06·11</span></div>
           <div class="focus">✓ The big day</div>
-          <div class="detail">#881 fixed, triage empty, packs + art shipped</div>
+          <div class="detail">#881 fixed, triage empty, packs + art + 2 detail bugs</div>
         </div>
         <div class="day today">
-          <div class="name"><span>Fri</span> <span class="now-tag">Next</span></div>
+          <div class="name"><span>Fri</span> <span class="now-tag">Today</span></div>
           <div class="date">06·12</div>
           <div class="focus">Notes + screenshots</div>
-          <div class="detail">~1h of polish, then buffer</div>
+          <div class="detail">~1h closes gates 8 + 9, then buffer</div>
         </div>
         <div class="day">
           <div class="name"><span>Sat</span><span class="date">06·13</span></div>
@@ -652,7 +652,7 @@
           <div class="row">
             <span class="cat">system</span>
             <div class="bar"><div class="fill" style="width: 33.3%; background: linear-gradient(90deg, #ff8aa8, #ffa7be);"></div></div>
-            <span class="num">2</span>
+            <span class="num">1</span>
           </div>
           <div class="row">
             <span class="cat">experimental</span>
