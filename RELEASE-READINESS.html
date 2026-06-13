@@ -398,14 +398,14 @@
       <h1>KeyPath 1.0 — Release Readiness</h1>
       <div class="sub">
         <span class="dot"></span>
-        <span>End of Thu 2026-06-11 — triage closed EMPTY a day early · 6 of 10 gates done · RC staged for Sat</span>
+        <span>Sat 2026-06-13 — RELEASE DAY · #899 (cmd removal) + screenshot cleanup merged · 8 gates done · cutting the RC now</span>
         <span style="color: var(--border-2)">·</span>
         <a href="RELEASE-READINESS.md">View markdown source</a>
       </div>
     </div>
     <div class="countdown">
-      <span class="num">2</span>
-      <span class="label">days to ship<br>Sat 2026-06-13</span>
+      <span class="num">0</span>
+      <span class="label">ship<br>TODAY · Sat 06·13</span>
     </div>
   </header>
 
@@ -415,7 +415,7 @@
 
       <!-- Exit criteria checklist -->
       <div class="card" style="border-color: rgba(95,168,255,0.35);">
-        <h3>Ship gate — 10 exit criteria <span class="tag">6 closed · 2 nearly closed · 2 scheduled (Sat)</span></h3>
+        <h3>Ship gate — 10 exit criteria <span class="tag">8 closed · gate 7 (RC) cutting now · gate 8 finalizing · 10 may trail to Sun</span></h3>
         <div class="table-wrap" style="border: 0; max-height: none;">
           <table>
             <thead>
@@ -428,9 +428,9 @@
               <tr><td class="idx">4</td><td class="name">6 family smoke scripts pass on installed app — <a href="https://github.com/malpern/KeyPath/issues/881">#881</a> fixed (<a href="https://github.com/malpern/KeyPath/pull/884">#884</a>), lib manifest-hardened (<a href="https://github.com/malpern/KeyPath/pull/880">#880</a>), 6/6 re-verified on the fixed app</td><td><span class="pill done">closed</span></td><td class="muted">Thu AM</td><td class="center muted">—</td></tr>
               <tr><td class="idx">5</td><td class="name">Design review pass across catalog — <a href="https://github.com/malpern/KeyPath/issues/888">#888</a> post-1.0 backlog, <a href="https://github.com/malpern/KeyPath/issues/889">#889</a> probed → downgraded post-1.0</td><td><span class="pill done">closed</span></td><td class="muted">Thu</td><td class="center muted">—</td></tr>
               <tr><td class="idx">6</td><td class="name">Findings triage → must-fix list closed <strong>EMPTY</strong> — #889 downgraded after wiring probe; hints verified accurate; rest fixed or noted</td><td><span class="pill done">closed early</span></td><td class="muted">Thu PM</td><td class="center muted">—</td></tr>
-              <tr><td class="idx">7</td><td class="name">RC built, signed, notarized, smoke-verified</td><td><span class="pill idle">open</span></td><td class="muted">Sat</td><td class="center">~3</td></tr>
-              <tr><td class="idx">8</td><td class="name">Release notes incl. known limitations — 4 bullets drafted, final wording Fri</td><td><span class="pill wip">drafted</span></td><td class="muted">Fri AM</td><td class="center">~0.5</td></tr>
-              <tr><td class="idx">9</td><td class="name">Docs complete — detail pages ✅ (<a href="https://github.com/malpern/KeyPath/pull/893">#893</a>) · 12 illustrations ✅ (<a href="https://github.com/malpern/KeyPath/pull/894">#894</a>) · screenshot check + gh-pages publish remain</td><td><span class="pill wip">nearly closed</span></td><td class="muted">Fri / Sat</td><td class="center">~1</td></tr>
+              <tr style="background: rgba(95,168,255,0.06);"><td class="idx">7</td><td class="name">RC built, signed, notarized, smoke-verified — preflight ✅ passed; bump 1.0.0 → release-candidate.sh → 6 smokes + import end-to-end + permission UX (<a href="https://github.com/malpern/KeyPath/issues/747">#747</a>)</td><td><span class="pill wip">in progress</span></td><td class="muted">Sat now</td><td class="center">~2</td></tr>
+              <tr><td class="idx">8</td><td class="name">Release notes — limitations + security ready; import framing qualified (QMK solid, Karabiner basic-remaps only, fidelity gaps noted); awaiting highlights + feedback-channel wording</td><td><span class="pill wip">finalizing</span></td><td class="muted">Sat</td><td class="center">~0.3</td></tr>
+              <tr><td class="idx">9</td><td class="name">Docs complete — detail pages ✅, 12 illustrations ✅, 26 placeholder screenshots stripped + preserved (<a href="https://github.com/malpern/KeyPath/pull/921">#921</a> / <a href="https://github.com/malpern/KeyPath/issues/920">#920</a>); only gh-pages publish remains (part of ship)</td><td><span class="pill done">closed</span></td><td class="muted">Sat</td><td class="center muted">—</td></tr>
               <tr><td class="idx">10</td><td class="name">Marketing basics — website video + landing copy (Option B: may trail binary to Sun)</td><td><span class="pill idle">scheduled</span></td><td class="muted">Sat/Sun</td><td class="center">~5</td></tr>
             </tbody>
           </table>
@@ -444,18 +444,19 @@
       <div style="display: flex; flex-direction: column; gap: 16px;">
         <div class="card" style="background: linear-gradient(160deg, rgba(63,185,107,0.10), var(--card)); border-color: rgba(63,185,107,0.4);">
           <h3>Verdict <span class="tag">vs plan</span></h3>
-          <div style="font-size: 26px; font-weight: 700; color: var(--success); margin-bottom: 6px;">On track — RC staged</div>
+          <div style="font-size: 26px; font-weight: 700; color: var(--success); margin-bottom: 6px;">🚀 Shipping today</div>
           <div style="font-size: 12.5px; color: var(--text-dim); line-height: 1.55;">
-            Thursday closed gates 4, 5, 6, and (essentially) 9 in one day: #881 fixed &amp; live-verified, design review done, triage closed with an <strong style="color: var(--text);">empty must-fix list</strong>, detail pages + all 12 illustrations merged. <strong style="color: var(--text);">6 of 10 gates closed; ~10 hrs remain vs ~16+ available</strong> (Fri + Sat + optional Sun per Option B).
-            <br><br><strong style="color: var(--text);">What's left is mechanical:</strong> Fri = notes wording + screenshot check (~1h). Sat = RC build + smoke verify + gh-pages publish. Video may trail to Sun. No open decisions, no open PR blockers.
+            The cmd-removal security hardening (<a href="https://github.com/malpern/KeyPath/pull/899">#899</a>) and screenshot cleanup (<a href="https://github.com/malpern/KeyPath/pull/921">#921</a>) merged this morning, after clearing two self-hosted-runner test flakes (gated, <a href="https://github.com/malpern/KeyPath/issues/922">#922</a> — confirmed infra, not product). <strong style="color: var(--text);">8 of 10 gates closed.</strong>
+            <br><br><strong style="color: var(--text);">RC QA found + fixed one blocker:</strong> the overlay output-type picker was unclickable — root-caused (the window-anchored popover host discarded content updates via an identity-only <code>Equatable</code>), fixed, and reworked into an iPhone-style drill-down with Launch App search (<a href="https://github.com/malpern/KeyPath/pull/924">#924</a>, merged). Release-prep <a href="https://github.com/malpern/KeyPath/pull/923">#923</a> also merged (version → 1.0.0 / build 4, stale appcast entry + 6 squatting <code>v1.0.0</code> tags cleared).
+            <br><br><strong style="color: var(--text);">Re-cutting the RC from master now</strong> (with the overlay fix) → smoke 6 family smokes + import + permission UX (<a href="https://github.com/malpern/KeyPath/issues/747">#747</a>) → release.sh → publish guides. Notes final; import qualified after audit (QMK fully tested; Karabiner basic-remaps only). Gate 10 (video) may trail — does not block the binary.
           </div>
         </div>
 
         <div class="card">
           <h3>Burndown <span class="tag">est. hrs to gate</span></h3>
           <!-- Hours remaining to close all gates, end of each day.
-               Actual: start 36 → Tue 30 → Wed 18, then +13h scope add Wed night → 31.
-               Projection at ~22 available hrs (Thu 10, Fri 8, Sat 4): Thu 21 → Fri 13 → Sat 9 (gap).
+               Actual: start 36 → Tue 30 → Wed 18, then +13h scope add Wed night → 31,
+               Thu close-out → 10, Fri prep → 5, Sat (now) → ~3 (RC + smoke + publish left).
                Plot: y: 0 hrs = 130, 36 hrs = 10 (scale 3.33px/hr). x: start 20 → Sat 250. -->
           <svg width="100%" height="170" viewBox="0 0 270 170" preserveAspectRatio="xMidYMid meet">
             <!-- gridlines -->
@@ -467,41 +468,36 @@
             <text x="14" y="13" font-size="8" fill="var(--text-faint)" text-anchor="end">36</text>
             <!-- ideal line: 36 at start → 0 at Sat -->
             <line x1="20" y1="10" x2="250" y2="130" stroke="var(--text-faint)" stroke-width="1" stroke-dasharray="4 4"/>
-            <!-- actual: start 36 → Tue 30 → Wed 18, +13h scope jump to 31, Thu close-out → 10 -->
+            <!-- actual: start 36 → Tue 30 → Wed 18, +13h scope jump to 31, then Thu 10 → Fri 5 → Sat 3 -->
             <polyline points="20,10 66,30 112,70" fill="none" stroke="#3fb96b" stroke-width="2.5" stroke-linecap="round"/>
             <line x1="112" y1="70" x2="112" y2="26.7" stroke="#e0a83a" stroke-width="2.5" stroke-dasharray="3 3"/>
             <text x="118" y="40" font-size="8" fill="#e0a83a">+13h scope</text>
-            <polyline points="112,26.7 158,96.7" fill="none" stroke="#3fb96b" stroke-width="2.5" stroke-linecap="round"/>
-            <!-- projection: Fri 5 → Sat 0 -->
-            <polyline points="158,96.7 204,113.3 250,130" fill="none" stroke="#5fa8ff" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round"/>
+            <polyline points="112,26.7 158,96.7 204,113.3 250,120" fill="none" stroke="#3fb96b" stroke-width="2.5" stroke-linecap="round"/>
             <!-- actual dots -->
             <circle cx="20" cy="10" r="3.5" fill="#3fb96b"/>
             <circle cx="66" cy="30" r="3.5" fill="#3fb96b"/>
             <circle cx="112" cy="70" r="3.5" fill="#3fb96b"/>
             <circle cx="112" cy="26.7" r="3.5" fill="#e0a83a"/>
-            <circle cx="158" cy="96.7" r="4.5" fill="#3fb96b" stroke="#0b0f15" stroke-width="1.5"/>
-            <!-- projected dots -->
-            <circle cx="204" cy="113.3" r="3" fill="none" stroke="#5fa8ff" stroke-width="1.5"/>
-            <circle cx="250" cy="130" r="3" fill="none" stroke="#5fa8ff" stroke-width="1.5"/>
+            <circle cx="158" cy="96.7" r="3.5" fill="#3fb96b"/>
+            <circle cx="204" cy="113.3" r="3.5" fill="#3fb96b"/>
+            <circle cx="250" cy="120" r="4.5" fill="#3fb96b" stroke="#0b0f15" stroke-width="1.5"/>
             <!-- x labels -->
             <text x="20" y="146" font-size="8.5" fill="var(--text-faint)" text-anchor="middle">start</text>
             <text x="66" y="146" font-size="8.5" fill="var(--text-dim)" text-anchor="middle">Tue</text>
             <text x="112" y="146" font-size="8.5" fill="var(--text-dim)" text-anchor="middle">Wed</text>
-            <text x="158" y="146" font-size="8.5" fill="var(--text)" font-weight="700" text-anchor="middle">Thu ◀</text>
-            <text x="204" y="146" font-size="8.5" fill="var(--text-faint)" text-anchor="middle">Fri</text>
-            <text x="250" y="146" font-size="8.5" fill="var(--text-faint)" text-anchor="middle">Sat</text>
+            <text x="158" y="146" font-size="8.5" fill="var(--text-dim)" text-anchor="middle">Thu</text>
+            <text x="204" y="146" font-size="8.5" fill="var(--text-dim)" text-anchor="middle">Fri</text>
+            <text x="250" y="146" font-size="8.5" fill="var(--text)" font-weight="700" text-anchor="middle">Sat ◀</text>
             <!-- legend -->
             <line x1="20" y1="160" x2="34" y2="160" stroke="#3fb96b" stroke-width="2.5"/>
             <text x="37" y="163" font-size="8" fill="var(--text-dim)">actual</text>
             <line x1="70" y1="160" x2="84" y2="160" stroke="#e0a83a" stroke-width="2.5" stroke-dasharray="3 3"/>
             <text x="87" y="163" font-size="8" fill="var(--text-dim)">scope add</text>
-            <line x1="132" y1="160" x2="146" y2="160" stroke="#5fa8ff" stroke-width="2" stroke-dasharray="5 4"/>
-            <text x="149" y="163" font-size="8" fill="var(--text-dim)">projected</text>
-            <line x1="195" y1="160" x2="209" y2="160" stroke="var(--text-faint)" stroke-width="1" stroke-dasharray="4 4"/>
-            <text x="212" y="163" font-size="8" fill="var(--text-dim)">ideal</text>
+            <line x1="132" y1="160" x2="146" y2="160" stroke="var(--text-faint)" stroke-width="1" stroke-dasharray="4 4"/>
+            <text x="149" y="163" font-size="8" fill="var(--text-dim)">ideal</text>
           </svg>
           <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 4px;">
-            Thursday burned ~21h of gate work in one day (#881 fix, triage, packs, illustrations) — the scope-add bump is fully absorbed. <strong style="color: var(--success);">~10h remain vs ~16+ available.</strong> Projection reaches zero before Saturday’s RC.
+            Burned to the floor. Thursday's ~21h surge absorbed the +13h scope add; Friday was prep (notes + RC preflight). <strong style="color: var(--success);">~3h of execution left — RC build + smoke + publish, not feature work.</strong> 8 of 10 gates closed; today is the cut.
           </div>
         </div>
       </div>
@@ -527,18 +523,18 @@
         <div class="day done">
           <div class="name"><span>Thu</span><span class="date">06·11</span></div>
           <div class="focus">✓ The big day</div>
-          <div class="detail">#881 fixed, triage empty, packs + art shipped</div>
+          <div class="detail">#881 fixed, triage empty, packs + art + 2 detail bugs</div>
+        </div>
+        <div class="day done">
+          <div class="name"><span>Fri</span><span class="date">06·12</span></div>
+          <div class="focus">✓ Prep</div>
+          <div class="detail">preflight passed, notes drafted, gate 9 closed</div>
         </div>
         <div class="day today">
-          <div class="name"><span>Fri</span> <span class="now-tag">Next</span></div>
-          <div class="date">06·12</div>
-          <div class="focus">Notes + screenshots</div>
-          <div class="detail">~1h of polish, then buffer</div>
-        </div>
-        <div class="day">
-          <div class="name"><span>Sat</span><span class="date">06·13</span></div>
-          <div class="focus">RC + ship</div>
-          <div class="detail">Or call the slip</div>
+          <div class="name"><span>Sat</span> <span class="now-tag">Now</span></div>
+          <div class="date">06·13</div>
+          <div class="focus">🚀 RC + ship</div>
+          <div class="detail">cutting the release candidate</div>
         </div>
       </div>
     </div>
@@ -652,7 +648,7 @@
           <div class="row">
             <span class="cat">system</span>
             <div class="bar"><div class="fill" style="width: 33.3%; background: linear-gradient(90deg, #ff8aa8, #ffa7be);"></div></div>
-            <span class="num">2</span>
+            <span class="num">3</span>
           </div>
           <div class="row">
             <span class="cat">experimental</span>
@@ -914,7 +910,7 @@
   </section>
 
   <div class="footer">
-    Updated Wed 2026-06-10 PM · Auto-synced from <code>RELEASE-READINESS.md</code> · Update by hand as the week progresses
+    Updated Sat 2026-06-13 — release day · Companion to <code>RELEASE-READINESS.md</code> · Maintained by hand
   </div>
 </div>
 </body>
