@@ -66,9 +66,6 @@ KeyPath installs Home Row Arrows by default. If it's already running, try it:
 3. Press **J, K, I, or L** to move the cursor
 4. **Release F** to go back to normal typing
 
-<!-- Screenshot: Overlay showing Home Row Arrows layer active, IJKL highlighted as arrows -->
-![Screenshot — Home Row Arrows active in the overlay]({{ '/images/help/placeholder-overlay-home-row-arrows.png' | relative_url }})
-
 That's it. Your hand never left the home row. No reaching, no looking down, no tiny arrow keys.
 
 ### Prefer Vim-style HJKL?
@@ -88,17 +85,11 @@ If you're a developer who already knows Vim's HJKL navigation, you can switch la
   └───┴───┴───┴───┘               └───┴───┴───┴───┘
 ```
 
-<!-- Screenshot: Pack detail showing layout picker with Inverted-T and Vim options -->
-![Screenshot — Home Row Arrows layout picker]({{ '/images/help/placeholder-pack-detail-arrows-picker.png' | relative_url }})
-
 ### If it's not installed yet
 
 1. Open KeyPath from the menu bar
 2. Open the **Pack Gallery**
 3. Find **Home Row Arrows** and click **Install**
-
-<!-- Screenshot: Pack Gallery showing Home Row Arrows pack -->
-![Screenshot — Home Row Arrows in the Pack Gallery]({{ '/images/help/placeholder-pack-gallery-home-row-arrows.png' | relative_url }})
 
 Or from the command line:
 
@@ -162,9 +153,6 @@ keypath remap right_option delete
 ## Seeing your remaps
 
 The keyboard overlay shows you what every key does right now. Remapped keys are highlighted so you can always tell what's been changed.
-
-<!-- Screenshot: Overlay showing remapped keys highlighted -->
-![Screenshot — The overlay highlighting remapped keys]({{ '/images/help/placeholder-overlay-remapped-keys.png' | relative_url }})
 
 Click any key to see its current mapping. If you ever forget what you've changed, the overlay is your map.
 

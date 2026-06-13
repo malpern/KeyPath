@@ -82,9 +82,6 @@ These use a two-step activation: hold Space (the Leader key) to enter the naviga
 | **Window Snapping** | Space + W | Tile windows to halves, corners, screens |
 | **Mission Control** | Space + M | Expose, desktops, notification center |
 
-<!-- Screenshot: Overlay showing the navigation layer with key hints -->
-![Screenshot — The overlay showing layer key hints]({{ '/images/help/placeholder-overlay-nav-layer.png' | relative_url }})
-
 ### Installing a layer pack
 
 1. Open the **Pack Gallery**
@@ -100,9 +97,6 @@ See the [Packs & Layers catalog]({{ '/guides/packs/' | relative_url }}) for deta
 ## The overlay shows you where you are
 
 The keyboard overlay updates in real time as you switch layers. When you hold a trigger key, the overlay shows the current layer's key assignments — so you always know what each key does right now.
-
-<!-- Screenshot: Overlay transitioning from base to nav layer -->
-![Screenshot — Overlay showing layer transition]({{ '/images/help/placeholder-overlay-layer-transition.png' | relative_url }})
 
 This is especially useful when you're learning a new layer. Keep the overlay visible and glance at it while you build muscle memory.
 
