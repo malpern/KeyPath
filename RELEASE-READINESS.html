@@ -398,14 +398,14 @@
       <h1>KeyPath 1.0 — Release Readiness</h1>
       <div class="sub">
         <span class="dot"></span>
-        <span>Fri 2026-06-12 AM — 6 gates closed · 2 detail-page bugs fixed overnight · today is light: notes + screenshots</span>
+        <span>Sat 2026-06-13 — RELEASE DAY · #899 (cmd removal) + screenshot cleanup merged · 8 gates done · cutting the RC now</span>
         <span style="color: var(--border-2)">·</span>
         <a href="RELEASE-READINESS.md">View markdown source</a>
       </div>
     </div>
     <div class="countdown">
-      <span class="num">1</span>
-      <span class="label">days to ship<br>Sat 2026-06-13</span>
+      <span class="num">0</span>
+      <span class="label">ship<br>TODAY · Sat 06·13</span>
     </div>
   </header>
 
@@ -415,7 +415,7 @@
 
       <!-- Exit criteria checklist -->
       <div class="card" style="border-color: rgba(95,168,255,0.35);">
-        <h3>Ship gate — 10 exit criteria <span class="tag">6 closed · gates 8–9 finish today · 7, 10 on Sat</span></h3>
+        <h3>Ship gate — 10 exit criteria <span class="tag">8 closed · gate 7 (RC) cutting now · gate 8 finalizing · 10 may trail to Sun</span></h3>
         <div class="table-wrap" style="border: 0; max-height: none;">
           <table>
             <thead>
@@ -428,9 +428,9 @@
               <tr><td class="idx">4</td><td class="name">6 family smoke scripts pass on installed app — <a href="https://github.com/malpern/KeyPath/issues/881">#881</a> fixed (<a href="https://github.com/malpern/KeyPath/pull/884">#884</a>), lib manifest-hardened (<a href="https://github.com/malpern/KeyPath/pull/880">#880</a>), 6/6 re-verified on the fixed app</td><td><span class="pill done">closed</span></td><td class="muted">Thu AM</td><td class="center muted">—</td></tr>
               <tr><td class="idx">5</td><td class="name">Design review pass across catalog — <a href="https://github.com/malpern/KeyPath/issues/888">#888</a> post-1.0 backlog, <a href="https://github.com/malpern/KeyPath/issues/889">#889</a> probed → downgraded post-1.0</td><td><span class="pill done">closed</span></td><td class="muted">Thu</td><td class="center muted">—</td></tr>
               <tr><td class="idx">6</td><td class="name">Findings triage → must-fix list closed <strong>EMPTY</strong> — #889 downgraded after wiring probe; hints verified accurate; rest fixed or noted</td><td><span class="pill done">closed early</span></td><td class="muted">Thu PM</td><td class="center muted">—</td></tr>
-              <tr><td class="idx">7</td><td class="name">RC built, signed, notarized, smoke-verified</td><td><span class="pill idle">open</span></td><td class="muted">Sat</td><td class="center">~3</td></tr>
-              <tr><td class="idx">8</td><td class="name">Release notes incl. known limitations — 4 bullets drafted (+ cmd-removal note); final wording today</td><td><span class="pill wip">drafted · today</span></td><td class="muted">Fri AM</td><td class="center">~0.5</td></tr>
-              <tr><td class="idx">9</td><td class="name">Docs complete — detail pages ✅ (<a href="https://github.com/malpern/KeyPath/pull/893">#893</a>) + 2 follow-up bugs fixed (<a href="https://github.com/malpern/KeyPath/pull/903">#903</a>, <a href="https://github.com/malpern/KeyPath/pull/908">#908</a>) · 12 illustrations ✅ on master · screenshot pass + gh-pages publish remain</td><td><span class="pill wip">screenshot pass today</span></td><td class="muted">Fri / Sat</td><td class="center">~1</td></tr>
+              <tr style="background: rgba(95,168,255,0.06);"><td class="idx">7</td><td class="name">RC built, signed, notarized, smoke-verified — preflight ✅ passed; bump 1.0.0 → release-candidate.sh → 6 smokes + import end-to-end + permission UX (<a href="https://github.com/malpern/KeyPath/issues/747">#747</a>)</td><td><span class="pill wip">in progress</span></td><td class="muted">Sat now</td><td class="center">~2</td></tr>
+              <tr><td class="idx">8</td><td class="name">Release notes — limitations + security ready; import framing qualified (QMK solid, Karabiner basic-remaps only, fidelity gaps noted); awaiting highlights + feedback-channel wording</td><td><span class="pill wip">finalizing</span></td><td class="muted">Sat</td><td class="center">~0.3</td></tr>
+              <tr><td class="idx">9</td><td class="name">Docs complete — detail pages ✅, 12 illustrations ✅, 26 placeholder screenshots stripped + preserved (<a href="https://github.com/malpern/KeyPath/pull/921">#921</a> / <a href="https://github.com/malpern/KeyPath/issues/920">#920</a>); only gh-pages publish remains (part of ship)</td><td><span class="pill done">closed</span></td><td class="muted">Sat</td><td class="center muted">—</td></tr>
               <tr><td class="idx">10</td><td class="name">Marketing basics — website video + landing copy (Option B: may trail binary to Sun)</td><td><span class="pill idle">scheduled</span></td><td class="muted">Sat/Sun</td><td class="center">~5</td></tr>
             </tbody>
           </table>
@@ -444,10 +444,10 @@
       <div style="display: flex; flex-direction: column; gap: 16px;">
         <div class="card" style="background: linear-gradient(160deg, rgba(63,185,107,0.10), var(--card)); border-color: rgba(63,185,107,0.4);">
           <h3>Verdict <span class="tag">vs plan</span></h3>
-          <div style="font-size: 26px; font-weight: 700; color: var(--success); margin-bottom: 6px;">On track — RC staged</div>
+          <div style="font-size: 26px; font-weight: 700; color: var(--success); margin-bottom: 6px;">🚀 Shipping today</div>
           <div style="font-size: 12.5px; color: var(--text-dim); line-height: 1.55;">
-            All Thursday work is on master, including the two Neovim detail-page bugs caught in your visual pass (#903 wrong component, #908 sheet clipping). <strong style="color: var(--text);">6 of 10 gates closed; ~9 hrs of work remain vs the full Fri + Sat (+ optional Sun) ahead.</strong>
-            <br><br><strong style="color: var(--text);">Today is light:</strong> finalize the 5 release-note bullets (~30m) and the screenshot currency pass (~30m) — that closes gates 8 and 9. Saturday is RC build + smoke verify + gh-pages publish + video. No open decisions; no PR blockers (the cmd-removal PR #899 is the other workstream's to merge).
+            The cmd-removal security hardening (<a href="https://github.com/malpern/KeyPath/pull/899">#899</a>) and screenshot cleanup (<a href="https://github.com/malpern/KeyPath/pull/921">#921</a>) merged this morning, after clearing two self-hosted-runner test flakes (gated, <a href="https://github.com/malpern/KeyPath/issues/922">#922</a> — confirmed infra, not product). <strong style="color: var(--text);">8 of 10 gates closed.</strong>
+            <br><br><strong style="color: var(--text);">Cutting the RC now:</strong> bump 1.0.0 → release-candidate.sh → smoke-verify the signed build (6 family smokes + import end-to-end + permission UX <a href="https://github.com/malpern/KeyPath/issues/747">#747</a>) → release.sh → publish guides. Notes finalizing in parallel; import claims qualified after audit (QMK fully tested; Karabiner basic-remaps only, advanced-rule gaps noted). Gate 10 (video) may trail to Sun — does not block the binary.
           </div>
         </div>
 
@@ -529,16 +529,16 @@
           <div class="focus">✓ The big day</div>
           <div class="detail">#881 fixed, triage empty, packs + art + 2 detail bugs</div>
         </div>
-        <div class="day today">
-          <div class="name"><span>Fri</span> <span class="now-tag">Today</span></div>
-          <div class="date">06·12</div>
-          <div class="focus">Notes + screenshots</div>
-          <div class="detail">~1h closes gates 8 + 9, then buffer</div>
+        <div class="day done">
+          <div class="name"><span>Fri</span><span class="date">06·12</span></div>
+          <div class="focus">✓ Prep</div>
+          <div class="detail">preflight passed, notes drafted, gate 9 closed</div>
         </div>
-        <div class="day">
-          <div class="name"><span>Sat</span><span class="date">06·13</span></div>
-          <div class="focus">RC + ship</div>
-          <div class="detail">Or call the slip</div>
+        <div class="day today">
+          <div class="name"><span>Sat</span> <span class="now-tag">Now</span></div>
+          <div class="date">06·13</div>
+          <div class="focus">🚀 RC + ship</div>
+          <div class="detail">cutting the release candidate</div>
         </div>
       </div>
     </div>
