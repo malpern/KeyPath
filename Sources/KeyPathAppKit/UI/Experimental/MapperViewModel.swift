@@ -47,6 +47,39 @@ class MapperViewModel {
     var selectedFolder: (path: String, name: String?)?
     /// Selected script path for script-run mapping (nil = normal key output)
     var selectedScript: (path: String, name: String?)?
+
+    // MARK: - Output-Type Picker (Overlay) Navigation State
+
+    /// Which page the overlay output-type picker is showing.
+    ///
+    /// The picker is an iPhone-style drill-down — the root list and each
+    /// sub-list (System Action / Launch App / Go to Layer) are separate pages
+    /// that slide over one another inside a *stable* popover frame. This
+    /// deliberately replaced inline expansion: growing the popover's height
+    /// forced the hoisted window-anchored layer to re-measure and reposition on
+    /// every toggle, which fought SwiftUI's preference/position machinery and
+    /// left the expandable rows unresponsive. Swapping pages in a fixed frame
+    /// avoids all of that.
+    ///
+    /// It lives on the view model (not `@State` on the view) because the picker
+    /// is rendered in that detached hoisted layer; `@State` mutated from there
+    /// does not propagate back, whereas this shared `@Observable` reference does.
+    enum OutputPickerPage: Equatable {
+        case root
+        case systemActions
+        case launchApps
+        case layers
+    }
+
+    var outputPickerPage: OutputPickerPage = .root
+    /// Selected layer name for "Go to Layer" output (nil = not a layer output).
+    var selectedLayerOutput: String?
+    /// Filter text for the Launch App sub-page's known-apps list. Lives here
+    /// (not `@State` on the view) because the picker popover is hoisted; a
+    /// `TextField` bound to view `@State` from that detached layer wouldn't
+    /// propagate. Cleared each time the picker opens.
+    var launchAppSearchText: String = ""
+
     /// Key code of the captured input (for overlay-style rendering)
     /// Default to 0 (A key) so the default state shows the A key selected
     var inputKeyCode: UInt16? = 0

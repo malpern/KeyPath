@@ -1,122 +1,32 @@
 import AppKit
 import SwiftUI
 
-private struct SystemActionPopoverContentHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
 extension OverlayMapperSection {
-    /// Keep the picker compact by default, then grow it to a larger scrollable surface
-    /// whenever any section expands. Using an explicit height lets the popover resize
-    /// with the presented SwiftUI view instead of relying on a maxHeight that never
-    /// increases the popover's ideal size.
-    private var collapsedPopoverHeight: CGFloat {
-        270
+    // MARK: - Output-Type Picker (drill-down)
+
+    /// Fixed popover size. A stable frame is the whole point of the drill-down:
+    /// the picker swaps pages instead of growing in place, so the hoisted
+    /// window-anchored layer never has to re-measure or reposition mid-interaction
+    /// (which is what left the old inline-expand rows unresponsive).
+    private var outputPickerWidth: CGFloat {
+        280
     }
 
-    private var hasExpandedSection: Bool {
-        isSystemActionsExpanded || isLaunchAppsExpanded || isLayersExpanded
+    private var outputPickerHeight: CGFloat {
+        340
     }
 
-    private var maximumPopoverHeight: CGFloat {
-        let visibleScreenHeight = NSScreen.main?.visibleFrame.height ?? 900
-        return min(collapsedPopoverHeight * 2, max(collapsedPopoverHeight, visibleScreenHeight - 160))
-    }
-
-    private var popoverHeight: CGFloat {
-        guard hasExpandedSection else { return collapsedPopoverHeight }
-        let measuredHeight = max(collapsedPopoverHeight, outputActionPopoverContentHeight)
-        return min(measuredHeight, maximumPopoverHeight)
-    }
-
-    /// Popover content for output type picker with collapsible sections
+    /// Output-type picker. An iPhone-style drill-down: the root page lists the
+    /// output types; the three with sub-choices (System Action, Launch App, Go
+    /// to Layer) slide over to their own page rather than expanding in place.
     var systemActionPopover: some View {
-        let isKeystrokeSelected = viewModel.selectedSystemAction == nil && viewModel.selectedApp == nil && selectedLayerOutput == nil && viewModel.selectedURL == nil && viewModel
-            .selectedFolder == nil && viewModel.selectedScript == nil
-        let isSystemActionSelected = viewModel.selectedSystemAction != nil
-        let isAppSelected = viewModel.selectedApp != nil
-        let isLayerSelected = selectedLayerOutput != nil
-        let isURLSelected = viewModel.selectedURL != nil
-        let isFolderSelected = viewModel.selectedFolder != nil
-        let isScriptSelected = viewModel.selectedScript != nil
-
-        return ScrollView {
-            VStack(spacing: 0) {
-                // "Keystroke" option
-                Button {
-                    collapseAllSections()
-                    selectedLayerOutput = nil
-                    viewModel.revertToKeystroke()
-                    isSystemActionPickerOpen = false
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: isKeystrokeSelected ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(isKeystrokeSelected ? Color.accentColor : .secondary)
-                            .frame(width: 24)
-                        Image(systemName: "keyboard")
-                            .font(.body)
-                            .frame(width: 20)
-                        Text("Keystroke")
-                            .font(.body)
-                        Spacer()
-                    }
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(LayerPickerItemButtonStyle())
-                .focusable(false)
-                .accessibilityIdentifier("overlay-mapper-output-keystroke")
-
-                PopoverListDivider()
-
-                // "System Action" option - clickable to expand/collapse
-                Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        if !isSystemActionsExpanded {
-                            isLaunchAppsExpanded = false
-                            isLayersExpanded = false
-                        }
-                        isSystemActionsExpanded.toggle()
-                    }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: isSystemActionSelected ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(isSystemActionSelected ? Color.accentColor : .secondary)
-                            .frame(width: 24)
-                        Image(systemName: "gearshape")
-                            .font(.body)
-                            .frame(width: 20)
-                        Text("System Action")
-                            .font(.body)
-                        Spacer()
-                        if let action = viewModel.selectedSystemAction {
-                            Text(action.name)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Image(systemName: isSystemActionsExpanded ? "chevron.up" : "chevron.down")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(LayerPickerItemButtonStyle())
-                .focusable(false)
-                .accessibilityIdentifier("overlay-mapper-output-system-action")
-
-                // Collapsible system actions grid
-                if isSystemActionsExpanded {
+        ZStack(alignment: .top) {
+            switch viewModel.outputPickerPage {
+            case .root:
+                outputPickerRootPage
+                    .transition(.move(edge: .leading))
+            case .systemActions:
+                outputPickerSubPage(title: "System Action") {
                     SystemActionGridView(
                         groups: OutputActionGrouping.detailed,
                         selectedActionID: viewModel.selectedSystemAction?.id,
@@ -126,264 +36,277 @@ extension OverlayMapperSection {
                             isSystemActionPickerOpen = false
                         }
                     )
-                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-
-                PopoverListDivider()
-
-                // "Launch App" option - clickable to expand/collapse
-                Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        if !isLaunchAppsExpanded {
-                            isSystemActionsExpanded = false
-                            isLayersExpanded = false
-                        }
-                        isLaunchAppsExpanded.toggle()
-                        if isLaunchAppsExpanded {
-                            loadKnownApps()
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: isAppSelected ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(isAppSelected ? Color.accentColor : .secondary)
-                            .frame(width: 24)
-                        if let app = viewModel.selectedApp {
-                            Image(nsImage: app.icon)
-                                .resizable()
-                                .frame(width: 20, height: 20)
-                        } else {
-                            Image(systemName: "app.fill")
-                                .font(.body)
-                                .frame(width: 20)
-                        }
-                        Text(viewModel.selectedApp?.name ?? "Launch App")
-                            .font(.body)
-                        Spacer()
-                        if let app = viewModel.selectedApp {
-                            Text(app.name)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Image(systemName: isLaunchAppsExpanded ? "chevron.up" : "chevron.down")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(LayerPickerItemButtonStyle())
-                .focusable(false)
-                .accessibilityIdentifier("overlay-mapper-output-launch-app")
-
-                // Collapsible known apps list
-                if isLaunchAppsExpanded {
+                .transition(.move(edge: .trailing))
+            case .launchApps:
+                outputPickerSubPage(title: "Launch App") {
                     launchAppsExpandedContent
-                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-
-                PopoverListDivider()
-
-                // "Open URL" option
-                Button {
-                    collapseAllSections()
-                    isSystemActionPickerOpen = false
-                    viewModel.showURLInputDialog()
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: isURLSelected ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(isURLSelected ? Color.accentColor : .secondary)
-                            .frame(width: 24)
-                        Image(systemName: "link")
-                            .font(.body)
-                            .frame(width: 20)
-                        Text("Open URL")
-                            .font(.body)
-                        Spacer()
-                        if let url = viewModel.selectedURL {
-                            Text(KeyMappingFormatter.extractDomain(from: url))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(LayerPickerItemButtonStyle())
-                .focusable(false)
-                .accessibilityIdentifier("overlay-mapper-output-url")
-
-                PopoverListDivider()
-
-                // "Open Folder" option
-                Button {
-                    collapseAllSections()
-                    isSystemActionPickerOpen = false
-                    browseForFolder()
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: isFolderSelected ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(isFolderSelected ? Color.accentColor : .secondary)
-                            .frame(width: 24)
-                        Image(systemName: "folder.fill")
-                            .font(.body)
-                            .frame(width: 20)
-                        Text("Open Folder")
-                            .font(.body)
-                        Spacer()
-                        if let folder = viewModel.selectedFolder {
-                            Text(folder.name ?? URL(fileURLWithPath: folder.path).lastPathComponent)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(LayerPickerItemButtonStyle())
-                .focusable(false)
-                .accessibilityIdentifier("overlay-mapper-output-folder")
-
-                PopoverListDivider()
-
-                // "Run Script" option
-                Button {
-                    collapseAllSections()
-                    isSystemActionPickerOpen = false
-                    browseForScript()
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: isScriptSelected ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(isScriptSelected ? Color.accentColor : .secondary)
-                            .frame(width: 24)
-                        Image(systemName: "terminal.fill")
-                            .font(.body)
-                            .frame(width: 20)
-                        Text("Run Script")
-                            .font(.body)
-                        Spacer()
-                        if let script = viewModel.selectedScript {
-                            Text(script.name ?? URL(fileURLWithPath: script.path).lastPathComponent)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(LayerPickerItemButtonStyle())
-                .focusable(false)
-                .accessibilityIdentifier("overlay-mapper-output-script")
-
-                PopoverListDivider()
-
-                // "Go to Layer" option - clickable to expand/collapse
-                Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        if !isLayersExpanded {
-                            isSystemActionsExpanded = false
-                            isLaunchAppsExpanded = false
-                        }
-                        isLayersExpanded.toggle()
-                        if isLayersExpanded {
-                            Task { await viewModel.refreshAvailableLayers() }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: isLayerSelected ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(isLayerSelected ? Color.accentColor : .secondary)
-                            .frame(width: 24)
-                        Image(systemName: "square.stack.3d.up")
-                            .font(.body)
-                            .frame(width: 20)
-                        Text("Go to Layer")
-                            .font(.body)
-                        Spacer()
-                        if let layer = selectedLayerOutput {
-                            Text(layer.capitalized)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Image(systemName: isLayersExpanded ? "chevron.up" : "chevron.down")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(LayerPickerItemButtonStyle())
-                .focusable(false)
-                .accessibilityIdentifier("overlay-mapper-output-go-to-layer")
-
-                // Collapsible layers list
-                if isLayersExpanded {
+                .transition(.move(edge: .trailing))
+            case .layers:
+                outputPickerSubPage(title: "Go to Layer") {
                     layersExpandedContent
-                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
+                .transition(.move(edge: .trailing))
             }
-            .padding(.vertical, 6)
-            .background(
-                GeometryReader { geometry in
-                    Color.clear.preference(
-                        key: SystemActionPopoverContentHeightKey.self,
-                        value: geometry.size.height
-                    )
-                }
-            )
         }
-        .scrollBounceBehavior(.basedOnSize)
-        .frame(width: 280, height: popoverHeight, alignment: .top)
+        .frame(width: outputPickerWidth, height: outputPickerHeight, alignment: .top)
         .pickerPopoverChrome()
-        .animation(.easeInOut(duration: 0.25), value: popoverHeight)
-        .animation(.easeInOut(duration: 0.25), value: isSystemActionsExpanded)
-        .animation(.easeInOut(duration: 0.25), value: isLaunchAppsExpanded)
-        .animation(.easeInOut(duration: 0.25), value: isLayersExpanded)
-        .onPreferenceChange(SystemActionPopoverContentHeightKey.self) { measuredHeight in
-            let snappedHeight = ceil(measuredHeight)
-            guard abs(outputActionPopoverContentHeight - snappedHeight) > 1 else { return }
-            withAnimation(.easeInOut(duration: 0.25)) {
-                outputActionPopoverContentHeight = snappedHeight
-            }
-        }
         .onAppear {
-            // Auto-expand the relevant section based on current selection
-            isSystemActionsExpanded = viewModel.selectedSystemAction != nil
-            isLaunchAppsExpanded = viewModel.selectedApp != nil
-            isLayersExpanded = selectedLayerOutput != nil
-            outputActionPopoverContentHeight = collapsedPopoverHeight
-            if isLaunchAppsExpanded {
-                loadKnownApps()
-            }
+            // Always open at the root list; the selected type is shown with a
+            // checkmark there, and a predictable entry point avoids surprising
+            // the user with a deep page on reopen.
+            viewModel.outputPickerPage = .root
+            viewModel.launchAppSearchText = ""
         }
         .sheet(isPresented: $showingNewLayerDialog) {
             newLayerDialogContent
         }
     }
 
-    /// Collapse all expandable sections
-    private func collapseAllSections() {
-        withAnimation(.easeInOut(duration: 0.2)) {
-            isSystemActionsExpanded = false
-            isLaunchAppsExpanded = false
-            isLayersExpanded = false
+    // MARK: - Root Page
+
+    private var outputPickerRootPage: some View {
+        let isKeystrokeSelected = viewModel.selectedSystemAction == nil
+            && viewModel.selectedApp == nil
+            && viewModel.selectedLayerOutput == nil
+            && viewModel.selectedURL == nil
+            && viewModel.selectedFolder == nil
+            && viewModel.selectedScript == nil
+
+        return ScrollView {
+            VStack(spacing: 0) {
+                outputTypeLeafRow(
+                    title: "Keystroke",
+                    icon: "keyboard",
+                    isSelected: isKeystrokeSelected,
+                    accessibilityID: "overlay-mapper-output-keystroke"
+                ) {
+                    viewModel.selectedLayerOutput = nil
+                    viewModel.revertToKeystroke()
+                    isSystemActionPickerOpen = false
+                }
+
+                PopoverListDivider()
+
+                outputTypeNavRow(
+                    title: "System Action",
+                    icon: "gearshape",
+                    isSelected: viewModel.selectedSystemAction != nil,
+                    detail: viewModel.selectedSystemAction?.name,
+                    accessibilityID: "overlay-mapper-output-system-action"
+                ) {
+                    viewModel.outputPickerPage = .systemActions
+                }
+
+                PopoverListDivider()
+
+                outputTypeNavRow(
+                    title: "Launch App",
+                    icon: "app.fill",
+                    customIcon: viewModel.selectedApp?.icon,
+                    isSelected: viewModel.selectedApp != nil,
+                    detail: viewModel.selectedApp?.name,
+                    accessibilityID: "overlay-mapper-output-launch-app"
+                ) {
+                    loadKnownApps()
+                    viewModel.outputPickerPage = .launchApps
+                }
+
+                PopoverListDivider()
+
+                outputTypeLeafRow(
+                    title: "Open URL",
+                    icon: "link",
+                    isSelected: viewModel.selectedURL != nil,
+                    detail: viewModel.selectedURL.map { KeyMappingFormatter.extractDomain(from: $0) },
+                    accessibilityID: "overlay-mapper-output-url"
+                ) {
+                    isSystemActionPickerOpen = false
+                    viewModel.showURLInputDialog()
+                }
+
+                PopoverListDivider()
+
+                outputTypeLeafRow(
+                    title: "Open Folder",
+                    icon: "folder.fill",
+                    isSelected: viewModel.selectedFolder != nil,
+                    detail: viewModel.selectedFolder.map { $0.name ?? URL(fileURLWithPath: $0.path).lastPathComponent },
+                    accessibilityID: "overlay-mapper-output-folder"
+                ) {
+                    isSystemActionPickerOpen = false
+                    browseForFolder()
+                }
+
+                PopoverListDivider()
+
+                outputTypeLeafRow(
+                    title: "Run Script",
+                    icon: "terminal.fill",
+                    isSelected: viewModel.selectedScript != nil,
+                    detail: viewModel.selectedScript.map { $0.name ?? URL(fileURLWithPath: $0.path).lastPathComponent },
+                    accessibilityID: "overlay-mapper-output-script"
+                ) {
+                    isSystemActionPickerOpen = false
+                    browseForScript()
+                }
+
+                PopoverListDivider()
+
+                outputTypeNavRow(
+                    title: "Go to Layer",
+                    icon: "square.stack.3d.up",
+                    isSelected: viewModel.selectedLayerOutput != nil,
+                    detail: viewModel.selectedLayerOutput?.capitalized,
+                    accessibilityID: "overlay-mapper-output-go-to-layer"
+                ) {
+                    Task { await viewModel.refreshAvailableLayers() }
+                    viewModel.outputPickerPage = .layers
+                }
+            }
+            .padding(.vertical, 6)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+    }
+
+    // MARK: - Sub-Page Scaffold
+
+    /// A sub-page: a back header that returns to the root list, then the
+    /// category's content. The content reuses the same leaf-row lists the
+    /// inline version used (`launchAppsExpandedContent`, `layersExpandedContent`,
+    /// `SystemActionGridView`); each row selects and closes the popover.
+    private func outputPickerSubPage(
+        title: String,
+        @ViewBuilder content: () -> some View
+    ) -> some View {
+        VStack(spacing: 0) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    viewModel.outputPickerPage = .root
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.left")
+                        .font(.body.weight(.semibold))
+                    Text(title)
+                        .font(.body.weight(.semibold))
+                    Spacer()
+                }
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(LayerPickerItemButtonStyle())
+            .focusable(false)
+            .accessibilityIdentifier("overlay-mapper-output-back")
+
+            PopoverListDivider()
+
+            ScrollView {
+                content()
+                    .padding(.vertical, 4)
+            }
+            .scrollBounceBehavior(.basedOnSize)
         }
     }
+
+    // MARK: - Row Builders
+
+    /// A terminal output type: selecting it applies the output and closes the
+    /// popover (Keystroke, Open URL, Open Folder, Run Script).
+    private func outputTypeLeafRow(
+        title: String,
+        icon: String,
+        isSelected: Bool,
+        detail: String? = nil,
+        accessibilityID: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                    .frame(width: 24)
+                Image(systemName: icon)
+                    .font(.body)
+                    .frame(width: 20)
+                Text(title)
+                    .font(.body)
+                Spacer()
+                if let detail {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(LayerPickerItemButtonStyle())
+        .focusable(false)
+        .accessibilityIdentifier(accessibilityID)
+    }
+
+    /// An output type with sub-choices: tapping it drills into a sub-page.
+    /// The trailing chevron points right to signal navigation.
+    private func outputTypeNavRow(
+        title: String,
+        icon: String,
+        customIcon: NSImage? = nil,
+        isSelected: Bool,
+        detail: String? = nil,
+        accessibilityID: String,
+        navigate: @escaping () -> Void
+    ) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.22)) {
+                navigate()
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                    .frame(width: 24)
+                if let customIcon {
+                    Image(nsImage: customIcon)
+                        .resizable()
+                        .frame(width: 20, height: 20)
+                } else {
+                    Image(systemName: icon)
+                        .font(.body)
+                        .frame(width: 20)
+                }
+                Text(title)
+                    .font(.body)
+                Spacer()
+                if let detail {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(LayerPickerItemButtonStyle())
+        .focusable(false)
+        .accessibilityIdentifier(accessibilityID)
+    }
+
+    // MARK: - Folder / Script Pickers
 
     /// Browse for a folder using NSOpenPanel
     private func browseForFolder() {

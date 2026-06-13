@@ -24,17 +24,15 @@ struct OverlayMapperSection: View {
     @State var showTapCountPicker = false
     @State var showingAppPickerSheet = false
     @State var showingResetDialog = false
-    @State var isSystemActionsExpanded = false
-    @State var isLaunchAppsExpanded = false
-    @State var isLayersExpanded = false
-    @State var outputActionPopoverContentHeight: CGFloat = 0
+    // Output-type picker navigation (page + selectedLayerOutput) lives on
+    // MapperViewModel — the picker is rendered in a hoisted window-anchored
+    // layer where view @State does not propagate. See MapperViewModel
+    // "Output-Type Picker (Overlay) Navigation State".
     @State var knownApps: [AppLaunchInfo] = []
     @State var showingNewLayerDialog = false
     @State var newLayerName = ""
     @State var isHoldVariantPopoverOpen = false
     @State var showMultiTapSlideOver = false
-    /// Currently selected layer for "Go to Layer" output
-    @State var selectedLayerOutput: String?
     /// Selected tap count (1 = single, 2 = double, 3 = triple)
     @State var selectedTapCount: Int = 1
     /// Cached set of installed pack IDs (for green dot on visual-only packs)
