@@ -226,11 +226,21 @@ fi
 git tag "v${VERSION}"
 
 echo "📤 Creating GitHub Release..."
+# Mark as pre-release only for versions carrying a semver pre-release suffix
+# (e.g. 1.0.0-beta4). Stable versions (1.0.0) publish as "Latest release".
+# Scalar + ${x:+...} keeps this safe under `set -u` on bash 3.2 (macOS).
+PRERELEASE_FLAG=""
+if [[ "$VERSION" == *-* ]]; then
+    PRERELEASE_FLAG="--prerelease"
+    echo "   $VERSION is a pre-release → marking GitHub Release as pre-release"
+else
+    echo "   $VERSION is stable → publishing as Latest release"
+fi
 gh release create "v${VERSION}" \
     "$SPARKLE_ZIP" \
     "$SPARKLE_DMG" \
     --title "KeyPath ${VERSION}" \
-    --prerelease \
+    ${PRERELEASE_FLAG:+"$PRERELEASE_FLAG"} \
     --notes "See [release notes](https://github.com/malpern/KeyPath/releases/tag/v${VERSION}) for details."
 
 echo "📝 Updating appcast.xml..."
