@@ -4,16 +4,15 @@ import XCTest
 /// Byte-exact pins for the single-source-of-truth `defcfg` renderer.
 ///
 /// These assert the literal rendered strings so any drift in `KanataDefcfg.render()`
-/// or its named profiles fails CI. The expected strings here match the historical
-/// hand-built headers the four config emitters used before consolidation.
+/// or its named profiles fails CI. `danger-enable-cmd` is intentionally not
+/// representable (the bundled engine is compiled without kanata's `cmd` feature,
+/// #879) — a pin below guards that no profile ever renders it.
 final class KanataDefcfgTests: XCTestCase {
     // MARK: - standard()
 
     func testStandardDefaultMatchesGeneratedHeader() {
-        // Opted-in variant of GoldenConfigs/default.kbd (key-repeat enabled, no prior-idle,
-        // no chords). The golden itself renders with allowCommandActions: false since M1.1.
+        // Mirrors GoldenConfigs/default.kbd (key-repeat enabled, no prior-idle, no chords).
         let defcfg = KanataDefcfg.standard(
-            allowCommandActions: true,
             managedRepeatTiming: (delayMs: 500, intervalMs: 30),
             requirePriorIdleMs: nil,
             hasChords: false,
@@ -22,7 +21,6 @@ final class KanataDefcfgTests: XCTestCase {
         XCTAssertEqual(defcfg.render(), """
         (defcfg
           process-unmapped-keys yes
-          danger-enable-cmd yes
           managed-repeat yes
           managed-repeat-unlisted no
           managed-repeat-delay 500
@@ -32,10 +30,8 @@ final class KanataDefcfgTests: XCTestCase {
     }
 
     func testStandardWithPriorIdleAndChords() {
-        // Opted-in variant of GoldenConfigs/home-row-mods.kbd plus a chord-triggered
-        // concurrent-tap-hold. The golden renders with allowCommandActions: false since M1.1.
+        // Mirrors GoldenConfigs/home-row-mods.kbd plus a chord-triggered concurrent-tap-hold.
         let defcfg = KanataDefcfg.standard(
-            allowCommandActions: true,
             managedRepeatTiming: (delayMs: 500, intervalMs: 30),
             requirePriorIdleMs: 150,
             hasChords: true,
@@ -44,7 +40,6 @@ final class KanataDefcfgTests: XCTestCase {
         XCTAssertEqual(defcfg.render(), """
         (defcfg
           process-unmapped-keys yes
-          danger-enable-cmd yes
           managed-repeat yes
           managed-repeat-unlisted no
           managed-repeat-delay 500
@@ -57,7 +52,6 @@ final class KanataDefcfgTests: XCTestCase {
 
     func testStandardWithoutKeyRepeatOmitsRepeatTuning() {
         let defcfg = KanataDefcfg.standard(
-            allowCommandActions: true,
             managedRepeatTiming: nil,
             requirePriorIdleMs: nil,
             hasChords: false,
@@ -66,7 +60,6 @@ final class KanataDefcfgTests: XCTestCase {
         XCTAssertEqual(defcfg.render(), """
         (defcfg
           process-unmapped-keys yes
-          danger-enable-cmd yes
           managed-repeat yes
           managed-repeat-unlisted no
         )
@@ -78,7 +71,6 @@ final class KanataDefcfgTests: XCTestCase {
         // closing paren — exactly how renderMacOSDeviceTargetingForDefcfg() is spliced.
         let trailer = "\n  macos-dev-names-exclude (\n    \"vhid\"\n  )"
         let defcfg = KanataDefcfg.standard(
-            allowCommandActions: true,
             managedRepeatTiming: nil,
             requirePriorIdleMs: nil,
             hasChords: false,
@@ -87,7 +79,6 @@ final class KanataDefcfgTests: XCTestCase {
         XCTAssertEqual(defcfg.render(), """
         (defcfg
           process-unmapped-keys yes
-          danger-enable-cmd yes
           managed-repeat yes
           managed-repeat-unlisted no
           macos-dev-names-exclude (
@@ -97,28 +88,35 @@ final class KanataDefcfgTests: XCTestCase {
         """)
     }
 
-    func testStandardCanDisableCommandActions() {
-        // Forward-looking: the danger-enable-cmd gate flips this single flag.
-        let defcfg = KanataDefcfg.standard(
-            allowCommandActions: false,
-            managedRepeatTiming: nil,
-            requirePriorIdleMs: nil,
-            hasChords: false,
-            deviceTargeting: ""
-        )
-        XCTAssertFalse(defcfg.render().contains("danger-enable-cmd"))
+    func testNoProfileEverRendersDangerEnableCmd() {
+        // The engine is built without the cmd feature (#879); the header must never
+        // grant what the binary can't do. If this fails, someone reintroduced the
+        // option — that requires the engine build and this type to change together.
+        let profiles: [KanataDefcfg] = [
+            .standard(
+                managedRepeatTiming: (delayMs: 500, intervalMs: 30),
+                requirePriorIdleMs: 150,
+                hasChords: true,
+                deviceTargeting: ""
+            ),
+            .minimalSafe,
+            .validationWrapper,
+            .repairFallback
+        ]
+        for profile in profiles {
+            XCTAssertFalse(profile.render().contains("danger-enable-cmd"))
+        }
     }
 
     // MARK: - Named profiles
 
     func testMinimalSafeProfile() {
-        // SaveCoordinator crash-loop recovery: process-unmapped-keys only, no cmd.
+        // SaveCoordinator crash-loop recovery: process-unmapped-keys only.
         XCTAssertEqual(KanataDefcfg.minimalSafe.render(), """
         (defcfg
           process-unmapped-keys yes
         )
         """)
-        XCTAssertFalse(KanataDefcfg.minimalSafe.render().contains("danger-enable-cmd"))
     }
 
     func testValidationWrapperProfile() {
@@ -130,36 +128,19 @@ final class KanataDefcfgTests: XCTestCase {
         """)
     }
 
-    func testMinimalSafeAndValidationWrapperShareOutputByDesign() {
-        // Identical today by design. If one diverges (e.g. validationWrapper gains an
+    func testMinimalProfilesShareOutputByDesign() {
+        // Identical today by design. If one diverges (e.g. repairFallback gains an
         // option), this assertion should be updated deliberately — it guards against
         // accidental convergence/divergence in either direction.
         XCTAssertEqual(KanataDefcfg.minimalSafe, KanataDefcfg.validationWrapper)
-    }
-
-    func testRepairFallbackProfileFollowsPolicy() {
-        // ConfigurationService rule-based repair injection mirrors the user's
-        // command-actions policy instead of hardcoding danger-enable-cmd.
-        XCTAssertEqual(KanataDefcfg.repairFallback(allowCommandActions: true).render(), """
-        (defcfg
-          process-unmapped-keys yes
-          danger-enable-cmd yes
-        )
-        """)
-        XCTAssertEqual(KanataDefcfg.repairFallback(allowCommandActions: false).render(), """
-        (defcfg
-          process-unmapped-keys yes
-        )
-        """)
+        XCTAssertEqual(KanataDefcfg.minimalSafe, KanataDefcfg.repairFallback)
     }
 
     // MARK: - Call-site splice equivalence
 
-    func testRepairFallbackSpliceMatchesLegacyString() {
-        // ConfigurationService injects the block followed by a blank line. The legacy
-        // multiline literal rendered to exactly this byte sequence (for an opted-in user).
-        let spliced = KanataDefcfg.repairFallback(allowCommandActions: true).render() + "\n\n"
-        let legacy = "(defcfg\n  process-unmapped-keys yes\n  danger-enable-cmd yes\n)\n\n"
-        XCTAssertEqual(spliced, legacy)
+    func testRepairFallbackSpliceShape() {
+        // ConfigurationService injects the block followed by a blank line.
+        let spliced = KanataDefcfg.repairFallback.render() + "\n\n"
+        XCTAssertEqual(spliced, "(defcfg\n  process-unmapped-keys yes\n)\n\n")
     }
 }

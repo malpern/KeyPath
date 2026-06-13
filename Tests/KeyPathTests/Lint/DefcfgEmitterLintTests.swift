@@ -4,12 +4,14 @@ import Foundation
 /// Guards the single-source-of-truth invariant for the kanata `(defcfg ...)` header
 /// (issue #860, completing #859).
 ///
-/// Every config KeyPath writes must render its header through `KanataDefcfg` — that
-/// type is where the root daemon's command-execution posture
-/// (`KanataCommandActionsPolicy` / `danger-enable-cmd`) is decided. Before the
+/// Every config KeyPath writes must render its header through `KanataDefcfg` — the
+/// single auditable place where safety-relevant header options are decided (and
+/// where `danger-enable-cmd` is deliberately not representable, since the bundled
+/// engine is compiled without kanata's `cmd` feature — #879). Before the
 /// consolidation, at least five call sites hand-built the header and drifted apart.
 /// This test fails if a `(defcfg` literal reappears in `Sources/` outside
-/// `KanataDefcfg.swift`, so a new hand-built emitter can't quietly bypass the policy.
+/// `KanataDefcfg.swift`, so a new hand-built emitter can't quietly bypass the
+/// consolidation.
 ///
 /// Allowed, by construction:
 /// - comment lines,
@@ -59,8 +61,8 @@ final class DefcfgEmitterLintTests: XCTestCase {
             """
             Hand-built kanata defcfg header(s) found outside KanataDefcfg.swift. Render \
             the header through a KanataDefcfg named profile instead — it is the single \
-            auditable place where the root daemon's command-execution posture \
-            (danger-enable-cmd / KanataCommandActionsPolicy) is decided (#859/#860):
+            auditable place where safety-relevant header options are decided, and \
+            danger-enable-cmd is deliberately not representable there (#859/#860/#879):
             \(violations.sorted().joined(separator: "\n"))
             """
         )
