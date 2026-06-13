@@ -27,9 +27,9 @@ public extension View {
     ///     choice for triggers in a right-side sidebar. The host auto-flips
     ///     to the opposite edge if the popover would clip the host bounds.
     ///   - gap: Space between the trigger edge and the popover edge.
-    ///   - content: The popover content. Built once when `isPresented`
-    ///     becomes `true` and cached until dismissal, so heavier content
-    ///     doesn't pay a rebuild cost on every layout pass.
+    ///   - content: The popover content. Rebuilt from live state as the host
+    ///     re-renders, so it always reflects the trigger view's current state
+    ///     (selection, drill-down page, etc.) rather than a snapshot from open.
     func windowAnchoredPopover(
         isPresented: Binding<Bool>,
         edge: WindowAnchoredPopoverEdge = .leading,
@@ -57,28 +57,25 @@ public extension View {
 
 // MARK: - Internal Entry
 
-struct WindowAnchoredPopoverEntry: Identifiable, Equatable, @unchecked Sendable {
+struct WindowAnchoredPopoverEntry: Identifiable, @unchecked Sendable {
     let id: UUID
     let anchor: Anchor<CGRect>
     let edge: WindowAnchoredPopoverEdge
     let gap: CGFloat
     /// Type-erased so any caller can attach arbitrary popover content
     /// without bubbling a generic parameter all the way to the host.
-    /// The trade-off is that SwiftUI can't diff inside the popover
-    /// subtree across `entries` updates — acceptable for picker-style
-    /// content; revisit if the host renders large dynamic trees.
     let content: AnyView
     let dismiss: () -> Void
 
-    /// Identity-only equality. `anchor` is `Anchor<CGRect>` (not Equatable),
-    /// `content` is `AnyView` (untyped), and `dismiss` is a closure — none of
-    /// these can participate. Comparing only `id` also matches our semantic
-    /// intent: the host only needs to know when the *set of open popovers*
-    /// changes (so it can rebind the ESC monitor). Layout-driven anchor
-    /// movement should not retrigger that work.
-    static func == (lhs: WindowAnchoredPopoverEntry, rhs: WindowAnchoredPopoverEntry) -> Bool {
-        lhs.id == rhs.id
-    }
+    // Deliberately NOT `Equatable`. An identity-only `==` (comparing just `id`)
+    // used to live here, but it caused SwiftUI to treat a same-id entry whose
+    // *content* changed as unchanged — skipping both the preference update and
+    // the content re-render. The result: the popover kept showing stale content
+    // (e.g. the picker never navigated to a tapped sub-page even though the
+    // model and rebuilt content were both correct). Without `Equatable`, the
+    // host re-renders the content whenever it is re-emitted, so it always
+    // reflects the latest state. Work that only cares about the *set* of open
+    // popovers (the ESC monitor) keys on `entries.map(\.id)` instead.
 }
 
 struct WindowAnchoredPopoverPreferenceKey: PreferenceKey {
@@ -102,36 +99,32 @@ private struct WindowAnchoredPopoverModifier<PopoverContent: View>: ViewModifier
     /// reused for every emitted entry from this modifier.
     @State private var id = UUID()
 
-    /// Cached popover content. Built once when `isPresented` flips to `true`
-    /// and held until dismissal, so the popover view tree is not
-    /// re-instantiated on every layout pass (which the surrounding
-    /// `anchorPreference` transform would otherwise trigger).
-    @State private var cachedContent: AnyView?
-
     func body(content: Content) -> some View {
         content
             .anchorPreference(
                 key: WindowAnchoredPopoverPreferenceKey.self,
                 value: .bounds
             ) { anchor in
-                guard isPresented, let cachedContent else { return [] }
+                guard isPresented else { return [] }
+                // Build the content fresh each time the preference is
+                // recomputed rather than caching it once on open. The popover
+                // body depends on the trigger view's live state (e.g. the
+                // mapper picker's expand/selection flags); a one-shot cache
+                // froze that state, so expanding a section or changing the
+                // selection never re-rendered and the rows looked dead to
+                // clicks. Rebuilding ties content freshness to the source
+                // view's re-renders. The build is a lightweight picker tree;
+                // structural identity is stable so in-popover state persists.
                 return [
                     WindowAnchoredPopoverEntry(
                         id: id,
                         anchor: anchor,
                         edge: edge,
                         gap: gap,
-                        content: cachedContent,
+                        content: AnyView(contentBuilder()),
                         dismiss: { isPresented = false }
                     )
                 ]
-            }
-            .onChange(of: isPresented) { _, isOpen in
-                if isOpen {
-                    cachedContent = AnyView(contentBuilder())
-                } else {
-                    cachedContent = nil
-                }
             }
     }
 }
@@ -140,6 +133,7 @@ private struct WindowAnchoredPopoverModifier<PopoverContent: View>: ViewModifier
 
 private struct WindowAnchoredPopoverHostModifier: ViewModifier {
     @State private var escMonitor: Any?
+    @State private var outsideClickMonitor: Any?
 
     func body(content: Content) -> some View {
         content.overlayPreferenceValue(WindowAnchoredPopoverPreferenceKey.self) { entries in
@@ -158,8 +152,8 @@ private struct WindowAnchoredPopoverHostModifier: ViewModifier {
                 .frame(width: 0, height: 0)
                 .hidden()
                 .allowsHitTesting(false)
-                .onChange(of: entries) { _, _ in removeEscMonitor() }
-                .onDisappear { removeEscMonitor() }
+                .onChange(of: entries.map(\.id)) { _, _ in removeDismissMonitors() }
+                .onDisappear { removeDismissMonitors() }
         } else {
             GeometryReader { proxy in
                 ZStack(alignment: .topLeading) {
@@ -187,40 +181,58 @@ private struct WindowAnchoredPopoverHostModifier: ViewModifier {
                         .transition(.opacity)
                     }
                 }
-                .animation(.easeOut(duration: 0.12), value: entries)
+                .animation(.easeOut(duration: 0.12), value: entries.map(\.id))
             }
-            .onChange(of: entries) { _, newEntries in
-                if newEntries.isEmpty {
-                    removeEscMonitor()
+            // Key only on the set of open popover ids: the ESC monitor only
+            // needs rebinding when a popover opens/closes, not when content or
+            // anchor change on every layout pass.
+            .onChange(of: entries.map(\.id)) { _, ids in
+                if ids.isEmpty {
+                    removeDismissMonitors()
                 } else {
-                    installEscMonitor(dismissAll: { for entry in newEntries {
+                    installDismissMonitors(dismissAll: { for entry in entries {
                         entry.dismiss()
                     } })
                 }
             }
             .onAppear {
-                installEscMonitor(dismissAll: { for entry in entries {
+                installDismissMonitors(dismissAll: { for entry in entries {
                     entry.dismiss()
                 } })
             }
-            .onDisappear { removeEscMonitor() }
+            .onDisappear { removeDismissMonitors() }
         }
     }
 
-    private func installEscMonitor(dismissAll: @escaping () -> Void) {
-        removeEscMonitor()
+    private func installDismissMonitors(dismissAll: @escaping () -> Void) {
+        removeDismissMonitors()
+        // ESC dismisses (local key monitor — no accessibility permission needed).
         escMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
             // 53 = kVK_Escape (no Carbon import needed for this single constant)
             guard event.keyCode == 53 else { return event }
             dismissAll()
             return nil
         }
+        // A click outside the app's own windows (another app, the desktop)
+        // dismisses too. The in-window backdrop can't see those events, so the
+        // popover would otherwise linger after the user clicks away. Global
+        // monitors only observe events destined for *other* apps, so this never
+        // fires for clicks on the overlay itself (those stay local).
+        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { _ in
+            dismissAll()
+        }
     }
 
-    private func removeEscMonitor() {
+    private func removeDismissMonitors() {
         if let monitor = escMonitor {
             NSEvent.removeMonitor(monitor)
             escMonitor = nil
+        }
+        if let monitor = outsideClickMonitor {
+            NSEvent.removeMonitor(monitor)
+            outsideClickMonitor = nil
         }
     }
 }
