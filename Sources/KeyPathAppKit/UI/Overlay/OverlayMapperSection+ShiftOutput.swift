@@ -95,7 +95,7 @@ extension OverlayMapperSection {
         if viewModel.selectedURL != nil {
             return "Opens URL"
         }
-        if selectedLayerOutput != nil {
+        if viewModel.selectedLayerOutput != nil {
             return "Goes to a layer"
         }
         return "Types \(viewModel.outputLabel)"

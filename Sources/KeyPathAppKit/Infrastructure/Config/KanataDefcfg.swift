@@ -2,10 +2,15 @@
 ///
 /// Every config KeyPath writes — generated, repaired, validated, or recovered —
 /// renders its `defcfg` through this type. Previously the header was hand-built in
-/// at least four places that had drifted apart (notably whether `danger-enable-cmd`
-/// and a consistent `process-unmapped-keys` value were present), which meant the
-/// root daemon's command-execution posture depended on which code path last wrote
-/// the file. Centralizing it here keeps those decisions in one auditable place.
+/// at least four places that had drifted apart, which meant safety-relevant header
+/// options depended on which code path last wrote the file. Centralizing it here
+/// keeps those decisions in one auditable place.
+///
+/// `danger-enable-cmd` is deliberately not representable here: the bundled engine
+/// is compiled WITHOUT kanata's `cmd` feature (issue #879), so the grant would be
+/// meaningless — `(cmd ...)` actions fail at parse regardless of the header. If a
+/// future emitter needs the line back, the engine build, this type, and the
+/// DefcfgEmitterLintTests guard must change together, deliberately.
 ///
 /// The named factories below (`standard`, `minimalSafe`, `validationWrapper`,
 /// `repairFallback`) encode the *intentional* differences between emitters so the
@@ -13,10 +18,6 @@
 public struct KanataDefcfg: Sendable, Equatable {
     /// `process-unmapped-keys yes|no`.
     public var processUnmappedKeys: Bool
-    /// Emits `danger-enable-cmd yes` when true; omits the line entirely when false.
-    /// This is the single switch that decides whether the root daemon will run
-    /// `cmd` actions named in the config.
-    public var allowCommandActions: Bool
     /// `managed-repeat yes|no` — omitted when nil.
     public var managedRepeat: Bool?
     /// `managed-repeat-unlisted yes|no` — omitted when nil.
@@ -37,7 +38,6 @@ public struct KanataDefcfg: Sendable, Equatable {
 
     public init(
         processUnmappedKeys: Bool,
-        allowCommandActions: Bool,
         managedRepeat: Bool? = nil,
         managedRepeatUnlisted: Bool? = nil,
         managedRepeatDelayMs: Int? = nil,
@@ -47,7 +47,6 @@ public struct KanataDefcfg: Sendable, Equatable {
         trailer: String = ""
     ) {
         self.processUnmappedKeys = processUnmappedKeys
-        self.allowCommandActions = allowCommandActions
         self.managedRepeat = managedRepeat
         self.managedRepeatUnlisted = managedRepeatUnlisted
         self.managedRepeatDelayMs = managedRepeatDelayMs
@@ -72,9 +71,6 @@ public struct KanataDefcfg: Sendable, Equatable {
         assert((managedRepeatDelayMs == nil) == (managedRepeatIntervalMs == nil),
                "managed-repeat delay and interval must both be set or both be nil")
         var lines = ["  process-unmapped-keys \(processUnmappedKeys ? "yes" : "no")"]
-        if allowCommandActions {
-            lines.append("  danger-enable-cmd yes")
-        }
         if let managedRepeat {
             lines.append("  managed-repeat \(managedRepeat ? "yes" : "no")")
         }
@@ -101,7 +97,6 @@ public extension KanataDefcfg {
     /// The full runtime header used for generated user configs (rule collections).
     ///
     /// - Parameters:
-    ///   - allowCommandActions: whether to emit `danger-enable-cmd yes`.
     ///   - managedRepeatTiming: the `(delay, interval)` pair, or nil to omit both.
     ///     Taken as a single tuple so delay and interval can never be half-set at this
     ///     entry point (the `render()` assert backstops the internal `init`).
@@ -113,7 +108,6 @@ public extension KanataDefcfg {
     /// `managed-repeat`/`managed-repeat-unlisted` are always emitted; when
     /// `managedRepeatTiming` is nil, kanata uses its own defaults for delay/interval.
     static func standard(
-        allowCommandActions: Bool,
         managedRepeatTiming: (delayMs: Int, intervalMs: Int)?,
         requirePriorIdleMs: Int?,
         hasChords: Bool,
@@ -121,7 +115,6 @@ public extension KanataDefcfg {
     ) -> KanataDefcfg {
         KanataDefcfg(
             processUnmappedKeys: true,
-            allowCommandActions: allowCommandActions,
             managedRepeat: true,
             managedRepeatUnlisted: false,
             managedRepeatDelayMs: managedRepeatTiming?.delayMs,
@@ -133,34 +126,27 @@ public extension KanataDefcfg {
     }
 
     /// Crash-loop recovery fallback written after a rollback failure.
-    /// Intentionally omits command execution and repeat tuning — recovery must never
-    /// (re)enable `cmd` actions or fail validation on optional tuning. `allowCommandActions:
-    /// false` omits the `danger-enable-cmd` line entirely, which kanata treats as disabled.
+    /// Intentionally omits repeat tuning — recovery must never fail validation on
+    /// optional tuning.
     ///
-    /// Currently renders identically to `validationWrapper`; the separate names preserve
-    /// the option to diverge (e.g. if recovery later needs repeat tuning) and document
-    /// the distinct call sites.
+    /// Currently renders identically to `validationWrapper` and `repairFallback`;
+    /// the separate names preserve the option to diverge and document the distinct
+    /// call sites.
     static let minimalSafe = KanataDefcfg(
-        processUnmappedKeys: true,
-        allowCommandActions: false
+        processUnmappedKeys: true
     )
 
     /// Throwaway header used only to validate include files (`keypath-apps.kbd`),
     /// which are not standalone and need minimal `defcfg`/`defsrc` context.
     /// Renders identically to `minimalSafe` today; see that profile's note.
     static let validationWrapper = KanataDefcfg(
-        processUnmappedKeys: true,
-        allowCommandActions: false
+        processUnmappedKeys: true
     )
 
     /// Minimal header injected by rule-based repair when a config is missing its
-    /// `defcfg` entirely. The caller passes the user's `KanataCommandActionsPolicy`
-    /// so repair mirrors the generator's command-execution posture instead of
-    /// silently (re)enabling `cmd` actions.
-    static func repairFallback(allowCommandActions: Bool) -> KanataDefcfg {
-        KanataDefcfg(
-            processUnmappedKeys: true,
-            allowCommandActions: allowCommandActions
-        )
-    }
+    /// `defcfg` entirely. Renders identically to `minimalSafe` today; see that
+    /// profile's note.
+    static let repairFallback = KanataDefcfg(
+        processUnmappedKeys: true
+    )
 }

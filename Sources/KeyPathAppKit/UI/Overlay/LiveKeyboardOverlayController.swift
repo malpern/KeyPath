@@ -653,7 +653,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
         let wrappedContent = buildRootView()
 
-        let hostingView = NSHostingView(rootView: wrappedContent)
+        // FirstMouseHostingView (not plain NSHostingView) so clicks register on
+        // the very first mouse-down even while the non-focus-stealing overlay is
+        // not key — otherwise hoisted controls (mapper output-type picker rows)
+        // swallow the activation click and appear unclickable.
+        let hostingView = FirstMouseHostingView(rootView: wrappedContent)
         hostingView.setFrameSize(initialSize)
         self.hostingView = hostingView
 

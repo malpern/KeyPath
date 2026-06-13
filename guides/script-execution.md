@@ -24,9 +24,6 @@ Scripts are disabled by default. To turn them on:
 3. Toggle **Enable Script Execution**
 4. Confirm in the security dialog
 
-<!-- Screenshot: Settings showing the Script Execution toggle -->
-![Screenshot — Script Execution settings]({{ '/images/help/placeholder-settings-script-execution.png' | relative_url }})
-
 The confirmation dialog explains what scripts can do — run commands, access files, and make network requests. This is a one-time decision; you can disable it again at any time.
 
 ---
@@ -60,9 +57,6 @@ open "keypath://script/~/scripts/hello.sh"
 ```
 
 The first time a script runs, KeyPath shows a confirmation dialog with the script path. You can check "Don't show again" to skip the dialog for future scripts.
-
-<!-- Screenshot: Script confirmation dialog showing path and warning -->
-![Screenshot — First-run script confirmation]({{ '/images/help/placeholder-script-confirmation.png' | relative_url }})
 
 ---
 
@@ -217,9 +211,6 @@ Check "Don't show again" only if you trust all scripts you'll run. This bypasses
 ### 3. Execution log
 
 KeyPath logs every script execution — path, timestamp, success/failure, and any errors. View the log in **Settings > Script Execution > View Execution Log**.
-
-<!-- Screenshot: Execution log showing recent script runs -->
-![Screenshot — Script execution log]({{ '/images/help/placeholder-script-execution-log.png' | relative_url }})
 
 ### What scripts can't do
 

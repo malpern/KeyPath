@@ -311,13 +311,14 @@ Method: full catalog copy extraction (names, summaries, activation hints, pack t
 **Known limitations (release notes, no code):**
 3. Launcher `activationMode=leaderSequence` keeps the Hyper hold path active (config-identical to holdHyper). Note in release docs until intent is decided.
 4. HRL Toggles toggle-mode without companion layers: keys silently no-op (stub-deflayer safety net). Covered by sprint epic #865.
+5. **Hand-written `(cmd ...)` kanata actions no longer work** — the bundled engine is now compiled without kanata's `cmd` feature ([#879](https://github.com/malpern/KeyPath/issues/879)): the root daemon cannot execute shell commands regardless of config contents. Configs merely carrying the legacy `danger-enable-cmd yes` header still load; configs *using* `(cmd ...)` fail validation with kanata's "cmd is not enabled for this executable" message. Supported alternative: KeyPath's consent-gated script actions, found under **Settings → Script Execution** (run as the user, not root; see the Running Scripts guide).
 
 **Post-1.0 design backlog (umbrella issue):**
-5. **Timing vocabulary chaos** — "tap window / hold delay / tap offset / hold offset / quick tap term / prior idle" used across editors without a shared mental model; raw ms fields leak implementation names (`requirePriorIdleMs`, `hrm-stats`).
-6. **Two magic keys, no explanation** — "Leader" (most layers) vs "Hyper" (Quick Launcher, provided by Caps Lock Remap). Nothing at catalog level explains the difference or the dependency.
-7. **Activation-hint format inconsistency** — "Leader → f → function keys" vs "Hold Hyper key" vs "11 keys · 180ms hold" (a spec, not an instruction); 9 families have no hint at all.
-8. **"Ben Vallack" naming** — two families named after a YouTuber; meaningless to most users.
-9. **Agent's top-10 string fixes** — e.g. "Raw values" → "Expert mode", "Favor tap when another key is pressed (quick tap)" → clearer phrasing, "Protect fast typing" → say what it does, Key Repeat "Speed" is actually an interval. Full list preserved in the umbrella issue.
+6. **Timing vocabulary chaos** — "tap window / hold delay / tap offset / hold offset / quick tap term / prior idle" used across editors without a shared mental model; raw ms fields leak implementation names (`requirePriorIdleMs`, `hrm-stats`).
+7. **Two magic keys, no explanation** — "Leader" (most layers) vs "Hyper" (Quick Launcher, provided by Caps Lock Remap). Nothing at catalog level explains the difference or the dependency.
+8. **Activation-hint format inconsistency** — "Leader → f → function keys" vs "Hold Hyper key" vs "11 keys · 180ms hold" (a spec, not an instruction); 9 families have no hint at all.
+9. **"Ben Vallack" naming** — two families named after a YouTuber; meaningless to most users.
+10. **Agent's top-10 string fixes** — e.g. "Raw values" → "Expert mode", "Favor tap when another key is pressed (quick tap)" → clearer phrasing, "Protect fast typing" → say what it does, Key Repeat "Speed" is actually an interval. Full list preserved in the umbrella issue.
 
 ### Overall design verdict
 

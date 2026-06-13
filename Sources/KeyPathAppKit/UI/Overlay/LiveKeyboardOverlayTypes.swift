@@ -139,6 +139,25 @@ final class OverlayWindow: NSWindow {
     }
 }
 
+// MARK: - First-Mouse Hosting View
+
+/// Hosting view that processes the *first* click even when the overlay window is
+/// not the key window.
+///
+/// The overlay is intentionally non-focus-stealing (`OverlayWindow` only becomes
+/// key when the user explicitly clicks into it). Without accepting first mouse,
+/// a click on an interactive control rendered in a hoisted layer — notably the
+/// mapper output-type picker rows in the window-anchored popover — is swallowed
+/// as a window-activation event instead of hitting the control, so the rows
+/// appear unclickable. The drag-header already overrides this for window
+/// dragging (`NativeDragNSView`); this extends the same behavior to all overlay
+/// content so the very first click lands on the control under the cursor.
+final class FirstMouseHostingView: NSHostingView<LiveKeyboardOverlayView> {
+    override func acceptsFirstMouse(for _: NSEvent?) -> Bool {
+        true
+    }
+}
+
 @MainActor
 final class OneShotLayerOverrideState {
     private(set) var currentLayer: String?

@@ -49,17 +49,29 @@ mkdir -p "$BUILD_DIR"
 echo "📁 Kanata source: $KANATA_SOURCE"
 echo "📁 Build directory: $BUILD_DIR"
 
+# Cargo features for the production engine. Deliberately excludes `cmd` (#879):
+# KeyPath actions are all push-msg/TCP dispatched in-app; compiling cmd out
+# removes the root daemon's ability to spawn processes no matter what a
+# (user-writable) config says. Participates in the cache key below — changing
+# features must invalidate the cached binary or the old capability ships.
+KANATA_FEATURES="tcp_server"
+
 # TCC-Safe Caching Logic
 function calculate_source_hash() {
     # Generate hash based on kanata source files (excluding build artifacts).
     # Includes C/C++ sources: the fork vendors the karabiner-driverkit crate
     # (driverkit/c_src), and a .cpp/.hpp-only change must invalidate the cache
     # or a stale engine silently ships (bit MAL-57 Layer 3).
+    # Also folds in the cargo feature set: a feature change (e.g. dropping
+    # `cmd`, #879) alters the binary without touching any source file.
     cd "$KANATA_SOURCE"
-    find . \( -name "*.rs" -o -name "*.toml" -o -name "*.lock" \
-              -o -name "*.c" -o -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) \
-        -not -path "./target/*" \
-        -exec shasum -a 256 {} + 2>/dev/null | shasum -a 256 | cut -d' ' -f1
+    {
+        find . \( -name "*.rs" -o -name "*.toml" -o -name "*.lock" \
+                  -o -name "*.c" -o -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) \
+            -not -path "./target/*" \
+            -exec shasum -a 256 {} + 2>/dev/null
+        echo "features=$KANATA_FEATURES"
+    } | shasum -a 256 | cut -d' ' -f1
 }
 
 function check_cache_validity() {
@@ -119,10 +131,14 @@ rustup target add x86_64-apple-darwin >/dev/null 2>&1 || true
 # Build for ARM64 (Apple Silicon)
 echo "🔨 Building for ARM64 (Apple Silicon)..."
 cd "$KANATA_SOURCE"
+# NOTE: features come from KANATA_FEATURES above — `cmd` is intentionally
+# omitted (#879). Configs that merely carry `danger-enable-cmd yes` still load
+# (the defcfg flag parses and is ignored); only actual `(cmd …)` actions fail
+# at parse with a clear "cmd is not enabled for this executable" message.
 MACOSX_DEPLOYMENT_TARGET=11.0 \
 cargo build \
     --release \
-    --features cmd,tcp_server \
+    --features "$KANATA_FEATURES" \
     --target aarch64-apple-darwin
 
 # Return to project root

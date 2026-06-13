@@ -45,26 +45,17 @@ The wizard starts by installing a privileged helper tool. macOS will show a syst
   └─────────────────────────────────────────────────┘
 ```
 
-<!-- Screenshot: Helper installation step -->
-![Screenshot — Helper installation]({{ '/images/help/placeholder-wizard-helper.png' | relative_url }})
-
 **Why it's needed:** The keyboard driver runs at the system level. A helper tool with elevated privileges is required to manage it safely.
 
 ### 2. Accessibility permission
 
 macOS asks you to grant KeyPath Accessibility access in System Settings. The wizard shows you exactly where to click.
 
-<!-- Screenshot: Accessibility permission step with arrow pointing to System Settings -->
-![Screenshot — Accessibility permission]({{ '/images/help/placeholder-wizard-accessibility.png' | relative_url }})
-
 **Why it's needed:** Accessibility access lets KeyPath see which keys you press, so it can decide what to do with them (remap, activate a layer, trigger an action).
 
 ### 3. Input Monitoring permission
 
 Similar to Accessibility — macOS asks you to grant Input Monitoring access.
-
-<!-- Screenshot: Input Monitoring permission step -->
-![Screenshot — Input Monitoring permission]({{ '/images/help/placeholder-wizard-input-monitoring.png' | relative_url }})
 
 **Why it's needed:** Input Monitoring lets KeyPath intercept key events before they reach your apps. This is what makes remapping work — KeyPath catches the physical key, transforms it, and sends the remapped key to your app.
 
@@ -89,9 +80,6 @@ The wizard starts the Kanata remapping engine. Once it's running, your keyboard 
   │                            [ Get Started ]       │
   └─────────────────────────────────────────────────┘
 ```
-
-<!-- Screenshot: Wizard completion screen -->
-![Screenshot — Setup complete]({{ '/images/help/placeholder-wizard-complete.png' | relative_url }})
 
 ---
 

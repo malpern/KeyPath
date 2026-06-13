@@ -49,7 +49,7 @@ extension OverlayMapperSection {
 
     /// Button for a layer in the list
     private func layerRow(_ layer: String) -> some View {
-        let isSelected = selectedLayerOutput == layer
+        let isSelected = viewModel.selectedLayerOutput == layer
         let isSystemLayer = viewModel.isSystemLayer(layer)
         let layerIdentifier = layer
             .lowercased()
@@ -84,7 +84,7 @@ extension OverlayMapperSection {
 
     /// Select a layer as the output action
     func selectLayerOutput(_ layer: String) {
-        selectedLayerOutput = layer
+        viewModel.selectedLayerOutput = layer
         viewModel.selectedApp = nil
         viewModel.selectedSystemAction = nil
         viewModel.selectedURL = nil
