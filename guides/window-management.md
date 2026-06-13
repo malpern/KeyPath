@@ -42,9 +42,6 @@ Now hold Space, press W to enter the window layer, then press a key to snap:
   , = Previous Space      . = Next Space
 ```
 
-<!-- Screenshot: Overlay showing window snapping layer with position indicators -->
-![Screenshot — Window Snapping layer in the overlay]({{ '/images/help/placeholder-overlay-window-snapping.png' | relative_url }})
-
 Release Space to leave the window layer.
 
 ---
@@ -62,9 +59,6 @@ This works in every app — no per-app configuration needed.
 ### Accessibility permission required
 
 The first time you use window snapping, macOS will ask you to grant KeyPath Accessibility permission in **System Settings > Privacy & Security > Accessibility**. Window management won't work without this.
-
-<!-- Screenshot: macOS Accessibility permission prompt -->
-![Screenshot — Accessibility permission dialog]({{ '/images/help/placeholder-accessibility-permission.png' | relative_url }})
 
 ---
 
@@ -132,9 +126,6 @@ Beyond window management, KeyPath can detect which app is in the foreground and 
   │  └────────────────────────────────────────────────┘ │
   └─────────────────────────────────────────────────────┘
 ```
-
-<!-- Screenshot: Custom Rules tab with app-specific rules -->
-![Screenshot — App-specific rules in Custom Rules]({{ '/images/help/placeholder-custom-rules-app-specific.png' | relative_url }})
 
 When you switch apps, KeyPath tells Kanata to switch layers automatically. Your keyboard adapts instantly.
 
