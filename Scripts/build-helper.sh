@@ -41,7 +41,7 @@ if [ ! -f "$HELPER_INFO_PLIST" ]; then
     exit 1
 fi
 
-swift build --configuration release --product "$HELPER_NAME" \
+swift build ${KEYPATH_BUILD_SYSTEM:+--build-system "$KEYPATH_BUILD_SYSTEM"} --configuration release --product "$HELPER_NAME" \
     -Xswiftc -no-whole-module-optimization \
     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$HELPER_INFO_PLIST"
 

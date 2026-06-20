@@ -211,7 +211,7 @@ fi
 
 echo "🏗️  Building KeyPath and plugins..."
 # Build all products in a single SwiftPM invocation to share module compilation.
-swift build --configuration release -Xswiftc -no-whole-module-optimization
+swift build ${KEYPATH_BUILD_SYSTEM:+--build-system "$KEYPATH_BUILD_SYSTEM"} --configuration release -Xswiftc -no-whole-module-optimization
 
 echo "📦 Creating app bundle..."
 APP_NAME="KeyPath"
