@@ -46,6 +46,7 @@ extension RuleCollectionsManager {
 
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
+        reconcileLeaderKeyFromCollection()
 
         await regenerateConfigFromCollections()
     }

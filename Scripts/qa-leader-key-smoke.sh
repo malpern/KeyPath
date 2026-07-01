@@ -46,18 +46,18 @@ PY
 
 smoke_init
 
-# Finding (release-readiness, Thu): the Leader Key collection's
-# selectedOutput is display-only — the generated config's leader binding
-# comes from the system leaderKeyPreference (UserDefaults), which JSON/CLI
-# mutation of the collection does not touch. Setting selectedOutput=tab
-# still emits layer_nav_spc. Until that's resolved (or confirmed intended),
-# these cases assert apply-success per preset, which still kanata-validates
-# the full config for each value.
+# Fixed (issue #889): the Leader Key collection's selectedOutput is now the
+# source of truth for the leader binding even on the headless path. Loading
+# collections reconciles the system leaderKeyPreference from the collection
+# (RuleCollectionsManager.reconcileLeaderKeyFromCollection), so JSON/CLI
+# mutation of selectedOutput actually changes the generated config. Each
+# preset must emit its own leader input, not the default.
 for preset in space caps tab grv; do
   echo "==> preset: $preset"
   apply_leader "$preset"
   config="$(show_config)"
   assert_contains "$config" "Leader Key" "preset $preset config includes the Leader Key collection"
+  assert_contains "$config" ";; Input: $preset" "preset $preset drives the generated leader binding"
 done
 
-echo "Leader Key smoke passed (all 4 presets apply kanata-clean). Restoring original KeyPath config."
+echo "Leader Key smoke passed (all 4 presets drive their own leader binding, kanata-clean). Restoring original KeyPath config."

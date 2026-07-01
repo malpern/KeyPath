@@ -15,6 +15,7 @@ extension RuleCollectionsManager {
         ruleCollections = RuleCollectionDeduplicator.dedupe(collections)
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
+        reconcileLeaderKeyFromCollection()
         await regenerateConfigFromCollections()
     }
 
@@ -774,6 +775,35 @@ extension RuleCollectionsManager {
         }
         preference.enabled = enabled
         PreferencesService.shared.leaderKeyPreference = preference
+    }
+
+    /// Reconcile the system `leaderKeyPreference` (and momentary activators) from the
+    /// enabled Leader Key collection's `selectedOutput`.
+    ///
+    /// The in-app picker routes through `updateLeaderKey`, which keeps both stores in
+    /// sync. Headless mutations — direct JSON edits, `keypath collection` CLI commands,
+    /// and import/restore — change `selectedOutput` without touching `leaderKeyPreference`,
+    /// so config generation (which derives the leader key from the preference) would
+    /// silently ignore them. Calling this on every load/import path makes the collection
+    /// the source of truth those paths already assume it to be. See issue #889.
+    ///
+    /// Only an *explicit* `selectedOutput` reconciles — a nil `selectedOutput` means the
+    /// collection expresses no opinion, so a leader key configured via the system
+    /// preference path is left untouched (no fallback to the first preset).
+    func reconcileLeaderKeyFromCollection() {
+        guard let leaderCollection = ruleCollections.first(where: { $0.id == RuleCollectionIdentifier.leaderKey }),
+              leaderCollection.isEnabled,
+              let key = leaderCollection.configuration.singleKeyPickerConfig?.selectedOutput
+        else { return }
+
+        let current = PreferencesService.shared.leaderKeyPreference
+        guard current.key != key || !current.enabled else { return }
+
+        AppLogger.shared.log(
+            "🔑 [RuleCollections] Reconciling leader key from collection selectedOutput: '\(key)' (was '\(current.key)', enabled=\(current.enabled))"
+        )
+        applyLeaderKeyToMomentaryActivators(key)
+        syncLeaderKeyPreference(key: key, enabled: true)
     }
 
     /// Save or update a custom rule

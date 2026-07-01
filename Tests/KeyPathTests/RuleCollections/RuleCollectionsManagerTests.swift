@@ -593,6 +593,48 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertTrue(afterInputs.allSatisfy { $0 == "space" })
     }
 
+    /// Issue #889: a headless mutation of the Leader Key collection's
+    /// `selectedOutput` (direct JSON edit / CLI / import) does not route through
+    /// `updateLeaderKey`, so loading it must reconcile the system
+    /// `leaderKeyPreference` and momentary activators — otherwise config
+    /// generation silently keeps the old leader key.
+    @MainActor
+    func testReplaceCollectionsReconcilesLeaderKeyFromSelectedOutput() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        // Preference starts at the default ("space"); the loaded collection asks for "tab".
+        PreferencesService.shared.leaderKeyPreference = .default
+        defer { PreferencesService.shared.leaderKeyPreference = .default }
+
+        let collections = RuleCollectionCatalog().defaultCollections().map { collection -> RuleCollection in
+            var collection = collection
+            if collection.id == RuleCollectionIdentifier.leaderKey {
+                collection.isEnabled = true
+                collection.configuration.updateSelectedOutput("tab")
+            }
+            return collection
+        }
+
+        // Simulates the headless load/import path (bootstrap uses the same reconcile).
+        await manager.replaceCollections(collections)
+
+        XCTAssertEqual(
+            PreferencesService.shared.leaderKeyPreference.key, "tab",
+            "leaderKeyPreference should be reconciled from the collection's selectedOutput"
+        )
+        XCTAssertTrue(
+            PreferencesService.shared.leaderKeyPreference.enabled,
+            "enabled leader collection should mark the preference enabled"
+        )
+        let inputs = manager.ruleCollections.compactMap(\.momentaryActivator?.input)
+        XCTAssertFalse(inputs.isEmpty)
+        XCTAssertTrue(
+            inputs.allSatisfy { $0 == "tab" },
+            "momentary activators should adopt the reconciled leader key"
+        )
+    }
+
     @MainActor
     func testToggleCustomRuleConflictKeepNew_DisablesConflictingCollection() async throws {
         let (manager, _) = try await createTestManager()
