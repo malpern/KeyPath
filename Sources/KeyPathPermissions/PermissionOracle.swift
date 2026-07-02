@@ -76,8 +76,12 @@ public actor PermissionOracle {
 
         /// System is ready when both apps have all required permissions
         public var isSystemReady: Bool {
-            // KeyPath IM is always .unknown (no Apple API to query it).
-            // Only check KeyPath AX + kanata permissions for system readiness.
+            // Kanata's AX + IM are the hard requirement for remapping to work.
+            // KeyPath's own IM (now queried authoritatively via IOHIDCheckAccess —
+            // see checkKeyPathPermissions) powers the live keyboard overlay, not
+            // core remapping, so it is surfaced via blockingIssue but intentionally
+            // kept out of this hard readiness gate to avoid flipping a
+            // working-remap system to "not ready".
             keyPath.accessibility.isReady && kanata.hasAllPermissions
         }
 
@@ -274,32 +278,44 @@ public actor PermissionOracle {
 
     // MARK: - KeyPath Permission Detection (Always Authoritative)
 
-    /// Check KeyPath's own permissions using non-prompting APIs only.
+    /// Check KeyPath's own permissions using non-prompting Apple APIs, per ADR-006.
     ///
-    /// IMPORTANT: We intentionally do NOT call `IOHIDCheckAccess()` here because
-    /// it triggers the macOS "Keystroke Receiving" system prompt if the app hasn't
-    /// been granted Input Monitoring yet. That prompt should only appear during the
-    /// Installation Wizard flow (via `PermissionRequestService.requestInputMonitoringPermission()`).
+    /// Both APIs used here are passive (they never show a system prompt — only
+    /// `IOHIDRequestAccess()`, used exclusively by the wizard's
+    /// `PermissionRequestService`, prompts):
+    /// - `AXIsProcessTrusted()` for Accessibility
+    /// - `IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)` for Input Monitoring
     ///
-    /// Instead, we use:
-    /// - `AXIsProcessTrusted()` for Accessibility (never prompts)
-    /// - TCC database reading for Input Monitoring (passive, no prompt)
+    /// ADR-006 makes the Apple API authoritative and uses the TCC database only
+    /// as a fallback when the API returns `.unknown`. IOHIDCheckAccess reflects
+    /// the kernel's own record of KeyPath's grant, so it stays correct even when
+    /// the TCC database / Settings pane enumeration is unreliable — as on macOS
+    /// 26/27, where a grant can leave no readable TCC row and the app never
+    /// appears in the Input Monitoring list (the root cause of #931, which left
+    /// KeyPath's own IM stuck at `.unknown` forever).
     private func checkKeyPathPermissions() async -> PermissionSet {
         let start = Date()
 
         // Accessibility check via official Apple API (no prompt)
         let accessibility = Self.checkKeyPathAccessibilityStatus()
 
-        // Input Monitoring: use TCC database reading (passive, no prompt).
-        // IOHIDCheckAccess would trigger the system permission dialog on first call,
-        // which we only want during the wizard flow.
-        let keyPathBundleID = Bundle.main.bundleIdentifier ?? "com.keypath.KeyPath"
-        let tccIM = await tccStatus(forBundleID: keyPathBundleID, service: .inputMonitoring)
-        let inputMonitoring: Status = tccIM ?? .unknown
+        // Input Monitoring: IOHIDCheckAccess is authoritative and non-prompting
+        // for our own process (ADR-006). Only fall back to a passive TCC read
+        // when it returns .unknown (never granted or denied).
+        let apiIM = Self.checkKeyPathInputMonitoringStatus()
+        let tccIM: Status?
+        if Self.keyPathInputMonitoringNeedsTCCFallback(apiStatus: apiIM) {
+            let keyPathBundleID = Bundle.main.bundleIdentifier ?? "com.keypath.KeyPath"
+            tccIM = await tccStatus(forBundleID: keyPathBundleID, service: .inputMonitoring)
+        } else {
+            tccIM = nil
+        }
+        let resolved = Self.resolveKeyPathInputMonitoring(apiStatus: apiIM, tccStatus: tccIM)
+        let inputMonitoring = resolved.status
+        let source = resolved.source
+        let confidence = resolved.confidence
 
         let duration = Date().timeIntervalSince(start)
-        let source = tccIM != nil ? "keypath.ax-api+tcc-im" : "keypath.ax-api-only"
-        let confidence: Confidence = tccIM != nil ? .high : .low
         AppLogger.shared.log(
             "🔮 [Oracle] KeyPath permission check completed in \(String(format: "%.3f", duration))s - AX: \(accessibility), IM: \(inputMonitoring) (source: \(source))"
         )
@@ -315,6 +331,46 @@ public actor PermissionOracle {
 
     private nonisolated static func checkKeyPathAccessibilityStatus() -> Status {
         AXIsProcessTrusted() ? .granted : .denied
+    }
+
+    /// Input Monitoring status for KeyPath's own process via IOHIDCheckAccess.
+    ///
+    /// This is a non-prompting query (it returns the current access level; only
+    /// `IOHIDRequestAccess()` shows the system dialog) and it is scoped to the
+    /// calling process, so it is authoritative only for KeyPath.app — never for
+    /// the kanata-launcher, whose IM state must still come from the TCC database.
+    private nonisolated static func checkKeyPathInputMonitoringStatus() -> Status {
+        switch IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) {
+        case kIOHIDAccessTypeGranted: .granted
+        case kIOHIDAccessTypeDenied: .denied
+        default: .unknown
+        }
+    }
+
+    /// True when the Apple-API Input Monitoring result is inconclusive and a TCC
+    /// read should be attempted (ADR-006: TCC is a fallback for `.unknown` only).
+    nonisolated static func keyPathInputMonitoringNeedsTCCFallback(apiStatus: Status) -> Bool {
+        switch apiStatus {
+        case .granted, .denied: false
+        case .unknown, .error: true
+        }
+    }
+
+    /// ADR-006 precedence for KeyPath's own Input Monitoring: the Apple-API
+    /// result (`IOHIDCheckAccess`) is authoritative when it is granted/denied;
+    /// otherwise fall back to the TCC read, and finally to `.unknown`.
+    nonisolated static func resolveKeyPathInputMonitoring(
+        apiStatus: Status, tccStatus: Status?
+    ) -> (status: Status, source: String, confidence: Confidence) {
+        switch apiStatus {
+        case .granted, .denied:
+            return (apiStatus, "keypath.ax-api+im-api", .high)
+        case .unknown, .error:
+            if let tccStatus {
+                return (tccStatus, "keypath.ax-api+tcc-im", .high)
+            }
+            return (.unknown, "keypath.ax-api-only", .low)
+        }
     }
 
     // MARK: - Kanata Permission Detection (ADR-016: TCC Database Reading)
