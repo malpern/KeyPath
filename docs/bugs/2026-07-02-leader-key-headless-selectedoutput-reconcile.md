@@ -44,6 +44,19 @@ Fix: `applyLeaderKeyToLeaderActivators(_:targetLayer:)` rewrites only the
 base-layer and chained `nav → *` sub-layer activators untouched. Regression guard
 added in `testReplaceCollectionsReconcilesLeaderKeyFromSelectedOutput`.
 
+## Rollback coverage (test gap closed post-merge)
+
+The atomic rollback (`rollbackLeaderReconcile`) could not be unit-tested on the
+toolchain-less Linux remote where this shipped — regen only fails on a genuine
+collision, which needs a real macOS build. `testReconcileRollsBackWhenConfigRegenFails`
+now closes that gap: it reconciles the leader to `f` (colliding with the enabled
+Home Row Arrows `base → home-arrows` activator), which makes
+`generateConfiguration` throw `.mappingConflicts` (#463) with no
+`onMappingConflictResolution` handler registered, then asserts that **both** the
+`leaderKeyPreference` and the in-memory `ruleCollections` revert to their
+pre-reconcile snapshot. An `onError` spy witnesses the regen failure so the test
+can't silently pass on a no-op reconcile.
+
 ## Known limitations / follow-ups
 
 - **Standalone `keypath-cli config apply` is not covered.** It generates config via
