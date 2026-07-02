@@ -88,10 +88,18 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     public func reload() async throws -> KanataConfiguration {
         var exists = await fileExistsAsync(path: configurationPath)
+        // Same semantics as createInitialConfigIfNeeded: a truncated/empty
+        // config is as unparseable as a missing one, so let the self-heal
+        // path rewrite it too (#929).
+        let effectivelyEmpty: Bool = if exists {
+            await fileIsEffectivelyEmptyAsync(path: configurationPath)
+        } else {
+            false
+        }
 
-        if !exists {
+        if !exists || effectivelyEmpty {
             AppLogger.shared.log(
-                "⚠️ [ConfigService] Config missing at \(configurationPath) – creating default before reload"
+                "⚠️ [ConfigService] Config missing or empty at \(configurationPath) – creating default before reload"
             )
             do {
                 try await createInitialConfigIfNeeded()
@@ -218,10 +226,24 @@ public final class ConfigurationService: FileConfigurationProviding {
         try await createDirectoryAsync(path: configDirectory)
         AppLogger.shared.log("✅ [ConfigService] Config directory created at \(configDirectory)")
 
-        // Check if config file exists
+        // Check if config file exists. A 0-byte/whitespace-only file counts as
+        // missing: legacy helper scaffolding used to `touch` an empty keypath.kbd
+        // (#929), which kanata can't parse and which blocked this path from ever
+        // writing the default template.
         let exists = await fileExistsAsync(path: configurationPath)
-        if !exists {
-            AppLogger.shared.log("⚠️ [ConfigService] No existing config found at \(configurationPath)")
+        let effectivelyEmpty: Bool = if exists {
+            await fileIsEffectivelyEmptyAsync(path: configurationPath)
+        } else {
+            false
+        }
+        if !exists || effectivelyEmpty {
+            if effectivelyEmpty {
+                AppLogger.shared.log(
+                    "⚠️ [ConfigService] Config at \(configurationPath) exists but is empty — rewriting default"
+                )
+            } else {
+                AppLogger.shared.log("⚠️ [ConfigService] No existing config found at \(configurationPath)")
+            }
 
             // Rehydrate from persisted rule/custom stores so user state survives file deletion/reset
             let storedCollections = await ruleCollectionStore.loadCollections()
@@ -714,6 +736,35 @@ extension ConfigurationService {
         await withCheckedContinuation { cont in
             ioQueue.async {
                 cont.resume(returning: Foundation.FileManager().fileExists(atPath: path))
+            }
+        }
+    }
+
+    /// True when the file is 0 bytes or contains only whitespace.
+    ///
+    /// Deliberately conservative: an unreadable or non-UTF-8 file returns
+    /// false — callers use this to decide whether to REPLACE the file with a
+    /// default, and a transient read failure or odd encoding must never cause
+    /// a user's hand-edited config to be overwritten.
+    func fileIsEffectivelyEmptyAsync(path: String) async -> Bool {
+        await withCheckedContinuation { cont in
+            ioQueue.async {
+                let fm = Foundation.FileManager()
+                guard let size = (try? fm.attributesOfItem(atPath: path))?[.size] as? UInt64 else {
+                    cont.resume(returning: false)
+                    return
+                }
+                if size == 0 {
+                    cont.resume(returning: true)
+                    return
+                }
+                guard let contents = try? String(contentsOfFile: path, encoding: .utf8) else {
+                    cont.resume(returning: false)
+                    return
+                }
+                cont.resume(
+                    returning: contents.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                )
             }
         }
     }
