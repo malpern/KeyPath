@@ -781,11 +781,18 @@ extension RuleCollectionsManager {
     /// enabled Leader Key collection's `selectedOutput`.
     ///
     /// The in-app picker routes through `updateLeaderKey`, which keeps both stores in
-    /// sync. Headless mutations — direct JSON edits, `keypath collection` CLI commands,
-    /// and import/restore — change `selectedOutput` without touching `leaderKeyPreference`,
-    /// so config generation (which derives the leader key from the preference) would
-    /// silently ignore them. Calling this on every load/import path makes the collection
-    /// the source of truth those paths already assume it to be. See issue #889.
+    /// sync. Headless mutations — direct JSON edits and import/restore — change
+    /// `selectedOutput` without touching `leaderKeyPreference`, so config generation
+    /// (which derives the leader key from the preference) would silently ignore them.
+    /// Calling this on the in-process load paths (`bootstrap`/`replaceCollections`)
+    /// reconciles the preference so a subsequent app/daemon config regen honors the
+    /// edited collection. See issue #889.
+    ///
+    /// NOT covered: the standalone `keypath-cli config apply` path generates config via
+    /// `ConfigFacade` → `ConfigurationService`, which reads `leaderKeyPreference`
+    /// directly and never constructs a `RuleCollectionsManager` — so this reconcile does
+    /// not run there. Unifying config generation on the collection is deferred to
+    /// #865/#888.
     ///
     /// Only an *explicit* `selectedOutput` reconciles — a nil `selectedOutput` means the
     /// collection expresses no opinion, so a leader key configured via the system
