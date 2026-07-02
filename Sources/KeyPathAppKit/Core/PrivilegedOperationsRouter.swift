@@ -118,7 +118,13 @@ public final class PrivilegedOperationsRouter {
                 AppLogger.shared.warn(
                     "⚠️ [PrivilegedOperationsRouter] Helper install failed (\(error.localizedDescription)) — falling back to sudo path"
                 )
-                try await sudoInstallRequiredRuntimeServices()
+                do {
+                    try await sudoInstallRequiredRuntimeServices()
+                } catch let fallbackError {
+                    throw PrivilegedOperationError.installationFailed(
+                        "Runtime service installation failed. Helper: \(error.localizedDescription). Sudo fallback: \(fallbackError.localizedDescription)"
+                    )
+                }
             }
         case .directSudo:
             try await sudoInstallRequiredRuntimeServices()
