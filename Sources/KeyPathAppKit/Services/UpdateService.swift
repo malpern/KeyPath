@@ -264,7 +264,11 @@ extension UpdateService {
     }
 
     nonisolated static func postUpdateDecision(for context: SystemContext) -> UpdateRepairDecision {
-        if context.permissions.keyPath.inputMonitoring.isBlocking || context.permissions.keyPath.accessibility.isBlocking {
+        // KeyPath's own Input Monitoring is soft (overlay/record only, not
+        // remapping — see PermissionOracle.blockingIssue / isSystemReady), so it
+        // must not force a hard post-update repair now that IOHIDCheckAccess makes
+        // it authoritatively .denied (#931). KeyPath's Accessibility is required.
+        if context.permissions.keyPath.accessibility.isBlocking {
             return .hardRepair(reason: "reason_code=keypath_permissions_blocking")
         }
         if context.permissions.kanata.inputMonitoring.isBlocking || context.permissions.kanata.accessibility.isBlocking {

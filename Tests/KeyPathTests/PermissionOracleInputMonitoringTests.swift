@@ -58,4 +58,51 @@ final class PermissionOracleInputMonitoringTests: XCTestCase {
         XCTAssertEqual(resolved.source, "keypath.ax-api-only")
         XCTAssertEqual(resolved.confidence, .low)
     }
+
+    // MARK: - blockingIssue treats KeyPath's own IM as soft (#931 reconciliation)
+
+    private func snapshot(
+        keyPathAX: Status, keyPathIM: Status, kanataAX: Status, kanataIM: Status
+    ) -> PermissionOracle.Snapshot {
+        let now = Date()
+        return PermissionOracle.Snapshot(
+            keyPath: .init(
+                accessibility: keyPathAX, inputMonitoring: keyPathIM,
+                source: "test", confidence: .high, timestamp: now
+            ),
+            kanata: .init(
+                accessibility: kanataAX, inputMonitoring: kanataIM,
+                source: "test", confidence: .high, timestamp: now
+            ),
+            timestamp: now
+        )
+    }
+
+    /// Denied KeyPath IM alone must not produce a blocking issue (it powers only
+    /// the overlay, not remapping) — consistent with isSystemReady.
+    func testDeniedKeyPathInputMonitoringIsNotBlocking() {
+        let snap = snapshot(
+            keyPathAX: .granted, keyPathIM: .denied, kanataAX: .granted, kanataIM: .granted
+        )
+        XCTAssertNil(snap.blockingIssue)
+        XCTAssertTrue(snap.isSystemReady)
+    }
+
+    /// KeyPath's own Accessibility remains a hard blocker.
+    func testDeniedKeyPathAccessibilityIsBlocking() {
+        let snap = snapshot(
+            keyPathAX: .denied, keyPathIM: .granted, kanataAX: .granted, kanataIM: .granted
+        )
+        XCTAssertNotNil(snap.blockingIssue)
+        XCTAssertTrue(snap.blockingIssue?.contains("Accessibility") ?? false)
+    }
+
+    /// Kanata's Input Monitoring remains a hard blocker (it drives remapping).
+    func testDeniedKanataInputMonitoringIsBlocking() {
+        let snap = snapshot(
+            keyPathAX: .granted, keyPathIM: .granted, kanataAX: .granted, kanataIM: .denied
+        )
+        XCTAssertNotNil(snap.blockingIssue)
+        XCTAssertFalse(snap.isSystemReady)
+    }
 }

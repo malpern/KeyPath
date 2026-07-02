@@ -87,18 +87,24 @@ public actor PermissionOracle {
 
         /// Get the first blocking permission issue (user-facing error message)
         public var blockingIssue: String? {
-            // Check KeyPath permissions first (needed for UI functionality)
+            // KeyPath's own Accessibility is required (event posting / overlay).
             if keyPath.accessibility.isBlocking {
                 return
                     "KeyPath needs Accessibility permission - enable in System Settings > Privacy & Security > Accessibility"
             }
 
-            if keyPath.inputMonitoring.isBlocking {
-                return
-                    "KeyPath needs Input Monitoring permission - enable in System Settings > Privacy & Security > Input Monitoring"
-            }
+            // NOTE: KeyPath's OWN Input Monitoring is intentionally NOT a blocking
+            // issue. It powers only seize-mode features (the live overlay / key
+            // recording), never core remapping — which is kanata's job (see
+            // CompositionRoot's HID-monitor comment and isSystemReady). This must
+            // stay consistent with isSystemReady, which also excludes it: before
+            // IOHIDCheckAccess made this signal authoritative (#931) it was
+            // perpetually .unknown and never blocked; treating it as blocking now
+            // would newly pop the wizard for a working-remap system. The wizard's
+            // Input Monitoring page still surfaces it per-row for users who want
+            // the overlay.
 
-            // Check Kanata permissions
+            // Kanata's permissions ARE required for remapping.
             if kanata.accessibility.isBlocking || kanata.inputMonitoring.isBlocking {
                 return
                     "Kanata needs permissions - use the Installation Wizard to grant Accessibility and Input Monitoring"
