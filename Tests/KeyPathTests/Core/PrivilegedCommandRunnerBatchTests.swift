@@ -48,13 +48,15 @@ final class PrivilegedCommandRunnerBatchTests: XCTestCase {
             commands: ["kp_timeout 5 /usr/bin/false"],
             expectedStatusNot: 0, within: 3
         )
-        // A hung command is killed at the deadline instead of blocking forever
+        // A hung command is killed at the deadline instead of blocking forever.
+        // Fractional sleep keeps the wall-clock cost minimal (CLAUDE.md: no real
+        // sleeps in tests — a wall-clock watchdog needs SOME clock; keep it tiny).
         let start = Date()
         try assertScript(
-            commands: ["kp_timeout 1 /bin/sleep 30"],
-            expectedStatusNot: 0, within: 4
+            commands: ["kp_timeout 0.3 /bin/sleep 30"],
+            expectedStatusNot: 0, within: 3
         )
-        XCTAssertLessThan(Date().timeIntervalSince(start), 4, "watchdog did not fire in time")
+        XCTAssertLessThan(Date().timeIntervalSince(start), 3, "watchdog did not fire in time")
     }
 
     private func assertScript(

@@ -152,20 +152,6 @@ public final class PrivilegedExecutor: @unchecked Sendable {
         )
         return result.success
     }
-
-    // MARK: - String Escaping
-
-    /// Escape a command string for safe use in AppleScript.
-    ///
-    /// AppleScript requires special escaping for backslashes and quotes.
-    ///
-    /// - Parameter command: The raw command string
-    /// - Returns: The escaped string safe for embedding in AppleScript
-    public func escapeForAppleScript(_ command: String) -> String {
-        var escaped = command.replacingOccurrences(of: "\\", with: "\\\\")
-        escaped = escaped.replacingOccurrences(of: "\"", with: "\\\"")
-        return escaped
-    }
 }
 
 // MARK: - Convenience Extensions

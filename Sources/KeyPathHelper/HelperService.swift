@@ -694,24 +694,6 @@ enum HelperError: Error, LocalizedError {
 
 // MARK: - Helpers
 
-/// Thread-safe accumulator for subprocess output read via readabilityHandler.
-private final class ProcessOutputBuffer: @unchecked Sendable {
-    private let lock = NSLock()
-    private var data = Data()
-
-    func append(_ chunk: Data) {
-        lock.lock()
-        data.append(chunk)
-        lock.unlock()
-    }
-
-    var text: String {
-        lock.lock()
-        defer { lock.unlock() }
-        return String(data: data, encoding: .utf8) ?? ""
-    }
-}
-
 extension HelperService {
     /// Copy file only if content differs (quick MD5 check). Returns true if a copy occurred.
     @discardableResult
@@ -736,74 +718,28 @@ extension HelperService {
         return cp.status == 0
     }
 
-    /// Exit status reported when a command exceeds its timeout and is killed.
-    static let runTimedOutStatus: Int32 = 124
-
     /// Run a subprocess with a hard timeout, reading output concurrently.
     ///
     /// The timeout is load-bearing: the helper executes synchronously inside XPC
     /// handlers, so a blocked child (e.g. `launchctl kickstart -k` on an unrunnable
     /// service, #927/#930) would otherwise hang the helper past the app's XPC
-    /// timeout and force an osascript password-prompt fallback. Output is drained
-    /// while the child runs so a chatty command can't deadlock on a full pipe.
+    /// timeout and force an osascript password-prompt fallback.
     @discardableResult
     static func run(
         _ launchPath: String, _ args: [String], timeout: TimeInterval = 60
     ) -> (status: Int32, out: String) {
-        let p = Process()
-        p.launchPath = launchPath
-        p.arguments = args
-        let outPipe = Pipe()
-        p.standardOutput = outPipe
-        p.standardError = outPipe
-
-        let buffer = ProcessOutputBuffer()
-        let readDone = DispatchSemaphore(value: 0)
-        outPipe.fileHandleForReading.readabilityHandler = { handle in
-            let chunk = handle.availableData
-            if chunk.isEmpty {
-                handle.readabilityHandler = nil
-                readDone.signal()
-            } else {
-                buffer.append(chunk)
-            }
-        }
-
-        do { try p.run() } catch {
-            outPipe.fileHandleForReading.readabilityHandler = nil
-            return (127, "run failed: \(error)")
-        }
-
-        let deadline = Date().addingTimeInterval(timeout)
-        while p.isRunning, Date() < deadline {
-            usleep(50000)
-        }
-
-        var timedOut = false
-        if p.isRunning {
-            timedOut = true
+        let outcome = BoundedProcess.run(launchPath, args, timeout: timeout)
+        if outcome.timedOut {
             NSLog(
-                "[KeyPathHelper] ⏱️ Command timed out after %ds, killing: %@ %@",
+                "[KeyPathHelper] ⏱️ Command timed out after %ds, killed: %@ %@",
                 Int(timeout), launchPath, args.joined(separator: " ")
             )
-            kill(p.processIdentifier, SIGKILL)
-        }
-        p.waitUntilExit()
-
-        // Bounded wait for EOF so the tail of the output is captured. A killed
-        // child may leave the write end open in orphaned grandchildren; don't
-        // block on them.
-        _ = readDone.wait(timeout: .now() + 2)
-        outPipe.fileHandleForReading.readabilityHandler = nil
-
-        let out = buffer.text
-        if timedOut {
             return (
-                Self.runTimedOutStatus,
-                "timed out after \(Int(timeout))s: \(launchPath) \(args.joined(separator: " "))\n\(out)"
+                outcome.status,
+                "timed out after \(Int(timeout))s: \(launchPath) \(args.joined(separator: " "))\n\(outcome.output)"
             )
         }
-        return (p.terminationStatus, out)
+        return (outcome.status, outcome.output)
     }
 
     static func verifyCodeSignatureStrict(path: String) -> Bool {
@@ -937,7 +873,14 @@ extension HelperService {
         // config that kanata can't parse AND that blocked the app's own
         // default-config creation, which treats an existing file as done (#929).
         let configDir = "\(info.home)/.config/keypath"
+        let configFile = "\(configDir)/keypath.kbd"
         _ = run("/usr/bin/install", ["-d", "-o", info.name, "-g", "staff", configDir])
+        // Keep the ownership repair the old touch+chown provided: a config that
+        // ended up root-owned (old launcher, sudo edit) would otherwise fail
+        // every app-side save with a permission error, with no repair path.
+        if FileManager.default.fileExists(atPath: configFile) {
+            _ = run("/usr/sbin/chown", ["\(info.name):staff", configFile])
+        }
     }
 
     private static func kanataArguments(binaryPath: String, cfgPath: String, tcpPort: Int) -> [String] {

@@ -819,12 +819,10 @@ public final class ServiceBootstrapper {
         // spawn-loops the daemons (exit 78) and kickstart can block indefinitely.
         // Failing here also avoids showing an admin password prompt for a repair
         // that cannot succeed (#928).
-        let missingBinaries = [
-            VHIDDeviceManager.vhidDeviceDaemonPath, VHIDDeviceManager.vhidManagerPath
-        ].filter { !Foundation.FileManager().fileExists(atPath: $0) }
-        guard missingBinaries.isEmpty else {
+        let vhidManager = VHIDDeviceManager()
+        if !vhidManager.detectInstallation() || !vhidManager.detectActivation() {
             AppLogger.shared.log(
-                "❌ [ServiceBootstrapper] Refusing VHID service repair — driver payload missing: \(missingBinaries.joined(separator: ", ")). Install the Karabiner driver first."
+                "❌ [ServiceBootstrapper] Refusing VHID service repair — driver payload missing. Install the Karabiner driver first."
             )
             lastVHIDRepairOutput =
                 "Karabiner VirtualHID driver payload is not installed — install the driver before repairing its services."

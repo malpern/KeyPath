@@ -193,13 +193,16 @@ struct LauncherService {
         let configPath = "\(home)/.config/keypath/keypath.kbd"
         let configDir = URL(fileURLWithPath: configPath).deletingLastPathComponent().path
         try? FileManager.default.createDirectory(atPath: configDir, withIntermediateDirectories: true)
-        if !FileManager.default.fileExists(atPath: configPath) {
-            FileManager.default.createFile(atPath: configPath, contents: Data())
-        }
+        // Never create the config file here: this runs as root, and an empty
+        // keypath.kbd is unparseable by kanata AND blocks the app's own
+        // default-config creation (#929). If it's missing, kanata fails with a
+        // clear file-not-found and the app repairs it on next launch.
 
         if user != "root", let pw = getpwnam(user) {
             _ = chown(configDir, pw.pointee.pw_uid, pw.pointee.pw_gid)
-            _ = chown(configPath, pw.pointee.pw_uid, pw.pointee.pw_gid)
+            if FileManager.default.fileExists(atPath: configPath) {
+                _ = chown(configPath, pw.pointee.pw_uid, pw.pointee.pw_gid)
+            }
         }
 
         return configPath

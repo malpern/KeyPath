@@ -93,16 +93,6 @@ public final class PrivilegedOperationsRouter {
     public func installRequiredRuntimeServices() async throws {
         switch Self.operationMode {
         case .privilegedHelper:
-            // Check helper responsiveness first (same as repairVHIDDaemonServices):
-            // an unresponsive helper otherwise costs a silent 30s XPC timeout
-            // before the sudo fallback fires (#930).
-            guard await helperManager.testHelperFunctionality() else {
-                AppLogger.shared.log(
-                    "⚠️ [Router] Helper not responsive — using sudo for runtime service install"
-                )
-                try await sudoInstallRequiredRuntimeServices()
-                return
-            }
             do {
                 try await helperManager.installRequiredRuntimeServices()
                 // Stale-helper guard (MAL-57): a resident helper from before
@@ -122,6 +112,12 @@ public final class PrivilegedOperationsRouter {
                     try await sudoRepairVHIDServices()
                 }
             } catch {
+                // Keep the helper's actionable reason (e.g. "driver payload is
+                // not installed") visible — the sudo fallback's generic failure
+                // would otherwise bury it (#928).
+                AppLogger.shared.warn(
+                    "⚠️ [PrivilegedOperationsRouter] Helper install failed (\(error.localizedDescription)) — falling back to sudo path"
+                )
                 try await sudoInstallRequiredRuntimeServices()
             }
         case .directSudo:
