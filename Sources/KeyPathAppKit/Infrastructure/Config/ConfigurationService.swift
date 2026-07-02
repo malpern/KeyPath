@@ -218,10 +218,24 @@ public final class ConfigurationService: FileConfigurationProviding {
         try await createDirectoryAsync(path: configDirectory)
         AppLogger.shared.log("✅ [ConfigService] Config directory created at \(configDirectory)")
 
-        // Check if config file exists
+        // Check if config file exists. A 0-byte/whitespace-only file counts as
+        // missing: legacy helper scaffolding used to `touch` an empty keypath.kbd
+        // (#929), which kanata can't parse and which blocked this path from ever
+        // writing the default template.
         let exists = await fileExistsAsync(path: configurationPath)
-        if !exists {
-            AppLogger.shared.log("⚠️ [ConfigService] No existing config found at \(configurationPath)")
+        let effectivelyEmpty: Bool = if exists {
+            await fileIsEffectivelyEmptyAsync(path: configurationPath)
+        } else {
+            false
+        }
+        if !exists || effectivelyEmpty {
+            if effectivelyEmpty {
+                AppLogger.shared.log(
+                    "⚠️ [ConfigService] Config at \(configurationPath) exists but is empty — rewriting default"
+                )
+            } else {
+                AppLogger.shared.log("⚠️ [ConfigService] No existing config found at \(configurationPath)")
+            }
 
             // Rehydrate from persisted rule/custom stores so user state survives file deletion/reset
             let storedCollections = await ruleCollectionStore.loadCollections()
@@ -714,6 +728,21 @@ extension ConfigurationService {
         await withCheckedContinuation { cont in
             ioQueue.async {
                 cont.resume(returning: Foundation.FileManager().fileExists(atPath: path))
+            }
+        }
+    }
+
+    /// True when the file is missing, unreadable, or contains only whitespace.
+    func fileIsEffectivelyEmptyAsync(path: String) async -> Bool {
+        await withCheckedContinuation { cont in
+            ioQueue.async {
+                guard let contents = try? String(contentsOfFile: path, encoding: .utf8) else {
+                    cont.resume(returning: true)
+                    return
+                }
+                cont.resume(
+                    returning: contents.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                )
             }
         }
     }

@@ -30,8 +30,26 @@ public enum PrivilegedCommandRunner {
             if trimmed.isEmpty {
                 return ":"
             }
-            return "set -e\n" + trimmed.joined(separator: "\n")
+            return Self.scriptPrelude + "\n" + trimmed.joined(separator: "\n")
         }
+
+        /// Shell prelude for every batch: fail-fast, plus a `kp_timeout <secs> <cmd...>`
+        /// watchdog for steps that can block indefinitely (`launchctl kickstart -k` on
+        /// an unrunnable service hung a root script for 18+ minutes in #927).
+        public static let scriptPrelude = """
+        set -e
+        kp_timeout() {
+          local t="$1"; shift
+          "$@" &
+          local cmd_pid=$!
+          ( sleep "$t"; /bin/kill -9 "$cmd_pid" 2>/dev/null ) >/dev/null 2>&1 &
+          local watchdog_pid=$!
+          local rc=0
+          wait "$cmd_pid" || rc=$?
+          /bin/kill "$watchdog_pid" 2>/dev/null || true
+          return "$rc"
+        }
+        """
     }
 
     /// Result of a privileged command execution
@@ -88,7 +106,27 @@ public enum PrivilegedCommandRunner {
         return execute(command: batch.script, prompt: batch.prompt)
     }
 
+    /// Direct entry points for callers that must force one mechanism
+    /// (e.g. PrivilegedExecutor delegation). Same bounded execution as
+    /// `execute(command:prompt:)`.
+    public static func executeSudoDirect(command: String) -> Result {
+        executeWithSudo(command: command)
+    }
+
+    public static func executeOsascriptDirect(command: String, prompt: String) -> Result {
+        executeWithOsascript(command: command, prompt: prompt)
+    }
+
     // MARK: - Private Implementation
+
+    /// Hard ceiling on any privileged execution. The osascript path includes the
+    /// admin password dialog, so this must leave the user time to type — but a
+    /// hung script must never outlive it (#927: a root script ran 18+ minutes).
+    static let osascriptTimeout: TimeInterval = 300
+    static let sudoTimeout: TimeInterval = 120
+
+    /// Exit code reported when the privileged process is killed on timeout.
+    public static let timedOutExitCode: Int32 = 124
 
     /// Execute a command using sudo -n (non-interactive).
     /// Requires sudoers NOPASSWD configuration.
@@ -100,30 +138,13 @@ public enum PrivilegedCommandRunner {
         // Use -n for non-interactive (fails if password required)
         task.arguments = ["-n", "/bin/bash", "-c", command]
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            let success = task.terminationStatus == 0
-
-            if success {
-                AppLogger.shared.log("✅ [PrivilegedCommandRunner] sudo command succeeded")
-            } else {
-                AppLogger.shared.log("❌ [PrivilegedCommandRunner] sudo command failed (exit \(task.terminationStatus)): \(output)")
-            }
-
-            return Result(success: success, output: output, exitCode: task.terminationStatus)
-        } catch {
-            let errorMsg = "sudo execution failed: \(error.localizedDescription)"
-            AppLogger.shared.log("❌ [PrivilegedCommandRunner] \(errorMsg)")
-            return Result(success: false, output: errorMsg, exitCode: -1)
+        let run = runBounded(task, timeout: Self.sudoTimeout, label: "sudo")
+        if run.success {
+            AppLogger.shared.log("✅ [PrivilegedCommandRunner] sudo command succeeded")
+        } else {
+            AppLogger.shared.log("❌ [PrivilegedCommandRunner] sudo command failed (exit \(run.exitCode)): \(run.output)")
         }
+        return run
     }
 
     /// Execute a command using osascript with admin privileges dialog.
@@ -159,30 +180,74 @@ public enum PrivilegedCommandRunner {
         task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         task.arguments = ["-e", osascriptCommand]
 
+        let run = runBounded(task, timeout: Self.osascriptTimeout, label: "osascript")
+        if run.success {
+            AppLogger.shared.log("✅ [PrivilegedCommandRunner] osascript command succeeded")
+        } else {
+            AppLogger.shared.log("❌ [PrivilegedCommandRunner] osascript command failed (exit \(run.exitCode)): \(run.output)")
+        }
+        return run
+    }
+
+    /// Run a prepared Process with a hard deadline, draining output concurrently
+    /// so a chatty child can't deadlock on a full pipe buffer.
+    private static func runBounded(_ task: Process, timeout: TimeInterval, label: String) -> Result {
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = pipe
 
+        let buffer = PrivilegedOutputBuffer()
+        pipe.fileHandleForReading.readabilityHandler = { handle in
+            let chunk = handle.availableData
+            if chunk.isEmpty {
+                handle.readabilityHandler = nil
+            } else {
+                buffer.append(chunk)
+            }
+        }
+
         do {
             try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            let success = task.terminationStatus == 0
-
-            if success {
-                AppLogger.shared.log("✅ [PrivilegedCommandRunner] osascript command succeeded")
-            } else {
-                AppLogger.shared.log("❌ [PrivilegedCommandRunner] osascript command failed (exit \(task.terminationStatus)): \(output)")
-            }
-
-            return Result(success: success, output: output, exitCode: task.terminationStatus)
         } catch {
-            let errorMsg = "osascript execution failed: \(error.localizedDescription)"
+            pipe.fileHandleForReading.readabilityHandler = nil
+            let errorMsg = "\(label) execution failed: \(error.localizedDescription)"
             AppLogger.shared.log("❌ [PrivilegedCommandRunner] \(errorMsg)")
             return Result(success: false, output: errorMsg, exitCode: -1)
         }
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while task.isRunning, Date() < deadline {
+            usleep(100_000)
+        }
+
+        if task.isRunning {
+            AppLogger.shared.log(
+                "⏱️ [PrivilegedCommandRunner] \(label) exceeded \(Int(timeout))s — killing. A privileged step is stuck; see #927."
+            )
+            task.terminate()
+            usleep(500_000)
+            if task.isRunning {
+                kill(task.processIdentifier, SIGKILL)
+            }
+            task.waitUntilExit()
+            pipe.fileHandleForReading.readabilityHandler = nil
+            return Result(
+                success: false,
+                output: "timed out after \(Int(timeout))s\n\(buffer.text)",
+                exitCode: Self.timedOutExitCode
+            )
+        }
+
+        task.waitUntilExit()
+        // Give the reader a beat to drain the tail, then detach.
+        usleep(50000)
+        pipe.fileHandleForReading.readabilityHandler = nil
+        let output = buffer.text
+        return Result(
+            success: task.terminationStatus == 0,
+            output: output,
+            exitCode: task.terminationStatus
+        )
     }
 
     /// Escape a command string for use in AppleScript.
@@ -207,6 +272,24 @@ public enum PrivilegedCommandRunner {
 
     private static func shellSingleQuoted(_ value: String) -> String {
         "'\(value.replacingOccurrences(of: "'", with: "'\"'\"'"))'"
+    }
+}
+
+/// Thread-safe accumulator for subprocess output read via readabilityHandler.
+private final class PrivilegedOutputBuffer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var data = Data()
+
+    func append(_ chunk: Data) {
+        lock.lock()
+        data.append(chunk)
+        lock.unlock()
+    }
+
+    var text: String {
+        lock.lock()
+        defer { lock.unlock() }
+        return String(data: data, encoding: .utf8) ?? ""
     }
 }
 

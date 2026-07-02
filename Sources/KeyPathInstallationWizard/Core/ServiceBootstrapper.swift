@@ -244,8 +244,9 @@ public final class ServiceBootstrapper {
             return true
         }
 
-        // Build kickstart commands for all services
-        let commands = serviceIDs.map { "/bin/launchctl kickstart -k system/\($0)" }
+        // Build kickstart commands for all services. kickstart can block forever on
+        // an unrunnable service (#927), so bound each one with the batch watchdog.
+        let commands = serviceIDs.map { "kp_timeout 15 /bin/launchctl kickstart -k system/\($0)" }
         let result = await executePrivilegedBatch(
             label: "restart failing system services",
             commands: commands,
@@ -814,6 +815,22 @@ public final class ServiceBootstrapper {
             return true
         }
 
+        // Never register VHID services while the driver payload is missing: launchd
+        // spawn-loops the daemons (exit 78) and kickstart can block indefinitely.
+        // Failing here also avoids showing an admin password prompt for a repair
+        // that cannot succeed (#928).
+        let missingBinaries = [
+            VHIDDeviceManager.vhidDeviceDaemonPath, VHIDDeviceManager.vhidManagerPath
+        ].filter { !Foundation.FileManager().fileExists(atPath: $0) }
+        guard missingBinaries.isEmpty else {
+            AppLogger.shared.log(
+                "❌ [ServiceBootstrapper] Refusing VHID service repair — driver payload missing: \(missingBinaries.joined(separator: ", ")). Install the Karabiner driver first."
+            )
+            lastVHIDRepairOutput =
+                "Karabiner VirtualHID driver payload is not installed — install the driver before repairing its services."
+            return false
+        }
+
         // Reinstall plists with correct content
         let vhidDaemonPlist = PlistGenerator.generateVHIDDaemonPlist()
         let vhidManagerPlist = PlistGenerator.generateVHIDManagerPlist()
@@ -867,8 +884,8 @@ public final class ServiceBootstrapper {
             "/bin/launchctl bootstrap system '\(managerPlistPath)'",
             "/bin/launchctl enable system/\(Self.vhidDaemonServiceID)",
             "/bin/launchctl enable system/\(Self.vhidManagerServiceID)",
-            "/bin/launchctl kickstart -k system/\(Self.vhidDaemonServiceID)",
-            "/bin/launchctl kickstart -k system/\(Self.vhidManagerServiceID)"
+            "kp_timeout 15 /bin/launchctl kickstart -k system/\(Self.vhidDaemonServiceID)",
+            "kp_timeout 15 /bin/launchctl kickstart -k system/\(Self.vhidManagerServiceID)"
         ])
 
         let batchResult = await executePrivilegedBatch(

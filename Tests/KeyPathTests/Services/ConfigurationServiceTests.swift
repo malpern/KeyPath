@@ -531,6 +531,39 @@ class ConfigurationServiceTests: XCTestCase {
         )
     }
 
+    /// #929: a pre-existing 0-byte keypath.kbd (left behind by old helper
+    /// scaffolding) must be treated as missing and replaced with the default.
+    func testCreateInitialConfigRewritesEmptyFile() async throws {
+        let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
+        try "".write(to: configPath, atomically: true, encoding: .utf8)
+
+        try await configService.createInitialConfigIfNeeded()
+
+        let contents = try String(contentsOf: configPath, encoding: .utf8)
+        XCTAssertFalse(
+            contents.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            "empty config should be rewritten with the default template"
+        )
+        XCTAssertTrue(contents.contains("process-unmapped-keys yes"))
+    }
+
+    /// A valid existing config must NOT be overwritten by the empty-file repair.
+    func testCreateInitialConfigPreservesNonEmptyFile() async throws {
+        let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
+        let sentinel = """
+        (defcfg)
+        (defsrc caps)
+        (deflayer base esc)
+        ;; user-sentinel-do-not-touch
+        """
+        try sentinel.write(to: configPath, atomically: true, encoding: .utf8)
+
+        try await configService.createInitialConfigIfNeeded()
+
+        let contents = try String(contentsOf: configPath, encoding: .utf8)
+        XCTAssertTrue(contents.contains("user-sentinel-do-not-touch"))
+    }
+
     func testBackupFailedConfigAppliesSafeDefaults() async throws {
         let original = """
         (defcfg)

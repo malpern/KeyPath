@@ -63,7 +63,7 @@ class HelperService: NSObject, HelperProtocol {
 
                 // Services are loaded but unhealthy - just restart them
                 for id in toRestart {
-                    _ = Self.run("/bin/launchctl", ["kickstart", "-k", "system/\(id)"])
+                    _ = Self.run("/bin/launchctl", ["kickstart", "-k", "system/\(id)"], timeout: 15)
                 }
             },
             reply: reply
@@ -187,9 +187,9 @@ class HelperService: NSObject, HelperProtocol {
                 let tmp = NSTemporaryDirectory()
                 let pkg = (tmp as NSString).appendingPathComponent("Karabiner-VirtualHID-\(version).pkg")
                 // Download with curl to avoid async URLSession in XPC sync path
-                let d = Self.run("/usr/bin/curl", ["-L", "-f", "-o", pkg, downloadURL])
+                let d = Self.run("/usr/bin/curl", ["-L", "-f", "-o", pkg, downloadURL], timeout: 300)
                 if d.status != 0 { throw HelperError.operationFailed("Download failed: \(d.out)") }
-                let i = Self.run("/usr/sbin/installer", ["-pkg", pkg, "-target", "/"])
+                let i = Self.run("/usr/sbin/installer", ["-pkg", pkg, "-target", "/"], timeout: 300)
                 // Clean up regardless
                 _ = try? FileManager.default.removeItem(atPath: pkg)
                 if i.status != 0 { throw HelperError.operationFailed("Installer failed: \(i.out)") }
@@ -213,9 +213,9 @@ class HelperService: NSObject, HelperProtocol {
                     "https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice/releases/download/v\(version)/Karabiner-DriverKit-VirtualHIDDevice-\(version).pkg"
                 let tmp = NSTemporaryDirectory()
                 let pkg = (tmp as NSString).appendingPathComponent("Karabiner-VirtualHID-\(version).pkg")
-                let d = Self.run("/usr/bin/curl", ["-L", "-f", "-o", pkg, url])
+                let d = Self.run("/usr/bin/curl", ["-L", "-f", "-o", pkg, url], timeout: 300)
                 if d.status != 0 { throw HelperError.operationFailed("Download failed: \(d.out)") }
-                let i = Self.run("/usr/sbin/installer", ["-pkg", pkg, "-target", "/"])
+                let i = Self.run("/usr/sbin/installer", ["-pkg", pkg, "-target", "/"], timeout: 300)
                 _ = try? FileManager.default.removeItem(atPath: pkg)
                 if i.status != 0 { throw HelperError.operationFailed("Installer failed: \(i.out)") }
                 let a = Self.run(Self.vhidManagerPath, ["activate"])
@@ -242,7 +242,7 @@ class HelperService: NSObject, HelperProtocol {
                     throw HelperError.operationFailed("Invalid pkg path - must be within KeyPath.app bundle")
                 }
                 NSLog("[KeyPathHelper] Installing VHID driver from bundled pkg: %@", canonicalPath)
-                let i = Self.run("/usr/sbin/installer", ["-pkg", canonicalPath, "-target", "/"])
+                let i = Self.run("/usr/sbin/installer", ["-pkg", canonicalPath, "-target", "/"], timeout: 300)
                 if i.status != 0 { throw HelperError.operationFailed("Installer failed: \(i.out)") }
                 // Activate after install
                 let a = Self.run(Self.vhidManagerPath, ["activate"])
@@ -257,6 +257,18 @@ class HelperService: NSObject, HelperProtocol {
 
     /// Shared implementation for installing/repairing VHID services
     private static func installOrRepairVHIDServices() throws {
+        // Never register VHID services while the driver payload is missing: launchd
+        // spawn-loops the daemons (exit 78) and `launchctl kickstart -k` can block
+        // indefinitely on such a service, hanging this XPC call (#928, #930).
+        let missing = [vhidDaemonPath, vhidManagerPath].filter {
+            !FileManager.default.fileExists(atPath: $0)
+        }
+        guard missing.isEmpty else {
+            throw HelperError.operationFailed(
+                "Karabiner VirtualHID driver payload is not installed — install the driver before setting up its services. Missing: \(missing.joined(separator: ", "))"
+            )
+        }
+
         try ensureConsoleUserConfigArtifacts()
 
         // Boot out existing jobs (ignore failures)
@@ -296,8 +308,9 @@ class HelperService: NSObject, HelperProtocol {
         }
         _ = run("/bin/launchctl", ["enable", "system/\(vhidDaemonServiceID)"])
         _ = run("/bin/launchctl", ["enable", "system/\(vhidManagerServiceID)"])
-        _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(vhidDaemonServiceID)"])
-        _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(vhidManagerServiceID)"])
+        // kickstart can block when a service is unrunnable — keep the bound tight (#927)
+        _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(vhidDaemonServiceID)"], timeout: 15)
+        _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(vhidManagerServiceID)"], timeout: 15)
     }
 
     // MARK: - Process Management
@@ -681,6 +694,24 @@ enum HelperError: Error, LocalizedError {
 
 // MARK: - Helpers
 
+/// Thread-safe accumulator for subprocess output read via readabilityHandler.
+private final class ProcessOutputBuffer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var data = Data()
+
+    func append(_ chunk: Data) {
+        lock.lock()
+        data.append(chunk)
+        lock.unlock()
+    }
+
+    var text: String {
+        lock.lock()
+        defer { lock.unlock() }
+        return String(data: data, encoding: .utf8) ?? ""
+    }
+}
+
 extension HelperService {
     /// Copy file only if content differs (quick MD5 check). Returns true if a copy occurred.
     @discardableResult
@@ -705,19 +736,74 @@ extension HelperService {
         return cp.status == 0
     }
 
+    /// Exit status reported when a command exceeds its timeout and is killed.
+    static let runTimedOutStatus: Int32 = 124
+
+    /// Run a subprocess with a hard timeout, reading output concurrently.
+    ///
+    /// The timeout is load-bearing: the helper executes synchronously inside XPC
+    /// handlers, so a blocked child (e.g. `launchctl kickstart -k` on an unrunnable
+    /// service, #927/#930) would otherwise hang the helper past the app's XPC
+    /// timeout and force an osascript password-prompt fallback. Output is drained
+    /// while the child runs so a chatty command can't deadlock on a full pipe.
     @discardableResult
-    static func run(_ launchPath: String, _ args: [String]) -> (status: Int32, out: String) {
+    static func run(
+        _ launchPath: String, _ args: [String], timeout: TimeInterval = 60
+    ) -> (status: Int32, out: String) {
         let p = Process()
         p.launchPath = launchPath
         p.arguments = args
         let outPipe = Pipe()
         p.standardOutput = outPipe
         p.standardError = outPipe
-        do { try p.run() } catch { return (127, "run failed: \(error)") }
+
+        let buffer = ProcessOutputBuffer()
+        let readDone = DispatchSemaphore(value: 0)
+        outPipe.fileHandleForReading.readabilityHandler = { handle in
+            let chunk = handle.availableData
+            if chunk.isEmpty {
+                handle.readabilityHandler = nil
+                readDone.signal()
+            } else {
+                buffer.append(chunk)
+            }
+        }
+
+        do { try p.run() } catch {
+            outPipe.fileHandleForReading.readabilityHandler = nil
+            return (127, "run failed: \(error)")
+        }
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while p.isRunning, Date() < deadline {
+            usleep(50000)
+        }
+
+        var timedOut = false
+        if p.isRunning {
+            timedOut = true
+            NSLog(
+                "[KeyPathHelper] ⏱️ Command timed out after %ds, killing: %@ %@",
+                Int(timeout), launchPath, args.joined(separator: " ")
+            )
+            kill(p.processIdentifier, SIGKILL)
+        }
         p.waitUntilExit()
-        let data = outPipe.fileHandleForReading.readDataToEndOfFile()
-        let s = String(data: data, encoding: .utf8) ?? ""
-        return (p.terminationStatus, s)
+
+        // Bounded wait for EOF so the tail of the output is captured. A killed
+        // child may leave the write end open in orphaned grandchildren; don't
+        // block on them.
+        _ = readDone.wait(timeout: .now() + 2)
+        outPipe.fileHandleForReading.readabilityHandler = nil
+
+        let out = buffer.text
+        if timedOut {
+            return (
+                Self.runTimedOutStatus,
+                "timed out after \(Int(timeout))s: \(launchPath) \(args.joined(separator: " "))\n\(out)"
+            )
+        }
+        return (p.terminationStatus, out)
     }
 
     static func verifyCodeSignatureStrict(path: String) -> Bool {
@@ -847,12 +933,11 @@ extension HelperService {
             return
         }
 
+        // Only scaffold the directory. Touching keypath.kbd here created a 0-byte
+        // config that kanata can't parse AND that blocked the app's own
+        // default-config creation, which treats an existing file as done (#929).
         let configDir = "\(info.home)/.config/keypath"
-        let configFile = "\(configDir)/keypath.kbd"
-
         _ = run("/usr/bin/install", ["-d", "-o", info.name, "-g", "staff", configDir])
-        _ = run("/usr/bin/touch", [configFile])
-        _ = run("/usr/sbin/chown", ["\(info.name):staff", configFile])
     }
 
     private static func kanataArguments(binaryPath: String, cfgPath: String, tcpPort: Int) -> [String] {

@@ -93,6 +93,16 @@ public final class PrivilegedOperationsRouter {
     public func installRequiredRuntimeServices() async throws {
         switch Self.operationMode {
         case .privilegedHelper:
+            // Check helper responsiveness first (same as repairVHIDDaemonServices):
+            // an unresponsive helper otherwise costs a silent 30s XPC timeout
+            // before the sudo fallback fires (#930).
+            guard await helperManager.testHelperFunctionality() else {
+                AppLogger.shared.log(
+                    "⚠️ [Router] Helper not responsive — using sudo for runtime service install"
+                )
+                try await sudoInstallRequiredRuntimeServices()
+                return
+            }
             do {
                 try await helperManager.installRequiredRuntimeServices()
                 // Stale-helper guard (MAL-57): a resident helper from before
@@ -583,7 +593,7 @@ public final class PrivilegedOperationsRouter {
         if hasService {
             commands.append("""
             /bin/launchctl enable system/\(vhidLabel) 2>/dev/null || true
-            /bin/launchctl kickstart -k system/\(vhidLabel)
+            kp_timeout 15 /bin/launchctl kickstart -k system/\(vhidLabel)
             """)
         } else {
             commands.append("'\(daemonPath)' > /dev/null 2>&1 &")
