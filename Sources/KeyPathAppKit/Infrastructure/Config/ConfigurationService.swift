@@ -29,6 +29,9 @@ public final class ConfigurationService: FileConfigurationProviding {
     private var fileWatcher: FileWatcher?
     private var observers: [UUID: @Sendable (Config) async -> Void] = [:]
 
+    private let ruleCollectionStore: RuleCollectionStore
+    private let customRulesStore: CustomRulesStore
+
     /// Perform blocking file I/O off the main actor
     private let ioQueue = DispatchQueue(label: "com.keypath.configservice.io", qos: .utility)
     /// Protect shared state when accessed from multiple threads
@@ -36,7 +39,23 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     // MARK: - Initialization
 
-    public init(configDirectory: String? = nil) {
+    public convenience init(configDirectory: String? = nil) {
+        self.init(
+            configDirectory: configDirectory,
+            ruleCollectionStore: .shared,
+            customRulesStore: .shared
+        )
+    }
+
+    /// Injectable stores keep tests hermetic: the shared stores read the real user
+    /// data directories even under XCTest, so tests must pass temp-backed stores.
+    init(
+        configDirectory: String?,
+        ruleCollectionStore: RuleCollectionStore,
+        customRulesStore: CustomRulesStore
+    ) {
+        self.ruleCollectionStore = ruleCollectionStore
+        self.customRulesStore = customRulesStore
         if let customDirectory = configDirectory {
             self.configDirectory = customDirectory
         } else {
@@ -205,8 +224,8 @@ public final class ConfigurationService: FileConfigurationProviding {
             AppLogger.shared.log("⚠️ [ConfigService] No existing config found at \(configurationPath)")
 
             // Rehydrate from persisted rule/custom stores so user state survives file deletion/reset
-            let storedCollections = await RuleCollectionStore.shared.loadCollections()
-            let storedCustomRules = await CustomRulesStore.shared.loadRules()
+            let storedCollections = await ruleCollectionStore.loadCollections()
+            let storedCustomRules = await customRulesStore.loadRules()
             let collectionsToSave = storedCollections.isEmpty
                 ? RuleCollectionCatalog().defaultCollections()
                 : storedCollections

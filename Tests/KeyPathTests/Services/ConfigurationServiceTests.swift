@@ -12,7 +12,13 @@ class ConfigurationServiceTests: XCTestCase {
         return url
     }()
 
-    lazy var configService: ConfigurationService = .init(configDirectory: tempDirectory.path)
+    /// Temp-backed stores keep these tests hermetic: the shared singletons read the
+    /// real user stores, whose collections can conflict on developer machines.
+    lazy var configService: ConfigurationService = .init(
+        configDirectory: tempDirectory.path,
+        ruleCollectionStore: .testStore(at: tempDirectory.appendingPathComponent("RuleCollections.json")),
+        customRulesStore: .testStore(at: tempDirectory.appendingPathComponent("CustomRules.json"))
+    )
 
     // MARK: - Configuration Generation Tests
 
@@ -491,6 +497,38 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: configPath.path))
         let contents = try String(contentsOf: configPath, encoding: .utf8)
         XCTAssertTrue(contents.contains("process-unmapped-keys yes"))
+    }
+
+    func testCreateInitialConfigReadsInjectedStores() async throws {
+        let storeURL = tempDirectory.appendingPathComponent("SeededRuleCollections.json")
+        let seededStore = RuleCollectionStore.testStore(at: storeURL)
+        // f16 is not mapped by any default catalog collection, so the marker
+        // can't conflict with the defaults merged in on load.
+        let marker = RuleCollection(
+            name: "Injected Marker",
+            summary: "Proves the injected store is read",
+            category: .custom,
+            mappings: [KeyMapping(input: "f16", action: .keystroke(key: "f17"))],
+            isEnabled: true,
+            isSystemDefault: false
+        )
+        try await seededStore.saveCollections([marker])
+
+        let service = ConfigurationService(
+            configDirectory: tempDirectory.path,
+            ruleCollectionStore: seededStore,
+            customRulesStore: .testStore(at: tempDirectory.appendingPathComponent("CustomRules.json"))
+        )
+        let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
+        try? FileManager.default.removeItem(at: configPath)
+
+        try await service.createInitialConfigIfNeeded()
+
+        let contents = try String(contentsOf: configPath, encoding: .utf8)
+        XCTAssertTrue(
+            contents.contains("Injected Marker"),
+            "Initial config should rehydrate from the injected store, not the shared singleton"
+        )
     }
 
     func testBackupFailedConfigAppliesSafeDefaults() async throws {
