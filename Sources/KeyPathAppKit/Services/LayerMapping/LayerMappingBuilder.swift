@@ -222,28 +222,29 @@ enum LayerMappingBuilder {
 
     // MARK: - Push-Msg Parsing
 
-    private static let pushMsgTypeValueRegex = try! NSRegularExpression(
+    private static let pushMsgTypeValueRegex = try? NSRegularExpression(
         pattern: #"\(push-msg\s+\"([^:\"]+):([^\"]+)\"\)"#,
         options: [.caseInsensitive]
     )
 
-    private static let pushMsgLaunchRegex = try! NSRegularExpression(
+    private static let pushMsgLaunchRegex = try? NSRegularExpression(
         pattern: #"\(push-msg\s+\"launch:([^\"]+)\"\)"#,
         options: [.caseInsensitive]
     )
 
-    private static let pushMsgOpenRegex = try! NSRegularExpression(
+    private static let pushMsgOpenRegex = try? NSRegularExpression(
         pattern: #"\(push-msg\s+\"open:([^\"]+)\"\)"#,
         options: [.caseInsensitive]
     )
 
-    private static let pushMsgSystemRegex = try! NSRegularExpression(
+    private static let pushMsgSystemRegex = try? NSRegularExpression(
         pattern: #"\(push-msg\s+\"system:([^\"]+)\"\)"#,
         options: [.caseInsensitive]
     )
 
     static func extractPushMsgInfo(from output: String, description: String?) -> LayerKeyInfo? {
-        guard let match = pushMsgTypeValueRegex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
+        guard let pushMsgTypeValueRegex,
+              let match = pushMsgTypeValueRegex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
               let typeRange = Range(match.range(at: 1), in: output),
               let valueRange = Range(match.range(at: 2), in: output)
         else {
@@ -267,11 +268,9 @@ enum LayerMappingBuilder {
     }
 
     static func extractAppLaunchIdentifier(from output: String) -> String? {
-        guard let match = pushMsgLaunchRegex.firstMatch(
-            in: output,
-            range: NSRange(output.startIndex..., in: output)
-        ),
-            let range = Range(match.range(at: 1), in: output)
+        guard let pushMsgLaunchRegex,
+              let match = pushMsgLaunchRegex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
+              let range = Range(match.range(at: 1), in: output)
         else {
             return nil
         }
@@ -280,11 +279,9 @@ enum LayerMappingBuilder {
     }
 
     static func extractUrlIdentifier(from output: String) -> String? {
-        guard let match = pushMsgOpenRegex.firstMatch(
-            in: output,
-            range: NSRange(output.startIndex..., in: output)
-        ),
-            let range = Range(match.range(at: 1), in: output)
+        guard let pushMsgOpenRegex,
+              let match = pushMsgOpenRegex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
+              let range = Range(match.range(at: 1), in: output)
         else {
             return nil
         }
@@ -293,11 +290,9 @@ enum LayerMappingBuilder {
     }
 
     static func extractSystemActionIdentifier(from output: String) -> String? {
-        guard let match = pushMsgSystemRegex.firstMatch(
-            in: output,
-            range: NSRange(output.startIndex..., in: output)
-        ),
-            let range = Range(match.range(at: 1), in: output)
+        guard let pushMsgSystemRegex,
+              let match = pushMsgSystemRegex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
+              let range = Range(match.range(at: 1), in: output)
         else {
             return nil
         }

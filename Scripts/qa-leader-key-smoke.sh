@@ -46,13 +46,17 @@ PY
 
 smoke_init
 
-# Finding (release-readiness, Thu): the Leader Key collection's
-# selectedOutput is display-only — the generated config's leader binding
-# comes from the system leaderKeyPreference (UserDefaults), which JSON/CLI
-# mutation of the collection does not touch. Setting selectedOutput=tab
-# still emits layer_nav_spc. Until that's resolved (or confirmed intended),
-# these cases assert apply-success per preset, which still kanata-validates
-# the full config for each value.
+# Partial fix (issue #889): the in-process app/daemon load paths
+# (RuleCollectionsManager.bootstrap / replaceCollections) now reconcile the
+# system leaderKeyPreference from the Leader Key collection's selectedOutput.
+# This script drives the standalone `keypath-cli config apply`, which generates
+# config via ConfigFacade → ConfigurationService — it reads leaderKeyPreference
+# directly and never constructs a RuleCollectionsManager, so from the CLI the
+# collection's selectedOutput is still display-only (setting it to tab here
+# still emits the leaderKeyPreference default). Unifying config generation on
+# the collection as the single source of truth is deferred to #865/#888.
+# These cases assert apply-success per preset, which still kanata-validates the
+# full config for each value.
 for preset in space caps tab grv; do
   echo "==> preset: $preset"
   apply_leader "$preset"
