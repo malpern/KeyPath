@@ -15,8 +15,15 @@ extension RuleCollectionsManager {
         ruleCollections = RuleCollectionDeduplicator.dedupe(collections)
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
-        reconcileLeaderKeyFromCollection()
-        await regenerateConfigFromCollections()
+
+        let leaderSnapshot = PreferencesService.shared.leaderKeyPreference
+        let collectionsSnapshot = ruleCollections
+        let didReconcileLeader = reconcileLeaderKeyFromCollection()
+
+        let applied = await regenerateConfigFromCollections()
+        if didReconcileLeader, !applied {
+            rollbackLeaderReconcile(preference: leaderSnapshot, collections: collectionsSnapshot)
+        }
     }
 
     /// Toggle a rule collection on/off
@@ -830,20 +837,38 @@ extension RuleCollectionsManager {
     /// here would clobber a leader configured via the system-preference path while the
     /// collection is off, so full bidirectional reconciliation is deferred to the
     /// single-source-of-truth work in #865/#888.
-    func reconcileLeaderKeyFromCollection() {
+    /// - Returns: `true` if it mutated the preference/activators (so the caller must roll
+    ///   back via `rollbackLeaderReconcile` if the subsequent config regen fails), `false`
+    ///   if it was a no-op.
+    @discardableResult
+    func reconcileLeaderKeyFromCollection() -> Bool {
         guard let leaderCollection = ruleCollections.first(where: { $0.id == RuleCollectionIdentifier.leaderKey }),
               leaderCollection.isEnabled,
               let key = leaderCollection.configuration.singleKeyPickerConfig?.selectedOutput
-        else { return }
+        else { return false }
 
         let current = PreferencesService.shared.leaderKeyPreference
-        guard current.key != key || !current.enabled else { return }
+        guard current.key != key || !current.enabled else { return false }
 
         AppLogger.shared.log(
             "🔑 [RuleCollections] Reconciling leader key from collection selectedOutput: '\(key)' (was '\(current.key)', enabled=\(current.enabled))"
         )
         applyLeaderKeyToLeaderActivators(key, targetLayer: current.targetLayer)
         syncLeaderKeyPreference(key: key, enabled: true)
+        return true
+    }
+
+    /// Silently undo a reconcile whose config regen failed. `leaderKeyPreference` is
+    /// UserDefaults-persisted via `didSet`, so leaving a reconciled-but-unapplied value in
+    /// place would permanently mask the drift (the idempotency guard in
+    /// `reconcileLeaderKeyFromCollection` would see the preference already matches and skip
+    /// retrying). Restoring both the preference and the in-memory collections lets the next
+    /// load retry cleanly. Unlike `updateLeaderKey`'s rollback this shows no user message —
+    /// it runs on passive `bootstrap`/`replaceCollections` load paths. See issue #889.
+    func rollbackLeaderReconcile(preference: LeaderKeyPreference, collections: [RuleCollection]) {
+        AppLogger.shared.log("↩️ [RuleCollections] Leader reconcile rolled back after failed config regen")
+        ruleCollections = collections
+        PreferencesService.shared.leaderKeyPreference = preference
     }
 
     /// Save or update a custom rule
