@@ -169,7 +169,7 @@ struct PermissionOracleTests {
         )
         #expect(axIssue.blockingIssue?.contains("KeyPath needs Accessibility") == true)
 
-        // KeyPath IM blocked
+        // KeyPath IM denied — soft (overlay only), NOT a blocking issue (#931)
         let keyPathIMBlocked = PermissionOracle.PermissionSet(
             accessibility: .granted,
             inputMonitoring: .denied,
@@ -182,7 +182,7 @@ struct PermissionOracleTests {
             kanata: granted,
             timestamp: now
         )
-        #expect(imIssue.blockingIssue?.contains("KeyPath needs Input Monitoring") == true)
+        #expect(imIssue.blockingIssue == nil)
 
         // Kanata blocked (KeyPath OK)
         let kanataBlocked = PermissionOracle.PermissionSet(
