@@ -627,11 +627,26 @@ final class RuleCollectionsManagerTests: XCTestCase {
             PreferencesService.shared.leaderKeyPreference.enabled,
             "enabled leader collection should mark the preference enabled"
         )
-        let inputs = manager.ruleCollections.compactMap(\.momentaryActivator?.input)
-        XCTAssertFalse(inputs.isEmpty)
+        // The leader activator (base -> nav) adopts the reconciled key...
+        let navInputs = manager.ruleCollections
+            .compactMap(\.momentaryActivator)
+            .filter { $0.sourceLayer == .base && $0.targetLayer == .navigation }
+            .map(\.input)
+        XCTAssertFalse(navInputs.isEmpty)
         XCTAssertTrue(
-            inputs.allSatisfy { $0 == "tab" },
-            "momentary activators should adopt the reconciled leader key"
+            navInputs.allSatisfy { $0 == "tab" },
+            "the leader (base -> nav) activator should adopt the reconciled leader key"
+        )
+
+        // ...but unrelated base-layer activators (Home Row Arrows "f", Quick Launcher
+        // "hyper") must NOT be stomped to the leader key (issue #889 regression guard).
+        let otherInputs = manager.ruleCollections
+            .compactMap(\.momentaryActivator)
+            .filter { !($0.sourceLayer == .base && $0.targetLayer == .navigation) }
+            .map(\.input)
+        XCTAssertFalse(
+            otherInputs.contains("tab"),
+            "non-leader momentary activators must not be rewritten to the leader key"
         )
     }
 

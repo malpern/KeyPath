@@ -763,6 +763,32 @@ extension RuleCollectionsManager {
         }
     }
 
+    /// Rewrite the input of only the *leader* activators — those that transition from the
+    /// base layer into the leader's target layer (e.g. base → nav). Unlike
+    /// `applyLeaderKeyToMomentaryActivators`, this deliberately leaves unrelated base-layer
+    /// activators alone (e.g. Home Row Arrows on "f", Quick Launcher on "hyper") and
+    /// chained sub-layer activators (sourceLayer != .base, e.g. nav → window), which have
+    /// their own activation keys. Used by the passive reconcile path, which fires on every
+    /// headless load where the preference diverges — the broad rewrite would stomp those
+    /// unrelated features (and, for Quick Launcher's "hyper", collide two base-layer
+    /// bindings onto the same key). See issue #889.
+    private func applyLeaderKeyToLeaderActivators(_ newKey: String, targetLayer: RuleCollectionLayer) {
+        for index in ruleCollections.indices {
+            guard let activator = ruleCollections[index].momentaryActivator,
+                  activator.sourceLayer == .base,
+                  activator.targetLayer == targetLayer
+            else { continue }
+            ruleCollections[index].momentaryActivator = MomentaryActivator(
+                input: newKey,
+                targetLayer: activator.targetLayer,
+                sourceLayer: activator.sourceLayer
+            )
+            AppLogger.shared.log(
+                "🔑 [RuleCollections] Reconciled leader activator on '\(ruleCollections[index].name)' to '\(newKey)'"
+            )
+        }
+    }
+
     private func leaderKeyOutput(from collection: RuleCollection) -> String? {
         guard let config = collection.configuration.singleKeyPickerConfig else { return nil }
         return config.selectedOutput ?? config.presetOptions.first?.output
@@ -777,8 +803,8 @@ extension RuleCollectionsManager {
         PreferencesService.shared.leaderKeyPreference = preference
     }
 
-    /// Reconcile the system `leaderKeyPreference` (and momentary activators) from the
-    /// enabled Leader Key collection's `selectedOutput`.
+    /// Reconcile the system `leaderKeyPreference` (and the base→nav leader activator) from
+    /// the enabled Leader Key collection's `selectedOutput`.
     ///
     /// The in-app picker routes through `updateLeaderKey`, which keeps both stores in
     /// sync. Headless mutations — direct JSON edits and import/restore — change
@@ -816,7 +842,7 @@ extension RuleCollectionsManager {
         AppLogger.shared.log(
             "🔑 [RuleCollections] Reconciling leader key from collection selectedOutput: '\(key)' (was '\(current.key)', enabled=\(current.enabled))"
         )
-        applyLeaderKeyToMomentaryActivators(key)
+        applyLeaderKeyToLeaderActivators(key, targetLayer: current.targetLayer)
         syncLeaderKeyPreference(key: key, enabled: true)
     }
 
