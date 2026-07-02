@@ -790,6 +790,13 @@ extension RuleCollectionsManager {
     /// Only an *explicit* `selectedOutput` reconciles — a nil `selectedOutput` means the
     /// collection expresses no opinion, so a leader key configured via the system
     /// preference path is left untouched (no fallback to the first preset).
+    ///
+    /// Scope (see #889): this only reconciles the enabled-with-explicit-output case. A
+    /// headless edit that *disables* a previously-reconciled collection leaves
+    /// `leaderKeyPreference` stale (still enabled with the old key). Forcing it disabled
+    /// here would clobber a leader configured via the system-preference path while the
+    /// collection is off, so full bidirectional reconciliation is deferred to the
+    /// single-source-of-truth work in #865/#888.
     func reconcileLeaderKeyFromCollection() {
         guard let leaderCollection = ruleCollections.first(where: { $0.id == RuleCollectionIdentifier.leaderKey }),
               leaderCollection.isEnabled,
