@@ -112,7 +112,19 @@ public final class PrivilegedOperationsRouter {
                     try await sudoRepairVHIDServices()
                 }
             } catch {
-                try await sudoInstallRequiredRuntimeServices()
+                // Keep the helper's actionable reason (e.g. "driver payload is
+                // not installed") visible — the sudo fallback's generic failure
+                // would otherwise bury it (#928).
+                AppLogger.shared.warn(
+                    "⚠️ [PrivilegedOperationsRouter] Helper install failed (\(error.localizedDescription)) — falling back to sudo path"
+                )
+                do {
+                    try await sudoInstallRequiredRuntimeServices()
+                } catch let fallbackError {
+                    throw PrivilegedOperationError.installationFailed(
+                        "Runtime service installation failed. Helper: \(error.localizedDescription). Sudo fallback: \(fallbackError.localizedDescription)"
+                    )
+                }
             }
         case .directSudo:
             try await sudoInstallRequiredRuntimeServices()
@@ -583,7 +595,7 @@ public final class PrivilegedOperationsRouter {
         if hasService {
             commands.append("""
             /bin/launchctl enable system/\(vhidLabel) 2>/dev/null || true
-            /bin/launchctl kickstart -k system/\(vhidLabel)
+            kp_timeout 15 /bin/launchctl kickstart -k system/\(vhidLabel)
             """)
         } else {
             commands.append("'\(daemonPath)' > /dev/null 2>&1 &")

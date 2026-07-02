@@ -30,8 +30,28 @@ public enum PrivilegedCommandRunner {
             if trimmed.isEmpty {
                 return ":"
             }
-            return "set -e\n" + trimmed.joined(separator: "\n")
+            return Self.scriptPrelude + "\n" + trimmed.joined(separator: "\n")
         }
+
+        /// Shell prelude for every batch: fail-fast, plus a `kp_timeout <secs> <cmd...>`
+        /// watchdog for steps that can block indefinitely (`launchctl kickstart -k` on
+        /// an unrunnable service hung a root script for 18+ minutes in #927).
+        /// The watchdog re-checks the child's parentage before the SIGKILL so a
+        /// recycled PID is never killed by a root script.
+        public static let scriptPrelude = """
+        set -e
+        kp_timeout() {
+          local t="$1"; shift
+          "$@" &
+          local cmd_pid=$!
+          ( sleep "$t"; if [ "$(ps -o ppid= -p "$cmd_pid" 2>/dev/null | tr -d ' ')" = "$$" ]; then /bin/kill -9 "$cmd_pid" 2>/dev/null; fi ) >/dev/null 2>&1 &
+          local watchdog_pid=$!
+          local rc=0
+          wait "$cmd_pid" || rc=$?
+          /bin/kill "$watchdog_pid" 2>/dev/null || true
+          return "$rc"
+        }
+        """
     }
 
     /// Result of a privileged command execution
@@ -88,7 +108,32 @@ public enum PrivilegedCommandRunner {
         return execute(command: batch.script, prompt: batch.prompt)
     }
 
+    /// Direct entry points for callers that must force one mechanism
+    /// (e.g. PrivilegedExecutor delegation). Same bounded execution as
+    /// `execute(command:prompt:)`.
+    public static func executeSudoDirect(command: String) -> Result {
+        executeWithSudo(command: command)
+    }
+
+    public static func executeOsascriptDirect(command: String, prompt: String) -> Result {
+        executeWithOsascript(command: command, prompt: prompt)
+    }
+
     // MARK: - Private Implementation
+
+    /// Hard ceiling on the osascript CLIENT process. The deadline includes the
+    /// admin password dialog, so it is deliberately generous — a user who steps
+    /// away mid-dialog must not get a spurious failure. The privileged script
+    /// itself is bounded separately by its own self-watchdog
+    /// (`scriptSelfTimeout`), because killing osascript cannot reach the root
+    /// child (#927).
+    static let osascriptTimeout: TimeInterval = 900
+    /// KEYPATH_USE_SUDO test rigs only. Sized to the slowest legitimate batch
+    /// (`installer -pkg` gets 300s on the helper path) plus headroom.
+    static let sudoTimeout: TimeInterval = 360
+
+    /// Exit code reported when the privileged process is killed on timeout.
+    public static let timedOutExitCode: Int32 = BoundedProcess.timedOutStatus
 
     /// Execute a command using sudo -n (non-interactive).
     /// Requires sudoers NOPASSWD configuration.
@@ -100,30 +145,13 @@ public enum PrivilegedCommandRunner {
         // Use -n for non-interactive (fails if password required)
         task.arguments = ["-n", "/bin/bash", "-c", command]
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            let success = task.terminationStatus == 0
-
-            if success {
-                AppLogger.shared.log("✅ [PrivilegedCommandRunner] sudo command succeeded")
-            } else {
-                AppLogger.shared.log("❌ [PrivilegedCommandRunner] sudo command failed (exit \(task.terminationStatus)): \(output)")
-            }
-
-            return Result(success: success, output: output, exitCode: task.terminationStatus)
-        } catch {
-            let errorMsg = "sudo execution failed: \(error.localizedDescription)"
-            AppLogger.shared.log("❌ [PrivilegedCommandRunner] \(errorMsg)")
-            return Result(success: false, output: errorMsg, exitCode: -1)
+        let run = runBounded(task, timeout: Self.sudoTimeout, label: "sudo")
+        if run.success {
+            AppLogger.shared.log("✅ [PrivilegedCommandRunner] sudo command succeeded")
+        } else {
+            AppLogger.shared.log("❌ [PrivilegedCommandRunner] sudo command failed (exit \(run.exitCode)): \(run.output)")
         }
+        return run
     }
 
     /// Execute a command using osascript with admin privileges dialog.
@@ -159,45 +187,63 @@ public enum PrivilegedCommandRunner {
         task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         task.arguments = ["-e", osascriptCommand]
 
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            let success = task.terminationStatus == 0
-
-            if success {
-                AppLogger.shared.log("✅ [PrivilegedCommandRunner] osascript command succeeded")
-            } else {
-                AppLogger.shared.log("❌ [PrivilegedCommandRunner] osascript command failed (exit \(task.terminationStatus)): \(output)")
-            }
-
-            return Result(success: success, output: output, exitCode: task.terminationStatus)
-        } catch {
-            let errorMsg = "osascript execution failed: \(error.localizedDescription)"
-            AppLogger.shared.log("❌ [PrivilegedCommandRunner] \(errorMsg)")
-            return Result(success: false, output: errorMsg, exitCode: -1)
+        let run = runBounded(task, timeout: Self.osascriptTimeout, label: "osascript")
+        if run.success {
+            AppLogger.shared.log("✅ [PrivilegedCommandRunner] osascript command succeeded")
+        } else {
+            AppLogger.shared.log("❌ [PrivilegedCommandRunner] osascript command failed (exit \(run.exitCode)): \(run.output)")
         }
+        return run
+    }
+
+    /// Run a prepared Process with a hard deadline via the shared BoundedProcess
+    /// runner (concurrent output draining, terminate-then-SIGKILL on expiry).
+    private static func runBounded(_ task: Process, timeout: TimeInterval, label: String) -> Result {
+        let outcome = BoundedProcess.run(task, timeout: timeout)
+        if outcome.timedOut {
+            AppLogger.shared.log(
+                "⏱️ [PrivilegedCommandRunner] \(label) exceeded \(Int(timeout))s — killed. A privileged step is stuck; see #927."
+            )
+            return Result(
+                success: false,
+                output: "timed out after \(Int(timeout))s\n\(outcome.output)",
+                exitCode: outcome.status
+            )
+        }
+        return Result(
+            success: outcome.status == 0,
+            output: outcome.output,
+            exitCode: outcome.status
+        )
     }
 
     /// Escape a command string for use in AppleScript.
-    private static func escapeForAppleScript(_ command: String) -> String {
+    /// Internal (not private) so tests cover the escaping actually executed.
+    static func escapeForAppleScript(_ command: String) -> String {
         var escaped = command
         escaped = escaped.replacingOccurrences(of: "\\", with: "\\\\")
         escaped = escaped.replacingOccurrences(of: "\"", with: "\\\"")
         return escaped
     }
 
+    /// Hard ceiling the privileged script applies to ITSELF. The script runs as
+    /// root under the security trampoline, so the unprivileged app cannot signal
+    /// it after a timeout — killing our osascript client merely orphans it
+    /// (#927's 18-minute root script). A self-watchdog is the only reliable
+    /// bound. The identity re-check via the unique script name prevents a
+    /// recycled PID from being killed.
+    static let scriptSelfTimeout: TimeInterval = 300
+
     private static func writeTemporaryShellScript(command: String) throws -> URL {
+        let scriptName = "keypath-privileged-\(UUID().uuidString).sh"
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("keypath-privileged-\(UUID().uuidString).sh")
+            .appendingPathComponent(scriptName)
         let script = """
         #!/bin/bash
+        KP_SELF=$$
+        ( sleep \(Int(scriptSelfTimeout)); if ps -o command= -p "$KP_SELF" 2>/dev/null | grep -qF '\(scriptName)'; then /bin/kill -9 "$KP_SELF"; fi ) >/dev/null 2>&1 &
+        KP_SELF_WATCHDOG=$!
+        trap '/bin/kill "$KP_SELF_WATCHDOG" 2>/dev/null' EXIT
         \(command)
         """
         try script.write(to: url, atomically: true, encoding: .utf8)
