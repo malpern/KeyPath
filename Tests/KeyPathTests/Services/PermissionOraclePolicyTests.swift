@@ -45,11 +45,12 @@ struct PermissionOraclePolicyTests {
         #expect(issue.contains("KeyPath"))
     }
 
-    @Test("Blocking issue names the specific KeyPath permission (IM)")
-    func blockingMessageSpecificityInputMonitoring() {
+    @Test("KeyPath's own Input Monitoring is soft — denied IM alone does not block (#931)")
+    func keyPathInputMonitoringIsNonBlocking() {
         let now = Date()
 
-        // KeyPath: AX granted, IM denied
+        // KeyPath: AX granted, IM denied. KeyPath's own IM powers only the
+        // overlay/record, not remapping, so it must not produce a blocking issue.
         let keyPath = PermissionOracle.PermissionSet(
             accessibility: .granted,
             inputMonitoring: .denied,
@@ -68,11 +69,9 @@ struct PermissionOraclePolicyTests {
         )
 
         let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now)
-        let issue = snap.blockingIssue ?? ""
 
-        #expect(issue.contains("Input Monitoring"))
-        #expect(!issue.contains("Accessibility"))
-        #expect(issue.contains("KeyPath"))
+        #expect(snap.blockingIssue == nil)
+        #expect(snap.isSystemReady)
     }
 
     // MARK: - Precedence: KeyPath over Kanata; unknown is non-blocking
