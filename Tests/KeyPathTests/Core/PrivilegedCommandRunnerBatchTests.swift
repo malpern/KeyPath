@@ -71,12 +71,12 @@ final class PrivilegedCommandRunnerBatchTests: XCTestCase {
         process.arguments = ["-c", batch.script]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
-        try process.run()
 
-        let deadline = Date().addingTimeInterval(seconds)
-        while process.isRunning, Date() < deadline {
-            usleep(50000)
-        }
+        let exited = expectation(description: "script exits: \(commands)")
+        process.terminationHandler = { _ in exited.fulfill() }
+        try process.run()
+        wait(for: [exited], timeout: seconds)
+
         if process.isRunning {
             process.terminate()
             XCTFail("script did not finish within \(seconds)s: \(commands)")
