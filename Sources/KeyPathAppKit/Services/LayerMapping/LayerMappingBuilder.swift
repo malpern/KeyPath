@@ -269,11 +269,8 @@ enum LayerMappingBuilder {
 
     static func extractAppLaunchIdentifier(from output: String) -> String? {
         guard let pushMsgLaunchRegex,
-            let match = pushMsgLaunchRegex.firstMatch(
-                in: output,
-                range: NSRange(output.startIndex..., in: output)
-            ),
-            let range = Range(match.range(at: 1), in: output)
+              let match = pushMsgLaunchRegex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
+              let range = Range(match.range(at: 1), in: output)
         else {
             return nil
         }
@@ -283,11 +280,8 @@ enum LayerMappingBuilder {
 
     static func extractUrlIdentifier(from output: String) -> String? {
         guard let pushMsgOpenRegex,
-            let match = pushMsgOpenRegex.firstMatch(
-                in: output,
-                range: NSRange(output.startIndex..., in: output)
-            ),
-            let range = Range(match.range(at: 1), in: output)
+              let match = pushMsgOpenRegex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
+              let range = Range(match.range(at: 1), in: output)
         else {
             return nil
         }
@@ -297,11 +291,8 @@ enum LayerMappingBuilder {
 
     static func extractSystemActionIdentifier(from output: String) -> String? {
         guard let pushMsgSystemRegex,
-            let match = pushMsgSystemRegex.firstMatch(
-                in: output,
-                range: NSRange(output.startIndex..., in: output)
-            ),
-            let range = Range(match.range(at: 1), in: output)
+              let match = pushMsgSystemRegex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
+              let range = Range(match.range(at: 1), in: output)
         else {
             return nil
         }
