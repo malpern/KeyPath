@@ -635,6 +635,72 @@ final class RuleCollectionsManagerTests: XCTestCase {
         )
     }
 
+    /// Issue #889: a nil `selectedOutput` means the collection expresses no opinion, so
+    /// reconciliation must leave a leader key configured via the system-preference path
+    /// untouched (no fallback to the first preset). This is the regression a pre-commit
+    /// review caught; lock it in.
+    @MainActor
+    func testReconcileLeavesPreferenceUntouchedWhenSelectedOutputNil() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        // Leader key deliberately configured via the system-preference path.
+        PreferencesService.shared.leaderKeyPreference = LeaderKeyPreference(
+            key: "caps", targetLayer: .navigation, enabled: true
+        )
+        defer { PreferencesService.shared.leaderKeyPreference = .default }
+
+        let collections = RuleCollectionCatalog().defaultCollections().map { collection -> RuleCollection in
+            var collection = collection
+            if collection.id == RuleCollectionIdentifier.leaderKey {
+                collection.isEnabled = true
+                if var config = collection.configuration.singleKeyPickerConfig {
+                    config.selectedOutput = nil
+                    collection.configuration = .singleKeyPicker(config)
+                }
+            }
+            return collection
+        }
+
+        await manager.replaceCollections(collections)
+
+        XCTAssertEqual(
+            PreferencesService.shared.leaderKeyPreference.key, "caps",
+            "nil selectedOutput must not clobber a system-preference leader key"
+        )
+        XCTAssertTrue(PreferencesService.shared.leaderKeyPreference.enabled)
+    }
+
+    /// Issue #889: reconciliation only fires for an *enabled* Leader Key collection. A
+    /// disabled collection — even one carrying an explicit selectedOutput — must not
+    /// touch the preference.
+    @MainActor
+    func testReconcileSkipsWhenLeaderCollectionDisabled() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        PreferencesService.shared.leaderKeyPreference = LeaderKeyPreference(
+            key: "caps", targetLayer: .navigation, enabled: true
+        )
+        defer { PreferencesService.shared.leaderKeyPreference = .default }
+
+        let collections = RuleCollectionCatalog().defaultCollections().map { collection -> RuleCollection in
+            var collection = collection
+            if collection.id == RuleCollectionIdentifier.leaderKey {
+                collection.isEnabled = false
+                collection.configuration.updateSelectedOutput("tab")
+            }
+            return collection
+        }
+
+        await manager.replaceCollections(collections)
+
+        XCTAssertEqual(
+            PreferencesService.shared.leaderKeyPreference.key, "caps",
+            "a disabled Leader Key collection must not reconcile the preference"
+        )
+    }
+
     @MainActor
     func testToggleCustomRuleConflictKeepNew_DisablesConflictingCollection() async throws {
         let (manager, _) = try await createTestManager()
