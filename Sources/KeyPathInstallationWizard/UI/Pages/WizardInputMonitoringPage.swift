@@ -454,6 +454,12 @@ public struct WizardInputMonitoringPage: View {
             // the page keeps refreshing (drives the #931 manual-fallback card and
             // still detects a later manual grant). Without this the page would go
             // static and the escalation could never appear.
+            //
+            // Note: startBackgroundPermissionPolling() begins by cancelling
+            // `permissionPollingTask`, which still points at THIS fast-poll task —
+            // an intentional self-cancel. It is harmless: cancellation only flips
+            // `Task.isCancelled`, and there is no further code or await point in
+            // this closure after the call. Do not "simplify" it away.
             startBackgroundPermissionPolling()
         }
     }
