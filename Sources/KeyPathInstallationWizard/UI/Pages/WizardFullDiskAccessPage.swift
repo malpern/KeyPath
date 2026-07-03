@@ -10,6 +10,10 @@ public struct WizardFullDiskAccessPage: View {
     @State private var hasCheckedPermission = false
     @State private var hasFullDiskAccess = false
     @State private var showSuccessAnimation = false
+    /// Whether FDA was already granted when this page appeared. Gates the celebrate +
+    /// auto-advance so a *review visit* to an already-granted page doesn't navigate the
+    /// user off it — only a grant that lands during the visit advances (#933).
+    @State private var wasGrantedOnAppear = false
     /// Durable 1s poll so the page auto-detects a grant and advances, matching the
     /// Accessibility / Input Monitoring pages (previously FDA only re-checked on
     /// `didBecomeActive`, so a grant made without leaving the app went unnoticed) (#933).
@@ -113,14 +117,9 @@ public struct WizardFullDiskAccessPage: View {
         .wizardDetailPage()
         .onAppear {
             checkFullDiskAccess()
-            // If FDA was already granted before this visit (the Summary row is always
-            // navigable, so the user may have opened this page just to review it),
-            // mark it acknowledged so the onChange handler below does NOT celebrate or
-            // auto-advance — otherwise they'd be navigated off a page they never acted
-            // on. Only a grant that lands *during* the visit should advance.
-            if hasFullDiskAccess {
-                showSuccessAnimation = true
-            }
+            // Snapshot the appear-time grant so the onChange handler can tell a fresh
+            // grant (advance) from a review visit to an already-granted page (stay).
+            wasGrantedOnAppear = hasFullDiskAccess
             startFDAPolling()
         }
         .onDisappear {
@@ -139,8 +138,11 @@ public struct WizardFullDiskAccessPage: View {
             FullDiskAccessDetailsSheet()
         }
         .onChange(of: hasFullDiskAccess) { _, newValue in
-            if newValue, !showSuccessAnimation {
-                // Permission was just granted — celebrate, then auto-advance so the
+            let shouldAdvance = shouldAdvanceOnFullDiskAccessGrant(
+                isGrantedNow: newValue, wasGrantedOnAppear: wasGrantedOnAppear
+            )
+            if shouldAdvance, !showSuccessAnimation {
+                // Grant landed during this visit — celebrate, then auto-advance so the
                 // FDA page matches the other permission pages (#933).
                 showSuccessAnimation = true
                 WizardWindowManager.shared.bounceDocIcon()

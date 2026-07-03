@@ -1,19 +1,20 @@
 import KeyPathWizardCore
 @preconcurrency import XCTest
 
-/// Covers the Input Monitoring wizard escalation logic (#931): the page must
-/// never sit at an unresolved grant without guidance. The pure resolver decides
-/// when to offer the automatic prompt, when to keep waiting, and when to fall
-/// back to explicit manual instructions.
-final class InputMonitoringGuidanceTests: XCTestCase {
+/// Covers the shared automatic-prompt escalation logic (#931/#933): a permission
+/// page must never sit at an unresolved grant without guidance. The pure resolver
+/// decides when to offer the automatic prompt, when to keep waiting, and when to
+/// fall back to explicit manual instructions — the same logic backs both the Input
+/// Monitoring and Accessibility pages.
+final class AutomaticPromptGuidanceTests: XCTestCase {
     private func resolve(
         keyPathReady: Bool,
         requestAttempted: Bool,
         secondsSinceRequest: TimeInterval?,
         waitWindow: TimeInterval = 6
-    ) -> InputMonitoringGuidance {
-        resolveInputMonitoringGuidance(
-            InputMonitoringGuidanceInput(
+    ) -> AutomaticPromptGuidance {
+        resolveAutomaticPromptGuidance(
+            AutomaticPromptGuidanceInput(
                 keyPathReady: keyPathReady,
                 requestAttempted: requestAttempted,
                 secondsSinceRequest: secondsSinceRequest,
@@ -56,15 +57,15 @@ final class InputMonitoringGuidanceTests: XCTestCase {
     }
 
     func testProductionDefaultWaitWindowIsTwelveSeconds() {
-        // The page relies on the init default (it never passes waitWindow), so the
+        // The pages rely on the init default (they never pass waitWindow), so the
         // shipped escalation timing is locked in here: still waiting at 11s so a
         // real system dialog isn't contradicted, escalated by 12s (#931, review obs).
-        let stillWaiting = resolveInputMonitoringGuidance(
-            InputMonitoringGuidanceInput(keyPathReady: false, requestAttempted: true, secondsSinceRequest: 11)
+        let stillWaiting = resolveAutomaticPromptGuidance(
+            AutomaticPromptGuidanceInput(keyPathReady: false, requestAttempted: true, secondsSinceRequest: 11)
         )
         XCTAssertEqual(stillWaiting, .awaitingGrant)
-        let escalated = resolveInputMonitoringGuidance(
-            InputMonitoringGuidanceInput(keyPathReady: false, requestAttempted: true, secondsSinceRequest: 12)
+        let escalated = resolveAutomaticPromptGuidance(
+            AutomaticPromptGuidanceInput(keyPathReady: false, requestAttempted: true, secondsSinceRequest: 12)
         )
         XCTAssertEqual(escalated, .manualFallback)
     }
