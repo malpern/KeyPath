@@ -40,6 +40,44 @@ public final class DragToAuthorizeController {
         }
     }
 
+    /// Which app the overlay authorizes — i.e. which file the user drags into the
+    /// privacy list and whose permission is polled. Historically the overlay only
+    /// added kanata-launcher; `.keyPath` extends it to KeyPath.app's own rows and
+    /// the Full Disk Access page (#933).
+    public enum PermissionSubject: Equatable, Sendable {
+        /// KeyPath.app's own bundle (its Accessibility / Input Monitoring / Full
+        /// Disk Access grant). Drags the `.app` bundle; polled via `snapshot.keyPath`
+        /// (or the FDA checker for Full Disk Access).
+        case keyPath
+        /// The bundled kanata-launcher binary (the remapping engine's grant).
+        /// Drags the launcher executable; polled via `snapshot.kanata`.
+        case kanata
+
+        /// File dragged into the System Settings privacy list for this subject.
+        var fileURL: URL {
+            switch self {
+            case .keyPath: URL(fileURLWithPath: Bundle.main.bundlePath)
+            case .kanata: URL(fileURLWithPath: WizardSystemPaths.bundledKanataLauncherPath)
+            }
+        }
+
+        /// Primary label shown on the draggable tile.
+        var displayName: String {
+            switch self {
+            case .keyPath: "KeyPath"
+            case .kanata: "kanata-launcher"
+            }
+        }
+
+        /// Secondary label shown under the tile's primary label.
+        var subtitle: String {
+            switch self {
+            case .keyPath: "Main application"
+            case .kanata: "KeyPath Engine"
+            }
+        }
+    }
+
     public enum OverlayState: Equatable {
         case idle
         case presenting
@@ -54,6 +92,7 @@ public final class DragToAuthorizeController {
 
     public private(set) var state: OverlayState = .idle
     public private(set) var currentTarget: PermissionTarget?
+    public private(set) var currentSubject: PermissionSubject = .kanata
 
     // MARK: - Private Properties
 
@@ -69,25 +108,38 @@ public final class DragToAuthorizeController {
 
     /// Present the drag-to-authorize overlay for the given permission target.
     /// Opens System Settings and shows the floating panel anchored below it.
-    public func present(for target: PermissionTarget, sourceRect: NSRect? = nil, in sourceWindow: NSWindow? = nil) {
+    ///
+    /// - Parameter subject: which app the user drags into the list (defaults to
+    ///   `.kanata` for backward compatibility with the kanata-launcher rows).
+    public func present(
+        for target: PermissionTarget,
+        subject: PermissionSubject = .kanata,
+        sourceRect: NSRect? = nil,
+        in sourceWindow: NSWindow? = nil
+    ) {
         guard state == .idle else {
             dismiss(animated: false)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-                self?.present(for: target, sourceRect: sourceRect, in: sourceWindow)
+                self?.present(for: target, subject: subject, sourceRect: sourceRect, in: sourceWindow)
             }
             return
         }
 
         currentTarget = target
+        currentSubject = subject
         state = .presenting
 
         NSWorkspace.shared.open(target.settingsURL)
+        // Record that we opened System Settings so the wizard's cleanup closes it
+        // when the flow finishes (the FDA page previously did this itself before it
+        // routed through this overlay).
+        WizardWindowManager.shared.markSystemSettingsOpened()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-            self?.createAndShowPanel(for: target, sourceRect: sourceRect, sourceWindow: sourceWindow)
+            self?.createAndShowPanel(for: target, subject: subject, sourceRect: sourceRect, sourceWindow: sourceWindow)
         }
 
-        AppLogger.shared.log("🎯 [DragToAuthorize] Presenting for \(target.displayName)")
+        AppLogger.shared.log("🎯 [DragToAuthorize] Presenting \(subject.displayName) for \(target.displayName)")
     }
 
     /// Dismiss the overlay with optional animation.
@@ -144,7 +196,7 @@ public final class DragToAuthorizeController {
 
     // MARK: - Private Implementation
 
-    private func createAndShowPanel(for target: PermissionTarget, sourceRect: NSRect?, sourceWindow: NSWindow?) {
+    private func createAndShowPanel(for target: PermissionTarget, subject: PermissionSubject, sourceRect: NSRect?, sourceWindow: NSWindow?) {
         let panelWidth: CGFloat = 300
         let panelHeight: CGFloat = 170
 
@@ -152,7 +204,7 @@ public final class DragToAuthorizeController {
             x: 0, y: 0, width: panelWidth, height: panelHeight
         ))
 
-        let model = DragToAuthorizeStateModel(target: target, controller: self)
+        let model = DragToAuthorizeStateModel(target: target, subject: subject, controller: self)
         stateModel = model
 
         let overlayView = DragToAuthorizeOverlayView(model: model)
@@ -161,9 +213,7 @@ public final class DragToAuthorizeController {
         hosting.autoresizingMask = [.width, .height]
 
         // Embed drag source on top of the tile area
-        let launcherPath = WizardSystemPaths.bundledKanataLauncherPath
-        let launcherURL = URL(fileURLWithPath: launcherPath)
-        let dragSource = DragToAuthorizeDragSource(fileURL: launcherURL, frame: NSRect(
+        let dragSource = DragToAuthorizeDragSource(fileURL: subject.fileURL, frame: NSRect(
             x: 24, y: 16, width: panelWidth - 48, height: 52
         ))
         dragSource.onDragBegan = { [weak self] in
@@ -204,7 +254,7 @@ public final class DragToAuthorizeController {
         newTracker.startTracking()
         tracker = newTracker
 
-        startPermissionPolling(for: target)
+        startPermissionPolling(for: target, subject: subject)
     }
 
     private func animatePresentation(panel: DragToAuthorizePanel, sourceRect: NSRect?, sourceWindow: NSWindow?) {
@@ -262,28 +312,44 @@ public final class DragToAuthorizeController {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.8, execute: dismissWorkItem!)
     }
 
-    private func startPermissionPolling(for target: PermissionTarget) {
+    private func startPermissionPolling(for target: PermissionTarget, subject: PermissionSubject) {
         permissionPollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                await self?.checkPermission(for: target)
+                await self?.checkPermission(for: target, subject: subject)
             }
         }
     }
 
-    private func checkPermission(for target: PermissionTarget) async {
+    private func checkPermission(for target: PermissionTarget, subject: PermissionSubject) async {
         let snapshot = await PermissionOracle.shared.forceRefresh()
+        // Full Disk Access is not represented in the Oracle snapshot; it is read
+        // separately (and only ever applies to KeyPath.app, i.e. `.keyPath`).
+        let fdaGranted = WizardDependencies.fullDiskAccessChecker?.hasFullDiskAccess() ?? false
 
-        let granted: Bool = switch target {
-        case .accessibility:
-            snapshot.kanata.accessibility == .granted
-        case .inputMonitoring:
-            snapshot.kanata.inputMonitoring == .granted
-        case .fullDiskAccess:
-            WizardDependencies.fullDiskAccessChecker?.hasFullDiskAccess() ?? false
-        }
-
-        if granted {
+        if Self.grantResolved(
+            target: target, subject: subject, snapshot: snapshot, fullDiskAccessGranted: fdaGranted
+        ) {
             permissionGrantDetected()
+        }
+    }
+
+    /// Pure decision: is `subject`'s `target` permission granted in this snapshot?
+    /// Extracted so the target×subject → PermissionSet mapping is unit-testable
+    /// without AppKit (mirrors the resolver pattern in #931/#937/#939).
+    ///
+    /// - Note: Full Disk Access is not in the Oracle snapshot, so it is passed in
+    ///   via `fullDiskAccessGranted`; it always describes KeyPath.app.
+    nonisolated static func grantResolved(
+        target: PermissionTarget,
+        subject: PermissionSubject,
+        snapshot: PermissionOracle.Snapshot,
+        fullDiskAccessGranted: Bool
+    ) -> Bool {
+        let permissions = subject == .keyPath ? snapshot.keyPath : snapshot.kanata
+        switch target {
+        case .accessibility: return permissions.accessibility == .granted
+        case .inputMonitoring: return permissions.inputMonitoring == .granted
+        case .fullDiskAccess: return fullDiskAccessGranted
         }
     }
 
@@ -292,6 +358,7 @@ public final class DragToAuthorizeController {
         panel = nil
         stateModel = nil
         currentTarget = nil
+        currentSubject = .kanata
         state = .idle
     }
 }

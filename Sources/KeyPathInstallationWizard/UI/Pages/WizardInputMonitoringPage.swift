@@ -539,23 +539,27 @@ private struct InputMonitoringManualFallbackCard: View {
                 .font(.headline)
 
             Text(
-                "On some macOS versions the automatic prompt doesn't appear. You can add KeyPath to Input Monitoring yourself:"
+                "On some macOS versions the automatic prompt doesn't appear. Add KeyPath to Input Monitoring below — or do it manually."
             )
             .font(.callout)
             .foregroundColor(.secondary)
             .fixedSize(horizontal: false, vertical: true)
 
+            // Primary: opens Settings and floats a helper you drag KeyPath from,
+            // straight into the Input Monitoring list (#933).
+            Button("Add KeyPath to Input Monitoring") {
+                DragToAuthorizeController.shared.present(for: .inputMonitoring, subject: .keyPath)
+            }
+            .buttonStyle(WizardDesign.Component.SecondaryButton())
+            .accessibilityIdentifier("wizard_input_monitoring_manual_fallback")
+            .padding(.top, 4)
+
+            // Manual alternative for anyone who would rather not drag.
             VStack(alignment: .leading, spacing: 6) {
                 CleanupStep(number: 1, text: "Open System Settings → Privacy & Security → Input Monitoring.")
                 CleanupStep(number: 2, text: "Click the \"+\" button below the list.")
                 CleanupStep(number: 3, text: "Choose KeyPath.app from your Applications folder, then turn its switch on.")
             }
-
-            Button("Open Input Monitoring Settings") {
-                Task { @MainActor in openInputMonitoringPreferencesPanel() }
-            }
-            .buttonStyle(WizardDesign.Component.SecondaryButton())
-            .accessibilityIdentifier("wizard_input_monitoring_manual_fallback")
             .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

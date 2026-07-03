@@ -9,8 +9,11 @@ public struct WizardFullDiskAccessPage: View {
     @State private var showingDetails = false
     @State private var hasCheckedPermission = false
     @State private var hasFullDiskAccess = false
-    @State private var isChecking = false
     @State private var showSuccessAnimation = false
+    /// Durable 1s poll so the page auto-detects a grant and advances, matching the
+    /// Accessibility / Input Monitoring pages (previously FDA only re-checked on
+    /// `didBecomeActive`, so a grant made without leaving the app went unnoticed) (#933).
+    @State private var fdaPollingTask: Task<Void, Never>?
 
     // Cache FDA status to avoid repeated checks
     @State private var lastFDACheckTime: Date?
@@ -88,7 +91,6 @@ public struct WizardFullDiskAccessPage: View {
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton())
                     .keyboardShortcut(.defaultAction)
-                    .disabled(!hasFullDiskAccess && isChecking)
                     .accessibilityIdentifier("wizard-fda-primary-button")
 
                     if !hasFullDiskAccess {
@@ -111,6 +113,20 @@ public struct WizardFullDiskAccessPage: View {
         .wizardDetailPage()
         .onAppear {
             checkFullDiskAccess()
+            // If FDA was already granted before this visit (the Summary row is always
+            // navigable, so the user may have opened this page just to review it),
+            // mark it acknowledged so the onChange handler below does NOT celebrate or
+            // auto-advance — otherwise they'd be navigated off a page they never acted
+            // on. Only a grant that lands *during* the visit should advance.
+            if hasFullDiskAccess {
+                showSuccessAnimation = true
+            }
+            startFDAPolling()
+        }
+        .onDisappear {
+            fdaPollingTask?.cancel()
+            fdaPollingTask = nil
+            DragToAuthorizeController.shared.dismiss(animated: false)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             // Re-check FDA when app becomes active (user may have granted it in System Settings)
@@ -124,14 +140,22 @@ public struct WizardFullDiskAccessPage: View {
         }
         .onChange(of: hasFullDiskAccess) { _, newValue in
             if newValue, !showSuccessAnimation {
-                // Permission was just granted!
+                // Permission was just granted — celebrate, then auto-advance so the
+                // FDA page matches the other permission pages (#933).
                 showSuccessAnimation = true
-                // Bounce dock icon to get user's attention back to KeyPath
                 WizardWindowManager.shared.bounceDocIcon()
-                AppLogger.shared.log("✅ [Wizard] Full Disk Access granted - showing success animation")
+                AppLogger.shared.log("✅ [Wizard] Full Disk Access granted - celebrating + advancing")
+                // Don't force-dismiss the overlay here — it runs its own poll and
+                // plays a ~1.8s success animation, then dismisses itself; cutting it
+                // off would diverge from the AX/IM pages. onDisappear cleans it up.
 
-                // Don't auto-navigate - let user navigate manually
-                // User can use navigation buttons or close dialog
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    // Only advance if still on this page — the user may have hit Skip
+                    // (which navigates immediately) during the celebration delay.
+                    guard stateMachine.currentPage == .fullDiskAccess else { return }
+                    navigateToNextStep()
+                }
             }
         }
     }
@@ -142,7 +166,7 @@ public struct WizardFullDiskAccessPage: View {
         if hasFullDiskAccess {
             navigateToNextStep()
         } else {
-            openSystemSettingsCTA()
+            presentFullDiskAccessOverlay()
         }
     }
 
@@ -168,12 +192,32 @@ public struct WizardFullDiskAccessPage: View {
         }
     }
 
-    private func openSystemSettingsCTA() {
-        guard !isChecking else { return }
-        isChecking = true
-        openFullDiskAccessSettings()
-        // Detection happens automatically via didBecomeActiveNotification when user returns
-        isChecking = false
+    /// Present the drag-to-authorize overlay: opens System Settings → Full Disk
+    /// Access and lets the user drag KeyPath.app into the list. The grant is
+    /// detected by both the overlay's own poll and this page's `fdaPollingTask` (#933).
+    private func presentFullDiskAccessOverlay() {
+        AppLogger.shared.log("🔐 [Wizard] Presenting drag-to-authorize overlay for Full Disk Access")
+        DragToAuthorizeController.shared.present(for: .fullDiskAccess, subject: .keyPath)
+    }
+
+    /// Durable 1s poll mirroring the Accessibility / Input Monitoring pages: keeps
+    /// re-checking FDA while the page is visible so a grant is noticed (and the page
+    /// advances) even when the user grants it without the app losing/regaining focus.
+    private func startFDAPolling() {
+        fdaPollingTask?.cancel()
+        fdaPollingTask = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                if Task.isCancelled { return }
+                if hasFullDiskAccess { return } // onChange handles celebrate + advance
+                let granted = performFDACheck()
+                if granted {
+                    hasFullDiskAccess = true // triggers onChange → celebrate + advance
+                    WizardDependencies.fullDiskAccessChecker?.updateCachedValue(true)
+                    return
+                }
+            }
+        }
     }
 
     private func checkFullDiskAccess() {
@@ -247,15 +291,6 @@ public struct WizardFullDiskAccessPage: View {
 
         AppLogger.shared.log("❌ [Wizard] FDA not granted - cannot read system TCC database")
         return false
-    }
-
-    private func openFullDiskAccessSettings() {
-        if let url = URL(string: WizardSystemPaths.fullDiskAccessSettings) {
-            if NSWorkspace.shared.open(url) {
-                WizardWindowManager.shared.markSystemSettingsOpened()
-            }
-            AppLogger.shared.log("🔗 [Wizard] Opened Full Disk Access settings")
-        }
     }
 }
 
