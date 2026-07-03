@@ -33,7 +33,7 @@ struct LauncherDrawerView: View {
     }
 
     private let columns = [
-        GridItem(.adaptive(minimum: 250, maximum: 340), spacing: 10),
+        GridItem(.adaptive(minimum: 250, maximum: 340), spacing: 10)
     ]
 
     var body: some View {

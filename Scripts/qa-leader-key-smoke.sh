@@ -46,22 +46,27 @@ PY
 
 smoke_init
 
-# Partial fix (issue #889): the in-process app/daemon load paths
-# (RuleCollectionsManager.bootstrap / replaceCollections) now reconcile the
-# system leaderKeyPreference from the Leader Key collection's selectedOutput.
-# This script drives the standalone `keypath-cli config apply`, which generates
-# config via ConfigFacade → ConfigurationService — it reads leaderKeyPreference
-# directly and never constructs a RuleCollectionsManager, so from the CLI the
-# collection's selectedOutput is still display-only (setting it to tab here
-# still emits the leaderKeyPreference default). Unifying config generation on
-# the collection as the single source of truth is deferred to #865/#888.
-# These cases assert apply-success per preset, which still kanata-validates the
-# full config for each value.
+# Issue #889: the standalone `keypath-cli config apply` path now reconciles the
+# leader key from the Leader Key collection's selectedOutput. Previously it read
+# leaderKeyPreference directly (via ConfigFacade → ConfigurationService) and never
+# constructed a RuleCollectionsManager, so the picker was display-only from the CLI.
+# ConfigFacade.applyConfiguration now reconciles both the leaderKeyPreference and the
+# base→nav leader activator before generating config (LeaderKeyPreference.reconciled /
+# .reconcileLeaderActivators), so each preset drives its own leader binding.
+#
+# The generated config annotates the primary leader with a "Primary Leader Key
+# (System Preference)" block whose activator renders as ";; Input: <key>". We assert
+# the reconciled key drives that binding for each preset.
+#
+# NOTE: still deferred to #865/#888 — a headless edit that *disables* a previously
+# reconciled collection leaves leaderKeyPreference stale (disable-drift), and full
+# single-source-of-truth generation from the collection.
 for preset in space caps tab grv; do
   echo "==> preset: $preset"
   apply_leader "$preset"
   config="$(show_config)"
   assert_contains "$config" "Leader Key" "preset $preset config includes the Leader Key collection"
+  assert_contains "$config" ";; Input: $preset" "preset $preset drives its own leader binding (#889)"
 done
 
-echo "Leader Key smoke passed (all 4 presets apply kanata-clean). Restoring original KeyPath config."
+echo "Leader Key smoke passed (all 4 presets drive their own CLI-generated leader binding). Restoring original KeyPath config."
