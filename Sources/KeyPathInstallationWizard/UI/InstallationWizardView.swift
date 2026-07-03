@@ -207,6 +207,8 @@ public struct InstallationWizardView: View {
             HStack {
                 WizardNavigationControl()
                 Spacer()
+                WizardStepIndicator()
+                Spacer()
                 CloseButton()
             }
             .environment(stateMachine)

@@ -80,6 +80,32 @@ public struct WizardNavigationControl: View {
     }
 }
 
+/// Unobtrusive "Step X of Y" progress indicator for wizard detail pages.
+/// Derives its position purely from the current page's location in the
+/// active navigation sequence (`WizardStateMachine.customSequence` when set,
+/// otherwise `WizardPage.orderedPages`) — no separate source of truth to
+/// keep in sync with navigation.
+public struct WizardStepIndicator: View {
+    @Environment(WizardStateMachine.self) var stateMachine
+
+    public init() {}
+
+    private var stepPosition: WizardPage.StepPosition? {
+        let sequence = stateMachine.customSequence ?? WizardPage.orderedPages
+        return stateMachine.currentPage.stepPosition(in: sequence)
+    }
+
+    public var body: some View {
+        if let stepPosition {
+            Text("Step \(stepPosition.step) of \(stepPosition.total)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .accessibilityIdentifier("wizard-step-indicator")
+                .accessibilityLabel("Step \(stepPosition.step) of \(stepPosition.total)")
+        }
+    }
+}
+
 /// ViewModifier that adds navigation control overlay to wizard detail pages
 public struct WizardDetailPageModifier: ViewModifier {
     @Environment(WizardStateMachine.self) var stateMachine

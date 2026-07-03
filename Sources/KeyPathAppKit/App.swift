@@ -601,7 +601,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         AppLogger.shared.log("✅ [AppDelegate] Auto-launch sequence completed (simple)")
                         MainAppStateController.shared.invalidateValidationCooldown()
                     } else {
-                        AppLogger.shared.error("❌ [AppDelegate] Auto-launch failed via runtime coordinator")
+                        // This is commonly the expected first-run/early-boot race (e.g.
+                        // VirtualHID daemon not yet healthy) rather than a genuine failure —
+                        // the underlying cause is already logged as an ERROR by
+                        // ServiceLifecycleCoordinator, and the wizard auto-launches below
+                        // to repair/complete setup. Log at warn to avoid a cosmetic ERROR
+                        // on every fresh install (#934).
+                        AppLogger.shared.warn("⚠️ [AppDelegate] Auto-launch did not start kanata via runtime coordinator — wizard will follow up if setup is incomplete")
                     }
                 } else {
                     AppLogger.shared.error(

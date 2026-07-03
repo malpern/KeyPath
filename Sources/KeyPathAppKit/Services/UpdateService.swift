@@ -159,9 +159,15 @@ extension UpdateService: SPUUpdaterDelegate {
         Task { @MainActor in
             let feedURL = updaterController?.updater.feedURL?.absoluteString
                 ?? (Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? "(missing)")
-            AppLogger.shared.error(
-                "❌ [UpdateService] Sparkle aborted update cycle: \(nsError.domain) \(nsError.code) - \(nsError.localizedDescription) | feed=\(feedURL)"
-            )
+            if Self.isCosmeticSparkleOutcome(nsError) {
+                AppLogger.shared.info(
+                    "ℹ️ [UpdateService] Sparkle update check finished with no update available: \(nsError.localizedDescription) | feed=\(feedURL)"
+                )
+            } else {
+                AppLogger.shared.error(
+                    "❌ [UpdateService] Sparkle aborted update cycle: \(nsError.domain) \(nsError.code) - \(nsError.localizedDescription) | feed=\(feedURL)"
+                )
+            }
         }
     }
 
@@ -175,15 +181,37 @@ extension UpdateService: SPUUpdaterDelegate {
             let feedURL = updaterController?.updater.feedURL?.absoluteString
                 ?? (Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? "(missing)")
             if let nsError {
-                AppLogger.shared.error(
-                    "⚠️ [UpdateService] Sparkle finished update cycle with error (\(updateCheck.rawValue)): \(nsError.domain) \(nsError.code) - \(nsError.localizedDescription) | feed=\(feedURL)"
-                )
+                if Self.isCosmeticSparkleOutcome(nsError) {
+                    // "You're up to date!" surfaces through this delegate callback as an
+                    // NSError (SUNoUpdateError) even though it's the expected, healthy
+                    // outcome of a check — not a real failure. Log at info, not error.
+                    AppLogger.shared.info(
+                        "ℹ️ [UpdateService] Sparkle finished update cycle (\(updateCheck.rawValue)) - up to date | feed=\(feedURL)"
+                    )
+                } else {
+                    AppLogger.shared.error(
+                        "⚠️ [UpdateService] Sparkle finished update cycle with error (\(updateCheck.rawValue)): \(nsError.domain) \(nsError.code) - \(nsError.localizedDescription) | feed=\(feedURL)"
+                    )
+                }
             } else {
                 AppLogger.shared.log(
                     "✅ [UpdateService] Sparkle finished update cycle (\(updateCheck.rawValue)) | feed=\(feedURL)"
                 )
             }
         }
+    }
+
+    /// Sparkle's `SUNoUpdateError` code (see Sparkle/SUErrors.h). Sparkle reports
+    /// "You're up to date!" through the delegate's error path using this code —
+    /// referenced by raw value since the generated Swift name for this ObjC
+    /// NS_ENUM case isn't reliably importable here.
+    private static let sparkleNoUpdateErrorCode = 1001
+
+    /// Whether a Sparkle-reported "error" is actually a cosmetic, expected
+    /// outcome (e.g. "You're up to date!" is delivered via the delegate's
+    /// error path as `SUNoUpdateError`) rather than a genuine failure.
+    static func isCosmeticSparkleOutcome(_ error: NSError) -> Bool {
+        error.domain == SUSparkleErrorDomain && error.code == sparkleNoUpdateErrorCode
     }
 }
 
