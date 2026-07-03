@@ -72,20 +72,27 @@ class MainAppStateController {
 
     // MARK: - Validation Log Throttling (avoid flooding the log with repeat cycles)
 
-    /// Per-log-site dedup state: maps a log site key (e.g. "startupGate",
-    /// "validationFailure") to the signature last logged in full and how many
-    /// times it has repeated unchanged since. When an unchanged failure repeats
-    /// across periodic revalidation cycles, only the first occurrence is logged
-    /// at full WARN/ERROR verbosity; repeats are collapsed into a single
-    /// low-noise line. This does not change validation behavior — only what
-    /// gets written to the log. See #934 (122 cycles of WARN+5×ERROR in 9
-    /// minutes filled and rotated the 5MB log mid-session).
-    @ObservationIgnored private var loggedFailureSignatures: [String: (signature: String, repeatCount: Int)] = [:]
+    /// The distinct log sites that dedup repeat-failure logging. A closed enum
+    /// (rather than free-form strings) so a typo at a call site is a compile
+    /// error instead of a silently-orphaned dedup bucket.
+    private enum ValidationLogSite: Hashable {
+        case startupGate
+        case validationFailure
+    }
+
+    /// Per-log-site dedup state: maps a log site to the signature last logged
+    /// in full and how many times it has repeated unchanged since. When an
+    /// unchanged failure repeats across periodic revalidation cycles, only the
+    /// first occurrence is logged at full WARN/ERROR verbosity; repeats are
+    /// collapsed into a single low-noise line. This does not change validation
+    /// behavior — only what gets written to the log. See #934 (122 cycles of
+    /// WARN+5×ERROR in 9 minutes filled and rotated the 5MB log mid-session).
+    @ObservationIgnored private var loggedFailureSignatures: [ValidationLogSite: (signature: String, repeatCount: Int)] = [:]
 
     /// Returns true if this failure signature should be logged at full verbosity
     /// (first occurrence at this site, or a change from the previously logged
     /// signature at this site). Also updates the per-site repeat counter.
-    private func shouldLogValidationFailureInDetail(site: String, signature: String) -> Bool {
+    private func shouldLogValidationFailureInDetail(site: ValidationLogSite, signature: String) -> Bool {
         if let existing = loggedFailureSignatures[site], existing.signature == signature {
             loggedFailureSignatures[site] = (signature, existing.repeatCount + 1)
             return false
@@ -95,7 +102,7 @@ class MainAppStateController {
     }
 
     /// Current repeat count for a log site (0 if this is the first occurrence).
-    private func repeatCount(forSite site: String) -> Int {
+    private func repeatCount(forSite site: ValidationLogSite) -> Int {
         loggedFailureSignatures[site]?.repeatCount ?? 0
     }
 
@@ -514,23 +521,26 @@ class MainAppStateController {
         case .ready:
             break
         case .transientTimeout:
-            if shouldLogValidationFailureInDetail(site: "startupGate", signature: "transientTimeout") {
+            if shouldLogValidationFailureInDetail(site: .startupGate, signature: "transientTimeout") {
                 AppLogger.shared.warn(
                     "⚠️ [MainAppStateController] Kanata still in transient startup window after \(Int(transientStartupGracePeriod))s - continuing with full validation to avoid false failure"
                 )
             } else {
-                AppLogger.shared.debug(
-                    "⚠️ [MainAppStateController] Kanata still in transient startup window (repeat #\(repeatCount(forSite: "startupGate")), suppressing detailed log)"
+                // Use .info (not .debug) so this remains visible in release-build logs —
+                // .debug is below the release default minimum level and would otherwise
+                // vanish entirely, defeating "check logs first" debugging (#934).
+                AppLogger.shared.info(
+                    "⚠️ [MainAppStateController] Kanata still in transient startup window (repeat #\(repeatCount(forSite: .startupGate)), suppressing detailed log)"
                 )
             }
         case .definitiveFailure:
-            if shouldLogValidationFailureInDetail(site: "startupGate", signature: "definitiveFailure") {
+            if shouldLogValidationFailureInDetail(site: .startupGate, signature: "definitiveFailure") {
                 AppLogger.shared.warn(
                     "⚠️ [MainAppStateController] Kanata service not healthy after \(definitiveStartupGracePeriod)s outside restart window - proceeding with full validation"
                 )
             } else {
-                AppLogger.shared.debug(
-                    "⚠️ [MainAppStateController] Kanata still not healthy outside restart window (repeat #\(repeatCount(forSite: "startupGate")), suppressing detailed log)"
+                AppLogger.shared.info(
+                    "⚠️ [MainAppStateController] Kanata still not healthy outside restart window (repeat #\(repeatCount(forSite: .startupGate)), suppressing detailed log)"
                 )
             }
         }
@@ -689,7 +699,7 @@ class MainAppStateController {
                     totalCount: issues.count
                 )
                 let signature = "active:\(reasons.joined(separator: ",")):\(blockingIssues.map(\.title).joined(separator: ","))"
-                if shouldLogValidationFailureInDetail(site: "validationFailure", signature: signature) {
+                if shouldLogValidationFailureInDetail(site: .validationFailure, signature: signature) {
                     AppLogger.shared.error(
                         "❌ [MainAppStateController] Validation FAILED - \(reasons.joined(separator: ", "))"
                     )
@@ -700,8 +710,12 @@ class MainAppStateController {
                         AppLogger.shared.log("   TCP: Communication server not properly configured")
                     }
                 } else {
-                    AppLogger.shared.debug(
-                        "❌ [MainAppStateController] Validation still FAILED - \(reasons.joined(separator: ", ")) (repeat #\(repeatCount(forSite: "validationFailure")), suppressing detailed log)"
+                    // .info, not .debug: repeat failures must stay visible in release-build
+                    // logs (.debug is below the release default minimum level) so "check
+                    // logs first" debugging still works, just without the full ERROR block
+                    // re-emitted every cycle (#934).
+                    AppLogger.shared.info(
+                        "❌ [MainAppStateController] Validation still FAILED - \(reasons.joined(separator: ", ")) (repeat #\(repeatCount(forSite: .validationFailure)), suppressing detailed log)"
                     )
                 }
             }
@@ -729,13 +743,13 @@ class MainAppStateController {
                     blockingCount: blockingIssues.count, totalCount: issues.count
                 )
                 let signature = "notRunning:\(blockingIssues.map(\.title).joined(separator: ","))"
-                if shouldLogValidationFailureInDetail(site: "validationFailure", signature: signature) {
+                if shouldLogValidationFailureInDetail(site: .validationFailure, signature: signature) {
                     AppLogger.shared.error(
                         "❌ [MainAppStateController] Validation FAILED - \(blockingIssues.count) blocking issues"
                     )
                 } else {
-                    AppLogger.shared.debug(
-                        "❌ [MainAppStateController] Validation still FAILED - \(blockingIssues.count) blocking issues (repeat #\(repeatCount(forSite: "validationFailure")), suppressing detailed log)"
+                    AppLogger.shared.info(
+                        "❌ [MainAppStateController] Validation still FAILED - \(blockingIssues.count) blocking issues (repeat #\(repeatCount(forSite: .validationFailure)), suppressing detailed log)"
                     )
                 }
             }
@@ -746,7 +760,7 @@ class MainAppStateController {
                 blockingCount: blockingIssues.count, totalCount: issues.count
             )
             let signature = "\(adapted.state):\(blockingIssues.map(\.title).joined(separator: ","))"
-            if shouldLogValidationFailureInDetail(site: "validationFailure", signature: signature) {
+            if shouldLogValidationFailureInDetail(site: .validationFailure, signature: signature) {
                 AppLogger.shared.error(
                     "❌ [MainAppStateController] Validation FAILED - adapter state: \(adapted.state)"
                 )
@@ -756,8 +770,8 @@ class MainAppStateController {
                     )
                 }
             } else {
-                AppLogger.shared.debug(
-                    "❌ [MainAppStateController] Validation still FAILED - adapter state: \(adapted.state) (repeat #\(repeatCount(forSite: "validationFailure")), \(blockingIssues.count) blocking issues, suppressing detailed log)"
+                AppLogger.shared.info(
+                    "❌ [MainAppStateController] Validation still FAILED - adapter state: \(adapted.state) (repeat #\(repeatCount(forSite: .validationFailure)), \(blockingIssues.count) blocking issues, suppressing detailed log)"
                 )
             }
         }
