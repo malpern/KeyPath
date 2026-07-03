@@ -278,9 +278,9 @@ public struct WizardInputMonitoringPage: View {
     /// on every render (the 1s poll updates `permissionSnapshot`), so once the
     /// automatic-prompt wait window elapses without a grant the manual-add card
     /// appears instead of leaving the user stranded at the "Turn On" button (#931).
-    private var keyPathGuidance: InputMonitoringGuidance {
-        resolveInputMonitoringGuidance(
-            InputMonitoringGuidanceInput(
+    private var keyPathGuidance: AutomaticPromptGuidance {
+        resolveAutomaticPromptGuidance(
+            AutomaticPromptGuidanceInput(
                 keyPathReady: permissionSnapshot?.keyPath.inputMonitoring.isReady ?? false,
                 requestAttempted: keyPathRequestAttemptedAt != nil,
                 secondsSinceRequest: keyPathRequestAttemptedAt.map { Date().timeIntervalSince($0) }
