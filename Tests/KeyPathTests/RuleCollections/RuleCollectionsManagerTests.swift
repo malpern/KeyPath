@@ -716,6 +716,80 @@ final class RuleCollectionsManagerTests: XCTestCase {
         )
     }
 
+    /// Issue #889: when a reconciled leader key collides with another enabled base-layer
+    /// binding and no `onMappingConflictResolution` handler is registered,
+    /// `regenerateConfigFromCollections` fails. The reconcile must then be rolled back
+    /// atomically — both the UserDefaults-persisted `leaderKeyPreference` and the
+    /// in-memory collections revert to their pre-reconcile snapshot — so the next load
+    /// retries the drift cleanly instead of the idempotency guard permanently masking it.
+    /// Reviewers flagged this path but couldn't exercise it blind: regen only fails on a
+    /// genuine collision, which needs a real toolchain.
+    @MainActor
+    func testReconcileRollsBackWhenConfigRegenFails() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        // Baseline leader = default ("space"). The Leader Key collection asks to reconcile
+        // to "f" — but Home Row Arrows (enabled by default) already owns the base-layer "f"
+        // activator (base → home-arrows). With no conflict-resolution handler registered,
+        // generateConfiguration throws .mappingConflicts (#463 leader-vs-activator) and
+        // regen returns false.
+        PreferencesService.shared.leaderKeyPreference = .default
+        defer { PreferencesService.shared.leaderKeyPreference = .default }
+
+        var regenFailed = false
+        manager.onError = { _ in regenFailed = true }
+
+        let collections = RuleCollectionCatalog().defaultCollections().map { collection -> RuleCollection in
+            var collection = collection
+            if collection.id == RuleCollectionIdentifier.leaderKey {
+                collection.isEnabled = true
+                collection.configuration.updateSelectedOutput("f")
+            }
+            return collection
+        }
+
+        // Test premise: an enabled base-layer "f" activator must exist to collide with.
+        XCTAssertTrue(
+            collections.contains {
+                $0.id == RuleCollectionIdentifier.homeRowArrows
+                    && $0.isEnabled
+                    && $0.momentaryActivator?.input == "f"
+                    && $0.momentaryActivator?.sourceLayer == .base
+            },
+            "test premise: an enabled base-layer 'f' activator must exist to collide with"
+        )
+
+        await manager.replaceCollections(collections)
+
+        // Regen must have failed — this proves the reconcile+collision path executed
+        // (a no-op reconcile would have left preference at "space" with no error).
+        XCTAssertTrue(regenFailed, "a colliding reconcile should make config regen fail")
+
+        // The preference reverts to the pre-reconcile snapshot (reconcile had mutated it
+        // to "f"; the failed regen rolls it back).
+        XCTAssertEqual(
+            PreferencesService.shared.leaderKeyPreference, .default,
+            "leaderKeyPreference must revert to its pre-reconcile value after a failed regen"
+        )
+
+        // The in-memory collections revert too: the base → nav leader activator that
+        // reconcile rewrote to "f" is restored to its original "space".
+        let navInputs = manager.ruleCollections
+            .compactMap(\.momentaryActivator)
+            .filter { $0.sourceLayer == .base && $0.targetLayer == .navigation }
+            .map(\.input)
+        XCTAssertFalse(navInputs.isEmpty)
+        XCTAssertTrue(
+            navInputs.allSatisfy { $0 == "space" },
+            "the base → nav activator must be restored to 'space' after rollback (was rewritten to 'f')"
+        )
+        XCTAssertFalse(
+            navInputs.contains("f"),
+            "no base → nav activator should retain the reconciled-then-rolled-back 'f'"
+        )
+    }
+
     @MainActor
     func testToggleCustomRuleConflictKeepNew_DisablesConflictingCollection() async throws {
         let (manager, _) = try await createTestManager()
