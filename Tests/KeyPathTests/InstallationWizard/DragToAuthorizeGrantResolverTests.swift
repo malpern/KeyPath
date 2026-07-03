@@ -1,7 +1,6 @@
+@testable import KeyPathInstallationWizard
 import KeyPathPermissions
 @preconcurrency import XCTest
-
-@testable import KeyPathInstallationWizard
 
 /// Covers the pure target×subject → grant mapping used by the drag-to-authorize
 /// overlay (#933). The overlay must poll the correct app's correct permission:
