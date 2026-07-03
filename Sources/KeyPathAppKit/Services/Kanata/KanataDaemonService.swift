@@ -96,14 +96,12 @@ final class KanataDaemonService {
         Self.smServiceFactory(Constants.daemonPlistName)
     }
 
-    private nonisolated static func fetchSMStatus() -> SMAppService.Status {
-        smServiceFactory(Constants.daemonPlistName).status
-    }
-
     private func unregisterDaemon() async throws {
         let service = makeSMService()
         do {
             try await service.unregister()
+            // Drop the centralized status cache so the next read re-fetches (#853).
+            await SMAppServiceStatusProvider.shared.invalidate(plistName: Constants.daemonPlistName)
         } catch {
             if TestEnvironment.isRunningTests {
                 AppLogger.shared.log("🧪 [KanataDaemonService] Ignoring unregister error in tests: \(error)")
@@ -202,14 +200,16 @@ final class KanataDaemonService {
 
     private func evaluateStatus() async -> ServiceState {
         let pidCache = pidCache
-        let smStatusTask = Task.detached(priority: .utility) {
-            Self.fetchSMStatus()
-        }
+        // Route the SMAppService.status read through the centralized provider (#853).
+        // This is the hot state-refresh path (overlay polling), so use the cached
+        // accessor — it collapses a polling burst into a single background IPC.
+        async let smStatusValue = SMAppServiceStatusProvider.shared
+            .cachedStatus(for: Constants.daemonPlistName)
         let processTask = Task.detached(priority: .utility) {
             await Self.detectProcessState(pidCache: pidCache)
         }
 
-        let smStatus = await smStatusTask.value
+        let smStatus = await smStatusValue
         let processState = await processTask.value
 
         switch smStatus {

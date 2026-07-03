@@ -101,7 +101,17 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
 
             let originalSMFactory = KanataDaemonManager.smServiceFactory
             KanataDaemonManager.smServiceFactory = { _ in PendingApprovalSMAppService() }
-            defer { KanataDaemonManager.smServiceFactory = originalSMFactory }
+            // Status now flows through the centralized provider (#853); point it at the
+            // same pending-approval state so the Kanata health check observes it.
+            let originalStatusProvider = SMAppServiceStatusProvider.shared
+            SMAppServiceStatusProvider.shared = SMAppServiceStatusProvider(
+                cacheTTL: 0,
+                serviceFactory: { _ in PendingApprovalSMAppService() }
+            )
+            defer {
+                KanataDaemonManager.smServiceFactory = originalSMFactory
+                SMAppServiceStatusProvider.shared = originalStatusProvider
+            }
 
             let coordinator = StubPrivilegedOperationsCoordinator()
             let broker = PrivilegeBroker(coordinator: coordinator)

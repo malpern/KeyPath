@@ -7,11 +7,13 @@ final class KanataDaemonManagerTests: XCTestCase {
     var manager: KanataDaemonManager!
     private nonisolated(unsafe) var originalSMFactory: ((String) -> SMAppServiceProtocol)!
     private nonisolated(unsafe) var originalRegisteredButNotLoadedOverride: (() async -> Bool)?
+    private nonisolated(unsafe) var originalStatusProvider: SMAppServiceStatusProvider!
 
     override func setUp() async throws {
         try await super.setUp()
         originalSMFactory = KanataDaemonManager.smServiceFactory
         originalRegisteredButNotLoadedOverride = KanataDaemonManager.registeredButNotLoadedOverride
+        originalStatusProvider = SMAppServiceStatusProvider.shared
         KanataDaemonManager.registeredButNotLoadedOverride = nil
         manager = KanataDaemonManager.shared
     }
@@ -19,14 +21,15 @@ final class KanataDaemonManagerTests: XCTestCase {
     override func tearDown() async throws {
         KanataDaemonManager.smServiceFactory = originalSMFactory
         KanataDaemonManager.registeredButNotLoadedOverride = originalRegisteredButNotLoadedOverride
+        SMAppServiceStatusProvider.shared = originalStatusProvider
         manager = nil
         try await super.tearDown()
     }
 
     // MARK: - Status Checking Tests
 
-    func testGetStatus() {
-        let status = manager.getStatus()
+    func testGetStatus() async {
+        let status = await manager.getStatus()
         // Status should be one of the valid SMAppService statuses
         XCTAssertTrue(
             status == .notFound || status == .notRegistered || status == .requiresApproval
@@ -35,8 +38,8 @@ final class KanataDaemonManagerTests: XCTestCase {
         )
     }
 
-    func testIsRegisteredViaSMAppService() {
-        let isRegistered = KanataDaemonManager.isRegisteredViaSMAppService()
+    func testIsRegisteredViaSMAppService() async {
+        let isRegistered = await KanataDaemonManager.isRegisteredViaSMAppService()
         // Should return boolean without crashing
         XCTAssertNotNil(isRegistered)
     }
@@ -95,7 +98,7 @@ final class KanataDaemonManagerTests: XCTestCase {
             // On macOS 13+, registration attempt should not immediately fail due to version
             // (it may fail for other reasons like missing plist, but not version)
             // Don't actually register - just verify the version check passes
-            let status = manager.getStatus()
+            let status = await manager.getStatus()
             XCTAssertNotNil(status, "Should be able to check status on macOS 13+")
         } else {
             // On older macOS, registration should fail with version error
@@ -157,6 +160,12 @@ final class KanataDaemonManagerTests: XCTestCase {
 
         let mockService = EnabledMockService()
         KanataDaemonManager.smServiceFactory = { _ in mockService }
+        // The provider is the single owner of status reads (#853); point it at the
+        // same mock so register()'s initial + post-mutation status reads observe it.
+        SMAppServiceStatusProvider.shared = SMAppServiceStatusProvider(
+            cacheTTL: 0,
+            serviceFactory: { _ in mockService }
+        )
 
         var probeCount = 0
         KanataDaemonManager.registeredButNotLoadedOverride = {
