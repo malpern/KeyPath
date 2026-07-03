@@ -463,15 +463,18 @@ public struct WizardInputMonitoringPage: View {
             "🔧 [WizardInputMonitoringPage] Fix button clicked - permission flow starting"
         )
 
-        // Record the attempt so guidance escalates to manual steps if the
-        // automatic prompt never registers a grant (macOS 26/27 dead-end, #931).
-        keyPathRequestAttemptedAt = Date()
-
         // Use automatic prompt via IOHIDRequestAccess()
         guard let permissionRequestService = WizardDependencies.permissionRequestService else {
             AppLogger.shared.log("⚠️ [WizardInputMonitoringPage] permissionRequestService not configured")
             return
         }
+
+        // Record the attempt so guidance escalates to manual steps if the
+        // automatic prompt never registers a grant (macOS 26/27 dead-end, #931).
+        // Set only after the guard so the escalation clock never starts on a path
+        // where no request was actually made.
+        keyPathRequestAttemptedAt = Date()
+
         Task { @MainActor in
             let alreadyGranted = await permissionRequestService.requestInputMonitoringPermission(
                 ignoreCooldown: true

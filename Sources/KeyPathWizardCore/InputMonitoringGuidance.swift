@@ -39,13 +39,20 @@ public struct InputMonitoringGuidanceInput: Equatable, Sendable {
     /// unknown. `nil` while `requestAttempted` is true is treated as "elapsed".
     public var secondsSinceRequest: TimeInterval?
     /// How long to wait for an automatic grant before escalating to manual steps.
+    ///
+    /// Tuned to outlast a *working* system prompt: when `IOHIDRequestAccess` does
+    /// show the macOS dialog, a first-run user often takes several seconds to read
+    /// and click "Allow". The window must be long enough that we don't flash
+    /// "Didn't see a prompt?" while that real dialog is still on screen, yet short
+    /// enough that a genuinely stuck user (macOS 26/27, no dialog at all) isn't
+    /// stranded. 12s balances the two.
     public var waitWindow: TimeInterval
 
     public init(
         keyPathReady: Bool,
         requestAttempted: Bool,
         secondsSinceRequest: TimeInterval?,
-        waitWindow: TimeInterval = 6
+        waitWindow: TimeInterval = 12
     ) {
         self.keyPathReady = keyPathReady
         self.requestAttempted = requestAttempted

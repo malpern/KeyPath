@@ -55,6 +55,20 @@ final class InputMonitoringGuidanceTests: XCTestCase {
         XCTAssertEqual(resolve(keyPathReady: false, requestAttempted: true, secondsSinceRequest: -50), .manualFallback)
     }
 
+    func testProductionDefaultWaitWindowIsTwelveSeconds() {
+        // The page relies on the init default (it never passes waitWindow), so the
+        // shipped escalation timing is locked in here: still waiting at 11s so a
+        // real system dialog isn't contradicted, escalated by 12s (#931, review obs).
+        let stillWaiting = resolveInputMonitoringGuidance(
+            InputMonitoringGuidanceInput(keyPathReady: false, requestAttempted: true, secondsSinceRequest: 11)
+        )
+        XCTAssertEqual(stillWaiting, .awaitingGrant)
+        let escalated = resolveInputMonitoringGuidance(
+            InputMonitoringGuidanceInput(keyPathReady: false, requestAttempted: true, secondsSinceRequest: 12)
+        )
+        XCTAssertEqual(escalated, .manualFallback)
+    }
+
     func testCustomWaitWindowIsHonored() {
         XCTAssertEqual(resolve(keyPathReady: false, requestAttempted: true, secondsSinceRequest: 2, waitWindow: 10), .awaitingGrant)
         XCTAssertEqual(resolve(keyPathReady: false, requestAttempted: true, secondsSinceRequest: 2, waitWindow: 1), .manualFallback)
