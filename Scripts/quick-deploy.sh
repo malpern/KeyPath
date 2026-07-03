@@ -347,7 +347,9 @@ OLD_KANATA="$APP_BUNDLE/Contents/Library/KeyPath/kanata"
 rm -f "$OLD_KANATA"
 
 if [[ ! -f "$KANATA_ENGINE_MACOS/kanata" ]]; then
-    echo "⚠️  Kanata Engine.app has no kanata binary. Run ./Scripts/build-kanata.sh first."
+    echo "❌ Kanata Engine.app has no kanata binary. Run ./Scripts/build-kanata.sh first."
+    log_build_event "FAILED_NO_KANATA_BINARY"
+    exit 1
 fi
 
 # Copy committed Info.plist
