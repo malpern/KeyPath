@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-02
 **Severity:** Correctness (stale generated config) + a regression caught in review
-**Status:** Partial fix in place (in-process load paths); CLI generation path deferred to #865/#888
+**Status:** In-process load paths fixed (#926/#938); standalone CLI apply path now fixed too (this change). Full single-source-of-truth generation from the collection remains deferred to #865/#888.
 
 ## Problem
 
@@ -57,13 +57,31 @@ Home Row Arrows `base → home-arrows` activator), which makes
 pre-reconcile snapshot. An `onError` spy witnesses the regen failure so the test
 can't silently pass on a no-op reconcile.
 
+## CLI apply path closed (this change)
+
+The remaining headless gap — the standalone `keypath-cli config apply` — is now
+covered. `ConfigFacade.applyConfiguration` reconciles the leader key from the
+loaded Leader Key collection's explicit `selectedOutput` before generating config:
+
+- The reconcile rule was extracted into a **pure, shared** function,
+  `LeaderKeyPreference.reconciled(from:current:)`, now used by BOTH the in-process
+  `RuleCollectionsManager.reconcileLeaderKeyFromCollection` and the CLI path — one
+  statement of the rule, so all headless paths agree.
+- Config generation emits a `;; Input:` binding annotation *per collection activator*,
+  not just from `leaderKeyPreference`. So the CLI must also rewrite the Leader Key
+  collection's base→nav activator, or the generated config keeps the stale binding.
+  A second pure helper, `LeaderKeyPreference.reconcileLeaderActivators(in:key:targetLayer:)`,
+  does that scoped rewrite (base→leader-target only, leaving Home Row Arrows "f" /
+  Quick Launcher "hyper" untouched) and is shared with the manager's
+  `applyLeaderKeyToLeaderActivators`.
+- **Dry run** reconciles for the preview but restores the pre-reconcile
+  `leaderKeyPreference` afterward (including on a generation/validation throw), so
+  `keypath apply --dry-run` never mutates persisted state.
+- `Scripts/qa-leader-key-smoke.sh` assertions were flipped: each preset now must drive
+  its own `;; Input: <key>` binding through the CLI, not just apply cleanly.
+
 ## Known limitations / follow-ups
 
-- **Standalone `keypath-cli config apply` is not covered.** It generates config via
-  `ConfigFacade` → `ConfigurationService`, reading `leaderKeyPreference` directly
-  and never constructing a `RuleCollectionsManager`, so the reconcile does not run.
-  Making config generation derive the leader key from the collection (single source
-  of truth) is deferred to #865/#888.
 - **Disable-drift is not reconciled.** A headless edit that *disables* a
   previously-reconciled collection leaves `leaderKeyPreference` stale; forcing it
   disabled would clobber a system-preference leader. Deferred to #865/#888.

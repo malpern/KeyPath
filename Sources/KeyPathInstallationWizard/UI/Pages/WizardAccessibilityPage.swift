@@ -325,13 +325,13 @@ public struct WizardAccessibilityPage: View {
         return installationStatus(for: snapshot.kanata.accessibility)
     }
 
-    /// Escalation state for KeyPath.app's own Accessibility grant. Reuses the
-    /// permission-agnostic guidance resolver (its logic is not IM-specific): once
-    /// the automatic-prompt wait window elapses without a grant, the drag-to-authorize
-    /// fallback appears instead of stranding the user at "Turn On" (#933).
-    private var keyPathAccessibilityGuidance: InputMonitoringGuidance {
-        resolveInputMonitoringGuidance(
-            InputMonitoringGuidanceInput(
+    /// Escalation state for KeyPath.app's own Accessibility grant. Uses the shared
+    /// permission-agnostic `AutomaticPromptGuidance` resolver: once the automatic-prompt
+    /// wait window elapses without a grant, the drag-to-authorize fallback appears
+    /// instead of stranding the user at "Turn On" (#933).
+    private var keyPathAccessibilityGuidance: AutomaticPromptGuidance {
+        resolveAutomaticPromptGuidance(
+            AutomaticPromptGuidanceInput(
                 keyPathReady: permissionSnapshot?.keyPath.accessibility.isReady ?? false,
                 requestAttempted: keyPathRequestAttemptedAt != nil,
                 secondsSinceRequest: keyPathRequestAttemptedAt.map { Date().timeIntervalSince($0) }
