@@ -391,9 +391,10 @@ struct ActionDispatcherRoutingTests {
     @Test("Dispatches fakekey action")
     @MainActor
     func dispatchesFakekeyAction() throws {
-        let previous = FeatureFlags.simulatorAndVirtualKeysEnabled
+        // In tests this writes to FeatureFlags' in-memory override store,
+        // not UserDefaults, so it cannot leak into other suites.
         FeatureFlags.setSimulatorAndVirtualKeysEnabled(true)
-        defer { FeatureFlags.setSimulatorAndVirtualKeysEnabled(previous) }
+        defer { FeatureFlags.resetTestOverrides() }
 
         let uri = try #require(KeyPathActionURI(string: "keypath://fakekey/test-key/tap"))
         let result = ActionDispatcher.shared.dispatch(uri)
@@ -405,9 +406,8 @@ struct ActionDispatcherRoutingTests {
     @Test("Returns missingTarget for fakekey without name")
     @MainActor
     func returnsMissingTargetForFakekeyWithoutName() throws {
-        let previous = FeatureFlags.simulatorAndVirtualKeysEnabled
         FeatureFlags.setSimulatorAndVirtualKeysEnabled(true)
-        defer { FeatureFlags.setSimulatorAndVirtualKeysEnabled(previous) }
+        defer { FeatureFlags.resetTestOverrides() }
 
         let uri = try #require(KeyPathActionURI(string: "keypath://fakekey"))
         let result = ActionDispatcher.shared.dispatch(uri)
@@ -422,9 +422,8 @@ struct ActionDispatcherRoutingTests {
     @Test("Returns failed for fakekey when feature flag disabled")
     @MainActor
     func returnsFailedForFakekeyWhenFeatureDisabled() throws {
-        let previous = FeatureFlags.simulatorAndVirtualKeysEnabled
         FeatureFlags.setSimulatorAndVirtualKeysEnabled(false)
-        defer { FeatureFlags.setSimulatorAndVirtualKeysEnabled(previous) }
+        defer { FeatureFlags.resetTestOverrides() }
 
         let uri = try #require(KeyPathActionURI(string: "keypath://fakekey/test/tap"))
         let result = ActionDispatcher.shared.dispatch(uri)
