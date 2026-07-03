@@ -82,15 +82,15 @@ struct DragToAuthorizeOverlayView: View {
 
     private var draggableTile: some View {
         HStack(spacing: 12) {
-            Image(nsImage: model.launcherIcon)
+            Image(nsImage: model.subjectIcon)
                 .resizable()
                 .frame(width: 32, height: 32)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("kanata-launcher")
+                Text(model.subject.displayName)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.primary)
-                Text("KeyPath Engine")
+                Text(model.subject.subtitle)
                     .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
             }

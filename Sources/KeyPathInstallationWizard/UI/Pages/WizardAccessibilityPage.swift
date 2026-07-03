@@ -13,6 +13,10 @@ public struct WizardAccessibilityPage: View {
     @State private var permissionPollingTask: Task<Void, Never>?
     @State private var showSuccessBurst = false
     @State private var permissionSnapshot: PermissionOracle.Snapshot?
+    /// When the automatic Accessibility prompt for KeyPath.app was last triggered.
+    /// Drives escalation to the drag-to-authorize helper if the grant never
+    /// registers, mirroring the Input Monitoring page (#933).
+    @State private var keyPathRequestAttemptedAt: Date?
 
     @Environment(WizardStateMachine.self) private var stateMachine
 
@@ -226,6 +230,13 @@ public struct WizardAccessibilityPage: View {
                                 }
                             }
                             .help(kanataAccessibilityIssues.asTooltipText())
+
+                            // Escalation: if the automatic prompt for KeyPath.app never
+                            // registered a grant, offer the drag-to-authorize helper
+                            // instead of leaving the user at a "Turn On" button (#933).
+                            if keyPathAccessibilityGuidance == .manualFallback {
+                                AccessibilityManualFallbackCard()
+                            }
                         }
                         .frame(maxWidth: .infinity)
                         .padding(WizardDesign.Spacing.cardPadding)
@@ -314,6 +325,20 @@ public struct WizardAccessibilityPage: View {
         return installationStatus(for: snapshot.kanata.accessibility)
     }
 
+    /// Escalation state for KeyPath.app's own Accessibility grant. Reuses the
+    /// permission-agnostic guidance resolver (its logic is not IM-specific): once
+    /// the automatic-prompt wait window elapses without a grant, the drag-to-authorize
+    /// fallback appears instead of stranding the user at "Turn On" (#933).
+    private var keyPathAccessibilityGuidance: InputMonitoringGuidance {
+        resolveInputMonitoringGuidance(
+            InputMonitoringGuidanceInput(
+                keyPathReady: permissionSnapshot?.keyPath.accessibility.isReady ?? false,
+                requestAttempted: keyPathRequestAttemptedAt != nil,
+                secondsSinceRequest: keyPathRequestAttemptedAt.map { Date().timeIntervalSince($0) }
+            )
+        )
+    }
+
     private func installationStatus(for status: PermissionOracle.Status) -> InstallationStatus {
         switch status {
         case .granted: .completed
@@ -350,6 +375,12 @@ public struct WizardAccessibilityPage: View {
             AppLogger.shared.log("⚠️ [WizardAccessibilityPage] permissionRequestService not configured")
             return
         }
+
+        // Record the attempt so guidance escalates to the drag-to-authorize helper
+        // if the automatic prompt never registers a grant (#933). Set only after the
+        // guard so the escalation clock never starts on a path with no real request.
+        keyPathRequestAttemptedAt = Date()
+
         Task { @MainActor in
             let alreadyGranted = await permissionRequestService.requestAccessibilityPermission(
                 ignoreCooldown: true
@@ -360,7 +391,7 @@ public struct WizardAccessibilityPage: View {
             }
             // Poll for grant (KeyPath + Kanata) using Oracle snapshot
             permissionPollingTask?.cancel()
-            permissionPollingTask = Task { [onRefresh] in
+            permissionPollingTask = Task { @MainActor [onRefresh] in
                 var attempts = 0
                 let maxAttempts = 30
                 var lastKeyPathGranted: Bool?
@@ -369,6 +400,9 @@ public struct WizardAccessibilityPage: View {
                     _ = await WizardSleep.ms(1000)
                     attempts += 1
                     let snapshot = await PermissionOracle.shared.forceRefresh()
+                    // Keep the snapshot fresh each tick so the page re-renders and the
+                    // #933 escalation card can appear once the wait window elapses.
+                    permissionSnapshot = snapshot
                     let kpGranted = snapshot.keyPath.accessibility.isReady
                     let kaGranted = snapshot.kanata.accessibility.isReady
 
@@ -461,5 +495,40 @@ public struct WizardAccessibilityPage: View {
 
     private func copyKanataEngineAppPathToClipboard() {
         WizardPermissionFinderHelper.copyPathToClipboard()
+    }
+}
+
+// MARK: - Manual fallback guidance (#933)
+
+/// Shown when the automatic Accessibility prompt for KeyPath.app never registers a
+/// grant. Offers the drag-to-authorize helper — opens System Settings and floats a
+/// tile the user drags KeyPath into — instead of leaving them at a "Turn On" button
+/// that appeared to do nothing. Mirrors the Input Monitoring fallback card.
+private struct AccessibilityManualFallbackCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Didn't see a permission prompt?", systemImage: "hand.raised.circle")
+                .font(.headline)
+
+            Text(
+                "On some macOS versions the automatic prompt doesn't appear. You can add KeyPath to Accessibility yourself:"
+            )
+            .font(.callout)
+            .foregroundColor(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+            Button("Add KeyPath to Accessibility") {
+                DragToAuthorizeController.shared.present(for: .accessibility, subject: .keyPath)
+            }
+            .buttonStyle(WizardDesign.Component.SecondaryButton())
+            .accessibilityIdentifier("wizard_accessibility_manual_fallback")
+            .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(WizardDesign.Spacing.cardPadding)
+        .background(
+            WizardDesign.Colors.warning.opacity(0.06),
+            in: RoundedRectangle(cornerRadius: WizardDesign.Layout.cornerRadius)
+        )
     }
 }
