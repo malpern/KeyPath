@@ -113,6 +113,14 @@ public struct WizardFullDiskAccessPage: View {
         .wizardDetailPage()
         .onAppear {
             checkFullDiskAccess()
+            // If FDA was already granted before this visit (the Summary row is always
+            // navigable, so the user may have opened this page just to review it),
+            // mark it acknowledged so the onChange handler below does NOT celebrate or
+            // auto-advance — otherwise they'd be navigated off a page they never acted
+            // on. Only a grant that lands *during* the visit should advance.
+            if hasFullDiskAccess {
+                showSuccessAnimation = true
+            }
             startFDAPolling()
         }
         .onDisappear {
