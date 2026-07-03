@@ -70,6 +70,40 @@ class MainAppStateController {
     @ObservationIgnored private let validationCooldown: TimeInterval = 30.0 // Skip validation if completed within last 30 seconds
     private enum ValidationError: Error { case timeout }
 
+    // MARK: - Validation Log Throttling (avoid flooding the log with repeat cycles)
+
+    /// Per-log-site dedup state: maps a log site key (e.g. "startupGate",
+    /// "validationFailure") to the signature last logged in full and how many
+    /// times it has repeated unchanged since. When an unchanged failure repeats
+    /// across periodic revalidation cycles, only the first occurrence is logged
+    /// at full WARN/ERROR verbosity; repeats are collapsed into a single
+    /// low-noise line. This does not change validation behavior — only what
+    /// gets written to the log. See #934 (122 cycles of WARN+5×ERROR in 9
+    /// minutes filled and rotated the 5MB log mid-session).
+    @ObservationIgnored private var loggedFailureSignatures: [String: (signature: String, repeatCount: Int)] = [:]
+
+    /// Returns true if this failure signature should be logged at full verbosity
+    /// (first occurrence at this site, or a change from the previously logged
+    /// signature at this site). Also updates the per-site repeat counter.
+    private func shouldLogValidationFailureInDetail(site: String, signature: String) -> Bool {
+        if let existing = loggedFailureSignatures[site], existing.signature == signature {
+            loggedFailureSignatures[site] = (signature, existing.repeatCount + 1)
+            return false
+        }
+        loggedFailureSignatures[site] = (signature, 0)
+        return true
+    }
+
+    /// Current repeat count for a log site (0 if this is the first occurrence).
+    private func repeatCount(forSite site: String) -> Int {
+        loggedFailureSignatures[site]?.repeatCount ?? 0
+    }
+
+    /// Reset failure-signature dedup state once validation succeeds again.
+    private func resetValidationFailureLogState() {
+        loggedFailureSignatures.removeAll()
+    }
+
     // MARK: - Service Health Monitoring (Fix for stale overlay state)
 
     @ObservationIgnored private var errorDetectionTask: Task<Void, Never>?
@@ -480,13 +514,25 @@ class MainAppStateController {
         case .ready:
             break
         case .transientTimeout:
-            AppLogger.shared.warn(
-                "⚠️ [MainAppStateController] Kanata still in transient startup window after \(Int(transientStartupGracePeriod))s - continuing with full validation to avoid false failure"
-            )
+            if shouldLogValidationFailureInDetail(site: "startupGate", signature: "transientTimeout") {
+                AppLogger.shared.warn(
+                    "⚠️ [MainAppStateController] Kanata still in transient startup window after \(Int(transientStartupGracePeriod))s - continuing with full validation to avoid false failure"
+                )
+            } else {
+                AppLogger.shared.debug(
+                    "⚠️ [MainAppStateController] Kanata still in transient startup window (repeat #\(repeatCount(forSite: "startupGate")), suppressing detailed log)"
+                )
+            }
         case .definitiveFailure:
-            AppLogger.shared.warn(
-                "⚠️ [MainAppStateController] Kanata service not healthy after \(definitiveStartupGracePeriod)s outside restart window - proceeding with full validation"
-            )
+            if shouldLogValidationFailureInDetail(site: "startupGate", signature: "definitiveFailure") {
+                AppLogger.shared.warn(
+                    "⚠️ [MainAppStateController] Kanata service not healthy after \(definitiveStartupGracePeriod)s outside restart window - proceeding with full validation"
+                )
+            } else {
+                AppLogger.shared.debug(
+                    "⚠️ [MainAppStateController] Kanata still not healthy outside restart window (repeat #\(repeatCount(forSite: "startupGate")), suppressing detailed log)"
+                )
+            }
         }
 
         validationState = .checking
@@ -625,6 +671,7 @@ class MainAppStateController {
                 validationState = .success
                 // Clear stale diagnostics when system is healthy
                 onSystemHealthy?()
+                resetValidationFailureLogState()
                 AppLogger.shared.info(
                     "✅ [MainAppStateController] Validation SUCCESS - adapter state is .active (kanata running), no blocking issues, TCP configured"
                 )
@@ -641,14 +688,21 @@ class MainAppStateController {
                     blockingCount: blockingIssues.count + (tcpConfigured ? 0 : 1),
                     totalCount: issues.count
                 )
-                AppLogger.shared.error(
-                    "❌ [MainAppStateController] Validation FAILED - \(reasons.joined(separator: ", "))"
-                )
-                for (index, issue) in blockingIssues.enumerated() {
-                    AppLogger.shared.log("   Blocking \(index + 1): \(issue.title)")
-                }
-                if !tcpConfigured {
-                    AppLogger.shared.log("   TCP: Communication server not properly configured")
+                let signature = "active:\(reasons.joined(separator: ",")):\(blockingIssues.map(\.title).joined(separator: ","))"
+                if shouldLogValidationFailureInDetail(site: "validationFailure", signature: signature) {
+                    AppLogger.shared.error(
+                        "❌ [MainAppStateController] Validation FAILED - \(reasons.joined(separator: ", "))"
+                    )
+                    for (index, issue) in blockingIssues.enumerated() {
+                        AppLogger.shared.log("   Blocking \(index + 1): \(issue.title)")
+                    }
+                    if !tcpConfigured {
+                        AppLogger.shared.log("   TCP: Communication server not properly configured")
+                    }
+                } else {
+                    AppLogger.shared.debug(
+                        "❌ [MainAppStateController] Validation still FAILED - \(reasons.joined(separator: ", ")) (repeat #\(repeatCount(forSite: "validationFailure")), suppressing detailed log)"
+                    )
                 }
             }
 
@@ -657,6 +711,7 @@ class MainAppStateController {
             validationState = .success
             // Clear stale diagnostics when system is healthy
             onSystemHealthy?()
+            resetValidationFailureLogState()
             AppLogger.shared.info(
                 "✅ [MainAppStateController] Validation SUCCESS - adapter state is .ready"
             )
@@ -667,14 +722,22 @@ class MainAppStateController {
                 validationState = .success
                 // Clear stale diagnostics when system is healthy
                 onSystemHealthy?()
+                resetValidationFailureLogState()
                 AppLogger.shared.info("✅ [MainAppStateController] Validation SUCCESS - no blocking issues")
             } else {
                 validationState = .failed(
                     blockingCount: blockingIssues.count, totalCount: issues.count
                 )
-                AppLogger.shared.error(
-                    "❌ [MainAppStateController] Validation FAILED - \(blockingIssues.count) blocking issues"
-                )
+                let signature = "notRunning:\(blockingIssues.map(\.title).joined(separator: ","))"
+                if shouldLogValidationFailureInDetail(site: "validationFailure", signature: signature) {
+                    AppLogger.shared.error(
+                        "❌ [MainAppStateController] Validation FAILED - \(blockingIssues.count) blocking issues"
+                    )
+                } else {
+                    AppLogger.shared.debug(
+                        "❌ [MainAppStateController] Validation still FAILED - \(blockingIssues.count) blocking issues (repeat #\(repeatCount(forSite: "validationFailure")), suppressing detailed log)"
+                    )
+                }
             }
 
         case .conflictsDetected, .missingPermissions, .missingComponents:
@@ -682,12 +745,19 @@ class MainAppStateController {
             validationState = .failed(
                 blockingCount: blockingIssues.count, totalCount: issues.count
             )
-            AppLogger.shared.error(
-                "❌ [MainAppStateController] Validation FAILED - adapter state: \(adapted.state)"
-            )
-            for issue in blockingIssues {
+            let signature = "\(adapted.state):\(blockingIssues.map(\.title).joined(separator: ","))"
+            if shouldLogValidationFailureInDetail(site: "validationFailure", signature: signature) {
                 AppLogger.shared.error(
-                    "❌ [MainAppStateController]   - \(issue.title): \(issue.description)"
+                    "❌ [MainAppStateController] Validation FAILED - adapter state: \(adapted.state)"
+                )
+                for issue in blockingIssues {
+                    AppLogger.shared.error(
+                        "❌ [MainAppStateController]   - \(issue.title): \(issue.description)"
+                    )
+                }
+            } else {
+                AppLogger.shared.debug(
+                    "❌ [MainAppStateController] Validation still FAILED - adapter state: \(adapted.state) (repeat #\(repeatCount(forSite: "validationFailure")), \(blockingIssues.count) blocking issues, suppressing detailed log)"
                 )
             }
         }
