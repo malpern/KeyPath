@@ -137,7 +137,9 @@ public struct WizardFullDiskAccessPage: View {
                 showSuccessAnimation = true
                 WizardWindowManager.shared.bounceDocIcon()
                 AppLogger.shared.log("✅ [Wizard] Full Disk Access granted - celebrating + advancing")
-                DragToAuthorizeController.shared.dismiss(animated: true)
+                // Don't force-dismiss the overlay here — it runs its own poll and
+                // plays a ~1.8s success animation, then dismisses itself; cutting it
+                // off would diverge from the AX/IM pages. onDisappear cleans it up.
 
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 1_500_000_000)

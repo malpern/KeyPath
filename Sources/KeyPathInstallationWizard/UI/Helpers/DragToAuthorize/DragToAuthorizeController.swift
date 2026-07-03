@@ -358,6 +358,7 @@ public final class DragToAuthorizeController {
         panel = nil
         stateModel = nil
         currentTarget = nil
+        currentSubject = .kanata
         state = .idle
     }
 }
