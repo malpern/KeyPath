@@ -5,25 +5,15 @@
 final class LayerKeyMapperTests: XCTestCase {
     /// Path to the simulator binary (installed app or local build).
     private lazy var simulatorPath: String? = Self.resolveSimulatorPath()
-    private var previousSimulatorFlag: Bool?
 
     /// Check if simulator is available for integration tests
     private var simulatorAvailable: Bool {
         simulatorPath != nil
     }
 
-    override func setUp() {
-        super.setUp()
-        previousSimulatorFlag = FeatureFlags.simulatorAndVirtualKeysEnabled
-        FeatureFlags.setSimulatorAndVirtualKeysEnabled(true)
-    }
-
-    override func tearDown() {
-        if let previousSimulatorFlag {
-            FeatureFlags.setSimulatorAndVirtualKeysEnabled(previousSimulatorFlag)
-        }
-        super.tearDown()
-    }
+    // The simulator feature flag is injected as a constant at each construction
+    // site (`simulatorEnabled: { true }` / `SimulatorService.forTesting`), so this
+    // suite no longer reads or mutates the UserDefaults-backed global flag (#896).
 
     // MARK: - Simulator-based Tests
 
@@ -41,7 +31,7 @@ final class LayerKeyMapperTests: XCTestCase {
         defer { try? FileManager.default.removeItem(atPath: configPath) }
 
         let simulatorService = SimulatorService.forTesting(simulatorPath: simulatorPath)
-        let mapper = LayerKeyMapper(simulatorService: simulatorService)
+        let mapper = LayerKeyMapper(simulatorService: simulatorService, simulatorEnabled: { true })
         let (mapping, _) = try await mapper.getMapping(for: "base", configPath: configPath, layout: .macBookUS)
 
         // Should have mapping for key 1 (keycode 18)
@@ -68,7 +58,7 @@ final class LayerKeyMapperTests: XCTestCase {
         defer { try? FileManager.default.removeItem(atPath: configPath) }
 
         let simulatorService = SimulatorService.forTesting(simulatorPath: simulatorPath)
-        let mapper = LayerKeyMapper(simulatorService: simulatorService)
+        let mapper = LayerKeyMapper(simulatorService: simulatorService, simulatorEnabled: { true })
         let (mapping, _) = try await mapper.getMapping(for: "base", configPath: configPath, layout: .macBookUS)
 
         // Caps Lock (keycode 57) should have some mapping
@@ -93,7 +83,7 @@ final class LayerKeyMapperTests: XCTestCase {
         defer { try? FileManager.default.removeItem(atPath: configPath) }
 
         let simulatorService = SimulatorService.forTesting(simulatorPath: simulatorPath)
-        let mapper = LayerKeyMapper(simulatorService: simulatorService)
+        let mapper = LayerKeyMapper(simulatorService: simulatorService, simulatorEnabled: { true })
         let (mapping, _) = try await mapper.getMapping(for: "base", configPath: configPath, layout: .macBookUS)
 
         // Check 1->2 mapping (keycode 18)
@@ -121,7 +111,7 @@ final class LayerKeyMapperTests: XCTestCase {
         defer { try? FileManager.default.removeItem(atPath: configPath) }
 
         let simulatorService = SimulatorService.forTesting(simulatorPath: simulatorPath)
-        let mapper = LayerKeyMapper(simulatorService: simulatorService)
+        let mapper = LayerKeyMapper(simulatorService: simulatorService, simulatorEnabled: { true })
         let (mapping, _) = try await mapper.getMapping(for: "base", configPath: configPath, layout: .macBookUS)
 
         // Key a (keycode 0) should NOT be marked as remapped since it maps to itself
@@ -218,11 +208,16 @@ final class LayerKeyMapperTests: XCTestCase {
 
     private static func resolveSimulatorPath() -> String? {
         let fileManager = FileManager.default
-        if let env = ProcessInfo.processInfo.environment["KEYPATH_SIMULATOR_PATH"],
-           !env.isEmpty,
-           fileManager.fileExists(atPath: env)
-        {
-            return env
+        // KEYPATH_BUNDLED_SIMULATOR_OVERRIDE is what CI exports to point at the
+        // freshly built, engine-pinned simulator; honoring it keeps these tests
+        // off stale binaries in the runner's persistent workspace (#896/#891).
+        for envKey in ["KEYPATH_SIMULATOR_PATH", "KEYPATH_BUNDLED_SIMULATOR_OVERRIDE"] {
+            if let env = ProcessInfo.processInfo.environment[envKey],
+               !env.isEmpty,
+               fileManager.fileExists(atPath: env)
+            {
+                return env
+            }
         }
 
         return simulatorCandidatePaths.first { fileManager.fileExists(atPath: $0) }
