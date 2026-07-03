@@ -41,6 +41,7 @@ struct ValidationFailureDialog: View {
                         .font(.title2)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Close")
             }
 
             Divider()

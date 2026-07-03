@@ -468,6 +468,7 @@ struct LauncherMappingEditor: View {
                         .menuStyle(.borderlessButton)
                         .frame(width: 24)
                         .accessibilityIdentifier("launcher-editor-script-gear-menu")
+                        .accessibilityLabel("Script options")
                     }
                     .padding(8)
                     .background(
@@ -555,6 +556,7 @@ struct LauncherMappingEditor: View {
                     .buttonStyle(.plain)
                     .help("Remove custom icon")
                     .accessibilityIdentifier("launcher-editor-icon-clear")
+                    .accessibilityLabel("Remove custom icon")
                 }
             }
         }

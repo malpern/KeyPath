@@ -84,6 +84,7 @@ struct AppRuleRowCompact: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Edit \(prettyKeyName(override.inputKey)) rule")
 
                         Button {
                             onDelete()
@@ -95,6 +96,7 @@ struct AppRuleRowCompact: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Delete \(prettyKeyName(override.inputKey)) rule")
 
                         // Spacer for alignment
                         Spacer()

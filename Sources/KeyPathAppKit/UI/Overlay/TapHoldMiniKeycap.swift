@@ -61,6 +61,7 @@ struct TapHoldMiniKeycap: View {
             }
             onTap()
         }
+        .accessibilityLabel(label.isEmpty ? "Add key" : label)
     }
 
     @Environment(\.colorScheme) private var colorScheme

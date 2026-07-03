@@ -248,6 +248,7 @@ struct HelpBrowserView: View {
                     .disabled(currentIndex == nil)
                     .keyboardShortcut(.leftArrow, modifiers: .command)
                     .accessibilityIdentifier("help-navigate-back")
+                    .accessibilityLabel("Previous topic")
 
                     Button { navigateForward() } label: {
                         Image(systemName: "chevron.right")
@@ -260,6 +261,7 @@ struct HelpBrowserView: View {
                     .disabled(currentIndex.map { $0 + 1 >= HelpTopic.allTopics.count } ?? false)
                     .keyboardShortcut(.rightArrow, modifiers: .command)
                     .accessibilityIdentifier("help-navigate-forward")
+                    .accessibilityLabel("Next topic")
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)

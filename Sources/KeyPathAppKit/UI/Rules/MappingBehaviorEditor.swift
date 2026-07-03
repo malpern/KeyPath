@@ -277,6 +277,7 @@ struct MappingBehaviorEditor: View {
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityIdentifier("mapping-behavior-remove-step-\(index)")
+                                .accessibilityLabel("Remove \(tapDanceSteps[index].label) step")
                             }
                         }
                     }

@@ -349,6 +349,7 @@ private struct LauncherMappingRow: View {
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("overlay-launcher-delete-\(mapping.key)")
                     .help("Delete")
+                    .accessibilityLabel("Delete \(displayName)")
                     .background(
                         GeometryReader { geo in
                             Color.clear.preference(

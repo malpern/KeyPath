@@ -84,6 +84,7 @@ extension OverlayMapperSection {
                 .buttonStyle(.plain)
                 .focusable(false)
                 .accessibilityIdentifier("overlay-launch-app-search-clear")
+                .accessibilityLabel("Clear search")
             }
         }
         .padding(.horizontal, 10)
