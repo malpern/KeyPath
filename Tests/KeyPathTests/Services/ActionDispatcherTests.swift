@@ -391,8 +391,6 @@ struct ActionDispatcherRoutingTests {
     @Test("Dispatches fakekey action")
     @MainActor
     func dispatchesFakekeyAction() throws {
-        // In tests this writes to FeatureFlags' in-memory override store,
-        // not UserDefaults, so it cannot leak into other suites.
         FeatureFlags.setSimulatorAndVirtualKeysEnabled(true)
         defer { FeatureFlags.resetTestOverrides() }
 

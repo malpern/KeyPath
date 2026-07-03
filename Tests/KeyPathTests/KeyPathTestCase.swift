@@ -1,5 +1,4 @@
 @testable import KeyPathAppKit
-import KeyPathCore
 import KeyPathDaemonLifecycle
 @testable import KeyPathInstallationWizard
 import KeyPathWizardCore
@@ -43,7 +42,6 @@ import KeyPathWizardCore
 open class KeyPathTestCase: XCTestCase {
     override open func setUp() {
         super.setUp()
-        FeatureFlags.resetTestOverrides()
         MainActor.assumeIsolated {
             TestSingletonReset.resetAll()
             VHIDDeviceManager.testPIDProvider = { [] }
@@ -63,7 +61,6 @@ open class KeyPathTestCase: XCTestCase {
             WizardDependencies.reset()
             TestSingletonReset.resetAll()
         }
-        FeatureFlags.resetTestOverrides()
         super.tearDown()
     }
 }
@@ -73,7 +70,6 @@ open class KeyPathTestCase: XCTestCase {
 open class KeyPathAsyncTestCase: XCTestCase {
     override open func setUp() async throws {
         try await super.setUp()
-        FeatureFlags.resetTestOverrides()
         await MainActor.run {
             TestSingletonReset.resetAll()
             VHIDDeviceManager.testPIDProvider = { [] }
@@ -93,7 +89,6 @@ open class KeyPathAsyncTestCase: XCTestCase {
             WizardDependencies.reset()
             TestSingletonReset.resetAll()
         }
-        FeatureFlags.resetTestOverrides()
         try await super.tearDown()
     }
 }
