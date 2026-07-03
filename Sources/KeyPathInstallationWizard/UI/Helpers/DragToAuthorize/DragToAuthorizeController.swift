@@ -130,6 +130,10 @@ public final class DragToAuthorizeController {
         state = .presenting
 
         NSWorkspace.shared.open(target.settingsURL)
+        // Record that we opened System Settings so the wizard's cleanup closes it
+        // when the flow finishes (the FDA page previously did this itself before it
+        // routed through this overlay).
+        WizardWindowManager.shared.markSystemSettingsOpened()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
             self?.createAndShowPanel(for: target, subject: subject, sourceRect: sourceRect, sourceWindow: sourceWindow)

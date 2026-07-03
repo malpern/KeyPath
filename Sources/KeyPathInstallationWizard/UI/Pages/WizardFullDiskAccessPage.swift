@@ -141,6 +141,9 @@ public struct WizardFullDiskAccessPage: View {
 
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    // Only advance if still on this page — the user may have hit Skip
+                    // (which navigates immediately) during the celebration delay.
+                    guard stateMachine.currentPage == .fullDiskAccess else { return }
                     navigateToNextStep()
                 }
             }
