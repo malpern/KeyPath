@@ -12,9 +12,11 @@ final class ServiceHealthCheckerTests: XCTestCase {
     private var originalSudoEnv: String?
     private var originalAllowAdminOperationsInTests = false
     private nonisolated(unsafe) var originalSMFactory: ((String) -> SMAppServiceProtocol)!
+    private nonisolated(unsafe) var originalStatusProvider: SMAppServiceStatusProvider!
 
     override func setUp() async throws {
         try await super.setUp()
+        originalStatusProvider = SMAppServiceStatusProvider.shared
         checker = await MainActor.run { ServiceHealthChecker.shared }
         // The shared singleton's 2s-TTL health cache can carry entries from
         // other suites in the same process (e.g. InstallerEngine tests that
@@ -44,6 +46,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
     override func tearDown() async throws {
         checker = nil
         KanataDaemonManager.smServiceFactory = originalSMFactory
+        SMAppServiceStatusProvider.shared = originalStatusProvider
         TestEnvironment.allowAdminOperationsInTests = originalAllowAdminOperationsInTests
         if let originalSudoEnv {
             setenv("KEYPATH_USE_SUDO", originalSudoEnv, 1)
@@ -112,6 +115,12 @@ final class ServiceHealthCheckerTests: XCTestCase {
     func testIsServiceLoadedReturnsFalseWhenSMAppServiceEnabledButStale() async {
         #if DEBUG
             KanataDaemonManager.smServiceFactory = { _ in EnabledSMService() }
+            // Status now flows through the centralized provider (#853); point it at the
+            // same enabled state so management-state determination sees .enabled.
+            SMAppServiceStatusProvider.shared = SMAppServiceStatusProvider(
+                cacheTTL: 0,
+                serviceFactory: { _ in EnabledSMService() }
+            )
             KanataDaemonManager.registeredButNotLoadedOverride = { true }
         #endif
 

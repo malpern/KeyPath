@@ -22,8 +22,8 @@ extension HelperManager {
     /// invoked via `BundleProgram` in the plist; there is no binary at
     /// `/Library/PrivilegedHelperTools` as with legacy SMJobBless.
     public nonisolated func isHelperInstalled() async -> Bool {
-        let svc = Self.smServiceFactory(Self.helperPlistName)
-        if svc.status == .enabled { return true }
+        let smStatus = await SMAppServiceStatusProvider.shared.cachedStatus(for: Self.helperPlistName)
+        if smStatus == .enabled { return true }
 
         // Best-effort check: does launchd know about the job?
         let runner = Self.subprocessRunnerFactory()
@@ -34,7 +34,7 @@ extension HelperManager {
                 let s = result.stdout
                 if s.contains("program") || s.contains("state =") || s.contains("pid =") {
                     AppLogger.shared.debug(
-                        "[HelperManager] launchctl reports helper present while SMAppService status=\(svc.status)"
+                        "[HelperManager] launchctl reports helper present while SMAppService status=\(smStatus)"
                     )
                     return true
                 }
@@ -206,8 +206,7 @@ extension HelperManager {
     /// which caused 47s stalls when SMAppService.status was slow (see
     /// docs/bugs/2026-02-19-false-kanata-service-stopped-alert.md).
     func getHelperHealth() async -> HealthState {
-        let svc = Self.smServiceFactory(Self.helperPlistName)
-        let smStatus = svc.status
+        let smStatus = await SMAppServiceStatusProvider.shared.cachedStatus(for: Self.helperPlistName)
 
         // Approval explicitly required
         if smStatus == .requiresApproval {

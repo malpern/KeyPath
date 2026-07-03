@@ -33,15 +33,26 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
 
     /// Keep reference to original factory to restore it
     var originalFactory: ((String) -> SMAppServiceProtocol)!
+    var originalStatusProvider: SMAppServiceStatusProvider!
+
+    /// Point the centralized status provider (#853) at the same status the service's
+    /// factory would report, with a zero TTL so each refresh re-reads. `evaluateStatus`
+    /// now sources status from the provider rather than the service's own factory.
+    private func useStatus(_ status: SMAppService.Status) {
+        KanataDaemonService.smServiceFactory = { _ in MockSMAppService(status: status) }
+        SMAppServiceStatusProvider.shared = SMAppServiceStatusProvider(
+            cacheTTL: 0,
+            serviceFactory: { _ in MockSMAppService(status: status) }
+        )
+    }
 
     override func setUp() async throws {
         try await super.setUp()
 
         // 1. Mock SMAppService
         originalFactory = KanataDaemonService.smServiceFactory
-        KanataDaemonService.smServiceFactory = { _ in
-            MockSMAppService(status: .notRegistered)
-        }
+        originalStatusProvider = SMAppServiceStatusProvider.shared
+        useStatus(.notRegistered)
 
         // 1b. Force the last-resort TCP liveness probe to report "no server". The CI
         // runner is a dev Mac with a real kanata listening on the default port, which
@@ -54,6 +65,7 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
 
     override func tearDown() async throws {
         KanataDaemonService.smServiceFactory = originalFactory
+        SMAppServiceStatusProvider.shared = originalStatusProvider
         KanataDaemonService.tcpProbeOverride = nil
         service = nil
         try await super.tearDown()
@@ -61,9 +73,7 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
 
     func testStopService_ShouldUnregister() async throws {
         // Given: Service is "running" (simulated by setting mock status)
-        KanataDaemonService.smServiceFactory = { _ in
-            MockSMAppService(status: .enabled)
-        }
+        useStatus(.enabled)
         // Re-init to pick up new mock state
         service = KanataDaemonService()
 
@@ -92,9 +102,7 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
         // Given: SMAppService reports .enabled but no process is running
         // and the TCP probe is forced to report "no server" (see setUp) so a live
         // kanata on the machine cannot mask the failure.
-        KanataDaemonService.smServiceFactory = { _ in
-            MockSMAppService(status: .enabled)
-        }
+        useStatus(.enabled)
         service = KanataDaemonService()
 
         // When: Refresh enough times to exhaust the debounce threshold (3 samples)
