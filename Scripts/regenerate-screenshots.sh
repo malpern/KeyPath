@@ -6,14 +6,18 @@
 #
 # This script:
 #   1. Runs snapshot tests in RECORD mode (generates new reference PNGs)
-#   2. Copies the generated PNGs from __Snapshots__/ to Resources/
+#   2. Refreshes the CURATED doc images (those already git-tracked under
+#      Resources/) from __Snapshots__/. Regression-only snapshots are skipped
+#      so they don't leak into the app bundle as untracked noise.
 #
 # Usage:
 #   ./Scripts/regenerate-screenshots.sh          # full regeneration
 #   SKIP_PEEKABOO=1 ./Scripts/regenerate-screenshots.sh  # SwiftUI only
+#   COPY_ALL=1 ./Scripts/regenerate-screenshots.sh       # copy every snapshot (discovery)
 #
 # Environment:
 #   SKIP_PEEKABOO=1  - Skip Peekaboo system screenshots (requires app install + permissions)
+#   COPY_ALL=1       - Copy every snapshot PNG, not just curated doc images (see Step 2)
 #
 # Called automatically by build-and-sign.sh during release builds.
 
@@ -48,12 +52,23 @@ SNAP_COUNT=$(find "$SNAPSHOTS_DIR" -name "*.png" | wc -l | tr -d ' ')
 echo "✅ Generated $SNAP_COUNT snapshot images"
 
 # -----------------------------------------------------------------------
-# Step 2: Copy snapshot PNGs to Resources
+# Step 2: Refresh curated doc screenshots in Resources
 # -----------------------------------------------------------------------
+# The snapshot suite exists mainly for visual-regression testing, so most of
+# its PNGs are NOT help images. Only a curated subset is used in docs; those
+# are the ones already git-tracked under Resources/. We refresh exactly those
+# and skip the rest, so regression-only snapshots don't leak into the app
+# bundle (.process("Resources")) as untracked noise.
+#
+# To promote a NEW snapshot to a doc image: run with COPY_ALL=1 (or copy it
+# by hand from __Snapshots__/), then `git add` it. From then on it refreshes
+# automatically. Set COPY_ALL=1 to copy every snapshot regardless of tracking.
+RESOURCES_REL="Sources/KeyPathAppKit/Resources"
 echo ""
-echo "📋 Copying snapshots to Resources..."
+echo "📋 Refreshing curated doc screenshots in Resources..."
 
 COPIED=0
+SKIPPED=0
 for png in "$SNAPSHOTS_DIR"/*/*.png; do
     if [ -f "$png" ]; then
         BASENAME=$(basename "$png")
@@ -61,13 +76,20 @@ for png in "$SNAPSHOTS_DIR"/*/*.png; do
         # Extract just the screenshot name (after the first dot)
         SCREENSHOT_NAME="${BASENAME#*.}"
         if [ "$SCREENSHOT_NAME" != "$BASENAME" ] && [ -n "$SCREENSHOT_NAME" ]; then
-            cp "$png" "$RESOURCES_DIR/$SCREENSHOT_NAME"
-            COPIED=$((COPIED + 1))
+            # Allow-list = already-tracked doc images (self-maintaining),
+            # unless COPY_ALL=1 forces a full copy for discovery.
+            if [ "${COPY_ALL:-0}" = "1" ] || \
+               git -C "$PROJECT_DIR" ls-files --error-unmatch "$RESOURCES_REL/$SCREENSHOT_NAME" >/dev/null 2>&1; then
+                cp "$png" "$RESOURCES_DIR/$SCREENSHOT_NAME"
+                COPIED=$((COPIED + 1))
+            else
+                SKIPPED=$((SKIPPED + 1))
+            fi
         fi
     fi
 done
 
-echo "✅ Copied $COPIED screenshots to $RESOURCES_DIR"
+echo "✅ Refreshed $COPIED curated doc screenshots ($SKIPPED regression-only snapshots skipped)"
 
 # -----------------------------------------------------------------------
 # Step 3: Peekaboo system screenshots (optional)
