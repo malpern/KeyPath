@@ -166,6 +166,102 @@ final class ConfigFacadeTests: XCTestCase {
         XCTAssertEqual(activeItems, ["keypath.kbd"])
     }
 
+    // MARK: - #889: CLI apply must honor the Leader Key collection's selectedOutput
+
+    /// Builds the default catalog with the Leader Key collection enabled and its
+    /// `selectedOutput` set to `key` — mirrors a headless `keypath collection` / JSON edit.
+    private func leaderKeyCollections(selectedOutput key: String) -> [RuleCollection] {
+        RuleCollectionCatalog().defaultCollections().map { collection -> RuleCollection in
+            var collection = collection
+            if collection.id == RuleCollectionIdentifier.leaderKey {
+                collection.isEnabled = true
+                collection.configuration.updateSelectedOutput(key)
+            }
+            return collection
+        }
+    }
+
+    /// Issue #889: the standalone `keypath apply` path generates config via ConfigFacade →
+    /// ConfigurationService, which derives the primary leader binding from
+    /// `leaderKeyPreference`. A headless mutation of the Leader Key collection's
+    /// `selectedOutput` never touched that preference, so the generated config silently kept
+    /// the old leader key. Applying must now reconcile the preference from the collection.
+    @MainActor
+    func testApplyConfigurationReconcilesLeaderKeyFromSelectedOutput() async throws {
+        let configDirectory = tempRoot.appendingPathComponent("config", isDirectory: true)
+        try FileManager.default.createDirectory(at: configDirectory, withIntermediateDirectories: true)
+
+        // Preference starts at the default ("space"); the loaded collection asks for "tab".
+        PreferencesService.shared.leaderKeyPreference = .default
+        defer { PreferencesService.shared.leaderKeyPreference = .default }
+
+        let collections = leaderKeyCollections(selectedOutput: "tab")
+        let facade = ConfigFacade(
+            configDirectory: configDirectory.path,
+            ruleCollectionLoader: { collections },
+            customRuleLoader: { [] },
+            reloadHandler: { true }
+        )
+
+        _ = try await facade.applyConfiguration(dryRun: false)
+
+        XCTAssertEqual(
+            PreferencesService.shared.leaderKeyPreference.key, "tab",
+            "CLI apply should reconcile leaderKeyPreference from the collection's selectedOutput (#889)"
+        )
+        XCTAssertTrue(PreferencesService.shared.leaderKeyPreference.enabled)
+
+        // The generated config on disk must reflect the reconciled leader key in the
+        // Primary Leader Key block, not the stale default. The leader block is annotated with
+        // a unique "Primary Leader Key (System Preference)" header followed by ";; Input: <key>".
+        let configFile = configDirectory.appendingPathComponent("keypath.kbd")
+        let generated = try String(contentsOf: configFile, encoding: .utf8)
+        XCTAssertTrue(
+            generated.contains("Primary Leader Key (System Preference)"),
+            "An enabled leader key should emit a Primary Leader Key block"
+        )
+        XCTAssertTrue(
+            generated.contains(";; Input: tab"),
+            "Leader block should bind the reconciled leader key 'tab'"
+        )
+        XCTAssertFalse(
+            generated.contains(";; Input: space"),
+            "Leader block must not retain the stale default leader key 'space'"
+        )
+    }
+
+    /// Issue #889: a dry run previews the reconciled config but must not persist the
+    /// reconciled `leaderKeyPreference` — the store is restored afterward.
+    @MainActor
+    func testApplyConfigurationDryRunDoesNotPersistReconciledLeaderKey() async throws {
+        let configDirectory = tempRoot.appendingPathComponent("config", isDirectory: true)
+        try FileManager.default.createDirectory(at: configDirectory, withIntermediateDirectories: true)
+
+        PreferencesService.shared.leaderKeyPreference = .default
+        defer { PreferencesService.shared.leaderKeyPreference = .default }
+
+        let collections = leaderKeyCollections(selectedOutput: "tab")
+        let facade = ConfigFacade(
+            configDirectory: configDirectory.path,
+            ruleCollectionLoader: { collections },
+            customRuleLoader: { [] },
+            reloadHandler: { true }
+        )
+
+        let result = try await facade.applyConfiguration(dryRun: true)
+
+        XCTAssertEqual(result.dryRun, true)
+        XCTAssertEqual(
+            PreferencesService.shared.leaderKeyPreference.key, "space",
+            "A dry run must not persist the reconciled leader-key preference"
+        )
+        // And it must not write the active config.
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: configDirectory.appendingPathComponent("keypath.kbd").path),
+            "Dry run must not write the active config file"
+        )
+    }
+
     private func createSymlinkedConfig(link: URL, target: URL) throws {
         try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(

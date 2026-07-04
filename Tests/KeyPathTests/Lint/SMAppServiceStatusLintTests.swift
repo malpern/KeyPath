@@ -1,0 +1,88 @@
+import Foundation
+@preconcurrency import XCTest
+
+/// Guards the centralization of `SMAppService.status` access (issue #853).
+///
+/// `SMAppService.status` is a synchronous IPC into `launchservicesd` that can block
+/// the calling thread 10–30s under load. When that happens on the MainActor (UI init,
+/// state-refresh ticks) it stalls the whole app. `SMAppServiceStatusProvider` is the
+/// single owner of that IPC: it caches per-plist, coalesces concurrent fetches, and
+/// always runs the blocking call off the caller's actor.
+///
+/// This test fails the build if any source outside the provider reads `.status` off an
+/// `SMAppService` instance (a `SMAppService.daemon(…)` value or a `SMAppServiceProtocol`
+/// from `smServiceFactory`). To fix a new violation, route the read through
+/// `SMAppServiceStatusProvider.shared.cachedStatus(for:)` (hot paths) or
+/// `.freshStatus(for:)` (one-shot install/uninstall) — do **not** extend the allowlist.
+///
+/// The allowlist is a shrinking ratchet of pre-existing **synchronous** call sites that
+/// are not on a hot path and whose migration would require threading `async` through the
+/// wizard state machine / diagnostics. It should only shrink.
+final class SMAppServiceStatusLintTests: XCTestCase {
+    /// Files permitted to read `.status` directly. Ratchet — never add entries.
+    ///
+    /// - `SMAppServiceStatusProvider.swift`: the sole intended owner of the IPC.
+    /// - `HelperManager.swift`: defines the `SMAppServiceProtocol` seam whose `status`
+    ///   getter forwards to Apple's `SMAppService` — the one legitimate declaration.
+    /// - The remainder are synchronous, non-hot-path readers (wizard approval check,
+    ///   bless diagnostics) still awaiting an async migration.
+    private static let allowList: Set<String> = [
+        "SMAppServiceStatusProvider.swift",
+        "HelperManager.swift",
+        "HelperManager+Status.swift",
+        "WizardProtocolConformances.swift",
+        "BlessDiagnostics.swift"
+    ]
+
+    func testStatusAccessIsCentralized() throws {
+        let sourcesDir = repositoryRoot().appendingPathComponent("Sources")
+
+        // Matches a `.status` read off an SMAppService-shaped expression:
+        //   smServiceFactory(…).status   SMAppService.daemon(…).status
+        //   svc.status                    service.status
+        // The factory/daemon arg groups tolerate one level of nested parentheses
+        // (e.g. `smServiceFactory(plistName(x)).status`) so a nested call cannot
+        // slip a violation past the guard.
+        let argGroup = #"\((?:[^()]|\([^()]*\))*\)"#
+        let pattern = try NSRegularExpression(
+            pattern: #"(smServiceFactory\#(argGroup)|SMAppService\.daemon\#(argGroup)|\bsvc|\bservice)\.status\b"#
+        )
+
+        guard let enumerator = FileManager.default.enumerator(at: sourcesDir, includingPropertiesForKeys: nil) else {
+            return XCTFail("Could not enumerate \(sourcesDir.path)")
+        }
+
+        var violations: [String] = []
+        for case let url as URL in enumerator where url.pathExtension == "swift" {
+            if Self.allowList.contains(url.lastPathComponent) { continue }
+            guard let contents = try? String(contentsOf: url, encoding: .utf8) else { continue }
+            for (idx, rawLine) in contents.components(separatedBy: .newlines).enumerated() {
+                let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
+                // Skip comment lines — the codebase discusses SMAppService.status a lot.
+                if trimmed.hasPrefix("//") || trimmed.hasPrefix("///") || trimmed.hasPrefix("*") { continue }
+                let range = NSRange(rawLine.startIndex..., in: rawLine)
+                if pattern.firstMatch(in: rawLine, range: range) != nil {
+                    violations.append("\(url.lastPathComponent):\(idx + 1): \(trimmed)")
+                }
+            }
+        }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            Direct SMAppService `.status` reads found outside SMAppServiceStatusProvider \
+            (issue #853). Route through SMAppServiceStatusProvider.shared.cachedStatus(for:) \
+            or .freshStatus(for:) instead of adding to the allowlist:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
+}
+
+private func repositoryRoot(file: StaticString = #filePath) -> URL {
+    URL(fileURLWithPath: "\(file)")
+        .deletingLastPathComponent() // Lint
+        .deletingLastPathComponent() // KeyPathTests
+        .deletingLastPathComponent() // Tests
+        .deletingLastPathComponent() // repo root
+}

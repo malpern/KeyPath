@@ -49,6 +49,23 @@ final class TestEnvironmentDetectionTests: XCTestCase {
         XCTAssertTrue(TestEnvironment.isRunningTests)
     }
 
+    func testIsTestHostProcess_TrueInTestContext_AndIgnoresCIEnvSignal() {
+        // isTestHostProcess gates behavior that must NOT change for a real app
+        // launched inside a CI job (e.g. RuntimeCoordinator skipping rule
+        // bootstrap, #922/#944). It must be driven purely by the strong
+        // test-host signals, never by the broad ci-environment signal.
+        XCTAssertTrue(
+            TestEnvironment.isTestHostProcess,
+            "Should detect test host when running inside XCTest"
+        )
+        let strongSignals = TestEnvironment.detectionSignals.filter { $0.name != "ci-environment" }
+        XCTAssertEqual(
+            TestEnvironment.isTestHostProcess,
+            strongSignals.contains(where: \.present),
+            "isTestHostProcess must equal strong-signal detection (ci-environment excluded)"
+        )
+    }
+
     @MainActor
     func testForceTestMode_CanBeToggled() {
         let original = TestEnvironment.forceTestMode

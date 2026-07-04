@@ -780,20 +780,22 @@ extension RuleCollectionsManager {
     /// unrelated features (and, for Quick Launcher's "hyper", collide two base-layer
     /// bindings onto the same key). See issue #889.
     private func applyLeaderKeyToLeaderActivators(_ newKey: String, targetLayer: RuleCollectionLayer) {
-        for index in ruleCollections.indices {
-            guard let activator = ruleCollections[index].momentaryActivator,
-                  activator.sourceLayer == .base,
-                  activator.targetLayer == targetLayer
-            else { continue }
-            ruleCollections[index].momentaryActivator = MomentaryActivator(
-                input: newKey,
-                targetLayer: activator.targetLayer,
-                sourceLayer: activator.sourceLayer
-            )
+        // Shared pure transform (same one the CLI apply path uses) keeps the two reconcile
+        // sites in agreement. Logging stays here for the in-process load-path trace.
+        for index in ruleCollections.indices
+            where ruleCollections[index].momentaryActivator.map({
+                $0.sourceLayer == .base && $0.targetLayer == targetLayer
+            }) == true
+        {
             AppLogger.shared.log(
                 "🔑 [RuleCollections] Reconciled leader activator on '\(ruleCollections[index].name)' to '\(newKey)'"
             )
         }
+        ruleCollections = LeaderKeyPreference.reconcileLeaderActivators(
+            in: ruleCollections,
+            key: newKey,
+            targetLayer: targetLayer
+        )
     }
 
     private func leaderKeyOutput(from collection: RuleCollection) -> String? {
@@ -821,11 +823,11 @@ extension RuleCollectionsManager {
     /// reconciles the preference so a subsequent app/daemon config regen honors the
     /// edited collection. See issue #889.
     ///
-    /// NOT covered: the standalone `keypath-cli config apply` path generates config via
-    /// `ConfigFacade` → `ConfigurationService`, which reads `leaderKeyPreference`
-    /// directly and never constructs a `RuleCollectionsManager` — so this reconcile does
-    /// not run there. Unifying config generation on the collection is deferred to
-    /// #865/#888.
+    /// The standalone `keypath-cli config apply` path runs the equivalent reconcile in
+    /// `ConfigFacade.applyConfiguration` (it never constructs a `RuleCollectionsManager`),
+    /// sharing the pure rule in `LeaderKeyPreference.reconciled(from:current:)` /
+    /// `.reconcileLeaderActivators(in:key:targetLayer:)`. Unifying config *generation* on the
+    /// collection as the single source of truth is still deferred to #865/#888.
     ///
     /// Only an *explicit* `selectedOutput` reconciles — a nil `selectedOutput` means the
     /// collection expresses no opinion, so a leader key configured via the system
@@ -842,19 +844,18 @@ extension RuleCollectionsManager {
     ///   if it was a no-op.
     @discardableResult
     func reconcileLeaderKeyFromCollection() -> Bool {
-        guard let leaderCollection = ruleCollections.first(where: { $0.id == RuleCollectionIdentifier.leaderKey }),
-              leaderCollection.isEnabled,
-              let key = leaderCollection.configuration.singleKeyPickerConfig?.selectedOutput
-        else { return false }
-
         let current = PreferencesService.shared.leaderKeyPreference
-        guard current.key != key || !current.enabled else { return false }
+        // Shared, pure reconcile rule — same statement the CLI apply path uses
+        // (ConfigFacade), so all headless paths agree. See LeaderKeyPreference.reconciled.
+        guard let reconciled = LeaderKeyPreference.reconciled(from: ruleCollections, current: current) else {
+            return false
+        }
 
         AppLogger.shared.log(
-            "🔑 [RuleCollections] Reconciling leader key from collection selectedOutput: '\(key)' (was '\(current.key)', enabled=\(current.enabled))"
+            "🔑 [RuleCollections] Reconciling leader key from collection selectedOutput: '\(reconciled.key)' (was '\(current.key)', enabled=\(current.enabled))"
         )
-        applyLeaderKeyToLeaderActivators(key, targetLayer: current.targetLayer)
-        syncLeaderKeyPreference(key: key, enabled: true)
+        applyLeaderKeyToLeaderActivators(reconciled.key, targetLayer: current.targetLayer)
+        syncLeaderKeyPreference(key: reconciled.key, enabled: true)
         return true
     }
 

@@ -486,7 +486,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Private: Service Bounce
 
     private func handleServiceBounceIfNeeded() async {
-        let isFreshInstall = Self.checkIsFreshInstall()
+        let isFreshInstall = await Self.checkIsFreshInstall()
         if isFreshInstall {
             AppLogger.shared.info("🆕 [AppDelegate] Fresh install detected - skipping service bounce")
             PermissionGrantCoordinator.shared.clearServiceBounceFlag()
@@ -588,7 +588,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             let result = PermissionGrantCoordinator.shared.checkForPendingPermissionGrant()
-            let isFreshInstall = Self.checkIsFreshInstall()
+            let isFreshInstall = await Self.checkIsFreshInstall()
             if isFreshInstall {
                 AppLogger.shared.log(
                     "🆕 [AppDelegate] Fresh install — skipping auto-launch, wizard will handle registration"
@@ -601,7 +601,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         AppLogger.shared.log("✅ [AppDelegate] Auto-launch sequence completed (simple)")
                         MainAppStateController.shared.invalidateValidationCooldown()
                     } else {
-                        AppLogger.shared.error("❌ [AppDelegate] Auto-launch failed via runtime coordinator")
+                        // This is commonly the expected first-run/early-boot race (e.g.
+                        // VirtualHID daemon not yet healthy) rather than a genuine failure —
+                        // the underlying cause is already logged as an ERROR by
+                        // ServiceLifecycleCoordinator, and the wizard auto-launches below
+                        // to repair/complete setup. Log at warn to avoid a cosmetic ERROR
+                        // on every fresh install (#934).
+                        AppLogger.shared.warn("⚠️ [AppDelegate] Auto-launch did not start kanata via runtime coordinator — wizard will follow up if setup is incomplete")
                     }
                 } else {
                     AppLogger.shared.error(
@@ -628,9 +634,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Private: Fresh Install Check
 
-    private static func checkIsFreshInstall() -> Bool {
-        let helperStatus = SMAppService.daemon(plistName: "com.keypath.helper.plist").status
-        let daemonStatus = SMAppService.daemon(plistName: "com.keypath.kanata.plist").status
+    private static func checkIsFreshInstall() async -> Bool {
+        // Route SMAppService.status through the centralized provider (issue #853):
+        // these two reads used to be direct synchronous IPC on the MainActor during
+        // app init, which could stall the UI for up to 30s under load.
+        let helperStatus = await SMAppServiceStatusProvider.shared.freshStatus(
+            for: HelperManager.helperPlistName
+        )
+        let daemonStatus = await SMAppServiceStatusProvider.shared.freshStatus(
+            for: KanataDaemonManager.kanataPlistName
+        )
 
         // SMAppService status persists across uninstall/reinstall, so .notRegistered
         // is only true on a truly virgin system. Also check if the daemon plist
@@ -840,24 +853,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - SMAppService Dev Utilities
 
     @MainActor
-    private func showSMAppServiceStatus(plistName: String) {
-        let svc = SMAppService.daemon(plistName: plistName)
-        let status = svc.status
+    private func showSMAppServiceStatus(plistName: String) async {
+        // Route through the centralized provider (#853) even in dev utilities.
+        let status = await SMAppServiceStatusProvider.shared.freshStatus(for: plistName)
         AppLogger.shared.info(
             "🔧 [SM] \(plistName) status=\(status.rawValue) (0=notRegistered,1=enabled,2=requiresApproval,3=notFound)"
         )
     }
 
     @MainActor
-    private func registerSMAppService(plistName: String) {
+    private func registerSMAppService(plistName: String) async {
         let svc = SMAppService.daemon(plistName: plistName)
         do {
             try svc.register()
+            await SMAppServiceStatusProvider.shared.invalidate(plistName: plistName)
             AppLogger.shared.info("✅ [SM] register() ok for \(plistName)")
         } catch {
             AppLogger.shared.error("❌ [SM] register() failed for \(plistName): \(error)")
         }
-        showSMAppServiceStatus(plistName: plistName)
+        await showSMAppServiceStatus(plistName: plistName)
     }
 
     private func unregisterSMAppService(plistName: String) {
@@ -866,11 +880,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 do {
                     try await svc.unregister()
+                    await SMAppServiceStatusProvider.shared.invalidate(plistName: plistName)
                     AppLogger.shared.info("✅ [SM] unregister() ok for \(plistName)")
                 } catch {
                     AppLogger.shared.error("❌ [SM] unregister() failed for \(plistName): \(error)")
                 }
-                showSMAppServiceStatus(plistName: plistName)
+                await showSMAppServiceStatus(plistName: plistName)
             }
         } else {
             AppLogger.shared.warn("⚠️ [SM] unregister requires macOS 13+")
