@@ -319,6 +319,7 @@ struct KeyRepeatControlView: View {
                         Image(systemName: "xmark.circle.fill").font(.subheadline).foregroundStyle(.tertiary)
                     }.buttonStyle(.plain)
                         .accessibilityIdentifier("key-repeat-remove-custom-\(entry.key)")
+                        .accessibilityLabel("Remove custom repeat for \(entry.key)")
                 }
             }
         }

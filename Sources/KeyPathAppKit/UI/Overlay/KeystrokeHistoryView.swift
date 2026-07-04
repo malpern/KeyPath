@@ -27,6 +27,7 @@ struct KeystrokeHistoryView: View {
             }
             .buttonStyle(.plain)
             .help(service.isRecording ? "Pause recording" : "Resume recording")
+            .accessibilityLabel(service.isRecording ? "Pause recording" : "Resume recording")
 
             Text("\(service.eventCount) events")
                 .font(.system(size: 10, weight: .medium, design: .monospaced))
@@ -43,6 +44,7 @@ struct KeystrokeHistoryView: View {
             }
             .buttonStyle(.plain)
             .help(autoScroll ? "Auto-scroll on" : "Auto-scroll off")
+            .accessibilityLabel(autoScroll ? "Turn off auto-scroll" : "Turn on auto-scroll")
 
             Button {
                 service.clearEvents()
@@ -53,6 +55,7 @@ struct KeystrokeHistoryView: View {
             }
             .buttonStyle(.plain)
             .help("Clear history")
+            .accessibilityLabel("Clear history")
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)

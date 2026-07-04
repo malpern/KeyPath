@@ -43,6 +43,7 @@ struct KeymapCard: View {
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Learn more about \(keymap.name)")
                 }
             }
             .padding(6)

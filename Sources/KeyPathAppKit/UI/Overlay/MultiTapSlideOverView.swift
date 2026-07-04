@@ -91,6 +91,7 @@ private struct MultiTapRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("multitap-clear-\(count)x")
+                .accessibilityLabel("Clear \(count)-tap action")
             }
         }
     }

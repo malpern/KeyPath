@@ -64,6 +64,7 @@ struct LauncherDrawerView: View {
                 }
                 .menuStyle(.borderlessButton)
                 .accessibilityIdentifier("launcher-drawer-menu-button")
+                .accessibilityLabel("Mappings options")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)

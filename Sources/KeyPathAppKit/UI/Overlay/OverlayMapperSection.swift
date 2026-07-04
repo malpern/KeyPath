@@ -583,6 +583,7 @@ struct OverlayMapperSection: View {
                                     .buttonStyle(.plain)
                                     .help("Clear mapping")
                                     .accessibilityIdentifier("overlay-mapper-reset-trigger")
+                                    .accessibilityLabel("Clear mapping")
                                     .frame(width: arrowWidth)
                                 } else {
                                     Color.clear

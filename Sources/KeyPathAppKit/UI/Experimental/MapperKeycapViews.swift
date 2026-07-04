@@ -66,6 +66,7 @@ struct BehaviorSlotKeycap: View {
             }
             onTap()
         }
+        .accessibilityLabel(isConfigured || isRecording ? "\(slotName): \(label)" : "Add \(slotIdentifier) action")
     }
 
     // MARK: - Empty State (Not Configured)

@@ -31,6 +31,7 @@ struct CreateRuleButton: View {
             .animation(.easeInOut(duration: 0.1), value: isMouseDown)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Create rule")
         .onHover { hovering in
             isHovered = hovering
         }

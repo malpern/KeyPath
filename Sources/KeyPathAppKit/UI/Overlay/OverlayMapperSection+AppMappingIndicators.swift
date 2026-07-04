@@ -52,6 +52,7 @@ extension OverlayMapperSection {
         .buttonStyle(.plain)
         .help(tooltip)
         .accessibilityIdentifier("app-mapping-indicator-\(bundleId)")
+        .accessibilityLabel("Select \(displayName) mapping")
     }
 
     /// Handle tap on an app mapping indicator - switches to that app's context
