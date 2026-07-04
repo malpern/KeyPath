@@ -90,6 +90,28 @@ jobs:
         chmod +x ./Scripts/lint-no-subprocess-in-autofixer.sh
         ./Scripts/lint-no-subprocess-in-autofixer.sh
 
+    - name: Reset persistent test state
+      # The self-hosted runner's $HOME persists between runs (same lesson as the
+      # kanata engine-sha stamp above). Tests that install packs or toggle rule
+      # collections write to ~/.config/keypath via NSHomeDirectory() — there is
+      # no config-dir env override. A crashed or interrupted prior run can leave
+      # that directory in a state where enabling a collection fails, which then
+      # breaks CLIPackCRUDTests (and any other pack/collection test) on *every*
+      # subsequent run on the same runner until it is cleared by hand — a
+      # deterministic wedge, not a flake. This was the root cause of the #945 CI
+      # block (5 CLIPackCRUDTests failures: "could not enable associated rule
+      # collection"), the same persistent-state class as #896/#891. Reset to a
+      # clean slate so each run is hermetic; the suite recreates what it needs.
+      run: |
+        STATE_DIR="$HOME/.config/keypath"
+        if [ -d "$STATE_DIR" ]; then
+          echo "🧹 Removing persistent test state at $STATE_DIR"
+          ls -la "$STATE_DIR" || true
+          rm -rf "$STATE_DIR"
+        else
+          echo "✅ No persistent test state to clean ($STATE_DIR absent)"
+        fi
+
     - name: Run Test Lane - full
       env:
         KP_SIGN_DRY_RUN: "1"
