@@ -141,7 +141,7 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "activateVirtualHIDManager",
             operation: {
-                let r = Self.run(Self.vhidManagerPath, ["activate"])
+                let r = Self.activateVHIDManagerProcess()
                 if r.status != 0 {
                     throw HelperError.operationFailed("VHID Manager activation failed: \(r.out)")
                 }
@@ -194,7 +194,7 @@ class HelperService: NSObject, HelperProtocol {
                 _ = try? FileManager.default.removeItem(atPath: pkg)
                 if i.status != 0 { throw HelperError.operationFailed("Installer failed: \(i.out)") }
                 // Activate after install
-                let a = Self.run(Self.vhidManagerPath, ["activate"])
+                let a = Self.activateVHIDManagerProcess()
                 if a.status != 0 {
                     NSLog("[KeyPathHelper] Warning: activate returned %d: %@", a.status, a.out)
                 }
@@ -218,7 +218,7 @@ class HelperService: NSObject, HelperProtocol {
                 let i = Self.run("/usr/sbin/installer", ["-pkg", pkg, "-target", "/"], timeout: 300)
                 _ = try? FileManager.default.removeItem(atPath: pkg)
                 if i.status != 0 { throw HelperError.operationFailed("Installer failed: \(i.out)") }
-                let a = Self.run(Self.vhidManagerPath, ["activate"])
+                let a = Self.activateVHIDManagerProcess()
                 if a.status != 0 {
                     NSLog("[KeyPathHelper] Warning: activate returned %d: %@", a.status, a.out)
                 }
@@ -245,7 +245,7 @@ class HelperService: NSObject, HelperProtocol {
                 let i = Self.run("/usr/sbin/installer", ["-pkg", canonicalPath, "-target", "/"], timeout: 300)
                 if i.status != 0 { throw HelperError.operationFailed("Installer failed: \(i.out)") }
                 // Activate after install
-                let a = Self.run(Self.vhidManagerPath, ["activate"])
+                let a = Self.activateVHIDManagerProcess()
                 if a.status != 0 {
                     NSLog("[KeyPathHelper] Warning: activate returned %d: %@", a.status, a.out)
                 }
@@ -740,6 +740,19 @@ extension HelperService {
             )
         }
         return (outcome.status, outcome.output)
+    }
+
+    static func activateVHIDManagerProcess() -> (status: Int32, out: String) {
+        _ = run("/usr/bin/pkill", ["-f", "\(vhidManagerPath) activate"], timeout: 5)
+        let result = run(vhidManagerPath, ["activate"], timeout: 20)
+        if result.out.contains("timed out after") {
+            return (
+                result.status,
+                result.out
+                    + "\nVirtualHID activation may be waiting for macOS approval. Open System Settings > Privacy & Security and approve the Karabiner VirtualHIDDevice system extension, then retry repair."
+            )
+        }
+        return result
     }
 
     static func verifyCodeSignatureStrict(path: String) -> Bool {

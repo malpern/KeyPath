@@ -60,6 +60,19 @@ final class SystemInspectorInputCaptureTests: XCTestCase {
         )
     }
 
+    func testVHIDDriverNotActivated_issueIsAutofixable() {
+        let issues = SystemInspector.generateIssues(
+            context(inputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason)
+        )
+        guard let issue = issues.first(where: { $0.identifier == .daemon }) else {
+            return XCTFail("Expected a daemon issue for inactive VHID DriverKit state")
+        }
+        XCTAssertEqual(issue.title, "Kanata Isn't Capturing Keyboard Input")
+        XCTAssertEqual(issue.autoFixAction, .repairVHIDDaemonServices)
+        XCTAssertNil(issue.userAction)
+        XCTAssertTrue(issue.description.contains("not activated"))
+    }
+
     // MARK: - Service status must not lie green on a grab failure
 
     func testGrabFailure_serviceStatusIsFailed_notRunning() {
