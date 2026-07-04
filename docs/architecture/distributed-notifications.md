@@ -10,7 +10,7 @@ KeyPath broadcasts state changes via macOS Distributed Notifications (`NSDistrib
 | **Distributed Notifications** | **Zero-config, any process can listen** | macOS-only, fire-and-forget |
 | URL scheme | Works from everything | Inbound only (to KeyPath) |
 
-KeyPath uses Distributed Notifications for outbound events (KeyPath to the world) and the `keypath://` URL scheme for inbound commands (world to KeyPath). See [ACTION_URI_SYSTEM.md](ACTION_URI_SYSTEM.md) for the inbound side.
+KeyPath uses Distributed Notifications for outbound events (KeyPath to the world) and the `keypath://` URL scheme for inbound commands (world to KeyPath). See [ACTION_URI_SYSTEM.md](../guides/action-uri-system.md) for the inbound side.
 
 ## Events
 
@@ -37,7 +37,7 @@ Posted when the Kanata service starts or stops successfully.
 
 ### Hammerspoon
 
-Use the [KeyPath.spoon](../Integrations/KeyPath.spoon/) for a clean API, or listen directly:
+Use the [KeyPath.spoon](../../Integrations/KeyPath.spoon/) for a clean API, or listen directly:
 
 ```lua
 hs.distributednotifications.new(function(name, object, userInfo)
@@ -73,7 +73,7 @@ Keyboard Maestro can trigger macros from Distributed Notifications. Create a mac
 
 ### Shortcuts / Siri / Apple Intelligence
 
-KeyPath exposes [App Intents](APP_INTENTS.md) for direct Shortcuts and Siri integration — query the current layer, control the service, or send any action URI. For event-driven automation (reacting to layer changes), bridge via Hammerspoon:
+KeyPath exposes [App Intents](../guides/app-intents.md) for direct Shortcuts and Siri integration — query the current layer, control the service, or send any action URI. For event-driven automation (reacting to layer changes), bridge via Hammerspoon:
 
 ```lua
 spoon.KeyPath:onLayerChange(function(layer)

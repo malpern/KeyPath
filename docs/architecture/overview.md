@@ -143,7 +143,7 @@ KeyPath exposes its state and actions to external tools through multiple transpo
 | **Query + action** | App Intents | `Intents/` — delegates to existing services |
 | **CLI** | `keypath` command | `ConfigFacade`, `SystemFacade` |
 
-See [DISTRIBUTED_NOTIFICATIONS.md](../DISTRIBUTED_NOTIFICATIONS.md), [APP_INTENTS.md](../APP_INTENTS.md), and [ACTION_URI_SYSTEM.md](../ACTION_URI_SYSTEM.md).
+See [DISTRIBUTED_NOTIFICATIONS.md](distributed-notifications.md), [APP_INTENTS.md](../guides/app-intents.md), and [ACTION_URI_SYSTEM.md](../guides/action-uri-system.md).
 
 ## Key Design Decisions
 
