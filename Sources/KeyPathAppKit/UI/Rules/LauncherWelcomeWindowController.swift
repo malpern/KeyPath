@@ -119,19 +119,6 @@ private struct LauncherWelcomeDialogWrapper: View {
             config: $config,
             onComplete: onComplete
         )
-        .background(VisualEffectBlur())
+        .background(PanelVisualEffectBlur())
     }
-}
-
-/// Visual effect blur background for the dialog
-private struct VisualEffectBlur: NSViewRepresentable {
-    func makeNSView(context _: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = .hudWindow
-        view.blendingMode = .behindWindow
-        view.state = .active
-        return view
-    }
-
-    func updateNSView(_: NSVisualEffectView, context _: Context) {}
 }

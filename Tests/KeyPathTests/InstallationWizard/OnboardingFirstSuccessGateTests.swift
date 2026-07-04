@@ -11,7 +11,7 @@ final class OnboardingFirstSuccessGateTests: XCTestCase {
     func testFirstEverSuccessfulCloseShowsCelebration() {
         XCTAssertTrue(
             OnboardingFirstSuccessGate.shouldShowFirstSuccess(
-                hasSeenWelcome: true, hasShownFirstSuccess: false, wizardClosedHealthy: true
+                isEligibleForFirstSuccess: true, hasShownFirstSuccess: false, wizardClosedHealthy: true
             )
         )
     }
@@ -19,18 +19,17 @@ final class OnboardingFirstSuccessGateTests: XCTestCase {
     func testAlreadyShownNeverShowsAgain() {
         XCTAssertFalse(
             OnboardingFirstSuccessGate.shouldShowFirstSuccess(
-                hasSeenWelcome: true, hasShownFirstSuccess: true, wizardClosedHealthy: true
+                isEligibleForFirstSuccess: true, hasShownFirstSuccess: true, wizardClosedHealthy: true
             )
         )
     }
 
-    func testNeverSawWelcomePageSkipsCelebration() {
-        // A user who never went through the Welcome page (e.g. upgraded from an
-        // older install, or the helper was already present) didn't take the
-        // fresh-install onboarding arc, so the "first success" moment doesn't apply.
+    func testExistingWelcomeFlagWithoutNewEligibilitySkipsCelebration() {
+        // Existing users may already have wizard_has_seen_welcome from #932. The
+        // new rollout must not treat that old flag as a fresh setup completion.
         XCTAssertFalse(
             OnboardingFirstSuccessGate.shouldShowFirstSuccess(
-                hasSeenWelcome: false, hasShownFirstSuccess: false, wizardClosedHealthy: true
+                isEligibleForFirstSuccess: false, hasShownFirstSuccess: false, wizardClosedHealthy: true
             )
         )
     }
@@ -40,7 +39,7 @@ final class OnboardingFirstSuccessGateTests: XCTestCase {
         // don't celebrate a setup that isn't actually done.
         XCTAssertFalse(
             OnboardingFirstSuccessGate.shouldShowFirstSuccess(
-                hasSeenWelcome: true, hasShownFirstSuccess: false, wizardClosedHealthy: false
+                isEligibleForFirstSuccess: true, hasShownFirstSuccess: false, wizardClosedHealthy: false
             )
         )
     }
@@ -48,7 +47,7 @@ final class OnboardingFirstSuccessGateTests: XCTestCase {
     func testAllConditionsFalseSkipsCelebration() {
         XCTAssertFalse(
             OnboardingFirstSuccessGate.shouldShowFirstSuccess(
-                hasSeenWelcome: false, hasShownFirstSuccess: true, wizardClosedHealthy: false
+                isEligibleForFirstSuccess: false, hasShownFirstSuccess: true, wizardClosedHealthy: false
             )
         )
     }
@@ -59,6 +58,7 @@ final class OnboardingFirstSuccessGateTests: XCTestCase {
     /// silently reset every existing install's one-shot state. Pin them explicitly.
     func testPersistedKeyNamesAreStable() {
         XCTAssertEqual(OnboardingFirstSuccessGate.hasShownFirstSuccessKey, "onboarding_first_success_shown")
+        XCTAssertEqual(OnboardingFirstSuccessGate.isEligibleForFirstSuccessKey, "onboarding_first_success_eligible")
         XCTAssertEqual(WizardWelcomeGate.hasSeenWelcomeKey, "wizard_has_seen_welcome")
     }
 }

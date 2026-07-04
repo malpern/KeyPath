@@ -34,7 +34,7 @@ final class FirstSuccessWindowController: NSWindowController {
             FirstSuccessWindowController.dismiss()
         })
         .environment(viewModel)
-        .background(VisualEffectBlur())
+        .background(PanelVisualEffectBlur())
 
         let hostingController = NSHostingController(rootView: dialogView)
 
@@ -85,20 +85,4 @@ extension FirstSuccessWindowController: NSWindowDelegate {
     func windowWillClose(_: Notification) {
         FirstSuccessWindowController.currentController = nil
     }
-}
-
-// MARK: - Visual Effect Blur
-
-/// Visual effect blur background for the panel (hudWindow material, matching the
-/// Launcher welcome panel's floating-panel treatment).
-private struct VisualEffectBlur: NSViewRepresentable {
-    func makeNSView(context _: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = .hudWindow
-        view.blendingMode = .behindWindow
-        view.state = .active
-        return view
-    }
-
-    func updateNSView(_: NSVisualEffectView, context _: Context) {}
 }

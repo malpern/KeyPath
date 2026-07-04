@@ -25,6 +25,7 @@ extension InstallationWizardView {
         switch stateMachine.currentPage {
         case .welcome:
             WizardWelcomePage(onGetStarted: {
+                OnboardingFirstSuccessGate.markFreshOnboardingEligible()
                 WizardWelcomeGate.markWelcomeSeen()
                 stateMachine.nextPage()
             })

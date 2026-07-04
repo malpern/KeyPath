@@ -38,7 +38,8 @@ extension RuntimeCoordinator {
         await ruleCollectionsCoordinator.updateCollectionOutput(id: id, output: output)
     }
 
-    func updateCollectionTapOutput(id: UUID, tapOutput: String) async {
+    @discardableResult
+    func updateCollectionTapOutput(id: UUID, tapOutput: String) async -> Bool {
         await ruleCollectionsCoordinator.updateCollectionTapOutput(id: id, tapOutput: tapOutput)
     }
 

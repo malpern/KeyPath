@@ -343,7 +343,10 @@ extension RuleCollectionsManager {
     }
 
     /// Update a tap-hold picker collection's tap output
-    func updateCollectionTapOutput(id: UUID, tapOutput: String) async {
+    @discardableResult
+    func updateCollectionTapOutput(id: UUID, tapOutput: String) async -> Bool {
+        let snapshot = snapshotRuleState()
+
         guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
             // Try to find in catalog and add it
             let catalog = RuleCollectionCatalog()
@@ -353,16 +356,24 @@ extension RuleCollectionsManager {
                 ruleCollections.append(catalogCollection)
                 dedupeRuleCollectionsInPlace()
                 refreshLayerIndicatorState()
-                await regenerateConfigFromCollections()
+                let applied = await regenerateConfigFromCollections()
+                if !applied {
+                    await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.")
+                }
+                return applied
             }
-            return
+            return false
         }
 
         ruleCollections[index].configuration.updateSelectedTapOutput(tapOutput)
         ruleCollections[index].isEnabled = true
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
-        await regenerateConfigFromCollections()
+        let applied = await regenerateConfigFromCollections()
+        if !applied {
+            await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.")
+        }
+        return applied
     }
 
     /// Update a tap-hold picker collection's hold output

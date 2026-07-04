@@ -82,10 +82,12 @@ final class RuleCollectionsCoordinator {
     }
 
     /// Update a tap-hold picker collection's tap output
-    func updateCollectionTapOutput(id: UUID, tapOutput: String) async {
-        await ruleCollectionsManager.updateCollectionTapOutput(id: id, tapOutput: tapOutput)
+    @discardableResult
+    func updateCollectionTapOutput(id: UUID, tapOutput: String) async -> Bool {
+        let applied = await ruleCollectionsManager.updateCollectionTapOutput(id: id, tapOutput: tapOutput)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
+        return applied
     }
 
     /// Update a tap-hold picker collection's hold output

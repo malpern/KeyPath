@@ -15,6 +15,7 @@ struct FirstSuccessDialog: View {
 
     @State private var currentStep: Step = .celebration
     @State private var isEnabling = false
+    @State private var starterErrorMessage: String?
 
     enum Step {
         case celebration
@@ -95,7 +96,7 @@ struct FirstSuccessDialog: View {
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
-                Text("Want your first remap? One click and Caps Lock becomes Escape.")
+                Text(celebrationMessage)
                     .font(.title3)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -105,13 +106,22 @@ struct FirstSuccessDialog: View {
             Spacer()
 
             VStack(spacing: 12) {
-                Button(action: enableStarterRemap) {
+                if let starterErrorMessage {
+                    Text(starterErrorMessage)
+                        .font(.callout)
+                        .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("first-success-enable-error")
+                }
+
+                Button(action: primaryCelebrationAction) {
                     HStack {
                         if isEnabling {
                             ProgressView()
                                 .controlSize(.small)
                         }
-                        Text("Enable Caps Lock → Escape")
+                        Text(primaryButtonTitle)
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -132,9 +142,54 @@ struct FirstSuccessDialog: View {
         }
     }
 
+    private var capsLockTapOutput: String? {
+        guard
+            let collection = kanataManager.ruleCollections.first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap }),
+            case let .tapHoldPicker(config) = collection.configuration
+        else {
+            return nil
+        }
+        return config.selectedTapOutput ?? config.tapOptions.first?.output
+    }
+
+    private var capsLockAlreadyEscape: Bool {
+        capsLockTapOutput == "esc"
+    }
+
+    private var capsLockTapIsCustomized: Bool {
+        guard let capsLockTapOutput else { return false }
+        return capsLockTapOutput != "hyper" && capsLockTapOutput != "esc"
+    }
+
+    private var celebrationMessage: String {
+        if capsLockAlreadyEscape {
+            return "Caps Lock already sends Escape. Want a quick tour of what you can do next?"
+        }
+        if capsLockTapIsCustomized {
+            return "Caps Lock already has a custom tap binding, so we'll keep it as-is. Want a quick tour?"
+        }
+        return "Want your first remap? One click and Caps Lock becomes Escape."
+    }
+
+    private var primaryButtonTitle: String {
+        if capsLockAlreadyEscape || capsLockTapIsCustomized {
+            return "Start Tour"
+        }
+        return "Enable Caps Lock → Escape"
+    }
+
+    private func primaryCelebrationAction() {
+        if capsLockAlreadyEscape || capsLockTapIsCustomized {
+            currentStep = .tourOverlay
+        } else {
+            enableStarterRemap()
+        }
+    }
+
     private func enableStarterRemap() {
         guard !isEnabling else { return }
         isEnabling = true
+        starterErrorMessage = nil
         Task { @MainActor in
             // Caps Lock Remap ships enabled by default (tap+hold both bound to
             // Hyper), so a plain add would collide with itself. Re-pointing its
@@ -144,12 +199,16 @@ struct FirstSuccessDialog: View {
             // collection's decorative `mappings` field. Still goes through
             // RuleCollectionsCoordinator → regenerateConfigFromCollections, so
             // the TCP reload plumbing is untouched.
-            await kanataManager.updateCollectionTapOutput(
+            let applied = await kanataManager.updateCollectionTapOutput(
                 RuleCollectionIdentifier.capsLockRemap,
                 tapOutput: "esc"
             )
             isEnabling = false
-            currentStep = .success
+            if applied {
+                currentStep = .success
+            } else {
+                starterErrorMessage = "KeyPath couldn't save that remap. Your current setup was left unchanged."
+            }
         }
     }
 

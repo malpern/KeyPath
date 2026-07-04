@@ -331,9 +331,11 @@ class KanataViewModel {
         ruleCollections = manager.rulesManager.ruleCollections
     }
 
-    func updateCollectionTapOutput(_ id: UUID, tapOutput: String) async {
-        await manager.updateCollectionTapOutput(id: id, tapOutput: tapOutput)
+    @discardableResult
+    func updateCollectionTapOutput(_ id: UUID, tapOutput: String) async -> Bool {
+        let applied = await manager.updateCollectionTapOutput(id: id, tapOutput: tapOutput)
         ruleCollections = manager.rulesManager.ruleCollections
+        return applied
     }
 
     func updateCollectionHoldOutput(_ id: UUID, holdOutput: String) async {
