@@ -10,7 +10,12 @@ extension RuleCollectionsManager {
     }
 
     func normalizedKeys(for collection: RuleCollection) -> Set<String> {
-        Set(collection.mappings.map { KanataKeyConverter.convertToKanataKey($0.input) })
+        // Effective mappings include config-generated ones (Home Row Mods, Window
+        // Snapping, Launcher…) whose static `mappings` array is empty — config
+        // generation validates against these, so conflict pre-detection must too.
+        Set(KanataConfiguration.effectiveMappings(for: collection).map {
+            KanataKeyConverter.convertToKanataKey($0.input)
+        })
     }
 
     func normalizedActivator(for collection: RuleCollection) -> (input: String, layer: RuleCollectionLayer)? {
@@ -37,6 +42,27 @@ extension RuleCollectionsManager {
                 let overlap = candidateKeys.intersection(normalizedKeys(for: other))
                 if !overlap.isEmpty {
                     return RuleConflictInfo(source: .collection(other), keys: Array(overlap))
+                }
+            }
+
+            // Cross-type: a mapping and another collection's momentary activator on the
+            // same physical key is rejected by config generation (e.g. Home Row Mods maps
+            // `f` on base while Home Row Arrows holds `f` on base to activate its layer),
+            // so detect it here where toggle-time auto-resolution can handle it (#953).
+            if let otherActivator = other.momentaryActivator,
+               candidate.targetLayer == otherActivator.sourceLayer
+            {
+                let activatorKey = KanataKeyConverter.convertToKanataKey(otherActivator.input)
+                if candidateKeys.contains(activatorKey) {
+                    return RuleConflictInfo(source: .collection(other), keys: [activatorKey])
+                }
+            }
+            if let candidateRawActivator = candidate.momentaryActivator,
+               other.targetLayer == candidateRawActivator.sourceLayer
+            {
+                let activatorKey = KanataKeyConverter.convertToKanataKey(candidateRawActivator.input)
+                if normalizedKeys(for: other).contains(activatorKey) {
+                    return RuleConflictInfo(source: .collection(other), keys: [activatorKey])
                 }
             }
 

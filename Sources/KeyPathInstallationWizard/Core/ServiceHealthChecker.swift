@@ -64,6 +64,17 @@ public final class ServiceHealthChecker: @unchecked Sendable {
 
     private nonisolated static let healthCacheTTL: TimeInterval = 2.0
 
+    #if DEBUG
+        /// Test-only override for `isServiceHealthy(serviceID:)`, keyed by serviceID.
+        /// `ServiceHealthChecker.shared` is a process-wide singleton, so its real health
+        /// check (and the short-lived cache above) would otherwise reflect whatever the
+        /// test machine's actual launchd state happens to be — normally "not running",
+        /// since the real VHID daemon isn't installed in CI/dev environments. Tests that
+        /// need to simulate a healthy service set this instead of relying on real system
+        /// state. Reset in `TestSingletonReset.resetAll()`.
+        nonisolated(unsafe) static var testForcedServiceHealth: [String: Bool]?
+    #endif
+
     private let healthCache = OSAllocatedUnfairLock(initialState: [String: HealthCacheEntry]())
     private let runtimeCache = OSAllocatedUnfairLock(initialState: RuntimeCacheState())
     private let serviceStatusCache = OSAllocatedUnfairLock(initialState: ServiceStatusCacheEntry?.none)
@@ -282,6 +293,12 @@ public final class ServiceHealthChecker: @unchecked Sendable {
     /// - Parameter serviceID: The service identifier to check
     /// - Returns: `true` if the service is healthy
     public nonisolated func isServiceHealthy(serviceID: String) async -> Bool {
+        #if DEBUG
+            if let forced = Self.testForcedServiceHealth?[serviceID] {
+                return forced
+            }
+        #endif
+
         // Check short-lived cache first — avoids redundant launchctl calls within the same
         // validation cycle when multiple parallel tasks query the same service.
         if let cached = healthCache.withLock({ $0[serviceID] }),

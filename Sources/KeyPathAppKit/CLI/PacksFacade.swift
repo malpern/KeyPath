@@ -2,7 +2,17 @@ import Foundation
 import KeyPathCore
 
 public struct PacksFacade: Sendable {
-    public init() {}
+    /// Test seam: overrides the manager used by install/uninstall/configure so tests
+    /// can inject temp-backed stores instead of the shared persistent ones (#953).
+    private let managerFactory: (@Sendable @MainActor () async -> RuleCollectionsManager)?
+
+    public init() {
+        managerFactory = nil
+    }
+
+    init(managerFactory: @escaping @Sendable @MainActor () async -> RuleCollectionsManager) {
+        self.managerFactory = managerFactory
+    }
 
     // MARK: - Pack Management
 
@@ -251,6 +261,10 @@ public struct PacksFacade: Sendable {
 
     @MainActor
     func makePackManager() async -> RuleCollectionsManager {
+        if let managerFactory {
+            return await managerFactory()
+        }
+
         let configService = ConfigurationService()
         let manager = RuleCollectionsManager(
             ruleCollectionStore: .shared,

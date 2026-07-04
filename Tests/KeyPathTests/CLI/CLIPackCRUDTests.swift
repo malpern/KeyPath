@@ -1,9 +1,11 @@
 @testable import KeyPathAppKit
+import KeyPathCore
 @preconcurrency import XCTest
 
 @MainActor
 final class CLIPackCRUDTests: XCTestCase {
-    private let facade = PacksFacade()
+    private var facade: PacksFacade!
+    private var tempDir: URL!
     private var originalInstalledPacks: [InstalledPackRecord] = []
 
     // Use a pack that's unlikely to be installed in the user's environment
@@ -13,6 +15,36 @@ final class CLIPackCRUDTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        TestEnvironment.forceTestMode = true
+
+        // Hermetic manager: temp-backed stores + config dir so install/configure
+        // never touch the real ~/.config/keypath or shared stores. On the CI
+        // runner's persistent HOME, the shared-store path fails config regen
+        // ("could not enable associated rule collection") — see #953.
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cli-pack-crud-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        tempDir = dir
+
+        let collectionStore = RuleCollectionStore(
+            fileURL: dir.appendingPathComponent("RuleCollections.json")
+        )
+        let customStore = CustomRulesStore(
+            fileURL: dir.appendingPathComponent("CustomRules.json")
+        )
+        facade = PacksFacade(managerFactory: {
+            let manager = RuleCollectionsManager(
+                ruleCollectionStore: collectionStore,
+                customRulesStore: customStore,
+                configurationService: ConfigurationService(configDirectory: dir.path)
+            )
+            manager.ruleCollections = await RuleCollectionDeduplicator.dedupe(
+                collectionStore.loadCollections()
+            )
+            manager.customRules = await customStore.loadRules()
+            return manager
+        })
+
         originalInstalledPacks = await InstalledPackTracker.shared.allInstalled()
     }
 
@@ -28,6 +60,10 @@ final class CLIPackCRUDTests: XCTestCase {
                 try await InstalledPackTracker.shared.upsert(record)
             }
         }
+        if let tempDir {
+            try? FileManager.default.removeItem(at: tempDir)
+        }
+        TestEnvironment.forceTestMode = false
         try await super.tearDown()
     }
 
