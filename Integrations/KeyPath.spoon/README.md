@@ -132,4 +132,4 @@ spoon.KeyPath:start()
 
 KeyPath broadcasts layer changes and service state via macOS Distributed Notifications (`NSDistributedNotificationCenter`). This Spoon subscribes to those notifications using `hs.distributednotifications`. No network connections or configuration needed — if KeyPath is running, events flow automatically.
 
-See [Distributed Notifications](../../docs/DISTRIBUTED_NOTIFICATIONS.md) for the full protocol reference.
+See [Distributed Notifications](../../docs/architecture/distributed-notifications.md) for the full protocol reference.

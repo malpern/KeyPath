@@ -22,7 +22,7 @@ Start, stop, or restart the KeyPath keyboard remapping service.
 
 ### Send Action
 
-Send any `keypath://` action URI. This exposes the full [Action URI System](ACTION_URI_SYSTEM.md) to Shortcuts.
+Send any `keypath://` action URI. This exposes the full [Action URI System](action-uri-system.md) to Shortcuts.
 
 **Shortcuts:** Use the "Send KeyPath Action" action with a URI like `keypath://launch/Obsidian`.
 
