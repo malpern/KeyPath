@@ -109,7 +109,7 @@ final class CLIOutputContractTests: XCTestCase {
         )
     }
 
-    func testInstallerReportMarksActivationApprovalTimeoutAsUserActionRequired() throws {
+    func testInstallerReportMarksActivationApprovalTimeoutAsUserActionRequired() {
         let context = SystemContextBuilder.degradedRepair()
         let plan = InstallPlan(
             recipes: [],

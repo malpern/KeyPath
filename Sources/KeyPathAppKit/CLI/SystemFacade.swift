@@ -448,7 +448,7 @@ public struct SystemFacade: Sendable {
                 action: vhidDriverNotActivated
                     ? "Activate and repair the VirtualHID daemon services"
                     : context.services.kanataInputCaptureIssue
-                        ?? "Re-grant Input Monitoring for Kanata Engine in System Settings",
+                    ?? "Re-grant Input Monitoring for Kanata Engine in System Settings",
                 canAutoFix: vhidDriverNotActivated,
                 remediationURL: vhidDriverNotActivated ? nil : WizardSystemPaths.inputMonitoringSettings
             ))
