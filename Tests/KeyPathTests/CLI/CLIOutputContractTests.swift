@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+@testable import KeyPathInstallationWizard
 import XCTest
 
 final class CLIOutputContractTests: XCTestCase {
@@ -106,6 +107,29 @@ final class CLIOutputContractTests: XCTestCase {
             decoded.issues?.first?.remediationURL,
             "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
         )
+    }
+
+    func testInstallerReportMarksActivationApprovalTimeoutAsUserActionRequired() {
+        let context = SystemContextBuilder.degradedRepair()
+        let plan = InstallPlan(
+            recipes: [],
+            status: .ready,
+            intent: .repair
+        )
+        let installerReport = InstallerReport(
+            success: false,
+            failureReason: "VHID Manager activation failed: timed out after 20s. VirtualHID activation may be waiting for macOS approval. Open System Settings > Privacy & Security and approve the Karabiner VirtualHIDDevice system extension, then retry repair."
+        )
+
+        let report = CLIInstallerReport(
+            from: installerReport,
+            initialContext: context,
+            finalContext: nil,
+            plan: plan,
+            title: "Repair"
+        )
+
+        XCTAssertEqual(report.userActionRequired, true)
     }
 
     func testValidationResultJSONShape() throws {

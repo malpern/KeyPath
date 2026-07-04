@@ -244,6 +244,22 @@ final class ServiceHealthCheckerTests: XCTestCase {
         XCTAssertEqual(diagnosis.inputCapture.issue, ServiceHealthChecker.inputCaptureBuiltInKeyboardReason)
     }
 
+    func testDiagnoseDaemonStderrDetectsVHIDDriverNotActivated() async throws {
+        let stderrURL = tempLaunchDaemonsDir.appendingPathComponent("kanata-stderr.log")
+        try """
+        [kanata-launcher] Launching Kanata for user=test config=/Users/test/.config/keypath/keypath.kbd
+        [ERROR] failed to open keyboard device(s): Karabiner-VirtualHIDDevice driver is not activated.
+        Error: failed to open keyboard device(s): Karabiner-VirtualHIDDevice driver is not activated.
+        """.write(to: stderrURL, atomically: true, encoding: .utf8)
+        setenv("KEYPATH_KANATA_STDERR_PATH", stderrURL.path, 1)
+        defer { unsetenv("KEYPATH_KANATA_STDERR_PATH") }
+
+        let diagnosis = await checker.diagnoseDaemonStderr()
+        XCTAssertFalse(diagnosis.permissionRejected)
+        XCTAssertFalse(diagnosis.inputCapture.isReady)
+        XCTAssertEqual(diagnosis.inputCapture.issue, ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason)
+    }
+
     func testDiagnoseDaemonStderrDetectsAccessibilityRejection() async throws {
         let stderrURL = tempLaunchDaemonsDir.appendingPathComponent("kanata-stderr.log")
         try """

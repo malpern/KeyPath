@@ -30,6 +30,8 @@ public final class ServiceHealthChecker: @unchecked Sendable {
     /// Reason codes for input-capture failures, shared with SystemInspector.
     public nonisolated static let inputCaptureBuiltInKeyboardReason = "kanata-cannot-open-built-in-keyboard"
     public nonisolated static let inputCaptureGrabFailureReason = "kanata-failed-to-grab-keyboard"
+    public nonisolated static let inputCaptureVHIDDriverNotActivatedReason =
+        "karabiner-vhid-driver-not-activated"
 
     // MARK: - Short-lived health cache
 
@@ -818,6 +820,13 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             )
         }
 
+        if inputCaptureIssue.isReady, !permissionRejected, Self.detectsVHIDDriverNotActivated(in: logChunk) {
+            inputCaptureIssue = KanataInputCaptureStatus(
+                isReady: false,
+                issue: Self.inputCaptureVHIDDriverNotActivatedReason
+            )
+        }
+
         // Check for configuration parse errors (e.g., duplicate aliases, syntax errors).
         // These cause kanata to exit immediately and crash-loop via launchd.
         let configParseError = Self.extractConfigParseError(from: logChunk)
@@ -838,6 +847,10 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         return lower.contains("aborted while talking to the karabiner virtual hid daemon")
             || lower.contains("grabbing your keyboard exclusively")
             || (lower.contains("panicked at") && lower.contains("karabiner-driverkit"))
+    }
+
+    static func detectsVHIDDriverNotActivated(in logChunk: String) -> Bool {
+        logChunk.lowercased().contains("virtualhiddevice driver is not activated")
     }
 
     /// Extract a user-facing config parse error from kanata stderr output.

@@ -438,13 +438,19 @@ public struct SystemFacade: Sendable {
             ))
         }
         if !context.services.kanataInputCaptureReady {
+            let vhidDriverNotActivated = context.services.kanataInputCaptureIssue
+                == ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
             issues.append(.init(
-                title: "Kanata cannot capture keyboard input",
-                category: "permissions",
-                action: context.services.kanataInputCaptureIssue
+                title: vhidDriverNotActivated
+                    ? "Karabiner VirtualHIDDevice driver is not activated"
+                    : "Kanata cannot capture keyboard input",
+                category: vhidDriverNotActivated ? "service" : "permissions",
+                action: vhidDriverNotActivated
+                    ? "Activate and repair the VirtualHID daemon services"
+                    : context.services.kanataInputCaptureIssue
                     ?? "Re-grant Input Monitoring for Kanata Engine in System Settings",
-                canAutoFix: false,
-                remediationURL: WizardSystemPaths.inputMonitoringSettings
+                canAutoFix: vhidDriverNotActivated,
+                remediationURL: vhidDriverNotActivated ? nil : WizardSystemPaths.inputMonitoringSettings
             ))
         }
     }
@@ -467,6 +473,12 @@ public struct SystemFacade: Sendable {
     fileprivate static func userActionFailureReason(_ issues: [CLISystemIssue], prefix: String) -> String {
         guard let first = issues.first else { return prefix }
         return "\(prefix): \(first.title). \(first.action)"
+    }
+
+    fileprivate static func requiresManualApproval(_ failureReason: String) -> Bool {
+        let normalized = failureReason.lowercased()
+        return normalized.contains("waiting for macos approval")
+            || normalized.contains("system settings > privacy & security")
     }
 }
 
@@ -531,6 +543,7 @@ public struct CLIInstallerReport: Codable, Sendable {
         let finalUserActionIssues = finalIssues.filter { !$0.canAutoFix }
         let finalOperational = finalContext.map(SystemFacade.isOperational) ?? false
         let completedButStillBlocked = report.success && !finalOperational && !finalIssues.isEmpty
+        let failedForManualApproval = report.failureReason.map(SystemFacade.requiresManualApproval) ?? false
 
         success = report.success && !completedButStillBlocked
         if let reportFailure = report.failureReason {
@@ -550,7 +563,7 @@ public struct CLIInstallerReport: Codable, Sendable {
         }
         fastRepair = false
         dryRun = false
-        userActionRequired = !finalUserActionIssues.isEmpty || plan.metadata.promptsNeeded
+        userActionRequired = !finalUserActionIssues.isEmpty || plan.metadata.promptsNeeded || failedForManualApproval
         issues = finalIssues
         plannedRecipes = plan.recipes.map { "\($0.id) (\($0.type))" }
         unmetRequirements = report.unmetRequirements.map(\.name)

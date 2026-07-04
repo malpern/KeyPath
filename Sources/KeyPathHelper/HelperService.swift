@@ -128,6 +128,7 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "installRequiredRuntimeServices",
             operation: {
+                try Self.installOrRepairKanataService()
                 try Self.installOrRepairVHIDServices()
             },
             reply: reply
@@ -141,7 +142,7 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "activateVirtualHIDManager",
             operation: {
-                let r = Self.run(Self.vhidManagerPath, ["activate"])
+                let r = Self.activateVHIDManagerProcess()
                 if r.status != 0 {
                     throw HelperError.operationFailed("VHID Manager activation failed: \(r.out)")
                 }
@@ -194,7 +195,7 @@ class HelperService: NSObject, HelperProtocol {
                 _ = try? FileManager.default.removeItem(atPath: pkg)
                 if i.status != 0 { throw HelperError.operationFailed("Installer failed: \(i.out)") }
                 // Activate after install
-                let a = Self.run(Self.vhidManagerPath, ["activate"])
+                let a = Self.activateVHIDManagerProcess()
                 if a.status != 0 {
                     NSLog("[KeyPathHelper] Warning: activate returned %d: %@", a.status, a.out)
                 }
@@ -218,7 +219,7 @@ class HelperService: NSObject, HelperProtocol {
                 let i = Self.run("/usr/sbin/installer", ["-pkg", pkg, "-target", "/"], timeout: 300)
                 _ = try? FileManager.default.removeItem(atPath: pkg)
                 if i.status != 0 { throw HelperError.operationFailed("Installer failed: \(i.out)") }
-                let a = Self.run(Self.vhidManagerPath, ["activate"])
+                let a = Self.activateVHIDManagerProcess()
                 if a.status != 0 {
                     NSLog("[KeyPathHelper] Warning: activate returned %d: %@", a.status, a.out)
                 }
@@ -245,7 +246,7 @@ class HelperService: NSObject, HelperProtocol {
                 let i = Self.run("/usr/sbin/installer", ["-pkg", canonicalPath, "-target", "/"], timeout: 300)
                 if i.status != 0 { throw HelperError.operationFailed("Installer failed: \(i.out)") }
                 // Activate after install
-                let a = Self.run(Self.vhidManagerPath, ["activate"])
+                let a = Self.activateVHIDManagerProcess()
                 if a.status != 0 {
                     NSLog("[KeyPathHelper] Warning: activate returned %d: %@", a.status, a.out)
                 }
@@ -253,6 +254,39 @@ class HelperService: NSObject, HelperProtocol {
             },
             reply: reply
         )
+    }
+
+    /// Shared implementation for installing/repairing the Kanata service.
+    private static func installOrRepairKanataService() throws {
+        try ensureConsoleUserConfigArtifacts()
+
+        let appBundlePath = appBundlePathFromHelper()
+        let bundledPlistPath = "\(appBundlePath)/Contents/Library/LaunchDaemons/\(kanataServiceID).plist"
+        guard FileManager.default.fileExists(atPath: bundledPlistPath) else {
+            throw HelperError.operationFailed(
+                "Bundled Kanata LaunchDaemon plist is missing: \(bundledPlistPath)"
+            )
+        }
+
+        let dstDir = "/Library/LaunchDaemons"
+        _ = run("/bin/mkdir", ["-p", dstDir])
+        let dstPlistPath = "\(dstDir)/\(kanataServiceID).plist"
+
+        _ = run("/bin/launchctl", ["bootout", "system/\(kanataServiceID)"], timeout: 10)
+        _ = run("/bin/cp", [bundledPlistPath, dstPlistPath])
+        _ = run("/usr/sbin/chown", ["root:wheel", dstPlistPath])
+        _ = run("/bin/chmod", ["644", dstPlistPath])
+
+        guard FileManager.default.fileExists(atPath: dstPlistPath) else {
+            throw HelperError.operationFailed("Kanata LaunchDaemon plist was not installed at \(dstPlistPath)")
+        }
+
+        let bootstrap = run("/bin/launchctl", ["bootstrap", "system", dstPlistPath], timeout: 10)
+        if bootstrap.status != 0, !bootstrap.out.localizedCaseInsensitiveContains("service already loaded") {
+            throw HelperError.operationFailed("bootstrap kanata failed: \(bootstrap.out)")
+        }
+        _ = run("/bin/launchctl", ["enable", "system/\(kanataServiceID)"], timeout: 10)
+        _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(kanataServiceID)"], timeout: 15)
     }
 
     /// Shared implementation for installing/repairing VHID services
@@ -740,6 +774,31 @@ extension HelperService {
             )
         }
         return (outcome.status, outcome.output)
+    }
+
+    static func activateVHIDManagerProcess() -> (status: Int32, out: String) {
+        terminateStaleVHIDManagerActivationProcesses()
+        let result = run(vhidManagerPath, ["activate"], timeout: 20)
+        if result.out.contains("timed out after") {
+            return (
+                result.status,
+                result.out
+                    + "\nVirtualHID activation may be waiting for macOS approval. Open System Settings > Privacy & Security and approve the Karabiner VirtualHIDDevice system extension, then retry repair."
+            )
+        }
+        return result
+    }
+
+    static func terminateStaleVHIDManagerActivationProcesses() {
+        let pattern = "\(vhidManagerPath) activate"
+        let existing = run("/usr/bin/pgrep", ["-f", pattern], timeout: 5)
+        let pids = existing.out
+            .split(whereSeparator: \.isNewline)
+            .map(String.init)
+            .filter { !$0.isEmpty }
+        guard !pids.isEmpty else { return }
+
+        _ = run("/bin/kill", ["-KILL"] + pids, timeout: 5)
     }
 
     static func verifyCodeSignatureStrict(path: String) -> Bool {

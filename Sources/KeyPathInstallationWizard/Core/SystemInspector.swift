@@ -152,13 +152,10 @@ public enum SystemInspector {
                     title: "Kanata Isn't Capturing Keyboard Input",
                     description: "KeyPath's keyboard engine is running but isn't capturing input, so remapping won't work. "
                         + inputCaptureFailureDetail(context.services.kanataInputCaptureIssue),
-                    // No one-click auto-fix yet: the existing recipes don't actually
-                    // bounce the wedged kanata process (they find SMAppService
-                    // "already healthy" and no-op), so a Restart button here would
-                    // be a false remedy. Point to the real restart instead; a
-                    // proper one-click kanata kickstart is a follow-up.
-                    autoFixAction: nil,
-                    userAction: "Restart the keyboard service from Settings → Status (or quit and reopen KeyPath)"
+                    autoFixAction: isVHIDDriverNotActivatedReason(context.services.kanataInputCaptureIssue)
+                        ? .repairVHIDDaemonServices : nil,
+                    userAction: isVHIDDriverNotActivatedReason(context.services.kanataInputCaptureIssue)
+                        ? nil : "Restart the keyboard service from Settings → Status (or quit and reopen KeyPath)"
                 ))
             }
         }
@@ -382,9 +379,16 @@ public enum SystemInspector {
         reason == ServiceHealthChecker.inputCaptureBuiltInKeyboardReason
     }
 
+    static func isVHIDDriverNotActivatedReason(_ reason: String?) -> Bool {
+        reason == ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
+    }
+
     /// Human-readable detail for a non-permission input-capture failure, using
     /// kanata's authoritative reason (from the InputGrab signal) when present.
     static func inputCaptureFailureDetail(_ reason: String?) -> String {
+        if isVHIDDriverNotActivatedReason(reason) {
+            return "The Karabiner VirtualHIDDevice driver is installed, but macOS reports it is not activated."
+        }
         guard let reason, reason != ServiceHealthChecker.inputCaptureGrabFailureReason else {
             return "The keyboard couldn't be captured — the input driver may have crashed, or another app may be holding the keyboard exclusively."
         }

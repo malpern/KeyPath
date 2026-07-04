@@ -167,6 +167,40 @@ final class HelperMaintenanceTests: XCTestCase {
         )
     }
 
+    func testForceFullRepairReinstallsEvenWhenHelperResponds() async {
+        HelperMaintenance.testDuplicateAppPathsOverride = { ["/Applications/KeyPath.app"] }
+
+        var unregisterCalled = false
+        var bootoutCalled = false
+        var registerAttempts = 0
+        let hooks = HelperMaintenance.TestHooks(
+            unregisterHelper: { unregisterCalled = true },
+            bootoutHelperJob: { bootoutCalled = true },
+            removeLegacyHelperArtifacts: { _ in .removed },
+            registerHelper: {
+                registerAttempts += 1
+                return true
+            }
+        )
+        HelperMaintenance.shared.applyTestHooks(hooks)
+        HelperManager.testHelperFunctionalityOverride = { true }
+
+        let success = await HelperMaintenance.shared.runCleanupAndRepair(
+            useAppleScriptFallback: false,
+            forceFullRepair: true
+        )
+
+        XCTAssertTrue(success)
+        XCTAssertTrue(unregisterCalled, "Forced helper repair must unregister even if XPC responds")
+        XCTAssertTrue(bootoutCalled, "Forced helper repair must boot out the existing helper job")
+        XCTAssertGreaterThanOrEqual(registerAttempts, 2)
+        XCTAssertTrue(
+            HelperMaintenance.shared.logLines.contains {
+                $0.localizedCaseInsensitiveContains("force full helper repair requested")
+            }
+        )
+    }
+
     func testRunCleanupIsIdempotentWithoutDuplicates() async {
         HelperMaintenance.testDuplicateAppPathsOverride = { ["/Applications/KeyPath.app"] }
         let hooks = HelperMaintenance.TestHooks(

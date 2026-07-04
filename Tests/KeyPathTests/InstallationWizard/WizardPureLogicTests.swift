@@ -1054,6 +1054,49 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertTrue(actions.contains(.startKarabinerDaemon))
     }
 
+    func test_determineRepairActions_vhidDriverNotActivated_includesActivationAndRepair() {
+        let context = makeContext(
+            services: HealthStatus(
+                kanataRunning: true,
+                karabinerDaemonRunning: true,
+                vhidHealthy: true,
+                kanataInputCaptureReady: false,
+                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
+            )
+        )
+
+        let actions = ActionDeterminer.determineRepairActions(context: context)
+
+        let activateIdx = actions.firstIndex(of: .activateVHIDDeviceManager)
+        let repairIdx = actions.firstIndex(of: .repairVHIDDaemonServices)
+        XCTAssertNotNil(activateIdx, "DriverKit activation failure should re-run VHID manager activation")
+        XCTAssertNotNil(repairIdx, "DriverKit activation failure should repair VHID daemon services")
+        XCTAssertTrue(activateIdx! < repairIdx!, "Activation must run before daemon repair")
+    }
+
+    func test_determineRepairActions_stoppedKanataWithVHIDIssue_repairsVHIDThenInstallsRuntimeServices() {
+        let context = makeContext(
+            services: HealthStatus(
+                kanataRunning: false,
+                karabinerDaemonRunning: true,
+                vhidHealthy: true,
+                kanataInputCaptureReady: false,
+                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
+            )
+        )
+
+        let actions = ActionDeterminer.determineRepairActions(context: context)
+
+        let activateIdx = actions.firstIndex(of: .activateVHIDDeviceManager)
+        let repairIdx = actions.firstIndex(of: .repairVHIDDaemonServices)
+        let installIdx = actions.firstIndex(of: .installRequiredRuntimeServices)
+        XCTAssertNotNil(activateIdx)
+        XCTAssertNotNil(repairIdx)
+        XCTAssertNotNil(installIdx)
+        XCTAssertTrue(activateIdx! < repairIdx!)
+        XCTAssertTrue(repairIdx! < installIdx!)
+    }
+
     func test_determineRepairActions_helperInstalledButBroken_includesReinstall() {
         let context = makeContext(helper: HelperStatus(isInstalled: true, version: "1.0", isWorking: false))
         let actions = ActionDeterminer.determineRepairActions(context: context)
@@ -1117,6 +1160,23 @@ final class WizardPureLogicTests: XCTestCase {
         let actions = ActionDeterminer.determineInstallActions(context: context)
         XCTAssertTrue(actions.contains(.installRequiredRuntimeServices),
                       "Install plans share the vhidRuntimeServicesNeedRepair trigger with repair plans")
+    }
+
+    func test_determineInstallActions_vhidDriverNotActivated_includesActivationAndRepair() {
+        let context = makeContext(
+            services: HealthStatus(
+                kanataRunning: true,
+                karabinerDaemonRunning: true,
+                vhidHealthy: true,
+                kanataInputCaptureReady: false,
+                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
+            )
+        )
+
+        let actions = ActionDeterminer.determineInstallActions(context: context)
+
+        XCTAssertTrue(actions.contains(.activateVHIDDeviceManager))
+        XCTAssertTrue(actions.contains(.repairVHIDDaemonServices))
     }
 
     func test_determineInstallActions_allHealthy_returnsEmpty() {

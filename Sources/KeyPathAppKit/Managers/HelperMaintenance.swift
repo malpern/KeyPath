@@ -51,6 +51,16 @@ public final class HelperMaintenance {
     /// Perform a complete cleanup and repair flow.
     /// - Returns: true on success (helper registered and responding), false otherwise.
     public func runCleanupAndRepair(useAppleScriptFallback: Bool = true) async -> Bool {
+        await runCleanupAndRepair(
+            useAppleScriptFallback: useAppleScriptFallback,
+            forceFullRepair: false
+        )
+    }
+
+    public func runCleanupAndRepair(
+        useAppleScriptFallback: Bool,
+        forceFullRepair: Bool
+    ) async -> Bool {
         guard !isRunning else { return false }
         isRunning = true
         logLines.removeAll()
@@ -87,14 +97,18 @@ public final class HelperMaintenance {
         // full unregister → bootout → re-register, which is what resets the launch
         // constraint. This is what makes "Fix" reliable across re-signs and updates.
         let firstRegisterOK = await registerHelper()
-        if firstRegisterOK, await HelperManager.shared.testHelperFunctionality() {
+        if firstRegisterOK, !forceFullRepair, await HelperManager.shared.testHelperFunctionality() {
             log("✅ Helper registered and responding via XPC on first attempt")
             return true
         }
 
-        log(firstRegisterOK
-            ? "⚠️ Helper registered but not responding via XPC (likely stale launch constraint); forcing full reinstall"
-            : "⚠️ Direct helper refresh failed; attempting cleanup then retry")
+        if forceFullRepair {
+            log("⚠️ Force full helper repair requested; unregistering and re-registering helper")
+        } else {
+            log(firstRegisterOK
+                ? "⚠️ Helper registered but not responding via XPC (likely stale launch constraint); forcing full reinstall"
+                : "⚠️ Direct helper refresh failed; attempting cleanup then retry")
+        }
 
         // Step 2: Best-effort unregister via SMAppService (clears the stale launch constraint)
         await unregisterHelperIfPresent()

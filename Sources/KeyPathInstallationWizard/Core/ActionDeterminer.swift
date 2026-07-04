@@ -59,6 +59,12 @@ public enum ActionDeterminer {
             actions.append(.installRequiredRuntimeServices)
         }
 
+        appendVHIDActivationRepairIfNeeded(context: context, actions: &actions)
+
+        if !context.services.kanataRunning, !actions.contains(.installRequiredRuntimeServices) {
+            actions.append(.installRequiredRuntimeServices)
+        }
+
         // Check if daemon needs starting
         if !context.services.karabinerDaemonRunning {
             // Ensure manager is activated before starting daemon
@@ -121,6 +127,12 @@ public enum ActionDeterminer {
             actions.append(.installRequiredRuntimeServices)
         }
 
+        appendVHIDActivationRepairIfNeeded(context: context, actions: &actions)
+
+        if !context.services.kanataRunning, !actions.contains(.installRequiredRuntimeServices) {
+            actions.append(.installRequiredRuntimeServices)
+        }
+
         return actions
     }
 
@@ -128,5 +140,21 @@ public enum ActionDeterminer {
     public static func determineUninstallActions(context _: SystemContext) -> [AutoFixAction] {
         // Uninstall is handled differently - logic is in UninstallCoordinator
         []
+    }
+
+    private static func appendVHIDActivationRepairIfNeeded(
+        context: SystemContext,
+        actions: inout [AutoFixAction]
+    ) {
+        guard context.services.kanataInputCaptureIssue ==
+            ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
+        else { return }
+
+        if !actions.contains(.activateVHIDDeviceManager) {
+            actions.append(.activateVHIDDeviceManager)
+        }
+        if !actions.contains(.repairVHIDDaemonServices) {
+            actions.append(.repairVHIDDaemonServices)
+        }
     }
 }

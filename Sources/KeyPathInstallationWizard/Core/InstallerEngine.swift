@@ -404,7 +404,10 @@ public final class InstallerEngine {
             throw InstallerError.healthCheckFailed("Helper maintenance is not configured")
         }
 
-        let repaired = await helperMaintenance.runCleanupAndRepair(useAppleScriptFallback: true)
+        let repaired = await helperMaintenance.runCleanupAndRepair(
+            useAppleScriptFallback: true,
+            forceFullRepair: true
+        )
         guard repaired else {
             let failure = helperMaintenance.lastErrorLine
                 ?? helperMaintenance.logLines.last

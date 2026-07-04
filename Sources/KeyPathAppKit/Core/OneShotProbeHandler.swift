@@ -37,7 +37,8 @@ enum OneShotProbeHandler {
             || useAppleScriptFallbackRaw == "yes"
         Task { @MainActor in
             let repaired = await HelperMaintenance.shared.runCleanupAndRepair(
-                useAppleScriptFallback: useAppleScriptFallback
+                useAppleScriptFallback: useAppleScriptFallback,
+                forceFullRepair: true
             )
             let details = HelperMaintenance.shared.logLines.joined(separator: " | ")
             FileHandle.standardError.write(
