@@ -39,6 +39,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
             ServiceHealthChecker.runtimeSnapshotOverride = nil
             ServiceHealthChecker.recentlyRestartedOverride = nil
             ServiceHealthChecker.inputCaptureStatusOverride = nil
+            ServiceHealthChecker.testForcedServiceHealth = nil
             KanataDaemonManager.registeredButNotLoadedOverride = nil
         #endif
     }
@@ -62,6 +63,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
             ServiceHealthChecker.runtimeSnapshotOverride = nil
             ServiceHealthChecker.recentlyRestartedOverride = nil
             ServiceHealthChecker.inputCaptureStatusOverride = nil
+            ServiceHealthChecker.testForcedServiceHealth = nil
             KanataDaemonManager.registeredButNotLoadedOverride = nil
         #endif
         try? FileManager.default.removeItem(at: tempLaunchDaemonsDir)
