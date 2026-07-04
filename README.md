@@ -158,9 +158,9 @@ sudo ./Scripts/uninstall.sh
 ## Documentation
 
 - [Architecture overview](https://malpern.github.io/KeyPath/architecture/)
-- [Tap-hold & tap-dance guide](docs/TAP_HOLD_TAP_DANCE.md)
-- [FAQ](docs/FAQ.md)
-- [Debugging guide](docs/DEBUGGING_KANATA.md)
+- [Tap-hold & tap-dance guide](docs/guides/tap-hold-tap-dance.md)
+- [FAQ](docs/guides/faq.md)
+- [Debugging guide](docs/troubleshooting/debugging-kanata.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)

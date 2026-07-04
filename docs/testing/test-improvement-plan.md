@@ -383,7 +383,7 @@ Phases 1, 3, 5, and 7 can run in parallel. Phases 2 and 4 are sequential (coordi
 
 - Existing testing strategy: `docs/testing/testing-strategy.md`
 - Rule collection gaps: `docs/testing/rule-collection-coverage-gaps.md`
-- Coverage report: `docs/TEST_COVERAGE_REPORT.md`
+- Coverage report: `docs/testing/test-coverage-report.md`
 - Test base classes: `Tests/KeyPathTests/KeyPathTestCase.swift`
 - Test doubles: grep for `MockSystemEnvironment`, `SystemContextBuilder` in Tests/
 - Snapshot infrastructure: `Tests/KeyPathSnapshotTests/ScreenshotTestCase.swift`

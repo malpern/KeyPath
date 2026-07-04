@@ -37,9 +37,9 @@ extension CLIExitCode {
 // MARK: - Documentation URLs
 
 public enum CLIDocsURL {
-    static let faq = "https://github.com/malpern/KeyPath/blob/master/docs/FAQ.md"
-    static let debugging = "https://github.com/malpern/KeyPath/blob/master/docs/DEBUGGING_KANATA.md"
-    static let actionURI = "https://github.com/malpern/KeyPath/blob/master/docs/ACTION_URI_SYSTEM.md"
+    static let faq = "https://github.com/malpern/KeyPath/blob/master/docs/guides/faq.md"
+    static let debugging = "https://github.com/malpern/KeyPath/blob/master/docs/troubleshooting/debugging-kanata.md"
+    static let actionURI = "https://github.com/malpern/KeyPath/blob/master/docs/guides/action-uri-system.md"
     static let ruleCollections = "https://github.com/malpern/KeyPath/blob/master/docs/architecture/rules-architecture.html"
     static let permissions = "https://github.com/malpern/KeyPath/blob/master/docs/architecture/permissions-architecture.html"
 }
