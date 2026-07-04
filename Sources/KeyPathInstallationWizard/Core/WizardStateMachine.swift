@@ -163,7 +163,7 @@ public class WizardStateMachine {
     }
 
     public var canNavigateBack: Bool {
-        currentPage != .summary
+        currentPage != .summary && currentPage != .welcome
     }
 
     public var canNavigateForward: Bool {
@@ -190,6 +190,7 @@ public class WizardStateMachine {
 
     private func determinePreviousPage(from current: WizardPage) -> WizardPage {
         switch current {
+        case .welcome: .welcome // One-shot overture: no back navigation
         case .summary: .summary
         case .kanataMigration: .summary
         case .stopExternalKanata: .kanataMigration

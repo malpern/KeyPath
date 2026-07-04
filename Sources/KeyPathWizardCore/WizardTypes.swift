@@ -10,6 +10,7 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
         rawValue
     }
 
+    case welcome = "Welcome"
     case summary = "Summary"
     case helper = "Privileged Helper"
     case fullDiskAccess = "Full Disk Access"
@@ -26,6 +27,7 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
     /// User-friendly display name for accessibility and UI
     public var displayName: String {
         switch self {
+        case .welcome: "Welcome to KeyPath"
         case .summary: "Setup Overview"
         case .helper: "Privileged Helper Installation"
         case .fullDiskAccess: "Full Disk Access (Optional)"
@@ -44,6 +46,7 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
     /// Stable identifier for automation and testing tools
     public var accessibilityIdentifier: String {
         switch self {
+        case .welcome: "welcome"
         case .summary: "overview"
         case .fullDiskAccess: "full-disk-access"
         case .conflicts: "conflicts"

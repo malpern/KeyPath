@@ -203,7 +203,8 @@ public struct InstallationWizardView: View {
 
     @ViewBuilder
     private var navigationOverlay: some View {
-        if stateMachine.currentPage != .summary {
+        // Hidden on summary (its own layout) and welcome (clean first impression)
+        if stateMachine.currentPage != .summary, stateMachine.currentPage != .welcome {
             HStack {
                 WizardNavigationControl()
                 Spacer()

@@ -141,7 +141,7 @@ public enum WizardRouter {
             default:
                 false
             }
-        case .fullDiskAccess, .kanataMigration, .stopExternalKanata, .karabinerImport:
+        case .welcome, .fullDiskAccess, .kanataMigration, .stopExternalKanata, .karabinerImport:
             false
         }
     }

@@ -23,7 +23,13 @@ public extension InstallationWizardView {
         // Determine initial page based on cached system snapshot (if available)
         // Skip summary on initial run - go directly to helper page to start the wizard flow
         let preferredPage = await cachedPreferredPage()
-        if let preferredPage, initialPage == nil {
+        if initialPage == nil, await shouldShowWelcomePage() {
+            // Fresh install, Get Started never clicked: open on the one-time
+            // welcome page (issue #932). Validation still runs underneath;
+            // performInitialStateCheck() leaves the welcome page alone.
+            AppLogger.shared.log("👋 [Wizard] Fresh install — starting at welcome page")
+            stateMachine.navigateToPage(.welcome)
+        } else if let preferredPage, initialPage == nil {
             AppLogger.shared.log("🔍 [Wizard] Preferring cached page: \(preferredPage)")
             stateMachine.navigateToPage(preferredPage)
         } else if let initialPage {
@@ -59,6 +65,13 @@ public extension InstallationWizardView {
             guard !Task.isCancelled else { return }
             await performInitialStateCheck()
         }
+    }
+
+    /// Whether the wizard should open on the one-time Welcome page (issue #932):
+    /// fresh install (helper not installed) and Get Started never clicked.
+    internal func shouldShowWelcomePage() async -> Bool {
+        let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
+        return WizardWelcomeGate.shouldShowWelcome(helperInstalled: helperInstalled)
     }
 
     func performInitialStateCheck(retryAllowed: Bool = true) async {
@@ -142,7 +155,10 @@ public extension InstallationWizardView {
             if permissionsStillUnknown {
                 AppLogger.shared.log("🔍 [Wizard] Permissions still unverified — staying on summary to avoid skipping permission pages")
                 Task { @MainActor in
-                    stateMachine.navigateToPage(.summary)
+                    // Never yank the user off the welcome page; Get Started routes onward.
+                    if stateMachine.currentPage != .welcome {
+                        stateMachine.navigateToPage(.summary)
+                    }
                 }
                 return
             }
@@ -157,6 +173,9 @@ public extension InstallationWizardView {
                 helperNeedsApproval: helperNeedsApproval
             )
             Task { @MainActor in
+                // Never yank the user off the welcome page mid-read; validation has
+                // already resolved by the time they click Get Started, which routes onward.
+                guard stateMachine.currentPage != .welcome else { return }
                 if WizardRouter.shouldNavigateToSummary(
                     currentPage: stateMachine.currentPage,
                     state: result.state,
