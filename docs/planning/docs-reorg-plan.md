@@ -1,6 +1,6 @@
 # docs/ reorganization plan
 
-Status: **proposal — awaiting approval**. No files moved yet.
+Status: **executed** in PR #964 (kept as a record of what was done and why).
 
 ## Problem
 

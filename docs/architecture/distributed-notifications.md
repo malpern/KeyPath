@@ -10,7 +10,7 @@ KeyPath broadcasts state changes via macOS Distributed Notifications (`NSDistrib
 | **Distributed Notifications** | **Zero-config, any process can listen** | macOS-only, fire-and-forget |
 | URL scheme | Works from everything | Inbound only (to KeyPath) |
 
-KeyPath uses Distributed Notifications for outbound events (KeyPath to the world) and the `keypath://` URL scheme for inbound commands (world to KeyPath). See [ACTION_URI_SYSTEM.md](../guides/action-uri-system.md) for the inbound side.
+KeyPath uses Distributed Notifications for outbound events (KeyPath to the world) and the `keypath://` URL scheme for inbound commands (world to KeyPath). See [action-uri-system.md](../guides/action-uri-system.md) for the inbound side.
 
 ## Events
 
