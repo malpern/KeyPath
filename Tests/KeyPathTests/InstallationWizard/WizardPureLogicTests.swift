@@ -1074,7 +1074,7 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertTrue(activateIdx! < repairIdx!, "Activation must run before daemon repair")
     }
 
-    func test_determineRepairActions_stoppedKanataWithStaleVHIDIssue_installsRuntimeServices() {
+    func test_determineRepairActions_stoppedKanataWithVHIDIssue_repairsVHIDThenInstallsRuntimeServices() {
         let context = makeContext(
             services: HealthStatus(
                 kanataRunning: false,
@@ -1087,9 +1087,14 @@ final class WizardPureLogicTests: XCTestCase {
 
         let actions = ActionDeterminer.determineRepairActions(context: context)
 
-        XCTAssertTrue(actions.contains(.installRequiredRuntimeServices))
-        XCTAssertFalse(actions.contains(.activateVHIDDeviceManager))
-        XCTAssertFalse(actions.contains(.repairVHIDDaemonServices))
+        let activateIdx = actions.firstIndex(of: .activateVHIDDeviceManager)
+        let repairIdx = actions.firstIndex(of: .repairVHIDDaemonServices)
+        let installIdx = actions.firstIndex(of: .installRequiredRuntimeServices)
+        XCTAssertNotNil(activateIdx)
+        XCTAssertNotNil(repairIdx)
+        XCTAssertNotNil(installIdx)
+        XCTAssertTrue(activateIdx! < repairIdx!)
+        XCTAssertTrue(repairIdx! < installIdx!)
     }
 
     func test_determineRepairActions_helperInstalledButBroken_includesReinstall() {

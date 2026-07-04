@@ -798,7 +798,6 @@ extension HelperService {
             .filter { !$0.isEmpty }
         guard !pids.isEmpty else { return }
 
-        _ = run("/bin/kill", ["-TERM"] + pids, timeout: 5)
         _ = run("/bin/kill", ["-KILL"] + pids, timeout: 5)
     }
 
