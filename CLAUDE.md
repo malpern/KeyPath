@@ -74,6 +74,12 @@ pick `opus`.
   user can relaunch at the right tier — do not silently attempt it.
 - Unlabeled issues: propose a tier as part of triage and apply the label.
 
+Issues also carry an autonomy label: `agent-ok` (an agent can take it end-to-end — spec
+settled, success verifiable via code/tests/CI) or `human-in-loop` (blocked on an unmade
+design/UX/wording decision, or requires manual on-device testing such as TCC grants or
+signed-build QA). Before starting a `human-in-loop` ticket, surface the open decisions
+or manual-testing needs to the user first instead of guessing.
+
 ## PR Workflow & Git Safety
 
 Follow the invariants in [`docs/agent-pr-invariants.md`](docs/agent-pr-invariants.md). Step-by-step reference: [`docs/agent-pr-workflow.md`](docs/agent-pr-workflow.md).
