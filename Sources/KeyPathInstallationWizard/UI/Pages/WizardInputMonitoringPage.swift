@@ -632,9 +632,12 @@ private struct InputMonitoringManualFallbackCard: View {
 /// Shown when kanata-launcher's Input Monitoring stays `.unknown` past the wait
 /// window (#931). On macOS 26/27 a completed grant may never produce a readable
 /// TCC row, so pre-flight detection can't confirm it — the only authoritative
-/// check left is starting the engine. The Oracle upgrades to granted on
-/// functional evidence once kanata is running; a genuinely missing grant makes
-/// the service fail with an input-capture error that routes back to this page.
+/// check left is running the engine. Continue navigates to the next wizard step
+/// (typically the Service page, where the user starts the engine — deliberately
+/// NOT auto-started from here, to preserve the one-permission-prompt-at-a-time
+/// flow). Once kanata runs, the Oracle upgrades to granted on functional
+/// evidence; a genuinely missing grant makes the service fail with an
+/// input-capture error that routes back to this page.
 private struct KanataUnverifiedContinueCard: View {
     let onContinue: () -> Void
 
@@ -644,7 +647,7 @@ private struct KanataUnverifiedContinueCard: View {
                 .font(.headline)
 
             Text(
-                "On some macOS versions KeyPath can't confirm this permission until the engine runs. If you've turned on kanata-launcher in System Settings, continue — KeyPath verifies the permission when it starts the engine, and will bring you back here if it's still missing."
+                "On some macOS versions KeyPath can't confirm this permission until the engine runs. If you've turned on kanata-launcher in System Settings, continue — you'll start the engine on the next step, and KeyPath verifies the permission then, bringing you back here if it's still missing."
             )
             .font(.callout)
             .foregroundColor(.secondary)
