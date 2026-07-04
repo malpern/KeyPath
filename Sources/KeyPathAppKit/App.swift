@@ -134,9 +134,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var initialMainWindowShown = false
     private var suppressLaunchSplashAutoHide = false
     private var keyboardCapture: KeyboardCapture?
+    /// Set at the start of quit teardown. `applicationShouldTerminate` closes the
+    /// wizard, whose async onDismiss work runs after the window-close loop below —
+    /// it must not spawn new windows mid-quit (e.g. the first-success celebration
+    /// panel, #954).
+    private var isTerminating = false
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminate called")
+        isTerminating = true
         // Close wizard and all windows so nothing blocks the quit
         WizardWindowController.shared.closeWindow()
         for window in NSApp.windows {
@@ -725,9 +731,36 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 Task { @MainActor in
                     await self?.viewModel?.updateStatus()
                     await MainAppStateController.shared.revalidate()
+                    self?.presentFirstSuccessCelebrationIfNeeded()
                 }
             }
         )
+    }
+
+    /// Post-setup celebration + starter-collection offer + short panel tour
+    /// (issue #954). Fires at most once: the first time the wizard closes healthy
+    /// after a run where the user was shown the Welcome page (#932). Must run
+    /// after `MainAppStateController.shared.revalidate()` above so `validationState`
+    /// reflects the freshly-closed wizard's outcome, not stale pre-wizard state.
+    @MainActor
+    private func presentFirstSuccessCelebrationIfNeeded() {
+        guard let vm = viewModel else { return }
+
+        // Quit teardown also fires the wizard's onDismiss (applicationShouldTerminate
+        // → closeWindow). Bail before consuming the one-shot flag so the user still
+        // gets the celebration on next launch instead of a panel mid-quit.
+        guard !isTerminating else { return }
+
+        let wizardClosedHealthy = MainAppStateController.shared.validationState?.isSuccess ?? false
+        guard OnboardingFirstSuccessGate.shouldShowFirstSuccess(wizardClosedHealthy: wizardClosedHealthy) else {
+            return
+        }
+
+        // One-shot: mark shown before presenting so a panel the user closes
+        // immediately (or an app quit mid-panel) can never resurface it later.
+        OnboardingFirstSuccessGate.markFirstSuccessShown()
+        AppLogger.shared.info("🎉 [AppDelegate] First-ever successful setup — showing first-success celebration")
+        FirstSuccessWindowController.show(viewModel: vm)
     }
 
     @MainActor
