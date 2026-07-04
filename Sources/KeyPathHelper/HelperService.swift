@@ -128,6 +128,7 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "installRequiredRuntimeServices",
             operation: {
+                try Self.installOrRepairKanataService()
                 try Self.installOrRepairVHIDServices()
             },
             reply: reply
@@ -253,6 +254,39 @@ class HelperService: NSObject, HelperProtocol {
             },
             reply: reply
         )
+    }
+
+    /// Shared implementation for installing/repairing the Kanata service.
+    private static func installOrRepairKanataService() throws {
+        try ensureConsoleUserConfigArtifacts()
+
+        let appBundlePath = appBundlePathFromHelper()
+        let bundledPlistPath = "\(appBundlePath)/Contents/Library/LaunchDaemons/\(kanataServiceID).plist"
+        guard FileManager.default.fileExists(atPath: bundledPlistPath) else {
+            throw HelperError.operationFailed(
+                "Bundled Kanata LaunchDaemon plist is missing: \(bundledPlistPath)"
+            )
+        }
+
+        let dstDir = "/Library/LaunchDaemons"
+        _ = run("/bin/mkdir", ["-p", dstDir])
+        let dstPlistPath = "\(dstDir)/\(kanataServiceID).plist"
+
+        _ = run("/bin/launchctl", ["bootout", "system/\(kanataServiceID)"], timeout: 10)
+        _ = run("/bin/cp", [bundledPlistPath, dstPlistPath])
+        _ = run("/usr/sbin/chown", ["root:wheel", dstPlistPath])
+        _ = run("/bin/chmod", ["644", dstPlistPath])
+
+        guard FileManager.default.fileExists(atPath: dstPlistPath) else {
+            throw HelperError.operationFailed("Kanata LaunchDaemon plist was not installed at \(dstPlistPath)")
+        }
+
+        let bootstrap = run("/bin/launchctl", ["bootstrap", "system", dstPlistPath], timeout: 10)
+        if bootstrap.status != 0, !bootstrap.out.localizedCaseInsensitiveContains("service already loaded") {
+            throw HelperError.operationFailed("bootstrap kanata failed: \(bootstrap.out)")
+        }
+        _ = run("/bin/launchctl", ["enable", "system/\(kanataServiceID)"], timeout: 10)
+        _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(kanataServiceID)"], timeout: 15)
     }
 
     /// Shared implementation for installing/repairing VHID services

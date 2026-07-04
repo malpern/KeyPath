@@ -59,6 +59,10 @@ public enum ActionDeterminer {
             actions.append(.installRequiredRuntimeServices)
         }
 
+        if !context.services.kanataRunning, !actions.contains(.installRequiredRuntimeServices) {
+            actions.append(.installRequiredRuntimeServices)
+        }
+
         appendVHIDActivationRepairIfNeeded(context: context, actions: &actions)
 
         // Check if daemon needs starting
@@ -123,6 +127,10 @@ public enum ActionDeterminer {
             actions.append(.installRequiredRuntimeServices)
         }
 
+        if !context.services.kanataRunning, !actions.contains(.installRequiredRuntimeServices) {
+            actions.append(.installRequiredRuntimeServices)
+        }
+
         appendVHIDActivationRepairIfNeeded(context: context, actions: &actions)
 
         return actions
@@ -138,8 +146,9 @@ public enum ActionDeterminer {
         context: SystemContext,
         actions: inout [AutoFixAction]
     ) {
-        guard context.services.kanataInputCaptureIssue ==
-            ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
+        guard context.services.kanataRunning,
+              context.services.kanataInputCaptureIssue ==
+              ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
         else { return }
 
         if !actions.contains(.activateVHIDDeviceManager) {

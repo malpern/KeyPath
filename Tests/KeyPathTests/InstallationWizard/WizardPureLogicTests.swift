@@ -1057,7 +1057,7 @@ final class WizardPureLogicTests: XCTestCase {
     func test_determineRepairActions_vhidDriverNotActivated_includesActivationAndRepair() {
         let context = makeContext(
             services: HealthStatus(
-                kanataRunning: false,
+                kanataRunning: true,
                 karabinerDaemonRunning: true,
                 vhidHealthy: true,
                 kanataInputCaptureReady: false,
@@ -1072,6 +1072,24 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertNotNil(activateIdx, "DriverKit activation failure should re-run VHID manager activation")
         XCTAssertNotNil(repairIdx, "DriverKit activation failure should repair VHID daemon services")
         XCTAssertTrue(activateIdx! < repairIdx!, "Activation must run before daemon repair")
+    }
+
+    func test_determineRepairActions_stoppedKanataWithStaleVHIDIssue_installsRuntimeServices() {
+        let context = makeContext(
+            services: HealthStatus(
+                kanataRunning: false,
+                karabinerDaemonRunning: true,
+                vhidHealthy: true,
+                kanataInputCaptureReady: false,
+                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
+            )
+        )
+
+        let actions = ActionDeterminer.determineRepairActions(context: context)
+
+        XCTAssertTrue(actions.contains(.installRequiredRuntimeServices))
+        XCTAssertFalse(actions.contains(.activateVHIDDeviceManager))
+        XCTAssertFalse(actions.contains(.repairVHIDDaemonServices))
     }
 
     func test_determineRepairActions_helperInstalledButBroken_includesReinstall() {
@@ -1142,7 +1160,7 @@ final class WizardPureLogicTests: XCTestCase {
     func test_determineInstallActions_vhidDriverNotActivated_includesActivationAndRepair() {
         let context = makeContext(
             services: HealthStatus(
-                kanataRunning: false,
+                kanataRunning: true,
                 karabinerDaemonRunning: true,
                 vhidHealthy: true,
                 kanataInputCaptureReady: false,
