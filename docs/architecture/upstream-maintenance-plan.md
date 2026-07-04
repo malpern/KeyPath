@@ -10,7 +10,7 @@ KeyPath depends on two upstream projects — **QMK** (keyboard firmware ecosyste
 
 | Component | Source | Version | Build |
 |-----------|--------|---------|-------|
-| `kanata` binary | Git submodule `External/kanata` (fork: `keypath/bundled` branch) | v1.11.0 | Rust `cargo build --release` with features `cmd,tcp_server` |
+| `kanata` binary | Git submodule `External/kanata` (fork: `keypath/bundled` branch) | v1.11.0 | Rust `cargo build --release` with feature `tcp_server`; `cmd` is intentionally excluded |
 | `kanata-sim` | Same submodule | Same | `cargo build --release --package kanata-sim` |
 | Host bridge | `Rust/KeyPathKanataHostBridge/` | Local | Rust static/dynamic lib via C ABI |
 
@@ -55,7 +55,7 @@ After updating, verify:
 
 These are the Kanata constructs KeyPath generates. If upstream changes any of these, the config generator must be updated:
 
-- `defcfg` — `process-unmapped-keys`, `danger-enable-cmd`, `tap-hold-require-prior-idle`
+- `defcfg` — `process-unmapped-keys`, `tap-hold-require-prior-idle`, and the invariant that `danger-enable-cmd` stays out of generated configs
 - `defvar` — `$tap-timeout`, `$hold-timeout`, `$chord-timeout`
 - `defhands` — `(left ...)`, `(right ...)`
 - `defsrc` / `deflayer` — standard key layout blocks

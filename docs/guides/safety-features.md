@@ -4,7 +4,7 @@
 
 ### **1. Safe Configuration Defaults**
 - **`process-unmapped-keys no`** - Only intercepts explicitly mapped keys
-- **`danger-enable-cmd yes`** - Allows system shortcuts (Cmd+Q, etc.) to work
+- **No raw Kanata `cmd` support** - KeyPath's bundled engine cannot spawn shell commands from the root daemon
 - **Minimal key mapping** - Only maps what user specifies
 
 ### **2. Pre-Save Validation**
@@ -35,10 +35,10 @@
 #### **Prevention Commands:**
 ```bash
 # Test config safely first
-/usr/local/bin/kanata-cmd --cfg /path/to/config.kbd --check
+/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata\ Engine.app/Contents/MacOS/kanata --cfg /path/to/config.kbd --check
 
 # Run in foreground (can Ctrl+C to stop)
-/usr/local/bin/kanata-cmd --cfg /path/to/config.kbd
+/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata\ Engine.app/Contents/MacOS/kanata --cfg /path/to/config.kbd
 
 # Stop service
 sudo launchctl kill TERM system/com.keypath.kanata
@@ -49,9 +49,6 @@ sudo launchctl kill TERM system/com.keypath.kanata
 (defcfg
   ;; SAFETY: Only process explicitly mapped keys
   process-unmapped-keys no
-  
-  ;; SAFETY: Allow cmd for system shortcuts  
-  danger-enable-cmd yes
 )
 
 (defsrc
