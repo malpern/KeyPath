@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 @testable import KeyPathCore
+@testable import KeyPathInstallationWizard
 @testable import KeyPathWizardCore
 @preconcurrency import XCTest
 
@@ -55,6 +56,7 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
 
     func testStartTerminatesRunningKanataWhenBinaryDoesNotMatchBundledRuntime() async {
         coordinator.isKarabinerDaemonRunning = { true }
+        ServiceHealthChecker.testForcedServiceHealth = [ServiceHealthChecker.vhidDaemonServiceID: true]
 
         let privileged = StubPrivilegedOperationsCoordinator()
         WizardDependencies.privilegedOperations = privileged
@@ -77,6 +79,7 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
 
     func testStartTerminatesRunningKanataWhenSamePathButProcessPredatesBundledBinary() async throws {
         coordinator.isKarabinerDaemonRunning = { true }
+        ServiceHealthChecker.testForcedServiceHealth = [ServiceHealthChecker.vhidDaemonServiceID: true]
 
         let privileged = StubPrivilegedOperationsCoordinator()
         WizardDependencies.privilegedOperations = privileged
