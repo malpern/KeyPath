@@ -469,11 +469,14 @@ public actor PermissionOracle {
         let accessibility: Status = tccAX ?? .unknown
 
         // Functional fallback for Input Monitoring (#931): when TCC has no
-        // readable row (macOS 26/27 can grant without ever writing one), a
-        // running, TCP-responding kanata with no diagnosed capture failure is
-        // strong evidence of the grant. Consulted ONLY when the TCC read is
-        // inconclusive (nil) — an explicit granted/denied row is authoritative
-        // and is never overridden, because the underlying capture signal is
+        // readable row, a running, TCP-responding kanata with no diagnosed
+        // capture failure is strong evidence of the grant. Note the nil branch
+        // is NOT rare: it covers macOS 26/27 granting without writing a row,
+        // but also every install where KeyPath lacks Full Disk Access to read
+        // TCC.db at all — so this path runs for a meaningful slice of ordinary
+        // installs. Consulted ONLY when the TCC read is inconclusive (nil) —
+        // an explicit granted/denied row is authoritative and is never
+        // overridden, because the underlying capture signal is
         // optimistic-by-default and could race a mid-run revoke.
         var functionalEvidence: KanataFunctionalEvidence?
         if tccIM == nil, let provider = kanataFunctionalEvidenceProvider {
