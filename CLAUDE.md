@@ -82,7 +82,7 @@ or manual-testing needs to the user first instead of guessing.
 
 ## PR Workflow & Git Safety
 
-Follow the invariants in [`docs/agent-pr-invariants.md`](docs/agent-pr-invariants.md). Step-by-step reference: [`docs/agent-pr-workflow.md`](docs/agent-pr-workflow.md).
+Follow the invariants in [`docs/process/agent-pr-invariants.md`](docs/process/agent-pr-invariants.md). Step-by-step reference: [`docs/process/agent-pr-workflow.md`](docs/process/agent-pr-workflow.md).
 
 **Key rule:** After merging a PR, always pull master and deploy from master before reporting done.
 
@@ -114,7 +114,7 @@ Two doc systems: `guides/` (user-facing, published to gh-pages) and `docs/` (dev
 
 **Publishing:** `guides/` content must be copied to the `gh-pages` branch to go live. Use `Scripts/publish-guides.sh` or manually copy changed files to the gh-pages worktree at `.worktrees/gh-pages`. The docs landing page (`docs.md` on gh-pages) must be updated to link new guides.
 
-**Style:** Follow [`docs/help-content-philosophy.md`](docs/help-content-philosophy.md) — user goals first, no jargon, ASCII UI mockups. Guides need Jekyll frontmatter (layout, title, description, permalink).
+**Style:** Follow [`docs/process/help-content-philosophy.md`](docs/process/help-content-philosophy.md) — user goals first, no jargon, ASCII UI mockups. Guides need Jekyll frontmatter (layout, title, description, permalink).
 
 ## Build & Deploy
 
@@ -257,7 +257,7 @@ an unpinned version.
 
 **"dd"** → Run `SKIP_NOTARIZE=1 ./build.sh`, respond **"Eye eye Captain!"**
 **"df"** → Run `./Scripts/quick-deploy.sh`, respond **"Eye eye Cap, fast deploying!"**
-**"ds"** → Development ship workflow for the current changes, end to end: branch off master → format/lint + commit → review gate → push + open PR → babysit CI → address feedback → merge → pull master → `./Scripts/release-candidate.sh` from master for signed/notarized manual testing. Follow [`docs/agent-pr-workflow.md`](docs/agent-pr-workflow.md) and its invariants; risk-tier the babysit (auto-merge mechanical PRs, full babysit for logic/hot-path). Public distribution is a separate explicit release: `./Scripts/release-doctor.sh --ship && ./Scripts/release.sh <version>`.
+**"ds"** → Development ship workflow for the current changes, end to end: branch off master → format/lint + commit → review gate → push + open PR → babysit CI → address feedback → merge → pull master → `./Scripts/release-candidate.sh` from master for signed/notarized manual testing. Follow [`docs/process/agent-pr-workflow.md`](docs/process/agent-pr-workflow.md) and its invariants; risk-tier the babysit (auto-merge mechanical PRs, full babysit for logic/hot-path). Public distribution is a separate explicit release: `./Scripts/release-doctor.sh --ship && ./Scripts/release.sh <version>`.
 
 Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`, `KeyPathSnapshotTests`, and `KeyPathLayoutTracerTests` — all compiled and run by `swift test`.
 
@@ -278,11 +278,11 @@ Load these on demand — don't need them every session:
 
 | Topic | Doc |
 |-------|-----|
-| Release process | [`docs/release-process.md`](docs/release-process.md) |
-| Help content writing | [`docs/help-content-philosophy.md`](docs/help-content-philosophy.md) |
+| Release process | [`docs/process/release-process.md`](docs/process/release-process.md) |
+| Help content writing | [`docs/process/help-content-philosophy.md`](docs/process/help-content-philosophy.md) |
 | Pack dependency system | [`docs/architecture/pack-dependency-system.md`](docs/architecture/pack-dependency-system.md) |
 | Overlay/mapper/gallery data flow | [`docs/architecture/overlay-data-flow.md`](docs/architecture/overlay-data-flow.md) |
-| UI automation | [`docs/LLM_VISION_UI_AUTOMATION.md`](docs/LLM_VISION_UI_AUTOMATION.md) |
+| UI automation | [`docs/guides/llm-vision-ui-automation.md`](docs/guides/llm-vision-ui-automation.md) |
 | All architecture guides | [`docs/architecture/`](docs/architecture/) |
 | All ADRs | [`docs/adr/README.md`](docs/adr/README.md) |
 | Feature docs | [`docs/features/`](docs/features/) |

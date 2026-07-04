@@ -449,4 +449,4 @@ See `KanataTCPClient.swift` for security notes on the TCP protocol.
 
 - [Architecture Overview](./overview.md)
 - [ADR-013: TCP Without Auth](../adr/adr-013-tcp-without-auth.md)
-- [Action URI System](../ACTION_URI_SYSTEM.md)
+- [Action URI System](../guides/action-uri-system.md)

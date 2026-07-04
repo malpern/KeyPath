@@ -4,7 +4,7 @@ Created: 2026-06-08
 
 This plan is about making KeyPath's existing tests faster to run, easier to
 trust, and easier to debug on the primary development machine. It does not
-replace `docs/TEST-IMPROVEMENT-PLAN.md`, which focuses on coverage gaps. This
+replace `docs/testing/test-improvement-plan.md`, which focuses on coverage gaps. This
 document focuses on harness behavior, log quality, lane design, and build graph
 cost.
 
@@ -606,7 +606,7 @@ Milestone 6 is implemented with the MacBook Air local loop as the target:
 - `Scripts/measure-local-loop.sh` records lane summaries into
   `.build/local-loop-measurements/` as Markdown and TSV so local timing changes
   can be compared without copying terminal output.
-- `docs/MACBOOK_AIR_LOCAL_LOOP.md` documents the recommended lane by change
+- `docs/testing/macbook-air-local-loop.md` documents the recommended lane by change
   type, warm-cache policy, measurement presets, and when to use verbose logs.
 
 Milestone 7 now has enough evidence to keep the bounded isolated Core lane:

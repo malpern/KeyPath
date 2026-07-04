@@ -67,7 +67,7 @@
 - `./Scripts/measure-local-loop.sh --preset baseline` - Measure the standard
   MacBook Air local baseline (`smoke`, `core-isolated`, `unit`, `appkit`) and write
   `.build/local-loop-measurements/latest.md`.
-- See `docs/MACBOOK_AIR_LOCAL_LOOP.md` for the recommended command by change
+- See `docs/testing/macbook-air-local-loop.md` for the recommended command by change
   type.
 - CI also runs:
   - `./Scripts/test-lane.sh smoke` as the early fail-fast lane.

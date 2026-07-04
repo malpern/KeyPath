@@ -189,7 +189,7 @@ under test.
 - Never check TCC database directly **outside of PermissionOracle**.
 - **Exception**: `PermissionOracle` itself uses `IOHIDCheckAccess` and TCC as its
   internal implementation (see [ADR-001](docs/adr/adr-001-oracle-pattern.md) and
-  [ADR-016](docs/adr/adr-016-permission-oracle-tcc-fallback.md)). Apple APIs are
+  [ADR-016](docs/adr/adr-016-tcc-database-reading.md)). Apple APIs are
   authoritative; TCC is a fallback for `.unknown` results only.
 
 ### Keyboard Visualization
@@ -288,4 +288,4 @@ peekaboo hotkey "cmd+s"              # Save
 5. Use Computer Use for UI verification.
 6. `poltergeist stop` before release work, helper/service work, broad tests, or handing off.
 
-See `docs/LLM_VISION_UI_AUTOMATION.md` for detailed architecture.
+See `docs/guides/llm-vision-ui-automation.md` for detailed architecture.

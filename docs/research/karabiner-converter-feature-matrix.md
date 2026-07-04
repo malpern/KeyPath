@@ -247,10 +247,10 @@ The conversion report should show a side-by-side diff with clear tier indicators
 ## Related Documents
 
 - [Karabiner Migration Research](karabiner-migration-research.md) — earlier research on migration barriers
-- [ADR-027: App-Specific Keymaps](adr/adr-027-app-specific-keymaps.md) — architecture for app-aware rules
-- [ADR-023: No Config Parsing](adr/adr-023-no-config-parsing.md) — why we generate, never parse, Kanata config
-- [Action URI System](ACTION_URI_SYSTEM.md) — `push-msg` based actions for launch, notify, etc.
-- [Rule Collection Pattern](architecture/rule-collection-pattern.md) — how rules are organized in KeyPath
+- [ADR-027: App-Specific Keymaps](../adr/adr-027-app-specific-keymaps.md) — architecture for app-aware rules
+- [ADR-023: No Config Parsing](../adr/adr-023-no-config-parsing.md) — why we generate, never parse, Kanata config
+- [Action URI System](../guides/action-uri-system.md) — `push-msg` based actions for launch, notify, etc.
+- [Rule Collection Pattern](../architecture/rule-collection-pattern.md) — how rules are organized in KeyPath
 - [GitHub Issue #202](https://github.com/malpern/KeyPath/issues/202) — Karabiner converter tracking issue
 
 ## Open Questions

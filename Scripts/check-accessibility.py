@@ -185,7 +185,7 @@ def main():
         print(f"{RED}❌ Found {total_issues} issue(s){NC}")
         print()
         print("💡 To fix: Add .accessibilityIdentifier(\"unique-id\") modifier")
-        print("   See ACCESSIBILITY_COVERAGE.md for examples")
+        print("   See docs/testing/accessibility-coverage.md for examples")
         return 1
 
 

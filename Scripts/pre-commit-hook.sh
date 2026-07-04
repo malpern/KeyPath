@@ -13,7 +13,7 @@ if [ -n "$STAGED_UI_FILES" ]; then
         echo ""
         echo "⚠️  WARNING: Some UI elements are missing accessibility identifiers"
         echo "💡 This won't block your commit, but please add identifiers for automation"
-        echo "💡 See ACCESSIBILITY_COVERAGE.md for examples"
+        echo "💡 See docs/testing/accessibility-coverage.md for examples"
         echo ""
     fi
 fi

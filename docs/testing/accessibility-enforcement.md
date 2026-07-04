@@ -226,6 +226,6 @@ chmod +x .git/hooks/pre-commit
 
 ## Related Documentation
 
-- [ACCESSIBILITY_COVERAGE.md](../ACCESSIBILITY_COVERAGE.md) - Complete identifier reference
-- [CONTRIBUTING.md](../CONTRIBUTING.md) - General contribution guidelines
-- [CLAUDE.md](../CLAUDE.md) - Architecture details
+- [accessibility-coverage.md](accessibility-coverage.md) - Complete identifier reference
+- [CONTRIBUTING.md](../../CONTRIBUTING.md) - General contribution guidelines
+- [CLAUDE.md](../../CLAUDE.md) - Architecture details
