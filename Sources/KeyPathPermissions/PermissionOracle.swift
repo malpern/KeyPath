@@ -497,6 +497,10 @@ public actor PermissionOracle {
             break
         }
         if resolvedIM.usedFunctionalEvidence {
+            // TODO(#931): confidence stays .high here even though functional
+            // evidence is a heuristic, not a TCC read. Inert today (Confidence
+            // is logging-only); if Confidence ever gates behavior, give this
+            // path its own tier instead of reusing .high.
             sourceParts.append("functional-im")
         } else {
             switch inputMonitoring {
