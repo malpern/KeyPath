@@ -41,7 +41,7 @@ source ~/.cargo/env
 ```bash
 git clone https://github.com/jtroo/kanata.git
 cd kanata
-cargo build --release --features "cmd,tcp_server,watch"
+cargo build --release --features "tcp_server,watch"
 ```
 
 #### 3. Install the binary
@@ -115,7 +115,6 @@ Create a configuration file (e.g., `keypath.kbd`):
 ;; Basic Kanata configuration
 (defcfg
   process-unmapped-keys no
-  danger-enable-cmd yes
 )
 
 (defsrc
@@ -288,13 +287,13 @@ sudo cp target/release/kanata /usr/local/bin/kanata
 
 ```bash
 # Minimal build (no TCP server)
-cargo build --release --no-default-features --features "cmd,watch"
+cargo build --release --no-default-features --features "watch"
 
 # Full featured build
-cargo build --release --features "cmd,tcp_server,watch,zippychord"
+cargo build --release --features "tcp_server,watch,zippychord"
 
 # Debug build with symbols
-cargo build --features "cmd,tcp_server,watch"
+cargo build --features "tcp_server,watch"
 ```
 
 ### Testing Different Versions
@@ -320,7 +319,7 @@ cargo clean
 cargo build --release
 
 # Check what features are enabled
-cargo build --release --features "cmd,watch" -v
+cargo build --release --features "tcp_server,watch" -v
 ```
 
 ### Building the Runtime Host Library Artifact
