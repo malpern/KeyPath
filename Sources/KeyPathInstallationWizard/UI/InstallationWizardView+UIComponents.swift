@@ -23,6 +23,11 @@ extension InstallationWizardView {
     @ViewBuilder
     private func pageContentInner() -> some View {
         switch stateMachine.currentPage {
+        case .welcome:
+            WizardWelcomePage(onGetStarted: {
+                WizardWelcomeGate.markWelcomeSeen()
+                stateMachine.nextPage()
+            })
         case .summary:
             WizardSummaryPage(
                 onStartService: startKeyPathRuntime,

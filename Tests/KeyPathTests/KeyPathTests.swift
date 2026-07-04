@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+import KeyPathCore
 @testable import KeyPathInstallationWizard
 @testable import KeyPathPermissions
 @preconcurrency import XCTest
@@ -14,7 +15,7 @@ final class KeyPathTests: KeyPathTestCase {
             XCTAssertTrue(error.lowercased().contains("install"), "Unexpected init error: \(error)")
         }
         XCTAssertEqual(
-            manager.configPath, "\(NSHomeDirectory())/.config/keypath/keypath.kbd"
+            manager.configPath, KeyPathConstants.Config.mainConfigPath
         )
     }
 
@@ -606,7 +607,7 @@ final class KeyPathTests: KeyPathTestCase {
 
         // Test config path is correct
         XCTAssertEqual(
-            manager.configPath, "\(NSHomeDirectory())/.config/keypath/keypath.kbd",
+            manager.configPath, KeyPathConstants.Config.mainConfigPath,
             "Config path should be in expected location"
         )
 

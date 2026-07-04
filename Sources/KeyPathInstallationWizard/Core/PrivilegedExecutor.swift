@@ -69,35 +69,10 @@ public final class PrivilegedExecutor: @unchecked Sendable {
             "🧪 [PrivilegedExecutor] Using sudo for privileged operation (KEYPATH_USE_SUDO=1)"
         )
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        // Use -n for non-interactive (fails if password required)
-        task.arguments = ["-n", "/bin/bash", "-c", command]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if task.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [PrivilegedExecutor] sudo command succeeded")
-                return (true, output)
-            } else {
-                AppLogger.shared.log(
-                    "❌ [PrivilegedExecutor] sudo command failed (status \(task.terminationStatus)): \(output)"
-                )
-                return (false, output)
-            }
-        } catch {
-            AppLogger.shared.log("❌ [PrivilegedExecutor] Failed to execute sudo: \(error)")
-            return (false, error.localizedDescription)
-        }
+        // Delegate to the shared bounded runner so a hung command can't block
+        // forever (#927); keeps one implementation of the sudo path.
+        let result = PrivilegedCommandRunner.executeSudoDirect(command: command)
+        return (result.success, result.output)
     }
 
     // MARK: - OSAScript Execution
@@ -130,44 +105,14 @@ public final class PrivilegedExecutor: @unchecked Sendable {
             return (true, "Skipped in test mode")
         }
 
-        let escapedCommand = escapeForAppleScript(command)
-        let osascriptCommand = """
-        do shell script "\(escapedCommand)" with administrator privileges with prompt "\(prompt)"
-        """
-
         AppLogger.shared.log(
             "🔐 [PrivilegedExecutor] Requesting admin privileges via osascript"
         )
 
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        task.arguments = ["-e", osascriptCommand]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-
-            if task.terminationStatus == 0 {
-                AppLogger.shared.log("✅ [PrivilegedExecutor] osascript command succeeded")
-            } else {
-                AppLogger.shared.log(
-                    "❌ [PrivilegedExecutor] osascript command failed (exit \(task.terminationStatus)): \(output)"
-                )
-            }
-
-            return (task.terminationStatus == 0, output)
-        } catch {
-            let errorMsg = "osascript execution failed: \(error.localizedDescription)"
-            AppLogger.shared.log("❌ [PrivilegedExecutor] \(errorMsg)")
-            return (false, error.localizedDescription)
-        }
+        // Delegate to the shared bounded runner so a hung privileged script can't
+        // outlive the timeout (#927); keeps one implementation of the osascript path.
+        let result = PrivilegedCommandRunner.executeOsascriptDirect(command: command, prompt: prompt)
+        return (result.success, result.output)
     }
 
     // MARK: - Admin Dialog Testing
@@ -206,20 +151,6 @@ public final class PrivilegedExecutor: @unchecked Sendable {
             "🔧 [PrivilegedExecutor] Admin dialog test result: \(result.success)"
         )
         return result.success
-    }
-
-    // MARK: - String Escaping
-
-    /// Escape a command string for safe use in AppleScript.
-    ///
-    /// AppleScript requires special escaping for backslashes and quotes.
-    ///
-    /// - Parameter command: The raw command string
-    /// - Returns: The escaped string safe for embedding in AppleScript
-    public func escapeForAppleScript(_ command: String) -> String {
-        var escaped = command.replacingOccurrences(of: "\\", with: "\\\\")
-        escaped = escaped.replacingOccurrences(of: "\"", with: "\\\"")
-        return escaped
     }
 }
 

@@ -96,6 +96,11 @@ public class WizardStateMachine {
         hasShownFDAPage = false
         hasShownMigrationPage = false
         hasShownKarabinerImportPage = false
+        // Clear any custom navigation sequence from a prior wizard run so
+        // navigation and the "Step X of Y" indicator fall back to the canonical
+        // ordered pages until the new run's validation derives a fresh sequence.
+        // A stale sequence here survives across wizard re-opens otherwise (#934).
+        customSequence = nil
         // One-time page tracking is reset via the properties above
     }
 
@@ -158,7 +163,7 @@ public class WizardStateMachine {
     }
 
     public var canNavigateBack: Bool {
-        currentPage != .summary
+        currentPage != .summary && currentPage != .welcome
     }
 
     public var canNavigateForward: Bool {
@@ -185,6 +190,7 @@ public class WizardStateMachine {
 
     private func determinePreviousPage(from current: WizardPage) -> WizardPage {
         switch current {
+        case .welcome: .welcome // One-shot overture: no back navigation
         case .summary: .summary
         case .kanataMigration: .summary
         case .stopExternalKanata: .kanataMigration

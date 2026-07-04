@@ -45,6 +45,23 @@ final class UpdateServiceDecisionTests: XCTestCase {
         XCTAssertEqual(decision, .hardRepair(reason: "reason_code=keypath_permissions_blocking"))
     }
 
+    /// #931: KeyPath's own Input Monitoring is soft (overlay/record only). With
+    /// KeyPath Accessibility granted, a denied KeyPath IM must NOT force a hard
+    /// post-update repair — only kanata's permissions and KeyPath AX are hard.
+    func testPostUpdateDecisionIgnoresKeyPathInputMonitoringAlone() {
+        let context = makeContext(
+            keyPathStatus: .granted,
+            kanataStatus: .granted,
+            helperReady: true,
+            componentsReady: true,
+            servicesReady: true,
+            keyPathInputMonitoring: .denied
+        )
+
+        let decision = UpdateService.postUpdateDecision(for: context)
+        XCTAssertEqual(decision, .silentContinue(reason: "reason_code=healthy"))
+    }
+
     func testPostUpdateDecisionHardRepairWhenKanataPermissionsBlocking() {
         let context = makeContext(
             keyPathStatus: .granted,
@@ -115,12 +132,13 @@ final class UpdateServiceDecisionTests: XCTestCase {
         kanataStatus: PermissionOracle.Status,
         helperReady: Bool,
         componentsReady: Bool,
-        servicesReady: Bool
+        servicesReady: Bool,
+        keyPathInputMonitoring: PermissionOracle.Status? = nil
     ) -> SystemContext {
         let now = Date()
         let keyPathPerms = PermissionOracle.PermissionSet(
             accessibility: keyPathStatus,
-            inputMonitoring: keyPathStatus,
+            inputMonitoring: keyPathInputMonitoring ?? keyPathStatus,
             source: "test",
             confidence: .high,
             timestamp: now

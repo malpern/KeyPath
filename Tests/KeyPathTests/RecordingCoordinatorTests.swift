@@ -7,11 +7,20 @@ final class RecordingCoordinatorTests: KeyPathTestCase {
     func testInputRecordingFailsWhenAccessibilityDenied() async {
         let fixture = RecordingCoordinatorFixture(accessibility: .denied)
         await fixture.drainStartupTasks()
-        let permissionChecked = expectation(description: "permission checked")
-        fixture.permissionProvider.onSnapshot = { permissionChecked.fulfill() }
+        // Wait on the actual failure being applied (status banner posted from
+        // failInputRecording), not just on the permission snapshot being queried.
+        // StubPermissionProvider.currentSnapshot() invokes onSnapshot() and returns
+        // synchronously, but the caller still needs a MainActor hop to evaluate the
+        // guard and call failInputRecording(); fulfilling on "snapshot queried" let
+        // fulfillment(of:) race ahead of that hop and observe pre-failure state,
+        // which is the harness flake tracked in #922.
+        let recordingFailed = expectation(description: "input recording failed")
+        fixture.statusHandler = { message in
+            if message.contains("Accessibility") { recordingFailed.fulfill() }
+        }
 
         fixture.coordinator.toggleInputRecording()
-        await fulfillment(of: [permissionChecked], timeout: 1.0)
+        await fulfillment(of: [recordingFailed], timeout: 1.0)
 
         XCTAssertFalse(fixture.coordinator.isInputRecording())
         XCTAssertEqual(
@@ -48,11 +57,15 @@ final class RecordingCoordinatorTests: KeyPathTestCase {
     func testOutputRecordingFailsWhenAccessibilityDenied() async {
         let fixture = RecordingCoordinatorFixture(accessibility: .denied)
         await fixture.drainStartupTasks()
-        let permissionChecked = expectation(description: "permission checked")
-        fixture.permissionProvider.onSnapshot = { permissionChecked.fulfill() }
+        // See testInputRecordingFailsWhenAccessibilityDenied for why we wait on the
+        // applied failure rather than the permission snapshot being queried (#922).
+        let recordingFailed = expectation(description: "output recording failed")
+        fixture.statusHandler = { message in
+            if message.contains("Accessibility") { recordingFailed.fulfill() }
+        }
 
         fixture.coordinator.toggleOutputRecording()
-        await fulfillment(of: [permissionChecked], timeout: 1.0)
+        await fulfillment(of: [recordingFailed], timeout: 1.0)
 
         XCTAssertFalse(fixture.coordinator.isOutputRecording())
         XCTAssertEqual(
@@ -80,6 +93,10 @@ final class RecordingCoordinatorTests: KeyPathTestCase {
 @MainActor
 private final class RecordingCoordinatorFixture {
     var statusMessages: [String] = []
+    /// Optional extra hook for tests that need to synchronize on a status message
+    /// being posted (e.g. via XCTestExpectation), in addition to the default
+    /// accumulation into `statusMessages`.
+    var statusHandler: ((String) -> Void)?
     let permissionProvider: StubPermissionProvider
     let captureStub = StubRecordingCapture()
     let kanataManager = RuntimeCoordinator()
@@ -91,7 +108,10 @@ private final class RecordingCoordinatorFixture {
         )
         coordinator.configure(
             kanataManager: kanataManager,
-            statusHandler: { [weak self] message in self?.statusMessages.append(message) },
+            statusHandler: { [weak self] message in
+                self?.statusMessages.append(message)
+                self?.statusHandler?(message)
+            },
             permissionProvider: permissionProvider,
             keyboardCaptureFactory: { [unowned self] in captureStub }
         )

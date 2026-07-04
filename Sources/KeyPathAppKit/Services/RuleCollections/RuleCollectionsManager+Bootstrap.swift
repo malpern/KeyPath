@@ -47,7 +47,14 @@ extension RuleCollectionsManager {
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
 
-        await regenerateConfigFromCollections()
+        let leaderSnapshot = PreferencesService.shared.leaderKeyPreference
+        let collectionsSnapshot = ruleCollections
+        let didReconcileLeader = reconcileLeaderKeyFromCollection()
+
+        let applied = await regenerateConfigFromCollections()
+        if didReconcileLeader, !applied {
+            rollbackLeaderReconcile(preference: leaderSnapshot, collections: collectionsSnapshot)
+        }
     }
 
     // MARK: - Pack Reconciliation

@@ -51,6 +51,22 @@ Notes:
 - Avoid notarized builds until after merge unless the task explicitly needs
   Developer ID/Gatekeeper behavior.
 
+### Worktree Hygiene (one thread ⇄ one worktree ⇄ one `.build`)
+
+- Each concurrent agent/session works in its **own git worktree** with its own
+  `.build`. Never point two threads at the same checkout.
+- The **main worktree** (`/Users/malpern/local-code/keypath`) is
+  **integration-only**: keep it on `master` for merging and pulling. Do NOT do
+  feature work or run `swift build`/`swift test` there — that is the root cause
+  of SwiftPM lock/CPU contention and cross-thread collisions.
+- Create work in a fresh worktree:
+  `git worktree add -b <branch> <path> master`; build and open the PR from it.
+- After a PR merges, prune its worktree: `git worktree remove <path>`. It refuses
+  when there is uncommitted work — that is a feature: inspect that work before
+  deleting; never `--force`-remove blindly. Gate pruning on the **PR being
+  merged**, not `git branch --merged` (squash-merges are not `master` ancestors,
+  so that misreports them).
+
 ### Swift Build/Test Performance
 
 - Prefer targeted tests while iterating:

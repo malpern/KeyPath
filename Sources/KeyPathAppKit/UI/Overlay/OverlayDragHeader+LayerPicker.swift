@@ -188,6 +188,7 @@ extension OverlayDragHeader {
                 .focusable(false)
                 .opacity(isHovered ? 1 : 0)
                 .accessibilityIdentifier("layer-delete-\(layer)")
+                .accessibilityLabel("Delete \(displayName) layer")
             }
         }
         .background(

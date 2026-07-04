@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 @testable import KeyPathCore
+@testable import KeyPathInstallationWizard
 import XCTest
 
 /// Resets shared singleton state to prevent cross-test contamination.
@@ -38,9 +39,19 @@ enum TestSingletonReset {
             ServiceLifecycleCoordinator.testSleep = { _ in }
             ServiceLifecycleCoordinator.testRunningKanataIdentityProvider = nil
             WizardSystemPaths.setBundledKanataPathOverride(nil)
+
+            // ServiceHealthChecker.shared is a process-wide singleton with its own
+            // short-lived cache; a real (or forced) health result from one test must
+            // not bleed into another's health check.
+            ServiceHealthChecker.shared.invalidateHealthCache()
+            ServiceHealthChecker.testForcedServiceHealth = nil
         #endif
 
         // TestEnvironment flags
         TestEnvironment.forceTestMode = false
+
+        // Feature flags — in tests these live in FeatureFlags' in-memory
+        // override store, never UserDefaults (#896); clear to compiled defaults.
+        FeatureFlags.resetTestOverrides()
     }
 }

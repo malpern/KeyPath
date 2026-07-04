@@ -35,6 +35,7 @@ struct InlineKeyField: View {
                 }
                 .menuStyle(.borderlessButton)
                 .accessibilityIdentifier(menuIdentifier)
+                .accessibilityLabel("Choose \(title) key")
             }
         }
     }

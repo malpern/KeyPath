@@ -29,6 +29,9 @@ public final class ConfigurationService: FileConfigurationProviding {
     private var fileWatcher: FileWatcher?
     private var observers: [UUID: @Sendable (Config) async -> Void] = [:]
 
+    private let ruleCollectionStore: RuleCollectionStore
+    private let customRulesStore: CustomRulesStore
+
     /// Perform blocking file I/O off the main actor
     private let ioQueue = DispatchQueue(label: "com.keypath.configservice.io", qos: .utility)
     /// Protect shared state when accessed from multiple threads
@@ -36,7 +39,23 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     // MARK: - Initialization
 
-    public init(configDirectory: String? = nil) {
+    public convenience init(configDirectory: String? = nil) {
+        self.init(
+            configDirectory: configDirectory,
+            ruleCollectionStore: .shared,
+            customRulesStore: .shared
+        )
+    }
+
+    /// Injectable stores keep tests hermetic: the shared stores read the real user
+    /// data directories even under XCTest, so tests must pass temp-backed stores.
+    init(
+        configDirectory: String?,
+        ruleCollectionStore: RuleCollectionStore,
+        customRulesStore: CustomRulesStore
+    ) {
+        self.ruleCollectionStore = ruleCollectionStore
+        self.customRulesStore = customRulesStore
         if let customDirectory = configDirectory {
             self.configDirectory = customDirectory
         } else {
@@ -69,10 +88,18 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     public func reload() async throws -> KanataConfiguration {
         var exists = await fileExistsAsync(path: configurationPath)
+        // Same semantics as createInitialConfigIfNeeded: a truncated/empty
+        // config is as unparseable as a missing one, so let the self-heal
+        // path rewrite it too (#929).
+        let effectivelyEmpty: Bool = if exists {
+            await fileIsEffectivelyEmptyAsync(path: configurationPath)
+        } else {
+            false
+        }
 
-        if !exists {
+        if !exists || effectivelyEmpty {
             AppLogger.shared.log(
-                "⚠️ [ConfigService] Config missing at \(configurationPath) – creating default before reload"
+                "⚠️ [ConfigService] Config missing or empty at \(configurationPath) – creating default before reload"
             )
             do {
                 try await createInitialConfigIfNeeded()
@@ -90,11 +117,6 @@ public final class ConfigurationService: FileConfigurationProviding {
 
         do {
             let content = try await readFileAsync(path: configurationPath)
-
-            // One-time migration for the danger-enable-cmd default flip: a pre-existing
-            // config that uses (cmd ...) actions grandfathers the policy ON before any
-            // regeneration could strip the header line. No-op once decided.
-            KanataCommandActionsPolicy.grandfatherIfNeeded(configContent: content)
 
             let contentHash = SHA256.hash(data: Data(content.utf8))
                 .map { String(format: "%02x", $0) }.joined()
@@ -204,14 +226,28 @@ public final class ConfigurationService: FileConfigurationProviding {
         try await createDirectoryAsync(path: configDirectory)
         AppLogger.shared.log("✅ [ConfigService] Config directory created at \(configDirectory)")
 
-        // Check if config file exists
+        // Check if config file exists. A 0-byte/whitespace-only file counts as
+        // missing: legacy helper scaffolding used to `touch` an empty keypath.kbd
+        // (#929), which kanata can't parse and which blocked this path from ever
+        // writing the default template.
         let exists = await fileExistsAsync(path: configurationPath)
-        if !exists {
-            AppLogger.shared.log("⚠️ [ConfigService] No existing config found at \(configurationPath)")
+        let effectivelyEmpty: Bool = if exists {
+            await fileIsEffectivelyEmptyAsync(path: configurationPath)
+        } else {
+            false
+        }
+        if !exists || effectivelyEmpty {
+            if effectivelyEmpty {
+                AppLogger.shared.log(
+                    "⚠️ [ConfigService] Config at \(configurationPath) exists but is empty — rewriting default"
+                )
+            } else {
+                AppLogger.shared.log("⚠️ [ConfigService] No existing config found at \(configurationPath)")
+            }
 
             // Rehydrate from persisted rule/custom stores so user state survives file deletion/reset
-            let storedCollections = await RuleCollectionStore.shared.loadCollections()
-            let storedCustomRules = await CustomRulesStore.shared.loadRules()
+            let storedCollections = await ruleCollectionStore.loadCollections()
+            let storedCustomRules = await customRulesStore.loadRules()
             let collectionsToSave = storedCollections.isEmpty
                 ? RuleCollectionCatalog().defaultCollections()
                 : storedCollections
@@ -277,22 +313,6 @@ public final class ConfigurationService: FileConfigurationProviding {
         ruleCollections: [RuleCollection],
         customRules: [CustomRule] = []
     ) async throws -> KanataConfiguration {
-        // Grandfather the cmd-actions policy against the on-disk config BEFORE
-        // generating: startup bootstrap regenerates (and saves) without any prior
-        // reload(), so the reload() hook alone would run too late — after the
-        // hand-written (cmd ...) config this migration must inspect was already
-        // overwritten. Generation below evaluates the policy via the
-        // allowCommandActions default, so the decision must be recorded first.
-        // Check-then-act is safe here: grandfatherIfNeeded re-checks internally
-        // and always records the same value for the same config (idempotent), so
-        // concurrent callers can't disagree.
-        if !KanataCommandActionsPolicy.hasRecordedDecision(),
-           Foundation.FileManager.default.fileExists(atPath: configurationPath),
-           let existingContent = try? String(contentsOfFile: configurationPath, encoding: .utf8)
-        {
-            KanataCommandActionsPolicy.grandfatherIfNeeded(configContent: existingContent)
-        }
-
         // Custom rules come first so they take priority over preset collections
         let customRuleCollections = customRules.asRuleCollections()
         AppLogger.shared.log("🔧 [ConfigService] Converting \(customRules.count) custom rules to \(customRuleCollections.count) collections")
@@ -483,9 +503,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             if lowerError.contains("missing"), lowerError.contains("defcfg") {
                 // Add missing defcfg using the shared single-source-of-truth header.
                 if !repairedConfig.contains("(defcfg") {
-                    let defcfgSection = KanataDefcfg.repairFallback(
-                        allowCommandActions: KanataCommandActionsPolicy.isEnabled()
-                    ).render() + "\n\n"
+                    let defcfgSection = KanataDefcfg.repairFallback.render() + "\n\n"
                     repairedConfig = defcfgSection + repairedConfig
                 }
             }
@@ -546,22 +564,25 @@ public final class ConfigurationService: FileConfigurationProviding {
     }
 
     /// Save a repaired config (from AI repair)
+    ///
+    /// No `danger-enable-cmd` sanitization is performed here on purpose. The
+    /// bundled kanata engine is compiled without the `cmd` feature (#879), so a
+    /// legacy `danger-enable-cmd yes` header is inert — kanata loads the config
+    /// and logs "compiled to never allow cmd"; only configs that actually *use*
+    /// `(cmd ...)` fail validation. The runtime stripping that used to live here
+    /// (KanataCommandActionsPolicy.enforcingPolicy) is therefore redundant and
+    /// was removed with the policy. The repair prompt also instructs the model
+    /// not to emit the header.
     public func saveRepairedConfig(_ repairedContent: String) async throws {
         AppLogger.shared.log("💾 [Config] Saving AI-repaired config")
 
-        // The repair model is prompted to respect the command-actions policy but is
-        // never trusted with the safety header: with the policy OFF, any
-        // danger-enable-cmd grant in model output is stripped before it reaches the
-        // root daemon's config (#860).
-        let enforcedContent = KanataCommandActionsPolicy.enforcingPolicy(on: repairedContent)
-
         let configURL = URL(fileURLWithPath: configurationPath)
-        try await writeFileURLAsync(string: enforcedContent, to: configURL)
+        try await writeFileURLAsync(string: repairedContent, to: configURL)
 
         // Update current configuration
         setCurrentConfiguration(
             KanataConfiguration(
-                content: enforcedContent,
+                content: repairedContent,
                 keyMappings: [], // Will be re-parsed on next reload
                 lastModified: Date(),
                 path: configurationPath
@@ -672,6 +693,18 @@ extension ConfigurationService {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             ioQueue.async {
                 do {
+                    // Ensure the parent directory exists. An atomic write creates
+                    // its temp file in the target directory, so a missing dir
+                    // fails with ENOENT. Relying on ~/.config/keypath
+                    // pre-existing is what made concurrent runs (a peer process
+                    // removing/recreating the shared dir mid-write) fail with
+                    // "could not enable associated rule collection". Idempotent.
+                    let dir = (path as NSString).deletingLastPathComponent
+                    if !dir.isEmpty {
+                        try FileManager.default.createDirectory(
+                            atPath: dir, withIntermediateDirectories: true
+                        )
+                    }
                     try string.write(toFile: path, atomically: true, encoding: .utf8)
                     cont.resume()
                 } catch {
@@ -685,6 +718,9 @@ extension ConfigurationService {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             ioQueue.async {
                 do {
+                    try FileManager.default.createDirectory(
+                        at: url.deletingLastPathComponent(), withIntermediateDirectories: true
+                    )
                     try string.write(to: url, atomically: true, encoding: .utf8)
                     cont.resume()
                 } catch {
@@ -715,6 +751,35 @@ extension ConfigurationService {
         await withCheckedContinuation { cont in
             ioQueue.async {
                 cont.resume(returning: Foundation.FileManager().fileExists(atPath: path))
+            }
+        }
+    }
+
+    /// True when the file is 0 bytes or contains only whitespace.
+    ///
+    /// Deliberately conservative: an unreadable or non-UTF-8 file returns
+    /// false — callers use this to decide whether to REPLACE the file with a
+    /// default, and a transient read failure or odd encoding must never cause
+    /// a user's hand-edited config to be overwritten.
+    func fileIsEffectivelyEmptyAsync(path: String) async -> Bool {
+        await withCheckedContinuation { cont in
+            ioQueue.async {
+                let fm = Foundation.FileManager()
+                guard let size = (try? fm.attributesOfItem(atPath: path))?[.size] as? UInt64 else {
+                    cont.resume(returning: false)
+                    return
+                }
+                if size == 0 {
+                    cont.resume(returning: true)
+                    return
+                }
+                guard let contents = try? String(contentsOfFile: path, encoding: .utf8) else {
+                    cont.resume(returning: false)
+                    return
+                }
+                cont.resume(
+                    returning: contents.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                )
             }
         }
     }

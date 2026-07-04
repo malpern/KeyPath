@@ -240,6 +240,18 @@ final class WizardStateMachineNavigationTests: XCTestCase {
         XCTAssertFalse(stateMachine.userInteractionMode)
     }
 
+    func testResetNavigation_clearsCustomSequence() {
+        // Given - a custom sequence left over from a prior wizard run
+        stateMachine.customSequence = [.inputMonitoring, .accessibility, .service]
+
+        // When
+        stateMachine.resetNavigation()
+
+        // Then - stale sequence must not leak into the next run's navigation
+        // or the "Step X of Y" indicator (#934)
+        XCTAssertNil(stateMachine.customSequence)
+    }
+
     // MARK: - isCurrentPage Tests
 
     func testIsCurrentPage_returnsTrue_whenMatches() {

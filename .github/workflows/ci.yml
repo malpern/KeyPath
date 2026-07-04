@@ -21,6 +21,16 @@ jobs:
   build-and-test:
     runs-on: [self-hosted, macOS, keypath]
     timeout-minutes: 10
+    # Separate from the workflow-level concurrency group above (which cancels
+    # stale runs of the *same* PR): this queues jobs from *different* PRs onto
+    # the single physical runner instead of letting them execute in parallel.
+    # Concurrent swift test runs share unsandboxed local state (e.g.
+    # RuleCollectionsManager's config file), which caused spurious
+    # CLIPackCRUDTests "could not enable associated rule collection" failures
+    # when two PRs' CI happened to overlap.
+    concurrency:
+      group: keypath-self-hosted-runner
+      cancel-in-progress: false
 
     steps:
     - name: Clean stale git credentials
@@ -175,6 +185,9 @@ jobs:
   code-quality:
     runs-on: [self-hosted, macOS, keypath]
     timeout-minutes: 5
+    # No concurrency group: this job never runs `swift test` or touches
+    # RuleCollectionsManager's config file, so it doesn't share the state
+    # that caused the race — no need to queue it behind build-and-test.
 
     steps:
     - name: Clean stale git credentials

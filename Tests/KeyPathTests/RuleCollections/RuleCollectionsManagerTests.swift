@@ -593,6 +593,203 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertTrue(afterInputs.allSatisfy { $0 == "space" })
     }
 
+    /// Issue #889: a headless mutation of the Leader Key collection's
+    /// `selectedOutput` (direct JSON edit / CLI / import) does not route through
+    /// `updateLeaderKey`, so loading it must reconcile the system
+    /// `leaderKeyPreference` and momentary activators — otherwise config
+    /// generation silently keeps the old leader key.
+    @MainActor
+    func testReplaceCollectionsReconcilesLeaderKeyFromSelectedOutput() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        // Preference starts at the default ("space"); the loaded collection asks for "tab".
+        PreferencesService.shared.leaderKeyPreference = .default
+        defer { PreferencesService.shared.leaderKeyPreference = .default }
+
+        let collections = RuleCollectionCatalog().defaultCollections().map { collection -> RuleCollection in
+            var collection = collection
+            if collection.id == RuleCollectionIdentifier.leaderKey {
+                collection.isEnabled = true
+                collection.configuration.updateSelectedOutput("tab")
+            }
+            return collection
+        }
+
+        // Simulates the headless load/import path (bootstrap uses the same reconcile).
+        await manager.replaceCollections(collections)
+
+        XCTAssertEqual(
+            PreferencesService.shared.leaderKeyPreference.key, "tab",
+            "leaderKeyPreference should be reconciled from the collection's selectedOutput"
+        )
+        XCTAssertTrue(
+            PreferencesService.shared.leaderKeyPreference.enabled,
+            "enabled leader collection should mark the preference enabled"
+        )
+        // The leader activator (base -> nav) adopts the reconciled key...
+        let navInputs = manager.ruleCollections
+            .compactMap(\.momentaryActivator)
+            .filter { $0.sourceLayer == .base && $0.targetLayer == .navigation }
+            .map(\.input)
+        XCTAssertFalse(navInputs.isEmpty)
+        XCTAssertTrue(
+            navInputs.allSatisfy { $0 == "tab" },
+            "the leader (base -> nav) activator should adopt the reconciled leader key"
+        )
+
+        // ...but unrelated base-layer activators (Home Row Arrows "f", Quick Launcher
+        // "hyper") must NOT be stomped to the leader key (issue #889 regression guard).
+        let otherInputs = manager.ruleCollections
+            .compactMap(\.momentaryActivator)
+            .filter { !($0.sourceLayer == .base && $0.targetLayer == .navigation) }
+            .map(\.input)
+        XCTAssertFalse(
+            otherInputs.contains("tab"),
+            "non-leader momentary activators must not be rewritten to the leader key"
+        )
+    }
+
+    /// Issue #889: a nil `selectedOutput` means the collection expresses no opinion, so
+    /// reconciliation must leave a leader key configured via the system-preference path
+    /// untouched (no fallback to the first preset). This is the regression a pre-commit
+    /// review caught; lock it in.
+    @MainActor
+    func testReconcileLeavesPreferenceUntouchedWhenSelectedOutputNil() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        // Leader key deliberately configured via the system-preference path.
+        PreferencesService.shared.leaderKeyPreference = LeaderKeyPreference(
+            key: "caps", targetLayer: .navigation, enabled: true
+        )
+        defer { PreferencesService.shared.leaderKeyPreference = .default }
+
+        let collections = RuleCollectionCatalog().defaultCollections().map { collection -> RuleCollection in
+            var collection = collection
+            if collection.id == RuleCollectionIdentifier.leaderKey {
+                collection.isEnabled = true
+                if var config = collection.configuration.singleKeyPickerConfig {
+                    config.selectedOutput = nil
+                    collection.configuration = .singleKeyPicker(config)
+                }
+            }
+            return collection
+        }
+
+        await manager.replaceCollections(collections)
+
+        XCTAssertEqual(
+            PreferencesService.shared.leaderKeyPreference.key, "caps",
+            "nil selectedOutput must not clobber a system-preference leader key"
+        )
+        XCTAssertTrue(PreferencesService.shared.leaderKeyPreference.enabled)
+    }
+
+    /// Issue #889: reconciliation only fires for an *enabled* Leader Key collection. A
+    /// disabled collection — even one carrying an explicit selectedOutput — must not
+    /// touch the preference.
+    @MainActor
+    func testReconcileSkipsWhenLeaderCollectionDisabled() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        PreferencesService.shared.leaderKeyPreference = LeaderKeyPreference(
+            key: "caps", targetLayer: .navigation, enabled: true
+        )
+        defer { PreferencesService.shared.leaderKeyPreference = .default }
+
+        let collections = RuleCollectionCatalog().defaultCollections().map { collection -> RuleCollection in
+            var collection = collection
+            if collection.id == RuleCollectionIdentifier.leaderKey {
+                collection.isEnabled = false
+                collection.configuration.updateSelectedOutput("tab")
+            }
+            return collection
+        }
+
+        await manager.replaceCollections(collections)
+
+        XCTAssertEqual(
+            PreferencesService.shared.leaderKeyPreference.key, "caps",
+            "a disabled Leader Key collection must not reconcile the preference"
+        )
+    }
+
+    /// Issue #889: when a reconciled leader key collides with another enabled base-layer
+    /// binding and no `onMappingConflictResolution` handler is registered,
+    /// `regenerateConfigFromCollections` fails. The reconcile must then be rolled back
+    /// atomically — both the UserDefaults-persisted `leaderKeyPreference` and the
+    /// in-memory collections revert to their pre-reconcile snapshot — so the next load
+    /// retries the drift cleanly instead of the idempotency guard permanently masking it.
+    /// Reviewers flagged this path but couldn't exercise it blind: regen only fails on a
+    /// genuine collision, which needs a real toolchain.
+    @MainActor
+    func testReconcileRollsBackWhenConfigRegenFails() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        // Baseline leader = default ("space"). The Leader Key collection asks to reconcile
+        // to "f" — but Home Row Arrows (enabled by default) already owns the base-layer "f"
+        // activator (base → home-arrows). With no conflict-resolution handler registered,
+        // generateConfiguration throws .mappingConflicts (#463 leader-vs-activator) and
+        // regen returns false.
+        PreferencesService.shared.leaderKeyPreference = .default
+        defer { PreferencesService.shared.leaderKeyPreference = .default }
+
+        var regenFailed = false
+        manager.onError = { _ in regenFailed = true }
+
+        let collections = RuleCollectionCatalog().defaultCollections().map { collection -> RuleCollection in
+            var collection = collection
+            if collection.id == RuleCollectionIdentifier.leaderKey {
+                collection.isEnabled = true
+                collection.configuration.updateSelectedOutput("f")
+            }
+            return collection
+        }
+
+        // Test premise: an enabled base-layer "f" activator must exist to collide with.
+        XCTAssertTrue(
+            collections.contains {
+                $0.id == RuleCollectionIdentifier.homeRowArrows
+                    && $0.isEnabled
+                    && $0.momentaryActivator?.input == "f"
+                    && $0.momentaryActivator?.sourceLayer == .base
+            },
+            "test premise: an enabled base-layer 'f' activator must exist to collide with"
+        )
+
+        await manager.replaceCollections(collections)
+
+        // Regen must have failed — this proves the reconcile+collision path executed
+        // (a no-op reconcile would have left preference at "space" with no error).
+        XCTAssertTrue(regenFailed, "a colliding reconcile should make config regen fail")
+
+        // The preference reverts to the pre-reconcile snapshot (reconcile had mutated it
+        // to "f"; the failed regen rolls it back).
+        XCTAssertEqual(
+            PreferencesService.shared.leaderKeyPreference, .default,
+            "leaderKeyPreference must revert to its pre-reconcile value after a failed regen"
+        )
+
+        // The in-memory collections revert too: the base → nav leader activator that
+        // reconcile rewrote to "f" is restored to its original "space".
+        let navInputs = manager.ruleCollections
+            .compactMap(\.momentaryActivator)
+            .filter { $0.sourceLayer == .base && $0.targetLayer == .navigation }
+            .map(\.input)
+        XCTAssertFalse(navInputs.isEmpty)
+        XCTAssertTrue(
+            navInputs.allSatisfy { $0 == "space" },
+            "the base → nav activator must be restored to 'space' after rollback (was rewritten to 'f')"
+        )
+        XCTAssertFalse(
+            navInputs.contains("f"),
+            "no base → nav activator should retain the reconciled-then-rolled-back 'f'"
+        )
+    }
+
     @MainActor
     func testToggleCustomRuleConflictKeepNew_DisablesConflictingCollection() async throws {
         let (manager, _) = try await createTestManager()

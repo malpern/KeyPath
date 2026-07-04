@@ -3,25 +3,18 @@
 @preconcurrency import XCTest
 
 final class LayerKeyMapperPrebuildTests: XCTestCase {
-    private var previousSimulatorFlag: Bool?
-
-    override func setUp() {
-        super.setUp()
-        previousSimulatorFlag = FeatureFlags.simulatorAndVirtualKeysEnabled
-        FeatureFlags.setSimulatorAndVirtualKeysEnabled(false)
-    }
-
-    override func tearDown() {
-        if let previousSimulatorFlag {
-            FeatureFlags.setSimulatorAndVirtualKeysEnabled(previousSimulatorFlag)
-        }
-        super.tearDown()
+    /// These tests exercise the simulator-disabled fallback path. The flag is
+    /// injected per-instance instead of flipping the UserDefaults-backed global
+    /// FeatureFlags value, which leaked into other test classes running in the
+    /// same process and caused the #896 flake in RemapEndToEndTests.
+    private func makeMapper() -> LayerKeyMapper {
+        LayerKeyMapper(simulatorEnabled: { false })
     }
 
     // MARK: - Cache Key Format
 
     func testPrebuildStoresCompositeKeysMatchingGetMapping() async throws {
-        let mapper = LayerKeyMapper()
+        let mapper = makeMapper()
         let configPath = try createTempConfig("(defcfg)(defsrc)(deflayer base)")
 
         await mapper.prebuildAllLayers(
@@ -45,7 +38,7 @@ final class LayerKeyMapperPrebuildTests: XCTestCase {
     }
 
     func testPrebuildCacheHitsOnGetMapping() async throws {
-        let mapper = LayerKeyMapper()
+        let mapper = makeMapper()
         let configPath = try createTempConfig("(defcfg)(defsrc)(deflayer base)")
 
         await mapper.prebuildAllLayers(
@@ -69,7 +62,7 @@ final class LayerKeyMapperPrebuildTests: XCTestCase {
     }
 
     func testPrebuildNormalizesLayerNamesToLowercase() async throws {
-        let mapper = LayerKeyMapper()
+        let mapper = makeMapper()
         let configPath = try createTempConfig("(defcfg)(defsrc)(deflayer base)")
 
         await mapper.prebuildAllLayers(
@@ -88,7 +81,7 @@ final class LayerKeyMapperPrebuildTests: XCTestCase {
     // MARK: - Neovim Scope Variants
 
     func testPrebuildSkipsApprovedVariantWhenNoNeovimCollection() async throws {
-        let mapper = LayerKeyMapper()
+        let mapper = makeMapper()
         let configPath = try createTempConfig("(defcfg)(defsrc)(deflayer base)")
 
         await mapper.prebuildAllLayers(
@@ -110,7 +103,7 @@ final class LayerKeyMapperPrebuildTests: XCTestCase {
     // MARK: - Cache Invalidation
 
     func testInvalidateCacheClearsPrebuiltEntries() async throws {
-        let mapper = LayerKeyMapper()
+        let mapper = makeMapper()
         let configPath = try createTempConfig("(defcfg)(defsrc)(deflayer base)")
 
         await mapper.prebuildAllLayers(

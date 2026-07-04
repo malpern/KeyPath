@@ -12,7 +12,13 @@ class ConfigurationServiceTests: XCTestCase {
         return url
     }()
 
-    lazy var configService: ConfigurationService = .init(configDirectory: tempDirectory.path)
+    /// Temp-backed stores keep these tests hermetic: the shared singletons read the
+    /// real user stores, whose collections can conflict on developer machines.
+    lazy var configService: ConfigurationService = .init(
+        configDirectory: tempDirectory.path,
+        ruleCollectionStore: .testStore(at: tempDirectory.appendingPathComponent("RuleCollections.json")),
+        customRulesStore: .testStore(at: tempDirectory.appendingPathComponent("CustomRules.json"))
+    )
 
     // MARK: - Configuration Generation Tests
 
@@ -493,6 +499,71 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertTrue(contents.contains("process-unmapped-keys yes"))
     }
 
+    func testCreateInitialConfigReadsInjectedStores() async throws {
+        let storeURL = tempDirectory.appendingPathComponent("SeededRuleCollections.json")
+        let seededStore = RuleCollectionStore.testStore(at: storeURL)
+        // f16 is not mapped by any default catalog collection, so the marker
+        // can't conflict with the defaults merged in on load.
+        let marker = RuleCollection(
+            name: "Injected Marker",
+            summary: "Proves the injected store is read",
+            category: .custom,
+            mappings: [KeyMapping(input: "f16", action: .keystroke(key: "f17"))],
+            isEnabled: true,
+            isSystemDefault: false
+        )
+        try await seededStore.saveCollections([marker])
+
+        let service = ConfigurationService(
+            configDirectory: tempDirectory.path,
+            ruleCollectionStore: seededStore,
+            customRulesStore: .testStore(at: tempDirectory.appendingPathComponent("CustomRules.json"))
+        )
+        let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
+        try? FileManager.default.removeItem(at: configPath)
+
+        try await service.createInitialConfigIfNeeded()
+
+        let contents = try String(contentsOf: configPath, encoding: .utf8)
+        XCTAssertTrue(
+            contents.contains("Injected Marker"),
+            "Initial config should rehydrate from the injected store, not the shared singleton"
+        )
+    }
+
+    /// #929: a pre-existing 0-byte keypath.kbd (left behind by old helper
+    /// scaffolding) must be treated as missing and replaced with the default.
+    func testCreateInitialConfigRewritesEmptyFile() async throws {
+        let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
+        try "".write(to: configPath, atomically: true, encoding: .utf8)
+
+        try await configService.createInitialConfigIfNeeded()
+
+        let contents = try String(contentsOf: configPath, encoding: .utf8)
+        XCTAssertFalse(
+            contents.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            "empty config should be rewritten with the default template"
+        )
+        XCTAssertTrue(contents.contains("process-unmapped-keys yes"))
+    }
+
+    /// A valid existing config must NOT be overwritten by the empty-file repair.
+    func testCreateInitialConfigPreservesNonEmptyFile() async throws {
+        let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
+        let sentinel = """
+        (defcfg)
+        (defsrc caps)
+        (deflayer base esc)
+        ;; user-sentinel-do-not-touch
+        """
+        try sentinel.write(to: configPath, atomically: true, encoding: .utf8)
+
+        try await configService.createInitialConfigIfNeeded()
+
+        let contents = try String(contentsOf: configPath, encoding: .utf8)
+        XCTAssertTrue(contents.contains("user-sentinel-do-not-touch"))
+    }
+
     func testBackupFailedConfigAppliesSafeDefaults() async throws {
         let original = """
         (defcfg)
@@ -758,72 +829,7 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertTrue(safeContent.contains("esc"), "Safe config should use escape key")
     }
 
-    /// Regression: startup bootstrap regenerates (and saves) the config without any
-    /// prior reload(), so generateConfiguration must grandfather the cmd-actions
-    /// policy from the on-disk config BEFORE generating — otherwise a hand-written
-    /// (cmd ...) config would be overwritten with the header stripped.
-    func testGenerateConfiguration_GrandfathersCmdUsageFromExistingConfigBeforeRegenerating() async throws {
-        UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey)
-        defer { UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey) }
-
-        let existingConfig = """
-        (defcfg
-          process-unmapped-keys yes
-          danger-enable-cmd yes
-        )
-        (defalias open-notes (cmd open -a Notes))
-        (defsrc caps)
-        (deflayer base @open-notes)
-        """
-        try existingConfig.write(
-            toFile: configService.configurationPath, atomically: true, encoding: .utf8
-        )
-
-        let generated = try await configService.generateConfiguration(ruleCollections: [])
-
-        XCTAssertTrue(
-            KanataCommandActionsPolicy.isEnabled(),
-            "Regenerating over a config that uses (cmd ...) must grandfather the policy ON"
-        )
-        XCTAssertTrue(
-            generated.content.contains("danger-enable-cmd yes"),
-            "Grandfathered regeneration must keep emitting the danger-enable-cmd header"
-        )
-    }
-
-    func testGenerateConfiguration_HeaderOnlyLegacyConfigDoesNotGrandfather() async throws {
-        UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey)
-        defer { UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey) }
-
-        let legacyGenerated = """
-        (defcfg
-          process-unmapped-keys yes
-          danger-enable-cmd yes
-        )
-        (defsrc caps)
-        (deflayer base (push-msg "layer:base"))
-        """
-        try legacyGenerated.write(
-            toFile: configService.configurationPath, atomically: true, encoding: .utf8
-        )
-
-        let generated = try await configService.generateConfiguration(ruleCollections: [])
-
-        XCTAssertFalse(
-            KanataCommandActionsPolicy.isEnabled(),
-            "The legacy hardcoded header alone must not grandfather cmd execution back on"
-        )
-        XCTAssertFalse(
-            generated.content.contains("danger-enable-cmd"),
-            "Regenerated config must drop the unused danger-enable-cmd grant"
-        )
-    }
-
     func testRepairConfiguration_MissingDefcfg() async throws {
-        // Pin the command-actions policy to its default (unset → OFF) so the
-        // repaired header is deterministic regardless of prior test-runner state.
-        UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey)
-        defer { UserDefaults.standard.removeObject(forKey: KanataCommandActionsPolicy.defaultsKey) }
         let brokenConfig = """
         (defsrc caps)
         (deflayer base esc)
@@ -844,7 +850,7 @@ class ConfigurationServiceTests: XCTestCase {
         )
         XCTAssertFalse(
             repairedConfig.contains("danger-enable-cmd"),
-            "Repaired config must not grant cmd execution unless the user opted in (KanataCommandActionsPolicy defaults OFF)"
+            "Repaired config must never grant cmd execution — the engine is built without the cmd feature (#879)"
         )
     }
 

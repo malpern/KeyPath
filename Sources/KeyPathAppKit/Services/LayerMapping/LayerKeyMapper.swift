@@ -217,9 +217,17 @@ actor LayerKeyMapper {
     let simulatorService: SimulatorService
     var cache: [String: [UInt16: LayerKeyInfo]] = [:]
     var configHash: String = ""
+    /// Injectable feature-flag check. Defaults to the persisted flag; tests inject a
+    /// constant so simulator integration tests never depend on process-global
+    /// UserDefaults state that other test classes may mutate (#896).
+    let simulatorEnabled: @Sendable () -> Bool
 
-    init(simulatorService: SimulatorService = SimulatorService()) {
+    init(
+        simulatorService: SimulatorService = SimulatorService(),
+        simulatorEnabled: @escaping @Sendable () -> Bool = { FeatureFlags.simulatorAndVirtualKeysEnabled }
+    ) {
         self.simulatorService = simulatorService
+        self.simulatorEnabled = simulatorEnabled
     }
 
     // MARK: - Public API
@@ -245,7 +253,7 @@ actor LayerKeyMapper {
         AppLogger.shared
             .info("🗺️ [LayerKeyMapper] getMapping called for layer '\(layer)' (normalized: '\(normalizedLayer)', cacheKeySuffix: '\(cacheKeySuffix)')")
 
-        if !FeatureFlags.simulatorAndVirtualKeysEnabled {
+        if !simulatorEnabled() {
             AppLogger.shared.info("🗺️ [LayerKeyMapper] Simulator disabled; using fallback mapping")
             let mapping = buildFallbackMapping(layout: layout)
             cache[cacheKey] = mapping
@@ -314,7 +322,7 @@ actor LayerKeyMapper {
         let normalizedLayers = layerNames.map { $0.lowercased() }
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Pre-building mappings for \(normalizedLayers.count) layers: \(normalizedLayers.joined(separator: ", "))")
 
-        if !FeatureFlags.simulatorAndVirtualKeysEnabled {
+        if !simulatorEnabled() {
             let mapping = buildFallbackMapping(layout: layout)
             for layer in normalizedLayers {
                 cache["\(layer)|default"] = mapping

@@ -46,18 +46,27 @@ PY
 
 smoke_init
 
-# Finding (release-readiness, Thu): the Leader Key collection's
-# selectedOutput is display-only — the generated config's leader binding
-# comes from the system leaderKeyPreference (UserDefaults), which JSON/CLI
-# mutation of the collection does not touch. Setting selectedOutput=tab
-# still emits layer_nav_spc. Until that's resolved (or confirmed intended),
-# these cases assert apply-success per preset, which still kanata-validates
-# the full config for each value.
+# Issue #889: the standalone `keypath-cli config apply` path now reconciles the
+# leader key from the Leader Key collection's selectedOutput. Previously it read
+# leaderKeyPreference directly (via ConfigFacade → ConfigurationService) and never
+# constructed a RuleCollectionsManager, so the picker was display-only from the CLI.
+# ConfigFacade.applyConfiguration now reconciles both the leaderKeyPreference and the
+# base→nav leader activator before generating config (LeaderKeyPreference.reconciled /
+# .reconcileLeaderActivators), so each preset drives its own leader binding.
+#
+# The generated config annotates the primary leader with a "Primary Leader Key
+# (System Preference)" block whose activator renders as ";; Input: <key>". We assert
+# the reconciled key drives that binding for each preset.
+#
+# NOTE: still deferred to #865/#888 — a headless edit that *disables* a previously
+# reconciled collection leaves leaderKeyPreference stale (disable-drift), and full
+# single-source-of-truth generation from the collection.
 for preset in space caps tab grv; do
   echo "==> preset: $preset"
   apply_leader "$preset"
   config="$(show_config)"
   assert_contains "$config" "Leader Key" "preset $preset config includes the Leader Key collection"
+  assert_contains "$config" ";; Input: $preset" "preset $preset drives its own leader binding (#889)"
 done
 
-echo "Leader Key smoke passed (all 4 presets apply kanata-clean). Restoring original KeyPath config."
+echo "Leader Key smoke passed (all 4 presets drive their own CLI-generated leader binding). Restoring original KeyPath config."

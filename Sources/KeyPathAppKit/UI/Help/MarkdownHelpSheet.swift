@@ -30,7 +30,8 @@ struct MarkdownHelpSheet: View {
 
             WebHelpView(
                 url: HelpTopic.topic(forResource: resource)?.webURL
-                    ?? URL(string: "\(HelpTopic.baseURL)/guides/\(resource)/")!
+                    ?? URL(string: "\(HelpTopic.baseURL)/guides/\(resource)/")
+                    ?? URL(fileURLWithPath: "/")
             )
         }
         .frame(width: 750, height: 700)

@@ -10,6 +10,7 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
         rawValue
     }
 
+    case welcome = "Welcome"
     case summary = "Summary"
     case helper = "Privileged Helper"
     case fullDiskAccess = "Full Disk Access"
@@ -26,6 +27,7 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
     /// User-friendly display name for accessibility and UI
     public var displayName: String {
         switch self {
+        case .welcome: "Welcome to KeyPath"
         case .summary: "Setup Overview"
         case .helper: "Privileged Helper Installation"
         case .fullDiskAccess: "Full Disk Access (Optional)"
@@ -44,6 +46,7 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
     /// Stable identifier for automation and testing tools
     public var accessibilityIdentifier: String {
         switch self {
+        case .welcome: "welcome"
         case .summary: "overview"
         case .fullDiskAccess: "full-disk-access"
         case .conflicts: "conflicts"
@@ -78,6 +81,30 @@ public extension WizardPage {
         .service,
         .communication
     ]
+
+    /// "Step X of Y" position of a page within a wizard navigation sequence.
+    /// Summary is the overview page, not a numbered step, so it's excluded
+    /// from both the step number and the total; a page that isn't part of
+    /// `sequence` (or `.summary` itself) has no step info.
+    struct StepPosition: Equatable {
+        public let step: Int
+        public let total: Int
+
+        public init(step: Int, total: Int) {
+            self.step = step
+            self.total = total
+        }
+    }
+
+    /// Compute this page's "Step X of Y" position within the given sequence
+    /// (defaults to `orderedPages`). Returns `nil` for `.summary` or for a
+    /// page not present in `sequence`.
+    func stepPosition(in sequence: [WizardPage] = WizardPage.orderedPages) -> StepPosition? {
+        guard self != .summary else { return nil }
+        let steps = sequence.filter { $0 != .summary }
+        guard let index = steps.firstIndex(of: self) else { return nil }
+        return StepPosition(step: index + 1, total: steps.count)
+    }
 }
 
 /// Status of individual installation or check components

@@ -33,7 +33,7 @@ struct LauncherDrawerView: View {
     }
 
     private let columns = [
-        GridItem(.adaptive(minimum: 250, maximum: 340), spacing: 10),
+        GridItem(.adaptive(minimum: 250, maximum: 340), spacing: 10)
     ]
 
     var body: some View {
@@ -64,6 +64,7 @@ struct LauncherDrawerView: View {
                 }
                 .menuStyle(.borderlessButton)
                 .accessibilityIdentifier("launcher-drawer-menu-button")
+                .accessibilityLabel("Mappings options")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)

@@ -23,17 +23,28 @@ public extension InstallationWizardView {
         // Determine initial page based on cached system snapshot (if available)
         // Skip summary on initial run - go directly to helper page to start the wizard flow
         let preferredPage = await cachedPreferredPage()
-        if let preferredPage, initialPage == nil {
+        if initialPage == nil, await shouldShowWelcomePage() {
+            // Fresh install, Get Started never clicked: open on the one-time
+            // welcome page (issue #932). Validation still runs underneath;
+            // performInitialStateCheck() leaves the welcome page alone.
+            AppLogger.shared.log("👋 [Wizard] Fresh install — starting at welcome page")
+            stateMachine.navigateToPage(.welcome)
+        } else if let preferredPage, initialPage == nil {
             AppLogger.shared.log("🔍 [Wizard] Preferring cached page: \(preferredPage)")
             stateMachine.navigateToPage(preferredPage)
         } else if let initialPage {
             AppLogger.shared.log("🔍 [Wizard] Navigating to initial page override: \(initialPage)")
             stateMachine.navigateToPage(initialPage)
         } else {
-            // Start at helper page, not summary - avoids showing unverified permission status
-            // before user has had a chance to decide on enhanced diagnostics (FDA)
-            AppLogger.shared.log("🔍 [Wizard] Starting at helper page (skipping initial summary)")
-            stateMachine.navigateToPage(.helper)
+            // No cached snapshot and no explicit override: stay on summary (the
+            // default from resetNavigation()) until performInitialStateCheck()
+            // below determines the real target page. Eagerly jumping to .helper
+            // here and then bouncing back to .summary once permissions are known
+            // (see performInitialStateCheck's "Permissions still unverified" guard)
+            // caused a visible summary→helper→summary flicker on wizard open (#934).
+            // performInitialStateCheck() performs the single authoritative
+            // navigation once state + permissions are resolved.
+            AppLogger.shared.log("🔍 [Wizard] No cached page — staying on summary until initial state check completes")
         }
 
         Task {
@@ -56,7 +67,18 @@ public extension InstallationWizardView {
         }
     }
 
-    func performInitialStateCheck(retryAllowed: Bool = true) async {
+    /// Whether the wizard should open on the one-time Welcome page (issue #932):
+    /// fresh install (helper not installed) and Get Started never clicked.
+    internal func shouldShowWelcomePage() async -> Bool {
+        let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
+        return WizardWelcomeGate.shouldShowWelcome(helperInstalled: helperInstalled)
+    }
+
+    func performInitialStateCheck(
+        retryAllowed: Bool = true,
+        permissionRetriesRemaining: Int = 2,
+        permissionRetryDelay: Double = 2.0
+    ) async {
         // Check if user has already closed wizard
         guard !Task.isCancelled else {
             AppLogger.shared.log("🔍 [Wizard] Initial state check cancelled - wizard closing")
@@ -131,27 +153,58 @@ public extension InstallationWizardView {
             // Without this, .unknown permission states (Oracle hasn't finished TCC check)
             // are treated as non-blocking, causing the wizard to skip permission pages.
             let permSnapshot = await PermissionOracle.shared.forceRefresh()
-            let permissionsStillUnknown =
-                permSnapshot.kanata.accessibility == .unknown
-                    || permSnapshot.kanata.inputMonitoring == .unknown
-            if permissionsStillUnknown {
-                AppLogger.shared.log("🔍 [Wizard] Permissions still unverified — staying on summary to avoid skipping permission pages")
-                Task { @MainActor in
-                    stateMachine.navigateToPage(.summary)
+            let kanataAccessibilityUnknown = permSnapshot.kanata.accessibility == .unknown
+            let kanataInputMonitoringUnknown = permSnapshot.kanata.inputMonitoring == .unknown
+            if kanataAccessibilityUnknown || kanataInputMonitoringUnknown {
+                if permissionRetriesRemaining > 0 {
+                    // Possibly transient (Oracle racing app startup / slow TCC read):
+                    // park on summary and retry with backoff.
+                    AppLogger.shared.log(
+                        "🔍 [Wizard] Permissions still unverified — retrying in \(permissionRetryDelay)s (\(permissionRetriesRemaining) left)"
+                    )
+                    Task { @MainActor in
+                        // Never yank the user off the welcome page; Get Started routes onward.
+                        if stateMachine.currentPage != .welcome {
+                            stateMachine.navigateToPage(.summary)
+                        }
+                    }
+                    Task {
+                        _ = await WizardSleep.seconds(permissionRetryDelay)
+                        guard !Task.isCancelled, !isForceClosing else { return }
+                        await performInitialStateCheck(
+                            retryAllowed: retryAllowed,
+                            permissionRetriesRemaining: permissionRetriesRemaining - 1,
+                            permissionRetryDelay: permissionRetryDelay * 2
+                        )
+                    }
+                    return
                 }
-                return
+                // Steady-state .unknown (no Full Disk Access to read TCC.db, or a
+                // fresh install with no TCC row) — retrying won't resolve it. Fall
+                // through and let routing land on the first unverified permission
+                // page instead of dead-ending on summary (the pre-#934 gap).
+                AppLogger.shared.log(
+                    "🔍 [Wizard] Permissions unverifiable after retries — routing to first unverified permission page"
+                )
             }
 
             // Auto-navigate to the first page that needs attention
             let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
             let helperNeedsApproval = WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
-            let recommended = WizardRouter.route(
-                state: result.state,
-                issues: filteredIssues,
-                helperInstalled: helperInstalled,
-                helperNeedsApproval: helperNeedsApproval
+            let recommended = WizardRouter.routeForUnverifiedKanataPermissions(
+                base: WizardRouter.route(
+                    state: result.state,
+                    issues: filteredIssues,
+                    helperInstalled: helperInstalled,
+                    helperNeedsApproval: helperNeedsApproval
+                ),
+                inputMonitoringUnknown: kanataInputMonitoringUnknown,
+                accessibilityUnknown: kanataAccessibilityUnknown
             )
             Task { @MainActor in
+                // Never yank the user off the welcome page mid-read; validation has
+                // already resolved by the time they click Get Started, which routes onward.
+                guard stateMachine.currentPage != .welcome else { return }
                 if WizardRouter.shouldNavigateToSummary(
                     currentPage: stateMachine.currentPage,
                     state: result.state,

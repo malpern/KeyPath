@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+@testable import KeyPathCore
 @testable import KeyPathInstallationWizard
 @preconcurrency import XCTest
 
@@ -30,7 +31,7 @@ final class PrivilegedExecutorTests: XCTestCase {
         // AppleScript only requires escaping backslashes and double quotes
         // Single quotes don't need escaping
         let commandWithDoubleQuotes = "echo \"hello world\""
-        let escaped = executor.escapeForAppleScript(commandWithDoubleQuotes)
+        let escaped = PrivilegedCommandRunner.escapeForAppleScript(commandWithDoubleQuotes)
 
         XCTAssertNotEqual(escaped, commandWithDoubleQuotes, "Should escape double quotes")
         XCTAssertTrue(escaped.contains("\\\""), "Should contain escaped double quotes")
@@ -38,7 +39,7 @@ final class PrivilegedExecutorTests: XCTestCase {
 
     func testEscapeForAppleScriptHandlesSpecialCharacters() {
         let command = "rm -rf /tmp/test\"file"
-        let escaped = executor.escapeForAppleScript(command)
+        let escaped = PrivilegedCommandRunner.escapeForAppleScript(command)
 
         // Should escape quotes and other special chars
         XCTAssertTrue(escaped.contains("\\"), "Should escape special characters")
@@ -46,7 +47,7 @@ final class PrivilegedExecutorTests: XCTestCase {
 
     func testEscapeForAppleScriptPreservesNormalText() {
         let command = "simple command"
-        let escaped = executor.escapeForAppleScript(command)
+        let escaped = PrivilegedCommandRunner.escapeForAppleScript(command)
 
         // May or may not escape, but should not break
         XCTAssertFalse(escaped.isEmpty, "Should not return empty string")

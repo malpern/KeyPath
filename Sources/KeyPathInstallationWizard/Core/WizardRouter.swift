@@ -52,6 +52,31 @@ public enum WizardRouter {
         return .summary
     }
 
+    /// Adjust a routing decision when kanata's permission state could not be
+    /// verified (still `.unknown` after retries — e.g. no Full Disk Access to
+    /// read TCC.db, or a fresh install with no TCC row yet).
+    ///
+    /// Unverified permissions produce only warning-severity issues, which
+    /// `route()` deliberately ignores — but auto-advancing past the permission
+    /// pages would start the service and trigger both system permission dialogs
+    /// at once. Once the higher-priority blocking pages (conflicts/helper) are
+    /// clear, land on the first unverified permission page so the user sees the
+    /// "not verified — add manually" guidance instead of parking on summary.
+    public static func routeForUnverifiedKanataPermissions(
+        base: WizardPage,
+        inputMonitoringUnknown: Bool,
+        accessibilityUnknown: Bool
+    ) -> WizardPage {
+        switch base {
+        case .conflicts, .helper, .inputMonitoring, .accessibility:
+            return base
+        default:
+            if inputMonitoringUnknown { return .inputMonitoring }
+            if accessibilityUnknown { return .accessibility }
+            return base
+        }
+    }
+
     // MARK: - Next Page (skipping resolved pages, enforcing prerequisites)
 
     /// Find the next page that needs attention after the current one.
@@ -141,7 +166,7 @@ public enum WizardRouter {
             default:
                 false
             }
-        case .fullDiskAccess, .kanataMigration, .stopExternalKanata, .karabinerImport:
+        case .welcome, .fullDiskAccess, .kanataMigration, .stopExternalKanata, .karabinerImport:
             false
         }
     }

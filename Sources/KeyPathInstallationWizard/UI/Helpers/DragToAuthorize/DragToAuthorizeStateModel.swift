@@ -8,6 +8,7 @@ import SwiftUI
 @Observable
 final class DragToAuthorizeStateModel {
     let target: DragToAuthorizeController.PermissionTarget
+    let subject: DragToAuthorizeController.PermissionSubject
     private weak var controller: DragToAuthorizeController?
 
     // Animation-driving state
@@ -20,18 +21,20 @@ final class DragToAuthorizeStateModel {
     var dismissOpacity: Double = 1.0
     var dismissOffset: CGFloat = 0
 
-    var launcherPath: String {
-        WizardSystemPaths.bundledKanataLauncherPath
-    }
-
-    var launcherIcon: NSImage {
-        let icon = NSWorkspace.shared.icon(forFile: launcherPath)
+    /// Icon for the subject being dragged (KeyPath.app or kanata-launcher).
+    var subjectIcon: NSImage {
+        let icon = NSWorkspace.shared.icon(forFile: subject.fileURL.path)
         icon.size = NSSize(width: 32, height: 32)
         return icon
     }
 
-    init(target: DragToAuthorizeController.PermissionTarget, controller: DragToAuthorizeController) {
+    init(
+        target: DragToAuthorizeController.PermissionTarget,
+        subject: DragToAuthorizeController.PermissionSubject,
+        controller: DragToAuthorizeController
+    ) {
         self.target = target
+        self.subject = subject
         self.controller = controller
     }
 

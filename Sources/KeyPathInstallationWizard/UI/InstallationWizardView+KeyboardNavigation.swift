@@ -8,7 +8,7 @@ public extension InstallationWizardView {
 
     /// Navigate to the previous page using keyboard left arrow
     func navigateToPreviousPage() {
-        guard stateMachine.currentPage != .summary else { return }
+        guard stateMachine.currentPage != .summary, stateMachine.currentPage != .welcome else { return }
         let defaultSequence: [WizardPage] = [
             .fullDiskAccess, .conflicts, .inputMonitoring, .accessibility,
             .karabinerComponents, .service, .communication
@@ -22,9 +22,11 @@ public extension InstallationWizardView {
         AppLogger.shared.log("⬅️ [Keyboard] Navigated to previous page: \(previousPage.displayName)")
     }
 
-    /// Navigate to the next page using keyboard right arrow, respecting prerequisites
+    /// Navigate to the next page using keyboard right arrow, respecting prerequisites.
+    /// Welcome is excluded: its only exit is the Get Started button, which also
+    /// persists the has-seen flag.
     func navigateToNextPage() {
-        guard stateMachine.currentPage != .summary else { return }
+        guard stateMachine.currentPage != .summary, stateMachine.currentPage != .welcome else { return }
         Task { @MainActor in
             if let next = await stateMachine.getNextPage(
                 for: stateMachine.wizardState,

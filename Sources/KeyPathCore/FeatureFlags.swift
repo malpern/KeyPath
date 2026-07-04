@@ -46,6 +46,80 @@ extension FeatureFlags: @unchecked Sendable {}
 // MARK: - Persisted flags (UserDefaults-backed)
 
 public extension FeatureFlags {
+    /// In-memory flag store used instead of `UserDefaults.standard` while running tests.
+    ///
+    /// `UserDefaults.standard` is process-global AND persistent, so a test suite that
+    /// flips a flag can leak state into every other suite in the run (and into later
+    /// runs, or the developer's real app) if a throw skips its tearDown — the exact
+    /// mechanism behind the #896 RemapEndToEndTests flake. Under
+    /// `TestEnvironment.isRunningTests`, flag setters write here and readers resolve
+    /// override-then-compiled-default, never touching real UserDefaults.
+    private enum TestOverrides {
+        static let lock = NSLock()
+        nonisolated(unsafe) static var values: [String: Any] = [:]
+
+        static func value(forKey key: String) -> Any? {
+            lock.lock()
+            defer { lock.unlock() }
+            return values[key]
+        }
+
+        static func set(_ value: Any, forKey key: String) {
+            lock.lock()
+            defer { lock.unlock() }
+            values[key] = value
+        }
+
+        static func reset() {
+            lock.lock()
+            defer { lock.unlock() }
+            values.removeAll()
+        }
+    }
+
+    /// Memoized: the detection signals are process-stable, and re-evaluating them
+    /// (Bundle.allBundles scan) on every flag read is wasteful.
+    private static let isRunningTests = TestEnvironment.isRunningTests
+
+    /// Clear all in-memory test overrides, returning every flag to its compiled
+    /// default. Called between tests (KeyPathTestCase) and by suites that flip flags.
+    static func resetTestOverrides() {
+        TestOverrides.reset()
+    }
+
+    private static func boolFlag(forKey key: String, default defaultValue: Bool) -> Bool {
+        if isRunningTests {
+            return TestOverrides.value(forKey: key) as? Bool ?? defaultValue
+        }
+        if UserDefaults.standard.object(forKey: key) == nil {
+            return defaultValue
+        }
+        return UserDefaults.standard.bool(forKey: key)
+    }
+
+    private static func setBoolFlag(_ enabled: Bool, forKey key: String) {
+        if isRunningTests {
+            TestOverrides.set(enabled, forKey: key)
+            return
+        }
+        UserDefaults.standard.set(enabled, forKey: key)
+    }
+
+    private static func stringFlag(forKey key: String) -> String? {
+        if isRunningTests {
+            return TestOverrides.value(forKey: key) as? String
+        }
+        return UserDefaults.standard.string(forKey: key)
+    }
+
+    private static func setStringFlag(_ value: String, forKey key: String) {
+        if isRunningTests {
+            TestOverrides.set(value, forKey: key)
+            return
+        }
+        UserDefaults.standard.set(value, forKey: key)
+    }
+
     private static let captureListenOnlyKey = "CAPTURE_LISTEN_ONLY_ENABLED"
     private static let useSMAppServiceForDaemonKey = "USE_SMAPPSERVICE_FOR_DAEMON"
     private static let simulatorAndVirtualKeysEnabledKey = "SIMULATOR_AND_VIRTUAL_KEYS_ENABLED"
@@ -61,66 +135,53 @@ public extension FeatureFlags {
     /// CGEvent tap listen-only mode (default ON)
     /// When enabled, KeyPath only listens to key events without modifying them.
     static var captureListenOnlyEnabled: Bool {
-        if UserDefaults.standard.object(forKey: captureListenOnlyKey) == nil {
-            return true // default ON
-        }
-        return UserDefaults.standard.bool(forKey: captureListenOnlyKey)
+        boolFlag(forKey: captureListenOnlyKey, default: true)
     }
 
     static func setCaptureListenOnlyEnabled(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: captureListenOnlyKey)
+        setBoolFlag(enabled, forKey: captureListenOnlyKey)
     }
 
     /// Whether to use SMAppService for Kanata daemon management (default ON)
     /// When enabled, uses SMAppService instead of launchctl for daemon registration.
     static var useSMAppServiceForDaemon: Bool {
-        if UserDefaults.standard.object(forKey: useSMAppServiceForDaemonKey) == nil {
-            return true // default ON
-        }
-        return UserDefaults.standard.bool(forKey: useSMAppServiceForDaemonKey)
+        boolFlag(forKey: useSMAppServiceForDaemonKey, default: true)
     }
 
     static func setUseSMAppServiceForDaemon(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: useSMAppServiceForDaemonKey)
+        setBoolFlag(enabled, forKey: useSMAppServiceForDaemonKey)
     }
 
     /// Enable simulator for layer mapping and virtual key actions (default ON)
     /// Required for overlay to show correct remapped key labels.
     static var simulatorAndVirtualKeysEnabled: Bool {
-        if UserDefaults.standard.object(forKey: simulatorAndVirtualKeysEnabledKey) == nil {
-            return true // default ON - needed for correct overlay labels
-        }
-        return UserDefaults.standard.bool(forKey: simulatorAndVirtualKeysEnabledKey)
+        // default ON - needed for correct overlay labels
+        boolFlag(forKey: simulatorAndVirtualKeysEnabledKey, default: true)
     }
 
     static func setSimulatorAndVirtualKeysEnabled(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: simulatorAndVirtualKeysEnabledKey)
+        setBoolFlag(enabled, forKey: simulatorAndVirtualKeysEnabledKey)
     }
 
     /// Verbose logging for keyboard suppression decisions (default OFF).
     static var keyboardSuppressionDebugEnabled: Bool {
-        if UserDefaults.standard.object(forKey: keyboardSuppressionDebugEnabledKey) == nil {
-            return false
-        }
-        return UserDefaults.standard.bool(forKey: keyboardSuppressionDebugEnabledKey)
+        boolFlag(forKey: keyboardSuppressionDebugEnabledKey, default: false)
     }
 
     static func setKeyboardSuppressionDebugEnabled(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: keyboardSuppressionDebugEnabledKey)
+        setBoolFlag(enabled, forKey: keyboardSuppressionDebugEnabledKey)
     }
 
     /// Reset TCC permissions and preferences on uninstall for fresh install testing (default OFF)
     /// When enabled, uninstall also clears Accessibility, Input Monitoring, and Full Disk Access
     /// permissions plus UserDefaults, allowing a true "first launch" experience.
     static var uninstallForTesting: Bool {
-        if UserDefaults.standard.object(forKey: uninstallForTestingKey) == nil {
-            return false // default OFF for production
-        }
-        return UserDefaults.standard.bool(forKey: uninstallForTestingKey)
+        // default OFF for production
+        boolFlag(forKey: uninstallForTestingKey, default: false)
     }
 
     static func setUninstallForTesting(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: uninstallForTestingKey)
+        setBoolFlag(enabled, forKey: uninstallForTestingKey)
     }
 
     /// Learning tips display mode
@@ -128,7 +189,7 @@ public extension FeatureFlags {
     /// - alwaysOn: Always show tips regardless of learned state
     /// - off: Never show learning tips
     static var learningTipsMode: LearningTipsMode {
-        if let rawValue = UserDefaults.standard.string(forKey: learningTipsModeKey),
+        if let rawValue = stringFlag(forKey: learningTipsModeKey),
            let mode = LearningTipsMode(rawValue: rawValue)
         {
             return mode
@@ -137,20 +198,17 @@ public extension FeatureFlags {
     }
 
     static func setLearningTipsMode(_ mode: LearningTipsMode) {
-        UserDefaults.standard.set(mode.rawValue, forKey: learningTipsModeKey)
+        setStringFlag(mode.rawValue, forKey: learningTipsModeKey)
     }
 
     /// Context HUD floating list window (default ON)
     /// When enabled, shows a compact key list alongside or instead of the keyboard overlay.
     static var contextHUDListEnabled: Bool {
-        if UserDefaults.standard.object(forKey: contextHUDListEnabledKey) == nil {
-            return true // default ON
-        }
-        return UserDefaults.standard.bool(forKey: contextHUDListEnabledKey)
+        boolFlag(forKey: contextHUDListEnabledKey, default: true)
     }
 
     static func setContextHUDListEnabled(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: contextHUDListEnabledKey)
+        setBoolFlag(enabled, forKey: contextHUDListEnabledKey)
     }
 
     // MARK: - Future Implementation (not yet built)
@@ -158,27 +216,23 @@ public extension FeatureFlags {
     /// Phase 2: Just-in-time permission requests (NOT YET IMPLEMENTED)
     /// Will allow requesting permissions only when needed rather than upfront.
     static var useJustInTimePermissionRequests: Bool {
-        if UserDefaults.standard.object(forKey: useJustInTimePermissionRequestsKey) == nil {
-            return false // default OFF - not implemented
-        }
-        return UserDefaults.standard.bool(forKey: useJustInTimePermissionRequestsKey)
+        // default OFF - not implemented
+        boolFlag(forKey: useJustInTimePermissionRequestsKey, default: false)
     }
 
     static func setUseJustInTimePermissionRequests(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: useJustInTimePermissionRequestsKey)
+        setBoolFlag(enabled, forKey: useJustInTimePermissionRequestsKey)
     }
 
     /// Phase 3: Optional wizard - non-blocking setup (NOT YET IMPLEMENTED)
     /// Will allow skipping the wizard and configuring later.
     static var allowOptionalWizard: Bool {
-        if UserDefaults.standard.object(forKey: allowOptionalWizardKey) == nil {
-            return false // default OFF - not implemented
-        }
-        return UserDefaults.standard.bool(forKey: allowOptionalWizardKey)
+        // default OFF - not implemented
+        boolFlag(forKey: allowOptionalWizardKey, default: false)
     }
 
     static func setAllowOptionalWizard(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: allowOptionalWizardKey)
+        setBoolFlag(enabled, forKey: allowOptionalWizardKey)
     }
 }
 

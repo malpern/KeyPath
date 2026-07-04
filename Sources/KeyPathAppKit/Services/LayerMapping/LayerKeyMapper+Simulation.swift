@@ -325,7 +325,7 @@ extension LayerKeyMapper {
         configPath: String,
         startLayer: String
     ) async throws -> String? {
-        guard FeatureFlags.simulatorAndVirtualKeysEnabled else {
+        guard simulatorEnabled() else {
             AppLogger.shared.debug("🔒 [LayerKeyMapper] Simulator disabled; skipping holdDisplayLabel")
             return nil
         }

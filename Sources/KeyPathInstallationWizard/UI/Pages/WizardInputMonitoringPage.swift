@@ -16,6 +16,10 @@ public struct WizardInputMonitoringPage: View {
     @State private var permissionPollingTask: Task<Void, Never>?
     @State private var showSuccessBurst = false
     @State private var permissionSnapshot: PermissionOracle.Snapshot?
+    /// When the automatic `IOHIDRequestAccess` prompt for KeyPath.app was last
+    /// triggered. Drives the escalation to manual guidance when the grant never
+    /// registers (macOS 26/27 dead-end, #931).
+    @State private var keyPathRequestAttemptedAt: Date?
 
     @Environment(WizardStateMachine.self) private var stateMachine
 
@@ -208,6 +212,14 @@ public struct WizardInputMonitoringPage: View {
                                 }
                             }
                             .help(kanataInputMonitoringIssues.asTooltipText())
+
+                            // Escalation: if the automatic prompt for KeyPath.app
+                            // never registered a grant, augment the "Turn On" retry
+                            // (whose deep-linked Settings row may not exist on macOS
+                            // 26/27) with accurate manual "+"-to-add steps (#931).
+                            if keyPathGuidance == .manualFallback {
+                                InputMonitoringManualFallbackCard()
+                            }
                         }
                         .frame(maxWidth: .infinity)
                         .padding(WizardDesign.Spacing.cardPadding)
@@ -238,29 +250,7 @@ public struct WizardInputMonitoringPage: View {
         }
         .onAppear {
             checkForStaleEntries()
-            permissionPollingTask?.cancel()
-            permissionPollingTask = Task { @MainActor [onRefresh] in
-                var hasEverCelebrated = false
-                while !Task.isCancelled {
-                    _ = await WizardSleep.ms(1000)
-                    let snapshot = await PermissionOracle.shared.forceRefresh()
-                    permissionSnapshot = snapshot
-
-                    let bothGranted = snapshot.keyPath.inputMonitoring.isReady
-                        && snapshot.kanata.inputMonitoring.isReady
-                    if bothGranted, !hasEverCelebrated {
-                        hasEverCelebrated = true
-                        WizardWindowManager.shared.bounceDocIcon()
-                        withAnimation(.spring(response: 0.3)) {
-                            showSuccessBurst = true
-                        }
-                        _ = await WizardSleep.ms(1500)
-                        showSuccessBurst = false
-                        await onRefresh()
-                        return
-                    }
-                }
-            }
+            startBackgroundPermissionPolling()
         }
         .onDisappear {
             permissionPollingTask?.cancel()
@@ -282,6 +272,20 @@ public struct WizardInputMonitoringPage: View {
     private var keyPathInputMonitoringStatus: InstallationStatus {
         guard let snapshot = permissionSnapshot else { return .inProgress }
         return installationStatus(for: snapshot.keyPath.inputMonitoring)
+    }
+
+    /// Escalation state for KeyPath.app's own Input Monitoring grant. Recomputed
+    /// on every render (the 1s poll updates `permissionSnapshot`), so once the
+    /// automatic-prompt wait window elapses without a grant the manual-add card
+    /// appears instead of leaving the user stranded at the "Turn On" button (#931).
+    private var keyPathGuidance: AutomaticPromptGuidance {
+        resolveAutomaticPromptGuidance(
+            AutomaticPromptGuidanceInput(
+                keyPathReady: permissionSnapshot?.keyPath.inputMonitoring.isReady ?? false,
+                requestAttempted: keyPathRequestAttemptedAt != nil,
+                secondsSinceRequest: keyPathRequestAttemptedAt.map { Date().timeIntervalSince($0) }
+            )
+        )
     }
 
     private var kanataInputMonitoringStatus: InstallationStatus {
@@ -376,7 +380,44 @@ public struct WizardInputMonitoringPage: View {
         }
     }
 
-    /// Automatic prompt polling (Phase 1)
+    /// Durable 1s permission poll for the lifetime of the page. It is the single
+    /// writer of `permissionSnapshot` after first load, so it drives both grant
+    /// detection (celebrate + advance) AND time-based re-renders that let
+    /// `keyPathGuidance` escalate to the manual-fallback card (#931). It must keep
+    /// running whenever the page is visible and not fully granted — the automatic
+    /// "Turn On" flow resumes it after its fast poll exhausts.
+    private func startBackgroundPermissionPolling() {
+        permissionPollingTask?.cancel()
+        permissionPollingTask = Task { @MainActor [onRefresh] in
+            var hasEverCelebrated = false
+            while !Task.isCancelled {
+                _ = await WizardSleep.ms(1000)
+                if Task.isCancelled { return }
+                let snapshot = await PermissionOracle.shared.forceRefresh()
+                permissionSnapshot = snapshot
+
+                let bothGranted = snapshot.keyPath.inputMonitoring.isReady
+                    && snapshot.kanata.inputMonitoring.isReady
+                if bothGranted, !hasEverCelebrated {
+                    hasEverCelebrated = true
+                    WizardWindowManager.shared.bounceDocIcon()
+                    withAnimation(.spring(response: 0.3)) {
+                        showSuccessBurst = true
+                    }
+                    _ = await WizardSleep.ms(1500)
+                    showSuccessBurst = false
+                    await onRefresh()
+                    return
+                }
+            }
+        }
+    }
+
+    /// Fast (250ms) poll used immediately after the automatic prompt for snappy
+    /// grant detection. It also keeps `permissionSnapshot` fresh so the page
+    /// re-renders, and — critically — hands back to the durable 1s poll when it
+    /// exhausts without a grant, so re-renders and grant detection continue and
+    /// the #931 manual-fallback escalation can still fire.
     private func startPermissionPolling(for type: CoordinatorPermissionType) {
         permissionPollingTask?.cancel()
         permissionPollingTask = Task { @MainActor [onRefresh] in
@@ -384,8 +425,10 @@ public struct WizardInputMonitoringPage: View {
             let maxAttempts = 20 // ~5s at 250ms intervals
             while attempts < maxAttempts {
                 _ = await WizardSleep.ms(250)
+                if Task.isCancelled { return }
                 attempts += 1
                 let snapshot = await PermissionOracle.shared.forceRefresh()
+                permissionSnapshot = snapshot
                 let hasPermission: Bool =
                     switch type {
                     case .accessibility:
@@ -406,8 +449,18 @@ public struct WizardInputMonitoringPage: View {
                     await onRefresh()
                     return
                 }
-                if Task.isCancelled { return }
             }
+            // Grant did not arrive in the fast window: resume the durable poll so
+            // the page keeps refreshing (drives the #931 manual-fallback card and
+            // still detects a later manual grant). Without this the page would go
+            // static and the escalation could never appear.
+            //
+            // Note: startBackgroundPermissionPolling() begins by cancelling
+            // `permissionPollingTask`, which still points at THIS fast-poll task —
+            // an intentional self-cancel. It is harmless: cancellation only flips
+            // `Task.isCancelled`, and there is no further code or await point in
+            // this closure after the call. Do not "simplify" it away.
+            startBackgroundPermissionPolling()
         }
     }
 
@@ -421,6 +474,13 @@ public struct WizardInputMonitoringPage: View {
             AppLogger.shared.log("⚠️ [WizardInputMonitoringPage] permissionRequestService not configured")
             return
         }
+
+        // Record the attempt so guidance escalates to manual steps if the
+        // automatic prompt never registers a grant (macOS 26/27 dead-end, #931).
+        // Set only after the guard so the escalation clock never starts on a path
+        // where no request was actually made.
+        keyPathRequestAttemptedAt = Date()
+
         Task { @MainActor in
             let alreadyGranted = await permissionRequestService.requestInputMonitoringPermission(
                 ignoreCooldown: true
@@ -463,6 +523,51 @@ private func openInputMonitoringPreferencesPanel() {
                 WizardWindowManager.shared.markSystemSettingsOpened()
             }
         }
+    }
+}
+
+// MARK: - Manual fallback guidance (#931)
+
+/// Shown when the automatic Input Monitoring prompt for KeyPath.app never
+/// registers a grant. Gives accurate manual steps instead of leaving the user at
+/// a "Turn On" button that deep-links to a Settings row which may not exist on
+/// macOS 26/27.
+private struct InputMonitoringManualFallbackCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Didn't see a permission prompt?", systemImage: "hand.raised.circle")
+                .font(.headline)
+
+            Text(
+                "On some macOS versions the automatic prompt doesn't appear. Add KeyPath to Input Monitoring below — or do it manually."
+            )
+            .font(.callout)
+            .foregroundColor(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+            // Primary: opens Settings and floats a helper you drag KeyPath from,
+            // straight into the Input Monitoring list (#933).
+            Button("Add KeyPath to Input Monitoring") {
+                DragToAuthorizeController.shared.present(for: .inputMonitoring, subject: .keyPath)
+            }
+            .buttonStyle(WizardDesign.Component.SecondaryButton())
+            .accessibilityIdentifier("wizard_input_monitoring_manual_fallback")
+            .padding(.top, 4)
+
+            // Manual alternative for anyone who would rather not drag.
+            VStack(alignment: .leading, spacing: 6) {
+                CleanupStep(number: 1, text: "Open System Settings → Privacy & Security → Input Monitoring.")
+                CleanupStep(number: 2, text: "Click the \"+\" button below the list.")
+                CleanupStep(number: 3, text: "Choose KeyPath.app from your Applications folder, then turn its switch on.")
+            }
+            .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(WizardDesign.Spacing.cardPadding)
+        .background(
+            WizardDesign.Colors.warning.opacity(0.06),
+            in: RoundedRectangle(cornerRadius: WizardDesign.Layout.cornerRadius)
+        )
     }
 }
 

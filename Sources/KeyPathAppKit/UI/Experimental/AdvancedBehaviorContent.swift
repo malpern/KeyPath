@@ -63,6 +63,7 @@ struct MiniActionKeycap: View {
             }
             onTap()
         }
+        .accessibilityLabel(isRecording ? "Recording" : (label.isEmpty ? "Add action" : label))
     }
 
     private var foregroundColor: Color {
@@ -204,6 +205,7 @@ struct AdvancedBehaviorContent: View {
                         }
                         .buttonStyle(.plain)
                         .help("Clear \(step.label.lowercased()) action")
+                        .accessibilityLabel("Clear \(step.label.lowercased()) action")
                     }
 
                     // Remove button for this step
@@ -215,6 +217,7 @@ struct AdvancedBehaviorContent: View {
                     }
                     .buttonStyle(.plain)
                     .help("Remove \(step.label.lowercased())")
+                    .accessibilityLabel("Remove \(step.label.lowercased())")
 
                     Spacer()
                 }
@@ -367,6 +370,7 @@ struct AdvancedBehaviorContent: View {
                             .buttonStyle(.plain)
                             .help("Clear chord output")
                             .accessibilityIdentifier("mapper-clear-combo-output-button")
+                            .accessibilityLabel("Clear chord output")
                         }
 
                         Spacer()
@@ -396,6 +400,7 @@ struct AdvancedBehaviorContent: View {
                             .foregroundColor(viewModel.holdBehavior == behaviorType ? .accentColor : .secondary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Select \(behaviorType.rawValue)")
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(behaviorType.rawValue)

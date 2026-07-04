@@ -12,7 +12,7 @@ struct HelpTopic: Identifiable, Hashable {
     static let baseURL = "https://malpern.github.io/KeyPath"
 
     var webURL: URL {
-        URL(string: "\(Self.baseURL)/guides/\(resource)/") ?? URL(string: Self.baseURL)!
+        URL(string: "\(Self.baseURL)/guides/\(resource)/") ?? URL(string: Self.baseURL) ?? URL(fileURLWithPath: "/")
     }
 }
 
@@ -197,11 +197,11 @@ struct HelpBrowserView: View {
 
     private var footerLinks: some View {
         HStack(spacing: 12) {
-            Link("KeyPath Website", destination: URL(string: "https://keypath-app.com")!)
+            Link("KeyPath Website", destination: URL(string: "https://keypath-app.com") ?? URL(fileURLWithPath: "/"))
                 .accessibilityIdentifier("help-website-link")
             Text("\u{00B7}")
                 .foregroundStyle(.secondary)
-            Link("Report an Issue", destination: URL(string: "https://github.com/malpern/KeyPath/issues")!)
+            Link("Report an Issue", destination: URL(string: "https://github.com/malpern/KeyPath/issues") ?? URL(fileURLWithPath: "/"))
                 .accessibilityIdentifier("help-report-issue-link")
         }
         .font(.caption)
@@ -248,6 +248,7 @@ struct HelpBrowserView: View {
                     .disabled(currentIndex == nil)
                     .keyboardShortcut(.leftArrow, modifiers: .command)
                     .accessibilityIdentifier("help-navigate-back")
+                    .accessibilityLabel("Previous topic")
 
                     Button { navigateForward() } label: {
                         Image(systemName: "chevron.right")
@@ -260,6 +261,7 @@ struct HelpBrowserView: View {
                     .disabled(currentIndex.map { $0 + 1 >= HelpTopic.allTopics.count } ?? false)
                     .keyboardShortcut(.rightArrow, modifiers: .command)
                     .accessibilityIdentifier("help-navigate-forward")
+                    .accessibilityLabel("Next topic")
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)

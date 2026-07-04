@@ -36,9 +36,6 @@ KeyPath indexes over 3,700 keyboards from the [QMK firmware](https://qmk.fm/) re
   └─────────────────────────────────────────────────┘
 ```
 
-<!-- Screenshot: QMK keyboard search showing results -->
-![Screenshot — QMK keyboard search]({{ '/images/help/placeholder-qmk-search.png' | relative_url }})
-
 Select your keyboard and KeyPath downloads the layout definition. The overlay updates immediately to show your physical key arrangement.
 
 ---
@@ -57,9 +54,6 @@ These keyboards ship with pre-built layouts — no import needed, just select fr
 | Planck | Ortholinear | 48 |
 
 If your keyboard is in this list, you don't need to import — it's already available in the overlay's layout picker.
-
-<!-- Screenshot: Layout picker showing built-in keyboards -->
-![Screenshot — Layout picker with custom keyboards]({{ '/images/help/placeholder-layout-picker-custom.png' | relative_url }})
 
 ---
 
@@ -90,9 +84,6 @@ When importing, you can configure:
 | **Keyboard type** | ANSI, ISO, or JIS — determines which key code table to use |
 | **Layout variant** | Some keyboards have multiple layouts (e.g., with/without encoder) |
 | **Custom name** | Name this layout in the picker (defaults to the QMK keyboard name) |
-
-<!-- Screenshot: QMK import dialog with options -->
-![Screenshot — QMK import options]({{ '/images/help/placeholder-qmk-import-options.png' | relative_url }})
 
 ---
 
