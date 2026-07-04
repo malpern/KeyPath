@@ -62,6 +62,20 @@ Follow the invariants in [`docs/agent-pr-invariants.md`](docs/agent-pr-invariant
 
 Git guardrail hooks in `.claude/settings.json` block: commits on master, force-push to master, `reset --hard`, `clean -f`.
 
+**Worktree hygiene (one thread ⇄ one worktree ⇄ one `.build`):** Each concurrent
+agent/session MUST work in its own git worktree with its own `.build`. Never point two
+threads at the same checkout, and never do dev work or run `swift build`/`swift test` in
+the **main worktree** (`/Users/malpern/local-code/keypath`) — keep it on `master` as an
+**integration-only** checkout for merging and pulling. Doing feature work directly on
+`master` in the main worktree is what causes SwiftPM lock/CPU contention and cross-thread
+collisions. Create a worktree with `git worktree add -b <branch> <path> master`, work and
+build there, open the PR from it, and after the PR merges prune it
+(`git worktree remove <path>` — it refuses if there is uncommitted work, which is a
+feature: inspect that work before deleting; never `--force`-remove without checking).
+Before pruning a "merged" branch's worktree, gate on the PR being merged (squash-merges
+are NOT ancestors of `master`, so `git branch --merged` misreports them). If several
+threads must build at once, cap local parallelism (`swift build --jobs 4`).
+
 **Kanata fork safety:** The kanata submodule (`External/kanata`) tracks `keypath/bundled` on `malpern/kanata`. Treat `keypath/bundled` like master — **never force-push** to it. Before pushing to any remote branch in the fork, verify the push is a fast-forward: `git log --oneline <source>..<target>`. If commits would be lost, cherry-pick instead. The `main` branch in kanata-pr may diverge from `keypath/bundled` — they are NOT interchangeable.
 
 ## Documentation
