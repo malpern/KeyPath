@@ -32,6 +32,7 @@ public final class PrivilegedOperationsRouter {
     private static let vhidSettleDelay: Duration = .milliseconds(150)
 
     #if DEBUG
+        nonisolated(unsafe) static var operationModeOverride: OperationMode?
         nonisolated(unsafe) static var serviceStateOverride:
             (() -> KanataDaemonManager.ServiceManagementState)?
         nonisolated(unsafe) static var installAllServicesOverride: (() async throws -> Void)?
@@ -39,13 +40,20 @@ public final class PrivilegedOperationsRouter {
         nonisolated(unsafe) static var killExistingKanataProcessesOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var kanataReadinessOverride:
             ((String) async -> KanataReadinessResult)?
+        nonisolated(unsafe) static var helperInstallRequiredRuntimeServicesOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var helperRepairVHIDDaemonServicesOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var vhidServicesPostconditionOverride: ((String) async -> Bool)?
 
         static func resetTestingState() {
+            operationModeOverride = nil
             serviceStateOverride = nil
             installAllServicesOverride = nil
             recoverRequiredRuntimeServicesOverride = nil
             killExistingKanataProcessesOverride = nil
             kanataReadinessOverride = nil
+            helperInstallRequiredRuntimeServicesOverride = nil
+            helperRepairVHIDDaemonServicesOverride = nil
+            vhidServicesPostconditionOverride = nil
             lastServiceInstallAttempt = nil
             lastSMAppApprovalNotice = nil
             ServiceInstallGuard.reset()
@@ -60,6 +68,11 @@ public final class PrivilegedOperationsRouter {
     }
 
     static var operationMode: OperationMode {
+        #if DEBUG
+            if let override = operationModeOverride {
+                return override
+            }
+        #endif
         if TestEnvironment.isTestMode {
             return .directSudo
         }
@@ -94,7 +107,7 @@ public final class PrivilegedOperationsRouter {
         switch Self.operationMode {
         case .privilegedHelper:
             do {
-                try await helperManager.installRequiredRuntimeServices()
+                try await helperInstallRequiredRuntimeServices()
                 // Stale-helper guard (MAL-57): a resident helper from before
                 // the ProcessType=Interactive template fix reports success but
                 // rewrites the old plist — the helper binary only refreshes on
@@ -106,20 +119,24 @@ public final class PrivilegedOperationsRouter {
                 // InstallerEngine → PrivilegeBroker → this router's
                 // helper-first repairVHIDDaemonServices.
                 if serviceHealthChecker.isVHIDDaemonPlistPresentButMisconfigured() {
-                    AppLogger.shared.warn(
+                    AppLogger.shared.warnUnlessQuietTest(
                         "⚠️ [PrivilegedOperationsRouter] VHID daemon plist still misconfigured after helper install — stale helper template, rewriting via in-app sudo path"
                     )
                     try await sudoRepairVHIDServices()
                 }
+                try await enforceVHIDServicesPostcondition(after: "installRequiredRuntimeServices(helper)")
+                try await enforceKanataRuntimePostcondition(after: "installRequiredRuntimeServices(helper)")
             } catch {
                 // Keep the helper's actionable reason (e.g. "driver payload is
                 // not installed") visible — the sudo fallback's generic failure
                 // would otherwise bury it (#928).
-                AppLogger.shared.warn(
+                AppLogger.shared.warnUnlessQuietTest(
                     "⚠️ [PrivilegedOperationsRouter] Helper install failed (\(error.localizedDescription)) — falling back to sudo path"
                 )
                 do {
                     try await sudoInstallRequiredRuntimeServices()
+                    try await enforceVHIDServicesPostcondition(after: "installRequiredRuntimeServices(sudo-fallback)")
+                    try await enforceKanataRuntimePostcondition(after: "installRequiredRuntimeServices(sudo-fallback)")
                 } catch let fallbackError {
                     throw PrivilegedOperationError.installationFailed(
                         "Runtime service installation failed. Helper: \(error.localizedDescription). Sudo fallback: \(fallbackError.localizedDescription)"
@@ -128,6 +145,8 @@ public final class PrivilegedOperationsRouter {
             }
         case .directSudo:
             try await sudoInstallRequiredRuntimeServices()
+            try await enforceVHIDServicesPostcondition(after: "installRequiredRuntimeServices(sudo)")
+            try await enforceKanataRuntimePostcondition(after: "installRequiredRuntimeServices(sudo)")
         }
     }
 
@@ -224,14 +243,21 @@ public final class PrivilegedOperationsRouter {
             // when the helper isn't installed or isn't responding.
             let helperWorking = await helperManager.testHelperFunctionality()
             if helperWorking {
-                do { try await helperManager.repairVHIDDaemonServices() }
-                catch { try await sudoRepairVHIDServices() }
+                do {
+                    try await helperRepairVHIDDaemonServices()
+                    try await enforceVHIDServicesPostcondition(after: "repairVHIDDaemonServices(helper)")
+                } catch {
+                    try await sudoRepairVHIDServices()
+                    try await enforceVHIDServicesPostcondition(after: "repairVHIDDaemonServices(sudo-fallback)")
+                }
             } else {
                 AppLogger.shared.log("⚠️ [Router] Helper not responsive — using sudo for VHID repair")
                 try await sudoRepairVHIDServices()
+                try await enforceVHIDServicesPostcondition(after: "repairVHIDDaemonServices(sudo-no-helper)")
             }
         case .directSudo:
             try await sudoRepairVHIDServices()
+            try await enforceVHIDServicesPostcondition(after: "repairVHIDDaemonServices(sudo)")
         }
     }
 
@@ -427,6 +453,26 @@ public final class PrivilegedOperationsRouter {
         try await installRequiredRuntimeServices()
     }
 
+    private func helperInstallRequiredRuntimeServices() async throws {
+        #if DEBUG
+            if let override = Self.helperInstallRequiredRuntimeServicesOverride {
+                try await override()
+                return
+            }
+        #endif
+        try await helperManager.installRequiredRuntimeServices()
+    }
+
+    private func helperRepairVHIDDaemonServices() async throws {
+        #if DEBUG
+            if let override = Self.helperRepairVHIDDaemonServicesOverride {
+                try await override()
+                return
+            }
+        #endif
+        try await helperManager.repairVHIDDaemonServices()
+    }
+
     private func killExistingKanataProcessesForServiceRecovery() async throws {
         #if DEBUG
             if let override = Self.killExistingKanataProcessesOverride {
@@ -451,6 +497,44 @@ public final class PrivilegedOperationsRouter {
                 "Kanata postcondition failed after \(operation): \(readiness.failureDescription)"
             )
         }
+    }
+
+    private func enforceVHIDServicesPostcondition(after operation: String) async throws {
+        guard await verifyVHIDServicesPostcondition(context: operation) else {
+            throw PrivilegedOperationError.operationFailed(
+                "VHID services postcondition failed after \(operation)"
+            )
+        }
+    }
+
+    private func verifyVHIDServicesPostcondition(context: String) async -> Bool {
+        #if DEBUG
+            if let override = Self.vhidServicesPostconditionOverride {
+                return await override(context)
+            }
+        #endif
+
+        let deadline = Date().addingTimeInterval(Self.vhidVerifyTimeoutSeconds)
+        repeat {
+            serviceHealthChecker.invalidateHealthCache()
+            let status = await serviceHealthChecker.getServiceStatus()
+            let configured = serviceHealthChecker.isVHIDDaemonConfiguredCorrectly()
+            if status.vhidDaemonServiceLoaded,
+               status.vhidManagerServiceLoaded,
+               status.vhidDaemonServiceHealthy,
+               status.vhidManagerServiceHealthy,
+               configured
+            {
+                return true
+            }
+            do { try await Task.sleep(for: Self.vhidVerifyInterval) }
+            catch { return false }
+        } while Date() < deadline
+
+        AppLogger.shared.warn(
+            "⚠️ [PrivilegedOperationsRouter] VHID services postcondition failed after \(context)"
+        )
+        return false
     }
 
     private func verifyKanataReadinessAfterInstall(context: String) async -> KanataReadinessResult {

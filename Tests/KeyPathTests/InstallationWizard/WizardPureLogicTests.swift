@@ -1124,6 +1124,28 @@ final class WizardPureLogicTests: XCTestCase {
         let context = makeContext(components: components)
         let actions = ActionDeterminer.determineRepairActions(context: context)
         XCTAssertTrue(actions.contains(.installRequiredRuntimeServices))
+        XCTAssertFalse(
+            actions.contains(.installMissingComponents),
+            "Installed-but-unhealthy VHID services should repair runtime services, not reinstall missing components"
+        )
+    }
+
+    func test_determineRepairActions_vhidDeviceUnhealthy_excludesInstallMissingComponents() {
+        let components = ComponentStatus(
+            kanataBinaryInstalled: true,
+            karabinerDriverInstalled: true,
+            karabinerDaemonRunning: true,
+            vhidDeviceInstalled: true,
+            vhidDeviceHealthy: false,
+            vhidServicesHealthy: true,
+            vhidVersionMismatch: false
+        )
+        let context = makeContext(components: components)
+        let actions = ActionDeterminer.determineRepairActions(context: context)
+        XCTAssertFalse(
+            actions.contains(.installMissingComponents),
+            "A present but unhealthy VHID device should not be planned as a missing component"
+        )
     }
 
     func test_determineRepairActions_vhidDaemonPlistMisconfigured_includesInstallRuntimeServices() {
@@ -1160,6 +1182,25 @@ final class WizardPureLogicTests: XCTestCase {
         let actions = ActionDeterminer.determineInstallActions(context: context)
         XCTAssertTrue(actions.contains(.installRequiredRuntimeServices),
                       "Install plans share the vhidRuntimeServicesNeedRepair trigger with repair plans")
+    }
+
+    func test_determineInstallActions_vhidServicesUnhealthy_excludesInstallMissingComponents() {
+        let components = ComponentStatus(
+            kanataBinaryInstalled: true,
+            karabinerDriverInstalled: true,
+            karabinerDaemonRunning: true,
+            vhidDeviceInstalled: true,
+            vhidDeviceHealthy: true,
+            vhidServicesHealthy: false,
+            vhidVersionMismatch: false
+        )
+        let context = makeContext(components: components)
+        let actions = ActionDeterminer.determineInstallActions(context: context)
+        XCTAssertTrue(actions.contains(.installRequiredRuntimeServices))
+        XCTAssertFalse(
+            actions.contains(.installMissingComponents),
+            "Install planning should not reinstall components just because installed VHID services are unhealthy"
+        )
     }
 
     func test_determineInstallActions_vhidDriverNotActivated_includesActivationAndRepair() {

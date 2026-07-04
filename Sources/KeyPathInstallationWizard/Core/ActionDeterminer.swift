@@ -42,8 +42,9 @@ public enum ActionDeterminer {
             actions.append(.fixDriverVersionMismatch)
         }
 
-        // Check missing components
-        if !context.components.hasAllRequired {
+        // Check missing installable components. Keep health/runtime failures on
+        // the narrower repair paths below instead of treating them as absent.
+        if hasMissingInstallableComponents(context.components) {
             actions.append(.installMissingComponents)
 
             // CRITICAL: Activate manager BEFORE starting daemon
@@ -98,8 +99,9 @@ public enum ActionDeterminer {
             actions.append(.fixDriverVersionMismatch)
         }
 
-        // Check missing components
-        if !context.components.hasAllRequired {
+        // Check missing installable components. Keep health/runtime failures on
+        // the narrower repair paths below instead of treating them as absent.
+        if hasMissingInstallableComponents(context.components) {
             actions.append(.installMissingComponents)
 
             // CRITICAL: Activate manager BEFORE installing daemon services
@@ -140,6 +142,12 @@ public enum ActionDeterminer {
     public static func determineUninstallActions(context _: SystemContext) -> [AutoFixAction] {
         // Uninstall is handled differently - logic is in UninstallCoordinator
         []
+    }
+
+    private static func hasMissingInstallableComponents(_ components: ComponentStatus) -> Bool {
+        !components.kanataBinaryInstalled ||
+            !components.karabinerDriverInstalled ||
+            !components.vhidDeviceInstalled
     }
 
     private static func appendVHIDActivationRepairIfNeeded(

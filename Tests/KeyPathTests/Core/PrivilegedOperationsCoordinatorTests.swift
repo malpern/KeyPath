@@ -34,6 +34,7 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
                 KanataDaemonManager.registeredButNotLoadedOverride = nil
                 ServiceHealthChecker.runtimeSnapshotOverride = nil
                 ServiceHealthChecker.recentlyRestartedOverride = nil
+                HelperManager.testHelperFunctionalityOverride = nil
             #endif
             TestEnvironment.allowAdminOperationsInTests = originalAllowAdminOperationsInTests
             if let originalSudoEnv {
@@ -279,6 +280,64 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
 
         #if DEBUG
             XCTAssertEqual(killCalls, 1)
+        #endif
+    }
+
+    func testHelperBackedVHIDRepairFailsWhenPostconditionFails() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.operationModeOverride = .privilegedHelper
+            HelperManager.testHelperFunctionalityOverride = { true }
+            var helperRepairCalls = 0
+            PrivilegedOperationsRouter.helperRepairVHIDDaemonServicesOverride = {
+                helperRepairCalls += 1
+            }
+            PrivilegedOperationsRouter.vhidServicesPostconditionOverride = { _ in false }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        let coordinator = PrivilegedOperationsRouter.shared
+        do {
+            try await coordinator.repairVHIDDaemonServices()
+            XCTFail("Expected helper-backed VHID repair to fail when postcondition fails")
+        } catch let PrivilegedOperationError.operationFailed(message) {
+            XCTAssertTrue(message.contains("VHID services postcondition failed"))
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+
+        #if DEBUG
+            XCTAssertEqual(helperRepairCalls, 1)
+        #endif
+    }
+
+    func testHelperBackedRuntimeInstallFailsWhenKanataPostconditionFails() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.operationModeOverride = .privilegedHelper
+            var helperInstallCalls = 0
+            PrivilegedOperationsRouter.helperInstallRequiredRuntimeServicesOverride = {
+                helperInstallCalls += 1
+            }
+            PrivilegedOperationsRouter.vhidServicesPostconditionOverride = { _ in true }
+            PrivilegedOperationsRouter.kanataReadinessOverride = { _ in .timedOut }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        let coordinator = PrivilegedOperationsRouter.shared
+        do {
+            try await coordinator.installRequiredRuntimeServices()
+            XCTFail("Expected runtime install to fail when Kanata postcondition fails")
+        } catch let PrivilegedOperationError.installationFailed(message) {
+            XCTAssertTrue(message.contains("Kanata postcondition failed"))
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+
+        #if DEBUG
+            XCTAssertEqual(helperInstallCalls, 1)
         #endif
     }
 
