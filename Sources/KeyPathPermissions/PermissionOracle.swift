@@ -143,6 +143,34 @@ public actor PermissionOracle {
         }
     }
 
+    /// Runtime evidence about the kanata daemon, used to resolve its Input
+    /// Monitoring status when the TCC database is unreadable or has no row
+    /// (#931: on macOS 26/27 a grant may never produce a readable TCC row, and
+    /// `IOHIDCheckAccess` only answers for the calling process — so a healthy
+    /// running daemon is the only trustworthy signal left).
+    public struct KanataFunctionalEvidence: Sendable, Equatable {
+        /// The kanata daemon process is running.
+        public let isRunning: Bool
+        /// Kanata's TCP server is responding on the expected port.
+        public let isResponding: Bool
+        /// No input-capture failure was diagnosed (kanata opened the keyboard).
+        public let inputCaptureReady: Bool
+
+        public init(isRunning: Bool, isResponding: Bool, inputCaptureReady: Bool) {
+            self.isRunning = isRunning
+            self.isResponding = isResponding
+            self.inputCaptureReady = inputCaptureReady
+        }
+
+        /// Kernel-level proof that Input Monitoring is effectively granted: the
+        /// daemon is alive, serving TCP, and has successfully opened input
+        /// devices. macOS does not deliver keyboard events to a process without
+        /// the grant, so this is at least as authoritative as any TCC row.
+        public var provesInputCapture: Bool {
+            isRunning && isResponding && inputCaptureReady
+        }
+    }
+
     // MARK: - State Management
 
     private var lastSnapshot: Snapshot?
@@ -152,6 +180,16 @@ public actor PermissionOracle {
     /// Prevents concurrent callers from spawning duplicate sqlite3 processes,
     /// which can exhaust the cooperative thread pool and cause deadlock.
     private var inFlightSnapshot: Task<Snapshot, Never>?
+
+    /// Injected by the app layer (see `configureWizardDependencies`) so this
+    /// module never depends on service-health code. Consulted only when the TCC
+    /// read for kanata's Input Monitoring is inconclusive or negative — positive
+    /// functional evidence upgrades the status to `.granted` (#931). The
+    /// provider must be cheap under repeated calls (ServiceHealthChecker's
+    /// runtime snapshot is TTL-cached), because wizard pages poll the Oracle
+    /// every second.
+    private var kanataFunctionalEvidenceProvider:
+        (@Sendable () async -> KanataFunctionalEvidence?)?
 
     /// Cache TTL for sub-2-second goal
     private let cacheTTL: TimeInterval = 1.5
@@ -165,6 +203,17 @@ public actor PermissionOracle {
     /// Force cache invalidation - useful after UDP configuration changes
     public func invalidateCache() {
         AppLogger.shared.log("🔮 [Oracle] Cache invalidated - next check will be fresh")
+        lastSnapshot = nil
+        lastSnapshotTime = nil
+    }
+
+    /// Install the functional-evidence source for kanata's Input Monitoring
+    /// resolution (#931). Called once at app startup; also invalidates the
+    /// cache so the next snapshot reflects the richer signal.
+    public func setKanataFunctionalEvidenceProvider(
+        _ provider: @escaping @Sendable () async -> KanataFunctionalEvidence?
+    ) {
+        kanataFunctionalEvidenceProvider = provider
         lastSnapshot = nil
         lastSnapshotTime = nil
     }
@@ -414,7 +463,21 @@ public actor PermissionOracle {
         let (tccAX, tccIM) = await checkTCCForKanata(executablePath: kanataPath)
 
         let accessibility: Status = tccAX ?? .unknown
-        let inputMonitoring: Status = tccIM ?? .unknown
+
+        // Functional fallback for Input Monitoring (#931): when TCC has no
+        // readable row (macOS 26/27 can grant without ever writing one), a
+        // running, TCP-responding kanata that has opened input devices is
+        // kernel-level proof of the grant. Only consulted when TCC didn't
+        // already say granted; positive evidence also overrides a stale denied
+        // row, mirroring ADR-006's Apple-API-over-TCC precedence.
+        var functionalEvidence: KanataFunctionalEvidence?
+        if tccIM != .granted, let provider = kanataFunctionalEvidenceProvider {
+            functionalEvidence = await provider()
+        }
+        let resolvedIM = Self.resolveKanataInputMonitoring(
+            tccStatus: tccIM, evidence: functionalEvidence
+        )
+        let inputMonitoring = resolvedIM.status
 
         var sourceParts: [String] = []
         var confidence: Confidence = .high
@@ -425,11 +488,15 @@ public actor PermissionOracle {
         default:
             break
         }
-        switch inputMonitoring {
-        case .granted, .denied:
-            sourceParts.append("tcc-im")
-        default:
-            break
+        if resolvedIM.usedFunctionalEvidence {
+            sourceParts.append("functional-im")
+        } else {
+            switch inputMonitoring {
+            case .granted, .denied:
+                sourceParts.append("tcc-im")
+            default:
+                break
+            }
         }
 
         if sourceParts.isEmpty {
@@ -451,11 +518,22 @@ public actor PermissionOracle {
         )
     }
 
-    /// Functional verification disabled in TCP-only mode
-    /// TCP connectivity check would require protocol implementation
-    private func checkKanataFunctionalStatus() async -> Status {
-        AppLogger.shared.log("🔮 [Oracle] Functional status check disabled (TCP-only mode)")
-        return .unknown
+    /// Resolve kanata's Input Monitoring status from the TCC read plus runtime
+    /// evidence (#931). Pure and static for unit testing, mirroring
+    /// `resolveKeyPathInputMonitoring`.
+    ///
+    /// Precedence: positive functional evidence (`provesInputCapture`) wins over
+    /// any TCC result including a stale `.denied` row — the kernel delivering
+    /// events to kanata is ground truth. Anything less conclusive falls back to
+    /// the TCC result; negative or absent evidence never *downgrades* a TCC
+    /// answer (a stopped daemon says nothing about the grant).
+    nonisolated static func resolveKanataInputMonitoring(
+        tccStatus: Status?, evidence: KanataFunctionalEvidence?
+    ) -> (status: Status, usedFunctionalEvidence: Bool) {
+        if let evidence, evidence.provesInputCapture {
+            return (.granted, true)
+        }
+        return (tccStatus ?? .unknown, false)
     }
 
     /// Additional timeout wrapper to prevent hanging

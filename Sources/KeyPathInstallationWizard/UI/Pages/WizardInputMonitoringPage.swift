@@ -20,6 +20,12 @@ public struct WizardInputMonitoringPage: View {
     /// triggered. Drives the escalation to manual guidance when the grant never
     /// registers (macOS 26/27 dead-end, #931).
     @State private var keyPathRequestAttemptedAt: Date?
+    /// When kanata-launcher's Input Monitoring was first observed `.unknown` on
+    /// this page (or when the user last launched the add flow, whichever is
+    /// later). On macOS 26/27 a completed grant may never produce a readable
+    /// TCC row, so after a wait window we must offer a way FORWARD — starting
+    /// the engine is the only reliable verification left (#931).
+    @State private var kanataUnverifiedSince: Date?
 
     @Environment(WizardStateMachine.self) private var stateMachine
 
@@ -203,6 +209,10 @@ public struct WizardInputMonitoringPage: View {
                                                 return
                                             }
                                             AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Kanata Fix clicked — presenting drag-to-authorize overlay")
+                                            // Restart the escalation clock: the user is
+                                            // mid-flow, so give the full wait window
+                                            // before offering the continue path (#931).
+                                            kanataUnverifiedSince = Date()
                                             DragToAuthorizeController.shared.present(for: .inputMonitoring)
                                         }
                                     }
@@ -219,6 +229,22 @@ public struct WizardInputMonitoringPage: View {
                             // 26/27) with accurate manual "+"-to-add steps (#931).
                             if keyPathGuidance == .manualFallback {
                                 InputMonitoringManualFallbackCard()
+                            }
+
+                            // Escalation for the kanata-launcher row: an `.unknown`
+                            // that persists past the wait window usually means the
+                            // grant exists but macOS never wrote a readable TCC row
+                            // (#931). Offer a forward path — starting the engine is
+                            // the authoritative verification (the Oracle upgrades to
+                            // granted on functional evidence, and a genuinely missing
+                            // grant routes back here as a real error). Denied
+                            // (`.failed`) never gets this bypass.
+                            if kanataGuidance == .manualFallback,
+                               kanataInputMonitoringStatus == .warning
+                            {
+                                KanataUnverifiedContinueCard {
+                                    navigateToNextStep()
+                                }
                             }
                         }
                         .frame(maxWidth: .infinity)
@@ -246,7 +272,9 @@ public struct WizardInputMonitoringPage: View {
             }
         }
         .task {
-            permissionSnapshot = await PermissionOracle.shared.forceRefresh()
+            let snapshot = await PermissionOracle.shared.forceRefresh()
+            permissionSnapshot = snapshot
+            updateKanataUnverifiedClock(snapshot)
         }
         .onAppear {
             checkForStaleEntries()
@@ -291,6 +319,35 @@ public struct WizardInputMonitoringPage: View {
     private var kanataInputMonitoringStatus: InstallationStatus {
         guard let snapshot = permissionSnapshot else { return .inProgress }
         return installationStatus(for: snapshot.kanata.inputMonitoring)
+    }
+
+    /// Escalation state for the kanata-launcher row (#931). Reuses the
+    /// permission-agnostic resolver: "requestAttempted" here means the unknown
+    /// state has been observed (clock started on page load / add-flow launch).
+    /// A longer window than KeyPath.app's own prompt because the manual
+    /// Settings drag flow legitimately takes a while.
+    private var kanataGuidance: AutomaticPromptGuidance {
+        resolveAutomaticPromptGuidance(
+            AutomaticPromptGuidanceInput(
+                keyPathReady: permissionSnapshot?.kanata.inputMonitoring.isReady ?? false,
+                requestAttempted: kanataUnverifiedSince != nil,
+                secondsSinceRequest: kanataUnverifiedSince.map { Date().timeIntervalSince($0) },
+                waitWindow: 30
+            )
+        )
+    }
+
+    /// Start/clear the kanata unverified clock from a fresh Oracle snapshot.
+    /// Called by every writer of `permissionSnapshot` so the escalation can
+    /// fire no matter which poll is active.
+    private func updateKanataUnverifiedClock(_ snapshot: PermissionOracle.Snapshot) {
+        if snapshot.kanata.inputMonitoring == .unknown {
+            if kanataUnverifiedSince == nil {
+                kanataUnverifiedSince = Date()
+            }
+        } else {
+            kanataUnverifiedSince = nil
+        }
     }
 
     private func installationStatus(for status: PermissionOracle.Status) -> InstallationStatus {
@@ -395,6 +452,7 @@ public struct WizardInputMonitoringPage: View {
                 if Task.isCancelled { return }
                 let snapshot = await PermissionOracle.shared.forceRefresh()
                 permissionSnapshot = snapshot
+                updateKanataUnverifiedClock(snapshot)
 
                 let bothGranted = snapshot.keyPath.inputMonitoring.isReady
                     && snapshot.kanata.inputMonitoring.isReady
@@ -429,6 +487,7 @@ public struct WizardInputMonitoringPage: View {
                 attempts += 1
                 let snapshot = await PermissionOracle.shared.forceRefresh()
                 permissionSnapshot = snapshot
+                updateKanataUnverifiedClock(snapshot)
                 let hasPermission: Bool =
                     switch type {
                     case .accessibility:
@@ -560,6 +619,46 @@ private struct InputMonitoringManualFallbackCard: View {
                 CleanupStep(number: 2, text: "Click the \"+\" button below the list.")
                 CleanupStep(number: 3, text: "Choose KeyPath.app from your Applications folder, then turn its switch on.")
             }
+            .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(WizardDesign.Spacing.cardPadding)
+        .background(
+            WizardDesign.Colors.warning.opacity(0.06),
+            in: RoundedRectangle(cornerRadius: WizardDesign.Layout.cornerRadius)
+        )
+    }
+}
+
+/// Shown when kanata-launcher's Input Monitoring stays `.unknown` past the wait
+/// window (#931). On macOS 26/27 a completed grant may never produce a readable
+/// TCC row, so pre-flight detection can't confirm it — the only authoritative
+/// check left is starting the engine. The Oracle upgrades to granted on
+/// functional evidence once kanata is running; a genuinely missing grant makes
+/// the service fail with an input-capture error that routes back to this page.
+private struct KanataUnverifiedContinueCard: View {
+    let onContinue: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Already added kanata-launcher?", systemImage: "arrow.right.circle")
+                .font(.headline)
+
+            Text(
+                "On some macOS versions KeyPath can't confirm this permission until the engine runs. If you've turned on kanata-launcher in System Settings, continue — KeyPath verifies the permission when it starts the engine, and will bring you back here if it's still missing."
+            )
+            .font(.callout)
+            .foregroundColor(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+            Button("Continue Setup") {
+                AppLogger.shared.log(
+                    "🔧 [WizardInputMonitoringPage] Continuing past unverified kanata IM — engine start will verify (#931)"
+                )
+                onContinue()
+            }
+            .buttonStyle(WizardDesign.Component.SecondaryButton())
+            .accessibilityIdentifier("wizard_input_monitoring_kanata_continue_unverified")
             .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

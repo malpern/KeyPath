@@ -198,6 +198,21 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
             onAutoFix: onAutoFix
         ))
     }
+
+    // Functional evidence for kanata's Input Monitoring resolution (#931):
+    // on macOS 26/27 a grant may never produce a readable TCC row, so the
+    // Oracle falls back to runtime proof. ServiceHealthChecker's runtime
+    // snapshot is TTL-cached, keeping this cheap under the wizard's 1s poll.
+    Task {
+        await PermissionOracle.shared.setKanataFunctionalEvidenceProvider {
+            let snapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot()
+            return PermissionOracle.KanataFunctionalEvidence(
+                isRunning: snapshot.isRunning,
+                isResponding: snapshot.isResponding,
+                inputCaptureReady: snapshot.inputCaptureReady
+            )
+        }
+    }
 }
 
 /// Configure WizardDependencies for app-bundled CLI repair/inspect entry points.

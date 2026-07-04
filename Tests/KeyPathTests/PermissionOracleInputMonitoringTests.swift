@@ -105,4 +105,76 @@ final class PermissionOracleInputMonitoringTests: XCTestCase {
         XCTAssertNotNil(snap.blockingIssue)
         XCTAssertFalse(snap.isSystemReady)
     }
+
+    // MARK: - Kanata IM functional-evidence resolution (#931)
+
+    private typealias Evidence = PermissionOracle.KanataFunctionalEvidence
+
+    /// The macOS 26/27 gap this exists for: a grant that never wrote a TCC row,
+    /// but the engine is verifiably capturing input.
+    func testFunctionalEvidenceUpgradesUnreadableTCCToGranted() {
+        let resolved = PermissionOracle.resolveKanataInputMonitoring(
+            tccStatus: nil,
+            evidence: Evidence(isRunning: true, isResponding: true, inputCaptureReady: true)
+        )
+        XCTAssertEqual(resolved.status, .granted)
+        XCTAssertTrue(resolved.usedFunctionalEvidence)
+    }
+
+    /// A stale TCC denied row loses to a running, capturing engine — same
+    /// kernel-over-TCC precedence as ADR-006.
+    func testFunctionalEvidenceOverridesStaleDeniedRow() {
+        let resolved = PermissionOracle.resolveKanataInputMonitoring(
+            tccStatus: .denied,
+            evidence: Evidence(isRunning: true, isResponding: true, inputCaptureReady: true)
+        )
+        XCTAssertEqual(resolved.status, .granted)
+        XCTAssertTrue(resolved.usedFunctionalEvidence)
+    }
+
+    /// A stopped daemon proves nothing — the TCC answer stands untouched.
+    func testStoppedDaemonNeverDowngradesTCCAnswer() {
+        for tcc: Status? in [.granted, .denied, nil] {
+            let resolved = PermissionOracle.resolveKanataInputMonitoring(
+                tccStatus: tcc,
+                evidence: Evidence(isRunning: false, isResponding: false, inputCaptureReady: true)
+            )
+            XCTAssertEqual(resolved.status, tcc ?? .unknown)
+            XCTAssertFalse(resolved.usedFunctionalEvidence)
+        }
+    }
+
+    /// Running but with a diagnosed input-capture failure is NOT proof of the
+    /// grant — fall back to TCC (or unknown) so the wizard keeps guiding.
+    func testCaptureFailureIsNotProofOfGrant() {
+        let resolved = PermissionOracle.resolveKanataInputMonitoring(
+            tccStatus: nil,
+            evidence: Evidence(isRunning: true, isResponding: true, inputCaptureReady: false)
+        )
+        XCTAssertEqual(resolved.status, .unknown)
+        XCTAssertFalse(resolved.usedFunctionalEvidence)
+    }
+
+    /// Running but not serving TCP could be a half-started or wedged process —
+    /// insufficient evidence, keep the TCC answer.
+    func testRunningWithoutTCPIsInsufficientEvidence() {
+        let resolved = PermissionOracle.resolveKanataInputMonitoring(
+            tccStatus: nil,
+            evidence: Evidence(isRunning: true, isResponding: false, inputCaptureReady: true)
+        )
+        XCTAssertEqual(resolved.status, .unknown)
+        XCTAssertFalse(resolved.usedFunctionalEvidence)
+    }
+
+    /// No provider wired (CLI contexts, tests) behaves exactly as before #931's
+    /// functional layer: pure TCC passthrough.
+    func testAbsentEvidenceIsPureTCCPassthrough() {
+        for tcc: Status? in [.granted, .denied, nil] {
+            let resolved = PermissionOracle.resolveKanataInputMonitoring(
+                tccStatus: tcc, evidence: nil
+            )
+            XCTAssertEqual(resolved.status, tcc ?? .unknown)
+            XCTAssertFalse(resolved.usedFunctionalEvidence)
+        }
+    }
 }
