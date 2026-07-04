@@ -157,4 +157,10 @@ private final class StubHelperMaintenance: WizardHelperMaintaining {
         logLines.append("helper repair invoked")
         return true
     }
+
+    func runCleanupAndRepair(useAppleScriptFallback _: Bool, forceFullRepair _: Bool) async -> Bool {
+        repairCallCount += 1
+        logLines.append("helper repair invoked")
+        return true
+    }
 }

@@ -474,6 +474,12 @@ public struct SystemFacade: Sendable {
         guard let first = issues.first else { return prefix }
         return "\(prefix): \(first.title). \(first.action)"
     }
+
+    fileprivate static func requiresManualApproval(_ failureReason: String) -> Bool {
+        let normalized = failureReason.lowercased()
+        return normalized.contains("waiting for macos approval")
+            || normalized.contains("system settings > privacy & security")
+    }
 }
 
 // MARK: - System Types
@@ -537,6 +543,7 @@ public struct CLIInstallerReport: Codable, Sendable {
         let finalUserActionIssues = finalIssues.filter { !$0.canAutoFix }
         let finalOperational = finalContext.map(SystemFacade.isOperational) ?? false
         let completedButStillBlocked = report.success && !finalOperational && !finalIssues.isEmpty
+        let failedForManualApproval = report.failureReason.map(SystemFacade.requiresManualApproval) ?? false
 
         success = report.success && !completedButStillBlocked
         if let reportFailure = report.failureReason {
@@ -556,7 +563,7 @@ public struct CLIInstallerReport: Codable, Sendable {
         }
         fastRepair = false
         dryRun = false
-        userActionRequired = !finalUserActionIssues.isEmpty || plan.metadata.promptsNeeded
+        userActionRequired = !finalUserActionIssues.isEmpty || plan.metadata.promptsNeeded || failedForManualApproval
         issues = finalIssues
         plannedRecipes = plan.recipes.map { "\($0.id) (\($0.type))" }
         unmetRequirements = report.unmetRequirements.map(\.name)

@@ -743,7 +743,7 @@ extension HelperService {
     }
 
     static func activateVHIDManagerProcess() -> (status: Int32, out: String) {
-        _ = run("/usr/bin/pkill", ["-f", "\(vhidManagerPath) activate"], timeout: 5)
+        terminateStaleVHIDManagerActivationProcesses()
         let result = run(vhidManagerPath, ["activate"], timeout: 20)
         if result.out.contains("timed out after") {
             return (
@@ -753,6 +753,19 @@ extension HelperService {
             )
         }
         return result
+    }
+
+    static func terminateStaleVHIDManagerActivationProcesses() {
+        let pattern = "\(vhidManagerPath) activate"
+        let existing = run("/usr/bin/pgrep", ["-f", pattern], timeout: 5)
+        let pids = existing.out
+            .split(whereSeparator: \.isNewline)
+            .map(String.init)
+            .filter { !$0.isEmpty }
+        guard !pids.isEmpty else { return }
+
+        _ = run("/bin/kill", ["-TERM"] + pids, timeout: 5)
+        _ = run("/bin/kill", ["-KILL"] + pids, timeout: 5)
     }
 
     static func verifyCodeSignatureStrict(path: String) -> Bool {
