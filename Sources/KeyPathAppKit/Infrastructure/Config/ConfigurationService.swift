@@ -693,6 +693,18 @@ extension ConfigurationService {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             ioQueue.async {
                 do {
+                    // Ensure the parent directory exists. An atomic write creates
+                    // its temp file in the target directory, so a missing dir
+                    // fails with ENOENT. Relying on ~/.config/keypath
+                    // pre-existing is what made concurrent runs (a peer process
+                    // removing/recreating the shared dir mid-write) fail with
+                    // "could not enable associated rule collection". Idempotent.
+                    let dir = (path as NSString).deletingLastPathComponent
+                    if !dir.isEmpty {
+                        try FileManager.default.createDirectory(
+                            atPath: dir, withIntermediateDirectories: true
+                        )
+                    }
                     try string.write(toFile: path, atomically: true, encoding: .utf8)
                     cont.resume()
                 } catch {
@@ -706,6 +718,9 @@ extension ConfigurationService {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             ioQueue.async {
                 do {
+                    try FileManager.default.createDirectory(
+                        at: url.deletingLastPathComponent(), withIntermediateDirectories: true
+                    )
                     try string.write(to: url, atomically: true, encoding: .utf8)
                     cont.resume()
                 } catch {

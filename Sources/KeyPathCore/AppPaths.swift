@@ -25,6 +25,15 @@ public enum AppPaths {
         userDirectory("Library/Application Support/KeyPath")
     }
 
+    /// `~/.config/keypath` (sandboxed during tests) — user keyboard config,
+    /// RuleCollections.json, installed-packs.json, and the generated
+    /// keypath.kbd. Under test this resolves into the per-process sandbox so
+    /// concurrent test processes (parallel CI PRs, or multiple local sessions)
+    /// never race the same real files.
+    public static var configDirectory: URL {
+        userDirectory(".config/keypath")
+    }
+
     /// Append-only crash/service-failure log shared by the app-state and
     /// daemon monitors: `<logsDirectory>/crashes.log`.
     public static var crashLogFile: URL {

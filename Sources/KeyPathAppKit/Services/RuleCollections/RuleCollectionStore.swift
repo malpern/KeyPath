@@ -52,15 +52,27 @@ actor RuleCollectionStore {
     ) {
         self.fileManager = fileManager
         self.catalog = catalog
-        let defaultDirectory = URL(
-            fileURLWithPath: WizardSystemPaths.userConfigDirectory, isDirectory: true
-        )
+        // Under test, redirect to the per-process sandbox (AppPaths) so
+        // concurrent test processes never race the same real
+        // RuleCollections.json — the root cause of CLIPackCRUDTests
+        // "could not enable associated rule collection" failures when multiple
+        // runs overlap (parallel CI PRs, or multiple local Claude sessions).
+        // InstalledPackTracker already isolates the same way; this closes the
+        // gap. Production resolution is unchanged.
+        let defaultDirectory = TestEnvironment.isRunningTests
+            ? AppPaths.configDirectory
+            : URL(fileURLWithPath: WizardSystemPaths.userConfigDirectory, isDirectory: true)
         self.fileURL = fileURL ?? defaultDirectory.appendingPathComponent("RuleCollections.json")
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         self.encoder = encoder
         decoder = JSONDecoder()
+    }
+
+    /// Test-only: the resolved backing file, for asserting sandbox isolation.
+    var debugFileURL: URL {
+        fileURL
     }
 
     func loadCollections() -> [RuleCollection] {

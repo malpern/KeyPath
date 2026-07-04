@@ -33,9 +33,17 @@ public enum KeyPathConstants {
     public enum Config {
         public static let fileName = "keypath.kbd"
 
-        /// The main directory for user configuration: ~/.config/keypath
+        /// The main directory for user configuration: ~/.config/keypath.
+        /// Under test this redirects to the per-process AppPaths sandbox so
+        /// concurrent test processes (parallel CI PRs, or multiple local Claude
+        /// sessions) never race the same real keypath.kbd — the second half of
+        /// the "could not enable associated rule collection" fix (the first is
+        /// RuleCollectionStore). Production resolution is unchanged.
         public static var directory: String {
-            "\(NSHomeDirectory())/.config/keypath"
+            if TestEnvironment.isRunningTests {
+                return AppPaths.configDirectory.path
+            }
+            return "\(NSHomeDirectory())/.config/keypath"
         }
 
         /// The main configuration file: ~/.config/keypath/keypath.kbd
