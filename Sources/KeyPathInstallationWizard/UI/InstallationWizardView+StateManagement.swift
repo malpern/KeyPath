@@ -74,7 +74,11 @@ public extension InstallationWizardView {
         return WizardWelcomeGate.shouldShowWelcome(helperInstalled: helperInstalled)
     }
 
-    func performInitialStateCheck(retryAllowed: Bool = true) async {
+    func performInitialStateCheck(
+        retryAllowed: Bool = true,
+        permissionRetriesRemaining: Int = 2,
+        permissionRetryDelay: Double = 2.0
+    ) async {
         // Check if user has already closed wizard
         guard !Task.isCancelled else {
             AppLogger.shared.log("🔍 [Wizard] Initial state check cancelled - wizard closing")
@@ -149,28 +153,53 @@ public extension InstallationWizardView {
             // Without this, .unknown permission states (Oracle hasn't finished TCC check)
             // are treated as non-blocking, causing the wizard to skip permission pages.
             let permSnapshot = await PermissionOracle.shared.forceRefresh()
-            let permissionsStillUnknown =
-                permSnapshot.kanata.accessibility == .unknown
-                    || permSnapshot.kanata.inputMonitoring == .unknown
-            if permissionsStillUnknown {
-                AppLogger.shared.log("🔍 [Wizard] Permissions still unverified — staying on summary to avoid skipping permission pages")
-                Task { @MainActor in
-                    // Never yank the user off the welcome page; Get Started routes onward.
-                    if stateMachine.currentPage != .welcome {
-                        stateMachine.navigateToPage(.summary)
+            let kanataAccessibilityUnknown = permSnapshot.kanata.accessibility == .unknown
+            let kanataInputMonitoringUnknown = permSnapshot.kanata.inputMonitoring == .unknown
+            if kanataAccessibilityUnknown || kanataInputMonitoringUnknown {
+                if permissionRetriesRemaining > 0 {
+                    // Possibly transient (Oracle racing app startup / slow TCC read):
+                    // park on summary and retry with backoff.
+                    AppLogger.shared.log(
+                        "🔍 [Wizard] Permissions still unverified — retrying in \(permissionRetryDelay)s (\(permissionRetriesRemaining) left)"
+                    )
+                    Task { @MainActor in
+                        // Never yank the user off the welcome page; Get Started routes onward.
+                        if stateMachine.currentPage != .welcome {
+                            stateMachine.navigateToPage(.summary)
+                        }
                     }
+                    Task {
+                        _ = await WizardSleep.seconds(permissionRetryDelay)
+                        guard !Task.isCancelled, !isForceClosing else { return }
+                        await performInitialStateCheck(
+                            retryAllowed: retryAllowed,
+                            permissionRetriesRemaining: permissionRetriesRemaining - 1,
+                            permissionRetryDelay: permissionRetryDelay * 2
+                        )
+                    }
+                    return
                 }
-                return
+                // Steady-state .unknown (no Full Disk Access to read TCC.db, or a
+                // fresh install with no TCC row) — retrying won't resolve it. Fall
+                // through and let routing land on the first unverified permission
+                // page instead of dead-ending on summary (the pre-#934 gap).
+                AppLogger.shared.log(
+                    "🔍 [Wizard] Permissions unverifiable after retries — routing to first unverified permission page"
+                )
             }
 
             // Auto-navigate to the first page that needs attention
             let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
             let helperNeedsApproval = WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
-            let recommended = WizardRouter.route(
-                state: result.state,
-                issues: filteredIssues,
-                helperInstalled: helperInstalled,
-                helperNeedsApproval: helperNeedsApproval
+            let recommended = WizardRouter.routeForUnverifiedKanataPermissions(
+                base: WizardRouter.route(
+                    state: result.state,
+                    issues: filteredIssues,
+                    helperInstalled: helperInstalled,
+                    helperNeedsApproval: helperNeedsApproval
+                ),
+                inputMonitoringUnknown: kanataInputMonitoringUnknown,
+                accessibilityUnknown: kanataAccessibilityUnknown
             )
             Task { @MainActor in
                 // Never yank the user off the welcome page mid-read; validation has
