@@ -57,8 +57,14 @@ User config: `~/.config/keypath/keypath.kbd`. Logs: `~/Library/Logs/KeyPath/keyp
 Issues carry a `model:*` label set at triage time: `model:haiku` (mechanical — copy
 changes, label hygiene, script audits, cleanup), `model:sonnet` (standard implementation
 against a settled design), `model:opus` (hard debugging, subtle concurrency/TCC work,
-data-model design), `model:fable` (the hardest architecture or UX design decisions —
-security tradeoffs, sprint-epic design).
+data-model design, sprint-epic design), `model:fable` (reserved — see below).
+
+**`model:fable` is expensive. Reserve it for genuinely open, high-consequence design
+work**: a security tradeoff or architecture/UX decision that is not yet made, has no
+settled spec to implement against, and where a wrong call is costly to reverse. If the
+issue body already contains the decision or a full spec, the remaining work is
+implementation — label it `opus` or below. When in doubt between `opus` and `fable`,
+pick `opus`.
 
 **When working an issue, check its label first:**
 - If the ticket's tier is **below** your session's model tier, delegate the
