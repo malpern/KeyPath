@@ -185,9 +185,9 @@ jobs:
   code-quality:
     runs-on: [self-hosted, macOS, keypath]
     timeout-minutes: 5
-    concurrency:
-      group: keypath-self-hosted-runner
-      cancel-in-progress: false
+    # No concurrency group: this job never runs `swift test` or touches
+    # RuleCollectionsManager's config file, so it doesn't share the state
+    # that caused the race — no need to queue it behind build-and-test.
 
     steps:
     - name: Clean stale git credentials
