@@ -260,7 +260,8 @@ BUILD_SYSTEM_FLAGS=()
 if [[ -n "${KEYPATH_BUILD_SYSTEM:-}" ]]; then
     BUILD_SYSTEM_FLAGS=(--build-system "$KEYPATH_BUILD_SYSTEM")
 fi
-if ! swift build "${BUILD_SYSTEM_FLAGS[@]}" "${MODULE_CACHE_FLAGS[@]}" >> "$BUILD_LOG" 2>&1; then
+# ${arr[@]+...} guard: bash 3.2 under `set -u` treats expanding an empty array as unbound
+if ! swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} "${MODULE_CACHE_FLAGS[@]}" >> "$BUILD_LOG" 2>&1; then
     BUILD_END_MS=$(get_time_ms)
     DURATION=$((BUILD_END_MS - BUILD_START_MS))
     print_build_failure_diagnostics "$BUILD_LOG"
@@ -268,7 +269,7 @@ if ! swift build "${BUILD_SYSTEM_FLAGS[@]}" "${MODULE_CACHE_FLAGS[@]}" >> "$BUIL
     exit 1
 fi
 
-if ! BIN_DIR_OUTPUT=$(swift build --show-bin-path "${BUILD_SYSTEM_FLAGS[@]}" "${MODULE_CACHE_FLAGS[@]}" 2>> "$BUILD_LOG"); then
+if ! BIN_DIR_OUTPUT=$(swift build --show-bin-path ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} "${MODULE_CACHE_FLAGS[@]}" 2>> "$BUILD_LOG"); then
     BUILD_END_MS=$(get_time_ms)
     DURATION=$((BUILD_END_MS - BUILD_START_MS))
     print_build_failure_diagnostics "$BUILD_LOG"
