@@ -136,21 +136,22 @@ Your config should include TCP settings in `defcfg`:
 
 ### Command Execution Requirements
 
-**KeyPath requires `danger-enable-cmd yes`** for app launching and URL opening features. This is Kanata's built-in safety gate — disabled by default so random configs from the internet can't execute arbitrary commands.
+**KeyPath does not require Kanata's `cmd` feature** for app launching, URL opening, or script actions. KeyPath actions are delivered through Kanata `push-msg` events over TCP and executed by the KeyPath app, not by the root-managed Kanata process.
+
+You do **not** need `danger-enable-cmd yes` for KeyPath features:
 
 ```lisp
 (defcfg
   process-unmapped-keys yes
   tcp-server-port 37001
-  danger-enable-cmd yes  ;; Required for KeyPath app/URL launching
 )
 ```
 
-**Why it's named "danger":** Kanata's `cmd` action can execute *any* binary with *any* arguments. The scary name is intentional — it forces you to acknowledge you're enabling command execution. KeyPath uses this for legitimate app launching via macOS's `open` command, but Kanata itself applies no restrictions once enabled.
+Existing configs that still contain `danger-enable-cmd yes` continue to load, but the setting is inert with KeyPath's bundled cmd-less engine. Raw Kanata `(cmd ...)` actions are not supported by the bundled engine; use KeyPath's action URI and script features instead.
 
 ### Script Execution Safety
 
-If you use KeyPath's `script:{path}` action URI to run scripts, KeyPath applies several safety layers **on top of** Kanata's `cmd`:
+If you use KeyPath's `script:{path}` action URI to run scripts, KeyPath applies several safety layers:
 
 | Safety Measure | Description |
 |----------------|-------------|
@@ -160,7 +161,7 @@ If you use KeyPath's `script:{path}` action URI to run scripts, KeyPath applies 
 | **Audit logging** | All script executions logged (last 100 entries) |
 | **No shell injection** | Scripts run via direct interpreter, not shell — no metacharacter attacks |
 
-**Note:** These protections apply only to KeyPath's action system. If you write raw `(cmd ...)` actions in your Kanata config, those bypass KeyPath entirely and run with whatever permissions Kanata has.
+**Note:** These protections apply only to KeyPath's action system. Raw `(cmd ...)` actions are intentionally unavailable in the bundled engine.
 
 ---
 
