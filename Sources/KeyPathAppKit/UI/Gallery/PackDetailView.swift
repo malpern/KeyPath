@@ -251,7 +251,7 @@ struct PackDetailView: View {
                             if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
                         }
                     }
-                    Text(pack.tagline)
+                    Text(displayTagline)
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -504,8 +504,38 @@ struct PackDetailView: View {
 
     // MARK: - Description
 
+    /// Home Row Mods' tagline/description are written for the default
+    /// "hold for a modifier" behavior. When the user has switched Hold
+    /// Behavior to Layers (`homeRowModsConfig.holdMode == .layers`), the
+    /// modifier-specific wording ("no reaching for modifier keys", "Hold
+    /// them for ⌘ ⇧ ⌥ ⌃") is misleading, so swap in layer-mode copy.
+    /// Every other pack keeps its static catalog tagline. Pulled out as a
+    /// pure static function (rather than reading `@State` directly) so it
+    /// can be unit tested without instantiating a live SwiftUI view.
+    nonisolated static func displayTagline(for pack: Pack, holdMode: HomeRowHoldMode) -> String {
+        guard pack.associatedCollectionID == RuleCollectionIdentifier.homeRowMods, holdMode == .layers else {
+            return pack.tagline
+        }
+        return "Every layer under your fingers — no reaching for the keys that trigger them"
+    }
+
+    nonisolated static func displayShortDescription(for pack: Pack, holdMode: HomeRowHoldMode) -> String {
+        guard pack.associatedCollectionID == RuleCollectionIdentifier.homeRowMods, holdMode == .layers else {
+            return pack.shortDescription
+        }
+        return "Tap home row keys normally. Hold them to activate a layer — numbers, symbols, navigation, or whatever you've assigned. Adjust the hold timing to match your typing speed."
+    }
+
+    var displayTagline: String {
+        Self.displayTagline(for: pack, holdMode: homeRowModsConfig.holdMode)
+    }
+
+    var displayShortDescription: String {
+        Self.displayShortDescription(for: pack, holdMode: homeRowModsConfig.holdMode)
+    }
+
     var descriptionBlock: some View {
-        Text(pack.shortDescription)
+        Text(displayShortDescription)
             .font(.body)
             .foregroundStyle(.primary)
             .fixedSize(horizontal: false, vertical: true)
@@ -533,7 +563,7 @@ struct PackDetailView: View {
                         icon: "exclamationmark.circle",
                         tint: .orange,
                         items: requires.compactMap { dep in
-                            PackRegistry.pack(id: dep.packID).map { ($0, dep.description) }
+                            PackRegistry.pack(id: dep.packID).map { ($0, displayDependencyDescription(dep)) }
                         }
                     )
                 }
@@ -545,7 +575,7 @@ struct PackDetailView: View {
                         icon: "sparkles",
                         tint: .blue,
                         items: enhancedBy.compactMap { dep in
-                            PackRegistry.pack(id: dep.packID).map { ($0, dep.description) }
+                            PackRegistry.pack(id: dep.packID).map { ($0, displayDependencyDescription(dep)) }
                         }
                     )
                 }
@@ -557,8 +587,8 @@ struct PackDetailView: View {
                         icon: "arrow.up.right",
                         tint: .green,
                         items: enhances.map { other in
-                            let desc = other.dependencies
-                                .first { $0.packID == pack.id }?.description ?? ""
+                            let dep = other.dependencies.first { $0.packID == pack.id }
+                            let desc = displayDependencyDescription(dep)
                             return (other, desc)
                         }
                     )
@@ -570,6 +600,35 @@ struct PackDetailView: View {
                     .fill(Color(NSColor.controlBackgroundColor).opacity(0.3))
             )
         }
+    }
+
+    /// Dependency descriptions in `PackRegistry` are written assuming Home
+    /// Row Mods is in its default "hold for a modifier" behavior (e.g. Home
+    /// Row Arrows' conflict copy: "Home Row Mods assigns F to Command").
+    /// When HRM is showing this pack's own detail page and the user has
+    /// switched Hold Behavior to Layers, that copy is stale — rewrite it to
+    /// describe the active layer-mode behavior instead. Only applies to
+    /// text this view can confirm references `com.keypath.pack.home-row-mods`
+    /// while we're rendering that pack's own detail (where the live
+    /// `homeRowModsConfig` is available); every other dependency description
+    /// passes through unchanged.
+    nonisolated static func displayDependencyDescription(
+        _ dep: PackDependency?,
+        forPack pack: Pack,
+        holdMode: HomeRowHoldMode
+    ) -> String {
+        let base = dep?.description ?? ""
+        guard pack.associatedCollectionID == RuleCollectionIdentifier.homeRowMods,
+              holdMode == .layers,
+              base.contains("Home Row Mods assigns F to Command")
+        else {
+            return base
+        }
+        return "Both use F as a hold key — Home Row Mods assigns F to a layer, Home Row Arrows assigns F to a navigation layer"
+    }
+
+    func displayDependencyDescription(_ dep: PackDependency?) -> String {
+        Self.displayDependencyDescription(dep, forPack: pack, holdMode: homeRowModsConfig.holdMode)
     }
 
     private func dependencyGroup(
