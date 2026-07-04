@@ -52,6 +52,22 @@ User config: `~/.config/keypath/keypath.kbd`. Logs: `~/Library/Logs/KeyPath/keyp
 3. Fix both the proximate cause and the deeper cause
 4. Document in `docs/bugs/`
 
+## Model-Tier Labels on Issues
+
+Issues carry a `model:*` label set at triage time: `model:haiku` (mechanical — copy
+changes, label hygiene, script audits, cleanup), `model:sonnet` (standard implementation
+against a settled design), `model:opus` (hard debugging, subtle concurrency/TCC work,
+data-model design), `model:fable` (the hardest architecture or UX design decisions —
+security tradeoffs, sprint-epic design).
+
+**When working an issue, check its label first:**
+- If the ticket's tier is **below** your session's model tier, delegate the
+  implementation to subagents at the labeled tier (the Agent tool takes a `model`
+  override) instead of doing it all in the main loop.
+- If the ticket's tier is **above** your session's tier, say so before starting so the
+  user can relaunch at the right tier — do not silently attempt it.
+- Unlabeled issues: propose a tier as part of triage and apply the label.
+
 ## PR Workflow & Git Safety
 
 Follow the invariants in [`docs/agent-pr-invariants.md`](docs/agent-pr-invariants.md). Step-by-step reference: [`docs/agent-pr-workflow.md`](docs/agent-pr-workflow.md).
