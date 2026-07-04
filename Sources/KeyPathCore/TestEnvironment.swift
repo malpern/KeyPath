@@ -24,6 +24,17 @@ public enum TestEnvironment {
         detectionSignals.contains(where: \.present)
     }
 
+    /// True only when this process is an actual test host: an XCTest bundle is
+    /// loaded, the XCTest harness env is present, the explicit SWIFT_TEST opt-in
+    /// is set, or the process is a known test runner. Unlike `isRunningTests`,
+    /// this excludes the broad `ci-environment` signal, so a REAL KeyPath.app
+    /// launched inside a CI job (installed-app/smoke QA) does not match. Use this
+    /// for gates that must not fire for real app launches on CI — e.g. skipping
+    /// rule-collection bootstrap in RuntimeCoordinator (#922).
+    public static var isTestHostProcess: Bool {
+        detectionSignals.contains { $0.present && $0.name != "ci-environment" }
+    }
+
     /// Specific CI systems only, NOT the generic "CI" env var — that one is too
     /// common (set by various tools, editors, etc.) and causes false positives
     /// when inherited from a user's shell environment.

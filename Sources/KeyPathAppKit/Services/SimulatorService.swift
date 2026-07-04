@@ -9,13 +9,19 @@ import KeyPathCore
 actor SimulatorService {
     private let simulatorPath: String
     private let fileManager: FileManager
+    /// Injectable feature-flag check. Defaults to the persisted flag; tests inject a
+    /// constant so simulator integration tests never depend on process-global
+    /// UserDefaults state that other test classes may mutate (#896).
+    private let simulatorEnabled: @Sendable () -> Bool
 
     init(
         simulatorPath: String? = nil,
-        fileManager: FileManager = Foundation.FileManager()
+        fileManager: FileManager = Foundation.FileManager(),
+        simulatorEnabled: @escaping @Sendable () -> Bool = { FeatureFlags.simulatorAndVirtualKeysEnabled }
     ) {
         self.simulatorPath = simulatorPath ?? WizardSystemPaths.bundledSimulatorPath
         self.fileManager = fileManager
+        self.simulatorEnabled = simulatorEnabled
     }
 
     // MARK: - Public API
@@ -29,7 +35,7 @@ actor SimulatorService {
         taps: [SimulatorKeyTap],
         configPath: String
     ) async throws -> SimulationResult {
-        guard FeatureFlags.simulatorAndVirtualKeysEnabled else {
+        guard simulatorEnabled() else {
             throw SimulatorError.featureDisabled
         }
         guard !taps.isEmpty else {
@@ -79,7 +85,7 @@ actor SimulatorService {
         simContent: String,
         configPath: String
     ) async throws -> SimulationResult {
-        guard FeatureFlags.simulatorAndVirtualKeysEnabled else {
+        guard simulatorEnabled() else {
             throw SimulatorError.featureDisabled
         }
         guard fileManager.fileExists(atPath: simulatorPath) else {
@@ -154,8 +160,10 @@ actor SimulatorService {
 // MARK: - Testing Support
 
 extension SimulatorService {
-    /// Create a service with a custom simulator path (for testing)
+    /// Create a service with a custom simulator path (for testing).
+    /// Pins the simulator feature flag ON so tests are hermetic against
+    /// UserDefaults-backed flag state mutated by other test classes (#896).
     static func forTesting(simulatorPath: String) -> SimulatorService {
-        SimulatorService(simulatorPath: simulatorPath)
+        SimulatorService(simulatorPath: simulatorPath, simulatorEnabled: { true })
     }
 }

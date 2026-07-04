@@ -30,10 +30,15 @@ public extension InstallationWizardView {
             AppLogger.shared.log("🔍 [Wizard] Navigating to initial page override: \(initialPage)")
             stateMachine.navigateToPage(initialPage)
         } else {
-            // Start at helper page, not summary - avoids showing unverified permission status
-            // before user has had a chance to decide on enhanced diagnostics (FDA)
-            AppLogger.shared.log("🔍 [Wizard] Starting at helper page (skipping initial summary)")
-            stateMachine.navigateToPage(.helper)
+            // No cached snapshot and no explicit override: stay on summary (the
+            // default from resetNavigation()) until performInitialStateCheck()
+            // below determines the real target page. Eagerly jumping to .helper
+            // here and then bouncing back to .summary once permissions are known
+            // (see performInitialStateCheck's "Permissions still unverified" guard)
+            // caused a visible summary→helper→summary flicker on wizard open (#934).
+            // performInitialStateCheck() performs the single authoritative
+            // navigation once state + permissions are resolved.
+            AppLogger.shared.log("🔍 [Wizard] No cached page — staying on summary until initial state check completes")
         }
 
         Task {

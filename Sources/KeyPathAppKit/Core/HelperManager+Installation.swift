@@ -38,10 +38,14 @@ extension HelperManager {
         }
 
         let svc = Self.smServiceFactory(Self.helperPlistName)
+        // Fresh read via the centralized provider (#853). The post-register reads
+        // below stay on the owned `svc` instance (also routed through the provider's
+        // freshStatus) because they must observe the just-mutated system state.
+        let initialStatus = await SMAppServiceStatusProvider.shared.freshStatus(for: Self.helperPlistName)
         AppLogger.shared.log(
-            "🔍 [HelperManager] SMAppService status: \(svc.status.rawValue) (0=notRegistered, 1=enabled, 2=requiresApproval, 3=notFound)"
+            "🔍 [HelperManager] SMAppService status: \(initialStatus.rawValue) (0=notRegistered, 1=enabled, 2=requiresApproval, 3=notFound)"
         )
-        switch svc.status {
+        switch initialStatus {
         case .enabled:
             // Enabled means the app has background-item approval, not necessarily that
             // the daemon is registered. Attempt an idempotent register to ensure the
@@ -52,7 +56,8 @@ extension HelperManager {
                 try svc.register()
             } catch {
                 registerError = error
-                if svc.status == .enabled {
+                let statusAfterError = await SMAppServiceStatusProvider.shared.freshStatus(for: Self.helperPlistName)
+                if statusAfterError == .enabled {
                     AppLogger.shared.log("ℹ️ [HelperManager] Helper already Enabled after register error; verifying XPC")
                 } else {
                     throw HelperManagerError.installationFailed(
@@ -82,17 +87,19 @@ extension HelperManager {
         case .notRegistered:
             do {
                 try svc.register()
-                AppLogger.shared.info("✅ [HelperManager] Helper registered (status: \(svc.status))")
+                let statusAfterRegister = await SMAppServiceStatusProvider.shared.freshStatus(for: Self.helperPlistName)
+                AppLogger.shared.info("✅ [HelperManager] Helper registered (status: \(statusAfterRegister))")
                 return
             } catch {
                 // If another thread already registered or approval raced, treat Enabled as success
-                if svc.status == .enabled {
+                let statusAfterError = await SMAppServiceStatusProvider.shared.freshStatus(for: Self.helperPlistName)
+                if statusAfterError == .enabled {
                     AppLogger.shared.info(
                         "✅ [HelperManager] Helper became Enabled during registration race; treating as success"
                     )
                     return
                 }
-                if svc.status == .requiresApproval {
+                if statusAfterError == .requiresApproval {
                     throw HelperManagerError.installationFailed(
                         "Approval required in System Settings → Login Items."
                     )
@@ -141,7 +148,10 @@ extension HelperManager {
             throw HelperManagerError.operationFailed("Requires macOS 13+ for SMAppService")
         }
         let svc = Self.smServiceFactory(Self.helperPlistName)
-        do { try await svc.unregister() } catch {
+        do {
+            try await svc.unregister()
+            await SMAppServiceStatusProvider.shared.invalidate(plistName: Self.helperPlistName)
+        } catch {
             throw HelperManagerError.operationFailed(
                 "SMAppService unregister failed: \(error.localizedDescription)"
             )
@@ -188,9 +198,11 @@ extension HelperManager {
 
         do {
             try svc.register()
+            await SMAppServiceStatusProvider.shared.invalidate(plistName: Self.helperPlistName)
             AppLogger.shared.log("✅ [HelperManager] Re-registered helper after stale SMAppService cleanup")
         } catch {
-            if svc.status == .requiresApproval {
+            let statusAfterError = await SMAppServiceStatusProvider.shared.freshStatus(for: Self.helperPlistName)
+            if statusAfterError == .requiresApproval {
                 throw HelperManagerError.installationFailed(
                     "Approval required in System Settings → Login Items."
                 )

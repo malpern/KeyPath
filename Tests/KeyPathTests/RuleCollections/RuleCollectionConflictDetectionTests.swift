@@ -263,4 +263,94 @@ final class RuleCollectionConflictDetectionTests: XCTestCase {
         let info = RuleConflictInfo(source: .customRule(rule), keys: ["a"])
         XCTAssertFalse(info.displayName.isEmpty)
     }
+
+    // MARK: - Cross-type conflicts: mapping vs momentary activator (#953)
+
+    private func makeArrowsStyleCollection(enabled: Bool = true) -> RuleCollection {
+        // Shape of Home Row Arrows: no static mappings, hold `f` on base activates a layer
+        RuleCollection(
+            id: UUID(),
+            name: "Arrows Style",
+            summary: "",
+            category: .custom,
+            mappings: [],
+            isEnabled: enabled,
+            icon: "star",
+            tags: [],
+            targetLayer: .custom("home-arrows"),
+            momentaryActivator: MomentaryActivator(
+                input: "f",
+                targetLayer: .custom("home-arrows")
+            ),
+            configuration: .list
+        )
+    }
+
+    func testConflictInfo_MappingConflictsWithOtherCollectionsActivator() {
+        let manager = makeManager()
+        manager.ruleCollections = [makeArrowsStyleCollection()]
+
+        let candidate = RuleCollection(
+            id: UUID(),
+            name: "Maps F",
+            summary: "",
+            category: .custom,
+            mappings: [KeyMapping(input: "f", action: .keystroke(key: "lmet"), description: "")],
+            isEnabled: true,
+            icon: "star",
+            tags: [],
+            targetLayer: .base,
+            configuration: .list
+        )
+
+        let conflict = manager.conflictInfo(for: candidate)
+        XCTAssertNotNil(conflict, "Base mapping on f must conflict with an activator holding f on base")
+        XCTAssertEqual(conflict?.keys, ["f"])
+    }
+
+    func testConflictInfo_ActivatorConflictsWithOtherCollectionsMapping() {
+        let manager = makeManager()
+        manager.ruleCollections = [
+            RuleCollection(
+                id: UUID(),
+                name: "Maps F",
+                summary: "",
+                category: .custom,
+                mappings: [KeyMapping(input: "f", action: .keystroke(key: "lmet"), description: "")],
+                isEnabled: true,
+                icon: "star",
+                tags: [],
+                targetLayer: .base,
+                configuration: .list
+            )
+        ]
+
+        let conflict = manager.conflictInfo(for: makeArrowsStyleCollection())
+        XCTAssertNotNil(conflict, "Activator holding f on base must conflict with a base mapping on f")
+        XCTAssertEqual(conflict?.keys, ["f"])
+    }
+
+    func testConflictInfo_HomeRowModsConfigKeysConflictWithActivator() {
+        // Home Row Mods has empty static mappings; its keys come from configuration.
+        // normalizedKeys must use effectiveMappings so this conflict is visible (#953).
+        let manager = makeManager()
+        manager.ruleCollections = [makeArrowsStyleCollection()]
+
+        let hrm = RuleCollection(
+            id: UUID(),
+            name: "HRM Style",
+            summary: "",
+            category: .custom,
+            mappings: [],
+            isEnabled: true,
+            icon: "star",
+            tags: [],
+            targetLayer: .base,
+            configuration: .homeRowMods(HomeRowModsConfig())
+        )
+
+        let conflict = manager.conflictInfo(for: hrm)
+        XCTAssertNotNil(conflict, "Config-generated HRM keys must conflict with an activator holding f")
+        XCTAssertEqual(conflict?.keys, ["f"])
+    }
 }

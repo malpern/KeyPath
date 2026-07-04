@@ -4,17 +4,30 @@ import ServiceManagement
 
 final class HelperManagerTests: XCTestCase {
     private var originalFactory: ((String) -> SMAppServiceProtocol)!
+    private var originalStatusProvider: SMAppServiceStatusProvider!
 
     override func setUp() {
         super.setUp()
         originalFactory = HelperManager.smServiceFactory
+        originalStatusProvider = SMAppServiceStatusProvider.shared
     }
 
     override func tearDown() {
         HelperManager.smServiceFactory = originalFactory
+        SMAppServiceStatusProvider.shared = originalStatusProvider
         HelperManager.testHelperFunctionalityOverride = nil
         HelperManager.staleHelperSMAppServiceBootoutOverride = nil
         super.tearDown()
+    }
+
+    /// Point both the register/unregister seam AND the centralized status provider
+    /// (#853) at the same fake so status reads and mutation calls observe one instance.
+    private func installFake(_ service: SMAppServiceProtocol) {
+        HelperManager.smServiceFactory = { _ in service }
+        SMAppServiceStatusProvider.shared = SMAppServiceStatusProvider(
+            cacheTTL: 0,
+            serviceFactory: { _ in service }
+        )
     }
 
     func testInstallHelperAttemptsRegisterWhenStatusIsNotFoundAndSurfacesError() async {
@@ -24,9 +37,7 @@ final class HelperManagerTests: XCTestCase {
             domain: "SMAppServiceErrorDomain", code: 3,
             userInfo: [NSLocalizedDescriptionKey: expectedDescription]
         )
-        HelperManager.smServiceFactory = { _ in
-            FakeSMAppService(status: .notFound, registerError: smError)
-        }
+        installFake(FakeSMAppService(status: .notFound, registerError: smError))
 
         // Act + Assert
         do {
@@ -51,7 +62,7 @@ final class HelperManagerTests: XCTestCase {
 
     func testInstallHelperRecoversEnabledButUnresponsiveRegistration() async throws {
         let service = FakeSMAppService(status: .enabled)
-        HelperManager.smServiceFactory = { _ in service }
+        installFake(service)
 
         var bootoutCalls = 0
         HelperManager.staleHelperSMAppServiceBootoutOverride = {

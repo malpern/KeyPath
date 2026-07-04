@@ -132,7 +132,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainWindowController: MainWindowController?
     private var menuBarController: MenuBarController?
     private var initialMainWindowShown = false
-    private var pendingReopenShow = false
     private var suppressLaunchSplashAutoHide = false
     private var keyboardCapture: KeyboardCapture?
 
@@ -327,29 +326,56 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.shared.debug(
             "🔍 [AppDelegate] applicationShouldHandleReopen (hasVisibleWindows=\(flag))"
         )
+        presentReopenSurface(trigger: "reopen")
+        return true
+    }
 
+    private var hasExistingConfig: Bool {
+        Foundation.FileManager.default.fileExists(
+            atPath: KeyPathConstants.Config.mainConfigPath
+        )
+    }
+
+    private func unhideAndActivate() {
         if NSApp.isHidden {
             NSApp.unhide(nil)
         }
         NSApp.activate(ignoringOtherApps: true)
+    }
 
-        // If the app is already fully running, just activate — don't re-show the splash
-        if initialMainWindowShown, LiveKeyboardOverlayController.shared.isVisible {
-            AppLogger.shared.debug("🪟 [AppDelegate] Reopen while running - activating without splash")
-            return true
-        }
+    /// Present the right surface for a user-initiated "open KeyPath" action
+    /// (Dock/Raycast/Spotlight reopen or menu-bar "Show KeyPath").
+    private func presentReopenSurface(trigger: String) {
+        unhideAndActivate()
 
-        // On relaunch (not first-ever install), skip splash and go straight to overlay
-        let hasExistingConfig = Foundation.FileManager.default.fileExists(
-            atPath: KeyPathConstants.Config.mainConfigPath
+        let surface = ReopenPolicy.surface(
+            hasExistingConfig: hasExistingConfig,
+            overlayVisible: LiveKeyboardOverlayController.shared.isVisible
         )
-        if hasExistingConfig, !initialMainWindowShown {
-            AppLogger.shared.info("🪟 [AppDelegate] Reopen on relaunch — skipping splash, showing overlay")
-            initialMainWindowShown = true
-            LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
-            return true
-        }
 
+        switch surface {
+        case .activateOnly:
+            AppLogger.shared.debug("🪟 [AppDelegate] \(trigger): overlay already visible — activating only")
+            LiveKeyboardOverlayController.shared.bringToFront()
+
+        case .showOverlay:
+            AppLogger.shared.info("🪟 [AppDelegate] \(trigger): showing overlay (splash suppressed after setup)")
+            initialMainWindowShown = true
+            // If the launch splash is somehow still up (reopen racing the launch
+            // auto-hide), dismiss it — a configured app must never strand it.
+            mainWindowController?.window?.orderOut(nil)
+            LiveKeyboardOverlayController.shared.clearExplicitHideFlag()
+            LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
+
+        case .showSplash:
+            AppLogger.shared.info("🪟 [AppDelegate] \(trigger): first-run — showing splash window")
+            showSplashWindow()
+        }
+    }
+
+    /// Show the splash/main window and keep it up (no auto-hide). Only valid as the
+    /// first-run onboarding surface or as a host for menu-action sheets.
+    private func showSplashWindow() {
         if mainWindowController == nil {
             if NSApplication.shared.activationPolicy() != .regular {
                 NSApplication.shared.setActivationPolicy(.regular)
@@ -360,30 +386,29 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             if let vm = viewModel {
                 mainWindowController = MainWindowController(viewModel: vm, serviceContainer: serviceContainer)
-                AppLogger.shared.debug("🪟 [AppDelegate] Created main window controller on reopen")
+                AppLogger.shared.debug("🪟 [AppDelegate] Created main window controller for splash")
                 mainWindowController?.primeForActivation()
             } else {
                 AppLogger.shared.error(
-                    "❌ [AppDelegate] Cannot create window on reopen: ViewModel is nil"
+                    "❌ [AppDelegate] Cannot create splash window: ViewModel is nil"
                 )
+                return
             }
         }
 
         suppressLaunchSplashAutoHide = true
-        pendingReopenShow = false
         mainWindowController?.show(focus: true)
         initialMainWindowShown = true
-        AppLogger.shared.debug("🪟 [AppDelegate] User-initiated reopen - showing main window immediately")
-
-        return true
     }
 
     // MARK: - Public Window Access
 
-    /// Bring the main window (splash) to the front. Used by menu actions that present sheets.
+    /// Bring the main window (splash) to the front. Used by menu actions that present
+    /// sheets — those sheets attach to this window, so it must actually be shown here.
     @MainActor
     func showMainWindow() {
-        showKeyPathFromStatusItem()
+        unhideAndActivate()
+        showSplashWindow()
     }
 
     // MARK: - Notification Handlers (must be @objc for selector-based observers)
@@ -405,8 +430,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Private: First Activation
 
     private func handleFirstActivation() {
-        let suppressAutoHideBecauseReopen = pendingReopenShow
-
         let appActive = NSApp.isActive
         let appHidden = NSApp.isHidden
         AppLogger.shared.debug(
@@ -421,18 +444,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         initialMainWindowShown = true
         suppressLaunchSplashAutoHide = false
 
-        let hasExistingConfig = Foundation.FileManager.default.fileExists(
-            atPath: KeyPathConstants.Config.mainConfigPath
-        )
-
-        if hasExistingConfig, !suppressAutoHideBecauseReopen {
+        if hasExistingConfig {
             AppLogger.shared.info("🪟 [AppDelegate] Relaunch detected — skipping splash, restoring overlay directly")
             LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
-
-            if pendingReopenShow {
-                pendingReopenShow = false
-                mainWindowController?.show(focus: true)
-            }
             return
         }
 
@@ -451,23 +465,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
             AppLogger.shared.info("🪟 [AppDelegate] First activation - overlay shown")
 
-            if !self.suppressLaunchSplashAutoHide, !suppressAutoHideBecauseReopen {
+            if !self.suppressLaunchSplashAutoHide {
                 self.mainWindowController?.window?.orderOut(nil)
                 AppLogger.shared.info("🪟 [AppDelegate] Auto-hid launch splash window")
             } else {
-                AppLogger.shared.info("🪟 [AppDelegate] Splash auto-hide suppressed (suppressAutoHide=\(self.suppressLaunchSplashAutoHide), reopen=\(suppressAutoHideBecauseReopen))")
+                AppLogger.shared.info("🪟 [AppDelegate] Splash auto-hide suppressed (user re-opened during launch)")
             }
         }
 
         AppLogger.shared.info("🪟 [AppDelegate] First activation complete (splash shown briefly)")
-
-        if pendingReopenShow {
-            AppLogger.shared.debug(
-                "🪟 [AppDelegate] Applying pending reopen show after first activation"
-            )
-            pendingReopenShow = false
-            mainWindowController?.show(focus: true)
-        }
     }
 
     private func handleSubsequentActivation() {
@@ -486,7 +492,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Private: Service Bounce
 
     private func handleServiceBounceIfNeeded() async {
-        let isFreshInstall = Self.checkIsFreshInstall()
+        let isFreshInstall = await Self.checkIsFreshInstall()
         if isFreshInstall {
             AppLogger.shared.info("🆕 [AppDelegate] Fresh install detected - skipping service bounce")
             PermissionGrantCoordinator.shared.clearServiceBounceFlag()
@@ -546,9 +552,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.shared.debug(
             "🪟 [AppDelegate] Main window controller created (deferring show until activation)"
         )
-        let hasExistingConfig = Foundation.FileManager.default.fileExists(
-            atPath: KeyPathConstants.Config.mainConfigPath
-        )
         if !hasExistingConfig {
             mainWindowController?.primeForActivation()
             AppLogger.shared.debug(
@@ -588,7 +591,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             let result = PermissionGrantCoordinator.shared.checkForPendingPermissionGrant()
-            let isFreshInstall = Self.checkIsFreshInstall()
+            let isFreshInstall = await Self.checkIsFreshInstall()
             if isFreshInstall {
                 AppLogger.shared.log(
                     "🆕 [AppDelegate] Fresh install — skipping auto-launch, wizard will handle registration"
@@ -601,7 +604,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         AppLogger.shared.log("✅ [AppDelegate] Auto-launch sequence completed (simple)")
                         MainAppStateController.shared.invalidateValidationCooldown()
                     } else {
-                        AppLogger.shared.error("❌ [AppDelegate] Auto-launch failed via runtime coordinator")
+                        // This is commonly the expected first-run/early-boot race (e.g.
+                        // VirtualHID daemon not yet healthy) rather than a genuine failure —
+                        // the underlying cause is already logged as an ERROR by
+                        // ServiceLifecycleCoordinator, and the wizard auto-launches below
+                        // to repair/complete setup. Log at warn to avoid a cosmetic ERROR
+                        // on every fresh install (#934).
+                        AppLogger.shared.warn("⚠️ [AppDelegate] Auto-launch did not start kanata via runtime coordinator — wizard will follow up if setup is incomplete")
                     }
                 } else {
                     AppLogger.shared.error(
@@ -628,9 +637,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Private: Fresh Install Check
 
-    private static func checkIsFreshInstall() -> Bool {
-        let helperStatus = SMAppService.daemon(plistName: "com.keypath.helper.plist").status
-        let daemonStatus = SMAppService.daemon(plistName: "com.keypath.kanata.plist").status
+    private static func checkIsFreshInstall() async -> Bool {
+        // Route SMAppService.status through the centralized provider (issue #853):
+        // these two reads used to be direct synchronous IPC on the MainActor during
+        // app init, which could stall the UI for up to 30s under load.
+        let helperStatus = await SMAppServiceStatusProvider.shared.freshStatus(
+            for: HelperManager.helperPlistName
+        )
+        let daemonStatus = await SMAppServiceStatusProvider.shared.freshStatus(
+            for: KanataDaemonManager.kanataPlistName
+        )
 
         // SMAppService status persists across uninstall/reinstall, so .notRegistered
         // is only true on a truly virgin system. Also check if the daemon plist
@@ -689,27 +705,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showKeyPathFromStatusItem() {
         AppLogger.shared.debug("☰ [MenuBar] Show KeyPath requested from status item")
-
-        if mainWindowController == nil {
-            if let vm = viewModel {
-                mainWindowController = MainWindowController(viewModel: vm, serviceContainer: serviceContainer)
-                AppLogger.shared.debug("🪟 [MenuBar] Created main window controller for status item request")
-            } else {
-                AppLogger.shared.error("❌ [MenuBar] Cannot show KeyPath: ViewModel unavailable")
-                return
-            }
-        }
-
-        suppressLaunchSplashAutoHide = true
-
-        if NSApp.isHidden {
-            NSApp.unhide(nil)
-        }
-
-        NSApp.activate(ignoringOtherApps: true)
-        mainWindowController?.show(focus: true)
-        initialMainWindowShown = true
-        pendingReopenShow = false
+        presentReopenSurface(trigger: "status item")
     }
 
     // MARK: - Private: Wizard
@@ -840,24 +836,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - SMAppService Dev Utilities
 
     @MainActor
-    private func showSMAppServiceStatus(plistName: String) {
-        let svc = SMAppService.daemon(plistName: plistName)
-        let status = svc.status
+    private func showSMAppServiceStatus(plistName: String) async {
+        // Route through the centralized provider (#853) even in dev utilities.
+        let status = await SMAppServiceStatusProvider.shared.freshStatus(for: plistName)
         AppLogger.shared.info(
             "🔧 [SM] \(plistName) status=\(status.rawValue) (0=notRegistered,1=enabled,2=requiresApproval,3=notFound)"
         )
     }
 
     @MainActor
-    private func registerSMAppService(plistName: String) {
+    private func registerSMAppService(plistName: String) async {
         let svc = SMAppService.daemon(plistName: plistName)
         do {
             try svc.register()
+            await SMAppServiceStatusProvider.shared.invalidate(plistName: plistName)
             AppLogger.shared.info("✅ [SM] register() ok for \(plistName)")
         } catch {
             AppLogger.shared.error("❌ [SM] register() failed for \(plistName): \(error)")
         }
-        showSMAppServiceStatus(plistName: plistName)
+        await showSMAppServiceStatus(plistName: plistName)
     }
 
     private func unregisterSMAppService(plistName: String) {
@@ -866,11 +863,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 do {
                     try await svc.unregister()
+                    await SMAppServiceStatusProvider.shared.invalidate(plistName: plistName)
                     AppLogger.shared.info("✅ [SM] unregister() ok for \(plistName)")
                 } catch {
                     AppLogger.shared.error("❌ [SM] unregister() failed for \(plistName): \(error)")
                 }
-                showSMAppServiceStatus(plistName: plistName)
+                await showSMAppServiceStatus(plistName: plistName)
             }
         } else {
             AppLogger.shared.warn("⚠️ [SM] unregister requires macOS 13+")
