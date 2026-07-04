@@ -128,7 +128,7 @@ final class LayerKeyMapperCollectionTests: XCTestCase {
         defer { try? FileManager.default.removeItem(atPath: configPath) }
 
         let simulatorService = SimulatorService.forTesting(simulatorPath: simulatorPath)
-        let mapper = LayerKeyMapper(simulatorService: simulatorService)
+        let mapper = LayerKeyMapper(simulatorService: simulatorService, simulatorEnabled: { true })
 
         let vim = makeVimCollection()
         let window = makeWindowCollection()
@@ -183,7 +183,7 @@ final class LayerKeyMapperCollectionTests: XCTestCase {
         defer { try? FileManager.default.removeItem(atPath: configPath) }
 
         let simulatorService = SimulatorService.forTesting(simulatorPath: simulatorPath)
-        let mapper = LayerKeyMapper(simulatorService: simulatorService)
+        let mapper = LayerKeyMapper(simulatorService: simulatorService, simulatorEnabled: { true })
 
         // Call with empty collections array
         let (mapping, _) = try await mapper.getMapping(
@@ -214,7 +214,7 @@ final class LayerKeyMapperCollectionTests: XCTestCase {
         defer { try? FileManager.default.removeItem(atPath: configPath) }
 
         let simulatorService = SimulatorService.forTesting(simulatorPath: simulatorPath)
-        let mapper = LayerKeyMapper(simulatorService: simulatorService)
+        let mapper = LayerKeyMapper(simulatorService: simulatorService, simulatorEnabled: { true })
 
         // Create disabled Vim collection
         var vim = makeVimCollection()
@@ -248,7 +248,7 @@ final class LayerKeyMapperCollectionTests: XCTestCase {
         defer { try? FileManager.default.removeItem(atPath: configPath) }
 
         let simulatorService = SimulatorService.forTesting(simulatorPath: simulatorPath)
-        let mapper = LayerKeyMapper(simulatorService: simulatorService)
+        let mapper = LayerKeyMapper(simulatorService: simulatorService, simulatorEnabled: { true })
 
         let vim = makeVimCollection()
         let custom = makeCustomCollection()

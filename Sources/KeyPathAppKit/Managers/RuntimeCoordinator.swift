@@ -454,7 +454,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             self?.configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal rule change")
         }
 
-        if !isOneShotProbeMode {
+        if !isOneShotProbeMode, !TestEnvironment.isTestHostProcess {
             AppLogger.shared.log(
                 "🏗️ [RuntimeCoordinator] About to call bootstrapRuleCollections and startEventMonitoring"
             )
@@ -465,7 +465,14 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             HrmObservabilityService.shared.startMonitoring(port: PreferencesService.shared.tcpServerPort)
             _ = KeystrokeHistoryService.shared
         } else {
-            AppLogger.shared.log("🧪 [RuntimeCoordinator] One-shot probe mode - skipping bootstrap and event monitoring")
+            // #922: bootstrap() performs real disk I/O (config load/save), TCP reload
+            // attempts, and posts notifications/sounds — unstubbed side effects that raced
+            // with fixture assertions in unit tests (e.g. RecordingCoordinatorTests), causing
+            // flaky failures on the self-hosted CI runner. Skip it in test-host processes;
+            // explicit tests of bootstrap() call it directly on their own
+            // RuleCollectionsManager instance. isTestHostProcess (not isRunningTests) so a
+            // REAL app launched inside a CI job for smoke QA still bootstraps its rules.
+            AppLogger.shared.log("🧪 [RuntimeCoordinator] One-shot probe mode or test host - skipping bootstrap and event monitoring")
         }
 
         // Observe config-affecting preference changes (e.g., nav trigger mode) to regenerate config
