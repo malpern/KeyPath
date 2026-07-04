@@ -437,6 +437,19 @@ if [ "$BUILD_EXIT_CODE" != "0" ]; then
   exit "$BUILD_EXIT_CODE"
 fi
 
+# Xcode 27 beta / SwiftPM can build binary-target frameworks (Sparkle) into
+# Products/Debug while the test helper only searches Products/Debug/PackageFrameworks.
+# Normalize that layout before running with --skip-build so local test bundles load.
+PRODUCTS_DEBUG_DIR="$SCRATCH_PATH/out/Products/Debug"
+SPARKLE_FRAMEWORK_SRC="$PRODUCTS_DEBUG_DIR/Sparkle.framework"
+SPARKLE_FRAMEWORK_DEST="$PRODUCTS_DEBUG_DIR/PackageFrameworks/Sparkle.framework"
+if [ -d "$SPARKLE_FRAMEWORK_SRC" ]; then
+  echo "✨ Ensuring Sparkle.framework is visible to SwiftPM test bundles"
+  mkdir -p "$(dirname "$SPARKLE_FRAMEWORK_DEST")"
+  rm -rf "$SPARKLE_FRAMEWORK_DEST"
+  ditto "$SPARKLE_FRAMEWORK_SRC" "$SPARKLE_FRAMEWORK_DEST"
+fi
+
 # 2) Run with watchdog
 EXIT_FILE="$PROJECT_DIR/.xctest.exit.$$"
 TIMEOUT_FILE="$PROJECT_DIR/.xctest.timeout.$$"
