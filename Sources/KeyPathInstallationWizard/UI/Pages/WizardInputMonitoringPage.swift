@@ -339,15 +339,14 @@ public struct WizardInputMonitoringPage: View {
 
     /// Start/clear the kanata unverified clock from a fresh Oracle snapshot.
     /// Called by every writer of `permissionSnapshot` so the escalation can
-    /// fire no matter which poll is active.
+    /// fire no matter which poll is active. Logic lives in the pure
+    /// `advanceUnverifiedClock` (KeyPathWizardCore) for unit testing.
     private func updateKanataUnverifiedClock(_ snapshot: PermissionOracle.Snapshot) {
-        if snapshot.kanata.inputMonitoring == .unknown {
-            if kanataUnverifiedSince == nil {
-                kanataUnverifiedSince = Date()
-            }
-        } else {
-            kanataUnverifiedSince = nil
-        }
+        kanataUnverifiedSince = advanceUnverifiedClock(
+            previous: kanataUnverifiedSince,
+            statusIsUnknown: snapshot.kanata.inputMonitoring == .unknown,
+            now: Date()
+        )
     }
 
     private func installationStatus(for status: PermissionOracle.Status) -> InstallationStatus {

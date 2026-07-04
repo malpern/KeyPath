@@ -75,3 +75,43 @@ final class AutomaticPromptGuidanceTests: XCTestCase {
         XCTAssertEqual(resolve(keyPathReady: false, requestAttempted: true, secondsSinceRequest: 2, waitWindow: 1), .manualFallback)
     }
 }
+
+// MARK: - Unverified clock (#931, kanata-launcher row)
+
+final class UnverifiedClockTests: XCTestCase {
+    func testClockStartsOnFirstUnknownObservation() {
+        let now = Date(timeIntervalSince1970: 1000)
+        XCTAssertEqual(
+            advanceUnverifiedClock(previous: nil, statusIsUnknown: true, now: now), now
+        )
+    }
+
+    func testClockIsNotRefreshedWhileStillUnknown() {
+        // The window measures total time stranded — repeated polls must not
+        // push the escalation out indefinitely.
+        let start = Date(timeIntervalSince1970: 1000)
+        let later = Date(timeIntervalSince1970: 1029)
+        XCTAssertEqual(
+            advanceUnverifiedClock(previous: start, statusIsUnknown: true, now: later), start
+        )
+    }
+
+    func testConclusiveStatusClearsClock() {
+        let start = Date(timeIntervalSince1970: 1000)
+        XCTAssertNil(
+            advanceUnverifiedClock(previous: start, statusIsUnknown: false, now: start + 5)
+        )
+    }
+
+    func testReturnToUnknownRestartsWindowFromScratch() {
+        let firstRun = Date(timeIntervalSince1970: 1000)
+        let cleared = advanceUnverifiedClock(
+            previous: firstRun, statusIsUnknown: false, now: firstRun + 10
+        )
+        let secondStart = Date(timeIntervalSince1970: 2000)
+        XCTAssertEqual(
+            advanceUnverifiedClock(previous: cleared, statusIsUnknown: true, now: secondStart),
+            secondStart
+        )
+    }
+}

@@ -121,15 +121,18 @@ final class PermissionOracleInputMonitoringTests: XCTestCase {
         XCTAssertTrue(resolved.usedFunctionalEvidence)
     }
 
-    /// A stale TCC denied row loses to a running, capturing engine — same
-    /// kernel-over-TCC precedence as ADR-006.
-    func testFunctionalEvidenceOverridesStaleDeniedRow() {
-        let resolved = PermissionOracle.resolveKanataInputMonitoring(
-            tccStatus: .denied,
-            evidence: Evidence(isRunning: true, isResponding: true, inputCaptureReady: true)
-        )
-        XCTAssertEqual(resolved.status, .granted)
-        XCTAssertTrue(resolved.usedFunctionalEvidence)
+    /// An explicit TCC answer is authoritative in BOTH directions: the runtime
+    /// capture signal is optimistic-by-default, so it must never flip a real
+    /// `.denied` row to green (revoke-while-running race).
+    func testExplicitTCCAnswerIsNeverOverriddenByEvidence() {
+        let strongEvidence = Evidence(isRunning: true, isResponding: true, inputCaptureReady: true)
+        for tcc: Status in [.granted, .denied] {
+            let resolved = PermissionOracle.resolveKanataInputMonitoring(
+                tccStatus: tcc, evidence: strongEvidence
+            )
+            XCTAssertEqual(resolved.status, tcc)
+            XCTAssertFalse(resolved.usedFunctionalEvidence)
+        }
     }
 
     /// A stopped daemon proves nothing — the TCC answer stands untouched.

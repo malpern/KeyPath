@@ -90,3 +90,19 @@ public func resolveAutomaticPromptGuidance(
     }
     return .manualFallback
 }
+
+/// Advance the "how long has this permission been unverified" clock from a
+/// fresh status observation (#931, kanata-launcher row). Pure so the wizard
+/// page's escalation timing is unit-testable without a running UI.
+///
+/// - The clock starts at `now` on the first `.unknown` observation and is
+///   deliberately NOT refreshed while the status stays `.unknown` — the window
+///   measures total time stranded, not time since the last poll.
+/// - Any conclusive status (granted/denied/error) clears it, so a later return
+///   to `.unknown` restarts the wait window from scratch.
+public func advanceUnverifiedClock(
+    previous: Date?, statusIsUnknown: Bool, now: Date
+) -> Date? {
+    guard statusIsUnknown else { return nil }
+    return previous ?? now
+}

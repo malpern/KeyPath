@@ -162,10 +162,14 @@ public actor PermissionOracle {
             self.inputCaptureReady = inputCaptureReady
         }
 
-        /// Kernel-level proof that Input Monitoring is effectively granted: the
-        /// daemon is alive, serving TCP, and has successfully opened input
-        /// devices. macOS does not deliver keyboard events to a process without
-        /// the grant, so this is at least as authoritative as any TCC row.
+        /// Strong runtime evidence that Input Monitoring is effectively granted:
+        /// the daemon is alive, serving TCP, and no input-capture failure has
+        /// been diagnosed. NOTE: `inputCaptureReady` is optimistic-by-default
+        /// upstream (ServiceHealthChecker reports `.ready` unless a failure was
+        /// affirmatively diagnosed via the grab-status store or stderr), so this
+        /// is evidence, not proof — which is why the resolver only lets it
+        /// upgrade an *absent* TCC answer and never override an explicit
+        /// `.denied` row (e.g. a grant revoked while kanata is still running).
         public var provesInputCapture: Bool {
             isRunning && isResponding && inputCaptureReady
         }
@@ -466,12 +470,13 @@ public actor PermissionOracle {
 
         // Functional fallback for Input Monitoring (#931): when TCC has no
         // readable row (macOS 26/27 can grant without ever writing one), a
-        // running, TCP-responding kanata that has opened input devices is
-        // kernel-level proof of the grant. Only consulted when TCC didn't
-        // already say granted; positive evidence also overrides a stale denied
-        // row, mirroring ADR-006's Apple-API-over-TCC precedence.
+        // running, TCP-responding kanata with no diagnosed capture failure is
+        // strong evidence of the grant. Consulted ONLY when the TCC read is
+        // inconclusive (nil) — an explicit granted/denied row is authoritative
+        // and is never overridden, because the underlying capture signal is
+        // optimistic-by-default and could race a mid-run revoke.
         var functionalEvidence: KanataFunctionalEvidence?
-        if tccIM != .granted, let provider = kanataFunctionalEvidenceProvider {
+        if tccIM == nil, let provider = kanataFunctionalEvidenceProvider {
             functionalEvidence = await provider()
         }
         let resolvedIM = Self.resolveKanataInputMonitoring(
@@ -522,18 +527,23 @@ public actor PermissionOracle {
     /// evidence (#931). Pure and static for unit testing, mirroring
     /// `resolveKeyPathInputMonitoring`.
     ///
-    /// Precedence: positive functional evidence (`provesInputCapture`) wins over
-    /// any TCC result including a stale `.denied` row — the kernel delivering
-    /// events to kanata is ground truth. Anything less conclusive falls back to
-    /// the TCC result; negative or absent evidence never *downgrades* a TCC
-    /// answer (a stopped daemon says nothing about the grant).
+    /// Precedence: an explicit TCC answer (granted OR denied) is authoritative
+    /// and always stands — the runtime capture signal is optimistic-by-default,
+    /// so letting it override `.denied` would show green during a mid-run
+    /// revoke. Functional evidence only upgrades an *absent* TCC read (the
+    /// macOS 26/27 grant-without-a-row case this exists for); negative or
+    /// missing evidence never downgrades anything (a stopped daemon says
+    /// nothing about the grant).
     nonisolated static func resolveKanataInputMonitoring(
         tccStatus: Status?, evidence: KanataFunctionalEvidence?
     ) -> (status: Status, usedFunctionalEvidence: Bool) {
+        if let tccStatus {
+            return (tccStatus, false)
+        }
         if let evidence, evidence.provesInputCapture {
             return (.granted, true)
         }
-        return (tccStatus ?? .unknown, false)
+        return (.unknown, false)
     }
 
     /// Additional timeout wrapper to prevent hanging
