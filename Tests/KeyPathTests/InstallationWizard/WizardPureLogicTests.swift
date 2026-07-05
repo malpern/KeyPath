@@ -1054,7 +1054,7 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertTrue(actions.contains(.startKarabinerDaemon))
     }
 
-    func test_determineRepairActions_vhidDriverNotActivated_includesActivationAndRepair() {
+    func test_determineRepairActions_vhidDriverNotActivatedWaitsForManualApproval() {
         let context = makeContext(
             services: HealthStatus(
                 kanataRunning: true,
@@ -1067,14 +1067,12 @@ final class WizardPureLogicTests: XCTestCase {
 
         let actions = ActionDeterminer.determineRepairActions(context: context)
 
-        let activateIdx = actions.firstIndex(of: .activateVHIDDeviceManager)
-        let repairIdx = actions.firstIndex(of: .repairVHIDDaemonServices)
-        XCTAssertNotNil(activateIdx, "DriverKit activation failure should re-run VHID manager activation")
-        XCTAssertNotNil(repairIdx, "DriverKit activation failure should repair VHID daemon services")
-        XCTAssertTrue(activateIdx! < repairIdx!, "Activation must run before daemon repair")
+        XCTAssertFalse(actions.contains(.activateVHIDDeviceManager))
+        XCTAssertFalse(actions.contains(.repairVHIDDaemonServices))
+        XCTAssertTrue(actions.isEmpty, "A disabled DriverKit extension needs user approval, not another repair loop")
     }
 
-    func test_determineRepairActions_stoppedKanataWithVHIDIssue_repairsVHIDThenInstallsRuntimeServices() {
+    func test_determineRepairActions_stoppedKanataWithVHIDIssueWaitsForManualApproval() {
         let context = makeContext(
             services: HealthStatus(
                 kanataRunning: false,
@@ -1087,14 +1085,10 @@ final class WizardPureLogicTests: XCTestCase {
 
         let actions = ActionDeterminer.determineRepairActions(context: context)
 
-        let activateIdx = actions.firstIndex(of: .activateVHIDDeviceManager)
-        let repairIdx = actions.firstIndex(of: .repairVHIDDaemonServices)
-        let installIdx = actions.firstIndex(of: .installRequiredRuntimeServices)
-        XCTAssertNotNil(activateIdx)
-        XCTAssertNotNil(repairIdx)
-        XCTAssertNotNil(installIdx)
-        XCTAssertTrue(activateIdx! < repairIdx!)
-        XCTAssertTrue(repairIdx! < installIdx!)
+        XCTAssertFalse(actions.contains(.activateVHIDDeviceManager))
+        XCTAssertFalse(actions.contains(.repairVHIDDaemonServices))
+        XCTAssertFalse(actions.contains(.installRequiredRuntimeServices))
+        XCTAssertTrue(actions.isEmpty, "Kanata should not be restarted until the DriverKit extension is enabled")
     }
 
     func test_determineRepairActions_helperInstalledButBroken_includesReinstall() {
@@ -1203,7 +1197,7 @@ final class WizardPureLogicTests: XCTestCase {
         )
     }
 
-    func test_determineInstallActions_vhidDriverNotActivated_includesActivationAndRepair() {
+    func test_determineInstallActions_vhidDriverNotActivatedWaitsForManualApproval() {
         let context = makeContext(
             services: HealthStatus(
                 kanataRunning: true,
@@ -1216,8 +1210,9 @@ final class WizardPureLogicTests: XCTestCase {
 
         let actions = ActionDeterminer.determineInstallActions(context: context)
 
-        XCTAssertTrue(actions.contains(.activateVHIDDeviceManager))
-        XCTAssertTrue(actions.contains(.repairVHIDDaemonServices))
+        XCTAssertFalse(actions.contains(.activateVHIDDeviceManager))
+        XCTAssertFalse(actions.contains(.repairVHIDDaemonServices))
+        XCTAssertTrue(actions.isEmpty, "Install should wait for DriverKit approval before scheduling runtime service repair")
     }
 
     func test_determineInstallActions_allHealthy_returnsEmpty() {

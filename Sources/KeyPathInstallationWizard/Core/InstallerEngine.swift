@@ -188,6 +188,13 @@ public final class InstallerEngine {
                 )
             }
 
+            if context.requiresManualVHIDDriverApproval {
+                return Requirement(
+                    name: "Enable Karabiner-VirtualHIDDevice in System Settings > General > Login Items & Extensions > Driver Extensions",
+                    status: .blocked
+                )
+            }
+
             if !context.helper.isReady {
                 // Helper not ready - check if SMAppService approval is needed
                 // This is a soft requirement - we can proceed but may need approval

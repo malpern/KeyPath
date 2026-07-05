@@ -48,15 +48,13 @@ struct SystemContextBuilder {
             .empty
         }
 
-        let services = servicesHealthy
-            ? HealthStatus(
-                kanataRunning: true,
-                karabinerDaemonRunning: true,
-                vhidHealthy: true,
-                kanataInputCaptureReady: kanataInputCaptureReady,
-                kanataInputCaptureIssue: kanataInputCaptureReady ? nil : kanataInputCaptureIssue
-            )
-            : HealthStatus.empty
+        let services = HealthStatus(
+            kanataRunning: servicesHealthy,
+            karabinerDaemonRunning: servicesHealthy,
+            vhidHealthy: servicesHealthy,
+            kanataInputCaptureReady: kanataInputCaptureReady,
+            kanataInputCaptureIssue: kanataInputCaptureReady ? nil : kanataInputCaptureIssue
+        )
 
         let conflictStatus = ConflictStatus(conflicts: conflicts, canAutoResolve: !conflicts.isEmpty)
 
