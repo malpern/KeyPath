@@ -10,6 +10,8 @@ struct RootView: View {
     @Environment(KanataViewModel.self) private var kanataVM
 
     var body: some View {
+        @Bindable var kanataVM = kanataVM
+
         SplashView()
             .sheet(isPresented: $showingWhatsNew) {
                 WhatsNewView()
@@ -27,6 +29,34 @@ struct RootView: View {
             .sheet(isPresented: $showingSimpleModsDialog) {
                 SimpleModsView(configPath: kanataVM.configPath)
                     .environment(kanataVM)
+            }
+            .sheet(isPresented: $kanataVM.showRuleConflictDialog) {
+                if let context = kanataVM.pendingRuleConflict {
+                    RuleConflictResolutionDialog(
+                        context: context,
+                        onChoice: { choice in
+                            kanataVM.resolveRuleConflict(with: choice)
+                        },
+                        onCancel: {
+                            kanataVM.resolveRuleConflict(with: nil)
+                        }
+                    )
+                    .interactiveDismissDisabled()
+                }
+            }
+            .sheet(isPresented: $kanataVM.showMappingConflictDialog) {
+                if let context = kanataVM.pendingMappingConflict {
+                    MappingConflictResolutionDialog(
+                        context: context,
+                        onChoice: { collectionID in
+                            kanataVM.resolveMappingConflict(disabling: collectionID)
+                        },
+                        onCancel: {
+                            kanataVM.resolveMappingConflict(disabling: nil)
+                        }
+                    )
+                    .interactiveDismissDisabled()
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .showEmergencyStop)) { _ in
                 showingEmergencyStopDialog = true
