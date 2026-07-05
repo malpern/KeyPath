@@ -278,6 +278,108 @@ final class RuleCollectionsManagerTests: XCTestCase {
     }
 
     @MainActor
+    func testUpdateCollectionTapOutputRollsBackExistingCollectionWhenConfigApplyFails() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        var collections = RuleCollectionCatalog().defaultCollections()
+        let capsIndex = try XCTUnwrap(collections.firstIndex {
+            $0.id == RuleCollectionIdentifier.capsLockRemap
+        })
+        collections[capsIndex].isEnabled = false
+        await manager.replaceCollections(collections)
+
+        manager.customRules = [
+            CustomRule(input: "caps", action: .keystroke(key: "tab"), isEnabled: true)
+        ]
+
+        var errorMessages: [String] = []
+        manager.onError = { errorMessages.append($0) }
+
+        let applied = await manager.updateCollectionTapOutput(
+            id: RuleCollectionIdentifier.capsLockRemap,
+            tapOutput: "esc"
+        )
+
+        XCTAssertFalse(applied, "The conflicting tap-output change should fail validation")
+        XCTAssertTrue(
+            manager.ruleCollections.contains {
+                $0.id == RuleCollectionIdentifier.capsLockRemap && !$0.isEnabled
+            },
+            "Failed tap-output updates should restore the previously disabled collection"
+        )
+        XCTAssertEqual(errorMessages.count, 1, "Default rollback behavior should surface one shared error")
+    }
+
+    @MainActor
+    func testUpdateCollectionTapOutputRollsBackCatalogAddWhenConfigApplyFails() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        let collections = RuleCollectionCatalog().defaultCollections().filter {
+            $0.id != RuleCollectionIdentifier.capsLockRemap
+        }
+        await manager.replaceCollections(collections)
+
+        manager.customRules = [
+            CustomRule(input: "caps", action: .keystroke(key: "tab"), isEnabled: true)
+        ]
+
+        var didShowSharedError = false
+        manager.onError = { _ in didShowSharedError = true }
+
+        let applied = await manager.updateCollectionTapOutput(
+            id: RuleCollectionIdentifier.capsLockRemap,
+            tapOutput: "esc",
+            reportRollbackError: false
+        )
+
+        XCTAssertFalse(applied, "The catalog-add tap-output change should fail validation")
+        XCTAssertFalse(
+            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap },
+            "Failed catalog-add tap-output updates should remove the appended collection"
+        )
+        XCTAssertFalse(
+            didShowSharedError,
+            "Callers with their own inline error surface should be able to suppress the shared rollback error"
+        )
+    }
+
+    @MainActor
+    func testUpdateCollectionOutputRollsBackSingleKeyPickerWhenConfigApplyFails() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        var collections = RuleCollectionCatalog().defaultCollections()
+        let escapeIndex = try XCTUnwrap(collections.firstIndex {
+            $0.id == RuleCollectionIdentifier.escapeRemap
+        })
+        collections[escapeIndex].isEnabled = false
+        await manager.replaceCollections(collections)
+
+        manager.customRules = [
+            CustomRule(input: "esc", action: .keystroke(key: "tab"), isEnabled: true)
+        ]
+
+        var errorMessages: [String] = []
+        manager.onError = { errorMessages.append($0) }
+
+        let applied = await manager.updateCollectionOutput(
+            id: RuleCollectionIdentifier.escapeRemap,
+            output: "caps"
+        )
+
+        XCTAssertFalse(applied, "The conflicting single-key output change should fail validation")
+        XCTAssertTrue(
+            manager.ruleCollections.contains {
+                $0.id == RuleCollectionIdentifier.escapeRemap && !$0.isEnabled
+            },
+            "Failed single-key output updates should restore the previously disabled collection"
+        )
+        XCTAssertEqual(errorMessages.count, 1)
+    }
+
+    @MainActor
     func testCustomRuleConflictWithCollectionOnCustomLayer_WarnsButAllows() async throws {
         let (manager, _) = try await createTestManager()
         defer { TestEnvironment.forceTestMode = false }

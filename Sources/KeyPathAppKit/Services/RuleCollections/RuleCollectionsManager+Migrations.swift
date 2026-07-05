@@ -36,7 +36,7 @@ extension RuleCollectionsManager {
     /// Regenerates the Kanata configuration from collections and custom rules.
     /// Returns `true` on success, `false` if validation or saving fails.
     @discardableResult
-    func regenerateConfigFromCollections(skipReload: Bool = false, conflictResolutionDepth: Int = 0) async -> Bool {
+    func regenerateConfigFromCollections(skipReload: Bool = false, conflictResolutionDepth: Int = 0, reportErrors: Bool = true) async -> Bool {
         dedupeRuleCollectionsInPlace()
 
         AppLogger.shared.log("🔄 [RuleCollections] regenerateConfigFromCollections: \(ruleCollections.count) collections, \(customRules.count) custom rules")
@@ -129,12 +129,14 @@ extension RuleCollectionsManager {
                 "Failed to save configuration: \(error.localizedDescription)"
             }
 
-            // Notify user via callback
-            AppLogger.shared.debug("🚨 [RuleCollectionsManager] About to call onError, callback is \(onError == nil ? "nil" : "set"): \(userMessage)")
-            onError?(userMessage)
+            if reportErrors {
+                // Notify user via callback
+                AppLogger.shared.debug("🚨 [RuleCollectionsManager] About to call onError, callback is \(onError == nil ? "nil" : "set"): \(userMessage)")
+                onError?(userMessage)
 
-            await MainActor.run {
-                SoundManager.shared.playErrorSound()
+                await MainActor.run {
+                    SoundManager.shared.playErrorSound()
+                }
             }
 
             return false

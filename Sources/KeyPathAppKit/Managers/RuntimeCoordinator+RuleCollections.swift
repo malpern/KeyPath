@@ -34,13 +34,18 @@ extension RuntimeCoordinator {
         await ruleCollectionsCoordinator.addRuleCollection(collection)
     }
 
-    func updateCollectionOutput(id: UUID, output: String) async {
+    @discardableResult
+    func updateCollectionOutput(id: UUID, output: String) async -> Bool {
         await ruleCollectionsCoordinator.updateCollectionOutput(id: id, output: output)
     }
 
     @discardableResult
-    func updateCollectionTapOutput(id: UUID, tapOutput: String) async -> Bool {
-        await ruleCollectionsCoordinator.updateCollectionTapOutput(id: id, tapOutput: tapOutput)
+    func updateCollectionTapOutput(id: UUID, tapOutput: String, reportRollbackError: Bool = true) async -> Bool {
+        await ruleCollectionsCoordinator.updateCollectionTapOutput(
+            id: id,
+            tapOutput: tapOutput,
+            reportRollbackError: reportRollbackError
+        )
     }
 
     func updateCollectionHoldOutput(id: UUID, holdOutput: String) async {

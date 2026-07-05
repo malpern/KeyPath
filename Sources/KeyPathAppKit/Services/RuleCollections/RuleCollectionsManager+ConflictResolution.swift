@@ -97,12 +97,16 @@ extension RuleCollectionsManager {
 
     /// Restore state snapshot and attempt to re-apply previous config.
     @discardableResult
-    func rollbackToSnapshot(_ snapshot: RuleStateSnapshot, userMessage: String) async -> Bool {
+    func rollbackToSnapshot(_ snapshot: RuleStateSnapshot, userMessage: String, notifyUser: Bool = true) async -> Bool {
         ruleCollections = snapshot.collections
         customRules = snapshot.customRules
         refreshLayerIndicatorState()
 
-        let rollbackApplied = await regenerateConfigFromCollections()
+        let rollbackApplied = await regenerateConfigFromCollections(reportErrors: notifyUser)
+        guard notifyUser else {
+            return rollbackApplied
+        }
+
         if rollbackApplied {
             onError?(userMessage)
         } else {

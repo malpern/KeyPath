@@ -201,7 +201,8 @@ struct FirstSuccessDialog: View {
             // the TCP reload plumbing is untouched.
             let applied = await kanataManager.updateCollectionTapOutput(
                 RuleCollectionIdentifier.capsLockRemap,
-                tapOutput: "esc"
+                tapOutput: "esc",
+                reportRollbackError: false
             )
             isEnabling = false
             if applied {

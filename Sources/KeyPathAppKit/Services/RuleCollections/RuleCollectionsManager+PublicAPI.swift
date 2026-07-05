@@ -296,55 +296,69 @@ extension RuleCollectionsManager {
         AppLogger.shared.log("📚 [RuleCollections] Created new layer: \(sanitizedName) (Leader → \(activatorKey.uppercased()))")
     }
 
-    /// Update a single-key picker collection's selected output and regenerate its mapping
-    func updateCollectionOutput(id: UUID, output: String) async {
-        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
-            // Try to find in catalog and add it
-            let catalog = RuleCollectionCatalog()
-            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                catalogCollection.configuration.updateSelectedOutput(output)
-                catalogCollection.isEnabled = true
-                // Update the mapping based on selected output
-                if let config = catalogCollection.configuration.singleKeyPickerConfig {
-                    let description = config.presetOptions.first { $0.output == output }?.label ?? "Custom"
-                    let keyAction: KeyAction = output.hasPrefix("(") ? .rawKanata(output) : .keystroke(key: output)
-                    catalogCollection.mappings = [KeyMapping(input: config.inputKey, action: keyAction, description: description)]
-                }
-                ruleCollections.append(catalogCollection)
-                dedupeRuleCollectionsInPlace()
-                refreshLayerIndicatorState()
-                await regenerateConfigFromCollections()
-            }
+    private func updateSingleKeyPickerMapping(at index: Int, output: String) {
+        guard index >= ruleCollections.startIndex, index < ruleCollections.endIndex else { return }
+        guard let config = ruleCollections[index].configuration.singleKeyPickerConfig,
+              config.inputKey != "leader"
+        else {
             return
         }
 
-        ruleCollections[index].configuration.updateSelectedOutput(output)
-        ruleCollections[index].isEnabled = true
+        let description = config.presetOptions.first { $0.output == output }?.label ?? "Custom"
+        let keyAction: KeyAction = output.hasPrefix("(") ? .rawKanata(output) : .keystroke(key: output)
+        ruleCollections[index].mappings = [
+            KeyMapping(input: config.inputKey, action: keyAction, description: description)
+        ]
+    }
 
-        // Update the mapping based on selected output (skip for Leader Key which has no mappings)
-        if let config = ruleCollections[index].configuration.singleKeyPickerConfig,
-           config.inputKey != "leader"
-        {
-            let description = config.presetOptions.first { $0.output == output }?.label ?? "Custom"
-            let keyAction: KeyAction = output.hasPrefix("(") ? .rawKanata(output) : .keystroke(key: output)
-            ruleCollections[index].mappings = [KeyMapping(input: config.inputKey, action: keyAction, description: description)]
+    /// Update a single-key picker collection's selected output and regenerate its mapping
+    @discardableResult
+    func updateCollectionOutput(id: UUID, output: String, reportRollbackError: Bool = true) async -> Bool {
+        let snapshot = snapshotRuleState()
+        let leaderPreferenceSnapshot = PreferencesService.shared.leaderKeyPreference
+
+        if let index = ruleCollections.firstIndex(where: { $0.id == id }) {
+            ruleCollections[index].configuration.updateSelectedOutput(output)
+            ruleCollections[index].isEnabled = true
+            updateSingleKeyPickerMapping(at: index, output: output)
+        } else {
+            // Try to find in catalog and add it
+            let catalog = RuleCollectionCatalog()
+            guard var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) else {
+                return false
+            }
+            catalogCollection.configuration.updateSelectedOutput(output)
+            catalogCollection.isEnabled = true
+            ruleCollections.append(catalogCollection)
+            updateSingleKeyPickerMapping(at: ruleCollections.count - 1, output: output)
         }
 
         dedupeRuleCollectionsInPlace()
 
         // Special handling: If this is the Leader Key collection, update all momentary activators
         if id == RuleCollectionIdentifier.leaderKey {
-            await updateLeaderKey(output)
-            return
+            applyLeaderKeyToMomentaryActivators(output)
+            syncLeaderKeyPreference(key: output, enabled: true)
         }
 
         refreshLayerIndicatorState()
-        await regenerateConfigFromCollections()
+        let applied = await regenerateConfigFromCollections(reportErrors: false)
+        if !applied {
+            if id == RuleCollectionIdentifier.leaderKey {
+                PreferencesService.shared.leaderKeyPreference = leaderPreferenceSnapshot
+            }
+            await rollbackToSnapshot(
+                snapshot,
+                userMessage: "Could not apply this rule change. Your previous rule state was restored.",
+                notifyUser: reportRollbackError
+            )
+        }
+        return applied
     }
 
     /// Update a tap-hold picker collection's tap output
     @discardableResult
-    func updateCollectionTapOutput(id: UUID, tapOutput: String) async -> Bool {
+    func updateCollectionTapOutput(id: UUID, tapOutput: String, reportRollbackError: Bool = true) async -> Bool {
         let snapshot = snapshotRuleState()
 
         guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
@@ -356,9 +370,13 @@ extension RuleCollectionsManager {
                 ruleCollections.append(catalogCollection)
                 dedupeRuleCollectionsInPlace()
                 refreshLayerIndicatorState()
-                let applied = await regenerateConfigFromCollections()
+                let applied = await regenerateConfigFromCollections(reportErrors: false)
                 if !applied {
-                    await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.")
+                    await rollbackToSnapshot(
+                        snapshot,
+                        userMessage: "Could not apply this rule change. Your previous rule state was restored.",
+                        notifyUser: reportRollbackError
+                    )
                 }
                 return applied
             }
@@ -369,9 +387,13 @@ extension RuleCollectionsManager {
         ruleCollections[index].isEnabled = true
         dedupeRuleCollectionsInPlace()
         refreshLayerIndicatorState()
-        let applied = await regenerateConfigFromCollections()
+        let applied = await regenerateConfigFromCollections(reportErrors: false)
         if !applied {
-            await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.")
+            await rollbackToSnapshot(
+                snapshot,
+                userMessage: "Could not apply this rule change. Your previous rule state was restored.",
+                notifyUser: reportRollbackError
+            )
         }
         return applied
     }

@@ -75,16 +75,22 @@ final class RuleCollectionsCoordinator {
     }
 
     /// Update a single-key picker collection's selected output
-    func updateCollectionOutput(id: UUID, output: String) async {
-        await ruleCollectionsManager.updateCollectionOutput(id: id, output: output)
+    @discardableResult
+    func updateCollectionOutput(id: UUID, output: String) async -> Bool {
+        let applied = await ruleCollectionsManager.updateCollectionOutput(id: id, output: output)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
+        return applied
     }
 
     /// Update a tap-hold picker collection's tap output
     @discardableResult
-    func updateCollectionTapOutput(id: UUID, tapOutput: String) async -> Bool {
-        let applied = await ruleCollectionsManager.updateCollectionTapOutput(id: id, tapOutput: tapOutput)
+    func updateCollectionTapOutput(id: UUID, tapOutput: String, reportRollbackError: Bool = true) async -> Bool {
+        let applied = await ruleCollectionsManager.updateCollectionTapOutput(
+            id: id,
+            tapOutput: tapOutput,
+            reportRollbackError: reportRollbackError
+        )
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
         return applied
