@@ -163,14 +163,14 @@ public struct WizardInputMonitoringPage: View {
                                     Text("KeyPath.app")
                                         .font(.headline)
                                         .fontWeight(.semibold)
-                                    Text(" - Main application needs permission")
+                                    Text(keyPathSubtitle)
                                         .font(.headline)
                                         .fontWeight(.regular)
                                 }
                                 Spacer()
                                 if keyPathInputMonitoringStatus != .completed {
-                                    Button("Turn On") {
-                                        openInputMonitoringSettings()
+                                    Button(keyPathActionTitle) {
+                                        handleKeyPathInputMonitoringAction()
                                     }
                                     .accessibilityIdentifier("wizard_input_monitoring_fix_keypath")
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
@@ -272,6 +272,30 @@ public struct WizardInputMonitoringPage: View {
     private var keyPathInputMonitoringStatus: InstallationStatus {
         guard let snapshot = permissionSnapshot else { return .inProgress }
         return installationStatus(for: snapshot.keyPath.inputMonitoring)
+    }
+
+    private var keyPathSubtitle: String {
+        switch keyPathGuidance {
+        case .granted:
+            " - Main application can capture keyboard input"
+        case .offerAutomatic:
+            " - Main application needs permission"
+        case .awaitingGrant:
+            " - Waiting for macOS to register permission"
+        case .manualFallback:
+            " - Not yet added — add in System Settings"
+        }
+    }
+
+    private var keyPathActionTitle: String {
+        switch keyPathGuidance {
+        case .manualFallback:
+            "Add in Settings"
+        case .granted:
+            "Done"
+        case .offerAutomatic, .awaitingGrant:
+            "Turn On"
+        }
     }
 
     /// Escalation state for KeyPath.app's own Input Monitoring grant. Recomputed
@@ -505,6 +529,18 @@ public struct WizardInputMonitoringPage: View {
                 "ℹ️ [WizardInputMonitoringPage] Opening System Settings (fallback) for Input Monitoring"
             )
             openInputMonitoringPreferencesPanel()
+        }
+    }
+
+    private func handleKeyPathInputMonitoringAction() {
+        switch keyPathGuidance {
+        case .manualFallback:
+            AppLogger.shared.log("🔧 [WizardInputMonitoringPage] KeyPath manual-add clicked")
+            DragToAuthorizeController.shared.present(for: .inputMonitoring, subject: .keyPath)
+        case .granted:
+            break
+        case .offerAutomatic, .awaitingGrant:
+            openInputMonitoringSettings()
         }
     }
 }
