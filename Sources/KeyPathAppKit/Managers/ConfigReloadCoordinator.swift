@@ -120,8 +120,8 @@ final class ConfigReloadCoordinator {
             // error sound — the next reload attempt will fire when cooldown
             // expires. Real failures (validation, network, etc.) still
             // notify as before.
-            if isCooldownBlockMessage(errorMessage) {
-                scheduleDeferredReloadAfterCooldown()
+            if isDeferredReloadMessage(errorMessage) {
+                scheduleDeferredReload(for: errorMessage)
             } else {
                 NotificationCenter.default.post(
                     name: .configReloadFailed,
@@ -143,7 +143,7 @@ final class ConfigReloadCoordinator {
     }
 
     private func disposition(for tcpResult: TCPReloadResult, message: String) -> ReloadDisposition {
-        if isCooldownBlockMessage(message) {
+        if isDeferredReloadMessage(message) {
             return .pending
         }
 
@@ -163,19 +163,30 @@ final class ConfigReloadCoordinator {
         message.contains("Reload blocked") && message.contains("cooldown")
     }
 
-    /// When a reload is blocked by the cooldown, we still want it to actually
-    /// happen so the config file we just wrote reaches kanata. Schedule a
-    /// deferred retry once the cooldown expires; de-duped via a single
-    /// outstanding task so rapid edits coalesce into one final reload.
+    /// Connection closure/reset can happen during launch while kanata is
+    /// restarting around a freshly deployed app. Treat it like a pending reload:
+    /// retry quietly instead of showing a scary toast for a transient startup race.
+    private func isTransientConnectionMessage(_ message: String) -> Bool {
+        message.contains("Connection closed") || message.contains("reset by peer")
+    }
+
+    private func isDeferredReloadMessage(_ message: String) -> Bool {
+        isCooldownBlockMessage(message) || isTransientConnectionMessage(message)
+    }
+
+    /// When a reload is deferred, we still want it to actually happen so the
+    /// config file we just wrote reaches kanata. Schedule a retry; de-duped via
+    /// a single outstanding task so rapid edits coalesce into one final reload.
     private var deferredReloadTask: Task<Void, Never>?
 
-    private func scheduleDeferredReloadAfterCooldown() {
+    private func scheduleDeferredReload(for message: String) {
         deferredReloadTask?.cancel()
+        let isCooldown = isCooldownBlockMessage(message)
+        let delayNanoseconds: UInt64 = isCooldown ? 3_200_000_000 : 1_000_000_000
         deferredReloadTask = Task { [weak self] in
-            // 3s cooldown + a little slop so the safety check passes.
-            try? await Task.sleep(nanoseconds: 3_200_000_000)
+            try? await Task.sleep(nanoseconds: delayNanoseconds)
             guard let self, !Task.isCancelled else { return }
-            AppLogger.shared.log("🔁 [Reload] Firing deferred reload after cooldown expiry")
+            AppLogger.shared.log("🔁 [Reload] Firing deferred reload after pending condition: \(message)")
             await triggerReload()
             deferredReloadTask = nil
         }
@@ -216,9 +227,13 @@ final class ConfigReloadCoordinator {
     /// Main reload method that should be used by new code
     func triggerReload() async {
         let result = await triggerConfigReload()
-        if !result.isSuccess {
+        if !result.isSuccess, result.disposition != .pending {
             AppLogger.shared.warnUnlessQuietTest(
                 "⚠️ [Reload] Reload failed (no automatic restart): \(result.errorMessage ?? "Unknown")"
+            )
+        } else if result.disposition == .pending {
+            AppLogger.shared.debug(
+                "ℹ️ [Reload] Reload pending retry: \(result.errorMessage ?? "Unknown")"
             )
         }
     }

@@ -37,6 +37,16 @@ if [[ ! -f "$SPARKLE_PATH" ]]; then
     echo "❌ Sparkle.framework binary is missing: $SPARKLE_PATH" >&2
     exit 1
 fi
+HOST_BRIDGE_PATH="$APP_PATH/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib"
+HOST_BRIDGE_VERIFIER="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/verify-kanata-host-bridge.py"
+if [[ ! -f "$HOST_BRIDGE_PATH" ]]; then
+    echo "❌ Host bridge dylib is missing: $HOST_BRIDGE_PATH" >&2
+    exit 1
+fi
+if ! python3 "$HOST_BRIDGE_VERIFIER" "$HOST_BRIDGE_PATH" >/dev/null; then
+    echo "❌ Host bridge dylib failed load verification: $HOST_BRIDGE_PATH" >&2
+    exit 1
+fi
 for executable in "$APP_PATH/Contents/MacOS/KeyPath" "$CLI_PATH"; do
     if ! otool -l "$executable" | grep -q "@executable_path/../Frameworks"; then
         echo "❌ $(basename "$executable") is missing @executable_path/../Frameworks rpath" >&2
