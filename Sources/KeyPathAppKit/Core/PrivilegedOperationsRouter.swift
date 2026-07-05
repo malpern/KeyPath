@@ -42,6 +42,8 @@ public final class PrivilegedOperationsRouter {
             ((String) async -> KanataReadinessResult)?
         nonisolated(unsafe) static var helperInstallRequiredRuntimeServicesOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var helperRepairVHIDDaemonServicesOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var sudoInstallRequiredRuntimeServicesOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var sudoRepairVHIDDaemonServicesOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var vhidServicesPostconditionOverride: ((String) async -> Bool)?
 
         static func resetTestingState() {
@@ -53,6 +55,8 @@ public final class PrivilegedOperationsRouter {
             kanataReadinessOverride = nil
             helperInstallRequiredRuntimeServicesOverride = nil
             helperRepairVHIDDaemonServicesOverride = nil
+            sudoInstallRequiredRuntimeServicesOverride = nil
+            sudoRepairVHIDDaemonServicesOverride = nil
             vhidServicesPostconditionOverride = nil
             lastServiceInstallAttempt = nil
             lastSMAppApprovalNotice = nil
@@ -354,6 +358,13 @@ public final class PrivilegedOperationsRouter {
     // MARK: - Sudo Implementations
 
     private func sudoInstallRequiredRuntimeServices() async throws {
+        #if DEBUG
+            if let override = Self.sudoInstallRequiredRuntimeServicesOverride {
+                try await override()
+                return
+            }
+        #endif
+
         let success = await ServiceBootstrapper.shared.installAllServices()
         if !success {
             throw PrivilegedOperationError.installationFailed("Required runtime service installation failed")
@@ -382,6 +393,13 @@ public final class PrivilegedOperationsRouter {
     }
 
     private func sudoRepairVHIDServices() async throws {
+        #if DEBUG
+            if let override = Self.sudoRepairVHIDDaemonServicesOverride {
+                try await override()
+                return
+            }
+        #endif
+
         let success = await ServiceBootstrapper.shared.repairVHIDDaemonServices()
         if !success {
             throw PrivilegedOperationError.operationFailed("VHID daemon repair failed")

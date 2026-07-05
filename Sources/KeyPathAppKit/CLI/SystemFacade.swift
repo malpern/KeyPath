@@ -13,6 +13,7 @@ public struct SystemFacade: Sendable {
     private let runtimeTransitionTimeoutSeconds: TimeInterval
     private let pollDelayNanoseconds: UInt64
     private let restartDelayNanoseconds: UInt64
+    private let makeInstallerEngine: @MainActor @Sendable () -> InstallerEngine
 
     public init() {
         self.init(
@@ -28,13 +29,21 @@ public struct SystemFacade: Sendable {
         runtimeSnapshotProvider: @escaping @Sendable () async -> RuntimeSnapshot,
         runtimeTransitionTimeoutSeconds: TimeInterval = 5,
         pollDelayNanoseconds: UInt64 = 200_000_000,
-        restartDelayNanoseconds: UInt64 = 500_000_000
+        restartDelayNanoseconds: UInt64 = 500_000_000,
+        systemValidator: (any WizardSystemValidating)? = nil
     ) {
         self.subprocessRunner = subprocessRunner
         self.runtimeSnapshotProvider = runtimeSnapshotProvider
         self.runtimeTransitionTimeoutSeconds = runtimeTransitionTimeoutSeconds
         self.pollDelayNanoseconds = pollDelayNanoseconds
         self.restartDelayNanoseconds = restartDelayNanoseconds
+        self.makeInstallerEngine = {
+            InstallerEngine(
+                processLifecycleManager: ProcessLifecycleManager(),
+                systemValidator: systemValidator,
+                kanataManager: nil
+            )
+        }
     }
 
     // MARK: - Service Lifecycle
@@ -103,7 +112,7 @@ public struct SystemFacade: Sendable {
     @MainActor
     public func runStatus() async -> CLIStatusResult {
         CLIRuntimeBootstrap.ensureConfigured()
-        let engine = InstallerEngine()
+        let engine = makeInstallerEngine()
         let context = await engine.inspectSystem()
 
         return CLIStatusResult(
@@ -140,7 +149,7 @@ public struct SystemFacade: Sendable {
         if let bundleIssue = Self.systemRepairBundleIssue() {
             return CLIInstallerReport(bundleIssue: bundleIssue, dryRun: dryRun, title: "Installation")
         }
-        let engine = InstallerEngine()
+        let engine = makeInstallerEngine()
         let context = await engine.inspectSystem()
         let plan = await engine.makePlan(for: .install, context: context)
         if dryRun {
@@ -168,7 +177,7 @@ public struct SystemFacade: Sendable {
         if let bundleIssue = Self.systemRepairBundleIssue() {
             return CLIInstallerReport(bundleIssue: bundleIssue, dryRun: dryRun, title: "Repair")
         }
-        let engine = InstallerEngine()
+        let engine = makeInstallerEngine()
         let context = await engine.inspectSystem()
         let plan = await engine.makePlan(for: .repair, context: context)
         if dryRun {

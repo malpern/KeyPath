@@ -312,6 +312,38 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
         #endif
     }
 
+    func testHelperBackedVHIDRepairFallsBackToSudoWhenHelperPostconditionFails() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.operationModeOverride = .privilegedHelper
+            HelperManager.testHelperFunctionalityOverride = { true }
+            var helperRepairCalls = 0
+            var sudoRepairCalls = 0
+            var postconditionCalls = 0
+            PrivilegedOperationsRouter.helperRepairVHIDDaemonServicesOverride = {
+                helperRepairCalls += 1
+            }
+            PrivilegedOperationsRouter.sudoRepairVHIDDaemonServicesOverride = {
+                sudoRepairCalls += 1
+            }
+            PrivilegedOperationsRouter.vhidServicesPostconditionOverride = { _ in
+                postconditionCalls += 1
+                return postconditionCalls > 1
+            }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        let coordinator = PrivilegedOperationsRouter.shared
+        try await coordinator.repairVHIDDaemonServices()
+
+        #if DEBUG
+            XCTAssertEqual(helperRepairCalls, 1)
+            XCTAssertEqual(sudoRepairCalls, 1)
+            XCTAssertEqual(postconditionCalls, 2)
+        #endif
+    }
+
     func testHelperBackedRuntimeInstallFailsWhenKanataPostconditionFails() async throws {
         #if DEBUG
             PrivilegedOperationsRouter.resetTestingState()
@@ -338,6 +370,85 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
 
         #if DEBUG
             XCTAssertEqual(helperInstallCalls, 1)
+        #endif
+    }
+
+    func testHelperBackedRuntimeInstallFallsBackToSudoWhenHelperThrows() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.operationModeOverride = .privilegedHelper
+            var helperInstallCalls = 0
+            var sudoInstallCalls = 0
+            PrivilegedOperationsRouter.helperInstallRequiredRuntimeServicesOverride = {
+                helperInstallCalls += 1
+                throw PrivilegedOperationError.operationFailed("helper unavailable")
+            }
+            PrivilegedOperationsRouter.sudoInstallRequiredRuntimeServicesOverride = {
+                sudoInstallCalls += 1
+            }
+            PrivilegedOperationsRouter.vhidServicesPostconditionOverride = { _ in true }
+            PrivilegedOperationsRouter.kanataReadinessOverride = { _ in .ready }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        let coordinator = PrivilegedOperationsRouter.shared
+        try await coordinator.installRequiredRuntimeServices()
+
+        #if DEBUG
+            XCTAssertEqual(helperInstallCalls, 1)
+            XCTAssertEqual(sudoInstallCalls, 1)
+        #endif
+    }
+
+    func testDirectSudoRuntimeInstallFailsWhenKanataPostconditionFails() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.operationModeOverride = .directSudo
+            var sudoInstallCalls = 0
+            PrivilegedOperationsRouter.sudoInstallRequiredRuntimeServicesOverride = {
+                sudoInstallCalls += 1
+            }
+            PrivilegedOperationsRouter.vhidServicesPostconditionOverride = { _ in true }
+            PrivilegedOperationsRouter.kanataReadinessOverride = { _ in .timedOut }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        let coordinator = PrivilegedOperationsRouter.shared
+        do {
+            try await coordinator.installRequiredRuntimeServices()
+            XCTFail("Expected direct sudo install to fail when Kanata postcondition fails")
+        } catch let PrivilegedOperationError.operationFailed(message) {
+            XCTAssertTrue(message.contains("Kanata postcondition failed"))
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+
+        #if DEBUG
+            XCTAssertEqual(sudoInstallCalls, 1)
+        #endif
+    }
+
+    func testDirectSudoRuntimeInstallAllowsPendingApprovalPostcondition() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.operationModeOverride = .directSudo
+            var sudoInstallCalls = 0
+            PrivilegedOperationsRouter.sudoInstallRequiredRuntimeServicesOverride = {
+                sudoInstallCalls += 1
+            }
+            PrivilegedOperationsRouter.vhidServicesPostconditionOverride = { _ in true }
+            PrivilegedOperationsRouter.kanataReadinessOverride = { _ in .pendingApproval }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        let coordinator = PrivilegedOperationsRouter.shared
+        try await coordinator.installRequiredRuntimeServices()
+
+        #if DEBUG
+            XCTAssertEqual(sudoInstallCalls, 1)
         #endif
     }
 
