@@ -446,11 +446,11 @@ public struct SystemFacade: Sendable {
                     : "Kanata cannot capture keyboard input",
                 category: vhidDriverNotActivated ? "service" : "permissions",
                 action: vhidDriverNotActivated
-                    ? "Activate and repair the VirtualHID daemon services"
+                    ? "Open System Settings > General > Login Items & Extensions > Driver Extensions, enable Karabiner-VirtualHIDDevice, then retry repair"
                     : context.services.kanataInputCaptureIssue
                     ?? "Re-grant Input Monitoring for Kanata Engine in System Settings",
-                canAutoFix: vhidDriverNotActivated,
-                remediationURL: vhidDriverNotActivated ? nil : WizardSystemPaths.inputMonitoringSettings
+                canAutoFix: !vhidDriverNotActivated,
+                remediationURL: vhidDriverNotActivated ? WizardSystemPaths.loginItemsSettings : WizardSystemPaths.inputMonitoringSettings
             ))
         }
     }

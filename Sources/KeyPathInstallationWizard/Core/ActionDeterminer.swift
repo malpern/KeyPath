@@ -54,6 +54,10 @@ public enum ActionDeterminer {
             }
         }
 
+        if context.requiresManualVHIDDriverApproval {
+            return actions
+        }
+
         // Covers a pre-MAL-57 plist (missing ProcessType=Interactive) too:
         // it needs the rewrite even when the daemon is otherwise healthy.
         if context.components.vhidRuntimeServicesNeedRepair {
@@ -111,6 +115,10 @@ public enum ActionDeterminer {
             }
         }
 
+        if context.requiresManualVHIDDriverApproval {
+            return actions
+        }
+
         // Check if daemon needs starting
         if !context.services.karabinerDaemonRunning {
             // Ensure manager is activated before starting daemon
@@ -164,5 +172,12 @@ public enum ActionDeterminer {
         if !actions.contains(.repairVHIDDaemonServices) {
             actions.append(.repairVHIDDaemonServices)
         }
+    }
+}
+
+extension SystemContext {
+    var requiresManualVHIDDriverApproval: Bool {
+        components.karabinerDriverInstalled
+            && services.kanataInputCaptureIssue == ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
     }
 }

@@ -152,10 +152,10 @@ public enum SystemInspector {
                     title: "Kanata Isn't Capturing Keyboard Input",
                     description: "KeyPath's keyboard engine is running but isn't capturing input, so remapping won't work. "
                         + inputCaptureFailureDetail(context.services.kanataInputCaptureIssue),
-                    autoFixAction: isVHIDDriverNotActivatedReason(context.services.kanataInputCaptureIssue)
-                        ? .repairVHIDDaemonServices : nil,
+                    autoFixAction: nil,
                     userAction: isVHIDDriverNotActivatedReason(context.services.kanataInputCaptureIssue)
-                        ? nil : "Restart the keyboard service from Settings → Status (or quit and reopen KeyPath)"
+                        ? "Open System Settings → General → Login Items & Extensions → Driver Extensions, enable Karabiner-VirtualHIDDevice, then retry repair"
+                        : "Restart the keyboard service from Settings → Status (or quit and reopen KeyPath)"
                 ))
             }
         }

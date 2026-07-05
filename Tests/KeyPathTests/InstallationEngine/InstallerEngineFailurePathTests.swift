@@ -61,6 +61,27 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         }
     }
 
+    func testMakePlan_BlockedWhenVHIDDriverExtensionDisabled() async {
+        let context = SystemContextBuilder(
+            permissionsStatus: .granted,
+            helperReady: true,
+            servicesHealthy: false,
+            kanataInputCaptureReady: false,
+            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason,
+            componentsInstalled: true,
+            driverCompatible: true
+        ).build()
+
+        let plan = await engine.makePlan(for: .repair, context: context)
+
+        guard case let .blocked(requirement) = plan.status else {
+            return XCTFail("Plan should be blocked until the DriverKit extension is enabled")
+        }
+        XCTAssertEqual(plan.blockedBy, requirement)
+        XCTAssertTrue(requirement.name.contains("Driver Extensions"))
+        XCTAssertTrue(plan.recipes.isEmpty)
+    }
+
     // MARK: - Recipe Execution Failure Tests
 
     func testExecute_StopsOnFirstRecipeFailure() async throws {

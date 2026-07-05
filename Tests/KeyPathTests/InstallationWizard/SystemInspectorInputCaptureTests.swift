@@ -60,7 +60,7 @@ final class SystemInspectorInputCaptureTests: XCTestCase {
         )
     }
 
-    func testVHIDDriverNotActivated_issueIsAutofixable() {
+    func testVHIDDriverNotActivated_issueRequiresManualApproval() {
         let issues = SystemInspector.generateIssues(
             context(inputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason)
         )
@@ -68,8 +68,11 @@ final class SystemInspectorInputCaptureTests: XCTestCase {
             return XCTFail("Expected a daemon issue for inactive VHID DriverKit state")
         }
         XCTAssertEqual(issue.title, "Kanata Isn't Capturing Keyboard Input")
-        XCTAssertEqual(issue.autoFixAction, .repairVHIDDaemonServices)
-        XCTAssertNil(issue.userAction)
+        XCTAssertNil(issue.autoFixAction)
+        XCTAssertEqual(
+            issue.userAction,
+            "Open System Settings → General → Login Items & Extensions → Driver Extensions, enable Karabiner-VirtualHIDDevice, then retry repair"
+        )
         XCTAssertTrue(issue.description.contains("not activated"))
     }
 
