@@ -45,6 +45,10 @@ enum TestSingletonReset {
             // not bleed into another's health check.
             ServiceHealthChecker.shared.invalidateHealthCache()
             ServiceHealthChecker.testForcedServiceHealth = nil
+            ServiceHealthChecker.runtimeSnapshotOverride = nil
+            ServiceHealthChecker.recentlyRestartedOverride = nil
+            ServiceHealthChecker.inputCaptureStatusOverride = nil
+            ServiceHealthChecker.vhidDriverExtensionEnabledOverride = nil
         #endif
 
         // TestEnvironment flags

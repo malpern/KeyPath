@@ -312,13 +312,13 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
         #endif
     }
 
-    func testHelperBackedRuntimeInstallFailsWhenKanataPostconditionFails() async throws {
+    func testRuntimeInstallUsesSMAppServiceAwareInstallPathBeforeKanataPostcondition() async throws {
         #if DEBUG
             PrivilegedOperationsRouter.resetTestingState()
             PrivilegedOperationsRouter.operationModeOverride = .privilegedHelper
-            var helperInstallCalls = 0
-            PrivilegedOperationsRouter.helperInstallRequiredRuntimeServicesOverride = {
-                helperInstallCalls += 1
+            var installAllServicesCalls = 0
+            PrivilegedOperationsRouter.installAllServicesOverride = {
+                installAllServicesCalls += 1
             }
             PrivilegedOperationsRouter.vhidServicesPostconditionOverride = { _ in true }
             PrivilegedOperationsRouter.kanataReadinessOverride = { _ in .timedOut }
@@ -330,14 +330,14 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
         do {
             try await coordinator.installRequiredRuntimeServices()
             XCTFail("Expected runtime install to fail when Kanata postcondition fails")
-        } catch let PrivilegedOperationError.installationFailed(message) {
+        } catch let PrivilegedOperationError.operationFailed(message) {
             XCTAssertTrue(message.contains("Kanata postcondition failed"))
         } catch {
             XCTFail("Unexpected error type: \(error)")
         }
 
         #if DEBUG
-            XCTAssertEqual(helperInstallCalls, 1)
+            XCTAssertEqual(installAllServicesCalls, 1)
         #endif
     }
 

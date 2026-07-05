@@ -94,14 +94,23 @@ struct LauncherService {
             return false
         }
 
-        // 2. Check launchctl for daemon service (authoritative — we run as root)
+        // 2. Check the DriverKit extension state. The daemon process can be
+        // running while macOS still reports the extension as [activated disabled];
+        // Kanata then exits with "driver is not activated" on every launch.
+        let driverEnabled = isVHIDDriverExtensionEnabled()
+        logLine("VHID check: DriverKit extension [activated enabled] = \(driverEnabled)")
+        if !driverEnabled {
+            return false
+        }
+
+        // 3. Check launchctl for daemon service (authoritative — we run as root)
         let daemonServiceID = "system/com.keypath.karabiner-vhiddaemon"
         if let daemonOutput = runProcess("/bin/launchctl", arguments: ["print", daemonServiceID]) {
             // Parse for "pid = <number>" which means the service has an active process
             let hasPID = daemonOutput.range(of: #"pid\s*=\s*\d+"#, options: .regularExpression) != nil
             logLine("VHID check: launchctl daemon service has active pid = \(hasPID)")
             if hasPID {
-                // 3. Also verify the manager service is loaded
+                // 4. Also verify the manager service is loaded
                 let managerServiceID = "system/com.keypath.karabiner-vhidmanager"
                 if let _ = runProcess("/bin/launchctl", arguments: ["print", managerServiceID]) {
                     logLine("VHID check: launchctl manager service is loaded")
@@ -117,10 +126,21 @@ struct LauncherService {
             logLine("VHID check: launchctl print for daemon service failed (not loaded?)")
         }
 
-        // 4. Fallback: pgrep for backward compatibility
+        // 5. Fallback: pgrep for backward compatibility
         let pgrepResult = isVHIDDaemonProcessRunning()
         logLine("VHID check: pgrep fallback = \(pgrepResult)")
         return pgrepResult
+    }
+
+    func isVHIDDriverExtensionEnabled() -> Bool {
+        guard let output = runProcess("/usr/bin/systemextensionsctl", arguments: ["list"]) else {
+            logLine("VHID check: systemextensionsctl list failed")
+            return false
+        }
+        return output.components(separatedBy: .newlines).contains { line in
+            line.contains("org.pqrs.Karabiner-DriverKit-VirtualHIDDevice")
+                && line.contains("[activated enabled]")
+        }
     }
 
     /// Fallback process-based check (renamed from isVHIDDaemonRunning).
