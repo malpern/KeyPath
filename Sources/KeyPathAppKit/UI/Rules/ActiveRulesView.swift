@@ -53,34 +53,6 @@ struct ActiveRulesView: View {
                 .padding(.vertical, 8)
             }
             .settingsBackground()
-            .sheet(isPresented: $kanataManager.showRuleConflictDialog) {
-                if let context = kanataManager.pendingRuleConflict {
-                    RuleConflictResolutionDialog(
-                        context: context,
-                        onChoice: { choice in
-                            kanataManager.resolveRuleConflict(with: choice)
-                        },
-                        onCancel: {
-                            kanataManager.resolveRuleConflict(with: nil)
-                        }
-                    )
-                    .interactiveDismissDisabled()
-                }
-            }
-            .sheet(isPresented: $kanataManager.showMappingConflictDialog) {
-                if let context = kanataManager.pendingMappingConflict {
-                    MappingConflictResolutionDialog(
-                        context: context,
-                        onChoice: { collectionID in
-                            kanataManager.resolveMappingConflict(disabling: collectionID)
-                        },
-                        onCancel: {
-                            kanataManager.resolveMappingConflict(disabling: nil)
-                        }
-                    )
-                    .interactiveDismissDisabled()
-                }
-            }
         }
     }
 

@@ -1015,6 +1015,54 @@ final class RuleCollectionsManagerTests: XCTestCase {
     }
 
     @MainActor
+    func testBootstrapReconciliation_DoesNotReEnableInstalledPackCollectionWhenItConflicts() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let originalInstalledPacks = await InstalledPackTracker.shared.allInstalled()
+        for record in originalInstalledPacks {
+            try await InstalledPackTracker.shared.remove(packID: record.packID)
+        }
+        defer {
+            Task {
+                let current = await InstalledPackTracker.shared.allInstalled()
+                for record in current {
+                    try? await InstalledPackTracker.shared.remove(packID: record.packID)
+                }
+                for record in originalInstalledPacks {
+                    try? await InstalledPackTracker.shared.upsert(record)
+                }
+            }
+        }
+
+        let (manager, tempDir) = try await createTestManager()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        try await InstalledPackTracker.shared.upsert(InstalledPackRecord(
+            packID: "com.keypath.pack.home-row-mods",
+            version: "1.0.0"
+        ))
+
+        let defaults = RuleCollectionCatalog().defaultCollections()
+        try await manager.ruleCollectionStore.saveCollections(defaults)
+
+        await manager.bootstrap()
+
+        let homeRowMods = try XCTUnwrap(manager.ruleCollections.first {
+            $0.id == RuleCollectionIdentifier.homeRowMods
+        })
+        let homeRowArrows = try XCTUnwrap(manager.ruleCollections.first {
+            $0.id == RuleCollectionIdentifier.homeRowArrows
+        })
+
+        XCTAssertFalse(
+            homeRowMods.isEnabled,
+            "Stale installed-pack state must not re-enable Home Row Mods over the default Home Row Arrows F-key activator"
+        )
+        XCTAssertTrue(homeRowArrows.isEnabled)
+    }
+
+    @MainActor
     func testBootstrapReconciliation_DoesNotEnableUninstalledPacks() async throws {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }

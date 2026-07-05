@@ -75,6 +75,16 @@ extension RuleCollectionsManager {
                     continue
                 }
                 if !ruleCollections[index].isEnabled {
+                    var candidate = ruleCollections[index]
+                    candidate.isEnabled = true
+                    if let conflict = conflictInfo(for: candidate) {
+                        let keys = conflict.keys.sorted().joined(separator: ", ")
+                        AppLogger.shared.log(
+                            "⚠️ [Bootstrap] Skipped re-enabling '\(candidate.name)' for installed pack '\(pack.name)' because it conflicts with \(conflict.displayName) on \(keys)"
+                        )
+                        continue
+                    }
+
                     ruleCollections[index].isEnabled = true
                     fixedCount += 1
                     AppLogger.shared.log(
