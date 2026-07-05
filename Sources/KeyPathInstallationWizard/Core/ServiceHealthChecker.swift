@@ -180,6 +180,8 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             ((String, TimeInterval?) -> Bool)?
         public nonisolated(unsafe) static var inputCaptureStatusOverride:
             (() async -> KanataInputCaptureStatus)?
+        public nonisolated(unsafe) static var vhidDriverExtensionEnabledOverride:
+            (() async -> Bool)?
     #endif
 
     // MARK: - Service Identifiers
@@ -192,6 +194,9 @@ public final class ServiceHealthChecker: @unchecked Sendable {
 
     /// Service identifier for the Karabiner Virtual HID Device manager
     public static let vhidManagerServiceID = "com.keypath.karabiner-vhidmanager"
+
+    private static let karabinerDriverExtensionBundleID =
+        "org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"
 
     // MARK: - Service Loaded Check
 
@@ -348,6 +353,16 @@ public final class ServiceHealthChecker: @unchecked Sendable {
                 "🔍 [ServiceHealthChecker] (test) Service \(serviceID) considered healthy: \(exists)"
             )
             return exists
+        }
+
+        if serviceID == Self.vhidDaemonServiceID {
+            let driverEnabled = await isVHIDDriverExtensionEnabled()
+            guard driverEnabled else {
+                AppLogger.shared.log(
+                    "🔍 [ServiceHealthChecker] VHID daemon has launchd state but DriverKit extension is not [activated enabled]"
+                )
+                return false
+            }
         }
 
         AppLogger.shared.log(
@@ -611,7 +626,14 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         let targets = await getDaemonManager()?.preferredLaunchctlTargets(for: managementState) ?? []
         let runningState = await evaluateKanataLaunchctlRunningState(managementState: managementState, launchctlTargets: targets)
         let stderrDiagnosis = await diagnoseDaemonStderr()
-        let inputCapture = Self.resolveInputCaptureStatus(stderrFallback: stderrDiagnosis.inputCapture)
+        let driverEnabled = await isVHIDDriverExtensionEnabled()
+        let stderrFallback = driverEnabled
+            ? stderrDiagnosis.inputCapture
+            : KanataInputCaptureStatus(
+                isReady: false,
+                issue: Self.inputCaptureVHIDDriverNotActivatedReason
+            )
+        let inputCapture = Self.resolveInputCaptureStatus(stderrFallback: stderrFallback)
         let tcpOK = await Task.detached { [self] in
             if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
                let overridePort = Int(portEnv)
@@ -634,6 +656,42 @@ public final class ServiceHealthChecker: @unchecked Sendable {
                 within: Self.kanataRestartGraceWindow
             )
         )
+    }
+
+    public nonisolated func isVHIDDriverExtensionEnabled() async -> Bool {
+        #if DEBUG
+            if let override = Self.vhidDriverExtensionEnabledOverride {
+                return await override()
+            }
+        #endif
+
+        if TestEnvironment.shouldSkipAdminOperations {
+            return true
+        }
+
+        do {
+            let result = try await subprocessRunner.run(
+                "/usr/bin/systemextensionsctl",
+                args: ["list"],
+                timeout: 5
+            )
+            let output = [result.stdout, result.stderr].joined(separator: "\n")
+            let enabled = Self.systemExtensionsOutputShowsVHIDDriverEnabled(output)
+            if !enabled {
+                AppLogger.shared.log("⚠️ [ServiceHealthChecker] VHID DriverKit extension is not enabled:\n\(output)")
+            }
+            return enabled
+        } catch {
+            AppLogger.shared.log("❌ [ServiceHealthChecker] Unable to inspect VHID DriverKit extension: \(error)")
+            return false
+        }
+    }
+
+    public nonisolated static func systemExtensionsOutputShowsVHIDDriverEnabled(_ output: String) -> Bool {
+        output.components(separatedBy: .newlines).contains { line in
+            line.contains(karabinerDriverExtensionBundleID)
+                && line.contains("[activated enabled]")
+        }
     }
 
     private nonisolated func evaluateKanataLaunchctlRunningState(

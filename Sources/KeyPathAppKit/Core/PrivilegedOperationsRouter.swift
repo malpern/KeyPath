@@ -40,7 +40,6 @@ public final class PrivilegedOperationsRouter {
         nonisolated(unsafe) static var killExistingKanataProcessesOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var kanataReadinessOverride:
             ((String) async -> KanataReadinessResult)?
-        nonisolated(unsafe) static var helperInstallRequiredRuntimeServicesOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var helperRepairVHIDDaemonServicesOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var vhidServicesPostconditionOverride: ((String) async -> Bool)?
 
@@ -51,7 +50,6 @@ public final class PrivilegedOperationsRouter {
             recoverRequiredRuntimeServicesOverride = nil
             killExistingKanataProcessesOverride = nil
             kanataReadinessOverride = nil
-            helperInstallRequiredRuntimeServicesOverride = nil
             helperRepairVHIDDaemonServicesOverride = nil
             vhidServicesPostconditionOverride = nil
             lastServiceInstallAttempt = nil
@@ -59,6 +57,7 @@ public final class PrivilegedOperationsRouter {
             ServiceInstallGuard.reset()
             KanataDaemonManager.registeredButNotLoadedOverride = nil
             ServiceHealthChecker.runtimeSnapshotOverride = nil
+            ServiceHealthChecker.vhidDriverExtensionEnabledOverride = nil
         }
     #endif
 
@@ -104,50 +103,14 @@ public final class PrivilegedOperationsRouter {
     }
 
     public func installRequiredRuntimeServices() async throws {
-        switch Self.operationMode {
-        case .privilegedHelper:
-            do {
-                try await helperInstallRequiredRuntimeServices()
-                // Stale-helper guard (MAL-57): a resident helper from before
-                // the ProcessType=Interactive template fix reports success but
-                // rewrites the old plist — the helper binary only refreshes on
-                // process restart, so it can lag the app across an update.
-                // Verify the result and redo the rewrite via the in-app sudo
-                // path (ServiceBootstrapper + current PlistGenerator, with its
-                // own configured-postflight). Must NOT route back through the
-                // helper — sudoInstallRequiredRuntimeServices would, via
-                // InstallerEngine → PrivilegeBroker → this router's
-                // helper-first repairVHIDDaemonServices.
-                if serviceHealthChecker.isVHIDDaemonPlistPresentButMisconfigured() {
-                    AppLogger.shared.warnUnlessQuietTest(
-                        "⚠️ [PrivilegedOperationsRouter] VHID daemon plist still misconfigured after helper install — stale helper template, rewriting via in-app sudo path"
-                    )
-                    try await sudoRepairVHIDServices()
-                }
-                try await enforceVHIDServicesPostcondition(after: "installRequiredRuntimeServices(helper)")
-                try await enforceKanataRuntimePostcondition(after: "installRequiredRuntimeServices(helper)")
-            } catch {
-                // Keep the helper's actionable reason (e.g. "driver payload is
-                // not installed") visible — the sudo fallback's generic failure
-                // would otherwise bury it (#928).
-                AppLogger.shared.warnUnlessQuietTest(
-                    "⚠️ [PrivilegedOperationsRouter] Helper install failed (\(error.localizedDescription)) — falling back to sudo path"
-                )
-                do {
-                    try await sudoInstallRequiredRuntimeServices()
-                    try await enforceVHIDServicesPostcondition(after: "installRequiredRuntimeServices(sudo-fallback)")
-                    try await enforceKanataRuntimePostcondition(after: "installRequiredRuntimeServices(sudo-fallback)")
-                } catch let fallbackError {
-                    throw PrivilegedOperationError.installationFailed(
-                        "Runtime service installation failed. Helper: \(error.localizedDescription). Sudo fallback: \(fallbackError.localizedDescription)"
-                    )
-                }
-            }
-        case .directSudo:
-            try await sudoInstallRequiredRuntimeServices()
-            try await enforceVHIDServicesPostcondition(after: "installRequiredRuntimeServices(sudo)")
-            try await enforceKanataRuntimePostcondition(after: "installRequiredRuntimeServices(sudo)")
-        }
+        // Kanata is registered by KeyPath.app through SMAppService. Do not ask
+        // the privileged helper to copy/bootstrap the app-bundled BundleProgram
+        // plist as a legacy LaunchDaemon; launchd rejects that path and BTM state
+        // becomes noisy. ServiceBootstrapper still uses privileged repair for
+        // VHID services, then registers Kanata with SMAppService in-process.
+        try await sudoInstallRequiredRuntimeServices()
+        try await enforceVHIDServicesPostcondition(after: "installRequiredRuntimeServices")
+        try await enforceKanataRuntimePostcondition(after: "installRequiredRuntimeServices")
     }
 
     public func recoverRequiredRuntimeServices() async throws {
@@ -354,6 +317,12 @@ public final class PrivilegedOperationsRouter {
     // MARK: - Sudo Implementations
 
     private func sudoInstallRequiredRuntimeServices() async throws {
+        #if DEBUG
+            if let override = Self.installAllServicesOverride {
+                try await override()
+                return
+            }
+        #endif
         let success = await ServiceBootstrapper.shared.installAllServices()
         if !success {
             throw PrivilegedOperationError.installationFailed("Required runtime service installation failed")
@@ -451,16 +420,6 @@ public final class PrivilegedOperationsRouter {
             }
         #endif
         try await installRequiredRuntimeServices()
-    }
-
-    private func helperInstallRequiredRuntimeServices() async throws {
-        #if DEBUG
-            if let override = Self.helperInstallRequiredRuntimeServicesOverride {
-                try await override()
-                return
-            }
-        #endif
-        try await helperManager.installRequiredRuntimeServices()
     }
 
     private func helperRepairVHIDDaemonServices() async throws {

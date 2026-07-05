@@ -39,6 +39,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
             ServiceHealthChecker.runtimeSnapshotOverride = nil
             ServiceHealthChecker.recentlyRestartedOverride = nil
             ServiceHealthChecker.inputCaptureStatusOverride = nil
+            ServiceHealthChecker.vhidDriverExtensionEnabledOverride = nil
             ServiceHealthChecker.testForcedServiceHealth = nil
             KanataDaemonManager.registeredButNotLoadedOverride = nil
         #endif
@@ -63,6 +64,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
             ServiceHealthChecker.runtimeSnapshotOverride = nil
             ServiceHealthChecker.recentlyRestartedOverride = nil
             ServiceHealthChecker.inputCaptureStatusOverride = nil
+            ServiceHealthChecker.vhidDriverExtensionEnabledOverride = nil
             ServiceHealthChecker.testForcedServiceHealth = nil
             KanataDaemonManager.registeredButNotLoadedOverride = nil
         #endif
@@ -160,6 +162,41 @@ final class ServiceHealthCheckerTests: XCTestCase {
         let health = await checker.checkKanataServiceHealth()
         XCTAssertFalse(health.isRunning)
         XCTAssertFalse(health.isResponding)
+    }
+
+    func testSystemExtensionsOutputShowsVHIDDriverEnabledOnlyForActivatedEnabled() {
+        let enabled = """
+        enabled active teamID bundleID (version) name [state]
+            *    *    G43BCU2T37 org.pqrs.Karabiner-DriverKit-VirtualHIDDevice (1.8.0/1.8.0) org.pqrs.Karabiner-DriverKit-VirtualHIDDevice [activated enabled]
+        """
+        let disabled = """
+        enabled active teamID bundleID (version) name [state]
+            *    G43BCU2T37 org.pqrs.Karabiner-DriverKit-VirtualHIDDevice (1.8.0/1.8.0) org.pqrs.Karabiner-DriverKit-VirtualHIDDevice [activated disabled]
+        """
+
+        XCTAssertTrue(ServiceHealthChecker.systemExtensionsOutputShowsVHIDDriverEnabled(enabled))
+        XCTAssertFalse(ServiceHealthChecker.systemExtensionsOutputShowsVHIDDriverEnabled(disabled))
+    }
+
+    func testRuntimeSnapshotReportsVHIDDriverNotActivatedBeforeKanataCrashLoop() async {
+        #if DEBUG
+            ServiceHealthChecker.vhidDriverExtensionEnabledOverride = { false }
+            ServiceHealthChecker.inputCaptureStatusOverride = { .ready }
+            ServiceHealthChecker.recentlyRestartedOverride = { _, _ in false }
+        #endif
+
+        let snapshot = await checker.checkKanataServiceRuntimeSnapshot(
+            managementState: .smappserviceActive,
+            staleEnabledRegistration: false,
+            timeoutMs: 1
+        )
+
+        XCTAssertFalse(snapshot.inputCaptureReady)
+        XCTAssertEqual(snapshot.inputCaptureIssue, ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason)
+        XCTAssertEqual(
+            ServiceHealthChecker.decideKanataHealth(for: snapshot),
+            .unhealthy(reason: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason)
+        )
     }
 
     func testKanataDecisionNotFoundWithoutRuntimeIsUnhealthy() {

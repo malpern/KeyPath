@@ -128,7 +128,7 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "installRequiredRuntimeServices",
             operation: {
-                try Self.installOrRepairKanataService()
+                NSLog("[KeyPathHelper] Kanata is SMAppService-managed by KeyPath.app; repairing VHID services only")
                 try Self.installOrRepairVHIDServices()
             },
             reply: reply
@@ -254,39 +254,6 @@ class HelperService: NSObject, HelperProtocol {
             },
             reply: reply
         )
-    }
-
-    /// Shared implementation for installing/repairing the Kanata service.
-    private static func installOrRepairKanataService() throws {
-        try ensureConsoleUserConfigArtifacts()
-
-        let appBundlePath = appBundlePathFromHelper()
-        let bundledPlistPath = "\(appBundlePath)/Contents/Library/LaunchDaemons/\(kanataServiceID).plist"
-        guard FileManager.default.fileExists(atPath: bundledPlistPath) else {
-            throw HelperError.operationFailed(
-                "Bundled Kanata LaunchDaemon plist is missing: \(bundledPlistPath)"
-            )
-        }
-
-        let dstDir = "/Library/LaunchDaemons"
-        _ = run("/bin/mkdir", ["-p", dstDir])
-        let dstPlistPath = "\(dstDir)/\(kanataServiceID).plist"
-
-        _ = run("/bin/launchctl", ["bootout", "system/\(kanataServiceID)"], timeout: 10)
-        _ = run("/bin/cp", [bundledPlistPath, dstPlistPath])
-        _ = run("/usr/sbin/chown", ["root:wheel", dstPlistPath])
-        _ = run("/bin/chmod", ["644", dstPlistPath])
-
-        guard FileManager.default.fileExists(atPath: dstPlistPath) else {
-            throw HelperError.operationFailed("Kanata LaunchDaemon plist was not installed at \(dstPlistPath)")
-        }
-
-        let bootstrap = run("/bin/launchctl", ["bootstrap", "system", dstPlistPath], timeout: 10)
-        if bootstrap.status != 0, !bootstrap.out.localizedCaseInsensitiveContains("service already loaded") {
-            throw HelperError.operationFailed("bootstrap kanata failed: \(bootstrap.out)")
-        }
-        _ = run("/bin/launchctl", ["enable", "system/\(kanataServiceID)"], timeout: 10)
-        _ = run("/bin/launchctl", ["kickstart", "-k", "system/\(kanataServiceID)"], timeout: 15)
     }
 
     /// Shared implementation for installing/repairing VHID services
@@ -895,17 +862,6 @@ extension HelperService {
     // The helper doesn't have access to KeyPathCore, so we maintain a copy here
     // This is only used for the deprecated download fallback path
     private static let requiredVHIDVersion = "6.0.0"
-
-    fileprivate static func appBundlePathFromHelper() -> String {
-        let exe =
-            CommandLine.arguments.first
-                ?? "/Applications/KeyPath.app/Contents/Library/HelperTools/KeyPathHelper"
-        if let range = exe.range(of: "/Contents/Library/HelperTools/KeyPathHelper") {
-            return String(exe[..<range.lowerBound])
-        }
-        // Fallback to /Applications
-        return "/Applications/KeyPath.app"
-    }
 
     private static func consoleUserInfo() -> (name: String, home: String)? {
         var uid: uid_t = 0
