@@ -450,6 +450,9 @@ public final class PrivilegedOperationsRouter {
     }
 
     private func enforceKanataRuntimePostcondition(after operation: String) async throws {
+        // Matrix rows: helper/sudo command success is not repair success.
+        // Runtime-mutating operations must prove ready or explicit pending
+        // approval before callers see success.
         let readiness = await verifyKanataReadinessAfterInstall(context: operation)
         guard readiness.isSuccess else {
             throw PrivilegedOperationError.operationFailed(
@@ -459,6 +462,9 @@ public final class PrivilegedOperationsRouter {
     }
 
     private func enforceVHIDServicesPostcondition(after operation: String) async throws {
+        // Matrix rows: helper path succeeds / sudo fallback succeeds. Both
+        // paths share the same VHID service postcondition instead of trusting
+        // command completion.
         guard await verifyVHIDServicesPostcondition(context: operation) else {
             throw PrivilegedOperationError.operationFailed(
                 "VHID services postcondition failed after \(operation)"

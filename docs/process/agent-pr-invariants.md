@@ -20,6 +20,7 @@ What must be true at each phase boundary. The agent's job is to make these true 
 
 - [ ] If the change adds or modifies user-visible behavior: a guide exists in `guides/` (or an existing guide is updated)
 - [ ] If the change adds integration/automation surface: developer docs updated in `docs/`
+- [ ] If the change touches installer, repair, helper, launchd, SMAppService, VirtualHID, or Kanata runtime readiness: the affected row in `docs/process/installer-repair-state-matrix.md` is named in the PR summary or test plan
 - [ ] No documentation needed for internal refactors, test-only changes, or bug fixes with no UX change
 
 ## After Thermonuclear Review

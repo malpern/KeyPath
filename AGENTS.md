@@ -1,6 +1,8 @@
 # AGENTS.md
 
-These instructions apply to all Codex sessions in this repository.
+These instructions are the single source of truth for all agent sessions in this
+repository, including Codex and Claude. Do not duplicate repo policy in
+`CLAUDE.md`; update this file instead.
 
 ## Web Search Tooling
 - Always use `web_search_request` for any web lookups.
@@ -10,8 +12,18 @@ These instructions apply to all Codex sessions in this repository.
 Rationale: older CLI/tooling may still expose `tools.web_search`, which prints a deprecation warning. Enforcing `web_search_request` avoids the warning and keeps behavior consistent.
 
 ## General
+- KeyPath is a macOS keyboard remapping app built with SwiftUI and a Kanata
+  backend using LaunchDaemon/privileged-helper architecture.
+- User config: `~/.config/keypath/keypath.kbd`.
+- Logs: `~/Library/Logs/KeyPath/keypath-debug.log`.
 - Keep diffs minimal and focused. Preserve directory layout and script entry points.
 - Update docs/tests when behavior or commands change.
+
+### Bug Investigation
+1. Check logs first (`~/Library/Logs/KeyPath/keypath-debug.log`).
+2. Trace the full code path, including actor hops and async boundaries.
+3. Fix both the proximate cause and the deeper cause.
+4. Document durable bugs or architectural lessons in `docs/bugs/` or `docs/adr/`.
 
 ## Build, Deploy, and Release Workflow
 
@@ -50,6 +62,8 @@ Notes:
   on a mergeable branch.
 - Avoid notarized builds until after merge unless the task explicitly needs
   Developer ID/Gatekeeper behavior.
+- SwiftFormat is pinned to 0.61.1 (`mise.toml`). Match the pin before formatting;
+  a different version can reformat unrelated code.
 
 ### Worktree Hygiene (one thread ⇄ one worktree ⇄ one `.build`)
 
@@ -66,6 +80,27 @@ Notes:
   deleting; never `--force`-remove blindly. Gate pruning on the **PR being
   merged**, not `git branch --merged` (squash-merges are not `master` ancestors,
   so that misreports them).
+
+### PR Workflow & Git Safety
+
+- Follow the invariants in `docs/process/agent-pr-invariants.md`. Step-by-step
+  reference: `docs/process/agent-pr-workflow.md`.
+- After merging a PR, always pull `master` and deploy from `master` before
+  reporting done.
+- Before creating any PR, run the required review gate for the agent in use and
+  address findings. For Claude, run `/thermo-nuclear-swift-review` against the
+  branch diff.
+- Git guardrail hooks in `.claude/settings.json` block commits on `master`,
+  force-pushes to `master`, `reset --hard`, and `clean -f`.
+
+### Kanata Fork Safety
+
+- The kanata submodule (`External/kanata`) tracks `keypath/bundled` on
+  `malpern/kanata`. Treat `keypath/bundled` like `master`: never force-push it.
+- Before pushing to any remote branch in the fork, verify the push is a
+  fast-forward: `git log --oneline <source>..<target>`.
+- If commits would be lost, cherry-pick instead. The `main` branch in
+  `kanata-pr` may diverge from `keypath/bundled`; they are not interchangeable.
 
 ### Swift Build/Test Performance
 
@@ -171,7 +206,33 @@ does not exist in a normal SwiftPM debug build. The installed CLI resolves the
 bundled engine from `/Applications/KeyPath.app` and matches the deployed app
 under test.
 
+### Short Commands
+
+- `dd`: run `SKIP_NOTARIZE=1 ./build.sh`, then respond `Eye eye Captain!`
+- `df`: run `./Scripts/quick-deploy.sh`, then respond `Eye eye Cap, fast deploying!`
+- `ds`: development ship workflow for the current changes, end to end: branch
+  off `master`, format/lint, commit, run the review gate, push and open PR,
+  babysit CI, address feedback, merge, pull `master`, then run
+  `./Scripts/release-candidate.sh` from `master` for signed/notarized manual
+  testing. Public distribution is a separate explicit release:
+  `./Scripts/release-doctor.sh --ship && ./Scripts/release.sh <version>`.
+
+Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`,
+`KeyPathSnapshotTests`, and `KeyPathLayoutTracerTests`.
+
 ## Architecture & Patterns
+
+### Responsibility Map
+
+| Class | Responsibility |
+|-------|----------------|
+| `InstallerEngine` | The facade for all install, repair, uninstall, and system inspection |
+| `RuntimeCoordinator` | Service orchestration; not an `ObservableObject` |
+| `ServiceLifecycleCoordinator` | Start, stop, and restart Kanata |
+| `ServiceHealthChecker` | Health checks and service state evidence |
+| `ConfigReloadCoordinator` | TCP-based reload after rule changes |
+| `KanataViewModel` | UI layer with observable properties for SwiftUI |
+| `PermissionOracle` | Single source of truth for permissions |
 
 ### InstallerEngine Façade
 - **Use `InstallerEngine`** for ANY system modification task:
@@ -198,12 +259,36 @@ under test.
 - Do **not** add a UI toggle for this; treat it as a single consistent rule.
 
 ### Service Lifecycle Invariants
+- For installer/repair changes, use
+  `docs/process/installer-repair-state-matrix.md` as the review checklist.
 - **Mutating installer actions must be postcondition-verified before returning success.**
   - Any action that can stop/restart/re-register Kanata must verify runtime readiness (`running + TCP responding`) or explicit pending-approval state before reporting success.
 - **Stale SMAppService recovery bypasses generic install throttle.**
   - If state is `.enabled` but launchd cannot load/run the daemon, recovery install/register logic must run even inside the normal throttle window.
 - **Registration is not liveness.**
   - Treat `SMAppService.status == .enabled` as registration metadata only; never infer runtime health from it without process + TCP evidence.
+- **Helper responsiveness is not helper freshness.**
+  - After helper deploys or helper behavior changes, verify version/path or force
+    the unregister/register repair path instead of treating an XPC response as
+    proof that the running helper is current.
+- **Stale diagnostics must not outrank current runtime state.**
+  - Log-derived input-capture issues only apply to a live current runtime. If
+    Kanata is missing or stopped, install/start runtime services first.
+
+### Lifecycle and Health Anti-Patterns
+
+- Do not manually call `launchctl` for install/repair paths; use
+  `InstallerEngine`.
+- Do not roll your own `pgrep`/`launchctl` health checks; use
+  `ServiceHealthChecker`.
+- Do not start, stop, or restart Kanata except through
+  `ServiceLifecycleCoordinator`.
+- Do not send TCP reloads directly; use
+  `ConfigReloadCoordinator.triggerConfigReload()`.
+- Do not skip TCP reload after config changes; that causes stale config.
+- Do not call `SMAppService.status` in a hot path; it is synchronous IPC and can
+  block for 10-30 seconds.
+- Do not call real `pgrep` in tests; use `KeyPathTestCase` base class.
 
 ### Testing
 - **Mock Time**: Do not use `Thread.sleep`. Use `Date` overrides or mock clocks.
@@ -221,6 +306,23 @@ under test.
 - **Verification:** Run `python3 Scripts/check-accessibility.py` before committing
 - **See:** `ACCESSIBILITY_COVERAGE.md` for complete reference
 - **Rationale:** Enables automation (Computer Use, XCUITest, legacy Peekaboo) and ensures testability
+
+## Documentation
+
+Two doc systems exist:
+- `guides/`: user-facing, published to `gh-pages`.
+- `docs/`: developer-facing, `master` only.
+
+Any user-visible feature needs a guide in `guides/`. Developer-only changes go
+in `docs/` when they affect architecture or integration patterns.
+
+Publishing: `guides/` content must be copied to the `gh-pages` branch to go
+live. Use `Scripts/publish-guides.sh` or manually copy changed files to the
+`gh-pages` worktree at `.worktrees/gh-pages`. The docs landing page
+(`docs.md` on `gh-pages`) must be updated to link new guides.
+
+Style: follow `docs/process/help-content-philosophy.md` -- user goals first, no
+jargon, ASCII UI mockups. Guides need Jekyll frontmatter.
 
 ## Available External Tools
 
@@ -289,3 +391,19 @@ peekaboo hotkey "cmd+s"              # Save
 6. `poltergeist stop` before release work, helper/service work, broad tests, or handing off.
 
 See `docs/guides/llm-vision-ui-automation.md` for detailed architecture.
+
+## Deep-Dive References
+
+Load these on demand; do not treat them as required reading for every session.
+
+| Topic | Doc |
+|-------|-----|
+| Release process | `docs/process/release-process.md` |
+| Installer repair state matrix | `docs/process/installer-repair-state-matrix.md` |
+| Help content writing | `docs/process/help-content-philosophy.md` |
+| Pack dependency system | `docs/architecture/pack-dependency-system.md` |
+| Overlay/mapper/gallery data flow | `docs/architecture/overlay-data-flow.md` |
+| UI automation | `docs/guides/llm-vision-ui-automation.md` |
+| Architecture guides | `docs/architecture/` |
+| ADRs | `docs/adr/README.md` |
+| Feature docs | `docs/features/` |

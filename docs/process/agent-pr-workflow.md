@@ -11,6 +11,10 @@ End-to-end process for shepherding code from initial request through to a clean 
 
 3. **Do the work** — edit code, iterate with the user.
 4. **Build and narrow-test while iterating** — use `swift build` plus the smallest relevant lane. Start with `./Scripts/test-fast.sh --changed`; use `./Scripts/test-fast.sh <area>` for known areas (`rules`, `ui`, `installer`, `config`, `layout`, `packs`, `tcp`, etc.) or `TEST_FILTER=SomeTests ./Scripts/run-tests-safe.sh` for a single suite. Run `./Scripts/quick-deploy.sh` only when you need installed app behavior.
+   For installer, repair, helper, launchd, SMAppService, VirtualHID, or Kanata
+   runtime readiness changes, name the affected row in
+   `docs/process/installer-repair-state-matrix.md` and cover it with planner
+   and postcondition/router tests.
 5. **Freshen before expensive gates** — before running the final broad local gate, fetch `origin/master` and make sure the branch is current:
 
    ```bash
