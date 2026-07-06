@@ -96,8 +96,7 @@ public enum PIDFileManager {
 
     /// Check if a process with given PID is still running
     public static func isProcessRunning(pid: pid_t) -> Bool {
-        let result = kill(pid, 0)
-        return result == 0
+        SystemStateProvider.isProcessAlive(pid: pid)
     }
 
     /// Check if we own the currently running kanata process
