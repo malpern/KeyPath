@@ -353,9 +353,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Present the right surface for a user-initiated "open KeyPath" action
     /// (Dock/Raycast/Spotlight reopen or menu-bar "Show KeyPath").
     private func hasCompletedInitialWizard() async -> Bool {
-        guard hasExistingConfig else { return false }
+        guard hasExistingConfig else {
+            LiveKeyboardOverlayController.shared.setOnboardingCompleted(false)
+            return false
+        }
         let health = await ServiceHealthChecker.shared.checkKanataServiceHealth()
-        return health.isRunning && health.isResponding
+        let completed = health.isRunning && health.isResponding
+        LiveKeyboardOverlayController.shared.setOnboardingCompleted(completed)
+        return completed
     }
 
     private func presentReopenSurface(trigger: String) async {

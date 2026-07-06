@@ -131,6 +131,7 @@ extension LiveKeyboardOverlayController {
             Task { @MainActor in
                 guard let self, self.overlayHiddenByWizard else { return }
                 self.overlayHiddenByWizard = false
+                guard self.canShowOverlay(reason: "wizard close restore") else { return }
                 self.window?.orderFront(nil)
                 AppLogger.shared.log("🪟 [OverlayController] Restored overlay — wizard closed")
             }
@@ -167,6 +168,7 @@ extension LiveKeyboardOverlayController {
             AppLogger.shared.log("🪟 [OverlayController] Test mode changed - window was hidden, will recreate on next show")
             return
         }
+        guard canShowOverlay(reason: "accessibility test mode recreate") else { return }
 
         createWindow()
         if let savedFrame, let window {

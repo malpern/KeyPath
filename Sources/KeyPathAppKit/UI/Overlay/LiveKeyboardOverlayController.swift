@@ -32,6 +32,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     var hintWindowController: HideHintWindowController?
     var hintBubbleObserver: Task<Void, Never>?
     private var hiddenHintController: OverlayHiddenHintWindowController?
+    private var onboardingCompleted = false
 
     weak var kanataViewModel: KanataViewModel?
     weak var ruleCollectionsManager: RuleCollectionsManager?
@@ -146,19 +147,42 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     private static let oneShotTimeoutDuration: Duration = .seconds(5)
 
+    func setOnboardingCompleted(_ completed: Bool) {
+        onboardingCompleted = completed
+        if !completed {
+            blockOverlayBeforeOnboarding(reason: "onboarding marked incomplete")
+        }
+    }
+
+    @discardableResult
+    func canShowOverlay(reason: String) -> Bool {
+        if onboardingCompleted { return true }
+        blockOverlayBeforeOnboarding(reason: reason)
+        return false
+    }
+
+    private func blockOverlayBeforeOnboarding(reason: String) {
+        AppLogger.shared.log("⏸️ [OverlayController] Overlay blocked before onboarding completes (\(reason))")
+        UserDefaults.standard.set(false, forKey: DefaultsKey.isVisible)
+        viewModel.stopCapturing()
+        dismissHintBubble()
+        window?.orderOut(nil)
+    }
+
     /// Restore overlay state from previous session
     /// Only restores if system status is healthy (Kanata running)
     func restoreState() {
         let defaults = UserDefaults.standard
         guard defaults.bool(forKey: DefaultsKey.isVisible) else { return }
+        guard canShowOverlay(reason: "restore state") else { return }
 
         // Only restore if system is healthy
         Task { @MainActor in
             let health = await ServiceHealthChecker.shared.checkKanataServiceHealth()
-            if health.isRunning {
+            if health.isRunning, health.isResponding {
                 isVisible = true
             } else {
-                AppLogger.shared.log("⚠️ [OverlayController] Skipping overlay restore - Kanata not running")
+                AppLogger.shared.log("⚠️ [OverlayController] Skipping overlay restore - Kanata not ready")
             }
         }
     }
@@ -170,6 +194,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// - Parameter bypassHiddenCheck: If true, shows overlay even if user explicitly hid it.
     ///   Only use this for the initial app launch, not for subsequent activations.
     func showForStartup(bypassHiddenCheck: Bool = false) {
+        guard canShowOverlay(reason: "startup show") else { return }
+
         // IMPORTANT: Respect user's explicit hide unless bypassed (initial launch only)
         if !bypassHiddenCheck, userExplicitlyHidden {
             AppLogger.shared.log("⏸️ [OverlayController] showForStartup skipped - user explicitly hid overlay")
@@ -233,6 +259,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// - Parameter bypassHiddenCheck: If true, shows overlay even if user explicitly hid it.
     ///   Used for launcher layer activation which should always show the overlay temporarily.
     func showForQuickLaunch(bypassHiddenCheck: Bool = false) {
+        guard canShowOverlay(reason: "quick launch show") else { return }
+
         // IMPORTANT: Respect user's explicit hide unless bypassed
         // Launcher activation should bypass because user is actively using it
         if !bypassHiddenCheck, userExplicitlyHidden {
@@ -267,6 +295,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         get { window?.isVisible ?? false }
         set {
             if newValue {
+                guard canShowOverlay(reason: "visibility setter") else { return }
                 showWindow()
             } else {
                 hideWindow()
@@ -345,6 +374,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     /// Show the overlay, restore its default size, and center it on screen.
     func showResetCentered() {
+        guard canShowOverlay(reason: "reset centered show") else { return }
+
         frameStore.clear()
 
         if window == nil {
@@ -447,6 +478,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     // MARK: - Window Management
 
     private func showWindow() {
+        guard canShowOverlay(reason: "show window") else { return }
+
         if window == nil {
             createWindow()
         }
