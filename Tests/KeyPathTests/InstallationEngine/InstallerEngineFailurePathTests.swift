@@ -82,6 +82,31 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         XCTAssertTrue(plan.recipes.isEmpty)
     }
 
+    func testMakePlan_ReadyWhenVHIDHealthyButKanataHasStaleDriverDisabledIssue() async {
+        let context = SystemContextBuilder(
+            permissionsStatus: .granted,
+            helperReady: true,
+            servicesHealthy: false,
+            kanataRunning: false,
+            karabinerDaemonRunning: true,
+            vhidHealthy: true,
+            kanataInputCaptureReady: false,
+            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason,
+            componentsInstalled: true,
+            driverCompatible: true
+        ).build()
+
+        let plan = await engine.makePlan(for: .repair, context: context)
+
+        guard case .ready = plan.status else {
+            return XCTFail("Plan should repair stale Kanata state after DriverKit approval is enabled")
+        }
+        XCTAssertNil(plan.blockedBy)
+        XCTAssertTrue(plan.recipes.contains(where: { recipe in
+            recipe.id == InstallerRecipeID.installRequiredRuntimeServices
+        }))
+    }
+
     // MARK: - Recipe Execution Failure Tests
 
     func testExecute_StopsOnFirstRecipeFailure() async throws {

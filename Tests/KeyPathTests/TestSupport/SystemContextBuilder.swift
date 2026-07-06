@@ -9,6 +9,9 @@ struct SystemContextBuilder {
     var permissionsStatus: PermissionOracle.Status = .granted
     var helperReady: Bool = true
     var servicesHealthy: Bool = false
+    var kanataRunning: Bool?
+    var karabinerDaemonRunning: Bool?
+    var vhidHealthy: Bool?
     var kanataInputCaptureReady: Bool = true
     /// The input-capture failure reason surfaced when not ready (#624 attribution).
     /// Defaults to the built-in-keyboard permission reason; set to a grab-failure
@@ -49,9 +52,9 @@ struct SystemContextBuilder {
         }
 
         let services = HealthStatus(
-            kanataRunning: servicesHealthy,
-            karabinerDaemonRunning: servicesHealthy,
-            vhidHealthy: servicesHealthy,
+            kanataRunning: kanataRunning ?? servicesHealthy,
+            karabinerDaemonRunning: karabinerDaemonRunning ?? servicesHealthy,
+            vhidHealthy: vhidHealthy ?? servicesHealthy,
             kanataInputCaptureReady: kanataInputCaptureReady,
             kanataInputCaptureIssue: kanataInputCaptureReady ? nil : kanataInputCaptureIssue
         )

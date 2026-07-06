@@ -438,19 +438,18 @@ public struct SystemFacade: Sendable {
             ))
         }
         if !context.services.kanataInputCaptureReady {
-            let vhidDriverNotActivated = context.services.kanataInputCaptureIssue
-                == ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
+            let needsManualVHIDApproval = context.requiresManualVHIDDriverApproval
             issues.append(.init(
-                title: vhidDriverNotActivated
+                title: needsManualVHIDApproval
                     ? "Karabiner VirtualHIDDevice driver is not activated"
                     : "Kanata cannot capture keyboard input",
-                category: vhidDriverNotActivated ? "service" : "permissions",
-                action: vhidDriverNotActivated
+                category: "service",
+                action: needsManualVHIDApproval
                     ? "Open System Settings > General > Login Items & Extensions > Driver Extensions, enable Karabiner-VirtualHIDDevice, then retry repair"
                     : context.services.kanataInputCaptureIssue
-                    ?? "Re-grant Input Monitoring for Kanata Engine in System Settings",
-                canAutoFix: !vhidDriverNotActivated,
-                remediationURL: vhidDriverNotActivated ? WizardSystemPaths.loginItemsSettings : WizardSystemPaths.inputMonitoringSettings
+                    ?? "Restart or repair the keyboard service",
+                canAutoFix: !needsManualVHIDApproval,
+                remediationURL: needsManualVHIDApproval ? WizardSystemPaths.loginItemsSettings : nil
             ))
         }
     }
