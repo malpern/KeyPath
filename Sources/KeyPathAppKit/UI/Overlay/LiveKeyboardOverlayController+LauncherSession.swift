@@ -43,6 +43,8 @@ extension LiveKeyboardOverlayController {
         }
         NSApp.activate(ignoringOtherApps: true)
         showForQuickLaunch(bypassHiddenCheck: true)
+        guard canShowOverlay(reason: "launcher activation front") else { return }
+        guard isVisible else { return }
     }
 
     func noteLauncherActionDispatched() {
@@ -85,6 +87,8 @@ extension LiveKeyboardOverlayController {
         if !isVisible {
             isVisible = true
         }
+        guard canShowOverlay(reason: "bring overlay to front") else { return }
+        guard isVisible else { return }
         NSApp.activate(ignoringOtherApps: true)
         window?.orderFront(nil)
     }
