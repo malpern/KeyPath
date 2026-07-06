@@ -11,12 +11,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/lib/submodules.sh"
 BRIDGE_ROOT="$PROJECT_ROOT/Rust/KeyPathKanataHostBridge"
 BUILD_DIR="$PROJECT_ROOT/build/kanata-host-bridge"
 CACHE_INFO="$BUILD_DIR/host-bridge-cache.info"
 BRIDGE_FEATURES="${KEYPATH_KANATA_HOST_BRIDGE_FEATURES:-passthru-output-spike}"
 
 echo "🧩 Building KeyPath Kanata host bridge..."
+
+keypath_ensure_kanata_submodule "$PROJECT_ROOT"
 
 if ! command -v cargo >/dev/null 2>&1; then
     echo "❌ Error: Rust toolchain (cargo) not found." >&2

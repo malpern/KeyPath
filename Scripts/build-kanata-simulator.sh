@@ -8,6 +8,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/lib/submodules.sh"
 KANATA_SOURCE="$PROJECT_ROOT/External/kanata"
 BUILD_DIR="$PROJECT_ROOT/build"
 CACHE_INFO="$BUILD_DIR/kanata-simulator-cache.info"
@@ -18,14 +19,17 @@ SKIP_CODESIGN="${SKIP_CODESIGN:-0}"
 
 echo "🔬 Building Kanata Simulator from source..."
 
+keypath_ensure_kanata_submodule "$PROJECT_ROOT"
+
 # Check prerequisites
 if ! command -v cargo >/dev/null 2>&1; then
     echo "❌ Error: Rust toolchain (cargo) not found." >&2
     exit 1
 fi
 
-if [ ! -d "$KANATA_SOURCE" ]; then
+if [ ! -f "$KANATA_SOURCE/Cargo.toml" ]; then
     echo "❌ Error: Kanata source not found at $KANATA_SOURCE" >&2
+    echo "   Run: git submodule update --init --recursive External/kanata" >&2
     exit 1
 fi
 

@@ -8,6 +8,7 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 source "$SCRIPT_DIR/lib/signing.sh"
 source "$SCRIPT_DIR/lib/deploy-lock.sh"
+source "$SCRIPT_DIR/lib/submodules.sh"
 keypath_acquire_deploy_lock "build-and-sign ($SCRIPT_DIR/..)" "${KEYPATH_RELEASE_DEPLOY_LOCK_TIMEOUT_SECONDS:-600}"
 trap keypath_release_deploy_lock EXIT
 
@@ -174,6 +175,8 @@ EOF
     echo "   📝 Appcast entry: ${SPARKLE_DIR}/${ARCHIVE_NAME}.appcast-entry.xml"
     echo "   💿 DMG: ${SPARKLE_DIR}/${DMG_NAME}"
 }
+
+keypath_ensure_kanata_submodule "$SCRIPT_DIR/.."
 
 echo "🦀 Building Rust artifacts in parallel (kanata, simulator, host bridge)..."
 ./Scripts/build-kanata.sh &
