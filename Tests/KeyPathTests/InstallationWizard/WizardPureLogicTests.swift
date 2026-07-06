@@ -1109,6 +1109,26 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertTrue(actions.contains(.installRequiredRuntimeServices))
     }
 
+    func test_determineRepairActions_stoppedKanataWithNonApprovalInputIssueInstallsRuntimeServicesFirst() {
+        let context = makeContext(
+            services: HealthStatus(
+                kanataRunning: false,
+                karabinerDaemonRunning: true,
+                vhidHealthy: true,
+                kanataInputCaptureReady: false,
+                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason
+            )
+        )
+
+        let actions = ActionDeterminer.determineRepairActions(context: context)
+
+        XCTAssertTrue(
+            actions.contains(.installRequiredRuntimeServices),
+            "Matrix row: stopped Kanata plus non-approval input-capture evidence must restore runtime before chasing stale diagnostics"
+        )
+        XCTAssertFalse(actions.contains(.repairVHIDDaemonServices))
+    }
+
     func test_determineRepairActions_helperInstalledButBroken_includesReinstall() {
         let context = makeContext(helper: HelperStatus(isInstalled: true, version: "1.0", isWorking: false))
         let actions = ActionDeterminer.determineRepairActions(context: context)

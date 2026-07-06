@@ -54,6 +54,8 @@ public enum ActionDeterminer {
             }
         }
 
+        // Matrix row: DriverKit approval pending. This is a terminal manual
+        // action for the attempt, not a retryable runtime/VHID repair loop.
         if context.requiresManualVHIDDriverApproval {
             return actions
         }
@@ -66,6 +68,9 @@ public enum ActionDeterminer {
 
         appendVHIDActivationRepairIfNeeded(context: context, actions: &actions)
 
+        // Matrix row: stopped Kanata plus non-approval stale input-capture
+        // evidence. Runtime install/start wins; old diagnostics are revisited
+        // only after the runtime is ready again.
         if !context.services.kanataRunning, !actions.contains(.installRequiredRuntimeServices) {
             actions.append(.installRequiredRuntimeServices)
         }
@@ -115,6 +120,8 @@ public enum ActionDeterminer {
             }
         }
 
+        // Matrix row: DriverKit approval pending. This is a terminal manual
+        // action for the attempt, not a retryable runtime/VHID repair loop.
         if context.requiresManualVHIDDriverApproval {
             return actions
         }
@@ -139,6 +146,9 @@ public enum ActionDeterminer {
 
         appendVHIDActivationRepairIfNeeded(context: context, actions: &actions)
 
+        // Matrix row: stopped Kanata plus non-approval stale input-capture
+        // evidence. Runtime install/start wins; old diagnostics are revisited
+        // only after the runtime is ready again.
         if !context.services.kanataRunning, !actions.contains(.installRequiredRuntimeServices) {
             actions.append(.installRequiredRuntimeServices)
         }
@@ -177,6 +187,9 @@ public enum ActionDeterminer {
 
 public extension SystemContext {
     var requiresManualVHIDDriverApproval: Bool {
+        // Matrix row: DriverKit approval pending. The specific activation
+        // reason is treated as current macOS approval state when the driver is
+        // installed, even if Kanata is also stopped.
         components.karabinerDriverInstalled
             && !services.vhidHealthy
             && services.kanataInputCaptureIssue == ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
