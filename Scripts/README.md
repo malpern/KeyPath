@@ -20,7 +20,7 @@
 
 ## Scripts in this directory
 - `build-and-sign.sh` - The implementation of the build process
-- `release-doctor.sh` - Read-only preflight for signing, notarization, Sparkle, website, watcher, and runtime state.
+- `release-doctor.sh` - Read-only preflight for signing, notarization, Sparkle, website, watcher, and runtime state. Supports either `NOTARY_PROFILE` or `KP_NOTARY_KEY` + `KP_NOTARY_KEY_ID` + `KP_NOTARY_ISSUER`.
 - `release-candidate.sh` - Post-merge signed/notarized local build wrapper with fast defaults.
 - `release.sh` - Public release wrapper for versioned distribution artifacts.
 - `cleanup-local-build-artifacts.sh` - Safe local disk cleanup helper for generated build artifacts.

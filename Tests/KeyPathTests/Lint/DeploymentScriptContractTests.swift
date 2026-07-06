@@ -33,8 +33,38 @@ final class DeploymentScriptContractTests: XCTestCase {
             "build-and-sign must acquire the shared deploy lock."
         )
         XCTAssertTrue(
-            buildAndSign.contains("trap keypath_release_deploy_lock EXIT"),
+            buildAndSign.contains("trap cleanup_release EXIT"),
             "build-and-sign must release the shared deploy lock on exit."
+        )
+    }
+
+    func testReleaseDeployCopiesAndVerifiesBeforeReplacingInstalledApp() throws {
+        let root = repositoryRoot()
+        let buildAndSign = try contents(of: root.appendingPathComponent("Scripts/build-and-sign.sh"))
+
+        XCTAssertTrue(
+            buildAndSign.contains(#"APP_TMP="$SYSTEM_APPS_DIR/.${APP_NAME}.app.tmp.$$""#),
+            "release deploy must stage the candidate in a temporary app bundle."
+        )
+        XCTAssertTrue(
+            buildAndSign.contains(#"ditto "$APP_BUNDLE" "$APP_TMP""#),
+            "release deploy must copy the candidate to the temporary bundle first."
+        )
+        XCTAssertTrue(
+            buildAndSign.contains(#"verify_deploy_candidate "$APP_TMP""#),
+            "release deploy must verify the temporary bundle before replacing the installed app."
+        )
+        XCTAssertTrue(
+            buildAndSign.contains(#"mv "$APP_DEST" "$APP_BACKUP""#),
+            "release deploy must move the previous install aside instead of deleting it first."
+        )
+        XCTAssertTrue(
+            buildAndSign.contains("Restoring previous install"),
+            "release deploy must restore the previous install when the swap or final verification fails."
+        )
+        XCTAssertFalse(
+            buildAndSign.contains("rm -rf \"$APP_DEST\"\nif ditto \"$APP_BUNDLE\" \"$APP_DEST\"; then"),
+            "release deploy must not delete /Applications/KeyPath.app before copying a verified replacement."
         )
     }
 

@@ -50,6 +50,18 @@ The release-candidate wrapper first runs:
 ./Scripts/release-doctor.sh --release-candidate
 ```
 
+Notarization can use either the configured `notarytool` keychain profile or an
+App Store Connect API key. In unattended agent shells, prefer the API key path
+because keychain profile reads can fail when macOS disallows non-interactive
+Keychain access:
+
+```bash
+KP_NOTARY_KEY=/path/to/AuthKey_XXXXXXXXXX.p8 \
+KP_NOTARY_KEY_ID=XXXXXXXXXX \
+KP_NOTARY_ISSUER=00000000-0000-0000-0000-000000000000 \
+./Scripts/release-candidate.sh
+```
+
 Then it delegates to `build-and-sign.sh` with fast release-candidate defaults:
 
 - `SKIP_SNAPSHOTS=1`
@@ -59,6 +71,14 @@ Then it delegates to `build-and-sign.sh` with fast release-candidate defaults:
 
 It deploys to `/Applications/KeyPath.app` and runs
 `./Scripts/verify-installed-app.sh` after the build.
+
+Deploy is fail-closed: the script copies to a temporary bundle in
+`/Applications`, verifies bundle structure, signature, stapling, and Gatekeeper
+assessment, then swaps the verified bundle into place. The previous installed
+app is moved aside only during the final swap and is restored if that swap
+fails. If Kanata is still running and cannot be stopped non-interactively, the
+deploy stops before replacing the app; use
+`KEYPATH_ALLOW_DEPLOY_WITH_RUNNING_KANATA=1` only for emergency diagnostics.
 
 Release-candidate and public release builds hold the shared deploy lock for the
 whole build/sign/notarize/deploy flow. Update old worktrees before running
@@ -153,7 +173,7 @@ the expensive build starts:
 - required tools (`swift`, `xcrun`, `codesign`, `security`, `git`, `gh`, `nc`)
 - current git branch, dirty state, and master worktree ownership
 - Developer ID signing identity
-- notarytool keychain profile
+- notarytool keychain profile or App Store Connect API key credentials
 - Sparkle `sign_update` when Sparkle artifacts are enabled
 - `gh-pages` worktree state when website publishing is enabled
 - currently installed KeyPath/Kanata runtime state

@@ -10,7 +10,40 @@ source "$SCRIPT_DIR/lib/signing.sh"
 source "$SCRIPT_DIR/lib/deploy-lock.sh"
 source "$SCRIPT_DIR/lib/submodules.sh"
 keypath_acquire_deploy_lock "build-and-sign ($SCRIPT_DIR/..)" "${KEYPATH_RELEASE_DEPLOY_LOCK_TIMEOUT_SECONDS:-600}"
-trap keypath_release_deploy_lock EXIT
+DEPLOY_TMP_TO_CLEAN=""
+cleanup_release() {
+    if [ -n "$DEPLOY_TMP_TO_CLEAN" ] && [ -e "$DEPLOY_TMP_TO_CLEAN" ]; then
+        rm -rf "$DEPLOY_TMP_TO_CLEAN" 2>/dev/null || true
+    fi
+    keypath_release_deploy_lock
+}
+trap cleanup_release EXIT
+
+verify_deploy_candidate() {
+    local candidate=$1
+
+    if [ ! -d "$candidate" ]; then
+        echo "❌ ERROR: Deploy candidate is missing: $candidate" >&2
+        return 1
+    fi
+
+    if [ ! -x "$candidate/Contents/MacOS/$APP_NAME" ]; then
+        echo "❌ ERROR: Deploy candidate is missing executable: Contents/MacOS/$APP_NAME" >&2
+        return 1
+    fi
+
+    if [ ! -x "$candidate/Contents/MacOS/keypath-cli" ]; then
+        echo "❌ ERROR: Deploy candidate is missing executable: Contents/MacOS/keypath-cli" >&2
+        return 1
+    fi
+
+    codesign --verify --deep --strict "$candidate"
+
+    if [ "${SKIP_NOTARIZE:-}" != "1" ]; then
+        xcrun stapler validate "$candidate"
+        spctl -a -vvv "$candidate"
+    fi
+}
 
 # Function to create Sparkle update archive with EdDSA signature.
 #
@@ -557,25 +590,76 @@ fi
 # Stop kanata so it doesn't get killed by the bundle replacement.
 if pgrep -x "kanata" > /dev/null; then
     echo "🛑 Stopping kanata service..."
-    KANATA_PID=$(pgrep -x "kanata")
-    sudo kill "$KANATA_PID" 2>/dev/null || true
+    launchctl kill TERM system/com.keypath.kanata 2>/dev/null || true
     sleep 1
+
+    if pgrep -x "kanata" > /dev/null; then
+        echo "   kanata is still running; trying non-interactive sudo kill..."
+        sudo -n pkill -x "kanata" 2>/dev/null || true
+    fi
+    sleep 1
+fi
+
+if pgrep -x "kanata" > /dev/null; then
+    echo "   ❌ ERROR: kanata is still running, so replacing the app bundle could invalidate a live process." >&2
+    echo "   Stop the runtime from KeyPath, approve any pending helper prompt, or rerun after unloading system/com.keypath.kanata." >&2
+    echo "   Override only for emergency diagnostics with KEYPATH_ALLOW_DEPLOY_WITH_RUNNING_KANATA=1." >&2
+    if [ "${KEYPATH_ALLOW_DEPLOY_WITH_RUNNING_KANATA:-0}" != "1" ]; then
+        exit 1
+    fi
+    echo "   ⚠️  Continuing despite running kanata because KEYPATH_ALLOW_DEPLOY_WITH_RUNNING_KANATA=1"
 fi
 
 echo "📂 Deploying to /Applications..."
 SYSTEM_APPS_DIR="/Applications"
 APP_DEST="$SYSTEM_APPS_DIR/${APP_NAME}.app"
-rm -rf "$APP_DEST"
-if ditto "$APP_BUNDLE" "$APP_DEST"; then
+APP_TMP="$SYSTEM_APPS_DIR/.${APP_NAME}.app.tmp.$$"
+APP_BACKUP="$SYSTEM_APPS_DIR/.${APP_NAME}.app.previous.$$"
+DEPLOY_TMP_TO_CLEAN="$APP_TMP"
+
+rm -rf "$APP_TMP" "$APP_BACKUP"
+
+echo "   Copying verified candidate to temporary bundle..."
+ditto "$APP_BUNDLE" "$APP_TMP"
+
+echo "   Verifying temporary bundle..."
+verify_deploy_candidate "$APP_TMP"
+
+if [ -d "$APP_DEST" ]; then
+    echo "   Moving current install aside..."
+    mv "$APP_DEST" "$APP_BACKUP"
+fi
+
+if mv "$APP_TMP" "$APP_DEST"; then
+    DEPLOY_TMP_TO_CLEAN=""
+    echo "   Verifying installed bundle..."
+    if ! verify_deploy_candidate "$APP_DEST"; then
+        echo "❌ ERROR: Installed bundle failed verification after deploy" >&2
+        if [ -d "$APP_BACKUP" ]; then
+            echo "   Restoring previous install..."
+            rm -rf "$APP_DEST"
+            mv "$APP_BACKUP" "$APP_DEST"
+        fi
+        exit 1
+    fi
+    rm -rf "$APP_BACKUP"
     echo "✅ Deployed latest $APP_NAME to $APP_DEST"
 else
-    echo "⚠️ WARNING: Failed to copy $APP_NAME to $APP_DEST" >&2
-    echo "💡 TIP: You may need to manually copy dist/${APP_NAME}.app to /Applications/" >&2
+    echo "❌ ERROR: Failed to move verified bundle into $APP_DEST" >&2
+    if [ -d "$APP_BACKUP" ] && [ ! -d "$APP_DEST" ]; then
+        echo "   Restoring previous install..."
+        mv "$APP_BACKUP" "$APP_DEST"
+    fi
+    rm -rf "$APP_TMP"
+    exit 1
 fi
 
 echo "🚪 Restarting app..."
 echo "   Starting new KeyPath..."
-open "$APP_DEST"
+if ! open "$APP_DEST"; then
+    echo "   ❌ ERROR: Failed to open $APP_DEST" >&2
+    exit 1
+fi
 
 # Wait for new process to start and verify
 sleep 2
@@ -583,7 +667,8 @@ if pgrep -x "KeyPath" > /dev/null; then
     NEW_PID=$(pgrep -x "KeyPath")
     echo "   ✅ KeyPath restarted successfully (PID: $NEW_PID)"
 else
-    echo "   ⚠️  WARNING: KeyPath may not have started. Run manually: open $APP_DEST" >&2
+    echo "   ❌ ERROR: KeyPath did not start after deploy. Run manually for diagnostics: open $APP_DEST" >&2
+    exit 1
 fi
 
 # ─────────────────────────────────────────────────────────────────────

@@ -27,6 +27,9 @@ Environment checked:
   CODESIGN_IDENTITY    Developer ID Application identity override.
   NOTARY_PROFILE       notarytool keychain profile override.
   KP_NOTARY_KEYCHAIN   Optional notarytool keychain override.
+  KP_NOTARY_KEY        App Store Connect API key .p8 path; requires KP_NOTARY_KEY_ID and KP_NOTARY_ISSUER.
+  KP_NOTARY_KEY_ID     App Store Connect API key id.
+  KP_NOTARY_ISSUER     App Store Connect issuer id.
   SKIP_SPARKLE         If 1, skip Sparkle checks.
   SKIP_WEBSITE         If 1, skip gh-pages website checks.
 EOF
@@ -98,6 +101,31 @@ check_optional_command() {
 
 notarytool() {
     xcrun notarytool "$@"
+}
+
+notary_api_env_present() {
+    [[ -n "${KP_NOTARY_KEY:-}" || -n "${KP_NOTARY_KEY_ID:-}" || -n "${KP_NOTARY_ISSUER:-}" ]]
+}
+
+validate_notary_api_env() {
+    local missing=()
+    [[ -n "${KP_NOTARY_KEY:-}" ]] || missing+=("KP_NOTARY_KEY")
+    [[ -n "${KP_NOTARY_KEY_ID:-}" ]] || missing+=("KP_NOTARY_KEY_ID")
+    [[ -n "${KP_NOTARY_ISSUER:-}" ]] || missing+=("KP_NOTARY_ISSUER")
+
+    if (( ${#missing[@]} > 0 )); then
+        fail "Incomplete App Store Connect notarization credentials"
+        echo "   Missing: ${missing[*]}"
+        echo "   Set all of KP_NOTARY_KEY, KP_NOTARY_KEY_ID, and KP_NOTARY_ISSUER, or unset them to use NOTARY_PROFILE."
+        return 1
+    fi
+
+    if [[ ! -f "$KP_NOTARY_KEY" ]]; then
+        fail "KP_NOTARY_KEY does not exist: $KP_NOTARY_KEY"
+        return 1
+    fi
+
+    return 0
 }
 
 resolve_sign_update() {
@@ -215,16 +243,29 @@ else
     echo "   Set CODESIGN_IDENTITY or install the Developer ID Application certificate."
 fi
 
-notary_args=(history --keychain-profile "$notary_profile" --output-format json)
-if [[ -n "${KP_NOTARY_KEYCHAIN:-}" ]]; then
-    notary_args+=(--keychain "$KP_NOTARY_KEYCHAIN")
-fi
-
-if notarytool "${notary_args[@]}" >/dev/null 2>&1; then
-    pass "notarytool profile validated: $notary_profile"
+if notary_api_env_present; then
+    if validate_notary_api_env; then
+        notary_args=(history --key "$KP_NOTARY_KEY" --key-id "$KP_NOTARY_KEY_ID" --issuer "$KP_NOTARY_ISSUER" --output-format json)
+        if notarytool "${notary_args[@]}" >/dev/null 2>&1; then
+            pass "notarytool App Store Connect API key validated: $KP_NOTARY_KEY_ID"
+        else
+            fail "notarytool App Store Connect API key failed validation: $KP_NOTARY_KEY_ID"
+            echo "   Check KP_NOTARY_KEY, KP_NOTARY_KEY_ID, and KP_NOTARY_ISSUER."
+        fi
+    fi
 else
-    fail "notarytool profile failed validation: $notary_profile"
-    echo "   Set NOTARY_PROFILE or run: xcrun notarytool store-credentials"
+    notary_args=(history --keychain-profile "$notary_profile" --output-format json)
+    if [[ -n "${KP_NOTARY_KEYCHAIN:-}" ]]; then
+        notary_args+=(--keychain "$KP_NOTARY_KEYCHAIN")
+    fi
+
+    if notarytool "${notary_args[@]}" >/dev/null 2>&1; then
+        pass "notarytool profile validated: $notary_profile"
+    else
+        fail "notarytool profile failed validation: $notary_profile"
+        echo "   Set NOTARY_PROFILE or run: xcrun notarytool store-credentials"
+        echo "   In non-interactive shells, prefer KP_NOTARY_KEY + KP_NOTARY_KEY_ID + KP_NOTARY_ISSUER."
+    fi
 fi
 
 print_section "Release Artifacts"

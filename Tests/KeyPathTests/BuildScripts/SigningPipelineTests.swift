@@ -72,4 +72,36 @@ final class SigningPipelineTests: XCTestCase {
         let result = runScript(script)
         XCTAssertNotEqual(result.code, 0, "notary wrapper should bubble up failures")
     }
+
+    func testNotaryWrapperSupportsAppStoreConnectAPIKeyDryRun() {
+        let tempKey = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent(UUID().uuidString)
+        FileManager.default.createFile(atPath: tempKey.path, contents: Data())
+
+        let script = """
+        source \(signingLibPath)
+        KP_SIGN_DRY_RUN=1 \\
+        KP_NOTARY_KEY="\(tempKey.path)" \\
+        KP_NOTARY_KEY_ID=ABC123 \\
+        KP_NOTARY_ISSUER=00000000-0000-0000-0000-000000000000 \\
+        kp_notarize_zip "/tmp/fake.zip" "NoProfile"
+        """
+
+        let result = runScript(script)
+        XCTAssertEqual(result.code, 0, "API-key dry run should succeed. stderr: \(result.stderr)")
+        XCTAssertTrue(result.stdout.contains("--key \(tempKey.path)"))
+        XCTAssertTrue(result.stdout.contains("--key-id ABC123"))
+        XCTAssertTrue(result.stdout.contains("--issuer 00000000-0000-0000-0000-000000000000"))
+        XCTAssertFalse(result.stdout.contains("--keychain-profile"))
+    }
+
+    func testNotaryWrapperRejectsPartialAPIKeyEnvironment() {
+        let script = """
+        source \(signingLibPath)
+        KP_SIGN_DRY_RUN=1 KP_NOTARY_KEY=/tmp/missing.p8 KP_NOTARY_KEY_ID=ABC123 kp_notarize_zip "/tmp/fake.zip" "NoProfile"
+        """
+
+        let result = runScript(script)
+        XCTAssertNotEqual(result.code, 0, "Partial API-key env must fail before invoking notarytool")
+        XCTAssertTrue(result.stderr.contains("Missing: KP_NOTARY_ISSUER"))
+    }
 }

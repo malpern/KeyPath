@@ -34,6 +34,9 @@ Options:
 Environment:
   CODESIGN_IDENTITY   Developer ID Application identity override.
   NOTARY_PROFILE      notarytool keychain profile override.
+  KP_NOTARY_KEY       App Store Connect API key .p8 path; requires KP_NOTARY_KEY_ID and KP_NOTARY_ISSUER.
+  KP_NOTARY_KEY_ID    App Store Connect API key id.
+  KP_NOTARY_ISSUER    App Store Connect issuer id.
 EOF
 }
 
