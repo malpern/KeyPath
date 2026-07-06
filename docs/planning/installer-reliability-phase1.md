@@ -161,6 +161,16 @@ designated-requirement changes on update, (2) binary path changes,
   and daemon against pinned values.
 - Documented in an ADR so future re-signing work knows the blast radius.
 
+**Status (2026-07-06):** Implemented for Workstream 4.
+- [x] Release doctor / CI verifies identity stability for kanata binary, helper,
+  and daemon against pinned values. Enforced by
+  `IdentityStabilityContractTests.testPinnedSourceIdentityContract`,
+  `IdentityStabilityContractTests.testReleaseGateInvokesIdentityContractScript`,
+  and `Scripts/verify-identity-contract.sh`.
+- [x] Documented in an ADR so future re-signing work knows the blast radius.
+  Enforced by `IdentityStabilityContractTests.testIdentityADRDocumentsPinnedContract`
+  against `docs/adr/adr-041-installer-identity-stability-contract.md`.
+
 ## Workstream 5: Lint-Test Ratchets
 
 `SMAppServiceStatusLintTests` (build fails if any source outside the provider

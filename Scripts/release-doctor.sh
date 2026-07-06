@@ -227,6 +227,13 @@ else
     echo "   Set NOTARY_PROFILE or run: xcrun notarytool store-credentials"
 fi
 
+print_section "Identity Contract"
+if "$PROJECT_DIR/Scripts/verify-identity-contract.sh" --source; then
+    pass "Installer identity-stability source contract passed"
+else
+    fail "Installer identity-stability source contract failed"
+fi
+
 print_section "Release Artifacts"
 effective_skip_sparkle="${SKIP_SPARKLE:-}"
 effective_skip_website="${SKIP_WEBSITE:-}"
