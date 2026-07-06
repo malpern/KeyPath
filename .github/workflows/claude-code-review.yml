@@ -87,7 +87,9 @@ jobs:
 
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
-          claude_args: '--max-turns 8 --allowed-tools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git status:*),Bash(git show:*),Bash(rg:*),Bash(sed:*),Bash(nl:*)"'
+          claude_args: >-
+            --max-turns 16
+            --allowed-tools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git status:*),Bash(git show:*),Bash(git log:*),Bash(git grep:*),Bash(rg:*),Bash(sed:*),Bash(nl:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(find:*),Bash(ls:*),Bash(pwd:*),Bash(awk:*),Bash(grep:*)"
 
       - name: Skip Claude review for workflow-file changes
         if: steps.changes.outputs.workflow_changed == 'true'
