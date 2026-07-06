@@ -354,8 +354,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// (Dock/Raycast/Spotlight reopen or menu-bar "Show KeyPath").
     private func hasCompletedInitialWizard() async -> Bool {
         guard hasExistingConfig else { return false }
-        let isFreshInstall = await Self.checkIsFreshInstall()
-        return !isFreshInstall
+        let health = await ServiceHealthChecker.shared.checkKanataServiceHealth()
+        return health.isRunning && health.isResponding
     }
 
     private func presentReopenSurface(trigger: String) async {
