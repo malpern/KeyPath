@@ -7,11 +7,11 @@ import XCTest
 /// holding the keyboard, not root) is NOT a missing permission and is fixed by
 /// restarting, not by regranting Input Monitoring.
 final class SystemInspectorInputCaptureTests: XCTestCase {
-    private func context(inputCaptureIssue: String?) -> SystemContext {
+    private func context(inputCaptureIssue: String?, servicesHealthy: Bool = true) -> SystemContext {
         SystemContextBuilder(
             permissionsStatus: .granted,
             helperReady: true,
-            servicesHealthy: true,
+            servicesHealthy: servicesHealthy,
             kanataInputCaptureReady: false,
             kanataInputCaptureIssue: inputCaptureIssue,
             componentsInstalled: true
@@ -62,7 +62,10 @@ final class SystemInspectorInputCaptureTests: XCTestCase {
 
     func testVHIDDriverNotActivated_issueRequiresManualApproval() {
         let issues = SystemInspector.generateIssues(
-            context(inputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason)
+            context(
+                inputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason,
+                servicesHealthy: false
+            )
         )
         guard let issue = issues.first(where: { $0.identifier == .daemon }) else {
             return XCTFail("Expected a daemon issue for inactive VHID DriverKit state")
@@ -74,6 +77,19 @@ final class SystemInspectorInputCaptureTests: XCTestCase {
             "Open System Settings → General → Login Items & Extensions → Driver Extensions, enable Karabiner-VirtualHIDDevice, then retry repair"
         )
         XCTAssertTrue(issue.description.contains("not activated"))
+    }
+
+    func testStaleVHIDDriverNotActivatedIssue_afterVHIDHealthyCanRepair() {
+        let issues = SystemInspector.generateIssues(
+            context(inputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason)
+        )
+        guard let issue = issues.first(where: { $0.identifier == .daemon }) else {
+            return XCTFail("Expected a daemon issue for stale inactive VHID DriverKit state")
+        }
+        XCTAssertEqual(issue.title, "Kanata Isn't Capturing Keyboard Input")
+        XCTAssertEqual(issue.autoFixAction, .installRequiredRuntimeServices)
+        XCTAssertEqual(issue.userAction, "Restart the keyboard service from Settings → Status (or quit and reopen KeyPath)")
+        XCTAssertTrue(issue.description.contains("VirtualHID services now look healthy"))
     }
 
     // MARK: - Service status must not lie green on a grab failure

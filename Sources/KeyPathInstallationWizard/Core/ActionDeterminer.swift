@@ -175,9 +175,10 @@ public enum ActionDeterminer {
     }
 }
 
-extension SystemContext {
+public extension SystemContext {
     var requiresManualVHIDDriverApproval: Bool {
         components.karabinerDriverInstalled
+            && !services.vhidHealthy
             && services.kanataInputCaptureIssue == ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
     }
 }

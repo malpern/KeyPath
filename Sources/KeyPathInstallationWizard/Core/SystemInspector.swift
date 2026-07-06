@@ -151,9 +151,9 @@ public enum SystemInspector {
                     category: .daemon,
                     title: "Kanata Isn't Capturing Keyboard Input",
                     description: "KeyPath's keyboard engine is running but isn't capturing input, so remapping won't work. "
-                        + inputCaptureFailureDetail(context.services.kanataInputCaptureIssue),
-                    autoFixAction: nil,
-                    userAction: isVHIDDriverNotActivatedReason(context.services.kanataInputCaptureIssue)
+                        + inputCaptureFailureDetail(for: context),
+                    autoFixAction: shouldRepairStaleVHIDActivationFailure(context) ? .installRequiredRuntimeServices : nil,
+                    userAction: context.requiresManualVHIDDriverApproval
                         ? "Open System Settings → General → Login Items & Extensions → Driver Extensions, enable Karabiner-VirtualHIDDevice, then retry repair"
                         : "Restart the keyboard service from Settings → Status (or quit and reopen KeyPath)"
                 ))
@@ -383,11 +383,20 @@ public enum SystemInspector {
         reason == ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
     }
 
+    static func shouldRepairStaleVHIDActivationFailure(_ context: SystemContext) -> Bool {
+        isVHIDDriverNotActivatedReason(context.services.kanataInputCaptureIssue)
+            && !context.requiresManualVHIDDriverApproval
+    }
+
     /// Human-readable detail for a non-permission input-capture failure, using
     /// kanata's authoritative reason (from the InputGrab signal) when present.
-    static func inputCaptureFailureDetail(_ reason: String?) -> String {
-        if isVHIDDriverNotActivatedReason(reason) {
+    static func inputCaptureFailureDetail(for context: SystemContext) -> String {
+        if context.requiresManualVHIDDriverApproval {
             return "The Karabiner VirtualHIDDevice driver is installed, but macOS reports it is not activated."
+        }
+        let reason = context.services.kanataInputCaptureIssue
+        if isVHIDDriverNotActivatedReason(reason) {
+            return "Kanata last reported that the Karabiner VirtualHIDDevice driver was not activated, but the VirtualHID services now look healthy. Restart the keyboard service to retry."
         }
         guard let reason, reason != ServiceHealthChecker.inputCaptureGrabFailureReason else {
             return "The keyboard couldn't be captured — the input driver may have crashed, or another app may be holding the keyboard exclusively."

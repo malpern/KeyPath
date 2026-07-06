@@ -1059,7 +1059,7 @@ final class WizardPureLogicTests: XCTestCase {
             services: HealthStatus(
                 kanataRunning: true,
                 karabinerDaemonRunning: true,
-                vhidHealthy: true,
+                vhidHealthy: false,
                 kanataInputCaptureReady: false,
                 kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
             )
@@ -1077,7 +1077,7 @@ final class WizardPureLogicTests: XCTestCase {
             services: HealthStatus(
                 kanataRunning: false,
                 karabinerDaemonRunning: true,
-                vhidHealthy: true,
+                vhidHealthy: false,
                 kanataInputCaptureReady: false,
                 kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
             )
@@ -1089,6 +1089,24 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertFalse(actions.contains(.repairVHIDDaemonServices))
         XCTAssertFalse(actions.contains(.installRequiredRuntimeServices))
         XCTAssertTrue(actions.isEmpty, "Kanata should not be restarted until the DriverKit extension is enabled")
+    }
+
+    func test_determineRepairActions_staleVHIDIssueAfterDriverEnabledRestartsKanata() {
+        let context = makeContext(
+            services: HealthStatus(
+                kanataRunning: false,
+                karabinerDaemonRunning: true,
+                vhidHealthy: true,
+                kanataInputCaptureReady: false,
+                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
+            )
+        )
+
+        let actions = ActionDeterminer.determineRepairActions(context: context)
+
+        XCTAssertTrue(actions.contains(.activateVHIDDeviceManager))
+        XCTAssertTrue(actions.contains(.repairVHIDDaemonServices))
+        XCTAssertTrue(actions.contains(.installRequiredRuntimeServices))
     }
 
     func test_determineRepairActions_helperInstalledButBroken_includesReinstall() {
@@ -1202,7 +1220,7 @@ final class WizardPureLogicTests: XCTestCase {
             services: HealthStatus(
                 kanataRunning: true,
                 karabinerDaemonRunning: true,
-                vhidHealthy: true,
+                vhidHealthy: false,
                 kanataInputCaptureReady: false,
                 kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
             )
