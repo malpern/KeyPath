@@ -64,6 +64,52 @@ jobs:
             echo "docs_only=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Build bounded review prompt
+        id: review_prompt
+        if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only != 'true'
+        run: |
+          set -euo pipefail
+
+          base_ref="origin/${{ github.base_ref }}"
+          stat_file="$RUNNER_TEMP/pr.stat"
+          diff_file="$RUNNER_TEMP/pr.diff"
+          max_diff_bytes=180000
+
+          git diff --no-ext-diff --stat "$base_ref" HEAD > "$stat_file"
+          git diff --no-ext-diff --find-renames --no-color "$base_ref" HEAD > "$diff_file"
+
+          diff_bytes="$(wc -c < "$diff_file" | tr -d ' ')"
+
+          {
+            echo "prompt<<__CLAUDE_REVIEW_PROMPT__"
+            echo "REPO: ${{ github.repository }}"
+            echo "PR NUMBER: ${{ github.event.pull_request.number }}"
+            echo
+            echo "Review only the supplied pull request diff below. Do not call repository"
+            echo "inspection tools such as git, gh pr diff, rg, sed, cat, or ls; the diff"
+            echo "context is already included here."
+            echo
+            echo "Focus on actionable correctness, reliability, security, performance, and"
+            echo "test-coverage findings. Use the repository's CLAUDE.md for style only when"
+            echo "the supplied diff makes it directly relevant."
+            echo
+            echo "Use exactly one Bash tool call: gh pr comment, to leave one concise review"
+            echo "comment on the PR. If there are no actionable findings, say so briefly."
+            echo
+            echo "Changed file summary:"
+            cat "$stat_file"
+            echo
+            echo "Unified diff:"
+            if [ "$diff_bytes" -gt "$max_diff_bytes" ]; then
+              head -c "$max_diff_bytes" "$diff_file"
+              echo
+              echo "[Diff truncated after ${max_diff_bytes} bytes; review only the supplied portion and mention the truncation.]"
+            else
+              cat "$diff_file"
+            fi
+            echo "__CLAUDE_REVIEW_PROMPT__"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Run Claude Code Review
         id: claude-review
         if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only != 'true'
@@ -71,25 +117,13 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           allowed_bots: 'cursor'
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-
-            Review only the changed diff in this pull request. Keep the review bounded:
-            do not search issues, list other PRs, or inspect unrelated repository history.
-
-            Focus on actionable correctness, reliability, security, performance, and
-            test-coverage findings. Use the repository's CLAUDE.md for style and
-            conventions when it is directly relevant to the diff.
-
-            Use `gh pr comment` with your Bash tool to leave one concise review comment
-            on the PR. If there are no actionable findings, say so briefly.
+          prompt: ${{ steps.review_prompt.outputs.prompt }}
 
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
           claude_args: >-
-            --max-turns 16
-            --allowed-tools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git status:*),Bash(git show:*),Bash(git log:*),Bash(git grep:*),Bash(rg:*),Bash(sed:*),Bash(nl:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(find:*),Bash(ls:*),Bash(pwd:*),Bash(awk:*),Bash(grep:*)"
+            --max-turns 6
+            --allowed-tools "Bash(gh pr comment:*)"
 
       - name: Skip Claude review for workflow-file changes
         if: steps.changes.outputs.workflow_changed == 'true'
