@@ -489,6 +489,7 @@ else
 
     echo "✅ Verifying signatures..."
     kp_verify_signature "$APP_BUNDLE"
+    "$SCRIPT_DIR/verify-identity-contract.sh" --app "$APP_BUNDLE"
 fi
 
 if [ "${SKIP_NOTARIZE:-}" = "1" ]; then

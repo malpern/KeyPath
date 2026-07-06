@@ -20,7 +20,7 @@ public enum KeyPathConstants {
     public enum Bundle {
         public static let appName = "KeyPath"
         public static let bundleID = "com.keypath.KeyPath"
-        public static let helperID = "com.keypath.KeyPath.Helper"
+        public static let helperID = "com.keypath.helper"
         public static let daemonID = "com.keypath.kanata"
         public static let vhidDaemonID = "com.keypath.karabiner-vhiddaemon"
         public static let vhidManagerID = "com.keypath.karabiner-vhidmanager"
