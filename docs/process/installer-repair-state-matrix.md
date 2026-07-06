@@ -129,8 +129,13 @@ the result as user action required and name the approval surface.
 - Privileged command routing belongs in `PrivilegedOperationsRouter`.
 - Helper-owned root mutations belong in `HelperService`, but helper success must
   still be verified by the app-side router when possible.
-- Runtime readiness checks belong in `ServiceHealthChecker` and the shared
-  lifecycle predicates.
+- Runtime readiness checks belong in `ServiceHealthChecker` and
+  `SystemStateProvider`'s shared lifecycle predicates.
+- Process-liveness semantics belong in `SystemStateProvider.isProcessAlive(pid:)`.
+  `SystemStateProviderLivenessTests.testProcessLivenessProbeTreatsCurrentProcessAsAliveAndExitedProcessAsDead`
+  proves the real ADR-040 primitive, and
+  `LivenessPredicateLintTests.testKillZeroLivenessProbeIsCentralized` blocks
+  new direct `kill(pid, 0)` probes outside the provider.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References

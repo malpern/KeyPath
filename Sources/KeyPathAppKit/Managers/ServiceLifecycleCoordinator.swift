@@ -650,13 +650,7 @@ final class ServiceLifecycleCoordinator {
         #if DEBUG
             if let probe = Self.testLivenessProbe { return probe(pid) }
         #endif
-        if kill(pid, 0) == 0 { return true }
-        // kanata runs as a root LaunchDaemon while this app is unprivileged, so
-        // `kill(pid, 0)` returns EPERM ("exists, but you may not signal it") — that
-        // is still ALIVE. Only ESRCH means the process is actually gone. Treating
-        // EPERM as dead would make the wait return immediately for the very process
-        // (the root kanata) this fix exists to wait out.
-        return errno == EPERM
+        return SystemStateProvider.isProcessAlive(pid: pid)
     }
 
     private nonisolated func sendSignal(_ pid: pid_t, _ signal: Int32) {

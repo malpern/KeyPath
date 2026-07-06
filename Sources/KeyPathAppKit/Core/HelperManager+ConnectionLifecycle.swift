@@ -1,4 +1,3 @@
-import Darwin
 import Foundation
 import KeyPathCore
 
@@ -88,17 +87,7 @@ extension HelperManager {
     /// - Parameter pid: Process ID to check
     /// - Returns: true if process exists, false otherwise
     private func isHelperProcessRunning(pid: Int32) -> Bool {
-        // Use kill(pid, 0) to check if process exists (doesn't actually kill, just checks)
-        // Returns 0 if process exists, -1 with errno set if it doesn't
-        // EPERM means process exists but we don't have permission (still means it's running)
-        let result = kill(pid, 0)
-        if result == 0 {
-            return true
-        }
-        // Check errno - EPERM means process exists but we can't signal it (still running)
-        // ESRCH means process doesn't exist
-        let error = errno
-        return error == EPERM
+        SystemStateProvider.isProcessAlive(pid: pid)
     }
 
     /// Verify the embedded helper's designated requirement roughly matches expectations.
