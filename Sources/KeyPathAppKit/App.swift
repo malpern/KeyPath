@@ -277,8 +277,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 if !self.initialMainWindowShown {
                     AppLogger.shared.info("🪟 [AppDelegate] Splash fallback auto-hide (app never activated)")
                     self.initialMainWindowShown = true
-                    LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
-                    self.mainWindowController?.window?.orderOut(nil)
+                    if await self.hasCompletedInitialWizard() {
+                        LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
+                        self.mainWindowController?.window?.orderOut(nil)
+                    } else {
+                        AppLogger.shared.info("🪟 [AppDelegate] Splash fallback kept visible — initial wizard incomplete")
+                        self.mainWindowController?.show(focus: false)
+                    }
                 }
             }
         } else {
@@ -326,7 +331,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.shared.debug(
             "🔍 [AppDelegate] applicationShouldHandleReopen (hasVisibleWindows=\(flag))"
         )
-        presentReopenSurface(trigger: "reopen")
+        Task { @MainActor in
+            await presentReopenSurface(trigger: "reopen")
+        }
         return true
     }
 
@@ -345,11 +352,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Present the right surface for a user-initiated "open KeyPath" action
     /// (Dock/Raycast/Spotlight reopen or menu-bar "Show KeyPath").
-    private func presentReopenSurface(trigger: String) {
+    private func hasCompletedInitialWizard() async -> Bool {
+        guard hasExistingConfig else { return false }
+        let isFreshInstall = await Self.checkIsFreshInstall()
+        return !isFreshInstall
+    }
+
+    private func presentReopenSurface(trigger: String) async {
         unhideAndActivate()
 
+        let completedInitialWizard = await hasCompletedInitialWizard()
         let surface = ReopenPolicy.surface(
             hasExistingConfig: hasExistingConfig,
+            hasCompletedInitialWizard: completedInitialWizard,
             overlayVisible: LiveKeyboardOverlayController.shared.isVisible
         )
 
@@ -445,8 +460,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         suppressLaunchSplashAutoHide = false
 
         if hasExistingConfig {
-            AppLogger.shared.info("🪟 [AppDelegate] Relaunch detected — skipping splash, restoring overlay directly")
-            LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
+            Task { @MainActor in
+                if await hasCompletedInitialWizard() {
+                    AppLogger.shared.info("🪟 [AppDelegate] Relaunch detected — skipping splash, restoring overlay directly")
+                    LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
+                } else {
+                    AppLogger.shared.info("🪟 [AppDelegate] Initial wizard incomplete — showing setup surface, not overlay")
+                    showSplashWindow()
+                }
+            }
             return
         }
 
@@ -462,14 +484,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             AppLogger.shared.info("[AppDelegate] Launch splash delay: \(splashDelayMs)ms")
             try? await Task.sleep(for: .milliseconds(splashDelayMs))
 
-            LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
-            AppLogger.shared.info("🪟 [AppDelegate] First activation - overlay shown")
+            if await self.hasCompletedInitialWizard() {
+                LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
+                AppLogger.shared.info("🪟 [AppDelegate] First activation - overlay shown")
 
-            if !self.suppressLaunchSplashAutoHide {
-                self.mainWindowController?.window?.orderOut(nil)
-                AppLogger.shared.info("🪟 [AppDelegate] Auto-hid launch splash window")
+                if !self.suppressLaunchSplashAutoHide {
+                    self.mainWindowController?.window?.orderOut(nil)
+                    AppLogger.shared.info("🪟 [AppDelegate] Auto-hid launch splash window")
+                } else {
+                    AppLogger.shared.info("🪟 [AppDelegate] Splash auto-hide suppressed (user re-opened during launch)")
+                }
             } else {
-                AppLogger.shared.info("🪟 [AppDelegate] Splash auto-hide suppressed (user re-opened during launch)")
+                AppLogger.shared.info("🪟 [AppDelegate] Initial wizard incomplete — keeping splash visible, not showing overlay")
             }
         }
 
@@ -480,8 +506,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if !LiveKeyboardOverlayController.shared.isVisible,
            LiveKeyboardOverlayController.shared.canAutoShow
         {
-            LiveKeyboardOverlayController.shared.showForStartup()
-            AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - showing overlay")
+            Task { @MainActor in
+                if await hasCompletedInitialWizard() {
+                    LiveKeyboardOverlayController.shared.showForStartup()
+                    AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - showing overlay")
+                } else {
+                    AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - initial wizard incomplete, not showing overlay")
+                    showSplashWindow()
+                }
+            }
         } else if !LiveKeyboardOverlayController.shared.isVisible {
             AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - overlay hidden by user, not auto-showing")
         } else {
@@ -705,7 +738,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showKeyPathFromStatusItem() {
         AppLogger.shared.debug("☰ [MenuBar] Show KeyPath requested from status item")
-        presentReopenSurface(trigger: "status item")
+        Task { @MainActor in
+            await self.presentReopenSurface(trigger: "status item")
+        }
     }
 
     // MARK: - Private: Wizard
