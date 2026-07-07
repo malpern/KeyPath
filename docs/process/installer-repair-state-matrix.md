@@ -149,9 +149,11 @@ the result as user action required and name the approval surface.
   and `SystemStateProviderLivenessTests.testProcessDiscoveryRejectsBlankPatterns`
   pin the provider contract, while
   `KanataDaemonManagerTests.testRegisteredButNotLoadedUsesInjectedSystemStateProviderForProcessDiscovery`,
-  `PgrepProcessDiscoveryLintTests.testServiceLifecycleCoordinatorDelegatesPgrepDiscoveryToSystemStateProvider`
-  and `PgrepProcessDiscoveryLintTests.testKanataDaemonManagerDelegatesPgrepDiscoveryToSystemStateProvider`
-  block migrated runtime/daemon-manager consumers from bypassing it.
+  `PgrepProcessDiscoveryLintTests.testServiceLifecycleCoordinatorDelegatesPgrepDiscoveryToSystemStateProvider`,
+  `PgrepProcessDiscoveryLintTests.testKanataDaemonManagerDelegatesPgrepDiscoveryToSystemStateProvider`,
+  `SystemValidatorTests.karabinerGrabberPIDUsesInjectedSystemStateProvider`,
+  and `PgrepProcessDiscoveryLintTests.testSystemValidatorDelegatesPgrepDiscoveryToSystemStateProvider`
+  block migrated runtime/system-validator consumers from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References
