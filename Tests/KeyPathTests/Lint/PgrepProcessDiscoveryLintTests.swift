@@ -122,6 +122,29 @@ final class PgrepProcessDiscoveryLintTests: XCTestCase {
             """
         )
     }
+
+    func testDiagnosticsServiceDelegatesPgrepDiscoveryToSystemStateProvider() throws {
+        let service = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Services/Monitoring/DiagnosticsService.swift")
+
+        let violations = try matchingLines(
+            in: service,
+            patterns: [
+                #"SubprocessRunner\.shared\.pgrep"#,
+                #"subprocessRunner\.pgrep"#,
+                #"/usr/bin/pgrep"#
+            ]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            DiagnosticsService must delegate process discovery to \
+            SystemStateProvider instead of calling pgrep directly:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {
