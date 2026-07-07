@@ -81,6 +81,48 @@ final class VHIDDeviceManagerTests: XCTestCase {
         XCTAssertFalse(running, "No daemon should be reported as not running")
     }
 
+    func testDetectRunningUsesInjectedSystemStateProviderForProcessDiscovery() async {
+        KeyPathCore.FeatureFlags.testStartupMode = false
+        VHIDDeviceManager.testPIDProvider = nil
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configurePgrepResult { pattern in
+            pattern == "Karabiner-VirtualHIDDevice-Daemon" ? [12345] : []
+        }
+
+        let provider = SystemStateProvider(subprocessRunner: runner)
+        let mgr = VHIDDeviceManager(systemStateProvider: provider)
+        let running = await mgr.detectRunning()
+        let commands = await runner.executedCommands
+
+        XCTAssertTrue(running, "Injected provider should report the daemon as running")
+        XCTAssertTrue(
+            commands.contains { $0.executable == "/usr/bin/pgrep" && $0.args == ["-f", "Karabiner-VirtualHIDDevice-Daemon"] },
+            "VHIDDeviceManager should use the injected provider for daemon process discovery"
+        )
+    }
+
+    func testGetDaemonPIDsUsesInjectedSystemStateProviderForProcessDiscovery() async {
+        KeyPathCore.FeatureFlags.testStartupMode = false
+        VHIDDeviceManager.testPIDProvider = nil
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configurePgrepResult { pattern in
+            pattern == "Karabiner-VirtualHIDDevice-Daemon" ? [12345, 67890] : []
+        }
+
+        let provider = SystemStateProvider(subprocessRunner: runner)
+        let mgr = VHIDDeviceManager(systemStateProvider: provider)
+        let pids = await mgr.getDaemonPIDs()
+        let commands = await runner.executedCommands
+
+        XCTAssertEqual(pids, ["12345", "67890"])
+        XCTAssertTrue(
+            commands.contains { $0.executable == "/usr/bin/pgrep" && $0.args == ["-f", "Karabiner-VirtualHIDDevice-Daemon"] },
+            "VHIDDeviceManager should use the injected provider when collecting daemon PIDs"
+        )
+    }
+
     // MARK: - Startup Mode Tests
 
     func testDetectRunning_StartupMode_DaemonRunning() async {

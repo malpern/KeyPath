@@ -8,6 +8,8 @@ import KeyPathCore
 // (testPIDProvider, testShellProvider, testInstalledVersionProvider) are nonisolated(unsafe)
 // test seams only written during single-threaded test setup.
 public final class VHIDDeviceManager: @unchecked Sendable {
+    private let systemStateProvider: SystemStateProvider
+
     private enum DaemonHealthState {
         case healthy
         case notRunning
@@ -42,7 +44,9 @@ public final class VHIDDeviceManager: @unchecked Sendable {
         nonisolated(unsafe) static var testInstalledVersionProvider: (() -> String?)?
     #endif
 
-    public init() {}
+    public init(systemStateProvider: SystemStateProvider = .shared) {
+        self.systemStateProvider = systemStateProvider
+    }
 
     // MARK: - Step Progress Reporting
 
@@ -221,6 +225,7 @@ public final class VHIDDeviceManager: @unchecked Sendable {
             return isRunning ? .healthy : .notRunning
         }
 
+        let systemStateProvider = systemStateProvider
         return await Task.detached {
             // Test seam: allow mocked PID list in tests
             #if DEBUG
@@ -251,7 +256,7 @@ public final class VHIDDeviceManager: @unchecked Sendable {
             #endif
 
             let startTime = CFAbsoluteTimeGetCurrent()
-            let pids = await SubprocessRunner.shared.pgrep(Self.vhidDeviceRunningCheck)
+            let pids = await systemStateProvider.processIDs(matching: Self.vhidDeviceRunningCheck)
             let processCount = pids.count
             let isRunning = processCount > 0
 
@@ -307,7 +312,7 @@ public final class VHIDDeviceManager: @unchecked Sendable {
             }
         #endif
 
-        let pids = await SubprocessRunner.shared.pgrep(Self.vhidDeviceRunningCheck)
+        let pids = await systemStateProvider.processIDs(matching: Self.vhidDeviceRunningCheck)
         return pids.map { String($0) }
     }
 
