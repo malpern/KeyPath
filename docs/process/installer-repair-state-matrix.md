@@ -144,6 +144,12 @@ the result as user action required and name the approval surface.
   `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed` plus
   `TCPReadinessLintTests.testProductionRawTCPSocketProbeIsCentralized` block
   production readiness checks from bypassing the provider.
+- `pgrep` process discovery belongs in `SystemStateProvider.processIDs(matching:)`.
+  `SystemStateProviderLivenessTests.testProcessDiscoveryDelegatesToInjectedSubprocessRunner`
+  and `SystemStateProviderLivenessTests.testProcessDiscoveryRejectsBlankPatterns`
+  pin the provider contract, while
+  `PgrepProcessDiscoveryLintTests.testServiceLifecycleCoordinatorDelegatesPgrepDiscoveryToSystemStateProvider`
+  blocks the first migrated runtime coordinator consumer from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References

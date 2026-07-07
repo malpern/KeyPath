@@ -1,0 +1,58 @@
+import Foundation
+@preconcurrency import XCTest
+
+/// Guards W1/W2 process-discovery migration slices.
+///
+/// `pgrep` remains the low-level subprocess mechanism for now, but production
+/// process-discovery consumers should call `SystemStateProvider` so Phase 1 can
+/// collapse process, TCP, and later launchd/SMAppService evidence into one
+/// executable snapshot.
+final class PgrepProcessDiscoveryLintTests: XCTestCase {
+    func testServiceLifecycleCoordinatorDelegatesPgrepDiscoveryToSystemStateProvider() throws {
+        let coordinator = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/ServiceLifecycleCoordinator.swift")
+
+        let violations = try matchingLines(
+            in: coordinator,
+            patterns: [
+                #"SubprocessRunner\.shared\.pgrep"#,
+                #"subprocessRunner\.pgrep"#,
+                #"/usr/bin/pgrep"#
+            ]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            ServiceLifecycleCoordinator must delegate process discovery to \
+            SystemStateProvider instead of calling pgrep directly:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
+}
+
+private func repositoryRoot(file: StaticString = #filePath) -> URL {
+    URL(fileURLWithPath: "\(file)")
+        .deletingLastPathComponent() // PgrepProcessDiscoveryLintTests.swift
+        .deletingLastPathComponent() // Lint
+        .deletingLastPathComponent() // KeyPathTests
+        .deletingLastPathComponent() // Tests
+}
+
+private func matchingLines(in fileURL: URL, patterns: [String]) throws -> [String] {
+    let contents = try String(contentsOf: fileURL, encoding: .utf8)
+    let regexes = try patterns.map { try NSRegularExpression(pattern: $0) }
+    let relativePath = fileURL.path.replacingOccurrences(of: repositoryRoot().path + "/", with: "")
+
+    var violations: [String] = []
+    for (idx, rawLine) in contents.components(separatedBy: .newlines).enumerated() {
+        let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("//") || trimmed.hasPrefix("///") || trimmed.hasPrefix("*") { continue }
+        let range = NSRange(rawLine.startIndex..., in: rawLine)
+        if regexes.contains(where: { $0.firstMatch(in: rawLine, range: range) != nil }) {
+            violations.append("\(relativePath):\(idx + 1): \(trimmed)")
+        }
+    }
+    return violations
+}
