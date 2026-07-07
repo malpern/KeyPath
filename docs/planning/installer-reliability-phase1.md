@@ -87,7 +87,12 @@ classification remains pending.
   `SystemStateProvider`. Enforced by
   `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed` and
   `TCPReadinessLintTests.testProductionRawTCPSocketProbeIsCentralized`.
-- [ ] Migrate `launchctl`, `SMAppService.status`, `pgrep`,
+- [x] Added provider-owned `pgrep` process-discovery primitive and migrated
+  `ServiceLifecycleCoordinator` to delegate to it. Enforced by
+  `SystemStateProviderLivenessTests.testProcessDiscoveryDelegatesToInjectedSubprocessRunner`,
+  `SystemStateProviderLivenessTests.testProcessDiscoveryRejectsBlankPatterns`,
+  and `PgrepProcessDiscoveryLintTests.testServiceLifecycleCoordinatorDelegatesPgrepDiscoveryToSystemStateProvider`.
+- [ ] Migrate `launchctl`, `SMAppService.status`, remaining `pgrep` consumers,
   permissions, VHID state, and helper freshness into a single immutable
   `SystemSnapshot`.
 - [ ] Build `classify(snapshot) -> StateMatrixRow -> plan` and table-driven
@@ -130,8 +135,11 @@ through 21 mocked tests).
 - [x] Remaining production TCP readiness consumers delegate to
   `SystemStateProvider`. Enforced by
   `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed`.
-- [ ] Centralize remaining `pgrep` process discovery as later W1/W2 migration
-  slices.
+- [x] `ServiceLifecycleCoordinator` process discovery delegates to
+  `SystemStateProvider.processIDs(matching:)`. Enforced by
+  `PgrepProcessDiscoveryLintTests.testServiceLifecycleCoordinatorDelegatesPgrepDiscoveryToSystemStateProvider`.
+- [ ] Centralize remaining `pgrep` process-discovery consumers as later W1/W2
+  migration slices.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -237,8 +245,11 @@ is listed in the state-matrix doc's enforcement section.
   `TCPReadinessLintTests.testProductionRawTCPSocketProbeIsCentralized` prevent
   production readiness checks from drifting back to the legacy adapter or raw
   socket probes outside `SystemStateProvider`.
-- [ ] Add `launchctl`, `pgrep`, postcondition, and snapshot-cache ratchets with
-  the corresponding migration slices.
+- [x] `PgrepProcessDiscoveryLintTests.testServiceLifecycleCoordinatorDelegatesPgrepDiscoveryToSystemStateProvider`
+  prevents the first migrated runtime coordinator call site from regrowing
+  direct `pgrep` process discovery.
+- [ ] Add `launchctl`, broader `pgrep`, postcondition, and snapshot-cache
+  ratchets with the corresponding migration slices.
 
 ## Workstream 6: Deletion Pass
 

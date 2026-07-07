@@ -39,7 +39,7 @@ final class ServiceLifecycleCoordinator {
     // inject deterministic closures; production always uses the real subprocess /
     // syscall / TCP probe. DEBUG-only and nil in production.
     #if DEBUG
-        /// Replaces `SubprocessRunner.shared.pgrep`. Returns matching PIDs for a name.
+        /// Replaces provider-backed process discovery. Returns matching PIDs for a name.
         nonisolated(unsafe) static var testPgrepProvider: ((String) -> [pid_t])?
         /// Replaces `kill(pid, 0)`. Returns `true` when the process is still alive.
         nonisolated(unsafe) static var testLivenessProbe: ((pid_t) -> Bool)?
@@ -586,7 +586,7 @@ final class ServiceLifecycleCoordinator {
         // (see CLAUDE.md) and would let synthetic PIDs reach a real `kill`. Tests that
         // need orphan PIDs inject `testPgrepProvider`; everything else gets a clean slate.
         if TestEnvironment.isRunningTests { return [] }
-        return await SubprocessRunner.shared.pgrep(name)
+        return await SystemStateProvider.shared.processIDs(matching: name)
     }
 
     private func detectRunningKanataIdentity() async -> RunningKanataIdentity? {

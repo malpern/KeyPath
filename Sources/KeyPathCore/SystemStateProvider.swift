@@ -8,7 +8,11 @@ import Foundation
 public actor SystemStateProvider {
     public static let shared = SystemStateProvider()
 
-    public init() {}
+    private let subprocessRunner: any SubprocessRunning
+
+    public init(subprocessRunner: any SubprocessRunning = SubprocessRunner.shared) {
+        self.subprocessRunner = subprocessRunner
+    }
 
     public nonisolated func isProcessAlive(pid: pid_t) -> Bool {
         Self.isProcessAlive(pid: pid)
@@ -18,6 +22,12 @@ public actor SystemStateProvider {
         await Task.detached(priority: .utility) {
             Self.probeTCPPort(port: port, timeoutMs: timeoutMs)
         }.value
+    }
+
+    public func processIDs(matching pattern: String) async -> [pid_t] {
+        let trimmedPattern = pattern.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPattern.isEmpty else { return [] }
+        return await subprocessRunner.pgrep(trimmedPattern)
     }
 
     public nonisolated static func isProcessAlive(pid: pid_t) -> Bool {

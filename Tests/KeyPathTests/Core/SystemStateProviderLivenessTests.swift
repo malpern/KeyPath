@@ -53,6 +53,33 @@ final class SystemStateProviderLivenessTests: XCTestCase {
         XCTAssertFalse(tooLargePort)
         XCTAssertFalse(negativeTimeout)
     }
+
+    func testProcessDiscoveryDelegatesToInjectedSubprocessRunner() async {
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configurePgrepResult { pattern in
+            pattern == "kanata.*--cfg" ? [1234, 5678] : []
+        }
+        let provider = SystemStateProvider(subprocessRunner: runner)
+
+        let pids = await provider.processIDs(matching: "kanata.*--cfg")
+
+        XCTAssertEqual(pids, [1234, 5678])
+    }
+
+    func testProcessDiscoveryRejectsBlankPatterns() async {
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configurePgrepResult { _ in
+            XCTFail("Blank process-discovery patterns must not invoke pgrep")
+            return [9999]
+        }
+        let provider = SystemStateProvider(subprocessRunner: runner)
+
+        let pids = await provider.processIDs(matching: "  \n\t  ")
+
+        XCTAssertEqual(pids, [])
+    }
 }
 
 private final class LocalhostTCPListener {
