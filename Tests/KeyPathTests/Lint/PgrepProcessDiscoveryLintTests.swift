@@ -76,6 +76,29 @@ final class PgrepProcessDiscoveryLintTests: XCTestCase {
             """
         )
     }
+
+    func testKarabinerConflictServiceDelegatesPgrepDiscoveryToSystemStateProvider() throws {
+        let service = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Services/Karabiner/KarabinerConflictService.swift")
+
+        let violations = try matchingLines(
+            in: service,
+            patterns: [
+                #"SubprocessRunner\.shared\.pgrep"#,
+                #"subprocessRunner\.pgrep"#,
+                #"/usr/bin/pgrep"#
+            ]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            KarabinerConflictService must delegate process discovery to \
+            SystemStateProvider instead of calling pgrep directly:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {
