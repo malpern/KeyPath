@@ -35,13 +35,16 @@ final class KarabinerConflictService: KarabinerConflictManaging {
 
     private let engineFactory: () -> (any InstallerEnginePrivilegedRouting)
     private let brokerFactory: () -> PrivilegeBroker
+    private let systemStateProvider: SystemStateProvider
 
     init(
         engineFactory: @escaping () -> (any InstallerEnginePrivilegedRouting) = { InstallerEngine() },
-        brokerFactory: @escaping () -> PrivilegeBroker = { PrivilegeBroker() }
+        brokerFactory: @escaping () -> PrivilegeBroker = { PrivilegeBroker() },
+        systemStateProvider: SystemStateProvider = .shared
     ) {
         self.engineFactory = engineFactory
         self.brokerFactory = brokerFactory
+        self.systemStateProvider = systemStateProvider
     }
 
     // MARK: - Constants
@@ -135,7 +138,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
         // Check if Karabiner-Elements grabber is running (conflicts with Kanata)
         return await withCheckedContinuation { continuation in
             Task {
-                let pids = await SubprocessRunner.shared.pgrep("karabiner_grabber")
+                let pids = await systemStateProvider.processIDs(matching: "karabiner_grabber")
                 let isRunning = !pids.isEmpty
 
                 if isRunning {
@@ -180,7 +183,7 @@ final class KarabinerConflictService: KarabinerConflictManaging {
         return await withCheckedContinuation { continuation in
             Task {
                 let startTime = CFAbsoluteTimeGetCurrent()
-                let pids = await SubprocessRunner.shared.pgrep("VirtualHIDDevice-Daemon")
+                let pids = await systemStateProvider.processIDs(matching: "VirtualHIDDevice-Daemon")
                 let isRunning = !pids.isEmpty
 
                 let duration = CFAbsoluteTimeGetCurrent() - startTime
@@ -450,8 +453,8 @@ final class KarabinerConflictService: KarabinerConflictManaging {
         return allStopped
     }
 
-    private func checkProcessStopped(pattern: String, processName: String) async -> Bool {
-        let pids = await SubprocessRunner.shared.pgrep(pattern)
+    func checkProcessStopped(pattern: String, processName: String) async -> Bool {
+        let pids = await systemStateProvider.processIDs(matching: pattern)
         let isStopped = pids.isEmpty // pgrep returns empty array if no processes found
 
         if isStopped {

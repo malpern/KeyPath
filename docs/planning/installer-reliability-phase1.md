@@ -89,14 +89,19 @@ classification remains pending.
   `TCPReadinessLintTests.testProductionRawTCPSocketProbeIsCentralized`.
 - [x] Added provider-owned `pgrep` process-discovery primitive and migrated
   `ServiceLifecycleCoordinator`, `KanataDaemonManager`, and `SystemValidator`
-  to delegate to it. Enforced by
+  to delegate to it. Started migrating Karabiner conflict detection as a
+  follow-on process-discovery slice. Enforced by
   `SystemStateProviderLivenessTests.testProcessDiscoveryDelegatesToInjectedSubprocessRunner`,
   `SystemStateProviderLivenessTests.testProcessDiscoveryRejectsBlankPatterns`,
   `PgrepProcessDiscoveryLintTests.testServiceLifecycleCoordinatorDelegatesPgrepDiscoveryToSystemStateProvider`,
   `KanataDaemonManagerTests.testRegisteredButNotLoadedUsesInjectedSystemStateProviderForProcessDiscovery`,
   `PgrepProcessDiscoveryLintTests.testKanataDaemonManagerDelegatesPgrepDiscoveryToSystemStateProvider`,
   `SystemValidatorTests.karabinerGrabberPIDUsesInjectedSystemStateProvider`,
-  and `PgrepProcessDiscoveryLintTests.testSystemValidatorDelegatesPgrepDiscoveryToSystemStateProvider`.
+  `PgrepProcessDiscoveryLintTests.testSystemValidatorDelegatesPgrepDiscoveryToSystemStateProvider`,
+  `KarabinerConflictServiceTests.karabinerGrabberDetectionUsesInjectedSystemStateProvider`,
+  `KarabinerConflictServiceTests.virtualHIDDaemonDetectionUsesInjectedSystemStateProvider`,
+  `KarabinerConflictServiceTests.stoppedProcessVerificationUsesInjectedSystemStateProvider`,
+  and `PgrepProcessDiscoveryLintTests.testKarabinerConflictServiceDelegatesPgrepDiscoveryToSystemStateProvider`.
 - [ ] Migrate `launchctl`, `SMAppService.status`, remaining `pgrep` consumers,
   permissions, VHID state, and helper freshness into a single immutable
   `SystemSnapshot`.
@@ -153,6 +158,13 @@ through 21 mocked tests).
   `SystemValidatorTests.karabinerGrabberPIDUsesInjectedSystemStateProvider`
   and
   `PgrepProcessDiscoveryLintTests.testSystemValidatorDelegatesPgrepDiscoveryToSystemStateProvider`.
+- [x] `KarabinerConflictService` process discovery delegates to
+  `SystemStateProvider.processIDs(matching:)`. Enforced by
+  `KarabinerConflictServiceTests.karabinerGrabberDetectionUsesInjectedSystemStateProvider`,
+  `KarabinerConflictServiceTests.virtualHIDDaemonDetectionUsesInjectedSystemStateProvider`,
+  `KarabinerConflictServiceTests.stoppedProcessVerificationUsesInjectedSystemStateProvider`,
+  and
+  `PgrepProcessDiscoveryLintTests.testKarabinerConflictServiceDelegatesPgrepDiscoveryToSystemStateProvider`.
 - [ ] Centralize remaining `pgrep` process-discovery consumers as later W1/W2
   migration slices.
 
@@ -269,6 +281,9 @@ is listed in the state-matrix doc's enforcement section.
 - [x] `PgrepProcessDiscoveryLintTests.testSystemValidatorDelegatesPgrepDiscoveryToSystemStateProvider`
   prevents the system-validator process discovery call site from regrowing
   direct `pgrep` process discovery.
+- [x] `PgrepProcessDiscoveryLintTests.testKarabinerConflictServiceDelegatesPgrepDiscoveryToSystemStateProvider`
+  prevents Karabiner conflict detection from regrowing direct
+  `pgrep` process discovery.
 - [ ] Add `launchctl`, broader `pgrep`, postcondition, and snapshot-cache
   ratchets with the corresponding migration slices.
 
