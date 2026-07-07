@@ -1,8 +1,6 @@
-import Darwin
 import Foundation
 import KeyPathCore
 import KeyPathWizardCore
-import Network
 import os.lock
 
 /// Handles health checking and status reporting for LaunchDaemon services.
@@ -530,15 +528,8 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         let runningState = await evaluateKanataLaunchctlRunningState(managementState: managementState, launchctlTargets: targets)
         let isRunning = runningState.isRunning
 
-        // 2) TCP probe (Hello/Status) - runs off MainActor via Task.detached for blocking socket ops
-        let tcpOK = await Task.detached { [self] in
-            if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
-               let overridePort = Int(portEnv)
-            {
-                return probeTCP(port: overridePort, timeoutMs: timeoutMs)
-            }
-            return probeTCP(port: tcpPort, timeoutMs: timeoutMs)
-        }.value
+        // 2) TCP readiness through the shared system-state provider.
+        let tcpOK = await probeConfiguredTCPPort(defaultPort: tcpPort, timeoutMs: timeoutMs)
 
         return KanataHealthSnapshot(
             isRunning: isRunning,
@@ -634,14 +625,7 @@ public final class ServiceHealthChecker: @unchecked Sendable {
                 issue: Self.inputCaptureVHIDDriverNotActivatedReason
             )
         let inputCapture = Self.resolveInputCaptureStatus(stderrFallback: stderrFallback)
-        let tcpOK = await Task.detached { [self] in
-            if let portEnv = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"],
-               let overridePort = Int(portEnv)
-            {
-                return probeTCP(port: overridePort, timeoutMs: timeoutMs)
-            }
-            return probeTCP(port: tcpPort, timeoutMs: timeoutMs)
-        }.value
+        let tcpOK = await probeConfiguredTCPPort(defaultPort: tcpPort, timeoutMs: timeoutMs)
 
         return KanataServiceRuntimeSnapshot(
             managementState: managementState,
@@ -1058,46 +1042,10 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         return WizardSystemPaths.remapSystemPath("/Library/LaunchDaemons")
     }
 
-    /// Probe TCP port to check if service is responding.
-    ///
-    /// Uses POSIX socket with non-blocking connect and poll for timeout handling.
-    ///
-    /// - Parameters:
-    ///   - port: TCP port to probe
-    ///   - timeoutMs: Connection timeout in milliseconds
-    /// - Returns: `true` if connection succeeded
-    private nonisolated func probeTCP(port: Int, timeoutMs: Int) -> Bool {
-        // Use POSIX socket probe directly since TCPProbe is in KeyPathAppKit
-        let sock = socket(AF_INET, SOCK_STREAM, 0)
-        guard sock >= 0 else { return false }
-        defer { close(sock) }
-
-        // Set non-blocking
-        let flags = fcntl(sock, F_GETFL, 0)
-        _ = fcntl(sock, F_SETFL, flags | O_NONBLOCK)
-
-        var addr = sockaddr_in()
-        addr.sin_family = sa_family_t(AF_INET)
-        addr.sin_port = UInt16(port).bigEndian
-        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
-
-        let connectResult = withUnsafePointer(to: &addr) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                connect(sock, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
-            }
-        }
-
-        if connectResult == 0 { return true }
-        guard errno == EINPROGRESS else { return false }
-
-        var pollFd = pollfd(fd: sock, events: Int16(POLLOUT), revents: 0)
-        let pollResult = poll(&pollFd, 1, Int32(timeoutMs))
-        guard pollResult > 0 else { return false }
-
-        var optError: Int32 = 0
-        var optLen = socklen_t(MemoryLayout<Int32>.size)
-        getsockopt(sock, SOL_SOCKET, SO_ERROR, &optError, &optLen)
-        return optError == 0
+    private nonisolated func probeConfiguredTCPPort(defaultPort: Int, timeoutMs: Int) async -> Bool {
+        let effectivePort = ProcessInfo.processInfo.environment["KEYPATH_TCP_PORT"]
+            .flatMap(Int.init) ?? defaultPort
+        return await SystemStateProvider.shared.isTCPPortResponding(port: effectivePort, timeoutMs: timeoutMs)
     }
 }
 

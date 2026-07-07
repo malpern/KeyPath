@@ -72,12 +72,17 @@ apply. Checklists decay; that is how the loop happened. Make it code.
 - Wizard, CLI, and menu bar cannot disagree about system state because they
   cannot read different sources.
 
-**Status (2026-07-06):** First provider slice implemented; full snapshot
+**Status (2026-07-07):** First provider slices implemented; full snapshot
 classification remains pending.
 - [x] Introduced `SystemStateProvider` as the owner for the ADR-040
   process-liveness primitive and Kanata readiness predicate. Enforced by
   `SystemStateProviderLivenessTests.testProcessLivenessProbeTreatsCurrentProcessAsAliveAndExitedProcessAsDead`
   and `SystemStateProviderLivenessTests.testKanataReadinessRequiresRunningAndResponding`.
+- [x] Moved the TCP readiness primitive into `SystemStateProvider` and migrated
+  `ServiceHealthChecker` to delegate to it. Enforced by
+  `SystemStateProviderLivenessTests.testTCPReadinessProbeDetectsListeningAndClosedPorts`,
+  `SystemStateProviderLivenessTests.testTCPReadinessRejectsInvalidPorts`, and
+  `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`.
 - [ ] Migrate `launchctl`, `SMAppService.status`, `pgrep`, TCP probes,
   permissions, VHID state, and helper freshness into a single immutable
   `SystemSnapshot`.
@@ -105,7 +110,7 @@ through 21 mocked tests).
 - A grounding test runs the real primitive against a known-alive pid
   (`getpid()`) and a known-dead pid (ADR-040 §3), not only mocked seams.
 
-**Status (2026-07-06):** First liveness-predicate slice implemented.
+**Status (2026-07-07):** First liveness/readiness predicate slices implemented.
 - [x] `kill(pid, 0)` liveness semantics exist in exactly one production
   function, `SystemStateProvider.isProcessAlive(pid:)`. Enforced by
   `LivenessPredicateLintTests.testKillZeroLivenessProbeIsCentralized`.
@@ -114,8 +119,12 @@ through 21 mocked tests).
   `SystemStateProviderLivenessTests.testProcessLivenessProbeTreatsCurrentProcessAsAliveAndExitedProcessAsDead`.
 - [x] Kanata readiness is pinned to `running && responding`. Enforced by
   `SystemStateProviderLivenessTests.testKanataReadinessRequiresRunningAndResponding`.
-- [ ] Centralize remaining `pgrep` process discovery and TCP readiness probes
-  as later W1/W2 migration slices.
+- [x] TCP readiness has a provider-owned primitive with a real local listener
+  grounding test. Enforced by
+  `SystemStateProviderLivenessTests.testTCPReadinessProbeDetectsListeningAndClosedPorts`
+  and `SystemStateProviderLivenessTests.testTCPReadinessRejectsInvalidPorts`.
+- [ ] Centralize remaining `pgrep` process discovery and remaining TCP readiness
+  consumers as later W1/W2 migration slices.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -211,12 +220,14 @@ context loss across sessions, contributors, and agents. Extend it:
 **Acceptance criteria:** each ratchet lands with the workstream it protects and
 is listed in the state-matrix doc's enforcement section.
 
-**Status (2026-07-06):** First liveness ratchet implemented.
+**Status (2026-07-07):** First liveness/readiness ratchets implemented.
 - [x] `LivenessPredicateLintTests.testKillZeroLivenessProbeIsCentralized`
   prevents new direct `kill(pid, 0)` liveness probes outside
   `SystemStateProvider`.
-- [ ] Add `launchctl`, `pgrep`, TCP-probe, postcondition, and snapshot-cache
-  ratchets with the corresponding migration slices.
+- [x] `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
+  prevents `ServiceHealthChecker` from regrowing a private TCP socket probe.
+- [ ] Add `launchctl`, `pgrep`, broader TCP-probe, postcondition, and
+  snapshot-cache ratchets with the corresponding migration slices.
 
 ## Workstream 6: Deletion Pass
 
