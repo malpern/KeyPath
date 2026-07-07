@@ -40,12 +40,90 @@ final class TCPReadinessLintTests: XCTestCase {
             """
         )
     }
+
+    func testProductionTCPProbeAdapterIsNoLongerUsed() throws {
+        let violations = try sourceFiles(excludingPathSuffixes: ["Sources/KeyPathAppKit/Utilities/TCPProbe.swift"])
+            .flatMap { fileURL in
+                try matchingLines(
+                    in: fileURL,
+                    patterns: [#"TCPProbe\.probe\s*\("#]
+                )
+            }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            Production TCP readiness must call SystemStateProvider directly \
+            instead of the legacy TCPProbe adapter:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
+
+    func testProductionRawTCPSocketProbeIsCentralized() throws {
+        let violations = try sourceFiles(excludingPathSuffixes: ["Sources/KeyPathCore/SystemStateProvider.swift"])
+            .flatMap { fileURL in
+                try matchingLines(
+                    in: fileURL,
+                    patterns: [
+                        #"socket\s*\(\s*AF_INET"#,
+                        #"getsockopt\s*\("#,
+                        #"EINPROGRESS"#,
+                        #"POLLOUT"#
+                    ]
+                )
+            }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            Production raw TCP socket readiness probes must stay centralized in \
+            SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {
     URL(fileURLWithPath: "\(file)")
+        .deletingLastPathComponent() // TCPReadinessLintTests.swift
         .deletingLastPathComponent() // Lint
         .deletingLastPathComponent() // KeyPathTests
         .deletingLastPathComponent() // Tests
-        .deletingLastPathComponent() // repo root
+}
+
+private func sourceFiles(excludingPathSuffixes excludedSuffixes: Set<String>) throws -> [URL] {
+    let sourcesRoot = repositoryRoot().appendingPathComponent("Sources")
+    let enumerator = FileManager.default.enumerator(
+        at: sourcesRoot,
+        includingPropertiesForKeys: [.isRegularFileKey],
+        options: [.skipsHiddenFiles]
+    )
+
+    var files: [URL] = []
+    while let fileURL = enumerator?.nextObject() as? URL {
+        guard fileURL.pathExtension == "swift" else { continue }
+        let relativePath = fileURL.path.replacingOccurrences(of: repositoryRoot().path + "/", with: "")
+        if excludedSuffixes.contains(where: { relativePath.hasSuffix($0) }) { continue }
+        files.append(fileURL)
+    }
+    return files
+}
+
+private func matchingLines(in fileURL: URL, patterns: [String]) throws -> [String] {
+    let contents = try String(contentsOf: fileURL, encoding: .utf8)
+    let regexes = try patterns.map { try NSRegularExpression(pattern: $0) }
+    let relativePath = fileURL.path.replacingOccurrences(of: repositoryRoot().path + "/", with: "")
+
+    var violations: [String] = []
+    for (idx, rawLine) in contents.components(separatedBy: .newlines).enumerated() {
+        let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("//") || trimmed.hasPrefix("///") || trimmed.hasPrefix("*") { continue }
+        let range = NSRange(rawLine.startIndex..., in: rawLine)
+        if regexes.contains(where: { $0.firstMatch(in: rawLine, range: range) != nil }) {
+            violations.append("\(relativePath):\(idx + 1): \(trimmed)")
+        }
+    }
+    return violations
 }

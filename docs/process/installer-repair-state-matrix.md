@@ -138,9 +138,12 @@ the result as user action required and name the approval surface.
   new direct `kill(pid, 0)` probes outside the provider.
 - TCP readiness semantics belong in `SystemStateProvider.isTCPPortResponding(port:timeoutMs:)`.
   `SystemStateProviderLivenessTests.testTCPReadinessProbeDetectsListeningAndClosedPorts`
-  proves the real localhost primitive, and
+  proves the real localhost primitive,
   `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
-  blocks `ServiceHealthChecker` from regrowing a private socket probe.
+  blocks `ServiceHealthChecker` from regrowing a private socket probe, and
+  `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed` plus
+  `TCPReadinessLintTests.testProductionRawTCPSocketProbeIsCentralized` block
+  production readiness checks from bypassing the provider.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References

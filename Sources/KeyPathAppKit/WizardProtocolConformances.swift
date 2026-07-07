@@ -175,9 +175,9 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
         ExternalKanataService.hasExternalKanataRunning()
     }
 
-    // TCPProbe
+    // TCP readiness probe
     WizardDependencies.tcpProbe = { port, timeoutMs in
-        TCPProbe.probe(port: port, timeoutMs: timeoutMs)
+        SystemStateProvider.probeTCPPort(port: port, timeoutMs: timeoutMs)
     }
 
     // Page view factories for pages that live in KeyPathAppKit
@@ -255,6 +255,6 @@ func configureCLIWizardDependencies(systemValidator: SystemValidator) {
         ExternalKanataService.hasExternalKanataRunning()
     }
     WizardDependencies.tcpProbe = { port, timeoutMs in
-        TCPProbe.probe(port: port, timeoutMs: timeoutMs)
+        SystemStateProvider.probeTCPPort(port: port, timeoutMs: timeoutMs)
     }
 }

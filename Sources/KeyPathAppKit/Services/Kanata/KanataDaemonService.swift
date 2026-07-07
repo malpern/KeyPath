@@ -240,14 +240,12 @@ final class KanataDaemonService {
                 if let override = Self.tcpProbeOverride {
                     tcpAlive = override(tcpPort, 300)
                 } else {
-                    tcpAlive = await Task.detached(priority: .utility) {
-                        TCPProbe.probe(port: tcpPort, timeoutMs: 300)
-                    }.value
+                    tcpAlive = await SystemStateProvider.shared
+                        .isTCPPortResponding(port: tcpPort, timeoutMs: 300)
                 }
             #else
-                tcpAlive = await Task.detached(priority: .utility) {
-                    TCPProbe.probe(port: tcpPort, timeoutMs: 300)
-                }.value
+                tcpAlive = await SystemStateProvider.shared
+                    .isTCPPortResponding(port: tcpPort, timeoutMs: 300)
             #endif
 
             if tcpAlive {
