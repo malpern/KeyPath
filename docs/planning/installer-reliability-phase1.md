@@ -88,10 +88,12 @@ classification remains pending.
   `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed` and
   `TCPReadinessLintTests.testProductionRawTCPSocketProbeIsCentralized`.
 - [x] Added provider-owned `pgrep` process-discovery primitive and migrated
-  `ServiceLifecycleCoordinator` to delegate to it. Enforced by
+  `ServiceLifecycleCoordinator` and `KanataDaemonManager` to delegate to it. Enforced by
   `SystemStateProviderLivenessTests.testProcessDiscoveryDelegatesToInjectedSubprocessRunner`,
   `SystemStateProviderLivenessTests.testProcessDiscoveryRejectsBlankPatterns`,
-  and `PgrepProcessDiscoveryLintTests.testServiceLifecycleCoordinatorDelegatesPgrepDiscoveryToSystemStateProvider`.
+  `PgrepProcessDiscoveryLintTests.testServiceLifecycleCoordinatorDelegatesPgrepDiscoveryToSystemStateProvider`,
+  `KanataDaemonManagerTests.testRegisteredButNotLoadedUsesInjectedSystemStateProviderForProcessDiscovery`,
+  and `PgrepProcessDiscoveryLintTests.testKanataDaemonManagerDelegatesPgrepDiscoveryToSystemStateProvider`.
 - [ ] Migrate `launchctl`, `SMAppService.status`, remaining `pgrep` consumers,
   permissions, VHID state, and helper freshness into a single immutable
   `SystemSnapshot`.
@@ -138,6 +140,11 @@ through 21 mocked tests).
 - [x] `ServiceLifecycleCoordinator` process discovery delegates to
   `SystemStateProvider.processIDs(matching:)`. Enforced by
   `PgrepProcessDiscoveryLintTests.testServiceLifecycleCoordinatorDelegatesPgrepDiscoveryToSystemStateProvider`.
+- [x] `KanataDaemonManager` process discovery delegates to
+  `SystemStateProvider.processIDs(matching:)`. Enforced by
+  `KanataDaemonManagerTests.testRegisteredButNotLoadedUsesInjectedSystemStateProviderForProcessDiscovery`
+  and
+  `PgrepProcessDiscoveryLintTests.testKanataDaemonManagerDelegatesPgrepDiscoveryToSystemStateProvider`.
 - [ ] Centralize remaining `pgrep` process-discovery consumers as later W1/W2
   migration slices.
 
@@ -247,6 +254,9 @@ is listed in the state-matrix doc's enforcement section.
   socket probes outside `SystemStateProvider`.
 - [x] `PgrepProcessDiscoveryLintTests.testServiceLifecycleCoordinatorDelegatesPgrepDiscoveryToSystemStateProvider`
   prevents the first migrated runtime coordinator call site from regrowing
+  direct `pgrep` process discovery.
+- [x] `PgrepProcessDiscoveryLintTests.testKanataDaemonManagerDelegatesPgrepDiscoveryToSystemStateProvider`
+  prevents the daemon-management process discovery call site from regrowing
   direct `pgrep` process discovery.
 - [ ] Add `launchctl`, broader `pgrep`, postcondition, and snapshot-cache
   ratchets with the corresponding migration slices.
