@@ -86,7 +86,7 @@ public enum WizardDependencies {
     /// Check if external Kanata is running
     public nonisolated(unsafe) static var hasExternalKanataRunning: (() -> Bool)?
 
-    // MARK: - TCPProbe (static method)
+    // MARK: - TCP readiness probe
 
     /// TCP connectivity probe
     public nonisolated(unsafe) static var tcpProbe: ((Int, Int) -> Bool)?

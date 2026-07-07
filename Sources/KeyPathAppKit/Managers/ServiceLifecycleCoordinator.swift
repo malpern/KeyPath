@@ -46,7 +46,7 @@ final class ServiceLifecycleCoordinator {
         /// Replaces `kill(pid, signal)` for SIGTERM/SIGKILL so tests with synthetic PIDs
         /// never signal a real, unrelated process on the machine.
         nonisolated(unsafe) static var testSignal: ((pid_t, Int32) -> Void)?
-        /// Replaces `TCPProbe.probe`. Returns `true` when something is listening.
+        /// Replaces `SystemStateProvider.isTCPPortResponding`. Returns `true` when something is listening.
         nonisolated(unsafe) static var testTCPProbe: ((Int, Int) -> Bool)?
         /// Replaces `Task.sleep` in the polling loops so tests never wait real time.
         nonisolated(unsafe) static var testSleep: ((Duration) async -> Void)?
@@ -667,9 +667,7 @@ final class ServiceLifecycleCoordinator {
         #if DEBUG
             if let probe = Self.testTCPProbe { return probe(port, timeoutMs) }
         #endif
-        return await Task.detached(priority: .utility) {
-            TCPProbe.probe(port: port, timeoutMs: timeoutMs)
-        }.value
+        return await SystemStateProvider.shared.isTCPPortResponding(port: port, timeoutMs: timeoutMs)
     }
 
     private func waitSleep(_ duration: Duration) async {

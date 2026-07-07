@@ -83,7 +83,11 @@ classification remains pending.
   `SystemStateProviderLivenessTests.testTCPReadinessProbeDetectsListeningAndClosedPorts`,
   `SystemStateProviderLivenessTests.testTCPReadinessRejectsInvalidPorts`, and
   `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`.
-- [ ] Migrate `launchctl`, `SMAppService.status`, `pgrep`, TCP probes,
+- [x] Migrated remaining production `TCPProbe.probe` consumers to
+  `SystemStateProvider`. Enforced by
+  `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed` and
+  `TCPReadinessLintTests.testProductionRawTCPSocketProbeIsCentralized`.
+- [ ] Migrate `launchctl`, `SMAppService.status`, `pgrep`,
   permissions, VHID state, and helper freshness into a single immutable
   `SystemSnapshot`.
 - [ ] Build `classify(snapshot) -> StateMatrixRow -> plan` and table-driven
@@ -123,8 +127,11 @@ through 21 mocked tests).
   grounding test. Enforced by
   `SystemStateProviderLivenessTests.testTCPReadinessProbeDetectsListeningAndClosedPorts`
   and `SystemStateProviderLivenessTests.testTCPReadinessRejectsInvalidPorts`.
-- [ ] Centralize remaining `pgrep` process discovery and remaining TCP readiness
-  consumers as later W1/W2 migration slices.
+- [x] Remaining production TCP readiness consumers delegate to
+  `SystemStateProvider`. Enforced by
+  `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed`.
+- [ ] Centralize remaining `pgrep` process discovery as later W1/W2 migration
+  slices.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -226,8 +233,12 @@ is listed in the state-matrix doc's enforcement section.
   `SystemStateProvider`.
 - [x] `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
   prevents `ServiceHealthChecker` from regrowing a private TCP socket probe.
-- [ ] Add `launchctl`, `pgrep`, broader TCP-probe, postcondition, and
-  snapshot-cache ratchets with the corresponding migration slices.
+- [x] `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed` and
+  `TCPReadinessLintTests.testProductionRawTCPSocketProbeIsCentralized` prevent
+  production readiness checks from drifting back to the legacy adapter or raw
+  socket probes outside `SystemStateProvider`.
+- [ ] Add `launchctl`, `pgrep`, postcondition, and snapshot-cache ratchets with
+  the corresponding migration slices.
 
 ## Workstream 6: Deletion Pass
 

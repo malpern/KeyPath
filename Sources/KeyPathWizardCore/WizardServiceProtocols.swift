@@ -86,7 +86,7 @@ public enum WizardSignatureHealthCheck {
     }
 }
 
-// MARK: - TCPProbe Protocol
+// MARK: - TCP readiness probe protocol
 
 public protocol WizardTCPProbing: Sendable {
     static func probe(port: Int, timeoutMs: Int) -> Bool
