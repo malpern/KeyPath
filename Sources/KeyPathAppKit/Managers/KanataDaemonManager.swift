@@ -38,7 +38,8 @@ public class KanataDaemonManager {
 
     // MARK: - Dependencies
 
-    private let subprocessRunner: SubprocessRunner
+    private let subprocessRunner: any SubprocessRunning
+    private let systemStateProvider: SystemStateProvider
 
     // MARK: - Constants
 
@@ -55,8 +56,12 @@ public class KanataDaemonManager {
 
     // MARK: - Initialization
 
-    init(subprocessRunner: SubprocessRunner = .shared) {
+    init(
+        subprocessRunner: any SubprocessRunning = SubprocessRunner.shared,
+        systemStateProvider: SystemStateProvider = .shared
+    ) {
         self.subprocessRunner = subprocessRunner
+        self.systemStateProvider = systemStateProvider
         AppLogger.shared.log("🔧 [KanataDaemonManager] Initialized")
         Task { await refreshManagementStateInternal() }
     }
@@ -193,7 +198,7 @@ public class KanataDaemonManager {
     }
 
     private nonisolated func pgrepKanataProcessAsync() async -> Bool {
-        let pids = await subprocessRunner.pgrep("kanata.*--cfg")
+        let pids = await systemStateProvider.processIDs(matching: "kanata.*--cfg")
         return !pids.isEmpty
     }
 

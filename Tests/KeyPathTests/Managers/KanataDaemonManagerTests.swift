@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+@testable import KeyPathCore
 import ServiceManagement
 @preconcurrency import XCTest
 
@@ -178,5 +179,40 @@ final class KanataDaemonManagerTests: XCTestCase {
         XCTAssertEqual(mockService.unregisterCalls, 1, "Should unregister stale enabled registration")
         XCTAssertEqual(mockService.registerCalls, 1, "Should re-register after unregistering stale state")
         XCTAssertGreaterThanOrEqual(probeCount, 2, "Should probe stale state before and after recovery")
+    }
+
+    func testRegisteredButNotLoadedUsesInjectedSystemStateProviderForProcessDiscovery() async {
+        final class EnabledMockService: SMAppServiceProtocol, @unchecked Sendable {
+            var status: SMAppService.Status = .enabled
+
+            func register() throws {}
+            func unregister() async throws {}
+        }
+
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configureLaunchctlResult { _, _ in
+            ProcessResult(exitCode: 113, stdout: "", stderr: "service not found", duration: 0.01)
+        }
+        await runner.configurePgrepResult { pattern in
+            pattern == "kanata.*--cfg" ? [4242] : []
+        }
+
+        let mockService = EnabledMockService()
+        SMAppServiceStatusProvider.shared = SMAppServiceStatusProvider(
+            cacheTTL: 0,
+            serviceFactory: { _ in mockService }
+        )
+        let provider = SystemStateProvider(subprocessRunner: runner)
+        let manager = KanataDaemonManager(subprocessRunner: runner, systemStateProvider: provider)
+
+        let isStale = await manager.isRegisteredButNotLoaded()
+        let commands = await runner.executedCommands
+
+        XCTAssertFalse(isStale, "A live Kanata process should suppress stale-registration recovery")
+        XCTAssertTrue(
+            commands.contains { $0.executable == "/usr/bin/pgrep" && $0.args == ["-f", "kanata.*--cfg"] },
+            "KanataDaemonManager should use the injected provider's subprocess runner for process discovery"
+        )
     }
 }
