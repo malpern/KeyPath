@@ -136,6 +136,11 @@ the result as user action required and name the approval surface.
   proves the real ADR-040 primitive, and
   `LivenessPredicateLintTests.testKillZeroLivenessProbeIsCentralized` blocks
   new direct `kill(pid, 0)` probes outside the provider.
+- TCP readiness semantics belong in `SystemStateProvider.isTCPPortResponding(port:timeoutMs:)`.
+  `SystemStateProviderLivenessTests.testTCPReadinessProbeDetectsListeningAndClosedPorts`
+  proves the real localhost primitive, and
+  `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
+  blocks `ServiceHealthChecker` from regrowing a private socket probe.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References
