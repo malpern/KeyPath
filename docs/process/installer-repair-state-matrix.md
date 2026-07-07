@@ -159,8 +159,11 @@ the result as user action required and name the approval surface.
   `PgrepProcessDiscoveryLintTests.testKarabinerConflictServiceDelegatesPgrepDiscoveryToSystemStateProvider`,
   `VHIDDeviceManagerTests.testDetectRunningUsesInjectedSystemStateProviderForProcessDiscovery`,
   `VHIDDeviceManagerTests.testGetDaemonPIDsUsesInjectedSystemStateProviderForProcessDiscovery`,
-  and `PgrepProcessDiscoveryLintTests.testVHIDDeviceManagerDelegatesPgrepDiscoveryToSystemStateProvider`
-  block migrated runtime/system-validator/Karabiner-conflict/VHID consumers from bypassing it.
+  `PgrepProcessDiscoveryLintTests.testVHIDDeviceManagerDelegatesPgrepDiscoveryToSystemStateProvider`,
+  `DiagnosticsServiceTests.testKarabinerGrabberDetectionUsesInjectedSystemStateProvider`,
+  `DiagnosticsServiceTests.testKarabinerDaemonDetectionUsesInjectedSystemStateProvider`,
+  and `PgrepProcessDiscoveryLintTests.testDiagnosticsServiceDelegatesPgrepDiscoveryToSystemStateProvider`
+  block migrated runtime/system-validator/Karabiner-conflict/VHID/diagnostics consumers from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References

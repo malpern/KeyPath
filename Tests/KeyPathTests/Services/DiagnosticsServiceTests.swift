@@ -152,6 +152,52 @@ final class DiagnosticsServiceTests: XCTestCase {
         XCTAssertNotNil(diagnostics)
     }
 
+    func testKarabinerGrabberDetectionUsesInjectedSystemStateProvider() async {
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configurePgrepResult { pattern in
+            pattern == "karabiner_grabber" ? [1234] : []
+        }
+
+        let provider = SystemStateProvider(subprocessRunner: runner)
+        let service = DiagnosticsService(
+            processLifecycleManager: processManager,
+            systemStateProvider: provider
+        )
+
+        let isRunning = await service.isKarabinerElementsRunning()
+        let commands = await runner.executedCommands
+
+        XCTAssertTrue(isRunning)
+        XCTAssertTrue(
+            commands.contains { $0.executable == "/usr/bin/pgrep" && $0.args == ["-f", "karabiner_grabber"] },
+            "DiagnosticsService should use the injected provider for Karabiner grabber discovery"
+        )
+    }
+
+    func testKarabinerDaemonDetectionUsesInjectedSystemStateProvider() async {
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configurePgrepResult { pattern in
+            pattern == "Karabiner-VirtualHIDDevice" ? [5678] : []
+        }
+
+        let provider = SystemStateProvider(subprocessRunner: runner)
+        let service = DiagnosticsService(
+            processLifecycleManager: processManager,
+            systemStateProvider: provider
+        )
+
+        let isRunning = await service.isKarabinerDaemonRunning()
+        let commands = await runner.executedCommands
+
+        XCTAssertTrue(isRunning)
+        XCTAssertTrue(
+            commands.contains { $0.executable == "/usr/bin/pgrep" && $0.args == ["-f", "Karabiner-VirtualHIDDevice"] },
+            "DiagnosticsService should use the injected provider for Karabiner daemon discovery"
+        )
+    }
+
     // MARK: - Log Analysis Tests
 
     func testAnalyzeLogFileNotFound() async {

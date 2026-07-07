@@ -80,16 +80,19 @@ protocol DiagnosticsServiceProtocol: Sendable {
 final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable {
     /// Dependencies
     private let processLifecycleManager: ProcessLifecycleManager
+    private let systemStateProvider: SystemStateProvider
 
     init(
-        processLifecycleManager: ProcessLifecycleManager
+        processLifecycleManager: ProcessLifecycleManager,
+        systemStateProvider: SystemStateProvider = .shared
     ) {
         self.processLifecycleManager = processLifecycleManager
+        self.systemStateProvider = systemStateProvider
     }
 
     nonisolated func virtualHIDDaemonStatus() async -> VirtualHIDDaemonStatus {
         // Get actual VirtualHID daemon status with real PIDs
-        let vhid = VHIDDeviceManager()
+        let vhid = VHIDDeviceManager(systemStateProvider: systemStateProvider)
         let pids = await vhid.getDaemonPIDs() // Get real PIDs instead of placeholder
         let installed = vhid.detectActivation()
         let running = !pids.isEmpty
@@ -559,22 +562,9 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         Foundation.FileManager().fileExists(atPath: WizardSystemPaths.kanataActiveBinary)
     }
 
-    private func isKarabinerElementsRunning() async -> Bool {
-        // Skip process checks in test mode
-        if TestEnvironment.isRunningTests { return false }
-
-        // Use -x for exact match (not pattern match)
-        do {
-            let result = try await SubprocessRunner.shared.run(
-                "/usr/bin/pgrep",
-                args: ["-x", "karabiner_grabber"],
-                timeout: 5
-            )
-            // pgrep returns exit code 0 when processes found, 1 when not found
-            return result.exitCode == 0
-        } catch {
-            return false
-        }
+    func isKarabinerElementsRunning() async -> Bool {
+        let pids = await systemStateProvider.processIDs(matching: "karabiner_grabber")
+        return !pids.isEmpty
     }
 
     private func isKarabinerDriverInstalled() -> Bool {
@@ -583,11 +573,8 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         )
     }
 
-    private func isKarabinerDaemonRunning() async -> Bool {
-        // Skip process checks in test mode
-        if TestEnvironment.isRunningTests { return false }
-
-        let pids = await SubprocessRunner.shared.pgrep("Karabiner-VirtualHIDDevice")
+    func isKarabinerDaemonRunning() async -> Bool {
+        let pids = await systemStateProvider.processIDs(matching: "Karabiner-VirtualHIDDevice")
         return !pids.isEmpty
     }
 
