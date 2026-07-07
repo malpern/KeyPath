@@ -101,7 +101,10 @@ classification remains pending.
   `KarabinerConflictServiceTests.karabinerGrabberDetectionUsesInjectedSystemStateProvider`,
   `KarabinerConflictServiceTests.virtualHIDDaemonDetectionUsesInjectedSystemStateProvider`,
   `KarabinerConflictServiceTests.stoppedProcessVerificationUsesInjectedSystemStateProvider`,
-  and `PgrepProcessDiscoveryLintTests.testKarabinerConflictServiceDelegatesPgrepDiscoveryToSystemStateProvider`.
+  `PgrepProcessDiscoveryLintTests.testKarabinerConflictServiceDelegatesPgrepDiscoveryToSystemStateProvider`,
+  `VHIDDeviceManagerTests.testDetectRunningUsesInjectedSystemStateProviderForProcessDiscovery`,
+  `VHIDDeviceManagerTests.testGetDaemonPIDsUsesInjectedSystemStateProviderForProcessDiscovery`,
+  and `PgrepProcessDiscoveryLintTests.testVHIDDeviceManagerDelegatesPgrepDiscoveryToSystemStateProvider`.
 - [ ] Migrate `launchctl`, `SMAppService.status`, remaining `pgrep` consumers,
   permissions, VHID state, and helper freshness into a single immutable
   `SystemSnapshot`.
@@ -165,6 +168,12 @@ through 21 mocked tests).
   `KarabinerConflictServiceTests.stoppedProcessVerificationUsesInjectedSystemStateProvider`,
   and
   `PgrepProcessDiscoveryLintTests.testKarabinerConflictServiceDelegatesPgrepDiscoveryToSystemStateProvider`.
+- [x] `VHIDDeviceManager` process discovery delegates to
+  `SystemStateProvider.processIDs(matching:)`. Enforced by
+  `VHIDDeviceManagerTests.testDetectRunningUsesInjectedSystemStateProviderForProcessDiscovery`,
+  `VHIDDeviceManagerTests.testGetDaemonPIDsUsesInjectedSystemStateProviderForProcessDiscovery`,
+  and
+  `PgrepProcessDiscoveryLintTests.testVHIDDeviceManagerDelegatesPgrepDiscoveryToSystemStateProvider`.
 - [ ] Centralize remaining `pgrep` process-discovery consumers as later W1/W2
   migration slices.
 
@@ -283,6 +292,9 @@ is listed in the state-matrix doc's enforcement section.
   direct `pgrep` process discovery.
 - [x] `PgrepProcessDiscoveryLintTests.testKarabinerConflictServiceDelegatesPgrepDiscoveryToSystemStateProvider`
   prevents Karabiner conflict detection from regrowing direct
+  `pgrep` process discovery.
+- [x] `PgrepProcessDiscoveryLintTests.testVHIDDeviceManagerDelegatesPgrepDiscoveryToSystemStateProvider`
+  prevents VirtualHID daemon process checks from regrowing direct
   `pgrep` process discovery.
 - [ ] Add `launchctl`, broader `pgrep`, postcondition, and snapshot-cache
   ratchets with the corresponding migration slices.
