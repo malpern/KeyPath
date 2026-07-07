@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+@testable import KeyPathCore
 @testable import KeyPathDaemonLifecycle
 @testable import KeyPathPermissions
 @testable import KeyPathWizardCore
@@ -72,6 +73,33 @@ struct SystemValidatorTests {
         // the stub path increments counters - either is acceptable
         #expect(stats.totalCount >= baselineStats.totalCount,
                 "totalCount should never decrease")
+    }
+
+    @Test("SystemValidator uses injected SystemStateProvider for Karabiner grabber PID")
+    func karabinerGrabberPIDUsesInjectedSystemStateProvider() async {
+        await setupTest()
+
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configurePgrepResult { pattern in
+            pattern == "karabiner_grabber" ? [9876] : []
+        }
+
+        let processManager = ProcessLifecycleManager()
+        let provider = SystemStateProvider(subprocessRunner: runner)
+        let validator = SystemValidator(
+            processLifecycleManager: processManager,
+            systemStateProvider: provider
+        )
+
+        let pid = await validator.getKarabinerGrabberPID()
+        let commands = await runner.executedCommands
+
+        #expect(pid == 9876)
+        #expect(
+            commands.contains { $0.executable == "/usr/bin/pgrep" && $0.args == ["-f", "karabiner_grabber"] },
+            "SystemValidator should use the injected provider's subprocess runner for Karabiner process discovery"
+        )
     }
 
     @Test("SystemSnapshot has fresh timestamp")

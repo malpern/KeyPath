@@ -39,6 +39,7 @@ public class SystemValidator {
     // NOTE: launchDaemonInstaller removed - health checks migrated to ServiceHealthChecker
     private let vhidDeviceManager: VHIDDeviceManager
     private let processLifecycleManager: ProcessLifecycleManager
+    private let systemStateProvider: SystemStateProvider
     private weak var kanataManager: RuntimeCoordinator?
     private var cachedComponentFacts: ComponentInstallationFacts?
 
@@ -58,10 +59,12 @@ public class SystemValidator {
     init(
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
         processLifecycleManager: ProcessLifecycleManager,
+        systemStateProvider: SystemStateProvider = .shared,
         kanataManager: RuntimeCoordinator? = nil
     ) {
         self.vhidDeviceManager = vhidDeviceManager
         self.processLifecycleManager = processLifecycleManager
+        self.systemStateProvider = systemStateProvider
         self.kanataManager = kanataManager
 
         AppLogger.shared.log("🔍 [SystemValidator] Initialized (stateless, no cache)")
@@ -550,8 +553,8 @@ public class SystemValidator {
     /// Get PID of karabiner_grabber process.
     /// Runs pgrep in a detached task to avoid blocking a cooperative thread
     /// inside the TaskGroup (see ADR-022: no concurrent pgrep).
-    private func getKarabinerGrabberPID() async -> Int? {
-        let pids = await SubprocessRunner.shared.pgrep("karabiner_grabber")
+    func getKarabinerGrabberPID() async -> Int? {
+        let pids = await systemStateProvider.processIDs(matching: "karabiner_grabber")
         if let pid = pids.first {
             AppLogger.shared.log("🔍 [SystemValidator] Found karabiner_grabber PID: \(pid)")
             return Int(pid)

@@ -53,6 +53,29 @@ final class PgrepProcessDiscoveryLintTests: XCTestCase {
             """
         )
     }
+
+    func testSystemValidatorDelegatesPgrepDiscoveryToSystemStateProvider() throws {
+        let validator = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Services/System/SystemValidator.swift")
+
+        let violations = try matchingLines(
+            in: validator,
+            patterns: [
+                #"SubprocessRunner\.shared\.pgrep"#,
+                #"subprocessRunner\.pgrep"#,
+                #"/usr/bin/pgrep"#
+            ]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            SystemValidator must delegate process discovery to \
+            SystemStateProvider instead of calling pgrep directly:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {
