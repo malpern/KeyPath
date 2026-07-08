@@ -563,6 +563,12 @@ Phase 1 changes *post-install* behavior, not first-run automation.
   `RecoveryCoordinatorFailureDiagnosisTests.surfacesVirtualHIDDiagnosticWithoutRecovery`
   and
   `KanataFailureDiagnosisLintTests.testKanataFailureDiagnosisDoesNotAttemptBackgroundRecovery`.
+- [x] Runtime grab-failure handling no longer runs keyboard recovery from the
+  background `InputGrab(active: false)` path; it records and surfaces degraded
+  state for user action instead. Enforced by
+  `RuntimeCoordinatorTests.testGrabFailureSurfacesErrorWithoutRecoveryDelay`
+  and
+  `GrabFailureRecoveryLintTests.testGrabFailureHandlingDoesNotAttemptBackgroundRecovery`.
 - [ ] Remaining background mutators still need W3 migration or explicit
   first-run/user-gesture justification.
 - [ ] Terminal failure reports still need troubleshooting-guide links for the
