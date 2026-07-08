@@ -476,7 +476,7 @@ final class ServiceLifecycleCoordinator {
     // MARK: - Permission Checks
 
     func shouldShowWizardForPermissions() async -> Bool {
-        let snapshot = await PermissionOracle.shared.forceRefresh()
+        let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
         return snapshot.blockingIssue != nil
     }
 

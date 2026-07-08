@@ -98,6 +98,29 @@ final class PermissionSnapshotLintTests: XCTestCase {
             """
         )
     }
+
+    func testServiceLifecycleCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider() throws {
+        let coordinator = repositoryRootForPermissionSnapshotLint()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/ServiceLifecycleCoordinator.swift")
+
+        let violations = try matchingPermissionSnapshotLines(
+            in: coordinator,
+            patterns: [
+                #"PermissionOracle\.shared\.currentSnapshot"#,
+                #"PermissionOracle\.shared\.forceRefresh"#,
+                #"PermissionOracle\.shared"#
+            ]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            ServiceLifecycleCoordinator must delegate permission snapshot reads \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRootForPermissionSnapshotLint(file: StaticString = #filePath) -> URL {

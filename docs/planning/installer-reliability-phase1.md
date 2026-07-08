@@ -212,6 +212,9 @@ classification remains pending.
 - [x] Migrated `SystemValidator` permission-state reads through
   `SystemStateProvider`'s permission snapshot façade. Enforced by
   `PermissionSnapshotLintTests.testSystemValidatorDelegatesPermissionSnapshotsToSystemStateProvider`.
+- [x] Migrated `ServiceLifecycleCoordinator` permission refresh through
+  `SystemStateProvider`'s permission snapshot façade. Enforced by
+  `PermissionSnapshotLintTests.testServiceLifecycleCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`.
 - [ ] Migrate `SMAppService.status`, permissions, VHID state, helper freshness,
   and migrated read-only `launchctl print` evidence into a single immutable
   `SystemSnapshot`.
@@ -395,6 +398,9 @@ through 21 mocked tests).
 - [x] `SystemValidator` permission-state reads delegate to
   `SystemStateProvider`'s permission snapshot façade. Enforced by
   `PermissionSnapshotLintTests.testSystemValidatorDelegatesPermissionSnapshotsToSystemStateProvider`.
+- [x] `ServiceLifecycleCoordinator` permission refresh delegates to
+  `SystemStateProvider`'s permission snapshot façade. Enforced by
+  `PermissionSnapshotLintTests.testServiceLifecycleCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -526,6 +532,9 @@ is listed in the state-matrix doc's enforcement section.
   `SystemStateProvider`.
 - [x] `PermissionSnapshotLintTests.testSystemValidatorDelegatesPermissionSnapshotsToSystemStateProvider`
   prevents migrated system-validator permission snapshot reads from bypassing
+  `SystemStateProvider`.
+- [x] `PermissionSnapshotLintTests.testServiceLifecycleCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`
+  prevents migrated service-lifecycle permission refreshes from bypassing
   `SystemStateProvider`.
 - [x] `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
   prevents `ServiceHealthChecker` from regrowing a private TCP socket probe.
