@@ -254,10 +254,10 @@ fi
 echo "🔨 Building..."
 BUILD_LOG="$BUILD_LOG_DIR/build-${BUILD_ID}.log"
 write_build_log_header "$BUILD_LOG"
-# Optional build-system override (e.g. KEYPATH_BUILD_SYSTEM=native on toolchains
-# whose default swiftbuild system is broken). Unset = use the toolchain default.
+# Optional build-system override. Unset, or the legacy value "native", means use
+# the toolchain default; SwiftPM now warns when passed --build-system native.
 BUILD_SYSTEM_FLAGS=()
-if [[ -n "${KEYPATH_BUILD_SYSTEM:-}" ]]; then
+if [[ -n "${KEYPATH_BUILD_SYSTEM:-}" && "${KEYPATH_BUILD_SYSTEM:-}" != "native" ]]; then
     BUILD_SYSTEM_FLAGS=(--build-system "$KEYPATH_BUILD_SYSTEM")
 fi
 # ${arr[@]+...} guard: bash 3.2 under `set -u` treats expanding an empty array as unbound

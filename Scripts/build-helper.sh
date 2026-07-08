@@ -35,13 +35,17 @@ fi
 # Build helper with embedded Info.plist
 echo "1️⃣  Building helper executable..."
 HELPER_INFO_PLIST="Sources/KeyPathHelper/Info.plist"
+BUILD_SYSTEM_FLAGS=()
+if [[ -n "${KEYPATH_BUILD_SYSTEM:-}" && "${KEYPATH_BUILD_SYSTEM:-}" != "native" ]]; then
+    BUILD_SYSTEM_FLAGS=(--build-system "$KEYPATH_BUILD_SYSTEM")
+fi
 
 if [ ! -f "$HELPER_INFO_PLIST" ]; then
     echo "❌ ERROR: Helper Info.plist not found: $HELPER_INFO_PLIST"
     exit 1
 fi
 
-swift build ${KEYPATH_BUILD_SYSTEM:+--build-system "$KEYPATH_BUILD_SYSTEM"} --configuration release --product "$HELPER_NAME" \
+swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --configuration release --product "$HELPER_NAME" \
     -Xswiftc -no-whole-module-optimization \
     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$HELPER_INFO_PLIST"
 
