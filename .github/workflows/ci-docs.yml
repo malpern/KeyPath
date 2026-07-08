@@ -7,8 +7,10 @@ name: KeyPath CI (docs)
 # reports the same check-run names as success, so docs-only PRs satisfy branch protection
 # without an admin override. The `paths` list MUST mirror ci.yml's `paths-ignore`.
 #
-# Mixed PRs (docs + code) trigger both workflows; ci.yml's real result governs pass/fail
-# (a real failure still blocks), and this stub's success is harmless/redundant.
+# Mixed PRs (docs + code) trigger this workflow at the event level, but the
+# classifier job below keeps the required-context stubs from running unless
+# every changed file is docs/resource-only. That avoids duplicate green
+# `build-and-test` / `code-quality` checks on ordinary code PRs.
 
 on:
   pull_request:
@@ -28,13 +30,51 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  classify-docs-only:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check whether all changed files are docs-only
+        id: classify
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          base="${{ github.event.pull_request.base.sha }}"
+          docs_only=true
+
+          while IFS= read -r path; do
+            [ -n "$path" ] || continue
+            case "$path" in
+              docs/*|*.md|.github/workflows/claude.yml|.github/workflows/claude-code-review.yml|Sources/KeyPathAppKit/Resources/*.md|Sources/KeyPathAppKit/Resources/*.css|Sources/KeyPathAppKit/Resources/*.png)
+                ;;
+              *)
+                docs_only=false
+                ;;
+            esac
+          done < <(git diff --name-only "$base"...HEAD)
+
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          echo "docs_only=$docs_only"
+
   # Job names MUST match ci.yml's required check contexts exactly.
   build-and-test:
+    needs: classify-docs-only
+    if: needs.classify-docs-only.outputs.docs_only == 'true'
     runs-on: ubuntu-latest
     steps:
       - run: echo "Docs-only change — no Swift build/test applicable; reporting success (#650)."
 
   code-quality:
+    needs: classify-docs-only
+    if: needs.classify-docs-only.outputs.docs_only == 'true'
     runs-on: ubuntu-latest
     steps:
       - run: echo "Docs-only change — no Swift code-quality applicable; reporting success (#650)."

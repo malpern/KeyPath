@@ -11,6 +11,10 @@ Usage: Scripts/test-fast.sh [area|--changed|--full|--list]
 
 Run the smallest useful KeyPath test scope through run-tests-safe.sh.
 
+Focused lanes reuse the Swift module cache by default to keep the local edit
+loop warm. Override with KEYPATH_TEST_RESET_MODULE_CACHE=1 when diagnosing
+cache/module-state issues.
+
 Examples:
   ./Scripts/test-fast.sh rules
   ./Scripts/test-fast.sh config
@@ -88,7 +92,8 @@ case "$area" in
             filter=$(keypath_join_filters "${filters[@]}")
             echo "🧪 test-fast --changed: lanes $(printf '%s' "$unique_lanes" | tr '\n' ' ')"
             echo "🎯 filter: $filter"
-            TEST_FILTER="$filter" "$SCRIPT_DIR/run-tests-safe.sh"
+            KEYPATH_TEST_RESET_MODULE_CACHE="${KEYPATH_TEST_RESET_MODULE_CACHE:-0}" \
+                TEST_FILTER="$filter" "$SCRIPT_DIR/run-tests-safe.sh"
             exit $?
         fi
         ;;
@@ -102,4 +107,5 @@ fi
 
 echo "🧪 test-fast: area=$area"
 echo "🎯 filter: $filter"
-TEST_FILTER="$filter" "$SCRIPT_DIR/run-tests-safe.sh"
+KEYPATH_TEST_RESET_MODULE_CACHE="${KEYPATH_TEST_RESET_MODULE_CACHE:-0}" \
+    TEST_FILTER="$filter" "$SCRIPT_DIR/run-tests-safe.sh"
