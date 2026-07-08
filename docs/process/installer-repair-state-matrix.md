@@ -253,7 +253,18 @@ the result as user action required and name the approval surface.
 - Mutating privileged operations must be postcondition-reviewed before they can
   report success. `PostconditionLintTests.testRuntimeMutatingRouterVerbsEnforceRuntimePostcondition`
   and `PostconditionLintTests.testVHIDServiceRepairEnforcesVHIDPostcondition`
-  pin the current runtime/VHID enforcers, while
+  pin the current runtime/VHID service enforcers.
+  `PostconditionLintTests.testVHIDDriverInstallEnforcesDriverPostcondition`,
+  `PostconditionLintTests.testProcessTerminationEnforcesProcessPostcondition`,
+  and `PostconditionLintTests.testKanataStopEnforcesRuntimeStoppedPostcondition`
+  pin driver-install, process-termination, and Kanata-stop postconditions, while
+  `PrivilegedOperationsRouterTests.testTerminateProcessWaitsForProcessToExitAfterCommandSuccess`
+  pins a grace period for normal signal-delivery delay.
+  `ServiceHealthCheckerTests.testClassifyVHIDDriverExtensionStatusDistinguishesPendingApprovalFromMissingDriver`
+  pins DriverKit extension evidence for enabled vs installed-but-not-enabled
+  vs missing states, and
+  `PrivilegedOperationsRouterTests.testDownloadAndInstallCorrectVHIDDriverAllowsInstalledButNotEnabledPostcondition`
+  pins the router success path for that pending/manual-approval state.
   `PostconditionLintTests.testPublicRouterOperationsAreClassifiedForPostconditionReview`
   fails when a new public router operation is added without being classified.
 - Runtime and installer state caches must not regrow in consumers.

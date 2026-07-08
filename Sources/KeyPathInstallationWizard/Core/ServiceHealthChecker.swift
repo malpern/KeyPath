@@ -130,6 +130,13 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         public static let ready = KanataInputCaptureStatus(isReady: true, issue: nil)
     }
 
+    public enum VHIDDriverExtensionStatus: Sendable, Equatable {
+        case enabled
+        case installedButNotEnabled
+        case missing
+        case unknown
+    }
+
     /// Unified diagnosis from a single read of the kanata daemon stderr log.
     /// Replaces the separate `checkDaemonStderrForPermissionFailure()` and
     /// `checkKanataInputCaptureStatus()` parsers that read the same file
@@ -183,6 +190,8 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             (() async -> KanataInputCaptureStatus)?
         public nonisolated(unsafe) static var vhidDriverExtensionEnabledOverride:
             (() async -> Bool)?
+        public nonisolated(unsafe) static var vhidDriverExtensionStatusOverride:
+            (() async -> VHIDDriverExtensionStatus)?
     #endif
 
     // MARK: - Service Identifiers
@@ -646,14 +655,21 @@ public final class ServiceHealthChecker: @unchecked Sendable {
     }
 
     public nonisolated func isVHIDDriverExtensionEnabled() async -> Bool {
+        await vhidDriverExtensionStatus() == .enabled
+    }
+
+    public nonisolated func vhidDriverExtensionStatus() async -> VHIDDriverExtensionStatus {
         #if DEBUG
-            if let override = Self.vhidDriverExtensionEnabledOverride {
+            if let override = Self.vhidDriverExtensionStatusOverride {
                 return await override()
+            }
+            if let override = Self.vhidDriverExtensionEnabledOverride {
+                return await override() ? .enabled : .missing
             }
         #endif
 
         if TestEnvironment.shouldSkipAdminOperations {
-            return true
+            return .enabled
         }
 
         do {
@@ -663,22 +679,30 @@ public final class ServiceHealthChecker: @unchecked Sendable {
                 timeout: 5
             )
             let output = [result.stdout, result.stderr].joined(separator: "\n")
-            let enabled = Self.systemExtensionsOutputShowsVHIDDriverEnabled(output)
-            if !enabled {
+            let status = Self.classifyVHIDDriverExtensionStatus(output)
+            if status != .enabled {
                 AppLogger.shared.log("⚠️ [ServiceHealthChecker] VHID DriverKit extension is not enabled:\n\(output)")
             }
-            return enabled
+            return status
         } catch {
             AppLogger.shared.log("❌ [ServiceHealthChecker] Unable to inspect VHID DriverKit extension: \(error)")
-            return false
+            return .unknown
         }
     }
 
     public nonisolated static func systemExtensionsOutputShowsVHIDDriverEnabled(_ output: String) -> Bool {
-        output.components(separatedBy: .newlines).contains { line in
-            line.contains(karabinerDriverExtensionBundleID)
-                && line.contains("[activated enabled]")
+        classifyVHIDDriverExtensionStatus(output) == .enabled
+    }
+
+    public nonisolated static func classifyVHIDDriverExtensionStatus(_ output: String) -> VHIDDriverExtensionStatus {
+        var sawDriver = false
+        for line in output.components(separatedBy: .newlines) where line.contains(karabinerDriverExtensionBundleID) {
+            sawDriver = true
+            if line.contains("[activated enabled]") {
+                return .enabled
+            }
         }
+        return sawDriver ? .installedButNotEnabled : .missing
     }
 
     private nonisolated func evaluateKanataLaunchctlRunningState(

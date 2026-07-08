@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 @testable import KeyPathAppKit
 @testable import KeyPathCore
@@ -339,6 +340,162 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
         #if DEBUG
             XCTAssertEqual(installAllServicesCalls, 1)
         #endif
+    }
+
+    func testActivateVirtualHIDManagerFailsWhenPostconditionFails() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            var activationCalls = 0
+            PrivilegedOperationsRouter.activateVirtualHIDManagerOverride = {
+                activationCalls += 1
+            }
+            PrivilegedOperationsRouter.vhidServicesPostconditionOverride = { _ in false }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        let coordinator = PrivilegedOperationsRouter.shared
+        do {
+            try await coordinator.activateVirtualHIDManager()
+            XCTFail("Expected activateVirtualHIDManager to fail when postcondition fails")
+        } catch let PrivilegedOperationError.operationFailed(message) {
+            XCTAssertTrue(message.contains("VHID services postcondition failed"))
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+
+        #if DEBUG
+            XCTAssertEqual(activationCalls, 1)
+        #endif
+    }
+
+    func testDownloadAndInstallCorrectVHIDDriverFailsWhenDriverPostconditionFails() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            var installCalls = 0
+            PrivilegedOperationsRouter.downloadAndInstallCorrectVHIDDriverOverride = {
+                installCalls += 1
+            }
+            PrivilegedOperationsRouter.vhidDriverPostconditionOverride = { _ in false }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        let coordinator = PrivilegedOperationsRouter.shared
+        do {
+            try await coordinator.downloadAndInstallCorrectVHIDDriver()
+            XCTFail("Expected downloadAndInstallCorrectVHIDDriver to fail when postcondition fails")
+        } catch let PrivilegedOperationError.operationFailed(message) {
+            XCTAssertTrue(message.contains("VHID driver postcondition failed"))
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+
+        #if DEBUG
+            XCTAssertEqual(installCalls, 1)
+        #endif
+    }
+
+    func testDownloadAndInstallCorrectVHIDDriverAllowsInstalledButNotEnabledPostcondition() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            var installCalls = 0
+            PrivilegedOperationsRouter.downloadAndInstallCorrectVHIDDriverOverride = {
+                installCalls += 1
+            }
+            ServiceHealthChecker.vhidDriverExtensionStatusOverride = { .installedButNotEnabled }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        let coordinator = PrivilegedOperationsRouter.shared
+        try await coordinator.downloadAndInstallCorrectVHIDDriver()
+
+        #if DEBUG
+            XCTAssertEqual(installCalls, 1)
+        #endif
+    }
+
+    func testTerminateProcessFailsWhenPostconditionFails() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.processTerminatedPostconditionOverride = { _, _ in false }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+        let fakeExecutor = FakeAdminCommandExecutor()
+        AdminCommandExecutorHolder.shared = fakeExecutor
+
+        let coordinator = PrivilegedOperationsRouter.shared
+        do {
+            try await coordinator.terminateProcess(pid: 12345)
+            XCTFail("Expected terminateProcess to fail when postcondition fails")
+        } catch let PrivilegedOperationError.operationFailed(message) {
+            XCTAssertTrue(message.contains("Process termination postcondition failed"))
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+
+        XCTAssertEqual(fakeExecutor.commands.count, 1)
+        XCTAssertEqual(fakeExecutor.commands.first?.description, "Terminate process 12345")
+    }
+
+    func testTerminateProcessWaitsForProcessToExitAfterCommandSuccess() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test setup")
+        #endif
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        process.arguments = ["5"]
+        try process.run()
+        defer {
+            if process.isRunning {
+                process.terminate()
+            }
+        }
+
+        let pid = Int32(process.processIdentifier)
+        let fakeExecutor = FakeAdminCommandExecutor(resultProvider: { _, description in
+            if description == "Terminate process \(pid)" {
+                DispatchQueue.global().asyncAfter(deadline: .now() + 0.2) {
+                    Darwin.kill(pid, SIGTERM)
+                }
+            }
+            return CommandExecutionResult(exitCode: 0, output: "")
+        })
+        AdminCommandExecutorHolder.shared = fakeExecutor
+
+        let coordinator = PrivilegedOperationsRouter.shared
+        try await coordinator.terminateProcess(pid: pid)
+
+        XCTAssertEqual(fakeExecutor.commands.count, 1)
+    }
+
+    func testKillAllKanataProcessesFailsWhenPostconditionFails() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.kanataStoppedPostconditionOverride = { _ in false }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+        let fakeExecutor = FakeAdminCommandExecutor()
+        AdminCommandExecutorHolder.shared = fakeExecutor
+
+        let coordinator = PrivilegedOperationsRouter.shared
+        do {
+            try await coordinator.killAllKanataProcesses()
+            XCTFail("Expected killAllKanataProcesses to fail when postcondition fails")
+        } catch let PrivilegedOperationError.operationFailed(message) {
+            XCTAssertTrue(message.contains("Kanata stopped postcondition failed"))
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+
+        XCTAssertEqual(fakeExecutor.commands.count, 1)
+        XCTAssertEqual(fakeExecutor.commands.first?.description, "Kill all Kanata processes")
     }
 
     func testRegenerateServiceConfigurationAllowsPendingApprovalPostcondition() async throws {

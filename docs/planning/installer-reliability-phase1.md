@@ -685,7 +685,30 @@ is listed in the state-matrix doc's enforcement section.
 - [x] `PostconditionLintTests.testRuntimeMutatingRouterVerbsEnforceRuntimePostcondition`
   and `PostconditionLintTests.testVHIDServiceRepairEnforcesVHIDPostcondition`
   pin the runtime and VHID postcondition enforcers on the currently covered
-  router verbs.
+  router verbs, including `activateVirtualHIDManager`.
+- [x] `PostconditionLintTests.testVHIDDriverInstallEnforcesDriverPostcondition`,
+  `PostconditionLintTests.testProcessTerminationEnforcesProcessPostcondition`,
+  and `PostconditionLintTests.testKanataStopEnforcesRuntimeStoppedPostcondition`
+  shrink the postcondition follow-up exemption list by requiring
+  `downloadAndInstallCorrectVHIDDriver`, `terminateProcess`, and
+  `killAllKanataProcesses` to prove their final state before reporting
+  success.
+- [x] `ServiceHealthCheckerTests.testClassifyVHIDDriverExtensionStatusDistinguishesPendingApprovalFromMissingDriver`
+  pins the driver-install postcondition evidence: enabled DriverKit is success,
+  installed-but-not-enabled is explicit manual-approval/pending evidence, and a
+  missing driver is failure.
+- [x] `PrivilegedOperationsRouterTests.testDownloadAndInstallCorrectVHIDDriverAllowsInstalledButNotEnabledPostcondition`
+  proves the router treats installed-but-not-enabled DriverKit as an explicit
+  pending/manual-approval terminal state rather than retryable failure.
+- [x] `PrivilegedOperationsRouterTests.testActivateVirtualHIDManagerFailsWhenPostconditionFails`,
+  `PrivilegedOperationsRouterTests.testDownloadAndInstallCorrectVHIDDriverFailsWhenDriverPostconditionFails`,
+  `PrivilegedOperationsRouterTests.testTerminateProcessFailsWhenPostconditionFails`,
+  and `PrivilegedOperationsRouterTests.testKillAllKanataProcessesFailsWhenPostconditionFails`
+  prove command success is not treated as repair success for the newly covered
+  privileged operations.
+- [x] `PrivilegedOperationsRouterTests.testTerminateProcessWaitsForProcessToExitAfterCommandSuccess`
+  proves process-termination postconditions tolerate normal signal-delivery
+  delay before reporting failure.
 - [x] `PostconditionLintTests.testPublicRouterOperationsAreClassifiedForPostconditionReview`
   fails if a new public router operation is added without being classified as
   postcondition-enforced, delegated/verified, or an explicit follow-up

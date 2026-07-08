@@ -25,9 +25,37 @@ final class PostconditionLintTests: XCTestCase {
         try assertFunctions(
             [
                 "installRequiredRuntimeServices",
-                "repairVHIDDaemonServices"
+                "repairVHIDDaemonServices",
+                "activateVirtualHIDManager"
             ],
             contain: "enforceVHIDServicesPostcondition"
+        )
+    }
+
+    func testVHIDDriverInstallEnforcesDriverPostcondition() throws {
+        try assertFunctions(
+            [
+                "downloadAndInstallCorrectVHIDDriver"
+            ],
+            contain: "enforceVHIDDriverPostcondition"
+        )
+    }
+
+    func testProcessTerminationEnforcesProcessPostcondition() throws {
+        try assertFunctions(
+            [
+                "terminateProcess"
+            ],
+            contain: "enforceProcessTerminatedPostcondition"
+        )
+    }
+
+    func testKanataStopEnforcesRuntimeStoppedPostcondition() throws {
+        try assertFunctions(
+            [
+                "killAllKanataProcesses"
+            ],
+            contain: "enforceKanataStoppedPostcondition"
         )
     }
 
@@ -44,7 +72,11 @@ final class PostconditionLintTests: XCTestCase {
             "installRequiredRuntimeServices",
             "recoverRequiredRuntimeServices",
             "regenerateServiceConfiguration",
-            "repairVHIDDaemonServices"
+            "repairVHIDDaemonServices",
+            "activateVirtualHIDManager",
+            "downloadAndInstallCorrectVHIDDriver",
+            "terminateProcess",
+            "killAllKanataProcesses"
         ]
         let postconditionDelegatedOrVerified: Set = [
             "installServicesIfUninstalled",
@@ -53,11 +85,7 @@ final class PostconditionLintTests: XCTestCase {
         let explicitFollowUpExemptions: Set = [
             "cleanupPrivilegedHelper",
             "installNewsyslogConfig",
-            "activateVirtualHIDManager",
             "uninstallVirtualHIDDrivers",
-            "downloadAndInstallCorrectVHIDDriver",
-            "terminateProcess",
-            "killAllKanataProcesses",
             "disableKarabinerGrabber",
             "sudoExecuteCommand"
         ]
