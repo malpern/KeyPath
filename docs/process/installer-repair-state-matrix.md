@@ -217,7 +217,9 @@ the result as user action required and name the approval surface.
   `SMAppServiceStatusLintTests.testHelperMaintenanceDelegatesStatusProviderAccessToSystemStateProvider`
   blocks migrated HelperMaintenance status reads from bypassing it, while
   `SMAppServiceStatusLintTests.testUninstallCoordinatorDelegatesStatusProviderAccessToSystemStateProvider`
-  blocks migrated UninstallCoordinator status reads from bypassing it.
+  blocks migrated UninstallCoordinator status reads from bypassing it, and
+  `SMAppServiceStatusLintTests.testAppLifecycleDelegatesStatusProviderAccessToSystemStateProvider`
+  blocks migrated App lifecycle/dev-utility status reads from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References
