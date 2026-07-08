@@ -199,20 +199,20 @@ the result as user action required and name the approval surface.
   pin the provider contract, while
   `VHIDDeviceManagerTests.testCheckLaunchctlHealthUsesInjectedSystemStateProvider`,
   `VHIDDeviceManagerTests.testDuplicateProcessRaceUsesInjectedLaunchctlEvidence`,
-  and `LaunchctlEvidenceLintTests.testVHIDDeviceManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
+  and `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`
   block migrated VirtualHID health checks from bypassing it.
   `ServiceHealthCheckerTests.testIsServiceLoadedDelegatesLaunchctlPrintToSystemStateProvider`,
   `ServiceHealthCheckerTests.testIsServiceHealthyDelegatesLaunchctlPrintToSystemStateProvider`,
   `ServiceHealthCheckerTests.testKanataRuntimeSnapshotDelegatesLaunchctlTargetsToSystemStateProvider`,
-  and `LaunchctlEvidenceLintTests.testServiceHealthCheckerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
+  and `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`
   block migrated service-health checks from bypassing it.
   `KanataDaemonManagerTests.testIsInstalledUsesInjectedSystemStateProviderForLaunchctlEvidence`,
   `KanataDaemonManagerTests.testRegisteredButNotLoadedUsesInjectedSystemStateProviderForLaunchctlEvidence`,
-  and `LaunchctlEvidenceLintTests.testKanataDaemonManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
+  and `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`
   block migrated Kanata daemon management checks from bypassing it.
   `HelperManagerTests.testIsHelperInstalledUsesInjectedSystemStateProviderForLaunchctlEvidence`,
   `HelperManagerTests.testLastHelperLogsUsesInjectedSystemStateProviderForLaunchctlEvidence`,
-  and `LaunchctlEvidenceLintTests.testHelperManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
+  and `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`
   block migrated helper installation/log-registration checks from bypassing it.
 - SMAppService registration status belongs behind `SystemStateProvider`'s
   SMAppService façade, which delegates to the existing
@@ -243,37 +243,25 @@ the result as user action required and name the approval surface.
   and
   `SystemStateProviderPermissionTests.testPermissionSnapshotRefreshBypassesCachedSnapshot`
   cover the façade, while
-  `PermissionSnapshotLintTests.testPermissionRequestServiceDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevents `PermissionRequestService` from bypassing it and
-  `PermissionSnapshotLintTests.testPermissionGateDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevents `PermissionGate` from bypassing it, and
-  `PermissionSnapshotLintTests.testSystemRequirementsCheckerDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevents `SystemRequirementsChecker` from bypassing it, and
-  `PermissionSnapshotLintTests.testSystemValidatorDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevents `SystemValidator` from bypassing it, and
-  `PermissionSnapshotLintTests.testServiceLifecycleCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevents `ServiceLifecycleCoordinator` from bypassing it, and
-  `PermissionSnapshotLintTests.testAppLifecycleDelegatesPermissionSnapshotsToSystemStateProvider`,
-  `PermissionSnapshotLintTests.testMainWindowControllerDelegatesPermissionSnapshotsToSystemStateProvider`,
-  `PermissionSnapshotLintTests.testCompositionRootDelegatesPermissionSnapshotsToSystemStateProvider`,
-  and
-  `PermissionSnapshotLintTests.testPermissionSnapshotEnvironmentDefaultDelegatesToSystemStateProvider`
-  prevent app bootstrap/environment permission snapshot reads from bypassing it,
-  and
-  `PermissionSnapshotLintTests.testWizardAsyncOperationManagerDelegatesPermissionSnapshotsToSystemStateProvider`
-  and
-  `PermissionSnapshotLintTests.testPermissionGrantCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevent wizard core permission snapshot reads from bypassing it, and
-  `PermissionSnapshotLintTests.testWizardAccessibilityPageDelegatesPermissionSnapshotsToSystemStateProvider`,
-  `PermissionSnapshotLintTests.testWizardInputMonitoringPageDelegatesPermissionSnapshotsToSystemStateProvider`,
-  `PermissionSnapshotLintTests.testInstallationWizardStateManagementDelegatesPermissionSnapshotsToSystemStateProvider`,
-  and
-  `PermissionSnapshotLintTests.testDragToAuthorizeControllerDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevent wizard UI permission refresh reads from bypassing it, and
-  `PermissionSnapshotLintTests.testKeyboardCaptureDelegatesSyncAccessibilityStatusToSystemStateProvider`
-  and
-  `PermissionSnapshotLintTests.testWindowManagerDelegatesSyncAccessibilityStatusToSystemStateProvider`
-  prevent synchronous KeyPath Accessibility status reads from bypassing it.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`
+  scans all production sources and prevents new `PermissionOracle.shared`
+  bypasses outside the provider façade.
+- Direct privileged repair entry points belong behind `InstallerEngine`, with
+  only the wizard dependency bridge allowed to hold
+  `PrivilegedOperationsRouter.shared`. This is enforced by
+  `FacadeLintTests.testProductionSourcesDoNotBypassInstallerEngine`.
+- Mutating privileged operations must be postcondition-reviewed before they can
+  report success. `PostconditionLintTests.testRuntimeMutatingRouterVerbsEnforceRuntimePostcondition`
+  and `PostconditionLintTests.testVHIDServiceRepairEnforcesVHIDPostcondition`
+  pin the current runtime/VHID enforcers, while
+  `PostconditionLintTests.testPublicRouterOperationsAreClassifiedForPostconditionReview`
+  fails when a new public router operation is added without being classified.
+- Runtime and installer state caches must not regrow in consumers.
+  `SnapshotConsumerLintTests.testSMAppServiceStatusProviderCacheIsOnlyConsumedThroughSystemStateProvider`
+  keeps direct SMAppService status-cache consumption behind
+  `SystemStateProvider`, and
+  `SnapshotConsumerLintTests.testRuntimeAndInstallerStateCachesStayInKnownOwners`
+  prevents new runtime/installer state caches outside the current known owners.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 - The state-matrix table itself is an executable golden fixture:
   `InstallerStateMatrixGoldenTests.testEveryDocumentedStateMatrixRowHasAGoldenFixture`

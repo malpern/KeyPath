@@ -127,7 +127,7 @@ bridge to avoid an AppKit dependency cycle.
   `VHIDDeviceManagerTests.testCheckLaunchctlHealthUsesInjectedSystemStateProvider`,
   `VHIDDeviceManagerTests.testDuplicateProcessRaceUsesInjectedLaunchctlEvidence`,
   and
-  `LaunchctlEvidenceLintTests.testVHIDDeviceManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
+  `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`.
 - [x] Migrated `ServiceHealthChecker`'s read-only `launchctl print` loaded,
   health, and Kanata runtime-snapshot evidence to
   `SystemStateProvider.launchctlPrint(target:)`. Enforced by
@@ -135,21 +135,21 @@ bridge to avoid an AppKit dependency cycle.
   `ServiceHealthCheckerTests.testIsServiceHealthyDelegatesLaunchctlPrintToSystemStateProvider`,
   `ServiceHealthCheckerTests.testKanataRuntimeSnapshotDelegatesLaunchctlTargetsToSystemStateProvider`,
   and
-  `LaunchctlEvidenceLintTests.testServiceHealthCheckerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
+  `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`.
 - [x] Migrated `KanataDaemonManager`'s read-only `launchctl print`
   installation and stale-registration evidence to
   `SystemStateProvider.launchctlPrint(target:)`. Enforced by
   `KanataDaemonManagerTests.testIsInstalledUsesInjectedSystemStateProviderForLaunchctlEvidence`,
   `KanataDaemonManagerTests.testRegisteredButNotLoadedUsesInjectedSystemStateProviderForLaunchctlEvidence`,
   and
-  `LaunchctlEvidenceLintTests.testKanataDaemonManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
+  `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`.
 - [x] Migrated `HelperManager`'s read-only `launchctl print` helper
   installation and helper-log registration evidence to
   `SystemStateProvider.launchctlPrint(target:)`. Enforced by
   `HelperManagerTests.testIsHelperInstalledUsesInjectedSystemStateProviderForLaunchctlEvidence`,
   `HelperManagerTests.testLastHelperLogsUsesInjectedSystemStateProviderForLaunchctlEvidence`,
   and
-  `LaunchctlEvidenceLintTests.testHelperManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
+  `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`.
 - [x] Added `SystemStateProvider` SMAppService status/cache façade methods over
   the existing `SMAppServiceStatusProvider` cache/coalescer and migrated
   `KanataDaemonManager` status reads/invalidation through the façade. Enforced
@@ -201,46 +201,34 @@ bridge to avoid an AppKit dependency cycle.
   `SystemStateProviderPermissionTests.testPermissionSnapshotAccessDelegatesToPermissionOracle`,
   `SystemStateProviderPermissionTests.testPermissionSnapshotRefreshBypassesCachedSnapshot`,
   and
-  `PermissionSnapshotLintTests.testPermissionRequestServiceDelegatesPermissionSnapshotsToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] Migrated `PermissionGate` permission-state reads through
   `SystemStateProvider`'s permission snapshot façade. Enforced by
   `PermissionGateEvaluationTests.testKanataUnknownClassifiesAsNotVerifiedNotBlocking`,
   `PermissionGateEvaluationTests.testKanataDeniedClassifiesAsBlocking`,
   and
-  `PermissionSnapshotLintTests.testPermissionGateDelegatesPermissionSnapshotsToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] Migrated `SystemRequirementsChecker` permission-state reads through
   `SystemStateProvider`'s permission snapshot façade. Enforced by
-  `PermissionSnapshotLintTests.testSystemRequirementsCheckerDelegatesPermissionSnapshotsToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] Migrated `SystemValidator` permission-state reads through
   `SystemStateProvider`'s permission snapshot façade. Enforced by
-  `PermissionSnapshotLintTests.testSystemValidatorDelegatesPermissionSnapshotsToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] Migrated `ServiceLifecycleCoordinator` permission refresh through
   `SystemStateProvider`'s permission snapshot façade. Enforced by
-  `PermissionSnapshotLintTests.testServiceLifecycleCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] Migrated app bootstrap permission snapshot reads and SwiftUI permission
   snapshot provider defaults through `SystemStateProvider`. Enforced by
-  `PermissionSnapshotLintTests.testAppLifecycleDelegatesPermissionSnapshotsToSystemStateProvider`,
-  `PermissionSnapshotLintTests.testMainWindowControllerDelegatesPermissionSnapshotsToSystemStateProvider`,
-  `PermissionSnapshotLintTests.testCompositionRootDelegatesPermissionSnapshotsToSystemStateProvider`,
-  and
-  `PermissionSnapshotLintTests.testPermissionSnapshotEnvironmentDefaultDelegatesToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] Migrated wizard core permission snapshot reads through
   `SystemStateProvider`'s permission snapshot facade. Enforced by
-  `PermissionSnapshotLintTests.testWizardAsyncOperationManagerDelegatesPermissionSnapshotsToSystemStateProvider`
-  and
-  `PermissionSnapshotLintTests.testPermissionGrantCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] Migrated wizard UI permission refresh reads through `SystemStateProvider`'s
   permission snapshot facade. Enforced by
-  `PermissionSnapshotLintTests.testWizardAccessibilityPageDelegatesPermissionSnapshotsToSystemStateProvider`,
-  `PermissionSnapshotLintTests.testWizardInputMonitoringPageDelegatesPermissionSnapshotsToSystemStateProvider`,
-  `PermissionSnapshotLintTests.testInstallationWizardStateManagementDelegatesPermissionSnapshotsToSystemStateProvider`,
-  and
-  `PermissionSnapshotLintTests.testDragToAuthorizeControllerDelegatesPermissionSnapshotsToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] Migrated synchronous KeyPath Accessibility status reads through
   `SystemStateProvider`'s permission facade. Enforced by
-  `PermissionSnapshotLintTests.testKeyboardCaptureDelegatesSyncAccessibilityStatusToSystemStateProvider`
-  and
-  `PermissionSnapshotLintTests.testWindowManagerDelegatesSyncAccessibilityStatusToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] Migrated the remaining synchronous helper Login Items approval reads
   through `SystemStateProvider`'s SMAppService status facade and shrank the
   direct `.status` allowlist. Enforced by
@@ -395,7 +383,7 @@ through 21 mocked tests).
   `VHIDDeviceManagerTests.testCheckLaunchctlHealthUsesInjectedSystemStateProvider`,
   `VHIDDeviceManagerTests.testDuplicateProcessRaceUsesInjectedLaunchctlEvidence`,
   and
-  `LaunchctlEvidenceLintTests.testVHIDDeviceManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
+  `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`.
 - [x] `ServiceHealthChecker` read-only `launchctl print` loaded, health, and
   runtime-snapshot evidence delegates to
   `SystemStateProvider.launchctlPrint(target:)`. Enforced by
@@ -403,21 +391,21 @@ through 21 mocked tests).
   `ServiceHealthCheckerTests.testIsServiceHealthyDelegatesLaunchctlPrintToSystemStateProvider`,
   `ServiceHealthCheckerTests.testKanataRuntimeSnapshotDelegatesLaunchctlTargetsToSystemStateProvider`,
   and
-  `LaunchctlEvidenceLintTests.testServiceHealthCheckerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
+  `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`.
 - [x] `KanataDaemonManager` read-only `launchctl print` installation and
   stale-registration evidence delegates to
   `SystemStateProvider.launchctlPrint(target:)`. Enforced by
   `KanataDaemonManagerTests.testIsInstalledUsesInjectedSystemStateProviderForLaunchctlEvidence`,
   `KanataDaemonManagerTests.testRegisteredButNotLoadedUsesInjectedSystemStateProviderForLaunchctlEvidence`,
   and
-  `LaunchctlEvidenceLintTests.testKanataDaemonManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
+  `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`.
 - [x] `HelperManager` read-only `launchctl print` helper installation and
   helper-log registration evidence delegates to
   `SystemStateProvider.launchctlPrint(target:)`. Enforced by
   `HelperManagerTests.testIsHelperInstalledUsesInjectedSystemStateProviderForLaunchctlEvidence`,
   `HelperManagerTests.testLastHelperLogsUsesInjectedSystemStateProviderForLaunchctlEvidence`,
   and
-  `LaunchctlEvidenceLintTests.testHelperManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
+  `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`.
 - [x] `KanataDaemonManager` SMAppService registration status/cache reads
   delegate to `SystemStateProvider`'s SMAppService status façade. Enforced by
   `SystemStateProviderSMAppServiceTests.testSMAppServiceStatusAccessDelegatesToCentralStatusProvider`,
@@ -460,47 +448,35 @@ through 21 mocked tests).
   `SystemStateProviderPermissionTests.testPermissionSnapshotAccessDelegatesToPermissionOracle`,
   `SystemStateProviderPermissionTests.testPermissionSnapshotRefreshBypassesCachedSnapshot`,
   and
-  `PermissionSnapshotLintTests.testPermissionRequestServiceDelegatesPermissionSnapshotsToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] `PermissionGate` permission-state reads delegate to
   `SystemStateProvider`'s permission snapshot façade. Enforced by
   `PermissionGateEvaluationTests.testKanataUnknownClassifiesAsNotVerifiedNotBlocking`,
   `PermissionGateEvaluationTests.testKanataDeniedClassifiesAsBlocking`,
   and
-  `PermissionSnapshotLintTests.testPermissionGateDelegatesPermissionSnapshotsToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] `SystemRequirementsChecker` permission-state reads delegate to
   `SystemStateProvider`'s permission snapshot façade. Enforced by
-  `PermissionSnapshotLintTests.testSystemRequirementsCheckerDelegatesPermissionSnapshotsToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] `SystemValidator` permission-state reads delegate to
   `SystemStateProvider`'s permission snapshot façade. Enforced by
-  `PermissionSnapshotLintTests.testSystemValidatorDelegatesPermissionSnapshotsToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] `ServiceLifecycleCoordinator` permission refresh delegates to
   `SystemStateProvider`'s permission snapshot façade. Enforced by
-  `PermissionSnapshotLintTests.testServiceLifecycleCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] App bootstrap permission snapshot reads and SwiftUI permission snapshot
   provider defaults delegate to `SystemStateProvider`'s permission snapshot
   façade. Enforced by
-  `PermissionSnapshotLintTests.testAppLifecycleDelegatesPermissionSnapshotsToSystemStateProvider`,
-  `PermissionSnapshotLintTests.testMainWindowControllerDelegatesPermissionSnapshotsToSystemStateProvider`,
-  `PermissionSnapshotLintTests.testCompositionRootDelegatesPermissionSnapshotsToSystemStateProvider`,
-  and
-  `PermissionSnapshotLintTests.testPermissionSnapshotEnvironmentDefaultDelegatesToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] Wizard core permission snapshot reads delegate to
   `SystemStateProvider`'s permission snapshot façade. Enforced by
-  `PermissionSnapshotLintTests.testWizardAsyncOperationManagerDelegatesPermissionSnapshotsToSystemStateProvider`
-  and
-  `PermissionSnapshotLintTests.testPermissionGrantCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] Wizard UI permission refresh reads delegate to `SystemStateProvider`'s
   permission snapshot façade. Enforced by
-  `PermissionSnapshotLintTests.testWizardAccessibilityPageDelegatesPermissionSnapshotsToSystemStateProvider`,
-  `PermissionSnapshotLintTests.testWizardInputMonitoringPageDelegatesPermissionSnapshotsToSystemStateProvider`,
-  `PermissionSnapshotLintTests.testInstallationWizardStateManagementDelegatesPermissionSnapshotsToSystemStateProvider`,
-  and
-  `PermissionSnapshotLintTests.testDragToAuthorizeControllerDelegatesPermissionSnapshotsToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 - [x] Synchronous KeyPath Accessibility status reads delegate to
   `SystemStateProvider`'s permission façade. Enforced by
-  `PermissionSnapshotLintTests.testKeyboardCaptureDelegatesSyncAccessibilityStatusToSystemStateProvider`
-  and
-  `PermissionSnapshotLintTests.testWindowManagerDelegatesSyncAccessibilityStatusToSystemStateProvider`.
+  `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -659,45 +635,9 @@ is listed in the state-matrix doc's enforcement section.
 - [x] `SMAppServiceStatusLintTests.testAppLifecycleDelegatesStatusProviderAccessToSystemStateProvider`
   prevents migrated app lifecycle/dev-utility SMAppService status/cache access
   from bypassing `SystemStateProvider`.
-- [x] `PermissionSnapshotLintTests.testPermissionRequestServiceDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevents migrated permission-request snapshot reads from bypassing
-  `SystemStateProvider`.
-- [x] `PermissionSnapshotLintTests.testPermissionGateDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevents migrated just-in-time permission gate snapshot reads from bypassing
-  `SystemStateProvider`.
-- [x] `PermissionSnapshotLintTests.testSystemRequirementsCheckerDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevents migrated system-requirements permission snapshot reads from bypassing
-  `SystemStateProvider`.
-- [x] `PermissionSnapshotLintTests.testSystemValidatorDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevents migrated system-validator permission snapshot reads from bypassing
-  `SystemStateProvider`.
-- [x] `PermissionSnapshotLintTests.testServiceLifecycleCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevents migrated service-lifecycle permission refreshes from bypassing
-  `SystemStateProvider`.
-- [x] `PermissionSnapshotLintTests.testAppLifecycleDelegatesPermissionSnapshotsToSystemStateProvider`,
-  `PermissionSnapshotLintTests.testMainWindowControllerDelegatesPermissionSnapshotsToSystemStateProvider`,
-  `PermissionSnapshotLintTests.testCompositionRootDelegatesPermissionSnapshotsToSystemStateProvider`,
-  and
-  `PermissionSnapshotLintTests.testPermissionSnapshotEnvironmentDefaultDelegatesToSystemStateProvider`
-  prevent migrated app bootstrap/environment permission snapshot reads from
-  bypassing `SystemStateProvider`.
-- [x] `PermissionSnapshotLintTests.testWizardAsyncOperationManagerDelegatesPermissionSnapshotsToSystemStateProvider`
-  and
-  `PermissionSnapshotLintTests.testPermissionGrantCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevent migrated wizard core permission snapshot reads from bypassing
-  `SystemStateProvider`.
-- [x] `PermissionSnapshotLintTests.testWizardAccessibilityPageDelegatesPermissionSnapshotsToSystemStateProvider`,
-  `PermissionSnapshotLintTests.testWizardInputMonitoringPageDelegatesPermissionSnapshotsToSystemStateProvider`,
-  `PermissionSnapshotLintTests.testInstallationWizardStateManagementDelegatesPermissionSnapshotsToSystemStateProvider`,
-  and
-  `PermissionSnapshotLintTests.testDragToAuthorizeControllerDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevent migrated wizard UI permission refresh reads from bypassing
-  `SystemStateProvider`.
-- [x] `PermissionSnapshotLintTests.testKeyboardCaptureDelegatesSyncAccessibilityStatusToSystemStateProvider`
-  and
-  `PermissionSnapshotLintTests.testWindowManagerDelegatesSyncAccessibilityStatusToSystemStateProvider`
-  prevent migrated synchronous KeyPath Accessibility status reads from
-  bypassing `SystemStateProvider`.
+- [x] `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`
+  scans all production sources and prevents any new `PermissionOracle.shared`
+  call site outside `SystemStateProvider`'s permission facade.
 - [x] `SystemStateProviderSMAppServiceTests.testSynchronousSMAppServiceStatusDelegatesToCentralStatusProviderBridge`,
   `SMAppServiceStatusLintTests.testStatusAccessIsCentralized`, and
   `SMAppServiceStatusLintTests.testWizardProtocolConformancesDelegateHelperApprovalToHelperManager`
@@ -736,22 +676,26 @@ is listed in the state-matrix doc's enforcement section.
 - [x] `PgrepProcessDiscoveryLintTests.testProductionPgrepDiscoveryIsCentralizedInCoreProvider`
   blocks production `pgrep` process discovery outside the core provider
   implementation.
-- [x] `LaunchctlEvidenceLintTests.testVHIDDeviceManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
-  prevents `VHIDDeviceManager` from regrowing direct `launchctl print`
-  service-state reads.
-- [x] `LaunchctlEvidenceLintTests.testServiceHealthCheckerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
-  prevents `ServiceHealthChecker` from regrowing direct `launchctl print`
-  service-state reads.
-- [x] `LaunchctlEvidenceLintTests.testKanataDaemonManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
-  prevents `KanataDaemonManager` from regrowing direct `launchctl print`
-  service-state reads.
-- [x] `LaunchctlEvidenceLintTests.testHelperManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
-  prevents `HelperManager` from regrowing direct `launchctl print`
-  service-state reads.
-- **Deferred follow-up (not Phase 1 acceptance):** add postcondition and
-  snapshot-cache deletion ratchets with Workstreams 3 and 6, where those
-  migrations happen. Phase 1 landed the ratchets corresponding to each
-  completed W1/W2 migration above.
+- [x] `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`
+  scans all production sources and prevents direct read-only `launchctl print`
+  evidence reads outside `SystemStateProvider`.
+- [x] `FacadeLintTests.testProductionSourcesDoNotBypassInstallerEngine` scans
+  all production sources and keeps direct `PrivilegedOperationsRouter.shared`
+  access limited to the wizard dependency bridge.
+- [x] `PostconditionLintTests.testRuntimeMutatingRouterVerbsEnforceRuntimePostcondition`
+  and `PostconditionLintTests.testVHIDServiceRepairEnforcesVHIDPostcondition`
+  pin the runtime and VHID postcondition enforcers on the currently covered
+  router verbs.
+- [x] `PostconditionLintTests.testPublicRouterOperationsAreClassifiedForPostconditionReview`
+  fails if a new public router operation is added without being classified as
+  postcondition-enforced, delegated/verified, or an explicit follow-up
+  exemption.
+- [x] `SnapshotConsumerLintTests.testSMAppServiceStatusProviderCacheIsOnlyConsumedThroughSystemStateProvider`
+  prevents direct production consumption of the SMAppService status cache
+  outside `SystemStateProvider`.
+- [x] `SnapshotConsumerLintTests.testRuntimeAndInstallerStateCachesStayInKnownOwners`
+  prevents new runtime/installer state caches outside the current known
+  provider-style owners while follow-up work shrinks that allowlist.
 
 ## Workstream 6: Deletion Pass
 

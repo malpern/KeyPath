@@ -14,10 +14,12 @@ final class PostUpdateRepairLintTests: XCTestCase {
             .appendingPathComponent("Sources/KeyPathAppKit/Services/UpdateService.swift")
         let contents = try String(contentsOf: updateService, encoding: .utf8)
 
-        let finalizeBody = try extractFunctionBody(
+        guard let finalizeBody = extractFunctionBody(
             named: "finalizeUpdate",
             from: contents
-        )
+        ) else {
+            return
+        }
 
         let forbiddenPatterns = [
             #"run\s*\(\s*intent:\s*\.repair"#,
@@ -46,12 +48,19 @@ final class PostUpdateRepairLintTests: XCTestCase {
     }
 }
 
-private func extractFunctionBody(named functionName: String, from contents: String) throws -> String {
+private func extractFunctionBody(
+    named functionName: String,
+    from contents: String,
+    file: StaticString = #filePath,
+    line: UInt = #line
+) -> String? {
     guard let nameRange = contents.range(of: "func \(functionName)") else {
-        throw XCTSkip("Could not find func \(functionName)")
+        XCTFail("Could not find func \(functionName)", file: file, line: line)
+        return nil
     }
     guard let openBrace = contents[nameRange.lowerBound...].firstIndex(of: "{") else {
-        throw XCTSkip("Could not find opening brace for \(functionName)")
+        XCTFail("Could not find opening brace for \(functionName)", file: file, line: line)
+        return nil
     }
 
     var depth = 0
@@ -70,7 +79,8 @@ private func extractFunctionBody(named functionName: String, from contents: Stri
         cursor = contents.index(after: cursor)
     }
 
-    throw XCTSkip("Could not find closing brace for \(functionName)")
+    XCTFail("Could not find closing brace for \(functionName)", file: file, line: line)
+    return nil
 }
 
 private func phase1W3RepositoryRoot(file: StaticString = #filePath) -> URL {
