@@ -28,7 +28,7 @@ old stderr/log-derived diagnosis.
 
 | Term | Meaning | Evidence |
 |------|---------|----------|
-| `registered` | SMAppService has registration metadata | `SMAppService.status`, through the shared status provider |
+| `registered` | SMAppService has registration metadata | `SMAppService.status`, through `SystemStateProvider`/the shared status provider |
 | `loaded` | launchd can find the job | `ServiceHealthChecker` launchd/load evidence |
 | `running` | the process exists | `ServiceHealthChecker` process/runtime snapshot |
 | `responding` | Kanata TCP server answers | `ServiceHealthChecker` TCP probe |
@@ -201,6 +201,15 @@ the result as user action required and name the approval surface.
   `HelperManagerTests.testLastHelperLogsUsesInjectedSystemStateProviderForLaunchctlEvidence`,
   and `LaunchctlEvidenceLintTests.testHelperManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
   block migrated helper installation/log-registration checks from bypassing it.
+- SMAppService registration status belongs behind `SystemStateProvider`'s
+  SMAppService façade, which delegates to the existing
+  `SMAppServiceStatusProvider` cache/coalescer.
+  `SystemStateProviderSMAppServiceTests.testSMAppServiceStatusAccessDelegatesToCentralStatusProvider`,
+  `SystemStateProviderSMAppServiceTests.testSMAppServiceFreshStatusBypassesCache`,
+  and `SystemStateProviderSMAppServiceTests.testSMAppServiceStatusInvalidationDelegatesToCentralStatusProvider`
+  pin the façade contract, while
+  `SMAppServiceStatusLintTests.testKanataDaemonManagerDelegatesStatusProviderAccessToSystemStateProvider`
+  blocks migrated Kanata daemon status reads from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References

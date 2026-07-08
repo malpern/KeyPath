@@ -132,7 +132,7 @@ public class KanataDaemonManager {
     @discardableResult
     nonisolated func refreshManagementStateInternal() async -> ServiceManagementState {
         let hasLegacy = Foundation.FileManager().fileExists(atPath: Self.legacyPlistPath)
-        let smStatus = await SMAppServiceStatusProvider.shared.cachedStatus(for: Self.kanataPlistName)
+        let smStatus = await systemStateProvider.cachedSMAppServiceStatus(for: Self.kanataPlistName)
 
         AppLogger.shared.log("🔍 [KanataDaemonManager] State determination:")
         AppLogger.shared.log("  - Legacy plist exists: \(hasLegacy)")
@@ -207,7 +207,7 @@ public class KanataDaemonManager {
     /// Check if Kanata daemon is installed and registered via SMAppService
     /// - Returns: true if SMAppService reports `.enabled` OR launchctl has the job
     nonisolated func isInstalled() async -> Bool {
-        let smStatus = await SMAppServiceStatusProvider.shared.cachedStatus(for: Self.kanataPlistName)
+        let smStatus = await systemStateProvider.cachedSMAppServiceStatus(for: Self.kanataPlistName)
         if smStatus == .enabled { return true }
 
         let evidence = await systemStateProvider.launchctlPrint(target: "system/\(Self.kanataServiceID)")
@@ -226,18 +226,18 @@ public class KanataDaemonManager {
     /// Get the current SMAppService status
     /// - Returns: The current status (.notFound, .requiresApproval, .enabled, .notRegistered)
     ///
-    /// Routed through `SMAppServiceStatusProvider` (issue #853) so the underlying
-    /// synchronous IPC never runs inline on a caller's actor. Uses `freshStatus`
-    /// because callers use this for post-mutation verification where a stale
-    /// cached value would be misleading.
+    /// Routed through `SystemStateProvider` so the underlying synchronous IPC
+    /// remains coalesced/off-actor behind the shared status provider. Uses a
+    /// fresh read because callers use this for post-mutation verification where
+    /// a stale cached value would be misleading.
     nonisolated func getStatus() async -> ServiceManagement.SMAppService.Status {
-        await SMAppServiceStatusProvider.shared.freshStatus(for: Self.kanataPlistName)
+        await systemStateProvider.freshSMAppServiceStatus(for: Self.kanataPlistName)
     }
 
     /// Check if daemon is registered via SMAppService (not launchctl)
     /// - Returns: true if SMAppService status is `.enabled`
     nonisolated static func isRegisteredViaSMAppService() async -> Bool {
-        await SMAppServiceStatusProvider.shared.cachedStatus(for: kanataPlistName) == .enabled
+        await SystemStateProvider.shared.cachedSMAppServiceStatus(for: kanataPlistName) == .enabled
     }
 
     /// Check if legacy launchctl installation exists
@@ -276,7 +276,7 @@ public class KanataDaemonManager {
         #endif
 
         // 1. Check if SMAppService thinks it's registered
-        let smStatus = await SMAppServiceStatusProvider.shared.cachedStatus(for: Self.kanataPlistName)
+        let smStatus = await systemStateProvider.cachedSMAppServiceStatus(for: Self.kanataPlistName)
         guard smStatus == .enabled else {
             return false
         }
@@ -449,12 +449,9 @@ public class KanataDaemonManager {
             AppLogger.shared.log("✅ [KanataDaemonManager] Kanata binary found")
         }
 
-        // Fresh read via the centralized provider (issue #853). After this the
-        // register/unregister mutation sequence below reads status directly off the
-        // owned `svc` instance, because those reads must observe the just-mutated
-        // object rather than the process-wide cache; the cache is invalidated at the
-        // end so later readers elsewhere re-fetch.
-        let initialStatus = await SMAppServiceStatusProvider.shared.freshStatus(for: Self.kanataPlistName)
+        // Fresh read via SystemStateProvider. Register/unregister mutations below
+        // invalidate the shared status cache so later readers re-fetch.
+        let initialStatus = await systemStateProvider.freshSMAppServiceStatus(for: Self.kanataPlistName)
         AppLogger.shared.log(
             "🔍 [KanataDaemonManager] SMAppService created with plist name: \(Self.kanataPlistName)"
         )
@@ -498,7 +495,7 @@ public class KanataDaemonManager {
             do {
                 AppLogger.shared.log("🔧 [KanataDaemonManager] Calling svc.register()...")
                 try svc.register()
-                let newStatus = await SMAppServiceStatusProvider.shared.freshStatus(for: Self.kanataPlistName)
+                let newStatus = await systemStateProvider.freshSMAppServiceStatus(for: Self.kanataPlistName)
                 AppLogger.shared.log(
                     "🔍 [KanataDaemonManager] After register(), status changed to: \(newStatus.rawValue) (\(String(describing: newStatus)))"
                 )
@@ -506,7 +503,7 @@ public class KanataDaemonManager {
                 AppLogger.shared.info("✅ [KanataDaemonManager] Daemon registered successfully")
                 return
             } catch {
-                let errorStatus = await SMAppServiceStatusProvider.shared.freshStatus(for: Self.kanataPlistName)
+                let errorStatus = await systemStateProvider.freshSMAppServiceStatus(for: Self.kanataPlistName)
                 AppLogger.shared.log("❌ [KanataDaemonManager] Registration failed with error: \(error)")
                 AppLogger.shared.log(
                     "🔍 [KanataDaemonManager] Status after error: \(errorStatus.rawValue) (\(String(describing: errorStatus)))"
@@ -546,7 +543,7 @@ public class KanataDaemonManager {
                     "🔧 [KanataDaemonManager] Calling svc.register() despite .notFound status..."
                 )
                 try svc.register()
-                let newStatus = await SMAppServiceStatusProvider.shared.freshStatus(for: Self.kanataPlistName)
+                let newStatus = await systemStateProvider.freshSMAppServiceStatus(for: Self.kanataPlistName)
                 AppLogger.shared.log(
                     "🔍 [KanataDaemonManager] After register(), status changed to: \(newStatus.rawValue) (\(String(describing: newStatus)))"
                 )
@@ -556,7 +553,7 @@ public class KanataDaemonManager {
                 )
                 return
             } catch {
-                let errorStatus = await SMAppServiceStatusProvider.shared.freshStatus(for: Self.kanataPlistName)
+                let errorStatus = await systemStateProvider.freshSMAppServiceStatus(for: Self.kanataPlistName)
                 AppLogger.shared.log(
                     "❌ [KanataDaemonManager] Registration failed with detailed error: \(error)"
                 )
@@ -619,8 +616,8 @@ public class KanataDaemonManager {
             )
         }
         // The unregister/re-register above changed system state; drop the cache so the
-        // isRegisteredButNotLoaded() check below reads a fresh status (#853).
-        await SMAppServiceStatusProvider.shared.invalidate(plistName: Self.kanataPlistName)
+        // isRegisteredButNotLoaded() check below reads a fresh status.
+        await systemStateProvider.invalidateSMAppServiceStatus(plistName: Self.kanataPlistName)
 
         if await isRegisteredButNotLoaded() {
             throw KanataDaemonError.registrationFailed(
@@ -639,8 +636,8 @@ public class KanataDaemonManager {
         let svc = Self.smServiceFactory(Self.kanataPlistName)
         do {
             try await svc.unregister()
-            // Drop the centralized cache so subsequent status reads re-fetch (#853).
-            await SMAppServiceStatusProvider.shared.invalidate(plistName: Self.kanataPlistName)
+            // Drop the centralized cache so subsequent status reads re-fetch.
+            await systemStateProvider.invalidateSMAppServiceStatus(plistName: Self.kanataPlistName)
             AppLogger.shared.info("✅ [KanataDaemonManager] Daemon unregistered successfully")
         } catch {
             throw KanataDaemonError.operationFailed(

@@ -12,8 +12,9 @@ import Foundation
 /// This test fails the build if any source outside the provider reads `.status` off an
 /// `SMAppService` instance (a `SMAppService.daemon(…)` value or a `SMAppServiceProtocol`
 /// from `smServiceFactory`). To fix a new violation, route the read through
-/// `SMAppServiceStatusProvider.shared.cachedStatus(for:)` (hot paths) or
-/// `.freshStatus(for:)` (one-shot install/uninstall) — do **not** extend the allowlist.
+/// `SystemStateProvider` or, for the low-level cache/coalescer itself,
+/// `SMAppServiceStatusProvider.shared.cachedStatus(for:)` / `.freshStatus(for:)`.
+/// Do **not** extend the allowlist.
 ///
 /// The allowlist is a shrinking ratchet of pre-existing **synchronous** call sites that
 /// are not on a hot path and whose migration would require threading `async` through the
@@ -71,8 +72,27 @@ final class SMAppServiceStatusLintTests: XCTestCase {
             violations.isEmpty,
             """
             Direct SMAppService `.status` reads found outside SMAppServiceStatusProvider \
-            (issue #853). Route through SMAppServiceStatusProvider.shared.cachedStatus(for:) \
-            or .freshStatus(for:) instead of adding to the allowlist:
+            (issue #853). Route through SystemStateProvider or the low-level \
+            SMAppServiceStatusProvider cache/coalescer instead of adding to the allowlist:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
+
+    func testKanataDaemonManagerDelegatesStatusProviderAccessToSystemStateProvider() throws {
+        let manager = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/KanataDaemonManager.swift")
+
+        let violations = try matchingLines(
+            in: manager,
+            patterns: [#"SMAppServiceStatusProvider\.shared"#]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            KanataDaemonManager must delegate SMAppService status/cache access \
+            through SystemStateProvider:
             \(violations.sorted().joined(separator: "\n"))
             """
         )
@@ -85,4 +105,21 @@ private func repositoryRoot(file: StaticString = #filePath) -> URL {
         .deletingLastPathComponent() // KeyPathTests
         .deletingLastPathComponent() // Tests
         .deletingLastPathComponent() // repo root
+}
+
+private func matchingLines(in fileURL: URL, patterns: [String]) throws -> [String] {
+    let contents = try String(contentsOf: fileURL, encoding: .utf8)
+    let regexes = try patterns.map { try NSRegularExpression(pattern: $0) }
+    let relativePath = fileURL.path.replacingOccurrences(of: repositoryRoot().path + "/", with: "")
+
+    var violations: [String] = []
+    for (idx, rawLine) in contents.components(separatedBy: .newlines).enumerated() {
+        let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("//") || trimmed.hasPrefix("///") || trimmed.hasPrefix("*") { continue }
+        let range = NSRange(rawLine.startIndex..., in: rawLine)
+        if regexes.contains(where: { $0.firstMatch(in: rawLine, range: range) != nil }) {
+            violations.append("\(relativePath):\(idx + 1): \(trimmed)")
+        }
+    }
+    return violations
 }
