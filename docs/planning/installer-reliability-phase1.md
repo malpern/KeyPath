@@ -72,9 +72,10 @@ apply. Checklists decay; that is how the loop happened. Make it code.
 - Wizard, CLI, and menu bar cannot disagree about system state because they
   cannot read different sources.
 
-**Status (2026-07-08):** First provider slices implemented; pure state-matrix
-classification is executable and golden-tested. Full provider-emitted snapshot
-integration remains pending.
+**Status (2026-07-08):** Phase 1 state classification is executable and
+golden-tested. `SystemStateProvider` emits the live AppKit/CLI/menu-bar matrix
+snapshot; wizard core consumes the same classifier through a pure `SystemContext`
+bridge to avoid an AppKit dependency cycle.
 - [x] Introduced `SystemStateProvider` as the owner for the ADR-040
   process-liveness primitive and Kanata readiness predicate. Enforced by
   `SystemStateProviderLivenessTests.testProcessLivenessProbeTreatsCurrentProcessAsAliveAndExitedProcessAsDead`
@@ -246,9 +247,11 @@ integration remains pending.
   `SystemStateProviderSMAppServiceTests.testSynchronousSMAppServiceStatusDelegatesToCentralStatusProviderBridge`,
   `SMAppServiceStatusLintTests.testStatusAccessIsCentralized`, and
   `SMAppServiceStatusLintTests.testWizardProtocolConformancesDelegateHelperApprovalToHelperManager`.
-- [ ] Migrate `SMAppService.status`, permissions, VHID state, helper freshness,
-  and migrated read-only `launchctl print` evidence into a single immutable
-  `SystemSnapshot`.
+- **Deferred follow-up (not Phase 1 acceptance):** collapse `SystemSnapshot`,
+  `SystemContext`, and remaining cache/snapshot duplication into one value
+  during Workstream 6. Phase 1 keeps the existing `SystemSnapshot` boundary and
+  makes state-matrix classification executable via `InstallerStateMatrixSnapshot`
+  plus `SystemStateProvider`/`SystemContext` adapters.
 - [x] Built pure `InstallerStateMatrixPlanner.classify(_:) -> InstallerStateMatrixRow`
   and `plan(for:)` with a table-driven golden fixture for every state-matrix
   row. Enforced by
@@ -277,9 +280,21 @@ integration remains pending.
   validation fallback before the first matrix classification exists. Enforced by
   `MainAppStateControllerTests.menuBarHealthPrefersStateMatrixRow` and
   `MainAppStateControllerTests.menuBarHealthFallsBackBeforeMatrixClassification`.
-- [ ] Wire `SystemStateProvider`'s full immutable snapshot into the state-matrix
-  classifier and migrate wizard/CLI/menu-bar consumers to the shared
-  classification.
+- [x] Migrated wizard detection results to publish the shared state-matrix row
+  and state-matrix plan alongside legacy wizard state/issues/actions. Wizard
+  core uses a pure `SystemContext` → `InstallerStateMatrixSnapshot` bridge
+  because the live `SystemStateProvider` adapter lives in AppKit. Enforced by
+  `WizardPureLogicTests.test_systemContextStateMatrixSnapshot_classifiesStoppedRuntimeWithStaleInputCapture`
+  and
+  `WizardPureLogicTests.test_systemContextAdapterPublishesStateMatrixMetadata`.
+- [x] Wired `SystemStateProvider`'s live immutable snapshot into the
+  state-matrix classifier for AppKit/CLI/menu-bar consumers and migrated
+  wizard/CLI/menu-bar consumers to the shared row/action vocabulary. Enforced
+  by
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotPreservesRunningButTCPNotRespondingEvidence`,
+  `CLIOutputContractTests.testInspectResultRepairMetadataJSONShape`,
+  `MainAppStateControllerTests.menuBarHealthPrefersStateMatrixRow`, and
+  `WizardPureLogicTests.test_systemContextAdapterPublishesStateMatrixMetadata`.
 
 ## Workstream 2: One Liveness Predicate
 
@@ -695,8 +710,10 @@ is listed in the state-matrix doc's enforcement section.
 - [x] `LaunchctlEvidenceLintTests.testHelperManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
   prevents `HelperManager` from regrowing direct `launchctl print`
   service-state reads.
-- [ ] Add remaining `SMAppService.status`, postcondition, and snapshot-cache
-  ratchets with the corresponding migration slices.
+- **Deferred follow-up (not Phase 1 acceptance):** add postcondition and
+  snapshot-cache deletion ratchets with Workstreams 3 and 6, where those
+  migrations happen. Phase 1 landed the ratchets corresponding to each
+  completed W1/W2 migration above.
 
 ## Workstream 6: Deletion Pass
 

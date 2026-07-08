@@ -139,6 +139,11 @@ the result as user action required and name the approval surface.
   classified the current system state. `MainAppStateControllerTests.menuBarHealthPrefersStateMatrixRow`
   pins that `runningAndTCPResponding` is the only matrix row treated as healthy
   by the compact status surface.
+- Wizard detection results publish the shared state-matrix row and plan next to
+  legacy wizard state/issues/actions. `WizardPureLogicTests.test_systemContextAdapterPublishesStateMatrixMetadata`
+  pins the adapter contract, while
+  `WizardPureLogicTests.test_systemContextStateMatrixSnapshot_classifiesStoppedRuntimeWithStaleInputCapture`
+  pins the pure `SystemContext` snapshot bridge used by wizard core.
 - Process-liveness semantics belong in `SystemStateProvider.isProcessAlive(pid:)`.
   `SystemStateProviderLivenessTests.testProcessLivenessProbeTreatsCurrentProcessAsAliveAndExitedProcessAsDead`
   proves the real ADR-040 primitive, and
