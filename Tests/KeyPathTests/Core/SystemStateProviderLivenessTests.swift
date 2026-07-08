@@ -132,6 +132,51 @@ final class SystemStateProviderLivenessTests: XCTestCase {
         XCTAssertEqual(matches, [])
     }
 
+    func testLaunchctlPrintDelegatesToInjectedSubprocessRunner() async {
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configureLaunchctlResult { subcommand, args in
+            if subcommand == "print", args == ["system/com.keypath.karabiner-vhiddaemon"] {
+                return ProcessResult(
+                    exitCode: 0,
+                    stdout: """
+                    state = running
+                    pid = 12345
+                    """,
+                    stderr: "",
+                    duration: 0.01
+                )
+            }
+            return ProcessResult(exitCode: 113, stdout: "", stderr: "not found", duration: 0.01)
+        }
+        let provider = SystemStateProvider(subprocessRunner: runner)
+
+        let evidence = await provider.launchctlPrint(target: "system/com.keypath.karabiner-vhiddaemon")
+        let commands = await runner.executedCommands
+
+        XCTAssertEqual(evidence.target, "system/com.keypath.karabiner-vhiddaemon")
+        XCTAssertEqual(evidence.exitCode, 0)
+        XCTAssertTrue(evidence.hasRunningProcessEvidence)
+        XCTAssertTrue(
+            commands.contains { $0.executable == "/bin/launchctl" && $0.args == ["print", "system/com.keypath.karabiner-vhiddaemon"] },
+            "SystemStateProvider should own launchctl print service-state evidence"
+        )
+    }
+
+    func testLaunchctlPrintRejectsBlankTargets() async {
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configureLaunchctlResult { _, _ in
+            XCTFail("Blank launchctl print targets must not invoke launchctl")
+            return ProcessResult(exitCode: 0, stdout: "", stderr: "", duration: 0.01)
+        }
+        let provider = SystemStateProvider(subprocessRunner: runner)
+
+        let evidence = await provider.launchctlPrint(target: "  \n\t  ")
+
+        XCTAssertEqual(evidence, LaunchctlPrintEvidence(target: "", exitCode: nil, stdout: "", stderr: ""))
+    }
+
     func testSynchronousProcessDiscoveryRejectsBlankPatterns() {
         let pids = SystemStateProvider.processIDsSynchronously(matching: "  \n\t  ")
 

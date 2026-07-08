@@ -117,6 +117,15 @@ classification remains pending.
   `PgrepProcessDiscoveryLintTests.testProcessLifecycleManagerDelegatesPgrepDiscoveryToSystemStateProvider`,
   `PgrepProcessDiscoveryLintTests.testHelperServiceDelegatesPgrepDiscoveryToSystemStateProvider`,
   and `PgrepProcessDiscoveryLintTests.testProductionPgrepDiscoveryIsCentralizedInCoreProvider`.
+- [x] Added provider-owned `launchctl print` service-state evidence and migrated
+  `VHIDDeviceManager`'s read-only VirtualHID launchd health checks to delegate
+  to it. Enforced by
+  `SystemStateProviderLivenessTests.testLaunchctlPrintDelegatesToInjectedSubprocessRunner`,
+  `SystemStateProviderLivenessTests.testLaunchctlPrintRejectsBlankTargets`,
+  `VHIDDeviceManagerTests.testCheckLaunchctlHealthUsesInjectedSystemStateProvider`,
+  `VHIDDeviceManagerTests.testDuplicateProcessRaceUsesInjectedLaunchctlEvidence`,
+  and
+  `LaunchctlEvidenceLintTests.testVHIDDeviceManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
 - [ ] Migrate `launchctl`, `SMAppService.status`, permissions, VHID state, and
   helper freshness into a single immutable `SystemSnapshot`.
 - [ ] Build `classify(snapshot) -> StateMatrixRow -> plan` and table-driven
@@ -214,6 +223,14 @@ through 21 mocked tests).
   `SystemStateProvider`/`SubprocessRunner`, with no caller-owned production
   uses remaining. Enforced by
   `PgrepProcessDiscoveryLintTests.testProductionPgrepDiscoveryIsCentralizedInCoreProvider`.
+- [x] `VHIDDeviceManager` read-only `launchctl print` service-state evidence
+  delegates to `SystemStateProvider.launchctlPrint(target:)`. Enforced by
+  `SystemStateProviderLivenessTests.testLaunchctlPrintDelegatesToInjectedSubprocessRunner`,
+  `SystemStateProviderLivenessTests.testLaunchctlPrintRejectsBlankTargets`,
+  `VHIDDeviceManagerTests.testCheckLaunchctlHealthUsesInjectedSystemStateProvider`,
+  `VHIDDeviceManagerTests.testDuplicateProcessRaceUsesInjectedLaunchctlEvidence`,
+  and
+  `LaunchctlEvidenceLintTests.testVHIDDeviceManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -346,7 +363,10 @@ is listed in the state-matrix doc's enforcement section.
 - [x] `PgrepProcessDiscoveryLintTests.testProductionPgrepDiscoveryIsCentralizedInCoreProvider`
   blocks production `pgrep` process discovery outside the core provider
   implementation.
-- [ ] Add `launchctl`, postcondition, and snapshot-cache
+- [x] `LaunchctlEvidenceLintTests.testVHIDDeviceManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
+  prevents `VHIDDeviceManager` from regrowing direct `launchctl print`
+  service-state reads.
+- [ ] Add remaining `launchctl`, postcondition, and snapshot-cache
   ratchets with the corresponding migration slices.
 
 ## Workstream 6: Deletion Pass

@@ -123,6 +123,65 @@ final class VHIDDeviceManagerTests: XCTestCase {
         )
     }
 
+    func testCheckLaunchctlHealthUsesInjectedSystemStateProvider() async {
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configureLaunchctlResult { subcommand, args in
+            if subcommand == "print", args == ["system/com.keypath.karabiner-vhiddaemon"] {
+                return ProcessResult(
+                    exitCode: 0,
+                    stdout: """
+                    state = running
+                    pid = 24680
+                    """,
+                    stderr: "",
+                    duration: 0.01
+                )
+            }
+            return ProcessResult(exitCode: 113, stdout: "", stderr: "not found", duration: 0.01)
+        }
+
+        let provider = SystemStateProvider(subprocessRunner: runner)
+        let mgr = VHIDDeviceManager(systemStateProvider: provider)
+        let healthy = await mgr.checkLaunchctlHealth()
+        let commands = await runner.executedCommands
+
+        XCTAssertEqual(healthy, true)
+        XCTAssertTrue(
+            commands.contains { $0.executable == "/bin/launchctl" && $0.args == ["print", "system/com.keypath.karabiner-vhiddaemon"] },
+            "VHIDDeviceManager should use its injected provider for launchctl service-state evidence"
+        )
+    }
+
+    func testDuplicateProcessRaceUsesInjectedLaunchctlEvidence() async {
+        KeyPathCore.FeatureFlags.testStartupMode = false
+        VHIDDeviceManager.testPIDProvider = nil
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configurePgrepResult { pattern in
+            pattern == "Karabiner-VirtualHIDDevice-Daemon" ? [111, 222] : []
+        }
+        await runner.configureLaunchctlResult { subcommand, args in
+            if subcommand == "print", args == ["system/com.keypath.karabiner-vhiddaemon"] {
+                return ProcessResult(exitCode: 0, stdout: "pid = 111", stderr: "", duration: 0.01)
+            }
+            return ProcessResult(exitCode: 113, stdout: "", stderr: "not found", duration: 0.01)
+        }
+
+        let provider = SystemStateProvider(subprocessRunner: runner)
+        let mgr = VHIDDeviceManager(systemStateProvider: provider)
+        let running = await mgr.detectRunning()
+        let commands = await runner.executedCommands
+
+        XCTAssertTrue(running, "Injected launchctl evidence should suppress duplicate-process false positives")
+        XCTAssertTrue(
+            commands.contains { $0.executable == "/usr/bin/pgrep" && $0.args == ["-f", "Karabiner-VirtualHIDDevice-Daemon"] }
+        )
+        XCTAssertTrue(
+            commands.contains { $0.executable == "/bin/launchctl" && $0.args == ["print", "system/com.keypath.karabiner-vhiddaemon"] }
+        )
+    }
+
     // MARK: - Startup Mode Tests
 
     func testDetectRunning_StartupMode_DaemonRunning() async {
