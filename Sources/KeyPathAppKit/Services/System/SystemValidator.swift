@@ -626,13 +626,18 @@ public class SystemValidator {
         }
 
         return HealthStatus(
+            kanataLaunchdLoaded: !kanataHealth.staleEnabledRegistration &&
+                (kanataHealth.launchctlExitCode == 0 || kanataHealth.isRunning),
+            kanataProcessRunning: kanataHealth.isRunning,
+            kanataTCPResponding: kanataHealth.isResponding,
             kanataRunning: kanataRunning,
             karabinerDaemonRunning: karabinerDaemonRunning,
             vhidHealthy: vhidHealthy,
             kanataInputCaptureReady: kanataHealth.inputCaptureReady,
             kanataInputCaptureIssue: kanataHealth.inputCaptureIssue,
             kanataPermissionRejected: stderrDiagnosis.permissionRejected,
-            configParseError: configParseError
+            configParseError: configParseError,
+            staleEnabledRegistration: kanataHealth.staleEnabledRegistration
         )
     }
 

@@ -80,6 +80,9 @@ public final class InstallerEngine {
         let activeRuntimePathStatus: (title: String, detail: String)? = nil
 
         let services = HealthStatus(
+            kanataLaunchdLoaded: snapshot.health.kanataLaunchdLoaded,
+            kanataProcessRunning: snapshot.health.kanataProcessRunning,
+            kanataTCPResponding: snapshot.health.kanataTCPResponding,
             kanataRunning: snapshot.health.kanataRunning,
             karabinerDaemonRunning: snapshot.health.karabinerDaemonRunning,
             vhidHealthy: snapshot.health.vhidHealthy,
@@ -87,7 +90,9 @@ public final class InstallerEngine {
             kanataInputCaptureIssue: snapshot.health.kanataInputCaptureIssue,
             activeRuntimePathTitle: activeRuntimePathStatus?.title,
             activeRuntimePathDetail: activeRuntimePathStatus?.detail,
-            kanataPermissionRejected: snapshot.health.kanataPermissionRejected
+            kanataPermissionRejected: snapshot.health.kanataPermissionRejected,
+            configParseError: snapshot.health.configParseError,
+            staleEnabledRegistration: snapshot.health.staleEnabledRegistration
         )
 
         // Convert SystemSnapshot to SystemContext
