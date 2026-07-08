@@ -33,7 +33,9 @@ review gate against the branch diff. If local review tooling is available, the
 script runs it and returns 0 only when it passes. If local review tooling is
 unavailable, exit 2 is the expected remote-review path: record `remote review
 gate selected` in the PR and do not merge until the GitHub `claude-review`
-check passes. Address all CONFIRMED and PLAUSIBLE findings before proceeding.
+check passes. Do not report missing local review tools as a PR issue; that is
+already represented by `remote review gate selected`. Address all CONFIRMED
+and PLAUSIBLE findings before proceeding.
 
 ## Phase 3: PR Creation
 
