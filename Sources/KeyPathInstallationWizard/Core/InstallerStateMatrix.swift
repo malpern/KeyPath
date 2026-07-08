@@ -118,7 +118,9 @@ public enum InstallerStateMatrixAction: String, Sendable, Equatable {
 
 public enum InstallerStateMatrixPlanner {
     public static func classify(_ snapshot: InstallerStateMatrixSnapshot) -> InstallerStateMatrixRow {
-        if snapshot.manualApprovalRequired {
+        let runtimeUsable = snapshot.runtimeReady && !snapshot.currentInputCaptureIssue
+
+        if snapshot.manualApprovalRequired, !runtimeUsable {
             return .manualApprovalRequired
         }
 
@@ -165,6 +167,10 @@ public enum InstallerStateMatrixPlanner {
             return .runningButTCPNotResponding
         }
 
+        if snapshot.virtualHIDApprovalPending {
+            return .virtualHIDApprovalPending
+        }
+
         if snapshot.runtimeReady, snapshot.currentInputCaptureIssue {
             return .runningButInputCaptureFailing
         }
@@ -177,11 +183,7 @@ public enum InstallerStateMatrixPlanner {
             return .vhidServicesMissingUnhealthy
         }
 
-        if snapshot.virtualHIDApprovalPending {
-            return .virtualHIDApprovalPending
-        }
-
-        if !snapshot.helperInstalled {
+        if !snapshot.helperInstalled || !snapshot.helperResponding {
             return .helperMissing
         }
 
