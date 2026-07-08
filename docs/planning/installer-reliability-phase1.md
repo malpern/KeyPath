@@ -166,6 +166,13 @@ classification remains pending.
   `HelperManagerTests.testInstallHelperAttemptsRegisterWhenStatusIsNotFoundAndSurfacesError`,
   and
   `HelperManagerTests.testInstallHelperRecoversEnabledButUnresponsiveRegistration`.
+- [x] Migrated `KanataDaemonService` SMAppService status/cache reads and
+  invalidations through `SystemStateProvider`'s SMAppService status façade.
+  Enforced by
+  `SMAppServiceStatusLintTests.testKanataDaemonServiceDelegatesStatusProviderAccessToSystemStateProvider`,
+  `KanataDaemonServiceIntegrationTests.testStopService_ShouldUnregister`,
+  and
+  `KanataDaemonServiceIntegrationTests.testEvaluateStatus_WhenPIDAndTCPBothFail_ShouldReportFailed`.
 - [ ] Migrate `SMAppService.status`, permissions, VHID state, helper freshness,
   and migrated read-only `launchctl print` evidence into a single immutable
   `SystemSnapshot`.
@@ -307,6 +314,12 @@ through 21 mocked tests).
   `HelperManagerTests.testInstallHelperAttemptsRegisterWhenStatusIsNotFoundAndSurfacesError`,
   and
   `HelperManagerTests.testInstallHelperRecoversEnabledButUnresponsiveRegistration`.
+- [x] `KanataDaemonService` SMAppService registration status/cache reads
+  delegate to `SystemStateProvider`'s SMAppService status façade. Enforced by
+  `SMAppServiceStatusLintTests.testKanataDaemonServiceDelegatesStatusProviderAccessToSystemStateProvider`,
+  `KanataDaemonServiceIntegrationTests.testStopService_ShouldUnregister`,
+  and
+  `KanataDaemonServiceIntegrationTests.testEvaluateStatus_WhenPIDAndTCPBothFail_ShouldReportFailed`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -414,6 +427,9 @@ is listed in the state-matrix doc's enforcement section.
   `SystemStateProvider`.
 - [x] `SMAppServiceStatusLintTests.testHelperManagerAsyncStatusAccessDelegatesToSystemStateProvider`
   prevents migrated `HelperManager` async SMAppService status/cache access from
+  bypassing `SystemStateProvider`.
+- [x] `SMAppServiceStatusLintTests.testKanataDaemonServiceDelegatesStatusProviderAccessToSystemStateProvider`
+  prevents migrated `KanataDaemonService` SMAppService status/cache access from
   bypassing `SystemStateProvider`.
 - [x] `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
   prevents `ServiceHealthChecker` from regrowing a private TCP socket probe.

@@ -121,6 +121,25 @@ final class SMAppServiceStatusLintTests: XCTestCase {
             """
         )
     }
+
+    func testKanataDaemonServiceDelegatesStatusProviderAccessToSystemStateProvider() throws {
+        let service = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Services/Kanata/KanataDaemonService.swift")
+
+        let violations = try matchingLines(
+            in: service,
+            patterns: [#"SMAppServiceStatusProvider\.shared"#]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            KanataDaemonService must delegate SMAppService status/cache access \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {
