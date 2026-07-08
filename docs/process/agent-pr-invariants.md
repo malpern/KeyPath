@@ -26,8 +26,8 @@ What must be true at each phase boundary. The agent's job is to make these true 
 ## After Review Gate
 
 - [ ] `./Scripts/review-gate.sh` run against the branch diff
-- [ ] If local review tooling is unavailable, PR records `remote review required`
-      and GitHub `claude-review` passes before merge
+- [ ] If `./Scripts/review-gate.sh` exits 2, PR records `remote review gate
+      selected` and GitHub `claude-review` passes before merge
 - [ ] All CONFIRMED and PLAUSIBLE findings addressed or explicitly justified
 
 ## After PR Creation

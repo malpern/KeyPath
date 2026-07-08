@@ -88,9 +88,9 @@ Notes:
 - After merging a PR, always pull `master` and deploy from `master` before
   reporting done.
 - Before creating any PR, run `./Scripts/review-gate.sh` against the branch
-  diff and address findings. If local review tooling is unavailable and the
-  script reports `remote review required`, record that in the PR and do not
-  merge until GitHub `claude-review` passes.
+  diff and address findings. If local review tooling is unavailable, exit code
+  2 means `remote review gate selected`; record that in the PR and do not merge
+  until GitHub `claude-review` passes.
 - Git guardrail hooks in `.claude/settings.json` block commits on `master`,
   force-pushes to `master`, `reset --hard`, and `clean -f`.
 
