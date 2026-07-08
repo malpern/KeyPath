@@ -233,7 +233,7 @@ public class PermissionGrantCoordinator {
         Task {
             logger.log("PRE-RESTART SNAPSHOT:")
 
-            let snapshot = await PermissionOracle.shared.currentSnapshot()
+            let snapshot = await SystemStateProvider.shared.currentPermissionSnapshot()
 
             let keyPathAccessibility = snapshot.keyPath.accessibility.isReady
             let keyPathInputMonitoring = snapshot.keyPath.inputMonitoring.isReady
@@ -306,7 +306,7 @@ public class PermissionGrantCoordinator {
     private func checkIfPermissionsGranted(for permissionType: CoordinatorPermissionType) async
         -> Bool
     {
-        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        let snapshot = await SystemStateProvider.shared.currentPermissionSnapshot()
 
         switch permissionType {
         case .accessibility:

@@ -222,6 +222,11 @@ classification remains pending.
   `PermissionSnapshotLintTests.testCompositionRootDelegatesPermissionSnapshotsToSystemStateProvider`,
   and
   `PermissionSnapshotLintTests.testPermissionSnapshotEnvironmentDefaultDelegatesToSystemStateProvider`.
+- [x] Migrated wizard core permission snapshot reads through
+  `SystemStateProvider`'s permission snapshot facade. Enforced by
+  `PermissionSnapshotLintTests.testWizardAsyncOperationManagerDelegatesPermissionSnapshotsToSystemStateProvider`
+  and
+  `PermissionSnapshotLintTests.testPermissionGrantCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`.
 - [ ] Migrate `SMAppService.status`, permissions, VHID state, helper freshness,
   and migrated read-only `launchctl print` evidence into a single immutable
   `SystemSnapshot`.
@@ -416,6 +421,11 @@ through 21 mocked tests).
   `PermissionSnapshotLintTests.testCompositionRootDelegatesPermissionSnapshotsToSystemStateProvider`,
   and
   `PermissionSnapshotLintTests.testPermissionSnapshotEnvironmentDefaultDelegatesToSystemStateProvider`.
+- [x] Wizard core permission snapshot reads delegate to
+  `SystemStateProvider`'s permission snapshot façade. Enforced by
+  `PermissionSnapshotLintTests.testWizardAsyncOperationManagerDelegatesPermissionSnapshotsToSystemStateProvider`
+  and
+  `PermissionSnapshotLintTests.testPermissionGrantCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -558,6 +568,11 @@ is listed in the state-matrix doc's enforcement section.
   `PermissionSnapshotLintTests.testPermissionSnapshotEnvironmentDefaultDelegatesToSystemStateProvider`
   prevent migrated app bootstrap/environment permission snapshot reads from
   bypassing `SystemStateProvider`.
+- [x] `PermissionSnapshotLintTests.testWizardAsyncOperationManagerDelegatesPermissionSnapshotsToSystemStateProvider`
+  and
+  `PermissionSnapshotLintTests.testPermissionGrantCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`
+  prevent migrated wizard core permission snapshot reads from bypassing
+  `SystemStateProvider`.
 - [x] `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
   prevents `ServiceHealthChecker` from regrowing a private TCP socket probe.
 - [x] `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed` and
