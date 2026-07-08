@@ -1583,9 +1583,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             diagnostics: diagnostics,
             addDiagnostic: { [weak self] diagnostic in
                 self?.addDiagnostic(diagnostic)
-            },
-            attemptRecovery: { [weak self] in
-                await self?.attemptKeyboardRecovery()
             }
         )
     }
