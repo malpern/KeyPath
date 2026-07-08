@@ -237,6 +237,12 @@ public struct SystemFacade: Sendable {
         let engine = InstallerEngine()
         let context = await engine.inspectSystem()
         let plan = await engine.makePlan(for: planIntent, context: context)
+        let matrixSnapshot = await SystemStateProvider.shared.currentInstallerStateMatrixSnapshot(
+            components: context.components,
+            helper: context.helper,
+            tcpPort: PreferencesService.shared.tcpServerPort
+        )
+        let matrixRow = InstallerStateMatrixPlanner.classify(matrixSnapshot)
 
         let planStatus: String
         var blockedBy: String?
@@ -258,7 +264,9 @@ public struct SystemFacade: Sendable {
             isOperational: Self.isOperational(context),
             userActionRequired: Self.issues(from: context).contains { !$0.canAutoFix },
             promptsNeeded: plan.metadata.promptsNeeded,
-            issues: Self.issues(from: context)
+            issues: Self.issues(from: context),
+            stateMatrixRow: matrixRow.rawValue,
+            stateMatrixPlan: InstallerStateMatrixPlanner.plan(for: matrixRow).map(\.rawValue)
         )
     }
 
@@ -663,6 +671,36 @@ public struct CLIInspectResult: Codable, Sendable {
     public let userActionRequired: Bool?
     public let promptsNeeded: Bool?
     public let issues: [CLISystemIssue]?
+    public let stateMatrixRow: String?
+    public let stateMatrixPlan: [String]?
+
+    public init(
+        macOSVersion: String,
+        driverCompatible: Bool,
+        planStatus: String,
+        blockedBy: String?,
+        plannedRecipes: [String],
+        planIntent: String? = nil,
+        isOperational: Bool? = nil,
+        userActionRequired: Bool? = nil,
+        promptsNeeded: Bool? = nil,
+        issues: [CLISystemIssue]? = nil,
+        stateMatrixRow: String? = nil,
+        stateMatrixPlan: [String]? = nil
+    ) {
+        self.macOSVersion = macOSVersion
+        self.driverCompatible = driverCompatible
+        self.planStatus = planStatus
+        self.blockedBy = blockedBy
+        self.plannedRecipes = plannedRecipes
+        self.planIntent = planIntent
+        self.isOperational = isOperational
+        self.userActionRequired = userActionRequired
+        self.promptsNeeded = promptsNeeded
+        self.issues = issues
+        self.stateMatrixRow = stateMatrixRow
+        self.stateMatrixPlan = stateMatrixPlan
+    }
 }
 
 public struct CLISystemIssue: Codable, Sendable {

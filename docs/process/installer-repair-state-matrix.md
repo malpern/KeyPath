@@ -131,6 +131,10 @@ the result as user action required and name the approval surface.
   still be verified by the app-side router when possible.
 - Runtime readiness checks belong in `ServiceHealthChecker` and
   `SystemStateProvider`'s shared lifecycle predicates.
+- CLI `system inspect` reports the shared state-matrix classification and plan.
+  `CLIOutputContractTests.testInspectResultRepairMetadataJSONShape` pins the
+  JSON contract so CLI consumers see the same row/action vocabulary as the
+  golden state-matrix planner.
 - Process-liveness semantics belong in `SystemStateProvider.isProcessAlive(pid:)`.
   `SystemStateProviderLivenessTests.testProcessLivenessProbeTreatsCurrentProcessAsAliveAndExitedProcessAsDead`
   proves the real ADR-040 primitive, and

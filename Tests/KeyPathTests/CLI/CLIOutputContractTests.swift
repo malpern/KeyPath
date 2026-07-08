@@ -147,6 +147,8 @@ final class CLIOutputContractTests: XCTestCase {
         let keys = try jsonKeys(result)
         let required: Set = ["driverCompatible", "macOSVersion", "planStatus", "plannedRecipes"]
         XCTAssertTrue(required.isSubset(of: keys), "Missing required keys: \(required.subtracting(keys))")
+        XCTAssertNil(result.stateMatrixRow)
+        XCTAssertNil(result.stateMatrixPlan)
     }
 
     func testInspectResultRepairMetadataJSONShape() throws {
@@ -166,15 +168,25 @@ final class CLIOutputContractTests: XCTestCase {
             isOperational: false,
             userActionRequired: false,
             promptsNeeded: true,
-            issues: [issue]
+            issues: [issue],
+            stateMatrixRow: InstallerStateMatrixRow.helperMissing.rawValue,
+            stateMatrixPlan: [
+                InstallerStateMatrixAction.installHelper.rawValue,
+            ]
         )
 
         let keys = try jsonKeys(result)
         let required: Set = [
             "driverCompatible", "issues", "isOperational", "macOSVersion", "planIntent",
-            "planStatus", "plannedRecipes", "promptsNeeded", "userActionRequired",
+            "planStatus", "plannedRecipes", "promptsNeeded", "stateMatrixPlan",
+            "stateMatrixRow", "userActionRequired",
         ]
         XCTAssertTrue(required.isSubset(of: keys), "Missing required keys: \(required.subtracting(keys))")
+
+        let data = try encoder.encode(result)
+        let decoded = try decoder.decode(CLIInspectResult.self, from: data)
+        XCTAssertEqual(decoded.stateMatrixRow, InstallerStateMatrixRow.helperMissing.rawValue)
+        XCTAssertEqual(decoded.stateMatrixPlan, [InstallerStateMatrixAction.installHelper.rawValue])
     }
 
     func testJSONRoundTripsPreserveKeys() throws {
