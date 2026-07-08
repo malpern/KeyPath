@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import KeyPathCLISupport
 import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathInstallationWizard
@@ -494,58 +495,7 @@ public struct SystemFacade: Sendable {
     }
 }
 
-// MARK: - System Types
-
-public struct CLIStatusResult: Codable, Sendable {
-    public let isOperational: Bool
-    public let helperInstalled: Bool
-    public let helperWorking: Bool
-    public let helperVersion: String?
-    public let keyPathAccessibility: Bool
-    public let keyPathInputMonitoring: Bool
-    public let kanataAccessibility: Bool
-    public let kanataInputMonitoring: Bool
-    public let kanataBinaryInstalled: Bool
-    public let karabinerDriverInstalled: Bool
-    public let vhidDeviceHealthy: Bool
-    public let kanataRunning: Bool
-    public let karabinerDaemonRunning: Bool
-    public let vhidHealthy: Bool
-    public let activeRuntimePathTitle: String?
-    public let activeRuntimePathDetail: String?
-    public let hasConflicts: Bool
-    public let timestamp: Date
-}
-
-public struct CLIInstallerReport: Codable, Sendable {
-    public let success: Bool
-    public let failureReason: String?
-    public let steps: [CLIInstallerStep]
-    public let fastRepair: Bool
-    public let dryRun: Bool?
-    public let userActionRequired: Bool?
-    public let issues: [CLISystemIssue]?
-    public let plannedRecipes: [String]?
-    public let unmetRequirements: [String]?
-    public let logs: [String]?
-    public let repairTelemetry: [CLIRepairTelemetryEvent]?
-
-    init(from report: InstallerReport) {
-        success = report.success
-        failureReason = report.failureReason
-        steps = report.executedRecipes.map {
-            CLIInstallerStep(name: $0.recipeID, success: $0.success, error: $0.error)
-        }
-        fastRepair = false
-        dryRun = nil
-        userActionRequired = nil
-        issues = nil
-        plannedRecipes = nil
-        unmetRequirements = nil
-        logs = nil
-        repairTelemetry = CLIRepairTelemetryEvent.from(report.repairTelemetry)
-    }
-
+public extension CLIInstallerReport {
     init(
         from report: InstallerReport,
         initialContext: SystemContext,
@@ -559,30 +509,33 @@ public struct CLIInstallerReport: Codable, Sendable {
         let completedButStillBlocked = report.success && !finalOperational && !finalIssues.isEmpty
         let failedForManualApproval = report.failureReason.map(SystemFacade.requiresManualApproval) ?? false
 
-        success = report.success && !completedButStillBlocked
-        if let reportFailure = report.failureReason {
-            failureReason = reportFailure
+        let failureReason: String? = if let reportFailure = report.failureReason {
+            reportFailure
         } else if !finalUserActionIssues.isEmpty {
-            failureReason = SystemFacade.userActionFailureReason(
+            SystemFacade.userActionFailureReason(
                 finalUserActionIssues,
                 prefix: "\(title) requires user action"
             )
         } else if completedButStillBlocked {
-            failureReason = "Repair completed but system still has blocking issue(s)"
+            "Repair completed but system still has blocking issue(s)"
         } else {
-            failureReason = nil
+            nil
         }
-        steps = report.executedRecipes.map {
-            CLIInstallerStep(name: $0.recipeID, success: $0.success, error: $0.error)
-        }
-        fastRepair = false
-        dryRun = false
-        userActionRequired = !finalUserActionIssues.isEmpty || plan.metadata.promptsNeeded || failedForManualApproval
-        issues = finalIssues
-        plannedRecipes = plan.recipes.map { "\($0.id) (\($0.type))" }
-        unmetRequirements = report.unmetRequirements.map(\.name)
-        logs = report.logs
-        repairTelemetry = CLIRepairTelemetryEvent.from(report.repairTelemetry)
+        self.init(
+            success: report.success && !completedButStillBlocked,
+            failureReason: failureReason,
+            steps: report.executedRecipes.map {
+                CLIInstallerStep(name: $0.recipeID, success: $0.success, error: $0.error)
+            },
+            fastRepair: false,
+            dryRun: false,
+            userActionRequired: !finalUserActionIssues.isEmpty || plan.metadata.promptsNeeded || failedForManualApproval,
+            issues: finalIssues,
+            plannedRecipes: plan.recipes.map { "\($0.id) (\($0.type))" },
+            unmetRequirements: report.unmetRequirements.map(\.name),
+            logs: report.logs,
+            repairTelemetry: CLIRepairTelemetryEvent.from(report.repairTelemetry)
+        )
     }
 
     init(dryRunPlan plan: InstallPlan, context: SystemContext, title: String) {
@@ -590,179 +543,28 @@ public struct CLIInstallerReport: Codable, Sendable {
         let userActionIssues = contextIssues.filter { !$0.canAutoFix }
         let blockedBy = plan.blockedBy.map { [$0.name] } ?? []
 
-        success = blockedBy.isEmpty && userActionIssues.isEmpty
-        if !blockedBy.isEmpty {
-            failureReason = "Plan blocked by requirement: \(blockedBy.joined(separator: ", "))"
+        let failureReason: String? = if !blockedBy.isEmpty {
+            "Plan blocked by requirement: \(blockedBy.joined(separator: ", "))"
         } else if !userActionIssues.isEmpty {
-            failureReason = SystemFacade.userActionFailureReason(
+            SystemFacade.userActionFailureReason(
                 userActionIssues,
                 prefix: "\(title) requires user action"
             )
         } else {
-            failureReason = nil
+            nil
         }
-        steps = []
-        fastRepair = false
-        dryRun = true
-        userActionRequired = !userActionIssues.isEmpty || plan.metadata.promptsNeeded
-        issues = contextIssues
-        plannedRecipes = plan.recipes.map { "\($0.id) (\($0.type))" }
-        unmetRequirements = blockedBy
-        logs = nil
-        repairTelemetry = nil
-    }
-
-    init(success: Bool, failureReason: String?, steps: [CLIInstallerStep], fastRepair: Bool) {
-        self.success = success
-        self.failureReason = failureReason
-        self.steps = steps
-        self.fastRepair = fastRepair
-        dryRun = nil
-        userActionRequired = nil
-        issues = nil
-        plannedRecipes = nil
-        unmetRequirements = nil
-        logs = nil
-        repairTelemetry = nil
-    }
-
-    init(bundleIssue: CLISystemIssue, dryRun: Bool, title: String) {
-        success = false
-        failureReason = "\(title) requires the signed KeyPath.app bundle. \(bundleIssue.action)"
-        steps = []
-        fastRepair = false
-        self.dryRun = dryRun
-        userActionRequired = true
-        issues = [bundleIssue]
-        plannedRecipes = []
-        unmetRequirements = ["Valid KeyPath.app bundle"]
-        logs = nil
-        repairTelemetry = nil
-    }
-
-    init(
-        success: Bool,
-        failureReason: String?,
-        steps: [CLIInstallerStep],
-        fastRepair: Bool,
-        dryRun: Bool?,
-        userActionRequired: Bool?,
-        issues: [CLISystemIssue]?,
-        plannedRecipes: [String]?,
-        unmetRequirements: [String]?,
-        logs: [String]?,
-        repairTelemetry: [CLIRepairTelemetryEvent]? = nil
-    ) {
-        self.success = success
-        self.failureReason = failureReason
-        self.steps = steps
-        self.fastRepair = fastRepair
-        self.dryRun = dryRun
-        self.userActionRequired = userActionRequired
-        self.issues = issues
-        self.plannedRecipes = plannedRecipes
-        self.unmetRequirements = unmetRequirements
-        self.logs = logs
-        self.repairTelemetry = repairTelemetry
-    }
-}
-
-public struct CLIInstallerStep: Codable, Sendable {
-    public let name: String
-    public let success: Bool
-    public let error: String?
-}
-
-public struct CLIRepairTelemetryEvent: Codable, Sendable {
-    public let trigger: String
-    public let intent: String
-    public let stateMatrixRow: String?
-    public let stateMatrixPlan: [String]
-    public let action: String?
-    public let recipeID: String?
-    public let recipeType: String?
-    public let postconditionResult: String
-    public let error: String?
-
-    fileprivate init(_ event: InstallerRepairTelemetryEvent) {
-        trigger = event.trigger.rawValue
-        intent = event.intent
-        stateMatrixRow = event.stateMatrixRow
-        stateMatrixPlan = event.stateMatrixPlan
-        action = event.action
-        recipeID = event.recipeID
-        recipeType = event.recipeType
-        postconditionResult = event.postconditionResult.rawValue
-        error = event.error
-    }
-
-    fileprivate static func from(_ events: [InstallerRepairTelemetryEvent]) -> [CLIRepairTelemetryEvent]? {
-        guard !events.isEmpty else { return nil }
-        return events.map(CLIRepairTelemetryEvent.init)
-    }
-}
-
-public struct CLIInspectResult: Codable, Sendable {
-    public let macOSVersion: String
-    public let driverCompatible: Bool
-    public let planStatus: String
-    public let blockedBy: String?
-    public let plannedRecipes: [String]
-    public let planIntent: String?
-    public let isOperational: Bool?
-    public let userActionRequired: Bool?
-    public let promptsNeeded: Bool?
-    public let issues: [CLISystemIssue]?
-    public let stateMatrixRow: String?
-    public let stateMatrixPlan: [String]?
-
-    public init(
-        macOSVersion: String,
-        driverCompatible: Bool,
-        planStatus: String,
-        blockedBy: String?,
-        plannedRecipes: [String],
-        planIntent: String? = nil,
-        isOperational: Bool? = nil,
-        userActionRequired: Bool? = nil,
-        promptsNeeded: Bool? = nil,
-        issues: [CLISystemIssue]? = nil,
-        stateMatrixRow: String? = nil,
-        stateMatrixPlan: [String]? = nil
-    ) {
-        self.macOSVersion = macOSVersion
-        self.driverCompatible = driverCompatible
-        self.planStatus = planStatus
-        self.blockedBy = blockedBy
-        self.plannedRecipes = plannedRecipes
-        self.planIntent = planIntent
-        self.isOperational = isOperational
-        self.userActionRequired = userActionRequired
-        self.promptsNeeded = promptsNeeded
-        self.issues = issues
-        self.stateMatrixRow = stateMatrixRow
-        self.stateMatrixPlan = stateMatrixPlan
-    }
-}
-
-public struct CLISystemIssue: Codable, Sendable {
-    public let title: String
-    public let category: String
-    public let action: String
-    public let canAutoFix: Bool
-    public let remediationURL: String?
-
-    public init(
-        title: String,
-        category: String,
-        action: String,
-        canAutoFix: Bool,
-        remediationURL: String? = nil
-    ) {
-        self.title = title
-        self.category = category
-        self.action = action
-        self.canAutoFix = canAutoFix
-        self.remediationURL = remediationURL
+        self.init(
+            success: blockedBy.isEmpty && userActionIssues.isEmpty,
+            failureReason: failureReason,
+            steps: [],
+            fastRepair: false,
+            dryRun: true,
+            userActionRequired: !userActionIssues.isEmpty || plan.metadata.promptsNeeded,
+            issues: contextIssues,
+            plannedRecipes: plan.recipes.map { "\($0.id) (\($0.type))" },
+            unmetRequirements: blockedBy,
+            logs: nil,
+            repairTelemetry: nil
+        )
     }
 }

@@ -14,39 +14,6 @@ final class CLIOutputContractTests: XCTestCase {
 
     private let decoder = JSONDecoder()
 
-    func testStatusJSONShape() throws {
-        let status = CLIStatusResult(
-            isOperational: true,
-            helperInstalled: true,
-            helperWorking: true,
-            helperVersion: "1.0",
-            keyPathAccessibility: true,
-            keyPathInputMonitoring: true,
-            kanataAccessibility: true,
-            kanataInputMonitoring: true,
-            kanataBinaryInstalled: true,
-            karabinerDriverInstalled: true,
-            vhidDeviceHealthy: true,
-            kanataRunning: true,
-            karabinerDaemonRunning: true,
-            vhidHealthy: true,
-            activeRuntimePathTitle: "test",
-            activeRuntimePathDetail: "detail",
-            hasConflicts: false,
-            timestamp: Date()
-        )
-        let keys = try jsonKeys(status)
-        let required: Set = [
-            "isOperational", "helperInstalled", "helperWorking",
-            "keyPathAccessibility", "keyPathInputMonitoring",
-            "kanataAccessibility", "kanataInputMonitoring",
-            "kanataBinaryInstalled", "karabinerDriverInstalled", "vhidDeviceHealthy",
-            "kanataRunning", "karabinerDaemonRunning", "vhidHealthy",
-            "hasConflicts", "timestamp",
-        ]
-        XCTAssertTrue(required.isSubset(of: keys), "Missing required keys: \(required.subtracting(keys))")
-    }
-
     func testRuleCollectionJSONShape() throws {
         let json = """
         {"id":"test","name":"Test","isEnabled":true,"mappingCount":5,"summary":"Test collection"}
@@ -109,45 +76,6 @@ final class CLIOutputContractTests: XCTestCase {
             decoded.issues?.first?.remediationURL,
             "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
         )
-    }
-
-    func testInstallerReportRepairTelemetryJSONShape() throws {
-        let installerReport = InstallerReport(
-            success: true,
-            executedRecipes: [
-                RecipeResult(recipeID: InstallerRecipeID.createConfigDirectories, success: true),
-            ],
-            repairTelemetry: [
-                InstallerRepairTelemetryEvent(
-                    timestamp: Date(timeIntervalSince1970: 0),
-                    trigger: .executePlan,
-                    intent: "repair",
-                    stateMatrixRow: InstallerStateMatrixRow.freshInstallMissingComponents.rawValue,
-                    stateMatrixPlan: [InstallerStateMatrixAction.installMissingComponents.rawValue],
-                    action: InstallerRecipeID.createConfigDirectories,
-                    recipeID: InstallerRecipeID.createConfigDirectories,
-                    recipeType: "install-component",
-                    postconditionResult: .succeeded
-                ),
-            ]
-        )
-
-        let report = CLIInstallerReport(from: installerReport)
-        let keys = try jsonKeys(report)
-        XCTAssertTrue(keys.contains("repairTelemetry"))
-
-        let data = try encoder.encode(report)
-        let decoded = try decoder.decode(CLIInstallerReport.self, from: data)
-        let event = try XCTUnwrap(decoded.repairTelemetry?.first)
-        XCTAssertEqual(event.trigger, "execute-plan")
-        XCTAssertEqual(event.intent, "repair")
-        XCTAssertEqual(event.stateMatrixRow, InstallerStateMatrixRow.freshInstallMissingComponents.rawValue)
-        XCTAssertEqual(event.stateMatrixPlan, [InstallerStateMatrixAction.installMissingComponents.rawValue])
-        XCTAssertEqual(event.action, InstallerRecipeID.createConfigDirectories)
-        XCTAssertEqual(event.recipeID, InstallerRecipeID.createConfigDirectories)
-        XCTAssertEqual(event.recipeType, "install-component")
-        XCTAssertEqual(event.postconditionResult, "succeeded")
-        XCTAssertNil(event.error)
     }
 
     func testInstallerReportMarksActivationApprovalTimeoutAsUserActionRequired() {
@@ -250,18 +178,6 @@ final class CLIOutputContractTests: XCTestCase {
         let keys = try jsonKeys(result)
         let required: Set = ["errors", "isValid"]
         XCTAssertTrue(required.isSubset(of: keys), "Missing required keys: \(required.subtracting(keys))")
-    }
-
-    func testInspectResultJSONShape() throws {
-        let json = """
-        {"macOSVersion":"15.0","driverCompatible":true,"planStatus":"ready","blockedBy":"helper","plannedRecipes":["step1"]}
-        """
-        let result = try decoder.decode(CLIInspectResult.self, from: Data(json.utf8))
-        let keys = try jsonKeys(result)
-        let required: Set = ["driverCompatible", "macOSVersion", "planStatus", "plannedRecipes"]
-        XCTAssertTrue(required.isSubset(of: keys), "Missing required keys: \(required.subtracting(keys))")
-        XCTAssertNil(result.stateMatrixRow)
-        XCTAssertNil(result.stateMatrixPlan)
     }
 
     func testInspectResultRepairMetadataJSONShape() throws {
