@@ -222,16 +222,16 @@ public final class HelperMaintenance {
             return
         }
         let svc = HelperManager.smServiceFactory(HelperManager.helperPlistName)
-        // Fresh read via the centralized provider (#853) — this unregister flow must
+        // Fresh read via SystemStateProvider — this unregister flow must
         // decide on current truth, not a stale cached value.
-        let status = await SMAppServiceStatusProvider.shared.freshStatus(for: HelperManager.helperPlistName)
+        let status = await SystemStateProvider.shared.freshSMAppServiceStatus(for: HelperManager.helperPlistName)
         log(
             "🔎 SMAppService status: \(status.rawValue) (0=notRegistered,1=enabled,2=requiresApproval,3=notFound)"
         )
         if status == .enabled || status == .notRegistered || status == .requiresApproval {
             do {
                 try await svc.unregister()
-                await SMAppServiceStatusProvider.shared.invalidate(plistName: HelperManager.helperPlistName)
+                await SystemStateProvider.shared.invalidateSMAppServiceStatus(plistName: HelperManager.helperPlistName)
                 log("✅ SMAppService unregister succeeded")
             } catch {
                 log("⚠️ SMAppService unregister failed: \(error.localizedDescription)")

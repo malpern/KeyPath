@@ -140,6 +140,25 @@ final class SMAppServiceStatusLintTests: XCTestCase {
             """
         )
     }
+
+    func testHelperMaintenanceDelegatesStatusProviderAccessToSystemStateProvider() throws {
+        let maintenance = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/HelperMaintenance.swift")
+
+        let violations = try matchingLines(
+            in: maintenance,
+            patterns: [#"SMAppServiceStatusProvider\.shared"#]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            HelperMaintenance must delegate SMAppService status/cache access \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {
