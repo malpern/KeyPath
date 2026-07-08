@@ -30,6 +30,24 @@ public actor SystemStateProvider {
         return await subprocessRunner.pgrep(trimmedPattern)
     }
 
+    public nonisolated static func processIDsSynchronously(matching pattern: String) -> [pid_t] {
+        let trimmedPattern = pattern.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPattern.isEmpty else { return [] }
+
+        let result = BoundedProcess.run(
+            "/usr/bin/pgrep",
+            ["-f", trimmedPattern],
+            timeout: 5
+        )
+        guard result.status == 0 else { return [] }
+
+        return result.output
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .components(separatedBy: .newlines)
+            .filter { !$0.isEmpty }
+            .compactMap { Int32($0.trimmingCharacters(in: .whitespaces)) }
+    }
+
     public nonisolated static func isProcessAlive(pid: pid_t) -> Bool {
         guard pid > 0 else { return false }
         if kill(pid, 0) == 0 { return true }

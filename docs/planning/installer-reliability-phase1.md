@@ -107,7 +107,10 @@ classification remains pending.
   `PgrepProcessDiscoveryLintTests.testVHIDDeviceManagerDelegatesPgrepDiscoveryToSystemStateProvider`,
   `DiagnosticsServiceTests.testKarabinerGrabberDetectionUsesInjectedSystemStateProvider`,
   `DiagnosticsServiceTests.testKarabinerDaemonDetectionUsesInjectedSystemStateProvider`,
-  and `PgrepProcessDiscoveryLintTests.testDiagnosticsServiceDelegatesPgrepDiscoveryToSystemStateProvider`.
+  `PgrepProcessDiscoveryLintTests.testDiagnosticsServiceDelegatesPgrepDiscoveryToSystemStateProvider`,
+  `SystemStateProviderLivenessTests.testSynchronousProcessDiscoveryRejectsBlankPatterns`,
+  `SystemStateProviderLivenessTests.testSynchronousProcessDiscoveryReturnsEmptyForMissingProcess`,
+  and `PgrepProcessDiscoveryLintTests.testLauncherServiceDelegatesPgrepDiscoveryToSystemStateProvider`.
 - [ ] Migrate `launchctl`, `SMAppService.status`, remaining `pgrep` consumers,
   permissions, VHID state, and helper freshness into a single immutable
   `SystemSnapshot`.
@@ -183,6 +186,12 @@ through 21 mocked tests).
   `DiagnosticsServiceTests.testKarabinerDaemonDetectionUsesInjectedSystemStateProvider`,
   and
   `PgrepProcessDiscoveryLintTests.testDiagnosticsServiceDelegatesPgrepDiscoveryToSystemStateProvider`.
+- [x] `LauncherService` synchronous process discovery delegates to
+  `SystemStateProvider.processIDsSynchronously(matching:)`. Enforced by
+  `SystemStateProviderLivenessTests.testSynchronousProcessDiscoveryRejectsBlankPatterns`,
+  `SystemStateProviderLivenessTests.testSynchronousProcessDiscoveryReturnsEmptyForMissingProcess`,
+  and
+  `PgrepProcessDiscoveryLintTests.testLauncherServiceDelegatesPgrepDiscoveryToSystemStateProvider`.
 - [ ] Centralize remaining `pgrep` process-discovery consumers as later W1/W2
   migration slices.
 
@@ -308,6 +317,9 @@ is listed in the state-matrix doc's enforcement section.
 - [x] `PgrepProcessDiscoveryLintTests.testDiagnosticsServiceDelegatesPgrepDiscoveryToSystemStateProvider`
   prevents diagnostics process checks from regrowing direct
   `pgrep` process discovery.
+- [x] `PgrepProcessDiscoveryLintTests.testLauncherServiceDelegatesPgrepDiscoveryToSystemStateProvider`
+  prevents the launcher fallback from regrowing direct `pgrep` process
+  discovery.
 - [ ] Add `launchctl`, broader `pgrep`, postcondition, and snapshot-cache
   ratchets with the corresponding migration slices.
 

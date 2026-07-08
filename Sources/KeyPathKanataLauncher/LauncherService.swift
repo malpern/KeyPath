@@ -145,19 +145,7 @@ struct LauncherService {
 
     /// Fallback process-based check (renamed from isVHIDDaemonRunning).
     private func isVHIDDaemonProcessRunning() -> Bool {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        process.arguments = ["-f", "VirtualHIDDevice-Daemon"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        do {
-            try process.run()
-            process.waitUntilExit()
-            return process.terminationStatus == 0
-        } catch {
-            return false
-        }
+        !SystemStateProvider.processIDsSynchronously(matching: "VirtualHIDDevice-Daemon").isEmpty
     }
 
     /// Run a process and return stdout as a string, or nil if the process fails.
