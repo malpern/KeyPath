@@ -27,57 +27,16 @@ private final class MockEngineClient: EngineClient, @unchecked Sendable {
     }
 }
 
-/// Mock diagnostics manager with configurable health status.
+// MARK: - Thread-safe notification helpers
+
 @MainActor
-private final class MockDiagnosticsManager: @preconcurrency DiagnosticsManaging {
-    var healthStatus: ServiceHealthStatus = .healthy()
-    private var diagnostics: [KanataDiagnostic] = []
-    var connectionFailureCount = 0
+private final class MutableHealthStatus {
+    var value: ServiceHealthStatus
 
-    func addDiagnostic(_ diagnostic: KanataDiagnostic) {
-        diagnostics.append(diagnostic)
-    }
-
-    func getDiagnostics() -> [KanataDiagnostic] {
-        diagnostics
-    }
-
-    func clearDiagnostics() {
-        diagnostics.removeAll()
-    }
-
-    func startLogMonitoring() {}
-    func stopLogMonitoring() {}
-
-    func checkHealth(tcpPort _: Int) async -> ServiceHealthStatus {
-        healthStatus
-    }
-
-    func recordConnectionFailure() async -> Bool {
-        connectionFailureCount += 1
-        return connectionFailureCount >= 10
-    }
-
-    func recordConnectionSuccess() async {
-        connectionFailureCount = 0
-    }
-
-    func recordGrabFailureAndDecideRecovery() async -> GrabRecoveryDecision {
-        .recover(attempt: 1)
-    }
-
-    func recordGrabSuccess() async {}
-
-    func diagnoseFailure(exitCode _: Int32, output _: String) -> [KanataDiagnostic] {
-        []
-    }
-
-    func getSystemDiagnostics(engineClient _: EngineClient?) async -> [KanataDiagnostic] {
-        []
+    init(_ value: ServiceHealthStatus) {
+        self.value = value
     }
 }
-
-// MARK: - Thread-safe notification helpers
 
 /// Thread-safe boolean flag for use in notification observer closures.
 private final class NotificationFlag: @unchecked Sendable {
@@ -123,15 +82,14 @@ struct ConfigReloadCoordinatorTests {
     ) -> (
         coordinator: ConfigReloadCoordinator,
         engine: MockEngineClient,
-        diagnostics: MockDiagnosticsManager
+        healthStatus: MutableHealthStatus
     ) {
         let engine = MockEngineClient()
         engine.result = engineResult
 
-        let diagnostics = MockDiagnosticsManager()
-        diagnostics.healthStatus = healthy
+        let healthStatus = MutableHealthStatus(healthy
             ? .healthy()
-            : .unhealthy(reason: "Service not running")
+            : .unhealthy(reason: "Service not running"))
 
         let safetyMonitor = ReloadSafetyMonitor()
         let processLifecycle = ProcessLifecycleManager()
@@ -139,11 +97,11 @@ struct ConfigReloadCoordinatorTests {
         let coordinator = ConfigReloadCoordinator(
             engineClient: engine,
             reloadSafetyMonitor: safetyMonitor,
-            diagnosticsManager: diagnostics,
+            healthStatusProvider: { _ in healthStatus.value },
             processLifecycleManager: processLifecycle
         )
 
-        return (coordinator, engine, diagnostics)
+        return (coordinator, engine, healthStatus)
     }
 
     // MARK: - triggerConfigReload: unhealthy service
@@ -423,7 +381,7 @@ struct ConfigReloadCoordinatorTests {
         #expect(result1.isSuccess == false)
 
         // Switch to healthy
-        diagnostics.healthStatus = .healthy()
+        diagnostics.value = .healthy()
 
         // Second call: healthy -> proceeds (though TCP guard will still fire in test env)
         let result2 = await coordinator.triggerConfigReload()

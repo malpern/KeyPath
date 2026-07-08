@@ -13,7 +13,7 @@ final class ConfigReloadCoordinator {
 
     private let engineClient: EngineClient
     private let reloadSafetyMonitor: ReloadSafetyMonitor
-    private let diagnosticsManager: DiagnosticsManaging
+    private let healthStatusProvider: @MainActor @Sendable (Int) async -> ServiceHealthStatus
     private let processLifecycleManager: ProcessLifecycleManager
 
     // MARK: - Callbacks (set by RuntimeCoordinator after init)
@@ -26,12 +26,12 @@ final class ConfigReloadCoordinator {
     init(
         engineClient: EngineClient,
         reloadSafetyMonitor: ReloadSafetyMonitor,
-        diagnosticsManager: DiagnosticsManaging,
+        healthStatusProvider: @escaping @MainActor @Sendable (Int) async -> ServiceHealthStatus,
         processLifecycleManager: ProcessLifecycleManager
     ) {
         self.engineClient = engineClient
         self.reloadSafetyMonitor = reloadSafetyMonitor
-        self.diagnosticsManager = diagnosticsManager
+        self.healthStatusProvider = healthStatusProvider
         self.processLifecycleManager = processLifecycleManager
     }
 
@@ -62,9 +62,7 @@ final class ConfigReloadCoordinator {
         }
 
         // Skip reloads if Kanata service isn't healthy yet
-        let healthStatus = await diagnosticsManager.checkHealth(
-            tcpPort: PreferencesService.shared.tcpServerPort
-        )
+        let healthStatus = await healthStatusProvider(PreferencesService.shared.tcpServerPort)
         if !healthStatus.isHealthy {
             AppLogger.shared.warnUnlessQuietTest(
                 "⚠️ [Reload] Skipping TCP reload because Kanata service is not healthy yet: \(healthStatus.reason ?? "unknown reason")"
