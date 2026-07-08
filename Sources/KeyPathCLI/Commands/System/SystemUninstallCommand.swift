@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import KeyPathAppKit
+import KeyPathCLISupport
 
 struct SystemUninstall: AsyncParsableCommand {
     static let configuration = CommandConfiguration(

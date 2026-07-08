@@ -126,6 +126,7 @@ let package = Package(
         ),
         .target(
             name: "KeyPathCLISupport",
+            dependencies: ["KeyPathInstallationWizard"],
             path: "Sources/KeyPathCLISupport",
             swiftSettings: [
                 .swiftLanguageMode(.v6)
@@ -150,6 +151,7 @@ let package = Package(
                 "KeyPathWizardCore",
                 "KeyPathInstallationWizard",
                 "KeyPathPluginKit",
+                "KeyPathCLISupport",
                 .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/KeyPathAppKit",
@@ -295,6 +297,17 @@ let package = Package(
                 "KeyPathPermissions"
             ],
             path: "Tests/KeyPathSmokeTests",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        .testTarget(
+            name: "KeyPathCLISupportTests",
+            dependencies: [
+                "KeyPathCLISupport",
+                "KeyPathInstallationWizard"
+            ],
+            path: "Tests/KeyPathCLISupportTests",
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
