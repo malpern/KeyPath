@@ -2,65 +2,41 @@ import Foundation
 @preconcurrency import XCTest
 
 final class FacadeLintTests: XCTestCase {
-    func testAppKitSourcesDoNotBypassInstallerEngine() {
-        let root = repositoryRoot()
-        let appKitRoot = root.appendingPathComponent("Sources/KeyPathAppKit")
-        let allow = [
-            root.appendingPathComponent("Sources/KeyPathAppKit/Core/PrivilegedOperationsRouter.swift").path,
-            root.appendingPathComponent("Sources/KeyPathAppKit/InstallationWizard/Core/PrivilegeBroker.swift").path,
-            root.appendingPathComponent("Sources/KeyPathAppKit/InstallationWizard/Core/InstallerEngine.swift").path,
-            root.appendingPathComponent("Sources/KeyPathAppKit/Managers/RuntimeCoordinator.swift").path,
-            root.appendingPathComponent("Sources/KeyPathAppKit/Managers/RuntimeCoordinator+Lifecycle.swift").path,
-            root.appendingPathComponent("Sources/KeyPathAppKit/InstallationWizard/Core/PermissionGrantCoordinator.swift").path,
-            root.appendingPathComponent("Sources/KeyPathAppKit/WizardProtocolConformances.swift").path,
-        ]
-        let violations = findPattern("PrivilegedOperationsRouter\\.shared", in: appKitRoot, allowList: allow)
-        if !violations.isEmpty {
-            XCTFail("PrivilegedOperationsRouter.shared found outside allowlist:\n" + violations.joined(separator: "\n"))
-        }
+    func testProductionSourcesDoNotBypassInstallerEngine() throws {
+        let violations = try LintScanner.matchingLines(
+            under: LintScanner.path("Sources"),
+            patterns: [#"PrivilegedOperationsRouter\.shared"#],
+            allowList: [
+                "Sources/KeyPathAppKit/WizardProtocolConformances.swift"
+            ]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            PrivilegedOperationsRouter.shared found outside the narrow wizard \
+            dependency bridge. Installer, repair, and uninstall callers should \
+            go through InstallerEngine:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
     }
 
-    func testDirectAXChecksAreLimitedToAllowlist() {
-        let root = repositoryRoot()
-        let sourcesDir = root.appendingPathComponent("Sources")
-        let allow = [
-            root.appendingPathComponent("Sources/KeyPathPermissions/PermissionOracle.swift").path,
-        ]
-        let violations = findPattern("AXIsProcessTrusted\\(", in: sourcesDir, allowList: allow)
-        if !violations.isEmpty {
-            XCTFail("Direct AXIsProcessTrusted use outside allowlist:\n" + violations.joined(separator: "\n"))
-        }
-    }
-}
+    func testDirectAXChecksAreLimitedToPermissionOracle() throws {
+        let violations = try LintScanner.matchingLines(
+            under: LintScanner.path("Sources"),
+            patterns: [#"AXIsProcessTrusted\("#],
+            allowList: [
+                "Sources/KeyPathPermissions/PermissionOracle.swift"
+            ]
+        )
 
-// MARK: - Helpers
-
-private func repositoryRoot(file: StaticString = #filePath) -> URL {
-    // …/KeyPath/Tests/KeyPathTests/Lint/FacadeLintTests.swift -> go up 4 levels
-    URL(fileURLWithPath: file.description)
-        .deletingLastPathComponent() // Lint
-        .deletingLastPathComponent() // KeyPathTests
-        .deletingLastPathComponent() // Tests
-        .deletingLastPathComponent() // repo root
-}
-
-private func findPattern(_ pattern: String, in directory: URL, allowList: [String]) -> [String] {
-    guard let enumerator = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: nil) else {
-        return []
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            Direct AXIsProcessTrusted use outside PermissionOracle:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
     }
-    var hits: [String] = []
-    let allowed = Set(allowList)
-    let regex = try? NSRegularExpression(pattern: pattern)
-    for case let fileURL as URL in enumerator {
-        guard fileURL.pathExtension == "swift" else { continue }
-        if allowed.contains(fileURL.path) { continue }
-        guard let contents = try? String(contentsOf: fileURL, encoding: .utf8) else { continue }
-        let lines = contents.components(separatedBy: .newlines)
-        for (idx, line) in lines.enumerated() {
-            let range = NSRange(line.startIndex ..< line.endIndex, in: line)
-            guard regex?.firstMatch(in: line, range: range) != nil else { continue }
-            hits.append("\(fileURL.path):\(idx + 1): \(line.trimmingCharacters(in: .whitespaces))")
-        }
-    }
-    return hits
 }
