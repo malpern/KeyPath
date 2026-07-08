@@ -3,30 +3,9 @@ import Foundation
 import KeyPathCore
 import KeyPathInstallationWizard
 
-// MARK: - Protocol
-
-/// Service for detecting and resolving conflicts with Karabiner-Elements
-@MainActor
-protocol KarabinerConflictManaging: AnyObject {
-    // Detection
-    func isKarabinerDriverInstalled() -> Bool
-    func isKarabinerDriverExtensionEnabled() async -> Bool
-    func areKarabinerBackgroundServicesEnabled() async -> Bool
-    func isKarabinerElementsRunning() async -> Bool
-    func isKarabinerDaemonRunning() async -> Bool
-
-    // Resolution
-    func killKarabinerGrabber() async -> Bool
-    func disableKarabinerElementsPermanently() async -> Bool
-    func startKarabinerDaemon() async -> Bool
-    func restartKarabinerDaemon() async -> Bool
-}
-
-// MARK: - Implementation
-
 /// Manages detection and resolution of conflicts with Karabiner-Elements
 @MainActor
-final class KarabinerConflictService: KarabinerConflictManaging {
+final class KarabinerConflictService {
     /// Test seam: when set, `isKarabinerDaemonRunning()` returns this value
     /// instead of running a real pgrep.
     nonisolated(unsafe) static var testDaemonRunning: Bool?

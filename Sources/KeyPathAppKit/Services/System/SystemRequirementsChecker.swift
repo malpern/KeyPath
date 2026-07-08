@@ -18,9 +18,9 @@ import KeyPathWizardCore
 final class SystemRequirementsChecker {
     // MARK: - Dependencies
 
-    private let karabinerConflictService: KarabinerConflictManaging
+    private let karabinerConflictService: KarabinerConflictService
 
-    init(karabinerConflictService: KarabinerConflictManaging) {
+    init(karabinerConflictService: KarabinerConflictService) {
         self.karabinerConflictService = karabinerConflictService
     }
 
