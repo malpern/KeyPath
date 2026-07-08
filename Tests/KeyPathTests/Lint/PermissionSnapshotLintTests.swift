@@ -121,6 +121,82 @@ final class PermissionSnapshotLintTests: XCTestCase {
             """
         )
     }
+
+    func testAppLifecycleDelegatesPermissionSnapshotsToSystemStateProvider() throws {
+        let app = repositoryRootForPermissionSnapshotLint()
+            .appendingPathComponent("Sources/KeyPathAppKit/App.swift")
+
+        let violations = try matchingPermissionSnapshotLines(
+            in: app,
+            patterns: permissionSnapshotBypassPatterns()
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            App lifecycle code must delegate permission snapshot reads \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
+
+    func testMainWindowControllerDelegatesPermissionSnapshotsToSystemStateProvider() throws {
+        let controller = repositoryRootForPermissionSnapshotLint()
+            .appendingPathComponent("Sources/KeyPathAppKit/UI/MainWindowController.swift")
+
+        let violations = try matchingPermissionSnapshotLines(
+            in: controller,
+            patterns: permissionSnapshotBypassPatterns()
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            MainWindowController must delegate permission snapshot reads \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
+
+    func testCompositionRootDelegatesPermissionSnapshotsToSystemStateProvider() throws {
+        let compositionRoot = repositoryRootForPermissionSnapshotLint()
+            .appendingPathComponent("Sources/KeyPathAppKit/Core/CompositionRoot.swift")
+
+        let violations = try matchingPermissionSnapshotLines(
+            in: compositionRoot,
+            patterns: permissionSnapshotBypassPatterns()
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            CompositionRoot must delegate permission snapshot reads \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
+
+    func testPermissionSnapshotEnvironmentDefaultDelegatesToSystemStateProvider() throws {
+        let dependencyInjection = repositoryRootForPermissionSnapshotLint()
+            .appendingPathComponent("Sources/KeyPathAppKit/Utilities/DependencyInjection.swift")
+
+        let violations = try matchingPermissionSnapshotLines(
+            in: dependencyInjection,
+            patterns: permissionSnapshotBypassPatterns()
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            Permission snapshot environment defaults must delegate reads \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRootForPermissionSnapshotLint(file: StaticString = #filePath) -> URL {
@@ -149,4 +225,12 @@ private func matchingPermissionSnapshotLines(in fileURL: URL, patterns: [String]
         }
     }
     return violations
+}
+
+private func permissionSnapshotBypassPatterns() -> [String] {
+    [
+        #"PermissionOracle\.shared\.currentSnapshot"#,
+        #"PermissionOracle\.shared\.forceRefresh"#,
+        #"PermissionOracle\.shared"#
+    ]
 }

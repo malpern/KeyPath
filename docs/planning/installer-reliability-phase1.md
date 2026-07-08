@@ -215,6 +215,13 @@ classification remains pending.
 - [x] Migrated `ServiceLifecycleCoordinator` permission refresh through
   `SystemStateProvider`'s permission snapshot façade. Enforced by
   `PermissionSnapshotLintTests.testServiceLifecycleCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`.
+- [x] Migrated app bootstrap permission snapshot reads and SwiftUI permission
+  snapshot provider defaults through `SystemStateProvider`. Enforced by
+  `PermissionSnapshotLintTests.testAppLifecycleDelegatesPermissionSnapshotsToSystemStateProvider`,
+  `PermissionSnapshotLintTests.testMainWindowControllerDelegatesPermissionSnapshotsToSystemStateProvider`,
+  `PermissionSnapshotLintTests.testCompositionRootDelegatesPermissionSnapshotsToSystemStateProvider`,
+  and
+  `PermissionSnapshotLintTests.testPermissionSnapshotEnvironmentDefaultDelegatesToSystemStateProvider`.
 - [ ] Migrate `SMAppService.status`, permissions, VHID state, helper freshness,
   and migrated read-only `launchctl print` evidence into a single immutable
   `SystemSnapshot`.
@@ -401,6 +408,14 @@ through 21 mocked tests).
 - [x] `ServiceLifecycleCoordinator` permission refresh delegates to
   `SystemStateProvider`'s permission snapshot façade. Enforced by
   `PermissionSnapshotLintTests.testServiceLifecycleCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`.
+- [x] App bootstrap permission snapshot reads and SwiftUI permission snapshot
+  provider defaults delegate to `SystemStateProvider`'s permission snapshot
+  façade. Enforced by
+  `PermissionSnapshotLintTests.testAppLifecycleDelegatesPermissionSnapshotsToSystemStateProvider`,
+  `PermissionSnapshotLintTests.testMainWindowControllerDelegatesPermissionSnapshotsToSystemStateProvider`,
+  `PermissionSnapshotLintTests.testCompositionRootDelegatesPermissionSnapshotsToSystemStateProvider`,
+  and
+  `PermissionSnapshotLintTests.testPermissionSnapshotEnvironmentDefaultDelegatesToSystemStateProvider`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -536,6 +551,13 @@ is listed in the state-matrix doc's enforcement section.
 - [x] `PermissionSnapshotLintTests.testServiceLifecycleCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`
   prevents migrated service-lifecycle permission refreshes from bypassing
   `SystemStateProvider`.
+- [x] `PermissionSnapshotLintTests.testAppLifecycleDelegatesPermissionSnapshotsToSystemStateProvider`,
+  `PermissionSnapshotLintTests.testMainWindowControllerDelegatesPermissionSnapshotsToSystemStateProvider`,
+  `PermissionSnapshotLintTests.testCompositionRootDelegatesPermissionSnapshotsToSystemStateProvider`,
+  and
+  `PermissionSnapshotLintTests.testPermissionSnapshotEnvironmentDefaultDelegatesToSystemStateProvider`
+  prevent migrated app bootstrap/environment permission snapshot reads from
+  bypassing `SystemStateProvider`.
 - [x] `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
   prevents `ServiceHealthChecker` from regrowing a private TCP socket probe.
 - [x] `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed` and
