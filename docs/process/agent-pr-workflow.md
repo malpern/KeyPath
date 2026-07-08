@@ -26,9 +26,15 @@ End-to-end process for shepherding code from initial request through to a clean 
 6. **Run the full pre-PR gate once** — before pushing, run `./Scripts/test-full.sh` (equivalent to the snapshot-enabled safe runner). Never commit code that breaks tests. The final full run is required; repeated mid-iteration full runs are the waste.
 7. **Commit** — commit frequently as you work. Use descriptive messages. Include `Co-Authored-By` tag.
 
-## Phase 2.5: Thermonuclear Review
+## Phase 2.5: Review Gate
 
-6b. **Run `/thermo-nuclear-swift-review`** — before creating the PR, run the thermonuclear review skill against the branch diff. Address all CONFIRMED and PLAUSIBLE findings before proceeding. This is not optional — no PR goes out without passing the thermonuclear bar.
+6b. **Run `./Scripts/review-gate.sh`** — before creating the PR, run the
+review gate against the branch diff. If local review tooling is available, the
+script runs it and returns 0 only when it passes. If local review tooling is not
+available in the current agent shell, the script returns 2 and prints
+`remote review required`; record that result in the PR and do not merge until
+the GitHub `claude-review` check passes. Address all CONFIRMED and PLAUSIBLE
+findings before proceeding.
 
 ## Phase 3: PR Creation
 
@@ -52,7 +58,11 @@ Most PR clock-time is latency, not rigor. Cut the latency without dropping any g
 
 - **Risk-tier the merge.** *Mechanical / low-logic* PRs (formatting, dead-code removal with a green suite, docs, config-only) — once local build + full test + lint pass, push and `gh pr merge <n> --auto --squash`, then move on instead of sitting in a poll loop. *Logic / hot-path* PRs (runtime behavior, lifecycle, concurrency, FFI/syscalls, anything subtle) — keep the full manual babysit **and read every review comment**. **Never auto-merge a logic/hot-path PR:** review tools post real bugs as **non-blocking comments while the check still goes green** (e.g. an EPERM liveness bug that the `claude-review` check passed but a Codex comment caught — auto-merge would have shipped it).
 - **Parallelize independent PRs.** Open non-conflicting PRs together, let their CI overlap, merge each when green — don't run them strictly serially.
-- **Front-load review.** For substantive PRs, run `/code-review` locally *before* opening, with a runtime-reality lens ("what does this call actually return in the real root/unprivileged deployment?").
+- **Front-load review.** For substantive PRs, run `./Scripts/review-gate.sh`
+  before opening, with a runtime-reality lens ("what does this call actually
+  return in the real root/unprivileged deployment?"). In Codex shells where
+  local Claude tooling is unavailable, a `remote review required` result is an
+  explicit gate state; the PR must wait for GitHub `claude-review`.
 - **Keep the release path out of feature iteration.** Avoid notarized/release-candidate builds until after merge unless the branch specifically changes signing, notarization, Gatekeeper, Sparkle, or installer behavior.
 
 ## Phase 5: Merge
