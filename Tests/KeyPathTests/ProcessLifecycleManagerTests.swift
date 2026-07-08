@@ -1,6 +1,6 @@
 @testable import KeyPathAppKit
 import KeyPathCore
-import KeyPathDaemonLifecycle
+@testable import KeyPathDaemonLifecycle
 @preconcurrency import XCTest
 
 @MainActor
@@ -61,6 +61,40 @@ final class ProcessLifecycleManagerTests: XCTestCase {
         case .shouldBeStopped:
             XCTAssertTrue(true, "Correct stopped intent")
         }
+    }
+
+    func testDetectKanataProcessesUsesInjectedSystemStateProvider() async throws {
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configureRunResult { executable, args in
+            if executable == "/usr/bin/pgrep", args == ["-fl", "kanata"] {
+                return ProcessResult(
+                    exitCode: 0,
+                    stdout: """
+                    123 kanata --cfg /Users/example/.config/keypath/keypath.kbd
+                    456 pgrep -fl kanata
+                    789 /Applications/Visual Studio Code.app/Contents/MacOS/Electron kanata extension
+
+                    """,
+                    stderr: "",
+                    duration: 0.01
+                )
+            }
+            return ProcessResult(exitCode: 1, stdout: "", stderr: "", duration: 0.01)
+        }
+
+        let provider = SystemStateProvider(subprocessRunner: runner)
+        let manager = ProcessLifecycleManager(systemStateProvider: provider)
+
+        let processes = try await manager.detectKanataProcesses()
+        let commands = await runner.executedCommands
+
+        XCTAssertEqual(processes.map(\.pid), [123])
+        XCTAssertEqual(processes.first?.command, "kanata --cfg /Users/example/.config/keypath/keypath.kbd")
+        XCTAssertTrue(
+            commands.contains { $0.executable == "/usr/bin/pgrep" && $0.args == ["-fl", "kanata"] },
+            "ProcessLifecycleManager should use the injected provider for kanata process discovery"
+        )
     }
 
     func testProcessLifecycleErrors() {

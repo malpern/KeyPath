@@ -168,6 +168,30 @@ final class PgrepProcessDiscoveryLintTests: XCTestCase {
             """
         )
     }
+
+    func testProcessLifecycleManagerDelegatesPgrepDiscoveryToSystemStateProvider() throws {
+        let manager = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathDaemonLifecycle/ProcessLifecycleManager.swift")
+
+        let violations = try matchingLines(
+            in: manager,
+            patterns: [
+                #"SubprocessRunner\.shared\.pgrep"#,
+                #"SubprocessRunner\.shared\.run\("/usr/bin/pgrep"#,
+                #"subprocessRunner\.pgrep"#,
+                #"/usr/bin/pgrep"#
+            ]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            ProcessLifecycleManager must delegate process discovery to \
+            SystemStateProvider instead of calling pgrep directly:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {
