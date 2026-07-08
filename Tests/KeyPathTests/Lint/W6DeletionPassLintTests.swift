@@ -35,6 +35,37 @@ final class W6DeletionPassLintTests: XCTestCase {
             """
         )
     }
+
+    func testServiceHealthMonitorSingleImplementationProtocolDoesNotRegrow() throws {
+        let monitorFile = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Services/Monitoring/ServiceHealthMonitor.swift")
+        let diagnosticsManager = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/Diagnostics/DiagnosticsManager.swift")
+
+        let violations = try [
+            monitorFile,
+            diagnosticsManager,
+        ].flatMap { file in
+            try matchingLines(
+                in: file,
+                patterns: [
+                    #"protocol\s+ServiceHealthMonitorProtocol\b"#,
+                    #":\s*ServiceHealthMonitorProtocol\b"#,
+                    #"\bServiceHealthMonitorProtocol\b"#,
+                ]
+            )
+        }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            W6 removes single-implementation protocols unless they provide \
+            real injection value. ServiceHealthMonitor is the concrete \
+            dependency; do not regrow ServiceHealthMonitorProtocol:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {

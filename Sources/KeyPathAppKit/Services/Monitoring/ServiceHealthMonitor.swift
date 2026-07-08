@@ -47,59 +47,6 @@ enum ServiceRecoveryAction: Sendable {
     case giveUp(reason: String)
 }
 
-// MARK: - Protocol
-
-/// Protocol for service health monitoring and recovery strategies
-@MainActor
-protocol ServiceHealthMonitorProtocol: AnyObject {
-    /// Check if the service is currently healthy
-    /// - Parameters:
-    ///   - processStatus: The current process status from LaunchDaemon
-    ///   - tcpPort: TCP port for health checks
-    /// - Returns: Health status with recommendation
-    func checkServiceHealth(
-        processStatus: ProcessHealthStatus,
-        tcpPort: Int
-    ) async -> ServiceHealthStatus
-
-    /// Check if a restart is allowed based on cooldown state
-    /// - Returns: Cooldown state indicating if restart is allowed
-    func canRestartService() async -> RestartCooldownState
-
-    /// Record that a service start was attempted
-    /// - Parameter timestamp: When the start was attempted
-    func recordStartAttempt(timestamp: Date) async
-
-    /// Record that a service start succeeded
-    func recordStartSuccess() async
-
-    /// Record that a service start failed
-    func recordStartFailure() async
-
-    /// Record a connection failure (for VirtualHID monitoring)
-    /// - Returns: True if max failures reached and recovery should be triggered
-    func recordConnectionFailure() async -> Bool
-
-    /// Record a successful connection (resets failure count)
-    func recordConnectionSuccess() async
-
-    /// Record a kanata input-grab failure (up but not grabbing the keyboard) and decide
-    /// whether to attempt recovery, with a bounded-attempts guard so a deterministic
-    /// crash (e.g. #631) doesn't restart forever. See #624/#625.
-    func recordGrabFailureAndDecideRecovery() async -> GrabRecoveryDecision
-
-    /// Record that the keyboard grab is healthy again (resets grab-recovery attempts).
-    func recordGrabSuccess() async
-
-    /// Determine the appropriate recovery action based on current state
-    /// - Parameter healthStatus: Current health status
-    /// - Returns: Recommended recovery action
-    func determineRecoveryAction(healthStatus: ServiceHealthStatus) async -> ServiceRecoveryAction
-
-    /// Reset all monitoring state (e.g., after successful recovery)
-    func resetMonitoringState() async
-}
-
 // MARK: - Grab Recovery Decision
 
 /// Outcome of a kanata input-grab-failure event: attempt a bounded recovery, or give
@@ -123,7 +70,7 @@ struct ProcessHealthStatus: Sendable {
 
 /// Monitors service health and manages restart cooldowns and recovery strategies
 @MainActor
-final class ServiceHealthMonitor: ServiceHealthMonitorProtocol {
+final class ServiceHealthMonitor {
     // MARK: - Dependencies
 
     private let processLifecycle: ProcessLifecycleManager

@@ -48,14 +48,14 @@ protocol DiagnosticsManaging: Sendable {
 final class DiagnosticsManager: @preconcurrency DiagnosticsManaging { // @preconcurrency: @MainActor satisfies Sendable via isolation
     private var diagnostics: [KanataDiagnostic] = []
     private let diagnosticsService: DiagnosticsServiceProtocol
-    private let healthMonitor: ServiceHealthMonitorProtocol
+    private let healthMonitor: ServiceHealthMonitor
     private let processStatusProvider: @MainActor @Sendable () async -> ProcessHealthStatus
 
     private var logMonitorTask: Task<Void, Never>?
 
     init(
         diagnosticsService: DiagnosticsServiceProtocol,
-        healthMonitor: ServiceHealthMonitorProtocol,
+        healthMonitor: ServiceHealthMonitor,
         processStatusProvider: @escaping @MainActor @Sendable () async -> ProcessHealthStatus
     ) {
         self.diagnosticsService = diagnosticsService
