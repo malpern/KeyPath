@@ -85,7 +85,7 @@ public final class PermissionRequestService {
             return false
         }
 
-        let beforePrompt = await PermissionOracle.shared.currentSnapshot()
+        let beforePrompt = await SystemStateProvider.shared.currentPermissionSnapshot()
         if beforePrompt.keyPath.inputMonitoring.isReady {
             AppLogger.shared.log("✅ [PermissionRequest] Input Monitoring already granted (Oracle)")
             return true
@@ -111,7 +111,7 @@ public final class PermissionRequestService {
             "🔐 [PermissionRequest] Requesting Input Monitoring via IOHIDRequestAccess()"
         )
         _ = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
-        let refreshed = await PermissionOracle.shared.forceRefresh()
+        let refreshed = await SystemStateProvider.shared.refreshPermissionSnapshot()
         let granted = refreshed.keyPath.inputMonitoring.isReady
         if granted {
             AppLogger.shared.log("✅ [PermissionRequest] Input Monitoring granted after Oracle refresh")
@@ -132,7 +132,7 @@ public final class PermissionRequestService {
             return false
         }
 
-        let beforePrompt = await PermissionOracle.shared.currentSnapshot()
+        let beforePrompt = await SystemStateProvider.shared.currentPermissionSnapshot()
         if beforePrompt.keyPath.accessibility.isReady {
             AppLogger.shared.log("✅ [PermissionRequest] Accessibility already granted (Oracle)")
             return true
@@ -157,7 +157,7 @@ public final class PermissionRequestService {
             "🔐 [PermissionRequest] Requesting Accessibility via AXIsProcessTrustedWithOptions()"
         )
         _ = AXIsProcessTrustedWithOptions(options)
-        let refreshed = await PermissionOracle.shared.forceRefresh()
+        let refreshed = await SystemStateProvider.shared.refreshPermissionSnapshot()
         let trusted = refreshed.keyPath.accessibility.isReady
         if trusted {
             AppLogger.shared.log("✅ [PermissionRequest] Accessibility granted after Oracle refresh")

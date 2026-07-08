@@ -220,6 +220,14 @@ the result as user action required and name the approval surface.
   blocks migrated UninstallCoordinator status reads from bypassing it, and
   `SMAppServiceStatusLintTests.testAppLifecycleDelegatesStatusProviderAccessToSystemStateProvider`
   blocks migrated App lifecycle/dev-utility status reads from bypassing it.
+- Permission snapshot reads belong behind `SystemStateProvider`'s façade over
+  `PermissionOracle`.
+  `SystemStateProviderPermissionTests.testPermissionSnapshotAccessDelegatesToPermissionOracle`
+  and
+  `SystemStateProviderPermissionTests.testPermissionSnapshotRefreshBypassesCachedSnapshot`
+  cover the façade, while
+  `PermissionSnapshotLintTests.testPermissionRequestServiceDelegatesPermissionSnapshotsToSystemStateProvider`
+  prevents `PermissionRequestService` from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References
