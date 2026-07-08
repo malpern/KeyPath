@@ -8,6 +8,38 @@ import Foundation
 /// collapse process, TCP, and later launchd/SMAppService evidence into one
 /// executable snapshot.
 final class PgrepProcessDiscoveryLintTests: XCTestCase {
+    func testProductionPgrepDiscoveryIsCentralizedInCoreProvider() throws {
+        let sourceRoot = repositoryRoot().appendingPathComponent("Sources")
+        let allowedFiles: Set = [
+            "Sources/KeyPathCore/SubprocessRunner.swift",
+            "Sources/KeyPathCore/SystemStateProvider.swift"
+        ]
+
+        let violations = try swiftSourceFiles(under: sourceRoot)
+            .filter { !allowedFiles.contains(relativePath(for: $0)) }
+            .flatMap { file in
+                try matchingLines(
+                    in: file,
+                    patterns: [
+                        #"SubprocessRunner\.shared\.pgrep"#,
+                        #"SubprocessRunner\.shared\.run\("/usr/bin/pgrep"#,
+                        #"subprocessRunner\.pgrep"#,
+                        #"run\("/usr/bin/pgrep"#,
+                        #"/usr/bin/pgrep"#
+                    ]
+                )
+            }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            Production process discovery must be centralized in \
+            SystemStateProvider/SubprocessRunner, not scattered through callers:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
+
     func testServiceLifecycleCoordinatorDelegatesPgrepDiscoveryToSystemStateProvider() throws {
         let coordinator = repositoryRoot()
             .appendingPathComponent("Sources/KeyPathAppKit/Managers/ServiceLifecycleCoordinator.swift")
@@ -227,10 +259,30 @@ private func repositoryRoot(file: StaticString = #filePath) -> URL {
         .deletingLastPathComponent() // Tests
 }
 
+private func swiftSourceFiles(under root: URL) throws -> [URL] {
+    guard let enumerator = FileManager.default.enumerator(
+        at: root,
+        includingPropertiesForKeys: [.isRegularFileKey],
+        options: [.skipsHiddenFiles]
+    ) else {
+        return []
+    }
+
+    return try enumerator.compactMap { item in
+        guard let url = item as? URL, url.pathExtension == "swift" else { return nil }
+        let values = try url.resourceValues(forKeys: [.isRegularFileKey])
+        return values.isRegularFile == true ? url : nil
+    }
+}
+
+private func relativePath(for fileURL: URL) -> String {
+    fileURL.path.replacingOccurrences(of: repositoryRoot().path + "/", with: "")
+}
+
 private func matchingLines(in fileURL: URL, patterns: [String]) throws -> [String] {
     let contents = try String(contentsOf: fileURL, encoding: .utf8)
     let regexes = try patterns.map { try NSRegularExpression(pattern: $0) }
-    let relativePath = fileURL.path.replacingOccurrences(of: repositoryRoot().path + "/", with: "")
+    let relativePath = relativePath(for: fileURL)
 
     var violations: [String] = []
     for (idx, rawLine) in contents.components(separatedBy: .newlines).enumerated() {
