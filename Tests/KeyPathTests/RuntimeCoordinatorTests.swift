@@ -93,4 +93,20 @@ final class RuntimeCoordinatorTests: KeyPathTestCase {
             "Grab success should leave an unrelated error untouched"
         )
     }
+
+    func testGrabFailureSurfacesErrorWithoutRecoveryDelay() async {
+        let started = Date()
+
+        await manager.handleGrabStatusChanged(active: false, reason: "test grab failure")
+
+        XCTAssertLessThan(
+            Date().timeIntervalSince(started),
+            1.0,
+            "Grab failure handling should surface state instead of running the old multi-second recovery sequence"
+        )
+        XCTAssertEqual(
+            manager.lastError,
+            "Keyboard remapping is not active: kanata could not capture the keyboard. Try quitting other keyboard tools, then restart KeyPath."
+        )
+    }
 }

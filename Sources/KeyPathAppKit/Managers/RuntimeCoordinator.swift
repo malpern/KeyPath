@@ -94,12 +94,11 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     // Core status tracking
     public var lastError: String?
     var lastWarning: String?
-    /// Single-flight guard for grab-failure auto-recovery (#625). A recovery is a
-    /// ~5s kill→restart sequence that itself produces more grab-status events;
-    /// without this, a burst of `active=false` events would launch overlapping
-    /// recoveries. MainActor isolation makes the check-and-set atomic.
+    /// Legacy single-flight guard for grab-failure recovery (#625).
+    /// W3 keeps grab-failure detection passive, but the guard remains until the
+    /// deletion pass removes the old recovery state machine.
     private var isRecoveringGrab = false
-    /// True while `lastError` holds the grab-recovery give-up message (#625), so a
+    /// True while `lastError` holds the grab-failure message (#625), so a
     /// later authoritative grab success can clear exactly that error without
     /// stomping an unrelated error someone else set in the meantime.
     private var grabGiveUpErrorActive = false
@@ -1238,9 +1237,9 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     /// React to an authoritative kanata `InputGrab` status (#625).
     ///
     /// `active == false` means kanata is up (process + TCP) but failed to seize the
-    /// keyboard — remapping is silently dead. Drive a bounded auto-recovery, gated so
-    /// it never fires on a benign `active=false` (intentional stop) and never overlaps
-    /// an in-flight recovery. `active == true` clears the recovery budget.
+    /// keyboard — remapping is silently dead. W3 keeps this passive: record/surface
+    /// the degraded state, but do not mutate services from this background signal.
+    /// `active == true` clears the failure budget.
     func handleGrabStatusChanged(active: Bool, reason: String?) async {
         switch Self.decideGrabRecoveryGate(
             active: active,
@@ -1281,17 +1280,17 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             // surfaced on the next health check.
             switch await diagnosticsManager.recordGrabFailureAndDecideRecovery() {
             case let .recover(attempt):
-                AppLogger.shared.warn(
-                    "🚨 [RuntimeCoordinator] kanata failed to grab the keyboard (reason: \(reason ?? "unknown")) — recovery attempt \(attempt), restarting"
+                AppLogger.shared.info(
+                    "🚨 [RuntimeCoordinator] kanata failed to grab the keyboard (reason: \(reason ?? "unknown")) — surfacing degraded state (observation \(attempt))"
                 )
-                isRecoveringGrab = true
-                defer { isRecoveringGrab = false }
-                await attemptKeyboardRecovery()
+                lastError = "Keyboard remapping is not active: kanata could not capture the keyboard. Try quitting other keyboard tools, then restart KeyPath."
+                grabGiveUpErrorActive = true
+                notifyStateChanged()
             case let .giveUp(attempts):
                 AppLogger.shared.error(
-                    "❌ [RuntimeCoordinator] kanata still not grabbing the keyboard after \(attempts) recovery attempts — giving up (manual intervention / reboot likely needed)"
+                    "❌ [RuntimeCoordinator] kanata still not grabbing the keyboard after \(attempts) observations — manual intervention / reboot may be needed"
                 )
-                lastError = "Keyboard remapping is not active: kanata could not capture the keyboard after \(attempts) automatic recovery attempts. Try quitting other keyboard tools, then restart KeyPath."
+                lastError = "Keyboard remapping is not active: kanata could not capture the keyboard after repeated checks. Try quitting other keyboard tools, then restart KeyPath."
                 grabGiveUpErrorActive = true
                 notifyStateChanged()
             }
