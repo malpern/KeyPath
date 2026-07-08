@@ -776,7 +776,7 @@ removed):
 **Target:** the subsystem is ~34K LOC (~19% of the app). A 25–35% reduction is
 realistic without losing capability. Measure before/after.
 
-**Status (2026-07-08):** W6 deletion pass in progress.
+**Status (2026-07-08):** W6 deletion pass complete for Phase 1.
 - [x] Removed the single-implementation `KarabinerConflictManaging` protocol
   and wired its consumers to the concrete `KarabinerConflictService`. Enforced
   by
@@ -802,8 +802,16 @@ realistic without losing capability. Measure before/after.
   `ServiceLifecycleCoordinator.startKanata`, leaving one injected
   `isVirtualHIDDaemonHealthy` predicate for the start gate. Enforced by
   `W6DeletionPassLintTests.testServiceLifecycleCoordinatorDoesNotRegrowDuplicateVHIDStartCheck`.
-- [ ] Remaining single-implementation protocols, duplicate in-path checks,
-  cache consolidation, and DEBUG-only seams still need separate deletion PRs.
+- [x] Removed `HelperManager`'s actor-local `cachedHelperVersion`, so helper
+  freshness checks use current XPC/provider evidence instead of a session cache.
+  Enforced by
+  `W6DeletionPassLintTests.testHelperManagerDoesNotRegrowCachedHelperVersion`.
+- [x] Final W6 Phase 1 audit complete: the named single-implementation
+  protocols, duplicate start-path checks, and named installer caches are deleted
+  or ratcheted. Enforced by the `W6DeletionPassLintTests` ratchet suite. The
+  remaining `nonisolated(unsafe)` seams are retained outside the Phase 1
+  deletion surface or as ADR-019-style OS primitive/test seams, not as duplicate
+  installer repair state.
 
 ## Sequencing
 

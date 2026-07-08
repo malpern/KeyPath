@@ -184,6 +184,33 @@ final class W6DeletionPassLintTests: XCTestCase {
             """
         )
     }
+
+    func testHelperManagerDoesNotRegrowCachedHelperVersion() throws {
+        let helperFiles = [
+            repositoryRoot().appendingPathComponent("Sources/KeyPathAppKit/Core/HelperManager.swift"),
+            repositoryRoot().appendingPathComponent("Sources/KeyPathAppKit/Core/HelperManager+Status.swift"),
+            repositoryRoot().appendingPathComponent("Sources/KeyPathAppKit/Core/HelperManager+ConnectionLifecycle.swift"),
+        ]
+
+        let violations = try helperFiles.flatMap { file in
+            try matchingLines(
+                in: file,
+                patterns: [
+                    #"\bcachedHelperVersion\b"#,
+                ]
+            )
+        }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            W6 collapses installer helper state into current provider/XPC \
+            evidence instead of keeping an actor-local helper-version cache. \
+            Do not regrow cachedHelperVersion:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {

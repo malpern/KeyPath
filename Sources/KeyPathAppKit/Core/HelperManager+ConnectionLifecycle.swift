@@ -79,8 +79,6 @@ extension HelperManager {
         AppLogger.shared.log("🧹 [HelperManager] Clearing XPC connection cache")
         connection?.invalidate()
         connection = nil
-        // Clear cached version when connection is cleared (might be stale)
-        cachedHelperVersion = nil
     }
 
     /// Check if helper process is still running
