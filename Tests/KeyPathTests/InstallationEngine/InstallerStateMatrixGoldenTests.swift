@@ -35,6 +35,45 @@ final class InstallerStateMatrixGoldenTests: XCTestCase {
         }
     }
 
+    func testVirtualHIDApprovalPendingOutranksRetryableLiveInputCaptureRepair() {
+        let snapshot = InstallerStateMatrixSnapshot(
+            currentInputCaptureIssue: true,
+            virtualHIDApprovalPending: true
+        )
+
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .virtualHIDApprovalPending)
+        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.surfaceVirtualHIDApproval])
+    }
+
+    func testHelperInstalledButUnresponsiveDoesNotFallThroughHealthy() {
+        let snapshot = InstallerStateMatrixSnapshot(
+            helperInstalled: true,
+            helperResponding: false,
+            helperFresh: true
+        )
+
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .helperMissing)
+        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.installHelper])
+    }
+
+    func testReadyRuntimeOutranksGenericManualApprovalRequired() {
+        let snapshot = InstallerStateMatrixSnapshot(manualApprovalRequired: true)
+
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .runningAndTCPResponding)
+        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [])
+    }
+
+    func testStoppedRuntimeWithManualApprovalRemainsTerminalManualAction() {
+        let snapshot = InstallerStateMatrixSnapshot(
+            kanataProcessRunning: false,
+            kanataTCPResponding: false,
+            manualApprovalRequired: true
+        )
+
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .manualApprovalRequired)
+        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.surfaceManualApproval])
+    }
+
     private struct GoldenCase {
         let name: String
         let snapshot: InstallerStateMatrixSnapshot
@@ -182,7 +221,11 @@ final class InstallerStateMatrixGoldenTests: XCTestCase {
             ),
             GoldenCase(
                 name: "Manual approval is required",
-                snapshot: InstallerStateMatrixSnapshot(manualApprovalRequired: true),
+                snapshot: InstallerStateMatrixSnapshot(
+                    kanataProcessRunning: false,
+                    kanataTCPResponding: false,
+                    manualApprovalRequired: true
+                ),
                 expectedRow: .manualApprovalRequired,
                 expectedPlan: [.surfaceManualApproval]
             ),

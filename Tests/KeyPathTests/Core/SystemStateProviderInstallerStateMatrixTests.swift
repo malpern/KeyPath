@@ -56,7 +56,20 @@ final class SystemStateProviderInstallerStateMatrixTests: XCTestCase {
         XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.surfaceDriverKitApproval])
     }
 
-    func testStateMatrixSnapshotMapsLoginItemsApprovalToManualApprovalRow() {
+    func testStateMatrixSnapshotMapsStoppedRuntimeWithLoginItemsApprovalToManualApprovalRow() {
+        let snapshot = SystemStateProvider.installerStateMatrixSnapshot(
+            components: healthyComponents,
+            helper: healthyHelper,
+            runtime: runtime(isRunning: false, isResponding: false),
+            kanataSMAppServiceStatus: .enabled,
+            helperSMAppServiceStatus: .requiresApproval
+        )
+
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .manualApprovalRequired)
+        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.surfaceManualApproval])
+    }
+
+    func testStateMatrixSnapshotKeepsReadyRuntimeHealthyWhenLoginItemsApprovalIsStale() {
         let snapshot = SystemStateProvider.installerStateMatrixSnapshot(
             components: healthyComponents,
             helper: healthyHelper,
@@ -65,8 +78,8 @@ final class SystemStateProviderInstallerStateMatrixTests: XCTestCase {
             helperSMAppServiceStatus: .requiresApproval
         )
 
-        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .manualApprovalRequired)
-        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.surfaceManualApproval])
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .runningAndTCPResponding)
+        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [])
     }
 
     func testStateMatrixSnapshotMapsHelperVersionMismatchToStaleHelperRow() {
