@@ -91,6 +91,9 @@ Notes:
   diff and address findings. If local review tooling is unavailable, exit code
   2 means `remote review gate selected`; record that in the PR and do not merge
   until GitHub `claude-review` passes.
+- Do not report missing local review tools as a PR issue. The actionable gate
+  state is `remote review gate selected`; the GitHub `claude-review` check is
+  the enforced reviewer in that path.
 - Git guardrail hooks in `.claude/settings.json` block commits on `master`,
   force-pushes to `master`, `reset --hard`, and `clean -f`.
 
