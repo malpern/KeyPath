@@ -147,7 +147,7 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
         HelperManager.smServiceFactory(plistName)
     }
     WizardDependencies.helperNeedsApproval = {
-        HelperManager.smServiceFactory(HelperManager.helperPlistName).status == .requiresApproval
+        HelperManager.shared.helperNeedsLoginItemsApproval()
     }
     WizardDependencies.createUninstallCoordinator = {
         UninstallCoordinator()
@@ -218,7 +218,7 @@ func configureCLIWizardDependencies(systemValidator: SystemValidator) {
         HelperManager.smServiceFactory(plistName)
     }
     WizardDependencies.helperNeedsApproval = {
-        HelperManager.smServiceFactory(HelperManager.helperPlistName).status == .requiresApproval
+        HelperManager.shared.helperNeedsLoginItemsApproval()
     }
     WizardDependencies.createUninstallCoordinator = {
         UninstallCoordinator()

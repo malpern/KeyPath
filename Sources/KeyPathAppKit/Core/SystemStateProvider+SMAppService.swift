@@ -2,6 +2,15 @@ import KeyPathCore
 import ServiceManagement
 
 public extension SystemStateProvider {
+    /// Synchronous SMAppService status bridge for legacy call sites that cannot
+    /// yet await the cached provider.
+    ///
+    /// Kept behind `SystemStateProvider` so Phase 1 has one owner for status
+    /// evidence while the full immutable snapshot is introduced.
+    nonisolated func smAppServiceStatusSynchronously(for plistName: String) -> SMAppService.Status {
+        SMAppServiceStatusProvider.statusSynchronously(for: plistName)
+    }
+
     /// Cached SMAppService status read for hot paths.
     ///
     /// Delegates to the existing status provider so the blocking Apple IPC remains

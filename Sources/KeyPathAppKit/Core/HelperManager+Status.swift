@@ -11,8 +11,8 @@ extension HelperManager {
     /// This is a synchronous check used by the wizard navigation engine to prioritize
     /// Login Items approval as a blocking dependency before other setup steps.
     public nonisolated func helperNeedsLoginItemsApproval() -> Bool {
-        let svc = Self.smServiceFactory(Self.helperPlistName)
-        return svc.status == .requiresApproval
+        Self.systemStateProviderFactory()
+            .smAppServiceStatusSynchronously(for: Self.helperPlistName) == .requiresApproval
     }
 
     /// Check if the privileged helper is installed and registered (SMAppService path)

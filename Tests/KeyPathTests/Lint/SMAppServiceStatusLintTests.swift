@@ -25,13 +25,11 @@ final class SMAppServiceStatusLintTests: XCTestCase {
     /// - `SMAppServiceStatusProvider.swift`: the sole intended owner of the IPC.
     /// - `HelperManager.swift`: defines the `SMAppServiceProtocol` seam whose `status`
     ///   getter forwards to Apple's `SMAppService` — the one legitimate declaration.
-    /// - The remainder are synchronous, non-hot-path readers (wizard approval check,
-    ///   bless diagnostics) still awaiting an async migration.
+    /// - The remainder are synchronous, non-hot-path diagnostic readers still
+    ///   awaiting an async migration.
     private static let allowList: Set<String> = [
         "SMAppServiceStatusProvider.swift",
         "HelperManager.swift",
-        "HelperManager+Status.swift",
-        "WizardProtocolConformances.swift",
         "BlessDiagnostics.swift"
     ]
 
@@ -114,9 +112,30 @@ final class SMAppServiceStatusLintTests: XCTestCase {
         XCTAssertTrue(
             violations.isEmpty,
             """
-            HelperManager async SMAppService status/cache access must delegate \
-            through SystemStateProvider. The synchronous helperNeedsLoginItemsApproval \
-            direct .status read remains separately guarded by the shrinking allowlist:
+            HelperManager SMAppService status/cache access must delegate \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
+
+    func testWizardProtocolConformancesDelegateHelperApprovalToHelperManager() throws {
+        let conformances = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/WizardProtocolConformances.swift")
+
+        let violations = try matchingLines(
+            in: conformances,
+            patterns: [
+                #"smServiceFactory\(.*\)\.status"#,
+                #"SMAppServiceStatusProvider\.shared"#
+            ]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            Wizard dependency glue must not read SMAppService status directly. \
+            Route helper approval checks through HelperManager/SystemStateProvider:
             \(violations.sorted().joined(separator: "\n"))
             """
         )

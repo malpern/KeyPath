@@ -5,6 +5,7 @@ import ServiceManagement
 
 final class HelperManagerTests: XCTestCase {
     private var originalFactory: ((String) -> SMAppServiceProtocol)!
+    private var originalSynchronousServiceFactory: ((String) -> SMAppServiceProtocol)!
     private var originalStatusProvider: SMAppServiceStatusProvider!
     private var originalSubprocessRunnerFactory: (() -> SubprocessRunning)!
     private var originalSystemStateProviderFactory: (() -> SystemStateProvider)!
@@ -12,6 +13,7 @@ final class HelperManagerTests: XCTestCase {
     override func setUp() {
         super.setUp()
         originalFactory = HelperManager.smServiceFactory
+        originalSynchronousServiceFactory = SMAppServiceStatusProvider.synchronousServiceFactory
         originalStatusProvider = SMAppServiceStatusProvider.shared
         originalSubprocessRunnerFactory = HelperManager.subprocessRunnerFactory
         originalSystemStateProviderFactory = HelperManager.systemStateProviderFactory
@@ -19,6 +21,7 @@ final class HelperManagerTests: XCTestCase {
 
     override func tearDown() {
         HelperManager.smServiceFactory = originalFactory
+        SMAppServiceStatusProvider.synchronousServiceFactory = originalSynchronousServiceFactory
         SMAppServiceStatusProvider.shared = originalStatusProvider
         HelperManager.subprocessRunnerFactory = originalSubprocessRunnerFactory
         HelperManager.systemStateProviderFactory = originalSystemStateProviderFactory
@@ -65,6 +68,12 @@ final class HelperManagerTests: XCTestCase {
             HelperManager.staleHelperSMAppServiceBootoutCommands(),
             ["/bin/launchctl bootout system/com.keypath.helper 2>/dev/null || true"]
         )
+    }
+
+    func testHelperNeedsLoginItemsApprovalUsesHelperManagerSMAppServiceFactory() {
+        installFake(FakeSMAppService(status: .requiresApproval))
+
+        XCTAssertTrue(HelperManager.shared.helperNeedsLoginItemsApproval())
     }
 
     func testInstallHelperRecoversEnabledButUnresponsiveRegistration() async throws {

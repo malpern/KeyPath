@@ -56,6 +56,20 @@ actor SMAppServiceStatusProvider {
         static let shared = SMAppServiceStatusProvider()
     #endif
 
+    #if DEBUG
+        /// Independent test seam for the legacy synchronous bridge. Tests that
+        /// need both helper mutation and sync-status paths faked should set this
+        /// explicitly or use HelperManager.smServiceFactory, whose didSet keeps
+        /// this bridge aligned for helper approval checks.
+        nonisolated(unsafe) static var synchronousServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
+            NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
+        }
+    #else
+        static let synchronousServiceFactory: @Sendable (String) -> SMAppServiceProtocol = { plistName in
+            NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
+        }
+    #endif
+
     /// How long a cached status is served before a fresh fetch is required.
     ///
     /// Kept deliberately short: `.status` transitions (approval granted,
@@ -86,6 +100,15 @@ actor SMAppServiceStatusProvider {
     }
 
     // MARK: - Public accessors
+
+    /// Synchronous status read for legacy sync call sites that cannot yet await.
+    ///
+    /// Keep this bridge narrow. New code should prefer `cachedStatus(for:)` or
+    /// `freshStatus(for:)` through `SystemStateProvider` so blocking IPC stays
+    /// coalesced and off the caller's actor.
+    nonisolated static func statusSynchronously(for plistName: String) -> SMAppService.Status {
+        synchronousServiceFactory(plistName).status
+    }
 
     /// Cached status read: serves a value up to `cacheTTL` old, otherwise fetches.
     ///

@@ -219,7 +219,11 @@ the result as user action required and name the approval surface.
   `SMAppServiceStatusLintTests.testUninstallCoordinatorDelegatesStatusProviderAccessToSystemStateProvider`
   blocks migrated UninstallCoordinator status reads from bypassing it, and
   `SMAppServiceStatusLintTests.testAppLifecycleDelegatesStatusProviderAccessToSystemStateProvider`
-  blocks migrated App lifecycle/dev-utility status reads from bypassing it.
+  blocks migrated App lifecycle/dev-utility status reads from bypassing it, and
+  `SystemStateProviderSMAppServiceTests.testSynchronousSMAppServiceStatusDelegatesToCentralStatusProviderBridge`,
+  `SMAppServiceStatusLintTests.testStatusAccessIsCentralized`, and
+  `SMAppServiceStatusLintTests.testWizardProtocolConformancesDelegateHelperApprovalToHelperManager`
+  prevent synchronous helper Login Items approval reads from bypassing it.
 - Permission snapshot reads belong behind `SystemStateProvider`'s façade over
   `PermissionOracle`.
   `SystemStateProviderPermissionTests.testPermissionSnapshotAccessDelegatesToPermissionOracle`

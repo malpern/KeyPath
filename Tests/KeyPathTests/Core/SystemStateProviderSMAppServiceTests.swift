@@ -5,14 +5,17 @@ import ServiceManagement
 
 final class SystemStateProviderSMAppServiceTests: XCTestCase {
     private var originalStatusProvider: SMAppServiceStatusProvider!
+    private var originalSynchronousServiceFactory: ((String) -> SMAppServiceProtocol)!
 
     override func setUp() {
         super.setUp()
         originalStatusProvider = SMAppServiceStatusProvider.shared
+        originalSynchronousServiceFactory = SMAppServiceStatusProvider.synchronousServiceFactory
     }
 
     override func tearDown() {
         SMAppServiceStatusProvider.shared = originalStatusProvider
+        SMAppServiceStatusProvider.synchronousServiceFactory = originalSynchronousServiceFactory
         super.tearDown()
     }
 
@@ -62,6 +65,17 @@ final class SystemStateProviderSMAppServiceTests: XCTestCase {
         _ = await provider.freshSMAppServiceStatus(for: "com.keypath.kanata.plist")
 
         XCTAssertEqual(service.statusReads, 2)
+    }
+
+    func testSynchronousSMAppServiceStatusDelegatesToCentralStatusProviderBridge() {
+        let service = CountingSMAppService(status: .requiresApproval)
+        SMAppServiceStatusProvider.synchronousServiceFactory = { _ in service }
+
+        let status = SystemStateProvider.shared
+            .smAppServiceStatusSynchronously(for: "com.keypath.helper.plist")
+
+        XCTAssertEqual(status, .requiresApproval)
+        XCTAssertEqual(service.statusReads, 1)
     }
 }
 

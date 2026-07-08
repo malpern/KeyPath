@@ -23,6 +23,10 @@ public actor HelperManager {
     #if DEBUG
         nonisolated(unsafe) static var smServiceFactory: (String) -> SMAppServiceProtocol = { plistName in
             NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
+        } {
+            didSet {
+                SMAppServiceStatusProvider.synchronousServiceFactory = smServiceFactory
+            }
         }
 
         nonisolated(unsafe) static var testHelperFunctionalityOverride: (() async -> Bool)?

@@ -239,6 +239,12 @@ classification remains pending.
   `PermissionSnapshotLintTests.testKeyboardCaptureDelegatesSyncAccessibilityStatusToSystemStateProvider`
   and
   `PermissionSnapshotLintTests.testWindowManagerDelegatesSyncAccessibilityStatusToSystemStateProvider`.
+- [x] Migrated the remaining synchronous helper Login Items approval reads
+  through `SystemStateProvider`'s SMAppService status facade and shrank the
+  direct `.status` allowlist. Enforced by
+  `SystemStateProviderSMAppServiceTests.testSynchronousSMAppServiceStatusDelegatesToCentralStatusProviderBridge`,
+  `SMAppServiceStatusLintTests.testStatusAccessIsCentralized`, and
+  `SMAppServiceStatusLintTests.testWizardProtocolConformancesDelegateHelperApprovalToHelperManager`.
 - [ ] Migrate `SMAppService.status`, permissions, VHID state, helper freshness,
   and migrated read-only `launchctl print` evidence into a single immutable
   `SystemSnapshot`.
@@ -609,6 +615,11 @@ is listed in the state-matrix doc's enforcement section.
   `PermissionSnapshotLintTests.testWindowManagerDelegatesSyncAccessibilityStatusToSystemStateProvider`
   prevent migrated synchronous KeyPath Accessibility status reads from
   bypassing `SystemStateProvider`.
+- [x] `SystemStateProviderSMAppServiceTests.testSynchronousSMAppServiceStatusDelegatesToCentralStatusProviderBridge`,
+  `SMAppServiceStatusLintTests.testStatusAccessIsCentralized`, and
+  `SMAppServiceStatusLintTests.testWizardProtocolConformancesDelegateHelperApprovalToHelperManager`
+  prevent synchronous helper Login Items approval reads from bypassing
+  `SystemStateProvider`.
 - [x] `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
   prevents `ServiceHealthChecker` from regrowing a private TCP socket probe.
 - [x] `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed` and
