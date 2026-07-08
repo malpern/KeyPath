@@ -17,6 +17,21 @@ public enum InstallIntent: Sendable, Equatable {
     case inspectOnly
 }
 
+public extension InstallIntent {
+    var telemetryValue: String {
+        switch self {
+        case .install:
+            "install"
+        case .repair:
+            "repair"
+        case .uninstall:
+            "uninstall"
+        case .inspectOnly:
+            "inspect-only"
+        }
+    }
+}
+
 // MARK: - Requirement
 
 /// Status of a requirement check.
@@ -166,6 +181,23 @@ public enum RecipeType: Sendable, Equatable {
     case checkRequirement
 }
 
+public extension RecipeType {
+    var telemetryValue: String {
+        switch self {
+        case .installService:
+            "install-service"
+        case .repairPrivilegedHelper:
+            "repair-privileged-helper"
+        case .restartService:
+            "restart-service"
+        case .installComponent:
+            "install-component"
+        case .checkRequirement:
+            "check-requirement"
+        }
+    }
+}
+
 /// Launchctl action to perform.
 public enum LaunchctlAction: Sendable, Equatable {
     /// Bootstrap a service
@@ -241,10 +273,21 @@ public struct PlanMetadata: Sendable, Equatable {
     public let needsReboot: Bool
     /// Whether user prompts are needed
     public let promptsNeeded: Bool
+    /// State-matrix row that produced this plan, when available.
+    public let stateMatrixRow: String?
+    /// State-matrix actions selected for this plan, when available.
+    public let stateMatrixPlan: [String]
 
-    public init(needsReboot: Bool = false, promptsNeeded: Bool = false) {
+    public init(
+        needsReboot: Bool = false,
+        promptsNeeded: Bool = false,
+        stateMatrixRow: String? = nil,
+        stateMatrixPlan: [String] = []
+    ) {
         self.needsReboot = needsReboot
         self.promptsNeeded = promptsNeeded
+        self.stateMatrixRow = stateMatrixRow
+        self.stateMatrixPlan = stateMatrixPlan
     }
 }
 
@@ -277,6 +320,61 @@ public struct InstallPlan: Sendable, Equatable {
 }
 
 // MARK: - Installer Report
+
+public enum InstallerRepairTelemetryTrigger: String, Codable, Sendable, Equatable {
+    case executePlan = "execute-plan"
+    case run
+    case singleAction = "single-action"
+    case uninstall
+}
+
+public enum InstallerRepairTelemetryResult: String, Codable, Sendable, Equatable {
+    case succeeded
+    case failed
+    case blocked
+    case skipped
+}
+
+/// Machine-readable repair/install execution trace used by CLI JSON and tests.
+///
+/// This is intentionally local to the installer report: it is not persisted,
+/// uploaded, or used to drive repair policy.
+public struct InstallerRepairTelemetryEvent: Codable, Sendable, Equatable {
+    public let timestamp: Date
+    public let trigger: InstallerRepairTelemetryTrigger
+    public let intent: String
+    public let stateMatrixRow: String?
+    public let stateMatrixPlan: [String]
+    public let action: String?
+    public let recipeID: String?
+    public let recipeType: String?
+    public let postconditionResult: InstallerRepairTelemetryResult
+    public let error: String?
+
+    public init(
+        timestamp: Date = Date(),
+        trigger: InstallerRepairTelemetryTrigger,
+        intent: String,
+        stateMatrixRow: String?,
+        stateMatrixPlan: [String],
+        action: String?,
+        recipeID: String?,
+        recipeType: String?,
+        postconditionResult: InstallerRepairTelemetryResult,
+        error: String? = nil
+    ) {
+        self.timestamp = timestamp
+        self.trigger = trigger
+        self.intent = intent
+        self.stateMatrixRow = stateMatrixRow
+        self.stateMatrixPlan = stateMatrixPlan
+        self.action = action
+        self.recipeID = recipeID
+        self.recipeType = recipeType
+        self.postconditionResult = postconditionResult
+        self.error = error
+    }
+}
 
 /// Result of executing a single recipe
 public struct RecipeResult: Sendable, Equatable {
@@ -326,6 +424,8 @@ public struct InstallerReport: Sendable {
     public let finalContext: SystemContext?
     /// Human-readable log lines (for CLI / UI display)
     public let logs: [String]
+    /// Machine-readable execution events for installer/repair diagnostics.
+    public let repairTelemetry: [InstallerRepairTelemetryEvent]
 
     public init(
         timestamp: Date = Date(),
@@ -334,7 +434,8 @@ public struct InstallerReport: Sendable {
         unmetRequirements: [Requirement] = [],
         executedRecipes: [RecipeResult] = [],
         finalContext: SystemContext? = nil,
-        logs: [String] = []
+        logs: [String] = [],
+        repairTelemetry: [InstallerRepairTelemetryEvent] = []
     ) {
         self.timestamp = timestamp
         self.success = success
@@ -343,6 +444,7 @@ public struct InstallerReport: Sendable {
         self.executedRecipes = executedRecipes
         self.finalContext = finalContext
         self.logs = logs
+        self.repairTelemetry = repairTelemetry
     }
 }
 

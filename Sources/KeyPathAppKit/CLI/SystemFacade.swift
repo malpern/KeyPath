@@ -528,6 +528,7 @@ public struct CLIInstallerReport: Codable, Sendable {
     public let plannedRecipes: [String]?
     public let unmetRequirements: [String]?
     public let logs: [String]?
+    public let repairTelemetry: [CLIRepairTelemetryEvent]?
 
     init(from report: InstallerReport) {
         success = report.success
@@ -542,6 +543,7 @@ public struct CLIInstallerReport: Codable, Sendable {
         plannedRecipes = nil
         unmetRequirements = nil
         logs = nil
+        repairTelemetry = CLIRepairTelemetryEvent.from(report.repairTelemetry)
     }
 
     init(
@@ -580,6 +582,7 @@ public struct CLIInstallerReport: Codable, Sendable {
         plannedRecipes = plan.recipes.map { "\($0.id) (\($0.type))" }
         unmetRequirements = report.unmetRequirements.map(\.name)
         logs = report.logs
+        repairTelemetry = CLIRepairTelemetryEvent.from(report.repairTelemetry)
     }
 
     init(dryRunPlan plan: InstallPlan, context: SystemContext, title: String) {
@@ -606,6 +609,7 @@ public struct CLIInstallerReport: Codable, Sendable {
         plannedRecipes = plan.recipes.map { "\($0.id) (\($0.type))" }
         unmetRequirements = blockedBy
         logs = nil
+        repairTelemetry = nil
     }
 
     init(success: Bool, failureReason: String?, steps: [CLIInstallerStep], fastRepair: Bool) {
@@ -619,6 +623,7 @@ public struct CLIInstallerReport: Codable, Sendable {
         plannedRecipes = nil
         unmetRequirements = nil
         logs = nil
+        repairTelemetry = nil
     }
 
     init(bundleIssue: CLISystemIssue, dryRun: Bool, title: String) {
@@ -632,6 +637,7 @@ public struct CLIInstallerReport: Codable, Sendable {
         plannedRecipes = []
         unmetRequirements = ["Valid KeyPath.app bundle"]
         logs = nil
+        repairTelemetry = nil
     }
 
     init(
@@ -644,7 +650,8 @@ public struct CLIInstallerReport: Codable, Sendable {
         issues: [CLISystemIssue]?,
         plannedRecipes: [String]?,
         unmetRequirements: [String]?,
-        logs: [String]?
+        logs: [String]?,
+        repairTelemetry: [CLIRepairTelemetryEvent]? = nil
     ) {
         self.success = success
         self.failureReason = failureReason
@@ -656,6 +663,7 @@ public struct CLIInstallerReport: Codable, Sendable {
         self.plannedRecipes = plannedRecipes
         self.unmetRequirements = unmetRequirements
         self.logs = logs
+        self.repairTelemetry = repairTelemetry
     }
 }
 
@@ -663,6 +671,35 @@ public struct CLIInstallerStep: Codable, Sendable {
     public let name: String
     public let success: Bool
     public let error: String?
+}
+
+public struct CLIRepairTelemetryEvent: Codable, Sendable {
+    public let trigger: String
+    public let intent: String
+    public let stateMatrixRow: String?
+    public let stateMatrixPlan: [String]
+    public let action: String?
+    public let recipeID: String?
+    public let recipeType: String?
+    public let postconditionResult: String
+    public let error: String?
+
+    fileprivate init(_ event: InstallerRepairTelemetryEvent) {
+        trigger = event.trigger.rawValue
+        intent = event.intent
+        stateMatrixRow = event.stateMatrixRow
+        stateMatrixPlan = event.stateMatrixPlan
+        action = event.action
+        recipeID = event.recipeID
+        recipeType = event.recipeType
+        postconditionResult = event.postconditionResult.rawValue
+        error = event.error
+    }
+
+    fileprivate static func from(_ events: [InstallerRepairTelemetryEvent]) -> [CLIRepairTelemetryEvent]? {
+        guard !events.isEmpty else { return nil }
+        return events.map(CLIRepairTelemetryEvent.init)
+    }
 }
 
 public struct CLIInspectResult: Codable, Sendable {

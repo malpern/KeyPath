@@ -559,6 +559,14 @@ Phase 1 changes *post-install* behavior, not first-run automation.
   `CLIOutputContractTests.testInstallerReportLinksTerminalConfigFailureToTroubleshooting`,
   plus
   `CLIOutputContractTests.testInstallerReportLinksMissingBundledKanataToTroubleshooting`.
+- [x] Repair/install attempts emit structured report telemetry for the trigger,
+  state-matrix row, matrix action plan, executed action/recipe, and
+  postcondition result. Enforced by
+  `InstallerEngineTests.testExecuteRecordsStructuredRepairTelemetryForSuccessfulRecipe`,
+  `InstallerEngineTests.testExecuteRecordsStructuredRepairTelemetryForFailedRecipe`,
+  `InstallerEngineTests.testExecuteRecordsStructuredRepairTelemetryForNoopPlan`,
+  `InstallerEngineTests.testExecuteHandlesBlockedPlan`, and
+  `CLIOutputContractTests.testInstallerReportRepairTelemetryJSONShape`.
 
 ## Workstream 4: Prevention at the Source
 
@@ -809,9 +817,14 @@ foundation, not something to replace.
 - One sustained stability window (proposal: 2 release cycles / 8 weeks) with
   zero installer/repair regressions and zero false-green or false-alert
   incidents in the debug logs of dogfood machines.
-- Repair success/failure outcomes are observable (structured log events for
+- Repair success/failure outcomes are observable (structured report events for
   every repair attempt: trigger, row, action, postcondition result) — this
-  telemetry is Phase 2's prerequisite data.
+  telemetry is Phase 2's prerequisite data. Enforced by
+  `InstallerEngineTests.testExecuteRecordsStructuredRepairTelemetryForSuccessfulRecipe`,
+  `InstallerEngineTests.testExecuteRecordsStructuredRepairTelemetryForFailedRecipe`,
+  `InstallerEngineTests.testExecuteRecordsStructuredRepairTelemetryForNoopPlan`,
+  `InstallerEngineTests.testExecuteHandlesBlockedPlan`, and
+  `CLIOutputContractTests.testInstallerReportRepairTelemetryJSONShape`.
 
 ## Non-Goals Reminder
 

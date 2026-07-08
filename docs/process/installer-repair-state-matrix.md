@@ -85,6 +85,14 @@ For any installer or repair change, answer these before merging:
   `failed with diagnostics`?
 - Does every helper path and every sudo fallback path enforce the same
   postcondition?
+- Does every installer/repair report include structured telemetry for the
+  trigger, state-matrix row, matrix plan/action, and postcondition result?
+  `InstallerEngineTests.testExecuteRecordsStructuredRepairTelemetryForSuccessfulRecipe`,
+  `InstallerEngineTests.testExecuteRecordsStructuredRepairTelemetryForFailedRecipe`,
+  `InstallerEngineTests.testExecuteRecordsStructuredRepairTelemetryForNoopPlan`,
+  `InstallerEngineTests.testExecuteHandlesBlockedPlan`, and
+  `CLIOutputContractTests.testInstallerReportRepairTelemetryJSONShape` enforce
+  the report/CLI contract.
 - If the planner uses a diagnostic string, is that diagnostic scoped to a live
   current runtime?
 - If helper code changed, how is helper freshness verified after deploy?
