@@ -2,59 +2,9 @@ import AppKit
 import Foundation
 import KeyPathCore
 
-/// Protocol for managing Kanata configuration files
-// @preconcurrency: @MainActor class conforms to Sendable protocol; actor isolation provides safety
-@preconcurrency
-protocol ConfigurationManaging: Sendable {
-    var configPath: String { get }
-    var configDirectory: String { get }
-
-    /// Build Kanata command line arguments
-    func buildKanataArguments(checkOnly: Bool) -> [String]
-
-    /// Validate configuration file
-    func validateConfigFile() async -> (isValid: Bool, errors: [String])
-
-    /// Validate configuration content string
-    func validateConfiguration(_ content: String) async -> (isValid: Bool, errors: [String])
-
-    /// Write generated configuration to disk
-    func writeGeneratedConfig(_ content: String) async throws -> [KeyMapping]
-
-    /// Write validated configuration to disk
-    func writeValidatedConfig(_ content: String) async throws
-
-    /// Load existing mappings from config file
-    func loadExistingMappings() async -> [KeyMapping]
-
-    /// Save configuration with mappings
-    func saveConfiguration(mappings: [KeyMapping]) async throws
-
-    /// Backup current config
-    func backupCurrentConfig() async
-
-    /// Create default config if missing
-    func createDefaultIfMissing() async -> Bool
-
-    /// Open config file in editor
-    func openInEditor(_ path: String) async
-
-    /// Parse config content to mappings
-    func parseConfig(_ content: String) -> [KeyMapping]
-
-    /// Generate config from mappings
-    func generateConfig(mappings: [KeyMapping]) -> String
-
-    /// Ensure valid startup config, handling invalid configs by backing them up and resetting to default
-    func ensureValidStartupConfig() async -> (mappings: [KeyMapping], validationError: ConfigValidationError?)
-
-    /// Backup failed config and apply safe default
-    func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws -> String
-}
-
 /// Manages Kanata configuration files and operations
 @MainActor
-final class ConfigurationManager: @preconcurrency ConfigurationManaging { // @preconcurrency: @MainActor satisfies Sendable via isolation
+final class ConfigurationManager {
     let configPath: String
     let configDirectory: String
 

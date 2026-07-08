@@ -153,7 +153,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     // MARK: - Manager Dependencies (Refactored Architecture)
 
-    let configurationManager: ConfigurationManaging
+    let configurationManager: ConfigurationManager
     let diagnosticsManager: DiagnosticsManaging
     let configRepairService: ConfigRepairService
 
