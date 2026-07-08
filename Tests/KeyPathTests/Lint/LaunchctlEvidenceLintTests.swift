@@ -7,12 +7,29 @@ import Foundation
 /// Read-only service-state evidence (`launchctl print`) should move behind
 /// SystemStateProvider as Phase 1 builds the executable snapshot.
 final class LaunchctlEvidenceLintTests: XCTestCase {
-    func testVHIDDeviceManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider() throws {
+    func testVHIDDeviceManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider() {
         let manager = repositoryRoot()
             .appendingPathComponent("Sources/KeyPathInstallationWizard/Core/VHIDDeviceManager.swift")
 
+        assertNoDirectLaunchctlPrintEvidenceReads(in: manager)
+    }
+
+    func testServiceHealthCheckerDelegatesLaunchctlPrintEvidenceToSystemStateProvider() {
+        let checker = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathInstallationWizard/Core/ServiceHealthChecker.swift")
+
+        assertNoDirectLaunchctlPrintEvidenceReads(in: checker)
+    }
+}
+
+private func assertNoDirectLaunchctlPrintEvidenceReads(
+    in fileURL: URL,
+    file: StaticString = #filePath,
+    line: UInt = #line
+) {
+    do {
         let violations = try matchingLines(
-            in: manager,
+            in: fileURL,
             patterns: [
                 #"SubprocessRunner\.shared\.launchctl\("print""#,
                 #"subprocessRunner\.launchctl\("print""#,
@@ -23,11 +40,15 @@ final class LaunchctlEvidenceLintTests: XCTestCase {
         XCTAssertTrue(
             violations.isEmpty,
             """
-            VHIDDeviceManager must delegate launchctl print service-state \
+            Production code must delegate launchctl print service-state \
             evidence to SystemStateProvider:
             \(violations.sorted().joined(separator: "\n"))
-            """
+            """,
+            file: file,
+            line: line
         )
+    } catch {
+        XCTFail("Failed to inspect \(fileURL.path): \(error)", file: file, line: line)
     }
 }
 

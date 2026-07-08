@@ -2,6 +2,7 @@ import Foundation
 @testable import KeyPathAppKit
 @testable import KeyPathCore
 @testable import KeyPathInstallationWizard
+@testable import KeyPathWizardCore
 import ServiceManagement
 @preconcurrency import XCTest
 
@@ -13,10 +14,12 @@ final class ServiceHealthCheckerTests: XCTestCase {
     private var originalAllowAdminOperationsInTests = false
     private nonisolated(unsafe) var originalSMFactory: ((String) -> SMAppServiceProtocol)!
     private nonisolated(unsafe) var originalStatusProvider: SMAppServiceStatusProvider!
+    private nonisolated(unsafe) var originalDaemonManager: (any WizardDaemonManaging)?
 
     override func setUp() async throws {
         try await super.setUp()
         originalStatusProvider = SMAppServiceStatusProvider.shared
+        originalDaemonManager = await MainActor.run { WizardDependencies.daemonManager }
         checker = await MainActor.run { ServiceHealthChecker.shared }
         // The shared singleton's 2s-TTL health cache can carry entries from
         // other suites in the same process (e.g. InstallerEngine tests that
@@ -49,6 +52,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
         checker = nil
         KanataDaemonManager.smServiceFactory = originalSMFactory
         SMAppServiceStatusProvider.shared = originalStatusProvider
+        await MainActor.run { WizardDependencies.daemonManager = originalDaemonManager }
         TestEnvironment.allowAdminOperationsInTests = originalAllowAdminOperationsInTests
         if let originalSudoEnv {
             setenv("KEYPATH_USE_SUDO", originalSudoEnv, 1)
@@ -74,6 +78,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
         originalSudoEnv = nil
         originalAllowAdminOperationsInTests = false
         originalSMFactory = nil
+        originalDaemonManager = nil
         try await super.tearDown()
     }
 
@@ -82,6 +87,36 @@ final class ServiceHealthCheckerTests: XCTestCase {
 
         func register() throws {}
         func unregister() async throws {}
+    }
+
+    @MainActor
+    private final class FakeDaemonManager: WizardDaemonManaging, @unchecked Sendable {
+        let state: WizardServiceManagementState
+        let targets: [String]
+        var registeredButNotLoaded = false
+        nonisolated let kanataServiceID = ServiceHealthChecker.kanataServiceID
+        nonisolated let legacyPlistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"
+
+        init(state: WizardServiceManagementState, targets: [String]) {
+            self.state = state
+            self.targets = targets
+        }
+
+        func refreshManagementState() async -> WizardServiceManagementState {
+            state
+        }
+
+        func isRegisteredButNotLoaded() async -> Bool {
+            registeredButNotLoaded
+        }
+
+        func register() async throws {}
+
+        func unregister() async throws {}
+
+        func preferredLaunchctlTargets(for _: WizardServiceManagementState) -> [String] {
+            targets
+        }
     }
 
     private func writeEmptyPlist(serviceID: String) throws {
@@ -147,10 +182,72 @@ final class ServiceHealthCheckerTests: XCTestCase {
         XCTAssertTrue(managerLoaded)
     }
 
+    func testIsServiceLoadedDelegatesLaunchctlPrintToSystemStateProvider() async {
+        TestEnvironment.allowAdminOperationsInTests = true
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configureLaunchctlResult { subcommand, args in
+            if subcommand == "print", args == ["system/\(ServiceHealthChecker.vhidManagerServiceID)"] {
+                return ProcessResult(exitCode: 0, stdout: "state = running", stderr: "", duration: 0.01)
+            }
+            return ProcessResult(exitCode: 113, stdout: "", stderr: "not found", duration: 0.01)
+        }
+        let provider = SystemStateProvider(subprocessRunner: runner)
+        let checker = await MainActor.run {
+            ServiceHealthChecker(subprocessRunner: runner, systemStateProvider: provider)
+        }
+
+        let loaded = await checker.isServiceLoaded(serviceID: ServiceHealthChecker.vhidManagerServiceID)
+        let commands = await runner.executedCommands
+
+        XCTAssertTrue(loaded)
+        XCTAssertTrue(
+            commands.contains {
+                $0.executable == "/bin/launchctl"
+                    && $0.args == ["print", "system/\(ServiceHealthChecker.vhidManagerServiceID)"]
+            }
+        )
+    }
+
     func testIsServiceHealthyUsesPlistExistenceInTestMode() async throws {
         try writeEmptyPlist(serviceID: ServiceHealthChecker.kanataServiceID)
         let healthy = await checker.isServiceHealthy(serviceID: ServiceHealthChecker.kanataServiceID)
         XCTAssertTrue(healthy)
+    }
+
+    func testIsServiceHealthyDelegatesLaunchctlPrintToSystemStateProvider() async {
+        TestEnvironment.allowAdminOperationsInTests = true
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configureLaunchctlResult { subcommand, args in
+            if subcommand == "print", args == ["system/\(ServiceHealthChecker.vhidManagerServiceID)"] {
+                return ProcessResult(
+                    exitCode: 0,
+                    stdout: """
+                    state = exited
+                    last exit status = 0
+                    """,
+                    stderr: "",
+                    duration: 0.01
+                )
+            }
+            return ProcessResult(exitCode: 113, stdout: "", stderr: "not found", duration: 0.01)
+        }
+        let provider = SystemStateProvider(subprocessRunner: runner)
+        let checker = await MainActor.run {
+            ServiceHealthChecker(subprocessRunner: runner, systemStateProvider: provider)
+        }
+
+        let healthy = await checker.isServiceHealthy(serviceID: ServiceHealthChecker.vhidManagerServiceID)
+        let commands = await runner.executedCommands
+
+        XCTAssertTrue(healthy)
+        XCTAssertTrue(
+            commands.contains {
+                $0.executable == "/bin/launchctl"
+                    && $0.args == ["print", "system/\(ServiceHealthChecker.vhidManagerServiceID)"]
+            }
+        )
     }
 
     func testIsServiceHealthyReturnsFalseForInvalidServiceID() async {
@@ -162,6 +259,58 @@ final class ServiceHealthCheckerTests: XCTestCase {
         let health = await checker.checkKanataServiceHealth()
         XCTAssertFalse(health.isRunning)
         XCTAssertFalse(health.isResponding)
+    }
+
+    func testKanataRuntimeSnapshotDelegatesLaunchctlTargetsToSystemStateProvider() async {
+        TestEnvironment.allowAdminOperationsInTests = true
+        #if DEBUG
+            ServiceHealthChecker.vhidDriverExtensionEnabledOverride = { true }
+            ServiceHealthChecker.inputCaptureStatusOverride = { .ready }
+            ServiceHealthChecker.recentlyRestartedOverride = { _, _ in false }
+        #endif
+
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configureLaunchctlResult { subcommand, args in
+            if subcommand == "print", args == ["system/\(ServiceHealthChecker.kanataServiceID)"] {
+                return ProcessResult(
+                    exitCode: 0,
+                    stdout: """
+                    state = running
+                    pid = 24680
+                    """,
+                    stderr: "",
+                    duration: 0.01
+                )
+            }
+            return ProcessResult(exitCode: 113, stdout: "", stderr: "not found", duration: 0.01)
+        }
+        let provider = SystemStateProvider(subprocessRunner: runner)
+        let checker = await MainActor.run {
+            ServiceHealthChecker(subprocessRunner: runner, systemStateProvider: provider)
+        }
+        await MainActor.run {
+            WizardDependencies.daemonManager = FakeDaemonManager(
+                state: .legacyActive,
+                targets: ["system/\(ServiceHealthChecker.kanataServiceID)"]
+            )
+        }
+
+        let snapshot = await checker.checkKanataServiceRuntimeSnapshot(
+            managementState: .legacyActive,
+            staleEnabledRegistration: false,
+            timeoutMs: 1
+        )
+        let commands = await runner.executedCommands
+
+        XCTAssertTrue(snapshot.isRunning)
+        XCTAssertEqual(snapshot.launchctlExitCode, 0)
+        XCTAssertTrue(
+            commands.contains {
+                $0.executable == "/bin/launchctl"
+                    && $0.args == ["print", "system/\(ServiceHealthChecker.kanataServiceID)"]
+            }
+        )
     }
 
     func testSystemExtensionsOutputShowsVHIDDriverEnabledOnlyForActivatedEnabled() {

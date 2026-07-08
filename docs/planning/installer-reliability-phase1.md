@@ -126,6 +126,14 @@ classification remains pending.
   `VHIDDeviceManagerTests.testDuplicateProcessRaceUsesInjectedLaunchctlEvidence`,
   and
   `LaunchctlEvidenceLintTests.testVHIDDeviceManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
+- [x] Migrated `ServiceHealthChecker`'s read-only `launchctl print` loaded,
+  health, and Kanata runtime-snapshot evidence to
+  `SystemStateProvider.launchctlPrint(target:)`. Enforced by
+  `ServiceHealthCheckerTests.testIsServiceLoadedDelegatesLaunchctlPrintToSystemStateProvider`,
+  `ServiceHealthCheckerTests.testIsServiceHealthyDelegatesLaunchctlPrintToSystemStateProvider`,
+  `ServiceHealthCheckerTests.testKanataRuntimeSnapshotDelegatesLaunchctlTargetsToSystemStateProvider`,
+  and
+  `LaunchctlEvidenceLintTests.testServiceHealthCheckerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
 - [ ] Migrate `launchctl`, `SMAppService.status`, permissions, VHID state, and
   helper freshness into a single immutable `SystemSnapshot`.
 - [ ] Build `classify(snapshot) -> StateMatrixRow -> plan` and table-driven
@@ -231,6 +239,14 @@ through 21 mocked tests).
   `VHIDDeviceManagerTests.testDuplicateProcessRaceUsesInjectedLaunchctlEvidence`,
   and
   `LaunchctlEvidenceLintTests.testVHIDDeviceManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
+- [x] `ServiceHealthChecker` read-only `launchctl print` loaded, health, and
+  runtime-snapshot evidence delegates to
+  `SystemStateProvider.launchctlPrint(target:)`. Enforced by
+  `ServiceHealthCheckerTests.testIsServiceLoadedDelegatesLaunchctlPrintToSystemStateProvider`,
+  `ServiceHealthCheckerTests.testIsServiceHealthyDelegatesLaunchctlPrintToSystemStateProvider`,
+  `ServiceHealthCheckerTests.testKanataRuntimeSnapshotDelegatesLaunchctlTargetsToSystemStateProvider`,
+  and
+  `LaunchctlEvidenceLintTests.testServiceHealthCheckerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -365,6 +381,9 @@ is listed in the state-matrix doc's enforcement section.
   implementation.
 - [x] `LaunchctlEvidenceLintTests.testVHIDDeviceManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
   prevents `VHIDDeviceManager` from regrowing direct `launchctl print`
+  service-state reads.
+- [x] `LaunchctlEvidenceLintTests.testServiceHealthCheckerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
+  prevents `ServiceHealthChecker` from regrowing direct `launchctl print`
   service-state reads.
 - [ ] Add remaining `launchctl`, postcondition, and snapshot-cache
   ratchets with the corresponding migration slices.
