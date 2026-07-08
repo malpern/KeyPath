@@ -58,11 +58,15 @@ repair state matrix.
      InstallerStateMatrixSnapshot` bridge.
    - This is an intentional Phase 1 boundary, not a second state model.
 
-5. **Repair-model changes remain out of Phase 1**
-   - Phase 1 makes detection and reporting consistent.
-   - Workstream 3 changes repair autonomy and user-initiated repair semantics.
-   - Workstream 6 collapses remaining `SystemSnapshot`/`SystemContext` and cache
-     duplication after the repair model is stable.
+5. **Repair-model and deletion work stay sequenced later in Phase 1**
+   - This ADR records the Workstream 1/2/5 detection contract only.
+   - Workstream 3 remains Phase 1 work, but starts after migrated consumers are
+     using the shared snapshot/row/action vocabulary and the lint ratchets are
+     stable.
+   - Workstream 6 remains Phase 1 work, but runs last so it deletes code that
+     Workstream 3 has made obsolete instead of polishing code about to be
+     removed.
+   - Phase 2 remains limited to autonomous/background repair behaviors.
 
 ## Enforcement
 
@@ -102,8 +106,8 @@ repair state matrix.
   `InstallerStateMatrixSnapshot`.
 - The wizard bridge is less evidence-rich than the live AppKit provider adapter
   because of package boundaries.
-- Full deletion of duplicate caches and snapshot adapters is deferred until the
-  repair model is stable.
+- Full deletion of duplicate caches and snapshot adapters is deferred within
+  Phase 1 until Workstream 3 has stabilized the repair model.
 
 ## Related
 
