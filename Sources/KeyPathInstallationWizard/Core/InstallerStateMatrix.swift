@@ -266,7 +266,7 @@ public extension SystemContext {
             virtualHIDApprovalPending: driverKitApprovalPending,
             helperInstalled: helper.isInstalled,
             helperResponding: helper.isWorking,
-            helperFresh: helper.version == nil || helper.version == WizardHelperConstants.expectedHelperVersion,
+            helperFresh: helper.version == WizardHelperConstants.expectedHelperVersion,
             definitiveUnhealthyState: timedOut
         )
     }

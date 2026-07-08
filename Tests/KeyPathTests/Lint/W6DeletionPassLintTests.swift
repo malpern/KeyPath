@@ -162,6 +162,36 @@ final class W6DeletionPassLintTests: XCTestCase {
         )
     }
 
+    func testAsyncRepairGatesDoNotConsumeUnboundedManagementStateCache() throws {
+        let lifecycleCoordinator = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/ServiceLifecycleCoordinator.swift")
+        let reloadCoordinator = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/ConfigReloadCoordinator.swift")
+
+        let violations = try [
+            lifecycleCoordinator,
+            reloadCoordinator,
+        ].flatMap { file in
+            try matchingLines(
+                in: file,
+                patterns: [
+                    #"\bcurrentManagementState\b"#,
+                ]
+            )
+        }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            W6 removes unbounded duplicate management-state reads from async \
+            repair/start/reload gates. These paths should call \
+            refreshManagementStateInternal(), leaving freshness and IPC \
+            coalescing to the centralized provider-backed manager:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
+
     func testServiceLifecycleCoordinatorDoesNotRegrowDuplicateVHIDStartCheck() throws {
         let coordinatorFile = repositoryRoot()
             .appendingPathComponent("Sources/KeyPathAppKit/Managers/ServiceLifecycleCoordinator.swift")
@@ -180,6 +210,32 @@ final class W6DeletionPassLintTests: XCTestCase {
             W6 removes duplicated in-path service checks. startKanata should \
             use the injected VirtualHID daemon health predicate once instead \
             of performing a second ServiceHealthChecker query in the start path:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
+
+    func testMatrixAdaptersDoNotTreatUnknownHelperVersionAsFresh() throws {
+        let adapters = [
+            repositoryRoot().appendingPathComponent("Sources/KeyPathAppKit/Core/SystemStateProvider+InstallerStateMatrix.swift"),
+            repositoryRoot().appendingPathComponent("Sources/KeyPathInstallationWizard/Core/InstallerStateMatrix.swift"),
+        ]
+
+        let violations = try adapters.flatMap { file in
+            try matchingLines(
+                in: file,
+                patterns: [
+                    #"helper\.version\s*==\s*nil\s*\|\|"#,
+                ]
+            )
+        }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            Helper responsiveness is not helper freshness. Matrix adapters \
+            must treat an unknown helper version as not fresh and route to \
+            helper verification/refresh instead of reporting green:
             \(violations.sorted().joined(separator: "\n"))
             """
         )
