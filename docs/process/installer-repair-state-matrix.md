@@ -246,7 +246,13 @@ the result as user action required and name the approval surface.
   `PermissionSnapshotLintTests.testWizardAsyncOperationManagerDelegatesPermissionSnapshotsToSystemStateProvider`
   and
   `PermissionSnapshotLintTests.testPermissionGrantCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevent wizard core permission snapshot reads from bypassing it.
+  prevent wizard core permission snapshot reads from bypassing it, and
+  `PermissionSnapshotLintTests.testWizardAccessibilityPageDelegatesPermissionSnapshotsToSystemStateProvider`,
+  `PermissionSnapshotLintTests.testWizardInputMonitoringPageDelegatesPermissionSnapshotsToSystemStateProvider`,
+  `PermissionSnapshotLintTests.testInstallationWizardStateManagementDelegatesPermissionSnapshotsToSystemStateProvider`,
+  and
+  `PermissionSnapshotLintTests.testDragToAuthorizeControllerDelegatesPermissionSnapshotsToSystemStateProvider`
+  prevent wizard UI permission refresh reads from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References

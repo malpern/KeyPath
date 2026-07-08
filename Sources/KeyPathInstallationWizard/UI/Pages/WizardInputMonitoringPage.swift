@@ -195,7 +195,7 @@ public struct WizardInputMonitoringPage: View {
                                 if kanataInputMonitoringStatus != .completed {
                                     Button("Add in Settings") {
                                         Task {
-                                            let snapshot = await PermissionOracle.shared.forceRefresh()
+                                            let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
                                             if snapshot.kanata.inputMonitoring.isReady {
                                                 AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Fix clicked — permission already granted, navigating to summary")
                                                 await onRefresh()
@@ -246,7 +246,7 @@ public struct WizardInputMonitoringPage: View {
             }
         }
         .task {
-            permissionSnapshot = await PermissionOracle.shared.forceRefresh()
+            permissionSnapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
         }
         .onAppear {
             checkForStaleEntries()
@@ -417,7 +417,7 @@ public struct WizardInputMonitoringPage: View {
             while !Task.isCancelled {
                 _ = await WizardSleep.ms(1000)
                 if Task.isCancelled { return }
-                let snapshot = await PermissionOracle.shared.forceRefresh()
+                let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
                 permissionSnapshot = snapshot
 
                 let bothGranted = snapshot.keyPath.inputMonitoring.isReady
@@ -451,7 +451,7 @@ public struct WizardInputMonitoringPage: View {
                 _ = await WizardSleep.ms(250)
                 if Task.isCancelled { return }
                 attempts += 1
-                let snapshot = await PermissionOracle.shared.forceRefresh()
+                let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
                 permissionSnapshot = snapshot
                 let hasPermission: Bool =
                     switch type {
@@ -514,13 +514,13 @@ public struct WizardInputMonitoringPage: View {
                 return
             }
 
-            // Poll for grant (KeyPath + Kanata) using Oracle snapshot
+            // Poll for grant (KeyPath + Kanata) using the shared system-state facade.
             startPermissionPolling(for: .inputMonitoring)
 
             // Fallback: if still not granted shortly after, open System Settings panel
             for _ in 0 ..< 6 { // ~1.5s at 250ms
                 _ = await WizardSleep.ms(250)
-                let snapshot = await PermissionOracle.shared.forceRefresh()
+                let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
                 let granted =
                     snapshot.keyPath.inputMonitoring.isReady && snapshot.kanata.inputMonitoring.isReady
                 if granted { return }

@@ -152,7 +152,7 @@ public extension InstallationWizardView {
             // Ensure permissions are verified before auto-advancing.
             // Without this, .unknown permission states (Oracle hasn't finished TCC check)
             // are treated as non-blocking, causing the wizard to skip permission pages.
-            let permSnapshot = await PermissionOracle.shared.forceRefresh()
+            let permSnapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
             let kanataAccessibilityUnknown = permSnapshot.kanata.accessibility == .unknown
             let kanataInputMonitoringUnknown = permSnapshot.kanata.inputMonitoring == .unknown
             if kanataAccessibilityUnknown || kanataInputMonitoringUnknown {

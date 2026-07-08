@@ -239,6 +239,90 @@ final class PermissionSnapshotLintTests: XCTestCase {
             """
         )
     }
+
+    func testWizardAccessibilityPageDelegatesPermissionSnapshotsToSystemStateProvider() throws {
+        let page = repositoryRootForPermissionSnapshotLint()
+            .appendingPathComponent(
+                "Sources/KeyPathInstallationWizard/UI/Pages/WizardAccessibilityPage.swift"
+            )
+
+        let violations = try matchingPermissionSnapshotLines(
+            in: page,
+            patterns: permissionSnapshotBypassPatterns()
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            WizardAccessibilityPage must delegate permission snapshot reads \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
+
+    func testWizardInputMonitoringPageDelegatesPermissionSnapshotsToSystemStateProvider() throws {
+        let page = repositoryRootForPermissionSnapshotLint()
+            .appendingPathComponent(
+                "Sources/KeyPathInstallationWizard/UI/Pages/WizardInputMonitoringPage.swift"
+            )
+
+        let violations = try matchingPermissionSnapshotLines(
+            in: page,
+            patterns: permissionSnapshotBypassPatterns()
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            WizardInputMonitoringPage must delegate permission snapshot reads \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
+
+    func testInstallationWizardStateManagementDelegatesPermissionSnapshotsToSystemStateProvider() throws {
+        let stateManagement = repositoryRootForPermissionSnapshotLint()
+            .appendingPathComponent(
+                "Sources/KeyPathInstallationWizard/UI/InstallationWizardView+StateManagement.swift"
+            )
+
+        let violations = try matchingPermissionSnapshotLines(
+            in: stateManagement,
+            patterns: permissionSnapshotBypassPatterns()
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            InstallationWizardView state management must delegate permission snapshot reads \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
+
+    func testDragToAuthorizeControllerDelegatesPermissionSnapshotsToSystemStateProvider() throws {
+        let controller = repositoryRootForPermissionSnapshotLint()
+            .appendingPathComponent(
+                "Sources/KeyPathInstallationWizard/UI/Helpers/DragToAuthorize/DragToAuthorizeController.swift"
+            )
+
+        let violations = try matchingPermissionSnapshotLines(
+            in: controller,
+            patterns: permissionSnapshotBypassPatterns()
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            DragToAuthorizeController must delegate permission snapshot reads \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRootForPermissionSnapshotLint(file: StaticString = #filePath) -> URL {

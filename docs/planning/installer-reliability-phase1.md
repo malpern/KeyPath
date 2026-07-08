@@ -227,6 +227,13 @@ classification remains pending.
   `PermissionSnapshotLintTests.testWizardAsyncOperationManagerDelegatesPermissionSnapshotsToSystemStateProvider`
   and
   `PermissionSnapshotLintTests.testPermissionGrantCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`.
+- [x] Migrated wizard UI permission refresh reads through `SystemStateProvider`'s
+  permission snapshot facade. Enforced by
+  `PermissionSnapshotLintTests.testWizardAccessibilityPageDelegatesPermissionSnapshotsToSystemStateProvider`,
+  `PermissionSnapshotLintTests.testWizardInputMonitoringPageDelegatesPermissionSnapshotsToSystemStateProvider`,
+  `PermissionSnapshotLintTests.testInstallationWizardStateManagementDelegatesPermissionSnapshotsToSystemStateProvider`,
+  and
+  `PermissionSnapshotLintTests.testDragToAuthorizeControllerDelegatesPermissionSnapshotsToSystemStateProvider`.
 - [ ] Migrate `SMAppService.status`, permissions, VHID state, helper freshness,
   and migrated read-only `launchctl print` evidence into a single immutable
   `SystemSnapshot`.
@@ -426,6 +433,13 @@ through 21 mocked tests).
   `PermissionSnapshotLintTests.testWizardAsyncOperationManagerDelegatesPermissionSnapshotsToSystemStateProvider`
   and
   `PermissionSnapshotLintTests.testPermissionGrantCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`.
+- [x] Wizard UI permission refresh reads delegate to `SystemStateProvider`'s
+  permission snapshot façade. Enforced by
+  `PermissionSnapshotLintTests.testWizardAccessibilityPageDelegatesPermissionSnapshotsToSystemStateProvider`,
+  `PermissionSnapshotLintTests.testWizardInputMonitoringPageDelegatesPermissionSnapshotsToSystemStateProvider`,
+  `PermissionSnapshotLintTests.testInstallationWizardStateManagementDelegatesPermissionSnapshotsToSystemStateProvider`,
+  and
+  `PermissionSnapshotLintTests.testDragToAuthorizeControllerDelegatesPermissionSnapshotsToSystemStateProvider`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -572,6 +586,13 @@ is listed in the state-matrix doc's enforcement section.
   and
   `PermissionSnapshotLintTests.testPermissionGrantCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`
   prevent migrated wizard core permission snapshot reads from bypassing
+  `SystemStateProvider`.
+- [x] `PermissionSnapshotLintTests.testWizardAccessibilityPageDelegatesPermissionSnapshotsToSystemStateProvider`,
+  `PermissionSnapshotLintTests.testWizardInputMonitoringPageDelegatesPermissionSnapshotsToSystemStateProvider`,
+  `PermissionSnapshotLintTests.testInstallationWizardStateManagementDelegatesPermissionSnapshotsToSystemStateProvider`,
+  and
+  `PermissionSnapshotLintTests.testDragToAuthorizeControllerDelegatesPermissionSnapshotsToSystemStateProvider`
+  prevent migrated wizard UI permission refresh reads from bypassing
   `SystemStateProvider`.
 - [x] `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
   prevents `ServiceHealthChecker` from regrowing a private TCP socket probe.
