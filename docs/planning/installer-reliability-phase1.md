@@ -265,6 +265,13 @@ integration remains pending.
   `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsHelperVersionMismatchToStaleHelperRow`,
   and
   `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotTreatsUnhealthyVHIDServicesAsServiceRepairNotMissingPayload`.
+- [x] Migrated CLI `system inspect` reporting to include the shared
+  state-matrix row and state-matrix plan derived from `SystemStateProvider`
+  evidence. Enforced by
+  `CLIOutputContractTests.testInspectResultRepairMetadataJSONShape`,
+  `InstallerStateMatrixGoldenTests.testClassifySnapshotAndPlanMatchStateMatrixGoldenFixtures`,
+  and
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotPreservesRunningButTCPNotRespondingEvidence`.
 - [ ] Wire `SystemStateProvider`'s full immutable snapshot into the state-matrix
   classifier and migrate wizard/CLI/menu-bar consumers to the shared
   classification.
