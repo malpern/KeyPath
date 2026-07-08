@@ -9,6 +9,9 @@ struct SystemContextBuilder {
     var permissionsStatus: PermissionOracle.Status = .granted
     var helperReady: Bool = true
     var servicesHealthy: Bool = false
+    var kanataLaunchdLoaded: Bool?
+    var kanataProcessRunning: Bool?
+    var kanataTCPResponding: Bool?
     var kanataRunning: Bool?
     var karabinerDaemonRunning: Bool?
     var vhidHealthy: Bool?
@@ -52,6 +55,9 @@ struct SystemContextBuilder {
         }
 
         let services = HealthStatus(
+            kanataLaunchdLoaded: kanataLaunchdLoaded,
+            kanataProcessRunning: kanataProcessRunning,
+            kanataTCPResponding: kanataTCPResponding,
             kanataRunning: kanataRunning ?? servicesHealthy,
             karabinerDaemonRunning: karabinerDaemonRunning ?? servicesHealthy,
             vhidHealthy: vhidHealthy ?? servicesHealthy,

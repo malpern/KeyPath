@@ -239,8 +239,12 @@ public enum InstallerStateMatrixPlanner {
 public extension SystemContext {
     var installerStateMatrixSnapshot: InstallerStateMatrixSnapshot {
         let driverKitApprovalPending = requiresManualVHIDDriverApproval
+        let kanataProcessRunning = services.kanataProcessRunning ?? services.kanataRunning
+        let kanataTCPResponding = services.kanataTCPResponding ?? services.kanataRunning
+        let launchdJobLoaded = !services.staleEnabledRegistration && (services.kanataLaunchdLoaded
+            ?? (kanataProcessRunning || components.kanataBinaryInstalled))
         let inputCaptureIssuePresent = !services.kanataInputCaptureReady
-        let staleInputCaptureIssue = !services.kanataRunning
+        let staleInputCaptureIssue = !kanataProcessRunning
             && inputCaptureIssuePresent
             && !driverKitApprovalPending
 
@@ -248,10 +252,10 @@ public extension SystemContext {
             kanataBinaryPresent: components.kanataBinaryInstalled,
             requiredRuntimePayloadPresent: true,
             smAppServiceRegistered: components.kanataBinaryInstalled,
-            launchdJobLoaded: services.kanataRunning || components.kanataBinaryInstalled,
-            kanataProcessRunning: services.kanataRunning,
-            kanataTCPResponding: services.kanataRunning,
-            currentInputCaptureIssue: services.kanataRunning && inputCaptureIssuePresent,
+            launchdJobLoaded: launchdJobLoaded,
+            kanataProcessRunning: kanataProcessRunning,
+            kanataTCPResponding: kanataTCPResponding,
+            currentInputCaptureIssue: kanataProcessRunning && kanataTCPResponding && inputCaptureIssuePresent,
             staleInputCaptureIssue: staleInputCaptureIssue,
             driverKitApprovalPending: driverKitApprovalPending,
             virtualHIDDriverPresent: components.karabinerDriverInstalled,

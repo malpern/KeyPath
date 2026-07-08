@@ -269,6 +269,15 @@ public struct ConflictStatus: Sendable {
 // MARK: - Health Status
 
 public struct HealthStatus: Sendable {
+    /// True when launchd can find/load the Kanata job. This is distinct from
+    /// the runtime being usable: launchd can know about a job whose process is
+    /// stopped or whose TCP server is not responding.
+    public let kanataLaunchdLoaded: Bool?
+    /// True when current process evidence shows the Kanata runtime process
+    /// exists. This must not be collapsed with TCP or input-capture readiness.
+    public let kanataProcessRunning: Bool?
+    /// True when the Kanata TCP health endpoint responds.
+    public let kanataTCPResponding: Bool?
     public let kanataRunning: Bool
     public let karabinerDaemonRunning: Bool
     public let vhidHealthy: Bool
@@ -284,8 +293,14 @@ public struct HealthStatus: Sendable {
     /// (e.g., duplicate alias, syntax error). This causes kanata to exit
     /// immediately and crash-loop. The string is a user-facing error message.
     public let configParseError: String?
+    /// True when SMAppService reports enabled but launchd/runtime evidence
+    /// cannot prove the submitted job exists or can load.
+    public let staleEnabledRegistration: Bool
 
     public init(
+        kanataLaunchdLoaded: Bool? = nil,
+        kanataProcessRunning: Bool? = nil,
+        kanataTCPResponding: Bool? = nil,
         kanataRunning: Bool,
         karabinerDaemonRunning: Bool,
         vhidHealthy: Bool,
@@ -294,8 +309,12 @@ public struct HealthStatus: Sendable {
         activeRuntimePathTitle: String? = nil,
         activeRuntimePathDetail: String? = nil,
         kanataPermissionRejected: Bool = false,
-        configParseError: String? = nil
+        configParseError: String? = nil,
+        staleEnabledRegistration: Bool = false
     ) {
+        self.kanataLaunchdLoaded = kanataLaunchdLoaded
+        self.kanataProcessRunning = kanataProcessRunning
+        self.kanataTCPResponding = kanataTCPResponding
         self.kanataRunning = kanataRunning
         self.karabinerDaemonRunning = karabinerDaemonRunning
         self.vhidHealthy = vhidHealthy
@@ -305,6 +324,7 @@ public struct HealthStatus: Sendable {
         self.activeRuntimePathDetail = activeRuntimePathDetail
         self.kanataPermissionRejected = kanataPermissionRejected
         self.configParseError = configParseError
+        self.staleEnabledRegistration = staleEnabledRegistration
     }
 
     /// Overall health (includes Kanata runtime)

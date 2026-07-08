@@ -1,6 +1,7 @@
 @testable import KeyPathAppKit
 @testable import KeyPathCore
 @testable import KeyPathInstallationWizard
+@testable import KeyPathPermissions
 @testable import KeyPathWizardCore
 import ServiceManagement
 @preconcurrency import XCTest
@@ -102,6 +103,40 @@ final class SystemStateProviderInstallerStateMatrixTests: XCTestCase {
         XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.repairVHIDServices])
     }
 
+    func testWizardSystemContextSnapshotPreservesRunningButTCPNotRespondingEvidence() {
+        assertWizardAndProviderClassifySameRuntimeEvidence(
+            runtime: runtime(isRunning: true, isResponding: false),
+            expectedRow: .runningButTCPNotResponding,
+            expectedPlan: [.restartOrRecoverKanataRuntime]
+        )
+    }
+
+    func testWizardSystemContextSnapshotPreservesRunningButInputCaptureFailingEvidence() {
+        assertWizardAndProviderClassifySameRuntimeEvidence(
+            runtime: runtime(
+                isRunning: true,
+                isResponding: true,
+                inputCaptureReady: false,
+                inputCaptureIssue: ServiceHealthChecker.inputCaptureBuiltInKeyboardReason
+            ),
+            expectedRow: .runningButInputCaptureFailing,
+            expectedPlan: [.repairVHIDActivationServices]
+        )
+    }
+
+    func testWizardSystemContextSnapshotPreservesStaleEnabledRegistrationEvidence() {
+        assertWizardAndProviderClassifySameRuntimeEvidence(
+            runtime: runtime(
+                isRunning: false,
+                isResponding: false,
+                launchctlExitCode: 113,
+                staleEnabledRegistration: true
+            ),
+            expectedRow: .registeredButNotLoaded,
+            expectedPlan: [.recoverRuntimeRegistrationBypassingThrottle]
+        )
+    }
+
     private var healthyComponents: ComponentStatus {
         ComponentStatus(
             kanataBinaryInstalled: true,
@@ -116,6 +151,65 @@ final class SystemStateProviderInstallerStateMatrixTests: XCTestCase {
 
     private var healthyHelper: HelperStatus {
         HelperStatus(isInstalled: true, version: "1.0.0", isWorking: true)
+    }
+
+    private func assertWizardAndProviderClassifySameRuntimeEvidence(
+        runtime: ServiceHealthChecker.KanataServiceRuntimeSnapshot,
+        expectedRow: InstallerStateMatrixRow,
+        expectedPlan: [InstallerStateMatrixAction],
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let providerSnapshot = SystemStateProvider.installerStateMatrixSnapshot(
+            components: healthyComponents,
+            helper: healthyHelper,
+            runtime: runtime,
+            kanataSMAppServiceStatus: .enabled,
+            helperSMAppServiceStatus: .enabled
+        )
+        let wizardSnapshot = systemContext(from: runtime).installerStateMatrixSnapshot
+
+        XCTAssertEqual(wizardSnapshot, providerSnapshot, file: file, line: line)
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(wizardSnapshot), expectedRow, file: file, line: line)
+        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: wizardSnapshot), expectedPlan, file: file, line: line)
+    }
+
+    private func systemContext(from runtime: ServiceHealthChecker.KanataServiceRuntimeSnapshot) -> SystemContext {
+        let permissionSet = PermissionOracle.PermissionSet(
+            accessibility: .granted,
+            inputMonitoring: .granted,
+            source: "test",
+            confidence: .high,
+            timestamp: Date()
+        )
+        let permissions = PermissionOracle.Snapshot(
+            keyPath: permissionSet,
+            kanata: permissionSet,
+            timestamp: Date()
+        )
+        let runtimeReady = runtime.isRunning && runtime.isResponding && runtime.inputCaptureReady
+        let launchdJobLoaded = !runtime.staleEnabledRegistration &&
+            (runtime.launchctlExitCode == 0 || runtime.isRunning)
+
+        return SystemContext(
+            permissions: permissions,
+            services: HealthStatus(
+                kanataLaunchdLoaded: launchdJobLoaded,
+                kanataProcessRunning: runtime.isRunning,
+                kanataTCPResponding: runtime.isResponding,
+                kanataRunning: runtimeReady,
+                karabinerDaemonRunning: true,
+                vhidHealthy: true,
+                kanataInputCaptureReady: runtime.inputCaptureReady,
+                kanataInputCaptureIssue: runtime.inputCaptureIssue,
+                staleEnabledRegistration: runtime.staleEnabledRegistration
+            ),
+            conflicts: .empty,
+            components: healthyComponents,
+            helper: healthyHelper,
+            system: EngineSystemInfo(macOSVersion: "15.0", driverCompatible: true),
+            timestamp: Date()
+        )
     }
 
     private func runtime(
