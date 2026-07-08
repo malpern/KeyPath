@@ -1,12 +1,13 @@
 import Foundation
 import KeyPathCore
 
-/// Detects stuck keys (infinite autorepeat after kanata dies) and triggers automatic recovery.
+/// Detects stuck keys (infinite autorepeat after kanata dies) and captures diagnostics.
 ///
 /// When kanata crashes or hangs while a key is held, vhiddaemon never receives the key-up
 /// event, causing macOS to generate infinite autorepeat. This service monitors for that
-/// condition via AutorepeatMismatch correlations and triggers a kanata restart to clear the
-/// stale virtual HID state (kanata's startup F24 flush handles the actual key release).
+/// condition via AutorepeatMismatch correlations, writes an incident snapshot, and surfaces
+/// the incident for a user-initiated repair. It must not restart Kanata from this background
+/// monitor.
 ///
 /// Limitation: this service lives in the GUI app, so incidents that occur while
 /// KeyPath.app is not running are neither detected nor captured (both MAL-57
@@ -16,19 +17,26 @@ import KeyPathCore
 final class StuckKeyRecoveryService {
     static let shared = StuckKeyRecoveryService()
 
+    struct StuckKeyIncident: Equatable, Sendable {
+        let key: String
+        let keyCode: Int64
+        let msSinceAnyKanataEvent: Int?
+        let observedAt: Date
+    }
+
     /// Minimum time since last kanata event before we consider a mismatch "stuck" (not normal repeat).
     private static let kanataUnresponsiveThresholdMs = 3000
 
-    /// Minimum cooldown between recovery attempts to avoid restart loops.
-    private static let recoveryCooldownSeconds: TimeInterval = 30
+    /// Minimum cooldown between surfaced incidents to avoid notification loops.
+    private static let incidentCooldownSeconds: TimeInterval = 30
 
-    private var lastRecoveryAt: Date?
-    private var isRecovering = false
+    private var lastIncidentAt: Date?
+    private var isCapturingIncident = false
 
-    /// Called to restart kanata. Wired up by RuntimeCoordinator during bootstrap.
-    var restartKanata: ((String) async -> Bool)?
+    /// Called after diagnostic capture so app/UI code can surface user-initiated repair.
+    var onIncidentDetected: ((StuckKeyIncident) -> Void)?
 
-    /// Evaluate an AutorepeatMismatch correlation and trigger recovery if the key is truly stuck.
+    /// Evaluate an AutorepeatMismatch correlation and surface an incident if the key is truly stuck.
     ///
     /// A stuck key is distinguished from normal autorepeat by checking that kanata has been
     /// unresponsive for a significant period — normal repeat events flow through kanata and
@@ -42,39 +50,45 @@ final class StuckKeyRecoveryService {
             return
         }
 
-        guard !isRecovering else { return }
+        guard !isCapturingIncident else { return }
 
-        if let lastRecovery = lastRecoveryAt,
-           Date().timeIntervalSince(lastRecovery) < Self.recoveryCooldownSeconds
+        if let lastIncident = lastIncidentAt,
+           Date().timeIntervalSince(lastIncident) < Self.incidentCooldownSeconds
         {
             return
         }
 
-        isRecovering = true
+        isCapturingIncident = true
 
         AppLogger.shared.errorUnlessQuietTest(
-            "🚨 [StuckKeyRecovery] Stuck key detected: \(correlation.key) repeating with kanata unresponsive for \(msSinceKanata)ms — triggering automatic restart"
+            "🚨 [StuckKeyRecovery] Stuck key detected: \(correlation.key) repeating with kanata unresponsive for \(msSinceKanata)ms — capturing diagnostics for user repair"
         )
 
         Task { @MainActor [weak self] in
             guard let self else { return }
-            defer { self.isRecovering = false }
+            defer { self.isCapturingIncident = false }
 
             await writeDiagnosticSnapshot(correlation)
 
-            if let restart = restartKanata {
-                let success = await restart("Stuck key recovery (\(correlation.key))")
-                lastRecoveryAt = Date()
-                if success {
-                    AppLogger.shared.info("✅ [StuckKeyRecovery] Kanata restarted — stuck key should be cleared")
-                } else {
-                    AppLogger.shared.errorUnlessQuietTest(
-                        "❌ [StuckKeyRecovery] Kanata restart failed — user may need to intervene"
-                    )
-                }
-            } else {
-                AppLogger.shared.errorUnlessQuietTest("❌ [StuckKeyRecovery] No restart handler configured — cannot recover")
-            }
+            let incident = StuckKeyIncident(
+                key: correlation.key,
+                keyCode: correlation.keyCode,
+                msSinceAnyKanataEvent: correlation.msSinceAnyKanataEvent,
+                observedAt: correlation.observedAt
+            )
+            lastIncidentAt = Date()
+            onIncidentDetected?(incident)
+            NotificationCenter.default.post(
+                name: .stuckKeyIncidentDetected,
+                object: self,
+                userInfo: [
+                    StuckKeyIncidentNotificationKey.key: incident.key,
+                    StuckKeyIncidentNotificationKey.keyCode: incident.keyCode,
+                    StuckKeyIncidentNotificationKey.msSinceAnyKanataEvent: incident.msSinceAnyKanataEvent as Any,
+                    StuckKeyIncidentNotificationKey.observedAt: incident.observedAt
+                ]
+            )
+            AppLogger.shared.info("[StuckKeyRecovery] Incident surfaced for user-initiated repair")
         }
     }
 
@@ -82,16 +96,16 @@ final class StuckKeyRecoveryService {
 
     private func writeDiagnosticSnapshot(_ correlation: InvestigationSystemEventCorrelation) async {
         let tracker = await DuplicateKeyInvestigationTracker.shared.snapshot(
-            phase: "stuck-key-recovery",
+            phase: "stuck-key-incident",
             reason: "key=\(correlation.key) ms_since_kanata=\(correlation.msSinceAnyKanataEvent ?? -1)"
         )
 
-        let lastRecoveryDescription = lastRecoveryAt.map { ISO8601DateFormatter().string(from: $0) } ?? "never"
+        let lastIncidentDescription = lastIncidentAt.map { ISO8601DateFormatter().string(from: $0) } ?? "never"
 
         let snapshot = DiagnosticSnapshotData(
             correlation: correlation,
             tracker: tracker,
-            lastRecoveryDescription: lastRecoveryDescription
+            lastIncidentDescription: lastIncidentDescription
         )
 
         await Task.detached(priority: .utility) {
@@ -127,7 +141,7 @@ final class StuckKeyRecoveryService {
         lines.append("is_autorepeat: \(snapshot.correlation.isAutorepeat)")
         lines.append("source_pid: \(snapshot.correlation.sourcePID.map(String.init) ?? "none")")
         lines.append("")
-        lines.append("=== Held Keys at Recovery ===")
+        lines.append("=== Held Keys at Incident ===")
         if snapshot.tracker.heldKeys.isEmpty {
             lines.append("(none tracked)")
         } else {
@@ -164,8 +178,8 @@ final class StuckKeyRecoveryService {
         await lines.append(contentsOf: systemLoadLines())
         lines.append("")
 
-        lines.append("=== Recovery History ===")
-        lines.append("last_recovery_at: \(snapshot.lastRecoveryDescription)")
+        lines.append("=== Incident History ===")
+        lines.append("last_incident_at: \(snapshot.lastIncidentDescription)")
         lines.append("")
 
         do {
@@ -265,7 +279,7 @@ final class StuckKeyRecoveryService {
     /// Top CPU-consuming processes via `ps`. Skipped under tests — spawning process-listing
     /// tools in the test environment can deadlock (see KeyPathTestCase). The timeout keeps a
     /// slow `ps` (plausible under the very CPU starvation being diagnosed) from stalling the
-    /// snapshot that recovery awaits before restarting kanata.
+    /// incident snapshot.
     nonisolated static func topCPUProcessLines(limit: Int) async -> [String] {
         guard !TestEnvironment.isRunningTests else {
             return ["  (skipped in tests)"]
@@ -291,5 +305,16 @@ final class StuckKeyRecoveryService {
 private struct DiagnosticSnapshotData: Sendable {
     let correlation: InvestigationSystemEventCorrelation
     let tracker: InvestigationReloadSnapshot
-    let lastRecoveryDescription: String
+    let lastIncidentDescription: String
+}
+
+extension Notification.Name {
+    static let stuckKeyIncidentDetected = Notification.Name("KeyPathStuckKeyIncidentDetected")
+}
+
+enum StuckKeyIncidentNotificationKey {
+    static let key = "key"
+    static let keyCode = "keyCode"
+    static let msSinceAnyKanataEvent = "msSinceAnyKanataEvent"
+    static let observedAt = "observedAt"
 }
