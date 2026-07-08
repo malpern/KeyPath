@@ -210,20 +210,15 @@ public class KanataDaemonManager {
         let smStatus = await SMAppServiceStatusProvider.shared.cachedStatus(for: Self.kanataPlistName)
         if smStatus == .enabled { return true }
 
-        // Best-effort check: does launchd know about the job?
-        do {
-            let result = try await subprocessRunner.launchctl("print", ["system/\(Self.kanataServiceID)"])
-            if result.exitCode == 0 {
-                let s = result.stdout
-                if s.contains("program") || s.contains("state =") || s.contains("pid =") {
-                    AppLogger.shared.log(
-                        "ℹ️ [KanataDaemonManager] launchctl reports daemon present while SMAppService status=\(smStatus)"
-                    )
-                    return true
-                }
+        let evidence = await systemStateProvider.launchctlPrint(target: "system/\(Self.kanataServiceID)")
+        if evidence.exitCode == 0 {
+            let s = evidence.stdout
+            if s.contains("program") || s.contains("state =") || s.contains("pid =") {
+                AppLogger.shared.log(
+                    "ℹ️ [KanataDaemonManager] launchctl reports daemon present while SMAppService status=\(smStatus)"
+                )
+                return true
             }
-        } catch {
-            // Ignore; treated as not installed
         }
         return false
     }
@@ -345,16 +340,12 @@ public class KanataDaemonManager {
     {
         var outputs: [(target: String, output: String, exitCode: Int32?)] = []
         for target in Self.preferredLaunchctlTargets(for: managementState) {
-            do {
-                let result = try await subprocessRunner.launchctl("print", [target])
-                outputs.append((
-                    target: target,
-                    output: result.exitCode == 0 ? result.stdout : "",
-                    exitCode: result.exitCode
-                ))
-            } catch {
-                outputs.append((target: target, output: "", exitCode: nil))
-            }
+            let evidence = await systemStateProvider.launchctlPrint(target: target)
+            outputs.append((
+                target: target,
+                output: evidence.exitCode == 0 ? evidence.stdout : "",
+                exitCode: evidence.exitCode
+            ))
         }
         return outputs
     }

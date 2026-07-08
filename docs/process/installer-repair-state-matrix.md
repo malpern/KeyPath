@@ -193,6 +193,10 @@ the result as user action required and name the approval surface.
   `ServiceHealthCheckerTests.testKanataRuntimeSnapshotDelegatesLaunchctlTargetsToSystemStateProvider`,
   and `LaunchctlEvidenceLintTests.testServiceHealthCheckerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
   block migrated service-health checks from bypassing it.
+  `KanataDaemonManagerTests.testIsInstalledUsesInjectedSystemStateProviderForLaunchctlEvidence`,
+  `KanataDaemonManagerTests.testRegisteredButNotLoadedUsesInjectedSystemStateProviderForLaunchctlEvidence`,
+  and `LaunchctlEvidenceLintTests.testKanataDaemonManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
+  block migrated Kanata daemon management checks from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References
