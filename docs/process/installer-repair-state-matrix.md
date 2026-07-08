@@ -262,6 +262,11 @@ the result as user action required and name the approval surface.
   `PermissionSnapshotLintTests.testWindowManagerDelegatesSyncAccessibilityStatusToSystemStateProvider`
   prevent synchronous KeyPath Accessibility status reads from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
+- The state-matrix table itself is an executable golden fixture:
+  `InstallerStateMatrixGoldenTests.testEveryDocumentedStateMatrixRowHasAGoldenFixture`
+  requires one fixture per documented row, and
+  `InstallerStateMatrixGoldenTests.testClassifySnapshotAndPlanMatchStateMatrixGoldenFixtures`
+  asserts evidence in -> row out -> plan out for every row.
 
 ## Related References
 

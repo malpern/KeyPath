@@ -72,8 +72,9 @@ apply. Checklists decay; that is how the loop happened. Make it code.
 - Wizard, CLI, and menu bar cannot disagree about system state because they
   cannot read different sources.
 
-**Status (2026-07-07):** First provider slices implemented; full snapshot
-classification remains pending.
+**Status (2026-07-08):** First provider slices implemented; pure state-matrix
+classification is executable and golden-tested. Full provider-emitted snapshot
+integration remains pending.
 - [x] Introduced `SystemStateProvider` as the owner for the ADR-040
   process-liveness primitive and Kanata readiness predicate. Enforced by
   `SystemStateProviderLivenessTests.testProcessLivenessProbeTreatsCurrentProcessAsAliveAndExitedProcessAsDead`
@@ -248,8 +249,15 @@ classification remains pending.
 - [ ] Migrate `SMAppService.status`, permissions, VHID state, helper freshness,
   and migrated read-only `launchctl print` evidence into a single immutable
   `SystemSnapshot`.
-- [ ] Build `classify(snapshot) -> StateMatrixRow -> plan` and table-driven
-  golden tests for every state-matrix row.
+- [x] Built pure `InstallerStateMatrixPlanner.classify(_:) -> InstallerStateMatrixRow`
+  and `plan(for:)` with a table-driven golden fixture for every state-matrix
+  row. Enforced by
+  `InstallerStateMatrixGoldenTests.testEveryDocumentedStateMatrixRowHasAGoldenFixture`
+  and
+  `InstallerStateMatrixGoldenTests.testClassifySnapshotAndPlanMatchStateMatrixGoldenFixtures`.
+- [ ] Wire `SystemStateProvider`'s full immutable snapshot into the state-matrix
+  classifier and migrate wizard/CLI/menu-bar consumers to the shared
+  classification.
 
 ## Workstream 2: One Liveness Predicate
 
