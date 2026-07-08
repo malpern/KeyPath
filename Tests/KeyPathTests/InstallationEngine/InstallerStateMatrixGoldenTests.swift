@@ -2,6 +2,21 @@
 @preconcurrency import XCTest
 
 final class InstallerStateMatrixGoldenTests: XCTestCase {
+    func testStateMatrixMarkdownRowsMatchClassifierRows() throws {
+        let documentedRows = try documentedStateMatrixRows()
+        let classifierRows = InstallerStateMatrixRow.allCases.map(\.rawValue)
+
+        XCTAssertEqual(
+            documentedRows,
+            classifierRows,
+            """
+            docs/process/installer-repair-state-matrix.md is the source-of-truth \
+            state matrix. Keep the markdown table and InstallerStateMatrixRow \
+            in the same order so the golden suite pins the documented contract.
+            """
+        )
+    }
+
     func testEveryDocumentedStateMatrixRowHasAGoldenFixture() {
         XCTAssertEqual(
             Set(goldenCases.map(\.expectedRow)),
@@ -25,6 +40,38 @@ final class InstallerStateMatrixGoldenTests: XCTestCase {
         let snapshot: InstallerStateMatrixSnapshot
         let expectedRow: InstallerStateMatrixRow
         let expectedPlan: [InstallerStateMatrixAction]
+    }
+
+    private func documentedStateMatrixRows() throws -> [String] {
+        let docURL = repositoryRoot()
+            .appendingPathComponent("docs/process/installer-repair-state-matrix.md")
+        let contents = try String(contentsOf: docURL, encoding: .utf8)
+        let lines = contents.components(separatedBy: .newlines)
+
+        guard let headerIndex = lines.firstIndex(where: { line in
+            line.trimmingCharacters(in: .whitespaces) == "| State | Typical Evidence | Planner Should | Success Postcondition | Test Requirement |"
+        }) else {
+            XCTFail("Could not find state-matrix table header in \(docURL.path)")
+            return []
+        }
+
+        return lines.dropFirst(headerIndex + 2).prefix { line in
+            line.trimmingCharacters(in: .whitespaces).hasPrefix("|")
+        }.compactMap { line in
+            let columns = line
+                .split(separator: "|", omittingEmptySubsequences: false)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+            guard columns.count >= 2, !columns[1].isEmpty else { return nil }
+            return columns[1]
+        }
+    }
+
+    private func repositoryRoot(file: StaticString = #filePath) -> URL {
+        URL(fileURLWithPath: "\(file)")
+            .deletingLastPathComponent() // InstallationEngine
+            .deletingLastPathComponent() // KeyPathTests
+            .deletingLastPathComponent() // Tests
+            .deletingLastPathComponent() // repo root
     }
 
     private var goldenCases: [GoldenCase] {
