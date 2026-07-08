@@ -1,5 +1,7 @@
 @testable import KeyPathAppKit
+import KeyPathCore
 @testable import KeyPathInstallationWizard
+import KeyPathWizardCore
 import XCTest
 
 final class CLIOutputContractTests: XCTestCase {
@@ -130,6 +132,78 @@ final class CLIOutputContractTests: XCTestCase {
         )
 
         XCTAssertEqual(report.userActionRequired, true)
+    }
+
+    func testInstallerReportLinksTerminalInputCaptureFailureToTroubleshooting() {
+        let context = SystemContextBuilder(
+            permissionsStatus: .granted,
+            helperReady: true,
+            servicesHealthy: true,
+            kanataInputCaptureReady: false,
+            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason,
+            componentsInstalled: true
+        ).build()
+        let report = CLIInstallerReport(
+            dryRunPlan: InstallPlan(recipes: [], status: .ready, intent: .repair),
+            context: context,
+            title: "Repair"
+        )
+
+        let issue = report.issues?.first { $0.title == "Kanata cannot capture keyboard input" }
+        XCTAssertEqual(issue?.remediationURL, KeyPathConstants.URLs.terminalInputCaptureTroubleshooting)
+    }
+
+    func testInstallerReportLinksTerminalConfigFailureToTroubleshooting() {
+        let context = SystemContextBuilder(
+            permissionsStatus: .granted,
+            helperReady: true,
+            servicesHealthy: false,
+            kanataRunning: false,
+            kanataInputCaptureReady: true,
+            componentsInstalled: true
+        ).build()
+        let services = HealthStatus(
+            kanataRunning: false,
+            karabinerDaemonRunning: true,
+            vhidHealthy: true,
+            kanataInputCaptureReady: true,
+            configParseError: "expected defcfg"
+        )
+        let configContext = SystemContext(
+            permissions: context.permissions,
+            services: services,
+            conflicts: context.conflicts,
+            components: context.components,
+            helper: context.helper,
+            system: context.system,
+            timestamp: context.timestamp
+        )
+        let report = CLIInstallerReport(
+            dryRunPlan: InstallPlan(recipes: [], status: .ready, intent: .repair),
+            context: configContext,
+            title: "Repair"
+        )
+
+        let issue = report.issues?.first { $0.title == "Configuration error prevents remapping" }
+        XCTAssertEqual(issue?.remediationURL, KeyPathConstants.URLs.configurationTroubleshooting)
+    }
+
+    func testInstallerReportLinksMissingBundledKanataToTroubleshooting() {
+        let context = SystemContextBuilder(
+            permissionsStatus: .granted,
+            helperReady: true,
+            servicesHealthy: false,
+            kanataInputCaptureReady: true,
+            componentsInstalled: false
+        ).build()
+        let report = CLIInstallerReport(
+            dryRunPlan: InstallPlan(recipes: [], status: .ready, intent: .repair),
+            context: context,
+            title: "Repair"
+        )
+
+        let issue = report.issues?.first { $0.title == "Kanata binary not installed" }
+        XCTAssertEqual(issue?.remediationURL, KeyPathConstants.URLs.bundledKanataTroubleshooting)
     }
 
     func testValidationResultJSONShape() throws {
