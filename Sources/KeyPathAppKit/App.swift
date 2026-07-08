@@ -41,7 +41,7 @@ public struct KeyPathApp: App {
                 .environment(viewModel) // Phase 4: Inject ViewModel
                 .environment(\.services, serviceContainer)
                 .environment(\.preferencesService, PreferencesService.shared)
-                .environment(\.permissionSnapshotProvider, PermissionOracle.shared)
+                .environment(\.permissionSnapshotProvider, SystemStateProvider.shared)
         }
         .commands {
             AppMenuCommands(viewModel: viewModel, appDelegate: appDelegate)
@@ -829,7 +829,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private func startEmergencyMonitoringIfPermitted() async {
-        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        let snapshot = await SystemStateProvider.shared.currentPermissionSnapshot()
         guard snapshot.keyPath.accessibility.isReady else {
             AppLogger.shared.debug("🛑 [EmergencyStop] Skipping monitor start (Accessibility not granted)")
             return

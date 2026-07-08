@@ -17,7 +17,7 @@ final class MainWindowController: NSWindowController {
             .environment(viewModel) // Phase 4: Inject ViewModel
             .environment(\.services, serviceContainer ?? ServiceContainer())
             .environment(\.preferencesService, PreferencesService.shared)
-            .environment(\.permissionSnapshotProvider, PermissionOracle.shared)
+            .environment(\.permissionSnapshotProvider, SystemStateProvider.shared)
 
         let hostingController = NSHostingController(rootView: rootView)
 

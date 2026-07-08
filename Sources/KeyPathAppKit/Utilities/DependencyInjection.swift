@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 import KeyPathPermissions
 import SwiftUI
 
@@ -9,19 +10,23 @@ protocol PermissionSnapshotProviding: Sendable {
     func currentSnapshot() async -> PermissionOracle.Snapshot
 }
 
-extension PermissionOracle: PermissionSnapshotProviding {}
+extension SystemStateProvider: PermissionSnapshotProviding {
+    func currentSnapshot() async -> PermissionOracle.Snapshot {
+        await currentPermissionSnapshot()
+    }
+}
 
 /// Adapter to avoid storing actor singletons directly in nonisolated defaults
-private struct PermissionOracleAdapter: PermissionSnapshotProviding {
+private struct SystemStatePermissionSnapshotAdapter: PermissionSnapshotProviding {
     func currentSnapshot() async -> PermissionOracle.Snapshot {
-        await PermissionOracle.shared.currentSnapshot()
+        await SystemStateProvider.shared.currentPermissionSnapshot()
     }
 }
 
 /// EnvironmentKey for injecting a permission snapshot provider
 private struct PermissionSnapshotProviderKey: EnvironmentKey {
     static var defaultValue: any PermissionSnapshotProviding {
-        PermissionOracleAdapter()
+        SystemStatePermissionSnapshotAdapter()
     }
 }
 
