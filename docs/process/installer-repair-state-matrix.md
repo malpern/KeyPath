@@ -231,7 +231,9 @@ the result as user action required and name the approval surface.
   `PermissionSnapshotLintTests.testPermissionGateDelegatesPermissionSnapshotsToSystemStateProvider`
   prevents `PermissionGate` from bypassing it, and
   `PermissionSnapshotLintTests.testSystemRequirementsCheckerDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevents `SystemRequirementsChecker` from bypassing it.
+  prevents `SystemRequirementsChecker` from bypassing it, and
+  `PermissionSnapshotLintTests.testSystemValidatorDelegatesPermissionSnapshotsToSystemStateProvider`
+  prevents `SystemValidator` from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References
