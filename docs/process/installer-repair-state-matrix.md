@@ -135,6 +135,10 @@ the result as user action required and name the approval surface.
   `CLIOutputContractTests.testInspectResultRepairMetadataJSONShape` pins the
   JSON contract so CLI consumers see the same row/action vocabulary as the
   golden state-matrix planner.
+- Menu-bar health uses the shared state-matrix row once app validation has
+  classified the current system state. `MainAppStateControllerTests.menuBarHealthPrefersStateMatrixRow`
+  pins that `runningAndTCPResponding` is the only matrix row treated as healthy
+  by the compact status surface.
 - Process-liveness semantics belong in `SystemStateProvider.isProcessAlive(pid:)`.
   `SystemStateProviderLivenessTests.testProcessLivenessProbeTreatsCurrentProcessAsAliveAndExitedProcessAsDead`
   proves the real ADR-040 primitive, and

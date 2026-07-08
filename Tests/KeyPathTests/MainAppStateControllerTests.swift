@@ -141,6 +141,55 @@ struct MainAppStateControllerTests {
         #expect(controller.issues.isEmpty)
     }
 
+    @Test("Menu bar health falls back to validation before matrix classification")
+    func menuBarHealthFallsBackBeforeMatrixClassification() {
+        let controller = MainAppStateController()
+
+        controller.validationState = .success
+        controller.issues = []
+        #expect(controller.menuBarSystemHealthy == true)
+
+        controller.issues = [
+            WizardIssue(
+                identifier: .daemon,
+                severity: .error,
+                category: .daemon,
+                title: "Runtime stopped",
+                description: "Kanata is not running",
+                autoFixAction: nil,
+                userAction: nil
+            ),
+        ]
+        #expect(controller.menuBarSystemHealthy == false)
+    }
+
+    @Test("Menu bar health prefers shared state matrix row when available")
+    func menuBarHealthPrefersStateMatrixRow() {
+        let controller = MainAppStateController()
+
+        controller.validationState = .success
+        controller.issues = []
+        controller.lastInstallerStateMatrixRow = .runningButTCPNotResponding
+        controller.lastInstallerStateMatrixPlan = [.restartOrRecoverKanataRuntime]
+        #expect(controller.menuBarSystemHealthy == false)
+
+        controller.validationState = .failed(blockingCount: 1, totalCount: 1)
+        controller.issues = [
+            WizardIssue(
+                identifier: .daemon,
+                severity: .error,
+                category: .daemon,
+                title: "Stale issue",
+                description: "Legacy validation state is stale",
+                autoFixAction: nil,
+                userAction: nil
+            ),
+        ]
+        controller.lastInstallerStateMatrixRow = .runningAndTCPResponding
+        controller.lastInstallerStateMatrixPlan = []
+        #expect(controller.menuBarSystemHealthy == true)
+    }
+
     @Test("lastValidationDate is settable")
     func lastValidationDateSettable() {
         let controller = MainAppStateController()

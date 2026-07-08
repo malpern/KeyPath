@@ -140,11 +140,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func updateStatusIcon() {
         guard let button = statusItem.button else { return }
 
-        let isHealthy = appStateController?.validationState?.isSuccess ?? true
-        let hasIssues = !(appStateController?.issues.isEmpty ?? true)
-
         // Update tooltip based on state
-        if !isHealthy || hasIssues {
+        if appStateController?.menuBarSystemHealthy == false {
             button.toolTip = "KeyPath - Needs Setup"
             button.alphaValue = 0.5 // Dim when unhealthy
         } else {
@@ -177,7 +174,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func rebuildMenu() {
         menu.removeAllItems()
 
-        let isHealthy = appStateController?.validationState?.isSuccess ?? true
+        let isHealthy = appStateController?.menuBarSystemHealthy ?? true
         let issues = appStateController?.issues ?? []
 
         if isHealthy, issues.isEmpty {

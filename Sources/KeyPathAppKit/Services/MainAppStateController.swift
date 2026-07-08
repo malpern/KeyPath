@@ -32,6 +32,10 @@ class MainAppStateController {
     private(set) var lastAdaptedState: WizardSystemState = .initializing
     /// TCP configuration status from the last validation — consumed by Settings Status tab.
     private(set) var lastTCPConfigured: Bool?
+    /// Latest shared installer state-matrix row — consumed by CLI/status/menu surfaces.
+    var lastInstallerStateMatrixRow: InstallerStateMatrixRow?
+    /// Latest shared installer state-matrix plan — consumed by CLI/status/menu surfaces.
+    var lastInstallerStateMatrixPlan: [InstallerStateMatrixAction] = []
 
     // MARK: - Validation State (compatible with StartupValidator)
 
@@ -647,6 +651,14 @@ class MainAppStateController {
         lastValidatedSystemContext = context
         lastAdaptedState = adapted.state
         lastTCPConfigured = await checkTCPConfiguration()
+        let matrixSnapshot = await SystemStateProvider.shared.currentInstallerStateMatrixSnapshot(
+            components: context.components,
+            helper: context.helper,
+            tcpPort: PreferencesService.shared.tcpServerPort
+        )
+        let matrixRow = InstallerStateMatrixPlanner.classify(matrixSnapshot)
+        lastInstallerStateMatrixRow = matrixRow
+        lastInstallerStateMatrixPlan = InstallerStateMatrixPlanner.plan(for: matrixRow)
         issues = adapted.issues
         lastValidationDate = Date()
         lastValidationTime = Date() // Track for cooldown optimization
@@ -910,6 +922,18 @@ class MainAppStateController {
                 return "\(totalCount) minor issues found (click to review)"
             }
         }
+    }
+
+    /// Shared health policy for compact status surfaces.
+    ///
+    /// Prefer the executable state-matrix row once validation has produced it.
+    /// Before the first matrix classification exists, preserve the legacy
+    /// validation-state behavior so startup UI does not pessimistically flip red.
+    var menuBarSystemHealthy: Bool {
+        if let lastInstallerStateMatrixRow {
+            return lastInstallerStateMatrixRow == .runningAndTCPResponding
+        }
+        return (validationState?.isSuccess ?? true) && issues.isEmpty
     }
 
     /// Get status message for display

@@ -272,6 +272,11 @@ integration remains pending.
   `InstallerStateMatrixGoldenTests.testClassifySnapshotAndPlanMatchStateMatrixGoldenFixtures`,
   and
   `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotPreservesRunningButTCPNotRespondingEvidence`.
+- [x] Migrated the menu-bar health indicator policy to prefer the shared
+  state-matrix row produced by app validation, while preserving the legacy
+  validation fallback before the first matrix classification exists. Enforced by
+  `MainAppStateControllerTests.menuBarHealthPrefersStateMatrixRow` and
+  `MainAppStateControllerTests.menuBarHealthFallsBackBeforeMatrixClassification`.
 - [ ] Wire `SystemStateProvider`'s full immutable snapshot into the state-matrix
   classifier and migrate wizard/CLI/menu-bar consumers to the shared
   classification.
