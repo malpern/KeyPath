@@ -44,11 +44,6 @@ extension HelperManager {
     /// Get the version of the installed helper
     /// - Returns: Version string, or nil if helper not installed or version check fails
     public func getHelperVersion() async -> String? {
-        // Return cached version if available
-        if let cached = cachedHelperVersion {
-            return cached
-        }
-
         // Bypass XPC call in tests
         if TestEnvironment.isRunningTests {
             AppLogger.shared.log("🧪 [HelperManager] Test mode - returning mock version")
@@ -122,11 +117,6 @@ extension HelperManager {
                 AppLogger.shared.log(
                     "📤 [HelperManager] proxy.getVersion() call dispatched, waiting for callback"
                 )
-            }
-            // Cache the version so subsequent calls within the same session don't
-            // repeat the full XPC round-trip. Cleared by clearConnection().
-            if let version {
-                cachedHelperVersion = version
             }
             return version
         } catch {

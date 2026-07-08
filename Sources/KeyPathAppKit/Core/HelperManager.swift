@@ -76,9 +76,6 @@ public actor HelperManager {
     /// Expected helper version (should match HelperService.version)
     static let expectedHelperVersion = "1.0.0"
 
-    /// Cached helper version (lazy loaded)
-    var cachedHelperVersion: String?
-
     /// Active XPC call tracking for detecting concurrency issues
     var activeXPCCalls: Set<String> = []
 
