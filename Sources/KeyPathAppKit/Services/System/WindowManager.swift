@@ -110,7 +110,7 @@ public final class WindowManager {
     /// Whether Accessibility permission is granted.
     /// Window management requires this permission to control other app windows.
     public var hasAccessibilityPermission: Bool {
-        PermissionOracle.shared.keyPathAccessibilityStatus().isReady
+        SystemStateProvider.shared.keyPathAccessibilityStatus().isReady
     }
 
     /// Whether Space movement features are available.

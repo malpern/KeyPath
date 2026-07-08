@@ -13,4 +13,12 @@ public extension SystemStateProvider {
     func refreshPermissionSnapshot() async -> PermissionOracle.Snapshot {
         await PermissionOracle.shared.forceRefresh()
     }
+
+    /// Synchronous KeyPath Accessibility status for hot paths that cannot await.
+    ///
+    /// Kept behind `SystemStateProvider` so even sync permission probes have one
+    /// owner while Phase 1 grows the immutable system snapshot.
+    nonisolated func keyPathAccessibilityStatus() -> PermissionOracle.Status {
+        PermissionOracle.shared.keyPathAccessibilityStatus()
+    }
 }

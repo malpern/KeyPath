@@ -323,6 +323,44 @@ final class PermissionSnapshotLintTests: XCTestCase {
             """
         )
     }
+
+    func testKeyboardCaptureDelegatesSyncAccessibilityStatusToSystemStateProvider() throws {
+        let capture = repositoryRootForPermissionSnapshotLint()
+            .appendingPathComponent("Sources/KeyPathAppKit/Services/KeyboardCapture/KeyboardCapture.swift")
+
+        let violations = try matchingPermissionSnapshotLines(
+            in: capture,
+            patterns: permissionSnapshotBypassPatterns()
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            KeyboardCapture must delegate synchronous Accessibility status reads \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
+
+    func testWindowManagerDelegatesSyncAccessibilityStatusToSystemStateProvider() throws {
+        let manager = repositoryRootForPermissionSnapshotLint()
+            .appendingPathComponent("Sources/KeyPathAppKit/Services/System/WindowManager.swift")
+
+        let violations = try matchingPermissionSnapshotLines(
+            in: manager,
+            patterns: permissionSnapshotBypassPatterns()
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            WindowManager must delegate synchronous Accessibility status reads \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRootForPermissionSnapshotLint(file: StaticString = #filePath) -> URL {
