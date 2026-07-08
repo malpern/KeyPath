@@ -197,6 +197,48 @@ final class PermissionSnapshotLintTests: XCTestCase {
             """
         )
     }
+
+    func testWizardAsyncOperationManagerDelegatesPermissionSnapshotsToSystemStateProvider() throws {
+        let manager = repositoryRootForPermissionSnapshotLint()
+            .appendingPathComponent(
+                "Sources/KeyPathInstallationWizard/Core/WizardAsyncOperationManager.swift"
+            )
+
+        let violations = try matchingPermissionSnapshotLines(
+            in: manager,
+            patterns: permissionSnapshotBypassPatterns()
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            WizardAsyncOperationManager must delegate permission snapshot reads \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
+
+    func testPermissionGrantCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider() throws {
+        let coordinator = repositoryRootForPermissionSnapshotLint()
+            .appendingPathComponent(
+                "Sources/KeyPathInstallationWizard/Core/PermissionGrantCoordinator.swift"
+            )
+
+        let violations = try matchingPermissionSnapshotLines(
+            in: coordinator,
+            patterns: permissionSnapshotBypassPatterns()
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            PermissionGrantCoordinator must delegate permission snapshot reads \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRootForPermissionSnapshotLint(file: StaticString = #filePath) -> URL {

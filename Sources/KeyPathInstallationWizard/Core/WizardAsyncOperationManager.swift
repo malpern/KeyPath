@@ -318,8 +318,7 @@ public enum WizardOperations {
                 attempts += 1
                 progressCallback(0.3 + (Double(attempts) / Double(maxAttempts)) * 0.7)
 
-                // Use Oracle for permission checking
-                let snapshot = await PermissionOracle.shared.currentSnapshot()
+                let snapshot = await SystemStateProvider.shared.currentPermissionSnapshot()
                 let hasPermission =
                     switch type {
                     case .inputMonitoring:

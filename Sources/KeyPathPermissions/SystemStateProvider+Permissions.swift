@@ -1,5 +1,4 @@
 import KeyPathCore
-import KeyPathPermissions
 
 public extension SystemStateProvider {
     /// Cached/current permission snapshot for installer and wizard decisions.

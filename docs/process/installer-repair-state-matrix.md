@@ -241,7 +241,12 @@ the result as user action required and name the approval surface.
   `PermissionSnapshotLintTests.testCompositionRootDelegatesPermissionSnapshotsToSystemStateProvider`,
   and
   `PermissionSnapshotLintTests.testPermissionSnapshotEnvironmentDefaultDelegatesToSystemStateProvider`
-  prevent app bootstrap/environment permission snapshot reads from bypassing it.
+  prevent app bootstrap/environment permission snapshot reads from bypassing it,
+  and
+  `PermissionSnapshotLintTests.testWizardAsyncOperationManagerDelegatesPermissionSnapshotsToSystemStateProvider`
+  and
+  `PermissionSnapshotLintTests.testPermissionGrantCoordinatorDelegatesPermissionSnapshotsToSystemStateProvider`
+  prevent wizard core permission snapshot reads from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References
