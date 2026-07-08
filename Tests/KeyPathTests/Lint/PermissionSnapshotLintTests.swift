@@ -29,6 +29,29 @@ final class PermissionSnapshotLintTests: XCTestCase {
             """
         )
     }
+
+    func testPermissionGateDelegatesPermissionSnapshotsToSystemStateProvider() throws {
+        let gate = repositoryRootForPermissionSnapshotLint()
+            .appendingPathComponent("Sources/KeyPathAppKit/Services/Permissions/PermissionGate.swift")
+
+        let violations = try matchingPermissionSnapshotLines(
+            in: gate,
+            patterns: [
+                #"PermissionOracle\.shared\.currentSnapshot"#,
+                #"PermissionOracle\.shared\.forceRefresh"#,
+                #"PermissionOracle\.shared"#
+            ]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            PermissionGate must delegate permission snapshot reads \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRootForPermissionSnapshotLint(file: StaticString = #filePath) -> URL {

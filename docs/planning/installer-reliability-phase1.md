@@ -200,6 +200,12 @@ classification remains pending.
   `SystemStateProviderPermissionTests.testPermissionSnapshotRefreshBypassesCachedSnapshot`,
   and
   `PermissionSnapshotLintTests.testPermissionRequestServiceDelegatesPermissionSnapshotsToSystemStateProvider`.
+- [x] Migrated `PermissionGate` permission-state reads through
+  `SystemStateProvider`'s permission snapshot façade. Enforced by
+  `PermissionGateEvaluationTests.testKanataUnknownClassifiesAsNotVerifiedNotBlocking`,
+  `PermissionGateEvaluationTests.testKanataDeniedClassifiesAsBlocking`,
+  and
+  `PermissionSnapshotLintTests.testPermissionGateDelegatesPermissionSnapshotsToSystemStateProvider`.
 - [ ] Migrate `SMAppService.status`, permissions, VHID state, helper freshness,
   and migrated read-only `launchctl print` evidence into a single immutable
   `SystemSnapshot`.
@@ -371,6 +377,12 @@ through 21 mocked tests).
   `SystemStateProviderPermissionTests.testPermissionSnapshotRefreshBypassesCachedSnapshot`,
   and
   `PermissionSnapshotLintTests.testPermissionRequestServiceDelegatesPermissionSnapshotsToSystemStateProvider`.
+- [x] `PermissionGate` permission-state reads delegate to
+  `SystemStateProvider`'s permission snapshot façade. Enforced by
+  `PermissionGateEvaluationTests.testKanataUnknownClassifiesAsNotVerifiedNotBlocking`,
+  `PermissionGateEvaluationTests.testKanataDeniedClassifiesAsBlocking`,
+  and
+  `PermissionSnapshotLintTests.testPermissionGateDelegatesPermissionSnapshotsToSystemStateProvider`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -493,6 +505,9 @@ is listed in the state-matrix doc's enforcement section.
   from bypassing `SystemStateProvider`.
 - [x] `PermissionSnapshotLintTests.testPermissionRequestServiceDelegatesPermissionSnapshotsToSystemStateProvider`
   prevents migrated permission-request snapshot reads from bypassing
+  `SystemStateProvider`.
+- [x] `PermissionSnapshotLintTests.testPermissionGateDelegatesPermissionSnapshotsToSystemStateProvider`
+  prevents migrated just-in-time permission gate snapshot reads from bypassing
   `SystemStateProvider`.
 - [x] `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
   prevents `ServiceHealthChecker` from regrowing a private TCP socket probe.
