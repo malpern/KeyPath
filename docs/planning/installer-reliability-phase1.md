@@ -148,6 +148,15 @@ classification remains pending.
   `HelperManagerTests.testLastHelperLogsUsesInjectedSystemStateProviderForLaunchctlEvidence`,
   and
   `LaunchctlEvidenceLintTests.testHelperManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
+- [x] Added `SystemStateProvider` SMAppService status/cache façade methods over
+  the existing `SMAppServiceStatusProvider` cache/coalescer and migrated
+  `KanataDaemonManager` status reads/invalidation through the façade. Enforced
+  by
+  `SystemStateProviderSMAppServiceTests.testSMAppServiceStatusAccessDelegatesToCentralStatusProvider`,
+  `SystemStateProviderSMAppServiceTests.testSMAppServiceFreshStatusBypassesCache`,
+  `SystemStateProviderSMAppServiceTests.testSMAppServiceStatusInvalidationDelegatesToCentralStatusProvider`,
+  and
+  `SMAppServiceStatusLintTests.testKanataDaemonManagerDelegatesStatusProviderAccessToSystemStateProvider`.
 - [ ] Migrate `SMAppService.status`, permissions, VHID state, helper freshness,
   and migrated read-only `launchctl print` evidence into a single immutable
   `SystemSnapshot`.
@@ -276,6 +285,13 @@ through 21 mocked tests).
   `HelperManagerTests.testLastHelperLogsUsesInjectedSystemStateProviderForLaunchctlEvidence`,
   and
   `LaunchctlEvidenceLintTests.testHelperManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
+- [x] `KanataDaemonManager` SMAppService registration status/cache reads
+  delegate to `SystemStateProvider`'s SMAppService status façade. Enforced by
+  `SystemStateProviderSMAppServiceTests.testSMAppServiceStatusAccessDelegatesToCentralStatusProvider`,
+  `SystemStateProviderSMAppServiceTests.testSMAppServiceFreshStatusBypassesCache`,
+  `SystemStateProviderSMAppServiceTests.testSMAppServiceStatusInvalidationDelegatesToCentralStatusProvider`,
+  and
+  `SMAppServiceStatusLintTests.testKanataDaemonManagerDelegatesStatusProviderAccessToSystemStateProvider`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -363,6 +379,7 @@ context loss across sessions, contributors, and agents. Extend it:
 
 | Ratchet | Rule |
 |---------|------|
+| `SMAppServiceStatusLintTests` | direct Apple `.status` only inside `SMAppServiceStatusProvider`; migrated consumers access the status cache through `SystemStateProvider` |
 | `LaunchctlEvidenceLintTests` | read-only `launchctl print` evidence only inside `SystemStateProvider` |
 | `LivenessLintTests` | `kill(`, `pgrep`, process-probe patterns only inside the blessed predicate |
 | `PostconditionLintTests` | every `PrivilegedOperationsRouter` mutating verb calls the postcondition enforcer before returning success |
@@ -374,6 +391,11 @@ is listed in the state-matrix doc's enforcement section.
 **Status (2026-07-07):** First liveness/readiness ratchets implemented.
 - [x] `LivenessPredicateLintTests.testKillZeroLivenessProbeIsCentralized`
   prevents new direct `kill(pid, 0)` liveness probes outside
+  `SystemStateProvider`.
+- [x] `SMAppServiceStatusLintTests.testStatusAccessIsCentralized` keeps direct
+  Apple `SMAppService.status` IPC centralized in `SMAppServiceStatusProvider`.
+- [x] `SMAppServiceStatusLintTests.testKanataDaemonManagerDelegatesStatusProviderAccessToSystemStateProvider`
+  prevents the first migrated SMAppService status consumer from bypassing
   `SystemStateProvider`.
 - [x] `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
   prevents `ServiceHealthChecker` from regrowing a private TCP socket probe.
