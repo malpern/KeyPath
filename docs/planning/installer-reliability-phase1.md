@@ -546,12 +546,17 @@ Phase 1 changes *post-install* behavior, not first-run automation.
 - Every terminal failure report names either the manual approval surface or
   the troubleshooting doc for its failure class.
 
-**Status (2026-07-08):** First W3 passive-detection slice in progress.
+**Status (2026-07-08):** W3 passive-detection migration in progress.
 - [x] Post-update degraded-state handling no longer runs automatic repair after
   Sparkle relaunch; it refreshes/surfaces status for user-initiated repair
   instead. Enforced by
   `PostUpdateRepairLintTests.testPostUpdateFinalizeDoesNotRunAutomaticRepair`
   and `UpdateServiceDecisionTests.testPostUpdateDecisionRequiresUserRepairWhenHelperNotReady`.
+- [x] Stuck-key autorepeat detection no longer restarts Kanata from a
+  background monitor; it captures diagnostics and surfaces an incident for
+  user-initiated repair instead. Enforced by
+  `StuckKeyRecoveryServiceTests.testSurfacesIncidentForStuckKey` and
+  `StuckKeyRecoveryLintTests.testStuckKeyRecoveryDoesNotRestartKanataAutomatically`.
 - [ ] Remaining background mutators still need W3 migration or explicit
   first-run/user-gesture justification.
 - [ ] Terminal failure reports still need troubleshooting-guide links for the

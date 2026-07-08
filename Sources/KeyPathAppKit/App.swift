@@ -216,11 +216,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Start investigation event tap if duplicate key investigation is enabled
         InvestigationEventTapService.shared.startIfNeeded()
 
-        // Wire up stuck key recovery: AutorepeatMismatch → kanata restart
-        StuckKeyRecoveryService.shared.restartKanata = { [weak self] reason in
-            await self?.kanataManager?.restartKanata(reason: reason) ?? false
-        }
-
         // Set smart default keyboard layout on first launch
         setSmartKeyboardLayoutDefault()
 
