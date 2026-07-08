@@ -211,7 +211,9 @@ the result as user action required and name the approval surface.
   `SMAppServiceStatusLintTests.testKanataDaemonManagerDelegatesStatusProviderAccessToSystemStateProvider`
   blocks migrated Kanata daemon status reads from bypassing it and
   `SMAppServiceStatusLintTests.testHelperManagerAsyncStatusAccessDelegatesToSystemStateProvider`
-  blocks migrated HelperManager async status reads from bypassing it.
+  blocks migrated HelperManager async status reads from bypassing it, while
+  `SMAppServiceStatusLintTests.testKanataDaemonServiceDelegatesStatusProviderAccessToSystemStateProvider`
+  blocks migrated KanataDaemonService status reads from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References
