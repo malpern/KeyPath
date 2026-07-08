@@ -151,7 +151,7 @@ public final class VHIDDeviceManager: @unchecked Sendable {
                 return false
             case .timeout:
                 // Treat timeout as inconclusive; use fallback launchctl check before giving up
-                if await Self.fastLaunchctlCheck() { return true }
+                if await fastLaunchctlCheck() { return true }
                 if attempt < maxAttempts {
                     AppLogger.shared.log(
                         "⏳ [VHIDManager] Timeout while checking daemon; retrying to avoid false negatives"
@@ -261,8 +261,7 @@ public final class VHIDDeviceManager: @unchecked Sendable {
             let isRunning = processCount > 0
 
             if isRunning, processCount > 1 {
-                let vhidManager = VHIDDeviceManager()
-                let launchctlHealthy = await vhidManager.checkLaunchctlHealth()
+                let launchctlHealthy = await Self.checkVHIDLaunchctlHealth(using: systemStateProvider)
                 if launchctlHealthy == true {
                     AppLogger.shared.log(
                         "⚠️ [VHIDManager] pgrep reported \(processCount) processes but launchctl is healthy - likely race condition"
@@ -286,15 +285,14 @@ public final class VHIDDeviceManager: @unchecked Sendable {
 
     /// Fast check using launchctl print; used as a fallback when pgrep stalls.
     /// Note: Uses system domain since VHID daemon is a LaunchDaemon, not a user agent.
-    private static func fastLaunchctlCheck() async -> Bool {
-        do {
-            let result = try await SubprocessRunner.shared.launchctl("print", ["system/com.keypath.karabiner-vhiddaemon"])
-            // Check for running state or PID presence
-            return result.exitCode == 0 && (result.stdout.contains("pid =") || result.stdout.contains("state = running"))
-        } catch {
-            AppLogger.shared.log("❌ [VHIDManager] fastLaunchctlCheck failed: \(error)")
+    private func fastLaunchctlCheck() async -> Bool {
+        let evidence = await systemStateProvider.launchctlPrint(target: "system/com.keypath.karabiner-vhiddaemon")
+        guard evidence.exitCode == 0 else {
+            AppLogger.shared.log("❌ [VHIDManager] fastLaunchctlCheck failed: \(evidence.stderr)")
             return false
         }
+
+        return evidence.hasRunningProcessEvidence
     }
 
     /// Get actual PIDs of running VirtualHID daemon processes
@@ -321,26 +319,29 @@ public final class VHIDDeviceManager: @unchecked Sendable {
     /// - false if launchctl reports the service but unhealthy,
     /// - nil if the call fails (permission/lookup).
     public func checkLaunchctlHealth() async -> Bool? {
-        do {
-            let result = try await SubprocessRunner.shared.launchctl("print", ["system/com.keypath.karabiner-vhiddaemon"])
+        await Self.checkVHIDLaunchctlHealth(using: systemStateProvider)
+    }
 
-            guard result.exitCode == 0 else {
-                AppLogger.shared.log(
-                    "⚠️ [VHIDManager] launchctl health check exit=\(result.exitCode)"
-                )
-                return false
-            }
-
-            // Consider it healthy if a PID line exists
-            let healthy = result.stdout.contains("pid =") || result.stdout.contains("\"PID\"")
-            AppLogger.shared.log(
-                "🔍 [VHIDManager] launchctl health check healthy=\(healthy)"
-            )
-            return healthy
-        } catch {
-            AppLogger.shared.log("⚠️ [VHIDManager] launchctl health check failed: \(error)")
+    private static func checkVHIDLaunchctlHealth(using systemStateProvider: SystemStateProvider) async -> Bool? {
+        let evidence = await systemStateProvider.launchctlPrint(target: "system/com.keypath.karabiner-vhiddaemon")
+        guard let exitCode = evidence.exitCode else {
+            AppLogger.shared.log("⚠️ [VHIDManager] launchctl health check failed: \(evidence.stderr)")
             return nil
         }
+
+        guard exitCode == 0 else {
+            AppLogger.shared.log(
+                "⚠️ [VHIDManager] launchctl health check exit=\(exitCode)"
+            )
+            return false
+        }
+
+        // Consider it healthy if a PID line exists
+        let healthy = evidence.hasRunningProcessEvidence
+        AppLogger.shared.log(
+            "🔍 [VHIDManager] launchctl health check healthy=\(healthy)"
+        )
+        return healthy
     }
 
     /// Checks if VirtualHID daemon is functioning correctly (wizard prerequisite)

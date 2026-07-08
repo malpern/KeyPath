@@ -178,6 +178,16 @@ the result as user action required and name the approval surface.
   `PgrepProcessDiscoveryLintTests.testHelperServiceDelegatesPgrepDiscoveryToSystemStateProvider`,
   and `PgrepProcessDiscoveryLintTests.testProductionPgrepDiscoveryIsCentralizedInCoreProvider`
   block migrated runtime/system-validator/Karabiner-conflict/VHID/diagnostics/launcher/process-lifecycle/helper consumers from bypassing it.
+- Read-only `launchctl print` service-state evidence belongs in
+  `SystemStateProvider.launchctlPrint(target:)`; mutating launchctl operations
+  remain installer/helper actions, not state reads.
+  `SystemStateProviderLivenessTests.testLaunchctlPrintDelegatesToInjectedSubprocessRunner`
+  and `SystemStateProviderLivenessTests.testLaunchctlPrintRejectsBlankTargets`
+  pin the provider contract, while
+  `VHIDDeviceManagerTests.testCheckLaunchctlHealthUsesInjectedSystemStateProvider`,
+  `VHIDDeviceManagerTests.testDuplicateProcessRaceUsesInjectedLaunchctlEvidence`,
+  and `LaunchctlEvidenceLintTests.testVHIDDeviceManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
+  block migrated VirtualHID health checks from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References

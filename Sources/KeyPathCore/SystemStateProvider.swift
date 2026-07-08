@@ -48,6 +48,31 @@ public actor SystemStateProvider {
         }
     }
 
+    public func launchctlPrint(target: String) async -> LaunchctlPrintEvidence {
+        let trimmedTarget = target.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTarget.isEmpty else {
+            return LaunchctlPrintEvidence(target: "", exitCode: nil, stdout: "", stderr: "")
+        }
+
+        do {
+            let result = try await subprocessRunner.launchctl("print", [trimmedTarget])
+            return LaunchctlPrintEvidence(
+                target: trimmedTarget,
+                exitCode: result.exitCode,
+                stdout: result.stdout,
+                stderr: result.stderr
+            )
+        } catch {
+            AppLogger.shared.warn("⚠️ [SystemStateProvider] launchctl print failed for target '\(trimmedTarget)': \(error)")
+            return LaunchctlPrintEvidence(
+                target: trimmedTarget,
+                exitCode: nil,
+                stdout: "",
+                stderr: String(describing: error)
+            )
+        }
+    }
+
     public nonisolated static func processIDsSynchronously(matching pattern: String) -> [pid_t] {
         let trimmedPattern = pattern.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPattern.isEmpty else { return [] }
@@ -149,5 +174,25 @@ public struct SystemProcessMatch: Equatable, Sendable {
     public init(pid: pid_t, command: String) {
         self.pid = pid
         self.command = command
+    }
+}
+
+public struct LaunchctlPrintEvidence: Equatable, Sendable {
+    public let target: String
+    public let exitCode: Int32?
+    public let stdout: String
+    public let stderr: String
+
+    public init(target: String, exitCode: Int32?, stdout: String, stderr: String) {
+        self.target = target
+        self.exitCode = exitCode
+        self.stdout = stdout
+        self.stderr = stderr
+    }
+
+    public var hasRunningProcessEvidence: Bool {
+        stdout.range(of: #"pid\s*=\s*\d+"#, options: .regularExpression) != nil
+            || stdout.contains("\"PID\"")
+            || stdout.contains("state = running")
     }
 }
