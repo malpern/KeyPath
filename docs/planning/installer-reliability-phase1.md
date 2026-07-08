@@ -798,6 +798,10 @@ realistic without losing capability. Measure before/after.
   `smAppServicePendingCache`, using `KanataDaemonManager.currentManagementState`
   as the provider-owned cache instead. Enforced by
   `W6DeletionPassLintTests.testServiceLifecycleCoordinatorDoesNotRegrowSMAppServicePendingCache`.
+- [x] Removed the duplicate "second safety layer" VirtualHID daemon check from
+  `ServiceLifecycleCoordinator.startKanata`, leaving one injected
+  `isVirtualHIDDaemonHealthy` predicate for the start gate. Enforced by
+  `W6DeletionPassLintTests.testServiceLifecycleCoordinatorDoesNotRegrowDuplicateVHIDStartCheck`.
 - [ ] Remaining single-implementation protocols, duplicate in-path checks,
   cache consolidation, and DEBUG-only seams still need separate deletion PRs.
 

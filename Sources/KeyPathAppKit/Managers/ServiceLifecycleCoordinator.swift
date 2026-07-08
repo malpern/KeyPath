@@ -166,8 +166,8 @@ final class ServiceLifecycleCoordinator {
     /// Called to notify the UI of a state change.
     var onStateChanged: (() -> Void)?
 
-    /// Called to check whether the Karabiner daemon is running.
-    var isKarabinerDaemonRunning: (() async -> Bool)?
+    /// Called to check whether the VirtualHID daemon is healthy.
+    var isVirtualHIDDaemonHealthy: (() async -> Bool)?
 
     // MARK: - Init
 
@@ -197,23 +197,10 @@ final class ServiceLifecycleCoordinator {
             isStartingKanata = false
         }
 
-        if let checker = isKarabinerDaemonRunning, await !checker() {
+        let vhidHealthy = await isVirtualHIDDaemonHealthy?() ?? false
+        if !VHIDSafetyCheck.canStartKanata(vhidDaemonHealthy: vhidHealthy) {
             AppLogger.shared.errorUnlessQuietTest("❌ [Service] Cannot start Kanata - VirtualHID daemon is not running")
             onError?("Cannot start: Karabiner VirtualHID daemon is not running. Please complete the setup wizard.")
-            onStateChanged?()
-            return false
-        }
-
-        // Second safety layer: verify VirtualHID daemon via ServiceHealthChecker
-        // (the callback above relies on the caller wiring it; this is a direct check)
-        let vhidHealthy = await ServiceHealthChecker.shared.isServiceHealthy(
-            serviceID: ServiceHealthChecker.vhidDaemonServiceID
-        )
-        if !VHIDSafetyCheck.canStartKanata(vhidDaemonHealthy: vhidHealthy) {
-            AppLogger.shared.errorUnlessQuietTest(
-                "❌ [Service] Cannot start kanata — VirtualHID daemon not healthy (ServiceHealthChecker)"
-            )
-            onError?("Cannot start: VirtualHID daemon health check failed. Please reinstall drivers.")
             onStateChanged?()
             return false
         }
@@ -424,7 +411,7 @@ final class ServiceLifecycleCoordinator {
     func startKanataWithValidation() async {
         await recoveryCoordinator.startKanataWithValidation(
             isKarabinerDaemonRunning: { [weak self] in
-                guard let self, let checker = isKarabinerDaemonRunning else { return false }
+                guard let self, let checker = isVirtualHIDDaemonHealthy else { return false }
                 return await checker()
             },
             startKanata: { [weak self] in

@@ -362,8 +362,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         serviceLifecycleCoordinator.onStateChanged = { [weak self] in
             self?.notifyStateChanged()
         }
-        serviceLifecycleCoordinator.isKarabinerDaemonRunning = { [weak self] in
-            await self?.isKarabinerDaemonRunning() ?? false
+        serviceLifecycleCoordinator.isVirtualHIDDaemonHealthy = {
+            await ServiceHealthChecker.shared.isServiceHealthy(
+                serviceID: ServiceHealthChecker.vhidDaemonServiceID
+            )
         }
 
         // Wire up ConfigReloadCoordinator callbacks
