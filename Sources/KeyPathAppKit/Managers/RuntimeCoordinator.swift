@@ -154,7 +154,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     // MARK: - Manager Dependencies (Refactored Architecture)
 
     let configurationManager: ConfigurationManager
-    let diagnosticsManager: DiagnosticsManaging
+    let diagnosticsManager: DiagnosticsManager
     let configRepairService: ConfigRepairService
 
     /// Manager dependencies (exposed for extensions that need direct access)
@@ -313,7 +313,9 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         configReloadCoordinator = ConfigReloadCoordinator(
             engineClient: self.engineClient,
             reloadSafetyMonitor: reloadSafetyMonitor,
-            diagnosticsManager: diagnosticsManager,
+            healthStatusProvider: { [diagnosticsManager] tcpPort in
+                await diagnosticsManager.checkHealth(tcpPort: tcpPort)
+            },
             processLifecycleManager: lifecycleManager
         )
 

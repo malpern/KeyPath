@@ -97,6 +97,44 @@ final class W6DeletionPassLintTests: XCTestCase {
             """
         )
     }
+
+    func testDiagnosticsManagerSingleImplementationProtocolDoesNotRegrow() throws {
+        let managerFile = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/Diagnostics/DiagnosticsManager.swift")
+        let runtimeCoordinator = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/RuntimeCoordinator.swift")
+        let reloadCoordinator = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/ConfigReloadCoordinator.swift")
+        let reloadTests = repositoryRoot()
+            .appendingPathComponent("Tests/KeyPathTests/Services/ConfigReloadCoordinatorTests.swift")
+
+        let violations = try [
+            managerFile,
+            runtimeCoordinator,
+            reloadCoordinator,
+            reloadTests,
+        ].flatMap { file in
+            try matchingLines(
+                in: file,
+                patterns: [
+                    #"protocol\s+DiagnosticsManaging\b"#,
+                    #":\s*DiagnosticsManaging\b"#,
+                    #"\bDiagnosticsManaging\b"#,
+                ]
+            )
+        }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            W6 removes broad single-implementation protocols unless they \
+            provide real injection value. DiagnosticsManager is concrete; \
+            ConfigReloadCoordinator uses a narrow healthStatusProvider seam \
+            instead of regrowing DiagnosticsManaging:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {

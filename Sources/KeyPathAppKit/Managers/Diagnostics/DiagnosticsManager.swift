@@ -2,50 +2,9 @@ import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
 
-/// Protocol for managing diagnostics, health monitoring, and log monitoring
-// @preconcurrency: @MainActor class conforms to Sendable protocol; actor isolation provides safety
-@preconcurrency
-protocol DiagnosticsManaging: Sendable {
-    /// Add a diagnostic
-    func addDiagnostic(_ diagnostic: KanataDiagnostic)
-
-    /// Get all current diagnostics
-    func getDiagnostics() -> [KanataDiagnostic]
-
-    /// Clear all diagnostics
-    func clearDiagnostics()
-
-    /// Start log monitoring
-    func startLogMonitoring()
-
-    /// Stop log monitoring
-    func stopLogMonitoring()
-
-    /// Check service health
-    func checkHealth(tcpPort: Int) async -> ServiceHealthStatus
-
-    /// Record a VirtualHID connection failure and report whether recovery should trigger.
-    func recordConnectionFailure() async -> Bool
-
-    /// Record a VirtualHID connection success.
-    func recordConnectionSuccess() async
-
-    /// Record a kanata input-grab failure and decide whether to recover (bounded). (#625)
-    func recordGrabFailureAndDecideRecovery() async -> GrabRecoveryDecision
-
-    /// Record that the keyboard grab is healthy again (resets grab-recovery attempts).
-    func recordGrabSuccess() async
-
-    /// Diagnose Kanata failure
-    func diagnoseFailure(exitCode: Int32, output: String) -> [KanataDiagnostic]
-
-    /// Get system diagnostics
-    func getSystemDiagnostics(engineClient: EngineClient?) async -> [KanataDiagnostic]
-}
-
 /// Manages diagnostics, health monitoring, and log monitoring
 @MainActor
-final class DiagnosticsManager: @preconcurrency DiagnosticsManaging { // @preconcurrency: @MainActor satisfies Sendable via isolation
+final class DiagnosticsManager {
     private var diagnostics: [KanataDiagnostic] = []
     private let diagnosticsService: DiagnosticsServiceProtocol
     private let healthMonitor: ServiceHealthMonitor

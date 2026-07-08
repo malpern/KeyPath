@@ -789,6 +789,11 @@ realistic without losing capability. Measure before/after.
   wired `RuntimeCoordinator` to the concrete `ConfigurationManager`. Enforced
   by
   `W6DeletionPassLintTests.testConfigurationManagerSingleImplementationProtocolDoesNotRegrow`.
+- [x] Removed the broad single-implementation `DiagnosticsManaging` protocol,
+  wired `RuntimeCoordinator` to the concrete `DiagnosticsManager`, and narrowed
+  `ConfigReloadCoordinator` tests to a `healthStatusProvider` closure. Enforced
+  by
+  `W6DeletionPassLintTests.testDiagnosticsManagerSingleImplementationProtocolDoesNotRegrow`.
 - [ ] Remaining single-implementation protocols, duplicate in-path checks,
   cache consolidation, and DEBUG-only seams still need separate deletion PRs.
 
