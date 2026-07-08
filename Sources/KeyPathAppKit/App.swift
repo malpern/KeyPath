@@ -676,13 +676,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Private: Fresh Install Check
 
     private static func checkIsFreshInstall() async -> Bool {
-        // Route SMAppService.status through the centralized provider (issue #853):
+        // Route SMAppService.status through SystemStateProvider (issue #853):
         // these two reads used to be direct synchronous IPC on the MainActor during
         // app init, which could stall the UI for up to 30s under load.
-        let helperStatus = await SMAppServiceStatusProvider.shared.freshStatus(
+        let helperStatus = await SystemStateProvider.shared.freshSMAppServiceStatus(
             for: HelperManager.helperPlistName
         )
-        let daemonStatus = await SMAppServiceStatusProvider.shared.freshStatus(
+        let daemonStatus = await SystemStateProvider.shared.freshSMAppServiceStatus(
             for: KanataDaemonManager.kanataPlistName
         )
 
@@ -877,8 +877,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private func showSMAppServiceStatus(plistName: String) async {
-        // Route through the centralized provider (#853) even in dev utilities.
-        let status = await SMAppServiceStatusProvider.shared.freshStatus(for: plistName)
+        // Route through SystemStateProvider (#853) even in dev utilities.
+        let status = await SystemStateProvider.shared.freshSMAppServiceStatus(for: plistName)
         AppLogger.shared.info(
             "🔧 [SM] \(plistName) status=\(status.rawValue) (0=notRegistered,1=enabled,2=requiresApproval,3=notFound)"
         )
@@ -889,7 +889,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let svc = SMAppService.daemon(plistName: plistName)
         do {
             try svc.register()
-            await SMAppServiceStatusProvider.shared.invalidate(plistName: plistName)
+            await SystemStateProvider.shared.invalidateSMAppServiceStatus(plistName: plistName)
             AppLogger.shared.info("✅ [SM] register() ok for \(plistName)")
         } catch {
             AppLogger.shared.error("❌ [SM] register() failed for \(plistName): \(error)")
@@ -903,7 +903,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 do {
                     try await svc.unregister()
-                    await SMAppServiceStatusProvider.shared.invalidate(plistName: plistName)
+                    await SystemStateProvider.shared.invalidateSMAppServiceStatus(plistName: plistName)
                     AppLogger.shared.info("✅ [SM] unregister() ok for \(plistName)")
                 } catch {
                     AppLogger.shared.error("❌ [SM] unregister() failed for \(plistName): \(error)")

@@ -187,6 +187,12 @@ classification remains pending.
   `UninstallCoordinatorTests.testUninstallRemovesPathsAndLogsSuccess`,
   and
   `UninstallCoordinatorTests.testUninstallFailsWhenScriptMissing`.
+- [x] Migrated `App.swift` lifecycle/dev-utility SMAppService status/cache
+  reads and invalidations through `SystemStateProvider`'s SMAppService status
+  façade. Enforced by
+  `SMAppServiceStatusLintTests.testAppLifecycleDelegatesStatusProviderAccessToSystemStateProvider`
+  and
+  `SystemStateProviderSMAppServiceTests.testSMAppServiceStatusAccessDelegatesToCentralStatusProvider`.
 - [ ] Migrate `SMAppService.status`, permissions, VHID state, helper freshness,
   and migrated read-only `launchctl print` evidence into a single immutable
   `SystemSnapshot`.
@@ -346,6 +352,12 @@ through 21 mocked tests).
   `UninstallCoordinatorTests.testUninstallRemovesPathsAndLogsSuccess`,
   and
   `UninstallCoordinatorTests.testUninstallFailsWhenScriptMissing`.
+- [x] `App.swift` lifecycle/dev-utility SMAppService registration status/cache
+  reads delegate to `SystemStateProvider`'s SMAppService status façade.
+  Enforced by
+  `SMAppServiceStatusLintTests.testAppLifecycleDelegatesStatusProviderAccessToSystemStateProvider`
+  and
+  `SystemStateProviderSMAppServiceTests.testSMAppServiceStatusAccessDelegatesToCentralStatusProvider`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -463,6 +475,9 @@ is listed in the state-matrix doc's enforcement section.
 - [x] `SMAppServiceStatusLintTests.testUninstallCoordinatorDelegatesStatusProviderAccessToSystemStateProvider`
   prevents migrated `UninstallCoordinator` SMAppService status/cache access from
   bypassing `SystemStateProvider`.
+- [x] `SMAppServiceStatusLintTests.testAppLifecycleDelegatesStatusProviderAccessToSystemStateProvider`
+  prevents migrated app lifecycle/dev-utility SMAppService status/cache access
+  from bypassing `SystemStateProvider`.
 - [x] `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
   prevents `ServiceHealthChecker` from regrowing a private TCP socket probe.
 - [x] `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed` and

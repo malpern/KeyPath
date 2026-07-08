@@ -178,6 +178,25 @@ final class SMAppServiceStatusLintTests: XCTestCase {
             """
         )
     }
+
+    func testAppLifecycleDelegatesStatusProviderAccessToSystemStateProvider() throws {
+        let app = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/App.swift")
+
+        let violations = try matchingLines(
+            in: app,
+            patterns: [#"SMAppServiceStatusProvider\.shared"#]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            App lifecycle code must delegate SMAppService status/cache access \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {
