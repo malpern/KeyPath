@@ -49,6 +49,7 @@ enum TestSingletonReset {
             ServiceHealthChecker.recentlyRestartedOverride = nil
             ServiceHealthChecker.inputCaptureStatusOverride = nil
             ServiceHealthChecker.vhidDriverExtensionEnabledOverride = nil
+            ServiceHealthChecker.vhidDriverExtensionStatusOverride = nil
         #endif
 
         // TestEnvironment flags

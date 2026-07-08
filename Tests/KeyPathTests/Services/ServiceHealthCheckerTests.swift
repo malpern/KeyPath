@@ -43,6 +43,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
             ServiceHealthChecker.recentlyRestartedOverride = nil
             ServiceHealthChecker.inputCaptureStatusOverride = nil
             ServiceHealthChecker.vhidDriverExtensionEnabledOverride = nil
+            ServiceHealthChecker.vhidDriverExtensionStatusOverride = nil
             ServiceHealthChecker.testForcedServiceHealth = nil
             KanataDaemonManager.registeredButNotLoadedOverride = nil
         #endif
@@ -69,6 +70,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
             ServiceHealthChecker.recentlyRestartedOverride = nil
             ServiceHealthChecker.inputCaptureStatusOverride = nil
             ServiceHealthChecker.vhidDriverExtensionEnabledOverride = nil
+            ServiceHealthChecker.vhidDriverExtensionStatusOverride = nil
             ServiceHealthChecker.testForcedServiceHealth = nil
             KanataDaemonManager.registeredButNotLoadedOverride = nil
         #endif
@@ -325,6 +327,27 @@ final class ServiceHealthCheckerTests: XCTestCase {
 
         XCTAssertTrue(ServiceHealthChecker.systemExtensionsOutputShowsVHIDDriverEnabled(enabled))
         XCTAssertFalse(ServiceHealthChecker.systemExtensionsOutputShowsVHIDDriverEnabled(disabled))
+    }
+
+    func testClassifyVHIDDriverExtensionStatusDistinguishesPendingApprovalFromMissingDriver() {
+        let enabled = """
+        enabled active teamID bundleID (version) name [state]
+            *    *    G43BCU2T37 org.pqrs.Karabiner-DriverKit-VirtualHIDDevice (6.0.0/6.0.0) org.pqrs.Karabiner-DriverKit-VirtualHIDDevice [activated enabled]
+        """
+        let installedButNotEnabled = """
+        enabled active teamID bundleID (version) name [state]
+            *         G43BCU2T37 org.pqrs.Karabiner-DriverKit-VirtualHIDDevice (6.0.0/6.0.0) org.pqrs.Karabiner-DriverKit-VirtualHIDDevice [activated waiting for user]
+        """
+        let missing = """
+        enabled active teamID bundleID (version) name [state]
+        """
+
+        XCTAssertEqual(ServiceHealthChecker.classifyVHIDDriverExtensionStatus(enabled), .enabled)
+        XCTAssertEqual(
+            ServiceHealthChecker.classifyVHIDDriverExtensionStatus(installedButNotEnabled),
+            .installedButNotEnabled
+        )
+        XCTAssertEqual(ServiceHealthChecker.classifyVHIDDriverExtensionStatus(missing), .missing)
     }
 
     func testRuntimeSnapshotReportsVHIDDriverNotActivatedBeforeKanataCrashLoop() async {

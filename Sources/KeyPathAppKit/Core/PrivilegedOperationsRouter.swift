@@ -28,8 +28,10 @@ public final class PrivilegedOperationsRouter {
     private static let persistentLaunchctlNotFoundThreshold = 3
 
     private static let vhidVerifyTimeoutSeconds: Double = 1.5
-    private static let vhidVerifyInterval: Duration = .milliseconds(100)
+    private static let postconditionPollInterval: Duration = .milliseconds(100)
     private static let vhidSettleDelay: Duration = .milliseconds(150)
+    private static let processTerminationVerifyTimeoutSeconds: Double = 1.0
+    private static let kanataStopVerifyTimeoutSeconds: Double = 1.0
 
     #if DEBUG
         nonisolated(unsafe) static var operationModeOverride: OperationMode?
@@ -38,10 +40,15 @@ public final class PrivilegedOperationsRouter {
         nonisolated(unsafe) static var installAllServicesOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var recoverRequiredRuntimeServicesOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var killExistingKanataProcessesOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var activateVirtualHIDManagerOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var downloadAndInstallCorrectVHIDDriverOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var kanataReadinessOverride:
             ((String) async -> KanataReadinessResult)?
         nonisolated(unsafe) static var helperRepairVHIDDaemonServicesOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var vhidServicesPostconditionOverride: ((String) async -> Bool)?
+        nonisolated(unsafe) static var vhidDriverPostconditionOverride: ((String) async -> Bool)?
+        nonisolated(unsafe) static var processTerminatedPostconditionOverride: ((Int32, String) async -> Bool)?
+        nonisolated(unsafe) static var kanataStoppedPostconditionOverride: ((String) async -> Bool)?
 
         static func resetTestingState() {
             operationModeOverride = nil
@@ -49,15 +56,21 @@ public final class PrivilegedOperationsRouter {
             installAllServicesOverride = nil
             recoverRequiredRuntimeServicesOverride = nil
             killExistingKanataProcessesOverride = nil
+            activateVirtualHIDManagerOverride = nil
+            downloadAndInstallCorrectVHIDDriverOverride = nil
             kanataReadinessOverride = nil
             helperRepairVHIDDaemonServicesOverride = nil
             vhidServicesPostconditionOverride = nil
+            vhidDriverPostconditionOverride = nil
+            processTerminatedPostconditionOverride = nil
+            kanataStoppedPostconditionOverride = nil
             lastServiceInstallAttempt = nil
             lastSMAppApprovalNotice = nil
             ServiceInstallGuard.reset()
             KanataDaemonManager.registeredButNotLoadedOverride = nil
             ServiceHealthChecker.runtimeSnapshotOverride = nil
             ServiceHealthChecker.vhidDriverExtensionEnabledOverride = nil
+            ServiceHealthChecker.vhidDriverExtensionStatusOverride = nil
         }
     #endif
 
@@ -225,6 +238,19 @@ public final class PrivilegedOperationsRouter {
     }
 
     public func activateVirtualHIDManager() async throws {
+        #if DEBUG
+            if let override = Self.activateVirtualHIDManagerOverride {
+                try await override()
+            } else {
+                try await runActivateVirtualHIDManager()
+            }
+        #else
+            try await runActivateVirtualHIDManager()
+        #endif
+        try await enforceVHIDServicesPostcondition(after: "activateVirtualHIDManager")
+    }
+
+    private func runActivateVirtualHIDManager() async throws {
         switch Self.operationMode {
         case .privilegedHelper:
             try await helperManager.activateVirtualHIDManager()
@@ -243,6 +269,14 @@ public final class PrivilegedOperationsRouter {
     }
 
     public func downloadAndInstallCorrectVHIDDriver() async throws {
+        #if DEBUG
+            if let override = Self.downloadAndInstallCorrectVHIDDriverOverride {
+                try await override()
+                try await enforceVHIDDriverPostcondition(after: "downloadAndInstallCorrectVHIDDriver")
+                return
+            }
+        #endif
+
         switch Self.operationMode {
         case .privilegedHelper:
             do {
@@ -259,6 +293,7 @@ public final class PrivilegedOperationsRouter {
         case .directSudo:
             try await sudoInstallCorrectDriver()
         }
+        try await enforceVHIDDriverPostcondition(after: "downloadAndInstallCorrectVHIDDriver")
     }
 
     public func terminateProcess(pid: Int32) async throws {
@@ -276,6 +311,7 @@ public final class PrivilegedOperationsRouter {
         case .directSudo:
             try await sudoTerminateProcess(pid: pid)
         }
+        try await enforceProcessTerminatedPostcondition(pid: pid, after: "terminateProcess")
     }
 
     public func killAllKanataProcesses() async throws {
@@ -286,6 +322,7 @@ public final class PrivilegedOperationsRouter {
         case .directSudo:
             try await sudoKillAllKanata()
         }
+        try await enforceKanataStoppedPostcondition(after: "killAllKanataProcesses")
     }
 
     public func restartKarabinerDaemonVerified() async throws -> Bool {
@@ -472,6 +509,30 @@ public final class PrivilegedOperationsRouter {
         }
     }
 
+    private func enforceVHIDDriverPostcondition(after operation: String) async throws {
+        guard await verifyVHIDDriverPostcondition(context: operation) else {
+            throw PrivilegedOperationError.operationFailed(
+                "VHID driver postcondition failed after \(operation)"
+            )
+        }
+    }
+
+    private func enforceProcessTerminatedPostcondition(pid: Int32, after operation: String) async throws {
+        guard await verifyProcessTerminatedPostcondition(pid: pid, context: operation) else {
+            throw PrivilegedOperationError.operationFailed(
+                "Process termination postcondition failed after \(operation) for PID \(pid)"
+            )
+        }
+    }
+
+    private func enforceKanataStoppedPostcondition(after operation: String) async throws {
+        guard await verifyKanataStoppedPostcondition(context: operation) else {
+            throw PrivilegedOperationError.operationFailed(
+                "Kanata stopped postcondition failed after \(operation)"
+            )
+        }
+    }
+
     private func verifyVHIDServicesPostcondition(context: String) async -> Bool {
         #if DEBUG
             if let override = Self.vhidServicesPostconditionOverride {
@@ -492,12 +553,78 @@ public final class PrivilegedOperationsRouter {
             {
                 return true
             }
-            do { try await Task.sleep(for: Self.vhidVerifyInterval) }
+            do { try await Task.sleep(for: Self.postconditionPollInterval) }
             catch { return false }
         } while Date() < deadline
 
-        AppLogger.shared.warn(
+        AppLogger.shared.warnUnlessQuietTest(
             "⚠️ [PrivilegedOperationsRouter] VHID services postcondition failed after \(context)"
+        )
+        return false
+    }
+
+    private func verifyVHIDDriverPostcondition(context: String) async -> Bool {
+        #if DEBUG
+            if let override = Self.vhidDriverPostconditionOverride {
+                return await override(context)
+            }
+        #endif
+
+        switch await serviceHealthChecker.vhidDriverExtensionStatus() {
+        case .enabled:
+            return true
+        case .installedButNotEnabled:
+            AppLogger.shared.warnUnlessQuietTest(
+                "⚠️ [PrivilegedOperationsRouter] VHID driver installed but not enabled after \(context); user approval may be required"
+            )
+            return true
+        case .missing, .unknown:
+            AppLogger.shared.warnUnlessQuietTest(
+                "⚠️ [PrivilegedOperationsRouter] VHID driver postcondition failed after \(context)"
+            )
+            return false
+        }
+    }
+
+    private func verifyProcessTerminatedPostcondition(pid: Int32, context: String) async -> Bool {
+        #if DEBUG
+            if let override = Self.processTerminatedPostconditionOverride {
+                return await override(pid, context)
+            }
+        #endif
+
+        let deadline = Date().addingTimeInterval(Self.processTerminationVerifyTimeoutSeconds)
+        repeat {
+            if !SystemStateProvider.isProcessAlive(pid: pid) {
+                return true
+            }
+            do { try await Task.sleep(for: Self.postconditionPollInterval) }
+            catch { return false }
+        } while Date() < deadline
+
+        AppLogger.shared.warnUnlessQuietTest(
+            "⚠️ [PrivilegedOperationsRouter] Process \(pid) still alive after \(context)"
+        )
+        return false
+    }
+
+    private func verifyKanataStoppedPostcondition(context: String) async -> Bool {
+        #if DEBUG
+            if let override = Self.kanataStoppedPostconditionOverride {
+                return await override(context)
+            }
+        #endif
+
+        let deadline = Date().addingTimeInterval(Self.kanataStopVerifyTimeoutSeconds)
+        repeat {
+            let pids = await SystemStateProvider.shared.processIDs(matching: "kanata.*--cfg")
+            if pids.isEmpty { return true }
+            do { try await Task.sleep(for: Self.postconditionPollInterval) }
+            catch { return false }
+        } while Date() < deadline
+
+        AppLogger.shared.warnUnlessQuietTest(
+            "⚠️ [PrivilegedOperationsRouter] Kanata still running after \(context)"
         )
         return false
     }
@@ -611,7 +738,7 @@ public final class PrivilegedOperationsRouter {
         let start = Date()
         while Date().timeIntervalSince(start) < Self.vhidVerifyTimeoutSeconds {
             if await vhidManager.detectRunning() { return true }
-            try await Task.sleep(for: Self.vhidVerifyInterval)
+            try await Task.sleep(for: Self.postconditionPollInterval)
         }
 
         try await Task.sleep(for: Self.vhidSettleDelay)
@@ -663,7 +790,7 @@ public final class PrivilegedOperationsRouter {
         let startTime = Date()
         while Date().timeIntervalSince(startTime) < Self.vhidVerifyTimeoutSeconds {
             if await vhidManager.detectRunning() { return true }
-            try await Task.sleep(for: Self.vhidVerifyInterval)
+            try await Task.sleep(for: Self.postconditionPollInterval)
         }
 
         return false
