@@ -97,6 +97,30 @@ final class SMAppServiceStatusLintTests: XCTestCase {
             """
         )
     }
+
+    func testHelperManagerAsyncStatusAccessDelegatesToSystemStateProvider() throws {
+        let files = [
+            repositoryRoot().appendingPathComponent("Sources/KeyPathAppKit/Core/HelperManager+Installation.swift"),
+            repositoryRoot().appendingPathComponent("Sources/KeyPathAppKit/Core/HelperManager+Status.swift")
+        ]
+
+        let violations = try files.flatMap {
+            try matchingLines(
+                in: $0,
+                patterns: [#"SMAppServiceStatusProvider\.shared"#]
+            )
+        }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            HelperManager async SMAppService status/cache access must delegate \
+            through SystemStateProvider. The synchronous helperNeedsLoginItemsApproval \
+            direct .status read remains separately guarded by the shrinking allowlist:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {

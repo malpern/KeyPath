@@ -157,6 +157,15 @@ classification remains pending.
   `SystemStateProviderSMAppServiceTests.testSMAppServiceStatusInvalidationDelegatesToCentralStatusProvider`,
   and
   `SMAppServiceStatusLintTests.testKanataDaemonManagerDelegatesStatusProviderAccessToSystemStateProvider`.
+- [x] Migrated `HelperManager` async SMAppService status/cache reads and
+  invalidations through `SystemStateProvider`'s SMAppService status façade.
+  The synchronous `helperNeedsLoginItemsApproval()` wizard-navigation read
+  remains a later migration slice because it requires threading async state
+  through that caller. Enforced by
+  `SMAppServiceStatusLintTests.testHelperManagerAsyncStatusAccessDelegatesToSystemStateProvider`,
+  `HelperManagerTests.testInstallHelperAttemptsRegisterWhenStatusIsNotFoundAndSurfacesError`,
+  and
+  `HelperManagerTests.testInstallHelperRecoversEnabledButUnresponsiveRegistration`.
 - [ ] Migrate `SMAppService.status`, permissions, VHID state, helper freshness,
   and migrated read-only `launchctl print` evidence into a single immutable
   `SystemSnapshot`.
@@ -292,6 +301,12 @@ through 21 mocked tests).
   `SystemStateProviderSMAppServiceTests.testSMAppServiceStatusInvalidationDelegatesToCentralStatusProvider`,
   and
   `SMAppServiceStatusLintTests.testKanataDaemonManagerDelegatesStatusProviderAccessToSystemStateProvider`.
+- [x] `HelperManager` async SMAppService registration status/cache reads
+  delegate to `SystemStateProvider`'s SMAppService status façade. Enforced by
+  `SMAppServiceStatusLintTests.testHelperManagerAsyncStatusAccessDelegatesToSystemStateProvider`,
+  `HelperManagerTests.testInstallHelperAttemptsRegisterWhenStatusIsNotFoundAndSurfacesError`,
+  and
+  `HelperManagerTests.testInstallHelperRecoversEnabledButUnresponsiveRegistration`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -397,6 +412,9 @@ is listed in the state-matrix doc's enforcement section.
 - [x] `SMAppServiceStatusLintTests.testKanataDaemonManagerDelegatesStatusProviderAccessToSystemStateProvider`
   prevents the first migrated SMAppService status consumer from bypassing
   `SystemStateProvider`.
+- [x] `SMAppServiceStatusLintTests.testHelperManagerAsyncStatusAccessDelegatesToSystemStateProvider`
+  prevents migrated `HelperManager` async SMAppService status/cache access from
+  bypassing `SystemStateProvider`.
 - [x] `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
   prevents `ServiceHealthChecker` from regrowing a private TCP socket probe.
 - [x] `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed` and
