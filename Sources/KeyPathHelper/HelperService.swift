@@ -341,7 +341,7 @@ class HelperService: NSObject, HelperProtocol {
             operation: {
                 // Try graceful then force
                 _ = Self.run("/usr/bin/pkill", ["-f", "kanata"]) // may return non-zero if none
-                let still = Self.run("/usr/bin/pgrep", ["-f", "kanata"]).status == 0
+                let still = !SystemStateProvider.processIDsSynchronously(matching: "kanata").isEmpty
                 if still { _ = Self.run("/usr/bin/pkill", ["-9", "-f", "kanata"]) }
             },
             reply: reply
@@ -758,11 +758,8 @@ extension HelperService {
 
     static func terminateStaleVHIDManagerActivationProcesses() {
         let pattern = "\(vhidManagerPath) activate"
-        let existing = run("/usr/bin/pgrep", ["-f", pattern], timeout: 5)
-        let pids = existing.out
-            .split(whereSeparator: \.isNewline)
+        let pids = SystemStateProvider.processIDsSynchronously(matching: pattern)
             .map(String.init)
-            .filter { !$0.isEmpty }
         guard !pids.isEmpty else { return }
 
         _ = run("/bin/kill", ["-KILL"] + pids, timeout: 5)

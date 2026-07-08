@@ -114,7 +114,8 @@ classification remains pending.
   `SystemStateProviderLivenessTests.testProcessMatchDiscoveryDelegatesToInjectedSubprocessRunner`,
   `SystemStateProviderLivenessTests.testProcessMatchDiscoveryRejectsBlankPatterns`,
   `ProcessLifecycleManagerTests.testDetectKanataProcessesUsesInjectedSystemStateProvider`,
-  and `PgrepProcessDiscoveryLintTests.testProcessLifecycleManagerDelegatesPgrepDiscoveryToSystemStateProvider`.
+  `PgrepProcessDiscoveryLintTests.testProcessLifecycleManagerDelegatesPgrepDiscoveryToSystemStateProvider`,
+  and `PgrepProcessDiscoveryLintTests.testHelperServiceDelegatesPgrepDiscoveryToSystemStateProvider`.
 - [ ] Migrate `launchctl`, `SMAppService.status`, remaining `pgrep` consumers,
   permissions, VHID state, and helper freshness into a single immutable
   `SystemSnapshot`.
@@ -203,6 +204,12 @@ through 21 mocked tests).
   `ProcessLifecycleManagerTests.testDetectKanataProcessesUsesInjectedSystemStateProvider`,
   and
   `PgrepProcessDiscoveryLintTests.testProcessLifecycleManagerDelegatesPgrepDiscoveryToSystemStateProvider`.
+- [x] `HelperService` synchronous privileged-helper process discovery delegates
+  to `SystemStateProvider.processIDsSynchronously(matching:)`. Enforced by
+  `SystemStateProviderLivenessTests.testSynchronousProcessDiscoveryRejectsBlankPatterns`,
+  `SystemStateProviderLivenessTests.testSynchronousProcessDiscoveryReturnsEmptyForMissingProcess`,
+  and
+  `PgrepProcessDiscoveryLintTests.testHelperServiceDelegatesPgrepDiscoveryToSystemStateProvider`.
 - [ ] Centralize remaining `pgrep` process-discovery consumers as later W1/W2
   migration slices.
 
