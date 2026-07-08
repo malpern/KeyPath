@@ -227,7 +227,9 @@ the result as user action required and name the approval surface.
   `SystemStateProviderPermissionTests.testPermissionSnapshotRefreshBypassesCachedSnapshot`
   cover the façade, while
   `PermissionSnapshotLintTests.testPermissionRequestServiceDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevents `PermissionRequestService` from bypassing it.
+  prevents `PermissionRequestService` from bypassing it and
+  `PermissionSnapshotLintTests.testPermissionGateDelegatesPermissionSnapshotsToSystemStateProvider`
+  prevents `PermissionGate` from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References

@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 import KeyPathPermissions
 
 enum PGPermissionType: Hashable {
@@ -45,7 +46,6 @@ final class PermissionGate {
     private init() {}
 
     private let permissionService = PermissionRequestService.shared
-    private let oracle = PermissionOracle.shared
 
     struct Evaluation: Equatable {
         let missingKeyPath: Set<PGPermissionType>
@@ -100,7 +100,7 @@ final class PermissionGate {
         onGranted: @escaping () async -> Void,
         onDenied: @escaping () -> Void
     ) async {
-        let snapshot = await oracle.currentSnapshot()
+        let snapshot = await SystemStateProvider.shared.currentPermissionSnapshot()
         let eval = Self.evaluate(snapshot, for: feature)
 
         // If Kanata permissions are not verifiable (unknown), do NOT label them "required".
@@ -175,7 +175,7 @@ final class PermissionGate {
         // Poll until granted or timeout
         for _ in 0 ..< 30 {
             try? await Task.sleep(for: .seconds(1))
-            let snap = await oracle.currentSnapshot()
+            let snap = await SystemStateProvider.shared.currentPermissionSnapshot()
             // JIT gates only request KeyPath permissions automatically. Kanata is handled via wizard.
             // Therefore, we only require KeyPath permission to proceed here.
             let allGranted = feature.requiredPermissions.allSatisfy { p in
