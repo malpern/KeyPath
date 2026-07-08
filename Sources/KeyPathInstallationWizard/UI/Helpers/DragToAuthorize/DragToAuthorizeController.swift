@@ -321,7 +321,7 @@ public final class DragToAuthorizeController {
     }
 
     private func checkPermission(for target: PermissionTarget, subject: PermissionSubject) async {
-        let snapshot = await PermissionOracle.shared.forceRefresh()
+        let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
         // Full Disk Access is not represented in the Oracle snapshot; it is read
         // separately (and only ever applies to KeyPath.app, i.e. `.keyPath`).
         let fdaGranted = WizardDependencies.fullDiskAccessChecker?.hasFullDiskAccess() ?? false

@@ -213,7 +213,7 @@ public struct WizardAccessibilityPage: View {
                                 if kanataAccessibilityStatus != .completed {
                                     Button("Add in Settings") {
                                         Task {
-                                            let snapshot = await PermissionOracle.shared.forceRefresh()
+                                            let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
                                             if snapshot.kanata.accessibility.isReady {
                                                 AppLogger.shared.log("🔘 [WizardAccessibilityPage] Fix clicked — permission already granted, navigating to summary")
                                                 await onRefresh()
@@ -265,7 +265,7 @@ public struct WizardAccessibilityPage: View {
         .task {
             // Set initial snapshot immediately so the page renders correct state
             // before the polling loop's first 500ms tick.
-            permissionSnapshot = await PermissionOracle.shared.forceRefresh()
+            permissionSnapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
         }
         .onAppear {
             // Always restart polling on appear — SwiftUI may have cancelled
@@ -275,7 +275,7 @@ public struct WizardAccessibilityPage: View {
                 var hasEverCelebrated = false
                 while !Task.isCancelled {
                     _ = await WizardSleep.ms(1000)
-                    let snapshot = await PermissionOracle.shared.forceRefresh()
+                    let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
                     permissionSnapshot = snapshot
 
                     let bothGranted = snapshot.keyPath.accessibility.isReady
@@ -389,7 +389,7 @@ public struct WizardAccessibilityPage: View {
                 await onRefresh()
                 return
             }
-            // Poll for grant (KeyPath + Kanata) using Oracle snapshot
+            // Poll for grant (KeyPath + Kanata) using the shared system-state facade.
             permissionPollingTask?.cancel()
             permissionPollingTask = Task { @MainActor [onRefresh] in
                 var attempts = 0
@@ -399,7 +399,7 @@ public struct WizardAccessibilityPage: View {
                 while attempts < maxAttempts {
                     _ = await WizardSleep.ms(1000)
                     attempts += 1
-                    let snapshot = await PermissionOracle.shared.forceRefresh()
+                    let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
                     // Keep the snapshot fresh each tick so the page re-renders and the
                     // #933 escalation card can appear once the wait window elapses.
                     permissionSnapshot = snapshot
@@ -425,7 +425,7 @@ public struct WizardAccessibilityPage: View {
             }
             // Fallback: if not granted shortly, open Accessibility settings so the user can toggle
             _ = await WizardSleep.ms(1500) // 1.5s
-            let snapshot = await PermissionOracle.shared.forceRefresh()
+            let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
             let granted =
                 snapshot.keyPath.accessibility.isReady && snapshot.kanata.accessibility.isReady
             if !granted {
@@ -462,7 +462,7 @@ public struct WizardAccessibilityPage: View {
         // Check if Input Monitoring is already granted - if so, we can close System Settings early
         // since the user won't need to visit it again for permissions
         Task { @MainActor in
-            let snapshot = await PermissionOracle.shared.forceRefresh()
+            let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
             let inputMonitoringGranted = snapshot.keyPath.inputMonitoring.isReady
                 && snapshot.kanata.inputMonitoring.isReady
 
