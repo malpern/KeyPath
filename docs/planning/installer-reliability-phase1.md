@@ -134,6 +134,13 @@ classification remains pending.
   `ServiceHealthCheckerTests.testKanataRuntimeSnapshotDelegatesLaunchctlTargetsToSystemStateProvider`,
   and
   `LaunchctlEvidenceLintTests.testServiceHealthCheckerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
+- [x] Migrated `KanataDaemonManager`'s read-only `launchctl print`
+  installation and stale-registration evidence to
+  `SystemStateProvider.launchctlPrint(target:)`. Enforced by
+  `KanataDaemonManagerTests.testIsInstalledUsesInjectedSystemStateProviderForLaunchctlEvidence`,
+  `KanataDaemonManagerTests.testRegisteredButNotLoadedUsesInjectedSystemStateProviderForLaunchctlEvidence`,
+  and
+  `LaunchctlEvidenceLintTests.testKanataDaemonManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
 - [ ] Migrate `launchctl`, `SMAppService.status`, permissions, VHID state, and
   helper freshness into a single immutable `SystemSnapshot`.
 - [ ] Build `classify(snapshot) -> StateMatrixRow -> plan` and table-driven
@@ -247,6 +254,13 @@ through 21 mocked tests).
   `ServiceHealthCheckerTests.testKanataRuntimeSnapshotDelegatesLaunchctlTargetsToSystemStateProvider`,
   and
   `LaunchctlEvidenceLintTests.testServiceHealthCheckerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
+- [x] `KanataDaemonManager` read-only `launchctl print` installation and
+  stale-registration evidence delegates to
+  `SystemStateProvider.launchctlPrint(target:)`. Enforced by
+  `KanataDaemonManagerTests.testIsInstalledUsesInjectedSystemStateProviderForLaunchctlEvidence`,
+  `KanataDaemonManagerTests.testRegisteredButNotLoadedUsesInjectedSystemStateProviderForLaunchctlEvidence`,
+  and
+  `LaunchctlEvidenceLintTests.testKanataDaemonManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -384,6 +398,9 @@ is listed in the state-matrix doc's enforcement section.
   service-state reads.
 - [x] `LaunchctlEvidenceLintTests.testServiceHealthCheckerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
   prevents `ServiceHealthChecker` from regrowing direct `launchctl print`
+  service-state reads.
+- [x] `LaunchctlEvidenceLintTests.testKanataDaemonManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
+  prevents `KanataDaemonManager` from regrowing direct `launchctl print`
   service-state reads.
 - [ ] Add remaining `launchctl`, postcondition, and snapshot-cache
   ratchets with the corresponding migration slices.

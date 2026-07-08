@@ -20,6 +20,13 @@ final class LaunchctlEvidenceLintTests: XCTestCase {
 
         assertNoDirectLaunchctlPrintEvidenceReads(in: checker)
     }
+
+    func testKanataDaemonManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider() {
+        let manager = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/KanataDaemonManager.swift")
+
+        assertNoDirectLaunchctlPrintEvidenceReads(in: manager)
+    }
 }
 
 private func assertNoDirectLaunchctlPrintEvidenceReads(

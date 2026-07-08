@@ -27,6 +27,20 @@ final class KanataDaemonManagerTests: XCTestCase {
         try await super.tearDown()
     }
 
+    private actor DirectLaunchctlPoisonRunner: SubprocessRunning {
+        func run(_: String, args _: [String], timeout _: TimeInterval?) async throws -> ProcessResult {
+            ProcessResult(exitCode: 113, stdout: "", stderr: "direct runner must not be used", duration: 0.01)
+        }
+
+        func pgrep(_: String) async -> [pid_t] {
+            []
+        }
+
+        func launchctl(_: String, _: [String]) async throws -> ProcessResult {
+            ProcessResult(exitCode: 113, stdout: "", stderr: "direct launchctl must not be used", duration: 0.01)
+        }
+    }
+
     // MARK: - Status Checking Tests
 
     func testGetStatus() async {
@@ -55,6 +69,55 @@ final class KanataDaemonManagerTests: XCTestCase {
         let isInstalled = await manager.isInstalled()
         // Should return boolean without crashing
         XCTAssertNotNil(isInstalled)
+    }
+
+    func testIsInstalledUsesInjectedSystemStateProviderForLaunchctlEvidence() async {
+        final class NotRegisteredMockService: SMAppServiceProtocol, @unchecked Sendable {
+            var status: SMAppService.Status = .notRegistered
+
+            func register() throws {}
+            func unregister() async throws {}
+        }
+
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configureLaunchctlResult { subcommand, args in
+            if subcommand == "print", args == ["system/\(KanataDaemonManager.kanataServiceID)"] {
+                return ProcessResult(
+                    exitCode: 0,
+                    stdout: """
+                    program = Contents/Library/KeyPath/kanata-launcher
+                    state = running
+                    pid = 24680
+                    """,
+                    stderr: "",
+                    duration: 0.01
+                )
+            }
+            return ProcessResult(exitCode: 113, stdout: "", stderr: "not found", duration: 0.01)
+        }
+        let mockService = NotRegisteredMockService()
+        SMAppServiceStatusProvider.shared = SMAppServiceStatusProvider(
+            cacheTTL: 0,
+            serviceFactory: { _ in mockService }
+        )
+        let provider = SystemStateProvider(subprocessRunner: runner)
+        let manager = KanataDaemonManager(
+            subprocessRunner: DirectLaunchctlPoisonRunner(),
+            systemStateProvider: provider
+        )
+
+        let isInstalled = await manager.isInstalled()
+        let commands = await runner.executedCommands
+
+        XCTAssertTrue(isInstalled)
+        XCTAssertTrue(
+            commands.contains {
+                $0.executable == "/bin/launchctl"
+                    && $0.args == ["print", "system/\(KanataDaemonManager.kanataServiceID)"]
+            },
+            "KanataDaemonManager should use the injected provider for launchctl print evidence"
+        )
     }
 
     // MARK: - Validation Tests
@@ -213,6 +276,50 @@ final class KanataDaemonManagerTests: XCTestCase {
         XCTAssertTrue(
             commands.contains { $0.executable == "/usr/bin/pgrep" && $0.args == ["-f", "kanata.*--cfg"] },
             "KanataDaemonManager should use the injected provider's subprocess runner for process discovery"
+        )
+    }
+
+    func testRegisteredButNotLoadedUsesInjectedSystemStateProviderForLaunchctlEvidence() async {
+        final class EnabledMockService: SMAppServiceProtocol, @unchecked Sendable {
+            var status: SMAppService.Status = .enabled
+
+            func register() throws {}
+            func unregister() async throws {}
+        }
+
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configureLaunchctlResult { _, _ in
+            ProcessResult(exitCode: 113, stdout: "", stderr: "service not found", duration: 0.01)
+        }
+        await runner.configurePgrepResult { _ in [] }
+
+        let mockService = EnabledMockService()
+        SMAppServiceStatusProvider.shared = SMAppServiceStatusProvider(
+            cacheTTL: 0,
+            serviceFactory: { _ in mockService }
+        )
+        let provider = SystemStateProvider(subprocessRunner: runner)
+        let manager = KanataDaemonManager(
+            subprocessRunner: DirectLaunchctlPoisonRunner(),
+            systemStateProvider: provider
+        )
+
+        let isStale = await manager.isRegisteredButNotLoaded()
+        let commands = await runner.executedCommands
+
+        XCTAssertTrue(isStale, "Missing launchctl evidence plus no Kanata process should be stale")
+        XCTAssertTrue(
+            commands.contains {
+                $0.executable == "/bin/launchctl"
+                    && $0.args == ["print", "gui/\(getuid())/\(KanataDaemonManager.kanataServiceID)"]
+            }
+        )
+        XCTAssertTrue(
+            commands.contains {
+                $0.executable == "/bin/launchctl"
+                    && $0.args == ["print", "system/\(KanataDaemonManager.kanataServiceID)"]
+            }
         )
     }
 }
