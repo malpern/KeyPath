@@ -9,17 +9,16 @@ Run the pre-PR review gate for the current branch.
 
 Exit codes:
   0  Local review gate ran and passed.
-  2  Local review tooling is unavailable; PR must rely on GitHub claude-review.
+  2  Remote review gate required; PR must wait for GitHub claude-review.
   1  Local review gate ran and failed, or repository state is invalid.
 
 Options:
   --require-local  Treat unavailable local review tooling as a failure.
 
-Codex note:
-  The Codex shell does not currently provide /thermo-nuclear-swift-review or
-  claude. In that environment this script should be run before PR creation and
-  its exit code 2 recorded as "remote review required"; the PR must not merge
-  until the GitHub claude-review check passes.
+Remote review note:
+  Exit 2 is the expected path when local review tooling is not configured
+  (common in Codex shells). Record it as "remote review gate selected" in the
+  PR. This is not a failure; the merge gate is the GitHub claude-review check.
 EOF
 }
 
@@ -84,9 +83,9 @@ EOF
     exit $?
 fi
 
-message="review-gate: local review tooling unavailable; require GitHub claude-review before merge"
+message="review-gate: remote review gate selected; GitHub claude-review must pass before merge"
 if [[ "$require_local" -eq 1 ]]; then
-    echo "$message" >&2
+    echo "review-gate: local review tooling required but unavailable" >&2
     exit 1
 fi
 
