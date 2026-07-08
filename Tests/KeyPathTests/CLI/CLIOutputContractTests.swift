@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+import KeyPathCLISupport
 import KeyPathCore
 @testable import KeyPathInstallationWizard
 import KeyPathWizardCore

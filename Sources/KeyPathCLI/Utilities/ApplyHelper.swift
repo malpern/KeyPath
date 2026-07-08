@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import KeyPathAppKit
+import KeyPathCLISupport
 
 func applyConfigurationOrHint(apply: Bool, context: OutputContext) async throws {
     if apply {
