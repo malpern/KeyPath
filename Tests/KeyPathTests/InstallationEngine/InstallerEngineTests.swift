@@ -203,7 +203,11 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
             recipes: [],
             status: .blocked(requirement: blockedRequirement),
             intent: .install,
-            blockedBy: blockedRequirement
+            blockedBy: blockedRequirement,
+            metadata: PlanMetadata(
+                stateMatrixRow: InstallerStateMatrixRow.manualApprovalRequired.rawValue,
+                stateMatrixPlan: [InstallerStateMatrixAction.surfaceManualApproval.rawValue]
+            )
         )
         let broker = PrivilegeBroker()
 
@@ -218,6 +222,101 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
             report.unmetRequirements.first?.name, "Test requirement",
             "Report should include correct requirement name"
         )
+        XCTAssertEqual(report.repairTelemetry.count, 1)
+        XCTAssertEqual(report.repairTelemetry.first?.trigger, .executePlan)
+        XCTAssertEqual(report.repairTelemetry.first?.intent, "install")
+        XCTAssertEqual(
+            report.repairTelemetry.first?.stateMatrixRow,
+            InstallerStateMatrixRow.manualApprovalRequired.rawValue
+        )
+        XCTAssertEqual(report.repairTelemetry.first?.postconditionResult, .blocked)
+        XCTAssertEqual(report.repairTelemetry.first?.error, "Test requirement")
+    }
+
+    func testExecuteRecordsStructuredRepairTelemetryForSuccessfulRecipe() async {
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(
+                    id: InstallerRecipeID.createConfigDirectories,
+                    type: .installComponent
+                ),
+            ],
+            status: .ready,
+            intent: .repair,
+            metadata: PlanMetadata(
+                stateMatrixRow: InstallerStateMatrixRow.freshInstallMissingComponents.rawValue,
+                stateMatrixPlan: [InstallerStateMatrixAction.installMissingComponents.rawValue]
+            )
+        )
+
+        let report = await engine.execute(plan: plan, using: PrivilegeBroker())
+
+        XCTAssertTrue(report.success)
+        XCTAssertEqual(report.repairTelemetry.count, 1)
+        let event = report.repairTelemetry[0]
+        XCTAssertEqual(event.trigger, .executePlan)
+        XCTAssertEqual(event.intent, "repair")
+        XCTAssertEqual(event.stateMatrixRow, InstallerStateMatrixRow.freshInstallMissingComponents.rawValue)
+        XCTAssertEqual(event.stateMatrixPlan, [InstallerStateMatrixAction.installMissingComponents.rawValue])
+        XCTAssertEqual(event.action, InstallerRecipeID.createConfigDirectories)
+        XCTAssertEqual(event.recipeID, InstallerRecipeID.createConfigDirectories)
+        XCTAssertEqual(event.recipeType, "install-component")
+        XCTAssertEqual(event.postconditionResult, .succeeded)
+        XCTAssertNil(event.error)
+    }
+
+    func testExecuteRecordsStructuredRepairTelemetryForFailedRecipe() async {
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(
+                    id: "unknown-test-recipe",
+                    type: .installComponent
+                ),
+            ],
+            status: .ready,
+            intent: .repair,
+            metadata: PlanMetadata(
+                stateMatrixRow: InstallerStateMatrixRow.definitiveUnhealthyState.rawValue,
+                stateMatrixPlan: [InstallerStateMatrixAction.failWithDiagnostics.rawValue]
+            )
+        )
+
+        let report = await engine.execute(plan: plan, using: PrivilegeBroker())
+
+        XCTAssertFalse(report.success)
+        XCTAssertEqual(report.repairTelemetry.count, 1)
+        let event = report.repairTelemetry[0]
+        XCTAssertEqual(event.intent, "repair")
+        XCTAssertEqual(event.stateMatrixRow, InstallerStateMatrixRow.definitiveUnhealthyState.rawValue)
+        XCTAssertEqual(event.action, "unknown-test-recipe")
+        XCTAssertEqual(event.recipeID, "unknown-test-recipe")
+        XCTAssertEqual(event.recipeType, "install-component")
+        XCTAssertEqual(event.postconditionResult, .failed)
+        XCTAssertTrue(event.error?.contains("Unknown component recipe") == true)
+    }
+
+    func testExecuteRecordsStructuredRepairTelemetryForNoopPlan() async {
+        let plan = InstallPlan(
+            recipes: [],
+            status: .ready,
+            intent: .repair,
+            metadata: PlanMetadata(
+                stateMatrixRow: InstallerStateMatrixRow.runningAndTCPResponding.rawValue,
+                stateMatrixPlan: []
+            )
+        )
+
+        let report = await engine.execute(plan: plan, using: PrivilegeBroker())
+
+        XCTAssertTrue(report.success)
+        XCTAssertEqual(report.repairTelemetry.count, 1)
+        let event = report.repairTelemetry[0]
+        XCTAssertEqual(event.intent, "repair")
+        XCTAssertEqual(event.stateMatrixRow, InstallerStateMatrixRow.runningAndTCPResponding.rawValue)
+        XCTAssertNil(event.action)
+        XCTAssertNil(event.recipeID)
+        XCTAssertNil(event.recipeType)
+        XCTAssertEqual(event.postconditionResult, .skipped)
     }
 
     func testExecuteExecutesRecipesInOrder() async {

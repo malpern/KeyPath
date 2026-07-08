@@ -111,6 +111,45 @@ final class CLIOutputContractTests: XCTestCase {
         )
     }
 
+    func testInstallerReportRepairTelemetryJSONShape() throws {
+        let installerReport = InstallerReport(
+            success: true,
+            executedRecipes: [
+                RecipeResult(recipeID: InstallerRecipeID.createConfigDirectories, success: true),
+            ],
+            repairTelemetry: [
+                InstallerRepairTelemetryEvent(
+                    timestamp: Date(timeIntervalSince1970: 0),
+                    trigger: .executePlan,
+                    intent: "repair",
+                    stateMatrixRow: InstallerStateMatrixRow.freshInstallMissingComponents.rawValue,
+                    stateMatrixPlan: [InstallerStateMatrixAction.installMissingComponents.rawValue],
+                    action: InstallerRecipeID.createConfigDirectories,
+                    recipeID: InstallerRecipeID.createConfigDirectories,
+                    recipeType: "install-component",
+                    postconditionResult: .succeeded
+                ),
+            ]
+        )
+
+        let report = CLIInstallerReport(from: installerReport)
+        let keys = try jsonKeys(report)
+        XCTAssertTrue(keys.contains("repairTelemetry"))
+
+        let data = try encoder.encode(report)
+        let decoded = try decoder.decode(CLIInstallerReport.self, from: data)
+        let event = try XCTUnwrap(decoded.repairTelemetry?.first)
+        XCTAssertEqual(event.trigger, "execute-plan")
+        XCTAssertEqual(event.intent, "repair")
+        XCTAssertEqual(event.stateMatrixRow, InstallerStateMatrixRow.freshInstallMissingComponents.rawValue)
+        XCTAssertEqual(event.stateMatrixPlan, [InstallerStateMatrixAction.installMissingComponents.rawValue])
+        XCTAssertEqual(event.action, InstallerRecipeID.createConfigDirectories)
+        XCTAssertEqual(event.recipeID, InstallerRecipeID.createConfigDirectories)
+        XCTAssertEqual(event.recipeType, "install-component")
+        XCTAssertEqual(event.postconditionResult, "succeeded")
+        XCTAssertNil(event.error)
+    }
+
     func testInstallerReportMarksActivationApprovalTimeoutAsUserActionRequired() {
         let context = SystemContextBuilder.degradedRepair()
         let plan = InstallPlan(

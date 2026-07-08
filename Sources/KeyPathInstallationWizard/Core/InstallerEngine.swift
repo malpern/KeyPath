@@ -117,6 +117,12 @@ public final class InstallerEngine {
     /// is marked `.blocked` with the missing requirement.
     public func makePlan(for intent: InstallIntent, context: SystemContext) async -> InstallPlan {
         AppLogger.shared.log("📋 [InstallerEngine] Starting makePlan(for: \(intent), context:)")
+        let stateMatrixRow = context.installerStateMatrixRow.rawValue
+        let stateMatrixPlan = context.installerStateMatrixPlan.map(\.rawValue)
+        let baseMetadata = PlanMetadata(
+            stateMatrixRow: stateMatrixRow,
+            stateMatrixPlan: stateMatrixPlan
+        )
 
         // Phase 3: Check requirements first
         if let blockingRequirement = await checkRequirements(for: intent, context: context) {
@@ -128,7 +134,7 @@ public final class InstallerEngine {
                 status: .blocked(requirement: blockingRequirement),
                 intent: intent,
                 blockedBy: blockingRequirement,
-                metadata: PlanMetadata()
+                metadata: baseMetadata
             )
         }
 
@@ -150,7 +156,11 @@ public final class InstallerEngine {
             status: .ready,
             intent: intent,
             blockedBy: nil,
-            metadata: PlanMetadata(promptsNeeded: actions.contains { actionNeedsPrompt($0) })
+            metadata: PlanMetadata(
+                promptsNeeded: actions.contains { actionNeedsPrompt($0) },
+                stateMatrixRow: stateMatrixRow,
+                stateMatrixPlan: stateMatrixPlan
+            )
         )
 
         AppLogger.shared.log(
@@ -237,7 +247,11 @@ public final class InstallerEngine {
     /// Execute the planned operations
     /// Returns: Structured report with success/failure details and final state.
     /// If the plan was blocked by unmet requirements, execution stops immediately and the report indicates which requirement failed.
-    public func execute(plan: InstallPlan, using broker: PrivilegeBroker) async -> InstallerReport {
+    public func execute(
+        plan: InstallPlan,
+        using broker: PrivilegeBroker,
+        trigger: InstallerRepairTelemetryTrigger = .executePlan
+    ) async -> InstallerReport {
         AppLogger.shared.log("⚙️ [InstallerEngine] Starting execute(plan:, using:)")
 
         // Check if plan is blocked
@@ -245,11 +259,23 @@ public final class InstallerEngine {
             AppLogger.shared.log(
                 "⚠️ [InstallerEngine] Plan is blocked by requirement: \(requirement.name)"
             )
+            let telemetry = InstallerRepairTelemetryEvent(
+                trigger: trigger,
+                intent: plan.intent.telemetryValue,
+                stateMatrixRow: plan.metadata.stateMatrixRow,
+                stateMatrixPlan: plan.metadata.stateMatrixPlan,
+                action: nil,
+                recipeID: nil,
+                recipeType: nil,
+                postconditionResult: .blocked,
+                error: requirement.name
+            )
             return InstallerReport(
                 success: false,
                 failureReason: "Plan blocked by requirement: \(requirement.name)",
                 unmetRequirements: [requirement],
-                executedRecipes: []
+                executedRecipes: [],
+                repairTelemetry: [telemetry]
             )
         }
 
@@ -257,6 +283,22 @@ public final class InstallerEngine {
         var executedRecipes: [RecipeResult] = []
         var firstFailure: (recipe: ServiceRecipe, error: Error)?
         var allLogs: [String] = []
+        var repairTelemetry: [InstallerRepairTelemetryEvent] = []
+
+        if plan.recipes.isEmpty {
+            repairTelemetry.append(
+                InstallerRepairTelemetryEvent(
+                    trigger: trigger,
+                    intent: plan.intent.telemetryValue,
+                    stateMatrixRow: plan.metadata.stateMatrixRow,
+                    stateMatrixPlan: plan.metadata.stateMatrixPlan,
+                    action: nil,
+                    recipeID: nil,
+                    recipeType: nil,
+                    postconditionResult: .skipped
+                )
+            )
+        }
 
         for recipe in plan.recipes {
             AppLogger.shared.log(
@@ -302,6 +344,14 @@ public final class InstallerEngine {
                         commandsRun: commandsRun
                     )
                 )
+                repairTelemetry.append(
+                    makeRepairTelemetryEvent(
+                        trigger: trigger,
+                        plan: plan,
+                        recipe: recipe,
+                        result: .succeeded
+                    )
+                )
                 AppLogger.shared.log("✅ [InstallerEngine] Recipe \(recipe.id) completed successfully")
 
             } catch {
@@ -325,6 +375,15 @@ public final class InstallerEngine {
                 AppLogger.shared.log(
                     "❌ [InstallerEngine] Recipe \(recipe.id) failed: \(recipeError ?? "Unknown error")"
                 )
+                repairTelemetry.append(
+                    makeRepairTelemetryEvent(
+                        trigger: trigger,
+                        plan: plan,
+                        recipe: recipe,
+                        result: .failed,
+                        error: recipeError
+                    )
+                )
 
                 firstFailure = (recipe, error)
                 break // Stop execution on first failure
@@ -340,13 +399,34 @@ public final class InstallerEngine {
             },
             unmetRequirements: success ? [] : plan.blockedBy.map { [$0] } ?? [],
             executedRecipes: executedRecipes,
-            logs: allLogs
+            logs: allLogs,
+            repairTelemetry: repairTelemetry
         )
 
         AppLogger.shared.log(
             "✅ [InstallerEngine] execute() complete - success: \(success), recipes executed: \(executedRecipes.count)"
         )
         return report
+    }
+
+    private func makeRepairTelemetryEvent(
+        trigger: InstallerRepairTelemetryTrigger,
+        plan: InstallPlan,
+        recipe: ServiceRecipe,
+        result: InstallerRepairTelemetryResult,
+        error: String? = nil
+    ) -> InstallerRepairTelemetryEvent {
+        InstallerRepairTelemetryEvent(
+            trigger: trigger,
+            intent: plan.intent.telemetryValue,
+            stateMatrixRow: plan.metadata.stateMatrixRow,
+            stateMatrixPlan: plan.metadata.stateMatrixPlan,
+            action: recipe.id,
+            recipeID: recipe.id,
+            recipeType: recipe.type.telemetryValue,
+            postconditionResult: result,
+            error: error
+        )
     }
 
     // MARK: - Recipe Execution
@@ -630,7 +710,7 @@ public final class InstallerEngine {
         // Chain the steps
         let context = await inspectSystem()
         let plan = await makePlan(for: intent, context: context)
-        let report = await execute(plan: plan, using: broker)
+        let report = await execute(plan: plan, using: broker, trigger: .run)
 
         AppLogger.shared.log("✅ [InstallerEngine] run() complete - success: \(report.success)")
         return report
@@ -678,7 +758,20 @@ public final class InstallerEngine {
             success: success,
             failureReason: success ? nil : failure,
             executedRecipes: [recipeResult],
-            logs: []
+            logs: [],
+            repairTelemetry: [
+                InstallerRepairTelemetryEvent(
+                    trigger: .uninstall,
+                    intent: InstallIntent.uninstall.telemetryValue,
+                    stateMatrixRow: nil,
+                    stateMatrixPlan: [],
+                    action: recipeID,
+                    recipeID: recipeID,
+                    recipeType: "uninstall",
+                    postconditionResult: success ? .succeeded : .failed,
+                    error: success ? nil : failure
+                ),
+            ]
         )
 
         AppLogger.shared.log("🗑️ [InstallerEngine] uninstall complete - success: \(success)")
@@ -733,7 +826,7 @@ public final class InstallerEngine {
             metadata: basePlan.metadata
         )
 
-        let report = await execute(plan: filteredPlan, using: broker)
+        let report = await execute(plan: filteredPlan, using: broker, trigger: .singleAction)
         AppLogger.shared.log(
             "✅ [InstallerEngine] runSingleAction(\(action), using:) complete - success: \(report.success)"
         )
