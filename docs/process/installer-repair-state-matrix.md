@@ -267,6 +267,16 @@ the result as user action required and name the approval surface.
   requires one fixture per documented row, and
   `InstallerStateMatrixGoldenTests.testClassifySnapshotAndPlanMatchStateMatrixGoldenFixtures`
   asserts evidence in -> row out -> plan out for every row.
+- Live state-matrix snapshot materialization belongs behind
+  `SystemStateProvider.currentInstallerStateMatrixSnapshot(...)`. The adapter is
+  pinned by
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotPreservesRunningButTCPNotRespondingEvidence`,
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsStaleEnabledRegistrationToRegisteredButNotLoaded`,
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsStoppedDriverKitApprovalToManualDriverKitRow`,
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsLoginItemsApprovalToManualApprovalRow`,
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsHelperVersionMismatchToStaleHelperRow`,
+  and
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotTreatsUnhealthyVHIDServicesAsServiceRepairNotMissingPayload`.
 
 ## Related References
 

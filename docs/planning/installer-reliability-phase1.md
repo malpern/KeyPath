@@ -255,6 +255,16 @@ integration remains pending.
   `InstallerStateMatrixGoldenTests.testEveryDocumentedStateMatrixRowHasAGoldenFixture`
   and
   `InstallerStateMatrixGoldenTests.testClassifySnapshotAndPlanMatchStateMatrixGoldenFixtures`.
+- [x] Added the live `SystemStateProvider` adapter that materializes the
+  state-matrix snapshot from centralized runtime, SMAppService, component, and
+  helper evidence without collapsing `running` and `responding`. Enforced by
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotPreservesRunningButTCPNotRespondingEvidence`,
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsStaleEnabledRegistrationToRegisteredButNotLoaded`,
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsStoppedDriverKitApprovalToManualDriverKitRow`,
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsLoginItemsApprovalToManualApprovalRow`,
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsHelperVersionMismatchToStaleHelperRow`,
+  and
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotTreatsUnhealthyVHIDServicesAsServiceRepairNotMissingPayload`.
 - [ ] Wire `SystemStateProvider`'s full immutable snapshot into the state-matrix
   classifier and migrate wizard/CLI/menu-bar consumers to the shared
   classification.
