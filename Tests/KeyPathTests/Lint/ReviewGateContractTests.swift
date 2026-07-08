@@ -2,6 +2,21 @@ import Foundation
 import XCTest
 
 final class ReviewGateContractTests: XCTestCase {
+    private let staleToolingStatus = [
+        "thermo-nuclear-swift-review",
+        "and claude",
+    ].joined(separator: " ")
+
+    private let staleShellStatus = [
+        "not installed",
+        "in this shell",
+    ].joined(separator: " ")
+
+    private let staleFullStatus = [
+        ["thermo-nuclear-swift-review", "and claude"].joined(separator: " "),
+        "still are not installed",
+    ].joined(separator: " ")
+
     func testReviewGateRemoteFallbackUsesCanonicalStatus() throws {
         let root = repositoryRoot()
         let script = try contents(of: root.appendingPathComponent("Scripts/review-gate.sh"))
@@ -15,11 +30,11 @@ final class ReviewGateContractTests: XCTestCase {
             "review-gate must keep exit 2 as the expected remote-review path."
         )
         XCTAssertFalse(
-            script.contains("thermo-nuclear-swift-review and claude"),
+            script.contains(staleToolingStatus),
             "review-gate output must not frame missing local tools as the status."
         )
         XCTAssertFalse(
-            script.contains("not installed in this shell"),
+            script.contains(staleShellStatus),
             "review-gate output must not revive the old shell-specific failure wording."
         )
     }
@@ -40,9 +55,34 @@ final class ReviewGateContractTests: XCTestCase {
             "PR process docs must tell agents not to repeat shell-specific tool-install wording."
         )
         XCTAssertFalse(
-            docs.contains("thermo-nuclear-swift-review and claude still are not installed"),
+            docs.contains(staleFullStatus),
             "PR process docs must not contain the old stale status wording."
         )
+    }
+
+    func testProcessSurfaceDoesNotContainStaleReviewGatePhrasing() throws {
+        let root = repositoryRoot()
+        let processSurface = [
+            "AGENTS.md",
+            "Scripts/review-gate.sh",
+            "docs/process/agent-pr-workflow.md",
+            "docs/process/agent-pr-invariants.md",
+            "Tests/KeyPathTests/Lint/ReviewGateContractTests.swift",
+        ]
+
+        for relativePath in processSurface {
+            let file = root.appendingPathComponent(relativePath)
+            let text = try contents(of: file)
+
+            XCTAssertFalse(
+                text.contains(staleShellStatus),
+                "\(relativePath) must not contain the stale shell-specific review-gate wording."
+            )
+            XCTAssertFalse(
+                text.contains(staleFullStatus),
+                "\(relativePath) must not contain the stale local-tooling review-gate wording."
+            )
+        }
     }
 }
 
