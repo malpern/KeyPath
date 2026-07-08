@@ -40,14 +40,10 @@ final class ConfigReloadCoordinator {
     /// Main reload method using TCP protocol.
     /// Checks service health, permission gates, and delegates to TCP reload.
     func triggerConfigReload() async -> ReloadResult {
-        // Use cached state to avoid synchronous IPC to SMAppService in hot path
-        let smState: KanataDaemonManager.ServiceManagementState
-        let cached = await MainActor.run { KanataDaemonManager.shared.currentManagementState }
-        if cached == .unknown {
-            smState = await KanataDaemonManager.shared.refreshManagementStateInternal()
-        } else {
-            smState = cached
-        }
+        // Use the manager refresh path instead of the unbounded synchronous
+        // currentManagementState cache; the underlying SMAppService provider
+        // still coalesces IPC with a short TTL.
+        let smState = await KanataDaemonManager.shared.refreshManagementStateInternal()
         if smState == .smappservicePending {
             AppLogger.shared.warn(
                 "⚠️ [Reload] Skipping TCP reload because SMAppService requires approval"

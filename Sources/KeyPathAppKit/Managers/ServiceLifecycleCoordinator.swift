@@ -334,10 +334,7 @@ final class ServiceLifecycleCoordinator {
         ) {
             return true
         }
-        let cached = await MainActor.run { KanataDaemonManager.shared.currentManagementState }
-        let managementState = cached == .unknown
-            ? await KanataDaemonManager.shared.refreshManagementStateInternal()
-            : cached
+        let managementState = await KanataDaemonManager.shared.refreshManagementStateInternal()
         return managementState == .smappservicePending
     }
 

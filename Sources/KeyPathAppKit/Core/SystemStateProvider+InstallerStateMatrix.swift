@@ -63,7 +63,7 @@ public extension SystemStateProvider {
             virtualHIDApprovalPending: driverKitApprovalPending,
             helperInstalled: helper.isInstalled,
             helperResponding: helper.isWorking,
-            helperFresh: helper.version == nil || helper.version == HelperManager.expectedHelperVersion,
+            helperFresh: helper.version == HelperManager.expectedHelperVersion,
             manualApprovalRequired: loginItemsApprovalRequired
         )
     }

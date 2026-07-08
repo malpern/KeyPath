@@ -762,17 +762,24 @@ realistic without losing capability. Measure before/after.
   by
   `W6DeletionPassLintTests.testDiagnosticsManagerSingleImplementationProtocolDoesNotRegrow`.
 - [x] Removed `ServiceLifecycleCoordinator`'s local
-  `smAppServicePendingCache`, using `KanataDaemonManager.currentManagementState`
-  as the provider-owned cache instead. Enforced by
-  `W6DeletionPassLintTests.testServiceLifecycleCoordinatorDoesNotRegrowSMAppServicePendingCache`.
+  `smAppServicePendingCache`; async repair/start/reload gates now refresh
+  through `KanataDaemonManager.refreshManagementStateInternal()` instead of
+  consuming the unbounded `currentManagementState` cache. Enforced by
+  `W6DeletionPassLintTests.testServiceLifecycleCoordinatorDoesNotRegrowSMAppServicePendingCache`
+  and
+  `W6DeletionPassLintTests.testAsyncRepairGatesDoNotConsumeUnboundedManagementStateCache`.
 - [x] Removed the duplicate "second safety layer" VirtualHID daemon check from
   `ServiceLifecycleCoordinator.startKanata`, leaving one injected
   `isVirtualHIDDaemonHealthy` predicate for the start gate. Enforced by
   `W6DeletionPassLintTests.testServiceLifecycleCoordinatorDoesNotRegrowDuplicateVHIDStartCheck`.
 - [x] Removed `HelperManager`'s actor-local `cachedHelperVersion`, so helper
   freshness checks use current XPC/provider evidence instead of a session cache.
-  Enforced by
-  `W6DeletionPassLintTests.testHelperManagerDoesNotRegrowCachedHelperVersion`.
+  Unknown helper version is not treated as fresh. Enforced by
+  `W6DeletionPassLintTests.testHelperManagerDoesNotRegrowCachedHelperVersion`,
+  `W6DeletionPassLintTests.testMatrixAdaptersDoNotTreatUnknownHelperVersionAsFresh`,
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotTreatsUnknownHelperVersionAsNotFresh`,
+  and
+  `SystemStateProviderInstallerStateMatrixTests.testWizardSystemContextSnapshotTreatsUnknownHelperVersionAsNotFresh`.
 - [x] Final W6 Phase 1 audit complete: the named single-implementation
   protocols, duplicate start-path checks, and named installer caches are deleted
   or ratcheted. Enforced by the `W6DeletionPassLintTests` ratchet suite. The

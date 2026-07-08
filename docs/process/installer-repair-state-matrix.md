@@ -273,6 +273,17 @@ the result as user action required and name the approval surface.
   `SystemStateProvider`, and
   `SnapshotConsumerLintTests.testRuntimeAndInstallerStateCachesStayInKnownOwners`
   prevents new runtime/installer state caches outside the current known owners.
+  `W6DeletionPassLintTests.testAsyncRepairGatesDoNotConsumeUnboundedManagementStateCache`
+  prevents async repair/start/reload gates from consuming the unbounded
+  `currentManagementState` cache instead of refreshing through the
+  provider-backed manager.
+- Helper responsiveness is not helper freshness.
+  `W6DeletionPassLintTests.testMatrixAdaptersDoNotTreatUnknownHelperVersionAsFresh`,
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotTreatsUnknownHelperVersionAsNotFresh`,
+  and
+  `SystemStateProviderInstallerStateMatrixTests.testWizardSystemContextSnapshotTreatsUnknownHelperVersionAsNotFresh`
+  enforce that an unknown helper version routes to helper verification/refresh
+  rather than a healthy row.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 - The state-matrix table itself is an executable golden fixture:
   `InstallerStateMatrixGoldenTests.testEveryDocumentedStateMatrixRowHasAGoldenFixture`
