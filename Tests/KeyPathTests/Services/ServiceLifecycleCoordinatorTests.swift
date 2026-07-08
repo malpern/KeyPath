@@ -35,7 +35,7 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
     // MARK: - Start gating
 
     func testStartFailsWhenVHIDDaemonNotRunning() async {
-        coordinator.isKarabinerDaemonRunning = { false }
+        coordinator.isVirtualHIDDaemonHealthy = { false }
 
         let result = await coordinator.startKanata(reason: "test")
 
@@ -46,7 +46,7 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
     }
 
     func testStartSetsIsStartingFlag() async {
-        coordinator.isKarabinerDaemonRunning = { true }
+        coordinator.isVirtualHIDDaemonHealthy = { true }
 
         // isStartingKanata should be false before and after (defer resets it)
         XCTAssertFalse(coordinator.isStartingKanata)
@@ -55,8 +55,7 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
     }
 
     func testStartTerminatesRunningKanataWhenBinaryDoesNotMatchBundledRuntime() async {
-        coordinator.isKarabinerDaemonRunning = { true }
-        ServiceHealthChecker.testForcedServiceHealth = [ServiceHealthChecker.vhidDaemonServiceID: true]
+        coordinator.isVirtualHIDDaemonHealthy = { true }
 
         let privileged = StubPrivilegedOperationsCoordinator()
         WizardDependencies.privilegedOperations = privileged
@@ -78,8 +77,7 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
     }
 
     func testStartTerminatesRunningKanataWhenSamePathButProcessPredatesBundledBinary() async throws {
-        coordinator.isKarabinerDaemonRunning = { true }
-        ServiceHealthChecker.testForcedServiceHealth = [ServiceHealthChecker.vhidDaemonServiceID: true]
+        coordinator.isVirtualHIDDaemonHealthy = { true }
 
         let privileged = StubPrivilegedOperationsCoordinator()
         WizardDependencies.privilegedOperations = privileged
@@ -163,7 +161,7 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         // The stop-grace exists only to swallow the OLD process's last gasp. Once a new
         // start begins (e.g. the start phase of a restart), the grace must end so a
         // genuine `active=false` from the freshly started kanata is NOT masked as benign.
-        coordinator.isKarabinerDaemonRunning = { true }
+        coordinator.isVirtualHIDDaemonHealthy = { true }
         _ = await coordinator.stopKanata(reason: "stop for restart")
         XCTAssertTrue(coordinator.isIntentionalTransitionInProgress, "Grace armed after stop")
 
@@ -178,7 +176,7 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
     // MARK: - Restart
 
     func testRestartCallsStopThenStart() async {
-        coordinator.isKarabinerDaemonRunning = { true }
+        coordinator.isVirtualHIDDaemonHealthy = { true }
 
         // Restart should call stop then start
         let result = await coordinator.restartKanata(reason: "test restart")

@@ -161,6 +161,29 @@ final class W6DeletionPassLintTests: XCTestCase {
             """
         )
     }
+
+    func testServiceLifecycleCoordinatorDoesNotRegrowDuplicateVHIDStartCheck() throws {
+        let coordinatorFile = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/ServiceLifecycleCoordinator.swift")
+
+        let violations = try matchingLines(
+            in: coordinatorFile,
+            patterns: [
+                #"Second safety layer"#,
+                #"serviceID:\s*ServiceHealthChecker\.vhidDaemonServiceID"#,
+            ]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            W6 removes duplicated in-path service checks. startKanata should \
+            use the injected VirtualHID daemon health predicate once instead \
+            of performing a second ServiceHealthChecker query in the start path:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {
