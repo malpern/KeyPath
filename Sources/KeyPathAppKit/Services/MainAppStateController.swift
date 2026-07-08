@@ -352,6 +352,8 @@ class MainAppStateController {
 
                 // VHID safety invariant: if kanata is running but VirtualHID daemon
                 // is not healthy, emergency-stop kanata to release the keyboard.
+                // W3 safety exception: this background mutation only stops remapping
+                // to prevent unsafe keyboard capture; it must not perform repair.
                 if isHealthy {
                     let vhidHealthy = await ServiceHealthChecker.shared.isServiceHealthy(
                         serviceID: ServiceHealthChecker.vhidDaemonServiceID

@@ -569,10 +569,20 @@ Phase 1 changes *post-install* behavior, not first-run automation.
   `RuntimeCoordinatorTests.testGrabFailureSurfacesErrorWithoutRecoveryDelay`
   and
   `GrabFailureRecoveryLintTests.testGrabFailureHandlingDoesNotAttemptBackgroundRecovery`.
-- [ ] Remaining background mutators still need W3 migration or explicit
-  first-run/user-gesture justification.
-- [ ] Terminal failure reports still need troubleshooting-guide links for the
-  unfixable tail.
+- [x] Remaining background mutators are either migrated to passive surfacing or
+  explicitly justified as non-repair safety/user-gesture paths. The remaining
+  service-health polling mutation is the VirtualHID emergency stop, which only
+  stops remapping to release the keyboard and must not repair/restart in the
+  background. Enforced by
+  `W3BackgroundMutationExceptionLintTests.testServiceHealthPollingOnlyAllowsVHIDEmergencyStopException`
+  and `VHIDSafetyInvariantTests.test_emergencyStop_triggeredWhenKanataRunningWithoutVHID`.
+- [x] Terminal failure reports link to troubleshooting guidance for the
+  unfixable tail instead of launching more automatic repair. Enforced by
+  `CLIOutputContractTests.testInstallerReportLinksTerminalInputCaptureFailureToTroubleshooting`
+  and
+  `CLIOutputContractTests.testInstallerReportLinksTerminalConfigFailureToTroubleshooting`,
+  plus
+  `CLIOutputContractTests.testInstallerReportLinksMissingBundledKanataToTroubleshooting`.
 
 ## Workstream 4: Prevention at the Source
 

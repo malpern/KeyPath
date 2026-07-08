@@ -733,4 +733,38 @@ When debugging Kanata issues:
 - [ ] Karabiner Login Items manually added? (`Karabiner-Elements Non-Privileged Agents.app` and `Karabiner-Elements Privileged Daemons.app`)
 - [ ] Input Monitoring granted? (Check System Settings)
 
+## Terminal Input Capture Failures
+
+If KeyPath reports that Kanata is running and responding but cannot capture
+keyboard input, treat the state as terminal for the current repair attempt.
+Do not keep restarting services in the background. Collect diagnostics, then
+check the manual failure classes below:
+
+- Driver approval loop: open System Settings > General > Login Items &
+  Extensions > Driver Extensions and confirm Karabiner-VirtualHIDDevice is
+  enabled. If macOS keeps disabling it after approval, reboot once before
+  retrying repair.
+- Endpoint-security or device-control software: temporarily disable software
+  that can block DriverKit extensions or exclusive keyboard capture, then retry
+  KeyPath repair.
+- TCC database desync: remove and re-grant Input Monitoring and Accessibility
+  for KeyPath and Kanata Engine from System Settings. If entries do not appear,
+  reboot and retry the permission grant from the KeyPath wizard.
+- BTM/Login Items corruption: run `sfltool resetbtm`, reboot, then reopen
+  KeyPath and retry repair. This resets macOS background-task registration
+  state; it is intentionally user-initiated.
+
+## Configuration Errors
+
+If Kanata exits because the generated config is invalid, repair should stop and
+show the parse error. Fix the rule or reset to the default config, then apply
+the config again. Restarting services cannot make an invalid config load.
+
+## Bundled Kanata Engine Missing
+
+If the bundled Kanata engine is missing from KeyPath.app, reinstall KeyPath from
+a signed release or run a fresh local deploy from the repository. Repair should
+not fabricate a replacement binary from another path because that changes the
+TCC identity and can invalidate Input Monitoring grants.
+
 Remember: Many "errors" in logs are actually warnings. Focus on whether the core functionality (key remapping) is working, not whether all log messages are clean.

@@ -344,7 +344,8 @@ public struct SystemFacade: Sendable {
                 title: "Kanata binary not installed",
                 category: "component",
                 action: "Reinstall KeyPath; the bundled Kanata engine is missing",
-                canAutoFix: false
+                canAutoFix: false,
+                remediationURL: KeyPathConstants.URLs.bundledKanataTroubleshooting
             ))
         }
         if !context.components.karabinerDriverInstalled {
@@ -378,14 +379,16 @@ public struct SystemFacade: Sendable {
                     title: "Configuration error prevents remapping",
                     category: "configuration",
                     action: configError,
-                    canAutoFix: false
+                    canAutoFix: false,
+                    remediationURL: KeyPathConstants.URLs.configurationTroubleshooting
                 ))
             } else if !context.services.kanataRunning, context.services.kanataPermissionRejected {
                 issues.append(.init(
                     title: "Kanata needs Accessibility permission",
                     category: "permissions",
                     action: "Re-grant Accessibility for Kanata Engine in System Settings",
-                    canAutoFix: false
+                    canAutoFix: false,
+                    remediationURL: WizardSystemPaths.accessibilitySettings
                 ))
             } else if !context.services.kanataRunning {
                 issues.append(.init(
@@ -457,7 +460,9 @@ public struct SystemFacade: Sendable {
                     : context.services.kanataInputCaptureIssue
                     ?? "Restart or repair the keyboard service",
                 canAutoFix: !needsManualVHIDApproval,
-                remediationURL: needsManualVHIDApproval ? WizardSystemPaths.loginItemsSettings : nil
+                remediationURL: needsManualVHIDApproval
+                    ? WizardSystemPaths.loginItemsSettings
+                    : KeyPathConstants.URLs.terminalInputCaptureTroubleshooting
             ))
         }
     }
