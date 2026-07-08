@@ -80,6 +80,20 @@ final class SystemStateProviderLivenessTests: XCTestCase {
 
         XCTAssertEqual(pids, [])
     }
+
+    func testSynchronousProcessDiscoveryRejectsBlankPatterns() {
+        let pids = SystemStateProvider.processIDsSynchronously(matching: "  \n\t  ")
+
+        XCTAssertEqual(pids, [])
+    }
+
+    func testSynchronousProcessDiscoveryReturnsEmptyForMissingProcess() {
+        let pids = SystemStateProvider.processIDsSynchronously(
+            matching: "keypath_missing_process_pattern_7B3C9991_2A59_4F3E_AA43"
+        )
+
+        XCTAssertEqual(pids, [])
+    }
 }
 
 private final class LocalhostTCPListener {
