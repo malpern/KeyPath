@@ -135,6 +135,32 @@ final class W6DeletionPassLintTests: XCTestCase {
             """
         )
     }
+
+    func testServiceLifecycleCoordinatorDoesNotRegrowSMAppServicePendingCache() throws {
+        let coordinatorFile = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/ServiceLifecycleCoordinator.swift")
+
+        let violations = try matchingLines(
+            in: coordinatorFile,
+            patterns: [
+                #"\bsmAppServicePendingCache\b"#,
+                #"\bsmAppServicePendingCacheTTL\b"#,
+                #"\bsmAppServiceRefreshTask\b"#,
+                #"\bisSMAppServicePendingCached\b"#,
+            ]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            W6 collapses duplicate service-state caches into the provider/manager \
+            layer. ServiceLifecycleCoordinator should read \
+            KanataDaemonManager.currentManagementState and refresh only unknown \
+            state instead of regrowing a local SMAppService pending cache:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {

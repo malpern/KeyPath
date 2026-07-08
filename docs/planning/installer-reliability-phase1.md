@@ -794,6 +794,10 @@ realistic without losing capability. Measure before/after.
   `ConfigReloadCoordinator` tests to a `healthStatusProvider` closure. Enforced
   by
   `W6DeletionPassLintTests.testDiagnosticsManagerSingleImplementationProtocolDoesNotRegrow`.
+- [x] Removed `ServiceLifecycleCoordinator`'s local
+  `smAppServicePendingCache`, using `KanataDaemonManager.currentManagementState`
+  as the provider-owned cache instead. Enforced by
+  `W6DeletionPassLintTests.testServiceLifecycleCoordinatorDoesNotRegrowSMAppServicePendingCache`.
 - [ ] Remaining single-implementation protocols, duplicate in-path checks,
   cache consolidation, and DEBUG-only seams still need separate deletion PRs.
 

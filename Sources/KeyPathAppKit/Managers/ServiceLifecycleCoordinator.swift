@@ -155,15 +155,6 @@ final class ServiceLifecycleCoordinator {
         createdAt: Date()
     )
 
-    /// Short-lived cache of the SMAppService "pending" check so the 250ms
-    /// overlay polling loop doesn't hammer SMAppService.status (synchronous
-    /// IPC, can block 10-30s under concurrent load — see CLAUDE.md).
-    private var smAppServicePendingCache: (value: Bool, timestamp: Date)?
-    private static let smAppServicePendingCacheTTL: TimeInterval = 5.0
-    /// In-flight SMAppService refresh, kept so back-to-back cache misses
-    /// don't fan out into parallel IPC calls.
-    private var smAppServiceRefreshTask: Task<Bool, Never>?
-
     // MARK: - Callbacks (set by RuntimeCoordinator after init)
 
     /// Called when an error should be surfaced to the UI.
@@ -356,38 +347,11 @@ final class ServiceLifecycleCoordinator {
         ) {
             return true
         }
-        return await isSMAppServicePendingCached()
-    }
-
-    private func isSMAppServicePendingCached() async -> Bool {
-        let now = Date()
-        if let cached = smAppServicePendingCache,
-           now.timeIntervalSince(cached.timestamp) < Self.smAppServicePendingCacheTTL
-        {
-            return cached.value
-        }
-        if let cached = smAppServicePendingCache {
-            scheduleSMAppServiceRefresh()
-            return cached.value
-        }
-        return await performSMAppServiceRefresh()
-    }
-
-    private func scheduleSMAppServiceRefresh() {
-        if smAppServiceRefreshTask != nil { return }
-        smAppServiceRefreshTask = Task { [weak self] in
-            guard let self else { return false }
-            let value = await performSMAppServiceRefresh()
-            smAppServiceRefreshTask = nil
-            return value
-        }
-    }
-
-    private func performSMAppServiceRefresh() async -> Bool {
-        let managementState = await KanataDaemonManager.shared.refreshManagementStateInternal()
-        let isPending = managementState == .smappservicePending
-        smAppServicePendingCache = (isPending, Date())
-        return isPending
+        let cached = await MainActor.run { KanataDaemonManager.shared.currentManagementState }
+        let managementState = cached == .unknown
+            ? await KanataDaemonManager.shared.refreshManagementStateInternal()
+            : cached
+        return managementState == .smappservicePending
     }
 
     private func verifyRuntimeReadinessAfterStart(reason: String) async -> RuntimeReadinessVerification {
