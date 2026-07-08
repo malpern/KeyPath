@@ -159,6 +159,25 @@ final class SMAppServiceStatusLintTests: XCTestCase {
             """
         )
     }
+
+    func testUninstallCoordinatorDelegatesStatusProviderAccessToSystemStateProvider() throws {
+        let coordinator = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/UninstallCoordinator.swift")
+
+        let violations = try matchingLines(
+            in: coordinator,
+            patterns: [#"SMAppServiceStatusProvider\.shared"#]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            UninstallCoordinator must delegate SMAppService status/cache access \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {

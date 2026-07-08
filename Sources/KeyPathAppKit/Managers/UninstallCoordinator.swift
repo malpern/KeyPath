@@ -212,7 +212,7 @@ public final class UninstallCoordinator {
 
         for plistName in daemonPlists {
             let service = HelperManager.smServiceFactory(plistName)
-            let status = await SMAppServiceStatusProvider.shared.freshStatus(for: plistName)
+            let status = await SystemStateProvider.shared.freshSMAppServiceStatus(for: plistName)
             guard status == .enabled else {
                 logLines.append("ℹ️ SMAppService \(plistName): not registered, skipping")
                 continue
@@ -220,7 +220,7 @@ public final class UninstallCoordinator {
 
             do {
                 try await service.unregister()
-                await SMAppServiceStatusProvider.shared.invalidate(plistName: plistName)
+                await SystemStateProvider.shared.invalidateSMAppServiceStatus(plistName: plistName)
                 logLines.append("✅ SMAppService \(plistName): unregistered")
             } catch {
                 // Log but continue - the helper/script will still clean up files
