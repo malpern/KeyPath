@@ -26,21 +26,16 @@ extension HelperManager {
         if smStatus == .enabled { return true }
 
         // Best-effort check: does launchd know about the job?
-        let runner = Self.subprocessRunnerFactory()
-
-        do {
-            let result = try await runner.launchctl("print", ["system/\(Self.helperBundleIdentifier)"])
-            if result.exitCode == 0 {
-                let s = result.stdout
-                if s.contains("program") || s.contains("state =") || s.contains("pid =") {
-                    AppLogger.shared.debug(
-                        "[HelperManager] launchctl reports helper present while SMAppService status=\(smStatus)"
-                    )
-                    return true
-                }
+        let evidence = await Self.systemStateProviderFactory()
+            .launchctlPrint(target: "system/\(Self.helperBundleIdentifier)")
+        if evidence.exitCode == 0 {
+            let s = evidence.stdout
+            if s.contains("program") || s.contains("state =") || s.contains("pid =") {
+                AppLogger.shared.debug(
+                    "[HelperManager] launchctl reports helper present while SMAppService status=\(smStatus)"
+                )
+                return true
             }
-        } catch {
-            // Ignore; treated as not installed
         }
         return false
     }
@@ -240,23 +235,21 @@ extension HelperManager {
     /// Fetch the last N helper log messages (message text only)
     /// Uses `log show` with a tight window to avoid heavy queries.
     nonisolated func lastHelperLogs(count: Int = 3, windowSeconds: Int = 300) async -> [String] {
+        // First: if launchctl has no record of the job, surface that clearly.
+        let evidence = await Self.systemStateProviderFactory()
+            .launchctlPrint(target: "system/\(Self.helperBundleIdentifier)")
+        if evidence.exitCode != 0 {
+            let errStr = evidence.stderr
+            if errStr.contains("Could not find service") || errStr.contains("Bad request") {
+                return [
+                    "Helper not registered: launchctl has no job 'system/com.keypath.helper'",
+                    "Click 'Install Helper', then Test XPC again."
+                ]
+            }
+        }
+
         let runner = Self.subprocessRunnerFactory()
 
-        // First: if launchctl has no record of the job, surface that clearly.
-        do {
-            let result = try await runner.launchctl("print", ["system/com.keypath.helper"])
-            if result.exitCode != 0 {
-                let errStr = result.stderr
-                if errStr.contains("Could not find service") || errStr.contains("Bad request") {
-                    return [
-                        "Helper not registered: launchctl has no job 'system/com.keypath.helper'",
-                        "Click 'Install Helper', then Test XPC again."
-                    ]
-                }
-            }
-        } catch {
-            // Ignore; fall through to unified-log path
-        }
         func fetch(_ seconds: Int) async -> [String] {
             do {
                 let result = try await runner.run(

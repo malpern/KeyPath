@@ -27,6 +27,13 @@ final class LaunchctlEvidenceLintTests: XCTestCase {
 
         assertNoDirectLaunchctlPrintEvidenceReads(in: manager)
     }
+
+    func testHelperManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider() {
+        let managerStatus = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Core/HelperManager+Status.swift")
+
+        assertNoDirectLaunchctlPrintEvidenceReads(in: managerStatus)
+    }
 }
 
 private func assertNoDirectLaunchctlPrintEvidenceReads(

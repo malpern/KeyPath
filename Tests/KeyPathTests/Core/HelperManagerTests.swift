@@ -1,20 +1,27 @@
 @testable import KeyPathAppKit
+@testable import KeyPathCore
 import ServiceManagement
 @preconcurrency import XCTest
 
 final class HelperManagerTests: XCTestCase {
     private var originalFactory: ((String) -> SMAppServiceProtocol)!
     private var originalStatusProvider: SMAppServiceStatusProvider!
+    private var originalSubprocessRunnerFactory: (() -> SubprocessRunning)!
+    private var originalSystemStateProviderFactory: (() -> SystemStateProvider)!
 
     override func setUp() {
         super.setUp()
         originalFactory = HelperManager.smServiceFactory
         originalStatusProvider = SMAppServiceStatusProvider.shared
+        originalSubprocessRunnerFactory = HelperManager.subprocessRunnerFactory
+        originalSystemStateProviderFactory = HelperManager.systemStateProviderFactory
     }
 
     override func tearDown() {
         HelperManager.smServiceFactory = originalFactory
         SMAppServiceStatusProvider.shared = originalStatusProvider
+        HelperManager.subprocessRunnerFactory = originalSubprocessRunnerFactory
+        HelperManager.systemStateProviderFactory = originalSystemStateProviderFactory
         HelperManager.testHelperFunctionalityOverride = nil
         HelperManager.staleHelperSMAppServiceBootoutOverride = nil
         super.tearDown()
@@ -80,6 +87,72 @@ final class HelperManagerTests: XCTestCase {
         XCTAssertEqual(service.unregisterCalls, 1)
         XCTAssertEqual(bootoutCalls, 1)
     }
+
+    func testIsHelperInstalledUsesInjectedSystemStateProviderForLaunchctlEvidence() async {
+        installFake(FakeSMAppService(status: .notRegistered))
+
+        let directRunner = CapturingSubprocessRunner { _, _ in
+            ProcessResult(exitCode: 113, stdout: "", stderr: "direct runner should not be used", duration: 0)
+        }
+        HelperManager.subprocessRunnerFactory = { directRunner }
+
+        let providerRunner = CapturingSubprocessRunner { subcommand, args in
+            if subcommand == "print", args == ["system/com.keypath.helper"] {
+                return ProcessResult(
+                    exitCode: 0,
+                    stdout: "program = /Applications/KeyPath.app/Contents/Library/HelperTools/KeyPathHelper\nstate = running\npid = 42",
+                    stderr: "",
+                    duration: 0
+                )
+            }
+            return ProcessResult(exitCode: 113, stdout: "", stderr: "unexpected target", duration: 0)
+        }
+        HelperManager.systemStateProviderFactory = { SystemStateProvider(subprocessRunner: providerRunner) }
+
+        let installed = await HelperManager.shared.isHelperInstalled()
+
+        XCTAssertTrue(installed)
+        let commands = await providerRunner.executedCommands
+        XCTAssertEqual(commands.map(\.executable), ["/bin/launchctl"])
+        XCTAssertEqual(commands.map(\.args), [["print", "system/com.keypath.helper"]])
+        let directCommands = await directRunner.executedCommands
+        XCTAssertTrue(directCommands.isEmpty)
+    }
+
+    func testLastHelperLogsUsesInjectedSystemStateProviderForLaunchctlEvidence() async {
+        let directRunner = CapturingSubprocessRunner { _, _ in
+            ProcessResult(exitCode: 113, stdout: "", stderr: "direct runner should not be used", duration: 0)
+        }
+        HelperManager.subprocessRunnerFactory = { directRunner }
+
+        let providerRunner = CapturingSubprocessRunner { subcommand, args in
+            if subcommand == "print", args == ["system/com.keypath.helper"] {
+                return ProcessResult(
+                    exitCode: 113,
+                    stdout: "",
+                    stderr: "Could not find service \"com.keypath.helper\" in domain for system",
+                    duration: 0
+                )
+            }
+            return ProcessResult(exitCode: 113, stdout: "", stderr: "unexpected target", duration: 0)
+        }
+        HelperManager.systemStateProviderFactory = { SystemStateProvider(subprocessRunner: providerRunner) }
+
+        let logs = await HelperManager.shared.lastHelperLogs()
+
+        XCTAssertEqual(
+            logs,
+            [
+                "Helper not registered: launchctl has no job 'system/com.keypath.helper'",
+                "Click 'Install Helper', then Test XPC again."
+            ]
+        )
+        let commands = await providerRunner.executedCommands
+        XCTAssertEqual(commands.map(\.executable), ["/bin/launchctl"])
+        XCTAssertEqual(commands.map(\.args), [["print", "system/com.keypath.helper"]])
+        let directCommands = await directRunner.executedCommands
+        XCTAssertTrue(directCommands.isEmpty)
+    }
 }
 
 // MARK: - Test Doubles
@@ -104,5 +177,27 @@ private final class FakeSMAppService: SMAppServiceProtocol, @unchecked Sendable 
 
     func unregister() async throws {
         unregisterCalls += 1
+    }
+}
+
+private actor CapturingSubprocessRunner: SubprocessRunning {
+    private let launchctlHandler: @Sendable (String, [String]) -> ProcessResult
+    private(set) var executedCommands: [(executable: String, args: [String])] = []
+
+    init(launchctlHandler: @escaping @Sendable (String, [String]) -> ProcessResult) {
+        self.launchctlHandler = launchctlHandler
+    }
+
+    func run(_: String, args _: [String], timeout _: TimeInterval?) async throws -> ProcessResult {
+        ProcessResult(exitCode: 0, stdout: "", stderr: "", duration: 0)
+    }
+
+    func pgrep(_: String) async -> [pid_t] {
+        []
+    }
+
+    func launchctl(_ subcommand: String, _ args: [String]) async throws -> ProcessResult {
+        executedCommands.append((executable: "/bin/launchctl", args: [subcommand] + args))
+        return launchctlHandler(subcommand, args)
     }
 }
