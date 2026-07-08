@@ -60,19 +60,19 @@ final class SystemRequirementsChecker {
 
     /// Check if KeyPath has Input Monitoring permission
     func hasInputMonitoringPermission() async -> Bool {
-        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        let snapshot = await SystemStateProvider.shared.currentPermissionSnapshot()
         return snapshot.keyPath.inputMonitoring.isReady
     }
 
     /// Check if KeyPath has Accessibility permission
     func hasAccessibilityPermission() async -> Bool {
-        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        let snapshot = await SystemStateProvider.shared.currentPermissionSnapshot()
         return snapshot.keyPath.accessibility.isReady
     }
 
     /// Check if KeyPath has all required permissions
     func hasAllRequiredPermissions() async -> Bool {
-        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        let snapshot = await SystemStateProvider.shared.currentPermissionSnapshot()
         return snapshot.keyPath.hasAllPermissions
     }
 
@@ -80,7 +80,7 @@ final class SystemRequirementsChecker {
     func checkBothAppsHavePermissions() async -> (
         keyPathHasPermission: Bool, kanataHasPermission: Bool, permissionDetails: String
     ) {
-        let snapshot = await PermissionOracle.shared.currentSnapshot()
+        let snapshot = await SystemStateProvider.shared.currentPermissionSnapshot()
 
         let keyPathPath = Bundle.main.bundlePath
         let kanataPath = WizardSystemPaths.bundledKanataPath

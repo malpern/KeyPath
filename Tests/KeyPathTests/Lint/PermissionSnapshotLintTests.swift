@@ -52,6 +52,29 @@ final class PermissionSnapshotLintTests: XCTestCase {
             """
         )
     }
+
+    func testSystemRequirementsCheckerDelegatesPermissionSnapshotsToSystemStateProvider() throws {
+        let checker = repositoryRootForPermissionSnapshotLint()
+            .appendingPathComponent("Sources/KeyPathAppKit/Services/System/SystemRequirementsChecker.swift")
+
+        let violations = try matchingPermissionSnapshotLines(
+            in: checker,
+            patterns: [
+                #"PermissionOracle\.shared\.currentSnapshot"#,
+                #"PermissionOracle\.shared\.forceRefresh"#,
+                #"PermissionOracle\.shared"#
+            ]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            SystemRequirementsChecker must delegate permission snapshot reads \
+            through SystemStateProvider:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRootForPermissionSnapshotLint(file: StaticString = #filePath) -> URL {

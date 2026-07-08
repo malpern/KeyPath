@@ -206,6 +206,9 @@ classification remains pending.
   `PermissionGateEvaluationTests.testKanataDeniedClassifiesAsBlocking`,
   and
   `PermissionSnapshotLintTests.testPermissionGateDelegatesPermissionSnapshotsToSystemStateProvider`.
+- [x] Migrated `SystemRequirementsChecker` permission-state reads through
+  `SystemStateProvider`'s permission snapshot façade. Enforced by
+  `PermissionSnapshotLintTests.testSystemRequirementsCheckerDelegatesPermissionSnapshotsToSystemStateProvider`.
 - [ ] Migrate `SMAppService.status`, permissions, VHID state, helper freshness,
   and migrated read-only `launchctl print` evidence into a single immutable
   `SystemSnapshot`.
@@ -383,6 +386,9 @@ through 21 mocked tests).
   `PermissionGateEvaluationTests.testKanataDeniedClassifiesAsBlocking`,
   and
   `PermissionSnapshotLintTests.testPermissionGateDelegatesPermissionSnapshotsToSystemStateProvider`.
+- [x] `SystemRequirementsChecker` permission-state reads delegate to
+  `SystemStateProvider`'s permission snapshot façade. Enforced by
+  `PermissionSnapshotLintTests.testSystemRequirementsCheckerDelegatesPermissionSnapshotsToSystemStateProvider`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -508,6 +514,9 @@ is listed in the state-matrix doc's enforcement section.
   `SystemStateProvider`.
 - [x] `PermissionSnapshotLintTests.testPermissionGateDelegatesPermissionSnapshotsToSystemStateProvider`
   prevents migrated just-in-time permission gate snapshot reads from bypassing
+  `SystemStateProvider`.
+- [x] `PermissionSnapshotLintTests.testSystemRequirementsCheckerDelegatesPermissionSnapshotsToSystemStateProvider`
+  prevents migrated system-requirements permission snapshot reads from bypassing
   `SystemStateProvider`.
 - [x] `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
   prevents `ServiceHealthChecker` from regrowing a private TCP socket probe.
