@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathWizardCore
 
 /// Rows from `docs/process/installer-repair-state-matrix.md`.
 public enum InstallerStateMatrixRow: String, CaseIterable, Sendable, Equatable {
@@ -232,5 +233,43 @@ public enum InstallerStateMatrixPlanner {
 
     public static func plan(for snapshot: InstallerStateMatrixSnapshot) -> [InstallerStateMatrixAction] {
         plan(for: classify(snapshot))
+    }
+}
+
+public extension SystemContext {
+    var installerStateMatrixSnapshot: InstallerStateMatrixSnapshot {
+        let driverKitApprovalPending = requiresManualVHIDDriverApproval
+        let inputCaptureIssuePresent = !services.kanataInputCaptureReady
+        let staleInputCaptureIssue = !services.kanataRunning
+            && inputCaptureIssuePresent
+            && !driverKitApprovalPending
+
+        return InstallerStateMatrixSnapshot(
+            kanataBinaryPresent: components.kanataBinaryInstalled,
+            requiredRuntimePayloadPresent: true,
+            smAppServiceRegistered: components.kanataBinaryInstalled,
+            launchdJobLoaded: services.kanataRunning || components.kanataBinaryInstalled,
+            kanataProcessRunning: services.kanataRunning,
+            kanataTCPResponding: services.kanataRunning,
+            currentInputCaptureIssue: services.kanataRunning && inputCaptureIssuePresent,
+            staleInputCaptureIssue: staleInputCaptureIssue,
+            driverKitApprovalPending: driverKitApprovalPending,
+            virtualHIDDriverPresent: components.karabinerDriverInstalled,
+            virtualHIDPayloadPresent: components.vhidDeviceInstalled,
+            virtualHIDServicesHealthy: !components.vhidRuntimeServicesNeedRepair,
+            virtualHIDApprovalPending: driverKitApprovalPending,
+            helperInstalled: helper.isInstalled,
+            helperResponding: helper.isWorking,
+            helperFresh: helper.version == nil || helper.version == WizardHelperConstants.expectedHelperVersion,
+            definitiveUnhealthyState: timedOut
+        )
+    }
+
+    var installerStateMatrixRow: InstallerStateMatrixRow {
+        InstallerStateMatrixPlanner.classify(installerStateMatrixSnapshot)
+    }
+
+    var installerStateMatrixPlan: [InstallerStateMatrixAction] {
+        InstallerStateMatrixPlanner.plan(for: installerStateMatrixSnapshot)
     }
 }

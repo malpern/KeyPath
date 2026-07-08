@@ -359,15 +359,21 @@ public struct SystemStateResult: Sendable {
     public let issues: [WizardIssue]
     public let autoFixActions: [AutoFixAction]
     public let detectionTimestamp: Date
+    public let stateMatrixRow: String?
+    public let stateMatrixPlan: [String]
 
     public init(
         state: WizardSystemState, issues: [WizardIssue], autoFixActions: [AutoFixAction],
-        detectionTimestamp: Date
+        detectionTimestamp: Date,
+        stateMatrixRow: String? = nil,
+        stateMatrixPlan: [String] = []
     ) {
         self.state = state
         self.issues = issues
         self.autoFixActions = autoFixActions
         self.detectionTimestamp = detectionTimestamp
+        self.stateMatrixRow = stateMatrixRow
+        self.stateMatrixPlan = stateMatrixPlan
     }
 
     public var hasBlockingIssues: Bool {

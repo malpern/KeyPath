@@ -60,7 +60,7 @@ final class WizardPureLogicTests: XCTestCase {
     }
 
     private var healthyHelper: HelperStatus {
-        HelperStatus(isInstalled: true, version: "1.0", isWorking: true)
+        HelperStatus(isInstalled: true, version: WizardHelperConstants.expectedHelperVersion, isWorking: true)
     }
 
     private var defaultSystem: EngineSystemInfo {
@@ -112,6 +112,31 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertEqual(state, .active)
         let blocking = issues.filter { $0.severity == .error || $0.severity == .critical }
         XCTAssertTrue(blocking.isEmpty, "Healthy system should have no blocking issues")
+    }
+
+    func test_systemContextStateMatrixSnapshot_classifiesStoppedRuntimeWithStaleInputCapture() {
+        let context = makeContext(
+            services: HealthStatus(
+                kanataRunning: false,
+                karabinerDaemonRunning: true,
+                vhidHealthy: true,
+                kanataInputCaptureReady: false,
+                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason
+            )
+        )
+
+        XCTAssertEqual(context.installerStateMatrixRow, .staleInputCaptureIssueWithKanataStopped)
+        XCTAssertEqual(context.installerStateMatrixPlan, [.installRequiredRuntimeServices])
+    }
+
+    func test_systemContextAdapterPublishesStateMatrixMetadata() {
+        let context = makeContext(helper: HelperStatus(isInstalled: false, version: nil, isWorking: false))
+
+        let result = SystemContextAdapter.adapt(context)
+
+        XCTAssertEqual(result.stateMatrixRow, InstallerStateMatrixRow.helperMissing.rawValue)
+        XCTAssertEqual(result.stateMatrixPlan, [InstallerStateMatrixAction.installHelper.rawValue])
+        XCTAssertEqual(result.autoFixActions, [.installPrivilegedHelper])
     }
 
     func test_inspect_keyPathAccessibilityDenied_producesMissingPermissionsState() {

@@ -12,12 +12,16 @@ public struct SystemContextAdapter {
     public static func adapt(_ context: SystemContext) -> SystemStateResult {
         let (wizardState, wizardIssues) = SystemInspector.inspect(context: context)
         let autoFixActions = determineAutoFixActions(context)
+        let stateMatrixRow = context.installerStateMatrixRow
+        let stateMatrixPlan = InstallerStateMatrixPlanner.plan(for: stateMatrixRow)
 
         return SystemStateResult(
             state: wizardState,
             issues: wizardIssues,
             autoFixActions: autoFixActions,
-            detectionTimestamp: context.timestamp
+            detectionTimestamp: context.timestamp,
+            stateMatrixRow: stateMatrixRow.rawValue,
+            stateMatrixPlan: stateMatrixPlan.map(\.rawValue)
         )
     }
 
