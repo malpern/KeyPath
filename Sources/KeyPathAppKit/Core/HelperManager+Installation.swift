@@ -38,10 +38,10 @@ extension HelperManager {
         }
 
         let svc = Self.smServiceFactory(Self.helperPlistName)
-        // Fresh read via the centralized provider (#853). The post-register reads
-        // below stay on the owned `svc` instance (also routed through the provider's
-        // freshStatus) because they must observe the just-mutated system state.
-        let initialStatus = await SMAppServiceStatusProvider.shared.freshStatus(for: Self.helperPlistName)
+        // Fresh read via SystemStateProvider; register/unregister mutations below
+        // invalidate the shared status cache so later readers re-fetch.
+        let initialStatus = await Self.systemStateProviderFactory()
+            .freshSMAppServiceStatus(for: Self.helperPlistName)
         AppLogger.shared.log(
             "🔍 [HelperManager] SMAppService status: \(initialStatus.rawValue) (0=notRegistered, 1=enabled, 2=requiresApproval, 3=notFound)"
         )
@@ -56,7 +56,8 @@ extension HelperManager {
                 try svc.register()
             } catch {
                 registerError = error
-                let statusAfterError = await SMAppServiceStatusProvider.shared.freshStatus(for: Self.helperPlistName)
+                let statusAfterError = await Self.systemStateProviderFactory()
+                    .freshSMAppServiceStatus(for: Self.helperPlistName)
                 if statusAfterError == .enabled {
                     AppLogger.shared.log("ℹ️ [HelperManager] Helper already Enabled after register error; verifying XPC")
                 } else {
@@ -87,12 +88,14 @@ extension HelperManager {
         case .notRegistered:
             do {
                 try svc.register()
-                let statusAfterRegister = await SMAppServiceStatusProvider.shared.freshStatus(for: Self.helperPlistName)
+                let statusAfterRegister = await Self.systemStateProviderFactory()
+                    .freshSMAppServiceStatus(for: Self.helperPlistName)
                 AppLogger.shared.info("✅ [HelperManager] Helper registered (status: \(statusAfterRegister))")
                 return
             } catch {
                 // If another thread already registered or approval raced, treat Enabled as success
-                let statusAfterError = await SMAppServiceStatusProvider.shared.freshStatus(for: Self.helperPlistName)
+                let statusAfterError = await Self.systemStateProviderFactory()
+                    .freshSMAppServiceStatus(for: Self.helperPlistName)
                 if statusAfterError == .enabled {
                     AppLogger.shared.info(
                         "✅ [HelperManager] Helper became Enabled during registration race; treating as success"
@@ -150,7 +153,8 @@ extension HelperManager {
         let svc = Self.smServiceFactory(Self.helperPlistName)
         do {
             try await svc.unregister()
-            await SMAppServiceStatusProvider.shared.invalidate(plistName: Self.helperPlistName)
+            await Self.systemStateProviderFactory()
+                .invalidateSMAppServiceStatus(plistName: Self.helperPlistName)
         } catch {
             throw HelperManagerError.operationFailed(
                 "SMAppService unregister failed: \(error.localizedDescription)"
@@ -198,10 +202,12 @@ extension HelperManager {
 
         do {
             try svc.register()
-            await SMAppServiceStatusProvider.shared.invalidate(plistName: Self.helperPlistName)
+            await Self.systemStateProviderFactory()
+                .invalidateSMAppServiceStatus(plistName: Self.helperPlistName)
             AppLogger.shared.log("✅ [HelperManager] Re-registered helper after stale SMAppService cleanup")
         } catch {
-            let statusAfterError = await SMAppServiceStatusProvider.shared.freshStatus(for: Self.helperPlistName)
+            let statusAfterError = await Self.systemStateProviderFactory()
+                .freshSMAppServiceStatus(for: Self.helperPlistName)
             if statusAfterError == .requiresApproval {
                 throw HelperManagerError.installationFailed(
                     "Approval required in System Settings → Login Items."
