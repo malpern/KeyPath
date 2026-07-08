@@ -40,7 +40,8 @@ public final class ProcessLifecycleManager {
         }
     }
 
-    public init() {
+    public init(systemStateProvider: SystemStateProvider = .shared) {
+        self.systemStateProvider = systemStateProvider
         AppLogger.shared.log(
             "🏗️ [ProcessLifecycleManager] Initialized with simplified PID-based tracking and caching"
         )
@@ -88,6 +89,8 @@ public final class ProcessLifecycleManager {
     public private(set) var lastConflictCheck: Date?
 
     // MARK: - Dependencies
+
+    private let systemStateProvider: SystemStateProvider
 
     /// Use shared singleton to ensure all ProcessLifecycleManager instances share the same cache
     private var pidCache: LaunchDaemonPIDCache {
@@ -233,25 +236,16 @@ public final class ProcessLifecycleManager {
     // MARK: - Process Detection
 
     /// Detect all kanata processes currently running
-    private func detectKanataProcesses() async throws -> [ProcessInfo] {
+    func detectKanataProcesses() async throws -> [ProcessInfo] {
         AppLogger.shared.log("🔍 [ProcessLifecycleManager] Detecting kanata processes...")
 
         var processes: [ProcessInfo] = []
 
-        let result = try await SubprocessRunner.shared.run("/usr/bin/pgrep", args: ["-fl", "kanata"])
-        if result.exitCode == 0 {
-            let lines = result.stdout.components(separatedBy: "\n").filter { !$0.isEmpty }
-            for line in lines {
-                let components = line.components(separatedBy: " ")
-                guard let pidString = components.first,
-                      let pid = pid_t(pidString),
-                      components.count > 1
-                else { continue }
-                let command = components.dropFirst().joined(separator: " ")
-                if isKanataBinary(command) {
-                    processes.append(ProcessInfo(pid: pid, command: command))
-                    AppLogger.shared.log("🔍 [ProcessLifecycleManager] Found kanata process: PID=\(pid)")
-                }
+        let matches = await systemStateProvider.processMatches(matching: "kanata")
+        for match in matches {
+            if isKanataBinary(match.command) {
+                processes.append(ProcessInfo(pid: match.pid, command: match.command))
+                AppLogger.shared.log("🔍 [ProcessLifecycleManager] Found kanata process: PID=\(match.pid)")
             }
         }
 

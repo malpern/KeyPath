@@ -30,6 +30,24 @@ public actor SystemStateProvider {
         return await subprocessRunner.pgrep(trimmedPattern)
     }
 
+    public func processMatches(matching pattern: String) async -> [SystemProcessMatch] {
+        let trimmedPattern = pattern.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPattern.isEmpty else { return [] }
+
+        do {
+            let result = try await subprocessRunner.run(
+                "/usr/bin/pgrep",
+                args: ["-fl", trimmedPattern],
+                timeout: 5
+            )
+            guard result.exitCode == 0 else { return [] }
+            return Self.parseProcessMatches(result.stdout)
+        } catch {
+            AppLogger.shared.warn("⚠️ [SystemStateProvider] pgrep -fl failed for pattern '\(trimmedPattern)': \(error)")
+            return []
+        }
+    }
+
     public nonisolated static func processIDsSynchronously(matching pattern: String) -> [pid_t] {
         let trimmedPattern = pattern.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPattern.isEmpty else { return [] }
@@ -46,6 +64,19 @@ public actor SystemStateProvider {
             .components(separatedBy: .newlines)
             .filter { !$0.isEmpty }
             .compactMap { Int32($0.trimmingCharacters(in: .whitespaces)) }
+    }
+
+    private nonisolated static func parseProcessMatches(_ output: String) -> [SystemProcessMatch] {
+        output
+            .components(separatedBy: .newlines)
+            .compactMap { rawLine in
+                let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !line.isEmpty else { return nil }
+
+                let parts = line.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+                guard parts.count == 2, let pid = pid_t(parts[0]) else { return nil }
+                return SystemProcessMatch(pid: pid, command: String(parts[1]))
+            }
     }
 
     public nonisolated static func isProcessAlive(pid: pid_t) -> Bool {
@@ -108,5 +139,15 @@ public struct KanataLivenessEvidence: Equatable, Sendable {
 
     public var ready: Bool {
         SystemStateProvider.isKanataReady(running: running, responding: responding)
+    }
+}
+
+public struct SystemProcessMatch: Equatable, Sendable {
+    public let pid: pid_t
+    public let command: String
+
+    public init(pid: pid_t, command: String) {
+        self.pid = pid
+        self.command = command
     }
 }

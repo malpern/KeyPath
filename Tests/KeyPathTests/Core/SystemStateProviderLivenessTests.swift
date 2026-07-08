@@ -81,6 +81,57 @@ final class SystemStateProviderLivenessTests: XCTestCase {
         XCTAssertEqual(pids, [])
     }
 
+    func testProcessMatchDiscoveryDelegatesToInjectedSubprocessRunner() async {
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configureRunResult { executable, args in
+            if executable == "/usr/bin/pgrep", args == ["-fl", "kanata"] {
+                return ProcessResult(
+                    exitCode: 0,
+                    stdout: """
+                    123 kanata --cfg /Users/example/.config/keypath/keypath.kbd
+                    invalid
+                    456 /opt/homebrew/bin/kanata --cfg /tmp/other.kbd
+
+                    """,
+                    stderr: "",
+                    duration: 0.01
+                )
+            }
+            return ProcessResult(exitCode: 1, stdout: "", stderr: "", duration: 0.01)
+        }
+        let provider = SystemStateProvider(subprocessRunner: runner)
+
+        let matches = await provider.processMatches(matching: "kanata")
+        let commands = await runner.executedCommands
+
+        XCTAssertEqual(
+            matches,
+            [
+                SystemProcessMatch(pid: 123, command: "kanata --cfg /Users/example/.config/keypath/keypath.kbd"),
+                SystemProcessMatch(pid: 456, command: "/opt/homebrew/bin/kanata --cfg /tmp/other.kbd")
+            ]
+        )
+        XCTAssertTrue(
+            commands.contains { $0.executable == "/usr/bin/pgrep" && $0.args == ["-fl", "kanata"] },
+            "SystemStateProvider should own pgrep -fl process-match discovery"
+        )
+    }
+
+    func testProcessMatchDiscoveryRejectsBlankPatterns() async {
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configureRunResult { _, _ in
+            XCTFail("Blank process-match patterns must not invoke pgrep")
+            return ProcessResult(exitCode: 0, stdout: "", stderr: "", duration: 0.01)
+        }
+        let provider = SystemStateProvider(subprocessRunner: runner)
+
+        let matches = await provider.processMatches(matching: "  \n\t  ")
+
+        XCTAssertEqual(matches, [])
+    }
+
     func testSynchronousProcessDiscoveryRejectsBlankPatterns() {
         let pids = SystemStateProvider.processIDsSynchronously(matching: "  \n\t  ")
 

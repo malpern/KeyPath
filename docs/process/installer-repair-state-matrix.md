@@ -144,12 +144,16 @@ the result as user action required and name the approval surface.
   `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed` plus
   `TCPReadinessLintTests.testProductionRawTCPSocketProbeIsCentralized` block
   production readiness checks from bypassing the provider.
-- `pgrep` process discovery belongs in `SystemStateProvider.processIDs(matching:)`
-  or `SystemStateProvider.processIDsSynchronously(matching:)` for synchronous
+- `pgrep` process discovery belongs in `SystemStateProvider.processIDs(matching:)`,
+  `SystemStateProvider.processMatches(matching:)`, or
+  `SystemStateProvider.processIDsSynchronously(matching:)` for synchronous
   pre-exec/privileged-helper paths.
   `SystemStateProviderLivenessTests.testProcessDiscoveryDelegatesToInjectedSubprocessRunner`
   and `SystemStateProviderLivenessTests.testProcessDiscoveryRejectsBlankPatterns`
   pin the async provider contract,
+  `SystemStateProviderLivenessTests.testProcessMatchDiscoveryDelegatesToInjectedSubprocessRunner`
+  and `SystemStateProviderLivenessTests.testProcessMatchDiscoveryRejectsBlankPatterns`
+  pin the command-aware provider contract,
   `SystemStateProviderLivenessTests.testSynchronousProcessDiscoveryRejectsBlankPatterns`
   and `SystemStateProviderLivenessTests.testSynchronousProcessDiscoveryReturnsEmptyForMissingProcess`
   pin the synchronous provider contract, while
@@ -168,8 +172,10 @@ the result as user action required and name the approval surface.
   `DiagnosticsServiceTests.testKarabinerGrabberDetectionUsesInjectedSystemStateProvider`,
   `DiagnosticsServiceTests.testKarabinerDaemonDetectionUsesInjectedSystemStateProvider`,
   `PgrepProcessDiscoveryLintTests.testDiagnosticsServiceDelegatesPgrepDiscoveryToSystemStateProvider`,
-  and `PgrepProcessDiscoveryLintTests.testLauncherServiceDelegatesPgrepDiscoveryToSystemStateProvider`
-  block migrated runtime/system-validator/Karabiner-conflict/VHID/diagnostics/launcher consumers from bypassing it.
+  `PgrepProcessDiscoveryLintTests.testLauncherServiceDelegatesPgrepDiscoveryToSystemStateProvider`,
+  `ProcessLifecycleManagerTests.testDetectKanataProcessesUsesInjectedSystemStateProvider`,
+  and `PgrepProcessDiscoveryLintTests.testProcessLifecycleManagerDelegatesPgrepDiscoveryToSystemStateProvider`
+  block migrated runtime/system-validator/Karabiner-conflict/VHID/diagnostics/launcher/process-lifecycle consumers from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References
