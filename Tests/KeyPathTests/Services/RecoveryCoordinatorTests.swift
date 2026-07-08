@@ -220,25 +220,26 @@ struct RecoveryCoordinatorPauseResumeTests {
 @Suite("RecoveryCoordinator — Failure Diagnosis")
 @MainActor
 struct RecoveryCoordinatorFailureDiagnosisTests {
-    @Test("diagnoseKanataFailure triggers recovery on exit code 6 with VirtualHID error")
-    func triggersRecoveryOnExitCode6() async {
+    @Test("diagnoseKanataFailure surfaces VirtualHID diagnostics without recovery")
+    func surfacesVirtualHIDDiagnosticWithoutRecovery() {
         let coordinator = RecoveryCoordinator()
 
-        await confirmation("recovery triggered", expectedCount: 1) { confirm in
-            coordinator.diagnoseKanataFailure(
-                exitCode: 6,
-                output: "error: connect_failed asio.system:61",
-                diagnostics: [],
-                addDiagnostic: { _ in },
-                attemptRecovery: {
-                    confirm()
-                }
+        let diagnostics = [
+            makeDiagnostic(
+                category: .conflict,
+                title: "VirtualHID Connection Failed",
+                canAutoFix: true
             )
+        ]
+        var addedTitles: [String] = []
+        coordinator.diagnoseKanataFailure(
+            exitCode: 6,
+            output: "error: connect_failed asio.system:61",
+            diagnostics: diagnostics,
+            addDiagnostic: { addedTitles.append($0.title) }
+        )
 
-            // The recovery runs in a detached Task inside diagnoseKanataFailure,
-            // so yield briefly to let it execute.
-            await Task.yield()
-        }
+        #expect(addedTitles == ["VirtualHID Connection Failed"])
     }
 
     @Test("diagnoseKanataFailure adds all diagnostics")
@@ -256,8 +257,7 @@ struct RecoveryCoordinatorFailureDiagnosisTests {
             exitCode: 0,
             output: "",
             diagnostics: diagnostics,
-            addDiagnostic: { addedTitles.append($0.title) },
-            attemptRecovery: {}
+            addDiagnostic: { addedTitles.append($0.title) }
         )
 
         #expect(addedTitles.count == 3)
@@ -267,17 +267,16 @@ struct RecoveryCoordinatorFailureDiagnosisTests {
     @Test("diagnoseKanataFailure does not trigger recovery for normal exit")
     func doesNotTriggerRecoveryForNormalExit() {
         let coordinator = RecoveryCoordinator()
-        var recoveryCalled = false
+        var addedTitles: [String] = []
 
         coordinator.diagnoseKanataFailure(
             exitCode: 0,
             output: "",
-            diagnostics: [],
-            addDiagnostic: { _ in },
-            attemptRecovery: { recoveryCalled = true }
+            diagnostics: [makeDiagnostic(title: "Normal Exit Diagnostic")],
+            addDiagnostic: { addedTitles.append($0.title) }
         )
 
-        #expect(!recoveryCalled, "attemptRecovery should NOT be called for exit code 0")
+        #expect(addedTitles == ["Normal Exit Diagnostic"])
     }
 }
 

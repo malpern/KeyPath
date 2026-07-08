@@ -186,33 +186,28 @@ final class RecoveryCoordinator {
 
     // MARK: - Failure Diagnosis
 
-    /// Diagnose Kanata failure and trigger recovery if needed
+    /// Diagnose Kanata failure and surface diagnostics for user-initiated recovery.
     ///
     /// - Parameters:
     ///   - exitCode: Process exit code
     ///   - output: Process output/stderr
     ///   - diagnostics: Diagnostics from DiagnosticsManager
     ///   - addDiagnostic: Handler to add diagnostic to system
-    ///   - attemptRecovery: Handler to attempt recovery (must be @escaping for Task)
     func diagnoseKanataFailure(
         exitCode: Int32,
         output: String,
         diagnostics: [KanataDiagnostic],
-        addDiagnostic: (KanataDiagnostic) -> Void,
-        attemptRecovery: @escaping () async -> Void
+        addDiagnostic: (KanataDiagnostic) -> Void
     ) {
-        // Check for zombie keyboard capture bug (exit code 6 with VirtualHID connection failure)
+        // The diagnostics layer already emits a fixable "VirtualHID Connection Failed"
+        // row for this case. W3 keeps this passive: user action chooses whether to fix.
         if exitCode == 6,
            output.contains("connect_failed asio.system:61")
            || output.contains("connect_failed asio.system:2")
         {
-            // This is the "zombie keyboard capture" bug - automatically attempt recovery
-            Task {
-                AppLogger.shared.log(
-                    "🚨 [Recovery] Detected zombie keyboard capture - attempting automatic recovery"
-                )
-                await attemptRecovery()
-            }
+            AppLogger.shared.warnUnlessQuietTest(
+                "🚨 [Recovery] Detected zombie keyboard capture - surfacing diagnostic for user repair"
+            )
         }
 
         // Add all diagnostics

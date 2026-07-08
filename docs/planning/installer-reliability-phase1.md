@@ -557,6 +557,12 @@ Phase 1 changes *post-install* behavior, not first-run automation.
   user-initiated repair instead. Enforced by
   `StuckKeyRecoveryServiceTests.testSurfacesIncidentForStuckKey` and
   `StuckKeyRecoveryLintTests.testStuckKeyRecoveryDoesNotRestartKanataAutomatically`.
+- [x] Kanata failure diagnosis no longer launches keyboard recovery from a
+  background failure callback; it surfaces fixable diagnostics for user action
+  instead. Enforced by
+  `RecoveryCoordinatorFailureDiagnosisTests.surfacesVirtualHIDDiagnosticWithoutRecovery`
+  and
+  `KanataFailureDiagnosisLintTests.testKanataFailureDiagnosisDoesNotAttemptBackgroundRecovery`.
 - [ ] Remaining background mutators still need W3 migration or explicit
   first-run/user-gesture justification.
 - [ ] Terminal failure reports still need troubleshooting-guide links for the
