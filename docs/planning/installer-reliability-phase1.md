@@ -234,6 +234,11 @@ classification remains pending.
   `PermissionSnapshotLintTests.testInstallationWizardStateManagementDelegatesPermissionSnapshotsToSystemStateProvider`,
   and
   `PermissionSnapshotLintTests.testDragToAuthorizeControllerDelegatesPermissionSnapshotsToSystemStateProvider`.
+- [x] Migrated synchronous KeyPath Accessibility status reads through
+  `SystemStateProvider`'s permission facade. Enforced by
+  `PermissionSnapshotLintTests.testKeyboardCaptureDelegatesSyncAccessibilityStatusToSystemStateProvider`
+  and
+  `PermissionSnapshotLintTests.testWindowManagerDelegatesSyncAccessibilityStatusToSystemStateProvider`.
 - [ ] Migrate `SMAppService.status`, permissions, VHID state, helper freshness,
   and migrated read-only `launchctl print` evidence into a single immutable
   `SystemSnapshot`.
@@ -440,6 +445,11 @@ through 21 mocked tests).
   `PermissionSnapshotLintTests.testInstallationWizardStateManagementDelegatesPermissionSnapshotsToSystemStateProvider`,
   and
   `PermissionSnapshotLintTests.testDragToAuthorizeControllerDelegatesPermissionSnapshotsToSystemStateProvider`.
+- [x] Synchronous KeyPath Accessibility status reads delegate to
+  `SystemStateProvider`'s permission façade. Enforced by
+  `PermissionSnapshotLintTests.testKeyboardCaptureDelegatesSyncAccessibilityStatusToSystemStateProvider`
+  and
+  `PermissionSnapshotLintTests.testWindowManagerDelegatesSyncAccessibilityStatusToSystemStateProvider`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -594,6 +604,11 @@ is listed in the state-matrix doc's enforcement section.
   `PermissionSnapshotLintTests.testDragToAuthorizeControllerDelegatesPermissionSnapshotsToSystemStateProvider`
   prevent migrated wizard UI permission refresh reads from bypassing
   `SystemStateProvider`.
+- [x] `PermissionSnapshotLintTests.testKeyboardCaptureDelegatesSyncAccessibilityStatusToSystemStateProvider`
+  and
+  `PermissionSnapshotLintTests.testWindowManagerDelegatesSyncAccessibilityStatusToSystemStateProvider`
+  prevent migrated synchronous KeyPath Accessibility status reads from
+  bypassing `SystemStateProvider`.
 - [x] `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
   prevents `ServiceHealthChecker` from regrowing a private TCP socket probe.
 - [x] `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed` and

@@ -252,7 +252,11 @@ the result as user action required and name the approval surface.
   `PermissionSnapshotLintTests.testInstallationWizardStateManagementDelegatesPermissionSnapshotsToSystemStateProvider`,
   and
   `PermissionSnapshotLintTests.testDragToAuthorizeControllerDelegatesPermissionSnapshotsToSystemStateProvider`
-  prevent wizard UI permission refresh reads from bypassing it.
+  prevent wizard UI permission refresh reads from bypassing it, and
+  `PermissionSnapshotLintTests.testKeyboardCaptureDelegatesSyncAccessibilityStatusToSystemStateProvider`
+  and
+  `PermissionSnapshotLintTests.testWindowManagerDelegatesSyncAccessibilityStatusToSystemStateProvider`
+  prevent synchronous KeyPath Accessibility status reads from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References

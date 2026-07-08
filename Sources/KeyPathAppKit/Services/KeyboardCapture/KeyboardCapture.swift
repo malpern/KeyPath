@@ -785,7 +785,7 @@ public class KeyboardCapture {
 
     /// Check permissions without prompting - using synchronous method to avoid deadlocks
     func checkAccessibilityPermissionsSilently() -> Bool {
-        PermissionOracle.shared.keyPathAccessibilityStatus().isReady
+        SystemStateProvider.shared.keyPathAccessibilityStatus().isReady
     }
 
     /// Public method to explicitly request permissions (for use in wizard)
