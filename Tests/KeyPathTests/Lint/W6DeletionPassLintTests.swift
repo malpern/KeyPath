@@ -66,6 +66,37 @@ final class W6DeletionPassLintTests: XCTestCase {
             """
         )
     }
+
+    func testConfigurationManagerSingleImplementationProtocolDoesNotRegrow() throws {
+        let managerFile = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/Configuration/ConfigurationManager.swift")
+        let runtimeCoordinator = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/RuntimeCoordinator.swift")
+
+        let violations = try [
+            managerFile,
+            runtimeCoordinator,
+        ].flatMap { file in
+            try matchingLines(
+                in: file,
+                patterns: [
+                    #"protocol\s+ConfigurationManaging\b"#,
+                    #":\s*ConfigurationManaging\b"#,
+                    #"\bConfigurationManaging\b"#,
+                ]
+            )
+        }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            W6 removes single-implementation protocols unless they provide \
+            real injection value. ConfigurationManager is the concrete \
+            dependency; do not regrow ConfigurationManaging:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {

@@ -785,6 +785,10 @@ realistic without losing capability. Measure before/after.
   wired `DiagnosticsManager` to the concrete `ServiceHealthMonitor`. Enforced
   by
   `W6DeletionPassLintTests.testServiceHealthMonitorSingleImplementationProtocolDoesNotRegrow`.
+- [x] Removed the single-implementation `ConfigurationManaging` protocol and
+  wired `RuntimeCoordinator` to the concrete `ConfigurationManager`. Enforced
+  by
+  `W6DeletionPassLintTests.testConfigurationManagerSingleImplementationProtocolDoesNotRegrow`.
 - [ ] Remaining single-implementation protocols, duplicate in-path checks,
   cache consolidation, and DEBUG-only seams still need separate deletion PRs.
 
