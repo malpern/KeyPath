@@ -781,6 +781,10 @@ realistic without losing capability. Measure before/after.
   and wired its consumers to the concrete `KarabinerConflictService`. Enforced
   by
   `W6DeletionPassLintTests.testKarabinerConflictSingleImplementationProtocolDoesNotRegrow`.
+- [x] Removed the single-implementation `ServiceHealthMonitorProtocol` and
+  wired `DiagnosticsManager` to the concrete `ServiceHealthMonitor`. Enforced
+  by
+  `W6DeletionPassLintTests.testServiceHealthMonitorSingleImplementationProtocolDoesNotRegrow`.
 - [ ] Remaining single-implementation protocols, duplicate in-path checks,
   cache consolidation, and DEBUG-only seams still need separate deletion PRs.
 
