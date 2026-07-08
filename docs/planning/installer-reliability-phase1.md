@@ -115,10 +115,10 @@ classification remains pending.
   `SystemStateProviderLivenessTests.testProcessMatchDiscoveryRejectsBlankPatterns`,
   `ProcessLifecycleManagerTests.testDetectKanataProcessesUsesInjectedSystemStateProvider`,
   `PgrepProcessDiscoveryLintTests.testProcessLifecycleManagerDelegatesPgrepDiscoveryToSystemStateProvider`,
-  and `PgrepProcessDiscoveryLintTests.testHelperServiceDelegatesPgrepDiscoveryToSystemStateProvider`.
-- [ ] Migrate `launchctl`, `SMAppService.status`, remaining `pgrep` consumers,
-  permissions, VHID state, and helper freshness into a single immutable
-  `SystemSnapshot`.
+  `PgrepProcessDiscoveryLintTests.testHelperServiceDelegatesPgrepDiscoveryToSystemStateProvider`,
+  and `PgrepProcessDiscoveryLintTests.testProductionPgrepDiscoveryIsCentralizedInCoreProvider`.
+- [ ] Migrate `launchctl`, `SMAppService.status`, permissions, VHID state, and
+  helper freshness into a single immutable `SystemSnapshot`.
 - [ ] Build `classify(snapshot) -> StateMatrixRow -> plan` and table-driven
   golden tests for every state-matrix row.
 
@@ -210,8 +210,10 @@ through 21 mocked tests).
   `SystemStateProviderLivenessTests.testSynchronousProcessDiscoveryReturnsEmptyForMissingProcess`,
   and
   `PgrepProcessDiscoveryLintTests.testHelperServiceDelegatesPgrepDiscoveryToSystemStateProvider`.
-- [ ] Centralize remaining `pgrep` process-discovery consumers as later W1/W2
-  migration slices.
+- [x] Production `pgrep` process discovery is centralized in
+  `SystemStateProvider`/`SubprocessRunner`, with no caller-owned production
+  uses remaining. Enforced by
+  `PgrepProcessDiscoveryLintTests.testProductionPgrepDiscoveryIsCentralizedInCoreProvider`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -341,7 +343,10 @@ is listed in the state-matrix doc's enforcement section.
 - [x] `PgrepProcessDiscoveryLintTests.testProcessLifecycleManagerDelegatesPgrepDiscoveryToSystemStateProvider`
   prevents command-aware Kanata process conflict detection from regrowing direct
   `pgrep` process discovery.
-- [ ] Add `launchctl`, broader `pgrep`, postcondition, and snapshot-cache
+- [x] `PgrepProcessDiscoveryLintTests.testProductionPgrepDiscoveryIsCentralizedInCoreProvider`
+  blocks production `pgrep` process discovery outside the core provider
+  implementation.
+- [ ] Add `launchctl`, postcondition, and snapshot-cache
   ratchets with the corresponding migration slices.
 
 ## Workstream 6: Deletion Pass
