@@ -29,6 +29,8 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-029](adr-029-eliminate-fake-key-layer-notifications.md) | Eliminate Fake Key Layer Notifications via Native LayerChange | Proposed |
 | [ADR-030](adr-030-insights-companion-app.md) | Separate Activity Logging and AI Features into KeyPath Insights Companion App | Accepted |
 | [ADR-031](adr-031-kanata-service-lifecycle-invariants-and-postcondition-enforcement.md) | Kanata Service Lifecycle Invariants and Postcondition Enforcement | Accepted |
+| [ADR-032](adr-032-macos-kanata-runtime-identity.md) | Stable App-Bundled Runtime Identity for macOS Kanata Input Capture | Proposed |
+| [ADR-033](adr-033-bundled-binary-canonical-path.md) | Bundled Binary as Canonical Kanata Path | Accepted |
 | [ADR-034](adr-034-kanata-engine-app-bundle-tcc-identity.md) | Kanata Engine.app Bundle for TCC Identity | Accepted |
 | [ADR-035](adr-035-bundle-id-tcc-detection-with-path-fallback.md) | Bundle ID TCC Detection with Path Fallback | Accepted |
 | [ADR-036](adr-036-per-device-key-mappings.md) | Per-Device Key Mappings via Conditional Switch Wrapping | Accepted |
@@ -36,6 +38,8 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-038](adr-038-extension-file-splitting.md) | Extension-File Splitting for Large Types | Accepted |
 | [ADR-039](adr-039-key-conflict-resolution-principles.md) | Key Conflict Detection and Resolution Principles | Accepted |
 | [ADR-040](adr-040-process-liveness-across-privilege-boundary.md) | Process Liveness and Signaling Across the Privilege Boundary | Accepted |
+| [ADR-041](adr-041-installer-identity-stability-contract.md) | Installer Identity Stability Contract | Accepted |
+| [ADR-042](adr-042-executable-installer-state-classification.md) | Executable Installer State Classification | Accepted |
 
 ## Key Decisions Summary
 
@@ -47,6 +51,8 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 - **ADR-026**: Always validate components exist BEFORE checking service status.
 - **ADR-031**: Installer success requires verified runtime readiness (`running + TCP`) or explicit pending approval.
 - **ADR-040**: kanata is a root LaunchDaemon; the app is unprivileged. `kill(pid,0)` returns `EPERM` (not `ESRCH`) for the live daemon — treat EPERM as alive. The app cannot signal/kill the daemon; only launchd can.
+- **ADR-041**: Installer identity values for kanata, helper, and daemon shell are release-gated contracts.
+- **ADR-042**: The installer repair state matrix is executable; CLI, menu-bar, and wizard consumers share row/action vocabulary.
 
 ### Configuration
 - **ADR-023**: Never parse Kanata config files directly. Use TCP and simulator.

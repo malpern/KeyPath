@@ -295,4 +295,5 @@ the result as user action required and name the approval surface.
 
 - `docs/adr/adr-031-kanata-service-lifecycle-invariants-and-postcondition-enforcement.md`
 - `docs/adr/adr-040-process-liveness-across-privilege-boundary.md`
+- `docs/adr/adr-042-executable-installer-state-classification.md`
 - `docs/bugs/2026-02-28-install-bundled-kanata-false-success-stale-throttle.md`

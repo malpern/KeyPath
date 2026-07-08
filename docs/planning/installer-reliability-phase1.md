@@ -776,6 +776,8 @@ user interaction — is planned, gated, and preserved in
 - [Installer repair state matrix](../process/installer-repair-state-matrix.md)
 - [ADR-031: lifecycle invariants & postcondition enforcement](../adr/adr-031-kanata-service-lifecycle-invariants-and-postcondition-enforcement.md)
 - [ADR-040: process liveness across the privilege boundary](../adr/adr-040-process-liveness-across-privilege-boundary.md)
+- [ADR-041: installer identity stability contract](../adr/adr-041-installer-identity-stability-contract.md)
+- [ADR-042: executable installer state classification](../adr/adr-042-executable-installer-state-classification.md)
 - [ADR-032/033/034: runtime identity, canonical path, TCC identity](../adr/adr-032-macos-kanata-runtime-identity.md)
 - [2026-02-28 false-success incident](../bugs/2026-02-28-install-bundled-kanata-false-success-stale-throttle.md)
 - Industry references: Rogue Amoeba ACE repair flow; Karabiner-Elements v15

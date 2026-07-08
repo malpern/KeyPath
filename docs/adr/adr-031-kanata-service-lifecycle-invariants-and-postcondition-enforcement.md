@@ -44,6 +44,17 @@ Adopt explicit service lifecycle invariants for Kanata install/repair paths:
    - `responding`: TCP probe success
    - `ready`: `running && responding`
 
+6. **Executable state classification**
+   - The installer repair state matrix is not just a checklist. It is encoded by
+     `InstallerStateMatrixPlanner` and backed by golden tests.
+   - CLI, menu-bar, and wizard surfaces publish or consume the same
+     `InstallerStateMatrixRow` / `InstallerStateMatrixAction` vocabulary before
+     deciding whether a state is healthy, degraded, or manual-action-required.
+   - Live AppKit evidence is materialized through
+     `SystemStateProvider.currentInstallerStateMatrixSnapshot(...)`; wizard core
+     uses a pure `SystemContext -> InstallerStateMatrixSnapshot` bridge because
+     it cannot import AppKit.
+
 ## Consequences
 
 ### Positive
@@ -52,12 +63,39 @@ Adopt explicit service lifecycle invariants for Kanata install/repair paths:
 - Stale-registration repair is deterministic even during throttle windows.
 - "Green then stopped" transitions are reduced by fail-fast postconditions.
 - Health decisions are easier to test and reason about.
+- State classification now has table-driven regression coverage for every
+  documented matrix row.
 
 ### Negative
 
 - Install/repair actions can fail more often in borderline startup conditions instead of masking failures.
 - Additional polling and diagnostics add modest complexity.
+- Until the Workstream 6 deletion pass, both `SystemSnapshot`/`SystemContext`
+  and the narrower `InstallerStateMatrixSnapshot` exist.
 
 ### Follow-up
 
-- Continue hardening by unifying startup-gate and installer readiness predicates and expanding integration-style regression coverage across launchctl/TCP/stale-state combinations.
+- Workstream 3 changes repair autonomy and user-initiated repair behavior on
+  top of the Phase 1 classification contract.
+- Workstream 6 collapses remaining snapshot/cache duplication after the repair
+  model is stable.
+
+## Enforcement
+
+- `InstallerStateMatrixGoldenTests.testEveryDocumentedStateMatrixRowHasAGoldenFixture`
+  and
+  `InstallerStateMatrixGoldenTests.testClassifySnapshotAndPlanMatchStateMatrixGoldenFixtures`
+  pin the documented rows and action plans.
+- `SystemStateProviderInstallerStateMatrixTests.*` pins live matrix snapshot
+  materialization from provider-owned SMAppService, launchd/runtime, helper, and
+  component evidence.
+- `CLIOutputContractTests.testInspectResultRepairMetadataJSONShape`,
+  `MainAppStateControllerTests.menuBarHealthPrefersStateMatrixRow`, and
+  `WizardPureLogicTests.test_systemContextAdapterPublishesStateMatrixMetadata`
+  pin consumer adoption.
+
+## Related
+
+- [ADR-040: Process Liveness and Signaling Across the Privilege Boundary](adr-040-process-liveness-across-privilege-boundary.md)
+- [ADR-042: Executable Installer State Classification](adr-042-executable-installer-state-classification.md)
+- [Installer repair state matrix](../process/installer-repair-state-matrix.md)

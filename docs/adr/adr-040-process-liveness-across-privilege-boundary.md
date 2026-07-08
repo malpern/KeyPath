@@ -31,7 +31,32 @@ From the unprivileged app, probing the **root** kanata returns `EPERM` while it 
 - Any future process-inspection helper (liveness polls, orphan detection, restart races) must apply the EPERM rule and must not assume app-side signals reach the daemon.
 - Reviews of lifecycle / process code must include a **runtime-reality** lens: "what does this syscall actually return in the real root/unprivileged topology?" — not just static diff analysis.
 - This is the signaling-side companion to the permissions rule in [ADR-001](adr-001-oracle-pattern.md) / [ADR-006](adr-006-apple-api-priority.md) ("never check permissions from root"): the privilege boundary changes the meaning of OS calls in both directions.
+- Phase 1 of installer reliability centralizes liveness and readiness probes in
+  `SystemStateProvider`. Migrated consumers must not regrow direct `kill(pid,
+  0)`, `pgrep`, launchctl read-only evidence, or TCP probe implementations.
 
 ## Reference implementation
 
-`ServiceLifecycleCoordinator.isProcessAlive(_:)` and `waitForKanataExitBeforeStart()` (#625 part-1).
+`SystemStateProvider.isProcessAlive(pid:)` is the canonical liveness primitive.
+`SystemStateProvider.isTCPPortResponding(port:timeoutMs:)` is the canonical TCP
+readiness primitive. Higher-level consumers use provider-owned process
+discovery and launchctl read-only evidence helpers.
+
+## Enforcement
+
+- `SystemStateProviderLivenessTests.testProcessLivenessProbeTreatsCurrentProcessAsAliveAndExitedProcessAsDead`
+  grounds the liveness primitive against real process behavior.
+- `LivenessPredicateLintTests.testKillZeroLivenessProbeIsCentralized` prevents
+  direct `kill(pid, 0)` probes outside `SystemStateProvider`.
+- `SystemStateProviderLivenessTests.testTCPReadinessProbeDetectsListeningAndClosedPorts`
+  grounds the TCP readiness primitive.
+- `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
+  prevents migrated readiness consumers from bypassing the provider.
+- `PgrepProcessDiscoveryLintTests` and `LaunchctlEvidenceLintTests` keep
+  migrated process discovery and launchctl read-only evidence centralized.
+
+## Related
+
+- [ADR-031: Kanata Service Lifecycle Invariants and Postcondition Enforcement](adr-031-kanata-service-lifecycle-invariants-and-postcondition-enforcement.md)
+- [ADR-042: Executable Installer State Classification](adr-042-executable-installer-state-classification.md)
+- [Installer repair state matrix](../process/installer-repair-state-matrix.md)
