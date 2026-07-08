@@ -776,6 +776,14 @@ removed):
 **Target:** the subsystem is ~34K LOC (~19% of the app). A 25–35% reduction is
 realistic without losing capability. Measure before/after.
 
+**Status (2026-07-08):** W6 deletion pass in progress.
+- [x] Removed the single-implementation `KarabinerConflictManaging` protocol
+  and wired its consumers to the concrete `KarabinerConflictService`. Enforced
+  by
+  `W6DeletionPassLintTests.testKarabinerConflictSingleImplementationProtocolDoesNotRegrow`.
+- [ ] Remaining single-implementation protocols, duplicate in-path checks,
+  cache consolidation, and DEBUG-only seams still need separate deletion PRs.
+
 ## Sequencing
 
 1. **W4 (prevention)** — independent, highest leverage per line, do first.

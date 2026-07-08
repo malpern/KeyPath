@@ -170,7 +170,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     let kanataDaemonService: KanataDaemonService
     nonisolated let diagnosticsService: DiagnosticsServiceProtocol
     let reloadSafetyMonitor = ReloadSafetyMonitor() // internal for use by extensions
-    let karabinerConflictService: KarabinerConflictManaging
+    let karabinerConflictService: KarabinerConflictService
     let configBackupManager: ConfigBackupManager
     let ruleCollectionsManager: RuleCollectionsManager
     let systemRequirementsChecker: SystemRequirementsChecker
