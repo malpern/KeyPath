@@ -546,6 +546,17 @@ Phase 1 changes *post-install* behavior, not first-run automation.
 - Every terminal failure report names either the manual approval surface or
   the troubleshooting doc for its failure class.
 
+**Status (2026-07-08):** First W3 passive-detection slice in progress.
+- [x] Post-update degraded-state handling no longer runs automatic repair after
+  Sparkle relaunch; it refreshes/surfaces status for user-initiated repair
+  instead. Enforced by
+  `PostUpdateRepairLintTests.testPostUpdateFinalizeDoesNotRunAutomaticRepair`
+  and `UpdateServiceDecisionTests.testPostUpdateDecisionRequiresUserRepairWhenHelperNotReady`.
+- [ ] Remaining background mutators still need W3 migration or explicit
+  first-run/user-gesture justification.
+- [ ] Terminal failure reports still need troubleshooting-guide links for the
+  unfixable tail.
+
 ## Workstream 4: Prevention at the Source
 
 Much of the repair demand is TCC/identity flap we can prevent instead of

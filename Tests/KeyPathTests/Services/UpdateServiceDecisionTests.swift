@@ -6,7 +6,7 @@ import KeyPathWizardCore
 import XCTest
 
 final class UpdateServiceDecisionTests: XCTestCase {
-    func testPreUpdateDecisionUsesSoftRepairWhenHelperPresent() {
+    func testPreUpdateDecisionAllowsAutomaticRepairDuringUpdateInstallWhenHelperPresent() {
         let context = makeContext(
             keyPathStatus: .granted,
             kanataStatus: .granted,
@@ -16,7 +16,7 @@ final class UpdateServiceDecisionTests: XCTestCase {
         )
 
         let decision = UpdateService.preUpdateDecision(for: context)
-        XCTAssertEqual(decision, .softRepair(reason: "reason_code=services_or_helper_present"))
+        XCTAssertEqual(decision, .automaticRepairAllowed(reason: "reason_code=services_or_helper_present"))
     }
 
     func testPreUpdateDecisionContinuesSilentlyWhenNothingRunning() {
@@ -32,7 +32,7 @@ final class UpdateServiceDecisionTests: XCTestCase {
         XCTAssertEqual(decision, .silentContinue(reason: "reason_code=nothing_running"))
     }
 
-    func testPostUpdateDecisionHardRepairWhenKeyPathPermissionsBlocking() {
+    func testPostUpdateDecisionRequiresManualAttentionWhenKeyPathPermissionsBlocking() {
         let context = makeContext(
             keyPathStatus: .denied,
             kanataStatus: .granted,
@@ -42,7 +42,7 @@ final class UpdateServiceDecisionTests: XCTestCase {
         )
 
         let decision = UpdateService.postUpdateDecision(for: context)
-        XCTAssertEqual(decision, .hardRepair(reason: "reason_code=keypath_permissions_blocking"))
+        XCTAssertEqual(decision, .manualAttentionRequired(reason: "reason_code=keypath_permissions_blocking"))
     }
 
     /// #931: KeyPath's own Input Monitoring is soft (overlay/record only). With
@@ -62,7 +62,7 @@ final class UpdateServiceDecisionTests: XCTestCase {
         XCTAssertEqual(decision, .silentContinue(reason: "reason_code=healthy"))
     }
 
-    func testPostUpdateDecisionHardRepairWhenKanataPermissionsBlocking() {
+    func testPostUpdateDecisionRequiresManualAttentionWhenKanataPermissionsBlocking() {
         let context = makeContext(
             keyPathStatus: .granted,
             kanataStatus: .denied,
@@ -72,10 +72,10 @@ final class UpdateServiceDecisionTests: XCTestCase {
         )
 
         let decision = UpdateService.postUpdateDecision(for: context)
-        XCTAssertEqual(decision, .hardRepair(reason: "reason_code=kanata_permissions_blocking"))
+        XCTAssertEqual(decision, .manualAttentionRequired(reason: "reason_code=kanata_permissions_blocking"))
     }
 
-    func testPostUpdateDecisionSoftRepairWhenHelperNotReady() {
+    func testPostUpdateDecisionRequiresUserRepairWhenHelperNotReady() {
         let context = makeContext(
             keyPathStatus: .granted,
             kanataStatus: .granted,
@@ -85,10 +85,10 @@ final class UpdateServiceDecisionTests: XCTestCase {
         )
 
         let decision = UpdateService.postUpdateDecision(for: context)
-        XCTAssertEqual(decision, .softRepair(reason: "reason_code=helper_not_ready"))
+        XCTAssertEqual(decision, .userRepairRequired(reason: "reason_code=helper_not_ready"))
     }
 
-    func testPostUpdateDecisionSoftRepairWhenComponentsNotReady() {
+    func testPostUpdateDecisionRequiresUserRepairWhenComponentsNotReady() {
         let context = makeContext(
             keyPathStatus: .granted,
             kanataStatus: .granted,
@@ -98,10 +98,10 @@ final class UpdateServiceDecisionTests: XCTestCase {
         )
 
         let decision = UpdateService.postUpdateDecision(for: context)
-        XCTAssertEqual(decision, .softRepair(reason: "reason_code=components_not_ready"))
+        XCTAssertEqual(decision, .userRepairRequired(reason: "reason_code=components_not_ready"))
     }
 
-    func testPostUpdateDecisionSoftRepairWhenServicesNotReady() {
+    func testPostUpdateDecisionRequiresUserRepairWhenServicesNotReady() {
         let context = makeContext(
             keyPathStatus: .granted,
             kanataStatus: .granted,
@@ -111,7 +111,7 @@ final class UpdateServiceDecisionTests: XCTestCase {
         )
 
         let decision = UpdateService.postUpdateDecision(for: context)
-        XCTAssertEqual(decision, .softRepair(reason: "reason_code=components_not_ready"))
+        XCTAssertEqual(decision, .userRepairRequired(reason: "reason_code=components_not_ready"))
     }
 
     func testPostUpdateDecisionContinuesSilentlyWhenHealthy() {

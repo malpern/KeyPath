@@ -220,12 +220,14 @@ extension UpdateService: SPUUpdaterDelegate {
 extension UpdateService {
     enum UpdateRepairDecision: Equatable {
         case silentContinue(reason: String)
-        case softRepair(reason: String)
-        case hardRepair(reason: String)
+        case automaticRepairAllowed(reason: String)
+        case userRepairRequired(reason: String)
+        case manualAttentionRequired(reason: String)
     }
 
-    /// Called after the app relaunches following an update
-    /// We use this to re-register and restart services
+    /// Called after the app relaunches following an update.
+    /// Post-update detection must be passive: surface degraded state through
+    /// the normal status/wizard path and let the user start repair explicitly.
     public nonisolated func updaterDidRelaunchApplication(_: SPUUpdater) {
         Task { @MainActor in
             await finalizeUpdate()
@@ -249,11 +251,15 @@ extension UpdateService {
         switch Self.preUpdateDecision(for: context) {
         case let .silentContinue(reason):
             AppLogger.shared.log("✅ [UpdateService] Pre-update: no preparation needed (\(reason))")
-        case let .softRepair(reason), let .hardRepair(reason):
+        case let .automaticRepairAllowed(reason):
             AppLogger.shared.log("🔧 [UpdateService] Pre-update: running repair (\(reason))")
             let report = await engine.run(intent: .repair, using: broker)
             AppLogger.shared.log(
                 "✅ [UpdateService] Services prepared for update - success: \(report.success)"
+            )
+        case let .userRepairRequired(reason), let .manualAttentionRequired(reason):
+            AppLogger.shared.error(
+                "⚠️ [UpdateService] Pre-update repair not allowed for decision \(reason); continuing without mutation"
             )
         }
     }
@@ -261,32 +267,35 @@ extension UpdateService {
     @MainActor
     private func finalizeUpdate() async {
         let engine = InstallerEngine()
-        let broker = PrivilegeBroker()
         let context = await engine.inspectSystem()
 
         switch Self.postUpdateDecision(for: context) {
         case let .silentContinue(reason):
             AppLogger.shared.log("✅ [UpdateService] Post-update: system healthy, skipping repair (\(reason))")
-        case let .softRepair(reason):
-            AppLogger.shared.log("🔄 [UpdateService] Post-update: running targeted repair (\(reason))")
-            let report = await engine.run(intent: .repair, using: broker)
-            if report.success {
-                AppLogger.shared.log("✅ [UpdateService] Services repaired after update")
-            } else {
-                AppLogger.shared.error(
-                    "⚠️ [UpdateService] Service repair had issues - user may see wizard"
-                )
-            }
-        case let .hardRepair(reason):
-            AppLogger.shared.error(
-                "⚠️ [UpdateService] Post-update requires manual attention (\(reason)); skipping automatic repair"
+        case let .userRepairRequired(reason):
+            AppLogger.shared.warn(
+                "⚠️ [UpdateService] Post-update repair required (\(reason)); surfacing status for user-initiated repair"
             )
+            MainAppStateController.shared.invalidateValidationCooldown()
+            await MainAppStateController.shared.revalidate()
+        case let .manualAttentionRequired(reason):
+            AppLogger.shared.error(
+                "⚠️ [UpdateService] Post-update requires manual attention (\(reason)); surfacing status and skipping automatic repair"
+            )
+            MainAppStateController.shared.invalidateValidationCooldown()
+            await MainAppStateController.shared.revalidate()
+        case let .automaticRepairAllowed(reason):
+            AppLogger.shared.error(
+                "⚠️ [UpdateService] Post-update automatic repair is disallowed by Phase 1 W3 (\(reason)); surfacing status instead"
+            )
+            MainAppStateController.shared.invalidateValidationCooldown()
+            await MainAppStateController.shared.revalidate()
         }
     }
 
     nonisolated static func preUpdateDecision(for context: SystemContext) -> UpdateRepairDecision {
         if context.services.kanataRunning || context.services.karabinerDaemonRunning || context.helper.isInstalled {
-            return .softRepair(reason: "reason_code=services_or_helper_present")
+            return .automaticRepairAllowed(reason: "reason_code=services_or_helper_present")
         }
         return .silentContinue(reason: "reason_code=nothing_running")
     }
@@ -297,20 +306,20 @@ extension UpdateService {
         // must not force a hard post-update repair now that IOHIDCheckAccess makes
         // it authoritatively .denied (#931). KeyPath's Accessibility is required.
         if context.permissions.keyPath.accessibility.isBlocking {
-            return .hardRepair(reason: "reason_code=keypath_permissions_blocking")
+            return .manualAttentionRequired(reason: "reason_code=keypath_permissions_blocking")
         }
         if context.permissions.kanata.inputMonitoring.isBlocking || context.permissions.kanata.accessibility.isBlocking {
-            return .hardRepair(reason: "reason_code=kanata_permissions_blocking")
+            return .manualAttentionRequired(reason: "reason_code=kanata_permissions_blocking")
         }
 
         if !context.helper.isReady {
-            return .softRepair(reason: "reason_code=helper_not_ready")
+            return .userRepairRequired(reason: "reason_code=helper_not_ready")
         }
         if !context.components.hasAllRequired {
-            return .softRepair(reason: "reason_code=components_not_ready")
+            return .userRepairRequired(reason: "reason_code=components_not_ready")
         }
         if !context.services.backgroundServicesHealthy || !context.services.kanataRunning {
-            return .softRepair(reason: "reason_code=services_not_ready")
+            return .userRepairRequired(reason: "reason_code=services_not_ready")
         }
 
         return .silentContinue(reason: "reason_code=healthy")
