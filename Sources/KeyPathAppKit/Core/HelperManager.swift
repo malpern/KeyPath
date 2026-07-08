@@ -32,6 +32,10 @@ public actor HelperManager {
         nonisolated(unsafe) static var subprocessRunnerFactory: () -> SubprocessRunning = {
             SubprocessRunner.shared
         }
+
+        nonisolated(unsafe) static var systemStateProviderFactory: () -> SystemStateProvider = {
+            SystemStateProvider.shared
+        }
     #else
         static let smServiceFactory: @Sendable (String) -> SMAppServiceProtocol = { plistName in
             NativeSMAppService(wrapped: ServiceManagement.SMAppService.daemon(plistName: plistName))
@@ -39,6 +43,10 @@ public actor HelperManager {
 
         static let subprocessRunnerFactory: @Sendable () -> SubprocessRunning = {
             SubprocessRunner.shared
+        }
+
+        static let systemStateProviderFactory: @Sendable () -> SystemStateProvider = {
+            SystemStateProvider.shared
         }
     #endif
 

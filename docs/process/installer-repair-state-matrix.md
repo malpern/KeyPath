@@ -197,6 +197,10 @@ the result as user action required and name the approval surface.
   `KanataDaemonManagerTests.testRegisteredButNotLoadedUsesInjectedSystemStateProviderForLaunchctlEvidence`,
   and `LaunchctlEvidenceLintTests.testKanataDaemonManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
   block migrated Kanata daemon management checks from bypassing it.
+  `HelperManagerTests.testIsHelperInstalledUsesInjectedSystemStateProviderForLaunchctlEvidence`,
+  `HelperManagerTests.testLastHelperLogsUsesInjectedSystemStateProviderForLaunchctlEvidence`,
+  and `LaunchctlEvidenceLintTests.testHelperManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
+  block migrated helper installation/log-registration checks from bypassing it.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 
 ## Related References

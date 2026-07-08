@@ -141,8 +141,16 @@ classification remains pending.
   `KanataDaemonManagerTests.testRegisteredButNotLoadedUsesInjectedSystemStateProviderForLaunchctlEvidence`,
   and
   `LaunchctlEvidenceLintTests.testKanataDaemonManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
-- [ ] Migrate `launchctl`, `SMAppService.status`, permissions, VHID state, and
-  helper freshness into a single immutable `SystemSnapshot`.
+- [x] Migrated `HelperManager`'s read-only `launchctl print` helper
+  installation and helper-log registration evidence to
+  `SystemStateProvider.launchctlPrint(target:)`. Enforced by
+  `HelperManagerTests.testIsHelperInstalledUsesInjectedSystemStateProviderForLaunchctlEvidence`,
+  `HelperManagerTests.testLastHelperLogsUsesInjectedSystemStateProviderForLaunchctlEvidence`,
+  and
+  `LaunchctlEvidenceLintTests.testHelperManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
+- [ ] Migrate `SMAppService.status`, permissions, VHID state, helper freshness,
+  and migrated read-only `launchctl print` evidence into a single immutable
+  `SystemSnapshot`.
 - [ ] Build `classify(snapshot) -> StateMatrixRow -> plan` and table-driven
   golden tests for every state-matrix row.
 
@@ -261,6 +269,13 @@ through 21 mocked tests).
   `KanataDaemonManagerTests.testRegisteredButNotLoadedUsesInjectedSystemStateProviderForLaunchctlEvidence`,
   and
   `LaunchctlEvidenceLintTests.testKanataDaemonManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
+- [x] `HelperManager` read-only `launchctl print` helper installation and
+  helper-log registration evidence delegates to
+  `SystemStateProvider.launchctlPrint(target:)`. Enforced by
+  `HelperManagerTests.testIsHelperInstalledUsesInjectedSystemStateProviderForLaunchctlEvidence`,
+  `HelperManagerTests.testLastHelperLogsUsesInjectedSystemStateProviderForLaunchctlEvidence`,
+  and
+  `LaunchctlEvidenceLintTests.testHelperManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`.
 
 ## Workstream 3: Industry-Standard Repair Model
 
@@ -348,7 +363,7 @@ context loss across sessions, contributors, and agents. Extend it:
 
 | Ratchet | Rule |
 |---------|------|
-| `LaunchctlLintTests` | `launchctl` invocations only inside `SystemStateProvider`/`ServiceHealthChecker` |
+| `LaunchctlEvidenceLintTests` | read-only `launchctl print` evidence only inside `SystemStateProvider` |
 | `LivenessLintTests` | `kill(`, `pgrep`, process-probe patterns only inside the blessed predicate |
 | `PostconditionLintTests` | every `PrivilegedOperationsRouter` mutating verb calls the postcondition enforcer before returning success |
 | `SnapshotConsumerLintTests` | no new caches of system state outside the provider (grep for TTL/timestamp-cache patterns) |
@@ -402,7 +417,10 @@ is listed in the state-matrix doc's enforcement section.
 - [x] `LaunchctlEvidenceLintTests.testKanataDaemonManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
   prevents `KanataDaemonManager` from regrowing direct `launchctl print`
   service-state reads.
-- [ ] Add remaining `launchctl`, postcondition, and snapshot-cache
+- [x] `LaunchctlEvidenceLintTests.testHelperManagerDelegatesLaunchctlPrintEvidenceToSystemStateProvider`
+  prevents `HelperManager` from regrowing direct `launchctl print`
+  service-state reads.
+- [ ] Add remaining `SMAppService.status`, postcondition, and snapshot-cache
   ratchets with the corresponding migration slices.
 
 ## Workstream 6: Deletion Pass
