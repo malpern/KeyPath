@@ -163,6 +163,25 @@ final class SystemStateProviderInstallerStateMatrixTests: XCTestCase {
         )
     }
 
+    func testWizardSystemContextSnapshotPreservesKanataNotRegisteredEvidence() {
+        assertWizardAndProviderClassifySameRuntimeEvidence(
+            runtime: runtime(),
+            kanataSMAppServiceStatus: .notRegistered,
+            expectedRow: .kanataNotRegistered,
+            expectedPlan: [.installOrRegisterRuntimeServices]
+        )
+    }
+
+    func testWizardSystemContextSnapshotPreservesManualApprovalEvidence() {
+        assertWizardAndProviderClassifySameRuntimeEvidence(
+            runtime: runtime(isRunning: false, isResponding: false),
+            kanataSMAppServiceStatus: .enabled,
+            helperSMAppServiceStatus: .requiresApproval,
+            expectedRow: .manualApprovalRequired,
+            expectedPlan: [.surfaceManualApproval]
+        )
+    }
+
     func testWizardSystemContextSnapshotTreatsUnknownHelperVersionAsNotFresh() {
         let snapshot = systemContext(
             from: runtime(),
@@ -191,6 +210,8 @@ final class SystemStateProviderInstallerStateMatrixTests: XCTestCase {
 
     private func assertWizardAndProviderClassifySameRuntimeEvidence(
         runtime: ServiceHealthChecker.KanataServiceRuntimeSnapshot,
+        kanataSMAppServiceStatus: SMAppService.Status = .enabled,
+        helperSMAppServiceStatus: SMAppService.Status = .enabled,
         expectedRow: InstallerStateMatrixRow,
         expectedPlan: [InstallerStateMatrixAction],
         file: StaticString = #filePath,
@@ -200,19 +221,39 @@ final class SystemStateProviderInstallerStateMatrixTests: XCTestCase {
             components: healthyComponents,
             helper: healthyHelper,
             runtime: runtime,
-            kanataSMAppServiceStatus: .enabled,
-            helperSMAppServiceStatus: .enabled
+            kanataSMAppServiceStatus: kanataSMAppServiceStatus,
+            helperSMAppServiceStatus: helperSMAppServiceStatus
         )
-        let wizardSnapshot = systemContext(from: runtime).installerStateMatrixSnapshot
+        let wizardSnapshot = systemContext(
+            from: runtime,
+            kanataSMAppServiceRegistered: Self.isRegistered(kanataSMAppServiceStatus),
+            loginItemsApprovalRequired: Self.requiresApproval(
+                kanataSMAppServiceStatus,
+                helperSMAppServiceStatus
+            )
+        ).installerStateMatrixSnapshot
 
         XCTAssertEqual(wizardSnapshot, providerSnapshot, file: file, line: line)
         XCTAssertEqual(InstallerStateMatrixPlanner.classify(wizardSnapshot), expectedRow, file: file, line: line)
         XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: wizardSnapshot), expectedPlan, file: file, line: line)
     }
 
+    private static func isRegistered(_ status: SMAppService.Status) -> Bool {
+        status == .enabled || status == .requiresApproval
+    }
+
+    private static func requiresApproval(
+        _ kanataStatus: SMAppService.Status,
+        _ helperStatus: SMAppService.Status
+    ) -> Bool {
+        kanataStatus == .requiresApproval || helperStatus == .requiresApproval
+    }
+
     private func systemContext(
         from runtime: ServiceHealthChecker.KanataServiceRuntimeSnapshot,
-        helper: HelperStatus? = nil
+        helper: HelperStatus? = nil,
+        kanataSMAppServiceRegistered: Bool? = nil,
+        loginItemsApprovalRequired: Bool? = nil
     ) -> SystemContext {
         let permissionSet = PermissionOracle.PermissionSet(
             accessibility: .granted,
@@ -241,7 +282,9 @@ final class SystemStateProviderInstallerStateMatrixTests: XCTestCase {
                 vhidHealthy: true,
                 kanataInputCaptureReady: runtime.inputCaptureReady,
                 kanataInputCaptureIssue: runtime.inputCaptureIssue,
-                staleEnabledRegistration: runtime.staleEnabledRegistration
+                staleEnabledRegistration: runtime.staleEnabledRegistration,
+                kanataSMAppServiceRegistered: kanataSMAppServiceRegistered,
+                loginItemsApprovalRequired: loginItemsApprovalRequired
             ),
             conflicts: .empty,
             components: healthyComponents,

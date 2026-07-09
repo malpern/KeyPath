@@ -296,6 +296,13 @@ public struct HealthStatus: Sendable {
     /// True when SMAppService reports enabled but launchd/runtime evidence
     /// cannot prove the submitted job exists or can load.
     public let staleEnabledRegistration: Bool
+    /// True when current SMAppService evidence says the Kanata daemon is
+    /// registered or pending approval. Nil means the snapshot did not capture
+    /// registration evidence and consumers should use their legacy fallback.
+    public let kanataSMAppServiceRegistered: Bool?
+    /// True when Kanata or helper SMAppService evidence is blocked on Login
+    /// Items approval. Nil means this snapshot did not capture that evidence.
+    public let loginItemsApprovalRequired: Bool?
 
     public init(
         kanataLaunchdLoaded: Bool? = nil,
@@ -310,7 +317,9 @@ public struct HealthStatus: Sendable {
         activeRuntimePathDetail: String? = nil,
         kanataPermissionRejected: Bool = false,
         configParseError: String? = nil,
-        staleEnabledRegistration: Bool = false
+        staleEnabledRegistration: Bool = false,
+        kanataSMAppServiceRegistered: Bool? = nil,
+        loginItemsApprovalRequired: Bool? = nil
     ) {
         self.kanataLaunchdLoaded = kanataLaunchdLoaded
         self.kanataProcessRunning = kanataProcessRunning
@@ -325,6 +334,8 @@ public struct HealthStatus: Sendable {
         self.kanataPermissionRejected = kanataPermissionRejected
         self.configParseError = configParseError
         self.staleEnabledRegistration = staleEnabledRegistration
+        self.kanataSMAppServiceRegistered = kanataSMAppServiceRegistered
+        self.loginItemsApprovalRequired = loginItemsApprovalRequired
     }
 
     /// Overall health (includes Kanata runtime)
