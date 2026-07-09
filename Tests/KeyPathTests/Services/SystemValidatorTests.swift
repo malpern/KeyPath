@@ -86,7 +86,7 @@ struct SystemValidatorTests {
         }
 
         let processManager = ProcessLifecycleManager()
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let validator = SystemValidator(
             processLifecycleManager: processManager,
             systemStateProvider: provider

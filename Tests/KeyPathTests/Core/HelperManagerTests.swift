@@ -116,7 +116,7 @@ final class HelperManagerTests: XCTestCase {
             }
             return ProcessResult(exitCode: 113, stdout: "", stderr: "unexpected target", duration: 0)
         }
-        HelperManager.systemStateProviderFactory = { SystemStateProvider(subprocessRunner: providerRunner) }
+        HelperManager.systemStateProviderFactory = { SystemStateProvider(probes: providerRunner.systemProbeClient()) }
 
         let installed = await HelperManager.shared.isHelperInstalled()
 
@@ -145,7 +145,7 @@ final class HelperManagerTests: XCTestCase {
             }
             return ProcessResult(exitCode: 113, stdout: "", stderr: "unexpected target", duration: 0)
         }
-        HelperManager.systemStateProviderFactory = { SystemStateProvider(subprocessRunner: providerRunner) }
+        HelperManager.systemStateProviderFactory = { SystemStateProvider(probes: providerRunner.systemProbeClient()) }
 
         let logs = await HelperManager.shared.lastHelperLogs()
 

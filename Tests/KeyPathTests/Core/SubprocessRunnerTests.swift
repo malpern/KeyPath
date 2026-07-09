@@ -59,12 +59,12 @@ final class SubprocessRunnerTests: XCTestCase {
         XCTAssertEqual(result.stderr, "command not found")
     }
 
-    func testPgrepSuccess() async {
+    func testSystemProbeClientProcessIDSuccess() async {
         await fakeRunner.configurePgrepResult { _ in
             [1234, 5678]
         }
 
-        let pids = await fakeRunner.pgrep("kanata.*--cfg")
+        let pids = await fakeRunner.systemProbeClient().processIDs(matching: "kanata.*--cfg")
 
         XCTAssertEqual(pids, [1234, 5678])
         let commands = await fakeRunner.executedCommands
@@ -186,14 +186,6 @@ final class SubprocessRunnerTests: XCTestCase {
             // Should throw SubprocessError.launchFailed
             XCTAssertTrue(error is SubprocessError)
         }
-    }
-
-    func testRealSubprocessRunnerPgrep() async {
-        // Test pgrep with a pattern that won't match (to avoid flakiness)
-        let pids = await SubprocessRunner.shared.pgrep("nonexistent_process_pattern_12345")
-
-        // Should return empty array for non-matching pattern
-        XCTAssertTrue(pids.isEmpty)
     }
 
     func testRunCancellationTerminatesProcess() async {

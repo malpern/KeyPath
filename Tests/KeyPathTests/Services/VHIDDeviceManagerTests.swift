@@ -90,7 +90,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
             pattern == "Karabiner-VirtualHIDDevice-Daemon" ? [12345] : []
         }
 
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let mgr = VHIDDeviceManager(systemStateProvider: provider)
         let running = await mgr.detectRunning()
         let commands = await runner.executedCommands
@@ -111,7 +111,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
             pattern == "Karabiner-VirtualHIDDevice-Daemon" ? [12345, 67890] : []
         }
 
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let mgr = VHIDDeviceManager(systemStateProvider: provider)
         let pids = await mgr.getDaemonPIDs()
         let commands = await runner.executedCommands
@@ -141,7 +141,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
             return ProcessResult(exitCode: 113, stdout: "", stderr: "not found", duration: 0.01)
         }
 
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let mgr = VHIDDeviceManager(systemStateProvider: provider)
         let healthy = await mgr.checkLaunchctlHealth()
         let commands = await runner.executedCommands
@@ -168,7 +168,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
             return ProcessResult(exitCode: 113, stdout: "", stderr: "not found", duration: 0.01)
         }
 
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let mgr = VHIDDeviceManager(systemStateProvider: provider)
         let running = await mgr.detectRunning()
         let commands = await runner.executedCommands

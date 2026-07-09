@@ -101,7 +101,7 @@ final class KanataDaemonManagerTests: XCTestCase {
             cacheTTL: 0,
             serviceFactory: { _ in mockService }
         )
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let manager = KanataDaemonManager(
             subprocessRunner: DirectLaunchctlPoisonRunner(),
             systemStateProvider: provider
@@ -266,7 +266,7 @@ final class KanataDaemonManagerTests: XCTestCase {
             cacheTTL: 0,
             serviceFactory: { _ in mockService }
         )
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let manager = KanataDaemonManager(subprocessRunner: runner, systemStateProvider: provider)
 
         let isStale = await manager.isRegisteredButNotLoaded()
@@ -299,7 +299,7 @@ final class KanataDaemonManagerTests: XCTestCase {
             cacheTTL: 0,
             serviceFactory: { _ in mockService }
         )
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let manager = KanataDaemonManager(
             subprocessRunner: DirectLaunchctlPoisonRunner(),
             systemStateProvider: provider

@@ -194,7 +194,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
             }
             return ProcessResult(exitCode: 113, stdout: "", stderr: "not found", duration: 0.01)
         }
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let checker = await MainActor.run {
             ServiceHealthChecker(subprocessRunner: runner, systemStateProvider: provider)
         }
@@ -235,7 +235,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
             }
             return ProcessResult(exitCode: 113, stdout: "", stderr: "not found", duration: 0.01)
         }
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let checker = await MainActor.run {
             ServiceHealthChecker(subprocessRunner: runner, systemStateProvider: provider)
         }
@@ -287,7 +287,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
             }
             return ProcessResult(exitCode: 113, stdout: "", stderr: "not found", duration: 0.01)
         }
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let checker = await MainActor.run {
             ServiceHealthChecker(subprocessRunner: runner, systemStateProvider: provider)
         }

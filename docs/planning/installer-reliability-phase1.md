@@ -611,8 +611,8 @@ context loss across sessions, contributors, and agents. Extend it:
 | Ratchet | Rule |
 |---------|------|
 | `SMAppServiceStatusLintTests` | direct Apple `.status` only inside `SMAppServiceStatusProvider`; migrated consumers access the status cache through `SystemStateProvider` |
-| `LaunchctlEvidenceLintTests` | read-only `launchctl print` evidence only inside `SystemStateProvider` |
-| `LivenessLintTests` | `kill(`, `pgrep`, process-probe patterns only inside the blessed predicate |
+| `LaunchctlEvidenceLintTests` | read-only `launchctl print` evidence only inside `KeyPathSystemProbes`; consumers route through `SystemStateProvider` |
+| `LivenessLintTests` | `kill(`, `pgrep`, process-probe patterns only inside `KeyPathSystemProbes` / the blessed provider facade |
 | `PostconditionLintTests` | every `PrivilegedOperationsRouter` mutating verb calls the postcondition enforcer before returning success |
 | `SnapshotConsumerLintTests` | no new caches of system state outside the provider (grep for TTL/timestamp-cache patterns) |
 
@@ -656,7 +656,7 @@ is listed in the state-matrix doc's enforcement section.
 - [x] `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed` and
   `TCPReadinessLintTests.testProductionRawTCPSocketProbeIsCentralized` prevent
   production readiness checks from drifting back to the legacy adapter or raw
-  socket probes outside `SystemStateProvider`.
+  socket probes outside `KeyPathSystemProbes`.
 - [x] `PgrepProcessDiscoveryLintTests.testServiceLifecycleCoordinatorDelegatesPgrepDiscoveryToSystemStateProvider`
   prevents the first migrated runtime coordinator call site from regrowing
   direct `pgrep` process discovery.
@@ -682,11 +682,10 @@ is listed in the state-matrix doc's enforcement section.
   prevents command-aware Kanata process conflict detection from regrowing direct
   `pgrep` process discovery.
 - [x] `PgrepProcessDiscoveryLintTests.testProductionPgrepDiscoveryIsCentralizedInCoreProvider`
-  blocks production `pgrep` process discovery outside the core provider
-  implementation.
+  blocks production `pgrep` process discovery outside `KeyPathSystemProbes`.
 - [x] `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`
   scans all production sources and prevents direct read-only `launchctl print`
-  evidence reads outside `SystemStateProvider`.
+  evidence reads outside `KeyPathSystemProbes`.
 - [x] `FacadeLintTests.testProductionSourcesDoNotBypassInstallerEngine` scans
   all production sources and keeps direct `PrivilegedOperationsRouter.shared`
   access limited to the wizard dependency bridge.

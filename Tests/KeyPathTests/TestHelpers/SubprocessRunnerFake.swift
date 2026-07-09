@@ -79,6 +79,56 @@ actor SubprocessRunnerFake: SubprocessRunning {
         launchctlResultProvider = provider
     }
 
+    nonisolated func systemProbeClient(
+        processIDsSynchronously: @escaping @Sendable (String) -> [pid_t] = { _ in [] },
+        isProcessAlive: @escaping @Sendable (pid_t) -> Bool = { $0 > 0 },
+        probeTCPPort: @escaping @Sendable (Int, Int) -> Bool = { _, _ in false }
+    ) -> SystemProbeClient {
+        SystemProbeClient(
+            processIDs: { pattern in
+                await self.pgrep(pattern)
+            },
+            processMatches: { pattern in
+                do {
+                    let result = try await self.run("/usr/bin/pgrep", args: ["-fl", pattern], timeout: 5)
+                    guard result.exitCode == 0 else { return [] }
+                    return result.stdout
+                        .components(separatedBy: .newlines)
+                        .compactMap { rawLine in
+                            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !line.isEmpty else { return nil }
+                            let parts = line.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+                            guard parts.count == 2, let pid = pid_t(parts[0]) else { return nil }
+                            return SystemProcessMatch(pid: pid, command: String(parts[1]))
+                        }
+                } catch {
+                    return []
+                }
+            },
+            launchctlPrint: { target in
+                do {
+                    let result = try await self.launchctl("print", [target])
+                    return LaunchctlPrintEvidence(
+                        target: target,
+                        exitCode: result.exitCode,
+                        stdout: result.stdout,
+                        stderr: result.stderr
+                    )
+                } catch {
+                    return LaunchctlPrintEvidence(
+                        target: target,
+                        exitCode: nil,
+                        stdout: "",
+                        stderr: String(describing: error)
+                    )
+                }
+            },
+            processIDsSynchronously: processIDsSynchronously,
+            isProcessAlive: isProcessAlive,
+            probeTCPPort: probeTCPPort
+        )
+    }
+
     func setShouldTimeout(_ value: Bool) {
         shouldTimeout = value
     }
@@ -141,5 +191,67 @@ actor SubprocessRunnerFake: SubprocessRunning {
         }
 
         return defaultLaunchctlResult
+    }
+}
+
+extension SubprocessRunning {
+    nonisolated func systemProbeClient(
+        processIDsSynchronously: @escaping @Sendable (String) -> [pid_t] = { _ in [] },
+        isProcessAlive: @escaping @Sendable (pid_t) -> Bool = { $0 > 0 },
+        probeTCPPort: @escaping @Sendable (Int, Int) -> Bool = { _, _ in false }
+    ) -> SystemProbeClient {
+        SystemProbeClient(
+            processIDs: { pattern in
+                do {
+                    let result = try await self.run("/usr/bin/pgrep", args: ["-f", pattern], timeout: 5)
+                    guard result.exitCode == 0 else { return [] }
+                    return result.stdout
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                        .components(separatedBy: .newlines)
+                        .filter { !$0.isEmpty }
+                        .compactMap { Int32($0.trimmingCharacters(in: .whitespaces)) }
+                } catch {
+                    return []
+                }
+            },
+            processMatches: { pattern in
+                do {
+                    let result = try await self.run("/usr/bin/pgrep", args: ["-fl", pattern], timeout: 5)
+                    guard result.exitCode == 0 else { return [] }
+                    return result.stdout
+                        .components(separatedBy: .newlines)
+                        .compactMap { rawLine in
+                            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !line.isEmpty else { return nil }
+                            let parts = line.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+                            guard parts.count == 2, let pid = pid_t(parts[0]) else { return nil }
+                            return SystemProcessMatch(pid: pid, command: String(parts[1]))
+                        }
+                } catch {
+                    return []
+                }
+            },
+            launchctlPrint: { target in
+                do {
+                    let result = try await self.launchctl("print", [target])
+                    return LaunchctlPrintEvidence(
+                        target: target,
+                        exitCode: result.exitCode,
+                        stdout: result.stdout,
+                        stderr: result.stderr
+                    )
+                } catch {
+                    return LaunchctlPrintEvidence(
+                        target: target,
+                        exitCode: nil,
+                        stdout: "",
+                        stderr: String(describing: error)
+                    )
+                }
+            },
+            processIDsSynchronously: processIDsSynchronously,
+            isProcessAlive: isProcessAlive,
+            probeTCPPort: probeTCPPort
+        )
     }
 }
