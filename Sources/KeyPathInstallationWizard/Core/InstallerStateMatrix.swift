@@ -17,6 +17,8 @@ public enum InstallerStateMatrixRow: String, CaseIterable, Sendable, Equatable {
     case virtualHIDApprovalPending = "VirtualHID approval pending"
     case helperMissing = "Helper missing"
     case helperRespondsButMayBeStale = "Helper responds but may be stale"
+    // Post-action verification rows. These are produced by explicit repair
+    // action reports, not by a passive live/wizard system snapshot.
     case helperPathSucceeds = "Helper path succeeds"
     case sudoFallbackSucceeds = "Sudo fallback succeeds"
     case manualApprovalRequired = "Manual approval is required"
@@ -253,7 +255,7 @@ public extension SystemContext {
         return InstallerStateMatrixSnapshot(
             kanataBinaryPresent: components.kanataBinaryInstalled,
             requiredRuntimePayloadPresent: true,
-            smAppServiceRegistered: components.kanataBinaryInstalled,
+            smAppServiceRegistered: services.kanataSMAppServiceRegistered ?? components.kanataBinaryInstalled,
             launchdJobLoaded: launchdJobLoaded,
             kanataProcessRunning: kanataProcessRunning,
             kanataTCPResponding: kanataTCPResponding,
@@ -267,6 +269,7 @@ public extension SystemContext {
             helperInstalled: helper.isInstalled,
             helperResponding: helper.isWorking,
             helperFresh: helper.version == WizardHelperConstants.expectedHelperVersion,
+            manualApprovalRequired: services.loginItemsApprovalRequired ?? false,
             definitiveUnhealthyState: timedOut
         )
     }

@@ -5,6 +5,7 @@ import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
 import os.lock
+import ServiceManagement
 
 /// Stateless system validation service
 ///
@@ -568,6 +569,13 @@ public class SystemValidator {
         AppLogger.shared.log("🔍 [SystemValidator] checkHealth() ENTRY - Starting system health check")
         let startTime = Date()
 
+        async let kanataSMAppServiceStatus = systemStateProvider.cachedSMAppServiceStatus(
+            for: KanataDaemonManager.kanataPlistName
+        )
+        async let helperSMAppServiceStatus = systemStateProvider.cachedSMAppServiceStatus(
+            for: HelperManager.helperPlistName
+        )
+
         // Check service health via process detection + TCP probe.
         // kanata-launcher can survive (and even hold the TCP socket) after
         // kanata itself has panicked, so we also verify the kanata binary
@@ -625,6 +633,10 @@ public class SystemValidator {
             AppLogger.shared.error("🔍 [SystemValidator] checkHealth() - Config parse error detected: \(configError)")
         }
 
+        let (kanataSMStatus, helperSMStatus) = await (kanataSMAppServiceStatus, helperSMAppServiceStatus)
+        let kanataSMAppServiceRegistered = kanataSMStatus == .enabled || kanataSMStatus == .requiresApproval
+        let loginItemsApprovalRequired = kanataSMStatus == .requiresApproval || helperSMStatus == .requiresApproval
+
         return HealthStatus(
             kanataLaunchdLoaded: !kanataHealth.staleEnabledRegistration &&
                 (kanataHealth.launchctlExitCode == 0 || kanataHealth.isRunning),
@@ -637,7 +649,9 @@ public class SystemValidator {
             kanataInputCaptureIssue: kanataHealth.inputCaptureIssue,
             kanataPermissionRejected: stderrDiagnosis.permissionRejected,
             configParseError: configParseError,
-            staleEnabledRegistration: kanataHealth.staleEnabledRegistration
+            staleEnabledRegistration: kanataHealth.staleEnabledRegistration,
+            kanataSMAppServiceRegistered: kanataSMAppServiceRegistered,
+            loginItemsApprovalRequired: loginItemsApprovalRequired
         )
     }
 
