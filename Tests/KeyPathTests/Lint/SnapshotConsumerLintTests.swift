@@ -54,4 +54,26 @@ final class SnapshotConsumerLintTests: XCTestCase {
             """
         )
     }
+
+    func testInstallerEnginePreservesMatrixSMAppServiceEvidence() throws {
+        let body = try LintScanner.functionBody(
+            named: "inspectSystem",
+            in: LintScanner.path("Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift")
+        )
+
+        for field in [
+            "kanataSMAppServiceRegistered",
+            "loginItemsApprovalRequired"
+        ] {
+            XCTAssertTrue(
+                body.contains("\(field): snapshot.health.\(field)"),
+                """
+                InstallerEngine.inspectSystem() must preserve \(field) when \
+                converting SystemSnapshot.health to SystemContext.services. \
+                Dropping it turns explicit SMAppService evidence into unknown \
+                state-matrix evidence.
+                """
+            )
+        }
+    }
 }

@@ -92,7 +92,9 @@ public final class InstallerEngine {
             activeRuntimePathDetail: activeRuntimePathStatus?.detail,
             kanataPermissionRejected: snapshot.health.kanataPermissionRejected,
             configParseError: snapshot.health.configParseError,
-            staleEnabledRegistration: snapshot.health.staleEnabledRegistration
+            staleEnabledRegistration: snapshot.health.staleEnabledRegistration,
+            kanataSMAppServiceRegistered: snapshot.health.kanataSMAppServiceRegistered,
+            loginItemsApprovalRequired: snapshot.health.loginItemsApprovalRequired
         )
 
         // Convert SystemSnapshot to SystemContext
