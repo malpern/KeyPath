@@ -1,4 +1,4 @@
-@testable import KeyPathAppKit
+@testable import KeyPathRulesCore
 import XCTest
 
 final class LauncherGridConfigKeyValidationTests: XCTestCase {

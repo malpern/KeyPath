@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 import Observation
 
 /// Session-scoped HRM telemetry aggregation and conservative tuning guidance.

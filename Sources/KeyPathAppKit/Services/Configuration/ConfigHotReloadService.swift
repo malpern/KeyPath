@@ -1,6 +1,7 @@
 import Foundation
 import KeyPathCore
 import KeyPathInstallationWizard
+import KeyPathRulesCore
 
 /// Coordinates configuration hot-reload when external file changes are detected.
 ///

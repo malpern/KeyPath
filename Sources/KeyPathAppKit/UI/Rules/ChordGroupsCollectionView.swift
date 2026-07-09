@@ -1,3 +1,4 @@
+import KeyPathRulesCore
 import SwiftUI
 
 /// Inline view for Chord Groups collection with progressive disclosure

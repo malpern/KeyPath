@@ -1,4 +1,5 @@
 import AppKit
+import KeyPathRulesCore
 import UniformTypeIdentifiers
 
 /// Resolves icons for key actions: apps, folders, and scripts.

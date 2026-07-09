@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 enum RuleCollectionDeduplicator {
     // MARK: - Conflict Detection

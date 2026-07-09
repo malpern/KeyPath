@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 extension RuntimeCoordinator {
     // MARK: - Rule Collections (delegates to RuleCollectionsCoordinator)

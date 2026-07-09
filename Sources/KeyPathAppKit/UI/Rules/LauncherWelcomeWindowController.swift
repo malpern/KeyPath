@@ -1,4 +1,5 @@
 import AppKit
+import KeyPathRulesCore
 import SwiftUI
 
 /// Window controller for the LauncherWelcomeDialog.

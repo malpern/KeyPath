@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+import KeyPathRulesCore
 import XCTest
 
 final class RulesRecommendationEngineTests: XCTestCase {

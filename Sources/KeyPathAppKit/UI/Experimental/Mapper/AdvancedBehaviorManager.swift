@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 import Observation
 
 /// Manages advanced key behavior configuration: hold actions, tap-dance steps, and timing.

@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 /// A row item in the categorized rules list: either a section header or a collection row
 enum CategorizedItem: Identifiable {

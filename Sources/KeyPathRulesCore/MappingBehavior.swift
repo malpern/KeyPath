@@ -327,10 +327,138 @@ public extension TapDanceBehavior {
         TapDanceBehavior(
             windowMs: windowMs,
             steps: [
-                TapDanceStep(label: "Single tap", action: KanataBehaviorRenderer.parseActionString(singleTap)),
-                TapDanceStep(label: "Double tap", action: KanataBehaviorRenderer.parseActionString(doubleTap)),
+                TapDanceStep(label: "Single tap", action: KeyAction.parseLegacyActionString(singleTap)),
+                TapDanceStep(label: "Double tap", action: KeyAction.parseLegacyActionString(doubleTap)),
             ]
         )
+    }
+}
+
+private extension KeyAction {
+    static func parseLegacyActionString(_ action: String) -> KeyAction {
+        let stripped = action.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if stripped.hasPrefix("("), stripped.hasSuffix(")") {
+            if let structured = parseStructuredLegacyAction(stripped) {
+                return structured
+            }
+            return .rawKanata(stripped)
+        }
+
+        let lowercased = stripped.lowercased()
+        if lowercased == "hyper" {
+            return .hyper
+        }
+        if lowercased == "meh" {
+            return .meh
+        }
+
+        let tokens = stripped
+            .components(separatedBy: .whitespaces)
+            .filter { !$0.isEmpty }
+        if tokens.count > 1 {
+            return .rawKanata("(multi \(tokens.joined(separator: " ")))")
+        }
+
+        return .keystroke(key: stripped)
+    }
+
+    static func parseStructuredLegacyAction(_ expr: String) -> KeyAction? {
+        if let pushMsg = extractPushMsgValue(expr) {
+            return parsePushMsg(pushMsg)
+        }
+
+        if expr == "(multi lctl lmet lalt lsft)" {
+            return .hyper
+        }
+        if expr == "(multi lctl lalt lsft)" {
+            return .meh
+        }
+
+        if let fakeKey = parseFakeKeyExpr(expr) {
+            return fakeKey
+        }
+
+        if let layerName = parseLayerSwitchExpr(expr) {
+            return .activateLayer(name: layerName)
+        }
+
+        return nil
+    }
+
+    static func extractPushMsgValue(_ expr: String) -> String? {
+        let prefix = "(push-msg \""
+        let suffix = "\")"
+        guard expr.hasPrefix(prefix), expr.hasSuffix(suffix) else { return nil }
+        let start = expr.index(expr.startIndex, offsetBy: prefix.count)
+        let end = expr.index(expr.endIndex, offsetBy: -suffix.count)
+        guard start < end else { return nil }
+        return String(expr[start ..< end])
+    }
+
+    static func parsePushMsg(_ value: String) -> KeyAction? {
+        if let id = value.removingPrefix("launch:") {
+            return .launchApp(name: id, bundleId: id)
+        }
+        if let encoded = value.removingPrefix("open:") {
+            return .openURL(URLMappingFormatter.decodeFromPushMessage(encoded))
+        }
+        if let path = value.removingPrefix("folder:") {
+            return .openFolder(path: path, name: nil)
+        }
+        if let path = value.removingPrefix("script:") {
+            return .runScript(path: path, name: nil)
+        }
+        if let id = value.removingPrefix("system:") {
+            return .systemAction(id: id)
+        }
+        if let params = value.removingPrefix("notify?") {
+            return parseNotifyParams(params)
+        }
+        if let position = value.removingPrefix("window:") {
+            return .windowAction(position: position)
+        }
+        return nil
+    }
+
+    static func parseNotifyParams(_ params: String) -> KeyAction? {
+        var title = ""
+        var body: String?
+        var sound = false
+        for part in params.components(separatedBy: "&") {
+            if let val = part.removingPrefix("title=") {
+                title = val
+            } else if let val = part.removingPrefix("body=") {
+                body = val
+            } else if part == "sound=1" {
+                sound = true
+            }
+        }
+        guard !title.isEmpty else { return nil }
+        return .notify(title: title, body: body, sound: sound)
+    }
+
+    static func parseFakeKeyExpr(_ expr: String) -> KeyAction? {
+        let prefix = "(on-press-fakekey "
+        guard expr.hasPrefix(prefix), expr.hasSuffix(")") else { return nil }
+        let body = String(expr.dropFirst(prefix.count).dropLast())
+        let parts = body.split(separator: " ", maxSplits: 1)
+        guard parts.count == 2, let action = FakeKeyAction(rawValue: String(parts[1])) else { return nil }
+        return .fakeKey(name: String(parts[0]), action: action)
+    }
+
+    static func parseLayerSwitchExpr(_ expr: String) -> String? {
+        let prefix = "(layer-switch "
+        guard expr.hasPrefix(prefix), expr.hasSuffix(")") else { return nil }
+        let name = String(expr.dropFirst(prefix.count).dropLast())
+        return name.isEmpty ? nil : name
+    }
+}
+
+private extension String {
+    func removingPrefix(_ prefix: String) -> String? {
+        guard hasPrefix(prefix) else { return nil }
+        return String(dropFirst(prefix.count))
     }
 }
 

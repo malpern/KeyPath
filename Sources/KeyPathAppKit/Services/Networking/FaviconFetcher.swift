@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 /// Service for fetching and caching website favicons
 ///

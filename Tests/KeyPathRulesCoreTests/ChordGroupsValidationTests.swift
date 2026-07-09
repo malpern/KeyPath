@@ -1,4 +1,4 @@
-@testable import KeyPathAppKit
+@testable import KeyPathRulesCore
 import XCTest
 
 /// Tests for input validation and edge cases in Chord Groups

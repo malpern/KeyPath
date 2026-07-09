@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathRulesCore
 
 /// Generates Kanata key mappings to remap a QWERTY keyboard to an alternative layout.
 ///

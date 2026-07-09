@@ -1,6 +1,7 @@
 import Foundation
 @testable import KeyPathAppKit
 import KeyPathCore
+import KeyPathRulesCore
 import Testing
 
 @MainActor

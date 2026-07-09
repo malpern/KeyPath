@@ -1,5 +1,6 @@
 import AppKit
 import KeyPathCore
+import KeyPathRulesCore
 import SwiftUI
 
 /// A read-only keycap for the live overlay.

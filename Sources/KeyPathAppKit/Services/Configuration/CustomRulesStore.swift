@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 /// Persists user-defined custom rules alongside the main configuration directory.
 actor CustomRulesStore {

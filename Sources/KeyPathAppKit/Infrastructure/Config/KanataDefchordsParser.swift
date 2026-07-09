@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathRulesCore
 
 enum KanataDefchordsParser {
     static func parseGroups(from content: String) -> [ChordGroupConfig] {

@@ -1,5 +1,6 @@
 import AppKit
 @testable import KeyPathAppKit
+import KeyPathRulesCore
 import XCTest
 
 /// Tests for MapperViewModel canSave logic, identity mapping detection,

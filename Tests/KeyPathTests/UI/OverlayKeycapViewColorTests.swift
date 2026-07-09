@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+import KeyPathRulesCore
 import SwiftUI
 @preconcurrency import XCTest
 

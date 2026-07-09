@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 /// Lightweight persistence layer for rule collections.
 /// Stores user-defined collections alongside the Kanata config inside the ~/.config/keypath directory.

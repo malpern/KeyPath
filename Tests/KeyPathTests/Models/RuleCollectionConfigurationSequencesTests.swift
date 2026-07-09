@@ -7,6 +7,7 @@
 //
 
 @testable import KeyPathAppKit
+import KeyPathRulesCore
 import XCTest
 
 final class RuleCollectionConfigurationSequencesTests: XCTestCase {

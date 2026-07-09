@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 // MARK: - Rule Management (Save / Clear / Reset / App Pick)
 

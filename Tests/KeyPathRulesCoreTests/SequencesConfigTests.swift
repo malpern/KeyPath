@@ -6,7 +6,7 @@
 //  MAL-45: Kanata Sequences (defseq) UI Support
 //
 
-@testable import KeyPathAppKit
+@testable import KeyPathRulesCore
 import XCTest
 
 final class SequencesConfigTests: XCTestCase {

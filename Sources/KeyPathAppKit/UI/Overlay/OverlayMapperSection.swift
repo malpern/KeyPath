@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import KeyPathCore
+import KeyPathRulesCore
 import SwiftUI
 
 /// Mapper section for the overlay drawer.

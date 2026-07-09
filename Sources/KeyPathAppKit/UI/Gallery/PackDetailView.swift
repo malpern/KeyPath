@@ -15,6 +15,7 @@
 // window grows a persistent keyboard canvas.
 
 import AppKit
+import KeyPathRulesCore
 import SwiftUI
 
 struct PackDetailView: View {

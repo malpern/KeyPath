@@ -1,5 +1,5 @@
 import Foundation
-@testable import KeyPathAppKit
+@testable import KeyPathRulesCore
 import Testing
 
 /// Tests for MomentaryActivator Codable backward compatibility

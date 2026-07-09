@@ -2,6 +2,7 @@ import CryptoKit
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
+import KeyPathRulesCore
 import Network
 
 // KanataConfiguration struct and generation logic moved to KanataConfigurationGenerator.swift

@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathRulesCore
 
 struct OutputActionGroup: Identifiable {
     let title: String

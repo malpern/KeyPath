@@ -2,6 +2,7 @@
 // See docs/design/sprint-1/starter-kit.md and docs/design/m1-implementation-plan.md
 
 import Foundation
+import KeyPathRulesCore
 
 /// A collection a pack manages atomically on install/uninstall.
 /// The installer snapshots the collection's state before applying defaults

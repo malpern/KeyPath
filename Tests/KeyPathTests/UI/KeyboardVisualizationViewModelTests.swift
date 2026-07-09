@@ -1,5 +1,6 @@
 import CoreGraphics
 @testable import KeyPathAppKit
+import KeyPathRulesCore
 import XCTest
 
 @MainActor

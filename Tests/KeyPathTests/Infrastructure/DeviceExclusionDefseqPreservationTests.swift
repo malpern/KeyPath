@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 @testable import KeyPathCore
+import KeyPathRulesCore
 @preconcurrency import XCTest
 
 final class DeviceExclusionDefseqPreservationTests: XCTestCase {

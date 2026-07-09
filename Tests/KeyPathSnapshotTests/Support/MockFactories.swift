@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+import KeyPathRulesCore
 import SwiftUI
 
 // MARK: - Mock Factories for Snapshot Testing

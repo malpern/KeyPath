@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+import KeyPathRulesCore
 import XCTest
 
 /// Unit tests for the pure `LeaderKeyPreference.reconciled(from:current:)` rule (#889).

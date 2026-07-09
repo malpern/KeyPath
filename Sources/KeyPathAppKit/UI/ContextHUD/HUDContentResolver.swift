@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathRulesCore
 
 /// Resolves which HUD content style to use based on layer context
 enum HUDContentResolver {

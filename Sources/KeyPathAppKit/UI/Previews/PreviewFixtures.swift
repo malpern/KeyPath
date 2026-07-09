@@ -1,3 +1,4 @@
+import KeyPathRulesCore
 #if DEBUG
     import Foundation
     import KeyPathCore

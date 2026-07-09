@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 @testable import KeyPathCore
+import KeyPathRulesCore
 import Network
 @preconcurrency import XCTest
 

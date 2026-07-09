@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+import KeyPathRulesCore
 import Testing
 
 /// Snapshot tests for KanataBehaviorRenderer.convertAction behavior.

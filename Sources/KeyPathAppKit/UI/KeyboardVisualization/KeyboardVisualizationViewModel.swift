@@ -2,6 +2,7 @@ import AppKit
 import Carbon
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 import Observation
 import SwiftUI
 

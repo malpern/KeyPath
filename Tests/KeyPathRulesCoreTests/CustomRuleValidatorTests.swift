@@ -1,4 +1,4 @@
-@testable import KeyPathAppKit
+@testable import KeyPathRulesCore
 @preconcurrency import XCTest
 
 final class CustomRuleValidatorTests: XCTestCase {

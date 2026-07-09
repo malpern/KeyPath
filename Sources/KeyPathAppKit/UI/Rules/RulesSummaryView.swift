@@ -1,6 +1,7 @@
 import Foundation
 import KeyPathCore
 import KeyPathInstallationWizard
+import KeyPathRulesCore
 import SwiftUI
 
 #if os(macOS)

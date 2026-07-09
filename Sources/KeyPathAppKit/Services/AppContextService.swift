@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 import Observation
 
 /// Service that monitors frontmost application changes and signals Kanata

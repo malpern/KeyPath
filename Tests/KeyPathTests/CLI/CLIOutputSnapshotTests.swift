@@ -2,6 +2,7 @@ import Foundation
 @testable import KeyPathAppKit
 @testable import KeyPathCLI
 import KeyPathCLISupport
+import KeyPathRulesCore
 import XCTest
 
 final class CLIOutputSnapshotTests: XCTestCase {

@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 /// Information about what a key does in a specific layer
 struct LayerKeyInfo: Equatable, Sendable {

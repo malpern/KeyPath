@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathRulesCore
 
 public protocol ConfigRepairService: Sendable {
     /// Attempts to repair a broken configuration string using AI

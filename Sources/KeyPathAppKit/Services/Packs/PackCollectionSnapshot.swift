@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathRulesCore
 
 /// Snapshot of managed collections' state before a pack was installed.
 /// Used to restore previous configuration on uninstall.

@@ -73,7 +73,11 @@ jobs:
           base_ref="origin/${{ github.base_ref }}"
           stat_file="$RUNNER_TEMP/pr.stat"
           diff_file="$RUNNER_TEMP/pr.diff"
-          max_diff_bytes=180000
+          # This prompt is passed through action inputs/env before Claude runs.
+          # Keep it well below the runner argv/env limit so broad refactors with
+          # many import-only changes still get a review instead of failing to
+          # start with "Argument list too long".
+          max_diff_bytes=60000
 
           git diff --no-ext-diff --stat "$base_ref" HEAD > "$stat_file"
           git diff --no-ext-diff --find-renames --no-color "$base_ref" HEAD > "$diff_file"
