@@ -16,7 +16,7 @@ struct KarabinerConflictServiceTests {
             pattern == "karabiner_grabber" ? [1111] : []
         }
 
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let service = KarabinerConflictService(systemStateProvider: provider)
 
         let isRunning = await service.isKarabinerElementsRunning()
@@ -44,7 +44,7 @@ struct KarabinerConflictServiceTests {
             pattern == "VirtualHIDDevice-Daemon" ? [2222] : []
         }
 
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let service = KarabinerConflictService(systemStateProvider: provider)
 
         let isRunning = await service.isKarabinerDaemonRunning()
@@ -65,7 +65,7 @@ struct KarabinerConflictServiceTests {
             pattern == "Karabiner-DriverKit-VirtualHIDDevice" ? [3333] : []
         }
 
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let service = KarabinerConflictService(systemStateProvider: provider)
 
         let isStopped = await service.checkProcessStopped(

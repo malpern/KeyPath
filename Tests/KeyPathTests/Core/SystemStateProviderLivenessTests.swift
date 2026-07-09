@@ -60,7 +60,7 @@ final class SystemStateProviderLivenessTests: XCTestCase {
         await runner.configurePgrepResult { pattern in
             pattern == "kanata.*--cfg" ? [1234, 5678] : []
         }
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
 
         let pids = await provider.processIDs(matching: "kanata.*--cfg")
 
@@ -74,7 +74,7 @@ final class SystemStateProviderLivenessTests: XCTestCase {
             XCTFail("Blank process-discovery patterns must not invoke pgrep")
             return [9999]
         }
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
 
         let pids = await provider.processIDs(matching: "  \n\t  ")
 
@@ -100,7 +100,7 @@ final class SystemStateProviderLivenessTests: XCTestCase {
             }
             return ProcessResult(exitCode: 1, stdout: "", stderr: "", duration: 0.01)
         }
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
 
         let matches = await provider.processMatches(matching: "kanata")
         let commands = await runner.executedCommands
@@ -125,7 +125,7 @@ final class SystemStateProviderLivenessTests: XCTestCase {
             XCTFail("Blank process-match patterns must not invoke pgrep")
             return ProcessResult(exitCode: 0, stdout: "", stderr: "", duration: 0.01)
         }
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
 
         let matches = await provider.processMatches(matching: "  \n\t  ")
 
@@ -149,7 +149,7 @@ final class SystemStateProviderLivenessTests: XCTestCase {
             }
             return ProcessResult(exitCode: 113, stdout: "", stderr: "not found", duration: 0.01)
         }
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
 
         let evidence = await provider.launchctlPrint(target: "system/com.keypath.karabiner-vhiddaemon")
         let commands = await runner.executedCommands
@@ -170,7 +170,7 @@ final class SystemStateProviderLivenessTests: XCTestCase {
             XCTFail("Blank launchctl print targets must not invoke launchctl")
             return ProcessResult(exitCode: 0, stdout: "", stderr: "", duration: 0.01)
         }
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
 
         let evidence = await provider.launchctlPrint(target: "  \n\t  ")
 

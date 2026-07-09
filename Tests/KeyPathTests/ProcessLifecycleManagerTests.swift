@@ -83,7 +83,7 @@ final class ProcessLifecycleManagerTests: XCTestCase {
             return ProcessResult(exitCode: 1, stdout: "", stderr: "", duration: 0.01)
         }
 
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let manager = ProcessLifecycleManager(systemStateProvider: provider)
 
         let processes = try await manager.detectKanataProcesses()

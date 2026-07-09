@@ -3,16 +3,14 @@ import Foundation
 
 /// Guards W1/W2 process-discovery migration slices.
 ///
-/// `pgrep` remains the low-level subprocess mechanism for now, but production
-/// process-discovery consumers should call `SystemStateProvider` so Phase 1 can
-/// collapse process, TCP, and later launchd/SMAppService evidence into one
-/// executable snapshot.
+/// `pgrep` is owned by KeyPathSystemProbes. Production consumers should call
+/// `SystemStateProvider` so Phase 1 can collapse process, TCP, and later
+/// launchd/SMAppService evidence into one executable snapshot.
 final class PgrepProcessDiscoveryLintTests: XCTestCase {
     func testProductionPgrepDiscoveryIsCentralizedInCoreProvider() throws {
         let sourceRoot = repositoryRoot().appendingPathComponent("Sources")
         let allowedFiles: Set = [
-            "Sources/KeyPathCore/SubprocessRunner.swift",
-            "Sources/KeyPathCore/SystemStateProvider.swift"
+            "Sources/KeyPathSystemProbes/SystemProbeClient.swift"
         ]
 
         let violations = try swiftSourceFiles(under: sourceRoot)
@@ -34,7 +32,7 @@ final class PgrepProcessDiscoveryLintTests: XCTestCase {
             violations.isEmpty,
             """
             Production process discovery must be centralized in \
-            SystemStateProvider/SubprocessRunner, not scattered through callers:
+            SystemStateProvider/KeyPathSystemProbes, not scattered through callers:
             \(violations.sorted().joined(separator: "\n"))
             """
         )

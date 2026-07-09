@@ -152,12 +152,14 @@ the result as user action required and name the approval surface.
   pins the adapter contract, while
   `WizardPureLogicTests.test_systemContextStateMatrixSnapshot_classifiesStoppedRuntimeWithStaleInputCapture`
   pins the pure `SystemContext` snapshot bridge used by wizard core.
-- Process-liveness semantics belong in `SystemStateProvider.isProcessAlive(pid:)`.
+- Raw process-liveness semantics live in `KeyPathSystemProbes` and are exposed
+  to consumers through `SystemStateProvider.isProcessAlive(pid:)`.
   `SystemStateProviderLivenessTests.testProcessLivenessProbeTreatsCurrentProcessAsAliveAndExitedProcessAsDead`
   proves the real ADR-040 primitive, and
   `LivenessPredicateLintTests.testKillZeroLivenessProbeIsCentralized` blocks
-  new direct `kill(pid, 0)` probes outside the provider.
-- TCP readiness semantics belong in `SystemStateProvider.isTCPPortResponding(port:timeoutMs:)`.
+  new direct `kill(pid, 0)` probes outside the probe module.
+- Raw TCP readiness semantics live in `KeyPathSystemProbes` and are exposed to
+  consumers through `SystemStateProvider.isTCPPortResponding(port:timeoutMs:)`.
   `SystemStateProviderLivenessTests.testTCPReadinessProbeDetectsListeningAndClosedPorts`
   proves the real localhost primitive,
   `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
@@ -165,7 +167,8 @@ the result as user action required and name the approval surface.
   `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed` plus
   `TCPReadinessLintTests.testProductionRawTCPSocketProbeIsCentralized` block
   production readiness checks from bypassing the provider.
-- `pgrep` process discovery belongs in `SystemStateProvider.processIDs(matching:)`,
+- Raw `pgrep` process discovery lives in `KeyPathSystemProbes`; consumers use
+  `SystemStateProvider.processIDs(matching:)`,
   `SystemStateProvider.processMatches(matching:)`, or
   `SystemStateProvider.processIDsSynchronously(matching:)` for synchronous
   pre-exec/privileged-helper paths.
@@ -200,6 +203,7 @@ the result as user action required and name the approval surface.
   and `PgrepProcessDiscoveryLintTests.testProductionPgrepDiscoveryIsCentralizedInCoreProvider`
   block migrated runtime/system-validator/Karabiner-conflict/VHID/diagnostics/launcher/process-lifecycle/helper consumers from bypassing it.
 - Read-only `launchctl print` service-state evidence belongs in
+  `KeyPathSystemProbes` and is exposed through
   `SystemStateProvider.launchctlPrint(target:)`; mutating launchctl operations
   remain installer/helper actions, not state reads.
   `SystemStateProviderLivenessTests.testLaunchctlPrintDelegatesToInjectedSubprocessRunner`

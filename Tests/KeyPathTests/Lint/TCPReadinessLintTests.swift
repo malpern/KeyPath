@@ -4,9 +4,10 @@ import Foundation
 /// Guards the W1/W2 TCP-readiness migration for `ServiceHealthChecker`.
 ///
 /// The wizard health checker used to carry a private POSIX socket probe because
-/// the old `TCPProbe` utility lived in AppKit. The blessed readiness probe now
-/// lives in `SystemStateProvider`; this ratchet prevents the private socket
-/// implementation from drifting back into installer health checks.
+/// the old `TCPProbe` utility lived in AppKit. Raw socket probing now lives in
+/// `KeyPathSystemProbes`; consumers still route readiness through
+/// `SystemStateProvider`. This ratchet prevents private socket implementations
+/// from drifting back into installer health checks.
 final class TCPReadinessLintTests: XCTestCase {
     func testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider() throws {
         let serviceHealthChecker = repositoryRoot()
@@ -61,7 +62,7 @@ final class TCPReadinessLintTests: XCTestCase {
     }
 
     func testProductionRawTCPSocketProbeIsCentralized() throws {
-        let violations = try sourceFiles(excludingPathSuffixes: ["Sources/KeyPathCore/SystemStateProvider.swift"])
+        let violations = try sourceFiles(excludingPathSuffixes: ["Sources/KeyPathSystemProbes/SystemProbeClient.swift"])
             .flatMap { fileURL in
                 try matchingLines(
                     in: fileURL,
@@ -78,7 +79,7 @@ final class TCPReadinessLintTests: XCTestCase {
             violations.isEmpty,
             """
             Production raw TCP socket readiness probes must stay centralized in \
-            SystemStateProvider:
+            KeyPathSystemProbes:
             \(violations.sorted().joined(separator: "\n"))
             """
         )

@@ -159,7 +159,7 @@ final class DiagnosticsServiceTests: XCTestCase {
             pattern == "karabiner_grabber" ? [1234] : []
         }
 
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let service = DiagnosticsService(
             processLifecycleManager: processManager,
             systemStateProvider: provider
@@ -182,7 +182,7 @@ final class DiagnosticsServiceTests: XCTestCase {
             pattern == "Karabiner-VirtualHIDDevice" ? [5678] : []
         }
 
-        let provider = SystemStateProvider(subprocessRunner: runner)
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let service = DiagnosticsService(
             processLifecycleManager: processManager,
             systemStateProvider: provider

@@ -14,6 +14,10 @@ let package = Package(
             targets: ["KeyPathCore"]
         ),
         .library(
+            name: "KeyPathSystemProbes",
+            targets: ["KeyPathSystemProbes"]
+        ),
+        .library(
             name: "KeyPathPermissions",
             targets: ["KeyPathPermissions"]
         ),
@@ -87,7 +91,15 @@ let package = Package(
     targets: [
         // Core library with shared types/utilities
         .target(
+            name: "KeyPathSystemProbes",
+            path: "Sources/KeyPathSystemProbes",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        .target(
             name: "KeyPathCore",
+            dependencies: ["KeyPathSystemProbes"],
             path: "Sources/KeyPathCore",
             swiftSettings: [
                 .swiftLanguageMode(.v6)

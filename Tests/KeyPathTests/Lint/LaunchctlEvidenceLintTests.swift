@@ -9,7 +9,7 @@ import Foundation
 /// files cannot reintroduce ad hoc launchd evidence reads.
 final class LaunchctlEvidenceLintTests: XCTestCase {
     private static let allowList: Set<String> = [
-        "Sources/KeyPathCore/SystemStateProvider.swift"
+        "Sources/KeyPathSystemProbes/SystemProbeClient.swift"
     ]
 
     func testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider() throws {

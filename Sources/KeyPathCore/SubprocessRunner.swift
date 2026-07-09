@@ -10,7 +10,6 @@ public protocol SubprocessRunning: Sendable {
         timeout: TimeInterval?
     ) async throws -> ProcessResult
 
-    func pgrep(_ pattern: String) async -> [pid_t]
     func launchctl(_ subcommand: String, _ args: [String]) async throws -> ProcessResult
 }
 
@@ -147,32 +146,6 @@ public actor SubprocessRunner: SubprocessRunning {
             runContext.timeoutTask?.cancel()
             runContext.resume(with: .failure(CancellationError()))
         })
-    }
-
-    /// Run pgrep to find processes matching a pattern
-    ///
-    /// - Parameter pattern: Process pattern to search for
-    /// - Returns: Array of process IDs
-    public func pgrep(_ pattern: String) async -> [pid_t] {
-        do {
-            let result = try await run("/usr/bin/pgrep", args: ["-f", pattern], timeout: 5)
-            // pgrep returns exit code 1 when no processes found (not an error)
-            if result.exitCode == 1 {
-                return []
-            }
-            if result.exitCode != 0 {
-                AppLogger.shared.warn("⚠️ [SubprocessRunner] pgrep exited with code \(result.exitCode)")
-                return []
-            }
-            return result.stdout
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .components(separatedBy: .newlines)
-                .filter { !$0.isEmpty }
-                .compactMap { Int32($0.trimmingCharacters(in: .whitespaces)) }
-        } catch {
-            AppLogger.shared.warn("⚠️ [SubprocessRunner] pgrep failed for pattern '\(pattern)': \(error)")
-            return []
-        }
     }
 
     /// Run launchctl command
