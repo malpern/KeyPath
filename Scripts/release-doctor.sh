@@ -234,6 +234,13 @@ else
     fail "Installer identity-stability source contract failed"
 fi
 
+print_section "Release Signing Contract"
+if "$PROJECT_DIR/Scripts/verify-release-signing-contract.sh" --source; then
+    pass "Release signing source contract passed"
+else
+    fail "Release signing source contract failed"
+fi
+
 print_section "Release Artifacts"
 effective_skip_sparkle="${SKIP_SPARKLE:-}"
 effective_skip_website="${SKIP_WEBSITE:-}"
