@@ -2,6 +2,7 @@ import Combine
 import Foundation
 import KeyPathCore
 import KeyPathWizardCore
+import ServiceManagement
 import SwiftUI
 
 // MARK: - Constants
@@ -123,10 +124,13 @@ public struct WizardKarabinerComponentsPage: View {
                         }
                     )
 
-                    // Inline action status (immediately after hero for visual consistency)
-                    // Always reserve space to prevent layout shifts
-                    InlineStatusView(status: actionStatus, message: actionStatus.message ?? " ")
-                        .opacity(actionStatus.isActive ? 1 : 0)
+                    if shouldShowInlineActionStatus {
+                        InlineStatusView(status: actionStatus, message: actionStatus.message ?? " ")
+                    }
+
+                    if isDriverApprovalPending {
+                        DriverExtensionApprovalGuide()
+                    }
 
                     Button(driverActionButtonTitle) {
                         handleFixButtonTapped()
@@ -136,6 +140,7 @@ public struct WizardKarabinerComponentsPage: View {
                     .disabled(isCombinedFixLoading)
                     .frame(minHeight: 44) // Prevent height change when loading spinner appears
                     .padding(.top, WizardDesign.Spacing.itemGap)
+                    .accessibilityIdentifier("wizard-karabiner-action-button")
                 }
                 .animation(WizardDesign.Animation.statusTransition, value: actionStatus)
                 .heroSectionContainer()
@@ -208,7 +213,19 @@ public struct WizardKarabinerComponentsPage: View {
     }
 
     private var driverActionButtonTitle: String {
-        isDriverApprovalPending ? "Open System Settings" : "Fix"
+        isDriverApprovalPending ? "Open Login Items & Extensions" : "Fix"
+    }
+
+    private var shouldShowInlineActionStatus: Bool {
+        if isDriverApprovalPending {
+            switch actionStatus {
+            case .error, .inProgress:
+                return true
+            case .attention, .idle, .success:
+                return false
+            }
+        }
+        return actionStatus.isActive
     }
 
     private var karabinerRelatedIssues: [WizardIssue] {
@@ -292,17 +309,20 @@ public struct WizardKarabinerComponentsPage: View {
     }
 
     private func openLoginItemsSettings() {
+        if #available(macOS 13.0, *) {
+            SMAppService.openSystemSettingsLoginItems()
+            return
+        }
+
         if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
             NSWorkspace.shared.open(url)
         }
     }
 
     private func openDriverExtensionsSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension?ExtensionItems") {
-            NSWorkspace.shared.open(url)
-        } else {
-            openLoginItemsSettings()
-        }
+        // macOS exposes an API for the Login Items & Extensions page, but not a
+        // public deep link to the Driver Extensions sheet or a specific vendor row.
+        openLoginItemsSettings()
     }
 
     // MARK: - Smart Fix Handlers
@@ -404,17 +424,25 @@ public struct WizardKarabinerComponentsPage: View {
                 }
             }
 
-            // 2) Services repair/install (only if driver succeeded or already healthy)
-            let driverHealthy = componentStatus(for: .driver) == .completed
-            AppLogger.shared.log("🔧 [Karabiner Fix] driverHealthy=\(driverHealthy), checking service repair...")
-            if driverHealthy {
+            // 2) Continue from the DriverKit extension state, not aggregate Karabiner
+            // health. Aggregate health includes these services and would deadlock setup.
+            let extensionStatus = await ServiceHealthChecker.shared.vhidDriverExtensionStatus()
+            let continuation = KarabinerComponentsStatusEvaluator.setupContinuation(for: extensionStatus)
+            AppLogger.shared.log(
+                "🔧 [Karabiner Fix] extensionStatus=\(extensionStatus), continuation=\(continuation)"
+            )
+            switch continuation {
+            case .repairServices:
                 AppLogger.shared.log("🔧 [Karabiner Fix] Calling performAutomaticServiceRepair()...")
                 _ = await performAutomaticServiceRepair()
                 AppLogger.shared.log("🔧 [Karabiner Fix] performAutomaticServiceRepair() returned")
-            } else if await showPendingDriverApprovalIfNeeded(openSettings: true) {
+
+            case .requestDriverApproval:
+                _ = await showPendingDriverApprovalIfNeeded(openSettings: true)
                 AppLogger.shared.log("💡 [Karabiner Fix] Driver install is pending user approval")
                 return
-            } else {
+
+            case .reportIncomplete:
                 actionStatus = .error(message: "Driver setup is incomplete. Try Fix again, or restart KeyPath.")
             }
             AppLogger.shared.log("🔧 [Karabiner Fix] All fix steps complete, defer will release spinner")
@@ -512,22 +540,13 @@ public struct WizardKarabinerComponentsPage: View {
             success = await performAutoFix(.fixDriverVersionMismatch)
         }
 
-        if vhidIssues.contains(where: { $0.identifier == .component(.vhidDaemonMisconfigured) }) {
-            AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: repairVHIDDaemonServices (misconfigured)")
-            success = await performAutoFix(.repairVHIDDaemonServices) || success
-        }
-
-        let needsDaemonRepair = vhidIssues.contains(where: { $0.identifier == .component(.vhidDeviceRunning) }) ||
+        let needsDaemonRepair = vhidIssues.contains(where: { $0.identifier == .component(.vhidDaemonMisconfigured) }) ||
+            vhidIssues.contains(where: { $0.identifier == .component(.vhidDeviceRunning) }) ||
             issues.contains(where: { $0.identifier == .component(.karabinerDaemon) })
         if needsDaemonRepair {
-            AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: repairVHIDDaemonServices (daemon not running)")
+            AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: repairVHIDDaemonServices (single verified repair)")
             success = await performAutoFix(.repairVHIDDaemonServices) || success
         }
-
-        // Always run a verified restart last to ensure single-owner state
-        AppLogger.shared.log("🧭 [FIX-VHID \(session)] Action: restartVirtualHIDDaemon (verified)")
-        let restartOk = await performAutoFix(.restartVirtualHIDDaemon)
-        success = success || restartOk
 
         // Post-repair diagnostic
         let diagnosticDetail = await kanataManager.getVirtualHIDBreakageSummary()
@@ -718,5 +737,54 @@ public struct WizardKarabinerComponentsPage: View {
 
         let totalElapsed = String(format: "%.2f", Date().timeIntervalSince(t0))
         AppLogger.shared.log("✅ [Karabiner Fix] refreshAndWait() completed (elapsed=\(totalElapsed)s)")
+    }
+}
+
+private struct DriverExtensionApprovalGuide: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            if let screenshot {
+                Image(nsImage: screenshot)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: 360)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .shadow(radius: 4)
+                    .padding(.top, 12)
+                    .accessibilityLabel(
+                        "System Settings Driver Extensions sheet showing the Driver Extension switch turned off"
+                    )
+            }
+
+            Text("In Extensions, open Drivers, turn on Driver Extension, then return here.")
+                .font(.subheadline)
+                .foregroundStyle(WizardDesign.Colors.secondaryText)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("wizard-karabiner-driver-approval-guide")
+    }
+
+    private var screenshot: NSImage? {
+        let resourceName = "karabiner-driver-extension-switch"
+        if let moduleURL = Bundle.module.url(forResource: resourceName, withExtension: "png"),
+           let image = NSImage(contentsOf: moduleURL)
+        {
+            return image
+        }
+
+        let resourceBundle = WizardDependencies.resourceBundle ?? Bundle.main
+        if let resourceURL = resourceBundle.url(forResource: resourceName, withExtension: "png"),
+           let image = NSImage(contentsOf: resourceURL)
+        {
+            return image
+        }
+        if let mainURL = Bundle.main.url(forResource: resourceName, withExtension: "png"),
+           let image = NSImage(contentsOf: mainURL)
+        {
+            return image
+        }
+        return nil
     }
 }

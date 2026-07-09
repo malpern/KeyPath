@@ -426,6 +426,8 @@ public struct InstallerReport: Sendable {
     public let logs: [String]
     /// Machine-readable execution events for installer/repair diagnostics.
     public let repairTelemetry: [InstallerRepairTelemetryEvent]
+    /// Explicit recovery action callers may offer after a failed operation.
+    public let recommendedRecovery: WizardUninstallRecoveryAction?
 
     public init(
         timestamp: Date = Date(),
@@ -435,7 +437,8 @@ public struct InstallerReport: Sendable {
         executedRecipes: [RecipeResult] = [],
         finalContext: SystemContext? = nil,
         logs: [String] = [],
-        repairTelemetry: [InstallerRepairTelemetryEvent] = []
+        repairTelemetry: [InstallerRepairTelemetryEvent] = [],
+        recommendedRecovery: WizardUninstallRecoveryAction? = nil
     ) {
         self.timestamp = timestamp
         self.success = success
@@ -445,6 +448,7 @@ public struct InstallerReport: Sendable {
         self.finalContext = finalContext
         self.logs = logs
         self.repairTelemetry = repairTelemetry
+        self.recommendedRecovery = recommendedRecovery
     }
 }
 

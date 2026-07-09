@@ -4,6 +4,11 @@ import KeyPathCore
 @testable import KeyPathWizardCore
 @preconcurrency import XCTest
 
+private actor InstallerGateTestState {
+    private(set) var entered = false
+    func markEntered() { entered = true }
+}
+
 @MainActor
 final class InstallerEngineTests: KeyPathAsyncTestCase {
     var engine: InstallerEngine!
@@ -26,6 +31,27 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
     func testInstallerEngineCanBeInstantiated() {
         let engine = InstallerEngine()
         XCTAssertNotNil(engine, "InstallerEngine should be instantiable")
+    }
+
+    func testInstallerTransactionGateSerializesConcurrentRuns() async {
+        let gate = InstallerTransactionGate()
+        await gate.acquire()
+        let state = InstallerGateTestState()
+
+        let waitingRun = Task {
+            await gate.acquire()
+            await state.markEntered()
+            await gate.release()
+        }
+
+        await Task.yield()
+        let enteredWhileOccupied = await state.entered
+        XCTAssertFalse(enteredWhileOccupied)
+
+        await gate.release()
+        await waitingRun.value
+        let enteredAfterRelease = await state.entered
+        XCTAssertTrue(enteredAfterRelease)
     }
 
     // MARK: - inspectSystem() Tests

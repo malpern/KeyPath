@@ -41,6 +41,20 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
         XCTAssertEqual(overall, InstallationStatus.completed, "Overall Karabiner status should stay green for Kanata-only issues")
     }
 
+    func testEnabledDriverContinuesToServiceRepairWhenAggregateHealthIsStillIncomplete() {
+        XCTAssertEqual(
+            KarabinerComponentsStatusEvaluator.setupContinuation(for: .enabled),
+            .repairServices
+        )
+    }
+
+    func testDisabledDriverRequestsApprovalBeforeServiceRepair() {
+        XCTAssertEqual(
+            KarabinerComponentsStatusEvaluator.setupContinuation(for: .installedButNotEnabled),
+            .requestDriverApproval
+        )
+    }
+
     // MARK: - SystemContextAdapter Integration Tests
 
     /// Regression test: When VHID services are healthy but Kanata service is not installed,

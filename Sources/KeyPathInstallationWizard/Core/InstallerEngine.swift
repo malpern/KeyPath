@@ -4,6 +4,29 @@ import KeyPathDaemonLifecycle
 import KeyPathPermissions
 import KeyPathWizardCore
 
+actor InstallerTransactionGate {
+    static let shared = InstallerTransactionGate()
+
+    private var isOccupied = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func acquire() async {
+        guard isOccupied else {
+            isOccupied = true
+            return
+        }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func release() {
+        guard !waiters.isEmpty else {
+            isOccupied = false
+            return
+        }
+        waiters.removeFirst().resume()
+    }
+}
+
 /// Protocol for privileged routing used by Services to allow test stubs
 public protocol InstallerEnginePrivilegedRouting: AnyObject {
     func uninstallVirtualHIDDrivers(using broker: PrivilegeBroker) async throws
@@ -253,6 +276,17 @@ public final class InstallerEngine {
         plan: InstallPlan,
         using broker: PrivilegeBroker,
         trigger: InstallerRepairTelemetryTrigger = .executePlan
+    ) async -> InstallerReport {
+        await InstallerTransactionGate.shared.acquire()
+        let report = await executeWithinTransaction(plan: plan, using: broker, trigger: trigger)
+        await InstallerTransactionGate.shared.release()
+        return report
+    }
+
+    private func executeWithinTransaction(
+        plan: InstallPlan,
+        using broker: PrivilegeBroker,
+        trigger: InstallerRepairTelemetryTrigger
     ) async -> InstallerReport {
         AppLogger.shared.log("⚙️ [InstallerEngine] Starting execute(plan:, using:)")
 
@@ -710,41 +744,61 @@ public final class InstallerEngine {
     /// Convenience wrapper that chains inspectSystem() → makePlan() → execute() internally.
     /// Useful for CLI "one-button repair" automation or simple GUI flows.
     public func run(intent: InstallIntent, using broker: PrivilegeBroker) async -> InstallerReport {
+        await InstallerTransactionGate.shared.acquire()
         AppLogger.shared.log("🚀 [InstallerEngine] Starting run(intent: \(intent), using:)")
 
         if intent == .uninstall {
             AppLogger.shared.log(
                 "🗑️ [InstallerEngine] Delegating uninstall intent to uninstall(deleteConfig:, using:)"
             )
-            return await uninstall(deleteConfig: false, using: broker)
+            let report = await uninstallWithinTransaction(
+                deleteConfig: false,
+                removeVirtualHID: false,
+                allowAdminFallback: false
+            )
+            await InstallerTransactionGate.shared.release()
+            return report
         }
 
         // Chain the steps
         let context = await inspectSystem()
         let plan = await makePlan(for: intent, context: context)
-        let report = await execute(plan: plan, using: broker, trigger: .run)
+        let report = await executeWithinTransaction(plan: plan, using: broker, trigger: .run)
 
         AppLogger.shared.log("✅ [InstallerEngine] run() complete - success: \(report.success)")
+        await InstallerTransactionGate.shared.release()
         return report
     }
 
     /// Execute uninstall via the existing coordinator.
     /// - Parameter removeVirtualHID: when true, also tears down the Karabiner VirtualHID
     ///   driver. Off by default because the driver is a shared component other tools may use.
-    public func uninstall(deleteConfig: Bool, removeVirtualHID: Bool = false, using broker: PrivilegeBroker) async -> InstallerReport {
-        AppLogger.shared.log("🗑️ [InstallerEngine] Starting uninstall (deleteConfig: \(deleteConfig), removeVirtualHID: \(removeVirtualHID))")
+    public func uninstall(
+        deleteConfig: Bool,
+        removeVirtualHID: Bool = false,
+        allowAdminFallback: Bool = false,
+        using _: PrivilegeBroker
+    ) async -> InstallerReport {
+        await InstallerTransactionGate.shared.acquire()
+        let report = await uninstallWithinTransaction(
+            deleteConfig: deleteConfig,
+            removeVirtualHID: removeVirtualHID,
+            allowAdminFallback: allowAdminFallback
+        )
+        await InstallerTransactionGate.shared.release()
+        return report
+    }
 
-        // Remove the VirtualHID driver BEFORE the main teardown: the coordinator uninstall
-        // self-destructs the privileged helper that this step depends on. Best-effort — a
-        // VHID failure must not block removing KeyPath itself.
-        if removeVirtualHID {
-            do {
-                try await broker.uninstallVirtualHIDDrivers()
-                AppLogger.shared.log("🗑️ [InstallerEngine] Virtual HID driver removed")
-            } catch {
-                AppLogger.shared.log("⚠️ [InstallerEngine] Virtual HID removal failed (continuing uninstall): \(error)")
-            }
-        }
+    private func uninstallWithinTransaction(
+        deleteConfig: Bool,
+        removeVirtualHID: Bool,
+        allowAdminFallback: Bool
+    ) async -> InstallerReport {
+        AppLogger.shared.log(
+            "🗑️ [InstallerEngine] Starting uninstall (deleteConfig: \(deleteConfig), removeVirtualHID: \(removeVirtualHID), allowAdminFallback: \(allowAdminFallback))"
+        )
+
+        var componentResults: [RecipeResult] = []
 
         let start = Date()
         guard let coordinator = WizardDependencies.createUninstallCoordinator?() else {
@@ -754,39 +808,45 @@ public final class InstallerEngine {
                 failureReason: "Uninstall coordinator not configured"
             )
         }
-        let success = await coordinator.uninstall(deleteConfig: deleteConfig)
-        let duration = Date().timeIntervalSince(start)
-        let failure = "Uninstall failed"
-
-        let recipeID = deleteConfig ? "uninstall-with-config" : "uninstall"
-        let recipeResult = RecipeResult(
-            recipeID: recipeID,
-            success: success,
-            error: success ? nil : failure,
-            duration: duration
+        let result = await coordinator.performUninstall(
+            deleteConfig: deleteConfig,
+            removeVirtualHID: removeVirtualHID,
+            allowAdminFallback: allowAdminFallback
         )
+        let duration = Date().timeIntervalSince(start)
+        let failure = result.failureReason ?? "Uninstall failed"
+
+        componentResults.append(contentsOf: result.steps.map { step in
+            RecipeResult(
+                recipeID: step.id,
+                success: step.success,
+                error: step.error,
+                duration: step.id == "verify-uninstall" ? duration : 0
+            )
+        })
 
         let report = InstallerReport(
-            success: success,
-            failureReason: success ? nil : failure,
-            executedRecipes: [recipeResult],
-            logs: [],
+            success: result.success,
+            failureReason: result.success ? nil : failure,
+            executedRecipes: componentResults,
+            logs: result.logs,
             repairTelemetry: [
                 InstallerRepairTelemetryEvent(
                     trigger: .uninstall,
                     intent: InstallIntent.uninstall.telemetryValue,
                     stateMatrixRow: nil,
                     stateMatrixPlan: [],
-                    action: recipeID,
-                    recipeID: recipeID,
+                    action: deleteConfig ? "uninstall-with-config" : "uninstall",
+                    recipeID: deleteConfig ? "uninstall-with-config" : "uninstall",
                     recipeType: "uninstall",
-                    postconditionResult: success ? .succeeded : .failed,
-                    error: success ? nil : failure
+                    postconditionResult: result.success ? .succeeded : .failed,
+                    error: result.success ? nil : failure
                 ),
-            ]
+            ],
+            recommendedRecovery: result.recommendedRecovery
         )
 
-        AppLogger.shared.log("🗑️ [InstallerEngine] uninstall complete - success: \(success)")
+        AppLogger.shared.log("🗑️ [InstallerEngine] uninstall complete - success: \(result.success)")
         return report
     }
 
@@ -796,6 +856,7 @@ public final class InstallerEngine {
     public func runSingleAction(_ action: AutoFixAction, using broker: PrivilegeBroker) async
         -> InstallerReport
     {
+        await InstallerTransactionGate.shared.acquire()
         AppLogger.shared.log("🔧 [InstallerEngine] runSingleAction(\(action), using:) starting")
         let context = await inspectSystem()
 
@@ -817,31 +878,41 @@ public final class InstallerEngine {
                 finalRecipes = [directRecipe]
             } else {
                 AppLogger.shared.log("⚠️ [InstallerEngine] No recipe available for action: \(action)")
-                return InstallerReport(
+                let report = InstallerReport(
                     success: false,
                     failureReason: "No recipe available for action: \(action)",
                     executedRecipes: [],
                     logs: []
                 )
+                await InstallerTransactionGate.shared.release()
+                return report
             }
         } else {
             finalRecipes = filteredRecipes
         }
 
-        // Create a filtered plan with just the matching recipes.
-        // Keep the original plan status/requirements to avoid bypassing blocked preconditions.
+        // Create a filtered plan with just the matching recipes. If the recipe came from a
+        // direct single-action fallback, do not inherit a broad install/repair blocker that
+        // can belong to a different wizard step; the recipe execution still enforces its
+        // own failure and postcondition checks.
+        let shouldPreserveBaseBlocker = !filteredRecipes.isEmpty
         let filteredPlan = InstallPlan(
             recipes: finalRecipes,
-            status: basePlan.status,
+            status: shouldPreserveBaseBlocker ? basePlan.status : .ready,
             intent: basePlan.intent,
-            blockedBy: basePlan.blockedBy,
+            blockedBy: shouldPreserveBaseBlocker ? basePlan.blockedBy : nil,
             metadata: basePlan.metadata
         )
 
-        let report = await execute(plan: filteredPlan, using: broker, trigger: .singleAction)
+        let report = await executeWithinTransaction(
+            plan: filteredPlan,
+            using: broker,
+            trigger: .singleAction
+        )
         AppLogger.shared.log(
             "✅ [InstallerEngine] runSingleAction(\(action), using:) complete - success: \(report.success)"
         )
+        await InstallerTransactionGate.shared.release()
         return report
     }
 

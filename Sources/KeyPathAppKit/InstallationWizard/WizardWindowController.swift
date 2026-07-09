@@ -57,12 +57,12 @@ final class WizardWindowController {
             .fixedSize(horizontal: false, vertical: true)
 
         let hosting: NSView = if let viewModel = kanataViewModel {
-            NSHostingView(rootView:
+            WizardHostingView(rootView:
                 styledView
                     .environment(viewModel)
                     .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator))
         } else {
-            NSHostingView(rootView:
+            WizardHostingView(rootView:
                 styledView
                     .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator))
         }
@@ -230,5 +230,13 @@ private class WizardWindowDelegate: NSObject, NSWindowDelegate {
         Task { @MainActor in
             controller?.handleWindowClosed()
         }
+    }
+}
+
+private final class WizardHostingView<Content: View>: NSHostingView<Content> {
+    override var acceptsFirstResponder: Bool { false }
+    override var focusRingType: NSFocusRingType {
+        get { .none }
+        set {}
     }
 }

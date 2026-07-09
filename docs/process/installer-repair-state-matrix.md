@@ -72,6 +72,10 @@ current missing/stopped runtime.
 | Helper responds but may be stale | helper XPC works after helper behavior changed/deployed | Verify helper freshness or force unregister/register | helper fresh, then continue repair | HelperMaintenance force-refresh test |
 | Helper path succeeds | helper reports operation success | Router must still verify postconditions | proven final state, not helper return value | Router test for helper success with failed postcondition |
 | Sudo fallback succeeds | helper failed, sudo path reports success | Router must still verify same postconditions | proven final state, not fallback return value | Router test for sudo fallback postcondition |
+| Uninstall helper missing or unresponsive | helper is absent or XPC health check fails | Repair/register the helper with `SMAppService`, verify XPC, then uninstall through the helper | KeyPath files and service registrations are absent | Coordinator test that helper repair precedes uninstall and no admin-script fallback runs automatically |
+| Uninstall helper cannot be repaired | helper repair fails or still does not answer over XPC | Stop and return explicit `emergency-cleanup` recovery; never launch the admin script automatically | failed with diagnostics and a user-selected recovery action | Coordinator test that fallback invocation count remains zero until explicitly enabled |
+| Uninstall including VirtualHID | user selected driver removal | Remove and verify the driver before the helper self-destructs; stop before removing KeyPath if the requested driver removal fails | KeyPath and DriverKit extension absent, or KeyPath remains installed with actionable driver diagnostics | Coordinator ordering and stop-before-app-removal tests |
+| Emergency uninstall cleanup | user explicitly confirms Emergency Cleanup | Run the bundled cleanup script with administrator authorization and verify the same postconditions | requested files, registrations, and optional driver are absent | Test that command success with failed postconditions remains failure |
 | Manual approval is required | Login Items/System Extension/TCC approval needed | Return terminal manual-action state for this attempt | no retry loop; UI/CLI names approval | CLI/UI contract test |
 | Definitive unhealthy state | repeated launchctl not-found, no process, no TCP | Fail with diagnostics, not optimistic success | failure report includes missing evidence | Failure-path test for no false green |
 
@@ -85,6 +89,8 @@ For any installer or repair change, answer these before merging:
   `failed with diagnostics`?
 - Does every helper path and every sudo fallback path enforce the same
   postcondition?
+- Can any uninstall path launch administrator-script fallback without a separate,
+  explicit user action? It must not.
 - Does every installer/repair report include structured telemetry for the
   trigger, state-matrix row, matrix plan/action, and postcondition result?
   `InstallerEngineTests.testExecuteRecordsStructuredRepairTelemetryForSuccessfulRecipe`,

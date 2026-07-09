@@ -66,6 +66,9 @@ extension HelperManager {
         timeout: TimeInterval = KeyPathConstants.Timing.helperRequestTimeout,
         _ call: @escaping @Sendable (HelperProtocol, @escaping (Bool, String?) -> Void) -> Void
     ) async throws {
+        await operationGate.acquire()
+        defer { Task { await self.operationGate.release() } }
+
         // Detect concurrent XPC calls (indicates a bug in caller logic)
         if activeXPCCalls.contains(name) {
             AppLogger.shared.log("⚠️ [HelperManager] CONCURRENT XPC CALL DETECTED: \(name)")
@@ -90,7 +93,7 @@ extension HelperManager {
                 try? await Task.sleep(for: .seconds(timeout))
                 guard completionState.tryComplete() else { return } // Already completed by XPC callback
                 AppLogger.shared.log("⏱️ [HelperManager] \(name) timed out after \(Int(timeout))s")
-                continuation.resume(throwing: HelperManagerError.operationFailed("XPC call '\(name)' timed out after \(Int(timeout))s"))
+                continuation.resume(throwing: HelperManagerError.ambiguousOutcome("XPC call '\(name)' timed out after \(Int(timeout))s; its reply may have been lost"))
             }
 
             // Execute the XPC call
@@ -119,6 +122,9 @@ extension HelperManager {
             @escaping @Sendable (Result<T, Error>) -> Void
         ) -> Void
     ) async throws -> T {
+        await operationGate.acquire()
+        defer { Task { await self.operationGate.release() } }
+
         if activeXPCCalls.contains(name) {
             AppLogger.shared.log("⚠️ [HelperManager] CONCURRENT XPC CALL DETECTED: \(name)")
             AppLogger.shared.log("   → This may cause race conditions or hangs")
@@ -137,7 +143,7 @@ extension HelperManager {
                 try? await Task.sleep(for: .seconds(timeout))
                 guard completionState.tryComplete() else { return }
                 AppLogger.shared.log("⏱️ [HelperManager] \(name) timed out after \(Int(timeout))s")
-                continuation.resume(throwing: HelperManagerError.operationFailed("XPC call '\(name)' timed out after \(Int(timeout))s"))
+                continuation.resume(throwing: HelperManagerError.ambiguousOutcome("XPC call '\(name)' timed out after \(Int(timeout))s; its reply may have been lost"))
             }
 
             Task {

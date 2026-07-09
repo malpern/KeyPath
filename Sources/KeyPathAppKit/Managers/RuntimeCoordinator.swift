@@ -605,9 +605,16 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         await installerEngine.inspectSystem()
     }
 
-    func uninstall(deleteConfig: Bool, removeVirtualHID: Bool = false) async -> InstallerReport {
+    func uninstall(
+        deleteConfig: Bool,
+        removeVirtualHID: Bool = false,
+        allowAdminFallback: Bool = false
+    ) async -> InstallerReport {
         await installerEngine.uninstall(
-            deleteConfig: deleteConfig, removeVirtualHID: removeVirtualHID, using: privilegeBroker
+            deleteConfig: deleteConfig,
+            removeVirtualHID: removeVirtualHID,
+            allowAdminFallback: allowAdminFallback,
+            using: privilegeBroker
         )
     }
 

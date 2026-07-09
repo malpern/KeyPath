@@ -50,6 +50,9 @@ extension HelperManager {
             return Self.expectedHelperVersion
         }
 
+        await operationGate.acquire()
+        defer { Task { await self.operationGate.release() } }
+
         // Query version from helper
         guard await isHelperInstalled() else {
             AppLogger.shared.log("⚠️ [HelperManager] Helper not installed, cannot get version")
@@ -74,9 +77,8 @@ extension HelperManager {
                     }
                     guard !alreadyResumed else { return }
                     AppLogger.shared.log(
-                        "⚠️ [HelperManager] getVersion timed out - clearing connection cache"
+                        "⚠️ [HelperManager] getVersion timed out; preserving the shared connection because another operation may still be completing"
                     )
-                    await HelperManager.shared.clearConnection()
                     continuation.resume(returning: nil)
                 }
 

@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+import KeyPathDaemonLifecycle
 @testable import KeyPathInstallationWizard
 @testable import KeyPathWizardCore
 import ServiceManagement
@@ -117,6 +118,36 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         XCTAssertNil(helperMaintenance.lastUseAppleScriptFallback)
     }
 
+    func testRunSingleActionAllowsHelperInstallWhenDriverApprovalIsPending() async {
+        let blockedContext = SystemContextBuilder(
+            permissionsStatus: .granted,
+            helperReady: false,
+            servicesHealthy: false,
+            kanataInputCaptureReady: false,
+            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason,
+            componentsInstalled: true,
+            driverCompatible: true
+        ).build()
+        let validator = StubSystemValidator(snapshot: Self.snapshot(from: blockedContext))
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let broker = PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+        let helperMaintenance = StubHelperMaintenance()
+        WizardDependencies.helperMaintenance = helperMaintenance
+        defer { WizardDependencies.helperMaintenance = nil }
+
+        let report = await engine.runSingleAction(.installPrivilegedHelper, using: broker)
+
+        XCTAssertTrue(report.success)
+        XCTAssertEqual(helperMaintenance.installCallCount, 1)
+        XCTAssertFalse(
+            report.failureReason?.contains("Driver Extensions") ?? false,
+            "Helper-only install should not inherit the broad driver-approval blocker"
+        )
+    }
+
     func testExecutePlanUsesForceRefreshWithoutAppleScriptForHelperReinstall() async {
         let coordinator = StubPrivilegedOperationsCoordinator()
         let broker = PrivilegeBroker(coordinator: coordinator)
@@ -198,6 +229,17 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             throw XCTSkip("Uses DEBUG-only KanataDaemonManager.smServiceFactory override")
         #endif
     }
+
+    private static func snapshot(from context: SystemContext) -> SystemSnapshot {
+        SystemSnapshot(
+            permissions: context.permissions,
+            components: context.components,
+            conflicts: context.conflicts,
+            health: context.services,
+            helper: context.helper,
+            timestamp: context.timestamp
+        )
+    }
 }
 
 @MainActor
@@ -232,5 +274,18 @@ private final class StubHelperMaintenance: WizardHelperMaintaining {
         lastForceFullRepair = forceFullRepair
         logLines.append("helper repair invoked")
         return true
+    }
+}
+
+@MainActor
+private final class StubSystemValidator: WizardSystemValidating {
+    private let snapshot: SystemSnapshot
+
+    init(snapshot: SystemSnapshot) {
+        self.snapshot = snapshot
+    }
+
+    func checkSystem() async -> SystemSnapshot {
+        snapshot
     }
 }

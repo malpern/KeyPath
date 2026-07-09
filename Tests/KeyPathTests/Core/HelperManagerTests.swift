@@ -4,6 +4,54 @@ import ServiceManagement
 @preconcurrency import XCTest
 
 final class HelperManagerTests: XCTestCase {
+    func testHealthProbeWaitsForActiveHelperMutation() async {
+        let gate = HelperOperationGate()
+        await gate.acquire()
+
+        let probeAcquired = AsyncTestFlag()
+        let probe = Task {
+            await gate.acquire()
+            await probeAcquired.set()
+            await gate.release()
+        }
+
+        await Task.yield()
+        let acquiredBeforeRelease = await probeAcquired.value
+        XCTAssertFalse(acquiredBeforeRelease)
+
+        await gate.release()
+        await probe.value
+        let acquiredAfterRelease = await probeAcquired.value
+        XCTAssertTrue(acquiredAfterRelease)
+    }
+
+    func testPrivilegedHelperOperationsAcquireGateSerially() async {
+        let gate = HelperOperationGate()
+        let order = AsyncTestRecorder()
+
+        await gate.acquire()
+        let second = Task {
+            await gate.acquire()
+            await order.append("second")
+            await gate.release()
+        }
+        await Task.yield()
+        let third = Task {
+            await gate.acquire()
+            await order.append("third")
+            await gate.release()
+        }
+
+        await Task.yield()
+        let orderBeforeRelease = await order.values
+        XCTAssertEqual(orderBeforeRelease, [])
+        await gate.release()
+        await second.value
+        await third.value
+        let finalOrder = await order.values
+        XCTAssertEqual(finalOrder, ["second", "third"])
+    }
+
     private var originalFactory: ((String) -> SMAppServiceProtocol)!
     private var originalSynchronousServiceFactory: ((String) -> SMAppServiceProtocol)!
     private var originalStatusProvider: SMAppServiceStatusProvider!
@@ -162,6 +210,16 @@ final class HelperManagerTests: XCTestCase {
         let directCommands = await directRunner.executedCommands
         XCTAssertTrue(directCommands.isEmpty)
     }
+}
+
+private actor AsyncTestFlag {
+    private(set) var value = false
+    func set() { value = true }
+}
+
+private actor AsyncTestRecorder {
+    private(set) var values: [String] = []
+    func append(_ value: String) { values.append(value) }
 }
 
 // MARK: - Test Doubles

@@ -162,6 +162,9 @@ let package = Package(
             name: "KeyPathInstallationWizard",
             dependencies: ["KeyPathCore", "KeyPathPermissions", "KeyPathDaemonLifecycle", "KeyPathWizardCore"],
             path: "Sources/KeyPathInstallationWizard",
+            resources: [
+                .process("Resources")
+            ],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
