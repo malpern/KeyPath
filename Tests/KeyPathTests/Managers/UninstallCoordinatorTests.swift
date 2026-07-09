@@ -69,7 +69,8 @@ final class UninstallCoordinatorTests: XCTestCase {
                         success: false, output: "", error: error.localizedDescription, exitStatus: -1
                     )
                 }
-            }
+            },
+            uninstallPostconditionsSatisfied: { false }
         )
         let success = await coordinator.uninstall()
 
@@ -90,7 +91,8 @@ final class UninstallCoordinatorTests: XCTestCase {
             resolveUninstallerURL: { nil },
             runWithAdminPrivileges: { _, _ in
                 AppleScriptResult(success: false, output: "", error: "", exitStatus: -1)
-            }
+            },
+            uninstallPostconditionsSatisfied: { false }
         )
 
         let success = await coordinator.uninstall()
@@ -101,6 +103,26 @@ final class UninstallCoordinatorTests: XCTestCase {
         XCTAssertTrue(coordinator.logLines.contains { $0.contains("Uninstaller script wasn't found") })
     }
 
+    func testUninstallTreatsSatisfiedPostconditionsAsSuccessWithoutFallback() async {
+        var fallbackRan = false
+        let coordinator = UninstallCoordinator(
+            resolveUninstallerURL: { nil },
+            runWithAdminPrivileges: { _, _ in
+                fallbackRan = true
+                return AppleScriptResult(success: false, output: "", error: "fallback should not run", exitStatus: 1)
+            },
+            uninstallPostconditionsSatisfied: { true }
+        )
+
+        let success = await coordinator.uninstall()
+
+        XCTAssertTrue(success)
+        XCTAssertTrue(coordinator.didSucceed)
+        XCTAssertNil(coordinator.lastError)
+        XCTAssertFalse(fallbackRan)
+        XCTAssertTrue(coordinator.logLines.contains { $0.contains("cleanup already satisfied") })
+    }
+
     func testUninstallLogsAdminError() async {
         let errorURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent(
             "uninstall-fail.sh"
@@ -109,7 +131,8 @@ final class UninstallCoordinatorTests: XCTestCase {
             resolveUninstallerURL: { errorURL },
             runWithAdminPrivileges: { _, _ in
                 AppleScriptResult(success: false, output: "", error: "Permission denied", exitStatus: 1)
-            }
+            },
+            uninstallPostconditionsSatisfied: { false }
         )
 
         let success = await coordinator.uninstall()
@@ -128,7 +151,8 @@ final class UninstallCoordinatorTests: XCTestCase {
             resolveUninstallerURL: { errorURL },
             runWithAdminPrivileges: { _, _ in
                 AppleScriptResult(success: false, output: "", error: "", exitStatus: 42)
-            }
+            },
+            uninstallPostconditionsSatisfied: { false }
         )
 
         let success = await coordinator.uninstall()

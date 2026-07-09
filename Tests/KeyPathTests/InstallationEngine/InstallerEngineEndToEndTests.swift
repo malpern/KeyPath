@@ -88,6 +88,64 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         )
     }
 
+    func testExecutePlanUsesInstallOnlyPathForMissingPrivilegedHelper() async {
+        let coordinator = StubPrivilegedOperationsCoordinator()
+        let broker = PrivilegeBroker(coordinator: coordinator)
+        let engine = InstallerEngine()
+        let helperMaintenance = StubHelperMaintenance()
+        WizardDependencies.helperMaintenance = helperMaintenance
+        defer { WizardDependencies.helperMaintenance = nil }
+
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(
+                    id: InstallerRecipeID.installPrivilegedHelper,
+                    type: .repairPrivilegedHelper,
+                    serviceID: "com.keypath.helper"
+                )
+            ],
+            status: .ready,
+            intent: .install
+        )
+
+        let report = await engine.execute(plan: plan, using: broker)
+
+        XCTAssertTrue(report.success)
+        XCTAssertEqual(helperMaintenance.installCallCount, 1)
+        XCTAssertEqual(helperMaintenance.repairCallCount, 0)
+        XCTAssertNil(helperMaintenance.lastForceFullRepair)
+        XCTAssertNil(helperMaintenance.lastUseAppleScriptFallback)
+    }
+
+    func testExecutePlanUsesForceRefreshWithoutAppleScriptForHelperReinstall() async {
+        let coordinator = StubPrivilegedOperationsCoordinator()
+        let broker = PrivilegeBroker(coordinator: coordinator)
+        let engine = InstallerEngine()
+        let helperMaintenance = StubHelperMaintenance()
+        WizardDependencies.helperMaintenance = helperMaintenance
+        defer { WizardDependencies.helperMaintenance = nil }
+
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(
+                    id: InstallerRecipeID.reinstallPrivilegedHelper,
+                    type: .repairPrivilegedHelper,
+                    serviceID: "com.keypath.helper"
+                )
+            ],
+            status: .ready,
+            intent: .repair
+        )
+
+        let report = await engine.execute(plan: plan, using: broker)
+
+        XCTAssertTrue(report.success)
+        XCTAssertEqual(helperMaintenance.installCallCount, 0)
+        XCTAssertEqual(helperMaintenance.repairCallCount, 1)
+        XCTAssertEqual(helperMaintenance.lastForceFullRepair, true)
+        XCTAssertEqual(helperMaintenance.lastUseAppleScriptFallback, false)
+    }
+
     func testExecutePlanTreatsPendingApprovalAsHealthyForKanataHealthCheck() async throws {
         #if DEBUG
             final class PendingApprovalSMAppService: SMAppServiceProtocol, @unchecked Sendable {
@@ -144,7 +202,10 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
 
 @MainActor
 private final class StubHelperMaintenance: WizardHelperMaintaining {
+    private(set) var installCallCount = 0
     private(set) var repairCallCount = 0
+    private(set) var lastUseAppleScriptFallback: Bool?
+    private(set) var lastForceFullRepair: Bool?
     var logLines: [String] = []
     var lastErrorLine: String?
 
@@ -152,14 +213,23 @@ private final class StubHelperMaintenance: WizardHelperMaintaining {
         ["/Applications/KeyPath.app"]
     }
 
+    func installOrRefresh() async -> Bool {
+        installCallCount += 1
+        logLines.append("helper install invoked")
+        return true
+    }
+
     func runCleanupAndRepair(useAppleScriptFallback _: Bool) async -> Bool {
         repairCallCount += 1
+        lastUseAppleScriptFallback = false
         logLines.append("helper repair invoked")
         return true
     }
 
-    func runCleanupAndRepair(useAppleScriptFallback _: Bool, forceFullRepair _: Bool) async -> Bool {
+    func runCleanupAndRepair(useAppleScriptFallback: Bool, forceFullRepair: Bool) async -> Bool {
         repairCallCount += 1
+        lastUseAppleScriptFallback = useAppleScriptFallback
+        lastForceFullRepair = forceFullRepair
         logLines.append("helper repair invoked")
         return true
     }

@@ -139,10 +139,10 @@ public struct WizardAccessibilityPage: View {
                 } else {
                     // Use hero design for error state too, with blue links below
                     VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        WizardHeroSection.warning(
+                        WizardHeroSection.setup(
                             icon: "accessibility",
-                            title: "Accessibility",
-                            subtitle: "Turn on KeyPath in Accessibility, then add and turn on kanata-launcher",
+                            title: "Enable Keyboard Control",
+                            subtitle: "Allow KeyPath to monitor safety shortcuts and let Kanata Engine apply your remaps.",
                             iconTapAction: {
                                 Task {
                                     await onRefresh()

@@ -48,8 +48,49 @@ public final class HelperMaintenance {
 
     // MARK: - Public API
 
-    /// Perform a complete cleanup and repair flow.
+    /// Register the privileged helper and verify XPC without legacy cleanup.
     /// - Returns: true on success (helper registered and responding), false otherwise.
+    public func installOrRefresh() async -> Bool {
+        guard !isRunning else { return false }
+        isRunning = true
+        logLines.removeAll()
+        log("🔐 Helper install started")
+
+        defer {
+            isRunning = false
+            log("🔐 Helper install finished")
+        }
+
+        let copies = detectDuplicateAppCopies()
+        if copies.filter({ !$0.hasPrefix("/Applications/KeyPath.app") }).count > 0 {
+            log("⚠️ Multiple KeyPath.app copies detected:")
+            for c in copies {
+                log("   - \(c)")
+            }
+            log("❗ Background Item approval may point at a non-/Applications copy.")
+        } else {
+            log("✅ App copy check: OK (\(copies.first ?? "unknown"))")
+        }
+
+        let registered = await registerHelper()
+        guard registered else { return false }
+
+        var healthy = false
+        let maxAttempts = 6
+        for attempt in 1 ... maxAttempts {
+            if await HelperManager.shared.testHelperFunctionality() {
+                healthy = true
+                break
+            }
+            if attempt < maxAttempts {
+                log("⏳ Helper not responding yet (attempt \(attempt)/\(maxAttempts)); waiting for spawn…")
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+        }
+        log(healthy ? "✅ Helper responding via XPC" : "❌ Helper still not responding via XPC")
+        return healthy
+    }
+
     public func runCleanupAndRepair(useAppleScriptFallback: Bool = true) async -> Bool {
         await runCleanupAndRepair(
             useAppleScriptFallback: useAppleScriptFallback,
@@ -281,33 +322,49 @@ public final class HelperMaintenance {
         if let override = testHooks?.removeLegacyHelperArtifacts {
             return await override(useAppleScriptFallback)
         }
-        let (removedDirectly, _) = await Task.detached { () -> (Bool, Bool) in
+        let paths = legacyHelperArtifactPaths()
+        let legacyArtifactPaths = [paths.legacyBin, paths.legacyPlist]
+        let cleanup = await Task.detached { () -> (found: Bool, removed: Bool, failed: Bool) in
             let fm = Foundation.FileManager()
-            let legacyBin = "/Library/PrivilegedHelperTools/com.keypath.helper"
-            let legacyPlist = "/Library/LaunchDaemons/com.keypath.helper.plist"
+            var found = false
+            var removed = false
+            var failed = false
 
             func tryRemove(_ path: String) -> Bool {
                 if fm.fileExists(atPath: path) {
+                    found = true
                     do {
                         try fm.removeItem(atPath: path)
                         return true
-                    } catch { return false }
+                    } catch {
+                        failed = true
+                        return false
+                    }
                 }
                 return false
             }
-            let a = tryRemove(legacyBin)
-            let b = tryRemove(legacyPlist)
-            return (a || b, !(a || b))
+            for path in legacyArtifactPaths where tryRemove(path) {
+                removed = true
+            }
+            return (found, removed, failed)
         }.value
 
-        if removedDirectly {
+        if cleanup.removed, !cleanup.failed {
             log("✅ Removed legacy helper artifacts directly")
             return .removed
         }
 
-        guard useAppleScriptFallback else { return .skipped }
-        let legacyBin = "/Library/PrivilegedHelperTools/com.keypath.helper"
-        let legacyPlist = "/Library/LaunchDaemons/com.keypath.helper.plist"
+        if !cleanup.found {
+            log("ℹ️ No legacy helper artifacts present")
+            return .skipped
+        }
+
+        guard useAppleScriptFallback else {
+            log("⚠️ Legacy helper artifacts present but direct cleanup failed")
+            return .failed
+        }
+        let legacyBin = paths.legacyBin
+        let legacyPlist = paths.legacyPlist
         let command = """
         /bin/launchctl bootout system/com.keypath.helper || true && \
         /bin/rm -f '\(legacyBin)' && \
@@ -367,6 +424,18 @@ public final class HelperMaintenance {
         return candidates.isEmpty ? defaults : candidates
     }
 
+    private nonisolated func legacyHelperArtifactPaths() -> (legacyBin: String, legacyPlist: String) {
+        #if DEBUG
+            if let override = Self.testLegacyHelperArtifactPathsOverride?() {
+                return override
+            }
+        #endif
+        return (
+            "/Library/PrivilegedHelperTools/com.keypath.helper",
+            "/Library/LaunchDaemons/com.keypath.helper.plist"
+        )
+    }
+
     private func log(_ line: String) {
         AppLogger.shared.log(line)
         logLines.append(line)
@@ -374,6 +443,10 @@ public final class HelperMaintenance {
 }
 
 extension HelperMaintenance {
+    #if DEBUG
+        nonisolated(unsafe) static var testLegacyHelperArtifactPathsOverride: (() -> (legacyBin: String, legacyPlist: String)?)?
+    #endif
+
     struct TestHooks {
         let unregisterHelper: (() async -> Void)?
         let bootoutHelperJob: (() async -> Void)?

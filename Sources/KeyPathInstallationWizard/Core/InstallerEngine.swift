@@ -458,7 +458,7 @@ public final class InstallerEngine {
 
         case .repairPrivilegedHelper:
             logs.append("Repairing privileged helper registration...")
-            try await executeRepairPrivilegedHelper()
+            try await executeRepairPrivilegedHelper(recipe: recipe)
             logs.append("Privileged helper repair completed")
 
         case .restartService:
@@ -493,15 +493,25 @@ public final class InstallerEngine {
     }
 
     /// Execute privileged helper repair via the helper-maintenance workflow.
-    private func executeRepairPrivilegedHelper() async throws {
+    private func executeRepairPrivilegedHelper(recipe: ServiceRecipe) async throws {
         guard let helperMaintenance = WizardDependencies.helperMaintenance else {
             throw InstallerError.healthCheckFailed("Helper maintenance is not configured")
         }
 
-        let repaired = await helperMaintenance.runCleanupAndRepair(
-            useAppleScriptFallback: true,
-            forceFullRepair: true
-        )
+        let repaired = switch recipe.id {
+        case InstallerRecipeID.installPrivilegedHelper:
+            await helperMaintenance.installOrRefresh()
+        case InstallerRecipeID.reinstallPrivilegedHelper:
+            await helperMaintenance.runCleanupAndRepair(
+                useAppleScriptFallback: false,
+                forceFullRepair: true
+            )
+        default:
+            await helperMaintenance.runCleanupAndRepair(
+                useAppleScriptFallback: false,
+                forceFullRepair: true
+            )
+        }
         guard repaired else {
             let failure = helperMaintenance.lastErrorLine
                 ?? helperMaintenance.logLines.last

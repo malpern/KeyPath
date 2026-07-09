@@ -1,6 +1,8 @@
 #!/bin/bash
-# Quick deploy for development: build, copy to /Applications, restart
-# No signing or notarization - just fast iteration (~3-4 seconds)
+# Quick deploy for development: build, copy to /Applications, sign locally, restart.
+# This intentionally does not notarize. By default it builds only the KeyPath app
+# product for UI iteration; set KEYPATH_QUICK_DEPLOY_BUILD_SCOPE=full to refresh
+# companion binaries such as keypath-cli.
 #
 # Features:
 # - Lock-based concurrency control (skips if another build is running)
@@ -20,6 +22,25 @@ MACOS_DIR="$APP_BUNDLE/Contents/MacOS"
 RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
 ENTITLEMENTS="$PROJECT_DIR/KeyPath.entitlements"
 WAS_RUNNING=0
+DEFAULT_DEVELOPER_DIR="/Applications/Xcode-26.6.0.app/Contents/Developer"
+if [[ -n "${KEYPATH_DEV_XCODE_DEVELOPER_DIR:-}" ]]; then
+    export DEVELOPER_DIR="$KEYPATH_DEV_XCODE_DEVELOPER_DIR"
+elif [[ -z "${DEVELOPER_DIR:-}" && -d "$DEFAULT_DEVELOPER_DIR" ]]; then
+    export DEVELOPER_DIR="$DEFAULT_DEVELOPER_DIR"
+fi
+BUILD_SCOPE="${KEYPATH_QUICK_DEPLOY_BUILD_SCOPE:-app}"
+if [[ "$BUILD_SCOPE" != "app" && "$BUILD_SCOPE" != "full" ]]; then
+    echo "❌ KEYPATH_QUICK_DEPLOY_BUILD_SCOPE must be 'app' or 'full' (got '$BUILD_SCOPE')" >&2
+    exit 1
+fi
+HOST_BRIDGE_MODE="${KEYPATH_QUICK_DEPLOY_HOST_BRIDGE:-}"
+if [[ -z "$HOST_BRIDGE_MODE" ]]; then
+    if [[ "$BUILD_SCOPE" == "full" ]]; then
+        HOST_BRIDGE_MODE=1
+    else
+        HOST_BRIDGE_MODE=0
+    fi
+fi
 
 # KeepAlive LaunchAgent that runs the headless KeyPath instance. We unload it for
 # the build+sign window so launchd can't respawn KeyPath onto a bundle whose
@@ -78,6 +99,9 @@ write_build_log_header() {
         echo "project_dir: $PROJECT_DIR"
         echo "branch: $(git branch --show-current 2>/dev/null || echo unknown)"
         echo "commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+        echo "DEVELOPER_DIR: ${DEVELOPER_DIR:-}"
+        echo "build_scope: $BUILD_SCOPE"
+        echo "host_bridge_mode: $HOST_BRIDGE_MODE"
         echo "CLANG_MODULECACHE_PATH: ${CLANG_MODULECACHE_PATH:-}"
         echo "SWIFT_MODULECACHE_PATH: ${SWIFT_MODULECACHE_PATH:-}"
         echo "module_cache_flags: ${MODULE_CACHE_FLAGS[*]}"
@@ -250,8 +274,15 @@ if pgrep -x "$APP_NAME" > /dev/null; then
     fi
 fi
 
-# Build debug (fast - incremental)
-echo "🔨 Building..."
+# Build debug (incremental). The default app scope keeps UI loops away from
+# companion products that are irrelevant for visual iteration.
+if [[ "$BUILD_SCOPE" == "app" ]]; then
+    echo "🔨 Building KeyPath app product..."
+    PRODUCT_FLAGS=(--product KeyPath)
+else
+    echo "🔨 Building full package..."
+    PRODUCT_FLAGS=()
+fi
 BUILD_LOG="$BUILD_LOG_DIR/build-${BUILD_ID}.log"
 write_build_log_header "$BUILD_LOG"
 # Optional build-system override. Unset, or the legacy value "native", means use
@@ -261,7 +292,7 @@ if [[ -n "${KEYPATH_BUILD_SYSTEM:-}" && "${KEYPATH_BUILD_SYSTEM:-}" != "native" 
     BUILD_SYSTEM_FLAGS=(--build-system "$KEYPATH_BUILD_SYSTEM")
 fi
 # ${arr[@]+...} guard: bash 3.2 under `set -u` treats expanding an empty array as unbound
-if ! swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} "${MODULE_CACHE_FLAGS[@]}" >> "$BUILD_LOG" 2>&1; then
+if ! swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} "${MODULE_CACHE_FLAGS[@]}" ${PRODUCT_FLAGS[@]+"${PRODUCT_FLAGS[@]}"} >> "$BUILD_LOG" 2>&1; then
     BUILD_END_MS=$(get_time_ms)
     DURATION=$((BUILD_END_MS - BUILD_START_MS))
     print_build_failure_diagnostics "$BUILD_LOG"
@@ -297,16 +328,22 @@ if [[ ! -f "$DEBUG_BIN" ]]; then
     log_build_event "FAILED_NO_BINARY"
     exit 1
 fi
-if [[ ! -f "$CLI_BIN" ]]; then
-    echo "❌ Build failed - CLI binary not found"
-    log_build_event "FAILED_NO_CLI_BINARY"
-    exit 1
+if [[ "$BUILD_SCOPE" == "full" ]]; then
+    if [[ ! -f "$CLI_BIN" ]]; then
+        echo "❌ Build failed - CLI binary not found"
+        log_build_event "FAILED_NO_CLI_BINARY"
+        exit 1
+    fi
+else
+    echo "ℹ️  Keeping the installed keypath-cli; set KEYPATH_QUICK_DEPLOY_BUILD_SCOPE=full to refresh it."
 fi
 
 # Copy binary to app bundle
 echo "📦 Deploying..."
 cp "$DEBUG_BIN" "$MACOS_DIR/$APP_NAME"
-cp "$CLI_BIN" "$MACOS_DIR/keypath-cli"
+if [[ "$BUILD_SCOPE" == "full" && -f "$CLI_BIN" ]]; then
+    cp "$CLI_BIN" "$MACOS_DIR/keypath-cli"
+fi
 
 # Do not hot-swap the embedded privileged helper by default.
 #
@@ -374,19 +411,23 @@ _MAIN_BUILD=$(defaults read "$PROJECT_DIR/Sources/KeyPathApp/Info" CFBundleVersi
 # Sync the current bundled runtime host executable.
 KANATA_LAUNCHER_BIN="$BIN_DIR/KeyPathKanataLauncher"
 KANATA_LAUNCHER_DST="$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher"
-if [[ -f "$KANATA_LAUNCHER_BIN" ]]; then
+if [[ "$BUILD_SCOPE" == "full" && -f "$KANATA_LAUNCHER_BIN" ]]; then
     mkdir -p "$(dirname "$KANATA_LAUNCHER_DST")"
     cp "$KANATA_LAUNCHER_BIN" "$KANATA_LAUNCHER_DST"
     chmod 755 "$KANATA_LAUNCHER_DST"
 fi
 
-# Rebuild the Rust host bridge so the installed app does not silently reuse a stale
-# dylib without the passthru runtime feature set required by the split-runtime host.
-./Scripts/build-kanata-host-bridge.sh >/dev/null
+# Rebuild the Rust host bridge only for full deploys or explicit opt-in. UI-only
+# changes do not need to pay this cost on every cycle.
+if [[ "$HOST_BRIDGE_MODE" == "1" ]]; then
+    ./Scripts/build-kanata-host-bridge.sh >/dev/null
+else
+    echo "ℹ️  Skipping host bridge rebuild; set KEYPATH_QUICK_DEPLOY_HOST_BRIDGE=1 to refresh it."
+fi
 
 KANATA_HOST_BRIDGE_SRC="$PROJECT_DIR/build/kanata-host-bridge/libkeypath_kanata_host_bridge.dylib"
 KANATA_HOST_BRIDGE_DST="$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib"
-if [[ -f "$KANATA_HOST_BRIDGE_SRC" ]]; then
+if [[ "$HOST_BRIDGE_MODE" == "1" && -f "$KANATA_HOST_BRIDGE_SRC" ]]; then
     mkdir -p "$(dirname "$KANATA_HOST_BRIDGE_DST")"
     cp "$KANATA_HOST_BRIDGE_SRC" "$KANATA_HOST_BRIDGE_DST"
 fi
@@ -412,14 +453,18 @@ done
 if ! otool -l "$MACOS_DIR/$APP_NAME" | grep -q "@executable_path/../Frameworks"; then
     install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/$APP_NAME" 2>/dev/null || true
 fi
-if ! otool -l "$MACOS_DIR/keypath-cli" | grep -q "@executable_path/../Frameworks"; then
+if [[ -f "$MACOS_DIR/keypath-cli" ]] && ! otool -l "$MACOS_DIR/keypath-cli" | grep -q "@executable_path/../Frameworks"; then
     install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/keypath-cli" 2>/dev/null || true
 fi
 if [[ ! -f "$APP_BUNDLE/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle" ]]; then
     echo "❌ Sparkle.framework is missing from the deployed app bundle" >&2
     exit 1
 fi
-for executable in "$MACOS_DIR/$APP_NAME" "$MACOS_DIR/keypath-cli"; do
+RPATH_EXECUTABLES=("$MACOS_DIR/$APP_NAME")
+if [[ -f "$MACOS_DIR/keypath-cli" ]]; then
+    RPATH_EXECUTABLES+=("$MACOS_DIR/keypath-cli")
+fi
+for executable in "${RPATH_EXECUTABLES[@]}"; do
     if ! otool -l "$executable" | grep -q "@executable_path/../Frameworks"; then
         echo "❌ $(basename "$executable") is missing @executable_path/../Frameworks rpath" >&2
         echo "   Without this, dyld cannot load the embedded Sparkle.framework at launch." >&2

@@ -202,6 +202,32 @@ public extension WizardHeroSection {
         )
     }
 
+    /// Convenience initializer for first-run setup steps. These are required
+    /// actions, but not failures; keep the tone instructional and value-first.
+    static func setup(
+        icon: String,
+        title: String,
+        subtitle: String,
+        animated: Bool = true,
+        actionButtonTitle: String? = nil,
+        actionButtonAction: (() -> Void)? = nil,
+        iconTapAction: (() -> Void)? = nil
+    ) -> WizardHeroSection {
+        WizardHeroSection(
+            icon: icon,
+            iconColor: WizardDesign.Colors.info,
+            overlayIcon: "arrow.right.circle.fill",
+            overlayColor: WizardDesign.Colors.info,
+            overlaySize: .large,
+            title: title,
+            subtitle: subtitle,
+            actionButtonTitle: actionButtonTitle,
+            actionButtonAction: actionButtonAction,
+            iconTapAction: iconTapAction,
+            animated: animated
+        )
+    }
+
     /// Convenience initializer for info state with question mark overlay
     static func info(
         icon: String,
@@ -276,6 +302,11 @@ public struct InlineStatusView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.headline)
                             .foregroundColor(WizardDesign.Colors.success)
+
+                    case .attention:
+                        Image(systemName: "info.circle.fill")
+                            .font(.headline)
+                            .foregroundColor(WizardDesign.Colors.warning)
 
                     case .error:
                         Image(systemName: "exclamationmark.triangle.fill")
