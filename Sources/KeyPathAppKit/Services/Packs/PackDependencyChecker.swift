@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathRulesCore
 
 /// Checks pack dependencies against current system state.
 ///

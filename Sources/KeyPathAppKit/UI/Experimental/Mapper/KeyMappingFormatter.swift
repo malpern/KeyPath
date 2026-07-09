@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 /// Utility for converting key mappings to Kanata format.
 ///

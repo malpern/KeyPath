@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 /// Callback interface for save status updates
 @MainActor

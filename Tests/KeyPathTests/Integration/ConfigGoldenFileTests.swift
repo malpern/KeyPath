@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 import KeyPathCore
+import KeyPathRulesCore
 import XCTest
 
 /// Golden file tests for config generation.

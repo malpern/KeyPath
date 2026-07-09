@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+import KeyPathRulesCore
 import XCTest
 
 /// Tests for the contextual recommendation engine.

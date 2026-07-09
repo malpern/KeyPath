@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import KeyPathRulesCore
 
 /// Loads favicons for websites using Google's favicon service.
 ///

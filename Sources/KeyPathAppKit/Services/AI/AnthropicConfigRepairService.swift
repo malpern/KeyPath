@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 /// Implementation of ConfigRepairService using Anthropic's Claude API
 public actor AnthropicConfigRepairService: ConfigRepairService {

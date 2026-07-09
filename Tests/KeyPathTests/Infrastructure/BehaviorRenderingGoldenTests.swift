@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+import KeyPathRulesCore
 import Testing
 
 /// Golden-file tests that assert exact rendered output for all behavior types.

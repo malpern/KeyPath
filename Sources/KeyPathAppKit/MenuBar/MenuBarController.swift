@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 import KeyPathWizardCore
 import Observation
 

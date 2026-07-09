@@ -2,6 +2,7 @@
 import KeyPathCore
 @testable import KeyPathInstallationWizard
 @testable import KeyPathPermissions
+import KeyPathRulesCore
 @preconcurrency import XCTest
 
 @MainActor

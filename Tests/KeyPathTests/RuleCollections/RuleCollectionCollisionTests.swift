@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+import KeyPathRulesCore
 import Testing
 
 /// Static structural asserts on the default collection catalog.

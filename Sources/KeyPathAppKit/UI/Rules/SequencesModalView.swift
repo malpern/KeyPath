@@ -6,6 +6,7 @@
 //  MAL-45: Kanata Sequences (defseq) UI Support
 //
 
+import KeyPathRulesCore
 import SwiftUI
 
 /// Modal view for creating and editing key sequences (defseq).

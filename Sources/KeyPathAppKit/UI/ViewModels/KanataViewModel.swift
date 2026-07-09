@@ -2,6 +2,7 @@ import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathInstallationWizard
+import KeyPathRulesCore
 import KeyPathWizardCore
 import Observation
 import SwiftUI

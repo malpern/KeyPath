@@ -1,6 +1,7 @@
 import Foundation
 import KeyPathCore
 import KeyPathPermissions
+import KeyPathRulesCore
 
 // MARK: - Rule Conflict Detection
 

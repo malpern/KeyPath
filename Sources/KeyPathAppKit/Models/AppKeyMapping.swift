@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import KeyPathRulesCore
 
 /// Represents a mapping from an application to its virtual key for app-specific keymaps.
 ///

@@ -5,6 +5,7 @@ import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathInstallationWizard
 import KeyPathPermissions
+import KeyPathRulesCore
 import KeyPathWizardCore
 import Network
 

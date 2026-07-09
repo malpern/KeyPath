@@ -1,6 +1,7 @@
 @testable import KeyPathAppKit
 import KeyPathCore
 @testable import KeyPathInstallationWizard
+import KeyPathRulesCore
 @testable import KeyPathWizardCore
 import XCTest
 

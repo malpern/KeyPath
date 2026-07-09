@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+import KeyPathRulesCore
 import XCTest
 
 /// Runtime behavior guard for starter-kit packs. For each pack, we enable

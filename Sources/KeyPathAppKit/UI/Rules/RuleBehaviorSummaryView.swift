@@ -1,4 +1,5 @@
 import KeyPathCore
+import KeyPathRulesCore
 import SwiftUI
 
 /// Inline summary of a rule's custom behavior — "Hold: X", tap-dance steps,

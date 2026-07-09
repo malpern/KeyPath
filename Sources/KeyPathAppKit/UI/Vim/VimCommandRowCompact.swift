@@ -1,4 +1,5 @@
 import KeyPathCore
+import KeyPathRulesCore
 import SwiftUI
 
 struct VimCommandRowCompact: View {

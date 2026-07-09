@@ -3,6 +3,7 @@ import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathPluginKit
+import KeyPathRulesCore
 
 // MARK: - Action Dispatch Result
 

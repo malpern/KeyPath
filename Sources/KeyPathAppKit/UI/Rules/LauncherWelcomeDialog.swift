@@ -1,4 +1,5 @@
 import AppKit
+import KeyPathRulesCore
 import SwiftUI
 
 /// Welcome dialog shown when user first enables the Launcher collection.

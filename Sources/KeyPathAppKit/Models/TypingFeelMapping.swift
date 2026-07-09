@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathRulesCore
 
 /// Pure mapping logic between the "Typing Feel" slider and raw `TimingConfig` values.
 /// No UI — this is the bidirectional projection that lets a single slider control

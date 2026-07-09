@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 import KeyPathCore
+import KeyPathRulesCore
 @preconcurrency import XCTest
 
 final class RuleCollectionsManagerTests: XCTestCase {

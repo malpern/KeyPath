@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 import KeyPathCore
+import KeyPathRulesCore
 import XCTest
 
 /// Per-option matrix tests for the four high-complexity rule families.

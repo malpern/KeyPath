@@ -1,4 +1,5 @@
 import AppKit
+import KeyPathRulesCore
 import SwiftUI
 
 /// A compact card showing an app's key overrides for the drawer's App Rules tab.

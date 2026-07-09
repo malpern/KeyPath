@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import KeyPathAppKit
+import KeyPathRulesCore
 
 struct HelpSchemas: AsyncParsableCommand {
     static let configuration = CommandConfiguration(

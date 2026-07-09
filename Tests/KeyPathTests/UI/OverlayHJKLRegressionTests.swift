@@ -1,6 +1,7 @@
 import Foundation
 @testable import KeyPathAppKit
 import KeyPathCore
+import KeyPathRulesCore
 import Testing
 
 // Regression tests for HJKL arrow rendering across overlay layers.

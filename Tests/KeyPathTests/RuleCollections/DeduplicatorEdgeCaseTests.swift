@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+import KeyPathRulesCore
 import XCTest
 
 /// Edge case tests for RuleCollectionDeduplicator.

@@ -1,4 +1,5 @@
 import AppKit
+import KeyPathRulesCore
 import SwiftUI
 
 /// Keyboard visualization for the launcher configuration.

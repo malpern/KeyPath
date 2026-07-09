@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathRulesCore
 
 /// Derives the blue "Tap: X · Hold: Y" summary line shown under the pack
 /// name in Pack Detail. Pulled out of `PackDetailView` so the logic is

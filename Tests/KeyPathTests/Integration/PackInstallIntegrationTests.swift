@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 import KeyPathCore
+import KeyPathRulesCore
 import XCTest
 
 /// End-to-end integration test: pack install → config generation → label map update.

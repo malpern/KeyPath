@@ -8,6 +8,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 @MainActor
 public final class PackInstaller {

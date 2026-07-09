@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathDaemonLifecycle
+import KeyPathRulesCore
 import KeyPathWizardCore
 
 /// Save operation status for UI feedback

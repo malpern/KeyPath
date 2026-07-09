@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 extension MapperViewModel {
     var canSave: Bool {

@@ -242,7 +242,7 @@ public extension Sequence<RuleCollection> {
 
 // MARK: - Array Extension
 
-extension [RuleCollection] {
+public extension [RuleCollection] {
     /// Convenience helper to find and update a collection in-place.
     mutating func updateCollection(_ collection: RuleCollection) {
         if let index = firstIndex(where: { $0.id == collection.id }) {

@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 @testable import KeyPathCore
+import KeyPathRulesCore
 @preconcurrency import XCTest
 
 /// End-to-end integration test: create a rule collection with a 1→2 remap,

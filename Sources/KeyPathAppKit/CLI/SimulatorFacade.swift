@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 public struct SimulatorFacade: Sendable {
     public init() {}

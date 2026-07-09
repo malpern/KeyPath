@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathRulesCore
 
 // MARK: - Protocol Models
 

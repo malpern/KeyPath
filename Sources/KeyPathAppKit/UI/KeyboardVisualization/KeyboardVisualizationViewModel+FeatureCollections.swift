@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 @MainActor
 extension KeyboardVisualizationViewModel {

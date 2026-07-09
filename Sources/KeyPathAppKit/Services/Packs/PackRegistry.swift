@@ -2,6 +2,7 @@
 // See docs/design/sprint-1/starter-kit.md
 
 import Foundation
+import KeyPathRulesCore
 
 /// Provides access to the M1 Starter Kit packs. Hardcoded in Swift; v2+ may
 /// load from JSON or a manifest bundle.

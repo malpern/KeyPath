@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 @testable import KeyPathCore
+import KeyPathRulesCore
 import XCTest
 
 /// Integration tests for Chord Groups end-to-end workflow

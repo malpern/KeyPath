@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathRulesCore
 
 /// Provides predefined rule collections that ship with the app.
 struct RuleCollectionCatalog {

@@ -1,5 +1,6 @@
 import AppKit
 import KeyPathCore
+import KeyPathRulesCore
 import SwiftUI
 
 // MARK: - Mapper Keycap Pair

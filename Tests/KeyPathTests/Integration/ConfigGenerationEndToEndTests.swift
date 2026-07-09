@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 import KeyPathCore
+import KeyPathRulesCore
 import XCTest
 
 /// End-to-end tests for the Kanata config generation pipeline.

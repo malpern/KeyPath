@@ -1,3 +1,4 @@
+import KeyPathRulesCore
 import SwiftUI
 
 /// Modal dialog for Chord Groups customization (Ben Vallack-style defchords)

@@ -137,18 +137,18 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
 
     // MARK: - Display Settings (for comparison dialogs)
 
-    struct DisplaySetting: Equatable {
-        let label: String
-        let value: String
+    public struct DisplaySetting: Equatable {
+        public let label: String
+        public let value: String
     }
 
-    struct SettingDiff {
-        let label: String
-        let current: String
-        let proposed: String
+    public struct SettingDiff {
+        public let label: String
+        public let current: String
+        public let proposed: String
     }
 
-    var displaySettings: [DisplaySetting] {
+    public var displaySettings: [DisplaySetting] {
         switch self {
         case let .tapHoldPicker(config):
             var settings: [DisplaySetting] = []
@@ -203,7 +203,7 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
         }
     }
 
-    static func diffSettings(
+    public static func diffSettings(
         current: RuleCollectionConfiguration,
         proposed: RuleCollectionConfiguration
     ) -> [SettingDiff] {

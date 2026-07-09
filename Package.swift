@@ -22,6 +22,10 @@ let package = Package(
             targets: ["KeyPathDaemonLifecycle"]
         ),
         .library(
+            name: "KeyPathRulesCore",
+            targets: ["KeyPathRulesCore"]
+        ),
+        .library(
             name: "KeyPathWizardCore",
             targets: ["KeyPathWizardCore"]
         ),
@@ -107,6 +111,15 @@ let package = Package(
                 .swiftLanguageMode(.v6)
             ]
         ),
+        // Pure rule/configuration domain models.
+        .target(
+            name: "KeyPathRulesCore",
+            dependencies: ["KeyPathCore"],
+            path: "Sources/KeyPathRulesCore",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
         // Wizard core library (pure models/types)
         .target(
             name: "KeyPathWizardCore",
@@ -148,6 +161,7 @@ let package = Package(
                 "KeyPathCore",
                 "KeyPathPermissions",
                 "KeyPathDaemonLifecycle",
+                "KeyPathRulesCore",
                 "KeyPathWizardCore",
                 "KeyPathInstallationWizard",
                 "KeyPathPluginKit",
@@ -258,6 +272,7 @@ let package = Package(
             dependencies: [
                 "KeyPathCLISupport",
                 "KeyPathAppKit",
+                "KeyPathRulesCore",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ],
             path: "Sources/KeyPathCLI",
@@ -321,6 +336,7 @@ let package = Package(
                 "KeyPathInsights",
                 "KeyPathPermissions",
                 "KeyPathDaemonLifecycle",
+                "KeyPathRulesCore",
                 "KeyPathWizardCore",
                 "KeyPathInstallationWizard"
             ],
@@ -335,12 +351,24 @@ let package = Package(
                 .linkedFramework("IOKit")
             ]
         ),
+        .testTarget(
+            name: "KeyPathRulesCoreTests",
+            dependencies: [
+                "KeyPathRulesCore",
+                "KeyPathCore"
+            ],
+            path: "Tests/KeyPathRulesCoreTests",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
         // Visual snapshot tests for help documentation screenshots
         .testTarget(
             name: "KeyPathSnapshotTests",
             dependencies: [
                 "KeyPathAppKit",
                 "KeyPathCore",
+                "KeyPathRulesCore",
                 .product(name: "SnapshotTesting", package: "swift-snapshot-testing")
             ],
             path: "Tests/KeyPathSnapshotTests",

@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathRulesCore
 
 extension KanataConfiguration {
     /// Render a per-device switch expression for a key with device overrides.
