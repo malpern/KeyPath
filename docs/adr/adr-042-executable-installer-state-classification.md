@@ -104,8 +104,10 @@ repair state matrix.
 - There are temporarily two snapshot-shaped values: the existing
   `SystemSnapshot`/`SystemContext` flow and the narrower
   `InstallerStateMatrixSnapshot`.
-- The wizard bridge is less evidence-rich than the live AppKit provider adapter
-  because of package boundaries.
+- The wizard bridge still exists because of package boundaries, but it preserves
+  the matrix-critical registration, approval, runtime payload, runtime
+  readiness, input-capture, and helper freshness evidence and is pinned against
+  the live provider adapter by focused equivalence tests.
 - Full deletion of duplicate caches and snapshot adapters is deferred within
   Phase 1 until Workstream 3 has stabilized the repair model.
 

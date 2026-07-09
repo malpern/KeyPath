@@ -252,10 +252,21 @@ bridge to avoid an AppKit dependency cycle.
   `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotPreservesRunningButTCPNotRespondingEvidence`,
   `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsStaleEnabledRegistrationToRegisteredButNotLoaded`,
   `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsStoppedDriverKitApprovalToManualDriverKitRow`,
-  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsLoginItemsApprovalToManualApprovalRow`,
+  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsStoppedRuntimeWithLoginItemsApprovalToManualApprovalRow`,
   `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsHelperVersionMismatchToStaleHelperRow`,
   and
   `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotTreatsUnhealthyVHIDServicesAsServiceRepairNotMissingPayload`.
+- [x] Closed the remaining wizard/provider state-matrix evidence divergence for
+  registration, Login Items approval, runtime payload, and unknown helper
+  freshness while preserving the existing `SystemSnapshot`/`SystemContext`
+  boundary. Enforced by
+  `SystemStateProviderInstallerStateMatrixTests.testWizardSystemContextSnapshotPreservesKanataNotRegisteredEvidence`,
+  `SystemStateProviderInstallerStateMatrixTests.testWizardSystemContextSnapshotPreservesManualApprovalEvidence`,
+  `SystemStateProviderInstallerStateMatrixTests.testWizardSystemContextSnapshotPreservesMissingRuntimePayloadEvidence`,
+  `SystemStateProviderInstallerStateMatrixTests.testWizardSystemContextSnapshotPreservesUnknownRegistrationEvidence`,
+  `SystemStateProviderInstallerStateMatrixTests.testWizardSystemContextSnapshotTreatsUnknownHelperVersionAsNotFresh`,
+  and
+  `SnapshotConsumerLintTests.testInstallerEnginePreservesMatrixEvidenceThroughSystemSnapshotBridge`.
 - [x] Migrated CLI `system inspect` reporting to include the shared
   state-matrix row and state-matrix plan derived from `SystemStateProvider`
   evidence. Enforced by
