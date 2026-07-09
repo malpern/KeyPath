@@ -90,26 +90,26 @@ public struct InstallerStateMatrixSnapshot: Sendable, Equatable {
     public var definitiveUnhealthyState: Evidence<Bool>
 
     public init(
-        kanataBinaryPresent: Evidence<Bool> = .present,
-        requiredRuntimePayloadPresent: Evidence<Bool> = .present,
-        smAppServiceRegistered: Evidence<Bool> = .present,
-        launchdJobLoaded: Evidence<Bool> = .present,
-        kanataProcessRunning: Evidence<Bool> = .present,
-        kanataTCPResponding: Evidence<Bool> = .present,
-        currentInputCaptureIssue: Evidence<Bool> = .absent,
-        staleInputCaptureIssue: Evidence<Bool> = .absent,
-        driverKitApprovalPending: Evidence<Bool> = .absent,
-        virtualHIDDriverPresent: Evidence<Bool> = .present,
-        virtualHIDPayloadPresent: Evidence<Bool> = .present,
-        virtualHIDServicesHealthy: Evidence<Bool> = .present,
-        virtualHIDApprovalPending: Evidence<Bool> = .absent,
-        helperInstalled: Evidence<Bool> = .present,
-        helperResponding: Evidence<Bool> = .present,
-        helperFresh: Evidence<Bool> = .present,
-        helperPathReportedSuccess: Evidence<Bool> = .absent,
-        sudoFallbackReportedSuccess: Evidence<Bool> = .absent,
-        manualApprovalRequired: Evidence<Bool> = .absent,
-        definitiveUnhealthyState: Evidence<Bool> = .absent
+        kanataBinaryPresent: Evidence<Bool>,
+        requiredRuntimePayloadPresent: Evidence<Bool>,
+        smAppServiceRegistered: Evidence<Bool>,
+        launchdJobLoaded: Evidence<Bool>,
+        kanataProcessRunning: Evidence<Bool>,
+        kanataTCPResponding: Evidence<Bool>,
+        currentInputCaptureIssue: Evidence<Bool>,
+        staleInputCaptureIssue: Evidence<Bool>,
+        driverKitApprovalPending: Evidence<Bool>,
+        virtualHIDDriverPresent: Evidence<Bool>,
+        virtualHIDPayloadPresent: Evidence<Bool>,
+        virtualHIDServicesHealthy: Evidence<Bool>,
+        virtualHIDApprovalPending: Evidence<Bool>,
+        helperInstalled: Evidence<Bool>,
+        helperResponding: Evidence<Bool>,
+        helperFresh: Evidence<Bool>,
+        helperPathReportedSuccess: Evidence<Bool>,
+        sudoFallbackReportedSuccess: Evidence<Bool>,
+        manualApprovalRequired: Evidence<Bool>,
+        definitiveUnhealthyState: Evidence<Bool>
     ) {
         self.kanataBinaryPresent = kanataBinaryPresent
         self.requiredRuntimePayloadPresent = requiredRuntimePayloadPresent
@@ -323,6 +323,8 @@ public extension SystemContext {
             helperInstalled: .known(helper.isInstalled),
             helperResponding: .known(helper.isWorking),
             helperFresh: .known(helper.version == WizardHelperConstants.expectedHelperVersion),
+            helperPathReportedSuccess: .absent,
+            sudoFallbackReportedSuccess: .absent,
             manualApprovalRequired: services.loginItemsApprovalRequired.map(Evidence<Bool>.known) ?? .unknown,
             definitiveUnhealthyState: .known(timedOut)
         )

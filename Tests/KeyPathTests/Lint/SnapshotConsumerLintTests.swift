@@ -76,4 +76,27 @@ final class SnapshotConsumerLintTests: XCTestCase {
             )
         }
     }
+
+    func testInstallerStateMatrixSnapshotInitializerDoesNotDefaultEvidence() throws {
+        let fileURL = LintScanner.path("Sources/KeyPathInstallationWizard/Core/InstallerStateMatrix.swift")
+        let contents = try String(contentsOf: fileURL, encoding: .utf8)
+
+        guard let initStart = contents.range(of: "public init(")?.lowerBound,
+              let bodyStart = contents[initStart...].firstIndex(of: "{")
+        else {
+            XCTFail("Could not find InstallerStateMatrixSnapshot public initializer")
+            return
+        }
+
+        let signature = String(contents[initStart ..< bodyStart])
+
+        XCTAssertFalse(
+            signature.contains(" = "),
+            """
+            InstallerStateMatrixSnapshot production construction must spell out \
+            every evidence field. Defaulting omitted matrix evidence back to \
+            healthy values reopens the false-green bug class.
+            """
+        )
+    }
 }
