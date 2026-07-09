@@ -305,10 +305,12 @@ public struct HealthStatus: Sendable {
     public let staleEnabledRegistration: Bool
     /// True when current SMAppService evidence says the Kanata daemon is
     /// registered or pending approval. Nil means the snapshot did not capture
-    /// registration evidence and consumers should use their legacy fallback.
+    /// registration evidence; state-matrix consumers must preserve that as
+    /// unknown rather than inferring from summary health.
     public let kanataSMAppServiceRegistered: Bool?
     /// True when Kanata or helper SMAppService evidence is blocked on Login
-    /// Items approval. Nil means this snapshot did not capture that evidence.
+    /// Items approval. Nil means this snapshot did not capture that evidence;
+    /// state-matrix consumers must preserve that as unknown.
     public let loginItemsApprovalRequired: Bool?
 
     public init(
