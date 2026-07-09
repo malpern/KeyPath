@@ -64,7 +64,10 @@ public extension SystemStateProvider {
             helperInstalled: .known(helper.isInstalled),
             helperResponding: .known(helper.isWorking),
             helperFresh: .known(helper.version == HelperManager.expectedHelperVersion),
-            manualApprovalRequired: .known(loginItemsApprovalRequired)
+            helperPathReportedSuccess: .absent,
+            sudoFallbackReportedSuccess: .absent,
+            manualApprovalRequired: .known(loginItemsApprovalRequired),
+            definitiveUnhealthyState: .absent
         )
     }
 }
