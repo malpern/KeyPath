@@ -248,6 +248,15 @@ Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`,
   - `KanataManager` for installation/repair (it's for runtime coordination only).
   - `WizardAutoFixer` (deleted — call `InstallerEngine.runSingleAction()` directly).
 
+### Opportunistic Manager Consolidation
+- When a change naturally spans overlapping Manager/Coordinator/Service types,
+  prefer moving the touched responsibility into the existing canonical owner and
+  deleting the redundant bridge instead of adding another forwarding layer.
+- Do not create broad "merge the managers" cleanup PRs. Consolidate only when
+  already touching the area for a concrete behavior, reliability, testability,
+  or compile-boundary improvement. See
+  [ADR-043](docs/adr/adr-043-opportunistic-manager-consolidation.md).
+
 ### Permissions
 - **Always use `PermissionOracle.shared`** for permission checks.
 - Never call `IOHIDCheckAccess` directly **outside of PermissionOracle**.
