@@ -23,6 +23,7 @@ struct SequencesModalView: View {
     @State private var localConfig: SequencesConfig
     @State private var selectedSequenceID: UUID?
     @State private var conflicts: [SequenceConflict] = []
+    @State private var sequenceKeyIDs: [UUID: [UUID]] = [:]
 
     // MARK: - Callbacks
 
@@ -38,6 +39,11 @@ struct SequencesModalView: View {
     ) {
         _config = config
         _localConfig = State(initialValue: config.wrappedValue)
+        _sequenceKeyIDs = State(initialValue: Dictionary(
+            uniqueKeysWithValues: config.wrappedValue.sequences.map { sequence in
+                (sequence.id, sequence.keys.map { _ in UUID() })
+            }
+        ))
         self.onSave = onSave
         self.onCancel = onCancel
     }
@@ -67,6 +73,7 @@ struct SequencesModalView: View {
         }
         .frame(width: 900, height: 600)
         .onAppear {
+            syncSequenceKeyIDs()
             detectConflicts()
             // Select first sequence if none selected
             if selectedSequenceID == nil, let first = localConfig.sequences.first {
@@ -264,40 +271,45 @@ struct SequencesModalView: View {
                 .font(.headline)
 
             HStack(spacing: 8) {
-                ForEach(sequence.keys.wrappedValue.indices, id: \.self) { index in
-                    KeyPicker(selection: Binding(
-                        get: { sequence.keys.wrappedValue[index] },
-                        set: { newValue in
-                            var keys = sequence.keys.wrappedValue
-                            keys[index] = newValue
-                            sequence.keys.wrappedValue = keys
-                            detectConflicts()
-                        }
-                    ))
-                    .accessibilityIdentifier("sequences-modal-key-picker-\(index)")
-                    .accessibilityLabel("Key \(index + 1) in sequence")
+                ForEach(keyIDs(for: sequence.wrappedValue), id: \.self) { id in
+                    if let index = sequenceKeyIDs[sequence.wrappedValue.id]?.firstIndex(of: id),
+                       sequence.keys.wrappedValue.indices.contains(index)
+                    {
+                        KeyPicker(selection: Binding(
+                            get: { sequence.keys.wrappedValue[index] },
+                            set: { newValue in
+                                var keys = sequence.keys.wrappedValue
+                                keys[index] = newValue
+                                sequence.keys.wrappedValue = keys
+                                detectConflicts()
+                            }
+                        ))
+                        .accessibilityIdentifier("sequences-modal-key-picker-\(index)")
+                        .accessibilityLabel("Key \(index + 1) in sequence")
 
-                    if index < sequence.keys.wrappedValue.count - 1 {
-                        Image(systemName: "arrow.right")
-                            .foregroundColor(.secondary)
-                            .font(.footnote)
-                    }
-
-                    // Remove button
-                    if sequence.keys.wrappedValue.count > 1 {
-                        Button {
-                            var keys = sequence.keys.wrappedValue
-                            keys.remove(at: index)
-                            sequence.keys.wrappedValue = keys
-                            detectConflicts()
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.red.opacity(0.7))
-                                .font(.body)
+                        if index < sequence.keys.wrappedValue.count - 1 {
+                            Image(systemName: "arrow.right")
+                                .foregroundColor(.secondary)
+                                .font(.footnote)
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("sequences-modal-remove-key-\(index)")
-                        .accessibilityLabel("Remove key \(index + 1)")
+
+                        // Remove button
+                        if sequence.keys.wrappedValue.count > 1 {
+                            Button {
+                                var keys = sequence.keys.wrappedValue
+                                keys.remove(at: index)
+                                sequence.keys.wrappedValue = keys
+                                sequenceKeyIDs[sequence.wrappedValue.id]?.remove(at: index)
+                                detectConflicts()
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.red.opacity(0.7))
+                                    .font(.body)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("sequences-modal-remove-key-\(index)")
+                            .accessibilityLabel("Remove key \(index + 1)")
+                        }
                     }
                 }
 
@@ -307,6 +319,7 @@ struct SequencesModalView: View {
                         var keys = sequence.keys.wrappedValue
                         keys.append("space")
                         sequence.keys.wrappedValue = keys
+                        sequenceKeyIDs[sequence.wrappedValue.id, default: []].append(UUID())
                         detectConflicts()
                     } label: {
                         Label("Add Key", systemImage: "plus.circle")
@@ -489,19 +502,41 @@ struct SequencesModalView: View {
         )
         localConfig.sequences.append(newSequence)
         selectedSequenceID = newSequence.id
+        sequenceKeyIDs[newSequence.id] = newSequence.keys.map { _ in UUID() }
         detectConflicts()
     }
 
     private func addPreset(_ preset: SequenceDefinition) {
         localConfig.sequences.append(preset)
         selectedSequenceID = preset.id
+        sequenceKeyIDs[preset.id] = preset.keys.map { _ in UUID() }
         detectConflicts()
     }
 
     private func deleteSequence(_ id: UUID) {
         localConfig.sequences.removeAll { $0.id == id }
+        sequenceKeyIDs[id] = nil
         selectedSequenceID = localConfig.sequences.first?.id
         detectConflicts()
+    }
+
+    private func keyIDs(for sequence: SequenceDefinition) -> [UUID] {
+        if let ids = sequenceKeyIDs[sequence.id], ids.count == sequence.keys.count {
+            return ids
+        }
+
+        return sequence.keys.map { _ in UUID() }
+    }
+
+    private func syncSequenceKeyIDs() {
+        let activeSequenceIDs = Set(localConfig.sequences.map(\.id))
+        sequenceKeyIDs = sequenceKeyIDs.filter { activeSequenceIDs.contains($0.key) }
+
+        for sequence in localConfig.sequences {
+            if sequenceKeyIDs[sequence.id]?.count != sequence.keys.count {
+                sequenceKeyIDs[sequence.id] = sequence.keys.map { _ in UUID() }
+            }
+        }
     }
 
     private func detectConflicts() {

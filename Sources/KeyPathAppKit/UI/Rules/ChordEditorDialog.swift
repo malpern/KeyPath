@@ -13,6 +13,7 @@ struct ChordEditorDialog: View {
     @State private var newKeyInput: String = ""
     @State private var outputMode: OutputMode
     @State private var customOutput: String = ""
+    @State private var keyIDs: [UUID]
 
     enum OutputMode: String, CaseIterable {
         case keystroke = "Keystroke"
@@ -29,6 +30,7 @@ struct ChordEditorDialog: View {
         _selectedAction = State(initialValue: chord.action)
         _description = State(initialValue: chord.description ?? "")
         _outputMode = State(initialValue: Self.modeFor(chord.action))
+        _keyIDs = State(initialValue: chord.keys.map { _ in UUID() })
         _customOutput = State(initialValue: {
             if case let .rawKanata(expr) = chord.action { return expr }
             return ""
@@ -67,21 +69,28 @@ struct ChordEditorDialog: View {
                         .frame(width: 56, alignment: .trailing)
 
                     HStack(spacing: 4) {
-                        ForEach(Array(keys.enumerated()), id: \.offset) { index, key in
-                            if !key.isEmpty {
-                                Button { keys.remove(at: index) } label: {
-                                    HStack(spacing: 3) {
-                                        Text(key.uppercased())
-                                            .font(.callout.weight(.semibold).monospaced())
-                                        Image(systemName: "xmark")
-                                            .font(.system(size: 8, weight: .bold))
-                                            .foregroundStyle(.secondary)
+                        ForEach(keyIDs, id: \.self) { id in
+                            if let index = keyIDs.firstIndex(of: id), keys.indices.contains(index) {
+                                let key = keys[index]
+
+                                if !key.isEmpty {
+                                    Button {
+                                        keys.remove(at: index)
+                                        keyIDs.remove(at: index)
+                                    } label: {
+                                        HStack(spacing: 3) {
+                                            Text(key.uppercased())
+                                                .font(.callout.weight(.semibold).monospaced())
+                                            Image(systemName: "xmark")
+                                                .font(.system(size: 8, weight: .bold))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 5)
+                                        .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color.primary.opacity(0.08)))
                                     }
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 5)
-                                    .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color.primary.opacity(0.08)))
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                         if keys.filter({ !$0.isEmpty }).count < 4 {
@@ -93,7 +102,9 @@ struct ChordEditorDialog: View {
                                     let trimmed = newKeyInput.trimmingCharacters(in: .whitespaces).lowercased()
                                     if !trimmed.isEmpty {
                                         keys = keys.filter { !$0.isEmpty }
+                                        keyIDs = Array(keyIDs.prefix(keys.count))
                                         keys.append(trimmed)
+                                        keyIDs.append(UUID())
                                         newKeyInput = ""
                                     }
                                 }
