@@ -97,12 +97,14 @@ public class KeyboardCapture {
         guard !isCapturing else { return }
 
         if FeatureFlags.useJustInTimePermissionRequests {
-            Task { @MainActor in
+            let keyboardCapture = self
+            Task { @MainActor [weak keyboardCapture] in
+                guard let keyboardCapture else { return }
                 await PermissionGate.shared.checkAndRequestPermissions(
                     for: .keyCapture,
-                    onGranted: { [weak self] in
-                        guard let self else { return }
-                        startCaptureAfterPermissions(callback: callback)
+                    onGranted: { [weak keyboardCapture] in
+                        guard let keyboardCapture else { return }
+                        keyboardCapture.startCaptureAfterPermissions(callback: callback)
                     },
                     onDenied: {
                         callback("⚠️ Accessibility permission required")

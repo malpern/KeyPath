@@ -57,18 +57,20 @@ extension MapperViewModel {
 
         capture.startSequenceCapture(mode: .sequence) { [weak self] sequence in
             guard let self else { return }
+            let viewModel = self
 
-            Task { @MainActor in
-                self.multiTapPendingSequence = sequence
-                let action = self.convertSequenceToKanataFormat(sequence)
-                self.multiTapUpdateHandler?(action)
-                self.multiTapFinalizeTimer?.invalidate()
-                self.multiTapFinalizeTimer = Timer.scheduledTimer(
-                    withTimeInterval: self.sequenceFinalizeDelay,
+            Task { @MainActor [weak viewModel] in
+                guard let viewModel else { return }
+                viewModel.multiTapPendingSequence = sequence
+                let action = viewModel.convertSequenceToKanataFormat(sequence)
+                viewModel.multiTapUpdateHandler?(action)
+                viewModel.multiTapFinalizeTimer?.invalidate()
+                viewModel.multiTapFinalizeTimer = Timer.scheduledTimer(
+                    withTimeInterval: viewModel.sequenceFinalizeDelay,
                     repeats: false
-                ) { [weak self] _ in
+                ) { [weak viewModel] _ in
                     Task { @MainActor in
-                        self?.finalizeMultiTapSequence()
+                        viewModel?.finalizeMultiTapSequence()
                     }
                 }
             }
@@ -289,12 +291,14 @@ extension MapperViewModel {
         // Use sequence mode for multi-key support
         capture.startSequenceCapture(mode: .sequence) { [weak self] sequence in
             guard let self else { return }
+            let viewModel = self
 
-            Task { @MainActor in
+            Task { @MainActor [weak viewModel] in
+                guard let viewModel else { return }
                 // Update the captured sequence (streaming updates)
                 if target == .input {
-                    self.inputSequence = sequence
-                    self.inputLabel = sequence.displayString
+                    viewModel.inputSequence = sequence
+                    viewModel.inputLabel = sequence.displayString
                     // Store first key's keyCode for overlay-style rendering
                     // Guard against negative keyCodes (e.g., -1 for modifier-only keys or unknown keys)
                     if let firstKey = sequence.keys.first,
@@ -302,27 +306,27 @@ extension MapperViewModel {
                        firstKey.keyCode <= Int64(UInt16.max)
                     {
                         let keyCode = UInt16(firstKey.keyCode)
-                        self.inputKeyCode = keyCode
+                        viewModel.inputKeyCode = keyCode
 
                         // Look up current mapping for this key and update output
-                        self.lookupAndSetOutput(forKeyCode: keyCode)
+                        viewModel.lookupAndSetOutput(forKeyCode: keyCode)
                     }
                 } else if target == .shiftedOutput {
-                    self.shiftedOutputSequence = sequence
-                    self.shiftedOutputLabel = sequence.displayString
+                    viewModel.shiftedOutputSequence = sequence
+                    viewModel.shiftedOutputLabel = sequence.displayString
                 } else {
-                    self.outputSequence = sequence
-                    self.outputLabel = sequence.displayString
+                    viewModel.outputSequence = sequence
+                    viewModel.outputLabel = sequence.displayString
                 }
 
                 // Reset finalize timer - wait for more keys
-                self.finalizeTimer?.invalidate()
-                self.finalizeTimer = Timer.scheduledTimer(
-                    withTimeInterval: self.sequenceFinalizeDelay,
+                viewModel.finalizeTimer?.invalidate()
+                viewModel.finalizeTimer = Timer.scheduledTimer(
+                    withTimeInterval: viewModel.sequenceFinalizeDelay,
                     repeats: false
-                ) { [weak self] _ in
+                ) { [weak viewModel] _ in
                     Task { @MainActor in
-                        self?.finalizeCapture()
+                        viewModel?.finalizeCapture()
                     }
                 }
             }
