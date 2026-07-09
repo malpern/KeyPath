@@ -55,26 +55,50 @@ final class SnapshotConsumerLintTests: XCTestCase {
         )
     }
 
-    func testInstallerEnginePreservesMatrixSMAppServiceEvidence() throws {
+    func testInstallerEnginePreservesMatrixEvidenceThroughSystemSnapshotBridge() throws {
         let body = try LintScanner.functionBody(
             named: "inspectSystem",
             in: LintScanner.path("Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift")
         )
 
-        for field in [
+        for healthField in [
+            "kanataLaunchdLoaded",
+            "kanataProcessRunning",
+            "kanataTCPResponding",
+            "kanataInputCaptureReady",
+            "kanataInputCaptureIssue",
+            "staleEnabledRegistration",
             "kanataSMAppServiceRegistered",
             "loginItemsApprovalRequired"
         ] {
             XCTAssertTrue(
-                body.contains("\(field): snapshot.health.\(field)"),
+                body.contains("\(healthField): snapshot.health.\(healthField)"),
                 """
-                InstallerEngine.inspectSystem() must preserve \(field) when \
+                InstallerEngine.inspectSystem() must preserve \(healthField) when \
                 converting SystemSnapshot.health to SystemContext.services. \
-                Dropping it turns explicit SMAppService evidence into unknown \
+                Dropping it turns explicit state-matrix evidence into unknown \
                 state-matrix evidence.
                 """
             )
         }
+
+        XCTAssertTrue(
+            body.contains("components: snapshot.components"),
+            """
+            InstallerEngine.inspectSystem() must preserve ComponentStatus when \
+            converting SystemSnapshot to SystemContext. Dropping it would erase \
+            required runtime payload evidence from the wizard matrix bridge.
+            """
+        )
+
+        XCTAssertTrue(
+            body.contains("helper: snapshot.helper"),
+            """
+            InstallerEngine.inspectSystem() must preserve HelperStatus when \
+            converting SystemSnapshot to SystemContext. Dropping it would erase \
+            helper freshness evidence from the wizard matrix bridge.
+            """
+        )
     }
 
     func testInstallerStateMatrixSnapshotInitializerDoesNotDefaultEvidence() throws {
