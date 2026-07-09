@@ -420,8 +420,11 @@ class HelperService: NSObject, HelperProtocol {
             try Self.performUninstallExceptSelfDestruct(deleteConfig: deleteConfig)
             NSLog("[KeyPathHelper] ✅ uninstallKeyPath succeeded (sending reply before self-destruct)")
             reply(true, nil)
-            // Now self-destruct after reply is sent
-            Self.selfDestruct()
+            // Self-destruct after this XPC method returns so the reply can flush
+            // before the helper removes its own service and binary.
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.25) {
+                Self.selfDestruct()
+            }
         } catch let error as HelperError {
             NSLog("[KeyPathHelper] ❌ uninstallKeyPath failed: \(error.localizedDescription)")
             reply(false, error.localizedDescription)

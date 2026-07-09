@@ -14,13 +14,18 @@ public final class UninstallCoordinator {
 
     @ObservationIgnored private let resolveUninstallerURLClosure: () -> URL?
     @ObservationIgnored private let runWithAdminPrivilegesClosure: (URL, Bool) async -> AppleScriptResult
+    @ObservationIgnored private let uninstallPostconditionsSatisfiedClosure: () -> Bool
 
     init(
         resolveUninstallerURL: @escaping () -> URL?,
-        runWithAdminPrivileges: @escaping (URL, Bool) async -> AppleScriptResult
+        runWithAdminPrivileges: @escaping (URL, Bool) async -> AppleScriptResult,
+        uninstallPostconditionsSatisfied: (() -> Bool)? = nil
     ) {
         resolveUninstallerURLClosure = resolveUninstallerURL
         runWithAdminPrivilegesClosure = runWithAdminPrivileges
+        uninstallPostconditionsSatisfiedClosure = uninstallPostconditionsSatisfied ?? {
+            UninstallCoordinator.defaultUninstallPostconditionsSatisfied()
+        }
     }
 
     convenience init() {
@@ -50,6 +55,14 @@ public final class UninstallCoordinator {
             didSucceed = true
             await resetForTestingIfEnabled()
             logLines.append("✅ Uninstall completed")
+            return true
+        }
+
+        if uninstallPostconditionsSatisfiedClosure() {
+            didSucceed = true
+            lastError = nil
+            await resetForTestingIfEnabled()
+            logLines.append("✅ Uninstall completed; cleanup already satisfied")
             return true
         }
 
@@ -244,6 +257,18 @@ public final class UninstallCoordinator {
         }
 
         return nil
+    }
+
+    private static func defaultUninstallPostconditionsSatisfied() -> Bool {
+        let paths = [
+            "/Applications/KeyPath.app",
+            "/Library/PrivilegedHelperTools/com.keypath.helper",
+            "/Library/LaunchDaemons/com.keypath.kanata.plist",
+            "/Library/LaunchDaemons/com.keypath.karabiner-vhiddaemon.plist",
+            "/Library/LaunchDaemons/com.keypath.karabiner-vhidmanager.plist",
+            "/Library/LaunchDaemons/com.keypath.helper.plist"
+        ]
+        return paths.allSatisfy { !FileManager.default.fileExists(atPath: $0) }
     }
 
     private static func defaultRunWithAdminPrivileges(scriptURL: URL, deleteConfig: Bool) async

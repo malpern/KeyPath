@@ -102,21 +102,42 @@ public struct WizardHelperPage: View {
     /// Contextual headline for the setup view - adapts to current state
     private var contextualHeadline: String {
         if needsLoginItemsApproval {
-            "Login Items Approval Required"
+            "Approve KeyPath in Login Items"
         } else if isInstalled {
-            "Privileged Helper Not Responding"
+            "Reconnect System Helper"
         } else {
-            "Privileged Helper Not Installed"
+            "Enable One-Click System Setup"
         }
     }
 
     /// Contextual description for the setup view - adapts to current state
     private var contextualDescription: String {
         if needsLoginItemsApproval {
-            "Open System Settings → Login Items, find KeyPath under Background Items, and toggle it ON (see screenshot)."
+            "macOS needs one approval before KeyPath can finish setting up its background helper."
+        } else if isInstalled {
+            "KeyPath found the helper, but it is not responding yet. Refresh it to continue setup."
         } else {
-            "Enables system operations without repeated password prompts."
+            "KeyPath uses a small helper to install, repair, and update its keyboard service without repeated password prompts."
         }
+    }
+
+    private var setupIconName: String {
+        needsLoginItemsApproval ? "switch.2" : "shield.lefthalf.filled"
+    }
+
+    private var setupIconColor: Color {
+        isInstalled ? WizardDesign.Colors.warning : WizardDesign.Colors.info
+    }
+
+    private var setupOverlayIconName: String {
+        if needsLoginItemsApproval {
+            return "hand.tap.fill"
+        }
+        return isInstalled ? "exclamationmark.circle.fill" : "arrow.right.circle.fill"
+    }
+
+    private var setupOverlayColor: Color {
+        isInstalled ? WizardDesign.Colors.warning : WizardDesign.Colors.info
     }
 
     // MARK: - Body
@@ -270,26 +291,22 @@ public struct WizardHelperPage: View {
         .heroSectionContainer()
     }
 
-    // MARK: - Setup View (Hero Style for Error State)
+    // MARK: - Setup View
 
     private var setupView: some View {
         VStack(spacing: 16) { // Reduced from sectionGap to fixed 16pt
-            // Icon with warning/error overlay
             ZStack {
-                Image(systemName: "shield.checkered")
+                Image(systemName: setupIconName)
                     .font(.system(size: 80, weight: .light)) // Reduced from 115 to 80
-                    .foregroundColor(isInstalled ? WizardDesign.Colors.warning : WizardDesign.Colors.error)
+                    .foregroundColor(setupIconColor)
                     .symbolRenderingMode(.hierarchical)
 
-                // Warning/Error overlay
                 VStack {
                     HStack {
                         Spacer()
-                        Image(systemName: isInstalled ? "exclamationmark.triangle.fill" : "xmark.circle.fill")
+                        Image(systemName: setupOverlayIconName)
                             .font(.title.weight(.medium)) // Reduced from 40 to 32
-                            .foregroundColor(
-                                isInstalled ? WizardDesign.Colors.warning : WizardDesign.Colors.error
-                            )
+                            .foregroundColor(setupOverlayColor)
                             .background(WizardDesign.Colors.wizardBackground)
                             .clipShape(Circle())
                             .offset(x: 12, y: -4) // Adjusted for smaller icon
@@ -311,6 +328,11 @@ public struct WizardHelperPage: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32) // Reduced from 40 to 32
+
+            if !needsLoginItemsApproval, !isInstalled {
+                HelperValueStrip()
+                    .padding(.top, 2)
+            }
 
             // Inline action status
             if actionStatus.isActive, let message = actionStatus.message {
@@ -365,7 +387,7 @@ public struct WizardHelperPage: View {
                 .accessibilityIdentifier("wizard-helper-open-login-items-button")
             } else {
                 // Single idempotent action: install or repair (performs cleanup + install)
-                Button(isInstalled ? "Fix" : "Install Helper") {
+                Button(isInstalled ? "Reconnect Helper" : "Enable Helper") {
                     Task { await installOrRepairHelper() }
                 }
                 .buttonStyle(WizardDesign.Component.PrimaryButton())
@@ -446,18 +468,12 @@ public struct WizardHelperPage: View {
     private func installOrRepairHelper() async {
         await MainActor.run {
             isWorking = true
-            actionStatus = .inProgress(message: "Installing helper…")
+            actionStatus = .inProgress(message: isInstalled ? "Reconnecting helper…" : "Enabling helper…")
         }
 
-        guard let helperMaintenance = WizardDependencies.helperMaintenance else {
-            AppLogger.shared.log("⚠️ [WizardHelperPage] helperMaintenance not configured")
-            await MainActor.run {
-                isWorking = false
-                actionStatus = .error(message: "Wizard not fully configured")
-            }
-            return
-        }
-        let ok = await helperMaintenance.runCleanupAndRepair(useAppleScriptFallback: true)
+        let report = await InstallerEngine()
+            .runSingleAction(.installPrivilegedHelper, using: PrivilegeBroker())
+        let ok = report.success
 
         // Re-check approval status after install attempt
         let approvalNeeded = checkLoginItemsApprovalNeeded()
@@ -468,7 +484,7 @@ public struct WizardHelperPage: View {
 
             if ok {
                 helperVersion = nil // Will be refreshed
-                actionStatus = .success(message: "Helper installed successfully")
+                actionStatus = .success(message: "Helper enabled and ready")
                 scheduleStatusClear()
             } else if approvalNeeded {
                 // Registration succeeded but needs Login Items approval
@@ -480,8 +496,8 @@ public struct WizardHelperPage: View {
             } else {
                 // Surface the most informative failure line. Fall back to the
                 // last log line only if no explicit ❌/⚠️ marker is present.
-                let hint = helperMaintenance.lastErrorLine
-                    ?? helperMaintenance.logLines.last
+                let hint = report.failureReason
+                    ?? report.executedRecipes.last?.error
                     ?? "Unknown error (helper XPC not reachable)"
                 actionStatus = .error(message: "Install failed: \(hint)")
             }
@@ -613,5 +629,35 @@ public struct WizardHelperPage: View {
         // Read version from helper's Info.plist in Sources
         // For now, return the known bundled version
         return "1.1.0"
+    }
+}
+
+private struct HelperValueStrip: View {
+    var body: some View {
+        HStack(spacing: 14) {
+            HelperValuePill(icon: "wrench.and.screwdriver.fill", text: "Installs")
+            HelperValuePill(icon: "arrow.triangle.2.circlepath", text: "Repairs")
+            HelperValuePill(icon: "lock.shield.fill", text: "Local only")
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Helper unlocks installs, repairs, and local system setup")
+        .accessibilityIdentifier("wizard-helper-value-strip")
+    }
+}
+
+private struct HelperValuePill: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        Label(text, systemImage: icon)
+            .font(.caption.weight(.medium))
+            .foregroundStyle(WizardDesign.Colors.info)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                WizardDesign.Colors.info.opacity(0.10),
+                in: Capsule()
+            )
     }
 }

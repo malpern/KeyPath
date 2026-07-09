@@ -23,6 +23,7 @@ public struct WizardKarabinerComponentsPage: View {
     @State private var queuedFixTimeoutTask: Task<Void, Never>?
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @State private var lastKarabinerHealthy = false
+    @State private var isDriverApprovalPending = false
     @State private var stepProgressCancellable: AnyCancellable?
     @Environment(WizardStateMachine.self) private var stateMachine
 
@@ -110,11 +111,11 @@ public struct WizardKarabinerComponentsPage: View {
             } else {
                 // Simplified error state: hero + centered Fix button
                 VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                    WizardHeroSection.error(
+                    WizardHeroSection.setup(
                         icon: "keyboard.macwindow",
-                        title: "Karabiner Driver Required",
+                        title: "Enable the Virtual Keyboard Driver",
                         subtitle:
-                        "Karabiner virtual keyboard driver needs to be installed & configured for input capture",
+                        "KeyPath uses this driver to send remapped keys back to macOS safely.",
                         iconTapAction: {
                             Task {
                                 onRefresh()
@@ -127,7 +128,7 @@ public struct WizardKarabinerComponentsPage: View {
                     InlineStatusView(status: actionStatus, message: actionStatus.message ?? " ")
                         .opacity(actionStatus.isActive ? 1 : 0)
 
-                    Button("Fix") {
+                    Button(driverActionButtonTitle) {
                         handleFixButtonTapped()
                     }
                     .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isCombinedFixLoading))
@@ -158,6 +159,9 @@ public struct WizardKarabinerComponentsPage: View {
             } else {
                 AppLogger.shared.log("ℹ️ [Wizard] Karabiner page observed issues present; keeping error state")
                 lastKarabinerHealthy = false
+                Task {
+                    _ = await showPendingDriverApprovalIfNeeded(openSettings: false)
+                }
             }
         }
         .onAppear {
@@ -172,6 +176,9 @@ public struct WizardKarabinerComponentsPage: View {
                 AppLogger.shared.log(
                     "ℹ️ [Wizard] Karabiner page onAppear with hasKarabinerIssues=true; issues=\(issues.count)"
                 )
+                Task {
+                    _ = await showPendingDriverApprovalIfNeeded(openSettings: false)
+                }
             }
         }
         .onChange(of: isFixing) { _, newValue in
@@ -198,6 +205,10 @@ public struct WizardKarabinerComponentsPage: View {
 
     private var nextStepButtonTitle: String {
         issues.isEmpty ? "Return to Summary" : "Next Issue"
+    }
+
+    private var driverActionButtonTitle: String {
+        isDriverApprovalPending ? "Open System Settings" : "Fix"
     }
 
     private var karabinerRelatedIssues: [WizardIssue] {
@@ -286,11 +297,24 @@ public struct WizardKarabinerComponentsPage: View {
         }
     }
 
+    private func openDriverExtensionsSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension?ExtensionItems") {
+            NSWorkspace.shared.open(url)
+        } else {
+            openLoginItemsSettings()
+        }
+    }
+
     // MARK: - Smart Fix Handlers
 
     /// Smart handler for Karabiner Driver Fix button
     /// Detects if Karabiner is installed vs needs installation
     private func handleFixButtonTapped() {
+        if isDriverApprovalPending {
+            openDriverExtensionsSettings()
+            return
+        }
+
         guard !isCombinedFixLoading else {
             AppLogger.shared.log("⚠️ [Karabiner Fix] Fix tapped while already loading")
             return
@@ -335,6 +359,7 @@ public struct WizardKarabinerComponentsPage: View {
 
         AppLogger.shared.log("🔧 [Karabiner Fix] startCombinedFix() START")
         isCombinedFixLoading = true
+        isDriverApprovalPending = false
         actionStatus = .inProgress(message: "Preparing...")
 
         // Subscribe to step progress updates from VHIDDeviceManager
@@ -386,6 +411,11 @@ public struct WizardKarabinerComponentsPage: View {
                 AppLogger.shared.log("🔧 [Karabiner Fix] Calling performAutomaticServiceRepair()...")
                 _ = await performAutomaticServiceRepair()
                 AppLogger.shared.log("🔧 [Karabiner Fix] performAutomaticServiceRepair() returned")
+            } else if await showPendingDriverApprovalIfNeeded(openSettings: true) {
+                AppLogger.shared.log("💡 [Karabiner Fix] Driver install is pending user approval")
+                return
+            } else {
+                actionStatus = .error(message: "Driver setup is incomplete. Try Fix again, or restart KeyPath.")
             }
             AppLogger.shared.log("🔧 [Karabiner Fix] All fix steps complete, defer will release spinner")
             // Note: Both performAutomaticDriverRepair() and performAutomaticServiceRepair()
@@ -438,6 +468,24 @@ public struct WizardKarabinerComponentsPage: View {
             AppLogger.shared.log("💡 [Karabiner Fix] Showing approval-needed toast for Login Items")
             openLoginItemsSettings()
         }
+    }
+
+    @MainActor
+    private func showPendingDriverApprovalIfNeeded(openSettings: Bool) async -> Bool {
+        let extensionStatus = await ServiceHealthChecker.shared.vhidDriverExtensionStatus()
+        guard extensionStatus == .installedButNotEnabled else {
+            isDriverApprovalPending = false
+            return false
+        }
+
+        isDriverApprovalPending = true
+        actionStatus = .attention(
+            message: "Approve the driver in System Settings, then return to KeyPath."
+        )
+        if openSettings {
+            openDriverExtensionsSettings()
+        }
+        return true
     }
 
     // Smart handler for Background Services Fix button. Attempts repair first, falls back to system settings.

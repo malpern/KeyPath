@@ -14,6 +14,7 @@ public protocol WizardSystemValidating: AnyObject, Sendable {
 @MainActor
 public protocol WizardHelperMaintaining: AnyObject, Sendable {
     func detectDuplicateAppCopies() -> [String]
+    func installOrRefresh() async -> Bool
     func runCleanupAndRepair(useAppleScriptFallback: Bool) async -> Bool
     func runCleanupAndRepair(useAppleScriptFallback: Bool, forceFullRepair: Bool) async -> Bool
     var logLines: [String] { get }

@@ -13,6 +13,7 @@ final class HelperMaintenanceTests: XCTestCase {
     override func tearDown() async throws {
         try await super.tearDown()
         HelperMaintenance.testDuplicateAppPathsOverride = nil
+        HelperMaintenance.testLegacyHelperArtifactPathsOverride = nil
         HelperMaintenance.shared.applyTestHooks(nil)
         HelperManager.testHelperFunctionalityOverride = nil
         HelperManager.testInstallHelperOverride = nil
@@ -69,6 +70,11 @@ final class HelperMaintenanceTests: XCTestCase {
 
     func testAdminCleanupFallbackFailureAbortsRun() async {
         HelperMaintenance.testDuplicateAppPathsOverride = { ["/Applications/KeyPath.app"] }
+        let protectedPaths = makeProtectedLegacyArtifactPaths()
+        defer { protectedPaths.cleanup() }
+        HelperMaintenance.testLegacyHelperArtifactPathsOverride = {
+            (legacyBin: protectedPaths.bin, legacyPlist: protectedPaths.plist)
+        }
 
         let fakeExecutor = FakeAdminCommandExecutor(resultProvider: { _, _ in
             CommandExecutionResult(exitCode: 1, output: "Permission denied")
@@ -96,8 +102,78 @@ final class HelperMaintenanceTests: XCTestCase {
         )
     }
 
+    func testAbsentLegacyArtifactsDoNotInvokeAdminCleanupFallback() async {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let missingBin = tempDir.appendingPathComponent("missing-helper").path
+        let missingPlist = tempDir.appendingPathComponent("missing-helper.plist").path
+        HelperMaintenance.testDuplicateAppPathsOverride = { ["/Applications/KeyPath.app"] }
+        HelperMaintenance.testLegacyHelperArtifactPathsOverride = {
+            (legacyBin: missingBin, legacyPlist: missingPlist)
+        }
+        let fakeExecutor = FakeAdminCommandExecutor()
+        AdminCommandExecutorHolder.shared = fakeExecutor
+
+        var attempts = 0
+        let hooks = HelperMaintenance.TestHooks(
+            unregisterHelper: {},
+            bootoutHelperJob: {},
+            registerHelper: {
+                attempts += 1
+                return attempts > 1
+            }
+        )
+        HelperMaintenance.shared.applyTestHooks(hooks)
+        HelperManager.testHelperFunctionalityOverride = { true }
+
+        let success = await HelperMaintenance.shared.runCleanupAndRepair(useAppleScriptFallback: true)
+
+        XCTAssertTrue(success)
+        XCTAssertTrue(fakeExecutor.commands.isEmpty, "No admin cleanup should run when legacy files are absent")
+        XCTAssertTrue(
+            HelperMaintenance.shared.logLines.contains { $0.contains("No legacy helper artifacts present") }
+        )
+    }
+
+    func testInstallOrRefreshDoesNotRunCleanupOrAdminFallback() async {
+        HelperMaintenance.testDuplicateAppPathsOverride = { ["/Applications/KeyPath.app"] }
+        let fakeExecutor = FakeAdminCommandExecutor()
+        AdminCommandExecutorHolder.shared = fakeExecutor
+
+        var unregisterCalled = false
+        var bootoutCalled = false
+        var cleanupCalled = false
+        let hooks = HelperMaintenance.TestHooks(
+            unregisterHelper: { unregisterCalled = true },
+            bootoutHelperJob: { bootoutCalled = true },
+            removeLegacyHelperArtifacts: { _ in
+                cleanupCalled = true
+                return .removed
+            },
+            registerHelper: { true }
+        )
+        HelperMaintenance.shared.applyTestHooks(hooks)
+        HelperManager.testHelperFunctionalityOverride = { true }
+
+        let success = await HelperMaintenance.shared.installOrRefresh()
+
+        XCTAssertTrue(success)
+        XCTAssertFalse(unregisterCalled)
+        XCTAssertFalse(bootoutCalled)
+        XCTAssertFalse(cleanupCalled)
+        XCTAssertTrue(fakeExecutor.commands.isEmpty)
+    }
+
     func testAdminCleanupFallbackSucceedsWithExecutor() async {
         HelperMaintenance.testDuplicateAppPathsOverride = { ["/Applications/KeyPath.app"] }
+        let protectedPaths = makeProtectedLegacyArtifactPaths()
+        defer { protectedPaths.cleanup() }
+        HelperMaintenance.testLegacyHelperArtifactPathsOverride = {
+            (legacyBin: protectedPaths.bin, legacyPlist: protectedPaths.plist)
+        }
 
         let fakeExecutor = FakeAdminCommandExecutor()
         AdminCommandExecutorHolder.shared = fakeExecutor
@@ -216,5 +292,29 @@ final class HelperMaintenanceTests: XCTestCase {
         XCTAssertTrue(first)
         let second = await HelperMaintenance.shared.runCleanupAndRepair(useAppleScriptFallback: false)
         XCTAssertTrue(second)
+    }
+
+    private func makeProtectedLegacyArtifactPaths() -> (
+        bin: String,
+        plist: String,
+        cleanup: () -> Void
+    ) {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let protectedDir = tempDir.appendingPathComponent("protected", isDirectory: true)
+        let bin = protectedDir.appendingPathComponent("com.keypath.helper")
+        let plist = protectedDir.appendingPathComponent("com.keypath.helper.plist")
+        try? FileManager.default.createDirectory(at: protectedDir, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: bin.path, contents: Data())
+        FileManager.default.createFile(atPath: plist.path, contents: Data())
+        try? FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: protectedDir.path)
+        return (
+            bin.path,
+            plist.path,
+            {
+                try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: protectedDir.path)
+                try? FileManager.default.removeItem(at: tempDir)
+            }
+        )
     }
 }

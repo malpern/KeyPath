@@ -218,13 +218,14 @@ public enum WizardDesign {
     public enum ActionStatus: Equatable {
         case idle
         case inProgress(message: String)
+        case attention(message: String)
         case success(message: String)
         case error(message: String)
 
         public var isActive: Bool {
             switch self {
             case .idle: false
-            case .inProgress, .success, .error: true
+            case .inProgress, .attention, .success, .error: true
             }
         }
 
@@ -232,6 +233,7 @@ public enum WizardDesign {
             switch self {
             case .idle: nil
             case let .inProgress(message): message
+            case let .attention(message): message
             case let .success(message): message
             case let .error(message): message
             }
@@ -241,6 +243,7 @@ public enum WizardDesign {
             switch self {
             case .idle: .secondary
             case .inProgress: Colors.inProgress
+            case .attention: Colors.warning
             case .success: Colors.success
             case .error: Colors.error
             }

@@ -1,7 +1,12 @@
 # Scripts
 
 ## Supported commands (recommended)
-- `./Scripts/quick-deploy.sh` — Incremental local dev (fast, deploys to /Applications; run `./build.sh` once first).
+- `./Scripts/ui-deploy.sh` — Fast installed-app UI iteration. Builds only the
+  KeyPath app product, deploys to /Applications, signs locally, restarts if
+  running, and intentionally does not notarize.
+- `./Scripts/quick-deploy.sh` — Incremental local dev deploy. Defaults to the
+  same app-only scope as `ui-deploy.sh`; set
+  `KEYPATH_QUICK_DEPLOY_BUILD_SCOPE=full` to refresh companion binaries.
 - `./Scripts/release-doctor.sh` — Read-only preflight for signed/notarized release-candidate or public ship builds.
 - `./Scripts/release-candidate.sh` — Signed/notarized post-merge manual-testing build; skips snapshots, Sparkle, and website publishing by default.
 - `./build.sh` — Canonical build & sign entry (root). Use `SKIP_CODESIGN=1` to bypass signing for local dev.
@@ -20,6 +25,7 @@
 
 ## Scripts in this directory
 - `build-and-sign.sh` - The implementation of the build process
+- `ui-deploy.sh` - App-only local deploy wrapper for SwiftUI/AppKit iteration.
 - `release-doctor.sh` - Read-only preflight for signing, notarization, Sparkle, website, watcher, and runtime state.
 - `release-candidate.sh` - Post-merge signed/notarized local build wrapper with fast defaults.
 - `release.sh` - Public release wrapper for versioned distribution artifacts.
