@@ -188,8 +188,7 @@ struct QMKKeyboardSearchView: View {
     private var keyboardListView: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                ForEach(keyboards.indices, id: \.self) { index in
-                    let keyboard = keyboards[index]
+                ForEach(Array(keyboards.enumerated()), id: \.element.id) { index, keyboard in
                     PopoverKeyboardRow(
                         keyboard: keyboard,
                         isSelected: selectedIndex == index,
