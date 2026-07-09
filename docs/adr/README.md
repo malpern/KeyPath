@@ -40,6 +40,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-040](adr-040-process-liveness-across-privilege-boundary.md) | Process Liveness and Signaling Across the Privilege Boundary | Accepted |
 | [ADR-041](adr-041-installer-identity-stability-contract.md) | Installer Identity Stability Contract | Accepted |
 | [ADR-042](adr-042-executable-installer-state-classification.md) | Executable Installer State Classification | Accepted |
+| [ADR-043](adr-043-opportunistic-manager-consolidation.md) | Opportunistic Manager Consolidation | Accepted |
 
 ## Key Decisions Summary
 
@@ -53,6 +54,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 - **ADR-040**: kanata is a root LaunchDaemon; the app is unprivileged. `kill(pid,0)` returns `EPERM` (not `ESRCH`) for the live daemon — treat EPERM as alive. The app cannot signal/kill the daemon; only launchd can.
 - **ADR-041**: Installer identity values for kanata, helper, and daemon shell are release-gated contracts.
 - **ADR-042**: The installer repair state matrix is executable; CLI, menu-bar, and wizard consumers share row/action vocabulary.
+- **ADR-043**: Consolidate overlapping installer/runtime managers opportunistically when touching both sides for concrete work; avoid broad manager-merge refactors.
 
 ### Configuration
 - **ADR-023**: Never parse Kanata config files directly. Use TCP and simulator.

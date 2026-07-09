@@ -46,6 +46,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 | [ADR-040](/adr/adr-040-process-liveness-across-privilege-boundary) | Process Liveness and Signaling Across the Privilege Boundary | Accepted |
 | [ADR-041](/adr/adr-041-installer-identity-stability-contract) | Installer Identity Stability Contract | Accepted |
 | [ADR-042](/adr/adr-042-executable-installer-state-classification) | Executable Installer State Classification | Accepted |
+| [ADR-043](/adr/adr-043-opportunistic-manager-consolidation) | Opportunistic Manager Consolidation | Accepted |
 
 ## Key Decisions Summary
 
@@ -59,6 +60,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 - **ADR-040**: kanata is a root LaunchDaemon; app-side process liveness treats `EPERM` from `kill(pid,0)` as alive.
 - **ADR-041**: Installer identity values for kanata, helper, and daemon shell are release-gated contracts.
 - **ADR-042**: The installer repair state matrix is executable; CLI, menu-bar, and wizard consumers share row/action vocabulary.
+- **ADR-043**: Consolidate overlapping installer/runtime managers opportunistically when touching both sides for concrete work; avoid broad manager-merge refactors.
 
 ### Configuration
 - **ADR-023**: Never parse Kanata config files directly. Use TCP and simulator.
