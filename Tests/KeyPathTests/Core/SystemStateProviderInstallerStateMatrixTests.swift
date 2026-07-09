@@ -223,7 +223,12 @@ final class SystemStateProviderInstallerStateMatrixTests: XCTestCase {
             kanataSMAppServiceStatus: .enabled,
             helperSMAppServiceStatus: .enabled
         )
-        let wizardSnapshot = systemContext(from: runtime(), components: components).installerStateMatrixSnapshot
+        let wizardSnapshot = systemContext(
+            from: runtime(),
+            components: components,
+            kanataSMAppServiceRegistered: true,
+            loginItemsApprovalRequired: false
+        ).installerStateMatrixSnapshot
 
         XCTAssertEqual(wizardSnapshot, providerSnapshot)
         XCTAssertEqual(InstallerStateMatrixPlanner.classify(wizardSnapshot), .freshInstallMissingComponents)
@@ -233,11 +238,63 @@ final class SystemStateProviderInstallerStateMatrixTests: XCTestCase {
     func testWizardSystemContextSnapshotTreatsUnknownHelperVersionAsNotFresh() {
         let snapshot = systemContext(
             from: runtime(),
-            helper: HelperStatus(isInstalled: true, version: nil, isWorking: true)
+            helper: HelperStatus(isInstalled: true, version: nil, isWorking: true),
+            kanataSMAppServiceRegistered: true,
+            loginItemsApprovalRequired: false
         ).installerStateMatrixSnapshot
 
         XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .helperRespondsButMayBeStale)
         XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.verifyOrRefreshHelper])
+    }
+
+    func testWizardSystemContextSnapshotPreservesUnknownRegistrationEvidence() {
+        let snapshot = systemContext(
+            from: runtime(),
+            kanataSMAppServiceRegistered: nil,
+            loginItemsApprovalRequired: false
+        ).installerStateMatrixSnapshot
+
+        XCTAssertEqual(snapshot.smAppServiceRegistered, .unknown)
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .kanataNotRegistered)
+        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.installOrRegisterRuntimeServices])
+    }
+
+    func testWizardSystemContextSnapshotPreservesUnknownLaunchdEvidence() {
+        let snapshot = systemContext(
+            health: HealthStatus(
+                kanataLaunchdLoaded: nil,
+                kanataProcessRunning: true,
+                kanataTCPResponding: true,
+                kanataRunning: true,
+                karabinerDaemonRunning: true,
+                vhidHealthy: true,
+                kanataSMAppServiceRegistered: true,
+                loginItemsApprovalRequired: false
+            )
+        ).installerStateMatrixSnapshot
+
+        XCTAssertEqual(snapshot.launchdJobLoaded, .unknown)
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .registeredButNotLoaded)
+        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.recoverRuntimeRegistrationBypassingThrottle])
+    }
+
+    func testWizardSystemContextSnapshotPreservesUnknownProcessEvidence() {
+        let snapshot = systemContext(
+            health: HealthStatus(
+                kanataLaunchdLoaded: true,
+                kanataProcessRunning: nil,
+                kanataTCPResponding: true,
+                kanataRunning: true,
+                karabinerDaemonRunning: true,
+                vhidHealthy: true,
+                kanataSMAppServiceRegistered: true,
+                loginItemsApprovalRequired: false
+            )
+        ).installerStateMatrixSnapshot
+
+        XCTAssertEqual(snapshot.kanataProcessRunning, .unknown)
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .loadedButNotRunning)
+        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.installRequiredRuntimeServices])
     }
 
     private var healthyComponents: ComponentStatus {
@@ -295,6 +352,35 @@ final class SystemStateProviderInstallerStateMatrixTests: XCTestCase {
         _ helperStatus: SMAppService.Status
     ) -> Bool {
         kanataStatus == .requiresApproval || helperStatus == .requiresApproval
+    }
+
+    private func systemContext(
+        health: HealthStatus,
+        helper: HelperStatus? = nil,
+        components: ComponentStatus? = nil
+    ) -> SystemContext {
+        let permissionSet = PermissionOracle.PermissionSet(
+            accessibility: .granted,
+            inputMonitoring: .granted,
+            source: "test",
+            confidence: .high,
+            timestamp: Date()
+        )
+        let permissions = PermissionOracle.Snapshot(
+            keyPath: permissionSet,
+            kanata: permissionSet,
+            timestamp: Date()
+        )
+
+        return SystemContext(
+            permissions: permissions,
+            services: health,
+            conflicts: .empty,
+            components: components ?? healthyComponents,
+            helper: helper ?? healthyHelper,
+            system: EngineSystemInfo(macOSVersion: "15.0", driverCompatible: true),
+            timestamp: Date()
+        )
     }
 
     private func systemContext(

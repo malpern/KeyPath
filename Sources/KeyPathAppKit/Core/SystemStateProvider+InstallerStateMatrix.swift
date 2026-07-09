@@ -48,23 +48,23 @@ public extension SystemStateProvider {
             || helperSMAppServiceStatus == .requiresApproval
 
         return InstallerStateMatrixSnapshot(
-            kanataBinaryPresent: components.kanataBinaryInstalled,
-            requiredRuntimePayloadPresent: components.requiredRuntimePayloadPresent,
-            smAppServiceRegistered: smAppServiceRegistered,
-            launchdJobLoaded: launchdJobLoaded,
-            kanataProcessRunning: runtime.isRunning,
-            kanataTCPResponding: runtime.isResponding,
-            currentInputCaptureIssue: runtime.isRunning && runtime.isResponding && !runtime.inputCaptureReady,
-            staleInputCaptureIssue: !runtime.isRunning && !runtime.inputCaptureReady && !driverKitApprovalPending,
-            driverKitApprovalPending: driverKitApprovalPending,
-            virtualHIDDriverPresent: components.karabinerDriverInstalled,
-            virtualHIDPayloadPresent: components.vhidDeviceInstalled,
-            virtualHIDServicesHealthy: components.vhidServicesHealthy,
-            virtualHIDApprovalPending: driverKitApprovalPending,
-            helperInstalled: helper.isInstalled,
-            helperResponding: helper.isWorking,
-            helperFresh: helper.version == HelperManager.expectedHelperVersion,
-            manualApprovalRequired: loginItemsApprovalRequired
+            kanataBinaryPresent: .known(components.kanataBinaryInstalled),
+            requiredRuntimePayloadPresent: .known(components.requiredRuntimePayloadPresent),
+            smAppServiceRegistered: .known(smAppServiceRegistered),
+            launchdJobLoaded: .known(launchdJobLoaded),
+            kanataProcessRunning: .known(runtime.isRunning),
+            kanataTCPResponding: .known(runtime.isResponding),
+            currentInputCaptureIssue: .known(runtime.isRunning && runtime.isResponding && !runtime.inputCaptureReady),
+            staleInputCaptureIssue: .known(!runtime.isRunning && !runtime.inputCaptureReady && !driverKitApprovalPending),
+            driverKitApprovalPending: .known(driverKitApprovalPending),
+            virtualHIDDriverPresent: .known(components.karabinerDriverInstalled),
+            virtualHIDPayloadPresent: .known(components.vhidDeviceInstalled),
+            virtualHIDServicesHealthy: .known(components.vhidServicesHealthy),
+            virtualHIDApprovalPending: .known(driverKitApprovalPending),
+            helperInstalled: .known(helper.isInstalled),
+            helperResponding: .known(helper.isWorking),
+            helperFresh: .known(helper.version == HelperManager.expectedHelperVersion),
+            manualApprovalRequired: .known(loginItemsApprovalRequired)
         )
     }
 }

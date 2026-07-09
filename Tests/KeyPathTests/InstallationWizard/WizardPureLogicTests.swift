@@ -53,9 +53,14 @@ final class WizardPureLogicTests: XCTestCase {
 
     private var healthyServices: HealthStatus {
         HealthStatus(
+            kanataLaunchdLoaded: true,
+            kanataProcessRunning: true,
+            kanataTCPResponding: true,
             kanataRunning: true,
             karabinerDaemonRunning: true,
-            vhidHealthy: true
+            vhidHealthy: true,
+            kanataSMAppServiceRegistered: true,
+            loginItemsApprovalRequired: false
         )
     }
 
@@ -117,11 +122,16 @@ final class WizardPureLogicTests: XCTestCase {
     func test_systemContextStateMatrixSnapshot_classifiesStoppedRuntimeWithStaleInputCapture() {
         let context = makeContext(
             services: HealthStatus(
+                kanataLaunchdLoaded: true,
+                kanataProcessRunning: false,
+                kanataTCPResponding: false,
                 kanataRunning: false,
                 karabinerDaemonRunning: true,
                 vhidHealthy: true,
                 kanataInputCaptureReady: false,
-                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason
+                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason,
+                kanataSMAppServiceRegistered: true,
+                loginItemsApprovalRequired: false
             )
         )
 

@@ -74,6 +74,27 @@ final class InstallerStateMatrixGoldenTests: XCTestCase {
         XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.surfaceManualApproval])
     }
 
+    func testUnknownRegistrationEvidenceDoesNotDefaultHealthy() {
+        let snapshot = InstallerStateMatrixSnapshot(smAppServiceRegistered: .unknown)
+
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .kanataNotRegistered)
+        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.installOrRegisterRuntimeServices])
+    }
+
+    func testUnknownRuntimeProcessEvidenceDoesNotDefaultHealthy() {
+        let snapshot = InstallerStateMatrixSnapshot(kanataProcessRunning: .unknown)
+
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .loadedButNotRunning)
+        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.installRequiredRuntimeServices])
+    }
+
+    func testUnknownVirtualHIDPayloadEvidenceDoesNotDefaultHealthy() {
+        let snapshot = InstallerStateMatrixSnapshot(virtualHIDPayloadPresent: .unknown)
+
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .virtualHIDDriverPayloadMissing)
+        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.installVirtualHIDPayload])
+    }
+
     private struct GoldenCase {
         let name: String
         let snapshot: InstallerStateMatrixSnapshot
