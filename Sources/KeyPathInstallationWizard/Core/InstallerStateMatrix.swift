@@ -25,53 +25,91 @@ public enum InstallerStateMatrixRow: String, CaseIterable, Sendable, Equatable {
     case definitiveUnhealthyState = "Definitive unhealthy state"
 }
 
+/// A value captured from system evidence, preserving the difference between
+/// "known false" and "not captured".
+public enum Evidence<Value: Sendable & Equatable>: Sendable, Equatable {
+    case known(Value)
+    case unknown
+}
+
+public extension Evidence {
+    var value: Value? {
+        guard case let .known(value) = self else { return nil }
+        return value
+    }
+}
+
+public extension Evidence where Value == Bool {
+    static var present: Evidence<Bool> {
+        .known(true)
+    }
+
+    static var absent: Evidence<Bool> {
+        .known(false)
+    }
+
+    var isKnownTrue: Bool {
+        value == true
+    }
+
+    var isKnownFalse: Bool {
+        value == false
+    }
+}
+
+extension Evidence: ExpressibleByBooleanLiteral where Value == Bool {
+    public init(booleanLiteral value: Bool) {
+        self = .known(value)
+    }
+}
+
 /// Minimal immutable evidence used by the state-matrix classifier.
 ///
 /// This is intentionally pure and OS-free. `SystemStateProvider` can build this
 /// from live evidence in a later slice without changing the classifier contract.
 public struct InstallerStateMatrixSnapshot: Sendable, Equatable {
-    public var kanataBinaryPresent: Bool
-    public var requiredRuntimePayloadPresent: Bool
-    public var smAppServiceRegistered: Bool
-    public var launchdJobLoaded: Bool
-    public var kanataProcessRunning: Bool
-    public var kanataTCPResponding: Bool
-    public var currentInputCaptureIssue: Bool
-    public var staleInputCaptureIssue: Bool
-    public var driverKitApprovalPending: Bool
-    public var virtualHIDDriverPresent: Bool
-    public var virtualHIDPayloadPresent: Bool
-    public var virtualHIDServicesHealthy: Bool
-    public var virtualHIDApprovalPending: Bool
-    public var helperInstalled: Bool
-    public var helperResponding: Bool
-    public var helperFresh: Bool
-    public var helperPathReportedSuccess: Bool
-    public var sudoFallbackReportedSuccess: Bool
-    public var manualApprovalRequired: Bool
-    public var definitiveUnhealthyState: Bool
+    public var kanataBinaryPresent: Evidence<Bool>
+    public var requiredRuntimePayloadPresent: Evidence<Bool>
+    public var smAppServiceRegistered: Evidence<Bool>
+    public var launchdJobLoaded: Evidence<Bool>
+    public var kanataProcessRunning: Evidence<Bool>
+    public var kanataTCPResponding: Evidence<Bool>
+    public var currentInputCaptureIssue: Evidence<Bool>
+    public var staleInputCaptureIssue: Evidence<Bool>
+    public var driverKitApprovalPending: Evidence<Bool>
+    public var virtualHIDDriverPresent: Evidence<Bool>
+    public var virtualHIDPayloadPresent: Evidence<Bool>
+    public var virtualHIDServicesHealthy: Evidence<Bool>
+    public var virtualHIDApprovalPending: Evidence<Bool>
+    public var helperInstalled: Evidence<Bool>
+    public var helperResponding: Evidence<Bool>
+    public var helperFresh: Evidence<Bool>
+    public var helperPathReportedSuccess: Evidence<Bool>
+    public var sudoFallbackReportedSuccess: Evidence<Bool>
+    public var manualApprovalRequired: Evidence<Bool>
+    public var definitiveUnhealthyState: Evidence<Bool>
 
     public init(
-        kanataBinaryPresent: Bool = true,
-        requiredRuntimePayloadPresent: Bool = true,
-        smAppServiceRegistered: Bool = true,
-        launchdJobLoaded: Bool = true,
-        kanataProcessRunning: Bool = true,
-        kanataTCPResponding: Bool = true,
-        currentInputCaptureIssue: Bool = false,
-        staleInputCaptureIssue: Bool = false,
-        driverKitApprovalPending: Bool = false,
-        virtualHIDDriverPresent: Bool = true,
-        virtualHIDPayloadPresent: Bool = true,
-        virtualHIDServicesHealthy: Bool = true,
-        virtualHIDApprovalPending: Bool = false,
-        helperInstalled: Bool = true,
-        helperResponding: Bool = true,
-        helperFresh: Bool = true,
-        helperPathReportedSuccess: Bool = false,
-        sudoFallbackReportedSuccess: Bool = false,
-        manualApprovalRequired: Bool = false,
-        definitiveUnhealthyState: Bool = false
+        kanataBinaryPresent: Evidence<Bool> = .present,
+        requiredRuntimePayloadPresent: Evidence<Bool> = .present,
+        smAppServiceRegistered: Evidence<Bool> = .present,
+        launchdJobLoaded: Evidence<Bool> = .present,
+        kanataProcessRunning: Evidence<Bool> = .present,
+        kanataTCPResponding: Evidence<Bool> = .present,
+        currentInputCaptureIssue: Evidence<Bool> = .absent,
+        staleInputCaptureIssue: Evidence<Bool> = .absent,
+        driverKitApprovalPending: Evidence<Bool> = .absent,
+        virtualHIDDriverPresent: Evidence<Bool> = .present,
+        virtualHIDPayloadPresent: Evidence<Bool> = .present,
+        virtualHIDServicesHealthy: Evidence<Bool> = .present,
+        virtualHIDApprovalPending: Evidence<Bool> = .absent,
+        helperInstalled: Evidence<Bool> = .present,
+        helperResponding: Evidence<Bool> = .present,
+        helperFresh: Evidence<Bool> = .present,
+        helperPathReportedSuccess: Evidence<Bool> = .absent,
+        sudoFallbackReportedSuccess: Evidence<Bool> = .absent,
+        manualApprovalRequired: Evidence<Bool> = .absent,
+        definitiveUnhealthyState: Evidence<Bool> = .absent
     ) {
         self.kanataBinaryPresent = kanataBinaryPresent
         self.requiredRuntimePayloadPresent = requiredRuntimePayloadPresent
@@ -96,7 +134,7 @@ public struct InstallerStateMatrixSnapshot: Sendable, Equatable {
     }
 
     public var runtimeReady: Bool {
-        kanataProcessRunning && kanataTCPResponding
+        kanataProcessRunning.isKnownTrue && kanataTCPResponding.isKnownTrue
     }
 }
 
@@ -120,76 +158,76 @@ public enum InstallerStateMatrixAction: String, Sendable, Equatable {
 
 public enum InstallerStateMatrixPlanner {
     public static func classify(_ snapshot: InstallerStateMatrixSnapshot) -> InstallerStateMatrixRow {
-        let runtimeUsable = snapshot.runtimeReady && !snapshot.currentInputCaptureIssue
+        let runtimeUsable = snapshot.runtimeReady && !snapshot.currentInputCaptureIssue.isKnownTrue
 
-        if snapshot.manualApprovalRequired, !runtimeUsable {
+        if snapshot.manualApprovalRequired.isKnownTrue, !runtimeUsable {
             return .manualApprovalRequired
         }
 
-        if snapshot.helperPathReportedSuccess {
+        if snapshot.helperPathReportedSuccess.isKnownTrue {
             return .helperPathSucceeds
         }
 
-        if snapshot.sudoFallbackReportedSuccess {
+        if snapshot.sudoFallbackReportedSuccess.isKnownTrue {
             return .sudoFallbackSucceeds
         }
 
-        if snapshot.definitiveUnhealthyState {
+        if snapshot.definitiveUnhealthyState.isKnownTrue {
             return .definitiveUnhealthyState
         }
 
-        if !snapshot.kanataBinaryPresent ||
-            !snapshot.requiredRuntimePayloadPresent ||
-            !snapshot.virtualHIDDriverPresent
+        if !snapshot.kanataBinaryPresent.isKnownTrue ||
+            !snapshot.requiredRuntimePayloadPresent.isKnownTrue ||
+            !snapshot.virtualHIDDriverPresent.isKnownTrue
         {
             return .freshInstallMissingComponents
         }
 
-        if !snapshot.smAppServiceRegistered {
+        if !snapshot.smAppServiceRegistered.isKnownTrue {
             return .kanataNotRegistered
         }
 
-        if snapshot.smAppServiceRegistered, !snapshot.launchdJobLoaded {
+        if snapshot.smAppServiceRegistered.isKnownTrue, !snapshot.launchdJobLoaded.isKnownTrue {
             return .registeredButNotLoaded
         }
 
-        if snapshot.launchdJobLoaded, !snapshot.kanataProcessRunning {
-            if snapshot.driverKitApprovalPending, snapshot.virtualHIDDriverPresent {
+        if snapshot.launchdJobLoaded.isKnownTrue, !snapshot.kanataProcessRunning.isKnownTrue {
+            if snapshot.driverKitApprovalPending.isKnownTrue, snapshot.virtualHIDDriverPresent.isKnownTrue {
                 return .driverKitApprovalPendingWithKanataStopped
             }
 
-            if snapshot.staleInputCaptureIssue {
+            if snapshot.staleInputCaptureIssue.isKnownTrue {
                 return .staleInputCaptureIssueWithKanataStopped
             }
 
             return .loadedButNotRunning
         }
 
-        if snapshot.kanataProcessRunning, !snapshot.kanataTCPResponding {
+        if snapshot.kanataProcessRunning.isKnownTrue, !snapshot.kanataTCPResponding.isKnownTrue {
             return .runningButTCPNotResponding
         }
 
-        if snapshot.virtualHIDApprovalPending {
+        if snapshot.virtualHIDApprovalPending.isKnownTrue {
             return .virtualHIDApprovalPending
         }
 
-        if snapshot.runtimeReady, snapshot.currentInputCaptureIssue {
+        if snapshot.runtimeReady, snapshot.currentInputCaptureIssue.isKnownTrue {
             return .runningButInputCaptureFailing
         }
 
-        if !snapshot.virtualHIDPayloadPresent {
+        if !snapshot.virtualHIDPayloadPresent.isKnownTrue {
             return .virtualHIDDriverPayloadMissing
         }
 
-        if !snapshot.virtualHIDServicesHealthy {
+        if !snapshot.virtualHIDServicesHealthy.isKnownTrue {
             return .vhidServicesMissingUnhealthy
         }
 
-        if !snapshot.helperInstalled || !snapshot.helperResponding {
+        if !snapshot.helperInstalled.isKnownTrue || !snapshot.helperResponding.isKnownTrue {
             return .helperMissing
         }
 
-        if snapshot.helperResponding, !snapshot.helperFresh {
+        if snapshot.helperResponding.isKnownTrue, !snapshot.helperFresh.isKnownTrue {
             return .helperRespondsButMayBeStale
         }
 
@@ -243,34 +281,50 @@ public enum InstallerStateMatrixPlanner {
 public extension SystemContext {
     var installerStateMatrixSnapshot: InstallerStateMatrixSnapshot {
         let driverKitApprovalPending = requiresManualVHIDDriverApproval
-        let kanataProcessRunning = services.kanataProcessRunning ?? services.kanataRunning
-        let kanataTCPResponding = services.kanataTCPResponding ?? services.kanataRunning
-        let launchdJobLoaded = !services.staleEnabledRegistration && (services.kanataLaunchdLoaded
-            ?? (kanataProcessRunning || components.kanataBinaryInstalled))
+        let kanataProcessRunning = services.kanataProcessRunning.map(Evidence<Bool>.known) ?? .unknown
+        let kanataTCPResponding = services.kanataTCPResponding.map(Evidence<Bool>.known) ?? .unknown
+        let launchdJobLoaded: Evidence<Bool> = if services.staleEnabledRegistration {
+            .absent
+        } else if let kanataLaunchdLoaded = services.kanataLaunchdLoaded {
+            .known(kanataLaunchdLoaded)
+        } else {
+            .unknown
+        }
         let inputCaptureIssuePresent = !services.kanataInputCaptureReady
-        let staleInputCaptureIssue = !kanataProcessRunning
-            && inputCaptureIssuePresent
-            && !driverKitApprovalPending
+        let staleInputCaptureIssue: Evidence<Bool> = if let kanataProcessRunning = services.kanataProcessRunning {
+            .known(!kanataProcessRunning
+                && inputCaptureIssuePresent
+                && !driverKitApprovalPending)
+        } else {
+            .unknown
+        }
+        let currentInputCaptureIssue: Evidence<Bool> = if let kanataProcessRunning = services.kanataProcessRunning,
+                                                          let kanataTCPResponding = services.kanataTCPResponding
+        {
+            .known(kanataProcessRunning && kanataTCPResponding && inputCaptureIssuePresent)
+        } else {
+            .unknown
+        }
 
         return InstallerStateMatrixSnapshot(
-            kanataBinaryPresent: components.kanataBinaryInstalled,
-            requiredRuntimePayloadPresent: components.requiredRuntimePayloadPresent,
-            smAppServiceRegistered: services.kanataSMAppServiceRegistered ?? components.kanataBinaryInstalled,
+            kanataBinaryPresent: .known(components.kanataBinaryInstalled),
+            requiredRuntimePayloadPresent: .known(components.requiredRuntimePayloadPresent),
+            smAppServiceRegistered: services.kanataSMAppServiceRegistered.map(Evidence<Bool>.known) ?? .unknown,
             launchdJobLoaded: launchdJobLoaded,
             kanataProcessRunning: kanataProcessRunning,
             kanataTCPResponding: kanataTCPResponding,
-            currentInputCaptureIssue: kanataProcessRunning && kanataTCPResponding && inputCaptureIssuePresent,
+            currentInputCaptureIssue: currentInputCaptureIssue,
             staleInputCaptureIssue: staleInputCaptureIssue,
-            driverKitApprovalPending: driverKitApprovalPending,
-            virtualHIDDriverPresent: components.karabinerDriverInstalled,
-            virtualHIDPayloadPresent: components.vhidDeviceInstalled,
-            virtualHIDServicesHealthy: !components.vhidRuntimeServicesNeedRepair,
-            virtualHIDApprovalPending: driverKitApprovalPending,
-            helperInstalled: helper.isInstalled,
-            helperResponding: helper.isWorking,
-            helperFresh: helper.version == WizardHelperConstants.expectedHelperVersion,
-            manualApprovalRequired: services.loginItemsApprovalRequired ?? false,
-            definitiveUnhealthyState: timedOut
+            driverKitApprovalPending: .known(driverKitApprovalPending),
+            virtualHIDDriverPresent: .known(components.karabinerDriverInstalled),
+            virtualHIDPayloadPresent: .known(components.vhidDeviceInstalled),
+            virtualHIDServicesHealthy: .known(!components.vhidRuntimeServicesNeedRepair),
+            virtualHIDApprovalPending: .known(driverKitApprovalPending),
+            helperInstalled: .known(helper.isInstalled),
+            helperResponding: .known(helper.isWorking),
+            helperFresh: .known(helper.version == WizardHelperConstants.expectedHelperVersion),
+            manualApprovalRequired: services.loginItemsApprovalRequired.map(Evidence<Bool>.known) ?? .unknown,
+            definitiveUnhealthyState: .known(timedOut)
         )
     }
 
