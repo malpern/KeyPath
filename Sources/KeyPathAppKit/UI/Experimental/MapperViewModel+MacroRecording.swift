@@ -38,18 +38,20 @@ extension MapperViewModel {
 
         capture.startSequenceCapture(mode: .sequence) { [weak self] sequence in
             guard let self else { return }
+            let viewModel = self
 
-            Task { @MainActor in
+            Task { @MainActor [weak viewModel] in
+                guard let viewModel else { return }
                 let outputs = sequence.keys.map { Self.keyOutputFromPress($0) }
-                macroBehavior = MacroBehavior(outputs: outputs, source: .keys)
+                viewModel.macroBehavior = MacroBehavior(outputs: outputs, source: .keys)
 
-                self.finalizeTimer?.invalidate()
-                self.finalizeTimer = Timer.scheduledTimer(
-                    withTimeInterval: self.sequenceFinalizeDelay,
+                viewModel.finalizeTimer?.invalidate()
+                viewModel.finalizeTimer = Timer.scheduledTimer(
+                    withTimeInterval: viewModel.sequenceFinalizeDelay,
                     repeats: false
-                ) { [weak self] _ in
+                ) { [weak viewModel] _ in
                     Task { @MainActor in
-                        self?.stopMacroRecording()
+                        viewModel?.stopMacroRecording()
                     }
                 }
             }

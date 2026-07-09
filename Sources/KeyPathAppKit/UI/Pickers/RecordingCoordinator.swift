@@ -377,40 +377,47 @@ final class RecordingCoordinator {
                 self.logFocusState(prefix: "[Coordinator:Input]")
                 capture.setEventRouter(nil, kanataManager: self.kanataManager)
                 let mode: CaptureMode = self.isSequenceMode ? .sequence : .chord
+                let coordinator = self
 
                 self.inputTimeoutTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) {
-                    [weak self] _ in
+                    [weak coordinator] _ in
                     Task { @MainActor in
-                        guard let self else { return }
-                        if self.input.isRecording {
-                            self.failInputRecording(with: "timeout")
-                            self.keyboardCapture?.stopCapture()
+                        guard let coordinator else { return }
+                        if coordinator.input.isRecording {
+                            coordinator.failInputRecording(with: "timeout")
+                            coordinator.keyboardCapture?.stopCapture()
                         }
                     }
                 }
 
-                capture.startSequenceCapture(mode: mode) { keySequence in
-                    Task { @MainActor in
-                        // Provisional streaming update
-                        self.inputTimeoutTimer?.invalidate()
-                        self.input.capturedSequence = keySequence
-                        self.refreshDisplayTexts()
-
-                        // Schedule finalize timer based on mode
-                        self.inputFinalizeTimer?.invalidate()
-                        let finalizeDelay: TimeInterval = self.finalizeDelayDuration(for: mode)
-                        self.inputFinalizeTimer = Timer.scheduledTimer(
-                            withTimeInterval: finalizeDelay, repeats: false
-                        ) { [weak self] _ in
-                            Task { @MainActor in
-                                guard let self else { return }
-                                if self.input.isRecording {
-                                    self.input.isRecording = false
-                                    self.refreshDisplayTexts()
-                                }
-                            }
-                        }
+                capture.startSequenceCapture(mode: mode) { [weak coordinator] keySequence in
+                    guard let coordinator else { return }
+                    let recordingCoordinator = coordinator
+                    Task { @MainActor [weak recordingCoordinator] in
+                        recordingCoordinator?.handleCapturedInputSequence(keySequence, mode: mode)
                     }
+                }
+            }
+        }
+    }
+
+    private func handleCapturedInputSequence(_ keySequence: KeySequence, mode: CaptureMode) {
+        // Provisional streaming update
+        inputTimeoutTimer?.invalidate()
+        input.capturedSequence = keySequence
+        refreshDisplayTexts()
+
+        // Schedule finalize timer based on mode
+        inputFinalizeTimer?.invalidate()
+        let finalizeDelay: TimeInterval = finalizeDelayDuration(for: mode)
+        inputFinalizeTimer = Timer.scheduledTimer(
+            withTimeInterval: finalizeDelay, repeats: false
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                if self.input.isRecording {
+                    self.input.isRecording = false
+                    self.refreshDisplayTexts()
                 }
             }
         }
@@ -515,40 +522,47 @@ final class RecordingCoordinator {
                 self.logFocusState(prefix: "[Coordinator:Output]")
                 capture.setEventRouter(nil, kanataManager: self.kanataManager)
                 let mode: CaptureMode = self.isSequenceMode ? .sequence : .chord
+                let coordinator = self
 
                 self.outputTimeoutTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) {
-                    [weak self] _ in
+                    [weak coordinator] _ in
                     Task { @MainActor in
-                        guard let self else { return }
-                        if self.output.isRecording {
-                            self.failOutputRecording(with: "timeout")
-                            self.keyboardCapture?.stopCapture()
+                        guard let coordinator else { return }
+                        if coordinator.output.isRecording {
+                            coordinator.failOutputRecording(with: "timeout")
+                            coordinator.keyboardCapture?.stopCapture()
                         }
                     }
                 }
 
-                capture.startSequenceCapture(mode: mode) { keySequence in
-                    Task { @MainActor in
-                        // Provisional streaming update
-                        self.outputTimeoutTimer?.invalidate()
-                        self.output.capturedSequence = keySequence
-                        self.refreshDisplayTexts()
-
-                        // Schedule finalize timer based on mode
-                        self.outputFinalizeTimer?.invalidate()
-                        let finalizeDelay: TimeInterval = (mode == .sequence) ? 2.1 : 0.08
-                        self.outputFinalizeTimer = Timer.scheduledTimer(
-                            withTimeInterval: finalizeDelay, repeats: false
-                        ) { [weak self] _ in
-                            Task { @MainActor in
-                                guard let self else { return }
-                                if self.output.isRecording {
-                                    self.output.isRecording = false
-                                    self.refreshDisplayTexts()
-                                }
-                            }
-                        }
+                capture.startSequenceCapture(mode: mode) { [weak coordinator] keySequence in
+                    guard let coordinator else { return }
+                    let recordingCoordinator = coordinator
+                    Task { @MainActor [weak recordingCoordinator] in
+                        recordingCoordinator?.handleCapturedOutputSequence(keySequence, mode: mode)
                     }
+                }
+            }
+        }
+    }
+
+    private func handleCapturedOutputSequence(_ keySequence: KeySequence, mode: CaptureMode) {
+        // Provisional streaming update
+        outputTimeoutTimer?.invalidate()
+        output.capturedSequence = keySequence
+        refreshDisplayTexts()
+
+        // Schedule finalize timer based on mode
+        outputFinalizeTimer?.invalidate()
+        let finalizeDelay: TimeInterval = (mode == .sequence) ? 2.1 : 0.08
+        outputFinalizeTimer = Timer.scheduledTimer(
+            withTimeInterval: finalizeDelay, repeats: false
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                if self.output.isRecording {
+                    self.output.isRecording = false
+                    self.refreshDisplayTexts()
                 }
             }
         }
