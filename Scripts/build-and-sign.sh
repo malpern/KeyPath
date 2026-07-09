@@ -177,6 +177,7 @@ EOF
 }
 
 keypath_ensure_kanata_submodule "$SCRIPT_DIR/.."
+"$SCRIPT_DIR/verify-release-signing-contract.sh" --source
 
 echo "🦀 Building Rust artifacts in parallel (kanata, simulator, host bridge)..."
 ./Scripts/build-kanata.sh &
