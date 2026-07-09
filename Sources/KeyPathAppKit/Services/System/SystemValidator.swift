@@ -46,6 +46,7 @@ public class SystemValidator {
 
     private struct ComponentInstallationFacts: Sendable {
         let kanataBinaryInstalled: Bool
+        let requiredRuntimePayloadPresent: Bool
         let vhidInstalled: Bool
         let vhidVersionMismatch: Bool
         let karabinerDriverExtensionEnabled: Bool
@@ -437,11 +438,12 @@ public class SystemValidator {
 
         AppLogger.shared
             .log(
-                "🔍 [SystemValidator] Components: kanata=\(facts.kanataBinaryInstalled), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidServices=\(vhidServicesHealthy), vhidPlistMisconfigured=\(facts.vhidDaemonPlistMisconfigured), vhidVersionMismatch=\(facts.vhidVersionMismatch)"
+                "🔍 [SystemValidator] Components: kanata=\(facts.kanataBinaryInstalled), runtimePayload=\(facts.requiredRuntimePayloadPresent), driver=\(karabinerDriverInstalled), daemon=\(karabinerDaemonRunning), vhid=\(vhidHealthy), vhidServices=\(vhidServicesHealthy), vhidPlistMisconfigured=\(facts.vhidDaemonPlistMisconfigured), vhidVersionMismatch=\(facts.vhidVersionMismatch)"
             )
 
         return ComponentStatus(
             kanataBinaryInstalled: facts.kanataBinaryInstalled,
+            requiredRuntimePayloadPresent: facts.requiredRuntimePayloadPresent,
             karabinerDriverInstalled: karabinerDriverInstalled,
             karabinerDaemonRunning: karabinerDaemonRunning,
             vhidDeviceInstalled: facts.vhidInstalled,
@@ -465,6 +467,7 @@ public class SystemValidator {
         // TCC permissions survive app rebuilds at /Applications/KeyPath.app.
         let kanataBinaryDetector = KanataBinaryDetector.shared
         let kanataBinaryInstalled = kanataBinaryDetector.isInstalled()
+        let requiredRuntimePayloadPresent = Self.requiredRuntimePayloadPresent()
 
         let vhidStart = Date()
         let vhidInstalled = vhidDeviceManager.detectInstallation()
@@ -492,6 +495,7 @@ public class SystemValidator {
 
         let facts = ComponentInstallationFacts(
             kanataBinaryInstalled: kanataBinaryInstalled,
+            requiredRuntimePayloadPresent: requiredRuntimePayloadPresent,
             vhidInstalled: vhidInstalled,
             vhidVersionMismatch: vhidVersionMismatch,
             karabinerDriverExtensionEnabled: karabinerDriverExtensionEnabled,
@@ -503,6 +507,20 @@ public class SystemValidator {
             "⏱️ [TIMING] SystemValidator.checkComponents static facts completed in \(String(format: "%.3f", Date().timeIntervalSince(start)))s"
         )
         return facts
+    }
+
+    private static func requiredRuntimePayloadPresent(
+        bundle: Bundle = .main,
+        fileManager: FileManager = .default
+    ) -> Bool {
+        let launcherPresent = fileManager.fileExists(
+            atPath: WizardSystemPaths.bundledKanataLauncherPath
+        )
+        let bundledPlistPath = "\(bundle.bundlePath)/Contents/Library/LaunchDaemons/\(KanataDaemonManager.kanataPlistName)"
+        let plistPresent = fileManager.fileExists(atPath: bundledPlistPath)
+            || bundle.path(forResource: "com.keypath.kanata", ofType: "plist") != nil
+
+        return launcherPresent && plistPresent
     }
 
     // MARK: - Conflict Detection
@@ -697,6 +715,7 @@ public class SystemValidator {
             ),
             components: ComponentStatus(
                 kanataBinaryInstalled: true,
+                requiredRuntimePayloadPresent: true,
                 karabinerDriverInstalled: true,
                 karabinerDaemonRunning: true,
                 vhidDeviceInstalled: true,
@@ -727,6 +746,7 @@ public class SystemValidator {
             ),
             components: ComponentStatus(
                 kanataBinaryInstalled: false,
+                requiredRuntimePayloadPresent: false,
                 karabinerDriverInstalled: false,
                 karabinerDaemonRunning: false,
                 vhidDeviceInstalled: false,

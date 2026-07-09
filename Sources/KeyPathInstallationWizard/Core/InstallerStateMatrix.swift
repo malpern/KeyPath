@@ -254,7 +254,7 @@ public extension SystemContext {
 
         return InstallerStateMatrixSnapshot(
             kanataBinaryPresent: components.kanataBinaryInstalled,
-            requiredRuntimePayloadPresent: true,
+            requiredRuntimePayloadPresent: components.requiredRuntimePayloadPresent,
             smAppServiceRegistered: services.kanataSMAppServiceRegistered ?? components.kanataBinaryInstalled,
             launchdJobLoaded: launchdJobLoaded,
             kanataProcessRunning: kanataProcessRunning,

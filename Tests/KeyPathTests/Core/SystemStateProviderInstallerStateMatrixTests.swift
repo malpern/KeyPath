@@ -112,6 +112,7 @@ final class SystemStateProviderInstallerStateMatrixTests: XCTestCase {
         let snapshot = SystemStateProvider.installerStateMatrixSnapshot(
             components: ComponentStatus(
                 kanataBinaryInstalled: true,
+                requiredRuntimePayloadPresent: true,
                 karabinerDriverInstalled: true,
                 karabinerDaemonRunning: false,
                 vhidDeviceInstalled: true,
@@ -127,6 +128,28 @@ final class SystemStateProviderInstallerStateMatrixTests: XCTestCase {
 
         XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .vhidServicesMissingUnhealthy)
         XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.repairVHIDServices])
+    }
+
+    func testStateMatrixSnapshotPreservesMissingRuntimePayloadEvidence() {
+        let snapshot = SystemStateProvider.installerStateMatrixSnapshot(
+            components: ComponentStatus(
+                kanataBinaryInstalled: true,
+                requiredRuntimePayloadPresent: false,
+                karabinerDriverInstalled: true,
+                karabinerDaemonRunning: true,
+                vhidDeviceInstalled: true,
+                vhidDeviceHealthy: true,
+                vhidServicesHealthy: true,
+                vhidVersionMismatch: false
+            ),
+            helper: healthyHelper,
+            runtime: runtime(),
+            kanataSMAppServiceStatus: .enabled,
+            helperSMAppServiceStatus: .enabled
+        )
+
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .freshInstallMissingComponents)
+        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.installMissingComponents])
     }
 
     func testWizardSystemContextSnapshotPreservesRunningButTCPNotRespondingEvidence() {
@@ -180,6 +203,31 @@ final class SystemStateProviderInstallerStateMatrixTests: XCTestCase {
             expectedRow: .manualApprovalRequired,
             expectedPlan: [.surfaceManualApproval]
         )
+    }
+
+    func testWizardSystemContextSnapshotPreservesMissingRuntimePayloadEvidence() {
+        let components = ComponentStatus(
+            kanataBinaryInstalled: true,
+            requiredRuntimePayloadPresent: false,
+            karabinerDriverInstalled: true,
+            karabinerDaemonRunning: true,
+            vhidDeviceInstalled: true,
+            vhidDeviceHealthy: true,
+            vhidServicesHealthy: true,
+            vhidVersionMismatch: false
+        )
+        let providerSnapshot = SystemStateProvider.installerStateMatrixSnapshot(
+            components: components,
+            helper: healthyHelper,
+            runtime: runtime(),
+            kanataSMAppServiceStatus: .enabled,
+            helperSMAppServiceStatus: .enabled
+        )
+        let wizardSnapshot = systemContext(from: runtime(), components: components).installerStateMatrixSnapshot
+
+        XCTAssertEqual(wizardSnapshot, providerSnapshot)
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(wizardSnapshot), .freshInstallMissingComponents)
+        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: wizardSnapshot), [.installMissingComponents])
     }
 
     func testWizardSystemContextSnapshotTreatsUnknownHelperVersionAsNotFresh() {
@@ -252,6 +300,7 @@ final class SystemStateProviderInstallerStateMatrixTests: XCTestCase {
     private func systemContext(
         from runtime: ServiceHealthChecker.KanataServiceRuntimeSnapshot,
         helper: HelperStatus? = nil,
+        components: ComponentStatus? = nil,
         kanataSMAppServiceRegistered: Bool? = nil,
         loginItemsApprovalRequired: Bool? = nil
     ) -> SystemContext {
@@ -287,7 +336,7 @@ final class SystemStateProviderInstallerStateMatrixTests: XCTestCase {
                 loginItemsApprovalRequired: loginItemsApprovalRequired
             ),
             conflicts: .empty,
-            components: healthyComponents,
+            components: components ?? healthyComponents,
             helper: helper ?? healthyHelper,
             system: EngineSystemInfo(macOSVersion: "15.0", driverCompatible: true),
             timestamp: Date()

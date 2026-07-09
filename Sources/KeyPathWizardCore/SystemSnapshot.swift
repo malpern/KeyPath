@@ -176,6 +176,10 @@ public struct SystemSnapshot: Sendable {
 
 public struct ComponentStatus: Sendable {
     public let kanataBinaryInstalled: Bool
+    /// True when the app bundle contains the non-binary runtime payload needed
+    /// to register and launch Kanata: the SMAppService plist and daemon
+    /// launcher. This is intentionally separate from `kanataBinaryInstalled`.
+    public let requiredRuntimePayloadPresent: Bool
     public let karabinerDriverInstalled: Bool
     public let karabinerDaemonRunning: Bool
     public let vhidDeviceInstalled: Bool
@@ -192,6 +196,7 @@ public struct ComponentStatus: Sendable {
 
     public init(
         kanataBinaryInstalled: Bool,
+        requiredRuntimePayloadPresent: Bool = true,
         karabinerDriverInstalled: Bool,
         karabinerDaemonRunning: Bool,
         vhidDeviceInstalled: Bool,
@@ -201,6 +206,7 @@ public struct ComponentStatus: Sendable {
         vhidVersionMismatch: Bool
     ) {
         self.kanataBinaryInstalled = kanataBinaryInstalled
+        self.requiredRuntimePayloadPresent = requiredRuntimePayloadPresent
         self.karabinerDriverInstalled = karabinerDriverInstalled
         self.karabinerDaemonRunning = karabinerDaemonRunning
         self.vhidDeviceInstalled = vhidDeviceInstalled
@@ -215,7 +221,7 @@ public struct ComponentStatus: Sendable {
     /// still runs day-to-day, so it surfaces as a repairable wizard issue
     /// rather than a missing component that would fail readiness app-wide.
     public var hasAllRequired: Bool {
-        kanataBinaryInstalled && karabinerDriverInstalled && karabinerDaemonRunning && vhidDeviceHealthy
+        kanataBinaryInstalled && requiredRuntimePayloadPresent && karabinerDriverInstalled && karabinerDaemonRunning && vhidDeviceHealthy
             && vhidServicesHealthy && !vhidVersionMismatch
     }
 
@@ -231,6 +237,7 @@ public struct ComponentStatus: Sendable {
     public static var empty: ComponentStatus {
         ComponentStatus(
             kanataBinaryInstalled: false,
+            requiredRuntimePayloadPresent: false,
             karabinerDriverInstalled: false,
             karabinerDaemonRunning: false,
             vhidDeviceInstalled: false,

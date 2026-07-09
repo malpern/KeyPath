@@ -49,7 +49,7 @@ public extension SystemStateProvider {
 
         return InstallerStateMatrixSnapshot(
             kanataBinaryPresent: components.kanataBinaryInstalled,
-            requiredRuntimePayloadPresent: true,
+            requiredRuntimePayloadPresent: components.requiredRuntimePayloadPresent,
             smAppServiceRegistered: smAppServiceRegistered,
             launchdJobLoaded: launchdJobLoaded,
             kanataProcessRunning: runtime.isRunning,
