@@ -171,7 +171,7 @@ public extension InstallationWizardView {
             )
             return false
         }
-        _ = applySystemStateResult(SystemContextAdapter.adapt(finalContext))
+        _ = applySystemStateResult(SystemStateResult.projecting(finalContext))
         return true
     }
 }

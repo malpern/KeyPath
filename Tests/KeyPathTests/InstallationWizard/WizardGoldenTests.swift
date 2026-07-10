@@ -4,7 +4,7 @@ import Foundation
 @testable import KeyPathWizardCore
 @preconcurrency import XCTest
 
-/// Golden tests that capture the current behavior of SystemContextAdapter (issue generation)
+/// Golden tests that capture the current behavior of the SystemStateResult projection (issue generation)
 /// and WizardRouter (page routing). These tests must pass both before and after the wizard
 /// simplification refactor — they prove behavioral equivalence.
 ///
@@ -87,17 +87,17 @@ final class WizardGoldenTests: XCTestCase {
         )
     }
 
-    // MARK: - SystemContextAdapter: State Determination
+    // MARK: - SystemStateResult projection: State Determination
 
     func test_allHealthy_stateIsActive() {
         let context = makeContext()
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         XCTAssertEqual(result.state, .active)
     }
 
     func test_timedOut_stateIsServiceNotRunning() {
         let context = makeContext(timedOut: true)
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         XCTAssertEqual(result.state, .serviceNotRunning)
     }
 
@@ -108,7 +108,7 @@ final class WizardGoldenTests: XCTestCase {
                 canAutoResolve: true
             )
         )
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         if case .conflictsDetected = result.state {
             // pass
         } else {
@@ -127,7 +127,7 @@ final class WizardGoldenTests: XCTestCase {
             vhidVersionMismatch: false
         )
         let context = makeContext(components: components)
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         if case let .missingComponents(missing) = result.state {
             XCTAssertTrue(missing.contains(.karabinerDriver))
         } else {
@@ -139,7 +139,7 @@ final class WizardGoldenTests: XCTestCase {
         let context = makeContext(
             permissions: makePermissions(keyPathIM: .denied)
         )
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         if case let .missingPermissions(missing) = result.state {
             XCTAssertTrue(missing.contains(.keyPathInputMonitoring))
         } else {
@@ -151,7 +151,7 @@ final class WizardGoldenTests: XCTestCase {
         let context = makeContext(
             permissions: makePermissions(kanataAX: .denied)
         )
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         if case let .missingPermissions(missing) = result.state {
             XCTAssertTrue(missing.contains(.kanataAccessibility))
         } else {
@@ -163,7 +163,7 @@ final class WizardGoldenTests: XCTestCase {
         let context = makeContext(
             permissions: makePermissions(kanataIM: .unknown)
         )
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         XCTAssertEqual(result.state, .active, "Unknown kanata IM should NOT block — it's 'not verified', not denied")
     }
 
@@ -171,7 +171,7 @@ final class WizardGoldenTests: XCTestCase {
         let context = makeContext(
             services: HealthStatus(kanataRunning: false, karabinerDaemonRunning: true, vhidHealthy: true)
         )
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         XCTAssertEqual(result.state, .serviceNotRunning)
     }
 
@@ -179,22 +179,22 @@ final class WizardGoldenTests: XCTestCase {
         let context = makeContext(
             services: HealthStatus(kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: true)
         )
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         XCTAssertEqual(result.state, .daemonNotRunning)
     }
 
-    // MARK: - SystemContextAdapter: Issue Generation
+    // MARK: - SystemStateResult projection: Issue Generation
 
     func test_allHealthy_noBlockingIssues() {
         let context = makeContext()
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         let blocking = result.issues.filter { $0.severity == .error || $0.severity == .critical }
         XCTAssertTrue(blocking.isEmpty, "Healthy system should have no blocking issues, got: \(blocking.map(\.title))")
     }
 
     func test_helperNotInstalled_generatesHelperIssue() {
         let context = makeContext(helper: HelperStatus(isInstalled: false, version: nil, isWorking: false))
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         XCTAssertTrue(
             result.issues.contains { $0.identifier == .component(.privilegedHelper) },
             "Should generate privilegedHelper issue"
@@ -203,7 +203,7 @@ final class WizardGoldenTests: XCTestCase {
 
     func test_helperInstalledButBroken_generatesUnhealthyIssue() {
         let context = makeContext(helper: HelperStatus(isInstalled: true, version: "1.0", isWorking: false))
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         XCTAssertTrue(
             result.issues.contains { $0.identifier == .component(.privilegedHelperUnhealthy) },
             "Should generate privilegedHelperUnhealthy issue"
@@ -221,7 +221,7 @@ final class WizardGoldenTests: XCTestCase {
             vhidVersionMismatch: true
         )
         let context = makeContext(components: components)
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         let issue = result.issues.first { $0.identifier == .component(.vhidDriverVersionMismatch) }
         XCTAssertNotNil(issue, "Should generate version mismatch issue")
         XCTAssertEqual(issue?.autoFixAction, .fixDriverVersionMismatch)
@@ -229,7 +229,7 @@ final class WizardGoldenTests: XCTestCase {
 
     func test_timedOut_generatesSingleWarningIssue() {
         let context = makeContext(timedOut: true)
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         XCTAssertEqual(result.issues.count, 1)
         XCTAssertEqual(result.issues.first?.identifier, .validationTimeout)
         XCTAssertEqual(result.issues.first?.severity, .warning)
@@ -245,7 +245,7 @@ final class WizardGoldenTests: XCTestCase {
                 canAutoResolve: true
             )
         )
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         let conflictIssues = result.issues.filter { $0.category == .conflicts }
         XCTAssertEqual(conflictIssues.count, 2)
         XCTAssertEqual(conflictIssues.first?.autoFixAction, .terminateConflictingProcesses)
@@ -255,7 +255,7 @@ final class WizardGoldenTests: XCTestCase {
         let context = makeContext(
             permissions: makePermissions(kanataIM: .unknown)
         )
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         let imIssue = result.issues.first { $0.identifier == .permission(.kanataInputMonitoring) }
         XCTAssertNotNil(imIssue, "Should generate issue for unknown kanata IM")
         XCTAssertEqual(imIssue?.severity, .warning, "Unknown should be warning, not error")
@@ -265,7 +265,7 @@ final class WizardGoldenTests: XCTestCase {
         let context = makeContext(
             permissions: makePermissions(keyPathIM: .unknown)
         )
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         let imIssue = result.issues.first { $0.identifier == .permission(.keyPathInputMonitoring) }
         XCTAssertNil(imIssue, "Unknown KeyPath IM should not generate an issue (startup mode)")
     }
@@ -440,7 +440,7 @@ final class WizardGoldenTests: XCTestCase {
 
     func test_e2e_allHealthy_routesToSummary() {
         let context = makeContext()
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         let page = WizardRouter.route(
             state: result.state,
             issues: result.issues,
@@ -452,7 +452,7 @@ final class WizardGoldenTests: XCTestCase {
 
     func test_e2e_helperMissing_routesToHelper() {
         let context = makeContext(helper: HelperStatus(isInstalled: false, version: nil, isWorking: false))
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         let page = WizardRouter.route(
             state: result.state,
             issues: result.issues,
@@ -464,7 +464,7 @@ final class WizardGoldenTests: XCTestCase {
 
     func test_e2e_keyPathIMDenied_routesToInputMonitoring() {
         let context = makeContext(permissions: makePermissions(keyPathIM: .denied))
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         let page = WizardRouter.route(
             state: result.state,
             issues: result.issues,
@@ -485,7 +485,7 @@ final class WizardGoldenTests: XCTestCase {
             vhidVersionMismatch: false
         )
         let context = makeContext(components: components)
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         let page = WizardRouter.route(
             state: result.state,
             issues: result.issues,
@@ -499,7 +499,7 @@ final class WizardGoldenTests: XCTestCase {
         let context = makeContext(
             services: HealthStatus(kanataRunning: false, karabinerDaemonRunning: true, vhidHealthy: true)
         )
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         let page = WizardRouter.route(
             state: result.state,
             issues: result.issues,
@@ -517,7 +517,7 @@ final class WizardGoldenTests: XCTestCase {
                 canAutoResolve: true
             )
         )
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         let page = WizardRouter.route(
             state: result.state,
             issues: result.issues,

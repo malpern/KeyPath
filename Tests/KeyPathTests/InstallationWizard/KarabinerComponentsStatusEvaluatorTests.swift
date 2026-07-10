@@ -55,7 +55,7 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
         )
     }
 
-    // MARK: - SystemContextAdapter Integration Tests
+    // MARK: - SystemStateResult Projection Integration Tests
 
     /// Regression test: When VHID services are healthy but Kanata service is not installed,
     /// the Karabiner Components page should NOT show issues. Only a Kanata-specific issue should appear.
@@ -103,7 +103,7 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
         )
 
         // Act: Adapt the context to wizard format
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
 
         // Assert: No stale recovery-services installation issue is generated
         let karabinerRelatedIssues = result.issues.filter { issue in
@@ -174,7 +174,7 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
             timestamp: now
         )
 
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
 
         // Should have a VHID-specific installation issue when VHID is unhealthy.
         let vhidIssues = result.issues.filter { issue in

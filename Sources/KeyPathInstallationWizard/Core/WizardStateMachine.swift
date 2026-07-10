@@ -134,7 +134,7 @@ public class WizardStateMachine {
         -> SystemStateResult
     {
         let context = await InstallerEngine().inspectSystem()
-        return SystemContextAdapter.adapt(context)
+        return SystemStateResult.projecting(context)
     }
 
     /// Auto-navigate based on system state using WizardRouter.
@@ -161,7 +161,7 @@ public class WizardStateMachine {
     public func refresh(freshness: WizardSystemSnapshotFreshness = .fresh) async {
         isRefreshing = true
         let context = await InstallerEngine().inspectSystem(freshness: freshness)
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
         updateWizardState(from: result)
         isRefreshing = false
         lastRefreshTime = Date()

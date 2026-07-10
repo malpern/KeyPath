@@ -141,17 +141,17 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertEqual(context.installerStateMatrixPlan, [.installRequiredRuntimeServices])
     }
 
-    func test_systemContextAdapterPublishesStateMatrixMetadata() {
+    func test_systemStateProjectionPublishesStateMatrixMetadata() {
         let context = makeContext(helper: HelperStatus(isInstalled: false, version: nil, isWorking: false))
 
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
 
         XCTAssertEqual(result.stateMatrixRow, InstallerStateMatrixRow.helperMissing.rawValue)
         XCTAssertEqual(result.stateMatrixPlan, [InstallerStateMatrixAction.installHelper.rawValue])
         XCTAssertEqual(result.autoFixActions, [.installPrivilegedHelper])
     }
 
-    func test_systemContextAdapterPublishesCapturedHelperRoutingFacts() {
+    func test_systemStateProjectionPublishesCapturedHelperRoutingFacts() {
         let context = makeContext(
             helper: HelperStatus(
                 isInstalled: false,
@@ -161,16 +161,16 @@ final class WizardPureLogicTests: XCTestCase {
             )
         )
 
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
 
         XCTAssertFalse(result.helperInstalled)
         XCTAssertTrue(result.helperNeedsApproval)
     }
 
-    func test_systemContextAdapterPreservesCaptureStatus() {
+    func test_systemStateProjectionPreservesCaptureStatus() {
         let context = makeContext(captureStatus: .cancelled)
 
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
 
         XCTAssertEqual(result.captureStatus, .cancelled)
         XCTAssertEqual(result.stateMatrixRow, InstallerStateMatrixRow.definitiveUnhealthyState.rawValue)

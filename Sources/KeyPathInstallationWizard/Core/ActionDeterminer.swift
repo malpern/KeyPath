@@ -61,7 +61,7 @@ public enum InstallerDecisionPipeline {
     }
 
     /// Determine actions for repair (general auto-fix)
-    /// Used by both InstallerEngine and SystemContextAdapter
+    /// Used by both InstallerEngine and the wizard presentation projection.
     public static func determineRepairActions(context: SystemContext) -> [AutoFixAction] {
         var actions: [AutoFixAction] = []
 

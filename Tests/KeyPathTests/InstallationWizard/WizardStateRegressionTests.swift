@@ -55,8 +55,8 @@ final class WizardStateRegressionTests: XCTestCase {
         )
 
         // Run adapt twice to mimic reopen/open flows
-        let first = SystemContextAdapter.adapt(context)
-        let second = SystemContextAdapter.adapt(context)
+        let first = SystemStateResult.projecting(context)
+        let second = SystemStateResult.projecting(context)
 
         XCTAssertEqual(first.state, .active)
         XCTAssertEqual(second.state, .active)
@@ -111,7 +111,7 @@ final class WizardStateRegressionTests: XCTestCase {
             timestamp: Date()
         )
 
-        let adapted = SystemContextAdapter.adapt(context)
+        let adapted = SystemStateResult.projecting(context)
 
         XCTAssertEqual(adapted.state, .missingPermissions(missing: [.kanataInputMonitoring]))
         XCTAssertTrue(
