@@ -417,9 +417,20 @@ public final class InstallerEngine {
 
         // A declared, satisfied postcondition is stronger evidence than an
         // operation reply. This lets a lost helper/XPC reply become verified
-        // success while plans without declarations still honor recipe errors.
-        let postconditionsProveSuccess = !plan.expectedPostconditions.isEmpty && verificationFailure == nil
-        let success = verificationFailure == nil && (firstFailure == nil || postconditionsProveSuccess)
+        // success while a failed recipe without its own declarations still
+        // honors its operation error.
+        let failedRecipePostconditionsProveSuccess: Bool = if let firstFailure,
+                                                              let finalContext
+        {
+            !firstFailure.recipe.expectedPostconditions.isEmpty
+                && firstFailure.recipe.expectedPostconditions.allSatisfy {
+                    $0.isSatisfied(by: finalContext)
+                }
+        } else {
+            false
+        }
+        let success = verificationFailure == nil
+            && (firstFailure == nil || failedRecipePostconditionsProveSuccess)
         let operationFailure = firstFailure.map {
             "Recipe '\($0.recipe.id)' failed: \($0.error.localizedDescription)"
         }

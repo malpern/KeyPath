@@ -95,6 +95,42 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         XCTAssertEqual(report.repairTelemetry.last?.postconditionResult, .succeeded)
     }
 
+    func testExecuteDoesNotUseUnrelatedRecipePostconditionToMaskFailure() async {
+        let context = SystemContextBuilder(
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
+        let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
+        let coordinator = StubPrivilegedOperationsCoordinator()
+        coordinator.failOnCall = "installRequiredRuntimeServices"
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(id: "install-daemons", type: .installService),
+                ServiceRecipe(
+                    id: InstallerRecipeID.createConfigDirectories,
+                    type: .installComponent,
+                    expectedPostconditions: [.runtimeReadyOrApprovalPending]
+                )
+            ],
+            status: .ready,
+            intent: .repair
+        )
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: coordinator)
+        )
+
+        XCTAssertFalse(report.success)
+        XCTAssertTrue(report.failureReason?.contains("install-daemons") ?? false)
+        XCTAssertEqual(report.executedRecipes.count, 1)
+        XCTAssertEqual(report.repairTelemetry.last?.postconditionResult, .succeeded)
+    }
+
     func testExecutePlanRunsHelperMaintenanceForPrivilegedHelperRepair() async {
         let coordinator = StubPrivilegedOperationsCoordinator()
         let broker = PrivilegeBroker(coordinator: coordinator)
