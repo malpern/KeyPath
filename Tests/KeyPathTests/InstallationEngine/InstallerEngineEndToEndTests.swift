@@ -189,6 +189,33 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         XCTAssertEqual(report.finalContext?.captureStatus, context.captureStatus)
     }
 
+    func testFailedExecuteStillOwnsOneFreshFinalSnapshot() async {
+        let context = SystemContextBuilder().build()
+        let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(id: "unknown-test-recipe", type: .installComponent),
+            ],
+            status: .ready,
+            intent: .repair
+        )
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+        )
+
+        XCTAssertFalse(report.success)
+        XCTAssertEqual(validator.freshnessRequests, [.fresh])
+        XCTAssertEqual(validator.cacheInvalidationCount, 1)
+        XCTAssertEqual(report.finalContext?.timestamp, context.timestamp)
+        XCTAssertEqual(report.finalContext?.captureStatus, context.captureStatus)
+    }
+
     func testExecutePlanUsesForceRefreshWithoutAppleScriptForHelperReinstall() async {
         let coordinator = StubPrivilegedOperationsCoordinator()
         let broker = PrivilegeBroker(coordinator: coordinator)
