@@ -4,6 +4,88 @@ import ServiceManagement
 @preconcurrency import XCTest
 
 final class HelperManagerTests: XCTestCase {
+    func testCancelledGateWaiterDoesNotRunOperationAfterAcquiring() async {
+        let gate = HelperOperationGate()
+        await gate.acquire()
+        let operationStarted = AsyncTestFlag()
+
+        let cancelledWaiter = Task {
+            try await gate.acquireUnlessCancelled()
+            await operationStarted.set()
+            await gate.release()
+        }
+        await Task.yield()
+        cancelledWaiter.cancel()
+        await gate.release()
+
+        do {
+            try await cancelledWaiter.value
+            XCTFail("Expected the queued operation to observe cancellation")
+        } catch is CancellationError {
+            // Expected.
+        } catch {
+            XCTFail("Expected CancellationError, got \(error)")
+        }
+
+        let didStart = await operationStarted.value
+        XCTAssertFalse(didStart)
+        do {
+            try await gate.acquireUnlessCancelled()
+            await gate.release()
+        } catch {
+            XCTFail("Cancelled waiter must release the permit for the next operation: \(error)")
+        }
+    }
+
+    func testInterruptedProxyErrorIsAmbiguous() {
+        let interruption = NSError(domain: NSCocoaErrorDomain, code: 4097)
+
+        let normalized = HelperManager.normalizedProxyError(
+            interruption,
+            operation: "repairVHIDDaemonServices"
+        )
+
+        guard case .ambiguousOutcome = normalized as? HelperManagerError else {
+            return XCTFail("XPC interruption must preserve an ambiguous mutation outcome")
+        }
+    }
+
+    func testProbeRecoveryWindowIsBounded() {
+        let timeout = Date(timeIntervalSince1970: 100)
+
+        XCTAssertTrue(HelperProbeRecoveryPolicy.isWithinAmbiguousMutationWindow(
+            lastAmbiguousMutationAt: timeout,
+            now: timeout.addingTimeInterval(9),
+            window: 10
+        ))
+        XCTAssertFalse(HelperProbeRecoveryPolicy.isWithinAmbiguousMutationWindow(
+            lastAmbiguousMutationAt: timeout,
+            now: timeout.addingTimeInterval(11),
+            window: 10
+        ))
+        XCTAssertFalse(HelperProbeRecoveryPolicy.isWithinAmbiguousMutationWindow(
+            lastAmbiguousMutationAt: timeout,
+            now: timeout.addingTimeInterval(-1),
+            window: 10
+        ))
+    }
+
+    func testStaleConnectionEndCannotClearReplacementConnection() async {
+        let manager = HelperManager.shared
+        let replacement = NSXPCConnection(
+            machServiceName: "com.keypath.tests.replacement", options: []
+        )
+        await manager.setConnectionForTesting(replacement, generation: 2)
+
+        await manager.connectionDidEnd(generation: 1)
+        let survivedStaleCallback = await manager.hasConnectionForTesting()
+        XCTAssertTrue(survivedStaleCallback)
+
+        await manager.connectionDidEnd(generation: 2)
+        let clearedForCurrentCallback = await manager.hasConnectionForTesting()
+        XCTAssertFalse(clearedForCurrentCallback)
+    }
+
     func testHealthProbeWaitsForActiveHelperMutation() async {
         let gate = HelperOperationGate()
         await gate.acquire()

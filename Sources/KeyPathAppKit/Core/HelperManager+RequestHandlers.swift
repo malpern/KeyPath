@@ -14,11 +14,16 @@ private final class HelperXPCCallCompletionState: Sendable {
     }
 }
 
+struct HelperRemoteProxy {
+    let proxy: HelperProtocol
+    let connectionGeneration: UInt64
+}
+
 extension HelperManager {
     // MARK: - XPC Protocol Wrappers
 
     /// Get the remote object proxy with a per-call error handler so callers can resume awaits
-    func getRemoteProxy(errorHandler: @escaping (Error) -> Void) async throws -> HelperProtocol {
+    func getRemoteProxy(errorHandler: @escaping (Error) -> Void) async throws -> HelperRemoteProxy {
         let connection = try await getConnection()
         guard
             let proxy = connection.remoteObjectProxyWithErrorHandler({ (err: Error) in
@@ -53,7 +58,46 @@ extension HelperManager {
         else {
             throw HelperManagerError.connectionFailed("Failed to create remote proxy")
         }
-        return proxy
+        return HelperRemoteProxy(
+            proxy: proxy,
+            connectionGeneration: connectionGeneration
+        )
+    }
+
+    static func normalizedProxyError(_ error: Error, operation: String) -> Error {
+        let nsError = error as NSError
+        if nsError.domain == NSCocoaErrorDomain, nsError.code == 4097 {
+            return HelperManagerError.ambiguousOutcome(
+                "XPC connection interrupted during '\(operation)'; the helper may have completed without delivering its reply"
+            )
+        }
+        return error
+    }
+
+    func withHelperOperationPermit<T>(
+        _ operation: () async throws -> T
+    ) async throws -> T {
+        try await operationGate.acquireUnlessCancelled()
+        do {
+            let result = try await operation()
+            await operationGate.release()
+            return result
+        } catch {
+            await operationGate.release()
+            throw error
+        }
+    }
+
+    func recordAmbiguousMutationTimeout() {
+        lastAmbiguousMutationAt = Date()
+    }
+
+    func isWithinAmbiguousMutationProbeWindow(now: Date = Date()) -> Bool {
+        HelperProbeRecoveryPolicy.isWithinAmbiguousMutationWindow(
+            lastAmbiguousMutationAt: lastAmbiguousMutationAt,
+            now: now,
+            window: Self.ambiguousMutationProbeWindow
+        )
     }
 
     /// Execute an XPC call with async/await conversion
@@ -66,47 +110,51 @@ extension HelperManager {
         timeout: TimeInterval = KeyPathConstants.Timing.helperRequestTimeout,
         _ call: @escaping @Sendable (HelperProtocol, @escaping (Bool, String?) -> Void) -> Void
     ) async throws {
-        await operationGate.acquire()
-        defer { Task { await self.operationGate.release() } }
-
-        // Detect concurrent XPC calls (indicates a bug in caller logic)
-        if activeXPCCalls.contains(name) {
-            AppLogger.shared.log("⚠️ [HelperManager] CONCURRENT XPC CALL DETECTED: \(name)")
-            AppLogger.shared.log("   → This may cause race conditions or hangs")
-            AppLogger.shared.log("   → Active calls: \(activeXPCCalls.joined(separator: ", "))")
-        }
-
-        activeXPCCalls.insert(name)
-        defer { activeXPCCalls.remove(name) }
-
-        AppLogger.shared.log("📤 [HelperManager] Calling \(name)")
-
-        let proxy = try await getRemoteProxy { _ in }
-
-        // Execute with timeout to prevent infinite hangs when XPC connection is interrupted
-        // Use a class with lock for thread-safe completion tracking
-        let completionState = HelperXPCCallCompletionState()
-
-        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            // Set up timeout
-            Task {
-                try? await Task.sleep(for: .seconds(timeout))
-                guard completionState.tryComplete() else { return } // Already completed by XPC callback
-                AppLogger.shared.log("⏱️ [HelperManager] \(name) timed out after \(Int(timeout))s")
-                continuation.resume(throwing: HelperManagerError.ambiguousOutcome("XPC call '\(name)' timed out after \(Int(timeout))s; its reply may have been lost"))
+        try await withHelperOperationPermit {
+            if activeXPCCalls.contains(name) {
+                AppLogger.shared.log("⚠️ [HelperManager] CONCURRENT XPC CALL DETECTED: \(name)")
+                AppLogger.shared.log("   → Active calls: \(activeXPCCalls.joined(separator: ", "))")
             }
 
-            // Execute the XPC call
-            call(proxy) { success, errorMessage in
-                guard completionState.tryComplete() else { return } // Already timed out
+            activeXPCCalls.insert(name)
+            defer { activeXPCCalls.remove(name) }
+            try Task.checkCancellation()
+            AppLogger.shared.log("📤 [HelperManager] Calling \(name)")
 
-                if success {
-                    AppLogger.shared.info("✅ [HelperManager] \(name) succeeded")
-                    continuation.resume()
-                } else {
-                    let error = errorMessage ?? "Unknown error"
-                    AppLogger.shared.log("❌ [HelperManager] \(name) failed: \(error)")
-                    continuation.resume(throwing: HelperManagerError.operationFailed(error))
+            let completionState = HelperXPCCallCompletionState()
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                Task {
+                    try? await Task.sleep(for: .seconds(timeout))
+                    guard completionState.tryComplete() else { return }
+                    recordAmbiguousMutationTimeout()
+                    AppLogger.shared.log("⏱️ [HelperManager] \(name) timed out after \(Int(timeout))s")
+                    continuation.resume(throwing: HelperManagerError.ambiguousOutcome("XPC call '\(name)' timed out after \(Int(timeout))s; its reply may have been lost"))
+                }
+
+                Task {
+                    do {
+                        try Task.checkCancellation()
+                        let remote = try await getRemoteProxy { error in
+                            guard completionState.tryComplete() else { return }
+                            continuation.resume(
+                                throwing: Self.normalizedProxyError(error, operation: name)
+                            )
+                        }
+                        call(remote.proxy) { success, errorMessage in
+                            guard completionState.tryComplete() else { return }
+                            if success {
+                                AppLogger.shared.info("✅ [HelperManager] \(name) succeeded")
+                                continuation.resume()
+                            } else {
+                                let error = errorMessage ?? "Unknown error"
+                                AppLogger.shared.log("❌ [HelperManager] \(name) failed: \(error)")
+                                continuation.resume(throwing: HelperManagerError.operationFailed(error))
+                            }
+                        }
+                    } catch {
+                        guard completionState.tryComplete() else { return }
+                        continuation.resume(throwing: error)
+                    }
                 }
             }
         }
@@ -122,52 +170,53 @@ extension HelperManager {
             @escaping @Sendable (Result<T, Error>) -> Void
         ) -> Void
     ) async throws -> T {
-        await operationGate.acquire()
-        defer { Task { await self.operationGate.release() } }
-
-        if activeXPCCalls.contains(name) {
-            AppLogger.shared.log("⚠️ [HelperManager] CONCURRENT XPC CALL DETECTED: \(name)")
-            AppLogger.shared.log("   → This may cause race conditions or hangs")
-            AppLogger.shared.log("   → Active calls: \(activeXPCCalls.joined(separator: ", "))")
-        }
-
-        activeXPCCalls.insert(name)
-        defer { activeXPCCalls.remove(name) }
-
-        AppLogger.shared.log("📤 [HelperManager] Calling \(name)")
-
-        let completionState = HelperXPCCallCompletionState()
-
-        return try await withCheckedThrowingContinuation { continuation in
-            Task {
-                try? await Task.sleep(for: .seconds(timeout))
-                guard completionState.tryComplete() else { return }
-                AppLogger.shared.log("⏱️ [HelperManager] \(name) timed out after \(Int(timeout))s")
-                continuation.resume(throwing: HelperManagerError.ambiguousOutcome("XPC call '\(name)' timed out after \(Int(timeout))s; its reply may have been lost"))
+        try await withHelperOperationPermit {
+            if activeXPCCalls.contains(name) {
+                AppLogger.shared.log("⚠️ [HelperManager] CONCURRENT XPC CALL DETECTED: \(name)")
+                AppLogger.shared.log("   → Active calls: \(activeXPCCalls.joined(separator: ", "))")
             }
 
-            Task {
-                do {
-                    let proxy = try await self.getRemoteProxy { error in
+            activeXPCCalls.insert(name)
+            defer { activeXPCCalls.remove(name) }
+            try Task.checkCancellation()
+            AppLogger.shared.log("📤 [HelperManager] Calling \(name)")
+
+            let completionState = HelperXPCCallCompletionState()
+            return try await withCheckedThrowingContinuation { continuation in
+                Task {
+                    try? await Task.sleep(for: .seconds(timeout))
+                    guard completionState.tryComplete() else { return }
+                    recordAmbiguousMutationTimeout()
+                    AppLogger.shared.log("⏱️ [HelperManager] \(name) timed out after \(Int(timeout))s")
+                    continuation.resume(throwing: HelperManagerError.ambiguousOutcome("XPC call '\(name)' timed out after \(Int(timeout))s; its reply may have been lost"))
+                }
+
+                Task {
+                    do {
+                        try Task.checkCancellation()
+                        let remote = try await self.getRemoteProxy { error in
+                            guard completionState.tryComplete() else { return }
+                            continuation.resume(
+                                throwing: Self.normalizedProxyError(error, operation: name)
+                            )
+                        }
+
+                        call(remote.proxy) { result in
+                            guard completionState.tryComplete() else { return }
+
+                            switch result {
+                            case let .success(value):
+                                AppLogger.shared.info("✅ [HelperManager] \(name) succeeded")
+                                continuation.resume(returning: value)
+                            case let .failure(error):
+                                AppLogger.shared.log("❌ [HelperManager] \(name) failed: \(error.localizedDescription)")
+                                continuation.resume(throwing: error)
+                            }
+                        }
+                    } catch {
                         guard completionState.tryComplete() else { return }
                         continuation.resume(throwing: error)
                     }
-
-                    call(proxy) { result in
-                        guard completionState.tryComplete() else { return }
-
-                        switch result {
-                        case let .success(value):
-                            AppLogger.shared.info("✅ [HelperManager] \(name) succeeded")
-                            continuation.resume(returning: value)
-                        case let .failure(error):
-                            AppLogger.shared.log("❌ [HelperManager] \(name) failed: \(error.localizedDescription)")
-                            continuation.resume(throwing: error)
-                        }
-                    }
-                } catch {
-                    guard completionState.tryComplete() else { return }
-                    continuation.resume(throwing: error)
                 }
             }
         }

@@ -13,6 +13,7 @@ public actor HelperManager {
         case notInstalled
         case requiresApproval(String?)
         case registeredButUnresponsive(String?)
+        case temporarilyUnavailable(String?)
         case healthy(version: String?)
     }
 
@@ -63,6 +64,7 @@ public actor HelperManager {
     /// XPC connection to the privileged helper
     /// Internal so lifecycle/IPC extensions in separate files can manage connection state.
     var connection: NSXPCConnection?
+    var connectionGeneration: UInt64 = 0
 
     /// Mach service name for the helper (type-level constant)
     static let helperMachServiceName = "com.keypath.helper"
@@ -78,6 +80,12 @@ public actor HelperManager {
 
     /// Active XPC call tracking for detecting concurrency issues
     var activeXPCCalls: Set<String> = []
+
+    /// A helper mutation may continue after the app-side timeout. Health probes
+    /// within this window must not turn that ambiguity into a false unhealthy
+    /// classification.
+    var lastAmbiguousMutationAt: Date?
+    static let ambiguousMutationProbeWindow: TimeInterval = 10
 
     /// Serializes all helper IPC. The helper processes requests serially, so allowing a
     /// health probe to queue behind a mutation on the same connection only creates a
@@ -178,11 +186,33 @@ actor HelperOperationGate {
         await withCheckedContinuation { waiters.append($0) }
     }
 
+    func acquireUnlessCancelled() async throws {
+        await acquire()
+        do {
+            try Task.checkCancellation()
+        } catch {
+            release()
+            throw error
+        }
+    }
+
     func release() {
         guard !waiters.isEmpty else {
             isOccupied = false
             return
         }
         waiters.removeFirst().resume()
+    }
+}
+
+enum HelperProbeRecoveryPolicy {
+    static func isWithinAmbiguousMutationWindow(
+        lastAmbiguousMutationAt: Date?,
+        now: Date,
+        window: TimeInterval
+    ) -> Bool {
+        guard let lastAmbiguousMutationAt else { return false }
+        let elapsed = now.timeIntervalSince(lastAmbiguousMutationAt)
+        return elapsed >= 0 && elapsed <= window
     }
 }
