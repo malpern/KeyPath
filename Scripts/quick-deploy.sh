@@ -15,19 +15,15 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 PROJECT_DIR="$SCRIPT_DIR/.."
+source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/deploy-lock.sh"
+keypath_use_stable_xcode
 APP_NAME="KeyPath"
 APP_BUNDLE="/Applications/${APP_NAME}.app"
 MACOS_DIR="$APP_BUNDLE/Contents/MacOS"
 RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
 ENTITLEMENTS="$PROJECT_DIR/KeyPath.entitlements"
 WAS_RUNNING=0
-DEFAULT_DEVELOPER_DIR="/Applications/Xcode-26.6.0.app/Contents/Developer"
-if [[ -n "${KEYPATH_DEV_XCODE_DEVELOPER_DIR:-}" ]]; then
-    export DEVELOPER_DIR="$KEYPATH_DEV_XCODE_DEVELOPER_DIR"
-elif [[ -z "${DEVELOPER_DIR:-}" && -d "$DEFAULT_DEVELOPER_DIR" ]]; then
-    export DEVELOPER_DIR="$DEFAULT_DEVELOPER_DIR"
-fi
 BUILD_SCOPE="${KEYPATH_QUICK_DEPLOY_BUILD_SCOPE:-app}"
 if [[ "$BUILD_SCOPE" != "app" && "$BUILD_SCOPE" != "full" ]]; then
     echo "❌ KEYPATH_QUICK_DEPLOY_BUILD_SCOPE must be 'app' or 'full' (got '$BUILD_SCOPE')" >&2

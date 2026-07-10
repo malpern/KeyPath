@@ -53,10 +53,10 @@ Notes:
   restarts KeyPath only if it was running. Its default scope is app-only; set
   `KEYPATH_QUICK_DEPLOY_BUILD_SCOPE=full` when you need the older broad package
   deploy that refreshes companion binaries.
-- Fast deploy scripts default to the stable Xcode at
-  `/Applications/Xcode-26.6.0.app/Contents/Developer` when `DEVELOPER_DIR` is
-  unset. Override with `KEYPATH_DEV_XCODE_DEVELOPER_DIR` only when intentionally
-  testing another toolchain.
+- Canonical build, test, deploy, and release scripts select the stable Xcode at
+  `/Applications/Xcode-26.6.0.app/Contents/Developer`, even when the machine-wide
+  `xcode-select` points at a beta. Override with `KEYPATH_DEV_XCODE_DEVELOPER_DIR`
+  only when intentionally testing another toolchain.
 - It intentionally does **not** redeploy the privileged helper unless
   `KEYPATH_DEPLOY_HELPER=1` is set. Avoid helper redeploys during UI work.
 - Use Poltergeist only for focused single-agent Swift/UI iteration:

@@ -2,6 +2,36 @@ import Foundation
 import XCTest
 
 final class DeploymentScriptContractTests: XCTestCase {
+    func testCanonicalBuildScriptsUseStableXcodeContract() throws {
+        let root = repositoryRoot()
+        let xcodeContract = try contents(of: root.appendingPathComponent("Scripts/lib/xcode.sh"))
+        let consumers = [
+            "Scripts/run-tests-safe.sh",
+            "Scripts/quick-deploy.sh",
+            "Scripts/build-and-sign.sh",
+            "Scripts/release-doctor.sh",
+        ]
+
+        XCTAssertTrue(xcodeContract.contains("Xcode-26.6.0.app/Contents/Developer"))
+        XCTAssertTrue(xcodeContract.contains(#"KEYPATH_STABLE_XCODE_VERSION="${KEYPATH_STABLE_XCODE_VERSION:-26.6}""#))
+        XCTAssertTrue(xcodeContract.contains("/Applications/Xcode.app/Contents/Developer"))
+        XCTAssertTrue(xcodeContract.contains("keypath_xcode_version"))
+        XCTAssertTrue(xcodeContract.contains("KEYPATH_DEV_XCODE_DEVELOPER_DIR"))
+        XCTAssertTrue(xcodeContract.contains("keypath_use_stable_xcode"))
+
+        for relativePath in consumers {
+            let script = try contents(of: root.appendingPathComponent(relativePath))
+            XCTAssertTrue(
+                script.contains(#"source "$SCRIPT_DIR/lib/xcode.sh""#),
+                "\(relativePath) must source the stable Xcode contract."
+            )
+            XCTAssertTrue(
+                script.contains("keypath_use_stable_xcode"),
+                "\(relativePath) must select stable Xcode before invoking developer tools."
+            )
+        }
+    }
+
     func testInstalledAppDeployScriptsUseCrossWorktreeLock() throws {
         let root = repositoryRoot()
         let lockScript = try contents(of: root.appendingPathComponent("Scripts/lib/deploy-lock.sh"))
