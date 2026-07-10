@@ -156,10 +156,12 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             systemValidator: validator
         )
 
-        _ = await engine.inspectSystem(freshness: .cached)
-        _ = await engine.inspectSystem()
+        let cachedContext = await engine.inspectSystem(freshness: .cached)
+        let freshContext = await engine.inspectSystem()
 
         XCTAssertEqual(validator.freshnessRequests, [.cached, .fresh])
+        XCTAssertEqual(cachedContext.system, context.system)
+        XCTAssertEqual(freshContext.system, context.system)
     }
 
     func testExecutePlanUsesForceRefreshWithoutAppleScriptForHelperReinstall() async {
@@ -251,6 +253,10 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             conflicts: context.conflicts,
             health: context.services,
             helper: context.helper,
+            compatibility: SystemCompatibilityStatus(
+                macOSVersion: context.system.macOSVersion,
+                driverCompatible: context.system.driverCompatible
+            ),
             timestamp: context.timestamp
         )
     }

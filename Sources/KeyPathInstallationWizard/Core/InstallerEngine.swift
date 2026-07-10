@@ -52,9 +52,6 @@ public final class InstallerEngine {
         injectedValidator ?? WizardDependencies.systemValidator
     }
 
-    /// System requirements checker for compatibility info
-    private let systemRequirements: SystemRequirements
-
     /// Internal designated initializer to share construction logic
     public init(
         processLifecycleManager _: ProcessLifecycleManager,
@@ -63,8 +60,6 @@ public final class InstallerEngine {
     ) {
         self.injectedValidator = injectedValidator
 
-        // Create SystemRequirements instance
-        systemRequirements = SystemRequirements()
         AppLogger.shared.log("🔧 [InstallerEngine] Initialized")
     }
 
@@ -94,15 +89,7 @@ public final class InstallerEngine {
         }
         let snapshot = await validatorInstance.checkSystem(freshness: freshness)
 
-        // Get system compatibility info from SystemRequirements
-        let systemInfo = systemRequirements.getSystemInfo()
-        // Convert SystemInfo to EngineSystemInfo
-        let engineSystemInfo = EngineSystemInfo(
-            macOSVersion: systemInfo.macosVersion.versionString,
-            driverCompatible: systemInfo.compatibilityResult.isCompatible
-        )
-
-        let context = SystemContext(snapshot: snapshot, system: engineSystemInfo)
+        let context = SystemContext(snapshot: snapshot)
 
         AppLogger.shared.log(
             "✅ [InstallerEngine] inspectSystem() complete - ready=\(snapshot.isReady), blocking=\(snapshot.blockingIssues.count)"

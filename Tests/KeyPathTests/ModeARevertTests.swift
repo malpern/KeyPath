@@ -229,6 +229,7 @@ final class ModeARevertTests: XCTestCase {
                 kanataPermissionRejected: kanataPermissionRejected
             ),
             helper: HelperStatus(isInstalled: true, version: nil, isWorking: true),
+            compatibility: SystemCompatibilityStatus(macOSVersion: "test", driverCompatible: true),
             timestamp: now
         )
     }

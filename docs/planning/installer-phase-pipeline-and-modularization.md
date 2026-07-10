@@ -176,7 +176,7 @@ state and the next plan.
 
 ### Progress
 
-- Started after Milestone 1 acceptance on 2026-07-09.
+- Completed on 2026-07-09 after Milestone 1 acceptance.
 - The first convergence slice adds helper approval as a raw `SystemSnapshot`
   fact, projects it through the existing compatibility result, and migrates
   wizard routing to consume the captured helper facts without another helper or
@@ -192,10 +192,16 @@ state and the next plan.
   status alongside its timestamp. Compatibility projections and wizard timeout
   results preserve that fact, and incomplete captures are excluded from the
   canonical validator cache.
+- macOS version and DriverKit compatibility are now captured in
+  `SystemSnapshot`; `InstallerEngine` and main-app projections no longer perform
+  a second `SystemRequirements` read.
 - A lint ratchet now protects the migrated wizard routing paths. The remaining
   pre-snapshot welcome check now consumes the same canonical result as initial
   routing, so wizard navigation performs no separate helper or `SMAppService`
   evidence read.
+- Acceptance is complete: value fixtures exercise classification and planning
+  without system I/O, table-driven cases pin snapshot-to-plan behavior, and all
+  compatibility projections derive from the captured snapshot.
 
 ### Work
 

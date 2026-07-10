@@ -105,14 +105,17 @@ public struct SystemContext: Sendable {
         self.captureStatus = timedOut ? .timedOut : captureStatus
     }
 
-    public init(snapshot: SystemSnapshot, system: EngineSystemInfo) {
+    public init(snapshot: SystemSnapshot) {
         self.init(
             permissions: snapshot.permissions,
             services: snapshot.health,
             conflicts: snapshot.conflicts,
             components: snapshot.components,
             helper: snapshot.helper,
-            system: system,
+            system: EngineSystemInfo(
+                macOSVersion: snapshot.compatibility.macOSVersion,
+                driverCompatible: snapshot.compatibility.driverCompatible
+            ),
             timestamp: snapshot.timestamp,
             captureStatus: snapshot.captureStatus
         )
@@ -121,16 +124,14 @@ public struct SystemContext: Sendable {
     /// Empty/fallback context for test environments where WizardDependencies is not configured.
     public static var empty: SystemContext {
         SystemContext(
-            snapshot: .unavailable(captureStatus: .cancelled, source: "validator-unavailable"),
-            system: EngineSystemInfo(macOSVersion: "unknown", driverCompatible: false)
+            snapshot: .unavailable(captureStatus: .cancelled, source: "validator-unavailable")
         )
     }
 
     /// Synthetic context for when validation exceeded the watchdog timeout.
     public static var timedOut: SystemContext {
         SystemContext(
-            snapshot: .unavailable(captureStatus: .timedOut, source: "validation-timeout"),
-            system: EngineSystemInfo(macOSVersion: "unknown", driverCompatible: false)
+            snapshot: .unavailable(captureStatus: .timedOut, source: "validation-timeout")
         )
     }
 }

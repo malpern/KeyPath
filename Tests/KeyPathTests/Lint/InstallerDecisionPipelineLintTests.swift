@@ -29,6 +29,33 @@ final class InstallerDecisionPipelineLintTests: XCTestCase {
             """
         )
     }
+
+    func testCompatibilityIsProjectedFromCanonicalSnapshot() throws {
+        let root = repositoryRoot()
+        let consumers = [
+            root.appendingPathComponent("Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift"),
+            root.appendingPathComponent("Sources/KeyPathAppKit/Services/MainAppStateController.swift"),
+        ]
+        var violations: [String] = []
+
+        for file in consumers {
+            let source = try String(contentsOf: file, encoding: .utf8)
+            for (index, line) in source.split(separator: "\n", omittingEmptySubsequences: false).enumerated()
+                where line.contains("SystemRequirements(")
+            {
+                violations.append("\(file.lastPathComponent):\(index + 1): \(line)")
+            }
+        }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            Installer and main-app projections must consume compatibility from
+            SystemSnapshot instead of performing another system read:
+            \(violations.joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {

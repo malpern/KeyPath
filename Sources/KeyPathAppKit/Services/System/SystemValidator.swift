@@ -199,6 +199,11 @@ public class SystemValidator {
 
         let startTime = Date()
         AppLogger.shared.log("🔍 [SystemValidator] Starting validation #\(myID)")
+        let compatibilityResult = SystemRequirements().validateSystemCompatibility()
+        let compatibility = SystemCompatibilityStatus(
+            macOSVersion: compatibilityResult.macosVersion.versionString,
+            driverCompatible: compatibilityResult.isCompatible
+        )
 
         // Check system state in parallel for maximum performance
         // All checks are independent - no dependencies between them
@@ -360,6 +365,7 @@ public class SystemValidator {
             conflicts: conflicts,
             health: health,
             helper: helper,
+            compatibility: compatibility,
             timestamp: Date()
         )
 
@@ -762,6 +768,7 @@ public class SystemValidator {
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
             health: HealthStatus(kanataRunning: true, karabinerDaemonRunning: true, vhidHealthy: true),
             helper: HelperStatus(isInstalled: true, version: "1.0.0", isWorking: true),
+            compatibility: SystemCompatibilityStatus(macOSVersion: "test", driverCompatible: true),
             timestamp: now
         )
     }

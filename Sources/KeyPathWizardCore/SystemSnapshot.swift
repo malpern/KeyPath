@@ -13,6 +13,21 @@ public enum SystemSnapshotCaptureStatus: String, Sendable, Equatable {
     }
 }
 
+public struct SystemCompatibilityStatus: Sendable, Equatable {
+    public let macOSVersion: String
+    public let driverCompatible: Bool
+
+    public init(macOSVersion: String, driverCompatible: Bool) {
+        self.macOSVersion = macOSVersion
+        self.driverCompatible = driverCompatible
+    }
+
+    public static let unknown = SystemCompatibilityStatus(
+        macOSVersion: "unknown",
+        driverCompatible: false
+    )
+}
+
 /// Complete snapshot of system state at a point in time
 /// This is a pure data structure with no side effects - just state and computed properties
 public struct SystemSnapshot: Sendable {
@@ -21,6 +36,7 @@ public struct SystemSnapshot: Sendable {
     public let conflicts: ConflictStatus
     public let health: HealthStatus
     public let helper: HelperStatus
+    public let compatibility: SystemCompatibilityStatus
     public let timestamp: Date
     public let captureStatus: SystemSnapshotCaptureStatus
 
@@ -30,6 +46,7 @@ public struct SystemSnapshot: Sendable {
         conflicts: ConflictStatus,
         health: HealthStatus,
         helper: HelperStatus,
+        compatibility: SystemCompatibilityStatus = .unknown,
         timestamp: Date,
         captureStatus: SystemSnapshotCaptureStatus = .complete
     ) {
@@ -38,6 +55,7 @@ public struct SystemSnapshot: Sendable {
         self.conflicts = conflicts
         self.health = health
         self.helper = helper
+        self.compatibility = compatibility
         self.timestamp = timestamp
         self.captureStatus = captureStatus
     }
@@ -46,7 +64,8 @@ public struct SystemSnapshot: Sendable {
 
     /// System is ready when all critical components are operational
     public var isReady: Bool {
-        captureStatus.isComplete && helper.isReady && permissions.isSystemReady && !conflicts.hasConflicts
+        captureStatus.isComplete && compatibility.driverCompatible
+            && helper.isReady && permissions.isSystemReady && !conflicts.hasConflicts
             && components.hasAllRequired && health.isHealthy
     }
 
@@ -211,6 +230,7 @@ public struct SystemSnapshot: Sendable {
             conflicts: .empty,
             health: .empty,
             helper: .empty,
+            compatibility: .unknown,
             timestamp: timestamp,
             captureStatus: captureStatus
         )
