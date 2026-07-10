@@ -1210,7 +1210,7 @@ final class WizardPureLogicTests: XCTestCase {
             kanataBinaryInstalled: true,
             karabinerDriverInstalled: false,
             karabinerDaemonRunning: true,
-            vhidDeviceInstalled: true,
+            vhidDeviceInstalled: false,
             vhidDeviceHealthy: false,
             vhidServicesHealthy: true,
             vhidVersionMismatch: false
