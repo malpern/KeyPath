@@ -65,7 +65,15 @@ public enum InstallerDecisionPipeline {
     public static func determineRepairActions(context: SystemContext) -> [AutoFixAction] {
         var actions: [AutoFixAction] = []
 
-        // Check conflicts first (highest priority)
+        // Every repair action below may need privileged XPC. Establish a working
+        // helper before planning any operation that routes through the broker.
+        if !context.helper.isReady {
+            actions.append(
+                context.helper.isInstalled ? .reinstallPrivilegedHelper : .installPrivilegedHelper
+            )
+        }
+
+        // Resolve conflicts before component and service mutations.
         if context.conflicts.hasConflicts, context.conflicts.canAutoResolve {
             actions.append(.terminateConflictingProcesses)
         }
@@ -122,19 +130,18 @@ public enum InstallerDecisionPipeline {
             actions.append(.startKarabinerDaemon)
         }
 
-        // Reinstall helper if unhealthy (use reinstall for repair)
-        if !context.helper.isReady {
-            actions.append(
-                context.helper.isInstalled ? .reinstallPrivilegedHelper : .installPrivilegedHelper
-            )
-        }
-
         return actions
     }
 
     /// Determine actions for fresh installation
     public static func determineInstallActions(context: SystemContext) -> [AutoFixAction] {
         var actions: [AutoFixAction] = []
+
+        // Clean installs have no XPC endpoint yet. Install the helper before any
+        // component, activation, or service recipe attempts privileged work.
+        if !context.helper.isReady {
+            actions.append(.installPrivilegedHelper)
+        }
 
         // Check conflicts first
         if context.conflicts.hasConflicts, context.conflicts.canAutoResolve {
@@ -176,11 +183,6 @@ public enum InstallerDecisionPipeline {
                 actions.append(.activateVHIDDeviceManager)
             }
             actions.append(.startKarabinerDaemon)
-        }
-
-        // Always install helper for fresh install (not reinstall)
-        if !context.helper.isReady {
-            actions.append(.installPrivilegedHelper)
         }
 
         if context.components.vhidRuntimeServicesNeedRepair {
