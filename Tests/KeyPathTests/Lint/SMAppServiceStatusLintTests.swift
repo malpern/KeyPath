@@ -235,7 +235,7 @@ final class SMAppServiceStatusLintTests: XCTestCase {
         )
         violations += try matchingLines(
             in: initialStateManagement,
-            patterns: [#"helperNeedsLoginItemsApproval"#]
+            patterns: [#"helperManager\?\.isHelperInstalled"#, #"helperNeedsLoginItemsApproval"#]
         )
 
         XCTAssertTrue(

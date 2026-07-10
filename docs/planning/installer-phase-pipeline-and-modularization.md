@@ -182,8 +182,9 @@ state and the next plan.
   wizard routing to consume the captured helper facts without another helper or
   `SMAppService` read.
 - A lint ratchet now protects the migrated wizard routing paths. The remaining
-  pre-snapshot welcome check is intentionally outside this slice and must move
-  behind canonical capture before Milestone 2 is complete.
+  pre-snapshot welcome check now consumes the same canonical result as initial
+  routing, so wizard navigation performs no separate helper or `SMAppService`
+  evidence read.
 
 ### Work
 
