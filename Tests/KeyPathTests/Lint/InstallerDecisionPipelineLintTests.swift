@@ -56,6 +56,38 @@ final class InstallerDecisionPipelineLintTests: XCTestCase {
             """
         )
     }
+
+    func testPlanningPerformsNoSystemIO() throws {
+        let file = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift")
+        let source = try String(contentsOf: file, encoding: .utf8)
+        guard let planningStart = source.range(of: "public func makePlan("),
+              let planningEnd = source.range(
+                  of: "// MARK: - Action Determination",
+                  range: planningStart.lowerBound ..< source.endIndex
+              )
+        else {
+            return XCTFail("Could not locate the InstallerEngine planning section")
+        }
+
+        let planningSource = source[planningStart.lowerBound ..< planningEnd.lowerBound]
+        let forbiddenReads = [
+            "FileManager",
+            "SystemRequirements",
+            "checkSystem(",
+            "inspectSystem(",
+            "ServiceHealthChecker",
+            "SMAppService",
+            "Process(",
+            "URLSession",
+        ]
+        let violations = forbiddenReads.filter { planningSource.contains($0) }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            "Planning must be a pure projection of captured context; found: \(violations)"
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {

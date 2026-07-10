@@ -110,8 +110,8 @@ public final class InstallerEngine {
             stateMatrixPlan: stateMatrixPlan
         )
 
-        // Phase 3: Check requirements first
-        if let blockingRequirement = await checkRequirements(for: intent, context: context) {
+        // Phase 3: Check requirements from the captured context only.
+        if let blockingRequirement = checkRequirements(for: intent, context: context) {
             AppLogger.shared.log(
                 "⚠️ [InstallerEngine] Plan blocked by requirement: \(blockingRequirement.name)"
             )
@@ -159,25 +159,10 @@ public final class InstallerEngine {
 
     /// Check if requirements are met for the given intent
     /// Returns: Blocking requirement if any, nil if all requirements met
-    private func checkRequirements(for intent: InstallIntent, context: SystemContext) async
-        -> Requirement?
-    {
+    private func checkRequirements(for intent: InstallIntent, context: SystemContext) -> Requirement? {
         // For inspectOnly, no requirements needed
         if intent == .inspectOnly {
             return nil
-        }
-
-        // Check admin privileges availability (can we request them?)
-        // Note: We don't actually request them here, just check if we can
-        // Authorization Services will prompt when needed
-
-        // Check that system directories exist (not writable - installation uses admin privileges)
-        let launchDaemonsDir = KeyPathConstants.System.launchDaemonsDir
-        if !Foundation.FileManager().fileExists(atPath: launchDaemonsDir) {
-            return Requirement(
-                name: "LaunchDaemons directory missing",
-                status: .blocked
-            )
         }
 
         // Check helper registration (for install/repair)
@@ -194,11 +179,6 @@ public final class InstallerEngine {
                     name: "Enable Karabiner-VirtualHIDDevice in System Settings > General > Login Items & Extensions > Driver Extensions",
                     status: .blocked
                 )
-            }
-
-            if !context.helper.isReady {
-                // Helper not ready - check if SMAppService approval is needed
-                // This is a soft requirement - we can proceed but may need approval
             }
         }
 

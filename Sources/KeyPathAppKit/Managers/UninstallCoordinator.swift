@@ -65,7 +65,7 @@ public final class UninstallCoordinator {
         }
         unregisterRuntimeServicesClosure = unregisterRuntimeServices ?? {}
         uninstallVirtualHIDClosure = uninstallVirtualHID ?? {
-            try await PrivilegedOperationsRouter.shared.uninstallVirtualHIDDrivers()
+            try await InstallerEngine().uninstallVirtualHIDDrivers(using: PrivilegeBroker())
         }
         virtualHIDRemovedClosure = virtualHIDRemoved ?? {
             await ServiceHealthChecker.shared.vhidDriverExtensionStatus() == .missing

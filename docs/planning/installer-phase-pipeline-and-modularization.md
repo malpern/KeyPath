@@ -1,6 +1,6 @@
 # Installer Pipeline Consolidation Plan
 
-**Status:** Proposed
+**Status:** In progress — Milestone 1 complete; Milestone 2 core complete
 **Date:** 2026-07-09
 **Priority:** Next major installer reliability initiative
 **Predecessor:** [Installer Reliability Phase 1](installer-reliability-phase1.md)
@@ -176,7 +176,10 @@ state and the next plan.
 
 ### Progress
 
-- Completed on 2026-07-09 after Milestone 1 acceptance.
+- Core snapshot and decision convergence completed on 2026-07-09 after
+  Milestone 1 acceptance. Final client-owned action sequencing migrates with
+  Milestone 3 so it can target the owned run API rather than another temporary
+  bridge.
 - The first convergence slice adds helper approval as a raw `SystemSnapshot`
   fact, projects it through the existing compatibility result, and migrates
   wizard routing to consume the captured helper facts without another helper or
@@ -199,9 +202,14 @@ state and the next plan.
   pre-snapshot welcome check now consumes the same canonical result as initial
   routing, so wizard navigation performs no separate helper or `SMAppService`
   evidence read.
-- Acceptance is complete: value fixtures exercise classification and planning
-  without system I/O, table-driven cases pin snapshot-to-plan behavior, and all
-  compatibility projections derive from the captured snapshot.
+- Core acceptance is complete: value fixtures exercise classification and
+  planning without system I/O, table-driven cases pin snapshot-to-plan
+  behavior, and all compatibility projections derive from the captured
+  snapshot.
+- A purity lint prevents the planner from regrowing direct system reads. The
+  obsolete `/Library/LaunchDaemons` existence check was removed from planning;
+  actual filesystem failures remain executor results instead of hidden planning
+  probes.
 
 ### Work
 
@@ -236,8 +244,9 @@ classes merely to match the names above.
 - Planning and classification tests run with value fixtures and no system I/O.
 - A snapshot can derive compatibility `SystemContext` and matrix values without
   additional reads.
-- The wizard no longer decides whether to repair, restart, register, or invoke
-  fallback.
+- Wizard classification and routing no longer decide whether to repair,
+  restart, register, or invoke fallback. User-triggered action sequencing moves
+  with Milestone 3 so it can target the owned run API.
 - Table-driven fixtures pin important snapshot -> assessment -> plan behavior.
 
 ### Decision Gate
@@ -265,6 +274,9 @@ snapshot.
 - Reclassify failed verification to produce a new recovery plan.
 - Represent manual approval and explicit emergency cleanup as structured run
   results.
+- Migrate wizard-owned repair/restart selection and live pre-action reads to
+  requests handled by the owned run pipeline; pages may request a user goal but
+  may not choose or sequence executor operations.
 
 Suggested conceptual flow:
 
