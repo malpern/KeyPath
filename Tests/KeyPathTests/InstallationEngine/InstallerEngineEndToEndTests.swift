@@ -135,6 +135,46 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         XCTAssertNil(report.recoveryPlan)
     }
 
+    func testExecuteDoesNotAttributeSharedTransitionToLaterFailedRecipe() async {
+        let finalContext = SystemContextBuilder(
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
+        let validator = StubSystemValidator(context: finalContext)
+        let coordinator = StubPrivilegedOperationsCoordinator()
+        coordinator.failOnCall = "installRequiredRuntimeServices"
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(
+                    id: InstallerRecipeID.installLogRotation,
+                    type: .installComponent,
+                    expectedPostconditions: [.runtimeReadyOrApprovalPending]
+                ),
+                ServiceRecipe(
+                    id: "install-daemons",
+                    type: .installService,
+                    expectedPostconditions: [.runtimeReadyOrApprovalPending]
+                )
+            ],
+            status: .ready,
+            intent: .repair,
+            initialPostconditionStates: [.runtimeReadyOrApprovalPending: false]
+        )
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: coordinator)
+        )
+
+        XCTAssertFalse(report.success)
+        XCTAssertTrue(report.failureReason?.contains("install-daemons") ?? false)
+        XCTAssertEqual(report.executedRecipes.count, 2)
+    }
+
     func testExecuteDoesNotUseUnrelatedRecipePostconditionToMaskFailure() async {
         let context = SystemContextBuilder(
             servicesHealthy: true,

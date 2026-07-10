@@ -442,11 +442,17 @@ public final class InstallerEngine {
         // operation reply. This lets a lost helper/XPC reply become verified
         // success while a failed recipe without its own declarations still
         // honors its operation error.
+        let earlierExecutedPostconditions = Set(
+            executedRecipes.dropLast().flatMap(\.expectedPostconditions)
+        )
         let failedRecipePostconditionsProveSuccess: Bool = if let firstFailure,
                                                               let finalContext,
                                                               let initialStates = plan.initialPostconditionStates
         {
             !firstFailure.recipe.expectedPostconditions.isEmpty
+                && firstFailure.recipe.expectedPostconditions.allSatisfy {
+                    !earlierExecutedPostconditions.contains($0)
+                }
                 && firstFailure.recipe.expectedPostconditions.allSatisfy {
                     initialStates[$0] == false && $0.isSatisfied(by: finalContext)
                 }
