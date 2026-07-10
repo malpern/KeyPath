@@ -22,11 +22,16 @@ public extension InstallationWizardView {
             defer { Task { @MainActor in fixInFlight = false } }
 
             let report = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
-            applyOwnedRunResult(report)
+            let evidenceApplied = applyOwnedRunResult(report)
 
             // Show result toast
             await MainActor.run {
-                if report.completionState == .awaitingApproval {
+                if report.success, !evidenceApplied {
+                    toastManager.showError(
+                        "Repair finished, but KeyPath could not verify the final system state. Close and reopen the wizard before retrying.",
+                        duration: 8.0
+                    )
+                } else if report.completionState == .awaitingApproval {
                     toastManager.showInfo(
                         "Repair completed. Approve KeyPath in System Settings → Login Items to continue.",
                         duration: 7.0
@@ -115,11 +120,16 @@ public extension InstallationWizardView {
             return false
         }
 
-        applyOwnedRunResult(report)
+        let evidenceApplied = applyOwnedRunResult(report)
 
         if !suppressToast {
             await MainActor.run {
-                if report.completionState == .awaitingApproval {
+                if report.success, !evidenceApplied {
+                    toastManager.showError(
+                        "\(actionDescription) finished, but KeyPath could not verify the final system state. Close and reopen the wizard before retrying.",
+                        duration: 8.0
+                    )
+                } else if report.completionState == .awaitingApproval {
                     toastManager.showInfo(
                         "\(actionDescription) completed. Approve KeyPath in System Settings → Login Items to continue.",
                         duration: 7.0
@@ -137,7 +147,7 @@ public extension InstallationWizardView {
             "🔧 [Wizard] Single-action fix completed - state: \(report.completionState.rawValue), run: \(report.runID)"
         )
 
-        return report.success && report.completionState != .awaitingApproval
+        return report.success && evidenceApplied && report.completionState != .awaitingApproval
     }
 
     /// UI-only descriptions for auto-fix actions (delegated to AutoFixActionDescriptions)
@@ -154,13 +164,14 @@ public extension InstallationWizardView {
     }
 
     @MainActor
-    private func applyOwnedRunResult(_ report: InstallerReport) {
+    private func applyOwnedRunResult(_ report: InstallerReport) -> Bool {
         guard let finalContext = report.finalContext else {
             AppLogger.shared.log(
                 "⚠️ [Wizard] Run \(report.runID) returned without final system evidence"
             )
-            return
+            return false
         }
         _ = applySystemStateResult(SystemContextAdapter.adapt(finalContext))
+        return true
     }
 }

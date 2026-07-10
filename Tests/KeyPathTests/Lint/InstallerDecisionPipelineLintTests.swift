@@ -156,6 +156,7 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
         )
         XCTAssertTrue(source.contains("applyOwnedRunResult(report)"))
         XCTAssertTrue(source.contains("report.finalContext"))
+        XCTAssertTrue(source.contains("evidenceApplied"))
     }
 }
 
