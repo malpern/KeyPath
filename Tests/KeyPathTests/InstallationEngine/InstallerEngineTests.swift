@@ -337,14 +337,15 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
         let report = await engine.execute(plan: plan, using: PrivilegeBroker())
 
         XCTAssertTrue(report.success)
+        XCTAssertEqual(report.completionState, .verifiedNoOp)
         XCTAssertEqual(report.repairTelemetry.count, 1)
         let event = report.repairTelemetry[0]
         XCTAssertEqual(event.intent, "repair")
         XCTAssertEqual(event.stateMatrixRow, InstallerStateMatrixRow.runningAndTCPResponding.rawValue)
-        XCTAssertNil(event.action)
+        XCTAssertEqual(event.action, InstallerRecipeID.verifyPostconditions)
         XCTAssertNil(event.recipeID)
         XCTAssertNil(event.recipeType)
-        XCTAssertEqual(event.postconditionResult, .skipped)
+        XCTAssertEqual(event.postconditionResult, .succeeded)
     }
 
     func testExecuteExecutesRecipesInOrder() async {

@@ -396,6 +396,7 @@ public enum InstallerRepairTelemetryResult: String, Codable, Sendable, Equatable
 /// Machine-readable terminal state shared by app and CLI clients.
 public enum InstallerCompletionState: String, Codable, Sendable, Equatable {
     case completed
+    case verifiedNoOp = "verified-no-op"
     case awaitingApproval = "awaiting-approval"
     case verifiedAfterOperationError = "verified-after-operation-error"
     case blocked

@@ -386,7 +386,10 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
     }
 
     func testExecuteOwnsOneFreshFinalSnapshot() async {
-        let context = SystemContextBuilder().build()
+        let context = SystemContextBuilder(
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
         let engine = InstallerEngine(
             processLifecycleManager: ProcessLifecycleManager(),
@@ -411,7 +414,11 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
 
     func testExecuteCarriesPlanAndSnapshotEvidenceThroughReportAndTelemetry() async {
         let finalSnapshotID = UUID()
-        let context = SystemContextBuilder(snapshotID: finalSnapshotID).build()
+        let context = SystemContextBuilder(
+            snapshotID: finalSnapshotID,
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
         let engine = InstallerEngine(
             processLifecycleManager: ProcessLifecycleManager(),
@@ -434,7 +441,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         XCTAssertEqual(report.beforeSnapshotID, beforeSnapshotID)
         XCTAssertEqual(report.afterSnapshotID, finalSnapshotID)
         XCTAssertEqual(report.finalContext?.snapshotID, finalSnapshotID)
-        XCTAssertEqual(report.completionState, .completed)
+        XCTAssertEqual(report.completionState, .verifiedNoOp)
         XCTAssertFalse(report.repairTelemetry.isEmpty)
         for event in report.repairTelemetry {
             XCTAssertEqual(event.runID, report.runID)
@@ -442,6 +449,55 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             XCTAssertEqual(event.beforeSnapshotID, beforeSnapshotID)
             XCTAssertEqual(event.afterSnapshotID, finalSnapshotID)
         }
+    }
+
+    func testExecuteRejectsNoOpWhenFreshFinalStateRequiresRepair() async {
+        let context = SystemContextBuilder.degradedRepair()
+        let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let plan = InstallPlan(
+            sourceSnapshotID: UUID(),
+            recipes: [],
+            status: .ready,
+            intent: .repair
+        )
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+        )
+
+        XCTAssertFalse(report.success)
+        XCTAssertEqual(report.completionState, .verificationFailed)
+        XCTAssertTrue(report.failureReason?.contains("No-op verification failed") == true)
+        XCTAssertFalse(report.recoveryPlan?.recipes.isEmpty ?? true)
+        XCTAssertEqual(report.repairTelemetry.last?.postconditionResult, .failed)
+    }
+
+    func testExecuteRejectsNoOpWhenFreshFinalEvidenceIsIncomplete() async {
+        let context = SystemContextBuilder(
+            servicesHealthy: true,
+            componentsInstalled: true,
+            captureStatus: .failed
+        ).build()
+        let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let plan = InstallPlan(recipes: [], status: .ready, intent: .repair)
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+        )
+
+        XCTAssertFalse(report.success)
+        XCTAssertEqual(report.completionState, .verificationFailed)
+        XCTAssertEqual(report.failureReason, "No-op verification failed: final system evidence is incomplete")
     }
 
     func testExecuteReportsAwaitingApprovalFromFinalSnapshot() async {
@@ -695,7 +751,8 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
                 macOSVersion: context.system.macOSVersion,
                 driverCompatible: context.system.driverCompatible
             ),
-            timestamp: context.timestamp
+            timestamp: context.timestamp,
+            captureStatus: context.captureStatus
         )
     }
 }
