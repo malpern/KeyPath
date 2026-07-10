@@ -160,8 +160,33 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         let freshContext = await engine.inspectSystem()
 
         XCTAssertEqual(validator.freshnessRequests, [.cached, .fresh])
+        XCTAssertEqual(validator.cacheInvalidationCount, 1)
         XCTAssertEqual(cachedContext.system, context.system)
         XCTAssertEqual(freshContext.system, context.system)
+    }
+
+    func testExecuteOwnsOneFreshFinalSnapshot() async {
+        let context = SystemContextBuilder().build()
+        let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let plan = InstallPlan(
+            recipes: [],
+            status: .ready,
+            intent: .inspectOnly
+        )
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+        )
+
+        XCTAssertEqual(validator.freshnessRequests, [.fresh])
+        XCTAssertEqual(validator.cacheInvalidationCount, 1)
+        XCTAssertEqual(report.finalContext?.timestamp, context.timestamp)
+        XCTAssertEqual(report.finalContext?.captureStatus, context.captureStatus)
     }
 
     func testExecutePlanUsesForceRefreshWithoutAppleScriptForHelperReinstall() async {
@@ -301,6 +326,7 @@ private final class StubHelperMaintenance: WizardHelperMaintaining {
 private final class StubSystemValidator: WizardSystemValidating {
     private let snapshot: SystemSnapshot
     private(set) var freshnessRequests: [WizardSystemSnapshotFreshness] = []
+    private(set) var cacheInvalidationCount = 0
 
     init(snapshot: SystemSnapshot) {
         self.snapshot = snapshot
@@ -313,5 +339,9 @@ private final class StubSystemValidator: WizardSystemValidating {
     func checkSystem(freshness: WizardSystemSnapshotFreshness) async -> SystemSnapshot {
         freshnessRequests.append(freshness)
         return snapshot
+    }
+
+    func invalidateCaches() {
+        cacheInvalidationCount += 1
     }
 }

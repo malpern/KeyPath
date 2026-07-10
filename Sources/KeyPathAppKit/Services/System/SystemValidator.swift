@@ -145,7 +145,7 @@ public class SystemValidator {
         return await checkSystem(progressCallback: progressCallback)
     }
 
-    func invalidateCaches() {
+    public func invalidateCaches() {
         latestSnapshot = nil
         cachedComponentFacts = nil
         ServiceHealthChecker.shared.invalidateHealthCache()

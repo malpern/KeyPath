@@ -87,6 +87,9 @@ public final class InstallerEngine {
             AppLogger.shared.log("⚠️ [InstallerEngine] systemValidator not configured — returning empty context")
             return SystemContext.empty
         }
+        if freshness == .fresh {
+            validatorInstance.invalidateCaches()
+        }
         let snapshot = await validatorInstance.checkSystem(freshness: freshness)
 
         let context = SystemContext(snapshot: snapshot)
@@ -367,6 +370,11 @@ public final class InstallerEngine {
             }
         }
 
+        // Own the final observation inside the transaction. A fresh capture
+        // invalidates validator/component/health caches before collecting the
+        // post-execution evidence, so clients do not race a second observer.
+        let finalContext = await inspectSystem(freshness: .fresh)
+
         // Generate report with aggregated logs
         let success = firstFailure == nil
         let report = InstallerReport(
@@ -376,6 +384,7 @@ public final class InstallerEngine {
             },
             unmetRequirements: success ? [] : plan.blockedBy.map { [$0] } ?? [],
             executedRecipes: executedRecipes,
+            finalContext: finalContext,
             logs: allLogs,
             repairTelemetry: repairTelemetry
         )

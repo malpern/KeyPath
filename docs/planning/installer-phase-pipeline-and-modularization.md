@@ -270,6 +270,10 @@ snapshot.
   waited forever to reacquire the same transaction gate.
 - The first slice removes that nested engine/plan creation while preserving the
   helper-first VHID operation and adds a lint ratchet against recurrence.
+- Installed verification after that slice exposed a second-observer race: CLI
+  repair and CLI inspect could briefly disagree about TCP readiness. The next
+  slice moves the fresh, cache-invalidating final capture into the owned engine
+  transaction and makes CLI clients consume that report evidence.
 
 ### Work
 

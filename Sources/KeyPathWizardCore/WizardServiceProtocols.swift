@@ -15,12 +15,15 @@ public enum WizardSystemSnapshotFreshness: Sendable, Equatable {
 public protocol WizardSystemValidating: AnyObject, Sendable {
     func checkSystem() async -> SystemSnapshot
     func checkSystem(freshness: WizardSystemSnapshotFreshness) async -> SystemSnapshot
+    func invalidateCaches()
 }
 
 public extension WizardSystemValidating {
     func checkSystem(freshness _: WizardSystemSnapshotFreshness) async -> SystemSnapshot {
         await checkSystem()
     }
+
+    func invalidateCaches() {}
 }
 
 // MARK: - HelperMaintenance Protocol

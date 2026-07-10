@@ -122,4 +122,19 @@ final class SnapshotConsumerLintTests: XCTestCase {
             """
         )
     }
+
+    func testCLIInstallerConsumesEngineOwnedFinalSnapshot() throws {
+        let fileURL = LintScanner.path("Sources/KeyPathAppKit/CLI/SystemFacade.swift")
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+
+        XCTAssertEqual(
+            source.components(separatedBy: "finalContext: report.finalContext").count - 1,
+            2,
+            "CLI install and repair must consume the final context captured by InstallerEngine."
+        )
+        XCTAssertFalse(
+            source.contains("report.success ? await engine.inspectSystem() : nil"),
+            "CLI clients must not race the engine-owned post-execution snapshot with a second observer."
+        )
+    }
 }
