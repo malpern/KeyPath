@@ -26,6 +26,10 @@ enum TestSingletonReset {
         // so a value left by one test must not bleed into another's health check.
         KanataGrabStatusStore.shared.reset()
 
+        // Karabiner conflict detection has a process-wide daemon seam. Reset it
+        // with the other shared state so suites cannot inherit a forced result.
+        KarabinerConflictService.testDaemonRunning = nil
+
         // Wait-for-exit seams (#625 part-1): safe defaults so any test reaching
         // ServiceLifecycleCoordinator.startKanata neither spawns real `pgrep`
         // (parallel-run deadlock risk) nor waits real time. Tests that exercise the

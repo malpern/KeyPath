@@ -50,10 +50,10 @@ Adopt explicit service lifecycle invariants for Kanata install/repair paths:
    - CLI, menu-bar, and wizard surfaces publish or consume the same
      `InstallerStateMatrixRow` / `InstallerStateMatrixAction` vocabulary before
      deciding whether a state is healthy, degraded, or manual-action-required.
-   - Live AppKit evidence is materialized through
-     `SystemStateProvider.currentInstallerStateMatrixSnapshot(...)`; wizard core
-     uses a pure `SystemContext -> InstallerStateMatrixSnapshot` bridge because
-     it cannot import AppKit.
+   - Live evidence is captured once by `SystemValidator` into the canonical
+     snapshot and projected into the context consumed by
+     `InstallerDecisionPipeline`. The deleted provider/wizard adapters must not
+     be restored.
 
 ## Consequences
 
@@ -70,15 +70,13 @@ Adopt explicit service lifecycle invariants for Kanata install/repair paths:
 
 - Install/repair actions can fail more often in borderline startup conditions instead of masking failures.
 - Additional polling and diagnostics add modest complexity.
-- Until the Workstream 6 deletion pass, both `SystemSnapshot`/`SystemContext`
-  and the narrower `InstallerStateMatrixSnapshot` exist.
+- The canonical snapshot, context projection, and narrower pure matrix input
+  remain separate value shapes and therefore require anti-regrowth ratchets.
 
 ### Follow-up
 
-- Workstream 3 changes repair autonomy and user-initiated repair behavior on
-  top of the Phase 1 classification contract.
-- Workstream 6 collapses remaining snapshot/cache duplication after the repair
-  model is stable.
+- The owned-run pipeline and compatibility deletion completed in July 2026;
+  future changes must preserve the single-capture contract.
 
 ## Enforcement
 
@@ -86,12 +84,11 @@ Adopt explicit service lifecycle invariants for Kanata install/repair paths:
   and
   `InstallerStateMatrixGoldenTests.testClassifySnapshotAndPlanMatchStateMatrixGoldenFixtures`
   pin the documented rows and action plans.
-- `SystemStateProviderInstallerStateMatrixTests.*` pins live matrix snapshot
-  materialization from provider-owned SMAppService, launchd/runtime, helper, and
-  component evidence.
+- `WizardPureLogicTests.test_systemStateProjectionPublishesStateMatrixMetadata`
+  pins canonical projection into presentation state.
 - `CLIOutputContractTests.testInspectResultRepairMetadataJSONShape`,
   `MainAppStateControllerTests.menuBarHealthPrefersStateMatrixRow`, and
-  `WizardPureLogicTests.test_systemContextAdapterPublishesStateMatrixMetadata`
+  `SnapshotConsumerLintTests` and `InstallerDecisionPipelineLintTests`
   pin consumer adoption.
 
 ## Related

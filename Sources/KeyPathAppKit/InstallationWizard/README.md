@@ -271,7 +271,7 @@ Each page is 400-600 lines and follows a consistent pattern:
 ### ✅ Completed (November 2025)
 - **ADR-012**: Driver version detection fully wired to Fix button
   - Detection: `VHIDDeviceManager.hasVersionMismatch()` → `SystemContext.components.vhidVersionMismatch`
-  - Action: `ActionDeterminer` adds `.fixDriverVersionMismatch` when version mismatch detected
+  - Action: `InstallerDecisionPipeline` adds `.fixDriverVersionMismatch` when version mismatch detected
   - Dialog: `WizardAutoFixer.fixDriverVersionMismatch()` shows confirmation dialog
   - Install: Downloads and installs v5.0.0 via `PrivilegedOperationsCoordinator`
 

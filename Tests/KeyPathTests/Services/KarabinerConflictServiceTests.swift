@@ -9,7 +9,7 @@ import Testing
 struct KarabinerConflictServiceTests {
     @Test("Karabiner grabber detection uses injected SystemStateProvider")
     func karabinerGrabberDetectionUsesInjectedSystemStateProvider() async {
-        KarabinerConflictService.testDaemonRunning = nil
+        TestSingletonReset.resetAll()
         let runner = SubprocessRunnerFake.shared
         await runner.reset()
         await runner.configurePgrepResult { pattern in
@@ -31,7 +31,7 @@ struct KarabinerConflictServiceTests {
 
     @Test("VirtualHID daemon detection uses injected SystemStateProvider")
     func virtualHIDDaemonDetectionUsesInjectedSystemStateProvider() async {
-        KarabinerConflictService.testDaemonRunning = nil
+        TestSingletonReset.resetAll()
         FeatureFlags.testStartupMode = false
         defer { FeatureFlags.testStartupMode = nil }
         ServiceBootstrapper.setRestartTimeForTesting(
@@ -59,6 +59,7 @@ struct KarabinerConflictServiceTests {
 
     @Test("Stopped-process verification uses injected SystemStateProvider")
     func stoppedProcessVerificationUsesInjectedSystemStateProvider() async {
+        TestSingletonReset.resetAll()
         let runner = SubprocessRunnerFake.shared
         await runner.reset()
         await runner.configurePgrepResult { pattern in

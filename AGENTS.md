@@ -57,6 +57,12 @@ Notes:
   `/Applications/Xcode-26.6.0.app/Contents/Developer`, even when the machine-wide
   `xcode-select` points at a beta. Override with `KEYPATH_DEV_XCODE_DEVELOPER_DIR`
   only when intentionally testing another toolchain.
+- To advance the stable Xcode pin: (1) install and verify the intended stable
+  Xcode, (2) update both `KEYPATH_STABLE_XCODE_VERSION` and
+  `KEYPATH_STABLE_XCODE_DEVELOPER_DIR` in `Scripts/lib/xcode.sh`, (3) update the
+  matching literals in `DeploymentScriptContractTests`, and (4) run that test
+  plus one canonical build/deploy script without an override. Point releases
+  are intentional pin changes; an installed 26.6.1 does not satisfy `26.6`.
 - It intentionally does **not** redeploy the privileged helper unless
   `KEYPATH_DEPLOY_HELPER=1` is set. Avoid helper redeploys during UI work.
 - Use Poltergeist only for focused single-agent Swift/UI iteration:

@@ -1,9 +1,15 @@
 # Installer Reliability Phase 1: Foundation Before Autonomy
 
-**Status:** Proposed
+**Status:** Completed and superseded by the successor plan
 **Date:** 2026-07-06
 **Companion:** [autonomous-repair-roadmap.md](autonomous-repair-roadmap.md) (Phase 2 — deferred, not abandoned)
 **Successor plan:** [Installer Phase Pipeline and Swift Module Plan](installer-phase-pipeline-and-modularization.md)
+
+> Historical note: this document preserves the workstream evidence and test
+> names used during Phase 1. PRs #1091-#1092 later deleted the temporary live
+> state-matrix and `SystemContextAdapter` compatibility paths. Current
+> ownership and enforcement are documented in the successor plan,
+> ADR-042, and the installer repair state matrix.
 
 ## Purpose
 

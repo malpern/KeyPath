@@ -2,6 +2,24 @@ import Foundation
 @preconcurrency import XCTest
 
 final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
+    func testDeprecatedActionDeterminerFacadeIsDeleted() throws {
+        let root = repositoryRoot()
+        XCTAssertFalse(
+            FileManager.default.fileExists(
+                atPath: root.appendingPathComponent(
+                    "Sources/KeyPathInstallationWizard/Core/ActionDeterminer.swift"
+                ).path
+            )
+        )
+        let pipeline = try String(
+            contentsOf: root.appendingPathComponent(
+                "Sources/KeyPathInstallationWizard/Core/InstallerDecisionPipeline.swift"
+            ),
+            encoding: .utf8
+        )
+        XCTAssertFalse(pipeline.contains("enum ActionDeterminer"))
+    }
+
     func testEarlyInstallerExitsPreserveCorrelationEvidence() throws {
         let root = repositoryRoot()
         let engineSource = try String(

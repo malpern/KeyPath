@@ -5,7 +5,7 @@ import Foundation
 @preconcurrency import XCTest
 
 /// Unit tests for the wizard's pure logic types: SystemInspector, WizardRouter,
-/// InstallerRecipeID, and ActionDeterminer.
+/// InstallerRecipeID, and InstallerDecisionPipeline.
 /// These complement the golden tests by covering edge cases and gap scenarios.
 ///
 /// Naming convention: test_<scenario>_<expectedBehavior>
@@ -1172,11 +1172,11 @@ final class WizardPureLogicTests: XCTestCase {
         }
     }
 
-    // MARK: - ActionDeterminer: Repair Actions
+    // MARK: - InstallerDecisionPipeline: Repair Actions
 
     func test_determineRepairActions_allHealthy_returnsEmpty() {
         let context = makeContext()
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
         XCTAssertTrue(actions.isEmpty, "Healthy system should need no repair actions")
     }
 
@@ -1187,7 +1187,7 @@ final class WizardPureLogicTests: XCTestCase {
                 canAutoResolve: true
             )
         )
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
         XCTAssertTrue(actions.contains(.terminateConflictingProcesses))
     }
 
@@ -1198,7 +1198,7 @@ final class WizardPureLogicTests: XCTestCase {
                 canAutoResolve: false
             )
         )
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
         XCTAssertFalse(actions.contains(.terminateConflictingProcesses))
     }
 
@@ -1213,7 +1213,7 @@ final class WizardPureLogicTests: XCTestCase {
             vhidVersionMismatch: true
         )
         let context = makeContext(components: components)
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
         XCTAssertTrue(actions.contains(.fixDriverVersionMismatch))
     }
 
@@ -1228,7 +1228,7 @@ final class WizardPureLogicTests: XCTestCase {
             vhidVersionMismatch: false
         )
         let context = makeContext(components: components)
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
         XCTAssertTrue(actions.contains(.installMissingComponents))
         XCTAssertTrue(actions.contains(.activateVHIDDeviceManager),
                       "Should activate manager when driver is missing")
@@ -1238,7 +1238,7 @@ final class WizardPureLogicTests: XCTestCase {
         let context = makeContext(
             services: HealthStatus(kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: true)
         )
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
         XCTAssertTrue(actions.contains(.startKarabinerDaemon))
     }
 
@@ -1253,7 +1253,7 @@ final class WizardPureLogicTests: XCTestCase {
             )
         )
 
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
 
         XCTAssertFalse(actions.contains(.activateVHIDDeviceManager))
         XCTAssertFalse(actions.contains(.repairVHIDDaemonServices))
@@ -1271,7 +1271,7 @@ final class WizardPureLogicTests: XCTestCase {
             )
         )
 
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
 
         XCTAssertFalse(actions.contains(.activateVHIDDeviceManager))
         XCTAssertFalse(actions.contains(.repairVHIDDaemonServices))
@@ -1290,7 +1290,7 @@ final class WizardPureLogicTests: XCTestCase {
             )
         )
 
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
 
         XCTAssertTrue(actions.contains(.activateVHIDDeviceManager))
         XCTAssertTrue(actions.contains(.repairVHIDDaemonServices))
@@ -1308,7 +1308,7 @@ final class WizardPureLogicTests: XCTestCase {
             )
         )
 
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
 
         XCTAssertTrue(
             actions.contains(.installRequiredRuntimeServices),
@@ -1319,7 +1319,7 @@ final class WizardPureLogicTests: XCTestCase {
 
     func test_determineRepairActions_helperInstalledButBroken_includesReinstall() {
         let context = makeContext(helper: HelperStatus(isInstalled: true, version: "1.0", isWorking: false))
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
         XCTAssertTrue(actions.contains(.reinstallPrivilegedHelper),
                       "Repair should reinstall (not install) existing broken helper")
         XCTAssertFalse(actions.contains(.installPrivilegedHelper))
@@ -1327,7 +1327,7 @@ final class WizardPureLogicTests: XCTestCase {
 
     func test_determineRepairActions_helperMissing_includesInstall() {
         let context = makeContext(helper: HelperStatus(isInstalled: false, version: nil, isWorking: false))
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
         XCTAssertTrue(actions.contains(.installPrivilegedHelper))
     }
 
@@ -1342,7 +1342,7 @@ final class WizardPureLogicTests: XCTestCase {
             vhidVersionMismatch: false
         )
         let context = makeContext(components: components)
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
         XCTAssertTrue(actions.contains(.installRequiredRuntimeServices))
         XCTAssertFalse(
             actions.contains(.installMissingComponents),
@@ -1361,7 +1361,7 @@ final class WizardPureLogicTests: XCTestCase {
             vhidVersionMismatch: false
         )
         let context = makeContext(components: components)
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
         XCTAssertFalse(
             actions.contains(.installMissingComponents),
             "A present but unhealthy VHID device should not be planned as a missing component"
@@ -1380,12 +1380,12 @@ final class WizardPureLogicTests: XCTestCase {
             vhidVersionMismatch: false
         )
         let context = makeContext(components: components)
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
         XCTAssertTrue(actions.contains(.installRequiredRuntimeServices),
                       "Stale VHID daemon plist needs the runtime-services rewrite even when the daemon is healthy")
     }
 
-    // MARK: - ActionDeterminer: Install Actions
+    // MARK: - InstallerDecisionPipeline: Install Actions
 
     func test_determineInstallActions_vhidDaemonPlistMisconfigured_includesInstallRuntimeServices() {
         let components = ComponentStatus(
@@ -1399,7 +1399,7 @@ final class WizardPureLogicTests: XCTestCase {
             vhidVersionMismatch: false
         )
         let context = makeContext(components: components)
-        let actions = ActionDeterminer.determineInstallActions(context: context)
+        let actions = InstallerDecisionPipeline.determineInstallActions(context: context)
         XCTAssertTrue(actions.contains(.installRequiredRuntimeServices),
                       "Install plans share the vhidRuntimeServicesNeedRepair trigger with repair plans")
     }
@@ -1415,7 +1415,7 @@ final class WizardPureLogicTests: XCTestCase {
             vhidVersionMismatch: false
         )
         let context = makeContext(components: components)
-        let actions = ActionDeterminer.determineInstallActions(context: context)
+        let actions = InstallerDecisionPipeline.determineInstallActions(context: context)
         XCTAssertTrue(actions.contains(.installRequiredRuntimeServices))
         XCTAssertFalse(
             actions.contains(.installMissingComponents),
@@ -1434,7 +1434,7 @@ final class WizardPureLogicTests: XCTestCase {
             )
         )
 
-        let actions = ActionDeterminer.determineInstallActions(context: context)
+        let actions = InstallerDecisionPipeline.determineInstallActions(context: context)
 
         XCTAssertFalse(actions.contains(.activateVHIDDeviceManager))
         XCTAssertFalse(actions.contains(.repairVHIDDaemonServices))
@@ -1443,13 +1443,13 @@ final class WizardPureLogicTests: XCTestCase {
 
     func test_determineInstallActions_allHealthy_returnsEmpty() {
         let context = makeContext()
-        let actions = ActionDeterminer.determineInstallActions(context: context)
+        let actions = InstallerDecisionPipeline.determineInstallActions(context: context)
         XCTAssertTrue(actions.isEmpty, "Healthy system should need no install actions")
     }
 
     func test_determineInstallActions_helperMissing_usesInstallNotReinstall() {
         let context = makeContext(helper: HelperStatus(isInstalled: false, version: nil, isWorking: false))
-        let actions = ActionDeterminer.determineInstallActions(context: context)
+        let actions = InstallerDecisionPipeline.determineInstallActions(context: context)
         XCTAssertTrue(actions.contains(.installPrivilegedHelper),
                       "Fresh install should use installPrivilegedHelper")
         XCTAssertFalse(actions.contains(.reinstallPrivilegedHelper),
@@ -1458,40 +1458,40 @@ final class WizardPureLogicTests: XCTestCase {
 
     func test_determineInstallActions_helperInstalledButBroken_stillUsesInstall() {
         let context = makeContext(helper: HelperStatus(isInstalled: true, version: "1.0", isWorking: false))
-        let actions = ActionDeterminer.determineInstallActions(context: context)
+        let actions = InstallerDecisionPipeline.determineInstallActions(context: context)
         // For install intent, it always uses install (not reinstall)
         XCTAssertTrue(actions.contains(.installPrivilegedHelper))
     }
 
-    // MARK: - ActionDeterminer: Uninstall Actions
+    // MARK: - InstallerDecisionPipeline: Uninstall Actions
 
     func test_determineUninstallActions_returnsEmpty() {
         let context = makeContext()
-        let actions = ActionDeterminer.determineUninstallActions(context: context)
-        XCTAssertTrue(actions.isEmpty, "Uninstall is handled by UninstallCoordinator, not ActionDeterminer")
+        let actions = InstallerDecisionPipeline.determineUninstallActions(context: context)
+        XCTAssertTrue(actions.isEmpty, "Uninstall is handled by UninstallCoordinator, not InstallerDecisionPipeline")
     }
 
-    // MARK: - ActionDeterminer: determineActions with Intent
+    // MARK: - InstallerDecisionPipeline: determineActions with Intent
 
     func test_determineActions_inspectOnly_returnsEmpty() {
         let context = makeContext(helper: HelperStatus(isInstalled: false, version: nil, isWorking: false))
-        let actions = ActionDeterminer.determineActions(for: .inspectOnly, context: context)
+        let actions = InstallerDecisionPipeline.determineActions(for: .inspectOnly, context: context)
         XCTAssertTrue(actions.isEmpty, "Inspect-only should never produce actions")
     }
 
     func test_determineActions_repairIntent_delegatesToRepairActions() {
         let context = makeContext(helper: HelperStatus(isInstalled: true, version: "1.0", isWorking: false))
-        let actions = ActionDeterminer.determineActions(for: .repair, context: context)
+        let actions = InstallerDecisionPipeline.determineActions(for: .repair, context: context)
         XCTAssertTrue(actions.contains(.reinstallPrivilegedHelper))
     }
 
     func test_determineActions_installIntent_delegatesToInstallActions() {
         let context = makeContext(helper: HelperStatus(isInstalled: false, version: nil, isWorking: false))
-        let actions = ActionDeterminer.determineActions(for: .install, context: context)
+        let actions = InstallerDecisionPipeline.determineActions(for: .install, context: context)
         XCTAssertTrue(actions.contains(.installPrivilegedHelper))
     }
 
-    // MARK: - ActionDeterminer: Ordering Guarantees
+    // MARK: - InstallerDecisionPipeline: Ordering Guarantees
 
     func test_determineRepairActions_conflictsBeforeComponents() {
         let components = ComponentStatus(
@@ -1510,7 +1510,7 @@ final class WizardPureLogicTests: XCTestCase {
             ),
             components: components
         )
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
         let terminateIdx = actions.firstIndex(of: .terminateConflictingProcesses)
         let installIdx = actions.firstIndex(of: .installMissingComponents)
         XCTAssertNotNil(terminateIdx)
@@ -1533,7 +1533,7 @@ final class WizardPureLogicTests: XCTestCase {
             services: HealthStatus(kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: true),
             components: components
         )
-        let actions = ActionDeterminer.determineRepairActions(context: context)
+        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
         let activateIdx = try XCTUnwrap(actions.firstIndex(of: .activateVHIDDeviceManager))
         let startIdx = try XCTUnwrap(actions.firstIndex(of: .startKarabinerDaemon))
         XCTAssertLessThan(
