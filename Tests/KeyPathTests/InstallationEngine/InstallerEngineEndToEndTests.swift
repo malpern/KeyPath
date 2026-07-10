@@ -160,12 +160,36 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         let freshContext = await engine.inspectSystem()
 
         XCTAssertEqual(validator.freshnessRequests, [.cached, .fresh])
-        XCTAssertEqual(validator.cacheInvalidationCount, 1)
+        XCTAssertEqual(validator.cacheInvalidationCount, 0)
         XCTAssertEqual(cachedContext.system, context.system)
         XCTAssertEqual(freshContext.system, context.system)
     }
 
     func testExecuteOwnsOneFreshFinalSnapshot() async {
+        let context = SystemContextBuilder().build()
+        let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let plan = InstallPlan(
+            recipes: [],
+            status: .ready,
+            intent: .repair
+        )
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+        )
+
+        XCTAssertEqual(validator.freshnessRequests, [.fresh])
+        XCTAssertEqual(validator.cacheInvalidationCount, 1)
+        XCTAssertEqual(report.finalContext?.timestamp, context.timestamp)
+        XCTAssertEqual(report.finalContext?.captureStatus, context.captureStatus)
+    }
+
+    func testInspectOnlyExecuteDoesNotCaptureRedundantFinalSnapshot() async {
         let context = SystemContextBuilder().build()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
         let engine = InstallerEngine(
@@ -183,10 +207,9 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
         )
 
-        XCTAssertEqual(validator.freshnessRequests, [.fresh])
-        XCTAssertEqual(validator.cacheInvalidationCount, 1)
-        XCTAssertEqual(report.finalContext?.timestamp, context.timestamp)
-        XCTAssertEqual(report.finalContext?.captureStatus, context.captureStatus)
+        XCTAssertTrue(validator.freshnessRequests.isEmpty)
+        XCTAssertEqual(validator.cacheInvalidationCount, 0)
+        XCTAssertNil(report.finalContext)
     }
 
     func testFailedExecuteStillOwnsOneFreshFinalSnapshot() async {
