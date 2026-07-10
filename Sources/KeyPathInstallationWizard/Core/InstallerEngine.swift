@@ -367,6 +367,15 @@ public final class InstallerEngine {
             }
         }
 
+        // Own the final observation inside the transaction. A fresh capture
+        // invalidates validator/component/health caches before collecting the
+        // post-execution evidence, so clients do not race a second observer.
+        let finalContext: SystemContext? = if plan.intent == .inspectOnly {
+            nil
+        } else {
+            await captureFreshFinalContext()
+        }
+
         // Generate report with aggregated logs
         let success = firstFailure == nil
         let report = InstallerReport(
@@ -376,6 +385,7 @@ public final class InstallerEngine {
             },
             unmetRequirements: success ? [] : plan.blockedBy.map { [$0] } ?? [],
             executedRecipes: executedRecipes,
+            finalContext: finalContext,
             logs: allLogs,
             repairTelemetry: repairTelemetry
         )
@@ -384,6 +394,11 @@ public final class InstallerEngine {
             "✅ [InstallerEngine] execute() complete - success: \(success), recipes executed: \(executedRecipes.count)"
         )
         return report
+    }
+
+    private func captureFreshFinalContext() async -> SystemContext {
+        systemValidator?.invalidateCaches()
+        return await inspectSystem(freshness: .fresh)
     }
 
     private func makeRepairTelemetryEvent(

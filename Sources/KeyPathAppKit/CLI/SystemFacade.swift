@@ -153,11 +153,10 @@ public struct SystemFacade: Sendable {
         }
         let broker = PrivilegeBroker()
         let report = await engine.execute(plan: plan, using: broker)
-        let finalContext = report.success ? await engine.inspectSystem() : nil
         return CLIInstallerReport(
             from: report,
             initialContext: context,
-            finalContext: finalContext,
+            finalContext: report.finalContext,
             plan: plan,
             title: "Installation"
         )
@@ -199,11 +198,10 @@ public struct SystemFacade: Sendable {
 
         let broker = PrivilegeBroker()
         let report = await engine.execute(plan: plan, using: broker)
-        let finalContext = report.success ? await engine.inspectSystem() : nil
         return CLIInstallerReport(
             from: report,
             initialContext: context,
-            finalContext: finalContext,
+            finalContext: report.finalContext,
             plan: plan,
             title: "Repair"
         )
