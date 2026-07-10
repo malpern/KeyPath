@@ -17,6 +17,7 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 PROJECT_DIR=$(cd "$SCRIPT_DIR/.." >/dev/null && pwd -P)
 source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/deploy-lock.sh"
+source "$SCRIPT_DIR/lib/build-cache.sh"
 keypath_use_stable_xcode
 APP_NAME="KeyPath"
 APP_BUNDLE="/Applications/${APP_NAME}.app"
@@ -64,16 +65,8 @@ cd "$PROJECT_DIR"
 
 # Ensure .build directory exists for stats
 mkdir -p "$PROJECT_DIR/.build" "$MODULE_CACHE" "$BUILD_LOG_DIR"
-
-# SwiftPM's stable and beta build systems use different generated `debug`
-# symlink targets. A worktree previously built by another toolchain can retain
-# the other target, causing SwiftPM to warn instead of refreshing the link.
-# The link is generated metadata, so remove only symlinks and let this build
-# recreate the target appropriate for the pinned stable Xcode.
-if [[ -L "$PROJECT_DIR/.build/debug" ]]; then
-    echo "🧹 Refreshing generated .build/debug symlink"
-    rm "$PROJECT_DIR/.build/debug"
-fi
+keypath_prepare_build_cache "$PROJECT_DIR" "$PROJECT_DIR/.build"
+mkdir -p "$MODULE_CACHE" "$BUILD_LOG_DIR"
 
 # --- Instrumentation Functions ---
 

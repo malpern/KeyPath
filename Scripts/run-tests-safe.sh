@@ -9,6 +9,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 source "$SCRIPT_DIR/lib/xcode.sh"
+source "$SCRIPT_DIR/lib/build-cache.sh"
 keypath_use_stable_xcode
 TIMEOUT_SECONDS=${TIMEOUT_SECONDS:-240}
 ALLOW_RUNNER_CRASH_SUCCESS=${KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS:-0}
@@ -386,6 +387,7 @@ fi
 export HOME=${TEST_HOME:-$(mktemp -d 2>/dev/null || mktemp -d -t keypath-tests)}
 SCRATCH_PATH="$(absolute_dir "$SCRATCH_PATH")"
 MODULE_CACHE="$SCRATCH_PATH/ModuleCache.noindex"
+keypath_prepare_build_cache "$PROJECT_DIR" "$SCRATCH_PATH"
 if [ "$TEST_RESET_MODULE_CACHE" = "1" ] && [ -d "$MODULE_CACHE" ]; then
   echo "🧹 Resetting generated module cache: $MODULE_CACHE"
   rm -rf "$MODULE_CACHE"
@@ -421,13 +423,6 @@ echo "📦 Scratch: $SCRATCH_PATH | HOME=$HOME"
 echo "🗂️  Module cache: $MODULE_CACHE"
 mkdir -p "$(dirname "$LOG")" "$(dirname "$BUILD_LOG")"
 rm -f "$LOG" "$BUILD_LOG"
-
-# Refresh generated metadata left by a different SwiftPM build system. Never
-# remove a real directory or file at this path.
-if [ -L "$SCRATCH_PATH/debug" ]; then
-  echo "🧹 Refreshing generated $SCRATCH_PATH/debug symlink"
-  rm "$SCRATCH_PATH/debug"
-fi
 
 # 1) Build tests first (doesn't count against watchdog timeout)
 echo "🔨 Building tests..."
