@@ -72,7 +72,6 @@ class MainAppStateController {
 
     @ObservationIgnored private var lastValidationTime: Date?
     @ObservationIgnored private let validationCooldown: TimeInterval = 30.0 // Skip validation if completed within last 30 seconds
-    private enum ValidationError: Error { case timeout }
 
     // MARK: - Validation Log Throttling (avoid flooding the log with repeat cycles)
 
@@ -557,36 +556,10 @@ class MainAppStateController {
         AppLogger.shared.log("🎯 [MainAppStateController] Running SystemValidator (Phase 3)")
         AppLogger.shared.log("⏱️ [TIMING] Main screen validation START")
 
-        // Get fresh state from validator with a watchdog to avoid indefinite "checking"
-        // Note: Main screen doesn't use progress callback (wizard does)
-        AppLogger.shared.log("🔍 [MainAppStateController] Validation run started (watchdog=12s)")
-        let snapshot: SystemSnapshot
-        do {
-            snapshot = try await withThrowingTaskGroup(of: SystemSnapshot.self) { group in
-                group.addTask { await validator.checkSystem() }
-                group.addTask {
-                    try await Task.sleep(for: .seconds(12)) // 12s watchdog
-                    throw ValidationError.timeout
-                }
-                guard let first = try await group.next() else {
-                    throw ValidationError.timeout
-                }
-                group.cancelAll()
-                AppLogger.shared.log("✅ [MainAppStateController] Validation run completed within watchdog")
-                return first
-            }
-        } catch {
-            AppLogger.shared.error("⏱️ [MainAppStateController] Validation watchdog fired – preserving last state and surfacing timeout warning")
-            issues = [Self.validationTimeoutIssue()]
-            lastValidationDate = Date()
-            lastValidationTime = Date()
-            if let lastValidatedSystemContext {
-                lastAdaptedState = SystemStateResult.projecting(lastValidatedSystemContext).state
-            }
-
-            validationState = .failed(blockingCount: 0, totalCount: issues.count)
-            return
-        }
+        // SystemValidator owns the canonical capture timeout so every consumer
+        // receives the same first-class `.timedOut` snapshot evidence.
+        AppLogger.shared.log("🔍 [MainAppStateController] Canonical validation run started")
+        let snapshot = await validator.checkSystem()
 
         let validationDuration = Date().timeIntervalSince(validationStart)
         AppLogger.shared.log(
@@ -782,18 +755,6 @@ class MainAppStateController {
             )
             validationState = .checking
         }
-    }
-
-    static func validationTimeoutIssue() -> WizardIssue {
-        WizardIssue(
-            identifier: .validationTimeout,
-            severity: .warning,
-            category: .daemon,
-            title: "Status check timed out",
-            description: "System validation exceeded the 12s watchdog. This is usually transient; the next check should succeed.",
-            autoFixAction: nil,
-            userAction: "If this persists, try restarting KeyPath."
-        )
     }
 
     private func evaluateKanataStartupGate() async -> KanataStartupGateResult {

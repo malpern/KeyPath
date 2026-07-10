@@ -7,6 +7,31 @@ import Foundation
 /// It prevents new runtime/installer state caches outside the known provider-style
 /// owners while follow-up work shrinks the allowlist.
 final class SnapshotConsumerLintTests: XCTestCase {
+    func testCanonicalCaptureTimeoutIsOwnedBySystemValidator() throws {
+        let validatorURL = LintScanner.path(
+            "Sources/KeyPathAppKit/Services/System/SystemValidator.swift"
+        )
+        let validator = try String(contentsOf: validatorURL, encoding: .utf8)
+        XCTAssertTrue(validator.contains("canonicalCaptureTimeout"))
+        XCTAssertTrue(validator.contains("boundedCapture(timeout:"))
+
+        let mainControllerURL = LintScanner.path(
+            "Sources/KeyPathAppKit/Services/MainAppStateController.swift"
+        )
+        let mainController = try String(contentsOf: mainControllerURL, encoding: .utf8)
+        XCTAssertFalse(mainController.contains("ValidationError.timeout"))
+        XCTAssertFalse(mainController.contains("Validation run started (watchdog="))
+
+        let wizardURL = LintScanner.path(
+            "Sources/KeyPathInstallationWizard/Core/WizardOperationsUIExtension.swift"
+        )
+        let stateDetection = try LintScanner.functionBody(named: "stateDetection", in: wizardURL)
+        XCTAssertFalse(
+            stateDetection.contains("withThrowingTaskGroup"),
+            "Wizard state detection must consume SystemValidator timeout evidence, not race a client watchdog."
+        )
+    }
+
     func testFreshCaptureInvalidatesComponentFacts() throws {
         let validator = LintScanner.path(
             "Sources/KeyPathAppKit/Services/System/SystemValidator.swift"

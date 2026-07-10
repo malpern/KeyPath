@@ -28,6 +28,7 @@ public class SystemValidator {
     private var inProgressValidation: Task<SystemSnapshot, Never>?
     private var latestSnapshot: SystemSnapshot?
     private static let canonicalSnapshotCacheTTL: TimeInterval = 1.5
+    static let canonicalCaptureTimeout: TimeInterval = 12
 
     /// Track validation timing to detect rapid-fire calls (indicates automatic triggers)
     private static var lastValidationStart: Date?
@@ -125,7 +126,9 @@ public class SystemValidator {
 
         // Start new validation
         let validationTask = Task<SystemSnapshot, Never> { @MainActor in
-            await self.performValidation(progressCallback: progressCallback)
+            await Self.boundedCapture(timeout: Self.canonicalCaptureTimeout) {
+                await self.performValidation(progressCallback: progressCallback)
+            }
         }
 
         inProgressValidation = validationTask
@@ -134,6 +137,51 @@ public class SystemValidator {
         let snapshot = await validationTask.value
         cacheIfComplete(snapshot)
         return snapshot
+    }
+
+    static func boundedCapture(
+        timeout: TimeInterval,
+        operation: @MainActor @Sendable @escaping () async -> SystemSnapshot
+    ) async -> SystemSnapshot {
+        let completionState = SystemCaptureCompletionState()
+
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                completionState.setContinuation(continuation)
+
+                let operationTask = Task { @MainActor in
+                    let snapshot = await operation()
+                    _ = completionState.complete(with: snapshot)
+                }
+                completionState.setOperationTask(operationTask)
+
+                let timeoutTask = Task { @MainActor in
+                    do {
+                        try await Task.sleep(for: .seconds(timeout))
+                    } catch {
+                        return
+                    }
+                    let didTimeOut = completionState.complete(with: .unavailable(
+                        captureStatus: .timedOut,
+                        source: "system-validator-timeout"
+                    ))
+                    if didTimeOut {
+                        let message = "⏱️ [SystemValidator] Canonical capture timed out after \(String(format: "%.2f", timeout))s"
+                        if TestEnvironment.isRunningTests {
+                            AppLogger.shared.info(message)
+                        } else {
+                            AppLogger.shared.warn(message)
+                        }
+                    }
+                }
+                completionState.setTimeoutTask(timeoutTask)
+            }
+        } onCancel: {
+            _ = completionState.complete(with: .unavailable(
+                captureStatus: .cancelled,
+                source: "system-validator-cancelled"
+            ))
+        }
     }
 
     func checkSystem(
@@ -846,5 +894,62 @@ public class SystemValidator {
     /// Create a minimal snapshot used when a validation task is cancelled
     private static func makeCancelledSnapshot() -> SystemSnapshot {
         .unavailable(captureStatus: .cancelled, source: "cancelled")
+    }
+}
+
+private final class SystemCaptureCompletionState: @unchecked Sendable {
+    private struct State {
+        var result: SystemSnapshot?
+        var continuation: CheckedContinuation<SystemSnapshot, Never>?
+        var operationTask: Task<Void, Never>?
+        var timeoutTask: Task<Void, Never>?
+    }
+
+    private let state = OSAllocatedUnfairLock(initialState: State())
+
+    func setContinuation(_ continuation: CheckedContinuation<SystemSnapshot, Never>) {
+        let completedResult = state.withLock { state -> SystemSnapshot? in
+            if let result = state.result { return result }
+            state.continuation = continuation
+            return nil
+        }
+        if let completedResult {
+            continuation.resume(returning: completedResult)
+        }
+    }
+
+    func setOperationTask(_ task: Task<Void, Never>) {
+        let alreadyCompleted = state.withLock { state -> Bool in
+            state.operationTask = task
+            return state.result != nil
+        }
+        if alreadyCompleted { task.cancel() }
+    }
+
+    func setTimeoutTask(_ task: Task<Void, Never>) {
+        let alreadyCompleted = state.withLock { state -> Bool in
+            state.timeoutTask = task
+            return state.result != nil
+        }
+        if alreadyCompleted { task.cancel() }
+    }
+
+    func complete(with result: SystemSnapshot) -> Bool {
+        let completion = state.withLock { state -> (
+            CheckedContinuation<SystemSnapshot, Never>?,
+            Task<Void, Never>?,
+            Task<Void, Never>?
+        )? in
+            guard state.result == nil else { return nil }
+            state.result = result
+            let continuation = state.continuation
+            state.continuation = nil
+            return (continuation, state.operationTask, state.timeoutTask)
+        }
+        guard let completion else { return false }
+        completion.1?.cancel()
+        completion.2?.cancel()
+        completion.0?.resume(returning: result)
+        return true
     }
 }

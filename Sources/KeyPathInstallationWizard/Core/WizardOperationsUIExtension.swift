@@ -13,52 +13,14 @@ extension WizardOperations {
         freshness: WizardSystemSnapshotFreshness = .fresh,
         progressCallback: @escaping @Sendable (Double) -> Void = { _ in }
     ) -> AsyncOperation<SystemStateResult> {
-        enum StateDetectionError: Error {
-            case timeout
-        }
-
-        return AsyncOperation<SystemStateResult>(
+        AsyncOperation<SystemStateResult>(
             id: "state_detection",
             name: "System State Detection"
         ) { operationProgressCallback in
             // Forward progress from SystemValidator to the operation callback
             if let machine = stateMachine {
                 progressCallback(0.1)
-                do {
-                    try await withThrowingTaskGroup(of: Void.self) { group in
-                        group.addTask { await machine.refresh(freshness: freshness) }
-                        group.addTask {
-                            let clock = ContinuousClock()
-                            try await clock.sleep(for: .seconds(12))
-                            throw StateDetectionError.timeout
-                        }
-                        _ = try await group.next()
-                        group.cancelAll()
-                    }
-                } catch {
-                    AppLogger.shared.log("⚠️ [Wizard] State detection timed out: \(error)")
-                    progressCallback(1.0)
-                    operationProgressCallback(1.0)
-                    // machine.refresh() may have partially or fully completed
-                    // before the timeout. Use whatever state it stored.
-                    return await MainActor.run {
-                        let issues = machine.wizardIssues
-                        let captured = machine.lastWizardSnapshot
-                        if !issues.isEmpty {
-                            AppLogger.shared.log("⚠️ [Wizard] Using \(issues.count) issues from timed-out validation")
-                            return SystemStateResult(
-                                state: machine.wizardState,
-                                issues: issues,
-                                autoFixActions: [],
-                                detectionTimestamp: Date(),
-                                captureStatus: .timedOut,
-                                helperInstalled: captured?.helperInstalled ?? false,
-                                helperNeedsApproval: captured?.helperNeedsApproval ?? false
-                            )
-                        }
-                        return timeoutResult()
-                    }
-                }
+                await machine.refresh(freshness: freshness)
 
                 progressCallback(1.0)
                 operationProgressCallback(1.0)
