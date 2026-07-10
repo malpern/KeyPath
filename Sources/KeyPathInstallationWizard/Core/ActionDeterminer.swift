@@ -113,7 +113,10 @@ public enum InstallerDecisionPipeline {
         // Check if daemon needs starting
         if !context.services.karabinerDaemonRunning {
             // Ensure manager is activated before starting daemon
-            if !context.components.vhidDeviceInstalled, !actions.contains(.activateVHIDDeviceManager) {
+            if !context.components.vhidDeviceInstalled,
+               !context.requiresManualVHIDDriverApproval,
+               !actions.contains(.activateVHIDDeviceManager)
+            {
                 actions.append(.activateVHIDDeviceManager)
             }
             actions.append(.startKarabinerDaemon)
@@ -166,7 +169,10 @@ public enum InstallerDecisionPipeline {
         // Check if daemon needs starting
         if !context.services.karabinerDaemonRunning {
             // Ensure manager is activated before starting daemon
-            if !context.components.vhidDeviceInstalled, !actions.contains(.activateVHIDDeviceManager) {
+            if !context.components.vhidDeviceInstalled,
+               !context.requiresManualVHIDDriverApproval,
+               !actions.contains(.activateVHIDDeviceManager)
+            {
                 actions.append(.activateVHIDDeviceManager)
             }
             actions.append(.startKarabinerDaemon)

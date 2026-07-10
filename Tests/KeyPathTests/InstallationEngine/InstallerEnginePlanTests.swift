@@ -77,6 +77,40 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
         }
     }
 
+    func testManualVHIDApprovalDoesNotPlanActivationOrDaemonStart() {
+        let base = SystemContextBuilder(
+            servicesHealthy: false,
+            kanataInputCaptureReady: false,
+            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason,
+            componentsInstalled: true
+        ).build()
+        let components = ComponentStatus(
+            kanataBinaryInstalled: true,
+            karabinerDriverInstalled: true,
+            karabinerDaemonRunning: false,
+            vhidDeviceInstalled: false,
+            vhidDeviceHealthy: false,
+            vhidServicesHealthy: false,
+            vhidVersionMismatch: false
+        )
+        let context = SystemContext(
+            snapshotID: base.snapshotID,
+            permissions: base.permissions,
+            services: base.services,
+            conflicts: base.conflicts,
+            components: components,
+            helper: base.helper,
+            system: base.system,
+            timestamp: base.timestamp
+        )
+
+        for intent in [InstallIntent.install, .repair] {
+            let actions = InstallerDecisionPipeline.determineActions(for: intent, context: context)
+            XCTAssertFalse(actions.contains(.activateVHIDDeviceManager))
+            XCTAssertFalse(actions.contains(.startKarabinerDaemon))
+        }
+    }
+
     func testExecuteSkipsRecipesAfterFailure() async {
         let coordinator = StubPrivilegedOperationsCoordinator()
         coordinator.failOnCall = "installRequiredRuntimeServices"
