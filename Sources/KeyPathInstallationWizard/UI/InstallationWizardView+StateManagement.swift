@@ -13,12 +13,10 @@ public extension InstallationWizardView {
         // Always reset navigation state for fresh run
         stateMachine.resetNavigation()
 
-        // Configure state providers
-        guard let kanataManager else {
+        guard kanataManager != nil else {
             AppLogger.shared.log("⚠️ [Wizard] kanataManager not configured — skipping wizard setup")
             return
         }
-        stateMachine.configure(kanataManager: kanataManager)
 
         // Determine initial page based on cached system snapshot (if available)
         // Skip summary on initial run - go directly to helper page to start the wizard flow

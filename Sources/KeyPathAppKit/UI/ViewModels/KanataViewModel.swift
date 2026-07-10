@@ -493,14 +493,6 @@ class KanataViewModel {
         )
     }
 
-    func runFullRepair(reason: String) async -> InstallerReport {
-        await manager.runFullRepair(reason: reason)
-    }
-
-    func runFullInstall(reason: String) async -> InstallerReport {
-        await manager.runFullInstall(reason: reason)
-    }
-
     // MARK: - Service Controls
 
     func startKanata(reason: String = "User action") async -> Bool {

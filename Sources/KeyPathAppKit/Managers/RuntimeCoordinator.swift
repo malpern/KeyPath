@@ -618,17 +618,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         )
     }
 
-    func runFullRepair(reason: String = "RuntimeCoordinator repair request") async -> InstallerReport {
-        AppLogger.shared.log("🛠️ [RuntimeCoordinator] runFullRepair invoked (\(reason))")
-        return await installerEngine.run(intent: .repair, using: privilegeBroker)
-    }
-
-    /// Run full installation via InstallerEngine façade.
-    func runFullInstall(reason: String = "RuntimeCoordinator install request") async -> InstallerReport {
-        AppLogger.shared.log("🔧 [RuntimeCoordinator] runFullInstall invoked (\(reason))")
-        return await installerEngine.run(intent: .install, using: privilegeBroker)
-    }
-
     private func captureRecentKanataErrorMessage() -> String? {
         let stderrPath = KeyPathConstants.Logs.kanataStderr
         let contents: String

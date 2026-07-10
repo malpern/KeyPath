@@ -38,7 +38,7 @@ public protocol InstallerEnginePrivilegedRouting: AnyObject {
 ///
 /// - Provides a stable, unified API for install/repair/uninstall flows.
 /// - Wraps extracted services (ServiceBootstrapper, ServiceHealthChecker, etc.).
-/// - Backward-compatible with legacy wizard outputs (SystemContext/SystemContextAdapter).
+/// - Projects canonical system evidence into the planner's SystemContext input.
 @MainActor
 public final class InstallerEngine {
     // MARK: - Dependencies
@@ -55,8 +55,7 @@ public final class InstallerEngine {
     /// Internal designated initializer to share construction logic
     public init(
         processLifecycleManager _: ProcessLifecycleManager,
-        systemValidator injectedValidator: (any WizardSystemValidating)? = nil,
-        kanataManager _: (any RuntimeCoordinating)? = nil
+        systemValidator injectedValidator: (any WizardSystemValidating)? = nil
     ) {
         self.injectedValidator = injectedValidator
 
@@ -65,12 +64,7 @@ public final class InstallerEngine {
 
     /// Public initializer for app/CLI callers (no DI needed).
     public convenience init() {
-        self.init(processLifecycleManager: ProcessLifecycleManager(), kanataManager: nil)
-    }
-
-    /// Internal convenience initializer used by the wizard to surface live Kanata health.
-    public convenience init(kanataManager: any RuntimeCoordinating) {
-        self.init(processLifecycleManager: ProcessLifecycleManager(), kanataManager: kanataManager)
+        self.init(processLifecycleManager: ProcessLifecycleManager())
     }
 
     // MARK: - Public API

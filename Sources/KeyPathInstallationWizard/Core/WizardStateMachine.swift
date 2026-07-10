@@ -129,12 +129,6 @@ public class WizardStateMachine {
         // One-time page tracking is reset via the properties above
     }
 
-    // MARK: - Legacy Compatibility
-
-    /// Configure with RuntimeCoordinating — no-op in simplified architecture.
-    /// Kept for call-site compatibility during migration.
-    public func configure(kanataManager _: any RuntimeCoordinating) {}
-
     /// Detect current state via InstallerEngine (used by existing refresh paths).
     public func detectCurrentState(progressCallback _: @escaping @Sendable (Double) -> Void = { _ in }) async
         -> SystemStateResult
