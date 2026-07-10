@@ -77,7 +77,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
                     id: "install-daemons",
                     type: .installService,
                     expectedPostconditions: [.runtimeReadyOrApprovalPending]
-                ),
+                )
             ],
             status: .ready,
             intent: .repair
@@ -175,7 +175,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         ).build()
         let validator = StubSystemValidator(snapshots: [
             Self.snapshot(from: blockedContext),
-            Self.snapshot(from: finalContext),
+            Self.snapshot(from: finalContext)
         ])
         let engine = InstallerEngine(
             processLifecycleManager: ProcessLifecycleManager(),
@@ -303,7 +303,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
                     id: InstallerRecipeID.createConfigDirectories,
                     type: .installComponent,
                     expectedPostconditions: [.runtimeReadyOrApprovalPending]
-                ),
+                )
             ],
             status: .ready,
             intent: .repair
@@ -341,7 +341,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
                     id: InstallerRecipeID.createConfigDirectories,
                     type: .installComponent,
                     expectedPostconditions: [.runtimeReadyOrApprovalPending, .runtimeReadyOrApprovalPending]
-                ),
+                )
             ],
             status: .ready,
             intent: .repair
