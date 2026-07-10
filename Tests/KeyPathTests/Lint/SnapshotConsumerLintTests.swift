@@ -32,6 +32,16 @@ final class SnapshotConsumerLintTests: XCTestCase {
         )
     }
 
+    func testTCPConfigurationEvidenceComesFromCanonicalSnapshot() throws {
+        let controllerURL = LintScanner.path(
+            "Sources/KeyPathAppKit/Services/MainAppStateController.swift"
+        )
+        let controller = try String(contentsOf: controllerURL, encoding: .utf8)
+        XCTAssertTrue(controller.contains("snapshot.health.kanataTCPConfigured"))
+        XCTAssertFalse(controller.contains("func checkTCPConfiguration"))
+        XCTAssertFalse(controller.contains("PropertyListSerialization.propertyList"))
+    }
+
     func testFreshCaptureInvalidatesComponentFacts() throws {
         let validator = LintScanner.path(
             "Sources/KeyPathAppKit/Services/System/SystemValidator.swift"

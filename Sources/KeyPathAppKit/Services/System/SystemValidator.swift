@@ -762,6 +762,7 @@ public class SystemValidator {
         let kanataRunning = kanataHealth.isRunning
             && kanataHealth.isResponding
             && kanataHealth.inputCaptureReady
+        let kanataTCPConfigured = checkTCPConfiguration()
         let stderrDiagnosis = await ServiceHealthChecker.shared.diagnoseDaemonStderr()
         let configParseError = Self.effectiveConfigParseError(
             stderrDiagnosis.configParseError,
@@ -816,6 +817,7 @@ public class SystemValidator {
                 (kanataHealth.launchctlExitCode == 0 || kanataHealth.isRunning),
             kanataProcessRunning: kanataHealth.isRunning,
             kanataTCPResponding: kanataHealth.isResponding,
+            kanataTCPConfigured: kanataTCPConfigured,
             kanataRunning: kanataRunning,
             karabinerDaemonRunning: karabinerDaemonRunning,
             vhidHealthy: vhidHealthy,
@@ -827,6 +829,44 @@ public class SystemValidator {
             kanataSMAppServiceRegistered: kanataSMAppServiceRegistered,
             loginItemsApprovalRequired: loginItemsApprovalRequired
         )
+    }
+
+    private func checkTCPConfiguration() -> Bool {
+        if TestEnvironment.isRunningTests { return true }
+
+        let plistPath = KanataDaemonManager.getActivePlistPath()
+        guard let plistData = FileManager.default.contents(atPath: plistPath) else {
+            AppLogger.shared.warn(
+                "⚠️ [SystemValidator] TCP configuration missing daemon plist at \(plistPath)"
+            )
+            return false
+        }
+
+        let configured = Self.plistHasTCPPortArgument(plistData)
+        if !configured {
+            AppLogger.shared.warn(
+                "⚠️ [SystemValidator] Daemon plist is missing a valid --port argument"
+            )
+        }
+        return configured
+    }
+
+    static func plistHasTCPPortArgument(_ data: Data) -> Bool {
+        guard
+            let plist = try? PropertyListSerialization.propertyList(
+                from: data,
+                options: [],
+                format: nil
+            ) as? [String: Any],
+            let arguments = plist["ProgramArguments"] as? [String],
+            let portIndex = arguments.firstIndex(of: "--port"),
+            arguments.indices.contains(arguments.index(after: portIndex))
+        else {
+            return false
+        }
+
+        let value = arguments[arguments.index(after: portIndex)]
+        return Int(value).map { (1 ... 65535).contains($0) } ?? false
     }
 
     static func effectiveConfigParseError(
@@ -880,7 +920,12 @@ public class SystemValidator {
                 vhidVersionMismatch: false
             ),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
-            health: HealthStatus(kanataRunning: true, karabinerDaemonRunning: true, vhidHealthy: true),
+            health: HealthStatus(
+                kanataTCPConfigured: true,
+                kanataRunning: true,
+                karabinerDaemonRunning: true,
+                vhidHealthy: true
+            ),
             helper: HelperStatus(
                 isInstalled: true,
                 version: KeyPathHelperContract.version,
