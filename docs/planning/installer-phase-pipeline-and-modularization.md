@@ -287,6 +287,10 @@ snapshot.
   service work. Generic service executors no longer probe activation state or
   inject an undeclared activation operation, and a lint ratchet prevents that
   planner/executor boundary from drifting.
+- Wizard fix actions now render the owned run's completion state and project
+  its final context directly into wizard state. The prior delayed refresh,
+  SMAppService preflight reads, detached VHID probe, and post-fix state-machine
+  reinspection have been removed.
 
 ### Work
 

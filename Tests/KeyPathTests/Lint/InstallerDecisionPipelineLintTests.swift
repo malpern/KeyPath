@@ -132,6 +132,32 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
             "Generic recipe execution may only run declared plan steps; found: \(violations)"
         )
     }
+
+    func testWizardActionsConsumeOwnedRunFinalEvidence() throws {
+        let file = repositoryRoot()
+            .appendingPathComponent(
+                "Sources/KeyPathInstallationWizard/UI/InstallationWizardView+Actions.swift"
+            )
+        let source = try String(contentsOf: file, encoding: .utf8)
+        let forbiddenSecondObservers = [
+            "refreshManagementState(",
+            "performPostFixHealthCheck(",
+            "detectCurrentState(",
+            "refreshSystemState(",
+            "VHIDDeviceManager(",
+            "wizardStartupRevalidate",
+            "getDetailedErrorMessage("
+        ]
+        let violations = forbiddenSecondObservers.filter { source.contains($0) }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            "Wizard actions must render the owned run result without a second observer: \(violations)"
+        )
+        XCTAssertTrue(source.contains("applyOwnedRunResult(report)"))
+        XCTAssertTrue(source.contains("report.finalContext"))
+        XCTAssertTrue(source.contains("evidenceApplied"))
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {

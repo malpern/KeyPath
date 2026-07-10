@@ -21,34 +21,24 @@ public extension InstallationWizardView {
             await MainActor.run { fixInFlight = true }
             defer { Task { @MainActor in fixInFlight = false } }
 
-            // Check if Login Items approval is pending
-            guard let daemonManager = WizardDependencies.daemonManager else {
-                AppLogger.shared.log("⚠️ [Wizard] daemonManager not configured")
-                return
-            }
-            let smState = await daemonManager.refreshManagementState()
-            if smState == .smappservicePending {
-                await MainActor.run {
-                    toastManager.showError(
-                        "Enable KeyPath in System Settings → Login Items before running Fix.",
-                        duration: 6.0
-                    )
-                }
-                return
-            }
-
-            // Run full repair via InstallerEngine (it handles all cases efficiently)
-            guard let kanataManager else {
-                AppLogger.shared.log("⚠️ [Wizard] kanataManager not configured")
-                return
-            }
-            let report = await kanataManager.runFullRepair(reason: "Wizard Fix button")
+            let report = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
+            let evidenceApplied = applyOwnedRunResult(report)
 
             // Show result toast
             await MainActor.run {
-                if report.success {
-                    let successCount = report.successCount
-                    let totalCount = report.totalCount
+                if report.success, !evidenceApplied {
+                    toastManager.showError(
+                        "Repair finished, but KeyPath could not verify the final system state. Close and reopen the wizard before retrying.",
+                        duration: 8.0
+                    )
+                } else if report.completionState == .awaitingApproval {
+                    toastManager.showInfo(
+                        "Repair completed. Approve KeyPath in System Settings → Login Items to continue.",
+                        duration: 7.0
+                    )
+                } else if report.success {
+                    let successCount = report.executedRecipes.filter(\.success).count
+                    let totalCount = report.executedRecipes.count
                     if totalCount > 0 {
                         toastManager.showSuccess(
                             "Repaired \(successCount) of \(totalCount) issue(s)",
@@ -64,16 +54,12 @@ public extension InstallationWizardView {
             }
 
             // Log report details
-            AppLogger.shared.log("🔧 [Wizard] Repair completed - success: \(report.success), recipes: \(report.totalCount)")
+            AppLogger.shared.log(
+                "🔧 [Wizard] Repair completed - state: \(report.completionState.rawValue), recipes: \(report.executedRecipes.count), run: \(report.runID)"
+            )
             if let failureReason = report.failureReason {
                 AppLogger.shared.log("❌ [Wizard] Failure reason: \(failureReason)")
             }
-
-            // Refresh state after repair
-            refreshSystemState()
-
-            // Notify main screen to refresh
-            NotificationCenter.default.post(name: .wizardStartupRevalidate, object: nil)
         }
     }
 
@@ -107,20 +93,6 @@ public extension InstallationWizardView {
 
         AppLogger.shared.log("🔧 [Wizard] Auto-fix for specific action: \(action)")
 
-        // Short-circuit service installs when Login Items approval is pending
-        if action == .installRequiredRuntimeServices,
-           await WizardDependencies.daemonManager?.refreshManagementState() == .smappservicePending
-        {
-            if !suppressToast {
-                await MainActor.run {
-                    toastManager.showError(
-                        "KeyPath background service needs approval in System Settings → Login Items. Enable 'KeyPath' then click Fix again.",
-                        duration: 7.0
-                    )
-                }
-            }
-            return false
-        }
         // Give VHID/launch-service operations more time
         let timeoutSeconds = switch action {
         case .restartVirtualHIDDaemon, .installCorrectVHIDDriver, .repairVHIDDaemonServices,
@@ -131,26 +103,16 @@ public extension InstallationWizardView {
         }
         let actionDescription = getAutoFixActionDescription(action)
 
-        let smState = await WizardDependencies.daemonManager?.refreshManagementState()
-
-        let deferToastActions: Set<AutoFixAction> = [
-            .restartVirtualHIDDaemon, .installCorrectVHIDDriver, .repairVHIDDaemonServices,
-            .installRequiredRuntimeServices
-        ]
-        let deferSuccessToast = deferToastActions.contains(action)
-        var successToastPending = false
-
-        let success: Bool
+        let report: InstallerReport
         do {
-            success = try await runWithTimeout(seconds: timeoutSeconds) {
-                await InstallerEngine().runSingleAction(action, using: PrivilegeBroker()).success
+            report = try await runWithTimeout(seconds: timeoutSeconds) {
+                await InstallerEngine().runSingleAction(action, using: PrivilegeBroker())
             }
         } catch {
-            let stateSummary = await describeServiceState()
             if !suppressToast {
                 await MainActor.run {
                     toastManager.showError(
-                        "Fix timed out after \(Int(timeoutSeconds))s. \(stateSummary)", duration: 7.0
+                        "Fix timed out after \(Int(timeoutSeconds))s.", duration: 7.0
                     )
                 }
             }
@@ -158,36 +120,34 @@ public extension InstallationWizardView {
             return false
         }
 
-        let errorMessage = success ? "" : await getDetailedErrorMessage(for: action, actionDescription: actionDescription)
+        let evidenceApplied = applyOwnedRunResult(report)
 
         if !suppressToast {
             await MainActor.run {
-                if success {
-                    if deferSuccessToast {
-                        successToastPending = true
-                        toastManager.showInfo("Verifying…", duration: 3.0)
-                    } else {
-                        toastManager.showSuccess("\(actionDescription) completed successfully", duration: 5.0)
-                    }
+                if report.success, !evidenceApplied {
+                    toastManager.showError(
+                        "\(actionDescription) finished, but KeyPath could not verify the final system state. Close and reopen the wizard before retrying.",
+                        duration: 8.0
+                    )
+                } else if report.completionState == .awaitingApproval {
+                    toastManager.showInfo(
+                        "\(actionDescription) completed. Approve KeyPath in System Settings → Login Items to continue.",
+                        duration: 7.0
+                    )
+                } else if report.success {
+                    toastManager.showSuccess("\(actionDescription) completed successfully", duration: 5.0)
                 } else {
-                    let message = (!success && smState == .smappservicePending) ?
-                        "KeyPath background service needs approval in System Settings → Login Items. Enable 'KeyPath' and click Fix again."
-                        : errorMessage
+                    let message = report.failureReason ?? "\(actionDescription) failed"
                     toastManager.showError(message, duration: 7.0)
                 }
             }
         }
 
-        AppLogger.shared.log("🔧 [Wizard] Single-action fix completed - success: \(success)")
-
-        performPostFixHealthCheck(
-            action: action,
-            actionDescription: actionDescription,
-            successToastPending: successToastPending,
-            suppressToast: suppressToast
+        AppLogger.shared.log(
+            "🔧 [Wizard] Single-action fix completed - state: \(report.completionState.rawValue), run: \(report.runID)"
         )
 
-        return success
+        return report.success && evidenceApplied && report.completionState != .awaitingApproval
     }
 
     /// UI-only descriptions for auto-fix actions (delegated to AutoFixActionDescriptions)
@@ -203,74 +163,15 @@ public extension InstallationWizardView {
         return description
     }
 
-    // MARK: - Post-Fix Health Check
-
-    private func performPostFixHealthCheck(
-        action: AutoFixAction,
-        actionDescription: String,
-        successToastPending: Bool,
-        suppressToast: Bool
-    ) {
-        Task {
-            _ = await WizardSleep.seconds(1)
-            refreshSystemState()
-
-            NotificationCenter.default.post(name: .wizardStartupRevalidate, object: nil)
+    @MainActor
+    private func applyOwnedRunResult(_ report: InstallerReport) -> Bool {
+        guard let finalContext = report.finalContext else {
             AppLogger.shared.log(
-                "🔄 [Wizard] Triggered StartupValidator refresh after successful auto-fix"
+                "⚠️ [Wizard] Run \(report.runID) returned without final system evidence"
             )
-
-            _ = await WizardSleep.seconds(2)
-            let latestResult = await stateMachine.detectCurrentState()
-            let filteredIssues = sanitizedIssues(from: latestResult.issues, for: latestResult.state)
-            await MainActor.run {
-                stateMachine.wizardState = latestResult.state
-                stateMachine.wizardIssues = filteredIssues
-            }
-
-            let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
-                systemState: latestResult.state,
-                issues: filteredIssues
-            )
-            AppLogger.shared.log("🔍 [Wizard] Post-fix health check: karabinerStatus=\(karabinerStatus)")
-
-            let vhidActions: Set<AutoFixAction> = [
-                .restartVirtualHIDDaemon, .startKarabinerDaemon,
-                .installCorrectVHIDDriver, .repairVHIDDaemonServices,
-            ]
-            guard vhidActions.contains(action) else { return }
-
-            let smStatePost = await WizardDependencies.daemonManager?.refreshManagementState()
-            let vhidHealthy = await Task.detached {
-                await VHIDDeviceManager().detectConnectionHealth()
-            }.value
-
-            if karabinerStatus == .completed || vhidHealthy {
-                if successToastPending, !suppressToast {
-                    await MainActor.run {
-                        toastManager.showSuccess(
-                            "\(actionDescription) completed successfully", duration: 5.0
-                        )
-                    }
-                }
-            } else if !suppressToast {
-                let detail = await kanataManager?.getVirtualHIDBreakageSummary() ?? ""
-                AppLogger.shared.log(
-                    "❌ [Wizard] Post-fix health check failed; will show diagnostic toast"
-                )
-                await MainActor.run {
-                    if smStatePost == .smappservicePending {
-                        toastManager.showError(
-                            "KeyPath background service needs approval in System Settings → Login Items. Enable 'KeyPath' and click Fix again.",
-                            duration: 7.0
-                        )
-                    } else {
-                        toastManager.showError(
-                            "Karabiner driver is still not healthy.\n\n\(detail)", duration: 7.0
-                        )
-                    }
-                }
-            }
+            return false
         }
+        _ = applySystemStateResult(SystemContextAdapter.adapt(finalContext))
+        return true
     }
 }

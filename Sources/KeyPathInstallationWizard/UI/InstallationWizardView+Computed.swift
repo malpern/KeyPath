@@ -13,17 +13,6 @@ public extension InstallationWizardView {
         return formatter.string(from: Date())
     }
 
-    /// Quick summary to surface state when a fix times out
-    func describeServiceState() async -> String {
-        guard let daemonManager = WizardDependencies.daemonManager else {
-            AppLogger.shared.log("⚠️ [Wizard] daemonManager not configured")
-            return "daemonManager not configured"
-        }
-        let state = await daemonManager.refreshManagementState()
-        let vhidRunning = await VHIDDeviceManager().detectRunning()
-        return "VHID running=\(vhidRunning ? "yes" : "no"); services=\(state.description)"
-    }
-
     func handlePageChange(from oldPage: WizardPage, to newPage: WizardPage) {
         AppLogger.shared.log("🧭 [Wizard] View detected page change: \(oldPage) → \(newPage)")
         if newPage == .summary, !isValidating {
