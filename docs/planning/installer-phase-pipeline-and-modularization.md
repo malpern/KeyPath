@@ -261,6 +261,16 @@ beside them. If a proposed new type duplicates `SystemSnapshot` or
 **Goal:** Execute the complete plan once, then verify it with one fresh
 snapshot.
 
+### Progress
+
+- Started on 2026-07-10 after PR #1079 merged Milestones 1 and 2.
+- Post-merge installed CLI repair reproduced the recursive-run deadlock: the
+  outer transaction executed `install-required-runtime-services`, then
+  `ServiceBootstrapper.installAllServices()` called `runSingleAction()` and
+  waited forever to reacquire the same transaction gate.
+- The first slice removes that nested engine/plan creation while preserving the
+  helper-first VHID operation and adds a lint ratchet against recurrence.
+
 ### Work
 
 - Give each plan a stable ID, ordered steps, prerequisites, expected

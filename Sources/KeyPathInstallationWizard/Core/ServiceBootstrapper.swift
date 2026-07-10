@@ -966,7 +966,11 @@ public final class ServiceBootstrapper {
     ///
     /// - Returns: `true` if all services were installed successfully
     @MainActor
-    public func installAllServices() async -> Bool {
+    public func installAllServices(
+        repairVHIDServices: @escaping () async throws -> Void = {
+            try await PrivilegeBroker().repairVHIDDaemonServices()
+        }
+    ) async -> Bool {
         AppLogger.shared.log("🔧 [ServiceBootstrapper] Installing all services (VHID + Kanata)")
 
         // Skip in test mode
@@ -977,13 +981,15 @@ public final class ServiceBootstrapper {
 
         let vhidSnapshot = await captureVHIDInstallSnapshot()
 
-        // Step 1: Install VirtualHID services (helper-first, falls back to osascript)
-        AppLogger.shared.log("📱 [ServiceBootstrapper] Step 1: Installing VirtualHID services via InstallerEngine")
-        let report = await InstallerEngine()
-            .runSingleAction(.repairVHIDDaemonServices, using: PrivilegeBroker())
-        if !report.success {
+        // Step 1: Execute the declared VHID sub-operation through the privilege
+        // broker. Never create another InstallerEngine or plan from inside an
+        // active plan execution; doing so deadlocks on the transaction gate.
+        AppLogger.shared.log("📱 [ServiceBootstrapper] Step 1: Installing VirtualHID services via privilege broker")
+        do {
+            try await repairVHIDServices()
+        } catch {
             AppLogger.shared.log(
-                "❌ [ServiceBootstrapper] VirtualHID installation failed: \(report.failureReason ?? "Unknown error")"
+                "❌ [ServiceBootstrapper] VirtualHID installation failed: \(error.localizedDescription)"
             )
             return false
         }
