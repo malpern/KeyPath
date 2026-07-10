@@ -45,6 +45,7 @@ public final class PrivilegedOperationsRouter {
         nonisolated(unsafe) static var kanataReadinessOverride:
             ((String) async -> KanataReadinessResult)?
         nonisolated(unsafe) static var helperRepairVHIDDaemonServicesOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var sudoRepairVHIDServicesOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var vhidServicesPostconditionOverride: ((String) async -> Bool)?
         nonisolated(unsafe) static var vhidDriverPostconditionOverride: ((String) async -> Bool)?
         nonisolated(unsafe) static var processTerminatedPostconditionOverride: ((Int32, String) async -> Bool)?
@@ -60,6 +61,7 @@ public final class PrivilegedOperationsRouter {
             downloadAndInstallCorrectVHIDDriverOverride = nil
             kanataReadinessOverride = nil
             helperRepairVHIDDaemonServicesOverride = nil
+            sudoRepairVHIDServicesOverride = nil
             vhidServicesPostconditionOverride = nil
             vhidDriverPostconditionOverride = nil
             processTerminatedPostconditionOverride = nil
@@ -215,21 +217,19 @@ public final class PrivilegedOperationsRouter {
     public func repairVHIDDaemonServices() async throws {
         switch Self.operationMode {
         case .privilegedHelper:
-            // Check helper responsiveness first to avoid 30s XPC timeout
-            // when the helper isn't installed or isn't responding.
-            let helperWorking = await helperManager.testHelperFunctionality()
-            if helperWorking {
-                do {
-                    try await helperRepairVHIDDaemonServices()
-                    try await enforceVHIDServicesPostcondition(after: "repairVHIDDaemonServices(helper)")
-                } catch {
-                    try await sudoRepairVHIDServices()
-                    try await enforceVHIDServicesPostcondition(after: "repairVHIDDaemonServices(sudo-fallback)")
+            do {
+                try await helperRepairVHIDDaemonServices()
+                try await enforceVHIDServicesPostcondition(after: "repairVHIDDaemonServices(helper)")
+            } catch {
+                // A timeout or interrupted reply does not prove the helper mutation failed.
+                // Verify current system state before prompting for administrator fallback.
+                if await verifyVHIDServicesPostcondition(context: "repairVHIDDaemonServices(helper-error)") {
+                    AppLogger.shared.log("✅ [Router] Helper reply failed, but VHID postcondition is satisfied; skipping administrator fallback")
+                    return
                 }
-            } else {
-                AppLogger.shared.log("⚠️ [Router] Helper not responsive — using sudo for VHID repair")
+                AppLogger.shared.log("⚠️ [Router] Helper repair did not satisfy the VHID postcondition — using allowed sudo fallback once")
                 try await sudoRepairVHIDServices()
-                try await enforceVHIDServicesPostcondition(after: "repairVHIDDaemonServices(sudo-no-helper)")
+                try await enforceVHIDServicesPostcondition(after: "repairVHIDDaemonServices(sudo-fallback)")
             }
         case .directSudo:
             try await sudoRepairVHIDServices()
@@ -388,6 +388,12 @@ public final class PrivilegedOperationsRouter {
     }
 
     private func sudoRepairVHIDServices() async throws {
+        #if DEBUG
+            if let override = Self.sudoRepairVHIDServicesOverride {
+                try await override()
+                return
+            }
+        #endif
         let success = await ServiceBootstrapper.shared.repairVHIDDaemonServices()
         if !success {
             throw PrivilegedOperationError.operationFailed("VHID daemon repair failed")

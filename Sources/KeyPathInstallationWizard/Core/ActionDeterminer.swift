@@ -2,10 +2,43 @@ import Foundation
 import KeyPathCore
 import KeyPathWizardCore
 
-/// Utility for determining auto-fix actions from system context
-/// Consolidates logic previously duplicated across InstallerEngine, SystemContextAdapter, and SystemSnapshotAdapter
+/// Pure assessment and planning result shared by InstallerEngine and wizard projections.
+public struct InstallerDecision: Sendable, Equatable {
+    public let intent: InstallIntent
+    public let assessment: InstallerStateMatrixRow
+    public let matrixActions: [InstallerStateMatrixAction]
+    public let autoFixActions: [AutoFixAction]
+
+    public init(
+        intent: InstallIntent,
+        assessment: InstallerStateMatrixRow,
+        matrixActions: [InstallerStateMatrixAction],
+        autoFixActions: [AutoFixAction]
+    ) {
+        self.intent = intent
+        self.assessment = assessment
+        self.matrixActions = matrixActions
+        self.autoFixActions = autoFixActions
+    }
+}
+
+/// Canonical pure decision path from one captured context plus intent to one
+/// assessment and one executable action plan.
 @MainActor
-public enum ActionDeterminer {
+public enum InstallerDecisionPipeline {
+    public static func decide(
+        for intent: InstallIntent,
+        context: SystemContext
+    ) -> InstallerDecision {
+        let assessment = context.installerStateMatrixRow
+        return InstallerDecision(
+            intent: intent,
+            assessment: assessment,
+            matrixActions: InstallerStateMatrixPlanner.plan(for: assessment),
+            autoFixActions: determineActions(for: intent, context: context)
+        )
+    }
+
     /// Determine actions needed based on intent and system context
     /// - Parameters:
     ///   - intent: The installation intent (install, repair, etc.)
@@ -182,6 +215,31 @@ public enum ActionDeterminer {
         if !actions.contains(.repairVHIDDaemonServices) {
             actions.append(.repairVHIDDaemonServices)
         }
+    }
+}
+
+/// Compatibility façade for existing tests and callers during Milestone 2.
+/// Production planning must use `InstallerDecisionPipeline.decide` so matrix
+/// metadata and executable actions come from the same captured context.
+@MainActor
+public enum ActionDeterminer {
+    public static func determineActions(
+        for intent: InstallIntent,
+        context: SystemContext
+    ) -> [AutoFixAction] {
+        InstallerDecisionPipeline.decide(for: intent, context: context).autoFixActions
+    }
+
+    public static func determineRepairActions(context: SystemContext) -> [AutoFixAction] {
+        InstallerDecisionPipeline.decide(for: .repair, context: context).autoFixActions
+    }
+
+    public static func determineInstallActions(context: SystemContext) -> [AutoFixAction] {
+        InstallerDecisionPipeline.decide(for: .install, context: context).autoFixActions
+    }
+
+    public static func determineUninstallActions(context: SystemContext) -> [AutoFixAction] {
+        InstallerDecisionPipeline.decide(for: .uninstall, context: context).autoFixActions
     }
 }
 

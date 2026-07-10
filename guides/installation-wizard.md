@@ -104,6 +104,23 @@ If you need to re-run the wizard (e.g., after a macOS update that reset permissi
 
 Or from the menu bar icon: click the KeyPath icon → **Setup Wizard**.
 
+### Uninstalling KeyPath
+
+Open **Settings > Repair/Remove** and choose **Uninstall**. KeyPath normally uses
+its existing system helper to remove the app and its background services without
+another password prompt. If that helper is unavailable, KeyPath first repairs it
+using macOS Service Management and retries the uninstall.
+
+KeyPath does not automatically run a backup administrator script. If the helper
+cannot be repaired, the uninstall dialog offers **Emergency Cleanup** as a separate
+action and explains that macOS will request an administrator password. KeyPath
+checks that the requested components are actually gone before reporting success.
+
+The virtual keyboard driver is shared with tools such as Karabiner-Elements, so
+removing it is optional. When selected, KeyPath verifies the driver separately and
+stops before removing KeyPath if macOS leaves the driver registered. You can retry,
+or uncheck driver removal to remove KeyPath while preserving the shared driver.
+
 ---
 
 ## What runs in the background

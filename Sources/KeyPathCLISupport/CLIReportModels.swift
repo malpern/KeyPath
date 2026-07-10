@@ -74,6 +74,7 @@ public struct CLIInstallerReport: Codable, Sendable {
     public let unmetRequirements: [String]?
     public let logs: [String]?
     public let repairTelemetry: [CLIRepairTelemetryEvent]?
+    public let recommendedRecovery: String?
 
     public init(from report: InstallerReport) {
         success = report.success
@@ -83,12 +84,13 @@ public struct CLIInstallerReport: Codable, Sendable {
         }
         fastRepair = false
         dryRun = nil
-        userActionRequired = nil
+        userActionRequired = report.recommendedRecovery == nil ? nil : true
         issues = nil
         plannedRecipes = nil
         unmetRequirements = nil
-        logs = nil
+        logs = report.logs.isEmpty ? nil : report.logs
         repairTelemetry = CLIRepairTelemetryEvent.from(report.repairTelemetry)
+        recommendedRecovery = report.recommendedRecovery?.rawValue
     }
 
     public init(success: Bool, failureReason: String?, steps: [CLIInstallerStep], fastRepair: Bool) {
@@ -103,6 +105,7 @@ public struct CLIInstallerReport: Codable, Sendable {
         unmetRequirements = nil
         logs = nil
         repairTelemetry = nil
+        recommendedRecovery = nil
     }
 
     public init(bundleIssue: CLISystemIssue, dryRun: Bool, title: String) {
@@ -117,6 +120,7 @@ public struct CLIInstallerReport: Codable, Sendable {
         unmetRequirements = ["Valid KeyPath.app bundle"]
         logs = nil
         repairTelemetry = nil
+        recommendedRecovery = nil
     }
 
     public init(
@@ -130,7 +134,8 @@ public struct CLIInstallerReport: Codable, Sendable {
         plannedRecipes: [String]?,
         unmetRequirements: [String]?,
         logs: [String]?,
-        repairTelemetry: [CLIRepairTelemetryEvent]? = nil
+        repairTelemetry: [CLIRepairTelemetryEvent]? = nil,
+        recommendedRecovery: String? = nil
     ) {
         self.success = success
         self.failureReason = failureReason
@@ -143,6 +148,7 @@ public struct CLIInstallerReport: Codable, Sendable {
         self.unmetRequirements = unmetRequirements
         self.logs = logs
         self.repairTelemetry = repairTelemetry
+        self.recommendedRecovery = recommendedRecovery
     }
 }
 

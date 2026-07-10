@@ -78,6 +78,7 @@ final class WizardPureLogicTests: XCTestCase {
         conflicts: ConflictStatus = .empty,
         components: ComponentStatus? = nil,
         helper: HelperStatus? = nil,
+        captureStatus: SystemSnapshotCaptureStatus = .complete,
         timedOut: Bool = false
     ) -> SystemContext {
         SystemContext(
@@ -88,6 +89,7 @@ final class WizardPureLogicTests: XCTestCase {
             helper: helper ?? healthyHelper,
             system: defaultSystem,
             timestamp: Date(),
+            captureStatus: captureStatus,
             timedOut: timedOut
         )
     }
@@ -147,6 +149,145 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertEqual(result.stateMatrixRow, InstallerStateMatrixRow.helperMissing.rawValue)
         XCTAssertEqual(result.stateMatrixPlan, [InstallerStateMatrixAction.installHelper.rawValue])
         XCTAssertEqual(result.autoFixActions, [.installPrivilegedHelper])
+    }
+
+    func test_systemContextAdapterPublishesCapturedHelperRoutingFacts() {
+        let context = makeContext(
+            helper: HelperStatus(
+                isInstalled: false,
+                version: nil,
+                isWorking: false,
+                requiresApproval: true
+            )
+        )
+
+        let result = SystemContextAdapter.adapt(context)
+
+        XCTAssertFalse(result.helperInstalled)
+        XCTAssertTrue(result.helperNeedsApproval)
+    }
+
+    func test_systemContextAdapterPreservesCaptureStatus() {
+        let context = makeContext(captureStatus: .cancelled)
+
+        let result = SystemContextAdapter.adapt(context)
+
+        XCTAssertEqual(result.captureStatus, .cancelled)
+        XCTAssertEqual(result.stateMatrixRow, InstallerStateMatrixRow.definitiveUnhealthyState.rawValue)
+        XCTAssertTrue(result.issues.contains { $0.identifier == .validationTimeout })
+    }
+
+    func test_emptyFallbackContextIsExplicitlyIncomplete() {
+        XCTAssertEqual(SystemContext.empty.captureStatus, .cancelled)
+        XCTAssertEqual(SystemContext.empty.installerStateMatrixRow, .definitiveUnhealthyState)
+        XCTAssertEqual(SystemContext.timedOut.captureStatus, .timedOut)
+        XCTAssertTrue(SystemContext.timedOut.timedOut)
+    }
+
+    func test_stateDetectionWithoutMachineProducesCanonicalTimeoutEvidence() async throws {
+        let operation = WizardOperations.stateDetection(stateMachine: nil)
+
+        let result = try await operation.execute { _ in }
+
+        XCTAssertEqual(result.captureStatus, .timedOut)
+        XCTAssertEqual(result.issues.map(\.identifier), [.validationTimeout])
+    }
+
+    func test_installerDecisionPipelinePinsAssessmentAndExecutablePlanFixtures() {
+        struct DecisionFixture {
+            let name: String
+            let intent: InstallIntent
+            let context: SystemContext
+            let assessment: InstallerStateMatrixRow
+            let matrixActions: [InstallerStateMatrixAction]
+            let autoFixActions: [AutoFixAction]
+        }
+
+        let missingComponents = ComponentStatus(
+            kanataBinaryInstalled: false,
+            karabinerDriverInstalled: true,
+            karabinerDaemonRunning: true,
+            vhidDeviceInstalled: true,
+            vhidDeviceHealthy: true,
+            vhidServicesHealthy: true,
+            vhidVersionMismatch: false
+        )
+        let stoppedWithStaleDiagnostic = HealthStatus(
+            kanataLaunchdLoaded: true,
+            kanataProcessRunning: false,
+            kanataTCPResponding: false,
+            kanataRunning: false,
+            karabinerDaemonRunning: true,
+            vhidHealthy: true,
+            kanataInputCaptureReady: false,
+            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason,
+            kanataSMAppServiceRegistered: true,
+            loginItemsApprovalRequired: false
+        )
+        let driverApprovalPending = HealthStatus(
+            kanataLaunchdLoaded: true,
+            kanataProcessRunning: false,
+            kanataTCPResponding: false,
+            kanataRunning: false,
+            karabinerDaemonRunning: true,
+            vhidHealthy: false,
+            kanataInputCaptureReady: false,
+            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason,
+            kanataSMAppServiceRegistered: true,
+            loginItemsApprovalRequired: false
+        )
+        let fixtures = [
+            DecisionFixture(
+                name: "healthy repair",
+                intent: .repair,
+                context: makeContext(),
+                assessment: .runningAndTCPResponding,
+                matrixActions: [],
+                autoFixActions: []
+            ),
+            DecisionFixture(
+                name: "missing helper repair",
+                intent: .repair,
+                context: makeContext(helper: .empty),
+                assessment: .helperMissing,
+                matrixActions: [.installHelper],
+                autoFixActions: [.installPrivilegedHelper]
+            ),
+            DecisionFixture(
+                name: "fresh install missing component",
+                intent: .install,
+                context: makeContext(components: missingComponents),
+                assessment: .freshInstallMissingComponents,
+                matrixActions: [.installMissingComponents],
+                autoFixActions: [.installMissingComponents]
+            ),
+            DecisionFixture(
+                name: "stale diagnostic after stopped runtime",
+                intent: .repair,
+                context: makeContext(services: stoppedWithStaleDiagnostic),
+                assessment: .staleInputCaptureIssueWithKanataStopped,
+                matrixActions: [.installRequiredRuntimeServices],
+                autoFixActions: [.installRequiredRuntimeServices]
+            ),
+            DecisionFixture(
+                name: "driver approval pending",
+                intent: .repair,
+                context: makeContext(services: driverApprovalPending),
+                assessment: .driverKitApprovalPendingWithKanataStopped,
+                matrixActions: [.surfaceDriverKitApproval],
+                autoFixActions: []
+            ),
+        ]
+
+        for fixture in fixtures {
+            let decision = InstallerDecisionPipeline.decide(
+                for: fixture.intent,
+                context: fixture.context
+            )
+            XCTAssertEqual(decision.assessment, fixture.assessment, fixture.name)
+            XCTAssertEqual(decision.matrixActions, fixture.matrixActions, fixture.name)
+            XCTAssertEqual(decision.autoFixActions, fixture.autoFixActions, fixture.name)
+        }
     }
 
     func test_inspect_keyPathAccessibilityDenied_producesMissingPermissionsState() {

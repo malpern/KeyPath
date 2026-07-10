@@ -215,6 +215,23 @@ final class WizardStateMachineNavigationTests: XCTestCase {
         XCTAssertEqual(stateMachine.nextPageInSequence, expectedNext)
     }
 
+    func testNextPageUsesCapturedHelperApprovalWithoutReprobing() async {
+        let result = SystemStateResult(
+            state: .serviceNotRunning,
+            issues: [],
+            autoFixActions: [],
+            detectionTimestamp: Date(),
+            helperInstalled: false,
+            helperNeedsApproval: true
+        )
+        stateMachine.updateWizardState(from: result)
+
+        let next = await stateMachine.getNextPage(for: result.state, issues: result.issues)
+
+        XCTAssertEqual(next, .helper)
+        XCTAssertEqual(stateMachine.lastWizardSnapshot?.helperNeedsApproval, true)
+    }
+
     // MARK: - resetNavigation Tests
 
     func testResetNavigation_resetsCurrentPage() {

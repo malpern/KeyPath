@@ -13,8 +13,7 @@ public extension InstallerEngine {
     func determineActions(for intent: InstallIntent, context: SystemContext)
         -> [AutoFixAction]
     {
-        // Use shared ActionDeterminer to avoid duplication
-        ActionDeterminer.determineActions(for: intent, context: context)
+        InstallerDecisionPipeline.decide(for: intent, context: context).autoFixActions
     }
 
     // MARK: - Recipe Generation
@@ -185,7 +184,7 @@ public extension InstallerEngine {
     ///
     /// **Why this works:**
     /// 1. Recipes are designed to be order-independent or self-contained
-    /// 2. ActionDeterminer already adds recipes in roughly correct order
+    /// 2. InstallerDecisionPipeline already adds recipes in roughly correct order
     /// 3. No current recipes declare explicit dependencies (all use empty dependencies array)
     /// 4. Service health checks after each recipe provide implicit ordering guarantees
     ///
@@ -206,7 +205,7 @@ public extension InstallerEngine {
                 "Either remove the dependencies or implement topological sort."
         )
 
-        // Return recipes in the order they were added (ActionDeterminer already provides correct ordering)
+        // Return recipes in the order produced by InstallerDecisionPipeline.
         return recipes
     }
 

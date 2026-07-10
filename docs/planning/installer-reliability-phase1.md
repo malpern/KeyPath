@@ -3,6 +3,7 @@
 **Status:** Proposed
 **Date:** 2026-07-06
 **Companion:** [autonomous-repair-roadmap.md](autonomous-repair-roadmap.md) (Phase 2 — deferred, not abandoned)
+**Successor plan:** [Installer Phase Pipeline and Swift Module Plan](installer-phase-pipeline-and-modularization.md)
 
 ## Purpose
 

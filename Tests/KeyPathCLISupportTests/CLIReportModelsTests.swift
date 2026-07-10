@@ -85,6 +85,21 @@ final class CLIReportModelsTests: XCTestCase {
         XCTAssertNil(event.error)
     }
 
+    func testInstallerReportExposesExplicitRecoveryAction() {
+        let installerReport = InstallerReport(
+            success: false,
+            failureReason: "The system helper could not be repaired.",
+            logs: ["helper repair failed"],
+            recommendedRecovery: .emergencyCleanup
+        )
+
+        let report = CLIInstallerReport(from: installerReport)
+
+        XCTAssertEqual(report.recommendedRecovery, "emergency-cleanup")
+        XCTAssertEqual(report.userActionRequired, true)
+        XCTAssertEqual(report.logs, ["helper repair failed"])
+    }
+
     func testInspectResultJSONShape() throws {
         let json = """
         {"macOSVersion":"15.0","driverCompatible":true,"planStatus":"ready","blockedBy":"helper","plannedRecipes":["step1"]}

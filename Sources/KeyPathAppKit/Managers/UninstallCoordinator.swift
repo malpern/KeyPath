@@ -1,6 +1,8 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathInstallationWizard
+import KeyPathWizardCore
 import Observation
 import ServiceManagement
 
@@ -11,107 +13,312 @@ public final class UninstallCoordinator {
     private(set) var isRunning = false
     private(set) var didSucceed = false
     private(set) var lastError: String?
+    private(set) var recommendedRecovery: WizardUninstallRecoveryAction?
 
     @ObservationIgnored private let resolveUninstallerURLClosure: () -> URL?
-    @ObservationIgnored private let runWithAdminPrivilegesClosure: (URL, Bool) async -> AppleScriptResult
+    @ObservationIgnored private let runWithAdminPrivilegesClosure: (URL, Bool, Bool) async -> AppleScriptResult
     @ObservationIgnored private let uninstallPostconditionsSatisfiedClosure: () -> Bool
+    @ObservationIgnored private let helperInstalledClosure: () async -> Bool
+    @ObservationIgnored private let helperFunctionalClosure: () async -> Bool
+    @ObservationIgnored private let repairHelperClosure: () async -> Bool
+    @ObservationIgnored private let uninstallViaHelperClosure: (Bool) async throws -> Void
+    @ObservationIgnored private let unregisterHelperClosure: () async -> Bool
+    @ObservationIgnored private var unregisterRuntimeServicesClosure: () async -> Void
+    @ObservationIgnored private let uninstallVirtualHIDClosure: () async throws -> Void
+    @ObservationIgnored private let virtualHIDRemovedClosure: () async -> Bool
 
     init(
         resolveUninstallerURL: @escaping () -> URL?,
-        runWithAdminPrivileges: @escaping (URL, Bool) async -> AppleScriptResult,
-        uninstallPostconditionsSatisfied: (() -> Bool)? = nil
+        runWithAdminPrivileges: @escaping (URL, Bool, Bool) async -> AppleScriptResult,
+        uninstallPostconditionsSatisfied: (() -> Bool)? = nil,
+        helperInstalled: (() async -> Bool)? = nil,
+        helperFunctional: (() async -> Bool)? = nil,
+        repairHelper: (() async -> Bool)? = nil,
+        uninstallViaHelper: ((Bool) async throws -> Void)? = nil,
+        unregisterHelper: (() async -> Bool)? = nil,
+        unregisterRuntimeServices: (() async -> Void)? = nil,
+        uninstallVirtualHID: (() async throws -> Void)? = nil,
+        virtualHIDRemoved: (() async -> Bool)? = nil
     ) {
         resolveUninstallerURLClosure = resolveUninstallerURL
         runWithAdminPrivilegesClosure = runWithAdminPrivileges
         uninstallPostconditionsSatisfiedClosure = uninstallPostconditionsSatisfied ?? {
             UninstallCoordinator.defaultUninstallPostconditionsSatisfied()
         }
+        helperInstalledClosure = helperInstalled ?? {
+            await HelperManager.shared.isHelperInstalled()
+        }
+        helperFunctionalClosure = helperFunctional ?? {
+            await HelperManager.shared.testHelperFunctionality()
+        }
+        repairHelperClosure = repairHelper ?? {
+            await HelperMaintenance.shared.runCleanupAndRepair(
+                useAppleScriptFallback: false,
+                forceFullRepair: true
+            )
+        }
+        uninstallViaHelperClosure = uninstallViaHelper ?? { deleteConfig in
+            try await HelperManager.shared.uninstallKeyPath(deleteConfig: deleteConfig)
+        }
+        unregisterHelperClosure = unregisterHelper ?? {
+            await UninstallCoordinator.defaultUnregisterHelperService()
+        }
+        unregisterRuntimeServicesClosure = unregisterRuntimeServices ?? {}
+        uninstallVirtualHIDClosure = uninstallVirtualHID ?? {
+            try await InstallerEngine().uninstallVirtualHIDDrivers(using: PrivilegeBroker())
+        }
+        virtualHIDRemovedClosure = virtualHIDRemoved ?? {
+            await ServiceHealthChecker.shared.vhidDriverExtensionStatus() == .missing
+        }
     }
 
     convenience init() {
+        let helperService = HelperManager.smServiceFactory(HelperManager.helperPlistName)
         self.init(
             resolveUninstallerURL: Self.defaultResolveUninstallerURL,
-            runWithAdminPrivileges: Self.defaultRunWithAdminPrivileges
+            runWithAdminPrivileges: Self.defaultRunWithAdminPrivileges,
+            unregisterHelper: {
+                await UninstallCoordinator.defaultUnregisterHelperService(helperService)
+            },
+            unregisterRuntimeServices: nil
         )
+        unregisterRuntimeServicesClosure = { [weak self] in
+            await self?.unregisterSMAppServiceDaemons()
+        }
     }
 
     @discardableResult
     public func uninstall(deleteConfig: Bool = false) async -> Bool {
-        guard !isRunning else { return false }
+        await performUninstall(
+            deleteConfig: deleteConfig,
+            removeVirtualHID: false,
+            allowAdminFallback: false
+        ).success
+    }
+
+    public func performUninstall(
+        deleteConfig: Bool = false,
+        removeVirtualHID: Bool = false,
+        allowAdminFallback: Bool = false
+    ) async -> WizardUninstallResult {
+        guard !isRunning else {
+            return WizardUninstallResult(
+                success: false,
+                failureReason: "An uninstall is already in progress."
+            )
+        }
 
         isRunning = true
         didSucceed = false
         lastError = nil
+        recommendedRecovery = nil
         logLines = ["🗑️ Starting KeyPath uninstall..."]
+        var steps: [WizardUninstallStepResult] = []
 
         defer { isRunning = false }
 
         // IMPORTANT: Unregister SMAppService daemons BEFORE helper/script cleanup
         // This clears the internal registration database that helper/script can't access
-        await unregisterSMAppServiceDaemons()
-
-        // Try to use the privileged helper first (no password prompt needed)
-        if await tryUninstallViaHelper(deleteConfig: deleteConfig) {
-            didSucceed = true
-            await resetForTestingIfEnabled()
-            logLines.append("✅ Uninstall completed")
-            return true
-        }
+        await unregisterRuntimeServicesClosure()
 
         if uninstallPostconditionsSatisfiedClosure() {
-            didSucceed = true
-            lastError = nil
+            if removeVirtualHID, await !virtualHIDRemovedClosure() {
+                let message = "KeyPath is removed, but the virtual keyboard driver remains registered with macOS."
+                steps.append(WizardUninstallStepResult(
+                    id: "uninstall-virtual-hid-driver",
+                    success: false,
+                    error: message
+                ))
+                return finish(WizardUninstallResult(
+                    success: false,
+                    failureReason: message,
+                    steps: steps,
+                    logs: logLines
+                ))
+            }
+            steps.append(WizardUninstallStepResult(id: "verify-uninstall", success: true))
             await resetForTestingIfEnabled()
             logLines.append("✅ Uninstall completed; cleanup already satisfied")
-            return true
+            return finish(
+                WizardUninstallResult(success: true, steps: steps, logs: logLines)
+            )
         }
 
-        // Fall back to script-based uninstall if helper isn't available
-        logLines.append("⚠️ Helper not available, falling back to admin prompt...")
-        return await uninstallViaScript(deleteConfig: deleteConfig)
+        let helperInstalled = await helperInstalledClosure()
+        var helperReady = helperInstalled
+        if helperReady {
+            helperReady = await helperFunctionalClosure()
+        }
+        if !helperReady {
+            logLines.append("ℹ️ System helper is unavailable; attempting SMAppService repair")
+            let repaired = await repairHelperClosure()
+            steps.append(WizardUninstallStepResult(
+                id: "repair-uninstall-helper",
+                success: repaired,
+                error: repaired ? nil : "The system helper could not be repaired."
+            ))
+            helperReady = repaired
+            if helperReady {
+                helperReady = await helperFunctionalClosure()
+            }
+        }
+
+        var helperFailure: String?
+        var virtualHIDFailure: String?
+        if helperReady {
+            logLines.append("🔧 Using the system helper for uninstall...")
+            logLines.append(deleteConfig
+                ? "🗑️ User configuration will be deleted"
+                : "💾 User configuration will be preserved")
+
+            if removeVirtualHID {
+                do {
+                    try await uninstallVirtualHIDClosure()
+                    let removed = await waitForVirtualHIDRemoval()
+                    virtualHIDFailure = removed
+                        ? nil
+                        : "The virtual keyboard driver is still registered with macOS."
+                    steps.append(WizardUninstallStepResult(
+                        id: "uninstall-virtual-hid-driver",
+                        success: removed,
+                        error: virtualHIDFailure
+                    ))
+                } catch {
+                    virtualHIDFailure = "Virtual keyboard driver removal failed: \(error.localizedDescription)"
+                    steps.append(WizardUninstallStepResult(
+                        id: "uninstall-virtual-hid-driver",
+                        success: false,
+                        error: virtualHIDFailure
+                    ))
+                }
+
+                if let virtualHIDFailure {
+                    let message = "The virtual keyboard driver could not be removed. \(virtualHIDFailure) Uncheck driver removal to uninstall KeyPath without removing the shared driver."
+                    logLines.append("⚠️ \(message)")
+                    return finish(WizardUninstallResult(
+                        success: false,
+                        failureReason: message,
+                        steps: steps,
+                        logs: logLines
+                    ))
+                }
+            }
+
+            do {
+                try await uninstallViaHelperClosure(deleteConfig)
+                steps.append(WizardUninstallStepResult(id: "uninstall-via-helper", success: true))
+
+                let helperUnregistered = await unregisterHelperClosure()
+                steps.append(WizardUninstallStepResult(
+                    id: "unregister-uninstall-helper",
+                    success: helperUnregistered,
+                    error: helperUnregistered ? nil : "The system helper registration remains active."
+                ))
+
+                let verified = await waitForUninstallPostconditions()
+                steps.append(WizardUninstallStepResult(
+                    id: "verify-uninstall",
+                    success: verified,
+                    error: verified ? nil : "Some KeyPath system components remain installed."
+                ))
+                if verified, helperUnregistered {
+                    await resetForTestingIfEnabled()
+                    logLines.append("✅ Uninstall completed and verified")
+                    return finish(
+                        WizardUninstallResult(success: true, steps: steps, logs: logLines)
+                    )
+                }
+                helperFailure = helperUnregistered
+                    ? "Some KeyPath system components remain installed."
+                    : "The system helper registration could not be removed."
+            } catch {
+                helperFailure = error.localizedDescription
+                steps.append(WizardUninstallStepResult(
+                    id: "uninstall-via-helper",
+                    success: false,
+                    error: helperFailure
+                ))
+                logLines.append("❌ System helper uninstall failed: \(error.localizedDescription)")
+            }
+        } else {
+            helperFailure = "The system helper is unavailable and could not be repaired."
+            logLines.append("⚠️ \(helperFailure!)")
+        }
+
+        if allowAdminFallback {
+            return await performEmergencyCleanup(
+                deleteConfig: deleteConfig,
+                removeVirtualHID: removeVirtualHID,
+                previousSteps: steps
+            )
+        }
+
+        let message = helperFailure ?? "KeyPath could not prepare its system helper."
+        logLines.append("ℹ️ Emergency Cleanup is available as an explicit administrator-authorized fallback")
+        return finish(WizardUninstallResult(
+            success: false,
+            failureReason: message,
+            recommendedRecovery: .emergencyCleanup,
+            steps: steps,
+            logs: logLines
+        ))
     }
 
-    /// Try to uninstall using the privileged helper (no password prompt)
-    /// Returns true if successful, false if helper isn't available or fails
-    private func tryUninstallViaHelper(deleteConfig: Bool) async -> Bool {
-        let helper = HelperManager.shared
+    private func finish(_ result: WizardUninstallResult) -> WizardUninstallResult {
+        didSucceed = result.success
+        lastError = result.failureReason
+        recommendedRecovery = result.recommendedRecovery
+        return result
+    }
 
-        // Check if helper is installed and functional
-        guard await helper.isHelperInstalled() else {
-            logLines.append("ℹ️ Privileged helper not installed")
-            return false
+    private func waitForUninstallPostconditions() async -> Bool {
+        let clock = ContinuousClock()
+        for attempt in 1 ... 8 {
+            if uninstallPostconditionsSatisfiedClosure() {
+                return true
+            }
+            if attempt < 8 {
+                try? await clock.sleep(for: .milliseconds(250))
+            }
         }
+        return false
+    }
 
-        guard await helper.testHelperFunctionality() else {
-            logLines.append("ℹ️ Privileged helper not responding")
-            return false
+    private func waitForVirtualHIDRemoval() async -> Bool {
+        let clock = ContinuousClock()
+        for attempt in 1 ... 8 {
+            if await virtualHIDRemovedClosure() {
+                return true
+            }
+            if attempt < 8 {
+                try? await clock.sleep(for: .milliseconds(250))
+            }
         }
-
-        logLines.append("🔧 Using privileged helper for uninstall...")
-        if deleteConfig {
-            logLines.append("🗑️ User configuration will be deleted")
-        } else {
-            logLines.append("💾 User configuration will be preserved")
-        }
-
-        do {
-            try await helper.uninstallKeyPath(deleteConfig: deleteConfig)
-            logLines.append("✅ Services and files removed via helper")
-            return true
-        } catch {
-            logLines.append("❌ Helper uninstall failed: \(error.localizedDescription)")
-            lastError = error.localizedDescription
-            return false
-        }
+        return false
     }
 
     /// Fallback uninstall using the shell script with admin privileges
-    private func uninstallViaScript(deleteConfig: Bool) async -> Bool {
+    private func performEmergencyCleanup(
+        deleteConfig: Bool,
+        removeVirtualHID: Bool,
+        previousSteps: [WizardUninstallStepResult]
+    ) async -> WizardUninstallResult {
+        var steps = previousSteps
+        logLines.append("⚠️ Starting Emergency Cleanup with administrator authorization")
         guard let scriptURL = resolveUninstallerURLClosure() else {
             let message = "Uninstaller script wasn't found in this build."
             logLines.append("❌ \(message)")
-            lastError = message
-            return false
+            steps.append(WizardUninstallStepResult(
+                id: "emergency-admin-cleanup",
+                success: false,
+                error: message
+            ))
+            return finish(WizardUninstallResult(
+                success: false,
+                failureReason: message,
+                steps: steps,
+                logs: logLines
+            ))
         }
 
         logLines.append("📄 Using uninstaller at: \(scriptURL.path)")
@@ -121,28 +328,61 @@ public final class UninstallCoordinator {
             logLines.append("💾 User configuration will be preserved")
         }
 
-        let result = await runWithAdminPrivilegesClosure(scriptURL, deleteConfig)
+        let result = await runWithAdminPrivilegesClosure(
+            scriptURL,
+            deleteConfig,
+            removeVirtualHID
+        )
 
         if result.success {
-            didSucceed = true
             let output = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
             if !output.isEmpty {
                 logLines.append(contentsOf: output.components(separatedBy: "\n"))
             }
-            await resetForTestingIfEnabled()
-            logLines.append("✅ Uninstall completed")
-        } else {
-            let trimmed = result.error.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty {
-                logLines.append("❌ \(trimmed)")
-                lastError = trimmed
-            } else {
-                logLines.append("❌ Uninstall failed (error code \(result.exitStatus))")
-                lastError = "Uninstall failed with exit code \(result.exitStatus)"
+
+            let filesRemoved = await waitForUninstallPostconditions()
+            var driverRemoved = !removeVirtualHID
+            if removeVirtualHID {
+                driverRemoved = await waitForVirtualHIDRemoval()
             }
+            let verified = filesRemoved && driverRemoved
+            steps.append(WizardUninstallStepResult(
+                id: "emergency-admin-cleanup",
+                success: verified,
+                error: verified ? nil : "Emergency Cleanup finished, but some requested system components remain installed."
+            ))
+            if verified {
+                await resetForTestingIfEnabled()
+                logLines.append("✅ Emergency Cleanup completed and verified")
+                return finish(WizardUninstallResult(success: true, steps: steps, logs: logLines))
+            }
+
+            let message = "Emergency Cleanup finished, but some requested system components remain installed."
+            logLines.append("❌ \(message)")
+            return finish(WizardUninstallResult(
+                success: false,
+                failureReason: message,
+                steps: steps,
+                logs: logLines
+            ))
         }
 
-        return result.success
+        let trimmed = result.error.trimmingCharacters(in: .whitespacesAndNewlines)
+        let message = trimmed.isEmpty
+            ? "Emergency Cleanup failed with error code \(result.exitStatus)."
+            : trimmed
+        logLines.append("❌ \(message)")
+        steps.append(WizardUninstallStepResult(
+            id: "emergency-admin-cleanup",
+            success: false,
+            error: message
+        ))
+        return finish(WizardUninstallResult(
+            success: false,
+            failureReason: message,
+            steps: steps,
+            logs: logLines
+        ))
     }
 
     func copyTerminalCommand() {
@@ -226,7 +466,7 @@ public final class UninstallCoordinator {
         for plistName in daemonPlists {
             let service = HelperManager.smServiceFactory(plistName)
             let status = await SystemStateProvider.shared.freshSMAppServiceStatus(for: plistName)
-            guard status == .enabled else {
+            guard status == .enabled || status == .requiresApproval else {
                 logLines.append("ℹ️ SMAppService \(plistName): not registered, skipping")
                 continue
             }
@@ -271,12 +511,40 @@ public final class UninstallCoordinator {
         return paths.allSatisfy { !FileManager.default.fileExists(atPath: $0) }
     }
 
-    private static func defaultRunWithAdminPrivileges(scriptURL: URL, deleteConfig: Bool) async
+    private static func defaultUnregisterHelperService(
+        _ service: any SMAppServiceProtocol = HelperManager.smServiceFactory(HelperManager.helperPlistName)
+    ) async -> Bool {
+        let plistName = HelperManager.helperPlistName
+        let provider = SystemStateProvider.shared
+        let initialStatus = await provider.freshSMAppServiceStatus(for: plistName)
+        if initialStatus == .notFound || initialStatus == .notRegistered {
+            return true
+        }
+
+        do {
+            try await service.unregister()
+            await provider.invalidateSMAppServiceStatus(plistName: plistName)
+            return true
+        } catch {
+            let finalStatus = await provider.freshSMAppServiceStatus(for: plistName)
+            AppLogger.shared.log(
+                "⚠️ [UninstallCoordinator] Helper unregister failed: \(error.localizedDescription); final status=\(finalStatus.rawValue)"
+            )
+            return finalStatus == .notFound || finalStatus == .notRegistered
+        }
+    }
+
+    private static func defaultRunWithAdminPrivileges(
+        scriptURL: URL,
+        deleteConfig: Bool,
+        removeVirtualHID: Bool
+    ) async
         -> AppleScriptResult
     {
         // Use PrivilegedCommandRunner which respects TestEnvironment.useSudoForPrivilegedOps
         let configFlag = deleteConfig ? " --delete-config" : ""
-        let command = "KEYPATH_UNINSTALL_ASSUME_YES=1 '\(scriptURL.path)' --assume-yes\(configFlag)"
+        let driverFlag = removeVirtualHID ? " --remove-virtual-hid" : ""
+        let command = "KEYPATH_UNINSTALL_ASSUME_YES=1 '\(scriptURL.path)' --assume-yes\(configFlag)\(driverFlag)"
         let result = PrivilegedCommandRunner.execute(
             command: command,
             prompt: "KeyPath needs to uninstall system services."

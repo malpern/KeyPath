@@ -60,45 +60,44 @@ final class SnapshotConsumerLintTests: XCTestCase {
             named: "inspectSystem",
             in: LintScanner.path("Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift")
         )
+        XCTAssertTrue(
+            body.contains("SystemContext(snapshot: snapshot)"),
+            "InstallerEngine.inspectSystem() must use the canonical SystemSnapshot projection."
+        )
 
-        for healthField in [
-            "kanataLaunchdLoaded",
-            "kanataProcessRunning",
-            "kanataTCPResponding",
-            "kanataInputCaptureReady",
-            "kanataInputCaptureIssue",
-            "staleEnabledRegistration",
-            "kanataSMAppServiceRegistered",
-            "loginItemsApprovalRequired"
+        let typesURL = LintScanner.path(
+            "Sources/KeyPathInstallationWizard/Core/InstallerEngineTypes.swift"
+        )
+        let typesSource = try String(contentsOf: typesURL, encoding: .utf8)
+        guard let projectionStart = typesSource.range(of: "public init(snapshot: SystemSnapshot)"),
+              let projectionEnd = typesSource.range(
+                  of: "/// Empty/fallback context",
+                  range: projectionStart.lowerBound ..< typesSource.endIndex
+              )
+        else {
+            return XCTFail("Could not locate the canonical SystemSnapshot projection")
+        }
+        let projection = typesSource[projectionStart.lowerBound ..< projectionEnd.lowerBound]
+
+        for mapping in [
+            "permissions: snapshot.permissions",
+            "services: snapshot.health",
+            "conflicts: snapshot.conflicts",
+            "components: snapshot.components",
+            "helper: snapshot.helper",
+            "macOSVersion: snapshot.compatibility.macOSVersion",
+            "driverCompatible: snapshot.compatibility.driverCompatible",
+            "timestamp: snapshot.timestamp",
+            "captureStatus: snapshot.captureStatus",
         ] {
             XCTAssertTrue(
-                body.contains("\(healthField): snapshot.health.\(healthField)"),
+                projection.contains(mapping),
                 """
-                InstallerEngine.inspectSystem() must preserve \(healthField) when \
-                converting SystemSnapshot.health to SystemContext.services. \
-                Dropping it turns explicit state-matrix evidence into unknown \
-                state-matrix evidence.
+                SystemContext.init(snapshot:) must preserve `\(mapping)` when \
+                projecting canonical snapshot evidence into compatibility state.
                 """
             )
         }
-
-        XCTAssertTrue(
-            body.contains("components: snapshot.components"),
-            """
-            InstallerEngine.inspectSystem() must preserve ComponentStatus when \
-            converting SystemSnapshot to SystemContext. Dropping it would erase \
-            required runtime payload evidence from the wizard matrix bridge.
-            """
-        )
-
-        XCTAssertTrue(
-            body.contains("helper: snapshot.helper"),
-            """
-            InstallerEngine.inspectSystem() must preserve HelperStatus when \
-            converting SystemSnapshot to SystemContext. Dropping it would erase \
-            helper freshness evidence from the wizard matrix bridge.
-            """
-        )
     }
 
     func testInstallerStateMatrixSnapshotInitializerDoesNotDefaultEvidence() throws {

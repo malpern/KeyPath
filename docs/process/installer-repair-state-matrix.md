@@ -75,6 +75,19 @@ current missing/stopped runtime.
 | Manual approval is required | Login Items/System Extension/TCC approval needed | Return terminal manual-action state for this attempt | no retry loop; UI/CLI names approval | CLI/UI contract test |
 | Definitive unhealthy state | repeated launchctl not-found, no process, no TCP | Fail with diagnostics, not optimistic success | failure report includes missing evidence | Failure-path test for no false green |
 
+## Uninstall State Matrix
+
+These coordinator states are intentionally separate from
+`InstallerStateMatrixRow`: they describe an explicit uninstall transaction, not
+a passive system-snapshot classification.
+
+| State | Typical Evidence | Coordinator Should | Success Postcondition | Test Requirement |
+|-------|------------------|--------------------|-----------------------|------------------|
+| Uninstall helper missing or unresponsive | helper is absent or XPC health check fails | Repair/register the helper with `SMAppService`, verify XPC, then uninstall through the helper | KeyPath files and service registrations are absent | Coordinator test that helper repair precedes uninstall and no admin-script fallback runs automatically |
+| Uninstall helper cannot be repaired | helper repair fails or still does not answer over XPC | Stop and return explicit `emergency-cleanup` recovery; never launch the admin script automatically | failed with diagnostics and a user-selected recovery action | Coordinator test that fallback invocation count remains zero until explicitly enabled |
+| Uninstall including VirtualHID | user selected driver removal | Remove and verify the driver before the helper self-destructs; stop before removing KeyPath if the requested driver removal fails | KeyPath and DriverKit extension absent, or KeyPath remains installed with actionable driver diagnostics | Coordinator ordering and stop-before-app-removal tests |
+| Emergency uninstall cleanup | user explicitly confirms Emergency Cleanup | Run the bundled cleanup script with administrator authorization and verify the same postconditions | requested files, registrations, and optional driver are absent | Test that command success with failed postconditions remains failure |
+
 ## Review Checklist
 
 For any installer or repair change, answer these before merging:
@@ -85,6 +98,8 @@ For any installer or repair change, answer these before merging:
   `failed with diagnostics`?
 - Does every helper path and every sudo fallback path enforce the same
   postcondition?
+- Can any uninstall path launch administrator-script fallback without a separate,
+  explicit user action? It must not.
 - Does every installer/repair report include structured telemetry for the
   trigger, state-matrix row, matrix plan/action, and postcondition result?
   `InstallerEngineTests.testExecuteRecordsStructuredRepairTelemetryForSuccessfulRecipe`,

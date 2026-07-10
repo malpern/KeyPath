@@ -278,6 +278,34 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         XCTAssertTrue(report.failureReason?.contains("not configured") ?? false)
     }
 
+    func testUninstall_PreservesStructuredRecoveryAndComponentResults() async {
+        let savedFactory = WizardDependencies.createUninstallCoordinator
+        let coordinator = StubWizardUninstaller(result: WizardUninstallResult(
+            success: false,
+            failureReason: "The system helper could not be repaired.",
+            recommendedRecovery: .emergencyCleanup,
+            steps: [
+                WizardUninstallStepResult(
+                    id: "repair-uninstall-helper",
+                    success: false,
+                    error: "The system helper could not be repaired."
+                ),
+            ],
+            logs: ["helper repair failed"]
+        ))
+        WizardDependencies.createUninstallCoordinator = { coordinator }
+        defer { WizardDependencies.createUninstallCoordinator = savedFactory }
+
+        let broker = PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+        let report = await engine.uninstall(deleteConfig: false, using: broker)
+
+        XCTAssertFalse(report.success)
+        XCTAssertEqual(report.recommendedRecovery, .emergencyCleanup)
+        XCTAssertEqual(report.logs, ["helper repair failed"])
+        XCTAssertEqual(report.executedRecipes.map(\.recipeID), ["repair-uninstall-helper"])
+        XCTAssertFalse(report.executedRecipes[0].success)
+    }
+
     // MARK: - Report Structure Tests
 
     func testReport_FailureReasonIncludesRecipeID() async throws {
@@ -533,5 +561,22 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         try await stub.sudoExecuteCommand("/bin/launchctl bootout system/com.keypath.kanata", description: "Stop service")
         XCTAssertTrue(stub.calls.first?.contains("sudoExecuteCommand") ?? false)
         XCTAssertTrue(stub.calls.first?.contains("launchctl") ?? false)
+    }
+}
+
+@MainActor
+private final class StubWizardUninstaller: WizardUninstalling {
+    let result: WizardUninstallResult
+
+    init(result: WizardUninstallResult) {
+        self.result = result
+    }
+
+    func performUninstall(
+        deleteConfig _: Bool,
+        removeVirtualHID _: Bool,
+        allowAdminFallback _: Bool
+    ) async -> WizardUninstallResult {
+        result
     }
 }

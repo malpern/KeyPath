@@ -22,11 +22,16 @@ public extension InstallationWizardView {
 
         // Determine initial page based on cached system snapshot (if available)
         // Skip summary on initial run - go directly to helper page to start the wizard flow
+        let cachedSnapshot = stateMachine.lastWizardSnapshot
         let preferredPage = await cachedPreferredPage()
-        if initialPage == nil, await shouldShowWelcomePage() {
+        if initialPage == nil,
+           let cachedSnapshot,
+           shouldShowWelcomePage(helperInstalled: cachedSnapshot.helperInstalled)
+        {
             // Fresh install, Get Started never clicked: open on the one-time
-            // welcome page (issue #932). Validation still runs underneath;
-            // performInitialStateCheck() leaves the welcome page alone.
+            // welcome page (issue #932) using the already captured helper fact.
+            // Validation still runs underneath; performInitialStateCheck()
+            // leaves the welcome page alone.
             AppLogger.shared.log("👋 [Wizard] Fresh install — starting at welcome page")
             stateMachine.navigateToPage(.welcome)
         } else if let preferredPage, initialPage == nil {
@@ -36,14 +41,10 @@ public extension InstallationWizardView {
             AppLogger.shared.log("🔍 [Wizard] Navigating to initial page override: \(initialPage)")
             stateMachine.navigateToPage(initialPage)
         } else {
-            // No cached snapshot and no explicit override: stay on summary (the
-            // default from resetNavigation()) until performInitialStateCheck()
-            // below determines the real target page. Eagerly jumping to .helper
-            // here and then bouncing back to .summary once permissions are known
-            // (see performInitialStateCheck's "Permissions still unverified" guard)
-            // caused a visible summary→helper→summary flicker on wizard open (#934).
-            // performInitialStateCheck() performs the single authoritative
-            // navigation once state + permissions are resolved.
+            // No cached snapshot and no explicit override: stay on summary until
+            // performInitialStateCheck() captures the canonical result. That one
+            // result decides both the one-time welcome gate and the first setup
+            // page, avoiding a separate helper/SMAppService probe.
             AppLogger.shared.log("🔍 [Wizard] No cached page — staying on summary until initial state check completes")
         }
 
@@ -69,9 +70,8 @@ public extension InstallationWizardView {
 
     /// Whether the wizard should open on the one-time Welcome page (issue #932):
     /// fresh install (helper not installed) and Get Started never clicked.
-    internal func shouldShowWelcomePage() async -> Bool {
-        let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
-        return WizardWelcomeGate.shouldShowWelcome(helperInstalled: helperInstalled)
+    internal func shouldShowWelcomePage(helperInstalled: Bool) -> Bool {
+        WizardWelcomeGate.shouldShowWelcome(helperInstalled: helperInstalled)
     }
 
     func performInitialStateCheck(
@@ -96,6 +96,7 @@ public extension InstallationWizardView {
 
         let operation = WizardOperations.stateDetection(
             stateMachine: stateMachine,
+            freshness: .cached,
             progressCallback: { progress in
                 // Update progress on MainActor (callback may be called from background)
                 Task { @MainActor in
@@ -126,11 +127,14 @@ public extension InstallationWizardView {
             }
 
             let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
-            stateMachine.wizardState = result.state
-            stateMachine.wizardIssues = filteredIssues
-            stateMachine.lastWizardSnapshot = WizardSnapshotRecord(
-                state: result.state, issues: filteredIssues
-            )
+            stateMachine.updateWizardState(from: result, issues: filteredIssues)
+            if initialPage == nil,
+               stateMachine.currentPage != .welcome,
+               shouldShowWelcomePage(helperInstalled: result.helperInstalled)
+            {
+                AppLogger.shared.log("👋 [Wizard] Fresh install snapshot — presenting welcome page")
+                stateMachine.navigateToPage(.welcome)
+            }
             // Start at summary page - no auto navigation
             // stateMachine.autoNavigateIfNeeded(for: result.state, issues: result.issues)
 
@@ -189,14 +193,12 @@ public extension InstallationWizardView {
             }
 
             // Auto-navigate to the first page that needs attention
-            let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
-            let helperNeedsApproval = WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
             let recommended = WizardRouter.routeForUnverifiedKanataPermissions(
                 base: WizardRouter.route(
                     state: result.state,
                     issues: filteredIssues,
-                    helperInstalled: helperInstalled,
-                    helperNeedsApproval: helperNeedsApproval
+                    helperInstalled: result.helperInstalled,
+                    helperNeedsApproval: result.helperNeedsApproval
                 ),
                 inputMonitoringUnknown: kanataInputMonitoringUnknown,
                 accessibilityUnknown: kanataAccessibilityUnknown

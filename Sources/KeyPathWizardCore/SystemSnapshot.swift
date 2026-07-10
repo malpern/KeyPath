@@ -3,6 +3,31 @@ import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathPermissions
 
+public enum SystemSnapshotCaptureStatus: String, Sendable, Equatable {
+    case complete
+    case cancelled
+    case timedOut
+
+    public var isComplete: Bool {
+        self == .complete
+    }
+}
+
+public struct SystemCompatibilityStatus: Sendable, Equatable {
+    public let macOSVersion: String
+    public let driverCompatible: Bool
+
+    public init(macOSVersion: String, driverCompatible: Bool) {
+        self.macOSVersion = macOSVersion
+        self.driverCompatible = driverCompatible
+    }
+
+    public static let unknown = SystemCompatibilityStatus(
+        macOSVersion: "unknown",
+        driverCompatible: false
+    )
+}
+
 /// Complete snapshot of system state at a point in time
 /// This is a pure data structure with no side effects - just state and computed properties
 public struct SystemSnapshot: Sendable {
@@ -11,7 +36,9 @@ public struct SystemSnapshot: Sendable {
     public let conflicts: ConflictStatus
     public let health: HealthStatus
     public let helper: HelperStatus
+    public let compatibility: SystemCompatibilityStatus
     public let timestamp: Date
+    public let captureStatus: SystemSnapshotCaptureStatus
 
     public init(
         permissions: PermissionOracle.Snapshot,
@@ -19,21 +46,26 @@ public struct SystemSnapshot: Sendable {
         conflicts: ConflictStatus,
         health: HealthStatus,
         helper: HelperStatus,
-        timestamp: Date
+        compatibility: SystemCompatibilityStatus = .unknown,
+        timestamp: Date,
+        captureStatus: SystemSnapshotCaptureStatus = .complete
     ) {
         self.permissions = permissions
         self.components = components
         self.conflicts = conflicts
         self.health = health
         self.helper = helper
+        self.compatibility = compatibility
         self.timestamp = timestamp
+        self.captureStatus = captureStatus
     }
 
     // MARK: - Computed Properties for UI
 
     /// System is ready when all critical components are operational
     public var isReady: Bool {
-        helper.isReady && permissions.isSystemReady && !conflicts.hasConflicts
+        captureStatus.isComplete && compatibility.driverCompatible
+            && helper.isReady && permissions.isSystemReady && !conflicts.hasConflicts
             && components.hasAllRequired && health.isHealthy
     }
 
@@ -156,6 +188,10 @@ public struct SystemSnapshot: Sendable {
         Date().timeIntervalSince(timestamp)
     }
 
+    public func isStale(maxAge: TimeInterval) -> Bool {
+        age > maxAge
+    }
+
     /// Validate snapshot freshness - catches stale state bugs
     public func validate() {
         // Assertion: Catch stale state in UI
@@ -169,6 +205,35 @@ public struct SystemSnapshot: Sendable {
                 "⚠️ [SystemSnapshot] Snapshot is \(String(format: "%.1f", age))s old - consider refreshing"
             )
         }
+    }
+
+    public static func unavailable(
+        captureStatus: SystemSnapshotCaptureStatus,
+        source: String,
+        timestamp: Date = Date()
+    ) -> SystemSnapshot {
+        precondition(!captureStatus.isComplete, "Unavailable snapshot must be incomplete")
+        let unknownSet = PermissionOracle.PermissionSet(
+            accessibility: .unknown,
+            inputMonitoring: .unknown,
+            source: source,
+            confidence: .low,
+            timestamp: timestamp
+        )
+        return SystemSnapshot(
+            permissions: PermissionOracle.Snapshot(
+                keyPath: unknownSet,
+                kanata: unknownSet,
+                timestamp: timestamp
+            ),
+            components: .empty,
+            conflicts: .empty,
+            health: .empty,
+            helper: .empty,
+            compatibility: .unknown,
+            timestamp: timestamp,
+            captureStatus: captureStatus
+        )
     }
 }
 
@@ -369,11 +434,21 @@ public struct HelperStatus: Sendable {
     public let isInstalled: Bool
     public let version: String?
     public let isWorking: Bool
+    /// True when the helper registration exists but macOS requires the user to
+    /// approve it in Login Items. Keep this raw fact in the canonical snapshot
+    /// so wizard routing never needs a second SMAppService read.
+    public let requiresApproval: Bool
 
-    public init(isInstalled: Bool, version: String?, isWorking: Bool) {
+    public init(
+        isInstalled: Bool,
+        version: String?,
+        isWorking: Bool,
+        requiresApproval: Bool = false
+    ) {
         self.isInstalled = isInstalled
         self.version = version
         self.isWorking = isWorking
+        self.requiresApproval = requiresApproval
     }
 
     public var isReady: Bool {
@@ -386,7 +461,7 @@ public struct HelperStatus: Sendable {
 
     /// Convenience factory for empty/fallback state
     public static var empty: HelperStatus {
-        HelperStatus(isInstalled: false, version: nil, isWorking: false)
+        HelperStatus(isInstalled: false, version: nil, isWorking: false, requiresApproval: false)
     }
 }
 

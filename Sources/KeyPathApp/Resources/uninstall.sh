@@ -7,14 +7,16 @@ set -e
 
 ASSUME_YES=0
 DELETE_CONFIG=0
+REMOVE_VIRTUAL_HID=0
 
 print_usage() {
     cat <<'EOF'
-Usage: uninstall.sh [--assume-yes] [--delete-config]
+Usage: uninstall.sh [--assume-yes] [--delete-config] [--remove-virtual-hid]
 
 Options:
   --assume-yes, --yes, -y   Skip the interactive confirmation prompt.
   --delete-config           Delete user configuration at ~/.config/keypath
+  --remove-virtual-hid      Also remove the shared Karabiner virtual keyboard driver
   -h, --help                Show this help message.
 
 You must run this script with sudo/root privileges.
@@ -29,6 +31,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --delete-config)
             DELETE_CONFIG=1
+            shift
+            ;;
+        --remove-virtual-hid)
+            REMOVE_VIRTUAL_HID=1
             shift
             ;;
         -h|--help)
@@ -63,6 +69,8 @@ VHID_MANAGER_LABEL="com.keypath.karabiner-vhidmanager"
 VHID_MANAGER_PLIST="/Library/LaunchDaemons/${VHID_MANAGER_LABEL}.plist"
 KANATA_CONFIG_DIR="/usr/local/etc/kanata"
 KEYPATH_APP_DIR="/Applications/KeyPath.app"
+VHID_DRIVER_TEAM_ID="G43BCU2T37"
+VHID_DRIVER_BUNDLE_ID="org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"
 
 TARGET_USER="${SUDO_USER:-$(stat -f %Su /dev/console 2>/dev/null || whoami)}"
 TARGET_HOME=""
@@ -168,6 +176,21 @@ remove_system_kanata() {
         log_success "System kanata binary removed"
     else
         log_info "System kanata binary not found"
+    fi
+}
+
+remove_virtual_hid_driver() {
+    if [[ "$REMOVE_VIRTUAL_HID" -ne 1 ]]; then
+        return
+    fi
+
+    log_info "Removing the Karabiner virtual keyboard driver..."
+    local output
+    if output=$(/usr/bin/systemextensionsctl uninstall \
+        "$VHID_DRIVER_TEAM_ID" "$VHID_DRIVER_BUNDLE_ID" 2>&1); then
+        log_success "Virtual keyboard driver removal requested"
+    else
+        log_warning "macOS did not confirm virtual keyboard driver removal: $output"
     fi
 }
 
@@ -311,6 +334,9 @@ main() {
     
     # Remove system-installed kanata
     remove_system_kanata
+
+    # Optionally remove the shared DriverKit extension while the app is still present
+    remove_virtual_hid_driver
     
     # Remove KeyPath app
     remove_keypath_app

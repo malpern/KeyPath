@@ -4,6 +4,29 @@ import KeyPathDaemonLifecycle
 import KeyPathPermissions
 import KeyPathWizardCore
 
+actor InstallerTransactionGate {
+    static let shared = InstallerTransactionGate()
+
+    private var isOccupied = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func acquire() async {
+        guard isOccupied else {
+            isOccupied = true
+            return
+        }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func release() {
+        guard !waiters.isEmpty else {
+            isOccupied = false
+            return
+        }
+        waiters.removeFirst().resume()
+    }
+}
+
 /// Protocol for privileged routing used by Services to allow test stubs
 public protocol InstallerEnginePrivilegedRouting: AnyObject {
     func uninstallVirtualHIDDrivers(using broker: PrivilegeBroker) async throws
@@ -29,9 +52,6 @@ public final class InstallerEngine {
         injectedValidator ?? WizardDependencies.systemValidator
     }
 
-    /// System requirements checker for compatibility info
-    private let systemRequirements: SystemRequirements
-
     /// Internal designated initializer to share construction logic
     public init(
         processLifecycleManager _: ProcessLifecycleManager,
@@ -40,8 +60,6 @@ public final class InstallerEngine {
     ) {
         self.injectedValidator = injectedValidator
 
-        // Create SystemRequirements instance
-        systemRequirements = SystemRequirements()
         AppLogger.shared.log("🔧 [InstallerEngine] Initialized")
     }
 
@@ -59,7 +77,9 @@ public final class InstallerEngine {
 
     /// Capture current system state
     /// Returns: Read-only snapshot of service states, file/permission status, and helper availability
-    public func inspectSystem() async -> SystemContext {
+    public func inspectSystem(
+        freshness: WizardSystemSnapshotFreshness = .fresh
+    ) async -> SystemContext {
         AppLogger.shared.log("🔍 [InstallerEngine] Starting inspectSystem()")
 
         // Phase 2: Wire up SystemValidator to get system snapshot
@@ -67,46 +87,9 @@ public final class InstallerEngine {
             AppLogger.shared.log("⚠️ [InstallerEngine] systemValidator not configured — returning empty context")
             return SystemContext.empty
         }
-        let snapshot = await validatorInstance.checkSystem()
+        let snapshot = await validatorInstance.checkSystem(freshness: freshness)
 
-        // Get system compatibility info from SystemRequirements
-        let systemInfo = systemRequirements.getSystemInfo()
-        // Convert SystemInfo to EngineSystemInfo
-        let engineSystemInfo = EngineSystemInfo(
-            macOSVersion: systemInfo.macosVersion.versionString,
-            driverCompatible: systemInfo.compatibilityResult.isCompatible
-        )
-
-        let activeRuntimePathStatus: (title: String, detail: String)? = nil
-
-        let services = HealthStatus(
-            kanataLaunchdLoaded: snapshot.health.kanataLaunchdLoaded,
-            kanataProcessRunning: snapshot.health.kanataProcessRunning,
-            kanataTCPResponding: snapshot.health.kanataTCPResponding,
-            kanataRunning: snapshot.health.kanataRunning,
-            karabinerDaemonRunning: snapshot.health.karabinerDaemonRunning,
-            vhidHealthy: snapshot.health.vhidHealthy,
-            kanataInputCaptureReady: snapshot.health.kanataInputCaptureReady,
-            kanataInputCaptureIssue: snapshot.health.kanataInputCaptureIssue,
-            activeRuntimePathTitle: activeRuntimePathStatus?.title,
-            activeRuntimePathDetail: activeRuntimePathStatus?.detail,
-            kanataPermissionRejected: snapshot.health.kanataPermissionRejected,
-            configParseError: snapshot.health.configParseError,
-            staleEnabledRegistration: snapshot.health.staleEnabledRegistration,
-            kanataSMAppServiceRegistered: snapshot.health.kanataSMAppServiceRegistered,
-            loginItemsApprovalRequired: snapshot.health.loginItemsApprovalRequired
-        )
-
-        // Convert SystemSnapshot to SystemContext
-        let context = SystemContext(
-            permissions: snapshot.permissions,
-            services: services,
-            conflicts: snapshot.conflicts,
-            components: snapshot.components,
-            helper: snapshot.helper,
-            system: engineSystemInfo,
-            timestamp: snapshot.timestamp
-        )
+        let context = SystemContext(snapshot: snapshot)
 
         AppLogger.shared.log(
             "✅ [InstallerEngine] inspectSystem() complete - ready=\(snapshot.isReady), blocking=\(snapshot.blockingIssues.count)"
@@ -119,15 +102,16 @@ public final class InstallerEngine {
     /// is marked `.blocked` with the missing requirement.
     public func makePlan(for intent: InstallIntent, context: SystemContext) async -> InstallPlan {
         AppLogger.shared.log("📋 [InstallerEngine] Starting makePlan(for: \(intent), context:)")
-        let stateMatrixRow = context.installerStateMatrixRow.rawValue
-        let stateMatrixPlan = context.installerStateMatrixPlan.map(\.rawValue)
+        let decision = InstallerDecisionPipeline.decide(for: intent, context: context)
+        let stateMatrixRow = decision.assessment.rawValue
+        let stateMatrixPlan = decision.matrixActions.map(\.rawValue)
         let baseMetadata = PlanMetadata(
             stateMatrixRow: stateMatrixRow,
             stateMatrixPlan: stateMatrixPlan
         )
 
-        // Phase 3: Check requirements first
-        if let blockingRequirement = await checkRequirements(for: intent, context: context) {
+        // Phase 3: Check requirements from the captured context only.
+        if let blockingRequirement = checkRequirements(for: intent, context: context) {
             AppLogger.shared.log(
                 "⚠️ [InstallerEngine] Plan blocked by requirement: \(blockingRequirement.name)"
             )
@@ -141,7 +125,7 @@ public final class InstallerEngine {
         }
 
         // Determine actions needed based on intent and context
-        let actions = determineActions(for: intent, context: context)
+        let actions = decision.autoFixActions
         AppLogger.shared.log(
             "📋 [InstallerEngine] Determined \(actions.count) actions for intent: \(intent)"
         )
@@ -175,25 +159,10 @@ public final class InstallerEngine {
 
     /// Check if requirements are met for the given intent
     /// Returns: Blocking requirement if any, nil if all requirements met
-    private func checkRequirements(for intent: InstallIntent, context: SystemContext) async
-        -> Requirement?
-    {
+    private func checkRequirements(for intent: InstallIntent, context: SystemContext) -> Requirement? {
         // For inspectOnly, no requirements needed
         if intent == .inspectOnly {
             return nil
-        }
-
-        // Check admin privileges availability (can we request them?)
-        // Note: We don't actually request them here, just check if we can
-        // Authorization Services will prompt when needed
-
-        // Check that system directories exist (not writable - installation uses admin privileges)
-        let launchDaemonsDir = KeyPathConstants.System.launchDaemonsDir
-        if !Foundation.FileManager().fileExists(atPath: launchDaemonsDir) {
-            return Requirement(
-                name: "LaunchDaemons directory missing",
-                status: .blocked
-            )
         }
 
         // Check helper registration (for install/repair)
@@ -210,11 +179,6 @@ public final class InstallerEngine {
                     name: "Enable Karabiner-VirtualHIDDevice in System Settings > General > Login Items & Extensions > Driver Extensions",
                     status: .blocked
                 )
-            }
-
-            if !context.helper.isReady {
-                // Helper not ready - check if SMAppService approval is needed
-                // This is a soft requirement - we can proceed but may need approval
             }
         }
 
@@ -253,6 +217,17 @@ public final class InstallerEngine {
         plan: InstallPlan,
         using broker: PrivilegeBroker,
         trigger: InstallerRepairTelemetryTrigger = .executePlan
+    ) async -> InstallerReport {
+        await InstallerTransactionGate.shared.acquire()
+        let report = await executeWithinTransaction(plan: plan, using: broker, trigger: trigger)
+        await InstallerTransactionGate.shared.release()
+        return report
+    }
+
+    private func executeWithinTransaction(
+        plan: InstallPlan,
+        using broker: PrivilegeBroker,
+        trigger: InstallerRepairTelemetryTrigger
     ) async -> InstallerReport {
         AppLogger.shared.log("⚙️ [InstallerEngine] Starting execute(plan:, using:)")
 
@@ -710,41 +685,61 @@ public final class InstallerEngine {
     /// Convenience wrapper that chains inspectSystem() → makePlan() → execute() internally.
     /// Useful for CLI "one-button repair" automation or simple GUI flows.
     public func run(intent: InstallIntent, using broker: PrivilegeBroker) async -> InstallerReport {
+        await InstallerTransactionGate.shared.acquire()
         AppLogger.shared.log("🚀 [InstallerEngine] Starting run(intent: \(intent), using:)")
 
         if intent == .uninstall {
             AppLogger.shared.log(
                 "🗑️ [InstallerEngine] Delegating uninstall intent to uninstall(deleteConfig:, using:)"
             )
-            return await uninstall(deleteConfig: false, using: broker)
+            let report = await uninstallWithinTransaction(
+                deleteConfig: false,
+                removeVirtualHID: false,
+                allowAdminFallback: false
+            )
+            await InstallerTransactionGate.shared.release()
+            return report
         }
 
         // Chain the steps
         let context = await inspectSystem()
         let plan = await makePlan(for: intent, context: context)
-        let report = await execute(plan: plan, using: broker, trigger: .run)
+        let report = await executeWithinTransaction(plan: plan, using: broker, trigger: .run)
 
         AppLogger.shared.log("✅ [InstallerEngine] run() complete - success: \(report.success)")
+        await InstallerTransactionGate.shared.release()
         return report
     }
 
     /// Execute uninstall via the existing coordinator.
     /// - Parameter removeVirtualHID: when true, also tears down the Karabiner VirtualHID
     ///   driver. Off by default because the driver is a shared component other tools may use.
-    public func uninstall(deleteConfig: Bool, removeVirtualHID: Bool = false, using broker: PrivilegeBroker) async -> InstallerReport {
-        AppLogger.shared.log("🗑️ [InstallerEngine] Starting uninstall (deleteConfig: \(deleteConfig), removeVirtualHID: \(removeVirtualHID))")
+    public func uninstall(
+        deleteConfig: Bool,
+        removeVirtualHID: Bool = false,
+        allowAdminFallback: Bool = false,
+        using _: PrivilegeBroker
+    ) async -> InstallerReport {
+        await InstallerTransactionGate.shared.acquire()
+        let report = await uninstallWithinTransaction(
+            deleteConfig: deleteConfig,
+            removeVirtualHID: removeVirtualHID,
+            allowAdminFallback: allowAdminFallback
+        )
+        await InstallerTransactionGate.shared.release()
+        return report
+    }
 
-        // Remove the VirtualHID driver BEFORE the main teardown: the coordinator uninstall
-        // self-destructs the privileged helper that this step depends on. Best-effort — a
-        // VHID failure must not block removing KeyPath itself.
-        if removeVirtualHID {
-            do {
-                try await broker.uninstallVirtualHIDDrivers()
-                AppLogger.shared.log("🗑️ [InstallerEngine] Virtual HID driver removed")
-            } catch {
-                AppLogger.shared.log("⚠️ [InstallerEngine] Virtual HID removal failed (continuing uninstall): \(error)")
-            }
-        }
+    private func uninstallWithinTransaction(
+        deleteConfig: Bool,
+        removeVirtualHID: Bool,
+        allowAdminFallback: Bool
+    ) async -> InstallerReport {
+        AppLogger.shared.log(
+            "🗑️ [InstallerEngine] Starting uninstall (deleteConfig: \(deleteConfig), removeVirtualHID: \(removeVirtualHID), allowAdminFallback: \(allowAdminFallback))"
+        )
+
+        var componentResults: [RecipeResult] = []
 
         let start = Date()
         guard let coordinator = WizardDependencies.createUninstallCoordinator?() else {
@@ -754,39 +749,45 @@ public final class InstallerEngine {
                 failureReason: "Uninstall coordinator not configured"
             )
         }
-        let success = await coordinator.uninstall(deleteConfig: deleteConfig)
-        let duration = Date().timeIntervalSince(start)
-        let failure = "Uninstall failed"
-
-        let recipeID = deleteConfig ? "uninstall-with-config" : "uninstall"
-        let recipeResult = RecipeResult(
-            recipeID: recipeID,
-            success: success,
-            error: success ? nil : failure,
-            duration: duration
+        let result = await coordinator.performUninstall(
+            deleteConfig: deleteConfig,
+            removeVirtualHID: removeVirtualHID,
+            allowAdminFallback: allowAdminFallback
         )
+        let duration = Date().timeIntervalSince(start)
+        let failure = result.failureReason ?? "Uninstall failed"
+
+        componentResults.append(contentsOf: result.steps.map { step in
+            RecipeResult(
+                recipeID: step.id,
+                success: step.success,
+                error: step.error,
+                duration: step.id == "verify-uninstall" ? duration : 0
+            )
+        })
 
         let report = InstallerReport(
-            success: success,
-            failureReason: success ? nil : failure,
-            executedRecipes: [recipeResult],
-            logs: [],
+            success: result.success,
+            failureReason: result.success ? nil : failure,
+            executedRecipes: componentResults,
+            logs: result.logs,
             repairTelemetry: [
                 InstallerRepairTelemetryEvent(
                     trigger: .uninstall,
                     intent: InstallIntent.uninstall.telemetryValue,
                     stateMatrixRow: nil,
                     stateMatrixPlan: [],
-                    action: recipeID,
-                    recipeID: recipeID,
+                    action: deleteConfig ? "uninstall-with-config" : "uninstall",
+                    recipeID: deleteConfig ? "uninstall-with-config" : "uninstall",
                     recipeType: "uninstall",
-                    postconditionResult: success ? .succeeded : .failed,
-                    error: success ? nil : failure
+                    postconditionResult: result.success ? .succeeded : .failed,
+                    error: result.success ? nil : failure
                 ),
-            ]
+            ],
+            recommendedRecovery: result.recommendedRecovery
         )
 
-        AppLogger.shared.log("🗑️ [InstallerEngine] uninstall complete - success: \(success)")
+        AppLogger.shared.log("🗑️ [InstallerEngine] uninstall complete - success: \(result.success)")
         return report
     }
 
@@ -796,6 +797,7 @@ public final class InstallerEngine {
     public func runSingleAction(_ action: AutoFixAction, using broker: PrivilegeBroker) async
         -> InstallerReport
     {
+        await InstallerTransactionGate.shared.acquire()
         AppLogger.shared.log("🔧 [InstallerEngine] runSingleAction(\(action), using:) starting")
         let context = await inspectSystem()
 
@@ -817,31 +819,41 @@ public final class InstallerEngine {
                 finalRecipes = [directRecipe]
             } else {
                 AppLogger.shared.log("⚠️ [InstallerEngine] No recipe available for action: \(action)")
-                return InstallerReport(
+                let report = InstallerReport(
                     success: false,
                     failureReason: "No recipe available for action: \(action)",
                     executedRecipes: [],
                     logs: []
                 )
+                await InstallerTransactionGate.shared.release()
+                return report
             }
         } else {
             finalRecipes = filteredRecipes
         }
 
-        // Create a filtered plan with just the matching recipes.
-        // Keep the original plan status/requirements to avoid bypassing blocked preconditions.
+        // Create a filtered plan with just the matching recipes. If the recipe came from a
+        // direct single-action fallback, do not inherit a broad install/repair blocker that
+        // can belong to a different wizard step; the recipe execution still enforces its
+        // own failure and postcondition checks.
+        let shouldPreserveBaseBlocker = !filteredRecipes.isEmpty
         let filteredPlan = InstallPlan(
             recipes: finalRecipes,
-            status: basePlan.status,
+            status: shouldPreserveBaseBlocker ? basePlan.status : .ready,
             intent: basePlan.intent,
-            blockedBy: basePlan.blockedBy,
+            blockedBy: shouldPreserveBaseBlocker ? basePlan.blockedBy : nil,
             metadata: basePlan.metadata
         )
 
-        let report = await execute(plan: filteredPlan, using: broker, trigger: .singleAction)
+        let report = await executeWithinTransaction(
+            plan: filteredPlan,
+            using: broker,
+            trigger: .singleAction
+        )
         AppLogger.shared.log(
             "✅ [InstallerEngine] runSingleAction(\(action), using:) complete - success: \(report.success)"
         )
+        await InstallerTransactionGate.shared.release()
         return report
     }
 

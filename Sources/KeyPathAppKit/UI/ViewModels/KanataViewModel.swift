@@ -481,8 +481,16 @@ class KanataViewModel {
         await manager.inspectSystemContext()
     }
 
-    func uninstall(deleteConfig: Bool, removeVirtualHID: Bool = false) async -> InstallerReport {
-        await manager.uninstall(deleteConfig: deleteConfig, removeVirtualHID: removeVirtualHID)
+    func uninstall(
+        deleteConfig: Bool,
+        removeVirtualHID: Bool = false,
+        allowAdminFallback: Bool = false
+    ) async -> InstallerReport {
+        await manager.uninstall(
+            deleteConfig: deleteConfig,
+            removeVirtualHID: removeVirtualHID,
+            allowAdminFallback: allowAdminFallback
+        )
     }
 
     func runFullRepair(reason: String) async -> InstallerReport {

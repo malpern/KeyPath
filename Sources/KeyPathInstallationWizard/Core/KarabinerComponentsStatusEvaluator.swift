@@ -14,6 +14,28 @@ public enum KarabinerComponent {
 /// Single source of truth for Karabiner Components status evaluation across all wizard pages
 /// Follows the same pattern as ServiceStatusEvaluator for consistency
 public enum KarabinerComponentsStatusEvaluator {
+    public enum SetupContinuation: Equatable {
+        case repairServices
+        case requestDriverApproval
+        case reportIncomplete
+    }
+
+    /// Chooses the next setup operation from the DriverKit extension itself.
+    /// Aggregate Karabiner health also includes services that are installed later,
+    /// so it cannot gate the transition into service repair.
+    public static func setupContinuation(
+        for extensionStatus: ServiceHealthChecker.VHIDDriverExtensionStatus
+    ) -> SetupContinuation {
+        switch extensionStatus {
+        case .enabled:
+            .repairServices
+        case .installedButNotEnabled:
+            .requestDriverApproval
+        case .missing, .unknown:
+            .reportIncomplete
+        }
+    }
+
     /// Evaluates overall Karabiner Components status using comprehensive logic
     /// - Parameters:
     ///   - systemState: Current wizard system state

@@ -10,6 +10,7 @@ extension WizardOperations {
     /// State detection operation (UI-layer only - uses WizardStateMachine)
     public static func stateDetection(
         stateMachine: WizardStateMachine?,
+        freshness: WizardSystemSnapshotFreshness = .fresh,
         progressCallback: @escaping @Sendable (Double) -> Void = { _ in }
     ) -> AsyncOperation<SystemStateResult> {
         enum StateDetectionError: Error {
@@ -25,7 +26,7 @@ extension WizardOperations {
                 progressCallback(0.1)
                 do {
                     try await withThrowingTaskGroup(of: Void.self) { group in
-                        group.addTask { await machine.refresh() }
+                        group.addTask { await machine.refresh(freshness: freshness) }
                         group.addTask {
                             let clock = ContinuousClock()
                             try await clock.sleep(for: .seconds(12))
@@ -42,13 +43,17 @@ extension WizardOperations {
                     // before the timeout. Use whatever state it stored.
                     return await MainActor.run {
                         let issues = machine.wizardIssues
+                        let captured = machine.lastWizardSnapshot
                         if !issues.isEmpty {
                             AppLogger.shared.log("⚠️ [Wizard] Using \(issues.count) issues from timed-out validation")
                             return SystemStateResult(
                                 state: machine.wizardState,
                                 issues: issues,
                                 autoFixActions: [],
-                                detectionTimestamp: Date()
+                                detectionTimestamp: Date(),
+                                captureStatus: .timedOut,
+                                helperInstalled: captured?.helperInstalled ?? false,
+                                helperNeedsApproval: captured?.helperNeedsApproval ?? false
                             )
                         }
                         return timeoutResult()
@@ -60,12 +65,16 @@ extension WizardOperations {
                 // machine.refresh() completed — read state it stored
                 return await MainActor.run {
                     let issues = machine.wizardIssues
+                    let captured = machine.lastWizardSnapshot
                     if !issues.isEmpty || machine.wizardState == .active {
                         return SystemStateResult(
                             state: machine.wizardState,
                             issues: issues,
                             autoFixActions: [],
-                            detectionTimestamp: Date()
+                            detectionTimestamp: Date(),
+                            captureStatus: captured?.captureStatus ?? .complete,
+                            helperInstalled: captured?.helperInstalled ?? false,
+                            helperNeedsApproval: captured?.helperNeedsApproval ?? false
                         )
                     }
                     return timeoutResult()
@@ -80,7 +89,7 @@ extension WizardOperations {
 
     private static func timeoutResult() -> SystemStateResult {
         let issue = WizardIssue(
-            identifier: .daemon,
+            identifier: .validationTimeout,
             severity: .warning,
             category: .daemon,
             title: "System check timed out",
@@ -92,7 +101,8 @@ extension WizardOperations {
             state: .serviceNotRunning,
             issues: [issue],
             autoFixActions: [],
-            detectionTimestamp: Date()
+            detectionTimestamp: Date(),
+            captureStatus: .timedOut
         )
     }
 }

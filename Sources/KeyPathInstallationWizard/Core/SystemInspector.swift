@@ -16,7 +16,7 @@ public enum SystemInspector {
     // MARK: - State Determination
 
     static func determineState(_ context: SystemContext) -> WizardSystemState {
-        if context.timedOut {
+        if !context.captureStatus.isComplete {
             return .serviceNotRunning
         }
 
@@ -73,7 +73,7 @@ public enum SystemInspector {
         appendServiceIssues(context, into: &issues)
         appendHelperIssues(context, into: &issues)
 
-        if context.timedOut {
+        if context.captureStatus == .timedOut {
             issues.append(WizardIssue(
                 identifier: .validationTimeout,
                 severity: .warning,
@@ -82,6 +82,16 @@ public enum SystemInspector {
                 description: "System validation exceeded the 12s watchdog. This is usually transient — the next check should succeed.",
                 autoFixAction: nil,
                 userAction: "If this persists, try restarting KeyPath."
+            ))
+        } else if context.captureStatus == .cancelled {
+            issues.append(WizardIssue(
+                identifier: .validationTimeout,
+                severity: .warning,
+                category: .daemon,
+                title: "Status check cancelled",
+                description: "System validation was cancelled before all evidence was captured.",
+                autoFixAction: nil,
+                userAction: "Run the status check again."
             ))
         }
 

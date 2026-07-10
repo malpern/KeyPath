@@ -11,22 +11,18 @@ public struct SystemContextAdapter {
     /// Delegates to SystemInspector for state determination and issue generation.
     public static func adapt(_ context: SystemContext) -> SystemStateResult {
         let (wizardState, wizardIssues) = SystemInspector.inspect(context: context)
-        let autoFixActions = determineAutoFixActions(context)
-        let stateMatrixRow = context.installerStateMatrixRow
-        let stateMatrixPlan = InstallerStateMatrixPlanner.plan(for: stateMatrixRow)
+        let decision = InstallerDecisionPipeline.decide(for: .repair, context: context)
 
         return SystemStateResult(
             state: wizardState,
             issues: wizardIssues,
-            autoFixActions: autoFixActions,
+            autoFixActions: decision.autoFixActions,
             detectionTimestamp: context.timestamp,
-            stateMatrixRow: stateMatrixRow.rawValue,
-            stateMatrixPlan: stateMatrixPlan.map(\.rawValue)
+            stateMatrixRow: decision.assessment.rawValue,
+            stateMatrixPlan: decision.matrixActions.map(\.rawValue),
+            captureStatus: context.captureStatus,
+            helperInstalled: context.helper.isInstalled,
+            helperNeedsApproval: context.helper.requiresApproval
         )
-    }
-
-    private static func determineAutoFixActions(_ context: SystemContext) -> [AutoFixAction] {
-        // Use shared ActionDeterminer for repair actions (SystemContextAdapter is used for repair scenarios)
-        ActionDeterminer.determineRepairActions(context: context)
     }
 }

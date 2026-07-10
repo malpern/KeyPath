@@ -635,18 +635,7 @@ class MainAppStateController {
         )
 
         // Adapt to wizard-style issues/state using existing adapter (keeps UI expectations stable)
-        let context = SystemContext(
-            permissions: snapshot.permissions,
-            services: snapshot.health,
-            conflicts: snapshot.conflicts,
-            components: snapshot.components,
-            helper: snapshot.helper,
-            system: EngineSystemInfo(
-                macOSVersion: SystemRequirements().getSystemInfo().macosVersion.versionString,
-                driverCompatible: true // compatibility already validated in snapshot path
-            ),
-            timestamp: snapshot.timestamp
-        )
+        let context = SystemContext(snapshot: snapshot)
         let adapted = SystemContextAdapter.adapt(context)
 
         // Update published state

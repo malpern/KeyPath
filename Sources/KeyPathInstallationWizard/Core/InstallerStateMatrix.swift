@@ -326,7 +326,7 @@ public extension SystemContext {
             helperPathReportedSuccess: .absent,
             sudoFallbackReportedSuccess: .absent,
             manualApprovalRequired: services.loginItemsApprovalRequired.map(Evidence<Bool>.known) ?? .unknown,
-            definitiveUnhealthyState: .known(timedOut)
+            definitiveUnhealthyState: .known(!captureStatus.isComplete)
         )
     }
 

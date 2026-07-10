@@ -79,6 +79,12 @@ public actor HelperManager {
     /// Active XPC call tracking for detecting concurrency issues
     var activeXPCCalls: Set<String> = []
 
+    /// Serializes all helper IPC. The helper processes requests serially, so allowing a
+    /// health probe to queue behind a mutation on the same connection only creates a
+    /// destructive timeout race. Keeping the gate here protects every caller, including
+    /// refresh paths outside the installer UI.
+    let operationGate = HelperOperationGate()
+
     // MARK: - Initialization
 
     private init() {
@@ -127,6 +133,7 @@ enum HelperManagerError: Error, LocalizedError {
     case operationFailed(String)
     case installationFailed(String)
     case signatureMismatch
+    case ambiguousOutcome(String)
 
     var errorDescription: String? {
         switch self {
@@ -140,6 +147,8 @@ enum HelperManagerError: Error, LocalizedError {
             "Failed to install helper: \(reason)"
         case .signatureMismatch:
             "App signature mismatch - restart required"
+        case let .ambiguousOutcome(reason):
+            "Helper operation outcome is ambiguous: \(reason)"
         }
     }
 
@@ -151,8 +160,29 @@ enum HelperManagerError: Error, LocalizedError {
             "Try restarting KeyPath. If the problem persists, reinstall the app."
         case .notInstalled:
             "Run the installation wizard to set up KeyPath."
-        case .operationFailed, .installationFailed:
+        case .operationFailed, .installationFailed, .ambiguousOutcome:
             "Check the logs for more details. You may need to restart KeyPath."
         }
+    }
+}
+
+actor HelperOperationGate {
+    private var isOccupied = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func acquire() async {
+        guard isOccupied else {
+            isOccupied = true
+            return
+        }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func release() {
+        guard !waiters.isEmpty else {
+            isOccupied = false
+            return
+        }
+        waiters.removeFirst().resume()
     }
 }

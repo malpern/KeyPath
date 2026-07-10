@@ -119,6 +119,21 @@ struct SystemValidatorTests {
         snapshot.validate()
     }
 
+    @Test("Cached capture reuses the recent canonical snapshot")
+    func cachedCaptureReusesRecentSnapshot() async {
+        await setupTest()
+
+        let validator = SystemValidator(processLifecycleManager: ProcessLifecycleManager())
+        let fresh = await validator.checkSystem(freshness: .fresh)
+        let cached = await validator.checkSystem(freshness: .cached)
+
+        #expect(cached.timestamp == fresh.timestamp)
+
+        validator.invalidateCaches()
+        let recaptured = await validator.checkSystem(freshness: .cached)
+        #expect(recaptured.timestamp >= cached.timestamp)
+    }
+
     @Test("SystemSnapshot validates staleness")
     func snapshotStalenessDetection() {
         // Create a snapshot with old timestamp
@@ -170,6 +185,24 @@ struct SystemValidatorTests {
 
         // validate() should assert in debug builds
         // (We can't test this directly without crashing the test)
+    }
+
+    @Test("Incomplete snapshot is never ready and exposes staleness separately")
+    func incompleteSnapshotContract() {
+        let context = SystemContextBuilder().build()
+        let snapshot = SystemSnapshot(
+            permissions: context.permissions,
+            components: context.components,
+            conflicts: context.conflicts,
+            health: context.services,
+            helper: context.helper,
+            timestamp: Date(timeIntervalSinceNow: -5),
+            captureStatus: .cancelled
+        )
+
+        #expect(!snapshot.isReady)
+        #expect(snapshot.captureStatus == .cancelled)
+        #expect(snapshot.isStale(maxAge: 1))
     }
 
     @Test("Healthy TCP-responsive Kanata suppresses stale stderr config parse errors")

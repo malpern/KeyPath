@@ -31,6 +31,7 @@ public struct KeyboardNavigationModifier: ViewModifier {
                     return .handled
                 }
                 .focusable(true)
+                .focusEffectDisabled()
         } else {
             // For macOS 13.0, keyboard navigation isn't available
             content

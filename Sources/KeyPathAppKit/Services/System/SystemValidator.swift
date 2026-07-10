@@ -26,6 +26,8 @@ public class SystemValidator {
 
     /// Per-instance validation task - prevents concurrent validations for this instance
     private var inProgressValidation: Task<SystemSnapshot, Never>?
+    private var latestSnapshot: SystemSnapshot?
+    private static let canonicalSnapshotCacheTTL: TimeInterval = 1.5
 
     /// Track validation timing to detect rapid-fire calls (indicates automatic triggers)
     private static var lastValidationStart: Date?
@@ -98,7 +100,9 @@ public class SystemValidator {
         {
             AppLogger.shared.log("🧪 [SystemValidator] Test mode - returning stub snapshot")
             progressCallback(1.0)
-            return Self.makeTestSnapshot()
+            let snapshot = Self.makeTestSnapshot()
+            cacheIfComplete(snapshot)
+            return snapshot
         }
 
         // If validation is already in progress, wait for it
@@ -106,7 +110,9 @@ public class SystemValidator {
             AppLogger.shared.log(
                 "🔍 [SystemValidator] Validation already in progress - waiting for result"
             )
-            return await inProgress.value
+            let snapshot = await inProgress.value
+            cacheIfComplete(snapshot)
+            return snapshot
         }
 
         // Start new validation
@@ -117,12 +123,37 @@ public class SystemValidator {
         inProgressValidation = validationTask
         defer { inProgressValidation = nil }
 
-        return await validationTask.value
+        let snapshot = await validationTask.value
+        cacheIfComplete(snapshot)
+        return snapshot
+    }
+
+    func checkSystem(
+        freshness: WizardSystemSnapshotFreshness,
+        progressCallback: @escaping @Sendable (Double) -> Void = { _ in }
+    ) async -> SystemSnapshot {
+        if freshness == .cached,
+           let latestSnapshot,
+           latestSnapshot.captureStatus.isComplete,
+           Date().timeIntervalSince(latestSnapshot.timestamp) <= Self.canonicalSnapshotCacheTTL
+        {
+            AppLogger.shared.log("🔍 [SystemValidator] Reusing recent canonical snapshot")
+            progressCallback(1.0)
+            return latestSnapshot
+        }
+
+        return await checkSystem(progressCallback: progressCallback)
     }
 
     func invalidateCaches() {
+        latestSnapshot = nil
         cachedComponentFacts = nil
         ServiceHealthChecker.shared.invalidateHealthCache()
+    }
+
+    private func cacheIfComplete(_ snapshot: SystemSnapshot) {
+        guard snapshot.captureStatus.isComplete else { return }
+        latestSnapshot = snapshot
     }
 
     /// Perform the actual validation work
@@ -168,6 +199,11 @@ public class SystemValidator {
 
         let startTime = Date()
         AppLogger.shared.log("🔍 [SystemValidator] Starting validation #\(myID)")
+        let compatibilityResult = SystemRequirements().validateSystemCompatibility()
+        let compatibility = SystemCompatibilityStatus(
+            macOSVersion: compatibilityResult.macosVersion.versionString,
+            driverCompatible: compatibilityResult.isCompatible
+        )
 
         // Check system state in parallel for maximum performance
         // All checks are independent - no dependencies between them
@@ -329,6 +365,7 @@ public class SystemValidator {
             conflicts: conflicts,
             health: health,
             helper: helper,
+            compatibility: compatibility,
             timestamp: Date()
         )
 
@@ -362,7 +399,12 @@ public class SystemValidator {
             AppLogger.shared.log(
                 "🔍 [SystemValidator] Helper state: requiresApproval \(reason ?? "")"
             )
-            return HelperStatus(isInstalled: false, version: nil, isWorking: false)
+            return HelperStatus(
+                isInstalled: false,
+                version: nil,
+                isWorking: false,
+                requiresApproval: true
+            )
 
         case let .registeredButUnresponsive(reason):
             AppLogger.shared.log(
@@ -726,38 +768,13 @@ public class SystemValidator {
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
             health: HealthStatus(kanataRunning: true, karabinerDaemonRunning: true, vhidHealthy: true),
             helper: HelperStatus(isInstalled: true, version: "1.0.0", isWorking: true),
+            compatibility: SystemCompatibilityStatus(macOSVersion: "test", driverCompatible: true),
             timestamp: now
         )
     }
 
     /// Create a minimal snapshot used when a validation task is cancelled
     private static func makeCancelledSnapshot() -> SystemSnapshot {
-        let now = Date()
-        let placeholder = PermissionOracle.PermissionSet(
-            accessibility: .unknown,
-            inputMonitoring: .unknown,
-            source: "cancelled",
-            confidence: .low,
-            timestamp: now
-        )
-        return SystemSnapshot(
-            permissions: PermissionOracle.Snapshot(
-                keyPath: placeholder, kanata: placeholder, timestamp: now
-            ),
-            components: ComponentStatus(
-                kanataBinaryInstalled: false,
-                requiredRuntimePayloadPresent: false,
-                karabinerDriverInstalled: false,
-                karabinerDaemonRunning: false,
-                vhidDeviceInstalled: false,
-                vhidDeviceHealthy: false,
-                vhidServicesHealthy: false,
-                vhidVersionMismatch: false
-            ),
-            conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
-            health: HealthStatus(kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: false),
-            helper: HelperStatus(isInstalled: false, version: nil, isWorking: false),
-            timestamp: now
-        )
+        .unavailable(captureStatus: .cancelled, source: "cancelled")
     }
 }

@@ -313,6 +313,53 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
         #endif
     }
 
+    func testLostHelperReplyWithSatisfiedPostconditionSkipsFallback() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.operationModeOverride = .privilegedHelper
+            PrivilegedOperationsRouter.helperRepairVHIDDaemonServicesOverride = {
+                throw HelperManagerError.ambiguousOutcome("reply lost")
+            }
+            PrivilegedOperationsRouter.vhidServicesPostconditionOverride = { _ in true }
+            var fallbackCalls = 0
+            PrivilegedOperationsRouter.sudoRepairVHIDServicesOverride = { fallbackCalls += 1 }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        try await PrivilegedOperationsRouter.shared.repairVHIDDaemonServices()
+
+        #if DEBUG
+            XCTAssertEqual(fallbackCalls, 0)
+        #endif
+    }
+
+    func testFailedHelperWithUnsatisfiedPostconditionInvokesFallbackOnce() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.operationModeOverride = .privilegedHelper
+            PrivilegedOperationsRouter.helperRepairVHIDDaemonServicesOverride = {
+                throw HelperManagerError.operationFailed("failed")
+            }
+            var verificationCalls = 0
+            PrivilegedOperationsRouter.vhidServicesPostconditionOverride = { _ in
+                verificationCalls += 1
+                return verificationCalls > 1
+            }
+            var fallbackCalls = 0
+            PrivilegedOperationsRouter.sudoRepairVHIDServicesOverride = { fallbackCalls += 1 }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        try await PrivilegedOperationsRouter.shared.repairVHIDDaemonServices()
+
+        #if DEBUG
+            XCTAssertEqual(fallbackCalls, 1)
+            XCTAssertEqual(verificationCalls, 2)
+        #endif
+    }
+
     func testRuntimeInstallUsesSMAppServiceAwareInstallPathBeforeKanataPostcondition() async throws {
         #if DEBUG
             PrivilegedOperationsRouter.resetTestingState()

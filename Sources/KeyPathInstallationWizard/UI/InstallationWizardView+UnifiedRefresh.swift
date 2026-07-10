@@ -127,13 +127,11 @@ public extension InstallationWizardView {
 
     func cachedPreferredPage() async -> WizardPage? {
         guard let cachedState = stateMachine.lastWizardSnapshot else { return nil }
-        let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
-        let helperNeedsApproval = WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
         let page = WizardRouter.route(
             state: cachedState.state,
             issues: cachedState.issues,
-            helperInstalled: helperInstalled,
-            helperNeedsApproval: helperNeedsApproval
+            helperInstalled: cachedState.helperInstalled,
+            helperNeedsApproval: cachedState.helperNeedsApproval
         )
         return page != .summary ? page : nil
     }
@@ -157,7 +155,7 @@ public extension InstallationWizardView {
     @MainActor
     func applySystemStateResult(_ result: SystemStateResult) -> [WizardIssue] {
         let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
-        stateMachine.updateWizardState(result.state, issues: filteredIssues)
+        stateMachine.updateWizardState(from: result, issues: filteredIssues)
 
         // Only auto-navigate if user hasn't been interacting with the wizard
         // This prevents jarring navigation away from a page after a fix completes
@@ -178,13 +176,11 @@ public extension InstallationWizardView {
             )
             if !currentPageHasIssues {
                 Task {
-                    let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
-                    let helperNeedsApproval = WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
                     let recommended = WizardRouter.route(
                         state: result.state,
                         issues: filteredIssues,
-                        helperInstalled: helperInstalled,
-                        helperNeedsApproval: helperNeedsApproval
+                        helperInstalled: result.helperInstalled,
+                        helperNeedsApproval: result.helperNeedsApproval
                     )
                     if recommended != stateMachine.currentPage {
                         AppLogger.shared.log("🔄 [Wizard] Skipping green page \(stateMachine.currentPage) → \(recommended)")
