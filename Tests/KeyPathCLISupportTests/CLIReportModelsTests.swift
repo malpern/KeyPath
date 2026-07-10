@@ -47,14 +47,27 @@ final class CLIReportModelsTests: XCTestCase {
     }
 
     func testInstallerReportRepairTelemetryJSONShape() throws {
+        let runID = UUID()
+        let planID = UUID()
+        let beforeSnapshotID = UUID()
+        let afterSnapshotID = UUID()
         let installerReport = InstallerReport(
+            runID: runID,
+            planID: planID,
+            beforeSnapshotID: beforeSnapshotID,
+            afterSnapshotID: afterSnapshotID,
             success: true,
+            completionState: .completed,
             executedRecipes: [
                 RecipeResult(recipeID: InstallerRecipeID.createConfigDirectories, success: true),
             ],
             repairTelemetry: [
                 InstallerRepairTelemetryEvent(
                     timestamp: Date(timeIntervalSince1970: 0),
+                    runID: runID,
+                    planID: planID,
+                    beforeSnapshotID: beforeSnapshotID,
+                    afterSnapshotID: afterSnapshotID,
                     trigger: .executePlan,
                     intent: "repair",
                     stateMatrixRow: InstallerStateMatrixRow.freshInstallMissingComponents.rawValue,
@@ -74,6 +87,15 @@ final class CLIReportModelsTests: XCTestCase {
         let data = try encoder.encode(report)
         let decoded = try decoder.decode(CLIInstallerReport.self, from: data)
         let event = try XCTUnwrap(decoded.repairTelemetry?.first)
+        XCTAssertEqual(decoded.runID, runID.uuidString)
+        XCTAssertEqual(decoded.planID, planID.uuidString)
+        XCTAssertEqual(decoded.beforeSnapshotID, beforeSnapshotID.uuidString)
+        XCTAssertEqual(decoded.afterSnapshotID, afterSnapshotID.uuidString)
+        XCTAssertEqual(decoded.completionState, "completed")
+        XCTAssertEqual(event.runID, runID.uuidString)
+        XCTAssertEqual(event.planID, planID.uuidString)
+        XCTAssertEqual(event.beforeSnapshotID, beforeSnapshotID.uuidString)
+        XCTAssertEqual(event.afterSnapshotID, afterSnapshotID.uuidString)
         XCTAssertEqual(event.trigger, "execute-plan")
         XCTAssertEqual(event.intent, "repair")
         XCTAssertEqual(event.stateMatrixRow, InstallerStateMatrixRow.freshInstallMissingComponents.rawValue)

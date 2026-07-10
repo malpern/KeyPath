@@ -98,6 +98,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         )
         XCTAssertEqual(report.repairTelemetry.last?.action, InstallerRecipeID.verifyPostconditions)
         XCTAssertEqual(report.repairTelemetry.last?.postconditionResult, .succeeded)
+        XCTAssertEqual(report.completionState, .verifiedAfterOperationError)
     }
 
     func testExecuteDoesNotMaskFailureWhenPostconditionWasAlreadySatisfied() async {
@@ -382,6 +383,73 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         XCTAssertEqual(report.finalContext?.captureStatus, context.captureStatus)
     }
 
+    func testExecuteCarriesPlanAndSnapshotEvidenceThroughReportAndTelemetry() async {
+        let finalSnapshotID = UUID()
+        let context = SystemContextBuilder(snapshotID: finalSnapshotID).build()
+        let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let beforeSnapshotID = UUID()
+        let plan = InstallPlan(
+            sourceSnapshotID: beforeSnapshotID,
+            recipes: [],
+            status: .ready,
+            intent: .repair
+        )
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+        )
+
+        XCTAssertEqual(report.planID, plan.id)
+        XCTAssertEqual(report.beforeSnapshotID, beforeSnapshotID)
+        XCTAssertEqual(report.afterSnapshotID, finalSnapshotID)
+        XCTAssertEqual(report.finalContext?.snapshotID, finalSnapshotID)
+        XCTAssertEqual(report.completionState, .completed)
+        XCTAssertFalse(report.repairTelemetry.isEmpty)
+        for event in report.repairTelemetry {
+            XCTAssertEqual(event.runID, report.runID)
+            XCTAssertEqual(event.planID, plan.id)
+            XCTAssertEqual(event.beforeSnapshotID, beforeSnapshotID)
+            XCTAssertEqual(event.afterSnapshotID, finalSnapshotID)
+        }
+    }
+
+    func testExecuteReportsAwaitingApprovalFromFinalSnapshot() async {
+        let context = SystemContextBuilder(
+            helperReady: false,
+            helperRequiresApproval: true,
+            loginItemsApprovalRequired: true
+        ).build()
+        let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(
+                    id: InstallerRecipeID.createConfigDirectories,
+                    type: .installComponent,
+                    expectedPostconditions: [.helperReadyOrApprovalPending]
+                )
+            ],
+            status: .ready,
+            intent: .install
+        )
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+        )
+
+        XCTAssertTrue(report.success)
+        XCTAssertEqual(report.completionState, .awaitingApproval)
+    }
+
     func testInspectOnlyExecuteDoesNotCaptureRedundantFinalSnapshot() async {
         let context = SystemContextBuilder().build()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
@@ -466,6 +534,9 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         )
         XCTAssertNotNil(report.recoveryPlan)
         XCTAssertEqual(report.recoveryPlan?.intent, .repair)
+        XCTAssertEqual(report.recoveryPlan?.sourceSnapshotID, context.snapshotID)
+        XCTAssertEqual(report.completionState, .verificationFailed)
+        XCTAssertEqual(report.failedPostconditions, [.runtimeReadyOrApprovalPending])
         XCTAssertEqual(report.repairTelemetry.last?.action, InstallerRecipeID.verifyPostconditions)
         XCTAssertEqual(report.repairTelemetry.last?.postconditionResult, .failed)
     }
@@ -588,6 +659,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
 
     private static func snapshot(from context: SystemContext) -> SystemSnapshot {
         SystemSnapshot(
+            id: context.snapshotID,
             permissions: context.permissions,
             components: context.components,
             conflicts: context.conflicts,

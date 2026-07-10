@@ -504,12 +504,15 @@ public extension CLIInstallerReport {
         let finalIssues = SystemFacade.issues(from: finalContext ?? initialContext)
         let finalUserActionIssues = finalIssues.filter { !$0.canAutoFix }
         let finalOperational = finalContext.map(SystemFacade.isOperational) ?? false
-        let completedButStillBlocked = report.success && !finalOperational && !finalIssues.isEmpty
+        let completedButStillBlocked = report.success
+            && report.completionState != .awaitingApproval
+            && !finalOperational
+            && !finalIssues.isEmpty
         let failedForManualApproval = report.failureReason.map(SystemFacade.requiresManualApproval) ?? false
 
         let failureReason: String? = if let reportFailure = report.failureReason {
             reportFailure
-        } else if !finalUserActionIssues.isEmpty {
+        } else if report.completionState != .awaitingApproval, !finalUserActionIssues.isEmpty {
             SystemFacade.userActionFailureReason(
                 finalUserActionIssues,
                 prefix: "\(title) requires user action"
@@ -532,7 +535,17 @@ public extension CLIInstallerReport {
             plannedRecipes: plan.recipes.map { "\($0.id) (\($0.type))" },
             unmetRequirements: report.unmetRequirements.map(\.name),
             logs: report.logs,
-            repairTelemetry: CLIRepairTelemetryEvent.from(report.repairTelemetry)
+            repairTelemetry: CLIRepairTelemetryEvent.from(report.repairTelemetry),
+            recommendedRecovery: report.recommendedRecovery?.rawValue,
+            runID: report.runID.uuidString,
+            planID: report.planID?.uuidString,
+            beforeSnapshotID: report.beforeSnapshotID?.uuidString,
+            afterSnapshotID: report.afterSnapshotID?.uuidString,
+            completionState: report.completionState.rawValue,
+            recoveryPlanRecipes: report.recoveryPlan?.recipes.map(\.id),
+            failedPostconditions: report.failedPostconditions.isEmpty
+                ? nil
+                : report.failedPostconditions.map(\.rawValue)
         )
     }
 
@@ -562,7 +575,9 @@ public extension CLIInstallerReport {
             plannedRecipes: plan.recipes.map { "\($0.id) (\($0.type))" },
             unmetRequirements: blockedBy,
             logs: nil,
-            repairTelemetry: nil
+            repairTelemetry: nil,
+            planID: plan.id.uuidString,
+            beforeSnapshotID: plan.sourceSnapshotID?.uuidString
         )
     }
 }

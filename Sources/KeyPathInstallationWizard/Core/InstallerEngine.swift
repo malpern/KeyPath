@@ -116,6 +116,7 @@ public final class InstallerEngine {
                 "⚠️ [InstallerEngine] Plan blocked by requirement: \(blockingRequirement.name)"
             )
             return InstallPlan(
+                sourceSnapshotID: context.snapshotID,
                 recipes: [],
                 status: .blocked(requirement: blockingRequirement),
                 intent: intent,
@@ -138,6 +139,7 @@ public final class InstallerEngine {
         let orderedRecipes = orderRecipes(recipes)
 
         let plan = InstallPlan(
+            sourceSnapshotID: context.snapshotID,
             recipes: orderedRecipes,
             status: .ready,
             intent: intent,
@@ -245,6 +247,7 @@ public final class InstallerEngine {
         trigger: InstallerRepairTelemetryTrigger
     ) async -> InstallerReport {
         AppLogger.shared.log("⚙️ [InstallerEngine] Starting execute(plan:, using:)")
+        let runID = UUID()
 
         // Check if plan is blocked
         if case let .blocked(requirement) = plan.status {
@@ -252,6 +255,9 @@ public final class InstallerEngine {
                 "⚠️ [InstallerEngine] Plan is blocked by requirement: \(requirement.name)"
             )
             let telemetry = InstallerRepairTelemetryEvent(
+                runID: runID,
+                planID: plan.id,
+                beforeSnapshotID: plan.sourceSnapshotID,
                 trigger: trigger,
                 intent: plan.intent.telemetryValue,
                 stateMatrixRow: plan.metadata.stateMatrixRow,
@@ -263,7 +269,11 @@ public final class InstallerEngine {
                 error: requirement.name
             )
             return InstallerReport(
+                runID: runID,
+                planID: plan.id,
+                beforeSnapshotID: plan.sourceSnapshotID,
                 success: false,
+                completionState: .blocked,
                 failureReason: "Plan blocked by requirement: \(requirement.name)",
                 unmetRequirements: [requirement],
                 executedRecipes: [],
@@ -472,22 +482,57 @@ public final class InstallerEngine {
             operationFailure ?? verificationFailure
         }
 
+        let completionState: InstallerCompletionState = if success {
+            if finalContext.map(requiresManualApproval) == true {
+                .awaitingApproval
+            } else if firstFailure != nil {
+                .verifiedAfterOperationError
+            } else {
+                .completed
+            }
+        } else if verificationFailure != nil {
+            .verificationFailed
+        } else {
+            .executionFailed
+        }
+        let afterSnapshotID = finalContext?.snapshotID
+        let telemetryWithEvidence = repairTelemetry.map { event in
+            event.attachingRunEvidence(
+                runID: runID,
+                planID: plan.id,
+                beforeSnapshotID: plan.sourceSnapshotID,
+                afterSnapshotID: afterSnapshotID
+            )
+        }
+
         // Generate report with aggregated logs
         let report = InstallerReport(
+            runID: runID,
+            planID: plan.id,
+            beforeSnapshotID: plan.sourceSnapshotID,
+            afterSnapshotID: afterSnapshotID,
             success: success,
+            completionState: completionState,
             failureReason: failureReason,
             unmetRequirements: success ? [] : plan.blockedBy.map { [$0] } ?? [],
             executedRecipes: executedRecipes,
             finalContext: finalContext,
             logs: allLogs,
-            repairTelemetry: repairTelemetry,
-            recoveryPlan: recoveryPlan
+            repairTelemetry: telemetryWithEvidence,
+            recoveryPlan: recoveryPlan,
+            failedPostconditions: failedPostconditions
         )
 
         AppLogger.shared.log(
             "✅ [InstallerEngine] execute() complete - success: \(success), recipes executed: \(executedRecipes.count)"
         )
         return report
+    }
+
+    private func requiresManualApproval(_ context: SystemContext) -> Bool {
+        context.helper.requiresApproval
+            || context.services.loginItemsApprovalRequired == true
+            || context.requiresManualVHIDDriverApproval
     }
 
     private func captureFreshFinalContext() async -> SystemContext {
@@ -882,6 +927,8 @@ public final class InstallerEngine {
         removeVirtualHID: Bool,
         allowAdminFallback: Bool
     ) async -> InstallerReport {
+        let runID = UUID()
+        let beforeContext = await inspectSystem()
         AppLogger.shared.log(
             "🗑️ [InstallerEngine] Starting uninstall (deleteConfig: \(deleteConfig), removeVirtualHID: \(removeVirtualHID), allowAdminFallback: \(allowAdminFallback))"
         )
@@ -892,7 +939,10 @@ public final class InstallerEngine {
         guard let coordinator = WizardDependencies.createUninstallCoordinator?() else {
             AppLogger.shared.log("⚠️ [InstallerEngine] createUninstallCoordinator not configured")
             return InstallerReport(
+                runID: runID,
+                beforeSnapshotID: beforeContext.snapshotID,
                 success: false,
+                completionState: .executionFailed,
                 failureReason: "Uninstall coordinator not configured"
             )
         }
@@ -913,24 +963,41 @@ public final class InstallerEngine {
             )
         })
 
+        let finalContext = await captureFreshFinalContext()
+        let afterSnapshotID = finalContext.snapshotID
+        let telemetry = InstallerRepairTelemetryEvent(
+            runID: runID,
+            beforeSnapshotID: beforeContext.snapshotID,
+            afterSnapshotID: afterSnapshotID,
+            trigger: .uninstall,
+            intent: InstallIntent.uninstall.telemetryValue,
+            stateMatrixRow: nil,
+            stateMatrixPlan: [],
+            action: deleteConfig ? "uninstall-with-config" : "uninstall",
+            recipeID: deleteConfig ? "uninstall-with-config" : "uninstall",
+            recipeType: "uninstall",
+            postconditionResult: result.success ? .succeeded : .failed,
+            error: result.success ? nil : failure
+        )
+        let completionState: InstallerCompletionState = if result.success {
+            .completed
+        } else if result.recommendedRecovery != nil {
+            .recoveryRequired
+        } else {
+            .executionFailed
+        }
+
         let report = InstallerReport(
+            runID: runID,
+            beforeSnapshotID: beforeContext.snapshotID,
+            afterSnapshotID: afterSnapshotID,
             success: result.success,
+            completionState: completionState,
             failureReason: result.success ? nil : failure,
             executedRecipes: componentResults,
+            finalContext: finalContext,
             logs: result.logs,
-            repairTelemetry: [
-                InstallerRepairTelemetryEvent(
-                    trigger: .uninstall,
-                    intent: InstallIntent.uninstall.telemetryValue,
-                    stateMatrixRow: nil,
-                    stateMatrixPlan: [],
-                    action: deleteConfig ? "uninstall-with-config" : "uninstall",
-                    recipeID: deleteConfig ? "uninstall-with-config" : "uninstall",
-                    recipeType: "uninstall",
-                    postconditionResult: result.success ? .succeeded : .failed,
-                    error: result.success ? nil : failure
-                ),
-            ],
+            repairTelemetry: [telemetry],
             recommendedRecovery: result.recommendedRecovery
         )
 
@@ -985,6 +1052,7 @@ public final class InstallerEngine {
         // own failure and postcondition checks.
         let shouldPreserveBaseBlocker = !filteredRecipes.isEmpty
         let filteredPlan = InstallPlan(
+            sourceSnapshotID: context.snapshotID,
             recipes: finalRecipes,
             status: shouldPreserveBaseBlocker ? basePlan.status : .ready,
             intent: basePlan.intent,

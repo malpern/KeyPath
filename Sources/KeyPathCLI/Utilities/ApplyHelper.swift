@@ -28,6 +28,12 @@ func formatInstallerReport(_ report: CLIInstallerReport, title: String, noColor:
         ? ANSIColor.green("Yes", noColor: noColor)
         : ANSIColor.red("No", noColor: noColor)
     lines.append("Success: \(successText)")
+    if let completionState = report.completionState {
+        lines.append("Completion State: \(completionState)")
+    }
+    if let runID = report.runID {
+        lines.append(ANSIColor.dim("Run ID: \(runID)", noColor: noColor))
+    }
 
     if let reason = report.failureReason {
         lines.append(ANSIColor.red("Failure Reason: \(reason)", noColor: noColor))
@@ -53,6 +59,22 @@ func formatInstallerReport(_ report: CLIInstallerReport, title: String, noColor:
         lines.append("Unmet Requirements:")
         for requirement in unmetRequirements {
             lines.append("  - \(requirement)")
+        }
+    }
+
+    if let failedPostconditions = report.failedPostconditions, !failedPostconditions.isEmpty {
+        lines.append("")
+        lines.append("Failed Postconditions:")
+        for postcondition in failedPostconditions {
+            lines.append("  - \(postcondition)")
+        }
+    }
+
+    if let recoveryRecipes = report.recoveryPlanRecipes, !recoveryRecipes.isEmpty {
+        lines.append("")
+        lines.append("Recommended Recovery Plan:")
+        for recipe in recoveryRecipes {
+            lines.append("  - \(recipe)")
         }
     }
 

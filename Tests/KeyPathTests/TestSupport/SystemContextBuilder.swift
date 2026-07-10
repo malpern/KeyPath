@@ -6,8 +6,10 @@ import KeyPathWizardCore
 
 /// Tiny helper to construct SystemContext for planner/engine tests without touching real system state.
 struct SystemContextBuilder {
+    var snapshotID = UUID()
     var permissionsStatus: PermissionOracle.Status = .granted
     var helperReady: Bool = true
+    var helperRequiresApproval: Bool = false
     var servicesHealthy: Bool = false
     var kanataLaunchdLoaded: Bool?
     var kanataProcessRunning: Bool?
@@ -15,6 +17,7 @@ struct SystemContextBuilder {
     var kanataRunning: Bool?
     var karabinerDaemonRunning: Bool?
     var vhidHealthy: Bool?
+    var loginItemsApprovalRequired: Bool?
     var kanataInputCaptureReady: Bool = true
     /// The input-capture failure reason surfaced when not ready (#624 attribution).
     /// Defaults to the built-in-keyboard permission reason; set to a grab-failure
@@ -38,7 +41,12 @@ struct SystemContextBuilder {
             timestamp: Date()
         )
 
-        let helper = HelperStatus(isInstalled: helperReady, version: "1.0", isWorking: helperReady)
+        let helper = HelperStatus(
+            isInstalled: helperReady || helperRequiresApproval,
+            version: "1.0",
+            isWorking: helperReady,
+            requiresApproval: helperRequiresApproval
+        )
 
         let components: ComponentStatus = if componentsInstalled {
             ComponentStatus(
@@ -62,12 +70,14 @@ struct SystemContextBuilder {
             karabinerDaemonRunning: karabinerDaemonRunning ?? servicesHealthy,
             vhidHealthy: vhidHealthy ?? servicesHealthy,
             kanataInputCaptureReady: kanataInputCaptureReady,
-            kanataInputCaptureIssue: kanataInputCaptureReady ? nil : kanataInputCaptureIssue
+            kanataInputCaptureIssue: kanataInputCaptureReady ? nil : kanataInputCaptureIssue,
+            loginItemsApprovalRequired: loginItemsApprovalRequired
         )
 
         let conflictStatus = ConflictStatus(conflicts: conflicts, canAutoResolve: !conflicts.isEmpty)
 
         return SystemContext(
+            snapshotID: snapshotID,
             permissions: permissions,
             services: services,
             conflicts: conflictStatus,
