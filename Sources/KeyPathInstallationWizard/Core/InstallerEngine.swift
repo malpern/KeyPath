@@ -27,6 +27,10 @@ actor InstallerTransactionGate {
     }
 }
 
+private enum InstallerTransactionContext {
+    @TaskLocal static var isOwned = false
+}
+
 /// Protocol for privileged routing used by Services to allow test stubs
 public protocol InstallerEnginePrivilegedRouting: AnyObject {
     func uninstallVirtualHIDDrivers(using broker: PrivilegeBroker) async throws
@@ -65,6 +69,26 @@ public final class InstallerEngine {
     /// Public initializer for app/CLI callers (no DI needed).
     public convenience init() {
         self.init(processLifecycleManager: ProcessLifecycleManager())
+    }
+
+    private func withInstallerTransaction<T>(
+        _ operation: () async throws -> T
+    ) async rethrows -> T {
+        if InstallerTransactionContext.isOwned {
+            return try await operation()
+        }
+
+        await InstallerTransactionGate.shared.acquire()
+        return try await InstallerTransactionContext.$isOwned.withValue(true) {
+            do {
+                let result = try await operation()
+                await InstallerTransactionGate.shared.release()
+                return result
+            } catch {
+                await InstallerTransactionGate.shared.release()
+                throw error
+            }
+        }
     }
 
     // MARK: - Public API
@@ -229,10 +253,9 @@ public final class InstallerEngine {
         using broker: PrivilegeBroker,
         trigger: InstallerRepairTelemetryTrigger = .executePlan
     ) async -> InstallerReport {
-        await InstallerTransactionGate.shared.acquire()
-        let report = await executeWithinTransaction(plan: plan, using: broker, trigger: trigger)
-        await InstallerTransactionGate.shared.release()
-        return report
+        await withInstallerTransaction {
+            await executeWithinTransaction(plan: plan, using: broker, trigger: trigger)
+        }
     }
 
     private func executeWithinTransaction(
@@ -869,20 +892,26 @@ public final class InstallerEngine {
     /// Convenience wrapper that chains inspectSystem() → makePlan() → execute() internally.
     /// Useful for CLI "one-button repair" automation or simple GUI flows.
     public func run(intent: InstallIntent, using broker: PrivilegeBroker) async -> InstallerReport {
-        await InstallerTransactionGate.shared.acquire()
+        await withInstallerTransaction {
+            await runWithinTransaction(intent: intent, using: broker)
+        }
+    }
+
+    private func runWithinTransaction(
+        intent: InstallIntent,
+        using broker: PrivilegeBroker
+    ) async -> InstallerReport {
         AppLogger.shared.log("🚀 [InstallerEngine] Starting run(intent: \(intent), using:)")
 
         if intent == .uninstall {
             AppLogger.shared.log(
                 "🗑️ [InstallerEngine] Delegating uninstall intent to uninstall(deleteConfig:, using:)"
             )
-            let report = await uninstallWithinTransaction(
+            return await uninstallWithinTransaction(
                 deleteConfig: false,
                 removeVirtualHID: false,
                 allowAdminFallback: false
             )
-            await InstallerTransactionGate.shared.release()
-            return report
         }
 
         // Chain the steps
@@ -891,7 +920,6 @@ public final class InstallerEngine {
         let report = await executeWithinTransaction(plan: plan, using: broker, trigger: .run)
 
         AppLogger.shared.log("✅ [InstallerEngine] run() complete - success: \(report.success)")
-        await InstallerTransactionGate.shared.release()
         return report
     }
 
@@ -904,14 +932,13 @@ public final class InstallerEngine {
         allowAdminFallback: Bool = false,
         using _: PrivilegeBroker
     ) async -> InstallerReport {
-        await InstallerTransactionGate.shared.acquire()
-        let report = await uninstallWithinTransaction(
-            deleteConfig: deleteConfig,
-            removeVirtualHID: removeVirtualHID,
-            allowAdminFallback: allowAdminFallback
-        )
-        await InstallerTransactionGate.shared.release()
-        return report
+        await withInstallerTransaction {
+            await uninstallWithinTransaction(
+                deleteConfig: deleteConfig,
+                removeVirtualHID: removeVirtualHID,
+                allowAdminFallback: allowAdminFallback
+            )
+        }
     }
 
     private func uninstallWithinTransaction(
@@ -1002,7 +1029,15 @@ public final class InstallerEngine {
     public func runSingleAction(_ action: AutoFixAction, using broker: PrivilegeBroker) async
         -> InstallerReport
     {
-        await InstallerTransactionGate.shared.acquire()
+        await withInstallerTransaction {
+            await runSingleActionWithinTransaction(action, using: broker)
+        }
+    }
+
+    private func runSingleActionWithinTransaction(
+        _ action: AutoFixAction,
+        using broker: PrivilegeBroker
+    ) async -> InstallerReport {
         AppLogger.shared.log("🔧 [InstallerEngine] runSingleAction(\(action), using:) starting")
         let context = await inspectSystem()
 
@@ -1024,7 +1059,7 @@ public final class InstallerEngine {
                 finalRecipes = [directRecipe]
             } else {
                 AppLogger.shared.log("⚠️ [InstallerEngine] No recipe available for action: \(action)")
-                let report = InstallerReport(
+                return InstallerReport(
                     planID: basePlan.id,
                     beforeSnapshotID: context.snapshotID,
                     success: false,
@@ -1033,8 +1068,6 @@ public final class InstallerEngine {
                     executedRecipes: [],
                     logs: []
                 )
-                await InstallerTransactionGate.shared.release()
-                return report
             }
         } else {
             finalRecipes = filteredRecipes
@@ -1066,7 +1099,6 @@ public final class InstallerEngine {
         AppLogger.shared.log(
             "✅ [InstallerEngine] runSingleAction(\(action), using:) complete - success: \(report.success)"
         )
-        await InstallerTransactionGate.shared.release()
         return report
     }
 
@@ -1075,22 +1107,28 @@ public final class InstallerEngine {
     /// Uninstall VirtualHID drivers (removes VHID daemon plists)
     /// Routes via InstallerEngine per AGENTS.md
     public func uninstallVirtualHIDDrivers(using broker: PrivilegeBroker) async throws {
-        AppLogger.shared.log("🗑️ [InstallerEngine] Uninstalling VirtualHID drivers")
-        try await broker.uninstallVirtualHIDDrivers()
+        try await withInstallerTransaction {
+            AppLogger.shared.log("🗑️ [InstallerEngine] Uninstalling VirtualHID drivers")
+            try await broker.uninstallVirtualHIDDrivers()
+        }
     }
 
     /// Disable Karabiner grabber (stops conflicting processes)
     /// Routes via InstallerEngine per AGENTS.md
     public func disableKarabinerGrabber(using broker: PrivilegeBroker) async throws {
-        AppLogger.shared.log("🔧 [InstallerEngine] Disabling Karabiner grabber")
-        try await broker.disableKarabinerGrabber()
+        try await withInstallerTransaction {
+            AppLogger.shared.log("🔧 [InstallerEngine] Disabling Karabiner grabber")
+            try await broker.disableKarabinerGrabber()
+        }
     }
 
     /// Restart Karabiner daemon with verification
     /// Routes via InstallerEngine per AGENTS.md
     public func restartKarabinerDaemon(using broker: PrivilegeBroker) async throws -> Bool {
-        AppLogger.shared.log("🔄 [InstallerEngine] Restarting Karabiner daemon")
-        return try await broker.restartKarabinerDaemonVerified()
+        try await withInstallerTransaction {
+            AppLogger.shared.log("🔄 [InstallerEngine] Restarting Karabiner daemon")
+            return try await broker.restartKarabinerDaemonVerified()
+        }
     }
 
     /// Execute a privileged command via sudo/osascript

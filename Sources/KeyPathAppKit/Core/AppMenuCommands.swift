@@ -1,5 +1,6 @@
 import AppKit
 import KeyPathCore
+import KeyPathInstallationWizard
 import Sparkle
 import SwiftUI
 
@@ -175,16 +176,18 @@ struct AppMenuCommands: Commands {
                 action: {
                     Task { @MainActor in
                         AppLogger.shared.log("🗑️ [InstantUninstall] \u{2325}\u{2318}U triggered - performing immediate uninstall")
-                        let coordinator = UninstallCoordinator()
-                        let success = await coordinator.uninstall(deleteConfig: false)
-                        if success {
+                        let report = await InstallerEngine().uninstall(
+                            deleteConfig: false,
+                            using: PrivilegeBroker()
+                        )
+                        if report.success {
                             AppLogger.shared.log("✅ [InstantUninstall] Uninstall completed successfully")
                             NSApplication.shared.terminate(nil)
                         } else {
                             AppLogger.shared.log("❌ [InstantUninstall] Uninstall failed")
                             let alert = NSAlert()
                             alert.messageText = "Uninstall Failed"
-                            alert.informativeText = coordinator.lastError ?? "An unknown error occurred during uninstall"
+                            alert.informativeText = report.failureReason ?? "An unknown error occurred during uninstall"
                             alert.alertStyle = .critical
                             alert.runModal()
                         }
