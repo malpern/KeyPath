@@ -14,7 +14,7 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
-PROJECT_DIR="$SCRIPT_DIR/.."
+PROJECT_DIR=$(cd "$SCRIPT_DIR/.." >/dev/null && pwd -P)
 source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/deploy-lock.sh"
 keypath_use_stable_xcode
@@ -64,6 +64,16 @@ cd "$PROJECT_DIR"
 
 # Ensure .build directory exists for stats
 mkdir -p "$PROJECT_DIR/.build" "$MODULE_CACHE" "$BUILD_LOG_DIR"
+
+# SwiftPM's stable and beta build systems use different generated `debug`
+# symlink targets. A worktree previously built by another toolchain can retain
+# the other target, causing SwiftPM to warn instead of refreshing the link.
+# The link is generated metadata, so remove only symlinks and let this build
+# recreate the target appropriate for the pinned stable Xcode.
+if [[ -L "$PROJECT_DIR/.build/debug" ]]; then
+    echo "🧹 Refreshing generated .build/debug symlink"
+    rm "$PROJECT_DIR/.build/debug"
+fi
 
 # --- Instrumentation Functions ---
 
@@ -288,7 +298,7 @@ if [[ -n "${KEYPATH_BUILD_SYSTEM:-}" && "${KEYPATH_BUILD_SYSTEM:-}" != "native" 
     BUILD_SYSTEM_FLAGS=(--build-system "$KEYPATH_BUILD_SYSTEM")
 fi
 # ${arr[@]+...} guard: bash 3.2 under `set -u` treats expanding an empty array as unbound
-if ! swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} "${MODULE_CACHE_FLAGS[@]}" ${PRODUCT_FLAGS[@]+"${PRODUCT_FLAGS[@]}"} >> "$BUILD_LOG" 2>&1; then
+if ! swift build --disable-automatic-resolution ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} "${MODULE_CACHE_FLAGS[@]}" ${PRODUCT_FLAGS[@]+"${PRODUCT_FLAGS[@]}"} >> "$BUILD_LOG" 2>&1; then
     BUILD_END_MS=$(get_time_ms)
     DURATION=$((BUILD_END_MS - BUILD_START_MS))
     print_build_failure_diagnostics "$BUILD_LOG"
@@ -296,7 +306,7 @@ if ! swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} "${MODULE_C
     exit 1
 fi
 
-if ! BIN_DIR_OUTPUT=$(swift build --show-bin-path ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} "${MODULE_CACHE_FLAGS[@]}" 2>> "$BUILD_LOG"); then
+if ! BIN_DIR_OUTPUT=$(swift build --show-bin-path --disable-automatic-resolution ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} "${MODULE_CACHE_FLAGS[@]}" 2>> "$BUILD_LOG"); then
     BUILD_END_MS=$(get_time_ms)
     DURATION=$((BUILD_END_MS - BUILD_START_MS))
     print_build_failure_diagnostics "$BUILD_LOG"

@@ -101,6 +101,39 @@ final class DeploymentScriptContractTests: XCTestCase {
             "quick-deploy must not reduce failed build output to only the last three lines."
         )
     }
+
+    func testLocalBuildsSharePinnedWorktreeCache() throws {
+        let root = repositoryRoot()
+        let quickDeploy = try contents(of: root.appendingPathComponent("Scripts/quick-deploy.sh"))
+        let safeTests = try contents(of: root.appendingPathComponent("Scripts/run-tests-safe.sh"))
+
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: root.appendingPathComponent("Package.resolved").path),
+            "SwiftPM dependencies must be pinned for repeatable fresh-worktree builds."
+        )
+        XCTAssertTrue(
+            safeTests.contains(#"SCRATCH_PATH=${SCRATCH_PATH:-"$PROJECT_DIR/.build"}"#),
+            "Local tests must reuse the worktree's canonical .build graph."
+        )
+        XCTAssertTrue(
+            safeTests.contains(#"TEST_RESET_MODULE_CACHE="${KEYPATH_TEST_RESET_MODULE_CACHE:-0}""#),
+            "The safe runner must preserve the module cache unless reset is explicitly requested."
+        )
+        XCTAssertTrue(
+            quickDeploy.contains("swift build --disable-automatic-resolution")
+                && safeTests.contains("swift build --disable-automatic-resolution"),
+            "Routine build and test entry points must honor Package.resolved without re-resolving."
+        )
+        XCTAssertTrue(
+            quickDeploy.contains(#"if [[ -L "$PROJECT_DIR/.build/debug" ]]"#)
+                && safeTests.contains(#"if [ -L "$SCRATCH_PATH/debug" ]"#),
+            "Build entry points must safely refresh only generated debug symlinks."
+        )
+        XCTAssertTrue(
+            quickDeploy.contains(#"PROJECT_DIR=$(cd "$SCRIPT_DIR/.." >/dev/null && pwd -P)"#),
+            "quick-deploy must canonicalize PROJECT_DIR so Clang sees one module-cache path."
+        )
+    }
 }
 
 // MARK: - Helpers
