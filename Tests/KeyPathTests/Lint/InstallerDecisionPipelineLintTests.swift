@@ -57,6 +57,39 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
         )
     }
 
+    func testClientsDoNotRecaptureInstallerMatrixEvidence() throws {
+        let root = repositoryRoot()
+        let consumers = [
+            root.appendingPathComponent("Sources/KeyPathAppKit/CLI/SystemFacade.swift"),
+            root.appendingPathComponent("Sources/KeyPathAppKit/Services/MainAppStateController.swift"),
+        ]
+        let forbidden = [
+            "currentInstallerStateMatrixSnapshot",
+            "SystemStateProvider.installerStateMatrixSnapshot",
+        ]
+        var violations: [String] = []
+
+        for file in consumers {
+            let source = try String(contentsOf: file, encoding: .utf8)
+            for symbol in forbidden where source.contains(symbol) {
+                violations.append("\(file.lastPathComponent): \(symbol)")
+            }
+        }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            "Clients must render the assessment attached to their captured context or plan: \(violations)"
+        )
+        XCTAssertFalse(
+            FileManager.default.fileExists(
+                atPath: root.appendingPathComponent(
+                    "Sources/KeyPathAppKit/Core/SystemStateProvider+InstallerStateMatrix.swift"
+                ).path
+            ),
+            "Do not restore the duplicate system-probe-to-matrix compatibility path"
+        )
+    }
+
     func testPlanningPerformsNoSystemIO() throws {
         let file = repositoryRoot()
             .appendingPathComponent("Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift")
