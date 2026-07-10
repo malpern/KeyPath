@@ -286,6 +286,7 @@ final class W6DeletionPassLintTests: XCTestCase {
                     #"\brunFullInstall\b"#,
                     #"configure\(kanataManager"#,
                     #"InstallerEngine\(kanataManager"#,
+                    #"\bSystemContextAdapter\b"#,
                 ]
             )
         }

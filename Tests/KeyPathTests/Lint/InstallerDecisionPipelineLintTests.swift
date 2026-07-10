@@ -7,7 +7,7 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
         let consumers = [
             root.appendingPathComponent("Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift"),
             root.appendingPathComponent("Sources/KeyPathInstallationWizard/Core/InstallerEngine+Recipes.swift"),
-            root.appendingPathComponent("Sources/KeyPathInstallationWizard/Core/SystemContextAdapter.swift"),
+            root.appendingPathComponent("Sources/KeyPathInstallationWizard/Core/SystemStateResult+SystemContext.swift"),
         ]
         var violations: [String] = []
 

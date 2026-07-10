@@ -6,9 +6,9 @@ import KeyPathWizardCore
 @preconcurrency import XCTest
 
 /// End-to-end tests that validate the path:
-/// SystemContext -> SystemContextAdapter/SystemInspector -> WizardIssue severities.
+/// SystemContext -> SystemStateResult projection/SystemInspector -> WizardIssue severities.
 @MainActor
-final class SystemContextAdapterPermissionSeverityTests: XCTestCase {
+final class SystemStateProjectionPermissionSeverityTests: XCTestCase {
     func testKanataUnknownPermissionBecomesWarningIssueAndWarningPageStatus() {
         let now = Date()
 
@@ -49,10 +49,10 @@ final class SystemContextAdapterPermissionSeverityTests: XCTestCase {
             timestamp: now
         )
 
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
 
         let kanataIMIssue = result.issues.first { $0.identifier == .permission(.kanataInputMonitoring) }
-        XCTAssertNotNil(kanataIMIssue, "Adapter should surface a kanata input monitoring issue")
+        XCTAssertNotNil(kanataIMIssue, "Projection should surface a kanata input monitoring issue")
         XCTAssertEqual(kanataIMIssue?.severity, .warning, "Unknown/not-verified kanata permission should be a warning")
         XCTAssertNotNil(kanataIMIssue?.description)
         XCTAssertTrue(kanataIMIssue?.description.localizedCaseInsensitiveContains("not verified") ?? false)

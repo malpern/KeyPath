@@ -581,7 +581,7 @@ class MainAppStateController {
             lastValidationDate = Date()
             lastValidationTime = Date()
             if let lastValidatedSystemContext {
-                lastAdaptedState = SystemContextAdapter.adapt(lastValidatedSystemContext).state
+                lastAdaptedState = SystemStateResult.projecting(lastValidatedSystemContext).state
             }
 
             validationState = .failed(blockingCount: 0, totalCount: issues.count)
@@ -634,9 +634,9 @@ class MainAppStateController {
             "📊 [MainAppStateController] Blocking issues: \(snapshot.blockingIssues.count)"
         )
 
-        // Adapt to wizard-style issues/state using existing adapter (keeps UI expectations stable)
+        // Project the canonical context into wizard presentation state.
         let context = SystemContext(snapshot: snapshot)
-        let adapted = SystemContextAdapter.adapt(context)
+        let adapted = SystemStateResult.projecting(context)
 
         // Update published state
         lastValidatedSystemContext = context

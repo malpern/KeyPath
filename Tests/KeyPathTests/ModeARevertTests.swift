@@ -9,7 +9,7 @@ import KeyPathWizardCore
 /// and that permission rejection detection works end-to-end.
 @MainActor
 final class ModeARevertTests: XCTestCase {
-    // MARK: - Permission Rejection Detection via SystemContextAdapter
+    // MARK: - Permission Rejection Detection via SystemStateResult Projection
 
     func testAdapterRoutesToPermissionsWhenPermissionRejected() {
         let context = makeContext(
@@ -18,7 +18,7 @@ final class ModeARevertTests: XCTestCase {
             permissionsGranted: true
         )
 
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
 
         XCTAssertEqual(
             result.state, .missingPermissions(missing: [.kanataAccessibility]),
@@ -33,7 +33,7 @@ final class ModeARevertTests: XCTestCase {
             permissionsGranted: true
         )
 
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
 
         let axIssue = result.issues.first { $0.identifier == .permission(.kanataAccessibility) }
         XCTAssertNotNil(axIssue, "Issues must include kanataAccessibility permission issue")
@@ -48,7 +48,7 @@ final class ModeARevertTests: XCTestCase {
             permissionsGranted: true
         )
 
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
 
         let runtimeIssue = result.issues.first { $0.identifier == .component(.keyPathRuntime) }
         XCTAssertNil(
@@ -64,7 +64,7 @@ final class ModeARevertTests: XCTestCase {
             permissionsGranted: true
         )
 
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
 
         XCTAssertEqual(
             result.state, .serviceNotRunning,
@@ -79,7 +79,7 @@ final class ModeARevertTests: XCTestCase {
             permissionsGranted: true
         )
 
-        let result = SystemContextAdapter.adapt(context)
+        let result = SystemStateResult.projecting(context)
 
         XCTAssertEqual(result.state, .active)
     }
