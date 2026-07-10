@@ -266,6 +266,40 @@ final class W6DeletionPassLintTests: XCTestCase {
             """
         )
     }
+
+    func testInstallerCompatibilityBridgesDoNotRegrow() throws {
+        let productionFiles = [
+            "Sources/KeyPathWizardCore/RuntimeCoordinating.swift",
+            "Sources/KeyPathAppKit/WizardProtocolConformances.swift",
+            "Sources/KeyPathAppKit/Managers/RuntimeCoordinator.swift",
+            "Sources/KeyPathAppKit/UI/ViewModels/KanataViewModel.swift",
+            "Sources/KeyPathInstallationWizard/Core/WizardStateMachine.swift",
+            "Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift",
+        ].map { repositoryRoot().appendingPathComponent($0) }
+
+        let violations = try productionFiles.flatMap { file in
+            try matchingLines(
+                in: file,
+                patterns: [
+                    #"\bWizardRepairReport\b"#,
+                    #"\brunFullRepair\b"#,
+                    #"\brunFullInstall\b"#,
+                    #"configure\(kanataManager"#,
+                    #"InstallerEngine\(kanataManager"#,
+                ]
+            )
+        }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            Installer mutations belong directly to InstallerEngine. Do not \
+            regrow unused RuntimeCoordinator/ViewModel forwarding methods, \
+            lossy repair reports, or no-op wizard configuration bridges:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {

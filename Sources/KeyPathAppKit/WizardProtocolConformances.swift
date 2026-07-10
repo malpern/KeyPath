@@ -52,16 +52,6 @@ extension RuntimeCoordinator: RuntimeCoordinating {
     public func isInTransientRuntimeStartupWindow() async -> Bool {
         await serviceLifecycleCoordinator.isInTransientRuntimeStartupWindow()
     }
-
-    public func runFullRepair(reason _: String) async -> WizardRepairReport {
-        let report = await installerEngine.run(intent: .repair, using: privilegeBroker)
-        return WizardRepairReport(
-            success: report.success,
-            successCount: report.executedRecipes.filter(\.success).count,
-            totalCount: report.executedRecipes.count,
-            failureReason: report.failureReason
-        )
-    }
 }
 
 // MARK: - HelperManager + WizardHelperManaging

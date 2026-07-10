@@ -17,24 +17,6 @@ public enum WizardRuntimeStatus: Equatable, Sendable {
     }
 }
 
-// MARK: - Repair Report
-
-/// Simplified repair result for cross-module use.
-/// RuntimeCoordinator maps InstallerReport → WizardRepairReport in its conformance.
-public struct WizardRepairReport: Sendable {
-    public let success: Bool
-    public let successCount: Int
-    public let totalCount: Int
-    public let failureReason: String?
-
-    public init(success: Bool, successCount: Int, totalCount: Int, failureReason: String?) {
-        self.success = success
-        self.successCount = successCount
-        self.totalCount = totalCount
-        self.failureReason = failureReason
-    }
-}
-
 // MARK: - RuntimeCoordinating Protocol
 
 /// Protocol abstracting RuntimeCoordinator for use by the wizard module.
@@ -72,8 +54,4 @@ public protocol RuntimeCoordinating: AnyObject, Sendable {
     // MARK: - State
 
     var lastError: String? { get }
-
-    // MARK: - Repair
-
-    func runFullRepair(reason: String) async -> WizardRepairReport
 }
