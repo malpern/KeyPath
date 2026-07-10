@@ -370,7 +370,7 @@ public final class InstallerEngine {
         // Own the final observation inside the transaction. A fresh capture
         // invalidates validator/component/health caches before collecting the
         // post-execution evidence, so clients do not race a second observer.
-        let finalContext = if plan.intent == .inspectOnly {
+        let finalContext: SystemContext? = if plan.intent == .inspectOnly {
             nil
         } else {
             await captureFreshFinalContext()
