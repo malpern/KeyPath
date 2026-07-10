@@ -148,7 +148,8 @@ the result as user action required and name the approval surface.
 
 ## Where To Put Enforcement
 
-- Planner routing belongs in `ActionDeterminer` and pure wizard logic tests.
+- Planner routing belongs in `InstallerDecisionPipeline` and pure wizard logic
+  tests.
 - Privileged command routing belongs in `PrivilegedOperationsRouter`.
 - Helper-owned root mutations belong in `HelperService`, but helper success must
   still be verified by the app-side router when possible.
@@ -163,8 +164,8 @@ the result as user action required and name the approval surface.
   pins that `runningAndTCPResponding` is the only matrix row treated as healthy
   by the compact status surface.
 - Wizard detection results publish the shared state-matrix row and plan next to
-  legacy wizard state/issues/actions. `WizardPureLogicTests.test_systemContextAdapterPublishesStateMatrixMetadata`
-  pins the adapter contract, while
+  legacy wizard state/issues/actions. `WizardPureLogicTests.test_systemStateProjectionPublishesStateMatrixMetadata`
+  pins the projection contract, while
   `WizardPureLogicTests.test_systemContextStateMatrixSnapshot_classifiesStoppedRuntimeWithStaleInputCapture`
   pins the pure `SystemContext` snapshot bridge used by wizard core.
 - Raw process-liveness semantics live in `KeyPathSystemProbes` and are exposed
@@ -306,9 +307,7 @@ the result as user action required and name the approval surface.
   provider-backed manager.
 - Helper responsiveness is not helper freshness.
   `W6DeletionPassLintTests.testMatrixAdaptersDoNotTreatUnknownHelperVersionAsFresh`,
-  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotTreatsUnknownHelperVersionAsNotFresh`,
-  and
-  `SystemStateProviderInstallerStateMatrixTests.testWizardSystemContextSnapshotTreatsUnknownHelperVersionAsNotFresh`
+  `HelperVersionContractTests`, and the matrix golden fixtures
   enforce that an unknown helper version routes to helper verification/refresh
   rather than a healthy row.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
@@ -317,25 +316,13 @@ the result as user action required and name the approval surface.
   requires one fixture per documented row, and
   `InstallerStateMatrixGoldenTests.testClassifySnapshotAndPlanMatchStateMatrixGoldenFixtures`
   asserts evidence in -> row out -> plan out for every row.
-- Live state-matrix snapshot materialization belongs behind
-  `SystemStateProvider.currentInstallerStateMatrixSnapshot(...)`. The adapter is
-  pinned by
-  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotPreservesRunningButTCPNotRespondingEvidence`,
-  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsStaleEnabledRegistrationToRegisteredButNotLoaded`,
-  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsStoppedDriverKitApprovalToManualDriverKitRow`,
-  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsStoppedRuntimeWithLoginItemsApprovalToManualApprovalRow`,
-  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotMapsHelperVersionMismatchToStaleHelperRow`,
-  and
-  `SystemStateProviderInstallerStateMatrixTests.testStateMatrixSnapshotTreatsUnhealthyVHIDServicesAsServiceRepairNotMissingPayload`.
-  Wizard/provider parity for registration evidence, Login Items approval,
-  runtime payload presence, and unknown helper freshness is pinned by
-  `SystemStateProviderInstallerStateMatrixTests.testWizardSystemContextSnapshotPreservesKanataNotRegisteredEvidence`,
-  `SystemStateProviderInstallerStateMatrixTests.testWizardSystemContextSnapshotPreservesManualApprovalEvidence`,
-  `SystemStateProviderInstallerStateMatrixTests.testWizardSystemContextSnapshotPreservesMissingRuntimePayloadEvidence`,
-  `SystemStateProviderInstallerStateMatrixTests.testWizardSystemContextSnapshotPreservesUnknownRegistrationEvidence`,
-  `SystemStateProviderInstallerStateMatrixTests.testWizardSystemContextSnapshotTreatsUnknownHelperVersionAsNotFresh`,
-  and
-  `SnapshotConsumerLintTests.testInstallerEnginePreservesMatrixEvidenceThroughSystemSnapshotBridge`.
+- Live state-matrix materialization is a pure projection of the canonical
+  `SystemSnapshot` captured by `SystemValidator`; the deleted live-provider and
+  wizard adapters must not be restored. `WizardPureLogicTests` pins projection
+  and classification behavior, while
+  `SnapshotConsumerLintTests.testInstallerEnginePreservesMatrixEvidenceThroughSystemSnapshotBridge`
+  and `InstallerDecisionPipelineLintTests` prevent duplicate recapture or
+  planning paths.
 
 ## Related References
 

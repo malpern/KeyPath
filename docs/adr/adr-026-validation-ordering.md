@@ -1,6 +1,6 @@
 # ADR-026: System Validation Ordering - Components Before Service Status
 
-**Status:** Accepted
+**Status:** Accepted; implementation updated by installer pipeline consolidation
 **Date:** December 2025
 
 ## Context
@@ -9,7 +9,8 @@ The wizard displayed all green checkmarks (system healthy) but mappings failed w
 
 ## Root Cause
 
-`SystemContextAdapter.adaptSystemState()` checked if `kanataRunning == true` BEFORE verifying components existed.
+The former `SystemContextAdapter.adaptSystemState()` checked if
+`kanataRunning == true` before verifying components existed.
 
 If `ServiceHealthChecker.isServiceHealthy()` returned a false positive (during the 2-second warmup period after service restart, or due to any health check bug), the system would be declared `.active` without ever checking if the Kanata binary existed.
 
@@ -18,7 +19,7 @@ If `ServiceHealthChecker.isServiceHealthy()` returned a false positive (during t
 Validation checks MUST follow this order:
 
 ```swift
-// ✅ CORRECT ORDER (enforced in SystemContextAdapter.adaptSystemState)
+// Correct priority order (enforced by the canonical snapshot projection)
 1. Conflicts          // Highest priority - blocks everything
 2. Components         // Must exist before anything can run
 3. Permissions        // Required for services to work
@@ -35,9 +36,13 @@ Validation checks MUST follow this order:
 | Fail-fast on missing components | Better to show "missing binary" than "everything's working" |
 | Prevents confusion | Users shouldn't see green checkmarks when critical files are missing |
 
-## Code Location
+## Current Implementation
 
-`Sources/KeyPathAppKit/InstallationWizard/Core/SystemContextAdapter.swift:28-71`
+`SystemContextAdapter` was deleted in PR #1092. `SystemValidator` now captures
+the canonical `SystemSnapshot`; `SystemStateResult+SystemContext.swift` projects
+that immutable evidence into `SystemContext`, and `InstallerDecisionPipeline`
+classifies and plans from it. The ordering invariant remains: component
+prerequisites outrank derived service-health evidence.
 
 ## Rules
 

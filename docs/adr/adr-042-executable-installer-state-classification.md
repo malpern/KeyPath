@@ -35,10 +35,11 @@ repair state matrix.
    - Classification is `InstallerStateMatrixSnapshot -> InstallerStateMatrixRow`.
    - Planning vocabulary is `InstallerStateMatrixRow -> [InstallerStateMatrixAction]`.
 
-2. **Live OS evidence belongs behind `SystemStateProvider`**
+2. **Live OS evidence belongs in the canonical snapshot capture**
    - SMAppService status, launchctl read-only evidence, process discovery,
      process liveness, TCP readiness, and permission snapshots are centralized
-     behind `SystemStateProvider` or its owned low-level helpers.
+     behind `SystemValidator`, `SystemStateProvider`, or their owned low-level
+     helpers and is recorded in one `SystemSnapshot`.
    - Consumers must not call direct SMAppService status, `pgrep`, `launchctl
      print`, `kill(pid, 0)`, or permission snapshot sources once migrated.
    - Lint tests ratchet each migrated consumer.
@@ -47,26 +48,20 @@ repair state matrix.
    - CLI `system inspect` reports the shared state-matrix row and plan.
    - Menu-bar health treats `runningAndTCPResponding` as the only healthy
      classified row once validation has produced a classification.
-   - Wizard detection results publish the shared state-matrix row and plan next
-     to legacy wizard state/issues/actions.
+   - Wizard detection results publish the shared state-matrix row and plan from
+     the same canonical context used by the engine.
 
 4. **Package boundaries stay honest**
-   - The live `SystemStateProvider` matrix adapter lives in AppKit because it
-     reads SMAppService and runtime evidence.
-   - Wizard core cannot import AppKit without a dependency cycle, so it consumes
-     the same classifier through a pure `SystemContext ->
-     InstallerStateMatrixSnapshot` bridge.
-   - This is an intentional Phase 1 boundary, not a second state model.
+   - `SystemValidator` captures OS evidence and projects it into the canonical
+     context consumed by `InstallerDecisionPipeline`.
+   - The former live-provider and `SystemContextAdapter` compatibility paths
+     were deleted in PRs #1091 and #1092 after clients migrated.
+   - Package boundaries must not recreate a second live evidence path.
 
-5. **Repair-model and deletion work stay sequenced later in Phase 1**
-   - This ADR records the Workstream 1/2/5 detection contract only.
-   - Workstream 3 remains Phase 1 work, but starts after migrated consumers are
-     using the shared snapshot/row/action vocabulary and the lint ratchets are
-     stable.
-   - Workstream 6 remains Phase 1 work, but runs last so it deletes code that
-     Workstream 3 has made obsolete instead of polishing code about to be
-     removed.
-   - Phase 2 remains limited to autonomous/background repair behaviors.
+5. **Deletion follows migration**
+   - The compatibility bridge was retained during migration, then deleted once
+     production consumers used the shared snapshot/row/action vocabulary.
+   - Lint ratchets now prevent those deleted paths from regrowing.
 
 ## Enforcement
 
@@ -74,16 +69,16 @@ repair state matrix.
   ensures every documented row is represented by a golden fixture.
 - `InstallerStateMatrixGoldenTests.testClassifySnapshotAndPlanMatchStateMatrixGoldenFixtures`
   pins row and plan classification for every fixture.
-- `SystemStateProviderInstallerStateMatrixTests.*` pins live AppKit matrix
-  snapshot materialization from provider-owned evidence.
+- `WizardPureLogicTests.test_systemStateProjectionPublishesStateMatrixMetadata`
+  pins canonical context-to-presentation projection.
 - `CLIOutputContractTests.testInspectResultRepairMetadataJSONShape` pins CLI
   row/plan output.
 - `MainAppStateControllerTests.menuBarHealthPrefersStateMatrixRow` pins the
   menu-bar healthy predicate.
-- `WizardPureLogicTests.test_systemContextAdapterPublishesStateMatrixMetadata`
-  pins wizard row/plan publication.
 - `WizardPureLogicTests.test_systemContextStateMatrixSnapshot_classifiesStoppedRuntimeWithStaleInputCapture`
-  pins the pure wizard-core snapshot bridge.
+  pins pure classification of canonical context evidence.
+- `SnapshotConsumerLintTests` and `InstallerDecisionPipelineLintTests` prevent
+  duplicate capture, adapter, and decision paths.
 - `SMAppServiceStatusLintTests`, `PermissionSnapshotLintTests`,
   `PgrepProcessDiscoveryLintTests`, `LaunchctlEvidenceLintTests`,
   `LivenessPredicateLintTests`, and `TCPReadinessLintTests` prevent migrated
@@ -101,15 +96,11 @@ repair state matrix.
 
 ### Negative
 
-- There are temporarily two snapshot-shaped values: the existing
-  `SystemSnapshot`/`SystemContext` flow and the narrower
-  `InstallerStateMatrixSnapshot`.
-- The wizard bridge still exists because of package boundaries, but it preserves
-  the matrix-critical registration, approval, runtime payload, runtime
-  readiness, input-capture, and helper freshness evidence and is pinned against
-  the live provider adapter by focused equivalence tests.
-- Full deletion of duplicate caches and snapshot adapters is deferred within
-  Phase 1 until Workstream 3 has stabilized the repair model.
+- `SystemSnapshot`, its canonical `SystemContext` projection, and the narrower
+  pure matrix input remain distinct value shapes, but no longer trigger
+  independent live captures.
+- Maintaining the single-capture boundary requires explicit lint ratchets as
+  new consumers are added.
 
 ## Related
 

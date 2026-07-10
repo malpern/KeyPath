@@ -193,8 +193,9 @@ single pure classification/planning path used by the engine and clients.
   seconds; normal refresh, install, and repair inspection remains fresh.
 - `InstallerDecisionPipeline` now produces the matrix assessment, diagnostic
   matrix actions, and executable auto-fix actions together from one context and
-  intent. `InstallerEngine` and the wizard compatibility adapter both consume
-  that result; `ActionDeterminer` remains only as a migration façade.
+  intent. `InstallerEngine` and wizard projection both consume that result. The
+  temporary `ActionDeterminer` migration façade was deleted after the client
+  migration completed.
 - `SystemSnapshot` now carries explicit complete/cancelled/timed-out capture
   status alongside its timestamp. Compatibility projections and wizard timeout
   results preserve that fact, and incomplete captures are excluded from the
@@ -337,7 +338,9 @@ separate ownership demonstrably simplifies the code.
 
 - Every executed operation appears in the original plan.
 - No bootstrapper or operation creates another installer plan.
-- Command or helper success without postconditions remains failure.
+- For recipes with declared postconditions, command or helper success without
+  satisfying those postconditions remains failure. Low-risk filesystem recipes
+  that intentionally declare no postcondition continue to rely on their reply.
 - Lost replies with satisfied postconditions become verified success.
 - Failed verification produces a newly planned recovery rather than an
   unplanned executor branch.
@@ -375,6 +378,11 @@ workflows select stable Xcode 26.6.
 - PR #1092 removed `SystemContextAdapter`. Wizard presentation state is now an
   explicit pure projection from the canonical installer context, protected by
   golden tests and an anti-regrowth ratchet.
+- PRs #1094-#1097 closed the senior-review correctness findings: every
+  helper-first fallback rechecks authoritative state, failed sub-probes cannot
+  produce complete snapshots, fresh capture invalidates component facts,
+  zero-recipe runs are verified no-ops with preserved correlation IDs, and all
+  production mutation routes share the installer transaction.
 
 ### Client Consolidation
 

@@ -230,31 +230,6 @@ public enum InstallerDecisionPipeline {
     }
 }
 
-/// Compatibility façade for existing tests and callers during Milestone 2.
-/// Production planning must use `InstallerDecisionPipeline.decide` so matrix
-/// metadata and executable actions come from the same captured context.
-@MainActor
-public enum ActionDeterminer {
-    public static func determineActions(
-        for intent: InstallIntent,
-        context: SystemContext
-    ) -> [AutoFixAction] {
-        InstallerDecisionPipeline.decide(for: intent, context: context).autoFixActions
-    }
-
-    public static func determineRepairActions(context: SystemContext) -> [AutoFixAction] {
-        InstallerDecisionPipeline.decide(for: .repair, context: context).autoFixActions
-    }
-
-    public static func determineInstallActions(context: SystemContext) -> [AutoFixAction] {
-        InstallerDecisionPipeline.decide(for: .install, context: context).autoFixActions
-    }
-
-    public static func determineUninstallActions(context: SystemContext) -> [AutoFixAction] {
-        InstallerDecisionPipeline.decide(for: .uninstall, context: context).autoFixActions
-    }
-}
-
 public extension SystemContext {
     var requiresManualVHIDDriverApproval: Bool {
         // Matrix row: DriverKit approval pending. The specific activation
