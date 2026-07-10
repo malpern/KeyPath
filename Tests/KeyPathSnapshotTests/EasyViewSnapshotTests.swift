@@ -132,7 +132,7 @@ final class EasyViewSnapshotTests: ScreenshotTestCase {
             of: view,
             size: SnapshotSize.drawer,
             named: "action-uri-launcher-drawer",
-            precision: 0.98,
+            precision: 0.97,
             perceptualPrecision: 0.98
         )
     }

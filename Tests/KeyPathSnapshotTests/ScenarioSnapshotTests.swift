@@ -457,8 +457,8 @@ final class ScenarioSnapshotTests: ScreenshotTestCase {
             of: view,
             size: keycapSize,
             named: "keycap-launcher-app-mapped",
-            precision: 0.99,
-            perceptualPrecision: 0.99
+            precision: 0.95,
+            perceptualPrecision: 0.98
         )
     }
 

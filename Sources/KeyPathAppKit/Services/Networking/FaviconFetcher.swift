@@ -319,6 +319,14 @@ final class FaviconFetcher {
         }
 
         do {
+            // The cache directory can disappear after initialization (for example,
+            // when a test tears down an isolated HOME while a fetch is finishing).
+            // Recreate it at the point of use so an otherwise successful fetch does
+            // not emit a spurious write failure or lose its disk-cache result.
+            try Foundation.FileManager().createDirectory(
+                at: cacheDirectory,
+                withIntermediateDirectories: true
+            )
             try pngData.write(to: fileURL)
         } catch {
             AppLogger.shared.error("❌ [FaviconFetcher] Failed to save to disk: \(error.localizedDescription)")
