@@ -31,6 +31,8 @@ public struct SystemCompatibilityStatus: Sendable, Equatable {
 /// Complete snapshot of system state at a point in time
 /// This is a pure data structure with no side effects - just state and computed properties
 public struct SystemSnapshot: Sendable {
+    /// Stable identity for correlating the evidence across planning and reports.
+    public let id: UUID
     public let permissions: PermissionOracle.Snapshot
     public let components: ComponentStatus
     public let conflicts: ConflictStatus
@@ -41,6 +43,7 @@ public struct SystemSnapshot: Sendable {
     public let captureStatus: SystemSnapshotCaptureStatus
 
     public init(
+        id: UUID = UUID(),
         permissions: PermissionOracle.Snapshot,
         components: ComponentStatus,
         conflicts: ConflictStatus,
@@ -50,6 +53,7 @@ public struct SystemSnapshot: Sendable {
         timestamp: Date,
         captureStatus: SystemSnapshotCaptureStatus = .complete
     ) {
+        self.id = id
         self.permissions = permissions
         self.components = components
         self.conflicts = conflicts

@@ -263,12 +263,19 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         let savedFactory = WizardDependencies.createUninstallCoordinator
         WizardDependencies.createUninstallCoordinator = nil
         defer { WizardDependencies.createUninstallCoordinator = savedFactory }
+        let validator = StubSystemValidator(context: SystemContextBuilder.cleanInstall())
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
 
         let broker = PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
         let report = await engine.uninstall(deleteConfig: false, using: broker)
 
         XCTAssertFalse(report.success)
         XCTAssertTrue(report.failureReason?.contains("not configured") ?? false)
+        XCTAssertTrue(validator.freshnessRequests.isEmpty)
+        XCTAssertEqual(validator.cacheInvalidationCount, 0)
     }
 
     func testRun_UninstallDelegatesToUninstallMethod() async {
@@ -309,6 +316,40 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         XCTAssertEqual(report.logs, ["helper repair failed"])
         XCTAssertEqual(report.executedRecipes.map(\.recipeID), ["repair-uninstall-helper"])
         XCTAssertFalse(report.executedRecipes[0].success)
+    }
+
+    func testUninstallCorrelatesFreshBeforeAndAfterEvidence() async {
+        let savedFactory = WizardDependencies.createUninstallCoordinator
+        let coordinator = StubWizardUninstaller(result: WizardUninstallResult(
+            success: true,
+            steps: [WizardUninstallStepResult(id: "verify-uninstall", success: true)]
+        ))
+        WizardDependencies.createUninstallCoordinator = { coordinator }
+        defer { WizardDependencies.createUninstallCoordinator = savedFactory }
+
+        let beforeContext = SystemContextBuilder(snapshotID: UUID()).build()
+        let afterContext = SystemContextBuilder(snapshotID: UUID()).build()
+        let validator = StubSystemValidator(contexts: [beforeContext, afterContext])
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+
+        let report = await engine.uninstall(
+            deleteConfig: false,
+            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+        )
+
+        XCTAssertTrue(report.success)
+        XCTAssertEqual(report.beforeSnapshotID, beforeContext.snapshotID)
+        XCTAssertEqual(report.afterSnapshotID, afterContext.snapshotID)
+        XCTAssertEqual(report.finalContext?.snapshotID, afterContext.snapshotID)
+        XCTAssertEqual(report.completionState, .completed)
+        XCTAssertEqual(validator.freshnessRequests, [.fresh, .fresh])
+        XCTAssertEqual(validator.cacheInvalidationCount, 2)
+        XCTAssertEqual(report.repairTelemetry.first?.runID, report.runID)
+        XCTAssertEqual(report.repairTelemetry.first?.beforeSnapshotID, beforeContext.snapshotID)
+        XCTAssertEqual(report.repairTelemetry.first?.afterSnapshotID, afterContext.snapshotID)
     }
 
     // MARK: - Report Structure Tests

@@ -14,6 +14,7 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
         let ids = plan.recipes.map(\.id)
 
         XCTAssertFalse(ids.isEmpty, "Install plan should produce recipes for clean installs")
+        XCTAssertEqual(plan.sourceSnapshotID, context.snapshotID)
         XCTAssertTrue(ids.contains(InstallerRecipeID.installRequiredRuntimeServices), "Should install required runtime services")
         XCTAssertTrue(ids.contains(InstallerRecipeID.installMissingComponents), "Should install missing components")
         XCTAssertTrue(plan.expectedPostconditions.contains(.runtimeReadyOrApprovalPending))

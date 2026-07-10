@@ -279,6 +279,10 @@ snapshot.
   lost operation reply as success only when a complete pre-run baseline proves
   the failed recipe's state transitioned from unsatisfied to satisfied, and
   attaches a newly classified repair plan when verification fails.
+- Snapshots, plans, runs, reports, and per-step telemetry now carry stable,
+  correlated identities. App and CLI report paths expose one structured
+  completion state, including approval-pending, verified lost replies,
+  verification failure, and explicit recovery-required outcomes.
 
 ### Work
 

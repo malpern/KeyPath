@@ -63,6 +63,11 @@ public struct CLIStatusResult: Codable, Sendable {
 }
 
 public struct CLIInstallerReport: Codable, Sendable {
+    public let runID: String?
+    public let planID: String?
+    public let beforeSnapshotID: String?
+    public let afterSnapshotID: String?
+    public let completionState: String?
     public let success: Bool
     public let failureReason: String?
     public let steps: [CLIInstallerStep]
@@ -75,8 +80,15 @@ public struct CLIInstallerReport: Codable, Sendable {
     public let logs: [String]?
     public let repairTelemetry: [CLIRepairTelemetryEvent]?
     public let recommendedRecovery: String?
+    public let recoveryPlanRecipes: [String]?
+    public let failedPostconditions: [String]?
 
     public init(from report: InstallerReport) {
+        runID = report.runID.uuidString
+        planID = report.planID?.uuidString
+        beforeSnapshotID = report.beforeSnapshotID?.uuidString
+        afterSnapshotID = report.afterSnapshotID?.uuidString
+        completionState = report.completionState.rawValue
         success = report.success
         failureReason = report.failureReason
         steps = report.executedRecipes.map {
@@ -84,16 +96,28 @@ public struct CLIInstallerReport: Codable, Sendable {
         }
         fastRepair = false
         dryRun = nil
-        userActionRequired = report.recommendedRecovery == nil ? nil : true
+        let requiresUserAction = report.completionState == .awaitingApproval
+            || report.completionState == .recoveryRequired
+            || report.recommendedRecovery != nil
+        userActionRequired = requiresUserAction ? true : nil
         issues = nil
         plannedRecipes = nil
         unmetRequirements = nil
         logs = report.logs.isEmpty ? nil : report.logs
         repairTelemetry = CLIRepairTelemetryEvent.from(report.repairTelemetry)
         recommendedRecovery = report.recommendedRecovery?.rawValue
+        recoveryPlanRecipes = report.recoveryPlan?.recipes.map(\.id)
+        failedPostconditions = report.failedPostconditions.isEmpty
+            ? nil
+            : report.failedPostconditions.map(\.rawValue)
     }
 
     public init(success: Bool, failureReason: String?, steps: [CLIInstallerStep], fastRepair: Bool) {
+        runID = nil
+        planID = nil
+        beforeSnapshotID = nil
+        afterSnapshotID = nil
+        completionState = nil
         self.success = success
         self.failureReason = failureReason
         self.steps = steps
@@ -106,9 +130,16 @@ public struct CLIInstallerReport: Codable, Sendable {
         logs = nil
         repairTelemetry = nil
         recommendedRecovery = nil
+        recoveryPlanRecipes = nil
+        failedPostconditions = nil
     }
 
     public init(bundleIssue: CLISystemIssue, dryRun: Bool, title: String) {
+        runID = nil
+        planID = nil
+        beforeSnapshotID = nil
+        afterSnapshotID = nil
+        completionState = InstallerCompletionState.blocked.rawValue
         success = false
         failureReason = "\(title) requires the signed KeyPath.app bundle. \(bundleIssue.action)"
         steps = []
@@ -121,6 +152,8 @@ public struct CLIInstallerReport: Codable, Sendable {
         logs = nil
         repairTelemetry = nil
         recommendedRecovery = nil
+        recoveryPlanRecipes = nil
+        failedPostconditions = nil
     }
 
     public init(
@@ -135,8 +168,20 @@ public struct CLIInstallerReport: Codable, Sendable {
         unmetRequirements: [String]?,
         logs: [String]?,
         repairTelemetry: [CLIRepairTelemetryEvent]? = nil,
-        recommendedRecovery: String? = nil
+        recommendedRecovery: String? = nil,
+        runID: String? = nil,
+        planID: String? = nil,
+        beforeSnapshotID: String? = nil,
+        afterSnapshotID: String? = nil,
+        completionState: String? = nil,
+        recoveryPlanRecipes: [String]? = nil,
+        failedPostconditions: [String]? = nil
     ) {
+        self.runID = runID
+        self.planID = planID
+        self.beforeSnapshotID = beforeSnapshotID
+        self.afterSnapshotID = afterSnapshotID
+        self.completionState = completionState
         self.success = success
         self.failureReason = failureReason
         self.steps = steps
@@ -149,6 +194,8 @@ public struct CLIInstallerReport: Codable, Sendable {
         self.logs = logs
         self.repairTelemetry = repairTelemetry
         self.recommendedRecovery = recommendedRecovery
+        self.recoveryPlanRecipes = recoveryPlanRecipes
+        self.failedPostconditions = failedPostconditions
     }
 }
 
@@ -165,6 +212,10 @@ public struct CLIInstallerStep: Codable, Sendable {
 }
 
 public struct CLIRepairTelemetryEvent: Codable, Sendable {
+    public let runID: String?
+    public let planID: String?
+    public let beforeSnapshotID: String?
+    public let afterSnapshotID: String?
     public let trigger: String
     public let intent: String
     public let stateMatrixRow: String?
@@ -176,6 +227,10 @@ public struct CLIRepairTelemetryEvent: Codable, Sendable {
     public let error: String?
 
     public init(_ event: InstallerRepairTelemetryEvent) {
+        runID = event.runID?.uuidString
+        planID = event.planID?.uuidString
+        beforeSnapshotID = event.beforeSnapshotID?.uuidString
+        afterSnapshotID = event.afterSnapshotID?.uuidString
         trigger = event.trigger.rawValue
         intent = event.intent
         stateMatrixRow = event.stateMatrixRow

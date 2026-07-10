@@ -50,6 +50,7 @@ final class StubSystemValidator: WizardSystemValidating {
 
     private static func snapshot(from context: SystemContext) -> SystemSnapshot {
         SystemSnapshot(
+            id: context.snapshotID,
             permissions: context.permissions,
             components: context.components,
             conflicts: context.conflicts,

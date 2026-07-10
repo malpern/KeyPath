@@ -81,13 +81,23 @@ final class CLIOutputContractTests: XCTestCase {
 
     func testInstallerReportMarksActivationApprovalTimeoutAsUserActionRequired() {
         let context = SystemContextBuilder.degradedRepair()
+        let planID = UUID()
         let plan = InstallPlan(
+            id: planID,
+            sourceSnapshotID: context.snapshotID,
             recipes: [],
             status: .ready,
             intent: .repair
         )
+        let runID = UUID()
+        let afterSnapshotID = UUID()
         let installerReport = InstallerReport(
+            runID: runID,
+            planID: planID,
+            beforeSnapshotID: context.snapshotID,
+            afterSnapshotID: afterSnapshotID,
             success: false,
+            completionState: .verificationFailed,
             failureReason: "VHID Manager activation failed: timed out after 20s. VirtualHID activation may be waiting for macOS approval. Open System Settings > Privacy & Security and approve the Karabiner VirtualHIDDevice system extension, then retry repair."
         )
 
@@ -100,6 +110,63 @@ final class CLIOutputContractTests: XCTestCase {
         )
 
         XCTAssertEqual(report.userActionRequired, true)
+        XCTAssertEqual(report.runID, runID.uuidString)
+        XCTAssertEqual(report.planID, planID.uuidString)
+        XCTAssertEqual(report.beforeSnapshotID, context.snapshotID.uuidString)
+        XCTAssertEqual(report.afterSnapshotID, afterSnapshotID.uuidString)
+        XCTAssertEqual(report.completionState, "verification-failed")
+    }
+
+    func testInstallerReportPreservesStructuredAwaitingApprovalOutcome() {
+        let context = SystemContextBuilder(
+            helperReady: false,
+            helperRequiresApproval: true,
+            loginItemsApprovalRequired: true
+        ).build()
+        let plan = InstallPlan(
+            sourceSnapshotID: context.snapshotID,
+            recipes: [],
+            status: .ready,
+            intent: .install
+        )
+        let installerReport = InstallerReport(
+            planID: plan.id,
+            beforeSnapshotID: context.snapshotID,
+            afterSnapshotID: context.snapshotID,
+            success: true,
+            completionState: .awaitingApproval,
+            finalContext: context
+        )
+
+        let report = CLIInstallerReport(
+            from: installerReport,
+            initialContext: context,
+            finalContext: context,
+            plan: plan,
+            title: "Install"
+        )
+
+        XCTAssertTrue(report.success)
+        XCTAssertNil(report.failureReason)
+        XCTAssertEqual(report.userActionRequired, true)
+        XCTAssertEqual(report.completionState, "awaiting-approval")
+    }
+
+    func testDryRunBlockedPlanReportsStructuredBlockedState() {
+        let context = SystemContextBuilder.degradedRepair()
+        let requirement = Requirement(name: "Manual approval", status: .blocked)
+        let plan = InstallPlan(
+            sourceSnapshotID: context.snapshotID,
+            recipes: [],
+            status: .blocked(requirement: requirement),
+            intent: .repair,
+            blockedBy: requirement
+        )
+
+        let report = CLIInstallerReport(dryRunPlan: plan, context: context, title: "Repair")
+
+        XCTAssertFalse(report.success)
+        XCTAssertEqual(report.completionState, "blocked")
     }
 
     func testInstallerReportLinksTerminalInputCaptureFailureToTroubleshooting() {

@@ -62,6 +62,8 @@ public struct Requirement: Sendable, Equatable {
 /// Snapshot of detected system state.
 /// Consolidates data from SystemValidator/SystemRequirements into a façade-friendly type.
 public struct SystemContext: Sendable {
+    /// Identity of the canonical snapshot projected into this context.
+    public let snapshotID: UUID
     /// Current permission status (Input Monitoring, Accessibility, Full Disk Access)
     public let permissions: PermissionOracle.Snapshot
     /// Status of all services (Kanata, VHID daemon, VHID manager)
@@ -85,6 +87,7 @@ public struct SystemContext: Sendable {
     }
 
     public init(
+        snapshotID: UUID = UUID(),
         permissions: PermissionOracle.Snapshot,
         services: HealthStatus,
         conflicts: ConflictStatus,
@@ -95,6 +98,7 @@ public struct SystemContext: Sendable {
         captureStatus: SystemSnapshotCaptureStatus = .complete,
         timedOut: Bool = false
     ) {
+        self.snapshotID = snapshotID
         self.permissions = permissions
         self.services = services
         self.conflicts = conflicts
@@ -107,6 +111,7 @@ public struct SystemContext: Sendable {
 
     public init(snapshot: SystemSnapshot) {
         self.init(
+            snapshotID: snapshot.id,
             permissions: snapshot.permissions,
             services: snapshot.health,
             conflicts: snapshot.conflicts,
@@ -327,6 +332,10 @@ public struct PlanMetadata: Sendable, Equatable {
 
 /// Ordered collection of operations to execute.
 public struct InstallPlan: Sendable, Equatable {
+    /// Stable identity for this exact ordered plan.
+    public let id: UUID
+    /// Snapshot that supplied the evidence used to build this plan.
+    public let sourceSnapshotID: UUID?
     /// Ordered list of operations (respects dependencies)
     public let recipes: [ServiceRecipe]
     /// Current plan state
@@ -348,6 +357,8 @@ public struct InstallPlan: Sendable, Equatable {
     }
 
     public init(
+        id: UUID = UUID(),
+        sourceSnapshotID: UUID? = nil,
         recipes: [ServiceRecipe],
         status: PlanStatus,
         intent: InstallIntent,
@@ -355,6 +366,8 @@ public struct InstallPlan: Sendable, Equatable {
         metadata: PlanMetadata = PlanMetadata(),
         initialPostconditionStates: [InstallerPostcondition: Bool]? = nil
     ) {
+        self.id = id
+        self.sourceSnapshotID = sourceSnapshotID
         self.recipes = recipes
         self.status = status
         self.intent = intent
@@ -380,11 +393,26 @@ public enum InstallerRepairTelemetryResult: String, Codable, Sendable, Equatable
     case skipped
 }
 
+/// Machine-readable terminal state shared by app and CLI clients.
+public enum InstallerCompletionState: String, Codable, Sendable, Equatable {
+    case completed
+    case awaitingApproval = "awaiting-approval"
+    case verifiedAfterOperationError = "verified-after-operation-error"
+    case blocked
+    case executionFailed = "execution-failed"
+    case verificationFailed = "verification-failed"
+    case recoveryRequired = "recovery-required"
+}
+
 /// Machine-readable repair/install execution trace used by CLI JSON and tests.
 ///
 /// This is intentionally local to the installer report: it is not persisted,
 /// uploaded, or used to drive repair policy.
 public struct InstallerRepairTelemetryEvent: Codable, Sendable, Equatable {
+    public let runID: UUID?
+    public let planID: UUID?
+    public let beforeSnapshotID: UUID?
+    public let afterSnapshotID: UUID?
     public let timestamp: Date
     public let trigger: InstallerRepairTelemetryTrigger
     public let intent: String
@@ -398,6 +426,10 @@ public struct InstallerRepairTelemetryEvent: Codable, Sendable, Equatable {
 
     public init(
         timestamp: Date = Date(),
+        runID: UUID? = nil,
+        planID: UUID? = nil,
+        beforeSnapshotID: UUID? = nil,
+        afterSnapshotID: UUID? = nil,
         trigger: InstallerRepairTelemetryTrigger,
         intent: String,
         stateMatrixRow: String?,
@@ -409,6 +441,10 @@ public struct InstallerRepairTelemetryEvent: Codable, Sendable, Equatable {
         error: String? = nil
     ) {
         self.timestamp = timestamp
+        self.runID = runID
+        self.planID = planID
+        self.beforeSnapshotID = beforeSnapshotID
+        self.afterSnapshotID = afterSnapshotID
         self.trigger = trigger
         self.intent = intent
         self.stateMatrixRow = stateMatrixRow
@@ -418,6 +454,30 @@ public struct InstallerRepairTelemetryEvent: Codable, Sendable, Equatable {
         self.recipeType = recipeType
         self.postconditionResult = postconditionResult
         self.error = error
+    }
+
+    public func attachingRunEvidence(
+        runID: UUID,
+        planID: UUID?,
+        beforeSnapshotID: UUID?,
+        afterSnapshotID: UUID?
+    ) -> InstallerRepairTelemetryEvent {
+        InstallerRepairTelemetryEvent(
+            timestamp: timestamp,
+            runID: runID,
+            planID: planID,
+            beforeSnapshotID: beforeSnapshotID,
+            afterSnapshotID: afterSnapshotID,
+            trigger: trigger,
+            intent: intent,
+            stateMatrixRow: stateMatrixRow,
+            stateMatrixPlan: stateMatrixPlan,
+            action: action,
+            recipeID: recipeID,
+            recipeType: recipeType,
+            postconditionResult: postconditionResult,
+            error: error
+        )
     }
 }
 
@@ -459,6 +519,12 @@ public struct RecipeResult: Sendable, Equatable {
 
 /// Comprehensive execution summary for installation/repair operations
 public struct InstallerReport: Sendable {
+    /// Stable identity for this execution attempt.
+    public let runID: UUID
+    public let planID: UUID?
+    public let beforeSnapshotID: UUID?
+    public let afterSnapshotID: UUID?
+    public let completionState: InstallerCompletionState
     /// When execution completed
     public let timestamp: Date
     /// Overall success/failure
@@ -479,10 +545,17 @@ public struct InstallerReport: Sendable {
     public let recommendedRecovery: WizardUninstallRecoveryAction?
     /// Newly planned repair work when declared post-execution state was not reached.
     public let recoveryPlan: InstallPlan?
+    /// Declared postconditions that were not satisfied by final evidence.
+    public let failedPostconditions: [InstallerPostcondition]
 
     public init(
+        runID: UUID = UUID(),
+        planID: UUID? = nil,
+        beforeSnapshotID: UUID? = nil,
+        afterSnapshotID: UUID? = nil,
         timestamp: Date = Date(),
         success: Bool,
+        completionState: InstallerCompletionState? = nil,
         failureReason: String? = nil,
         unmetRequirements: [Requirement] = [],
         executedRecipes: [RecipeResult] = [],
@@ -490,10 +563,16 @@ public struct InstallerReport: Sendable {
         logs: [String] = [],
         repairTelemetry: [InstallerRepairTelemetryEvent] = [],
         recommendedRecovery: WizardUninstallRecoveryAction? = nil,
-        recoveryPlan: InstallPlan? = nil
+        recoveryPlan: InstallPlan? = nil,
+        failedPostconditions: [InstallerPostcondition] = []
     ) {
+        self.runID = runID
+        self.planID = planID
+        self.beforeSnapshotID = beforeSnapshotID
+        self.afterSnapshotID = afterSnapshotID
         self.timestamp = timestamp
         self.success = success
+        self.completionState = completionState ?? (success ? .completed : .executionFailed)
         self.failureReason = failureReason
         self.unmetRequirements = unmetRequirements
         self.executedRecipes = executedRecipes
@@ -502,6 +581,7 @@ public struct InstallerReport: Sendable {
         self.repairTelemetry = repairTelemetry
         self.recommendedRecovery = recommendedRecovery
         self.recoveryPlan = recoveryPlan
+        self.failedPostconditions = failedPostconditions
     }
 }
 
