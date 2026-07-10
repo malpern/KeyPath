@@ -22,4 +22,5 @@ public enum InstallerRecipeID {
     public static let regenerateServiceConfig = "regenerate-service-config"
     public static let restartCommServer = "restart-comm-server"
     public static let synchronizeConfigPaths = "synchronize-config-paths"
+    public static let verifyPostconditions = "verify-postconditions"
 }

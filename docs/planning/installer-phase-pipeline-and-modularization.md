@@ -274,6 +274,10 @@ snapshot.
   repair and CLI inspect could briefly disagree about TCP readiness. The next
   slice moves the fresh, cache-invalidating final capture into the owned engine
   transaction and makes CLI clients consume that report evidence.
+- Recipes now declare operation-specific observable postconditions. The owned
+  run verifies only those declarations against its final snapshot, treats a
+  lost operation reply as success when final state proves the work completed,
+  and attaches a newly classified repair plan when verification fails.
 
 ### Work
 

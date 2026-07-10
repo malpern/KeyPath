@@ -376,18 +376,71 @@ public final class InstallerEngine {
             await captureFreshFinalContext()
         }
 
+        let failedPostconditions: [InstallerPostcondition] = if let finalContext {
+            plan.expectedPostconditions.filter { !$0.isSatisfied(by: finalContext) }
+        } else {
+            plan.expectedPostconditions
+        }
+        let verificationFailure = failedPostconditions.isEmpty
+            ? nil
+            : "Postcondition verification failed: \(failedPostconditions.map(\.rawValue).joined(separator: ", "))"
+
+        if !plan.expectedPostconditions.isEmpty {
+            let verificationSucceeded = failedPostconditions.isEmpty
+            allLogs.append(
+                verificationSucceeded
+                    ? "[\(InstallerRecipeID.verifyPostconditions)] Declared postconditions satisfied"
+                    : "[\(InstallerRecipeID.verifyPostconditions)] \(verificationFailure ?? "Verification failed")"
+            )
+            repairTelemetry.append(
+                InstallerRepairTelemetryEvent(
+                    trigger: trigger,
+                    intent: plan.intent.telemetryValue,
+                    stateMatrixRow: plan.metadata.stateMatrixRow,
+                    stateMatrixPlan: plan.metadata.stateMatrixPlan,
+                    action: InstallerRecipeID.verifyPostconditions,
+                    recipeID: nil,
+                    recipeType: nil,
+                    postconditionResult: verificationSucceeded ? .succeeded : .failed,
+                    error: verificationFailure
+                )
+            )
+        }
+
+        let recoveryPlan: InstallPlan? = if verificationFailure != nil,
+                                            let finalContext
+        {
+            await makePlan(for: .repair, context: finalContext)
+        } else {
+            nil
+        }
+
+        // A declared, satisfied postcondition is stronger evidence than an
+        // operation reply. This lets a lost helper/XPC reply become verified
+        // success while plans without declarations still honor recipe errors.
+        let postconditionsProveSuccess = !plan.expectedPostconditions.isEmpty && verificationFailure == nil
+        let success = verificationFailure == nil && (firstFailure == nil || postconditionsProveSuccess)
+        let operationFailure = firstFailure.map {
+            "Recipe '\($0.recipe.id)' failed: \($0.error.localizedDescription)"
+        }
+        let failureReason: String? = if success {
+            nil
+        } else if let operationFailure, let verificationFailure {
+            "\(operationFailure). \(verificationFailure)"
+        } else {
+            operationFailure ?? verificationFailure
+        }
+
         // Generate report with aggregated logs
-        let success = firstFailure == nil
         let report = InstallerReport(
             success: success,
-            failureReason: firstFailure.map {
-                "Recipe '\($0.recipe.id)' failed: \($0.error.localizedDescription)"
-            },
+            failureReason: failureReason,
             unmetRequirements: success ? [] : plan.blockedBy.map { [$0] } ?? [],
             executedRecipes: executedRecipes,
             finalContext: finalContext,
             logs: allLogs,
-            repairTelemetry: repairTelemetry
+            repairTelemetry: repairTelemetry,
+            recoveryPlan: recoveryPlan
         )
 
         AppLogger.shared.log(

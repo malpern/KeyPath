@@ -208,6 +208,41 @@ public struct HealthCheckCriteria: Sendable, Equatable {
     }
 }
 
+/// Observable state that a recipe declares must hold after the complete plan runs.
+public enum InstallerPostcondition: String, Codable, Sendable, Equatable, CaseIterable {
+    case runtimeReadyOrApprovalPending = "runtime-ready-or-approval-pending"
+    case vhidServicesHealthy = "vhid-services-healthy"
+    case karabinerDaemonRunning = "karabiner-daemon-running"
+    case helperReadyOrApprovalPending = "helper-ready-or-approval-pending"
+    case virtualHIDDriverInstalled = "virtualhid-driver-installed"
+    case virtualHIDDeviceActivated = "virtualhid-device-activated"
+    case conflictsResolved = "conflicts-resolved"
+
+    public func isSatisfied(by context: SystemContext) -> Bool {
+        guard context.captureStatus.isComplete else { return false }
+
+        switch self {
+        case .runtimeReadyOrApprovalPending:
+            let processRunning = context.services.kanataProcessRunning ?? context.services.kanataRunning
+            let tcpResponding = context.services.kanataTCPResponding ?? context.services.kanataRunning
+            return (processRunning && tcpResponding && context.services.kanataInputCaptureReady)
+                || context.services.loginItemsApprovalRequired == true
+        case .vhidServicesHealthy:
+            return context.components.vhidServicesHealthy && context.services.vhidHealthy
+        case .karabinerDaemonRunning:
+            return context.services.karabinerDaemonRunning
+        case .helperReadyOrApprovalPending:
+            return context.helper.isReady || context.helper.requiresApproval
+        case .virtualHIDDriverInstalled:
+            return context.components.karabinerDriverInstalled
+        case .virtualHIDDeviceActivated:
+            return context.components.vhidDeviceInstalled
+        case .conflictsResolved:
+            return !context.conflicts.hasConflicts
+        }
+    }
+}
+
 /// Minimal executable unit — specification for a single service operation.
 public struct ServiceRecipe: Sendable, Equatable {
     /// Unique identifier for this recipe
@@ -224,6 +259,8 @@ public struct ServiceRecipe: Sendable, Equatable {
     public let healthCheck: HealthCheckCriteria?
     /// IDs of recipes that must complete first
     public let dependencies: [String]
+    /// State that must be true in the engine-owned final snapshot.
+    public let expectedPostconditions: [InstallerPostcondition]
 
     public init(
         id: String,
@@ -232,7 +269,8 @@ public struct ServiceRecipe: Sendable, Equatable {
         plistContent: String? = nil,
         launchctlActions: [LaunchctlAction] = [],
         healthCheck: HealthCheckCriteria? = nil,
-        dependencies: [String] = []
+        dependencies: [String] = [],
+        expectedPostconditions: [InstallerPostcondition] = []
     ) {
         self.id = id
         self.type = type
@@ -241,6 +279,7 @@ public struct ServiceRecipe: Sendable, Equatable {
         self.launchctlActions = launchctlActions
         self.healthCheck = healthCheck
         self.dependencies = dependencies
+        self.expectedPostconditions = expectedPostconditions
     }
 }
 
@@ -290,6 +329,11 @@ public struct InstallPlan: Sendable, Equatable {
     public let blockedBy: Requirement?
     /// Additional info
     public let metadata: PlanMetadata
+
+    public var expectedPostconditions: [InstallerPostcondition] {
+        var seen = Set<InstallerPostcondition>()
+        return recipes.flatMap(\.expectedPostconditions).filter { seen.insert($0).inserted }
+    }
 
     public init(
         recipes: [ServiceRecipe],
@@ -415,6 +459,8 @@ public struct InstallerReport: Sendable {
     public let repairTelemetry: [InstallerRepairTelemetryEvent]
     /// Explicit recovery action callers may offer after a failed operation.
     public let recommendedRecovery: WizardUninstallRecoveryAction?
+    /// Newly planned repair work when declared post-execution state was not reached.
+    public let recoveryPlan: InstallPlan?
 
     public init(
         timestamp: Date = Date(),
@@ -425,7 +471,8 @@ public struct InstallerReport: Sendable {
         finalContext: SystemContext? = nil,
         logs: [String] = [],
         repairTelemetry: [InstallerRepairTelemetryEvent] = [],
-        recommendedRecovery: WizardUninstallRecoveryAction? = nil
+        recommendedRecovery: WizardUninstallRecoveryAction? = nil,
+        recoveryPlan: InstallPlan? = nil
     ) {
         self.timestamp = timestamp
         self.success = success
@@ -436,6 +483,7 @@ public struct InstallerReport: Sendable {
         self.logs = logs
         self.repairTelemetry = repairTelemetry
         self.recommendedRecovery = recommendedRecovery
+        self.recoveryPlan = recoveryPlan
     }
 }
 
