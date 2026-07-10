@@ -283,6 +283,10 @@ snapshot.
   correlated identities. App and CLI report paths expose one structured
   completion state, including approval-pending, verified lost replies,
   verification failure, and explicit recovery-required outcomes.
+- VHID activation is now an explicit planned recipe ordered before dependent
+  service work. Generic service executors no longer probe activation state or
+  inject an undeclared activation operation, and a lint ratchet prevents that
+  planner/executor boundary from drifting.
 
 ### Work
 

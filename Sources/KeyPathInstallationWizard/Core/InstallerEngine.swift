@@ -575,11 +575,6 @@ public final class InstallerEngine {
 
         switch recipe.type {
         case .installService:
-            logs.append("Checking VHID Manager activation status...")
-            let vhidManager = VHIDDeviceManager()
-            if !vhidManager.detectActivation() {
-                logs.append("VHID Manager not activated - will activate first")
-            }
             logs.append("Installing LaunchDaemon services...")
             commands.append("launchctl bootstrap system /Library/LaunchDaemons/com.keypath.*")
             try await executeInstallService(recipe, using: broker)
@@ -591,7 +586,6 @@ public final class InstallerEngine {
             logs.append("Privileged helper repair completed")
 
         case .restartService:
-            logs.append("Checking VHID Manager activation status...")
             if let serviceID = recipe.serviceID {
                 logs.append("Restarting service: \(serviceID)")
                 commands.append("launchctl kickstart -k system/\(serviceID)")
@@ -654,51 +648,18 @@ public final class InstallerEngine {
         }
     }
 
-    /// Execute installService recipe
-    /// Includes pre-check for VHID Manager activation (per Karabiner documentation)
+    /// Execute the exact service-install operation declared by the plan.
     private func executeInstallService(_: ServiceRecipe, using broker: PrivilegeBroker) async throws {
-        // CRITICAL: Ensure VHID Manager is activated BEFORE installing daemon services
-        // Per Karabiner documentation, manager activation must happen before daemon startup
-        let vhidManager = VHIDDeviceManager()
-        if !vhidManager.detectActivation() {
-            AppLogger.shared.log(
-                "⚠️ [InstallerEngine] VirtualHID Manager not activated - activating before daemon install"
-            )
-            try await broker.activateVirtualHIDManager()
-            // Wait for activation to take effect
-            _ = await WizardSleep.ms(1000) // 1 second
-
-            // Verify activation
-            if !vhidManager.detectActivation() {
-                AppLogger.shared.log(
-                    "⚠️ [InstallerEngine] Manager activation may need user approval - proceeding anyway"
-                )
-            } else {
-                AppLogger.shared.log("✅ [InstallerEngine] Manager activated successfully")
-            }
-        }
-
         // Ensure canonical Kanata binary exists at /Library/KeyPath/bin/kanata before installing services.
         // This prevents "service installed" while the daemon runs with a different path (bundle fallback),
         // which would cause permission identity drift (AX/IM entries keyed by executable path).
         try await broker.installRequiredRuntimeServices()
     }
 
-    /// Execute restartService recipe
-    /// Includes pre-check for VHID Manager activation (per Karabiner documentation)
+    /// Execute the exact service-restart operation declared by the plan.
     private func executeRestartService(_ recipe: ServiceRecipe, using broker: PrivilegeBroker)
         async throws
     {
-        // CRITICAL: Ensure VHID Manager is activated before restarting services
-        let vhidManager = VHIDDeviceManager()
-        if !vhidManager.detectActivation() {
-            AppLogger.shared.log(
-                "⚠️ [InstallerEngine] VirtualHID Manager not activated - activating before restart"
-            )
-            try await broker.activateVirtualHIDManager()
-            _ = await WizardSleep.ms(1000) // 1 second
-        }
-
         if let serviceID = recipe.serviceID, serviceID == KeyPathConstants.Bundle.vhidDaemonID {
             // Restart Karabiner daemon with verification
             let success = try await broker.restartKarabinerDaemonVerified()

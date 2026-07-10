@@ -105,6 +105,33 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
             """
         )
     }
+
+    func testExecutorDoesNotMakeUndeclaredVHIDActivationDecisions() throws {
+        let file = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift")
+        let source = try String(contentsOf: file, encoding: .utf8)
+        guard let executionStart = source.range(of: "private func executeRecipeWithDetails("),
+              let explicitActivation = source.range(
+                  of: "case InstallerRecipeID.activateVHIDManager:",
+                  range: executionStart.lowerBound ..< source.endIndex
+              )
+        else {
+            return XCTFail("Could not locate installer execution boundaries")
+        }
+
+        let genericExecution = source[executionStart.lowerBound ..< explicitActivation.lowerBound]
+        let forbiddenDecisions = [
+            "VHIDDeviceManager(",
+            "detectActivation(",
+            "activateVirtualHIDManager()"
+        ]
+        let violations = forbiddenDecisions.filter { genericExecution.contains($0) }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            "Generic recipe execution may only run declared plan steps; found: \(violations)"
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {

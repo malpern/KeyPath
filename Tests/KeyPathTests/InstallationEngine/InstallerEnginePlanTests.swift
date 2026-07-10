@@ -40,6 +40,43 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
         )
     }
 
+    func testMissingVHIDDeviceProducesExplicitActivationBeforeServiceWork() async throws {
+        let base = SystemContextBuilder(
+            servicesHealthy: false,
+            componentsInstalled: true
+        ).build()
+        let components = ComponentStatus(
+            kanataBinaryInstalled: true,
+            karabinerDriverInstalled: true,
+            karabinerDaemonRunning: false,
+            vhidDeviceInstalled: false,
+            vhidDeviceHealthy: false,
+            vhidServicesHealthy: false,
+            vhidVersionMismatch: false
+        )
+        let context = SystemContext(
+            snapshotID: base.snapshotID,
+            permissions: base.permissions,
+            services: base.services,
+            conflicts: base.conflicts,
+            components: components,
+            helper: base.helper,
+            system: base.system,
+            timestamp: base.timestamp
+        )
+
+        for intent in [InstallIntent.install, .repair] {
+            let plan = await InstallerEngine().makePlan(for: intent, context: context)
+            let ids = plan.recipes.map(\.id)
+            let installIndex = try XCTUnwrap(ids.firstIndex(of: InstallerRecipeID.installMissingComponents))
+            let activationIndex = try XCTUnwrap(ids.firstIndex(of: InstallerRecipeID.activateVHIDManager))
+            let daemonIndex = try XCTUnwrap(ids.firstIndex(of: InstallerRecipeID.startKarabinerDaemon))
+
+            XCTAssertLessThan(installIndex, activationIndex)
+            XCTAssertLessThan(activationIndex, daemonIndex)
+        }
+    }
+
     func testExecuteSkipsRecipesAfterFailure() async {
         let coordinator = StubPrivilegedOperationsCoordinator()
         coordinator.failOnCall = "installRequiredRuntimeServices"

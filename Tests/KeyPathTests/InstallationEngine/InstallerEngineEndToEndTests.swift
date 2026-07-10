@@ -28,6 +28,10 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             coordinator.calls.contains("installRequiredRuntimeServices"),
             "Install service recipe should attempt to install required runtime services"
         )
+        XCTAssertFalse(
+            coordinator.calls.contains("activateVirtualHIDManager"),
+            "Service installation must not execute an activation step absent from the plan"
+        )
         XCTAssertTrue(
             coordinator.calls.contains("installNewsyslogConfig"),
             "Component recipe should install log rotation"
@@ -57,6 +61,28 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             report.failureReason?.contains("install-daemons") ?? false,
             "Failure should reference the failing recipe"
         )
+    }
+
+    func testExecuteRunsExplicitVHIDActivationRecipe() async {
+        let coordinator = StubPrivilegedOperationsCoordinator()
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(
+                    id: InstallerRecipeID.activateVHIDManager,
+                    type: .installComponent
+                )
+            ],
+            status: .ready,
+            intent: .repair
+        )
+
+        let report = await InstallerEngine().execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: coordinator)
+        )
+
+        XCTAssertTrue(report.success)
+        XCTAssertEqual(coordinator.calls, ["activateVirtualHIDManager"])
     }
 
     func testExecuteTreatsLostReplyAsSuccessWhenDeclaredPostconditionIsSatisfied() async {
