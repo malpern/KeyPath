@@ -174,6 +174,17 @@ changes into a second PR but do not begin snapshot consolidation first.
 **Goal:** One immutable snapshot and one pure decision path determine installer
 state and the next plan.
 
+### Progress
+
+- Started after Milestone 1 acceptance on 2026-07-09.
+- The first convergence slice adds helper approval as a raw `SystemSnapshot`
+  fact, projects it through the existing compatibility result, and migrates
+  wizard routing to consume the captured helper facts without another helper or
+  `SMAppService` read.
+- A lint ratchet now protects the migrated wizard routing paths. The remaining
+  pre-snapshot welcome check is intentionally outside this slice and must move
+  behind canonical capture before Milestone 2 is complete.
+
 ### Work
 
 - Ensure `SystemSnapshot` contains every fact used by current classification or

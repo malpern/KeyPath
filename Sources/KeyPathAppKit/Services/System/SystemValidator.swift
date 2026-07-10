@@ -362,7 +362,12 @@ public class SystemValidator {
             AppLogger.shared.log(
                 "🔍 [SystemValidator] Helper state: requiresApproval \(reason ?? "")"
             )
-            return HelperStatus(isInstalled: false, version: nil, isWorking: false)
+            return HelperStatus(
+                isInstalled: false,
+                version: nil,
+                isWorking: false,
+                requiresApproval: true
+            )
 
         case let .registeredButUnresponsive(reason):
             AppLogger.shared.log(

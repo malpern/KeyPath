@@ -21,7 +21,9 @@ public struct SystemContextAdapter {
             autoFixActions: autoFixActions,
             detectionTimestamp: context.timestamp,
             stateMatrixRow: stateMatrixRow.rawValue,
-            stateMatrixPlan: stateMatrixPlan.map(\.rawValue)
+            stateMatrixPlan: stateMatrixPlan.map(\.rawValue),
+            helperInstalled: context.helper.isInstalled,
+            helperNeedsApproval: context.helper.requiresApproval
         )
     }
 

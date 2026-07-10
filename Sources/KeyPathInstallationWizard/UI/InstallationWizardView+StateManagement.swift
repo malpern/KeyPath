@@ -126,11 +126,7 @@ public extension InstallationWizardView {
             }
 
             let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
-            stateMachine.wizardState = result.state
-            stateMachine.wizardIssues = filteredIssues
-            stateMachine.lastWizardSnapshot = WizardSnapshotRecord(
-                state: result.state, issues: filteredIssues
-            )
+            stateMachine.updateWizardState(from: result, issues: filteredIssues)
             // Start at summary page - no auto navigation
             // stateMachine.autoNavigateIfNeeded(for: result.state, issues: result.issues)
 
@@ -189,14 +185,12 @@ public extension InstallationWizardView {
             }
 
             // Auto-navigate to the first page that needs attention
-            let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
-            let helperNeedsApproval = WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
             let recommended = WizardRouter.routeForUnverifiedKanataPermissions(
                 base: WizardRouter.route(
                     state: result.state,
                     issues: filteredIssues,
-                    helperInstalled: helperInstalled,
-                    helperNeedsApproval: helperNeedsApproval
+                    helperInstalled: result.helperInstalled,
+                    helperNeedsApproval: result.helperNeedsApproval
                 ),
                 inputMonitoringUnknown: kanataInputMonitoringUnknown,
                 accessibilityUnknown: kanataAccessibilityUnknown

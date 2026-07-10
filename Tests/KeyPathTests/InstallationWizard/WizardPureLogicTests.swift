@@ -149,6 +149,22 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertEqual(result.autoFixActions, [.installPrivilegedHelper])
     }
 
+    func test_systemContextAdapterPublishesCapturedHelperRoutingFacts() {
+        let context = makeContext(
+            helper: HelperStatus(
+                isInstalled: false,
+                version: nil,
+                isWorking: false,
+                requiresApproval: true
+            )
+        )
+
+        let result = SystemContextAdapter.adapt(context)
+
+        XCTAssertFalse(result.helperInstalled)
+        XCTAssertTrue(result.helperNeedsApproval)
+    }
+
     func test_inspect_keyPathAccessibilityDenied_producesMissingPermissionsState() {
         let context = makeContext(permissions: makePermissions(keyPathAX: .denied))
         let (state, _) = SystemInspector.inspect(context: context)

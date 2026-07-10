@@ -42,13 +42,16 @@ extension WizardOperations {
                     // before the timeout. Use whatever state it stored.
                     return await MainActor.run {
                         let issues = machine.wizardIssues
+                        let captured = machine.lastWizardSnapshot
                         if !issues.isEmpty {
                             AppLogger.shared.log("⚠️ [Wizard] Using \(issues.count) issues from timed-out validation")
                             return SystemStateResult(
                                 state: machine.wizardState,
                                 issues: issues,
                                 autoFixActions: [],
-                                detectionTimestamp: Date()
+                                detectionTimestamp: Date(),
+                                helperInstalled: captured?.helperInstalled ?? false,
+                                helperNeedsApproval: captured?.helperNeedsApproval ?? false
                             )
                         }
                         return timeoutResult()
@@ -60,12 +63,15 @@ extension WizardOperations {
                 // machine.refresh() completed — read state it stored
                 return await MainActor.run {
                     let issues = machine.wizardIssues
+                    let captured = machine.lastWizardSnapshot
                     if !issues.isEmpty || machine.wizardState == .active {
                         return SystemStateResult(
                             state: machine.wizardState,
                             issues: issues,
                             autoFixActions: [],
-                            detectionTimestamp: Date()
+                            detectionTimestamp: Date(),
+                            helperInstalled: captured?.helperInstalled ?? false,
+                            helperNeedsApproval: captured?.helperNeedsApproval ?? false
                         )
                     }
                     return timeoutResult()

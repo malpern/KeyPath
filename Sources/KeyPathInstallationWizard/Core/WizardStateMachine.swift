@@ -7,6 +7,8 @@ import SwiftUI
 public struct WizardSnapshotRecord {
     public let state: WizardSystemState
     public let issues: [WizardIssue]
+    public let helperInstalled: Bool
+    public let helperNeedsApproval: Bool
 }
 
 /// Observable state container for the installation wizard.
@@ -45,11 +47,30 @@ public class WizardStateMachine {
     // MARK: - State Updates
 
     /// Update wizard state and issues. Called by the view after SystemInspector.inspect().
-    public func updateWizardState(_ state: WizardSystemState, issues: [WizardIssue]) {
+    public func updateWizardState(
+        _ state: WizardSystemState,
+        issues: [WizardIssue],
+        helperInstalled: Bool = false,
+        helperNeedsApproval: Bool = false
+    ) {
         wizardState = state
         wizardIssues = issues
-        lastWizardSnapshot = WizardSnapshotRecord(state: state, issues: issues)
+        lastWizardSnapshot = WizardSnapshotRecord(
+            state: state,
+            issues: issues,
+            helperInstalled: helperInstalled,
+            helperNeedsApproval: helperNeedsApproval
+        )
         stateVersion += 1
+    }
+
+    public func updateWizardState(from result: SystemStateResult, issues: [WizardIssue]? = nil) {
+        updateWizardState(
+            result.state,
+            issues: issues ?? result.issues,
+            helperInstalled: result.helperInstalled,
+            helperNeedsApproval: result.helperNeedsApproval
+        )
     }
 
     // MARK: - Navigation
@@ -65,8 +86,8 @@ public class WizardStateMachine {
 
     /// Get the next logical page (delegates to WizardRouter with prereq enforcement).
     public func getNextPage(for state: WizardSystemState, issues: [WizardIssue]) async -> WizardPage? {
-        let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
-        let helperNeedsApproval = WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
+        let helperInstalled = lastWizardSnapshot?.helperInstalled ?? false
+        let helperNeedsApproval = lastWizardSnapshot?.helperNeedsApproval ?? false
         let next = WizardRouter.nextPage(
             after: currentPage, state: state, issues: issues,
             helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval
@@ -77,8 +98,8 @@ public class WizardStateMachine {
     /// Navigate to the next page (fire-and-forget).
     public func nextPage() {
         Task { @MainActor in
-            let helperInstalled = await WizardDependencies.helperManager?.isHelperInstalled() ?? false
-            let helperNeedsApproval = WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
+            let helperInstalled = lastWizardSnapshot?.helperInstalled ?? false
+            let helperNeedsApproval = lastWizardSnapshot?.helperNeedsApproval ?? false
             let next = WizardRouter.nextPage(
                 after: currentPage, state: wizardState, issues: wizardIssues,
                 helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval
@@ -122,11 +143,11 @@ public class WizardStateMachine {
     public func autoNavigateIfNeeded(for state: WizardSystemState, issues: [WizardIssue]) async {
         guard !userInteractionMode else { return }
 
-        let recommended = await WizardRouter.route(
+        let recommended = WizardRouter.route(
             state: state,
             issues: issues,
-            helperInstalled: WizardDependencies.helperManager?.isHelperInstalled() ?? false,
-            helperNeedsApproval: WizardDependencies.helperManager?.helperNeedsLoginItemsApproval() ?? false
+            helperInstalled: lastWizardSnapshot?.helperInstalled ?? false,
+            helperNeedsApproval: lastWizardSnapshot?.helperNeedsApproval ?? false
         )
 
         guard recommended != currentPage else { return }
@@ -142,8 +163,8 @@ public class WizardStateMachine {
     public func refresh() async {
         isRefreshing = true
         let context = await InstallerEngine().inspectSystem()
-        let (state, issues) = SystemInspector.inspect(context: context)
-        updateWizardState(state, issues: issues)
+        let result = SystemContextAdapter.adapt(context)
+        updateWizardState(from: result)
         isRefreshing = false
         lastRefreshTime = Date()
     }

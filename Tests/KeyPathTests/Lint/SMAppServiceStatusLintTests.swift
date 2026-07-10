@@ -216,6 +216,37 @@ final class SMAppServiceStatusLintTests: XCTestCase {
             """
         )
     }
+
+    func testWizardRoutingConsumesCapturedHelperFacts() throws {
+        let root = repositoryRoot()
+        let fullyMigrated = [
+            root.appendingPathComponent("Sources/KeyPathInstallationWizard/Core/WizardStateMachine.swift"),
+            root.appendingPathComponent("Sources/KeyPathInstallationWizard/UI/InstallationWizardView+UnifiedRefresh.swift")
+        ]
+        var violations = try fullyMigrated.flatMap {
+            try matchingLines(
+                in: $0,
+                patterns: [#"helperManager\?\.isHelperInstalled"#, #"helperNeedsLoginItemsApproval"#]
+            )
+        }
+
+        let initialStateManagement = root.appendingPathComponent(
+            "Sources/KeyPathInstallationWizard/UI/InstallationWizardView+StateManagement.swift"
+        )
+        violations += try matchingLines(
+            in: initialStateManagement,
+            patterns: [#"helperNeedsLoginItemsApproval"#]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            Wizard routing must consume helper install/approval facts captured in the
+            SystemStateResult instead of issuing a second helper/SMAppService probe:
+            \(violations.sorted().joined(separator: "\n"))
+            """
+        )
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {

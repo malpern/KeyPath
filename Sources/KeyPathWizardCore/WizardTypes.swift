@@ -361,12 +361,18 @@ public struct SystemStateResult: Sendable {
     public let detectionTimestamp: Date
     public let stateMatrixRow: String?
     public let stateMatrixPlan: [String]
+    /// Routing facts captured with the same system snapshot as `state` and
+    /// `issues`; wizard clients must not re-probe helper state while routing.
+    public let helperInstalled: Bool
+    public let helperNeedsApproval: Bool
 
     public init(
         state: WizardSystemState, issues: [WizardIssue], autoFixActions: [AutoFixAction],
         detectionTimestamp: Date,
         stateMatrixRow: String? = nil,
-        stateMatrixPlan: [String] = []
+        stateMatrixPlan: [String] = [],
+        helperInstalled: Bool = false,
+        helperNeedsApproval: Bool = false
     ) {
         self.state = state
         self.issues = issues
@@ -374,6 +380,8 @@ public struct SystemStateResult: Sendable {
         self.detectionTimestamp = detectionTimestamp
         self.stateMatrixRow = stateMatrixRow
         self.stateMatrixPlan = stateMatrixPlan
+        self.helperInstalled = helperInstalled
+        self.helperNeedsApproval = helperNeedsApproval
     }
 
     public var hasBlockingIssues: Bool {

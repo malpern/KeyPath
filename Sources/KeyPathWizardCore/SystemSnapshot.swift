@@ -369,11 +369,21 @@ public struct HelperStatus: Sendable {
     public let isInstalled: Bool
     public let version: String?
     public let isWorking: Bool
+    /// True when the helper registration exists but macOS requires the user to
+    /// approve it in Login Items. Keep this raw fact in the canonical snapshot
+    /// so wizard routing never needs a second SMAppService read.
+    public let requiresApproval: Bool
 
-    public init(isInstalled: Bool, version: String?, isWorking: Bool) {
+    public init(
+        isInstalled: Bool,
+        version: String?,
+        isWorking: Bool,
+        requiresApproval: Bool = false
+    ) {
         self.isInstalled = isInstalled
         self.version = version
         self.isWorking = isWorking
+        self.requiresApproval = requiresApproval
     }
 
     public var isReady: Bool {
@@ -386,7 +396,7 @@ public struct HelperStatus: Sendable {
 
     /// Convenience factory for empty/fallback state
     public static var empty: HelperStatus {
-        HelperStatus(isInstalled: false, version: nil, isWorking: false)
+        HelperStatus(isInstalled: false, version: nil, isWorking: false, requiresApproval: false)
     }
 }
 
