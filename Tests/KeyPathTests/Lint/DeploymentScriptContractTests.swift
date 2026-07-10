@@ -13,6 +13,9 @@ final class DeploymentScriptContractTests: XCTestCase {
         ]
 
         XCTAssertTrue(xcodeContract.contains("Xcode-26.6.0.app/Contents/Developer"))
+        XCTAssertTrue(xcodeContract.contains(#"KEYPATH_STABLE_XCODE_VERSION="${KEYPATH_STABLE_XCODE_VERSION:-26.6}""#))
+        XCTAssertTrue(xcodeContract.contains("/Applications/Xcode.app/Contents/Developer"))
+        XCTAssertTrue(xcodeContract.contains("keypath_xcode_version"))
         XCTAssertTrue(xcodeContract.contains("KEYPATH_DEV_XCODE_DEVELOPER_DIR"))
         XCTAssertTrue(xcodeContract.contains("keypath_use_stable_xcode"))
 
