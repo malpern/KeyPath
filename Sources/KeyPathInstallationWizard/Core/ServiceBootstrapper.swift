@@ -966,10 +966,21 @@ public final class ServiceBootstrapper {
     ///
     /// - Returns: `true` if all services were installed successfully
     @MainActor
-    public func installAllServices(
-        repairVHIDServices: @escaping () async throws -> Void = {
-            try await PrivilegeBroker().repairVHIDDaemonServices()
-        }
+    public func installAllServices() async -> Bool {
+        await installAllServices(
+            repairVHIDServices: {
+                try await PrivilegeBroker().repairVHIDDaemonServices()
+            },
+            registerKanataService: {
+                await self.registerKanataWithSMAppService()
+            }
+        )
+    }
+
+    @MainActor
+    func installAllServices(
+        repairVHIDServices: () async throws -> Void,
+        registerKanataService: () async -> Bool
     ) async -> Bool {
         AppLogger.shared.log("🔧 [ServiceBootstrapper] Installing all services (VHID + Kanata)")
 
@@ -982,21 +993,23 @@ public final class ServiceBootstrapper {
         let vhidSnapshot = await captureVHIDInstallSnapshot()
 
         // Step 1: Execute the declared VHID sub-operation through the privilege
-        // broker. Never create another InstallerEngine or plan from inside an
-        // active plan execution; doing so deadlocks on the transaction gate.
+        // broker. The broker's coordinator contract postcondition-verifies the
+        // VHID services before returning. Never create another InstallerEngine
+        // or plan from inside an active plan execution; doing so deadlocks on
+        // the transaction gate.
         AppLogger.shared.log("📱 [ServiceBootstrapper] Step 1: Installing VirtualHID services via privilege broker")
         do {
             try await repairVHIDServices()
         } catch {
             AppLogger.shared.log(
-                "❌ [ServiceBootstrapper] VirtualHID installation failed: \(error.localizedDescription)"
+                "❌ [ServiceBootstrapper] VirtualHID installation failed: \(error.localizedDescription) (\(String(reflecting: error)))"
             )
             return false
         }
 
         // Step 2: Install Kanata via SMAppService
         AppLogger.shared.log("📱 [ServiceBootstrapper] Step 2: Installing Kanata via SMAppService")
-        let kanataSuccess = await registerKanataWithSMAppService()
+        let kanataSuccess = await registerKanataService()
 
         if !kanataSuccess {
             AppLogger.shared.log("⚠️ [ServiceBootstrapper] SMAppService registration failed")

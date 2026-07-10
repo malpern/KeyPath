@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+@testable import KeyPathCore
 @testable import KeyPathInstallationWizard
 @preconcurrency import XCTest
 
@@ -273,6 +274,46 @@ final class ServiceBootstrapperTests: XCTestCase {
             await bootstrapper.installAllServices()
         }
         XCTAssertTrue(installResult)
+    }
+
+    func testInstallAllServicesRunsInjectedOperationsInOrder() async {
+        TestEnvironment.allowAdminOperationsInTests = true
+        defer { TestEnvironment.allowAdminOperationsInTests = false }
+
+        var operations: [String] = []
+        let result = await ServiceBootstrapper.shared.installAllServices(
+            repairVHIDServices: {
+                operations.append("repair-vhid")
+            },
+            registerKanataService: {
+                operations.append("register-kanata")
+                return true
+            }
+        )
+
+        XCTAssertTrue(result)
+        XCTAssertEqual(operations, ["repair-vhid", "register-kanata"])
+    }
+
+    func testInstallAllServicesStopsWhenInjectedVHIDRepairThrows() async {
+        struct ExpectedFailure: Error {}
+
+        TestEnvironment.allowAdminOperationsInTests = true
+        defer { TestEnvironment.allowAdminOperationsInTests = false }
+
+        var registrationCalled = false
+        let result = await ServiceBootstrapper.shared.installAllServices(
+            repairVHIDServices: {
+                throw ExpectedFailure()
+            },
+            registerKanataService: {
+                registrationCalled = true
+                return true
+            }
+        )
+
+        XCTAssertFalse(result)
+        XCTAssertFalse(registrationCalled)
     }
 
     func testStaleSMAppServiceBootoutCommandsTargetGuiAndSystemDomains() {
