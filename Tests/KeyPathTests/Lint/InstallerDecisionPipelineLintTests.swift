@@ -166,6 +166,56 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
         )
     }
 
+    func testUninstallCoordinatorDoesNotStartInstallerTransactions() throws {
+        let file = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/UninstallCoordinator.swift")
+        let source = try String(contentsOf: file, encoding: .utf8)
+        let forbiddenCalls = [".run(intent:", ".runSingleAction(", ".uninstall("]
+        let violations = forbiddenCalls.filter { source.contains($0) }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            "UninstallCoordinator executes inside the InstallerEngine-owned transaction: \(violations)"
+        )
+    }
+
+    func testEveryPublicPrivilegedRouteUsesSharedTransactionWrapper() throws {
+        let file = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift")
+        let source = try String(contentsOf: file, encoding: .utf8)
+        let routeNames = [
+            "uninstallVirtualHIDDrivers",
+            "disableKarabinerGrabber",
+            "restartKarabinerDaemon",
+        ]
+
+        for routeName in routeNames {
+            guard let start = source.range(of: "public func \(routeName)("),
+                  let end = source.range(of: "\n    }", range: start.lowerBound ..< source.endIndex)
+            else {
+                XCTFail("Could not locate public privileged route \(routeName)")
+                continue
+            }
+            let body = source[start.lowerBound ..< end.upperBound]
+            XCTAssertTrue(
+                body.contains("withInstallerTransaction"),
+                "\(routeName) must participate in the shared installer transaction"
+            )
+        }
+    }
+
+    func testInstantUninstallRoutesThroughInstallerEngine() throws {
+        let file = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Core/AppMenuCommands.swift")
+        let source = try String(contentsOf: file, encoding: .utf8)
+
+        XCTAssertTrue(source.contains("InstallerEngine().uninstall("))
+        XCTAssertFalse(
+            source.contains("UninstallCoordinator()"),
+            "The hidden uninstall shortcut must not bypass the shared transaction gate"
+        )
+    }
+
     func testExecutorDoesNotMakeUndeclaredVHIDActivationDecisions() throws {
         let file = repositoryRoot()
             .appendingPathComponent("Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift")
