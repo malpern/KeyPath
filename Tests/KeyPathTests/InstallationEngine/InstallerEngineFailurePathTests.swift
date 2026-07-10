@@ -263,12 +263,19 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         let savedFactory = WizardDependencies.createUninstallCoordinator
         WizardDependencies.createUninstallCoordinator = nil
         defer { WizardDependencies.createUninstallCoordinator = savedFactory }
+        let validator = StubSystemValidator(context: SystemContextBuilder.cleanInstall())
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
 
         let broker = PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
         let report = await engine.uninstall(deleteConfig: false, using: broker)
 
         XCTAssertFalse(report.success)
         XCTAssertTrue(report.failureReason?.contains("not configured") ?? false)
+        XCTAssertTrue(validator.freshnessRequests.isEmpty)
+        XCTAssertEqual(validator.cacheInvalidationCount, 0)
     }
 
     func testRun_UninstallDelegatesToUninstallMethod() async {

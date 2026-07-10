@@ -96,9 +96,10 @@ public struct CLIInstallerReport: Codable, Sendable {
         }
         fastRepair = false
         dryRun = nil
-        userActionRequired = report.completionState == .awaitingApproval
+        let requiresUserAction = report.completionState == .awaitingApproval
             || report.completionState == .recoveryRequired
             || report.recommendedRecovery != nil
+        userActionRequired = requiresUserAction ? true : nil
         issues = nil
         plannedRecipes = nil
         unmetRequirements = nil

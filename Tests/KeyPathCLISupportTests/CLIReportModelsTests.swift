@@ -92,6 +92,7 @@ final class CLIReportModelsTests: XCTestCase {
         XCTAssertEqual(decoded.beforeSnapshotID, beforeSnapshotID.uuidString)
         XCTAssertEqual(decoded.afterSnapshotID, afterSnapshotID.uuidString)
         XCTAssertEqual(decoded.completionState, "completed")
+        XCTAssertNil(decoded.userActionRequired)
         XCTAssertEqual(event.runID, runID.uuidString)
         XCTAssertEqual(event.planID, planID.uuidString)
         XCTAssertEqual(event.beforeSnapshotID, beforeSnapshotID.uuidString)

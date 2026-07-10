@@ -928,7 +928,6 @@ public final class InstallerEngine {
         allowAdminFallback: Bool
     ) async -> InstallerReport {
         let runID = UUID()
-        let beforeContext = await inspectSystem()
         AppLogger.shared.log(
             "🗑️ [InstallerEngine] Starting uninstall (deleteConfig: \(deleteConfig), removeVirtualHID: \(removeVirtualHID), allowAdminFallback: \(allowAdminFallback))"
         )
@@ -940,12 +939,12 @@ public final class InstallerEngine {
             AppLogger.shared.log("⚠️ [InstallerEngine] createUninstallCoordinator not configured")
             return InstallerReport(
                 runID: runID,
-                beforeSnapshotID: beforeContext.snapshotID,
                 success: false,
                 completionState: .executionFailed,
                 failureReason: "Uninstall coordinator not configured"
             )
         }
+        let beforeContext = await inspectSystem()
         let result = await coordinator.performUninstall(
             deleteConfig: deleteConfig,
             removeVirtualHID: removeVirtualHID,
