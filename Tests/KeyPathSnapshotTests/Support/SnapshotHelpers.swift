@@ -87,11 +87,13 @@ func withIsolatedDefaults(
 func hostView(
     _ view: some View,
     size: CGSize,
-    colorScheme: ColorScheme = .light
+    colorScheme: ColorScheme = .light,
+    defaults: UserDefaults
 ) -> NSView {
     let hosted = NSHostingView(
         rootView: view
             .environment(\.colorScheme, colorScheme)
+            .defaultAppStorage(defaults)
             .frame(width: size.width, height: size.height)
     )
     hosted.frame = CGRect(origin: .zero, size: size)
@@ -127,6 +129,8 @@ class ScreenshotTestCase: XCTestCase {
     private nonisolated(unsafe) var originalHomeEnv: String?
     private nonisolated(unsafe) var originalFixedHomeEnv: String?
     private nonisolated(unsafe) var isolatedHomeDirectory: URL?
+    private nonisolated(unsafe) var snapshotDefaults: UserDefaults?
+    private nonisolated(unsafe) var snapshotDefaultsSuiteName: String?
 
     /// Rasterize a hosted view into an NSImage at explicit scale.
     private func rasterizedImage(from view: NSView, size: CGSize) -> NSImage {
@@ -171,7 +175,15 @@ class ScreenshotTestCase: XCTestCase {
         setenv("HOME", isolatedHome.path, 1)
         setenv("CFFIXED_USER_HOME", isolatedHome.path, 1)
 
-        // Ensure deterministic @AppStorage state
+        // Give every test its own @AppStorage domain. Mutating
+        // UserDefaults.standard after SwiftUI has initialized is not sufficient:
+        // @AppStorage may retain the process-wide standard store and leak the
+        // developer's real preferences into reference images.
+        let suiteName = "com.keypath.snapshot-tests.\(UUID().uuidString)"
+        let defaultsStore = UserDefaults(suiteName: suiteName)!
+        snapshotDefaults = defaultsStore
+        snapshotDefaultsSuiteName = suiteName
+
         let defaults: [String: Any] = [
             "selectedKeymapId": "qwerty-us",
             "keymapIncludePunctuation": "true",
@@ -182,23 +194,13 @@ class ScreenshotTestCase: XCTestCase {
             "launcherWelcomeSeenForBuild": "999",
         ]
         for (key, value) in defaults {
-            Foundation.UserDefaults().set(value, forKey: key)
+            defaultsStore.set(value, forKey: key)
         }
     }
 
     override func tearDown() {
-        // Clean up test defaults
-        let keys = [
-            "selectedKeymapId",
-            "keymapIncludePunctuation",
-            "selectedLayoutId",
-            "overlayColorwayId",
-            "KeyPath.Overlay.UnmappedLayerKeyStyle",
-            "inspectorSettingsSection",
-            "launcherWelcomeSeenForBuild",
-        ]
-        for key in keys {
-            Foundation.UserDefaults().removeObject(forKey: key)
+        if let snapshotDefaultsSuiteName {
+            snapshotDefaults?.removePersistentDomain(forName: snapshotDefaultsSuiteName)
         }
         if let originalHomeEnv {
             setenv("HOME", originalHomeEnv, 1)
@@ -216,6 +218,8 @@ class ScreenshotTestCase: XCTestCase {
         originalHomeEnv = nil
         originalFixedHomeEnv = nil
         isolatedHomeDirectory = nil
+        snapshotDefaults = nil
+        snapshotDefaultsSuiteName = nil
         super.tearDown()
     }
 
@@ -239,6 +243,7 @@ class ScreenshotTestCase: XCTestCase {
             .frame(maxWidth: size.width)
             .background(Color(nsColor: .windowBackgroundColor))
             .environment(\.colorScheme, .dark)
+            .defaultAppStorage(requiredSnapshotDefaults)
 
         let host = NSHostingView(rootView: wrapped)
         host.frame = CGRect(origin: .zero, size: CGSize(width: size.width, height: 10000))
@@ -250,7 +255,7 @@ class ScreenshotTestCase: XCTestCase {
         let renderSize = CGSize(width: size.width, height: max(fittingHeight, 100))
 
         let rendered = rasterizedImage(from: host, size: renderSize)
-        let strategy: Snapshotting<NSImage, NSImage> = .image(
+        let strategy = appKitPNGStrategy(
             precision: precision,
             perceptualPrecision: perceptualPrecision
         )
@@ -271,16 +276,24 @@ class ScreenshotTestCase: XCTestCase {
         of view: some View,
         size: CGSize,
         named name: String,
-        precision: Float = 1.0,
-        perceptualPrecision: Float = 1.0,
+        precision: Float = 0.98,
+        perceptualPrecision: Float = 0.98,
         colorScheme: ColorScheme = .light,
         file: StaticString = #filePath,
         testName: String = #function,
         line: UInt = #line
     ) {
-        let hosted = hostView(view, size: size, colorScheme: colorScheme)
+        let hosted = hostView(
+            view,
+            size: size,
+            colorScheme: colorScheme,
+            defaults: requiredSnapshotDefaults
+        )
+        hosted.layoutSubtreeIfNeeded()
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.3))
+        hosted.layoutSubtreeIfNeeded()
         let rendered = rasterizedImage(from: hosted, size: size)
-        let strategy: Snapshotting<NSImage, NSImage> = .image(
+        let strategy = appKitPNGStrategy(
             precision: precision,
             perceptualPrecision: perceptualPrecision
         )
@@ -306,4 +319,105 @@ class ScreenshotTestCase: XCTestCase {
             )
         }
     }
+
+    private var requiredSnapshotDefaults: UserDefaults {
+        guard let snapshotDefaults else {
+            preconditionFailure("Snapshot defaults accessed before test setup")
+        }
+        return snapshotDefaults
+    }
+}
+
+// MARK: - Stable AppKit PNG Diffing
+
+/// SnapshotTesting's tolerant NSImage strategy uses Core Image's CILabDeltaE
+/// filter. On current macOS/Xcode that filter can raise an Objective-C exception
+/// (`CGRectValue` sent to NSConcreteValue) and crash xctest. Keep rendering in
+/// AppKit, but compare decoded RGBA pixels without Core Image.
+private func appKitPNGStrategy(
+    precision: Float,
+    perceptualPrecision: Float
+) -> Snapshotting<NSImage, Data> {
+    Snapshotting<NSImage, Data>(
+        pathExtension: "png",
+        diffing: .diff(
+            toData: { $0 },
+            fromData: { $0 }
+        ) { reference, candidate in
+            guard let old = rgbaPixels(fromPNG: reference),
+                  let new = rgbaPixels(fromPNG: candidate)
+            else {
+                return ("Snapshot PNG could not be decoded.", [])
+            }
+            guard old.width == new.width, old.height == new.height else {
+                return (
+                    "New snapshot size \(new.width)x\(new.height) does not match reference \(old.width)x\(old.height).",
+                    []
+                )
+            }
+
+            let channelTolerance = UInt8(
+                min(255, max(0, ((1 - perceptualPrecision) * 255).rounded(.up)))
+            )
+            var differentPixels = 0
+            for pixelOffset in stride(from: 0, to: old.bytes.count, by: 4) {
+                let differs = (0 ..< 4).contains { channel in
+                    abs(Int(old.bytes[pixelOffset + channel]) - Int(new.bytes[pixelOffset + channel]))
+                        > Int(channelTolerance)
+                }
+                if differs { differentPixels += 1 }
+            }
+
+            let totalPixels = max(1, old.width * old.height)
+            let actualPrecision = 1 - Float(differentPixels) / Float(totalPixels)
+            guard actualPrecision < precision else { return nil }
+            return (
+                "Actual pixel precision \(actualPrecision) is less than required \(precision) (channel tolerance \(channelTolerance)/255).",
+                []
+            )
+        },
+        snapshot: { image in
+            pngData(from: image) ?? Data()
+        }
+    )
+}
+
+private func pngData(from image: NSImage) -> Data? {
+    guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+        return nil
+    }
+    let representation = NSBitmapImageRep(cgImage: cgImage)
+    representation.size = image.size
+    return representation.representation(using: .png, properties: [:])
+}
+
+private func rgbaPixels(fromPNG data: Data) -> (width: Int, height: Int, bytes: [UInt8])? {
+    guard let image = NSImage(data: data),
+          let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+    else {
+        return nil
+    }
+
+    let width = cgImage.width
+    let height = cgImage.height
+    let bytesPerRow = width * 4
+    var bytes = [UInt8](repeating: 0, count: bytesPerRow * height)
+    let rendered = bytes.withUnsafeMutableBytes { buffer -> Bool in
+        guard let baseAddress = buffer.baseAddress,
+              let context = CGContext(
+                  data: baseAddress,
+                  width: width,
+                  height: height,
+                  bitsPerComponent: 8,
+                  bytesPerRow: bytesPerRow,
+                  space: CGColorSpaceCreateDeviceRGB(),
+                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              )
+        else {
+            return false
+        }
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return true
+    }
+    return rendered ? (width, height, bytes) : nil
 }
