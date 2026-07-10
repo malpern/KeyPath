@@ -391,20 +391,26 @@ public final class InstallerEngine {
             await captureFreshFinalContext()
         }
 
+        var seenPostconditions = Set<InstallerPostcondition>()
+        let executedPostconditions = plan.recipes
+            .prefix(executedRecipes.count)
+            .flatMap(\.expectedPostconditions)
+            .filter { seenPostconditions.insert($0).inserted }
+
         let failedPostconditions: [InstallerPostcondition] = if let finalContext {
-            plan.expectedPostconditions.filter { !$0.isSatisfied(by: finalContext) }
+            executedPostconditions.filter { !$0.isSatisfied(by: finalContext) }
         } else {
-            plan.expectedPostconditions
+            executedPostconditions
         }
         let verificationFailure = failedPostconditions.isEmpty
             ? nil
             : "Postcondition verification failed: \(failedPostconditions.map(\.rawValue).joined(separator: ", "))"
 
-        if !plan.expectedPostconditions.isEmpty {
+        if !executedPostconditions.isEmpty {
             let verificationSucceeded = failedPostconditions.isEmpty
             allLogs.append(
                 verificationSucceeded
-                    ? "[\(InstallerRecipeID.verifyPostconditions)] Declared postconditions satisfied"
+                    ? "[\(InstallerRecipeID.verifyPostconditions)] Executed recipe postconditions satisfied"
                     : "[\(InstallerRecipeID.verifyPostconditions)] \(verificationFailure ?? "Verification failed")"
             )
             repairTelemetry.append(

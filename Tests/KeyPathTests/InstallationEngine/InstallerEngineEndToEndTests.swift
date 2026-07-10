@@ -164,7 +164,36 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         XCTAssertFalse(report.success)
         XCTAssertTrue(report.failureReason?.contains("install-daemons") ?? false)
         XCTAssertEqual(report.executedRecipes.count, 1)
-        XCTAssertEqual(report.repairTelemetry.last?.postconditionResult, .succeeded)
+        XCTAssertEqual(report.repairTelemetry.last?.action, "install-daemons")
+        XCTAssertEqual(report.repairTelemetry.last?.postconditionResult, .failed)
+    }
+
+    func testExecuteFailsConservativelyWithoutFinalSnapshot() async {
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(
+                    id: InstallerRecipeID.createConfigDirectories,
+                    type: .installComponent,
+                    expectedPostconditions: [.runtimeReadyOrApprovalPending]
+                )
+            ],
+            status: .ready,
+            intent: .inspectOnly
+        )
+        let engine = InstallerEngine()
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+        )
+
+        XCTAssertFalse(report.success)
+        XCTAssertNil(report.finalContext)
+        XCTAssertEqual(
+            report.failureReason,
+            "Postcondition verification failed: runtime-ready-or-approval-pending"
+        )
+        XCTAssertNil(report.recoveryPlan)
     }
 
     func testExecutePlanRunsHelperMaintenanceForPrivilegedHelperRepair() async {
