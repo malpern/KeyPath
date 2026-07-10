@@ -25,6 +25,46 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
         XCTAssertEqual(plan.initialPostconditionStates?[.virtualHIDDriverInstalled], false)
     }
 
+    func testCleanInstallEstablishesHelperBeforePrivilegedRecipes() async throws {
+        let context = SystemContextBuilder.cleanInstall()
+        let plan = await InstallerEngine().makePlan(for: .install, context: context)
+        let ids = plan.recipes.map(\.id)
+        let helperIndex = try XCTUnwrap(ids.firstIndex(of: InstallerRecipeID.installPrivilegedHelper))
+
+        XCTAssertEqual(helperIndex, ids.startIndex)
+        for privilegedRecipeID in [
+            InstallerRecipeID.installMissingComponents,
+            InstallerRecipeID.activateVHIDManager,
+            InstallerRecipeID.startKarabinerDaemon,
+            InstallerRecipeID.installRequiredRuntimeServices
+        ] {
+            if let recipeIndex = ids.firstIndex(of: privilegedRecipeID) {
+                XCTAssertLessThan(helperIndex, recipeIndex)
+            }
+        }
+    }
+
+    func testRepairEstablishesMissingHelperBeforePrivilegedRecipes() async throws {
+        let context = SystemContextBuilder(
+            helperReady: false,
+            servicesHealthy: false,
+            componentsInstalled: true
+        ).build()
+        let plan = await InstallerEngine().makePlan(for: .repair, context: context)
+        let ids = plan.recipes.map(\.id)
+        let helperIndex = try XCTUnwrap(ids.firstIndex(of: InstallerRecipeID.installPrivilegedHelper))
+
+        XCTAssertEqual(helperIndex, ids.startIndex)
+        XCTAssertLessThan(
+            helperIndex,
+            try XCTUnwrap(ids.firstIndex(of: InstallerRecipeID.installRequiredRuntimeServices))
+        )
+        XCTAssertLessThan(
+            helperIndex,
+            try XCTUnwrap(ids.firstIndex(of: InstallerRecipeID.startKarabinerDaemon))
+        )
+    }
+
     func testRepairPlanTargetsUnhealthyServices() async {
         let engine = InstallerEngine()
         let context = SystemContextBuilder.degradedRepair()
