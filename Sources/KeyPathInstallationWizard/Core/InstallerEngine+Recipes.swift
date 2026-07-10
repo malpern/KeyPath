@@ -99,7 +99,7 @@ public extension InstallerEngine {
         case .terminateConflictingProcesses:
             ServiceRecipe(
                 id: InstallerRecipeID.terminateConflictingProcesses,
-                type: .checkRequirement,
+                type: .resolveRequirement,
                 serviceID: nil,
                 expectedPostconditions: [.conflictsResolved]
             )

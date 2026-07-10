@@ -92,6 +92,10 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         XCTAssertTrue(report.success)
         XCTAssertNil(report.failureReason)
         XCTAssertEqual(report.executedRecipes.first?.success, false)
+        XCTAssertEqual(
+            report.executedRecipes.first?.expectedPostconditions,
+            [.runtimeReadyOrApprovalPending]
+        )
         XCTAssertEqual(report.repairTelemetry.last?.action, InstallerRecipeID.verifyPostconditions)
         XCTAssertEqual(report.repairTelemetry.last?.postconditionResult, .succeeded)
     }

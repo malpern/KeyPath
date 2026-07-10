@@ -166,6 +166,8 @@ public enum RecipeType: Sendable, Equatable {
     case installComponent
     /// Validate a prerequisite
     case checkRequirement
+    /// Mutate system state to resolve an unmet prerequisite
+    case resolveRequirement
 }
 
 public extension RecipeType {
@@ -181,6 +183,8 @@ public extension RecipeType {
             "install-component"
         case .checkRequirement:
             "check-requirement"
+        case .resolveRequirement:
+            "resolve-requirement"
         }
     }
 }
@@ -427,6 +431,8 @@ public struct RecipeResult: Sendable, Equatable {
     public let logs: [String]
     /// Shell command(s) that were run (for diagnostics)
     public let commandsRun: [String]
+    /// State declarations owned by the recipe that actually executed.
+    public let expectedPostconditions: [InstallerPostcondition]
 
     public init(
         recipeID: String,
@@ -434,7 +440,8 @@ public struct RecipeResult: Sendable, Equatable {
         error: String? = nil,
         duration: TimeInterval = 0,
         logs: [String] = [],
-        commandsRun: [String] = []
+        commandsRun: [String] = [],
+        expectedPostconditions: [InstallerPostcondition] = []
     ) {
         self.recipeID = recipeID
         self.success = success
@@ -442,6 +449,7 @@ public struct RecipeResult: Sendable, Equatable {
         self.duration = duration
         self.logs = logs
         self.commandsRun = commandsRun
+        self.expectedPostconditions = expectedPostconditions
     }
 }
 

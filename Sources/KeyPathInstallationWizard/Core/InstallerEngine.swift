@@ -333,7 +333,8 @@ public final class InstallerEngine {
                         error: nil,
                         duration: duration,
                         logs: recipeLogs,
-                        commandsRun: commandsRun
+                        commandsRun: commandsRun,
+                        expectedPostconditions: recipe.expectedPostconditions
                     )
                 )
                 repairTelemetry.append(
@@ -360,7 +361,8 @@ public final class InstallerEngine {
                         error: recipeError,
                         duration: duration,
                         logs: recipeLogs,
-                        commandsRun: commandsRun
+                        commandsRun: commandsRun,
+                        expectedPostconditions: recipe.expectedPostconditions
                     )
                 )
 
@@ -392,8 +394,7 @@ public final class InstallerEngine {
         }
 
         var seenPostconditions = Set<InstallerPostcondition>()
-        let executedPostconditions = plan.recipes
-            .prefix(executedRecipes.count)
+        let executedPostconditions = executedRecipes
             .flatMap(\.expectedPostconditions)
             .filter { seenPostconditions.insert($0).inserted }
 
@@ -559,6 +560,11 @@ public final class InstallerEngine {
             logs.append("Checking requirement: \(recipe.id)")
             try await executeCheckRequirement(recipe, using: broker)
             logs.append("Requirement satisfied")
+
+        case .resolveRequirement:
+            logs.append("Resolving requirement: \(recipe.id)")
+            try await executeCheckRequirement(recipe, using: broker)
+            logs.append("Requirement resolved")
         }
 
         return RecipeExecutionResult(logs: logs, commands: commands)
