@@ -1507,12 +1507,12 @@ final class WizardPureLogicTests: XCTestCase {
                       "Terminate conflicts should come before installing components")
     }
 
-    func test_determineRepairActions_activateManagerBeforeStartDaemon() {
+    func test_determineRepairActions_activateManagerBeforeStartDaemon() throws {
         let components = ComponentStatus(
             kanataBinaryInstalled: true,
             karabinerDriverInstalled: false,
             karabinerDaemonRunning: false,
-            vhidDeviceInstalled: true,
+            vhidDeviceInstalled: false,
             vhidDeviceHealthy: false,
             vhidServicesHealthy: true,
             vhidVersionMismatch: false
@@ -1522,12 +1522,13 @@ final class WizardPureLogicTests: XCTestCase {
             components: components
         )
         let actions = ActionDeterminer.determineRepairActions(context: context)
-        let activateIdx = actions.firstIndex(of: .activateVHIDDeviceManager)
-        let startIdx = actions.firstIndex(of: .startKarabinerDaemon)
-        XCTAssertNotNil(activateIdx)
-        XCTAssertNotNil(startIdx)
-        XCTAssertTrue(activateIdx! < startIdx!,
-                      "Activate VHIDDeviceManager should come before starting daemon")
+        let activateIdx = try XCTUnwrap(actions.firstIndex(of: .activateVHIDDeviceManager))
+        let startIdx = try XCTUnwrap(actions.firstIndex(of: .startKarabinerDaemon))
+        XCTAssertLessThan(
+            activateIdx,
+            startIdx,
+            "Activate VHIDDeviceManager should come before starting daemon"
+        )
     }
 
     // MARK: - Timeout Issue Handling (ADR-critical: timeouts must not suppress real issues)
