@@ -160,9 +160,9 @@ public class WizardStateMachine {
 
     // MARK: - Refresh (delegates to InstallerEngine + SystemInspector)
 
-    public func refresh() async {
+    public func refresh(freshness: WizardSystemSnapshotFreshness = .fresh) async {
         isRefreshing = true
-        let context = await InstallerEngine().inspectSystem()
+        let context = await InstallerEngine().inspectSystem(freshness: freshness)
         let result = SystemContextAdapter.adapt(context)
         updateWizardState(from: result)
         isRefreshing = false

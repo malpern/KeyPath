@@ -148,6 +148,20 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         )
     }
 
+    func testInspectSystemForwardsCanonicalSnapshotFreshnessPolicy() async {
+        let context = SystemContextBuilder().build()
+        let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+
+        _ = await engine.inspectSystem(freshness: .cached)
+        _ = await engine.inspectSystem()
+
+        XCTAssertEqual(validator.freshnessRequests, [.cached, .fresh])
+    }
+
     func testExecutePlanUsesForceRefreshWithoutAppleScriptForHelperReinstall() async {
         let coordinator = StubPrivilegedOperationsCoordinator()
         let broker = PrivilegeBroker(coordinator: coordinator)
@@ -280,6 +294,7 @@ private final class StubHelperMaintenance: WizardHelperMaintaining {
 @MainActor
 private final class StubSystemValidator: WizardSystemValidating {
     private let snapshot: SystemSnapshot
+    private(set) var freshnessRequests: [WizardSystemSnapshotFreshness] = []
 
     init(snapshot: SystemSnapshot) {
         self.snapshot = snapshot
@@ -287,5 +302,10 @@ private final class StubSystemValidator: WizardSystemValidating {
 
     func checkSystem() async -> SystemSnapshot {
         snapshot
+    }
+
+    func checkSystem(freshness: WizardSystemSnapshotFreshness) async -> SystemSnapshot {
+        freshnessRequests.append(freshness)
+        return snapshot
     }
 }

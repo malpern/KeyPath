@@ -26,6 +26,8 @@ public class SystemValidator {
 
     /// Per-instance validation task - prevents concurrent validations for this instance
     private var inProgressValidation: Task<SystemSnapshot, Never>?
+    private var latestSnapshot: SystemSnapshot?
+    private static let canonicalSnapshotCacheTTL: TimeInterval = 1.5
 
     /// Track validation timing to detect rapid-fire calls (indicates automatic triggers)
     private static var lastValidationStart: Date?
@@ -98,7 +100,9 @@ public class SystemValidator {
         {
             AppLogger.shared.log("🧪 [SystemValidator] Test mode - returning stub snapshot")
             progressCallback(1.0)
-            return Self.makeTestSnapshot()
+            let snapshot = Self.makeTestSnapshot()
+            latestSnapshot = snapshot
+            return snapshot
         }
 
         // If validation is already in progress, wait for it
@@ -106,7 +110,9 @@ public class SystemValidator {
             AppLogger.shared.log(
                 "🔍 [SystemValidator] Validation already in progress - waiting for result"
             )
-            return await inProgress.value
+            let snapshot = await inProgress.value
+            latestSnapshot = snapshot
+            return snapshot
         }
 
         // Start new validation
@@ -117,10 +123,29 @@ public class SystemValidator {
         inProgressValidation = validationTask
         defer { inProgressValidation = nil }
 
-        return await validationTask.value
+        let snapshot = await validationTask.value
+        latestSnapshot = snapshot
+        return snapshot
+    }
+
+    func checkSystem(
+        freshness: WizardSystemSnapshotFreshness,
+        progressCallback: @escaping @Sendable (Double) -> Void = { _ in }
+    ) async -> SystemSnapshot {
+        if freshness == .cached,
+           let latestSnapshot,
+           Date().timeIntervalSince(latestSnapshot.timestamp) <= Self.canonicalSnapshotCacheTTL
+        {
+            AppLogger.shared.log("🔍 [SystemValidator] Reusing recent canonical snapshot")
+            progressCallback(1.0)
+            return latestSnapshot
+        }
+
+        return await checkSystem(progressCallback: progressCallback)
     }
 
     func invalidateCaches() {
+        latestSnapshot = nil
         cachedComponentFacts = nil
         ServiceHealthChecker.shared.invalidateHealthCache()
     }

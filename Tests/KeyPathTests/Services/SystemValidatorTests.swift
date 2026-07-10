@@ -119,6 +119,21 @@ struct SystemValidatorTests {
         snapshot.validate()
     }
 
+    @Test("Cached capture reuses the recent canonical snapshot")
+    func cachedCaptureReusesRecentSnapshot() async {
+        await setupTest()
+
+        let validator = SystemValidator(processLifecycleManager: ProcessLifecycleManager())
+        let fresh = await validator.checkSystem(freshness: .fresh)
+        let cached = await validator.checkSystem(freshness: .cached)
+
+        #expect(cached.timestamp == fresh.timestamp)
+
+        validator.invalidateCaches()
+        let recaptured = await validator.checkSystem(freshness: .cached)
+        #expect(recaptured.timestamp >= cached.timestamp)
+    }
+
     @Test("SystemSnapshot validates staleness")
     func snapshotStalenessDetection() {
         // Create a snapshot with old timestamp

@@ -94,6 +94,10 @@ extension SystemValidator: WizardSystemValidating {
     public func checkSystem() async -> SystemSnapshot {
         await checkSystem(progressCallback: { _ in })
     }
+
+    public func checkSystem(freshness: WizardSystemSnapshotFreshness) async -> SystemSnapshot {
+        await checkSystem(freshness: freshness, progressCallback: { _ in })
+    }
 }
 
 // MARK: - HelperMaintenance + WizardHelperMaintaining

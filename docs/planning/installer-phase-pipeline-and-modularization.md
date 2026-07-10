@@ -181,6 +181,9 @@ state and the next plan.
   fact, projects it through the existing compatibility result, and migrates
   wizard routing to consume the captured helper facts without another helper or
   `SMAppService` read.
+- The canonical validator probe now exposes explicit cached/fresh capture
+  policies. Initial wizard detection may reuse a snapshot captured within 1.5
+  seconds; normal refresh, install, and repair inspection remains fresh.
 - A lint ratchet now protects the migrated wizard routing paths. The remaining
   pre-snapshot welcome check now consumes the same canonical result as initial
   routing, so wizard navigation performs no separate helper or `SMAppService`

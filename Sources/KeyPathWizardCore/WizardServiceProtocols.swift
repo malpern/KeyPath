@@ -4,9 +4,23 @@ import KeyPathPermissions
 
 // MARK: - SystemValidator Protocol
 
+public enum WizardSystemSnapshotFreshness: Sendable, Equatable {
+    /// Reuse a recent canonical snapshot when available; otherwise capture one.
+    case cached
+    /// Capture current evidence, coalescing only with an in-flight capture.
+    case fresh
+}
+
 @MainActor
 public protocol WizardSystemValidating: AnyObject, Sendable {
     func checkSystem() async -> SystemSnapshot
+    func checkSystem(freshness: WizardSystemSnapshotFreshness) async -> SystemSnapshot
+}
+
+public extension WizardSystemValidating {
+    func checkSystem(freshness _: WizardSystemSnapshotFreshness) async -> SystemSnapshot {
+        await checkSystem()
+    }
 }
 
 // MARK: - HelperMaintenance Protocol

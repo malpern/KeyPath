@@ -82,7 +82,9 @@ public final class InstallerEngine {
 
     /// Capture current system state
     /// Returns: Read-only snapshot of service states, file/permission status, and helper availability
-    public func inspectSystem() async -> SystemContext {
+    public func inspectSystem(
+        freshness: WizardSystemSnapshotFreshness = .fresh
+    ) async -> SystemContext {
         AppLogger.shared.log("🔍 [InstallerEngine] Starting inspectSystem()")
 
         // Phase 2: Wire up SystemValidator to get system snapshot
@@ -90,7 +92,7 @@ public final class InstallerEngine {
             AppLogger.shared.log("⚠️ [InstallerEngine] systemValidator not configured — returning empty context")
             return SystemContext.empty
         }
-        let snapshot = await validatorInstance.checkSystem()
+        let snapshot = await validatorInstance.checkSystem(freshness: freshness)
 
         // Get system compatibility info from SystemRequirements
         let systemInfo = systemRequirements.getSystemInfo()

@@ -10,6 +10,7 @@ extension WizardOperations {
     /// State detection operation (UI-layer only - uses WizardStateMachine)
     public static func stateDetection(
         stateMachine: WizardStateMachine?,
+        freshness: WizardSystemSnapshotFreshness = .fresh,
         progressCallback: @escaping @Sendable (Double) -> Void = { _ in }
     ) -> AsyncOperation<SystemStateResult> {
         enum StateDetectionError: Error {
@@ -25,7 +26,7 @@ extension WizardOperations {
                 progressCallback(0.1)
                 do {
                     try await withThrowingTaskGroup(of: Void.self) { group in
-                        group.addTask { await machine.refresh() }
+                        group.addTask { await machine.refresh(freshness: freshness) }
                         group.addTask {
                             let clock = ContinuousClock()
                             try await clock.sleep(for: .seconds(12))

@@ -96,6 +96,7 @@ public extension InstallationWizardView {
 
         let operation = WizardOperations.stateDetection(
             stateMachine: stateMachine,
+            freshness: .cached,
             progressCallback: { progress in
                 // Update progress on MainActor (callback may be called from background)
                 Task { @MainActor in
