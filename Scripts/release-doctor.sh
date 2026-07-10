@@ -3,6 +3,8 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 PROJECT_DIR=$(cd "$SCRIPT_DIR/.." >/dev/null && pwd)
+source "$SCRIPT_DIR/lib/xcode.sh"
+keypath_use_stable_xcode
 
 MODE="release-candidate"
 STRICT=0
