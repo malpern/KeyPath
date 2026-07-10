@@ -577,7 +577,8 @@ public extension CLIInstallerReport {
             logs: nil,
             repairTelemetry: nil,
             planID: plan.id.uuidString,
-            beforeSnapshotID: plan.sourceSnapshotID?.uuidString
+            beforeSnapshotID: plan.sourceSnapshotID?.uuidString,
+            completionState: blockedBy.isEmpty ? nil : InstallerCompletionState.blocked.rawValue
         )
     }
 }

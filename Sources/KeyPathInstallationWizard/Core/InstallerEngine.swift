@@ -400,7 +400,7 @@ public final class InstallerEngine {
         let finalContext: SystemContext? = if plan.intent == .inspectOnly {
             nil
         } else {
-            await captureFreshFinalContext()
+            await captureFreshContext()
         }
 
         var seenPostconditions = Set<InstallerPostcondition>()
@@ -535,7 +535,7 @@ public final class InstallerEngine {
             || context.requiresManualVHIDDriverApproval
     }
 
-    private func captureFreshFinalContext() async -> SystemContext {
+    private func captureFreshContext() async -> SystemContext {
         systemValidator?.invalidateCaches()
         return await inspectSystem(freshness: .fresh)
     }
@@ -944,7 +944,7 @@ public final class InstallerEngine {
                 failureReason: "Uninstall coordinator not configured"
             )
         }
-        let beforeContext = await inspectSystem()
+        let beforeContext = await captureFreshContext()
         let result = await coordinator.performUninstall(
             deleteConfig: deleteConfig,
             removeVirtualHID: removeVirtualHID,
@@ -962,7 +962,7 @@ public final class InstallerEngine {
             )
         })
 
-        let finalContext = await captureFreshFinalContext()
+        let finalContext = await captureFreshContext()
         let afterSnapshotID = finalContext.snapshotID
         let telemetry = InstallerRepairTelemetryEvent(
             runID: runID,

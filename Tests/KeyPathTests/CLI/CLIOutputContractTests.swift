@@ -152,6 +152,23 @@ final class CLIOutputContractTests: XCTestCase {
         XCTAssertEqual(report.completionState, "awaiting-approval")
     }
 
+    func testDryRunBlockedPlanReportsStructuredBlockedState() {
+        let context = SystemContextBuilder.degradedRepair()
+        let requirement = Requirement(name: "Manual approval", status: .blocked)
+        let plan = InstallPlan(
+            sourceSnapshotID: context.snapshotID,
+            recipes: [],
+            status: .blocked(requirement: requirement),
+            intent: .repair,
+            blockedBy: requirement
+        )
+
+        let report = CLIInstallerReport(dryRunPlan: plan, context: context, title: "Repair")
+
+        XCTAssertFalse(report.success)
+        XCTAssertEqual(report.completionState, "blocked")
+    }
+
     func testInstallerReportLinksTerminalInputCaptureFailureToTroubleshooting() {
         let context = SystemContextBuilder(
             permissionsStatus: .granted,
