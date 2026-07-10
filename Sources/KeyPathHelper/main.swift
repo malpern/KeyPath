@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 import os
 import Security
 
@@ -145,8 +146,8 @@ class HelperDelegate: NSObject, NSXPCListenerDelegate {
 /// Main entry point for the privileged helper
 func main() {
     let logger = Logger(subsystem: "com.keypath.helper", category: "lifecycle")
-    NSLog("[KeyPathHelper] Starting privileged helper (version 1.1.0)")
-    logger.info("Starting privileged helper (v1.1.0)")
+    NSLog("[KeyPathHelper] Starting privileged helper (version \(KeyPathHelperContract.version))")
+    logger.info("Starting privileged helper (v\(KeyPathHelperContract.version))")
 
     // Create the XPC listener on the Mach service
     let delegate = HelperDelegate()

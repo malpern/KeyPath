@@ -628,7 +628,7 @@ public struct WizardHelperPage: View {
 
         // Read version from helper's Info.plist in Sources
         // For now, return the known bundled version
-        return "1.1.0"
+        return KeyPathHelperContract.version
     }
 }
 
