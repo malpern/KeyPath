@@ -370,7 +370,11 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
             PrivilegedOperationsRouter.helperRecoverRequiredRuntimeServicesOverride = {
                 throw HelperManagerError.ambiguousOutcome("reply lost")
             }
-            PrivilegedOperationsRouter.kanataReadinessOverride = { _ in .ready }
+            var readinessChecks = 0
+            PrivilegedOperationsRouter.kanataReadinessOverride = { _ in
+                readinessChecks += 1
+                return .ready
+            }
             var fallbackCalls = 0
             PrivilegedOperationsRouter.sudoRestartServicesOverride = { fallbackCalls += 1 }
         #else
@@ -381,6 +385,7 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
 
         #if DEBUG
             XCTAssertEqual(fallbackCalls, 0)
+            XCTAssertEqual(readinessChecks, 2, "Recovery must still run its final post-restart verification")
         #endif
     }
 

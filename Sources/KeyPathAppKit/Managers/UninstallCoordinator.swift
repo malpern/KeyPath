@@ -164,6 +164,7 @@ public final class UninstallCoordinator {
         }
 
         var helperFailure: String?
+        var helperReplyFailed = false
         var virtualHIDFailure: String?
         if helperReady {
             logLines.append("🔧 Using the system helper for uninstall...")
@@ -232,6 +233,7 @@ public final class UninstallCoordinator {
                     ? "Some KeyPath system components remain installed."
                     : "The system helper registration could not be removed."
             } catch {
+                helperReplyFailed = true
                 helperFailure = error.localizedDescription
                 steps.append(WizardUninstallStepResult(
                     id: "uninstall-via-helper",
@@ -249,7 +251,9 @@ public final class UninstallCoordinator {
         // Emergency Cleanup, verify whether the helper already removed the
         // requested components. Only tear down helper registration after the
         // filesystem postcondition proves the uninstall completed.
-        let filesRemovedAfterHelperError = await waitForUninstallPostconditions()
+        let filesRemovedAfterHelperError = helperReplyFailed
+            ? await waitForUninstallPostconditions()
+            : false
         if filesRemovedAfterHelperError {
             let driverRemoved: Bool = if removeVirtualHID {
                 await waitForVirtualHIDRemoval()

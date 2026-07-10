@@ -231,6 +231,26 @@ final class UninstallCoordinatorTests: XCTestCase {
         XCTAssertTrue(coordinator.logLines.contains { $0.contains("skipping Emergency Cleanup") })
     }
 
+    func testCompletedHelperReplyDoesNotDuplicateStepsWhenEmergencyCleanupRuns() async {
+        var postconditionChecks = 0
+        let coordinator = makeCoordinator(
+            runWithAdminPrivileges: { _, _, _ in .success },
+            postconditionsSatisfied: {
+                postconditionChecks += 1
+                return postconditionChecks > 9
+            },
+            uninstallViaHelper: { _ in },
+            unregisterHelper: { false }
+        )
+
+        let result = await coordinator.performUninstall(allowAdminFallback: true)
+
+        XCTAssertTrue(result.success)
+        XCTAssertEqual(result.steps.filter { $0.id == "unregister-uninstall-helper" }.count, 1)
+        XCTAssertEqual(result.steps.filter { $0.id == "verify-uninstall" }.count, 1)
+        XCTAssertEqual(result.steps.filter { $0.id == "emergency-admin-cleanup" }.count, 1)
+    }
+
     private func makeCoordinator(
         resolveUninstallerURL: @escaping () -> URL? = {
             URL(fileURLWithPath: "/tmp/keypath-test-uninstall.sh")

@@ -188,7 +188,6 @@ public final class PrivilegedOperationsRouter {
                         )
                     }
                 )
-                return
             }
         case .directSudo:
             try await sudoRestartServices()
