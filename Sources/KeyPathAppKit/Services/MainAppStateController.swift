@@ -268,62 +268,6 @@ class MainAppStateController {
         )
     }
 
-    // MARK: - TCP Configuration Check
-
-    /// Check if TCP communication is properly configured
-    /// Matches wizard logic from WizardSystemStatusOverview.getCommunicationServerStatus()
-    ///
-    /// **SECURITY NOTE (ADR-013):** No authentication check needed.
-    /// Kanata v1.9.0 TCP server does not support authentication.
-    /// We only verify: (1) plist exists, (2) plist has --port argument
-    private func checkTCPConfiguration() async -> Bool {
-        // NOTE: Kanata v1.9.0 TCP does NOT require authentication
-        // No token check needed - just verify service has TCP configuration
-
-        // In tests, Bundle.main resolves to the Xcode toolchain — plist path is meaningless
-        if TestEnvironment.isRunningTests { return true }
-
-        // Check SMAppService plist first if active, otherwise fall back to legacy plist
-        let plistPath = KanataDaemonManager.getActivePlistPath()
-
-        let plistExists = Foundation.FileManager().fileExists(atPath: plistPath)
-
-        guard plistExists else {
-            AppLogger.shared.warn(
-                "⚠️ [MainAppStateController] TCP check failed: Service plist doesn't exist at \(plistPath)"
-            )
-            return false
-        }
-
-        // Verify plist has TCP port argument
-        do {
-            let plistData = try Data(contentsOf: URL(fileURLWithPath: plistPath))
-            guard let plist = try PropertyListSerialization.propertyList(
-                from: plistData, options: [], format: nil
-            ) as? [String: Any],
-                let args = plist["ProgramArguments"] as? [String]
-            else {
-                AppLogger.shared.warn("⚠️ [MainAppStateController] Failed to parse plist structure")
-                return false
-            }
-            let hasTCPPort = args.contains("--port")
-            guard hasTCPPort else {
-                AppLogger.shared.warn(
-                    "⚠️ [MainAppStateController] TCP check failed: Service missing --port argument"
-                )
-                return false
-            }
-        } catch {
-            AppLogger.shared.warn(
-                "⚠️ [MainAppStateController] Failed to read daemon plist at \(plistPath): \(error.localizedDescription)"
-            )
-            return false
-        }
-
-        AppLogger.shared.info("✅ [MainAppStateController] TCP configuration verified: plist has --port")
-        return true
-    }
-
     // MARK: - Service Health Monitoring
 
     /// Subscribe to runtime state changes to trigger revalidation when runtime health changes.
@@ -614,7 +558,7 @@ class MainAppStateController {
         // Update published state
         lastValidatedSystemContext = context
         lastAdaptedState = adapted.state
-        lastTCPConfigured = await checkTCPConfiguration()
+        lastTCPConfigured = snapshot.health.kanataTCPConfigured ?? false
         let decision = InstallerDecisionPipeline.decide(for: .repair, context: context)
         lastInstallerStateMatrixRow = decision.assessment
         lastInstallerStateMatrixPlan = decision.matrixActions

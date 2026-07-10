@@ -355,6 +355,9 @@ public struct HealthStatus: Sendable {
     public let kanataProcessRunning: Bool?
     /// True when the Kanata TCP health endpoint responds.
     public let kanataTCPResponding: Bool?
+    /// True when the installed daemon plist declares the TCP server argument.
+    /// Nil means this older/fallback evidence did not capture configuration.
+    public let kanataTCPConfigured: Bool?
     public let kanataRunning: Bool
     public let karabinerDaemonRunning: Bool
     public let vhidHealthy: Bool
@@ -387,6 +390,7 @@ public struct HealthStatus: Sendable {
         kanataLaunchdLoaded: Bool? = nil,
         kanataProcessRunning: Bool? = nil,
         kanataTCPResponding: Bool? = nil,
+        kanataTCPConfigured: Bool? = nil,
         kanataRunning: Bool,
         karabinerDaemonRunning: Bool,
         vhidHealthy: Bool,
@@ -403,6 +407,7 @@ public struct HealthStatus: Sendable {
         self.kanataLaunchdLoaded = kanataLaunchdLoaded
         self.kanataProcessRunning = kanataProcessRunning
         self.kanataTCPResponding = kanataTCPResponding
+        self.kanataTCPConfigured = kanataTCPConfigured
         self.kanataRunning = kanataRunning
         self.karabinerDaemonRunning = karabinerDaemonRunning
         self.vhidHealthy = vhidHealthy
@@ -420,6 +425,7 @@ public struct HealthStatus: Sendable {
     /// Overall health (includes Kanata runtime)
     public var isHealthy: Bool {
         kanataRunning && karabinerDaemonRunning && vhidHealthy && kanataInputCaptureReady
+            && (kanataTCPConfigured ?? true)
     }
 
     /// Health of background services only (Karabiner daemon + VHID driver)

@@ -250,6 +250,36 @@ struct SystemValidatorTests {
         #expect(error == "Duplicate alias: beh_base_a")
     }
 
+    @Test("Daemon plist TCP evidence requires a valid port value")
+    func daemonPlistTCPConfiguration() throws {
+        func plist(_ arguments: [String]) throws -> Data {
+            try PropertyListSerialization.data(
+                fromPropertyList: ["ProgramArguments": arguments],
+                format: .xml,
+                options: 0
+            )
+        }
+
+        #expect(try SystemValidator.plistHasTCPPortArgument(plist(["kanata", "--port", "37001"])))
+        #expect(try !SystemValidator.plistHasTCPPortArgument(plist(["kanata", "--port"])))
+        #expect(try !SystemValidator.plistHasTCPPortArgument(plist(["kanata", "--port", "invalid"])))
+        #expect(try !SystemValidator.plistHasTCPPortArgument(plist(["kanata", "--port", "0"])))
+        #expect(try !SystemValidator.plistHasTCPPortArgument(plist(["kanata", "--port", "70000"])))
+        #expect(try !SystemValidator.plistHasTCPPortArgument(plist(["kanata"])))
+    }
+
+    @Test("Captured missing TCP configuration makes health incomplete")
+    func missingTCPConfigurationIsUnhealthy() {
+        let health = HealthStatus(
+            kanataTCPConfigured: false,
+            kanataRunning: true,
+            karabinerDaemonRunning: true,
+            vhidHealthy: true
+        )
+
+        #expect(!health.isHealthy)
+    }
+
     @Test("Capture status keeps the most conservative probe result")
     func combinedCaptureStatusIsConservative() {
         #expect(SystemValidator.combinedCaptureStatus([.complete, .timedOut]) == .timedOut)
