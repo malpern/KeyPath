@@ -9,6 +9,10 @@ import Testing
 @MainActor
 @Suite("SystemValidator Tests")
 struct SystemValidatorTests {
+    private enum ExpectedFailure: Error {
+        case conflictProbe
+    }
+
     /// Setup: Reset counters before each test to ensure isolation
     private func setupTest() async {
         SystemValidator.resetCounters()
@@ -129,9 +133,28 @@ struct SystemValidatorTests {
 
         #expect(cached.timestamp == fresh.timestamp)
 
+        let freshAgain = await validator.checkSystem(freshness: .fresh)
+        #expect(freshAgain.id != cached.id)
+
         validator.invalidateCaches()
         let recaptured = await validator.checkSystem(freshness: .cached)
-        #expect(recaptured.timestamp >= cached.timestamp)
+        #expect(recaptured.timestamp >= freshAgain.timestamp)
+    }
+
+    @Test("Failed conflict probe produces incomplete fail-safe evidence")
+    func failedConflictProbeIsIncomplete() async {
+        await setupTest()
+
+        let validator = SystemValidator(
+            processLifecycleManager: ProcessLifecycleManager(),
+            conflictDetector: { throw ExpectedFailure.conflictProbe }
+        )
+
+        let evidence = await validator.checkConflicts()
+
+        #expect(evidence.captureStatus == .failed)
+        #expect(!evidence.status.hasConflicts)
+        #expect(!evidence.status.canAutoResolve)
     }
 
     @Test("SystemSnapshot validates staleness")

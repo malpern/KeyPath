@@ -177,6 +177,18 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertTrue(result.issues.contains { $0.identifier == .validationTimeout })
     }
 
+    func test_failedCaptureProducesIncompleteStatusIssue() {
+        let context = makeContext(captureStatus: .failed)
+
+        let result = SystemStateResult.projecting(context)
+
+        XCTAssertEqual(result.captureStatus, .failed)
+        XCTAssertEqual(result.stateMatrixRow, InstallerStateMatrixRow.definitiveUnhealthyState.rawValue)
+        XCTAssertTrue(result.issues.contains {
+            $0.identifier == .validationTimeout && $0.title == "Status check incomplete"
+        })
+    }
+
     func test_emptyFallbackContextIsExplicitlyIncomplete() {
         XCTAssertEqual(SystemContext.empty.captureStatus, .cancelled)
         XCTAssertEqual(SystemContext.empty.installerStateMatrixRow, .definitiveUnhealthyState)

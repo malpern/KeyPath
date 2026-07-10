@@ -5,6 +5,7 @@ import KeyPathPermissions
 
 public enum SystemSnapshotCaptureStatus: String, Sendable, Equatable {
     case complete
+    case failed
     case cancelled
     case timedOut
 

@@ -7,6 +7,26 @@ import Foundation
 /// It prevents new runtime/installer state caches outside the known provider-style
 /// owners while follow-up work shrinks the allowlist.
 final class SnapshotConsumerLintTests: XCTestCase {
+    func testFreshCaptureInvalidatesComponentFacts() throws {
+        let validator = LintScanner.path(
+            "Sources/KeyPathAppKit/Services/System/SystemValidator.swift"
+        )
+        let source = try String(contentsOf: validator, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("if freshness == .fresh {") && source.contains("invalidateCaches()"),
+            "A canonical fresh capture must invalidate subordinate evidence caches."
+        )
+        XCTAssertTrue(
+            source.contains("cachedComponentFacts = nil"),
+            "SystemValidator.invalidateCaches() must clear component installation facts."
+        )
+        XCTAssertTrue(
+            source.contains("cachedComponentFacts.isFresh(ttl: Self.canonicalSnapshotCacheTTL)"),
+            "Component facts must use the canonical snapshot freshness window."
+        )
+    }
+
     func testSMAppServiceStatusProviderCacheIsOnlyConsumedThroughSystemStateProvider() throws {
         let violations = try LintScanner.matchingLines(
             under: LintScanner.path("Sources"),

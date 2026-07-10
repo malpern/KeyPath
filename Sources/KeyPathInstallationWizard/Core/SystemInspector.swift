@@ -93,6 +93,16 @@ public enum SystemInspector {
                 autoFixAction: nil,
                 userAction: "Run the status check again."
             ))
+        } else if context.captureStatus == .failed {
+            issues.append(WizardIssue(
+                identifier: .validationTimeout,
+                severity: .warning,
+                category: .daemon,
+                title: "Status check incomplete",
+                description: "KeyPath could not capture all required system evidence.",
+                autoFixAction: nil,
+                userAction: "Run the status check again before making system changes."
+            ))
         }
 
         return issues

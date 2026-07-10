@@ -41,8 +41,8 @@ public class SystemValidator {
 
     // NOTE: launchDaemonInstaller removed - health checks migrated to ServiceHealthChecker
     private let vhidDeviceManager: VHIDDeviceManager
-    private let processLifecycleManager: ProcessLifecycleManager
     private let systemStateProvider: SystemStateProvider
+    private let conflictDetector: () async throws -> ProcessLifecycleManager.ConflictResolution
     private weak var kanataManager: RuntimeCoordinator?
     private var cachedComponentFacts: ComponentInstallationFacts?
 
@@ -64,12 +64,15 @@ public class SystemValidator {
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
         processLifecycleManager: ProcessLifecycleManager,
         systemStateProvider: SystemStateProvider = .shared,
-        kanataManager: RuntimeCoordinator? = nil
+        kanataManager: RuntimeCoordinator? = nil,
+        conflictDetector: (() async throws -> ProcessLifecycleManager.ConflictResolution)? = nil
     ) {
         self.vhidDeviceManager = vhidDeviceManager
-        self.processLifecycleManager = processLifecycleManager
         self.systemStateProvider = systemStateProvider
         self.kanataManager = kanataManager
+        self.conflictDetector = conflictDetector ?? {
+            try await processLifecycleManager.detectConflicts()
+        }
 
         AppLogger.shared.log("🔍 [SystemValidator] Initialized (stateless, no cache)")
 
@@ -140,6 +143,10 @@ public class SystemValidator {
             AppLogger.shared.log("🔍 [SystemValidator] Reusing recent canonical snapshot")
             progressCallback(1.0)
             return latestSnapshot
+        }
+
+        if freshness == .fresh {
+            invalidateCaches()
         }
 
         return await checkSystem(progressCallback: progressCallback)
@@ -244,7 +251,7 @@ public class SystemValidator {
             case helper(HelperStatus)
             case permissions(PermissionOracle.Snapshot)
             case components(ComponentStatus)
-            case conflicts(ConflictStatus)
+            case conflicts(ConflictCaptureEvidence)
             case health(HealthStatus)
         }
 
@@ -254,7 +261,7 @@ public class SystemValidator {
             var helperResult: HelperStatus?
             var permissionsResult: PermissionOracle.Snapshot?
             var componentsResult: ComponentStatus?
-            var conflictsResult: ConflictStatus?
+            var conflictsResult: ConflictCaptureEvidence?
             var healthResult: HealthStatus?
 
             // Add all tasks to group with progress tracking
@@ -347,10 +354,15 @@ public class SystemValidator {
                         )
                     }(),
                 componentsResult ?? ComponentStatus.empty,
-                conflictsResult ?? ConflictStatus.empty,
+                conflictsResult ?? ConflictCaptureEvidence(
+                    status: .empty,
+                    captureStatus: .failed
+                ),
                 healthResult ?? HealthStatus.empty
             )
         }
+
+        let conflictStatus = conflicts.status
 
         progressCallback(1.0) // All done: 100%
 
@@ -362,11 +374,12 @@ public class SystemValidator {
         let snapshot = SystemSnapshot(
             permissions: permissions,
             components: components,
-            conflicts: conflicts,
+            conflicts: conflictStatus,
             health: health,
             helper: helper,
             compatibility: compatibility,
-            timestamp: Date()
+            timestamp: Date(),
+            captureStatus: conflicts.captureStatus
         )
 
         let duration = Date().timeIntervalSince(startTime)
@@ -497,7 +510,9 @@ public class SystemValidator {
     }
 
     private func componentInstallationFacts() async -> ComponentInstallationFacts {
-        if let cachedComponentFacts, cachedComponentFacts.isFresh(ttl: 15.0) {
+        if let cachedComponentFacts,
+           cachedComponentFacts.isFresh(ttl: Self.canonicalSnapshotCacheTTL)
+        {
             AppLogger.shared.log("🔍 [SystemValidator] Component installation facts CACHE HIT")
             return cachedComponentFacts
         }
@@ -567,7 +582,12 @@ public class SystemValidator {
 
     // MARK: - Conflict Detection
 
-    private func checkConflicts() async -> ConflictStatus {
+    struct ConflictCaptureEvidence: Sendable {
+        let status: ConflictStatus
+        let captureStatus: SystemSnapshotCaptureStatus
+    }
+
+    func checkConflicts() async -> ConflictCaptureEvidence {
         AppLogger.shared.log("🔍 [SystemValidator] Checking for conflicts")
 
         var allConflicts: [SystemConflict] = []
@@ -575,7 +595,7 @@ public class SystemValidator {
         // Check for external kanata processes
         let conflictResolution: ProcessLifecycleManager.ConflictResolution
         do {
-            conflictResolution = try await processLifecycleManager.detectConflicts()
+            conflictResolution = try await conflictDetector()
             allConflicts.append(
                 contentsOf: conflictResolution.externalProcesses.map { process in
                     .kanataProcessRunning(pid: Int(process.pid), command: process.command)
@@ -583,7 +603,7 @@ public class SystemValidator {
             )
         } catch {
             AppLogger.shared.log("❌ [SystemValidator] Process conflict detection failed: \(error)")
-            conflictResolution = .init(externalProcesses: [], managedProcesses: [], canAutoResolve: true)
+            return ConflictCaptureEvidence(status: .empty, captureStatus: .failed)
         }
 
         // Check for Karabiner-Elements conflicts
@@ -605,9 +625,12 @@ public class SystemValidator {
                 "🔍 [SystemValidator] Total conflicts: \(allConflicts.count) (\(conflictResolution.externalProcesses.count) kanata, \(allConflicts.count - conflictResolution.externalProcesses.count) karabiner)"
             )
 
-        return ConflictStatus(
-            conflicts: allConflicts,
-            canAutoResolve: conflictResolution.canAutoResolve
+        return ConflictCaptureEvidence(
+            status: ConflictStatus(
+                conflicts: allConflicts,
+                canAutoResolve: conflictResolution.canAutoResolve
+            ),
+            captureStatus: .complete
         )
     }
 
