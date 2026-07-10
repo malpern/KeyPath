@@ -360,6 +360,171 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
         #endif
     }
 
+    func testRuntimeRecoveryLostHelperReplyWithReadyRuntimeSkipsFallback() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.operationModeOverride = .privilegedHelper
+            PrivilegedOperationsRouter.serviceStateOverride = { .smappserviceActive }
+            KanataDaemonManager.registeredButNotLoadedOverride = { false }
+            PrivilegedOperationsRouter.killExistingKanataProcessesOverride = {}
+            PrivilegedOperationsRouter.helperRecoverRequiredRuntimeServicesOverride = {
+                throw HelperManagerError.ambiguousOutcome("reply lost")
+            }
+            var readinessChecks = 0
+            PrivilegedOperationsRouter.kanataReadinessOverride = { _ in
+                readinessChecks += 1
+                return .ready
+            }
+            var fallbackCalls = 0
+            PrivilegedOperationsRouter.sudoRestartServicesOverride = { fallbackCalls += 1 }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        try await PrivilegedOperationsRouter.shared.recoverRequiredRuntimeServices()
+
+        #if DEBUG
+            XCTAssertEqual(fallbackCalls, 0)
+            XCTAssertEqual(readinessChecks, 2, "Recovery must still run its final post-restart verification")
+        #endif
+    }
+
+    func testRuntimeRecoveryLostKillReplyWithStoppedRuntimeSkipsKillFallback() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.operationModeOverride = .privilegedHelper
+            PrivilegedOperationsRouter.serviceStateOverride = { .smappserviceActive }
+            KanataDaemonManager.registeredButNotLoadedOverride = { false }
+            PrivilegedOperationsRouter.helperKillAllKanataOverride = {
+                throw HelperManagerError.ambiguousOutcome("reply lost")
+            }
+            PrivilegedOperationsRouter.kanataStoppedPostconditionOverride = { _ in true }
+            var killFallbackCalls = 0
+            PrivilegedOperationsRouter.sudoKillAllKanataOverride = { killFallbackCalls += 1 }
+            PrivilegedOperationsRouter.helperRecoverRequiredRuntimeServicesOverride = {}
+            PrivilegedOperationsRouter.kanataReadinessOverride = { _ in .ready }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        try await PrivilegedOperationsRouter.shared.recoverRequiredRuntimeServices()
+
+        #if DEBUG
+            XCTAssertEqual(killFallbackCalls, 0)
+        #endif
+    }
+
+    func testNewsyslogLostHelperReplyWithInstalledConfigSkipsFallback() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.operationModeOverride = .privilegedHelper
+            PrivilegedOperationsRouter.helperInstallNewsyslogConfigOverride = {
+                throw HelperManagerError.ambiguousOutcome("reply lost")
+            }
+            PrivilegedOperationsRouter.newsyslogPostconditionOverride = { true }
+            var fallbackCalls = 0
+            PrivilegedOperationsRouter.sudoInstallNewsyslogConfigOverride = { fallbackCalls += 1 }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        try await PrivilegedOperationsRouter.shared.installNewsyslogConfig()
+
+        #if DEBUG
+            XCTAssertEqual(fallbackCalls, 0)
+        #endif
+    }
+
+    func testDriverInstallLostHelperReplyWithInstalledDriverSkipsFallback() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.operationModeOverride = .privilegedHelper
+            PrivilegedOperationsRouter.bundledVHIDDriverPackagePathOverride = { "/tmp/test-driver.pkg" }
+            PrivilegedOperationsRouter.helperInstallCorrectVHIDDriverOverride = {
+                throw HelperManagerError.ambiguousOutcome("reply lost")
+            }
+            PrivilegedOperationsRouter.vhidDriverPostconditionOverride = { _ in true }
+            var fallbackCalls = 0
+            PrivilegedOperationsRouter.sudoInstallCorrectVHIDDriverOverride = { fallbackCalls += 1 }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        try await PrivilegedOperationsRouter.shared.downloadAndInstallCorrectVHIDDriver()
+
+        #if DEBUG
+            XCTAssertEqual(fallbackCalls, 0)
+        #endif
+    }
+
+    func testProcessTerminationLostHelperReplyWithExitedProcessSkipsFallback() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.operationModeOverride = .privilegedHelper
+            PrivilegedOperationsRouter.helperTerminateProcessOverride = { _ in
+                throw HelperManagerError.ambiguousOutcome("reply lost")
+            }
+            PrivilegedOperationsRouter.processTerminatedPostconditionOverride = { _, _ in true }
+            var fallbackCalls = 0
+            PrivilegedOperationsRouter.sudoTerminateProcessOverride = { _ in fallbackCalls += 1 }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        try await PrivilegedOperationsRouter.shared.terminateProcess(pid: 42)
+
+        #if DEBUG
+            XCTAssertEqual(fallbackCalls, 0)
+        #endif
+    }
+
+    func testKillAllLostHelperReplyWithStoppedRuntimeSkipsFallback() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.operationModeOverride = .privilegedHelper
+            PrivilegedOperationsRouter.helperKillAllKanataOverride = {
+                throw HelperManagerError.ambiguousOutcome("reply lost")
+            }
+            PrivilegedOperationsRouter.kanataStoppedPostconditionOverride = { _ in true }
+            var fallbackCalls = 0
+            PrivilegedOperationsRouter.sudoKillAllKanataOverride = { fallbackCalls += 1 }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        try await PrivilegedOperationsRouter.shared.killAllKanataProcesses()
+
+        #if DEBUG
+            XCTAssertEqual(fallbackCalls, 0)
+        #endif
+    }
+
+    func testKillAllFailedHelperWithRunningRuntimeInvokesFallbackOnce() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.operationModeOverride = .privilegedHelper
+            PrivilegedOperationsRouter.helperKillAllKanataOverride = {
+                throw HelperManagerError.operationFailed("failed")
+            }
+            var verificationCalls = 0
+            PrivilegedOperationsRouter.kanataStoppedPostconditionOverride = { _ in
+                verificationCalls += 1
+                return verificationCalls > 1
+            }
+            var fallbackCalls = 0
+            PrivilegedOperationsRouter.sudoKillAllKanataOverride = { fallbackCalls += 1 }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        try await PrivilegedOperationsRouter.shared.killAllKanataProcesses()
+
+        #if DEBUG
+            XCTAssertEqual(fallbackCalls, 1)
+            XCTAssertEqual(verificationCalls, 2)
+        #endif
+    }
+
     func testRuntimeInstallUsesSMAppServiceAwareInstallPathBeforeKanataPostcondition() async throws {
         #if DEBUG
             PrivilegedOperationsRouter.resetTestingState()

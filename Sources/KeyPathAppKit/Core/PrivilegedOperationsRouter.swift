@@ -40,6 +40,17 @@ public final class PrivilegedOperationsRouter {
         nonisolated(unsafe) static var installAllServicesOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var recoverRequiredRuntimeServicesOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var killExistingKanataProcessesOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var helperRecoverRequiredRuntimeServicesOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var sudoRestartServicesOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var helperInstallNewsyslogConfigOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var sudoInstallNewsyslogConfigOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var helperInstallCorrectVHIDDriverOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var sudoInstallCorrectVHIDDriverOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var bundledVHIDDriverPackagePathOverride: (() -> String?)?
+        nonisolated(unsafe) static var helperTerminateProcessOverride: ((Int32) async throws -> Void)?
+        nonisolated(unsafe) static var sudoTerminateProcessOverride: ((Int32) async throws -> Void)?
+        nonisolated(unsafe) static var helperKillAllKanataOverride: (() async throws -> Void)?
+        nonisolated(unsafe) static var sudoKillAllKanataOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var activateVirtualHIDManagerOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var downloadAndInstallCorrectVHIDDriverOverride: (() async throws -> Void)?
         nonisolated(unsafe) static var kanataReadinessOverride:
@@ -50,6 +61,7 @@ public final class PrivilegedOperationsRouter {
         nonisolated(unsafe) static var vhidDriverPostconditionOverride: ((String) async -> Bool)?
         nonisolated(unsafe) static var processTerminatedPostconditionOverride: ((Int32, String) async -> Bool)?
         nonisolated(unsafe) static var kanataStoppedPostconditionOverride: ((String) async -> Bool)?
+        nonisolated(unsafe) static var newsyslogPostconditionOverride: (() -> Bool)?
 
         static func resetTestingState() {
             operationModeOverride = nil
@@ -57,6 +69,17 @@ public final class PrivilegedOperationsRouter {
             installAllServicesOverride = nil
             recoverRequiredRuntimeServicesOverride = nil
             killExistingKanataProcessesOverride = nil
+            helperRecoverRequiredRuntimeServicesOverride = nil
+            sudoRestartServicesOverride = nil
+            helperInstallNewsyslogConfigOverride = nil
+            sudoInstallNewsyslogConfigOverride = nil
+            helperInstallCorrectVHIDDriverOverride = nil
+            sudoInstallCorrectVHIDDriverOverride = nil
+            bundledVHIDDriverPackagePathOverride = nil
+            helperTerminateProcessOverride = nil
+            sudoTerminateProcessOverride = nil
+            helperKillAllKanataOverride = nil
+            sudoKillAllKanataOverride = nil
             activateVirtualHIDManagerOverride = nil
             downloadAndInstallCorrectVHIDDriverOverride = nil
             kanataReadinessOverride = nil
@@ -66,6 +89,7 @@ public final class PrivilegedOperationsRouter {
             vhidDriverPostconditionOverride = nil
             processTerminatedPostconditionOverride = nil
             kanataStoppedPostconditionOverride = nil
+            newsyslogPostconditionOverride = nil
             lastServiceInstallAttempt = nil
             lastSMAppApprovalNotice = nil
             ServiceInstallGuard.reset()
@@ -146,9 +170,24 @@ public final class PrivilegedOperationsRouter {
         switch Self.operationMode {
         case .privilegedHelper:
             do {
-                try await helperManager.recoverRequiredRuntimeServices()
+                try await helperRecoverRequiredRuntimeServices()
+                try await enforceKanataRuntimePostcondition(after: "recoverRequiredRuntimeServices(helper)")
             } catch {
-                try await sudoRestartServices()
+                try await resolveHelperFailure(
+                    operation: "recoverRequiredRuntimeServices",
+                    error: error,
+                    postcondition: { [self] in
+                        await verifyKanataReadinessAfterInstall(
+                            context: "recoverRequiredRuntimeServices(helper-error)"
+                        ).isSuccess
+                    },
+                    fallback: { [self] in try await sudoRestartServices() },
+                    enforcePostcondition: { [self] in
+                        try await enforceKanataRuntimePostcondition(
+                            after: "recoverRequiredRuntimeServices(sudo-fallback)"
+                        )
+                    }
+                )
             }
         case .directSudo:
             try await sudoRestartServices()
@@ -207,10 +246,23 @@ public final class PrivilegedOperationsRouter {
     public func installNewsyslogConfig() async throws {
         switch Self.operationMode {
         case .privilegedHelper:
-            do { try await helperManager.installNewsyslogConfig() }
-            catch { try await sudoInstallNewsyslogConfig() }
+            do {
+                try await helperInstallNewsyslogConfig()
+                try enforceNewsyslogPostcondition(after: "installNewsyslogConfig(helper)")
+            } catch {
+                try await resolveHelperFailure(
+                    operation: "installNewsyslogConfig",
+                    error: error,
+                    postcondition: { [self] in verifyNewsyslogPostcondition() },
+                    fallback: { [self] in try await sudoInstallNewsyslogConfig() },
+                    enforcePostcondition: { [self] in
+                        try enforceNewsyslogPostcondition(after: "installNewsyslogConfig(sudo-fallback)")
+                    }
+                )
+            }
         case .directSudo:
             try await sudoInstallNewsyslogConfig()
+            try enforceNewsyslogPostcondition(after: "installNewsyslogConfig(sudo)")
         }
     }
 
@@ -221,15 +273,21 @@ public final class PrivilegedOperationsRouter {
                 try await helperRepairVHIDDaemonServices()
                 try await enforceVHIDServicesPostcondition(after: "repairVHIDDaemonServices(helper)")
             } catch {
-                // A timeout or interrupted reply does not prove the helper mutation failed.
-                // Verify current system state before prompting for administrator fallback.
-                if await verifyVHIDServicesPostcondition(context: "repairVHIDDaemonServices(helper-error)") {
-                    AppLogger.shared.log("✅ [Router] Helper reply failed, but VHID postcondition is satisfied; skipping administrator fallback")
-                    return
-                }
-                AppLogger.shared.log("⚠️ [Router] Helper repair did not satisfy the VHID postcondition — using allowed sudo fallback once")
-                try await sudoRepairVHIDServices()
-                try await enforceVHIDServicesPostcondition(after: "repairVHIDDaemonServices(sudo-fallback)")
+                try await resolveHelperFailure(
+                    operation: "repairVHIDDaemonServices",
+                    error: error,
+                    postcondition: { [self] in
+                        await verifyVHIDServicesPostcondition(
+                            context: "repairVHIDDaemonServices(helper-error)"
+                        )
+                    },
+                    fallback: { [self] in try await sudoRepairVHIDServices() },
+                    enforcePostcondition: { [self] in
+                        try await enforceVHIDServicesPostcondition(
+                            after: "repairVHIDDaemonServices(sudo-fallback)"
+                        )
+                    }
+                )
             }
         case .directSudo:
             try await sudoRepairVHIDServices()
@@ -280,20 +338,44 @@ public final class PrivilegedOperationsRouter {
         switch Self.operationMode {
         case .privilegedHelper:
             do {
-                let bundledPkgPath = WizardSystemPaths.bundledVHIDDriverPkgPath
-                guard WizardSystemPaths.bundledVHIDDriverPkgExists else {
+                #if DEBUG
+                    let bundledPkgPath = Self.bundledVHIDDriverPackagePathOverride?()
+                        ?? (WizardSystemPaths.bundledVHIDDriverPkgExists
+                            ? WizardSystemPaths.bundledVHIDDriverPkgPath
+                            : nil)
+                #else
+                    let bundledPkgPath = WizardSystemPaths.bundledVHIDDriverPkgExists
+                        ? WizardSystemPaths.bundledVHIDDriverPkgPath
+                        : nil
+                #endif
+                guard let bundledPkgPath else {
                     throw PrivilegedOperationError.operationFailed(
                         "Bundled VHID driver package not found."
                     )
                 }
-                try await helperManager.installBundledVHIDDriver(pkgPath: bundledPkgPath)
+                try await helperInstallCorrectVHIDDriver(pkgPath: bundledPkgPath)
+                try await enforceVHIDDriverPostcondition(after: "downloadAndInstallCorrectVHIDDriver(helper)")
             } catch {
-                try await sudoInstallCorrectDriver()
+                try await resolveHelperFailure(
+                    operation: "downloadAndInstallCorrectVHIDDriver",
+                    error: error,
+                    postcondition: { [self] in
+                        await verifyVHIDDriverPostcondition(
+                            context: "downloadAndInstallCorrectVHIDDriver(helper-error)"
+                        )
+                    },
+                    fallback: { [self] in try await sudoInstallCorrectDriver() },
+                    enforcePostcondition: { [self] in
+                        try await enforceVHIDDriverPostcondition(
+                            after: "downloadAndInstallCorrectVHIDDriver(sudo-fallback)"
+                        )
+                    }
+                )
             }
         case .directSudo:
             try await sudoInstallCorrectDriver()
+            try await enforceVHIDDriverPostcondition(after: "downloadAndInstallCorrectVHIDDriver(sudo)")
         }
-        try await enforceVHIDDriverPostcondition(after: "downloadAndInstallCorrectVHIDDriver")
     }
 
     public func terminateProcess(pid: Int32) async throws {
@@ -306,23 +388,61 @@ public final class PrivilegedOperationsRouter {
 
         switch Self.operationMode {
         case .privilegedHelper:
-            do { try await helperManager.terminateProcess(pid) }
-            catch { try await sudoTerminateProcess(pid: pid) }
+            do {
+                try await helperTerminateProcess(pid: pid)
+                try await enforceProcessTerminatedPostcondition(pid: pid, after: "terminateProcess(helper)")
+            } catch {
+                try await resolveHelperFailure(
+                    operation: "terminateProcess",
+                    error: error,
+                    postcondition: { [self] in
+                        await verifyProcessTerminatedPostcondition(
+                            pid: pid,
+                            context: "terminateProcess(helper-error)"
+                        )
+                    },
+                    fallback: { [self] in try await sudoTerminateProcess(pid: pid) },
+                    enforcePostcondition: { [self] in
+                        try await enforceProcessTerminatedPostcondition(
+                            pid: pid,
+                            after: "terminateProcess(sudo-fallback)"
+                        )
+                    }
+                )
+            }
         case .directSudo:
             try await sudoTerminateProcess(pid: pid)
+            try await enforceProcessTerminatedPostcondition(pid: pid, after: "terminateProcess(sudo)")
         }
-        try await enforceProcessTerminatedPostcondition(pid: pid, after: "terminateProcess")
     }
 
     public func killAllKanataProcesses() async throws {
         switch Self.operationMode {
         case .privilegedHelper:
-            do { try await helperManager.killAllKanataProcesses() }
-            catch { try await sudoKillAllKanata() }
+            do {
+                try await helperKillAllKanataProcesses()
+                try await enforceKanataStoppedPostcondition(after: "killAllKanataProcesses(helper)")
+            } catch {
+                try await resolveHelperFailure(
+                    operation: "killAllKanataProcesses",
+                    error: error,
+                    postcondition: { [self] in
+                        await verifyKanataStoppedPostcondition(
+                            context: "killAllKanataProcesses(helper-error)"
+                        )
+                    },
+                    fallback: { [self] in try await sudoKillAllKanata() },
+                    enforcePostcondition: { [self] in
+                        try await enforceKanataStoppedPostcondition(
+                            after: "killAllKanataProcesses(sudo-fallback)"
+                        )
+                    }
+                )
+            }
         case .directSudo:
             try await sudoKillAllKanata()
+            try await enforceKanataStoppedPostcondition(after: "killAllKanataProcesses(sudo)")
         }
-        try await enforceKanataStoppedPostcondition(after: "killAllKanataProcesses")
     }
 
     public func restartKarabinerDaemonVerified() async throws -> Bool {
@@ -367,6 +487,12 @@ public final class PrivilegedOperationsRouter {
     }
 
     private func sudoRestartServices() async throws {
+        #if DEBUG
+            if let override = Self.sudoRestartServicesOverride {
+                try await override()
+                return
+            }
+        #endif
         let success = await ServiceBootstrapper.shared.recoverRequiredRuntimeServices()
         if !success {
             throw PrivilegedOperationError.operationFailed("Service restart failed")
@@ -381,6 +507,12 @@ public final class PrivilegedOperationsRouter {
     }
 
     private func sudoInstallNewsyslogConfig() async throws {
+        #if DEBUG
+            if let override = Self.sudoInstallNewsyslogConfigOverride {
+                try await override()
+                return
+            }
+        #endif
         let success = await ServiceBootstrapper.shared.installNewsyslogConfig()
         if !success {
             throw PrivilegedOperationError.operationFailed("Newsyslog config installation failed")
@@ -415,6 +547,12 @@ public final class PrivilegedOperationsRouter {
     }
 
     private func sudoInstallCorrectDriver() async throws {
+        #if DEBUG
+            if let override = Self.sudoInstallCorrectVHIDDriverOverride {
+                try await override()
+                return
+            }
+        #endif
         let vhidManager = VHIDDeviceManager()
         if await !(vhidManager.downloadAndInstallCorrectVersion()) {
             throw PrivilegedOperationError.operationFailed("Driver installation failed")
@@ -422,6 +560,12 @@ public final class PrivilegedOperationsRouter {
     }
 
     private func sudoTerminateProcess(pid: Int32) async throws {
+        #if DEBUG
+            if let override = Self.sudoTerminateProcessOverride {
+                try await override(pid)
+                return
+            }
+        #endif
         do {
             try await sudoExecuteCommand("/bin/kill -TERM \(pid)", description: "Terminate process \(pid)")
         } catch {
@@ -430,6 +574,12 @@ public final class PrivilegedOperationsRouter {
     }
 
     private func sudoKillAllKanata() async throws {
+        #if DEBUG
+            if let override = Self.sudoKillAllKanataOverride {
+                try await override()
+                return
+            }
+        #endif
         try await sudoExecuteCommand("/usr/bin/pkill -f kanata", description: "Kill all Kanata processes")
     }
 
@@ -475,6 +625,56 @@ public final class PrivilegedOperationsRouter {
         try await helperManager.repairVHIDDaemonServices()
     }
 
+    private func helperRecoverRequiredRuntimeServices() async throws {
+        #if DEBUG
+            if let override = Self.helperRecoverRequiredRuntimeServicesOverride {
+                try await override()
+                return
+            }
+        #endif
+        try await helperManager.recoverRequiredRuntimeServices()
+    }
+
+    private func helperInstallNewsyslogConfig() async throws {
+        #if DEBUG
+            if let override = Self.helperInstallNewsyslogConfigOverride {
+                try await override()
+                return
+            }
+        #endif
+        try await helperManager.installNewsyslogConfig()
+    }
+
+    private func helperInstallCorrectVHIDDriver(pkgPath: String) async throws {
+        #if DEBUG
+            if let override = Self.helperInstallCorrectVHIDDriverOverride {
+                try await override()
+                return
+            }
+        #endif
+        try await helperManager.installBundledVHIDDriver(pkgPath: pkgPath)
+    }
+
+    private func helperTerminateProcess(pid: Int32) async throws {
+        #if DEBUG
+            if let override = Self.helperTerminateProcessOverride {
+                try await override(pid)
+                return
+            }
+        #endif
+        try await helperManager.terminateProcess(pid)
+    }
+
+    private func helperKillAllKanataProcesses() async throws {
+        #if DEBUG
+            if let override = Self.helperKillAllKanataOverride {
+                try await override()
+                return
+            }
+        #endif
+        try await helperManager.killAllKanataProcesses()
+    }
+
     private func killExistingKanataProcessesForServiceRecovery() async throws {
         #if DEBUG
             if let override = Self.killExistingKanataProcessesOverride {
@@ -485,11 +685,61 @@ public final class PrivilegedOperationsRouter {
 
         switch Self.operationMode {
         case .privilegedHelper:
-            do { try await helperManager.killAllKanataProcesses() }
-            catch { try await sudoKillAllKanata() }
+            do {
+                try await helperKillAllKanataProcesses()
+                try await enforceKanataStoppedPostcondition(
+                    after: "killExistingKanataProcessesForServiceRecovery(helper)"
+                )
+            } catch {
+                try await resolveHelperFailure(
+                    operation: "killExistingKanataProcessesForServiceRecovery",
+                    error: error,
+                    postcondition: { [self] in
+                        await verifyKanataStoppedPostcondition(
+                            context: "killExistingKanataProcessesForServiceRecovery(helper-error)"
+                        )
+                    },
+                    fallback: { [self] in try await sudoKillAllKanata() },
+                    enforcePostcondition: { [self] in
+                        try await enforceKanataStoppedPostcondition(
+                            after: "killExistingKanataProcessesForServiceRecovery(sudo-fallback)"
+                        )
+                    }
+                )
+            }
         case .directSudo:
             try await sudoKillAllKanata()
+            try await enforceKanataStoppedPostcondition(
+                after: "killExistingKanataProcessesForServiceRecovery(sudo)"
+            )
         }
+    }
+
+    private func resolveHelperFailure(
+        operation: String,
+        error: Error,
+        postcondition: () async -> Bool,
+        fallback: () async throws -> Void,
+        enforcePostcondition: () async throws -> Void
+    ) async throws {
+        if await postcondition() {
+            AppLogger.shared.log(
+                "✅ [Router] \(operation) helper reply failed, but its postcondition is satisfied; skipping administrator fallback"
+            )
+            return
+        }
+
+        if case .ambiguousOutcome = error as? HelperManagerError {
+            AppLogger.shared.log(
+                "⚠️ [Router] \(operation) helper outcome is ambiguous and its postcondition is unsatisfied — using allowed administrator fallback once"
+            )
+        } else {
+            AppLogger.shared.log(
+                "⚠️ [Router] \(operation) helper failed and its postcondition is unsatisfied — using allowed administrator fallback once"
+            )
+        }
+        try await fallback()
+        try await enforcePostcondition()
     }
 
     private func enforceKanataRuntimePostcondition(after operation: String) async throws {
@@ -502,6 +752,23 @@ public final class PrivilegedOperationsRouter {
                 "Kanata postcondition failed after \(operation): \(readiness.failureDescription)"
             )
         }
+    }
+
+    private func enforceNewsyslogPostcondition(after operation: String) throws {
+        guard verifyNewsyslogPostcondition() else {
+            throw PrivilegedOperationError.operationFailed(
+                "Newsyslog config postcondition failed after \(operation)"
+            )
+        }
+    }
+
+    private func verifyNewsyslogPostcondition() -> Bool {
+        #if DEBUG
+            if let override = Self.newsyslogPostconditionOverride {
+                return override()
+            }
+        #endif
+        return ServiceBootstrapper.shared.isNewsyslogConfigInstalled()
     }
 
     private func enforceVHIDServicesPostcondition(after operation: String) async throws {

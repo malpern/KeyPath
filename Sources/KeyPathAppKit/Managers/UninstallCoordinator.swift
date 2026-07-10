@@ -164,6 +164,7 @@ public final class UninstallCoordinator {
         }
 
         var helperFailure: String?
+        var helperReplyFailed = false
         var virtualHIDFailure: String?
         if helperReady {
             logLines.append("🔧 Using the system helper for uninstall...")
@@ -232,6 +233,7 @@ public final class UninstallCoordinator {
                     ? "Some KeyPath system components remain installed."
                     : "The system helper registration could not be removed."
             } catch {
+                helperReplyFailed = true
                 helperFailure = error.localizedDescription
                 steps.append(WizardUninstallStepResult(
                     id: "uninstall-via-helper",
@@ -243,6 +245,45 @@ public final class UninstallCoordinator {
         } else {
             helperFailure = "The system helper is unavailable and could not be repaired."
             logLines.append("⚠️ \(helperFailure!)")
+        }
+
+        // A timeout or interrupted helper reply is ambiguous. Before invoking
+        // Emergency Cleanup, verify whether the helper already removed the
+        // requested components. Only tear down helper registration after the
+        // filesystem postcondition proves the uninstall completed.
+        let filesRemovedAfterHelperError = helperReplyFailed
+            ? await waitForUninstallPostconditions()
+            : false
+        if filesRemovedAfterHelperError {
+            let driverRemoved: Bool = if removeVirtualHID {
+                await waitForVirtualHIDRemoval()
+            } else {
+                true
+            }
+            if driverRemoved {
+                let helperUnregistered = await unregisterHelperClosure()
+                steps.append(WizardUninstallStepResult(
+                    id: "unregister-uninstall-helper",
+                    success: helperUnregistered,
+                    error: helperUnregistered ? nil : "The system helper registration remains active."
+                ))
+                steps.append(WizardUninstallStepResult(
+                    id: "verify-uninstall",
+                    success: helperUnregistered,
+                    error: helperUnregistered ? nil : "The system helper registration remains active."
+                ))
+                if helperUnregistered {
+                    await resetForTestingIfEnabled()
+                    logLines.append(
+                        "✅ System helper reply failed, but uninstall postconditions are satisfied; skipping Emergency Cleanup"
+                    )
+                    return finish(WizardUninstallResult(
+                        success: true,
+                        steps: steps,
+                        logs: logLines
+                    ))
+                }
+            }
         }
 
         if allowAdminFallback {

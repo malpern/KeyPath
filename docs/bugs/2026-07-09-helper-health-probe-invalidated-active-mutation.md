@@ -1,7 +1,7 @@
 # Helper Health Probe Invalidated an Active Mutation
 
 **Date:** 2026-07-09
-**Status:** Fixed in Milestone 1 execution-safety work
+**Status:** Fixed in Milestone 1 execution-safety work; generalized 2026-07-10
 
 ## Symptom
 
@@ -41,9 +41,13 @@ and a final restart to the same repair recipe during one button action.
 - A health-probe timeout never invalidates the shared connection.
 - Helper mutation timeouts are represented as ambiguous because the helper may
   have completed after the reply path was lost.
-- VHID repair verifies the authoritative postcondition after any helper error.
-  A satisfied postcondition returns success without fallback; an unsatisfied
-  postcondition permits exactly one configured administrator fallback.
+- Every helper-first router operation with an administrator fallback verifies
+  its operation-specific postcondition after any helper error. A satisfied
+  postcondition returns success without fallback; an unsatisfied postcondition
+  permits exactly one configured administrator fallback, followed by the same
+  postcondition check.
+- Uninstall rechecks filesystem and optional driver postconditions after a
+  failed helper reply before offering or running Emergency Cleanup.
 - `InstallerEngine.run` and `runSingleAction` share one transaction gate.
 - The Karabiner page requests at most one equivalent VHID daemon repair per
   automatic repair action.
@@ -54,6 +58,13 @@ and a final restart to the same repair recipe during one button action.
 - `HelperManagerTests.testPrivilegedHelperOperationsAcquireGateSerially`
 - `PrivilegedOperationsRouterTests.testLostHelperReplyWithSatisfiedPostconditionSkipsFallback`
 - `PrivilegedOperationsRouterTests.testFailedHelperWithUnsatisfiedPostconditionInvokesFallbackOnce`
+- `PrivilegedOperationsRouterTests.testRuntimeRecoveryLostHelperReplyWithReadyRuntimeSkipsFallback`
+- `PrivilegedOperationsRouterTests.testRuntimeRecoveryLostKillReplyWithStoppedRuntimeSkipsKillFallback`
+- `PrivilegedOperationsRouterTests.testNewsyslogLostHelperReplyWithInstalledConfigSkipsFallback`
+- `PrivilegedOperationsRouterTests.testDriverInstallLostHelperReplyWithInstalledDriverSkipsFallback`
+- `PrivilegedOperationsRouterTests.testProcessTerminationLostHelperReplyWithExitedProcessSkipsFallback`
+- `PrivilegedOperationsRouterTests.testKillAllLostHelperReplyWithStoppedRuntimeSkipsFallback`
+- `UninstallCoordinatorTests.testLostHelperReplyWithSatisfiedPostconditionsSkipsEmergencyCleanup`
 
 ## Runtime Verification
 
