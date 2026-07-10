@@ -17,6 +17,11 @@ final class StubSystemValidator: WizardSystemValidating {
         snapshots = [Self.snapshot(from: context)]
     }
 
+    init(contexts: [SystemContext]) {
+        precondition(!contexts.isEmpty)
+        snapshots = contexts.map(Self.snapshot(from:))
+    }
+
     init(snapshots: [SystemSnapshot]) {
         precondition(!snapshots.isEmpty)
         self.snapshots = snapshots

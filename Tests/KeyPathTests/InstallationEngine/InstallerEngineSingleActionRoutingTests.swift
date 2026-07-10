@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+import KeyPathDaemonLifecycle
 @testable import KeyPathInstallationWizard
 @testable import KeyPathWizardCore
 @preconcurrency import XCTest
@@ -73,10 +74,41 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
     func testTerminateConflictingProcessesRouteCorrectly() async {
         let coordinator = StubPrivilegedOperationsCoordinator()
         let broker = PrivilegeBroker(coordinator: coordinator)
-        let engine = InstallerEngine()
+        let initialContext = SystemContextBuilder(
+            conflicts: [
+                .kanataProcessRunning(pid: 42, command: "kanata"),
+                .karabinerGrabberRunning(pid: 43)
+            ]
+        ).build()
+        let finalContext = SystemContextBuilder(conflicts: []).build()
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: StubSystemValidator(contexts: [initialContext, finalContext])
+        )
 
-        _ = await engine.runSingleAction(.terminateConflictingProcesses, using: broker)
+        let report = await engine.runSingleAction(.terminateConflictingProcesses, using: broker)
+
+        XCTAssertTrue(report.success)
         XCTAssertTrue(coordinator.calls.contains("killAllKanataProcesses"))
+        XCTAssertTrue(coordinator.calls.contains("disableKarabinerGrabber"))
+    }
+
+    func testTerminateConflictingProcessesRejectsUnsupportedConflict() async {
+        let context = SystemContextBuilder(
+            conflicts: [.exclusiveDeviceAccess(device: "Built-in Keyboard")]
+        ).build()
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: StubSystemValidator(context: context)
+        )
+
+        let report = await engine.runSingleAction(
+            .terminateConflictingProcesses,
+            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+        )
+
+        XCTAssertFalse(report.success)
+        XCTAssertTrue(report.failureReason?.contains("Unsupported automatic conflict resolution") ?? false)
     }
 
     func testRestartVirtualHIDDaemonUsesVHIDRepairPath() async {

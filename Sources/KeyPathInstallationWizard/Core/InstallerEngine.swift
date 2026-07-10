@@ -723,8 +723,28 @@ public final class InstallerEngine {
         // Check requirement recipes (e.g., terminate conflicting processes)
         switch recipe.id {
         case InstallerRecipeID.terminateConflictingProcesses:
-            // Kill all Kanata processes (conflict resolution)
-            try await broker.killAllKanataProcesses()
+            var terminatedKanata = false
+            var disabledKarabinerGrabber = false
+            for conflict in recipe.conflictsToResolve {
+                switch conflict {
+                case .kanataProcessRunning:
+                    if !terminatedKanata {
+                        try await broker.killAllKanataProcesses()
+                        terminatedKanata = true
+                    }
+                case .karabinerGrabberRunning:
+                    if !disabledKarabinerGrabber {
+                        try await broker.disableKarabinerGrabber()
+                        disabledKarabinerGrabber = true
+                    }
+                case .karabinerVirtualHIDDeviceRunning,
+                     .karabinerVirtualHIDDaemonRunning,
+                     .exclusiveDeviceAccess:
+                    throw InstallerError.healthCheckFailed(
+                        "Unsupported automatic conflict resolution: \(conflict)"
+                    )
+                }
+            }
 
         case InstallerRecipeID.synchronizeConfigPaths:
             // No privileged action required; treat as satisfied

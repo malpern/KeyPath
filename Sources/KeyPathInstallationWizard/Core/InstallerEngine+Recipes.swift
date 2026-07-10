@@ -34,7 +34,7 @@ public extension InstallerEngine {
     }
 
     /// Convert an AutoFixAction to a ServiceRecipe
-    func recipeForAction(_ action: AutoFixAction, context _: SystemContext) -> ServiceRecipe? {
+    func recipeForAction(_ action: AutoFixAction, context: SystemContext) -> ServiceRecipe? {
         switch action {
         case .installRequiredRuntimeServices:
             ServiceRecipe(
@@ -101,7 +101,8 @@ public extension InstallerEngine {
                 id: InstallerRecipeID.terminateConflictingProcesses,
                 type: .resolveRequirement,
                 serviceID: nil,
-                expectedPostconditions: [.conflictsResolved]
+                expectedPostconditions: [.conflictsResolved],
+                conflictsToResolve: context.conflicts.conflicts
             )
 
         case .fixDriverVersionMismatch:

@@ -265,6 +265,8 @@ public struct ServiceRecipe: Sendable, Equatable {
     public let dependencies: [String]
     /// State that must be true in the engine-owned final snapshot.
     public let expectedPostconditions: [InstallerPostcondition]
+    /// Conflicts captured by planning for a conflict-resolution recipe.
+    public let conflictsToResolve: [SystemConflict]
 
     public init(
         id: String,
@@ -274,7 +276,8 @@ public struct ServiceRecipe: Sendable, Equatable {
         launchctlActions: [LaunchctlAction] = [],
         healthCheck: HealthCheckCriteria? = nil,
         dependencies: [String] = [],
-        expectedPostconditions: [InstallerPostcondition] = []
+        expectedPostconditions: [InstallerPostcondition] = [],
+        conflictsToResolve: [SystemConflict] = []
     ) {
         self.id = id
         self.type = type
@@ -284,6 +287,7 @@ public struct ServiceRecipe: Sendable, Equatable {
         self.healthCheck = healthCheck
         self.dependencies = dependencies
         self.expectedPostconditions = expectedPostconditions
+        self.conflictsToResolve = conflictsToResolve
     }
 }
 
