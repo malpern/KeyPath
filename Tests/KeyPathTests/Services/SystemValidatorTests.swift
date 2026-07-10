@@ -257,4 +257,45 @@ struct SystemValidatorTests {
         #expect(SystemValidator.combinedCaptureStatus([.cancelled, .failed]) == .failed)
         #expect(SystemValidator.combinedCaptureStatus([.complete, .complete]) == .complete)
     }
+
+    @Test("Canonical capture timeout returns first-class timed-out evidence")
+    func canonicalCaptureTimeout() async {
+        let clock = ContinuousClock()
+        let started = clock.now
+        let snapshot = await SystemValidator.boundedCapture(timeout: 0.01) {
+            while !Task.isCancelled {
+                await Task.yield()
+            }
+            return .unavailable(captureStatus: .failed, source: "late-test-result")
+        }
+
+        #expect(snapshot.captureStatus == .timedOut)
+        #expect(started.duration(to: clock.now) < .milliseconds(250))
+    }
+
+    @Test("Canonical capture returns completed evidence before its deadline")
+    func canonicalCaptureCompletes() async {
+        let expected = SystemSnapshot.unavailable(captureStatus: .failed, source: "test-result")
+        let snapshot = await SystemValidator.boundedCapture(timeout: 1) { expected }
+
+        #expect(snapshot.id == expected.id)
+        #expect(snapshot.captureStatus == .failed)
+    }
+
+    @Test("Cancelling canonical capture returns cancelled evidence")
+    func canonicalCaptureCancellation() async {
+        let capture = Task { @MainActor in
+            await SystemValidator.boundedCapture(timeout: 1) {
+                while !Task.isCancelled {
+                    await Task.yield()
+                }
+                return .unavailable(captureStatus: .failed, source: "late-test-result")
+            }
+        }
+        await Task.yield()
+        capture.cancel()
+
+        let snapshot = await capture.value
+        #expect(snapshot.captureStatus == .cancelled)
+    }
 }
