@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 import KeyPathCore
+import KeyPathDaemonLifecycle
 @testable import KeyPathInstallationWizard
 import KeyPathPermissions
 @testable import KeyPathWizardCore
@@ -115,13 +116,17 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         let broker = PrivilegeBroker(coordinator: stub)
 
         let context = SystemContextBuilder.cleanInstall()
-        let plan = await engine.makePlan(for: .install, context: context)
+        let deterministicEngine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: StubSystemValidator(context: context)
+        )
+        let plan = await deterministicEngine.makePlan(for: .install, context: context)
 
         guard plan.status == .ready else {
             throw XCTSkip("Plan is blocked — cannot test recipe execution")
         }
 
-        let report = await engine.execute(plan: plan, using: broker)
+        let report = await deterministicEngine.execute(plan: plan, using: broker)
 
         XCTAssertFalse(report.success)
         XCTAssertNotNil(report.failureReason)
