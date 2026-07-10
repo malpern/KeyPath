@@ -27,6 +27,9 @@ at the other layout.
 - Canonicalize the quick-deploy project path before deriving cache paths;
   spelling the same directory as both `.build` and `Scripts/../.build` makes
   Clang diagnose duplicate PCM modules and can crash `swift-frontend`.
+- Existing worktrees may already contain Swift modules embedding the legacy
+  spelling. A marker-gated, one-time `swift package clean` removes build
+  products while preserving dependency checkouts; later runs stay incremental.
 
 Each concurrent thread still has independent artifacts because repository
 policy gives every thread its own worktree.

@@ -106,6 +106,7 @@ final class DeploymentScriptContractTests: XCTestCase {
         let root = repositoryRoot()
         let quickDeploy = try contents(of: root.appendingPathComponent("Scripts/quick-deploy.sh"))
         let safeTests = try contents(of: root.appendingPathComponent("Scripts/run-tests-safe.sh"))
+        let cacheContract = try contents(of: root.appendingPathComponent("Scripts/lib/build-cache.sh"))
 
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: root.appendingPathComponent("Package.resolved").path),
@@ -125,13 +126,19 @@ final class DeploymentScriptContractTests: XCTestCase {
             "Routine build and test entry points must honor Package.resolved without re-resolving."
         )
         XCTAssertTrue(
-            quickDeploy.contains(#"if [[ -L "$PROJECT_DIR/.build/debug" ]]"#)
-                && safeTests.contains(#"if [ -L "$SCRATCH_PATH/debug" ]"#),
+            quickDeploy.contains(#"source "$SCRIPT_DIR/lib/build-cache.sh""#)
+                && safeTests.contains(#"source "$SCRIPT_DIR/lib/build-cache.sh""#)
+                && cacheContract.contains(#"if [[ -L "$scratch_path/debug" ]]"#),
             "Build entry points must safely refresh only generated debug symlinks."
         )
         XCTAssertTrue(
             quickDeploy.contains(#"PROJECT_DIR=$(cd "$SCRIPT_DIR/.." >/dev/null && pwd -P)"#),
             "quick-deploy must canonicalize PROJECT_DIR so Clang sees one module-cache path."
+        )
+        XCTAssertTrue(
+            cacheContract.contains(".keypath-canonical-module-cache-v1")
+                && cacheContract.contains("swift package clean"),
+            "Legacy noncanonical modules require one marker-gated artifact migration."
         )
     }
 }
