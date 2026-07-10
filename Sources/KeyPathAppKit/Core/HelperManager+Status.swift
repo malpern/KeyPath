@@ -50,80 +50,86 @@ extension HelperManager {
             return Self.expectedHelperVersion
         }
 
-        await operationGate.acquire()
-        defer { Task { await self.operationGate.release() } }
-
-        // Query version from helper
-        guard await isHelperInstalled() else {
-            AppLogger.shared.log("⚠️ [HelperManager] Helper not installed, cannot get version")
-            return nil
-        }
-
         do {
-            let proxy = try await getRemoteProxy { _ in /* proxy error handled by timeout path */ }
-            let version: String? = await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
-                // Guard ensures the continuation is resumed exactly once.
-                // The lock protects a Bool: false = not yet resumed, true = already resumed.
-                let resumed = OSAllocatedUnfairLock(initialState: false)
-
-                // Schedule a timeout task that will fire if the XPC callback is too slow.
-                let timeoutTask = Task { @Sendable in
-                    try await Task.sleep(for: .seconds(3))
-                    // If we get here, the sleep was NOT cancelled, so we timed out.
-                    let alreadyResumed = resumed.withLock { flag -> Bool in
-                        if flag { return true }
-                        flag = true
-                        return false
-                    }
-                    guard !alreadyResumed else { return }
-                    AppLogger.shared.log(
-                        "⚠️ [HelperManager] getVersion timed out; preserving the shared connection because another operation may still be completing"
-                    )
-                    continuation.resume(returning: nil)
-                }
-
-                AppLogger.shared.log("📤 [HelperManager] Calling proxy.getVersion()")
-                proxy.getVersion { version, error in
-                    AppLogger.shared.log(
-                        "📥 [HelperManager] getVersion callback received"
-                    )
-
-                    // Cancel the timeout since the callback arrived.
-                    timeoutTask.cancel()
-
-                    let alreadyResumed = resumed.withLock { flag -> Bool in
-                        if flag { return true }
-                        flag = true
-                        return false
-                    }
-                    guard !alreadyResumed else {
-                        AppLogger.shared.log(
-                            "⚠️ [HelperManager] getVersion callback arrived after timeout - ignoring"
-                        )
-                        return
-                    }
-
-                    if let version {
-                        AppLogger.shared.info("✅ [HelperManager] Helper version: \(version)")
-                        continuation.resume(returning: version)
-                    } else {
-                        let msg = error ?? "Unknown error"
-                        AppLogger.shared.log("❌ [HelperManager] getVersion callback error: \(msg)")
-                        AppLogger.shared.log(
-                            "⚠️ [HelperManager] getVersion callback completed but no version received - clearing connection cache"
-                        )
-                        Task { await HelperManager.shared.clearConnection() }
-                        continuation.resume(returning: nil)
-                    }
-                }
+            if isWithinAmbiguousMutationProbeWindow() {
                 AppLogger.shared.log(
-                    "📤 [HelperManager] proxy.getVersion() call dispatched, waiting for callback"
+                    "⏳ [HelperManager] Deferring version probe after ambiguous mutation timeout"
                 )
+                try await Task.sleep(for: .seconds(1))
+                try Task.checkCancellation()
             }
-            return version
+
+            return try await withHelperOperationPermit {
+                try Task.checkCancellation()
+
+                guard await isHelperInstalled() else {
+                    AppLogger.shared.log("⚠️ [HelperManager] Helper not installed, cannot get version")
+                    return nil
+                }
+
+                return await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
+                    let resumed = OSAllocatedUnfairLock(initialState: false)
+                    let complete: @Sendable (String?) -> Void = { value in
+                        let alreadyResumed = resumed.withLock { flag -> Bool in
+                            if flag { return true }
+                            flag = true
+                            return false
+                        }
+                        guard !alreadyResumed else { return }
+                        continuation.resume(returning: value)
+                    }
+
+                    let timeoutTask = Task { @Sendable in
+                        try await Task.sleep(for: .seconds(3))
+                        AppLogger.shared.log(
+                            "⚠️ [HelperManager] getVersion timed out; preserving the shared connection because another operation may still be completing"
+                        )
+                        complete(nil)
+                    }
+
+                    Task {
+                        do {
+                            try Task.checkCancellation()
+                            let remote = try await getRemoteProxy { error in
+                                AppLogger.shared.log(
+                                    "❌ [HelperManager] getVersion proxy error: \(Self.normalizedProxyError(error, operation: "getVersion"))"
+                                )
+                                timeoutTask.cancel()
+                                complete(nil)
+                            }
+                            AppLogger.shared.log("📤 [HelperManager] Calling proxy.getVersion()")
+                            remote.proxy.getVersion { version, error in
+                                timeoutTask.cancel()
+                                if let version {
+                                    AppLogger.shared.info("✅ [HelperManager] Helper version: \(version)")
+                                    complete(version)
+                                } else {
+                                    let message = error ?? "Unknown error"
+                                    let generation = remote.connectionGeneration
+                                    AppLogger.shared.log(
+                                        "❌ [HelperManager] getVersion callback error: \(message)"
+                                    )
+                                    Task {
+                                        await HelperManager.shared.clearConnection(
+                                            ifGenerationMatches: generation
+                                        )
+                                    }
+                                    complete(nil)
+                                }
+                            }
+                        } catch {
+                            timeoutTask.cancel()
+                            AppLogger.shared.log(
+                                "❌ [HelperManager] Failed to connect for version check: \(error)"
+                            )
+                            complete(nil)
+                        }
+                    }
+                }
+            }
         } catch {
             AppLogger.shared.log(
-                "❌ [HelperManager] Failed to connect to helper for version check: \(error)"
+                "ℹ️ [HelperManager] Version check cancelled before dispatch: \(error)"
             )
             return nil
         }
@@ -211,6 +217,12 @@ extension HelperManager {
         // No need to call testHelperFunctionality() separately.
         if let version = await getHelperVersion() {
             return .healthy(version: version)
+        }
+
+        if isWithinAmbiguousMutationProbeWindow() {
+            return .temporarilyUnavailable(
+                "Helper mutation timed out recently; responsiveness is temporarily unknown"
+            )
         }
 
         // Installed but XPC failing

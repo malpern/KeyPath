@@ -249,4 +249,12 @@ struct SystemValidatorTests {
 
         #expect(error == "Duplicate alias: beh_base_a")
     }
+
+    @Test("Capture status keeps the most conservative probe result")
+    func combinedCaptureStatusIsConservative() {
+        #expect(SystemValidator.combinedCaptureStatus([.complete, .timedOut]) == .timedOut)
+        #expect(SystemValidator.combinedCaptureStatus([.timedOut, .cancelled]) == .cancelled)
+        #expect(SystemValidator.combinedCaptureStatus([.cancelled, .failed]) == .failed)
+        #expect(SystemValidator.combinedCaptureStatus([.complete, .complete]) == .complete)
+    }
 }

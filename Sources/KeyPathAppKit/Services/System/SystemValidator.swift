@@ -60,6 +60,11 @@ public class SystemValidator {
         }
     }
 
+    private struct HelperCaptureEvidence: Sendable {
+        let status: HelperStatus
+        let captureStatus: SystemSnapshotCaptureStatus
+    }
+
     init(
         vhidDeviceManager: VHIDDeviceManager = VHIDDeviceManager(),
         processLifecycleManager: ProcessLifecycleManager,
@@ -248,7 +253,7 @@ public class SystemValidator {
         // Run all checks in parallel, tracking progress as each completes
         // Use a Sendable enum to wrap results
         enum ValidationResult: Sendable {
-            case helper(HelperStatus)
+            case helper(HelperCaptureEvidence)
             case permissions(PermissionOracle.Snapshot)
             case components(ComponentStatus)
             case conflicts(ConflictCaptureEvidence)
@@ -258,7 +263,7 @@ public class SystemValidator {
         let (helper, permissions, components, conflicts, health) = await withTaskGroup(
             of: ValidationResult.self
         ) { group in
-            var helperResult: HelperStatus?
+            var helperResult: HelperCaptureEvidence?
             var permissionsResult: PermissionOracle.Snapshot?
             var componentsResult: ComponentStatus?
             var conflictsResult: ConflictCaptureEvidence?
@@ -336,7 +341,10 @@ public class SystemValidator {
 
             // Extract results with fallback values if cast fails
             return (
-                helperResult ?? HelperStatus.empty,
+                helperResult ?? HelperCaptureEvidence(
+                    status: .empty,
+                    captureStatus: .failed
+                ),
                 permissionsResult
                     ?? {
                         let now = Date()
@@ -362,7 +370,12 @@ public class SystemValidator {
             )
         }
 
+        let helperStatus = helper.status
         let conflictStatus = conflicts.status
+        let captureStatus = Self.combinedCaptureStatus([
+            helper.captureStatus,
+            conflicts.captureStatus,
+        ])
 
         progressCallback(1.0) // All done: 100%
 
@@ -376,10 +389,10 @@ public class SystemValidator {
             components: components,
             conflicts: conflictStatus,
             health: health,
-            helper: helper,
+            helper: helperStatus,
             compatibility: compatibility,
             timestamp: Date(),
-            captureStatus: conflicts.captureStatus
+            captureStatus: captureStatus
         )
 
         let duration = Date().timeIntervalSince(startTime)
@@ -396,9 +409,18 @@ public class SystemValidator {
         return snapshot
     }
 
+    static func combinedCaptureStatus(
+        _ statuses: [SystemSnapshotCaptureStatus]
+    ) -> SystemSnapshotCaptureStatus {
+        if statuses.contains(.failed) { return .failed }
+        if statuses.contains(.cancelled) { return .cancelled }
+        if statuses.contains(.timedOut) { return .timedOut }
+        return .complete
+    }
+
     // MARK: - Helper Checking
 
-    private func checkHelper() async -> HelperStatus {
+    private func checkHelper() async -> HelperCaptureEvidence {
         AppLogger.shared.log("🔍 [SystemValidator] Checking privileged helper")
 
         let health = await HelperManager.shared.getHelperHealth()
@@ -406,30 +428,51 @@ public class SystemValidator {
         switch health {
         case .notInstalled:
             AppLogger.shared.log("🔍 [SystemValidator] Helper state: notInstalled")
-            return HelperStatus(isInstalled: false, version: nil, isWorking: false)
+            return HelperCaptureEvidence(
+                status: HelperStatus(isInstalled: false, version: nil, isWorking: false),
+                captureStatus: .complete
+            )
 
         case let .requiresApproval(reason):
             AppLogger.shared.log(
                 "🔍 [SystemValidator] Helper state: requiresApproval \(reason ?? "")"
             )
-            return HelperStatus(
-                isInstalled: false,
-                version: nil,
-                isWorking: false,
-                requiresApproval: true
+            return HelperCaptureEvidence(
+                status: HelperStatus(
+                    isInstalled: false,
+                    version: nil,
+                    isWorking: false,
+                    requiresApproval: true
+                ),
+                captureStatus: .complete
             )
 
         case let .registeredButUnresponsive(reason):
             AppLogger.shared.log(
                 "🔍 [SystemValidator] Helper state: registeredButUnresponsive \(reason ?? "")"
             )
-            return HelperStatus(isInstalled: true, version: nil, isWorking: false)
+            return HelperCaptureEvidence(
+                status: HelperStatus(isInstalled: true, version: nil, isWorking: false),
+                captureStatus: .complete
+            )
+
+        case let .temporarilyUnavailable(reason):
+            AppLogger.shared.log(
+                "🔍 [SystemValidator] Helper state temporarily unknown: \(reason ?? "")"
+            )
+            return HelperCaptureEvidence(
+                status: HelperStatus(isInstalled: true, version: nil, isWorking: false),
+                captureStatus: .timedOut
+            )
 
         case let .healthy(version):
             AppLogger.shared.log(
                 "🔍 [SystemValidator] Helper state: healthy (v\(version ?? "unknown"))"
             )
-            return HelperStatus(isInstalled: true, version: version, isWorking: true)
+            return HelperCaptureEvidence(
+                status: HelperStatus(isInstalled: true, version: version, isWorking: true),
+                captureStatus: .complete
+            )
         }
     }
 

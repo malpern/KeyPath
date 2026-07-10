@@ -46,15 +46,19 @@ extension HelperManager {
         // Set up the interface
         newConnection.remoteObjectInterface = NSXPCInterface(with: HelperProtocol.self)
 
-        // Handle connection lifecycle
+        connectionGeneration &+= 1
+        let generation = connectionGeneration
+
+        // Handle connection lifecycle. The generation guard prevents a late
+        // callback from an old connection from clearing its replacement.
         newConnection.invalidationHandler = {
             AppLogger.shared.log("❌ [HelperManager] XPC connection invalidated")
-            Task { await HelperManager.shared.clearConnection() }
+            Task { await HelperManager.shared.connectionDidEnd(generation: generation) }
         }
 
         newConnection.interruptionHandler = {
             AppLogger.shared.log("⚠️ [HelperManager] XPC connection interrupted - will reconnect")
-            Task { await HelperManager.shared.clearConnection() }
+            Task { await HelperManager.shared.connectionDidEnd(generation: generation) }
         }
 
         // Start the connection
@@ -80,6 +84,33 @@ extension HelperManager {
         connection?.invalidate()
         connection = nil
     }
+
+    func clearConnection(ifGenerationMatches generation: UInt64) {
+        guard generation == connectionGeneration else {
+            AppLogger.shared.log(
+                "ℹ️ [HelperManager] Ignoring stale connection clear for generation \(generation); current=\(connectionGeneration)"
+            )
+            return
+        }
+        clearConnection()
+    }
+
+    func connectionDidEnd(generation: UInt64) {
+        guard generation == connectionGeneration else { return }
+        AppLogger.shared.log("🧹 [HelperManager] Dropping ended XPC connection generation \(generation)")
+        connection = nil
+    }
+
+    #if DEBUG
+        func setConnectionForTesting(_ connection: NSXPCConnection?, generation: UInt64) {
+            self.connection = connection
+            connectionGeneration = generation
+        }
+
+        func hasConnectionForTesting() -> Bool {
+            connection != nil
+        }
+    #endif
 
     /// Check if helper process is still running
     /// - Parameter pid: Process ID to check
