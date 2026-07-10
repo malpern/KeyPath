@@ -1,6 +1,6 @@
 # Installer Pipeline Consolidation Plan
 
-**Status:** In progress — Milestone 1 complete; Milestone 2 core complete
+**Status:** Complete — Milestones 1–4 accepted on 2026-07-10
 **Date:** 2026-07-09
 **Priority:** Next major installer reliability initiative
 **Predecessor:** [Installer Reliability Phase 1](installer-reliability-phase1.md)
@@ -174,6 +174,10 @@ changes into a second PR but do not begin snapshot consolidation first.
 **Goal:** One immutable snapshot and one pure decision path determine installer
 state and the next plan.
 
+**Status (2026-07-10): Complete.** One `SystemSnapshot` capture supplies the
+facts projected into `SystemContext`, and `InstallerDecisionPipeline` is the
+single pure classification/planning path used by the engine and clients.
+
 ### Progress
 
 - Core snapshot and decision convergence completed on 2026-07-09 after
@@ -261,6 +265,12 @@ beside them. If a proposed new type duplicates `SystemSnapshot` or
 **Goal:** Execute the complete plan once, then verify it with one fresh
 snapshot.
 
+**Status (2026-07-10): Complete.** Real-Mac clean install, repair, upgrade, and
+uninstall/reinstall acceptance passed. Healthy repeated install and repair are
+verified no-ops; every mutation is correlated to its declared plan and final
+snapshot; installed runtime verification confirms process, launchd, and TCP
+readiness.
+
 ### Progress
 
 - Started on 2026-07-10 after PR #1079 merged Milestones 1 and 2.
@@ -344,6 +354,28 @@ and its telemetry can explain every executed step and fallback.
 **Goal:** Remove compatibility architecture and encode only proven ownership
 boundaries as Swift modules.
 
+**Status (2026-07-10): Complete.** Clients consume shared decision and run
+evidence, production compatibility adapters and dead forwarding paths are
+removed, helper identity has one shared version contract, and canonical local
+workflows select stable Xcode 26.6.
+
+### Outcome
+
+- PR #1088 removed duplicate client matrix recapture and made CLI/app clients
+  consume the decision produced from their owned context.
+- PR #1089 replaced conflicting helper version literals with one
+  `KeyPathHelperContract`; a healthy matching helper now classifies as running
+  with an empty repair plan.
+- PR #1090 centralized Xcode selection for build, test, deploy, and release
+  workflows. Selection is version-based, so different app bundle names do not
+  silently route KeyPath onto Xcode beta.
+- PR #1091 removed unused RuntimeCoordinator/KanataViewModel install and repair
+  bridges, the lossy wizard repair report, an ignored engine dependency, and a
+  no-op wizard configuration hook.
+- PR #1092 removed `SystemContextAdapter`. Wizard presentation state is now an
+  explicit pure projection from the canonical installer context, protected by
+  golden tests and an anti-regrowth ratchet.
+
 ### Client Consolidation
 
 Migrate the CLI, settings, menu bar, URL actions, and diagnostics to shared
@@ -401,6 +433,27 @@ Compare warm incremental compile, link, deploy, signing, restart, and
 first-window times separately. Keep only module boundaries that reduce a
 meaningful cost without disproportionate public API or resource-bundle
 complexity.
+
+### Module Decision (2026-07-10)
+
+Do not add `KeyPathInstallerCore` now. The ownership cleanup produced a fast
+enough warm development graph without another public module boundary:
+
+| Measured lane | Elapsed | Build | Test | Result |
+| --- | ---: | ---: | ---: | --- |
+| AppKit-free isolated core | 12s | 6s | <1s | 13 tests passed; no AppKit in log |
+| Warm unit | 6s | 4s | 2s | passed |
+| Warm AppKit | 20s | 3s | 17s | 1,476 tests passed |
+| Warm installer-focused | 15s | 5s | 9s | 605 passed; one unrelated shared-state case isolated green |
+
+The same worktrees showed that cold SwiftPM compilation remains the expensive
+case (roughly 96–139 seconds), but moving the installer contracts would not
+demonstrably reduce that whole-package cold graph. It would instead require a
+large public-API migration across `KeyPathWizardCore`,
+`KeyPathInstallationWizard`, `KeyPathAppKit`, CLI, and test targets. Existing
+boundaries are retained; reconsider extraction only if source-invalidation
+traces show installer edits repeatedly rebuilding unrelated UI or if a focused
+installer lane cannot remain near the current warm duration.
 
 ## Recommended PR Sequence
 
