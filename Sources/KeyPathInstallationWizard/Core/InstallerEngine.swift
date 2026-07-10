@@ -723,6 +723,15 @@ public final class InstallerEngine {
         // Check requirement recipes (e.g., terminate conflicting processes)
         switch recipe.id {
         case InstallerRecipeID.terminateConflictingProcesses:
+            // A directly requested stale-runtime termination may come from a
+            // trusted identity check that is more specific than the general
+            // conflict snapshot. Preserve that explicit Kanata fallback when
+            // planning did not capture a conflict list.
+            if recipe.conflictsToResolve.isEmpty {
+                try await broker.killAllKanataProcesses()
+                return
+            }
+
             var terminatedKanata = false
             var disabledKarabinerGrabber = false
             for conflict in recipe.conflictsToResolve {
