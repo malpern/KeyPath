@@ -734,6 +734,7 @@ public final class InstallerEngine {
 
             var terminatedKanata = false
             var disabledKarabinerGrabber = false
+            var unsupportedConflicts: [SystemConflict] = []
             for conflict in recipe.conflictsToResolve {
                 switch conflict {
                 case .kanataProcessRunning:
@@ -749,10 +750,13 @@ public final class InstallerEngine {
                 case .karabinerVirtualHIDDeviceRunning,
                      .karabinerVirtualHIDDaemonRunning,
                      .exclusiveDeviceAccess:
-                    throw InstallerError.healthCheckFailed(
-                        "Unsupported automatic conflict resolution: \(conflict)"
-                    )
+                    unsupportedConflicts.append(conflict)
                 }
+            }
+            if !unsupportedConflicts.isEmpty {
+                throw InstallerError.healthCheckFailed(
+                    "Unsupported automatic conflict resolution: \(unsupportedConflicts)"
+                )
             }
 
         case InstallerRecipeID.synchronizeConfigPaths:

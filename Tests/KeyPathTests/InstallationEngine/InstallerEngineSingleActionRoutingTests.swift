@@ -95,8 +95,12 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
 
     func testTerminateConflictingProcessesRejectsUnsupportedConflict() async {
         let context = SystemContextBuilder(
-            conflicts: [.exclusiveDeviceAccess(device: "Built-in Keyboard")]
+            conflicts: [
+                .exclusiveDeviceAccess(device: "Built-in Keyboard"),
+                .kanataProcessRunning(pid: 42, command: "kanata")
+            ]
         ).build()
+        let coordinator = StubPrivilegedOperationsCoordinator()
         let engine = InstallerEngine(
             processLifecycleManager: ProcessLifecycleManager(),
             systemValidator: StubSystemValidator(context: context)
@@ -104,11 +108,15 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
 
         let report = await engine.runSingleAction(
             .terminateConflictingProcesses,
-            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+            using: PrivilegeBroker(coordinator: coordinator)
         )
 
         XCTAssertFalse(report.success)
         XCTAssertTrue(report.failureReason?.contains("Unsupported automatic conflict resolution") ?? false)
+        XCTAssertTrue(
+            coordinator.calls.contains("killAllKanataProcesses"),
+            "Resolvable conflicts should be handled before unsupported conflicts are reported"
+        )
     }
 
     func testRestartVirtualHIDDaemonUsesVHIDRepairPath() async {
