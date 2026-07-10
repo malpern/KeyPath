@@ -1,7 +1,7 @@
 import Foundation
 @preconcurrency import XCTest
 
-final class InstallerDecisionPipelineLintTests: XCTestCase {
+final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
     func testProductionPlanningUsesCanonicalDecisionPipeline() throws {
         let root = repositoryRoot()
         let consumers = [
@@ -86,6 +86,23 @@ final class InstallerDecisionPipelineLintTests: XCTestCase {
         XCTAssertTrue(
             violations.isEmpty,
             "Planning must be a pure projection of captured context; found: \(violations)"
+        )
+    }
+
+    func testBootstrapperDoesNotRecursivelyInvokeInstallerEngine() throws {
+        let file = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathInstallationWizard/Core/ServiceBootstrapper.swift")
+        let source = try String(contentsOf: file, encoding: .utf8)
+        let forbiddenCalls = ["InstallerEngine(", ".runSingleAction("]
+        let violations = forbiddenCalls.filter { source.contains($0) }
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            """
+            ServiceBootstrapper executes inside an InstallerEngine transaction. \
+            It must execute declared operations without creating another plan or \
+            reacquiring the transaction gate; found: \(violations)
+            """
         )
     }
 }
