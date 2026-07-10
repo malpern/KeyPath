@@ -70,9 +70,11 @@
 - `./Scripts/run-tests-safe.sh` - CI-style safe test runner. Defaults to quiet
   app logs (`KEYPATH_LOG_LEVEL=3`) and prints build/test timing plus log size.
   Set `KEYPATH_TEST_VERBOSE_LOGS=1` for debug-level app diagnostics during a
-  noisy test investigation. Local named lanes reuse the normalized Swift module
-  cache by default; set `KEYPATH_TEST_RESET_MODULE_CACHE=1` when a narrow local
-  lane should intentionally reset it.
+  noisy test investigation. Local tests reuse the worktree's `.build` graph and
+  normalized Swift module cache by default; set
+  `KEYPATH_TEST_RESET_MODULE_CACHE=1` only when diagnosing cache/module state.
+  `Package.resolved` pins SwiftPM dependencies so fresh worktrees do not drift
+  to newer dependency releases during an ordinary build or test.
 - `./Scripts/measure-local-loop.sh --preset baseline` - Measure the standard
   MacBook Air local baseline (`smoke`, `core-isolated`, `unit`, `appkit`) and write
   `.build/local-loop-measurements/latest.md`.

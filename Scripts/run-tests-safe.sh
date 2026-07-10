@@ -27,7 +27,7 @@ TEST_FILTER="${KEYPATH_TEST_FILTER:-${TEST_FILTER:-}}"
 TEST_SKIP="${KEYPATH_TEST_SKIP:-${TEST_SKIP:-}}"
 TEST_PREBUILD="${KEYPATH_TEST_PREBUILD:-1}"
 TEST_DISABLE_XCTEST="${KEYPATH_TEST_DISABLE_XCTEST:-0}"
-TEST_RESET_MODULE_CACHE="${KEYPATH_TEST_RESET_MODULE_CACHE:-1}"
+TEST_RESET_MODULE_CACHE="${KEYPATH_TEST_RESET_MODULE_CACHE:-0}"
 LOG="${KEYPATH_TEST_LOG:-$PROJECT_DIR/test_output.safe.txt}"
 BUILD_LOG="${KEYPATH_TEST_BUILD_LOG:-$LOG.build}"
 EXTRA_SWIFT_TEST_ARGS="${SWIFT_TEST_ARGS:-}"
@@ -372,14 +372,16 @@ append_runner_crash_summary() {
     fi
 }
 
-# 0) Isolated build/test dirs and HOME to avoid parallel-agent collisions
-# In CI, reuse the default .build/ to avoid relinking the CLI executable
+# 0) Worktree-local build/test dir and isolated HOME.
+# One thread owns one worktree and one `.build`, so local tests reuse the app
+# build graph instead of compiling a duplicate `.build-ci` graph. CI also uses
+# `.build` to avoid relinking the CLI executable
 # (keypath depends on KeyPathAppKit → SwiftUI, which can fail to link from a
 # fresh scratch path on Xcode 16.4 due to SwiftUICore client restrictions).
 if [ "${CI_ENVIRONMENT}" = "true" ] || [ -n "${GITHUB_ACTIONS:-}" ]; then
     SCRATCH_PATH=${SCRATCH_PATH:-"$PROJECT_DIR/.build"}
 else
-    SCRATCH_PATH=${SCRATCH_PATH:-"$PROJECT_DIR/.build-ci"}
+    SCRATCH_PATH=${SCRATCH_PATH:-"$PROJECT_DIR/.build"}
 fi
 export HOME=${TEST_HOME:-$(mktemp -d 2>/dev/null || mktemp -d -t keypath-tests)}
 SCRATCH_PATH="$(absolute_dir "$SCRATCH_PATH")"
@@ -420,6 +422,13 @@ echo "🗂️  Module cache: $MODULE_CACHE"
 mkdir -p "$(dirname "$LOG")" "$(dirname "$BUILD_LOG")"
 rm -f "$LOG" "$BUILD_LOG"
 
+# Refresh generated metadata left by a different SwiftPM build system. Never
+# remove a real directory or file at this path.
+if [ -L "$SCRATCH_PATH/debug" ]; then
+  echo "🧹 Refreshing generated $SCRATCH_PATH/debug symlink"
+  rm "$SCRATCH_PATH/debug"
+fi
+
 # 1) Build tests first (doesn't count against watchdog timeout)
 echo "🔨 Building tests..."
 BUILD_START_SECONDS="$(date +%s)"
@@ -428,7 +437,7 @@ if [ "$TEST_PREBUILD" = "0" ]; then
   echo "⏭️  Skipping separate swift build --build-tests step"
   BUILD_EXIT_CODE=0
 else
-  swift build --build-tests --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}" 2>&1 | tee "$BUILD_LOG"
+  swift build --disable-automatic-resolution --build-tests --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}" 2>&1 | tee "$BUILD_LOG"
   BUILD_EXIT_CODE="${PIPESTATUS[0]}"
 fi
 set -e
@@ -462,7 +471,7 @@ TEST_START_SECONDS="$(date +%s)"
 (
   set +e
   set -o pipefail
-  SWIFT_TEST_COMMAND=(swift test --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}")
+  SWIFT_TEST_COMMAND=(swift test --disable-automatic-resolution --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}")
   if [ "$TEST_PREBUILD" != "0" ]; then
     SWIFT_TEST_COMMAND+=(--skip-build)
   fi
