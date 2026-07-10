@@ -144,8 +144,9 @@ public final class InstallerEngine {
     /// is marked `.blocked` with the missing requirement.
     public func makePlan(for intent: InstallIntent, context: SystemContext) async -> InstallPlan {
         AppLogger.shared.log("📋 [InstallerEngine] Starting makePlan(for: \(intent), context:)")
-        let stateMatrixRow = context.installerStateMatrixRow.rawValue
-        let stateMatrixPlan = context.installerStateMatrixPlan.map(\.rawValue)
+        let decision = InstallerDecisionPipeline.decide(for: intent, context: context)
+        let stateMatrixRow = decision.assessment.rawValue
+        let stateMatrixPlan = decision.matrixActions.map(\.rawValue)
         let baseMetadata = PlanMetadata(
             stateMatrixRow: stateMatrixRow,
             stateMatrixPlan: stateMatrixPlan
@@ -166,7 +167,7 @@ public final class InstallerEngine {
         }
 
         // Determine actions needed based on intent and context
-        let actions = determineActions(for: intent, context: context)
+        let actions = decision.autoFixActions
         AppLogger.shared.log(
             "📋 [InstallerEngine] Determined \(actions.count) actions for intent: \(intent)"
         )

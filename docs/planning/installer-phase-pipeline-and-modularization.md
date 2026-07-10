@@ -184,6 +184,10 @@ state and the next plan.
 - The canonical validator probe now exposes explicit cached/fresh capture
   policies. Initial wizard detection may reuse a snapshot captured within 1.5
   seconds; normal refresh, install, and repair inspection remains fresh.
+- `InstallerDecisionPipeline` now produces the matrix assessment, diagnostic
+  matrix actions, and executable auto-fix actions together from one context and
+  intent. `InstallerEngine` and the wizard compatibility adapter both consume
+  that result; `ActionDeterminer` remains only as a migration façade.
 - A lint ratchet now protects the migrated wizard routing paths. The remaining
   pre-snapshot welcome check now consumes the same canonical result as initial
   routing, so wizard navigation performs no separate helper or `SMAppService`
