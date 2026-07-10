@@ -767,7 +767,11 @@ public class SystemValidator {
             ),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
             health: HealthStatus(kanataRunning: true, karabinerDaemonRunning: true, vhidHealthy: true),
-            helper: HelperStatus(isInstalled: true, version: "1.0.0", isWorking: true),
+            helper: HelperStatus(
+                isInstalled: true,
+                version: KeyPathHelperContract.version,
+                isWorking: true
+            ),
             compatibility: SystemCompatibilityStatus(macOSVersion: "test", driverCompatible: true),
             timestamp: now
         )

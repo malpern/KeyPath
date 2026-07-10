@@ -19,5 +19,5 @@ public enum WizardHelperConstants {
     public static let helperPlistName = "com.keypath.helper.plist"
     public static let helperMachServiceName = "com.keypath.helper"
     public static let helperBundleIdentifier = "com.keypath.helper"
-    public static let expectedHelperVersion = "1.0.0"
+    public static let expectedHelperVersion = KeyPathHelperContract.version
 }

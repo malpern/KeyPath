@@ -14,6 +14,7 @@ struct SystemContextBuilder {
     var kanataLaunchdLoaded: Bool?
     var kanataProcessRunning: Bool?
     var kanataTCPResponding: Bool?
+    var kanataSMAppServiceRegistered: Bool?
     var kanataRunning: Bool?
     var karabinerDaemonRunning: Bool?
     var vhidHealthy: Bool?
@@ -43,7 +44,7 @@ struct SystemContextBuilder {
 
         let helper = HelperStatus(
             isInstalled: helperReady || helperRequiresApproval,
-            version: "1.0",
+            version: WizardHelperConstants.expectedHelperVersion,
             isWorking: helperReady,
             requiresApproval: helperRequiresApproval
         )
@@ -71,6 +72,7 @@ struct SystemContextBuilder {
             vhidHealthy: vhidHealthy ?? servicesHealthy,
             kanataInputCaptureReady: kanataInputCaptureReady,
             kanataInputCaptureIssue: kanataInputCaptureReady ? nil : kanataInputCaptureIssue,
+            kanataSMAppServiceRegistered: kanataSMAppServiceRegistered,
             loginItemsApprovalRequired: loginItemsApprovalRequired
         )
 

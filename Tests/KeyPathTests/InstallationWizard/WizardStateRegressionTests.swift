@@ -45,7 +45,11 @@ final class WizardStateRegressionTests: XCTestCase {
             services: health,
             conflicts: .init(conflicts: [], canAutoResolve: false),
             components: components,
-            helper: HelperStatus(isInstalled: true, version: "1.0.0", isWorking: true),
+            helper: HelperStatus(
+                isInstalled: true,
+                version: WizardHelperConstants.expectedHelperVersion,
+                isWorking: true
+            ),
             system: EngineSystemInfo(macOSVersion: "26.0.1", driverCompatible: true),
             timestamp: Date()
         )
@@ -98,7 +102,11 @@ final class WizardStateRegressionTests: XCTestCase {
             services: health,
             conflicts: .init(conflicts: [], canAutoResolve: false),
             components: components,
-            helper: HelperStatus(isInstalled: true, version: "1.0.0", isWorking: true),
+            helper: HelperStatus(
+                isInstalled: true,
+                version: WizardHelperConstants.expectedHelperVersion,
+                isWorking: true
+            ),
             system: EngineSystemInfo(macOSVersion: "26.0.1", driverCompatible: true),
             timestamp: Date()
         )

@@ -11,8 +11,8 @@ import SystemConfiguration
 class HelperService: NSObject, HelperProtocol {
     // MARK: - Constants
 
-    /// Helper version (must match app version for compatibility)
-    private static let version = "1.1.0"
+    /// Helper version shared with the app and wizard for compatibility checks.
+    private static let version = KeyPathHelperContract.version
     private static let vhidRootOnlyDirectory = "/Library/Application Support/org.pqrs/tmp/rootonly"
     private let logger = Logger(subsystem: "com.keypath.helper", category: "service")
 

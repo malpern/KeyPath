@@ -73,8 +73,8 @@ public actor HelperManager {
     /// LaunchDaemon plist name packaged inside the app bundle for SMAppService
     static let helperPlistName = "com.keypath.helper.plist"
 
-    /// Expected helper version (should match HelperService.version)
-    static let expectedHelperVersion = "1.0.0"
+    /// Expected helper version shared with the helper and wizard.
+    static let expectedHelperVersion = KeyPathHelperContract.version
 
     /// Active XPC call tracking for detecting concurrency issues
     var activeXPCCalls: Set<String> = []
