@@ -146,6 +146,10 @@ public final class InstallerEngine {
                 promptsNeeded: actions.contains { actionNeedsPrompt($0) },
                 stateMatrixRow: stateMatrixRow,
                 stateMatrixPlan: stateMatrixPlan
+            ),
+            initialPostconditionStates: postconditionBaseline(
+                for: orderedRecipes,
+                context: context
             )
         )
 
@@ -153,6 +157,17 @@ public final class InstallerEngine {
             "✅ [InstallerEngine] makePlan() complete - status: \(plan.status), recipes: \(plan.recipes.count)"
         )
         return plan
+    }
+
+    private func postconditionBaseline(
+        for recipes: [ServiceRecipe],
+        context: SystemContext
+    ) -> [InstallerPostcondition: Bool]? {
+        guard context.captureStatus.isComplete else { return nil }
+        let postconditions = Set(recipes.flatMap(\.expectedPostconditions))
+        return Dictionary(uniqueKeysWithValues: postconditions.map { postcondition in
+            (postcondition, postcondition.isSatisfied(by: context))
+        })
     }
 
     // MARK: - Requirement Checking
@@ -318,7 +333,8 @@ public final class InstallerEngine {
                         error: nil,
                         duration: duration,
                         logs: recipeLogs,
-                        commandsRun: commandsRun
+                        commandsRun: commandsRun,
+                        expectedPostconditions: recipe.expectedPostconditions
                     )
                 )
                 repairTelemetry.append(
@@ -345,7 +361,8 @@ public final class InstallerEngine {
                         error: recipeError,
                         duration: duration,
                         logs: recipeLogs,
-                        commandsRun: commandsRun
+                        commandsRun: commandsRun,
+                        expectedPostconditions: recipe.expectedPostconditions
                     )
                 )
 
@@ -376,18 +393,95 @@ public final class InstallerEngine {
             await captureFreshFinalContext()
         }
 
+        var seenPostconditions = Set<InstallerPostcondition>()
+        let executedPostconditions = executedRecipes
+            .flatMap(\.expectedPostconditions)
+            .filter { seenPostconditions.insert($0).inserted }
+
+        let failedPostconditions: [InstallerPostcondition] = if let finalContext {
+            executedPostconditions.filter { !$0.isSatisfied(by: finalContext) }
+        } else {
+            executedPostconditions
+        }
+        let verificationFailure = failedPostconditions.isEmpty
+            ? nil
+            : "Postcondition verification failed: \(failedPostconditions.map(\.rawValue).joined(separator: ", "))"
+
+        if !executedPostconditions.isEmpty {
+            let verificationSucceeded = failedPostconditions.isEmpty
+            allLogs.append(
+                verificationSucceeded
+                    ? "[\(InstallerRecipeID.verifyPostconditions)] Executed recipe postconditions satisfied"
+                    : "[\(InstallerRecipeID.verifyPostconditions)] \(verificationFailure ?? "Verification failed")"
+            )
+            repairTelemetry.append(
+                InstallerRepairTelemetryEvent(
+                    trigger: trigger,
+                    intent: plan.intent.telemetryValue,
+                    stateMatrixRow: plan.metadata.stateMatrixRow,
+                    stateMatrixPlan: plan.metadata.stateMatrixPlan,
+                    action: InstallerRecipeID.verifyPostconditions,
+                    recipeID: nil,
+                    recipeType: nil,
+                    postconditionResult: verificationSucceeded ? .succeeded : .failed,
+                    error: verificationFailure
+                )
+            )
+        }
+
+        let recoveryPlan: InstallPlan? = if verificationFailure != nil,
+                                            let finalContext,
+                                            plan.intent == .install || plan.intent == .repair
+        {
+            await makePlan(for: .repair, context: finalContext)
+        } else {
+            nil
+        }
+
+        // A declared, satisfied postcondition is stronger evidence than an
+        // operation reply. This lets a lost helper/XPC reply become verified
+        // success while a failed recipe without its own declarations still
+        // honors its operation error.
+        let earlierExecutedPostconditions = Set(
+            executedRecipes.dropLast().flatMap(\.expectedPostconditions)
+        )
+        let failedRecipePostconditionsProveSuccess: Bool = if let firstFailure,
+                                                              let finalContext,
+                                                              let initialStates = plan.initialPostconditionStates
+        {
+            !firstFailure.recipe.expectedPostconditions.isEmpty
+                && firstFailure.recipe.expectedPostconditions.allSatisfy {
+                    !earlierExecutedPostconditions.contains($0)
+                }
+                && firstFailure.recipe.expectedPostconditions.allSatisfy {
+                    initialStates[$0] == false && $0.isSatisfied(by: finalContext)
+                }
+        } else {
+            false
+        }
+        let success = verificationFailure == nil
+            && (firstFailure == nil || failedRecipePostconditionsProveSuccess)
+        let operationFailure = firstFailure.map {
+            "Recipe '\($0.recipe.id)' failed: \($0.error.localizedDescription)"
+        }
+        let failureReason: String? = if success {
+            nil
+        } else if let operationFailure, let verificationFailure {
+            "\(operationFailure). \(verificationFailure)"
+        } else {
+            operationFailure ?? verificationFailure
+        }
+
         // Generate report with aggregated logs
-        let success = firstFailure == nil
         let report = InstallerReport(
             success: success,
-            failureReason: firstFailure.map {
-                "Recipe '\($0.recipe.id)' failed: \($0.error.localizedDescription)"
-            },
+            failureReason: failureReason,
             unmetRequirements: success ? [] : plan.blockedBy.map { [$0] } ?? [],
             executedRecipes: executedRecipes,
             finalContext: finalContext,
             logs: allLogs,
-            repairTelemetry: repairTelemetry
+            repairTelemetry: repairTelemetry,
+            recoveryPlan: recoveryPlan
         )
 
         AppLogger.shared.log(
@@ -472,6 +566,11 @@ public final class InstallerEngine {
             logs.append("Checking requirement: \(recipe.id)")
             try await executeCheckRequirement(recipe, using: broker)
             logs.append("Requirement satisfied")
+
+        case .resolveRequirement:
+            logs.append("Resolving requirement: \(recipe.id)")
+            try await executeCheckRequirement(recipe, using: broker)
+            logs.append("Requirement resolved")
         }
 
         return RecipeExecutionResult(logs: logs, commands: commands)
@@ -630,8 +729,41 @@ public final class InstallerEngine {
         // Check requirement recipes (e.g., terminate conflicting processes)
         switch recipe.id {
         case InstallerRecipeID.terminateConflictingProcesses:
-            // Kill all Kanata processes (conflict resolution)
-            try await broker.killAllKanataProcesses()
+            // A directly requested stale-runtime termination may come from a
+            // trusted identity check that is more specific than the general
+            // conflict snapshot. Preserve that explicit Kanata fallback when
+            // planning did not capture a conflict list.
+            if recipe.conflictsToResolve.isEmpty {
+                try await broker.killAllKanataProcesses()
+                return
+            }
+
+            var terminatedKanata = false
+            var disabledKarabinerGrabber = false
+            var unsupportedConflicts: [SystemConflict] = []
+            for conflict in recipe.conflictsToResolve {
+                switch conflict {
+                case .kanataProcessRunning:
+                    if !terminatedKanata {
+                        try await broker.killAllKanataProcesses()
+                        terminatedKanata = true
+                    }
+                case .karabinerGrabberRunning:
+                    if !disabledKarabinerGrabber {
+                        try await broker.disableKarabinerGrabber()
+                        disabledKarabinerGrabber = true
+                    }
+                case .karabinerVirtualHIDDeviceRunning,
+                     .karabinerVirtualHIDDaemonRunning,
+                     .exclusiveDeviceAccess:
+                    unsupportedConflicts.append(conflict)
+                }
+            }
+            if !unsupportedConflicts.isEmpty {
+                throw InstallerError.healthCheckFailed(
+                    "Unsupported automatic conflict resolution: \(unsupportedConflicts)"
+                )
+            }
 
         case InstallerRecipeID.synchronizeConfigPaths:
             // No privileged action required; treat as satisfied
@@ -857,7 +989,11 @@ public final class InstallerEngine {
             status: shouldPreserveBaseBlocker ? basePlan.status : .ready,
             intent: basePlan.intent,
             blockedBy: shouldPreserveBaseBlocker ? basePlan.blockedBy : nil,
-            metadata: basePlan.metadata
+            metadata: basePlan.metadata,
+            initialPostconditionStates: postconditionBaseline(
+                for: finalRecipes,
+                context: context
+            )
         )
 
         let report = await executeWithinTransaction(

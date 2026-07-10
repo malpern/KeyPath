@@ -59,6 +59,187 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         )
     }
 
+    func testExecuteTreatsLostReplyAsSuccessWhenDeclaredPostconditionIsSatisfied() async {
+        let context = SystemContextBuilder(
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
+        let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
+        let coordinator = StubPrivilegedOperationsCoordinator()
+        coordinator.failOnCall = "installRequiredRuntimeServices"
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(
+                    id: "install-daemons",
+                    type: .installService,
+                    expectedPostconditions: [.runtimeReadyOrApprovalPending]
+                )
+            ],
+            status: .ready,
+            intent: .repair,
+            initialPostconditionStates: [.runtimeReadyOrApprovalPending: false]
+        )
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: coordinator)
+        )
+
+        XCTAssertTrue(report.success)
+        XCTAssertNil(report.failureReason)
+        XCTAssertEqual(report.executedRecipes.first?.success, false)
+        XCTAssertEqual(
+            report.executedRecipes.first?.expectedPostconditions,
+            [.runtimeReadyOrApprovalPending]
+        )
+        XCTAssertEqual(report.repairTelemetry.last?.action, InstallerRecipeID.verifyPostconditions)
+        XCTAssertEqual(report.repairTelemetry.last?.postconditionResult, .succeeded)
+    }
+
+    func testExecuteDoesNotMaskFailureWhenPostconditionWasAlreadySatisfied() async {
+        let context = SystemContextBuilder(
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
+        let validator = StubSystemValidator(context: context)
+        let coordinator = StubPrivilegedOperationsCoordinator()
+        coordinator.failOnCall = "installRequiredRuntimeServices"
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(
+                    id: "install-daemons",
+                    type: .installService,
+                    expectedPostconditions: [.runtimeReadyOrApprovalPending]
+                )
+            ],
+            status: .ready,
+            intent: .repair,
+            initialPostconditionStates: [.runtimeReadyOrApprovalPending: true]
+        )
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: coordinator)
+        )
+
+        XCTAssertFalse(report.success)
+        XCTAssertTrue(report.failureReason?.contains("install-daemons") ?? false)
+        XCTAssertNil(report.recoveryPlan)
+    }
+
+    func testExecuteDoesNotAttributeSharedTransitionToLaterFailedRecipe() async {
+        let finalContext = SystemContextBuilder(
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
+        let validator = StubSystemValidator(context: finalContext)
+        let coordinator = StubPrivilegedOperationsCoordinator()
+        coordinator.failOnCall = "installRequiredRuntimeServices"
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(
+                    id: InstallerRecipeID.installLogRotation,
+                    type: .installComponent,
+                    expectedPostconditions: [.runtimeReadyOrApprovalPending]
+                ),
+                ServiceRecipe(
+                    id: "install-daemons",
+                    type: .installService,
+                    expectedPostconditions: [.runtimeReadyOrApprovalPending]
+                )
+            ],
+            status: .ready,
+            intent: .repair,
+            initialPostconditionStates: [.runtimeReadyOrApprovalPending: false]
+        )
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: coordinator)
+        )
+
+        XCTAssertFalse(report.success)
+        XCTAssertTrue(report.failureReason?.contains("install-daemons") ?? false)
+        XCTAssertEqual(report.executedRecipes.count, 2)
+    }
+
+    func testExecuteDoesNotUseUnrelatedRecipePostconditionToMaskFailure() async {
+        let context = SystemContextBuilder(
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
+        let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
+        let coordinator = StubPrivilegedOperationsCoordinator()
+        coordinator.failOnCall = "installRequiredRuntimeServices"
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(id: "install-daemons", type: .installService),
+                ServiceRecipe(
+                    id: InstallerRecipeID.createConfigDirectories,
+                    type: .installComponent,
+                    expectedPostconditions: [.runtimeReadyOrApprovalPending]
+                )
+            ],
+            status: .ready,
+            intent: .repair
+        )
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: coordinator)
+        )
+
+        XCTAssertFalse(report.success)
+        XCTAssertTrue(report.failureReason?.contains("install-daemons") ?? false)
+        XCTAssertEqual(report.executedRecipes.count, 1)
+        XCTAssertEqual(report.repairTelemetry.last?.action, "install-daemons")
+        XCTAssertEqual(report.repairTelemetry.last?.postconditionResult, .failed)
+    }
+
+    func testExecuteFailsConservativelyWithoutFinalSnapshot() async {
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(
+                    id: InstallerRecipeID.createConfigDirectories,
+                    type: .installComponent,
+                    expectedPostconditions: [.runtimeReadyOrApprovalPending]
+                )
+            ],
+            status: .ready,
+            intent: .inspectOnly
+        )
+        let engine = InstallerEngine()
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+        )
+
+        XCTAssertFalse(report.success)
+        XCTAssertNil(report.finalContext)
+        XCTAssertEqual(
+            report.failureReason,
+            "Postcondition verification failed: runtime-ready-or-approval-pending"
+        )
+        XCTAssertNil(report.recoveryPlan)
+    }
+
     func testExecutePlanRunsHelperMaintenanceForPrivilegedHelperRepair() async {
         let coordinator = StubPrivilegedOperationsCoordinator()
         let broker = PrivilegeBroker(coordinator: coordinator)
@@ -128,7 +309,19 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             componentsInstalled: true,
             driverCompatible: true
         ).build()
-        let validator = StubSystemValidator(snapshot: Self.snapshot(from: blockedContext))
+        let finalContext = SystemContextBuilder(
+            permissionsStatus: .granted,
+            helperReady: true,
+            servicesHealthy: false,
+            kanataInputCaptureReady: false,
+            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason,
+            componentsInstalled: true,
+            driverCompatible: true
+        ).build()
+        let validator = StubSystemValidator(snapshots: [
+            Self.snapshot(from: blockedContext),
+            Self.snapshot(from: finalContext)
+        ])
         let engine = InstallerEngine(
             processLifecycleManager: ProcessLifecycleManager(),
             systemValidator: validator
@@ -237,6 +430,78 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         XCTAssertEqual(validator.cacheInvalidationCount, 1)
         XCTAssertEqual(report.finalContext?.timestamp, context.timestamp)
         XCTAssertEqual(report.finalContext?.captureStatus, context.captureStatus)
+    }
+
+    func testExecuteFailsAndPlansRecoveryWhenDeclaredPostconditionIsNotSatisfied() async {
+        let context = SystemContextBuilder(
+            servicesHealthy: false,
+            componentsInstalled: true
+        ).build()
+        let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(
+                    id: InstallerRecipeID.createConfigDirectories,
+                    type: .installComponent,
+                    expectedPostconditions: [.runtimeReadyOrApprovalPending]
+                )
+            ],
+            status: .ready,
+            intent: .repair
+        )
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+        )
+
+        XCTAssertFalse(report.success)
+        XCTAssertEqual(
+            report.failureReason,
+            "Postcondition verification failed: runtime-ready-or-approval-pending"
+        )
+        XCTAssertNotNil(report.recoveryPlan)
+        XCTAssertEqual(report.recoveryPlan?.intent, .repair)
+        XCTAssertEqual(report.repairTelemetry.last?.action, InstallerRecipeID.verifyPostconditions)
+        XCTAssertEqual(report.repairTelemetry.last?.postconditionResult, .failed)
+    }
+
+    func testExecuteSucceedsWhenDeclaredPostconditionIsSatisfied() async {
+        let context = SystemContextBuilder(
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
+        let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(
+                    id: InstallerRecipeID.createConfigDirectories,
+                    type: .installComponent,
+                    expectedPostconditions: [.runtimeReadyOrApprovalPending, .runtimeReadyOrApprovalPending]
+                )
+            ],
+            status: .ready,
+            intent: .repair
+        )
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+        )
+
+        XCTAssertTrue(report.success)
+        XCTAssertNil(report.failureReason)
+        XCTAssertNil(report.recoveryPlan)
+        XCTAssertEqual(plan.expectedPostconditions, [.runtimeReadyOrApprovalPending])
+        XCTAssertEqual(report.repairTelemetry.last?.postconditionResult, .succeeded)
     }
 
     func testExecutePlanUsesForceRefreshWithoutAppleScriptForHelperReinstall() async {
@@ -369,29 +634,5 @@ private final class StubHelperMaintenance: WizardHelperMaintaining {
         lastForceFullRepair = forceFullRepair
         logLines.append("helper repair invoked")
         return true
-    }
-}
-
-@MainActor
-private final class StubSystemValidator: WizardSystemValidating {
-    private let snapshot: SystemSnapshot
-    private(set) var freshnessRequests: [WizardSystemSnapshotFreshness] = []
-    private(set) var cacheInvalidationCount = 0
-
-    init(snapshot: SystemSnapshot) {
-        self.snapshot = snapshot
-    }
-
-    func checkSystem() async -> SystemSnapshot {
-        snapshot
-    }
-
-    func checkSystem(freshness: WizardSystemSnapshotFreshness) async -> SystemSnapshot {
-        freshnessRequests.append(freshness)
-        return snapshot
-    }
-
-    func invalidateCaches() {
-        cacheInvalidationCount += 1
     }
 }
