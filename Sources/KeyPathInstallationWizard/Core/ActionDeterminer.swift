@@ -82,7 +82,9 @@ public enum InstallerDecisionPipeline {
 
             // CRITICAL: Activate manager BEFORE starting daemon
             // Per Karabiner documentation, manager activation must happen before daemon startup
-            if !context.components.karabinerDriverInstalled {
+            if !context.components.vhidDeviceInstalled,
+               !context.requiresManualVHIDDriverApproval
+            {
                 actions.append(.activateVHIDDeviceManager)
             }
         }
@@ -111,7 +113,10 @@ public enum InstallerDecisionPipeline {
         // Check if daemon needs starting
         if !context.services.karabinerDaemonRunning {
             // Ensure manager is activated before starting daemon
-            if !context.components.karabinerDriverInstalled, !actions.contains(.activateVHIDDeviceManager) {
+            if !context.components.vhidDeviceInstalled,
+               !context.requiresManualVHIDDriverApproval,
+               !actions.contains(.activateVHIDDeviceManager)
+            {
                 actions.append(.activateVHIDDeviceManager)
             }
             actions.append(.startKarabinerDaemon)
@@ -148,7 +153,9 @@ public enum InstallerDecisionPipeline {
 
             // CRITICAL: Activate manager BEFORE installing daemon services
             // Per Karabiner documentation, manager activation must happen before daemon startup
-            if !context.components.karabinerDriverInstalled {
+            if !context.components.vhidDeviceInstalled,
+               !context.requiresManualVHIDDriverApproval
+            {
                 actions.append(.activateVHIDDeviceManager)
             }
         }
@@ -162,7 +169,10 @@ public enum InstallerDecisionPipeline {
         // Check if daemon needs starting
         if !context.services.karabinerDaemonRunning {
             // Ensure manager is activated before starting daemon
-            if !context.components.karabinerDriverInstalled, !actions.contains(.activateVHIDDeviceManager) {
+            if !context.components.vhidDeviceInstalled,
+               !context.requiresManualVHIDDriverApproval,
+               !actions.contains(.activateVHIDDeviceManager)
+            {
                 actions.append(.activateVHIDDeviceManager)
             }
             actions.append(.startKarabinerDaemon)

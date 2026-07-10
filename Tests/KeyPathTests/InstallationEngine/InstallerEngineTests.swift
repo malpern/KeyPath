@@ -574,6 +574,11 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
             .fixDriverVersionMismatch,
             .installCorrectVHIDDriver
         ]
+        let finalPostconditionExemptions: Set<String> = [
+            InstallerRecipeID.installLogRotation,
+            InstallerRecipeID.createConfigDirectories,
+            InstallerRecipeID.synchronizeConfigPaths
+        ]
 
         let context = await engine.inspectSystem()
 
@@ -583,6 +588,12 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
 
             let recipe = engine.recipeForAction(action, context: context)
             XCTAssertNotNil(recipe, "Action \(action) should produce a ServiceRecipe")
+            if let recipe, !finalPostconditionExemptions.contains(recipe.id) {
+                XCTAssertFalse(
+                    recipe.expectedPostconditions.isEmpty,
+                    "Mutating recipe \(recipe.id) must declare final observable state"
+                )
+            }
         }
     }
 
