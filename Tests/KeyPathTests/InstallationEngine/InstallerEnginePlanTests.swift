@@ -19,6 +19,9 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
         XCTAssertTrue(plan.expectedPostconditions.contains(.runtimeReadyOrApprovalPending))
         XCTAssertTrue(plan.expectedPostconditions.contains(.vhidServicesHealthy))
         XCTAssertTrue(plan.expectedPostconditions.contains(.virtualHIDDriverInstalled))
+        XCTAssertEqual(plan.initialPostconditionStates?[.runtimeReadyOrApprovalPending], false)
+        XCTAssertEqual(plan.initialPostconditionStates?[.vhidServicesHealthy], false)
+        XCTAssertEqual(plan.initialPostconditionStates?[.virtualHIDDriverInstalled], false)
     }
 
     func testRepairPlanTargetsUnhealthyServices() async {

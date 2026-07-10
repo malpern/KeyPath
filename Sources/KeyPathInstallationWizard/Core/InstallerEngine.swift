@@ -146,6 +146,10 @@ public final class InstallerEngine {
                 promptsNeeded: actions.contains { actionNeedsPrompt($0) },
                 stateMatrixRow: stateMatrixRow,
                 stateMatrixPlan: stateMatrixPlan
+            ),
+            initialPostconditionStates: postconditionBaseline(
+                for: orderedRecipes,
+                context: context
             )
         )
 
@@ -153,6 +157,17 @@ public final class InstallerEngine {
             "✅ [InstallerEngine] makePlan() complete - status: \(plan.status), recipes: \(plan.recipes.count)"
         )
         return plan
+    }
+
+    private func postconditionBaseline(
+        for recipes: [ServiceRecipe],
+        context: SystemContext
+    ) -> [InstallerPostcondition: Bool]? {
+        guard context.captureStatus.isComplete else { return nil }
+        let postconditions = Set(recipes.flatMap(\.expectedPostconditions))
+        return Dictionary(uniqueKeysWithValues: postconditions.map { postcondition in
+            (postcondition, postcondition.isSatisfied(by: context))
+        })
     }
 
     // MARK: - Requirement Checking
@@ -408,7 +423,8 @@ public final class InstallerEngine {
         }
 
         let recoveryPlan: InstallPlan? = if verificationFailure != nil,
-                                            let finalContext
+                                            let finalContext,
+                                            plan.intent == .install || plan.intent == .repair
         {
             await makePlan(for: .repair, context: finalContext)
         } else {
@@ -420,11 +436,12 @@ public final class InstallerEngine {
         // success while a failed recipe without its own declarations still
         // honors its operation error.
         let failedRecipePostconditionsProveSuccess: Bool = if let firstFailure,
-                                                              let finalContext
+                                                              let finalContext,
+                                                              let initialStates = plan.initialPostconditionStates
         {
             !firstFailure.recipe.expectedPostconditions.isEmpty
                 && firstFailure.recipe.expectedPostconditions.allSatisfy {
-                    $0.isSatisfied(by: finalContext)
+                    initialStates[$0] == false && $0.isSatisfied(by: finalContext)
                 }
         } else {
             false
@@ -921,7 +938,11 @@ public final class InstallerEngine {
             status: shouldPreserveBaseBlocker ? basePlan.status : .ready,
             intent: basePlan.intent,
             blockedBy: shouldPreserveBaseBlocker ? basePlan.blockedBy : nil,
-            metadata: basePlan.metadata
+            metadata: basePlan.metadata,
+            initialPostconditionStates: postconditionBaseline(
+                for: finalRecipes,
+                context: context
+            )
         )
 
         let report = await executeWithinTransaction(

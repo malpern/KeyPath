@@ -80,7 +80,8 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
                 )
             ],
             status: .ready,
-            intent: .repair
+            intent: .repair,
+            initialPostconditionStates: [.runtimeReadyOrApprovalPending: false]
         )
 
         let report = await engine.execute(
@@ -93,6 +94,41 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         XCTAssertEqual(report.executedRecipes.first?.success, false)
         XCTAssertEqual(report.repairTelemetry.last?.action, InstallerRecipeID.verifyPostconditions)
         XCTAssertEqual(report.repairTelemetry.last?.postconditionResult, .succeeded)
+    }
+
+    func testExecuteDoesNotMaskFailureWhenPostconditionWasAlreadySatisfied() async {
+        let context = SystemContextBuilder(
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
+        let validator = StubSystemValidator(context: context)
+        let coordinator = StubPrivilegedOperationsCoordinator()
+        coordinator.failOnCall = "installRequiredRuntimeServices"
+        let engine = InstallerEngine(
+            processLifecycleManager: ProcessLifecycleManager(),
+            systemValidator: validator
+        )
+        let plan = InstallPlan(
+            recipes: [
+                ServiceRecipe(
+                    id: "install-daemons",
+                    type: .installService,
+                    expectedPostconditions: [.runtimeReadyOrApprovalPending]
+                )
+            ],
+            status: .ready,
+            intent: .repair,
+            initialPostconditionStates: [.runtimeReadyOrApprovalPending: true]
+        )
+
+        let report = await engine.execute(
+            plan: plan,
+            using: PrivilegeBroker(coordinator: coordinator)
+        )
+
+        XCTAssertFalse(report.success)
+        XCTAssertTrue(report.failureReason?.contains("install-daemons") ?? false)
+        XCTAssertNil(report.recoveryPlan)
     }
 
     func testExecuteDoesNotUseUnrelatedRecipePostconditionToMaskFailure() async {

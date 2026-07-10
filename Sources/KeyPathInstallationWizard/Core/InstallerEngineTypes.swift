@@ -329,6 +329,10 @@ public struct InstallPlan: Sendable, Equatable {
     public let blockedBy: Requirement?
     /// Additional info
     public let metadata: PlanMetadata
+    /// Satisfaction state captured before execution for declared postconditions.
+    /// Nil means no complete baseline was available, so operation errors cannot
+    /// be converted to verified success.
+    public let initialPostconditionStates: [InstallerPostcondition: Bool]?
 
     public var expectedPostconditions: [InstallerPostcondition] {
         var seen = Set<InstallerPostcondition>()
@@ -340,13 +344,15 @@ public struct InstallPlan: Sendable, Equatable {
         status: PlanStatus,
         intent: InstallIntent,
         blockedBy: Requirement? = nil,
-        metadata: PlanMetadata = PlanMetadata()
+        metadata: PlanMetadata = PlanMetadata(),
+        initialPostconditionStates: [InstallerPostcondition: Bool]? = nil
     ) {
         self.recipes = recipes
         self.status = status
         self.intent = intent
         self.blockedBy = blockedBy
         self.metadata = metadata
+        self.initialPostconditionStates = initialPostconditionStates
     }
 }
 

@@ -276,8 +276,9 @@ snapshot.
   transaction and makes CLI clients consume that report evidence.
 - Recipes now declare operation-specific observable postconditions. The owned
   run verifies only those declarations against its final snapshot, treats a
-  lost operation reply as success when final state proves the work completed,
-  and attaches a newly classified repair plan when verification fails.
+  lost operation reply as success only when a complete pre-run baseline proves
+  the failed recipe's state transitioned from unsatisfied to satisfied, and
+  attaches a newly classified repair plan when verification fails.
 
 ### Work
 
