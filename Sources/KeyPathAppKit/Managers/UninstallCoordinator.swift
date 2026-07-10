@@ -245,6 +245,43 @@ public final class UninstallCoordinator {
             logLines.append("⚠️ \(helperFailure!)")
         }
 
+        // A timeout or interrupted helper reply is ambiguous. Before invoking
+        // Emergency Cleanup, verify whether the helper already removed the
+        // requested components. Only tear down helper registration after the
+        // filesystem postcondition proves the uninstall completed.
+        let filesRemovedAfterHelperError = await waitForUninstallPostconditions()
+        if filesRemovedAfterHelperError {
+            let driverRemoved: Bool = if removeVirtualHID {
+                await waitForVirtualHIDRemoval()
+            } else {
+                true
+            }
+            if driverRemoved {
+                let helperUnregistered = await unregisterHelperClosure()
+                steps.append(WizardUninstallStepResult(
+                    id: "unregister-uninstall-helper",
+                    success: helperUnregistered,
+                    error: helperUnregistered ? nil : "The system helper registration remains active."
+                ))
+                steps.append(WizardUninstallStepResult(
+                    id: "verify-uninstall",
+                    success: helperUnregistered,
+                    error: helperUnregistered ? nil : "The system helper registration remains active."
+                ))
+                if helperUnregistered {
+                    await resetForTestingIfEnabled()
+                    logLines.append(
+                        "✅ System helper reply failed, but uninstall postconditions are satisfied; skipping Emergency Cleanup"
+                    )
+                    return finish(WizardUninstallResult(
+                        success: true,
+                        steps: steps,
+                        logs: logLines
+                    ))
+                }
+            }
+        }
+
         if allowAdminFallback {
             return await performEmergencyCleanup(
                 deleteConfig: deleteConfig,

@@ -32,6 +32,15 @@ final class PostconditionLintTests: XCTestCase {
         )
     }
 
+    func testNewsyslogInstallEnforcesFilePostcondition() throws {
+        try assertFunctions(
+            [
+                "installNewsyslogConfig"
+            ],
+            contain: "enforceNewsyslogPostcondition"
+        )
+    }
+
     func testVHIDDriverInstallEnforcesDriverPostcondition() throws {
         try assertFunctions(
             [
@@ -72,6 +81,7 @@ final class PostconditionLintTests: XCTestCase {
             "installRequiredRuntimeServices",
             "recoverRequiredRuntimeServices",
             "regenerateServiceConfiguration",
+            "installNewsyslogConfig",
             "repairVHIDDaemonServices",
             "activateVirtualHIDManager",
             "downloadAndInstallCorrectVHIDDriver",
@@ -84,7 +94,6 @@ final class PostconditionLintTests: XCTestCase {
         ]
         let explicitFollowUpExemptions: Set = [
             "cleanupPrivilegedHelper",
-            "installNewsyslogConfig",
             "uninstallVirtualHIDDrivers",
             "disableKarabinerGrabber",
             "sudoExecuteCommand"

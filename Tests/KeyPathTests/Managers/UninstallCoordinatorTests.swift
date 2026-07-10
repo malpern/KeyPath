@@ -207,6 +207,30 @@ final class UninstallCoordinatorTests: XCTestCase {
         XCTAssertTrue(coordinator.logLines.contains { $0.contains("cleanup already satisfied") })
     }
 
+    func testLostHelperReplyWithSatisfiedPostconditionsSkipsEmergencyCleanup() async {
+        var helperAttempted = false
+        var adminFallbackCalls = 0
+        let coordinator = makeCoordinator(
+            runWithAdminPrivileges: { _, _, _ in
+                adminFallbackCalls += 1
+                return .failure("Emergency Cleanup should not run")
+            },
+            postconditionsSatisfied: { helperAttempted },
+            uninstallViaHelper: { _ in
+                helperAttempted = true
+                throw HelperManagerError.ambiguousOutcome("reply lost")
+            }
+        )
+
+        let result = await coordinator.performUninstall(allowAdminFallback: true)
+
+        XCTAssertTrue(result.success)
+        XCTAssertEqual(adminFallbackCalls, 0)
+        XCTAssertTrue(result.steps.contains { $0.id == "uninstall-via-helper" && !$0.success })
+        XCTAssertTrue(result.steps.contains { $0.id == "verify-uninstall" && $0.success })
+        XCTAssertTrue(coordinator.logLines.contains { $0.contains("skipping Emergency Cleanup") })
+    }
+
     private func makeCoordinator(
         resolveUninstallerURL: @escaping () -> URL? = {
             URL(fileURLWithPath: "/tmp/keypath-test-uninstall.sh")
