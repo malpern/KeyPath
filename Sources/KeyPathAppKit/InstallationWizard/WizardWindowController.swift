@@ -234,7 +234,10 @@ private class WizardWindowDelegate: NSObject, NSWindowDelegate {
 }
 
 private final class WizardHostingView<Content: View>: NSHostingView<Content> {
-    override var acceptsFirstResponder: Bool { false }
+    override var acceptsFirstResponder: Bool {
+        false
+    }
+
     override var focusRingType: NSFocusRingType {
         get { .none }
         set {}

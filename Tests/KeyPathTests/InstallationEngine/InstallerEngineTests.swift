@@ -6,7 +6,9 @@ import KeyPathCore
 
 private actor InstallerGateTestState {
     private(set) var entered = false
-    func markEntered() { entered = true }
+    func markEntered() {
+        entered = true
+    }
 }
 
 @MainActor

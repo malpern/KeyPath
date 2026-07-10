@@ -214,12 +214,16 @@ final class HelperManagerTests: XCTestCase {
 
 private actor AsyncTestFlag {
     private(set) var value = false
-    func set() { value = true }
+    func set() {
+        value = true
+    }
 }
 
 private actor AsyncTestRecorder {
     private(set) var values: [String] = []
-    func append(_ value: String) { values.append(value) }
+    func append(_ value: String) {
+        values.append(value)
+    }
 }
 
 // MARK: - Test Doubles
