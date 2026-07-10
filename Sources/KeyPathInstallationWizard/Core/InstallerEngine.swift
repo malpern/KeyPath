@@ -281,21 +281,6 @@ public final class InstallerEngine {
         var allLogs: [String] = []
         var repairTelemetry: [InstallerRepairTelemetryEvent] = []
 
-        if plan.recipes.isEmpty {
-            repairTelemetry.append(
-                InstallerRepairTelemetryEvent(
-                    trigger: trigger,
-                    intent: plan.intent.telemetryValue,
-                    stateMatrixRow: plan.metadata.stateMatrixRow,
-                    stateMatrixPlan: plan.metadata.stateMatrixPlan,
-                    action: nil,
-                    recipeID: nil,
-                    recipeType: nil,
-                    postconditionResult: .skipped
-                )
-            )
-        }
-
         for recipe in plan.recipes {
             AppLogger.shared.log(
                 "⚙️ [InstallerEngine] Executing recipe: \(recipe.id) (type: \(recipe.type))"
@@ -407,9 +392,15 @@ public final class InstallerEngine {
         } else {
             executedPostconditions
         }
-        let verificationFailure = failedPostconditions.isEmpty
+        let postconditionVerificationFailure = failedPostconditions.isEmpty
             ? nil
             : "Postcondition verification failed: \(failedPostconditions.map(\.rawValue).joined(separator: ", "))"
+
+        let noOpVerificationFailure = await verifyNoOpPlan(
+            plan,
+            finalContext: finalContext
+        )
+        let verificationFailure = postconditionVerificationFailure ?? noOpVerificationFailure
 
         if !executedPostconditions.isEmpty {
             let verificationSucceeded = failedPostconditions.isEmpty
@@ -428,6 +419,30 @@ public final class InstallerEngine {
                     recipeID: nil,
                     recipeType: nil,
                     postconditionResult: verificationSucceeded ? .succeeded : .failed,
+                    error: verificationFailure
+                )
+            )
+        }
+
+        if plan.recipes.isEmpty {
+            let noOpVerified = verificationFailure == nil && plan.intent != .inspectOnly
+            allLogs.append(
+                noOpVerified
+                    ? "[\(InstallerRecipeID.verifyPostconditions)] Final state confirms no work is required"
+                    : "[\(InstallerRecipeID.verifyPostconditions)] \(verificationFailure ?? "Inspection completed without mutations")"
+            )
+            repairTelemetry.append(
+                InstallerRepairTelemetryEvent(
+                    trigger: trigger,
+                    intent: plan.intent.telemetryValue,
+                    stateMatrixRow: plan.metadata.stateMatrixRow,
+                    stateMatrixPlan: plan.metadata.stateMatrixPlan,
+                    action: InstallerRecipeID.verifyPostconditions,
+                    recipeID: nil,
+                    recipeType: nil,
+                    postconditionResult: plan.intent == .inspectOnly
+                        ? .skipped
+                        : (noOpVerified ? .succeeded : .failed),
                     error: verificationFailure
                 )
             )
@@ -481,6 +496,8 @@ public final class InstallerEngine {
                 .awaitingApproval
             } else if firstFailure != nil {
                 .verifiedAfterOperationError
+            } else if plan.recipes.isEmpty, plan.intent != .inspectOnly {
+                .verifiedNoOp
             } else {
                 .completed
             }
@@ -527,6 +544,26 @@ public final class InstallerEngine {
         context.helper.requiresApproval
             || context.services.loginItemsApprovalRequired == true
             || context.requiresManualVHIDDriverApproval
+    }
+
+    private func verifyNoOpPlan(
+        _ plan: InstallPlan,
+        finalContext: SystemContext?
+    ) async -> String? {
+        guard plan.recipes.isEmpty, plan.intent != .inspectOnly else { return nil }
+        guard let finalContext, finalContext.captureStatus.isComplete else {
+            return "No-op verification failed: final system evidence is incomplete"
+        }
+
+        let finalPlan = await makePlan(for: plan.intent, context: finalContext)
+        switch finalPlan.status {
+        case let .blocked(requirement):
+            return "No-op verification failed: final state is blocked by \(requirement.name)"
+        case .ready where !finalPlan.recipes.isEmpty:
+            return "No-op verification failed: final state requires \(finalPlan.recipes.map(\.id).joined(separator: ", "))"
+        case .ready:
+            return nil
+        }
     }
 
     private func captureFreshContext() async -> SystemContext {
@@ -988,7 +1025,10 @@ public final class InstallerEngine {
             } else {
                 AppLogger.shared.log("⚠️ [InstallerEngine] No recipe available for action: \(action)")
                 let report = InstallerReport(
+                    planID: basePlan.id,
+                    beforeSnapshotID: context.snapshotID,
                     success: false,
+                    completionState: .executionFailed,
                     failureReason: "No recipe available for action: \(action)",
                     executedRecipes: [],
                     logs: []

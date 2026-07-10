@@ -2,6 +2,33 @@ import Foundation
 @preconcurrency import XCTest
 
 final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
+    func testEarlyInstallerExitsPreserveCorrelationEvidence() throws {
+        let root = repositoryRoot()
+        let engineSource = try String(
+            contentsOf: root.appendingPathComponent(
+                "Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift"
+            ),
+            encoding: .utf8
+        )
+        let cliSource = try String(
+            contentsOf: root.appendingPathComponent(
+                "Sources/KeyPathAppKit/CLI/SystemFacade.swift"
+            ),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            engineSource.contains("planID: basePlan.id")
+                && engineSource.contains("beforeSnapshotID: context.snapshotID"),
+            "runSingleAction no-recipe failures must preserve plan and snapshot IDs."
+        )
+        XCTAssertTrue(
+            cliSource.contains("planID: plan.id.uuidString")
+                && cliSource.contains("beforeSnapshotID: context.snapshotID.uuidString"),
+            "CLI user-action early returns must preserve plan and snapshot IDs."
+        )
+    }
+
     func testProductionPlanningUsesCanonicalDecisionPipeline() throws {
         let root = repositoryRoot()
         let consumers = [

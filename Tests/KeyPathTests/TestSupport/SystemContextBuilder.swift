@@ -27,6 +27,7 @@ struct SystemContextBuilder {
     var componentsInstalled: Bool = false
     var conflicts: [SystemConflict] = []
     var driverCompatible: Bool = true
+    var captureStatus: SystemSnapshotCaptureStatus = .complete
 
     func build() -> SystemContext {
         let permissionSet = PermissionOracle.PermissionSet(
@@ -86,7 +87,8 @@ struct SystemContextBuilder {
             components: components,
             helper: helper,
             system: EngineSystemInfo(macOSVersion: "15.0", driverCompatible: driverCompatible),
-            timestamp: Date()
+            timestamp: Date(),
+            captureStatus: captureStatus
         )
     }
 

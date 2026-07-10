@@ -192,7 +192,10 @@ public struct SystemFacade: Sendable {
                 issues: initialIssues,
                 plannedRecipes: [],
                 unmetRequirements: plan.blockedBy.map { [$0.name] } ?? [],
-                logs: []
+                logs: [],
+                planID: plan.id.uuidString,
+                beforeSnapshotID: context.snapshotID.uuidString,
+                completionState: InstallerCompletionState.blocked.rawValue
             )
         }
 
