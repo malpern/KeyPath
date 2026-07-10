@@ -102,36 +102,7 @@ public final class InstallerEngine {
             driverCompatible: systemInfo.compatibilityResult.isCompatible
         )
 
-        let activeRuntimePathStatus: (title: String, detail: String)? = nil
-
-        let services = HealthStatus(
-            kanataLaunchdLoaded: snapshot.health.kanataLaunchdLoaded,
-            kanataProcessRunning: snapshot.health.kanataProcessRunning,
-            kanataTCPResponding: snapshot.health.kanataTCPResponding,
-            kanataRunning: snapshot.health.kanataRunning,
-            karabinerDaemonRunning: snapshot.health.karabinerDaemonRunning,
-            vhidHealthy: snapshot.health.vhidHealthy,
-            kanataInputCaptureReady: snapshot.health.kanataInputCaptureReady,
-            kanataInputCaptureIssue: snapshot.health.kanataInputCaptureIssue,
-            activeRuntimePathTitle: activeRuntimePathStatus?.title,
-            activeRuntimePathDetail: activeRuntimePathStatus?.detail,
-            kanataPermissionRejected: snapshot.health.kanataPermissionRejected,
-            configParseError: snapshot.health.configParseError,
-            staleEnabledRegistration: snapshot.health.staleEnabledRegistration,
-            kanataSMAppServiceRegistered: snapshot.health.kanataSMAppServiceRegistered,
-            loginItemsApprovalRequired: snapshot.health.loginItemsApprovalRequired
-        )
-
-        // Convert SystemSnapshot to SystemContext
-        let context = SystemContext(
-            permissions: snapshot.permissions,
-            services: services,
-            conflicts: snapshot.conflicts,
-            components: snapshot.components,
-            helper: snapshot.helper,
-            system: engineSystemInfo,
-            timestamp: snapshot.timestamp
-        )
+        let context = SystemContext(snapshot: snapshot, system: engineSystemInfo)
 
         AppLogger.shared.log(
             "✅ [InstallerEngine] inspectSystem() complete - ready=\(snapshot.isReady), blocking=\(snapshot.blockingIssues.count)"

@@ -7,6 +7,7 @@ import SwiftUI
 public struct WizardSnapshotRecord {
     public let state: WizardSystemState
     public let issues: [WizardIssue]
+    public let captureStatus: SystemSnapshotCaptureStatus
     public let helperInstalled: Bool
     public let helperNeedsApproval: Bool
 }
@@ -50,6 +51,7 @@ public class WizardStateMachine {
     public func updateWizardState(
         _ state: WizardSystemState,
         issues: [WizardIssue],
+        captureStatus: SystemSnapshotCaptureStatus = .complete,
         helperInstalled: Bool = false,
         helperNeedsApproval: Bool = false
     ) {
@@ -58,6 +60,7 @@ public class WizardStateMachine {
         lastWizardSnapshot = WizardSnapshotRecord(
             state: state,
             issues: issues,
+            captureStatus: captureStatus,
             helperInstalled: helperInstalled,
             helperNeedsApproval: helperNeedsApproval
         )
@@ -68,6 +71,7 @@ public class WizardStateMachine {
         updateWizardState(
             result.state,
             issues: issues ?? result.issues,
+            captureStatus: result.captureStatus,
             helperInstalled: result.helperInstalled,
             helperNeedsApproval: result.helperNeedsApproval
         )

@@ -187,6 +187,24 @@ struct SystemValidatorTests {
         // (We can't test this directly without crashing the test)
     }
 
+    @Test("Incomplete snapshot is never ready and exposes staleness separately")
+    func incompleteSnapshotContract() {
+        let context = SystemContextBuilder().build()
+        let snapshot = SystemSnapshot(
+            permissions: context.permissions,
+            components: context.components,
+            conflicts: context.conflicts,
+            health: context.services,
+            helper: context.helper,
+            timestamp: Date(timeIntervalSinceNow: -5),
+            captureStatus: .cancelled
+        )
+
+        #expect(!snapshot.isReady)
+        #expect(snapshot.captureStatus == .cancelled)
+        #expect(snapshot.isStale(maxAge: 1))
+    }
+
     @Test("Healthy TCP-responsive Kanata suppresses stale stderr config parse errors")
     func staleConfigParseErrorSuppressedWhenRuntimeResponsive() {
         let error = SystemValidator.effectiveConfigParseError(

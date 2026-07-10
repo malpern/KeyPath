@@ -78,6 +78,7 @@ final class WizardPureLogicTests: XCTestCase {
         conflicts: ConflictStatus = .empty,
         components: ComponentStatus? = nil,
         helper: HelperStatus? = nil,
+        captureStatus: SystemSnapshotCaptureStatus = .complete,
         timedOut: Bool = false
     ) -> SystemContext {
         SystemContext(
@@ -88,6 +89,7 @@ final class WizardPureLogicTests: XCTestCase {
             helper: helper ?? healthyHelper,
             system: defaultSystem,
             timestamp: Date(),
+            captureStatus: captureStatus,
             timedOut: timedOut
         )
     }
@@ -163,6 +165,32 @@ final class WizardPureLogicTests: XCTestCase {
 
         XCTAssertFalse(result.helperInstalled)
         XCTAssertTrue(result.helperNeedsApproval)
+    }
+
+    func test_systemContextAdapterPreservesCaptureStatus() {
+        let context = makeContext(captureStatus: .cancelled)
+
+        let result = SystemContextAdapter.adapt(context)
+
+        XCTAssertEqual(result.captureStatus, .cancelled)
+        XCTAssertEqual(result.stateMatrixRow, InstallerStateMatrixRow.definitiveUnhealthyState.rawValue)
+        XCTAssertTrue(result.issues.contains { $0.identifier == .validationTimeout })
+    }
+
+    func test_emptyFallbackContextIsExplicitlyIncomplete() {
+        XCTAssertEqual(SystemContext.empty.captureStatus, .cancelled)
+        XCTAssertEqual(SystemContext.empty.installerStateMatrixRow, .definitiveUnhealthyState)
+        XCTAssertEqual(SystemContext.timedOut.captureStatus, .timedOut)
+        XCTAssertTrue(SystemContext.timedOut.timedOut)
+    }
+
+    func test_stateDetectionWithoutMachineProducesCanonicalTimeoutEvidence() async throws {
+        let operation = WizardOperations.stateDetection(stateMachine: nil)
+
+        let result = try await operation.execute { _ in }
+
+        XCTAssertEqual(result.captureStatus, .timedOut)
+        XCTAssertEqual(result.issues.map(\.identifier), [.validationTimeout])
     }
 
     func test_installerDecisionPipelinePinsAssessmentAndExecutablePlanFixtures() {

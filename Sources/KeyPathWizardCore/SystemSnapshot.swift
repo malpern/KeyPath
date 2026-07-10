@@ -3,6 +3,16 @@ import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathPermissions
 
+public enum SystemSnapshotCaptureStatus: String, Sendable, Equatable {
+    case complete
+    case cancelled
+    case timedOut
+
+    public var isComplete: Bool {
+        self == .complete
+    }
+}
+
 /// Complete snapshot of system state at a point in time
 /// This is a pure data structure with no side effects - just state and computed properties
 public struct SystemSnapshot: Sendable {
@@ -12,6 +22,7 @@ public struct SystemSnapshot: Sendable {
     public let health: HealthStatus
     public let helper: HelperStatus
     public let timestamp: Date
+    public let captureStatus: SystemSnapshotCaptureStatus
 
     public init(
         permissions: PermissionOracle.Snapshot,
@@ -19,7 +30,8 @@ public struct SystemSnapshot: Sendable {
         conflicts: ConflictStatus,
         health: HealthStatus,
         helper: HelperStatus,
-        timestamp: Date
+        timestamp: Date,
+        captureStatus: SystemSnapshotCaptureStatus = .complete
     ) {
         self.permissions = permissions
         self.components = components
@@ -27,13 +39,14 @@ public struct SystemSnapshot: Sendable {
         self.health = health
         self.helper = helper
         self.timestamp = timestamp
+        self.captureStatus = captureStatus
     }
 
     // MARK: - Computed Properties for UI
 
     /// System is ready when all critical components are operational
     public var isReady: Bool {
-        helper.isReady && permissions.isSystemReady && !conflicts.hasConflicts
+        captureStatus.isComplete && helper.isReady && permissions.isSystemReady && !conflicts.hasConflicts
             && components.hasAllRequired && health.isHealthy
     }
 
@@ -156,6 +169,10 @@ public struct SystemSnapshot: Sendable {
         Date().timeIntervalSince(timestamp)
     }
 
+    public func isStale(maxAge: TimeInterval) -> Bool {
+        age > maxAge
+    }
+
     /// Validate snapshot freshness - catches stale state bugs
     public func validate() {
         // Assertion: Catch stale state in UI
@@ -169,6 +186,34 @@ public struct SystemSnapshot: Sendable {
                 "⚠️ [SystemSnapshot] Snapshot is \(String(format: "%.1f", age))s old - consider refreshing"
             )
         }
+    }
+
+    public static func unavailable(
+        captureStatus: SystemSnapshotCaptureStatus,
+        source: String,
+        timestamp: Date = Date()
+    ) -> SystemSnapshot {
+        precondition(!captureStatus.isComplete, "Unavailable snapshot must be incomplete")
+        let unknownSet = PermissionOracle.PermissionSet(
+            accessibility: .unknown,
+            inputMonitoring: .unknown,
+            source: source,
+            confidence: .low,
+            timestamp: timestamp
+        )
+        return SystemSnapshot(
+            permissions: PermissionOracle.Snapshot(
+                keyPath: unknownSet,
+                kanata: unknownSet,
+                timestamp: timestamp
+            ),
+            components: .empty,
+            conflicts: .empty,
+            health: .empty,
+            helper: .empty,
+            timestamp: timestamp,
+            captureStatus: captureStatus
+        )
     }
 }
 

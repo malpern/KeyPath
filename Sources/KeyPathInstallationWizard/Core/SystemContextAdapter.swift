@@ -20,6 +20,7 @@ public struct SystemContextAdapter {
             detectionTimestamp: context.timestamp,
             stateMatrixRow: decision.assessment.rawValue,
             stateMatrixPlan: decision.matrixActions.map(\.rawValue),
+            captureStatus: context.captureStatus,
             helperInstalled: context.helper.isInstalled,
             helperNeedsApproval: context.helper.requiresApproval
         )

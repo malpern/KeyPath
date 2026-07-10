@@ -51,6 +51,7 @@ extension WizardOperations {
                                 issues: issues,
                                 autoFixActions: [],
                                 detectionTimestamp: Date(),
+                                captureStatus: .timedOut,
                                 helperInstalled: captured?.helperInstalled ?? false,
                                 helperNeedsApproval: captured?.helperNeedsApproval ?? false
                             )
@@ -71,6 +72,7 @@ extension WizardOperations {
                             issues: issues,
                             autoFixActions: [],
                             detectionTimestamp: Date(),
+                            captureStatus: captured?.captureStatus ?? .complete,
                             helperInstalled: captured?.helperInstalled ?? false,
                             helperNeedsApproval: captured?.helperNeedsApproval ?? false
                         )
@@ -87,7 +89,7 @@ extension WizardOperations {
 
     private static func timeoutResult() -> SystemStateResult {
         let issue = WizardIssue(
-            identifier: .daemon,
+            identifier: .validationTimeout,
             severity: .warning,
             category: .daemon,
             title: "System check timed out",
@@ -99,7 +101,8 @@ extension WizardOperations {
             state: .serviceNotRunning,
             issues: [issue],
             autoFixActions: [],
-            detectionTimestamp: Date()
+            detectionTimestamp: Date(),
+            captureStatus: .timedOut
         )
     }
 }

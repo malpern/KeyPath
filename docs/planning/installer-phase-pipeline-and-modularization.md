@@ -188,6 +188,10 @@ state and the next plan.
   matrix actions, and executable auto-fix actions together from one context and
   intent. `InstallerEngine` and the wizard compatibility adapter both consume
   that result; `ActionDeterminer` remains only as a migration façade.
+- `SystemSnapshot` now carries explicit complete/cancelled/timed-out capture
+  status alongside its timestamp. Compatibility projections and wizard timeout
+  results preserve that fact, and incomplete captures are excluded from the
+  canonical validator cache.
 - A lint ratchet now protects the migrated wizard routing paths. The remaining
   pre-snapshot welcome check now consumes the same canonical result as initial
   routing, so wizard navigation performs no separate helper or `SMAppService`

@@ -76,8 +76,13 @@ public struct SystemContext: Sendable {
     public let system: EngineSystemInfo
     /// When this snapshot was taken
     public let timestamp: Date
-    /// True when validation exceeded the watchdog timeout
-    public let timedOut: Bool
+    /// Completeness of the canonical capture that produced this projection.
+    public let captureStatus: SystemSnapshotCaptureStatus
+
+    /// Compatibility projection for existing timeout-specific consumers.
+    public var timedOut: Bool {
+        captureStatus == .timedOut
+    }
 
     public init(
         permissions: PermissionOracle.Snapshot,
@@ -87,6 +92,7 @@ public struct SystemContext: Sendable {
         helper: HelperStatus,
         system: EngineSystemInfo,
         timestamp: Date,
+        captureStatus: SystemSnapshotCaptureStatus = .complete,
         timedOut: Bool = false
     ) {
         self.permissions = permissions
@@ -96,55 +102,35 @@ public struct SystemContext: Sendable {
         self.helper = helper
         self.system = system
         self.timestamp = timestamp
-        self.timedOut = timedOut
+        self.captureStatus = timedOut ? .timedOut : captureStatus
+    }
+
+    public init(snapshot: SystemSnapshot, system: EngineSystemInfo) {
+        self.init(
+            permissions: snapshot.permissions,
+            services: snapshot.health,
+            conflicts: snapshot.conflicts,
+            components: snapshot.components,
+            helper: snapshot.helper,
+            system: system,
+            timestamp: snapshot.timestamp,
+            captureStatus: snapshot.captureStatus
+        )
     }
 
     /// Empty/fallback context for test environments where WizardDependencies is not configured.
     public static var empty: SystemContext {
-        let unknownSet = PermissionOracle.PermissionSet(
-            accessibility: .unknown,
-            inputMonitoring: .unknown,
-            source: "test-fallback",
-            confidence: .low,
-            timestamp: Date()
-        )
-        return SystemContext(
-            permissions: PermissionOracle.Snapshot(
-                keyPath: unknownSet,
-                kanata: unknownSet,
-                timestamp: Date()
-            ),
-            services: .empty,
-            conflicts: .empty,
-            components: .empty,
-            helper: .empty,
-            system: EngineSystemInfo(macOSVersion: "unknown", driverCompatible: false),
-            timestamp: Date()
+        SystemContext(
+            snapshot: .unavailable(captureStatus: .cancelled, source: "validator-unavailable"),
+            system: EngineSystemInfo(macOSVersion: "unknown", driverCompatible: false)
         )
     }
 
     /// Synthetic context for when validation exceeded the watchdog timeout.
     public static var timedOut: SystemContext {
-        let unknownSet = PermissionOracle.PermissionSet(
-            accessibility: .unknown,
-            inputMonitoring: .unknown,
-            source: "validation-timeout",
-            confidence: .low,
-            timestamp: Date()
-        )
-        return SystemContext(
-            permissions: PermissionOracle.Snapshot(
-                keyPath: unknownSet,
-                kanata: unknownSet,
-                timestamp: Date()
-            ),
-            services: .empty,
-            conflicts: .empty,
-            components: .empty,
-            helper: .empty,
-            system: EngineSystemInfo(macOSVersion: "unknown", driverCompatible: false),
-            timestamp: Date(),
-            timedOut: true
+        SystemContext(
+            snapshot: .unavailable(captureStatus: .timedOut, source: "validation-timeout"),
+            system: EngineSystemInfo(macOSVersion: "unknown", driverCompatible: false)
         )
     }
 }

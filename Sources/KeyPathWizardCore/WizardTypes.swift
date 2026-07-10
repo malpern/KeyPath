@@ -361,6 +361,7 @@ public struct SystemStateResult: Sendable {
     public let detectionTimestamp: Date
     public let stateMatrixRow: String?
     public let stateMatrixPlan: [String]
+    public let captureStatus: SystemSnapshotCaptureStatus
     /// Routing facts captured with the same system snapshot as `state` and
     /// `issues`; wizard clients must not re-probe helper state while routing.
     public let helperInstalled: Bool
@@ -371,6 +372,7 @@ public struct SystemStateResult: Sendable {
         detectionTimestamp: Date,
         stateMatrixRow: String? = nil,
         stateMatrixPlan: [String] = [],
+        captureStatus: SystemSnapshotCaptureStatus = .complete,
         helperInstalled: Bool = false,
         helperNeedsApproval: Bool = false
     ) {
@@ -380,6 +382,7 @@ public struct SystemStateResult: Sendable {
         self.detectionTimestamp = detectionTimestamp
         self.stateMatrixRow = stateMatrixRow
         self.stateMatrixPlan = stateMatrixPlan
+        self.captureStatus = captureStatus
         self.helperInstalled = helperInstalled
         self.helperNeedsApproval = helperNeedsApproval
     }

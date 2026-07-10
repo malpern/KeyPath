@@ -101,7 +101,7 @@ public class SystemValidator {
             AppLogger.shared.log("🧪 [SystemValidator] Test mode - returning stub snapshot")
             progressCallback(1.0)
             let snapshot = Self.makeTestSnapshot()
-            latestSnapshot = snapshot
+            cacheIfComplete(snapshot)
             return snapshot
         }
 
@@ -111,7 +111,7 @@ public class SystemValidator {
                 "🔍 [SystemValidator] Validation already in progress - waiting for result"
             )
             let snapshot = await inProgress.value
-            latestSnapshot = snapshot
+            cacheIfComplete(snapshot)
             return snapshot
         }
 
@@ -124,7 +124,7 @@ public class SystemValidator {
         defer { inProgressValidation = nil }
 
         let snapshot = await validationTask.value
-        latestSnapshot = snapshot
+        cacheIfComplete(snapshot)
         return snapshot
     }
 
@@ -134,6 +134,7 @@ public class SystemValidator {
     ) async -> SystemSnapshot {
         if freshness == .cached,
            let latestSnapshot,
+           latestSnapshot.captureStatus.isComplete,
            Date().timeIntervalSince(latestSnapshot.timestamp) <= Self.canonicalSnapshotCacheTTL
         {
             AppLogger.shared.log("🔍 [SystemValidator] Reusing recent canonical snapshot")
@@ -148,6 +149,11 @@ public class SystemValidator {
         latestSnapshot = nil
         cachedComponentFacts = nil
         ServiceHealthChecker.shared.invalidateHealthCache()
+    }
+
+    private func cacheIfComplete(_ snapshot: SystemSnapshot) {
+        guard snapshot.captureStatus.isComplete else { return }
+        latestSnapshot = snapshot
     }
 
     /// Perform the actual validation work
@@ -762,32 +768,6 @@ public class SystemValidator {
 
     /// Create a minimal snapshot used when a validation task is cancelled
     private static func makeCancelledSnapshot() -> SystemSnapshot {
-        let now = Date()
-        let placeholder = PermissionOracle.PermissionSet(
-            accessibility: .unknown,
-            inputMonitoring: .unknown,
-            source: "cancelled",
-            confidence: .low,
-            timestamp: now
-        )
-        return SystemSnapshot(
-            permissions: PermissionOracle.Snapshot(
-                keyPath: placeholder, kanata: placeholder, timestamp: now
-            ),
-            components: ComponentStatus(
-                kanataBinaryInstalled: false,
-                requiredRuntimePayloadPresent: false,
-                karabinerDriverInstalled: false,
-                karabinerDaemonRunning: false,
-                vhidDeviceInstalled: false,
-                vhidDeviceHealthy: false,
-                vhidServicesHealthy: false,
-                vhidVersionMismatch: false
-            ),
-            conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
-            health: HealthStatus(kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: false),
-            helper: HelperStatus(isInstalled: false, version: nil, isWorking: false),
-            timestamp: now
-        )
+        .unavailable(captureStatus: .cancelled, source: "cancelled")
     }
 }
