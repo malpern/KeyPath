@@ -236,12 +236,6 @@ public struct SystemFacade: Sendable {
         let engine = InstallerEngine()
         let context = await engine.inspectSystem()
         let plan = await engine.makePlan(for: planIntent, context: context)
-        let matrixSnapshot = await SystemStateProvider.shared.currentInstallerStateMatrixSnapshot(
-            components: context.components,
-            helper: context.helper,
-            tcpPort: PreferencesService.shared.tcpServerPort
-        )
-        let matrixRow = InstallerStateMatrixPlanner.classify(matrixSnapshot)
 
         let planStatus: String
         var blockedBy: String?
@@ -264,8 +258,8 @@ public struct SystemFacade: Sendable {
             userActionRequired: Self.issues(from: context).contains { !$0.canAutoFix },
             promptsNeeded: plan.metadata.promptsNeeded,
             issues: Self.issues(from: context),
-            stateMatrixRow: matrixRow.rawValue,
-            stateMatrixPlan: InstallerStateMatrixPlanner.plan(for: matrixRow).map(\.rawValue)
+            stateMatrixRow: plan.metadata.stateMatrixRow,
+            stateMatrixPlan: plan.metadata.stateMatrixPlan
         )
     }
 

@@ -215,13 +215,12 @@ final class W6DeletionPassLintTests: XCTestCase {
         )
     }
 
-    func testMatrixAdaptersDoNotTreatUnknownHelperVersionAsFresh() throws {
-        let adapters = [
-            repositoryRoot().appendingPathComponent("Sources/KeyPathAppKit/Core/SystemStateProvider+InstallerStateMatrix.swift"),
+    func testCanonicalMatrixProjectionDoesNotTreatUnknownHelperVersionAsFresh() throws {
+        let projections = [
             repositoryRoot().appendingPathComponent("Sources/KeyPathInstallationWizard/Core/InstallerStateMatrix.swift"),
         ]
 
-        let violations = try adapters.flatMap { file in
+        let violations = try projections.flatMap { file in
             try matchingLines(
                 in: file,
                 patterns: [
@@ -233,7 +232,7 @@ final class W6DeletionPassLintTests: XCTestCase {
         XCTAssertTrue(
             violations.isEmpty,
             """
-            Helper responsiveness is not helper freshness. Matrix adapters \
+            Helper responsiveness is not helper freshness. The matrix projection \
             must treat an unknown helper version as not fresh and route to \
             helper verification/refresh instead of reporting green:
             \(violations.sorted().joined(separator: "\n"))

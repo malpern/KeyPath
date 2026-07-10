@@ -642,14 +642,9 @@ class MainAppStateController {
         lastValidatedSystemContext = context
         lastAdaptedState = adapted.state
         lastTCPConfigured = await checkTCPConfiguration()
-        let matrixSnapshot = await SystemStateProvider.shared.currentInstallerStateMatrixSnapshot(
-            components: context.components,
-            helper: context.helper,
-            tcpPort: PreferencesService.shared.tcpServerPort
-        )
-        let matrixRow = InstallerStateMatrixPlanner.classify(matrixSnapshot)
-        lastInstallerStateMatrixRow = matrixRow
-        lastInstallerStateMatrixPlan = InstallerStateMatrixPlanner.plan(for: matrixRow)
+        let decision = InstallerDecisionPipeline.decide(for: .repair, context: context)
+        lastInstallerStateMatrixRow = decision.assessment
+        lastInstallerStateMatrixPlan = decision.matrixActions
         issues = adapted.issues
         lastValidationDate = Date()
         lastValidationTime = Date() // Track for cooldown optimization
