@@ -453,6 +453,81 @@ struct MainAppStateControllerBehaviorTests {
         #expect(controller.issues.isEmpty)
     }
 
+    @Test("Unknown TCP configuration remains inconclusive")
+    func unknownTCPConfigurationRemainsInconclusive() async {
+        let context = SystemContextBuilder(
+            servicesHealthy: true,
+            kanataTCPConfigured: nil,
+            componentsInstalled: true
+        ).build()
+        let controller = configuredController(validator: StubSystemValidator(context: context))
+
+        await controller.refreshValidation()
+
+        #expect(controller.lastTCPConfigured == nil)
+        #expect(controller.validationState == .checking)
+    }
+
+    @Test("A later complete capture resolves unknown TCP configuration")
+    func laterCaptureResolvesUnknownTCPConfiguration() async {
+        let unknown = SystemContextBuilder(
+            servicesHealthy: true,
+            kanataTCPConfigured: nil,
+            componentsInstalled: true
+        ).build()
+        let healthy = SystemContextBuilder(
+            servicesHealthy: true,
+            kanataTCPConfigured: true,
+            componentsInstalled: true
+        ).build()
+        let validator = SequenceSystemValidator(contexts: [unknown, healthy])
+        let controller = configuredController(validator: validator)
+
+        await controller.refreshValidation()
+        #expect(controller.validationState == .checking)
+
+        await controller.revalidate()
+        #expect(controller.lastTCPConfigured == true)
+        #expect(controller.validationState == .success)
+        #expect(validator.checkCount == 2)
+    }
+
+    @Test("Explicit missing TCP configuration remains a failure")
+    func explicitMissingTCPConfigurationRemainsFailure() async {
+        let context = SystemContextBuilder(
+            servicesHealthy: true,
+            kanataTCPConfigured: false,
+            componentsInstalled: true
+        ).build()
+        let controller = configuredController(validator: StubSystemValidator(context: context))
+
+        await controller.refreshValidation()
+
+        #expect(controller.lastTCPConfigured == false)
+        #expect(controller.validationState?.hasCriticalIssues == true)
+    }
+
+    @Test("Concurrent refreshes publish one validation result")
+    func concurrentRefreshesPublishOneValidationResult() async {
+        let context = SystemContextBuilder(
+            servicesHealthy: true,
+            kanataTCPConfigured: true,
+            componentsInstalled: true
+        ).build()
+        let validator = GatedCountingValidator(context: context)
+        let controller = configuredController(validator: validator)
+
+        async let first: Void = controller.refreshValidation()
+        await Task.yield()
+        async let second: Void = controller.refreshValidation()
+        await Task.yield()
+        validator.open()
+        _ = await (first, second)
+
+        #expect(validator.checkCount == 1)
+        #expect(controller.validationState == .success)
+    }
+
     @Test("startup gate with immediately-healthy service reports ready")
     func startupGateWithImmediatelyHealthyServiceReportsReady() async {
         let controller = MainAppStateController()
@@ -473,5 +548,88 @@ struct MainAppStateControllerBehaviorTests {
 
         let ready = await controller.evaluateKanataStartupGateForTesting()
         #expect(ready == true)
+    }
+
+    private func configuredController(validator: any WizardSystemValidating) -> MainAppStateController {
+        let controller = MainAppStateController()
+        controller.setValidator(validator)
+        #if DEBUG
+            controller.configureStartupGateTestingState(
+                healthOverride: {
+                    KanataHealthSnapshot(isRunning: true, isResponding: true)
+                },
+                transientWindowOverride: { false }
+            )
+        #endif
+        return controller
+    }
+}
+
+@MainActor
+private final class GatedCountingValidator: WizardSystemValidating {
+    private let snapshot: SystemSnapshot
+    private var isOpen = false
+    private(set) var checkCount = 0
+
+    init(context: SystemContext) {
+        snapshot = SystemSnapshot(
+            id: context.snapshotID,
+            permissions: context.permissions,
+            components: context.components,
+            conflicts: context.conflicts,
+            health: context.services,
+            helper: context.helper,
+            compatibility: SystemCompatibilityStatus(
+                macOSVersion: context.system.macOSVersion,
+                driverCompatible: context.system.driverCompatible
+            ),
+            timestamp: context.timestamp,
+            captureStatus: context.captureStatus
+        )
+    }
+
+    func checkSystem() async -> SystemSnapshot {
+        checkCount += 1
+        while !isOpen, !Task.isCancelled {
+            await Task.yield()
+        }
+        return snapshot
+    }
+
+    func open() {
+        isOpen = true
+    }
+}
+
+@MainActor
+private final class SequenceSystemValidator: WizardSystemValidating {
+    private var snapshots: [SystemSnapshot]
+    private(set) var checkCount = 0
+
+    init(contexts: [SystemContext]) {
+        snapshots = contexts.map { context in
+            SystemSnapshot(
+                id: context.snapshotID,
+                permissions: context.permissions,
+                components: context.components,
+                conflicts: context.conflicts,
+                health: context.services,
+                helper: context.helper,
+                compatibility: SystemCompatibilityStatus(
+                    macOSVersion: context.system.macOSVersion,
+                    driverCompatible: context.system.driverCompatible
+                ),
+                timestamp: context.timestamp,
+                captureStatus: context.captureStatus
+            )
+        }
+    }
+
+    func checkSystem() async -> SystemSnapshot {
+        checkCount += 1
+        if snapshots.count > 1 {
+            return snapshots.removeFirst()
+        }
+        return snapshots[0]
     }
 }
