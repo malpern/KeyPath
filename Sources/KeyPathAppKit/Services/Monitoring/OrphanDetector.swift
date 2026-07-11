@@ -11,6 +11,9 @@ final class OrphanDetector {
 
     private let engineFactory: () -> (any InstallerEnginePrivilegedRouting)
     private let brokerFactory: () -> PrivilegeBroker
+    private let homeDirectory: URL
+    private let creationDate: (URL) -> Date?
+    private let launchDate: () -> Date
 
     // MARK: - Singleton
 
@@ -18,10 +21,19 @@ final class OrphanDetector {
 
     init(
         engineFactory: @escaping () -> (any InstallerEnginePrivilegedRouting) = { InstallerEngine() },
-        brokerFactory: @escaping () -> PrivilegeBroker = { PrivilegeBroker() }
+        brokerFactory: @escaping () -> PrivilegeBroker = { PrivilegeBroker() },
+        homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
+        creationDate: @escaping (URL) -> Date? = { url in
+            guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+            return try? url.resourceValues(forKeys: [.creationDateKey]).creationDate
+        },
+        launchDate: @escaping () -> Date = { NSRunningApplication.current.launchDate ?? Date() }
     ) {
         self.engineFactory = engineFactory
         self.brokerFactory = brokerFactory
+        self.homeDirectory = homeDirectory
+        self.creationDate = creationDate
+        self.launchDate = launchDate
     }
 
     /// User defaults key to track if we've shown the orphan cleanup alert
@@ -37,18 +49,21 @@ final class OrphanDetector {
     func detectOrphanedInstall() -> Bool {
         // Check for leftover files from manual app deletion
         let orphanedPaths = [
-            Foundation.FileManager().homeDirectoryForCurrentUser
+            homeDirectory
                 .appendingPathComponent("Library/Application Support/KeyPath"),
-            Foundation.FileManager().homeDirectoryForCurrentUser
+            homeDirectory
                 .appendingPathComponent("Library/Logs/KeyPath"),
-            Foundation.FileManager().homeDirectoryForCurrentUser
+            homeDirectory
                 .appendingPathComponent("Library/Preferences")
                 .appendingPathComponent("com.keypath.KeyPath.plist")
         ]
 
-        // Count how many orphaned paths exist
-        let orphanCount = orphanedPaths.filter {
-            Foundation.FileManager().fileExists(atPath: $0.path)
+        // Startup creates these same paths on a genuinely clean install. Only
+        // paths that predate this process are evidence of an earlier install.
+        let currentLaunchDate = launchDate()
+        let orphanCount = orphanedPaths.filter { path in
+            guard let createdAt = creationDate(path) else { return false }
+            return createdAt < currentLaunchDate
         }.count
 
         // If 2 or more paths exist, this is likely an orphaned install
