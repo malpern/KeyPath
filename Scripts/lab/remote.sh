@@ -92,10 +92,14 @@ record_command() {
 }
 
 prepare_worktree() {
-  local repo=$1
+  local repo=$1 changes
   [[ "$repo" == "$OPERATIONS"/*/repo ]] || die "unsafe lease worktree path"
   [[ -d "$repo/.git" ]] || die "lease checkout is not a Git worktree"
-  [[ -z "$(git -C "$repo" status --porcelain --untracked-files=all)" ]] || die "refusing to sync a changing checkout"
+  changes=$(git -C "$repo" status --porcelain --untracked-files=all -- . \
+    ':(exclude).crabbox/logs/**' \
+    ':(exclude).crabbox/captures/**' \
+    ':(exclude).crabbox/runs/**')
+  [[ -z "$changes" ]] || die "refusing to sync a changing checkout"
 }
 
 run_with_download() {
@@ -323,6 +327,9 @@ collect_artifacts() {
   cp "$manifest" "$output/manifest.tsv"
   cp "$LEASES/$lease/commands.tsv" "$output/commands.tsv" 2>/dev/null || true
   cp -R "$LOGS/$lease" "$output/controller-logs"
+  if [[ -d "$repo/.crabbox/captures" ]]; then
+    cp -R "$repo/.crabbox/captures" "$output/controller-crabbox-captures"
+  fi
   archive="$output/scenario-output.tar.gz"
   set +e
   (cd "$repo" && run_with_download "$macos" "$lease" ".keypath-lab/scenario-output.tar.gz" "$archive" \
