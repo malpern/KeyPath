@@ -121,6 +121,26 @@ run_with_download() {
   fi
 }
 
+warmup_desktop() {
+  local macos=$1 slug=$2
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    "$CRABBOX" warmup --provider "$(provider_for "$macos")" --target macos --desktop --slug "$slug" --ttl 2h
+  elif [[ "$macos" == "15" ]]; then
+    if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
+    export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    "$CRABBOX" warmup --provider tart --target macos --desktop \
+      --tart-image ghcr.io/cirruslabs/macos-sequoia-base:latest \
+      --tart-user admin --tart-cpu 4 --tart-memory 8192 --ssh-port 22 \
+      --slug "$slug" --ttl 2h
+  else
+    export PATH="$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    "$CRABBOX" warmup --provider parallels --target macos --desktop \
+      --parallels-template keypath-macos-26 --parallels-user keypathqa \
+      --parallels-work-root /Users/keypathqa/crabbox --ssh-port 22 \
+      --slug "$slug" --ttl 2h
+  fi
+}
+
 preflight() {
   local mount_point
   [[ "$LAB_ROOT" == "$PRODUCTION_ROOT" || "${KEYPATH_LAB_TESTING:-0}" == "1" ]] || die "unsafe lab root"
@@ -214,8 +234,8 @@ install_archive() {
 }
 
 create_lease() {
-  local macos=$1 archive_key=$2 commit=$3 installer_sha=$4 installer_name=$5 ttl=$6
-  local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds
+  local macos=$1 archive_key=$2 commit=$3 installer_sha=$4 installer_name=$5 ttl=$6 desktop=$7
+  local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds provider_resource
   launcher=$(launcher_for "$macos")
   provider=$(provider_for "$macos")
   valid_id "$archive_key"
@@ -229,12 +249,17 @@ create_lease() {
   git clone -q --local "$archive/repo" "$operation/repo"
   repo="$operation/repo"
   prepare_worktree "$repo"
-  output=$(cd "$repo" && "$launcher" warmup "$slug" 2>&1)
+  if [[ "$desktop" == "1" ]]; then
+    output=$(cd "$repo" && warmup_desktop "$macos" "$slug" 2>&1)
+  else
+    output=$(cd "$repo" && "$launcher" warmup "$slug" 2>&1)
+  fi
   print -r -- "$output"
   print -r -- "$output" > "$operation/create.log"
   lease=$(print -r -- "$output" | grep -Eo 'cbx_[A-Za-z0-9]+' | tail -1 || true)
   [[ -n "$lease" ]] || die "CrabBox did not report a lease id; inspect provider inventory before cleanup"
   valid_id "$lease"
+  provider_resource=$(print -r -- "$output" | sed -nE 's/.* (vm|instance)=([^ ]+).*/\2/p' | tail -1)
   created=$(now_epoch)
   expires=$((created + ttl_seconds))
   mkdir -p "$LEASES/$lease" "$LOGS/$lease" "$ARTIFACTS/$lease"
@@ -255,7 +280,8 @@ create_lease() {
     print "expires_epoch\t$expires"
     print "status\tcreated"
     print "cleanup_status\tpending"
-    print "desktop_enabled\tfalse"
+    print "desktop_enabled\t$([[ "$desktop" == "1" ]] && print true || print false)"
+    print "provider_resource\t${provider_resource:-unknown}"
   } > "$manifest"
   print -r -- "$output" > "$LOGS/$lease/create.log"
   guest_output=$(cd "$repo" && "$launcher" run "$lease" -- /bin/zsh -lc 'printf "product=%s\n" "$(sw_vers -productVersion)"; printf "build=%s\n" "$(sw_vers -buildVersion)"' 2>&1) || {
@@ -273,6 +299,35 @@ create_lease() {
   record_command "$lease" passed sw_vers
   print "lease_id\t$lease"
   print "manifest\t$manifest"
+}
+
+install_app() {
+  local lease=$1 manifest macos repo installer_name provider_resource guest_repo command exit_code
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  repo=$(field "$manifest" worktree)
+  installer_name=$(field "$manifest" installer_name)
+  provider_resource=$(field "$manifest" provider_resource)
+  prepare_worktree "$repo"
+  guest_repo="/Users/$([[ "$macos" == "15" ]] && print admin || print keypathqa)/crabbox/$lease/repo"
+  command="set -euo pipefail; rm -rf /tmp/keypath-install; mkdir -p /tmp/keypath-install; ditto -x -k '$guest_repo/.keypath-lab/installer/$installer_name' /tmp/keypath-install; rm -rf /Applications/KeyPath.app; ditto /tmp/keypath-install/KeyPath.app /Applications/KeyPath.app"
+  set +e
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    print "install-app $macos $lease $provider_resource" >> "$LOGS/$lease/install-app.log"
+    exit_code=0
+  elif [[ "$macos" == "15" ]]; then
+    (cd "$repo" && "$(launcher_for "$macos")" run "$lease" -- /bin/zsh -lc "sudo -n /bin/zsh -lc $(printf %q "$command")") > "$LOGS/$lease/install-app.log" 2>&1
+    exit_code=$?
+  else
+    [[ "$provider_resource" =~ '^[A-Fa-f0-9-]+$' && "$provider_resource" != "unknown" ]] || die "invalid Parallels resource id"
+    "/Applications/Parallels Desktop.app/Contents/MacOS/prlctl" exec "$provider_resource" /bin/zsh -lc "$command" > "$LOGS/$lease/install-app.log" 2>&1
+    exit_code=$?
+  fi
+  set -e
+  set_field "$manifest" install_app_result "$exit_code"
+  set_field "$manifest" install_app_at "$(utc_now)"
+  cat "$LOGS/$lease/install-app.log"
+  return "$exit_code"
 }
 
 run_command() {
@@ -339,12 +394,27 @@ collect_artifacts() {
   if (( exit_code == 0 )); then
     tar -xzf "$archive" -C "$output"
   fi
+  if [[ "$(field "$manifest" desktop_enabled)" == "true" ]]; then
+    set +e
+    if [[ "$macos" == "15" ]]; then
+      if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
+      export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      (cd "$repo" && "$CRABBOX" screenshot --provider tart --target macos --id "$lease" --output "$output/screenshot.png") >> "$output/download.log" 2>&1
+    else
+      (cd "$repo" && "$CRABBOX" screenshot --provider parallels --target macos --id "$lease" --parallels-user keypathqa --parallels-work-root /Users/keypathqa/crabbox --output "$output/screenshot.png") >> "$output/download.log" 2>&1
+    fi
+    screenshot_exit=$?
+    set -e
+    set_field "$manifest" screenshot_status "$screenshot_exit"
+  else
+    screenshot_exit=unavailable:lease-not-created-with-desktop
+    set_field "$manifest" screenshot_status "$screenshot_exit"
+  fi
   set_field "$manifest" artifacts_status "$exit_code"
   set_field "$manifest" artifacts_last_collected_at "$(utc_now)"
-  set_field "$manifest" screenshot_status "unavailable:lease-not-created-with-desktop"
   print "artifact_dir\t$output"
   print "download_status\t$exit_code"
-  print "screenshot_status\tunavailable:lease-not-created-with-desktop"
+  print "screenshot_status\t$screenshot_exit"
   return "$exit_code"
 }
 
@@ -408,7 +478,8 @@ case "$action" in
   preflight) [[ $# -eq 0 ]] || die "preflight takes no arguments"; preflight ;;
   prepare-upload) [[ $# -eq 1 ]] || die "prepare-upload requires archive key"; prepare_upload "$1" ;;
   install-archive) [[ $# -eq 5 ]] || die "install-archive requires ticket, key, commit, checksum, and name"; install_archive "$@" ;;
-  create) [[ $# -eq 6 ]] || die "create requires lane, archive, commit, checksum, name, ttl"; create_lease "$@" ;;
+  create) [[ $# -eq 7 ]] || die "create requires lane, archive, commit, checksum, name, ttl, desktop"; create_lease "$@" ;;
+  install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
   run) [[ $# -ge 2 ]] || die "run requires lease and command"; run_command "$@" ;;
   status) [[ $# -eq 1 ]] || die "status requires lease"; print_status "$1" ;;
   list) [[ $# -eq 0 ]] || die "list takes no arguments"; list_leases ;;

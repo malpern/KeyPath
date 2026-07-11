@@ -34,6 +34,17 @@ EOF
 cat > "$ROOT/bin/crabbox" <<EOF
 #!/bin/bash
 echo "crabbox \$*" >> "$CALLS"
+if [[ \$1 == warmup ]]; then
+  if [[ " \$* " == *" --provider tart "* ]]; then echo cbx_desktop15; else echo cbx_desktop26; fi
+  exit 0
+fi
+if [[ \$1 == screenshot ]]; then
+  while [[ \$# -gt 0 ]]; do
+    if [[ \$1 == --output ]]; then mkdir -p "\$(dirname "\$2")"; echo png > "\$2"; break; fi
+    shift
+  done
+  exit 0
+fi
 while [[ \$# -gt 0 ]]; do
   if [[ \$1 == --download ]]; then
     target=\${2#*=}
@@ -107,7 +118,7 @@ EOF
 
 commit=$(printf 'a%.0s' {1..40})
 checksum=$(printf 'b%.0s' {1..64})
-create=$(run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h)
+create=$(run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create" $'lease_id\tcbx_test15'
 manifest="$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"
 grep -q $'owner\tkeypath-installer-lab-v1' "$manifest"
@@ -117,6 +128,8 @@ run_remote run cbx_test15 echo hello >/dev/null
 grep -q 'echo hello' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/commands.tsv"
 run_remote scenario cbx_test15 clean-install >/dev/null
 grep -q 'installer-scenario clean-install' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/commands.tsv"
+run_remote install-app cbx_test15 >/dev/null
+grep -q 'install-app 15 cbx_test15' "$ROOT/KeyPathInstallerLab/logs/cbx_test15/install-app.log"
 
 artifacts=$(run_remote artifacts cbx_test15)
 assert_contains "$artifacts" $'download_status\t0'
@@ -155,14 +168,24 @@ run_remote destroy cbx_test15 >/dev/null
 grep -q 'stop-15 cbx_test15' "$CALLS"
 grep -q $'cleanup_status\tcomplete' "$manifest"
 
-create26=$(run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h)
+create26=$(run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create26" $'lease_id\tcbx_test26'
 artifacts26=$(run_remote artifacts cbx_test26)
 assert_contains "$artifacts26" $'download_status\t0'
 grep -q 'crabbox run --provider parallels --target macos --id cbx_test26 --stop-after never --download' "$CALLS"
 run_remote destroy cbx_test26 >/dev/null
 
-if run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 3h >/dev/null 2>&1; then
+desktop_create=$(run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
+assert_contains "$desktop_create" $'lease_id\tcbx_desktop15'
+desktop_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_desktop15/manifest.tsv"
+grep -q $'desktop_enabled\ttrue' "$desktop_manifest"
+desktop_artifacts=$(run_remote artifacts cbx_desktop15)
+assert_contains "$desktop_artifacts" $'screenshot_status\t0'
+desktop_artifact_dir=$(printf '%s\n' "$desktop_artifacts" | awk -F '\t' '$1 == "artifact_dir" {print $2}')
+[[ -f "$desktop_artifact_dir/screenshot.png" ]]
+run_remote destroy cbx_desktop15 >/dev/null
+
+if run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 3h 0 >/dev/null 2>&1; then
     echo "create accepted a TTL longer than the launchers support" >&2
     exit 1
 fi

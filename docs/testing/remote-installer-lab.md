@@ -54,10 +54,12 @@ Scripts/lab/keypath-lab create \
   --macos 15 \
   --commit "$SHA" \
   --installer dist/KeyPath.zip \
-  --ttl 2h
+  --ttl 2h \
+  --desktop
 
 Scripts/lab/keypath-lab list
 Scripts/lab/keypath-lab status cbx_example
+Scripts/lab/keypath-lab install-app cbx_example
 Scripts/lab/keypath-lab run cbx_example -- sw_vers
 Scripts/lab/keypath-lab artifacts cbx_example
 Scripts/lab/keypath-lab destroy cbx_example
@@ -74,11 +76,18 @@ not parse private SSH-key locations or invoke `scp`. CrabBox 0.36's provider
 `cp` command is not supported by these providers, and its aggregate desktop
 artifact workflow requires a desktop-enabled lease.
 
-The existing `keypath15` and `keypath26` launchers do not create leases with
-CrabBox's `--desktop` capability. Artifact collection therefore records
-`screenshot_status=unavailable:lease-not-created-with-desktop` instead of
-attempting an unsupported screenshot. Adding screenshots requires an explicit,
-separately validated desktop-capable launcher contract.
+Pass `--desktop` when approval interaction or screenshots are required. The
+controller mirrors the existing provider launcher configuration while adding
+CrabBox's desktop capability; ordinary creation continues to use the launchers
+unchanged. Artifact collection captures a screenshot for desktop leases and
+records an explicit unavailable status otherwise.
+
+`install-app` expands the staged ZIP into `/Applications` on the disposable
+guest. Tart uses the base image's noninteractive sudo contract. Parallels uses
+the same passwordless `prlctl exec` guest-control channel CrabBox already uses
+to prepare the disposable clone, scoped to the exact provider resource recorded
+in the owned lease manifest. Neither path changes the base image or stores a
+guest password.
 
 ## Installer scenarios
 
