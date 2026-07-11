@@ -29,11 +29,22 @@ final class VHIDDeviceManagerTests: XCTestCase {
         XCTAssertFalse(mgr.hasVersionMismatch(), "v6 installed with v6 required should NOT be a mismatch")
     }
 
-    func testHasVersionMismatch_V6_1InstalledRequiresV6() {
-        // Simulate v6.1.0 installed - same major version should be compatible
+    func testHasVersionMismatch_V6_1InstalledRequiresV6_2() {
         VHIDDeviceManager.testInstalledVersionProvider = { "6.1.0" }
         let mgr = VHIDDeviceManager()
-        XCTAssertFalse(mgr.hasVersionMismatch(), "v6.1 installed with v6 required should NOT be a mismatch (same major)")
+        XCTAssertTrue(mgr.hasVersionMismatch(), "v6.1 installed with v6.2 required should be a mismatch")
+    }
+
+    func testHasVersionMismatch_V6_0InstalledRequiresV6_2() {
+        VHIDDeviceManager.testInstalledVersionProvider = { "6.0.0" }
+        let mgr = VHIDDeviceManager()
+        XCTAssertTrue(mgr.hasVersionMismatch(), "v6.0 installed with v6.2 required should be a mismatch")
+    }
+
+    func testHasVersionMismatch_NewerCompatibleV6Release() {
+        VHIDDeviceManager.testInstalledVersionProvider = { "6.14.0" }
+        let mgr = VHIDDeviceManager()
+        XCTAssertFalse(mgr.hasVersionMismatch(), "a newer v6 release should remain compatible")
     }
 
     func testHasVersionMismatch_NoVersionInstalled() {

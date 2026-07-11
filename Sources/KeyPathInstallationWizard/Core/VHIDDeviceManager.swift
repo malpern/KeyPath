@@ -74,7 +74,7 @@ public final class VHIDDeviceManager: @unchecked Sendable {
         WizardSystemPaths.bundledVHIDDriverVersion
     }
 
-    private static let currentKanataVersion = "1.10.0" // Current supported Kanata version
+    private static let currentKanataVersion = "1.12.0"
 
     // Driver DriverKit extension identifiers
     private static let driverTeamID = "G43BCU2T37" // pqrs.org team ID
@@ -417,21 +417,22 @@ public final class VHIDDeviceManager: @unchecked Sendable {
             return false
         }
 
-        // Parse major version
-        let versionComponents = installedVersion.split(separator: ".").compactMap { Int($0) }
-        guard let majorVersion = versionComponents.first else {
+        guard let installedComponents = Self.numericVersionComponents(installedVersion),
+              let requiredComponents = Self.numericVersionComponents(Self.requiredDriverVersionString)
+        else {
             AppLogger.shared.log("⚠️ [VHIDManager] Cannot parse version \(installedVersion)")
             return false
         }
 
-        let hasMismatch = majorVersion != Self.requiredDriverVersionMajor
+        let hasMismatch = installedComponents[0] != requiredComponents[0]
+            || installedComponents.lexicographicallyPrecedes(requiredComponents)
         if hasMismatch {
             AppLogger.shared.log("❌ [VHIDManager] Version mismatch detected:")
-            AppLogger.shared.log("  - Installed: v\(installedVersion) (major: \(majorVersion))")
+            AppLogger.shared.log("  - Installed: v\(installedVersion)")
+            AppLogger.shared.log("  - Minimum supported: v\(Self.requiredDriverVersionString)")
             AppLogger.shared.log(
-                "  - Required: v\(Self.requiredDriverVersionString) (major: \(Self.requiredDriverVersionMajor))"
+                "  - Kanata \(Self.currentKanataVersion) requires driver v\(Self.requiredDriverVersionString) or newer within major v\(Self.requiredDriverVersionMajor)"
             )
-            AppLogger.shared.log("  - Kanata \(Self.currentKanataVersion) requires driver v\(Self.requiredDriverVersionMajor).x")
         } else {
             AppLogger.shared.log("✅ [VHIDManager] Version compatible: v\(installedVersion)")
         }
@@ -440,7 +441,7 @@ public final class VHIDDeviceManager: @unchecked Sendable {
     }
 
     /// Requires readable installed-version evidence as well as compatibility
-    /// with the driver major version bundled with KeyPath.
+    /// with the minimum driver version bundled with KeyPath.
     public func hasRequiredDriverVersion() -> Bool {
         guard getInstalledVersion() != nil else { return false }
         return !hasVersionMismatch()
@@ -452,12 +453,15 @@ public final class VHIDDeviceManager: @unchecked Sendable {
             return nil
         }
 
-        let versionComponents = installedVersion.split(separator: ".").compactMap { Int($0) }
-        guard let majorVersion = versionComponents.first else {
+        guard let installedComponents = Self.numericVersionComponents(installedVersion),
+              let requiredComponents = Self.numericVersionComponents(Self.requiredDriverVersionString)
+        else {
             return nil
         }
 
-        if majorVersion != Self.requiredDriverVersionMajor {
+        if installedComponents[0] != requiredComponents[0]
+            || installedComponents.lexicographicallyPrecedes(requiredComponents)
+        {
             return """
             Version Compatibility Issue
 
@@ -468,6 +472,21 @@ public final class VHIDDeviceManager: @unchecked Sendable {
         }
 
         return nil
+    }
+
+    private static func numericVersionComponents(_ version: String) -> [Int]? {
+        let components = version.split(separator: ".", omittingEmptySubsequences: false)
+        guard !components.isEmpty,
+              components.allSatisfy({ !$0.isEmpty && $0.allSatisfy(\.isNumber) })
+        else {
+            return nil
+        }
+
+        var numeric = components.compactMap { Int($0) }
+        while numeric.count < 3 {
+            numeric.append(0)
+        }
+        return numeric
     }
 
     // MARK: - Activation Methods
