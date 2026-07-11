@@ -277,7 +277,7 @@ public enum WizardSystemPaths {
 
     /// The bundled VHID driver version - single source of truth
     /// Update this when bundling a new driver version
-    public static let bundledVHIDDriverVersion = "6.0.0"
+    public static let bundledVHIDDriverVersion = "6.2.0"
 
     /// The bundled VHID driver major version (for compatibility checks)
     public static var bundledVHIDDriverMajorVersion: Int {

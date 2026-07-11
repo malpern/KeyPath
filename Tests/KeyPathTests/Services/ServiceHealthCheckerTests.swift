@@ -332,11 +332,11 @@ final class ServiceHealthCheckerTests: XCTestCase {
     func testClassifyVHIDDriverExtensionStatusDistinguishesPendingApprovalFromMissingDriver() {
         let enabled = """
         enabled active teamID bundleID (version) name [state]
-            *    *    G43BCU2T37 org.pqrs.Karabiner-DriverKit-VirtualHIDDevice (6.0.0/6.0.0) org.pqrs.Karabiner-DriverKit-VirtualHIDDevice [activated enabled]
+            *    *    G43BCU2T37 org.pqrs.Karabiner-DriverKit-VirtualHIDDevice (6.2.0/6.2.0) org.pqrs.Karabiner-DriverKit-VirtualHIDDevice [activated enabled]
         """
         let installedButNotEnabled = """
         enabled active teamID bundleID (version) name [state]
-            *         G43BCU2T37 org.pqrs.Karabiner-DriverKit-VirtualHIDDevice (6.0.0/6.0.0) org.pqrs.Karabiner-DriverKit-VirtualHIDDevice [activated waiting for user]
+            *         G43BCU2T37 org.pqrs.Karabiner-DriverKit-VirtualHIDDevice (6.2.0/6.2.0) org.pqrs.Karabiner-DriverKit-VirtualHIDDevice [activated waiting for user]
         """
         let missing = """
         enabled active teamID bundleID (version) name [state]
