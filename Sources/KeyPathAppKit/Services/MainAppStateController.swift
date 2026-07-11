@@ -642,7 +642,7 @@ class MainAppStateController {
                 )
                 let signature = "active:\(reasons.joined(separator: ",")):\(blockingIssues.map(\.title).joined(separator: ","))"
                 if shouldLogValidationFailureInDetail(site: .validationFailure, signature: signature) {
-                    AppLogger.shared.error(
+                    AppLogger.shared.errorUnlessQuietTest(
                         "❌ [MainAppStateController] Validation FAILED - \(reasons.joined(separator: ", "))"
                     )
                     for (index, issue) in blockingIssues.enumerated() {
