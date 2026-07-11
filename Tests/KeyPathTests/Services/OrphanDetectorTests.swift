@@ -5,7 +5,7 @@ import Foundation
 @MainActor
 final class OrphanDetectorTests: XCTestCase {
     private let home = URL(fileURLWithPath: "/test-home", isDirectory: true)
-    private let launch = Date(timeIntervalSince1970: 1_000)
+    private let launch = Date(timeIntervalSince1970: 1000)
 
     func testCurrentLaunchPathsDoNotLookLikeOrphans() {
         let detector = makeDetector(dates: [
