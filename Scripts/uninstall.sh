@@ -1,1 +1,1 @@
-../Sources/KeyPath/Resources/uninstall.sh
+../Sources/KeyPathApp/Resources/uninstall.sh

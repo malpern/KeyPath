@@ -394,7 +394,7 @@ if [ -d "Sources/KeyPathApp/Resources" ]; then
     fi
     echo "✅ Copied app resources"
 else
-    echo "⚠️ WARNING: Sources/KeyPath/Resources directory not found"
+    echo "⚠️ WARNING: Sources/KeyPathApp/Resources directory not found"
 fi
 
 # Copy SwiftPM resource bundles (KeyPath_KeyPath.bundle, KeyPath_KeyPathAppKit.bundle, etc.)
