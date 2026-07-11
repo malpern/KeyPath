@@ -98,9 +98,10 @@ installer_sha256	$installer_sha
 EOF
         tar -czf "$temp_dir/archive.tgz" -C "$temp_dir" repo
 
-        remote prepare-upload "$archive_key"
-        scp -q "$temp_dir/archive.tgz" "$host:/tmp/keypath-lab-${archive_key}.tgz"
-        remote install-archive "$archive_key" "$commit" "$installer_sha" "$installer_name"
+        upload_ticket=$(remote prepare-upload "$archive_key")
+        [[ $upload_ticket == /tmp/keypath-lab.* ]] || die "host returned an invalid upload ticket"
+        scp -q "$temp_dir/archive.tgz" "$host:$upload_ticket"
+        remote install-archive "$upload_ticket" "$archive_key" "$commit" "$installer_sha" "$installer_name"
         remote create "$macos" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$ttl"
         ;;
     run)

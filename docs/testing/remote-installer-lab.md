@@ -43,6 +43,11 @@ root, and every run, download, and destructive stop executes from that exact
 claimed checkout. The interface refuses to sync if Git reports tracked or
 nonignored untracked changes.
 
+Uploads use a host-generated, owner-only `mktemp` ticket rather than a
+commit-derived `/tmp` filename. Publishing the immutable archive is protected by
+a per-key lock, so concurrent requests either publish once or validate and reuse
+the completed archive.
+
 ```bash
 SHA=$(git rev-parse HEAD)
 Scripts/lab/keypath-lab create \

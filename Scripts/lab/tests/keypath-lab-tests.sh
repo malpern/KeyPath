@@ -68,6 +68,28 @@ preflight=$(run_remote preflight)
 assert_contains "$preflight" doctor-15
 assert_contains "$preflight" doctor-26
 
+ticket_one=$(run_remote prepare-upload "$(printf 'a%.0s' {1..40})-$(printf 'b%.0s' {1..64})")
+ticket_two=$(run_remote prepare-upload "$(printf 'a%.0s' {1..40})-$(printf 'b%.0s' {1..64})")
+[[ "$ticket_one" == /tmp/keypath-lab.* && "$ticket_two" == /tmp/keypath-lab.* ]]
+[[ "$ticket_one" != "$ticket_two" && -f "$ticket_one" && -f "$ticket_two" ]]
+rm -f "$ticket_one" "$ticket_two"
+
+publish_commit=$(printf 'c%.0s' {1..40})
+publish_checksum=$(shasum -a 256 "$LAB_DIR/scenarios/installer-scenario" | awk '{print $1}')
+publish_key="$publish_commit-$publish_checksum"
+mkdir -p "$TMP/upload/repo/.keypath-lab/installer"
+cp "$LAB_DIR/scenarios/installer-scenario" "$TMP/upload/repo/.keypath-lab/installer/installer.zip"
+for pass in 1 2; do
+    ticket=$(run_remote prepare-upload "$publish_key")
+    tar -czf "$ticket" -C "$TMP/upload" repo
+    published=$(run_remote install-archive "$ticket" "$publish_key" "$publish_commit" "$publish_checksum" installer.zip)
+    if [[ $pass == 1 ]]; then assert_contains "$published" $'archive\tcreated'; else assert_contains "$published" $'archive\treused'; fi
+done
+if find "$ROOT/KeyPathInstallerLab/archives" -maxdepth 1 -name ".staging-$publish_key-*" | grep -q .; then
+    echo "archive publish left a staging directory" >&2
+    exit 1
+fi
+
 archive_key="$(printf 'a%.0s' {1..40})-$(printf 'b%.0s' {1..64})"
 repo="$ROOT/KeyPathInstallerLab/archives/$archive_key/repo"
 mkdir -p "$repo/.keypath-lab/installer" "$repo/Scripts/lab/scenarios"

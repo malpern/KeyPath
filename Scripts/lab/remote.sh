@@ -138,18 +138,19 @@ preflight() {
 prepare_upload() {
   valid_id "$1"
   [[ "$1" =~ '^[0-9a-f]{40}-[0-9a-f]{64}$' ]] || die "invalid archive key"
-  rm -f "/tmp/keypath-lab-$1.tgz"
+  mktemp "/tmp/keypath-lab.XXXXXXXX"
 }
 
 install_archive() {
-  local key=$1 commit=$2 installer_sha=$3 installer_name=$4
+  local source=$1 key=$2 commit=$3 installer_sha=$4 installer_name=$5
+  [[ "$source" =~ '^/tmp/keypath-lab\.[A-Za-z0-9]+$' ]] || die "invalid upload ticket"
+  [[ -f "$source" && ! -L "$source" && -O "$source" ]] || die "upload ticket is not an owned regular file"
   valid_id "$key"
   [[ "$commit" =~ '^[0-9a-f]{40}$' ]] || die "invalid commit SHA"
   [[ "$installer_sha" =~ '^[0-9a-f]{64}$' ]] || die "invalid installer checksum"
   [[ "$installer_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid installer name"
   ensure_roots
-  local source="/tmp/keypath-lab-$key.tgz" destination="$ARCHIVES/$key" staging="$ARCHIVES/.staging-$key-$$"
-  [[ -f "$source" ]] || die "uploaded archive missing"
+  local destination="$ARCHIVES/$key" staging="$ARCHIVES/.staging-$key-$$" lock="$ARCHIVES/.lock-$key" attempt
   if [[ -f "$destination/ready.tsv" ]]; then
     [[ "$(field "$destination/ready.tsv" owner)" == "$OWNER" ]] || die "archive ownership mismatch"
     [[ "$(field "$destination/ready.tsv" keypath_commit)" == "$commit" ]] || die "archive commit mismatch"
@@ -178,7 +179,33 @@ install_archive() {
     print "installer_name\t$installer_name"
     print "created_at\t$(utc_now)"
   } > "$staging/ready.tsv"
+  if ! mkdir "$lock" 2>/dev/null; then
+    rm -rf "$staging"
+    for attempt in {1..100}; do
+      if [[ -f "$destination/ready.tsv" ]]; then
+        [[ "$(field "$destination/ready.tsv" owner)" == "$OWNER" ]] || die "archive ownership mismatch after concurrent publish"
+        [[ "$(field "$destination/ready.tsv" keypath_commit)" == "$commit" ]] || die "archive commit mismatch after concurrent publish"
+        [[ "$(field "$destination/ready.tsv" installer_sha256)" == "$installer_sha" ]] || die "archive checksum mismatch after concurrent publish"
+        print "archive\treused\t$key"
+        return
+      fi
+      sleep 0.1
+    done
+    die "timed out waiting for concurrent archive publish: $key"
+  fi
+  if [[ -f "$destination/ready.tsv" ]]; then
+    rm -rf "$staging"
+    rmdir "$lock"
+    print "archive\treused\t$key"
+    return
+  fi
+  if [[ -e "$destination" ]]; then
+    rm -rf "$staging"
+    rmdir "$lock"
+    die "archive destination exists without a ready marker: $key"
+  fi
   mv "$staging" "$destination"
+  rmdir "$lock"
   print "archive\tcreated\t$key"
 }
 
@@ -373,7 +400,7 @@ shift || true
 case "$action" in
   preflight) [[ $# -eq 0 ]] || die "preflight takes no arguments"; preflight ;;
   prepare-upload) [[ $# -eq 1 ]] || die "prepare-upload requires archive key"; prepare_upload "$1" ;;
-  install-archive) [[ $# -eq 4 ]] || die "install-archive requires key, commit, checksum, and name"; install_archive "$@" ;;
+  install-archive) [[ $# -eq 5 ]] || die "install-archive requires ticket, key, commit, checksum, and name"; install_archive "$@" ;;
   create) [[ $# -eq 6 ]] || die "create requires lane, archive, commit, checksum, name, ttl"; create_lease "$@" ;;
   run) [[ $# -ge 2 ]] || die "run requires lease and command"; run_command "$@" ;;
   status) [[ $# -eq 1 ]] || die "status requires lease"; print_status "$1" ;;
