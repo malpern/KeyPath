@@ -13,6 +13,7 @@ final class OverlayHealthIndicatorObserver {
     private var dismissTask: Task<Void, Never>?
     private var checkingDebounceTask: Task<Void, Never>?
     private var currentState: HealthIndicatorState = .dismissed
+    private var lastSemanticHealth: Bool?
     private var isObserving = false
 
     /// Debounce duration for showing "checking" state (prevents brief flashes)
@@ -140,18 +141,24 @@ final class OverlayHealthIndicatorObserver {
         case .success:
             checkingDebounceTask?.cancel()
             checkingDebounceTask = nil
-            setState(.healthy)
-            scheduleDismiss()
+            presentHealthyTransitionIfNeeded()
         case .failed:
             checkingDebounceTask?.cancel()
             checkingDebounceTask = nil
             if blockingIssues.isEmpty {
-                setState(.healthy)
-                scheduleDismiss()
+                presentHealthyTransitionIfNeeded()
             } else {
+                lastSemanticHealth = false
                 setState(.unhealthy(issueCount: blockingIssues.count))
             }
         }
+    }
+
+    private func presentHealthyTransitionIfNeeded() {
+        guard lastSemanticHealth != true else { return }
+        lastSemanticHealth = true
+        setState(.healthy)
+        scheduleDismiss()
     }
 
     /// Schedule showing the "checking" state after a debounce period

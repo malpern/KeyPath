@@ -198,6 +198,43 @@ final class OverlayHealthIndicatorObserverTests: KeyPathTestCase {
             states.contains(.checking),
             "Should not flash 'checking' during periodic revalidation when already healthy"
         )
+        XCTAssertFalse(
+            states.contains(.healthy),
+            "Should not re-announce Ready when semantic health did not change"
+        )
+    }
+
+    @MainActor
+    func testRecoveryReannouncesHealthyAfterUnhealthyState() async {
+        var states: [HealthIndicatorState] = []
+        let observer = OverlayHealthIndicatorObserver(
+            onStateChange: { states.append($0) },
+            onDismiss: {},
+            sleep: { _ in }
+        )
+        let controller = MainAppStateController()
+        controller.issues = [
+            WizardIssue(
+                identifier: .daemon,
+                severity: .error,
+                category: .daemon,
+                title: "Daemon Error",
+                description: "Blocking issue",
+                autoFixAction: nil,
+                userAction: nil
+            ),
+        ]
+        controller.validationState = .failed(blockingCount: 1, totalCount: 1)
+        observer.startObserving(controller: controller)
+        await flushObserverTasks()
+
+        states.removeAll()
+        controller.issues = []
+        controller.validationState = .success
+        observer.refreshForTesting(controller: controller)
+        await flushObserverTasks()
+
+        XCTAssertEqual(states.first, .healthy)
     }
 
     private func flushObserverTasks() async {

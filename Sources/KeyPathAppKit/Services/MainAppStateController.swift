@@ -57,7 +57,8 @@ class MainAppStateController {
 
     // MARK: - Dependencies
 
-    @ObservationIgnored private var validator: SystemValidator?
+    @ObservationIgnored private var validator: (any WizardSystemValidating)?
+    @ObservationIgnored private var inProgressValidation: Task<Void, Never>?
     @ObservationIgnored private weak var serviceLifecycle: ServiceLifecycleCoordinator?
     @ObservationIgnored private var onSystemHealthy: (() -> Void)?
     @ObservationIgnored private var hasRunInitialValidation = false
@@ -165,7 +166,7 @@ class MainAppStateController {
     // MainActor-isolated properties like task handles.
 
     /// Inject the shared SystemValidator instance (called from configureWizardDependencies).
-    func setValidator(_ shared: SystemValidator) {
+    func setValidator(_ shared: any WizardSystemValidating) {
         validator = shared
     }
 
@@ -457,6 +458,24 @@ class MainAppStateController {
     }
 
     private func performValidation() async {
+        if let inProgressValidation {
+            AppLogger.shared.log(
+                "🔍 [MainAppStateController] Validation already in progress - waiting for published result"
+            )
+            await inProgressValidation.value
+            return
+        }
+
+        let task = Task<Void, Never> { @MainActor [weak self] in
+            guard let self else { return }
+            await performValidationBody()
+        }
+        inProgressValidation = task
+        await task.value
+        inProgressValidation = nil
+    }
+
+    private func performValidationBody() async {
         guard let validator else {
             AppLogger.shared.warnUnlessQuietTest("⚠️ [MainAppStateController] Cannot validate - validator not configured")
             validationState = .checking
@@ -558,7 +577,9 @@ class MainAppStateController {
         // Update published state
         lastValidatedSystemContext = context
         lastAdaptedState = adapted.state
-        lastTCPConfigured = snapshot.health.kanataTCPConfigured ?? false
+        // Preserve missing evidence as unknown. An incomplete/fallback capture
+        // must not become a proven TCP configuration failure in presentation.
+        lastTCPConfigured = snapshot.health.kanataTCPConfigured
         let decision = InstallerDecisionPipeline.decide(for: .repair, context: context)
         lastInstallerStateMatrixRow = decision.assessment
         lastInstallerStateMatrixPlan = decision.matrixActions
@@ -590,7 +611,13 @@ class MainAppStateController {
         switch adapted.state {
         case .active:
             // Kanata is running - but check if there are blocking issues that prevent proper operation
-            let tcpConfigured = lastTCPConfigured ?? false
+            guard let tcpConfigured = lastTCPConfigured else {
+                validationState = .checking
+                AppLogger.shared.info(
+                    "⏳ [MainAppStateController] Validation inconclusive - TCP configuration evidence unavailable"
+                )
+                return
+            }
 
             if blockingIssues.isEmpty, tcpConfigured {
                 validationState = .success

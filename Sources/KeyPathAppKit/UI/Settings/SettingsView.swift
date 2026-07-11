@@ -324,9 +324,7 @@ struct StatusSettingsTabView: View {
         // triggers a revalidation, this ensures the Settings tab updates automatically
         // instead of showing stale data from the initial .task fetch.
         .onChange(of: MainAppStateController.shared.lastValidationDate) { _, _ in
-            Task {
-                await refreshStatus()
-            }
+            copyPublishedStatus()
         }
         // Removed legacy onReceive(currentState)
         .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
@@ -485,9 +483,17 @@ struct StatusSettingsTabView: View {
         // Trigger a revalidation if stale, then read the published state.
         await controller.revalidate()
 
+        copyPublishedStatus()
+    }
+
+    /// Copy the controller's latest published evidence without triggering a
+    /// second validation. This is used by the validation-date subscription so
+    /// observing a completed validation cannot feed back into another capture.
+    private func copyPublishedStatus() {
+        let controller = MainAppStateController.shared
+
         let context = controller.lastValidatedSystemContext ?? .empty
         let duplicates = HelperMaintenance.shared.detectDuplicateAppCopies()
-        let tcpOk = controller.lastTCPConfigured ?? false
 
         permissionSnapshot = context.permissions
         systemContext = context
@@ -496,7 +502,7 @@ struct StatusSettingsTabView: View {
         tcpConfigured = controller.lastTCPConfigured
         showSetupBanner = !(context.permissions.isSystemReady && context.services.isHealthy)
             || duplicates.count > 1
-            || (context.services.kanataRunning && !tcpOk)
+            || (context.services.kanataRunning && controller.lastTCPConfigured == false)
         duplicateAppCopies = duplicates
     }
 

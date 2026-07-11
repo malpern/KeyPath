@@ -14,6 +14,7 @@ struct SystemContextBuilder {
     var kanataLaunchdLoaded: Bool?
     var kanataProcessRunning: Bool?
     var kanataTCPResponding: Bool?
+    var kanataTCPConfigured: Bool?
     var kanataSMAppServiceRegistered: Bool?
     var kanataRunning: Bool?
     var karabinerDaemonRunning: Bool?
@@ -68,6 +69,7 @@ struct SystemContextBuilder {
             kanataLaunchdLoaded: kanataLaunchdLoaded,
             kanataProcessRunning: kanataProcessRunning,
             kanataTCPResponding: kanataTCPResponding,
+            kanataTCPConfigured: kanataTCPConfigured,
             kanataRunning: kanataRunning ?? servicesHealthy,
             karabinerDaemonRunning: karabinerDaemonRunning ?? servicesHealthy,
             vhidHealthy: vhidHealthy ?? servicesHealthy,
