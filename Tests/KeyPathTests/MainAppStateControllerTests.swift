@@ -468,6 +468,30 @@ struct MainAppStateControllerBehaviorTests {
         #expect(controller.validationState == .checking)
     }
 
+    @Test("A later complete capture resolves unknown TCP configuration")
+    func laterCaptureResolvesUnknownTCPConfiguration() async {
+        let unknown = SystemContextBuilder(
+            servicesHealthy: true,
+            kanataTCPConfigured: nil,
+            componentsInstalled: true
+        ).build()
+        let healthy = SystemContextBuilder(
+            servicesHealthy: true,
+            kanataTCPConfigured: true,
+            componentsInstalled: true
+        ).build()
+        let validator = SequenceSystemValidator(contexts: [unknown, healthy])
+        let controller = configuredController(validator: validator)
+
+        await controller.refreshValidation()
+        #expect(controller.validationState == .checking)
+
+        await controller.revalidate()
+        #expect(controller.lastTCPConfigured == true)
+        #expect(controller.validationState == .success)
+        #expect(validator.checkCount == 2)
+    }
+
     @Test("Explicit missing TCP configuration remains a failure")
     func explicitMissingTCPConfigurationRemainsFailure() async {
         let context = SystemContextBuilder(
@@ -574,5 +598,38 @@ private final class GatedCountingValidator: WizardSystemValidating {
 
     func open() {
         isOpen = true
+    }
+}
+
+@MainActor
+private final class SequenceSystemValidator: WizardSystemValidating {
+    private var snapshots: [SystemSnapshot]
+    private(set) var checkCount = 0
+
+    init(contexts: [SystemContext]) {
+        snapshots = contexts.map { context in
+            SystemSnapshot(
+                id: context.snapshotID,
+                permissions: context.permissions,
+                components: context.components,
+                conflicts: context.conflicts,
+                health: context.services,
+                helper: context.helper,
+                compatibility: SystemCompatibilityStatus(
+                    macOSVersion: context.system.macOSVersion,
+                    driverCompatible: context.system.driverCompatible
+                ),
+                timestamp: context.timestamp,
+                captureStatus: context.captureStatus
+            )
+        }
+    }
+
+    func checkSystem() async -> SystemSnapshot {
+        checkCount += 1
+        if snapshots.count > 1 {
+            return snapshots.removeFirst()
+        }
+        return snapshots[0]
     }
 }
