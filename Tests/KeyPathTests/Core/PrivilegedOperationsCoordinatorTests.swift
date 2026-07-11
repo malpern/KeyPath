@@ -616,6 +616,10 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
                 installCalls += 1
             }
             ServiceHealthChecker.vhidDriverExtensionStatusOverride = { .installedButNotEnabled }
+            VHIDDeviceManager.testInstalledVersionProvider = {
+                VHIDDeviceManager.requiredDriverVersionString
+            }
+            defer { VHIDDeviceManager.testInstalledVersionProvider = nil }
         #else
             throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
         #endif
@@ -626,6 +630,25 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
         #if DEBUG
             XCTAssertEqual(installCalls, 1)
         #endif
+    }
+
+    func testDownloadAndInstallCorrectVHIDDriverRejectsWrongInstalledVersion() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            PrivilegedOperationsRouter.downloadAndInstallCorrectVHIDDriverOverride = {}
+            ServiceHealthChecker.vhidDriverExtensionStatusOverride = { .enabled }
+            VHIDDeviceManager.testInstalledVersionProvider = { "999.0.0" }
+            defer { VHIDDeviceManager.testInstalledVersionProvider = nil }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        do {
+            try await PrivilegedOperationsRouter.shared.downloadAndInstallCorrectVHIDDriver()
+            XCTFail("Expected the wrong installed driver version to fail verification")
+        } catch let PrivilegedOperationError.operationFailed(message) {
+            XCTAssertTrue(message.contains("VHID driver postcondition failed"))
+        }
     }
 
     func testTerminateProcessFailsWhenPostconditionFails() async throws {

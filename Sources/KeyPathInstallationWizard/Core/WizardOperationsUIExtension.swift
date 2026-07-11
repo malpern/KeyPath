@@ -27,16 +27,18 @@ extension WizardOperations {
                 // machine.refresh() completed — read state it stored
                 return await MainActor.run {
                     let issues = machine.wizardIssues
-                    let captured = machine.lastWizardSnapshot
+                    guard let captured = machine.lastWizardSnapshot else {
+                        return timeoutResult()
+                    }
                     if !issues.isEmpty || machine.wizardState == .active {
                         return SystemStateResult(
                             state: machine.wizardState,
                             issues: issues,
                             autoFixActions: [],
                             detectionTimestamp: Date(),
-                            captureStatus: captured?.captureStatus ?? .complete,
-                            helperInstalled: captured?.helperInstalled ?? false,
-                            helperNeedsApproval: captured?.helperNeedsApproval ?? false
+                            captureStatus: captured.captureStatus,
+                            helperInstalled: captured.helperInstalled,
+                            helperNeedsApproval: captured.helperNeedsApproval
                         )
                     }
                     return timeoutResult()

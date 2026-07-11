@@ -439,6 +439,13 @@ public final class VHIDDeviceManager: @unchecked Sendable {
         return hasMismatch
     }
 
+    /// Requires readable installed-version evidence as well as compatibility
+    /// with the driver major version bundled with KeyPath.
+    public func hasRequiredDriverVersion() -> Bool {
+        guard getInstalledVersion() != nil else { return false }
+        return !hasVersionMismatch()
+    }
+
     /// Gets a user-friendly message about version compatibility
     public func getVersionMismatchMessage() -> String? {
         guard let installedVersion = getInstalledVersion() else {

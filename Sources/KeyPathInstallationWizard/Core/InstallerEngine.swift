@@ -1059,14 +1059,32 @@ public final class InstallerEngine {
                 finalRecipes = [directRecipe]
             } else {
                 AppLogger.shared.log("⚠️ [InstallerEngine] No recipe available for action: \(action)")
+                let runID = UUID()
+                let error = "No recipe available for action: \(action)"
+                let telemetry = InstallerRepairTelemetryEvent(
+                    runID: runID,
+                    planID: basePlan.id,
+                    beforeSnapshotID: context.snapshotID,
+                    trigger: .singleAction,
+                    intent: basePlan.intent.telemetryValue,
+                    stateMatrixRow: basePlan.metadata.stateMatrixRow,
+                    stateMatrixPlan: basePlan.metadata.stateMatrixPlan,
+                    action: String(describing: action),
+                    recipeID: nil,
+                    recipeType: nil,
+                    postconditionResult: .failed,
+                    error: error
+                )
                 return InstallerReport(
+                    runID: runID,
                     planID: basePlan.id,
                     beforeSnapshotID: context.snapshotID,
                     success: false,
                     completionState: .executionFailed,
-                    failureReason: "No recipe available for action: \(action)",
+                    failureReason: error,
                     executedRecipes: [],
-                    logs: []
+                    logs: [],
+                    repairTelemetry: [telemetry]
                 )
             }
         } else {
