@@ -17,7 +17,7 @@ public final class UninstallCoordinator {
 
     @ObservationIgnored private let resolveUninstallerURLClosure: () -> URL?
     @ObservationIgnored private let runWithAdminPrivilegesClosure: (URL, Bool, Bool) async -> AppleScriptResult
-    @ObservationIgnored private let uninstallPostconditionsSatisfiedClosure: () -> Bool
+    @ObservationIgnored private let uninstallPostconditionsSatisfiedClosure: (Bool) -> Bool
     @ObservationIgnored private let helperInstalledClosure: () async -> Bool
     @ObservationIgnored private let helperFunctionalClosure: () async -> Bool
     @ObservationIgnored private let repairHelperClosure: () async -> Bool
@@ -30,7 +30,7 @@ public final class UninstallCoordinator {
     init(
         resolveUninstallerURL: @escaping () -> URL?,
         runWithAdminPrivileges: @escaping (URL, Bool, Bool) async -> AppleScriptResult,
-        uninstallPostconditionsSatisfied: (() -> Bool)? = nil,
+        uninstallPostconditionsSatisfied: ((Bool) -> Bool)? = nil,
         helperInstalled: (() async -> Bool)? = nil,
         helperFunctional: (() async -> Bool)? = nil,
         repairHelper: (() async -> Bool)? = nil,
@@ -42,8 +42,8 @@ public final class UninstallCoordinator {
     ) {
         resolveUninstallerURLClosure = resolveUninstallerURL
         runWithAdminPrivilegesClosure = runWithAdminPrivileges
-        uninstallPostconditionsSatisfiedClosure = uninstallPostconditionsSatisfied ?? {
-            UninstallCoordinator.defaultUninstallPostconditionsSatisfied()
+        uninstallPostconditionsSatisfiedClosure = uninstallPostconditionsSatisfied ?? { deleteConfig in
+            UninstallCoordinator.defaultUninstallPostconditionsSatisfied(deleteConfig: deleteConfig)
         }
         helperInstalledClosure = helperInstalled ?? {
             await HelperManager.shared.isHelperInstalled()
@@ -121,7 +121,7 @@ public final class UninstallCoordinator {
         // This clears the internal registration database that helper/script can't access
         await unregisterRuntimeServicesClosure()
 
-        if uninstallPostconditionsSatisfiedClosure() {
+        if uninstallPostconditionsSatisfiedClosure(deleteConfig) {
             if removeVirtualHID, await !virtualHIDRemovedClosure() {
                 let message = "KeyPath is removed, but the virtual keyboard driver remains registered with macOS."
                 steps.append(WizardUninstallStepResult(
@@ -216,7 +216,7 @@ public final class UninstallCoordinator {
                     error: helperUnregistered ? nil : "The system helper registration remains active."
                 ))
 
-                let verified = await waitForUninstallPostconditions()
+                let verified = await waitForUninstallPostconditions(deleteConfig: deleteConfig)
                 steps.append(WizardUninstallStepResult(
                     id: "verify-uninstall",
                     success: verified,
@@ -252,7 +252,7 @@ public final class UninstallCoordinator {
         // requested components. Only tear down helper registration after the
         // filesystem postcondition proves the uninstall completed.
         let filesRemovedAfterHelperError = helperReplyFailed
-            ? await waitForUninstallPostconditions()
+            ? await waitForUninstallPostconditions(deleteConfig: deleteConfig)
             : false
         if filesRemovedAfterHelperError {
             let driverRemoved: Bool = if removeVirtualHID {
@@ -312,10 +312,10 @@ public final class UninstallCoordinator {
         return result
     }
 
-    private func waitForUninstallPostconditions() async -> Bool {
+    private func waitForUninstallPostconditions(deleteConfig: Bool) async -> Bool {
         let clock = ContinuousClock()
         for attempt in 1 ... 8 {
-            if uninstallPostconditionsSatisfiedClosure() {
+            if uninstallPostconditionsSatisfiedClosure(deleteConfig) {
                 return true
             }
             if attempt < 8 {
@@ -381,7 +381,7 @@ public final class UninstallCoordinator {
                 logLines.append(contentsOf: output.components(separatedBy: "\n"))
             }
 
-            let filesRemoved = await waitForUninstallPostconditions()
+            let filesRemoved = await waitForUninstallPostconditions(deleteConfig: deleteConfig)
             var driverRemoved = !removeVirtualHID
             if removeVirtualHID {
                 driverRemoved = await waitForVirtualHIDRemoval()
@@ -540,8 +540,8 @@ public final class UninstallCoordinator {
         return nil
     }
 
-    private static func defaultUninstallPostconditionsSatisfied() -> Bool {
-        let paths = [
+    private static func defaultUninstallPostconditionsSatisfied(deleteConfig: Bool) -> Bool {
+        var paths = [
             "/Applications/KeyPath.app",
             "/Library/PrivilegedHelperTools/com.keypath.helper",
             "/Library/LaunchDaemons/com.keypath.kanata.plist",
@@ -549,6 +549,10 @@ public final class UninstallCoordinator {
             "/Library/LaunchDaemons/com.keypath.karabiner-vhidmanager.plist",
             "/Library/LaunchDaemons/com.keypath.helper.plist"
         ]
+        if deleteConfig {
+            paths.append(FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".config/keypath").path)
+        }
         return paths.allSatisfy { !FileManager.default.fileExists(atPath: $0) }
     }
 

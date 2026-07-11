@@ -32,3 +32,7 @@ the connection generation that installed them.
 `HelperManagerTests` covers cancellation-safe gate acquisition, XPC interruption
 normalization, the bounded recovery window, and rejection of stale connection-end
 callbacks. `SystemValidatorTests` covers conservative capture-status aggregation.
+
+`HelperOperationGateWiringLintTests` separately pins the production
+`executeXPCCall`, `executeValueXPCCall`, and `getHelperVersion` entry points to
+`withHelperOperationPermit`; the gate tests alone only cover the primitive.

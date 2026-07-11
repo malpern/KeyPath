@@ -14,7 +14,7 @@ final class UninstallCoordinatorTests: XCTestCase {
                 adminFallbackCalls += 1
                 return .failure("Admin fallback should not run")
             },
-            postconditionsSatisfied: { postconditionsSatisfied },
+            postconditionsSatisfied: { _ in postconditionsSatisfied },
             helperInstalled: { true },
             helperFunctional: { true },
             repairHelper: { XCTFail("Healthy helper should not be repaired"); return false },
@@ -40,7 +40,7 @@ final class UninstallCoordinatorTests: XCTestCase {
         var repairCalls = 0
         var helperUninstallCalls = 0
         let coordinator = makeCoordinator(
-            postconditionsSatisfied: { postconditionsSatisfied },
+            postconditionsSatisfied: { _ in postconditionsSatisfied },
             helperInstalled: { false },
             helperFunctional: { helperReady },
             repairHelper: {
@@ -69,7 +69,7 @@ final class UninstallCoordinatorTests: XCTestCase {
                 adminFallbackCalls += 1
                 return .success
             },
-            postconditionsSatisfied: { false },
+            postconditionsSatisfied: { _ in false },
             helperInstalled: { false },
             helperFunctional: { false },
             repairHelper: { false }
@@ -88,7 +88,7 @@ final class UninstallCoordinatorTests: XCTestCase {
         var postconditionsSatisfied = false
         var events: [String] = []
         let coordinator = makeCoordinator(
-            postconditionsSatisfied: { postconditionsSatisfied },
+            postconditionsSatisfied: { _ in postconditionsSatisfied },
             uninstallViaHelper: { _ in
                 events.append("uninstall-keypath")
                 postconditionsSatisfied = true
@@ -109,7 +109,7 @@ final class UninstallCoordinatorTests: XCTestCase {
     func testVirtualHIDFailureStopsBeforeRemovingKeyPath() async {
         var helperUninstallCalls = 0
         let coordinator = makeCoordinator(
-            postconditionsSatisfied: { false },
+            postconditionsSatisfied: { _ in false },
             uninstallViaHelper: { _ in helperUninstallCalls += 1 },
             uninstallVirtualHID: {
                 throw NSError(domain: "UninstallTests", code: 7)
@@ -136,7 +136,7 @@ final class UninstallCoordinatorTests: XCTestCase {
                 postconditionsSatisfied = true
                 return .success
             },
-            postconditionsSatisfied: { postconditionsSatisfied },
+            postconditionsSatisfied: { _ in postconditionsSatisfied },
             helperInstalled: { false },
             helperFunctional: { false },
             repairHelper: { false }
@@ -153,7 +153,7 @@ final class UninstallCoordinatorTests: XCTestCase {
     func testEmergencyCleanupFailsWhenScriptIsMissing() async {
         let coordinator = makeCoordinator(
             resolveUninstallerURL: { nil },
-            postconditionsSatisfied: { false },
+            postconditionsSatisfied: { _ in false },
             helperInstalled: { false },
             helperFunctional: { false },
             repairHelper: { false }
@@ -169,7 +169,7 @@ final class UninstallCoordinatorTests: XCTestCase {
     func testEmergencyCleanupDoesNotTrustCommandSuccessWithoutPostconditions() async {
         let coordinator = makeCoordinator(
             runWithAdminPrivileges: { _, _, _ in .success },
-            postconditionsSatisfied: { false },
+            postconditionsSatisfied: { _ in false },
             helperInstalled: { false },
             helperFunctional: { false },
             repairHelper: { false }
@@ -192,7 +192,7 @@ final class UninstallCoordinatorTests: XCTestCase {
                 adminFallbackCalls += 1
                 return .failure("Should not run")
             },
-            postconditionsSatisfied: { true },
+            postconditionsSatisfied: { _ in true },
             helperInstalled: {
                 helperChecked = true
                 return false
@@ -215,7 +215,7 @@ final class UninstallCoordinatorTests: XCTestCase {
                 adminFallbackCalls += 1
                 return .failure("Emergency Cleanup should not run")
             },
-            postconditionsSatisfied: { helperAttempted },
+            postconditionsSatisfied: { _ in helperAttempted },
             uninstallViaHelper: { _ in
                 helperAttempted = true
                 throw HelperManagerError.ambiguousOutcome("reply lost")
@@ -231,11 +231,38 @@ final class UninstallCoordinatorTests: XCTestCase {
         XCTAssertTrue(coordinator.logLines.contains { $0.contains("skipping Emergency Cleanup") })
     }
 
+    func testDeleteConfigIntentDoesNotAcceptSystemOnlyPostconditions() async {
+        var helperAttempted = false
+        var adminFallbackCalls = 0
+        let coordinator = makeCoordinator(
+            runWithAdminPrivileges: { _, deleteConfig, _ in
+                XCTAssertTrue(deleteConfig)
+                adminFallbackCalls += 1
+                return .success
+            },
+            postconditionsSatisfied: { deleteConfig in
+                helperAttempted && !deleteConfig
+            },
+            uninstallViaHelper: { _ in
+                helperAttempted = true
+                throw HelperManagerError.ambiguousOutcome("reply lost")
+            }
+        )
+
+        let result = await coordinator.performUninstall(
+            deleteConfig: true,
+            allowAdminFallback: true
+        )
+
+        XCTAssertFalse(result.success)
+        XCTAssertEqual(adminFallbackCalls, 1)
+    }
+
     func testCompletedHelperReplyDoesNotDuplicateStepsWhenEmergencyCleanupRuns() async {
         var postconditionChecks = 0
         let coordinator = makeCoordinator(
             runWithAdminPrivileges: { _, _, _ in .success },
-            postconditionsSatisfied: {
+            postconditionsSatisfied: { _ in
                 postconditionChecks += 1
                 return postconditionChecks > 9
             },
@@ -258,7 +285,7 @@ final class UninstallCoordinatorTests: XCTestCase {
         runWithAdminPrivileges: @escaping (URL, Bool, Bool) async -> AppleScriptResult = { _, _, _ in
             .failure("Admin fallback should not run")
         },
-        postconditionsSatisfied: @escaping () -> Bool,
+        postconditionsSatisfied: @escaping (Bool) -> Bool,
         helperInstalled: @escaping () async -> Bool = { true },
         helperFunctional: @escaping () async -> Bool = { true },
         repairHelper: @escaping () async -> Bool = { true },

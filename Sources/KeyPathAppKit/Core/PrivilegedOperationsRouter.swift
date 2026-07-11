@@ -843,10 +843,23 @@ public final class PrivilegedOperationsRouter {
             }
         #endif
 
+        let hasRequiredVersion = VHIDDeviceManager().hasRequiredDriverVersion()
         switch await serviceHealthChecker.vhidDriverExtensionStatus() {
         case .enabled:
+            guard hasRequiredVersion else {
+                AppLogger.shared.warnUnlessQuietTest(
+                    "⚠️ [PrivilegedOperationsRouter] VHID driver version is wrong or unknown after \(context)"
+                )
+                return false
+            }
             return true
         case .installedButNotEnabled:
+            guard hasRequiredVersion else {
+                AppLogger.shared.warnUnlessQuietTest(
+                    "⚠️ [PrivilegedOperationsRouter] VHID driver version is wrong or unknown after \(context)"
+                )
+                return false
+            }
             AppLogger.shared.warnUnlessQuietTest(
                 "⚠️ [PrivilegedOperationsRouter] VHID driver installed but not enabled after \(context); user approval may be required"
             )
