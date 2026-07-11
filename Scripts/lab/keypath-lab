@@ -1,0 +1,152 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd -P)
+REPO_ROOT=$(cd "$SCRIPT_DIR/../.." >/dev/null && pwd -P)
+REMOTE_SCRIPT="$SCRIPT_DIR/remote.sh"
+DEFAULT_HOST="clawd@keypath-lab-mini"
+
+usage() {
+    cat >&2 <<'EOF'
+Usage: Scripts/lab/keypath-lab [--host HOST] <command> [options]
+
+Commands:
+  preflight
+  create --macos 15|26 --commit SHA --installer PATH [--ttl 2h]
+  run LEASE_ID -- COMMAND [ARG...]
+  status LEASE_ID
+  list
+  artifacts LEASE_ID
+  scenario LEASE_ID NAME
+  destroy LEASE_ID
+  cleanup [--dry-run]
+
+The default host is clawd@keypath-lab-mini. Set KEYPATH_LAB_HOST or pass
+--host to override it. Creation always requires an explicit full commit SHA and
+an installer artifact. No command embeds or prompts for credentials.
+EOF
+    exit 2
+}
+
+die() {
+    echo "keypath-lab: $*" >&2
+    exit 1
+}
+
+host=${KEYPATH_LAB_HOST:-$DEFAULT_HOST}
+if [[ ${1:-} == "--host" ]]; then
+    [[ -n ${2:-} ]] || usage
+    host=$2
+    shift 2
+fi
+
+command=${1:-}
+[[ -n $command ]] || usage
+shift
+
+remote() {
+    local remote_command="/bin/zsh -s --" argument quoted
+    for argument in "$@"; do
+        printf -v quoted '%q' "$argument"
+        remote_command="$remote_command $quoted"
+    done
+    ssh -o BatchMode=yes "$host" "$remote_command" < "$REMOTE_SCRIPT"
+}
+
+require_lease_id() {
+    [[ $1 =~ ^[A-Za-z0-9._-]+$ ]] || die "invalid lease id: $1"
+}
+
+case "$command" in
+    preflight)
+        [[ $# -eq 0 ]] || usage
+        remote preflight
+        ;;
+    create)
+        macos=
+        commit=
+        installer=
+        ttl=2h
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --macos) macos=${2:-}; shift 2 ;;
+                --commit) commit=${2:-}; shift 2 ;;
+                --installer) installer=${2:-}; shift 2 ;;
+                --ttl) ttl=${2:-}; shift 2 ;;
+                *) usage ;;
+            esac
+        done
+        [[ $macos == "15" || $macos == "26" ]] || die "--macos must be 15 or 26"
+        [[ $commit =~ ^[0-9a-fA-F]{40}$ ]] || die "--commit must be a full 40-character SHA"
+        [[ -f $installer ]] || die "installer not found: $installer"
+        resolved=$(git -C "$REPO_ROOT" rev-parse --verify "$commit^{commit}")
+        [[ $resolved == "$commit" ]] || die "commit does not resolve exactly: $commit"
+
+        installer_sha=$(shasum -a 256 "$installer" | awk '{print $1}')
+        archive_key="${commit}-${installer_sha}"
+        temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/keypath-lab.XXXXXX")
+        trap 'rm -rf "$temp_dir"' EXIT
+        mkdir -p "$temp_dir/repo/.keypath-lab/installer"
+        git -C "$REPO_ROOT" archive "$commit" | tar -x -C "$temp_dir/repo"
+        installer_name=$(basename "$installer")
+        [[ $installer_name =~ ^[A-Za-z0-9._-]+$ ]] || die "installer filename must contain only letters, numbers, dots, underscores, and dashes"
+        cp "$installer" "$temp_dir/repo/.keypath-lab/installer/$installer_name"
+        cat > "$temp_dir/repo/.keypath-lab/source.tsv" <<EOF
+keypath_commit	$commit
+installer_name	$installer_name
+installer_sha256	$installer_sha
+EOF
+        tar -czf "$temp_dir/archive.tgz" -C "$temp_dir" repo
+
+        upload_ticket=$(remote prepare-upload "$archive_key")
+        [[ $upload_ticket == /tmp/keypath-lab.* ]] || die "host returned an invalid upload ticket"
+        scp -q "$temp_dir/archive.tgz" "$host:$upload_ticket"
+        remote install-archive "$upload_ticket" "$archive_key" "$commit" "$installer_sha" "$installer_name"
+        remote create "$macos" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$ttl"
+        ;;
+    run)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        [[ ${1:-} == "--" ]] || usage
+        shift
+        [[ $# -gt 0 ]] || usage
+        remote run "$lease" "$@"
+        ;;
+    status)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote status "$1"
+        ;;
+    list)
+        [[ $# -eq 0 ]] || usage
+        remote list
+        ;;
+    artifacts)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote artifacts "$1"
+        ;;
+    scenario)
+        [[ $# -eq 2 ]] || usage
+        require_lease_id "$1"
+        [[ $2 =~ ^[a-z0-9-]+$ ]] || die "invalid scenario name: $2"
+        remote scenario "$1" "$2"
+        ;;
+    destroy)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote destroy "$1"
+        ;;
+    cleanup)
+        if [[ ${1:-} == "--dry-run" && $# -eq 1 ]]; then
+            remote cleanup --dry-run
+        elif [[ $# -eq 0 ]]; then
+            remote cleanup
+        else
+            usage
+        fi
+        ;;
+    *) usage ;;
+esac

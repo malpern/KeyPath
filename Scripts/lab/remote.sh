@@ -1,0 +1,413 @@
+#!/bin/zsh
+set -euo pipefail
+
+PRODUCTION_ROOT="/Volumes/KeyPath Lab/CrabBox"
+OWNER="keypath-installer-lab-v1"
+
+if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+  LAB_ROOT="${KEYPATH_LAB_TEST_ROOT:?KEYPATH_LAB_TEST_ROOT is required in test mode}"
+  LAUNCHER_15="${KEYPATH_LAB_LAUNCHER_15:?test launcher 15 is required}"
+  LAUNCHER_26="${KEYPATH_LAB_LAUNCHER_26:?test launcher 26 is required}"
+  CRABBOX="${KEYPATH_LAB_CRABBOX:?test CrabBox is required}"
+else
+  LAB_ROOT="$PRODUCTION_ROOT"
+  LAUNCHER_15="$LAB_ROOT/keypath15"
+  LAUNCHER_26="$LAB_ROOT/keypath26"
+  CRABBOX="$LAB_ROOT/SharedTools/bin/crabbox"
+fi
+
+STATE_ROOT="$LAB_ROOT/KeyPathInstallerLab"
+ARCHIVES="$STATE_ROOT/archives"
+LEASES="$STATE_ROOT/leases"
+ARTIFACTS="$STATE_ROOT/artifacts"
+LOGS="$STATE_ROOT/logs"
+OPERATIONS="$STATE_ROOT/operations"
+
+die() { print -u2 "keypath-lab(remote): $*"; exit 1; }
+now_epoch() { date +%s; }
+utc_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+
+valid_id() {
+  [[ "$1" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid identifier: $1"
+}
+
+launcher_for() {
+  case "$1" in
+    15) print -r -- "$LAUNCHER_15" ;;
+    26) print -r -- "$LAUNCHER_26" ;;
+    *) die "unsupported macOS lane: $1" ;;
+  esac
+}
+
+provider_for() {
+  case "$1" in 15) print tart ;; 26) print parallels ;; *) die "unsupported macOS lane: $1" ;; esac
+}
+
+manifest_path() { print -r -- "$LEASES/$1/manifest.tsv"; }
+
+field() {
+  local manifest=$1 key=$2
+  awk -F '\t' -v key="$key" '$1 == key {sub(/^[^\t]*\t/, ""); print; exit}' "$manifest"
+}
+
+set_field() {
+  local manifest=$1 key=$2 value=$3 temp="${manifest}.tmp.$$"
+  awk -F '\t' -v key="$key" -v value="$value" 'BEGIN {OFS="\t"} $1 == key {$0=key OFS value; found=1} {print} END {if (!found) print key, value}' "$manifest" > "$temp"
+  mv "$temp" "$manifest"
+}
+
+owned_manifest() {
+  local lease=$1 manifest
+  valid_id "$lease"
+  manifest=$(manifest_path "$lease")
+  [[ -f "$manifest" ]] || die "lease is not owned by this interface: $lease"
+  [[ "$(field "$manifest" owner)" == "$OWNER" ]] || die "ownership marker mismatch for lease: $lease"
+  [[ "$(field "$manifest" lease_id)" == "$lease" ]] || die "lease manifest id mismatch: $lease"
+  print -r -- "$manifest"
+}
+
+duration_seconds() {
+  local value=$1 number unit
+  if [[ "$value" == <-> ]]; then print "$value"; return; fi
+  number=${value[1,-2]}
+  unit=${value[-1]}
+  [[ "$number" == <-> ]] || die "invalid duration: $value"
+  case "$unit" in
+    m) print $((number * 60)) ;;
+    h) print $((number * 3600)) ;;
+    d) print $((number * 86400)) ;;
+    *) die "invalid duration: $value" ;;
+  esac
+}
+
+ensure_roots() {
+  mkdir -p "$ARCHIVES" "$LEASES" "$ARTIFACTS" "$LOGS" "$OPERATIONS"
+}
+
+record_command() {
+  local lease=$1 result=$2; shift 2
+  local command_text
+  command_text=$(printf '%q ' "$@")
+  print -r -- "$(utc_now)\t$result\t$command_text" >> "$LEASES/$lease/commands.tsv"
+}
+
+prepare_worktree() {
+  local repo=$1
+  [[ "$repo" == "$OPERATIONS"/*/repo ]] || die "unsafe lease worktree path"
+  [[ -d "$repo/.git" ]] || die "lease checkout is not a Git worktree"
+  [[ -z "$(git -C "$repo" status --porcelain --untracked-files=all)" ]] || die "refusing to sync a changing checkout"
+}
+
+run_with_download() {
+  local macos=$1 lease=$2 remote_file=$3 local_file=$4; shift 4
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    "$CRABBOX" run --provider "$(provider_for "$macos")" --target macos --id "$lease" \
+      --stop-after never --download "$remote_file=$local_file" -- "$@"
+  elif [[ "$macos" == "15" ]]; then
+    if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
+    export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    "$CRABBOX" run --provider tart --target macos --id "$lease" \
+      --tart-user admin --ssh-port 22 --stop-after never \
+      --download "$remote_file=$local_file" -- "$@"
+  else
+    export PATH="$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    "$CRABBOX" run --provider parallels --target macos --id "$lease" \
+      --parallels-user keypathqa --parallels-work-root /Users/keypathqa/crabbox \
+      --ssh-port 22 --stop-after never --download "$remote_file=$local_file" -- "$@"
+  fi
+}
+
+preflight() {
+  local mount_point
+  [[ "$LAB_ROOT" == "$PRODUCTION_ROOT" || "${KEYPATH_LAB_TESTING:-0}" == "1" ]] || die "unsafe lab root"
+  [[ -d "$LAB_ROOT" ]] || die "lab root is not mounted: $LAB_ROOT"
+  [[ -x "$LAUNCHER_15" && -x "$LAUNCHER_26" && -x "$CRABBOX" ]] || die "lab launchers or CrabBox are unavailable"
+  if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" ]]; then
+    mount_point=$(df -P "$LAB_ROOT" | awk 'NR == 2 {for (i=6; i<=NF; i++) printf "%s%s", (i == 6 ? "" : " "), $i; print ""}')
+    [[ "$mount_point" == "/Volumes/KeyPath Lab" ]] || die "lab root is not on the expected external volume"
+  fi
+  ensure_roots
+  "$LAUNCHER_15" doctor
+  "$LAUNCHER_26" doctor
+  print "host_os\t$(sw_vers -productVersion 2>/dev/null || print unknown)"
+  print "host_build\t$(sw_vers -buildVersion 2>/dev/null || print unknown)"
+  print "lab_root\t$LAB_ROOT"
+  print "safety\tdisposable-owned-leases-only"
+}
+
+prepare_upload() {
+  valid_id "$1"
+  [[ "$1" =~ '^[0-9a-f]{40}-[0-9a-f]{64}$' ]] || die "invalid archive key"
+  mktemp "/tmp/keypath-lab.XXXXXXXX"
+}
+
+install_archive() {
+  local source=$1 key=$2 commit=$3 installer_sha=$4 installer_name=$5
+  [[ "$source" =~ '^/tmp/keypath-lab\.[A-Za-z0-9]+$' ]] || die "invalid upload ticket"
+  [[ -f "$source" && ! -L "$source" && -O "$source" ]] || die "upload ticket is not an owned regular file"
+  valid_id "$key"
+  [[ "$commit" =~ '^[0-9a-f]{40}$' ]] || die "invalid commit SHA"
+  [[ "$installer_sha" =~ '^[0-9a-f]{64}$' ]] || die "invalid installer checksum"
+  [[ "$installer_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid installer name"
+  ensure_roots
+  local destination="$ARCHIVES/$key" staging="$ARCHIVES/.staging-$key-$$" lock="$ARCHIVES/.lock-$key" attempt
+  if [[ -f "$destination/ready.tsv" ]]; then
+    [[ "$(field "$destination/ready.tsv" owner)" == "$OWNER" ]] || die "archive ownership mismatch"
+    [[ "$(field "$destination/ready.tsv" keypath_commit)" == "$commit" ]] || die "archive commit mismatch"
+    [[ "$(field "$destination/ready.tsv" installer_sha256)" == "$installer_sha" ]] || die "archive installer checksum mismatch"
+    rm -f "$source"
+    print "archive\treused\t$key"
+    return
+  fi
+  mkdir -p "$staging"
+  tar -xzf "$source" -C "$staging"
+  rm -f "$source"
+  [[ -d "$staging/repo" && ! -e "$staging/repo/.git" ]] || die "uploaded payload must contain exported content without Git state"
+  local actual_sha
+  actual_sha=$(shasum -a 256 "$staging/repo/.keypath-lab/installer/$installer_name" | awk '{print $1}')
+  [[ "$actual_sha" == "$installer_sha" ]] || die "installer checksum mismatch"
+  git -C "$staging/repo" init -q
+  git -C "$staging/repo" config user.name "KeyPath Lab"
+  git -C "$staging/repo" config user.email "keypath-lab@localhost"
+  git -C "$staging/repo" add -A
+  GIT_AUTHOR_DATE=2000-01-01T00:00:00Z GIT_COMMITTER_DATE=2000-01-01T00:00:00Z git -C "$staging/repo" commit -q -m "KeyPath lab archive $commit"
+  [[ -z "$(git -C "$staging/repo" status --porcelain)" ]] || die "archive checkout is dirty"
+  {
+    print "owner\t$OWNER"
+    print "keypath_commit\t$commit"
+    print "installer_sha256\t$installer_sha"
+    print "installer_name\t$installer_name"
+    print "created_at\t$(utc_now)"
+  } > "$staging/ready.tsv"
+  if ! mkdir "$lock" 2>/dev/null; then
+    rm -rf "$staging"
+    for attempt in {1..100}; do
+      if [[ -f "$destination/ready.tsv" ]]; then
+        [[ "$(field "$destination/ready.tsv" owner)" == "$OWNER" ]] || die "archive ownership mismatch after concurrent publish"
+        [[ "$(field "$destination/ready.tsv" keypath_commit)" == "$commit" ]] || die "archive commit mismatch after concurrent publish"
+        [[ "$(field "$destination/ready.tsv" installer_sha256)" == "$installer_sha" ]] || die "archive checksum mismatch after concurrent publish"
+        print "archive\treused\t$key"
+        return
+      fi
+      sleep 0.1
+    done
+    die "timed out waiting for concurrent archive publish: $key"
+  fi
+  if [[ -f "$destination/ready.tsv" ]]; then
+    rm -rf "$staging"
+    rmdir "$lock"
+    print "archive\treused\t$key"
+    return
+  fi
+  if [[ -e "$destination" ]]; then
+    rm -rf "$staging"
+    rmdir "$lock"
+    die "archive destination exists without a ready marker: $key"
+  fi
+  mv "$staging" "$destination"
+  rmdir "$lock"
+  print "archive\tcreated\t$key"
+}
+
+create_lease() {
+  local macos=$1 archive_key=$2 commit=$3 installer_sha=$4 installer_name=$5 ttl=$6
+  local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds
+  launcher=$(launcher_for "$macos")
+  provider=$(provider_for "$macos")
+  valid_id "$archive_key"
+  archive="$ARCHIVES/$archive_key"
+  [[ -f "$archive/ready.tsv" && -d "$archive/repo/.git" ]] || die "prepared archive not found: $archive_key"
+  ttl_seconds=$(duration_seconds "$ttl")
+  (( ttl_seconds > 0 && ttl_seconds <= 7200 )) || die "TTL must be between 1 second and 2 hours"
+  slug="keypath${macos}-$(print -r -- "$commit" | cut -c1-8)-$(date -u +%Y%m%d%H%M%S)-$$"
+  operation="$OPERATIONS/$slug"
+  mkdir -p "$operation"
+  git clone -q --local "$archive/repo" "$operation/repo"
+  repo="$operation/repo"
+  prepare_worktree "$repo"
+  output=$(cd "$repo" && "$launcher" warmup "$slug" 2>&1)
+  print -r -- "$output"
+  print -r -- "$output" > "$operation/create.log"
+  lease=$(print -r -- "$output" | grep -Eo 'cbx_[A-Za-z0-9]+' | tail -1 || true)
+  [[ -n "$lease" ]] || die "CrabBox did not report a lease id; inspect provider inventory before cleanup"
+  valid_id "$lease"
+  created=$(now_epoch)
+  expires=$((created + ttl_seconds))
+  mkdir -p "$LEASES/$lease" "$LOGS/$lease" "$ARTIFACTS/$lease"
+  manifest=$(manifest_path "$lease")
+  {
+    print "owner\t$OWNER"
+    print "lease_id\t$lease"
+    print "slug\t$slug"
+    print "macos\t$macos"
+    print "provider\t$provider"
+    print "archive_key\t$archive_key"
+    print "keypath_commit\t$commit"
+    print "installer_sha256\t$installer_sha"
+    print "installer_name\t$installer_name"
+    print "worktree\t$repo"
+    print "created_epoch\t$created"
+    print "created_at\t$(utc_now)"
+    print "expires_epoch\t$expires"
+    print "status\tcreated"
+    print "cleanup_status\tpending"
+    print "desktop_enabled\tfalse"
+  } > "$manifest"
+  print -r -- "$output" > "$LOGS/$lease/create.log"
+  guest_output=$(cd "$repo" && "$launcher" run "$lease" -- /bin/zsh -lc 'printf "product=%s\n" "$(sw_vers -productVersion)"; printf "build=%s\n" "$(sw_vers -buildVersion)"' 2>&1) || {
+    record_command "$lease" failed sw_vers
+    set_field "$manifest" status verification-failed
+    print -r -- "$guest_output" > "$LOGS/$lease/guest-version.log"
+    die "lease created but guest verification failed: $lease"
+  }
+  print -r -- "$guest_output" > "$LOGS/$lease/guest-version.log"
+  product=$(print -r -- "$guest_output" | sed -n 's/^product=//p' | tail -1)
+  build=$(print -r -- "$guest_output" | sed -n 's/^build=//p' | tail -1)
+  set_field "$manifest" macos_product_version "${product:-unknown}"
+  set_field "$manifest" macos_build "${build:-unknown}"
+  set_field "$manifest" status ready
+  record_command "$lease" passed sw_vers
+  print "lease_id\t$lease"
+  print "manifest\t$manifest"
+}
+
+run_command() {
+  local lease=$1; shift
+  local manifest macos launcher repo log exit_code
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  launcher=$(launcher_for "$macos")
+  repo=$(field "$manifest" worktree)
+  prepare_worktree "$repo"
+  log="$LOGS/$lease/run-$(date -u +%Y%m%dT%H%M%SZ).log"
+  set +e
+  (cd "$repo" && "$launcher" run "$lease" -- "$@") 2>&1 | tee "$log"
+  exit_code=${pipestatus[1]}
+  set -e
+  if (( exit_code == 0 )); then record_command "$lease" passed "$@"; else record_command "$lease" "failed:$exit_code" "$@"; fi
+  set_field "$manifest" last_result "$exit_code"
+  set_field "$manifest" last_run_at "$(utc_now)"
+  return "$exit_code"
+}
+
+print_status() {
+  local lease=$1 manifest macos launcher
+  manifest=$(owned_manifest "$lease")
+  cat "$manifest"
+  macos=$(field "$manifest" macos)
+  launcher=$(launcher_for "$macos")
+  print "provider_inventory_begin"
+  "$launcher" list || true
+  print "provider_inventory_end"
+}
+
+list_leases() {
+  ensure_roots
+  print "lease_id\tmacos\tprovider\tstatus\texpires_epoch\tcommit\tcleanup"
+  local manifest lease
+  for manifest in "$LEASES"/*/manifest.tsv(N); do
+    [[ "$(field "$manifest" owner)" == "$OWNER" ]] || continue
+    lease=$(field "$manifest" lease_id)
+    print "$lease\t$(field "$manifest" macos)\t$(field "$manifest" provider)\t$(field "$manifest" status)\t$(field "$manifest" expires_epoch)\t$(field "$manifest" keypath_commit)\t$(field "$manifest" cleanup_status)"
+  done
+}
+
+collect_artifacts() {
+  local lease=$1 manifest output exit_code macos repo archive
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  repo=$(field "$manifest" worktree)
+  prepare_worktree "$repo"
+  output="$ARTIFACTS/$lease/$(date -u +%Y%m%dT%H%M%SZ)"
+  mkdir -p "$output"
+  cp "$manifest" "$output/manifest.tsv"
+  cp "$LEASES/$lease/commands.tsv" "$output/commands.tsv" 2>/dev/null || true
+  cp -R "$LOGS/$lease" "$output/controller-logs"
+  archive="$output/scenario-output.tar.gz"
+  set +e
+  (cd "$repo" && run_with_download "$macos" "$lease" ".keypath-lab/scenario-output.tar.gz" "$archive" \
+    /bin/zsh -lc 'set -e; out=.keypath-lab/scenario-output/controller-capture; mkdir -p "$out/logs"; sw_vers > "$out/sw-vers.txt"; date -u +%Y-%m-%dT%H:%M:%SZ > "$out/captured-at.txt"; cp -R "$HOME/Library/Logs/KeyPath/." "$out/logs/" 2>/dev/null || true; /Applications/KeyPath.app/Contents/MacOS/keypath-cli system inspect --json > "$out/system-inspect.json" 2>/dev/null || true; tar -czf .keypath-lab/scenario-output.tar.gz -C .keypath-lab scenario-output') > "$output/download.log" 2>&1
+  exit_code=$?
+  set -e
+  if (( exit_code == 0 )); then
+    tar -xzf "$archive" -C "$output"
+  fi
+  set_field "$manifest" artifacts_status "$exit_code"
+  set_field "$manifest" artifacts_last_collected_at "$(utc_now)"
+  set_field "$manifest" screenshot_status "unavailable:lease-not-created-with-desktop"
+  print "artifact_dir\t$output"
+  print "download_status\t$exit_code"
+  print "screenshot_status\tunavailable:lease-not-created-with-desktop"
+  return "$exit_code"
+}
+
+scenario() {
+  local lease=$1 name=$2 manifest repo scenario_script
+  manifest=$(owned_manifest "$lease")
+  repo=$(field "$manifest" worktree)
+  prepare_worktree "$repo"
+  scenario_script="Scripts/lab/scenarios/installer-scenario"
+  [[ -x "$repo/$scenario_script" ]] || die "scenario runner missing from archived commit"
+  run_command "$lease" "/bin/zsh" "$scenario_script" "$name"
+}
+
+destroy_lease() {
+  local lease=$1 manifest macos launcher exit_code repo
+  manifest=$(owned_manifest "$lease")
+  [[ "$(field "$manifest" cleanup_status)" != "complete" ]] || { print "already_clean\t$lease"; return; }
+  macos=$(field "$manifest" macos)
+  launcher=$(launcher_for "$macos")
+  repo=$(field "$manifest" worktree)
+  prepare_worktree "$repo"
+  mkdir -p "$LOGS/$lease"
+  set +e
+  (cd "$repo" && "$launcher" stop "$lease") > "$LOGS/$lease/destroy.log" 2>&1
+  exit_code=$?
+  set -e
+  set_field "$manifest" cleanup_attempted_at "$(utc_now)"
+  set_field "$manifest" cleanup_result "$exit_code"
+  if (( exit_code == 0 )); then
+    set_field "$manifest" cleanup_status complete
+    set_field "$manifest" status destroyed
+  else
+    set_field "$manifest" cleanup_status failed
+    set_field "$manifest" status cleanup-failed
+  fi
+  cat "$LOGS/$lease/destroy.log"
+  return "$exit_code"
+}
+
+cleanup_expired() {
+  local dry_run=${1:-} current manifest lease expires cleanup
+  [[ -z "$dry_run" || "$dry_run" == "--dry-run" ]] || die "invalid cleanup option"
+  current=$(now_epoch)
+  for manifest in "$LEASES"/*/manifest.tsv(N); do
+    [[ "$(field "$manifest" owner)" == "$OWNER" ]] || continue
+    lease=$(field "$manifest" lease_id)
+    expires=$(field "$manifest" expires_epoch)
+    cleanup=$(field "$manifest" cleanup_status)
+    [[ "$expires" == <-> && "$expires" -le "$current" && "$cleanup" != "complete" ]] || continue
+    if [[ "$dry_run" == "--dry-run" ]]; then
+      print "would_destroy\t$lease"
+    else
+      destroy_lease "$lease" || true
+    fi
+  done
+}
+
+action=${1:-}
+shift || true
+case "$action" in
+  preflight) [[ $# -eq 0 ]] || die "preflight takes no arguments"; preflight ;;
+  prepare-upload) [[ $# -eq 1 ]] || die "prepare-upload requires archive key"; prepare_upload "$1" ;;
+  install-archive) [[ $# -eq 5 ]] || die "install-archive requires ticket, key, commit, checksum, and name"; install_archive "$@" ;;
+  create) [[ $# -eq 6 ]] || die "create requires lane, archive, commit, checksum, name, ttl"; create_lease "$@" ;;
+  run) [[ $# -ge 2 ]] || die "run requires lease and command"; run_command "$@" ;;
+  status) [[ $# -eq 1 ]] || die "status requires lease"; print_status "$1" ;;
+  list) [[ $# -eq 0 ]] || die "list takes no arguments"; list_leases ;;
+  artifacts) [[ $# -eq 1 ]] || die "artifacts requires lease"; collect_artifacts "$1" ;;
+  scenario) [[ $# -eq 2 ]] || die "scenario requires lease and name"; scenario "$1" "$2" ;;
+  destroy) [[ $# -eq 1 ]] || die "destroy requires lease"; destroy_lease "$1" ;;
+  cleanup) cleanup_expired "${1:-}" ;;
+  *) die "unknown action: $action" ;;
+esac

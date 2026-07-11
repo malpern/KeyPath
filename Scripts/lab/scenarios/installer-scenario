@@ -1,0 +1,73 @@
+#!/bin/zsh
+set -euo pipefail
+
+name=${1:-}
+installer_dir="$PWD/.keypath-lab/installer"
+artifact_dir="$PWD/.keypath-lab/scenario-output/$name"
+mkdir -p "$artifact_dir"
+
+record_system() {
+  sw_vers > "$artifact_dir/sw-vers.txt"
+  system_profiler SPSoftwareDataType > "$artifact_dir/software.txt"
+  date -u +%Y-%m-%dT%H:%M:%SZ > "$artifact_dir/captured-at.txt"
+}
+
+installed_cli="/Applications/KeyPath.app/Contents/MacOS/keypath-cli"
+record_system
+
+case "$name" in
+  clean-install)
+    find "$installer_dir" -maxdepth 1 -type f -print > "$artifact_dir/installer-files.txt"
+    print "Install the staged artifact from $installer_dir into this disposable guest."
+    print "Capture Gatekeeper output and the first visible installer screen before granting approvals."
+    ;;
+  approvals)
+    print "Exercise Login Items/Background App Activity, DriverKit, Accessibility, and Input Monitoring approvals."
+    print "Capture each prompt before and after approval; never copy TCC databases into artifacts."
+    ;;
+  helper-daemon-health)
+    [[ -x "$installed_cli" ]] || { print -u2 "KeyPath CLI is not installed"; exit 3; }
+    "$installed_cli" system inspect --json | tee "$artifact_dir/system-inspect.json"
+    nc -vz 127.0.0.1 37001 2>&1 | tee "$artifact_dir/tcp-readiness.txt"
+    ;;
+  launch)
+    open -a KeyPath
+    sleep 3
+    pgrep -fl '/Applications/KeyPath.app/Contents/MacOS/KeyPath' | tee "$artifact_dir/processes.txt"
+    ;;
+  repair-reinstall)
+    [[ -x "$installed_cli" ]] || { print -u2 "KeyPath CLI is not installed"; exit 3; }
+    "$installed_cli" system repair --json | tee "$artifact_dir/repair.json"
+    "$installed_cli" system inspect --json | tee "$artifact_dir/post-repair.json"
+    ;;
+  reboot-persistence-before)
+    [[ -x "$installed_cli" ]] || { print -u2 "KeyPath CLI is not installed"; exit 3; }
+    "$installed_cli" system inspect --json > "$artifact_dir/before-reboot.json"
+    print "Run the host-approved guest reboot, then execute reboot-persistence-after on the same lease."
+    ;;
+  reboot-persistence-after)
+    [[ -x "$installed_cli" ]] || { print -u2 "KeyPath CLI is not installed"; exit 3; }
+    "$installed_cli" system inspect --json | tee "$artifact_dir/after-reboot.json"
+    nc -vz 127.0.0.1 37001 2>&1 | tee "$artifact_dir/tcp-readiness.txt"
+    ;;
+  uninstall)
+    [[ -x "$installed_cli" ]] || { print -u2 "KeyPath CLI is not installed"; exit 3; }
+    "$installed_cli" system uninstall --json | tee "$artifact_dir/uninstall.json"
+    test ! -e /Applications/KeyPath.app
+    ;;
+  cancellation-failure)
+    print "Use a disposable lease to cancel one approval flow and inject one non-destructive failure."
+    print "Record the visible recovery action, CLI result, and KeyPath logs; do not corrupt the base image."
+    ;;
+  artifact-capture)
+    mkdir -p "$artifact_dir/logs"
+    cp -R "$HOME/Library/Logs/KeyPath/." "$artifact_dir/logs/" 2>/dev/null || true
+    "$installed_cli" system inspect --json > "$artifact_dir/system-inspect.json" 2>/dev/null || true
+    print "Scenario artifacts written to $artifact_dir; follow with keypath-lab artifacts <lease-id>."
+    ;;
+  *)
+    print -u2 "Unknown scenario: $name"
+    print -u2 "Available: clean-install approvals helper-daemon-health launch repair-reinstall reboot-persistence-before reboot-persistence-after uninstall cancellation-failure artifact-capture"
+    exit 2
+    ;;
+esac
