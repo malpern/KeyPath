@@ -12,7 +12,8 @@ Usage: Scripts/lab/keypath-lab [--host HOST] <command> [options]
 
 Commands:
   preflight
-  create --macos 15|26 --commit SHA --installer PATH [--ttl 2h]
+  create --macos 15|26 --commit SHA --installer PATH [--ttl 2h] [--desktop]
+  install-app LEASE_ID
   run LEASE_ID -- COMMAND [ARG...]
   status LEASE_ID
   list
@@ -67,12 +68,14 @@ case "$command" in
         commit=
         installer=
         ttl=2h
+        desktop=0
         while [[ $# -gt 0 ]]; do
             case "$1" in
                 --macos) macos=${2:-}; shift 2 ;;
                 --commit) commit=${2:-}; shift 2 ;;
                 --installer) installer=${2:-}; shift 2 ;;
                 --ttl) ttl=${2:-}; shift 2 ;;
+                --desktop) desktop=1; shift ;;
                 *) usage ;;
             esac
         done
@@ -102,7 +105,12 @@ EOF
         [[ $upload_ticket == /tmp/keypath-lab.* ]] || die "host returned an invalid upload ticket"
         scp -q "$temp_dir/archive.tgz" "$host:$upload_ticket"
         remote install-archive "$upload_ticket" "$archive_key" "$commit" "$installer_sha" "$installer_name"
-        remote create "$macos" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$ttl"
+        remote create "$macos" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$ttl" "$desktop"
+        ;;
+    install-app)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote install-app "$1"
         ;;
     run)
         lease=${1:-}
