@@ -10,7 +10,7 @@ KeyPath depends on two upstream projects — **QMK** (keyboard firmware ecosyste
 
 | Component | Source | Version | Build |
 |-----------|--------|---------|-------|
-| `kanata` binary | Git submodule `External/kanata` (fork: `keypath/bundled` branch) | v1.11.0 | Rust `cargo build --release` with feature `tcp_server`; `cmd` is intentionally excluded |
+| `kanata` binary | Git submodule `External/kanata` (fork: `keypath/bundled` branch) | v1.12.0 + KeyPath patches | Rust `cargo build --release` with feature `tcp_server`; `cmd` is intentionally excluded |
 | `kanata-sim` | Same submodule | Same | `cargo build --release --package kanata-sim` |
 | Host bridge | `Rust/KeyPathKanataHostBridge/` | Local | Rust static/dynamic lib via C ABI |
 
@@ -18,7 +18,7 @@ KeyPath depends on two upstream projects — **QMK** (keyboard firmware ecosyste
 
 | Dependency | What Could Change | Impact | Frequency |
 |------------|-------------------|--------|-----------|
-| **TCP protocol** | Message format, field names, new required fields | Runtime communication breaks | Rare — protocol has been stable across v1.9–v1.11 |
+| **TCP protocol** | Message format, field names, new required fields | Runtime communication breaks | Rare — protocol has been stable across v1.9–v1.12 |
 | **Config syntax** | `defcfg` options, tap-hold variants, layer-switch semantics | Generated configs rejected by new Kanata | Rare for existing constructs; new features additive |
 | **Capability negotiation** | `hello()` response format, capability names | Feature detection fails | Rare |
 | **CLI flags** | `--port`, `--cfg`, `--log-layer-changes` | Launch fails | Very rare |
@@ -36,9 +36,12 @@ KeyPath depends on two upstream projects — **QMK** (keyboard firmware ecosyste
 ### How to Update
 
 ```bash
-cd External/kanata
-git fetch upstream
-git merge upstream/main  # or specific tag
+cd /path/to/malpern-kanata-worktree
+git fetch upstream --tags
+git merge --no-ff v<stable-version>
+# Resolve overlaps by keeping upstreamed changes canonical and retaining only
+# residual KeyPath patches. Push a candidate branch; never force-push
+# keypath/bundled.
 cd ../..
 ./Scripts/build-kanata.sh  # rebuilds with TCC-safe caching
 swift test  # verify TCP protocol still works

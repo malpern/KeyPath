@@ -16,15 +16,15 @@ final class VHIDDeviceManagerTests: XCTestCase {
     // MARK: - Version Mismatch Tests
 
     func testHasVersionMismatch_V5InstalledRequiresV6() {
-        // Simulate v5.0.0 installed when v6.0.0 is required
+        // Simulate v5.0.0 installed when v6.2.0 is required
         VHIDDeviceManager.testInstalledVersionProvider = { "5.0.0" }
         let mgr = VHIDDeviceManager()
         XCTAssertTrue(mgr.hasVersionMismatch(), "v5 installed with v6 required should be a mismatch")
     }
 
     func testHasVersionMismatch_V6InstalledRequiresV6() {
-        // Simulate v6.0.0 installed when v6.0.0 is required
-        VHIDDeviceManager.testInstalledVersionProvider = { "6.0.0" }
+        // Simulate v6.2.0 installed when v6.2.0 is required
+        VHIDDeviceManager.testInstalledVersionProvider = { "6.2.0" }
         let mgr = VHIDDeviceManager()
         XCTAssertFalse(mgr.hasVersionMismatch(), "v6 installed with v6 required should NOT be a mismatch")
     }
@@ -49,11 +49,11 @@ final class VHIDDeviceManagerTests: XCTestCase {
         let message = mgr.getVersionMismatchMessage()
         XCTAssertNotNil(message, "Should return message when version mismatch exists")
         XCTAssertTrue(message?.contains("5.0.0") ?? false, "Message should mention installed version")
-        XCTAssertTrue(message?.contains("6.0.0") ?? false, "Message should mention required version")
+        XCTAssertTrue(message?.contains("6.2.0") ?? false, "Message should mention required version")
     }
 
     func testGetVersionMismatchMessage_ReturnsNilWhenCompatible() {
-        VHIDDeviceManager.testInstalledVersionProvider = { "6.0.0" }
+        VHIDDeviceManager.testInstalledVersionProvider = { "6.2.0" }
         let mgr = VHIDDeviceManager()
         let message = mgr.getVersionMismatchMessage()
         XCTAssertNil(message, "Should return nil when versions are compatible")

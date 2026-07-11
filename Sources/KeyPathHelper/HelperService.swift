@@ -861,7 +861,7 @@ extension HelperService {
     // IMPORTANT: Keep in sync with WizardSystemPaths.bundledVHIDDriverVersion in KeyPathCore
     // The helper doesn't have access to KeyPathCore, so we maintain a copy here
     // This is only used for the deprecated download fallback path
-    private static let requiredVHIDVersion = "6.0.0"
+    private static let requiredVHIDVersion = "6.2.0"
 
     private static func consoleUserInfo() -> (name: String, home: String)? {
         var uid: uid_t = 0

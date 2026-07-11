@@ -495,6 +495,7 @@ pub extern "C" fn keypath_kanata_bridge_emit_key(
         value: if is_key_down { 1 } else { 0 },
         page: usage_page,
         code: usage,
+        device_hash: 0,
     };
 
     match karabiner_driverkit::send_key(&mut event) {
