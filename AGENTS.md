@@ -264,6 +264,15 @@ Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`,
   - `KanataManager` for installation/repair (it's for runtime coordination only).
   - `WizardAutoFixer` (deleted — call `InstallerEngine.runSingleAction()` directly).
 
+### Installer Maintenance Mode
+- The installer reliability program is complete. Do not propose proactive
+  installer hardening or Phase 2 autonomous repair.
+- Reopen installer work only for a reproduced user-visible incident, a security
+  issue, stability-window or telemetry evidence, or an explicitly approved
+  Phase 2 project. UX work has priority otherwise.
+- Keep deferred installer ideas unscheduled in
+  `docs/planning/installer-phase-pipeline-and-modularization.md`.
+
 ### Opportunistic Manager Consolidation
 - When a change naturally spans overlapping Manager/Coordinator/Service types,
   prefer moving the touched responsibility into the existing canonical owner and

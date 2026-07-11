@@ -10,6 +10,22 @@
 [ADR-042](../adr/adr-042-executable-installer-state-classification.md), and
 [Installer Repair State Matrix](../process/installer-repair-state-matrix.md)
 
+## Maintenance Policy
+
+The installer reliability program is complete and is now in maintenance mode.
+Do not proactively reopen installer architecture or schedule additional
+hardening. Installer changes require at least one of:
+
+- a reproduced user-visible incident;
+- a security issue;
+- evidence from the stability window or telemetry; or
+- an explicitly approved Phase 2 project.
+
+Deferred ideas such as module extraction, caller-specific cancellation policy,
+and more granular degraded-capture evidence remain recorded here without a
+schedule. User-experience work, especially reducing time to first remap, takes
+priority over proactive installer hardening.
+
 ## Purpose
 
 Complete the transition to one installer pipeline:
