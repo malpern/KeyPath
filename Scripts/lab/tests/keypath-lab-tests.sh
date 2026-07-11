@@ -129,12 +129,20 @@ if grep -q 'crabbox cp' "$CALLS"; then
 fi
 [[ -f "$(find "$ROOT/KeyPathInstallerLab/artifacts/cbx_test15" -path '*/scenario-output/controller-capture/sw-vers.txt' -print -quit)" ]]
 
-touch "$ROOT/KeyPathInstallerLab/operations/$(grep $'^slug\t' "$manifest" | cut -f2)/repo/changing-file"
+operation_repo="$ROOT/KeyPathInstallerLab/operations/$(grep $'^slug\t' "$manifest" | cut -f2)/repo"
+mkdir -p "$operation_repo/.crabbox/captures"
+echo failure-evidence > "$operation_repo/.crabbox/captures/failure.tar.gz"
+run_remote run cbx_test15 echo generated-output-is-safe >/dev/null
+artifacts_with_capture=$(run_remote artifacts cbx_test15)
+capture_dir=$(printf '%s\n' "$artifacts_with_capture" | awk -F '\t' '$1 == "artifact_dir" {print $2}')
+[[ -f "$capture_dir/controller-crabbox-captures/failure.tar.gz" ]]
+
+touch "$operation_repo/changing-file"
 if run_remote run cbx_test15 echo unsafe >/dev/null 2>&1; then
     echo "run accepted a changing checkout" >&2
     exit 1
 fi
-rm "$ROOT/KeyPathInstallerLab/operations/$(grep $'^slug\t' "$manifest" | cut -f2)/repo/changing-file"
+rm "$operation_repo/changing-file"
 
 mkdir -p "$ROOT/KeyPathInstallerLab/leases/not-owned"
 printf 'owner\tother\nlease_id\tnot-owned\n' > "$ROOT/KeyPathInstallerLab/leases/not-owned/manifest.tsv"
