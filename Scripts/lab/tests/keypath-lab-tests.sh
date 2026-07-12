@@ -15,7 +15,7 @@ cat > "$ROOT/bin/launcher15" <<EOF
 #!/bin/bash
 case "\$1" in
  doctor) echo doctor-15 ;;
- warmup) echo cbx_test15 ;;
+ warmup) echo diagnostic previous=cbx_not_the_new_lease; echo cbx_test15 ;;
  run) echo product=15.7.7; echo build=24G720 ;;
  stop)
    echo "stop-15 \$2" >> "$CALLS"
@@ -28,7 +28,7 @@ cat > "$ROOT/bin/launcher26" <<EOF
 #!/bin/bash
 case "\$1" in
  doctor) echo doctor-26 ;;
- warmup) echo cbx_test26 ;;
+ warmup) echo diagnostic previous=cbx_not_the_new_lease; echo cbx_test26 ;;
  run) echo product=26.5.2; echo build=25F84 ;;
  stop) echo "stop-26 \$2" >> "$CALLS" ;;
  list) echo cbx_test26 ;;
@@ -38,7 +38,7 @@ cat > "$ROOT/bin/launcher27" <<EOF
 #!/bin/bash
 case "\$1" in
  doctor) echo doctor-27 ;;
- warmup) echo cbx_test27 ;;
+ warmup) echo diagnostic previous=cbx_not_the_new_lease; echo cbx_test27 ;;
  run) echo product=27.0; echo build=26A5378j ;;
  stop) echo "stop-27 \$2" >> "$CALLS" ;;
  list) echo cbx_test27 ;;
@@ -48,7 +48,7 @@ cat > "$ROOT/bin/crabbox" <<EOF
 #!/bin/bash
 echo "crabbox \$*" >> "$CALLS"
 if [[ \$1 == warmup ]]; then
-  if [[ " \$* " == *" --provider tart "* ]]; then echo 'warmup instance=test-resource cbx_desktop15'; else echo 'warmup vm=00000000-0000-0000-0000-000000000000 cbx_desktop26'; fi
+  if [[ " \$* " == *" --provider tart "* ]]; then echo 'leased cbx_desktop15 slug=test instance=test-resource'; else echo 'leased cbx_desktop26 slug=test vm=00000000-0000-0000-0000-000000000000'; fi
   if [[ \${KEYPATH_LAB_TEST_SLOW_WARMUP:-0} == 1 ]]; then sleep 30; fi
   exit 0
 fi

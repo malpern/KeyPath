@@ -378,6 +378,13 @@ write_provisional_lease_manifest() {
   } > "$manifest"
 }
 
+lease_candidate_from_line() {
+  print -r -- "$1" | awk '
+    $1 == "leased" && $2 ~ /^cbx_[A-Za-z0-9]+$/ {print $2; exit}
+    $0 ~ /^cbx_[A-Za-z0-9]+$/ {print; exit}
+  '
+}
+
 create_lease() {
   local macos=$1 archive_key=$2 commit=$3 installer_sha=$4 installer_name=$5 ttl=$6 desktop=$7
   local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds provider_resource create_status candidate_file create_log exit_code
@@ -419,7 +426,7 @@ create_lease() {
       print -r -- "$line"
       print -r -- "$line" >> "$create_log"
       if [[ ! -s "$candidate_file" ]]; then
-        candidate=$(print -r -- "$line" | grep -Eo 'cbx_[A-Za-z0-9]+' | tail -1 || true)
+        candidate=$(lease_candidate_from_line "$line")
         if [[ -n "$candidate" ]]; then
           print -r -- "$candidate" > "$candidate_file"
           write_provisional_lease_manifest "$candidate" "$slug" "$macos" "$provider" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$repo" "$created" "$expires" "$desktop"
@@ -431,7 +438,7 @@ create_lease() {
       print -r -- "$line"
       print -r -- "$line" >> "$create_log"
       if [[ ! -s "$candidate_file" ]]; then
-        candidate=$(print -r -- "$line" | grep -Eo 'cbx_[A-Za-z0-9]+' | tail -1 || true)
+        candidate=$(lease_candidate_from_line "$line")
         if [[ -n "$candidate" ]]; then
           print -r -- "$candidate" > "$candidate_file"
           write_provisional_lease_manifest "$candidate" "$slug" "$macos" "$provider" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$repo" "$created" "$expires" "$desktop"
