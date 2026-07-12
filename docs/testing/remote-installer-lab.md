@@ -177,6 +177,24 @@ transport. It is valid only after current visual evidence shows the focused
 secure field, and success still requires the corresponding system-extension
 postcondition.
 
+For a protected control that requires native RFB delivery, use the lease-owned
+guard instead of invoking CrabBox directly:
+
+```bash
+Scripts/lab/keypath-lab protected-click cbx_example \
+  --app 'System Settings' \
+  --window Accessibility \
+  --x 804 --y 494
+```
+
+The coordinates are native framebuffer coordinates measured for the current
+lease. The command snapshots the named app before and after delivery and fails
+if either window title differs from the declared page. When the click is
+expected to open another page or dialog, declare that explicitly with
+`--after-window`. This guard detects a delivered click that landed on the wrong
+System Settings surface; it does not replace the permission's canonical product
+or system postcondition.
+
 `install-app` expands the staged ZIP into `/Applications` on the disposable
 guest. Tart uses the base image's noninteractive sudo contract. Parallels uses
 the same passwordless `prlctl exec` guest-control channel CrabBox already uses
