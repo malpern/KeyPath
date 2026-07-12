@@ -956,7 +956,12 @@ html&gt;body{padding:0}&lt;/style&gt;
         button.className = &#x27;block&#x27;;
         button.dataset.status = state;
         button.textContent = id;
+        button.dataset.itemName = name;
+        button.dataset.description = description;
         button.dataset.baseLabel = `${id}: ${name}. ${names[state]}. ${description}`;
+        button.dataset.baseTooltip = `${id} · ${name} — ${names[state]}. ${description}`;
+        button.dataset.tooltip = button.dataset.baseTooltip;
+        button.dataset.tooltipPlacement = &#x27;top&#x27;;
         button.setAttribute(&#x27;aria-label&#x27;, button.dataset.baseLabel);
         const showDetail = () =&gt; {
           title.textContent = `${id} · ${name}`;
@@ -983,7 +988,11 @@ html&gt;body{padding:0}&lt;/style&gt;
       const applyState = (state) =&gt; {
         Object.entries(state.statuses || {}).forEach(([id,value]) =&gt; {
           const button = buttons.get(id);
-          if (button &amp;&amp; names[value]) button.dataset.status = value;
+          if (button &amp;&amp; names[value]) {
+            button.dataset.status = value;
+            button.dataset.baseLabel = `${id}: ${button.dataset.itemName}. ${names[value]}. ${button.dataset.description}`;
+            button.dataset.baseTooltip = `${id} · ${button.dataset.itemName} — ${names[value]}. ${button.dataset.description}`;
+          }
         });
         const workingBlocks = new Set(state.workingBlocks || []);
         buttons.forEach((button,id) =&gt; {
@@ -992,6 +1001,7 @@ html&gt;body{padding:0}&lt;/style&gt;
           button.dataset.trend = &#x27;&#x27;;
           button.style.setProperty(&#x27;--work-progress&#x27;,&#x27;0%&#x27;);
           button.setAttribute(&#x27;aria-label&#x27;,button.dataset.baseLabel);
+          button.dataset.tooltip = button.dataset.baseTooltip;
         });
         const activeEntries = Object.entries(state.activeWork || {});
         activeEntries.forEach(([id,work]) =&gt; {
@@ -1003,6 +1013,9 @@ html&gt;body{padding:0}&lt;/style&gt;
           button.dataset.trend = work.trend || &#x27;forward&#x27;;
           button.style.setProperty(&#x27;--work-progress&#x27;,`${progress}%`);
           button.setAttribute(&#x27;aria-label&#x27;,`${button.dataset.baseLabel} Active work ${progress}% complete. ${healthNames[work.health] || &#x27;In progress&#x27;}.`);
+          const phase = work.phase || &#x27;Active development&#x27;;
+          const health = healthNames[work.health] || &#x27;In progress&#x27;;
+          button.dataset.tooltip = `${button.dataset.baseTooltip} ${progress}% · ${health}. ${phase}. ${work.detail || &#x27;&#x27;}`.trim();
         });
         if (activeEntries.length) {
           const [id,work] = activeEntries[0];
