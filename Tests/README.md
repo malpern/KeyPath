@@ -41,15 +41,15 @@ Moved to `Tests/Deprecated/` folder:
 
 ### Quick Test Run (CI Default)
 ```bash
-./run-core-tests.sh
+./Scripts/test-fast.sh --changed
 ```
-Runs: Unit Tests + Core Tests (~150 seconds)
+Selects the supported test lane for the files changed from the base branch.
 
 ### Full Test Run (Local Development)
 ```bash
-CI_INTEGRATION_TESTS=true ./run-core-tests.sh
+./Scripts/test-full.sh
 ```
-Runs: Unit Tests + Core Tests + Basic Integration Tests (~270 seconds)
+Runs the full safe SwiftPM test suite.
 
 ### Legacy Tests (Manual)
 ```bash
@@ -58,18 +58,8 @@ swift test --filter "IntegrationTests|TCPTests|UIAutomationTests"
 
 ## CI Integration
 
-### GitHub Actions Workflow
-- **File:** `.github/workflows/ci.yml`
-- **Strategy:** Core tests only, non-blocking for build verification
-- **Environment Variables:**
-  - `CI_ENVIRONMENT=true` - Enables CI-specific test behavior
-  - `CI_INTEGRATION_TESTS=false` - Disables integration tests by default
-  - `KEYPATH_TESTING=true` - Enables test mode in components
-
-### Test Results
-- **Artifacts:** Uploaded as `core-test-results` with 7-day retention
-- **Summary:** Integrated into GitHub Actions step summary
-- **Failure Handling:** Non-blocking - allows build verification to continue
+GitHub Actions uses the supported scripts under `Scripts/`; workflow files are
+the source of truth for the current lane selection and artifact retention.
 
 ## Development Workflow
 

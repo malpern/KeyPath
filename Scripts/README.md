@@ -33,7 +33,9 @@
 - `run-tests-safe.sh` - The safe test runner implementation
 - `run-installer-reliability-matrix.sh` - Runs installer scenario lanes and writes `matrix-summary.md` + `matrix-results.json`
 - `uninstall.sh` - Uninstaller script
-- `archive/` - Deprecated or historical scripts
+- `archive/` - Deprecated or historical scripts. Do not invoke these from
+  current documentation or automation; see
+  `docs/process/script-surface-audit.md` for the retention audit.
 - `lib/signing.sh` - Thin wrappers around codesign/notarytool/stapler with `KP_SIGN_DRY_RUN=1` for safe local runs; CI overrides hook into this.
 - `lib/deploy-lock.sh` - Shared cross-worktree lock for scripts that mutate `/Applications/KeyPath.app`.
 - `lib/submodules.sh` - Initializes required submodules for build paths. Kanata
@@ -86,4 +88,6 @@
   - Optional/local: `KEYPATH_E2E_DEVICE=1 swift test --filter InstallerDeviceTests` or `./Scripts/test-installer-device.sh` for real-surface installer smoke
 
 ## Development Setup
-Most development scripts have been moved to `archive/`.
+
+Use the supported commands above. The scripts in `archive/` are retained only
+as historical investigation artifacts and are not supported entry points.

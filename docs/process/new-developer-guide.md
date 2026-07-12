@@ -365,8 +365,11 @@ tail -f /var/log/com.keypath.kanata.stderr.log
 # All tests (may prompt for sudo depending on local setup)
 ./test.sh
 
-# Core tests only
-./Scripts/archive/run-core-tests.sh
+# Tests related to the current diff
+./Scripts/test-fast.sh --changed
+
+# Full safe test suite (run before a PR when proportional to the change)
+./Scripts/test-full.sh
 
 # Single test
 swift test --filter TestClassName.testMethodName
