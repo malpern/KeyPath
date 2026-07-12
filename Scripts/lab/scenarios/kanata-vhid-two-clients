@@ -1,0 +1,89 @@
+#!/bin/zsh
+set -euo pipefail
+
+usage() {
+  print -u2 "Usage: $0 --kanata PATH --daemon PATH --device NAME --output DIR"
+  exit 2
+}
+
+kanata=
+daemon=
+device=
+output=
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --kanata) kanata=${2:-}; shift 2 ;;
+    --daemon) daemon=${2:-}; shift 2 ;;
+    --device) device=${2:-}; shift 2 ;;
+    --output) output=${2:-}; shift 2 ;;
+    *) usage ;;
+  esac
+done
+
+[[ -x "$kanata" && -x "$daemon" && -n "$device" && -n "$output" ]] || usage
+mkdir -p "$output"
+
+print -r -- "(defcfg
+  process-unmapped-keys no
+  macos-dev-names-include (\"$device\")
+  macos-continue-if-no-devs-found yes)
+(defsrc a)
+(deflayer base b)" > "$output/physical.kbd"
+
+print -r -- "(defcfg
+  process-unmapped-keys no
+  macos-dev-names-include (\"$device\")
+  macos-continue-if-no-devs-found yes)
+(defsrc a)
+(deflayer base c)" > "$output/second-client.kbd"
+
+cleanup() {
+  sudo pkill -TERM -f "$kanata.*$output/(physical|second-client)\.kbd" 2>/dev/null || true
+  sudo pkill -TERM -f "$daemon" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+sudo pkill -TERM -f "$daemon" 2>/dev/null || true
+sudo nohup "$daemon" > "$output/daemon.log" 2>&1 &
+sleep 3
+
+sudo "$kanata" --cfg "$output/physical.kbd" > "$output/physical.log" 2>&1 &
+physical_pid=$!
+sudo "$kanata" --cfg "$output/second-client.kbd" > "$output/second-client.log" 2>&1 &
+output_only_pid=$!
+
+for _ in {1..100}; do
+  if grep -q 'virtual_hid_keyboard_ready true' "$output/physical.log" 2>/dev/null &&
+     grep -q 'virtual_hid_keyboard_ready true' "$output/second-client.log" 2>/dev/null; then
+    break
+  fi
+  sleep 0.1
+done
+grep -q 'virtual_hid_keyboard_ready true' "$output/physical.log"
+grep -q 'virtual_hid_keyboard_ready true' "$output/second-client.log"
+grep -q 'exclusive access and device already open' "$output/second-client.log" ||
+  grep -q 'exclusive access and device already open' "$output/physical.log"
+sudo kill -0 "$physical_pid"
+sudo kill -0 "$output_only_pid"
+
+sudo pkill -TERM -f "$daemon"
+sleep 3
+sudo kill -0 "$physical_pid"
+sudo kill -0 "$output_only_pid"
+grep -q 'virtual_hid_keyboard_ready false' "$output/physical.log"
+grep -q 'virtual_hid_keyboard_ready false' "$output/second-client.log"
+
+sudo nohup "$daemon" >> "$output/daemon.log" 2>&1 &
+for _ in {1..100}; do
+  physical_ready=$(grep -c 'virtual_hid_keyboard_ready true' "$output/physical.log" 2>/dev/null || true)
+  output_ready=$(grep -c 'virtual_hid_keyboard_ready true' "$output/second-client.log" 2>/dev/null || true)
+  (( physical_ready >= 2 && output_ready >= 2 )) && break
+  sleep 0.1
+done
+(( $(grep -c 'virtual_hid_keyboard_ready true' "$output/physical.log") >= 2 ))
+(( $(grep -c 'virtual_hid_keyboard_ready true' "$output/second-client.log") >= 2 ))
+
+print "two_clients_initial_readiness=passed"
+print "two_clients_daemon_loss=passed"
+print "two_clients_recovery=passed"
+print "logs=$output"

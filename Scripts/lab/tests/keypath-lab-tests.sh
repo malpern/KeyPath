@@ -17,7 +17,10 @@ case "\$1" in
  doctor) echo doctor-15 ;;
  warmup) echo cbx_test15 ;;
  run) echo product=15.7.7; echo build=24G720 ;;
- stop) echo "stop-15 \$2" >> "$CALLS" ;;
+ stop)
+   echo "stop-15 \$2" >> "$CALLS"
+   if [[ \$2 == cbx_missing ]]; then echo "tart lease not found: cbx_missing"; exit 1; fi
+   ;;
  list) echo cbx_test15 ;;
 esac
 EOF
@@ -46,6 +49,7 @@ cat > "$ROOT/bin/crabbox" <<EOF
 echo "crabbox \$*" >> "$CALLS"
 if [[ \$1 == warmup ]]; then
   if [[ " \$* " == *" --provider tart "* ]]; then echo 'warmup instance=test-resource cbx_desktop15'; else echo 'warmup vm=00000000-0000-0000-0000-000000000000 cbx_desktop26'; fi
+  if [[ \${KEYPATH_LAB_TEST_SLOW_WARMUP:-0} == 1 ]]; then sleep 30; fi
   exit 0
 fi
 if [[ \$1 == screenshot ]]; then
@@ -87,6 +91,7 @@ echo test-private-key > "$TMP/id_ed25519"
 echo 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
 
 /bin/bash -n "$LAB_DIR/../qa-macos-27-regression.sh"
+/bin/zsh -n "$LAB_DIR/scenarios/kanata-vhid-two-clients"
 grep -q 'macos-27-regression)' "$LAB_DIR/scenarios/installer-scenario"
 
 run_remote() {
@@ -319,6 +324,27 @@ if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" 
     echo "secure dialog input leaked its secret into logs or arguments" >&2
     exit 1
 fi
+run_remote destroy cbx_desktop15 >/dev/null
+
+cp -R "$ROOT/KeyPathInstallerLab/leases/cbx_desktop15" "$ROOT/KeyPathInstallerLab/leases/cbx_missing"
+missing_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_missing/manifest.tsv"
+sed -i '' 's/cbx_desktop15/cbx_missing/g; s/^status.*/status\tprovisioning-failed/; s/^cleanup_status.*/cleanup_status\tpending/; s/^provider_resource.*/provider_resource\tunknown/' "$missing_manifest"
+run_remote destroy cbx_missing >/dev/null
+grep -q $'cleanup_status\tcomplete' "$missing_manifest"
+
+rm -rf "$ROOT/KeyPathInstallerLab/leases/cbx_desktop15"
+KEYPATH_LAB_TEST_SLOW_WARMUP=1 run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1 > "$TMP/slow-create.log" 2>&1 &
+slow_create_pid=$!
+for _ in {1..50}; do
+    slow_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_desktop15/manifest.tsv"
+    [[ -f "$slow_manifest" ]] && break
+    sleep 0.1
+done
+[[ -f "$slow_manifest" ]]
+grep -q $'status\tprovisioning' "$slow_manifest"
+kill "$slow_create_pid" 2>/dev/null || true
+wait "$slow_create_pid" 2>/dev/null || true
+pkill -P "$slow_create_pid" 2>/dev/null || true
 run_remote destroy cbx_desktop15 >/dev/null
 
 if run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 3h 0 >/dev/null 2>&1; then

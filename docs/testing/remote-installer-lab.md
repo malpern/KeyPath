@@ -94,6 +94,10 @@ Scripts/lab/keypath-lab cleanup
 Every manifest records the source commit, macOS product version and build,
 provider, installer name and checksum, expiration, commands/results, artifact
 collection, and cleanup state. `destroy` is idempotent after successful cleanup.
+Creation streams provider output and writes an owned `provisioning` manifest as
+soon as CrabBox reports a lease ID. If the controller is interrupted during
+desktop warmup, the partial lease remains visible to `list`, `status`,
+`destroy`, and expiry cleanup instead of becoming an unowned VM.
 Artifact collection packages scenario output inside the guest and retrieves the
 single archive with CrabBox's native, owner-only `run --download` path. It does
 not parse private SSH-key locations or invoke `scp`. CrabBox 0.36's provider
@@ -161,6 +165,12 @@ use the generic `run` command to improvise password entry. macOS 26 and 27
 Parallels guests remain unsupported until they have an equally constrained
 lease-specific transport.
 
+SecurityAgent password sheets expose an unnamed `AXSecureTextField`. For that
+specific process, the controller validates the streamed password with `sudo`,
+sets the protected field without placing the value in argv or logs, and clears
+the clipboard immediately. The protected action still needs its own system
+postcondition. Do not generalize this role-based field path to other apps.
+
 `install-app` expands the staged ZIP into `/Applications` on the disposable
 guest. Tart uses the base image's noninteractive sudo contract. Parallels uses
 the same passwordless `prlctl exec` guest-control channel CrabBox already uses
@@ -187,6 +197,27 @@ Scripts/lab/keypath-lab scenario cbx_example artifact-capture
 Scripts/lab/keypath-lab scenario cbx_example macos-27-regression
 Scripts/lab/keypath-lab artifacts cbx_example
 ```
+
+For VirtualHID protocol migration work, the guest-side two-client scenario
+tests daemon multiplexing separately from disjoint-device support. Both Kanata
+processes select the lease's single available keyboard because Kanata does not
+establish its VirtualHID output client until it registers an input device:
+
+```bash
+Scripts/lab/keypath-lab run cbx_example -- \
+  Scripts/lab/scenarios/kanata-vhid-two-clients \
+  --kanata /path/to/kanata \
+  --daemon '/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon' \
+  --device 'Virtual USB Keyboard' \
+  --output .keypath-lab/scenario-output/vhid-two-clients
+```
+
+This proves initial readiness, daemon loss, and independent in-process recovery
+for two output clients. The second process's same-device exclusive-access error
+is an expected assertion, not a failure. A full two-input-device test still
+requires two physical HID devices assigned to
+disjoint `macos-dev-names-include` filters; Tart's RFB keyboard is a single
+input source and cannot prove that topology.
 
 The scenario set covers clean installation, every macOS approval gate,
 helper/daemon and TCP health, launch, repair/reinstall, reboot persistence,

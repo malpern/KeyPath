@@ -350,9 +350,37 @@ install_archive() {
   print "archive\tcreated\t$key"
 }
 
+write_provisional_lease_manifest() {
+  local lease=$1 slug=$2 macos=$3 provider=$4 archive_key=$5 commit=$6 installer_sha=$7 installer_name=$8 repo=$9 created=${10} expires=${11} desktop=${12}
+  local manifest
+  valid_id "$lease"
+  mkdir -p "$LEASES/$lease" "$LOGS/$lease" "$ARTIFACTS/$lease"
+  manifest=$(manifest_path "$lease")
+  [[ -e "$manifest" ]] && return
+  {
+    print "owner\t$OWNER"
+    print "lease_id\t$lease"
+    print "slug\t$slug"
+    print "macos\t$macos"
+    print "provider\t$provider"
+    print "archive_key\t$archive_key"
+    print "keypath_commit\t$commit"
+    print "installer_sha256\t$installer_sha"
+    print "installer_name\t$installer_name"
+    print "worktree\t$repo"
+    print "created_epoch\t$created"
+    print "created_at\t$(utc_now)"
+    print "expires_epoch\t$expires"
+    print "status\tprovisioning"
+    print "cleanup_status\tpending"
+    print "desktop_enabled\t$([[ "$desktop" == "1" ]] && print true || print false)"
+    print "provider_resource\tunknown"
+  } > "$manifest"
+}
+
 create_lease() {
   local macos=$1 archive_key=$2 commit=$3 installer_sha=$4 installer_name=$5 ttl=$6 desktop=$7
-  local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds provider_resource exit_code
+  local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds provider_resource create_status candidate_file create_log exit_code
   launcher=$(launcher_for "$macos")
   provider=$(provider_for "$macos")
   valid_id "$archive_key"
@@ -373,25 +401,51 @@ create_lease() {
     sleep "$KEYPATH_LAB_TEST_PAUSE_AFTER_ADMISSION_LOCK"
   fi
   assert_provider_capacity "$provider" || return $?
+  created=$(now_epoch)
+  expires=$((created + ttl_seconds))
   slug="keypath${macos}-$(print -r -- "$commit" | cut -c1-8)-$(date -u +%Y%m%d%H%M%S)-$$"
   operation="$OPERATIONS/$slug"
   mkdir -p "$operation"
   git clone -q --local "$archive/repo" "$operation/repo"
   repo="$operation/repo"
   prepare_worktree "$repo"
+  create_log="$operation/create.log"
+  candidate_file="$operation/lease-candidate.tsv"
+  : > "$create_log"
+  : > "$candidate_file"
+  set +e
   if [[ "$desktop" == "1" ]]; then
-    output=$(cd "$repo" && warmup_desktop "$macos" "$slug" 2>&1)
+    (cd "$repo" && warmup_desktop "$macos" "$slug" 2>&1) | while IFS= read -r line; do
+      print -r -- "$line"
+      print -r -- "$line" >> "$create_log"
+      if [[ ! -s "$candidate_file" ]]; then
+        candidate=$(print -r -- "$line" | grep -Eo 'cbx_[A-Za-z0-9]+' | tail -1 || true)
+        if [[ -n "$candidate" ]]; then
+          print -r -- "$candidate" > "$candidate_file"
+          write_provisional_lease_manifest "$candidate" "$slug" "$macos" "$provider" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$repo" "$created" "$expires" "$desktop"
+        fi
+      fi
+    done
   else
-    output=$(cd "$repo" && "$launcher" warmup "$slug" 2>&1)
+    (cd "$repo" && "$launcher" warmup "$slug" 2>&1) | while IFS= read -r line; do
+      print -r -- "$line"
+      print -r -- "$line" >> "$create_log"
+      if [[ ! -s "$candidate_file" ]]; then
+        candidate=$(print -r -- "$line" | grep -Eo 'cbx_[A-Za-z0-9]+' | tail -1 || true)
+        if [[ -n "$candidate" ]]; then
+          print -r -- "$candidate" > "$candidate_file"
+          write_provisional_lease_manifest "$candidate" "$slug" "$macos" "$provider" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$repo" "$created" "$expires" "$desktop"
+        fi
+      fi
+    done
   fi
-  print -r -- "$output"
-  print -r -- "$output" > "$operation/create.log"
-  lease=$(print -r -- "$output" | grep -Eo 'cbx_[A-Za-z0-9]+' | tail -1 || true)
+  create_status=${pipestatus[1]}
+  set -e
+  output=$(<"$create_log")
+  lease=$(<"$candidate_file")
   [[ -n "$lease" ]] || die "CrabBox did not report a lease id; inspect provider inventory before cleanup"
   valid_id "$lease"
   provider_resource=$(print -r -- "$output" | sed -nE 's/.* (vm|instance)=([^ ]+).*/\2/p' | tail -1)
-  created=$(now_epoch)
-  expires=$((created + ttl_seconds))
   mkdir -p "$LEASES/$lease" "$LOGS/$lease" "$ARTIFACTS/$lease"
   manifest=$(manifest_path "$lease")
   {
@@ -414,6 +468,10 @@ create_lease() {
     print "provider_resource\t${provider_resource:-unknown}"
   } > "$manifest"
   print -r -- "$output" > "$LOGS/$lease/create.log"
+  if (( create_status != 0 )); then
+    set_field "$manifest" status provisioning-failed
+    die "CrabBox warmup failed after reporting lease: $lease"
+  fi
   guest_output=$(cd "$repo" && "$launcher" run "$lease" -- /bin/zsh -lc 'printf "product=%s\n" "$(sw_vers -productVersion)"; printf "build=%s\n" "$(sw_vers -buildVersion)"' 2>&1) || {
     record_command "$lease" failed sw_vers
     set_field "$manifest" status verification-failed
@@ -510,12 +568,21 @@ secure_dialog_input() {
   # Peekaboo's MCP type response contains the typed value. Suppress both output
   # streams for that command so the secret cannot enter controller logs.
   local click_command submit_command
-  local -a click_args submit_args
+  local -a click_args submit_args focus_args
   guest_command='set -euo pipefail; command -v /opt/homebrew/bin/peekaboo >/dev/null; command -v /opt/homebrew/bin/mcporter >/dev/null; '
-  click_args=(/opt/homebrew/bin/peekaboo click --app "$app" --query "$field_label" --json)
-  printf -v click_command '%q ' "${click_args[@]}"
-  guest_command+="$click_command >/dev/null; "
-  guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1'
+  if [[ "$field_label" == "AXSecureTextField" ]]; then
+    [[ "$app" == "SecurityAgent" ]] || die "AXSecureTextField is supported only for SecurityAgent"
+    focus_args=(/usr/bin/osascript -e 'set secretValue to the clipboard' -e 'tell application "System Events" to tell process "SecurityAgent" to set value of first UI element of window 1 whose description is "secure text field" to secretValue')
+    printf -v click_command '%q ' "${focus_args[@]}"
+    guest_command+="IFS= read -r secret_value; printf '%s\\n' \"\$secret_value\" | /usr/bin/sudo -S -k /usr/bin/true >/dev/null 2>&1; printf '%s' \"\$secret_value\" | /usr/bin/pbcopy; $click_command >/dev/null; /usr/bin/pbcopy </dev/null; unset secret_value"
+  else
+    click_args=(/opt/homebrew/bin/peekaboo click --app "$app" --query "$field_label" --json)
+    printf -v click_command '%q ' "${click_args[@]}"
+    guest_command+="$click_command >/dev/null; "
+  fi
+  if [[ "$field_label" != "AXSecureTextField" ]]; then
+    guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1'
+  fi
   if [[ -n "$submit_button" ]]; then
     submit_args=(/opt/homebrew/bin/peekaboo click --app "$app" --query "$submit_button" --json)
     printf -v submit_command '%q ' "${submit_args[@]}"
@@ -632,9 +699,13 @@ destroy_lease() {
   set -e
   set_field "$manifest" cleanup_attempted_at "$(utc_now)"
   set_field "$manifest" cleanup_result "$exit_code"
-  if (( exit_code == 0 )); then
+  if (( exit_code == 0 )) || {
+    [[ "$(field "$manifest" provider_resource)" == "unknown" ]] &&
+      grep -q -E 'lease not found|not found.*lease' "$LOGS/$lease/destroy.log"
+  }; then
     set_field "$manifest" cleanup_status complete
     set_field "$manifest" status destroyed
+    exit_code=0
   else
     set_field "$manifest" cleanup_status failed
     set_field "$manifest" status cleanup-failed
