@@ -1,0 +1,28 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd -P)
+REPO_ROOT=$(cd "$SCRIPT_DIR/../.." >/dev/null && pwd -P)
+FRAGMENT=${KEYPATH_PROGRESS_FRAGMENT:-$HOME/.codex/visualizations/2026/07/12/keypath-automation/keypath-test-automation-progress.html}
+RENDERER=${KEYPATH_VISUALIZE_RENDERER:-$HOME/.codex/plugins/cache/openai-bundled/visualize/1.0.11/skills/visualize/scripts/render.py}
+OUTPUT="$REPO_ROOT/docs/testing/keypath-test-automation-progress.html"
+
+python3 "$RENDERER" "$FRAGMENT" "$OUTPUT"
+
+# The visualization renderer intentionally emits a restrictive standalone CSP.
+# This dashboard is served locally and polls only its same-origin state file.
+perl -0pi -e "s/connect-src blob: data:/connect-src 'self' blob: data:/g" "$OUTPUT"
+
+# The rendered app runs inside a srcdoc iframe. Without allow-same-origin the
+# iframe receives an opaque origin, so its relative state-file fetch is blocked
+# even though both resources come from this local server.
+perl -0pi -e 's/sandbox="allow-scripts"/sandbox="allow-scripts allow-same-origin"/g' "$OUTPUT"
+
+# The live app adds a development conversation rail beside the capability map.
+# Preserve the renderer's responsive wrapper while allowing the two-column view.
+perl -0pi -e 's/max-width:736px/max-width:1180px/g' "$OUTPUT"
+
+grep -Fq "connect-src 'self' blob: data:" "$OUTPUT"
+grep -Fq 'sandbox="allow-scripts allow-same-origin"' "$OUTPUT"
+grep -Fq 'max-width:1180px' "$OUTPUT"
+echo "$OUTPUT"

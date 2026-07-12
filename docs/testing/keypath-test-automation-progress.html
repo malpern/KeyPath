@@ -1,0 +1,1298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src 'self' blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Keypath Test Automation Progress</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;max-width:1180px;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts allow-same-origin" referrerpolicy="no-referrer" title="Keypath Test Automation Progress" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src 'self' blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Keypath Test Automation Progress&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(--background) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: light-dark(rgb(255 255 255), rgb(24 24 24));
+  --foreground: light-dark(rgb(26 28 31), rgb(255 255 255));
+  --card: color-mix(in oklab, var(--foreground) 5%, transparent);
+  --card-foreground: var(--foreground);
+  --popover: light-dark(rgb(255 255 255), rgb(45 45 45));
+  --popover-foreground: var(--foreground);
+  --primary: light-dark(rgb(51 156 255), rgb(131 195 255));
+  --primary-foreground: light-dark(rgb(255 255 255), rgb(13 13 13));
+  --secondary: light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%));
+  --secondary-foreground: var(--foreground);
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: light-dark(
+    rgb(26 28 31 / 49.4%),
+    rgb(255 255 255 / 49.8%)
+  );
+  --accent: light-dark(rgb(229 242 255), rgb(13 39 63));
+  --accent-foreground: var(--primary);
+  --destructive: light-dark(rgb(226 85 7), rgb(255 133 73));
+  --border: light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%));
+  --input: light-dark(
+    rgb(26 28 31 / 11.8%),
+    color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+  );
+  --ring: light-dark(rgb(51 156 255), rgb(131 195 255 / 76%));
+  --font-size-base: 14px;
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: 12.5px;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+  --color-background-primary: var(--background);
+  --color-text-primary: var(--foreground);
+  --color-border-secondary: var(--border);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--viz-font-weight-medium);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: superellipse(1.5);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+    [aria-pressed=&quot;true&quot;],
+    [aria-selected=&quot;true&quot;],
+    .is-selected
+  ) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;keypath-defrag-progress&quot;&gt;
+  &lt;style&gt;
+    #keypath-defrag-progress { color:var(--foreground); font-family:system-ui,sans-serif; }
+    #keypath-defrag-progress .top { display:flex; justify-content:space-between; align-items:flex-end; gap:20px; margin-bottom:18px; }
+    #keypath-defrag-progress h1 { margin:3px 0 5px; font-size:28px; font-weight:500; }
+    #keypath-defrag-progress .eyebrow { color:var(--muted-foreground); font-size:11px; text-transform:uppercase; letter-spacing:.09em; }
+    #keypath-defrag-progress .sub { color:var(--muted-foreground); max-width:700px; }
+    #keypath-defrag-progress .date { color:var(--muted-foreground); font-size:12px; white-space:nowrap; }
+    #keypath-defrag-progress .legend { display:flex; flex-wrap:wrap; gap:14px; margin:0 0 14px; font-size:12px; color:var(--muted-foreground); }
+    #keypath-defrag-progress .legend span { display:flex; align-items:center; gap:6px; }
+    #keypath-defrag-progress .swatch { width:11px; height:11px; border-radius:2px; }
+    #keypath-defrag-progress .proven-mark { background:var(--viz-series-3); }
+    #keypath-defrag-progress .active-mark { background:var(--viz-series-2); }
+    #keypath-defrag-progress .queued-mark { background:var(--muted); border:1px solid var(--border); }
+    #keypath-defrag-progress .waiting-mark { background:var(--viz-series-5); }
+    #keypath-defrag-progress .workspace { display:block; }
+    #keypath-defrag-progress .main-stage { min-width:0; }
+    #keypath-defrag-progress .disk { padding:14px; }
+    #keypath-defrag-progress .track { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:5px; }
+    #keypath-defrag-progress .block { appearance:none; position:relative; overflow:hidden; border:0; border-radius:3px; min-height:42px; padding:5px 3px 8px; font:inherit; font-size:10px; font-weight:500; cursor:pointer; color:var(--foreground); outline-offset:2px; transition:transform 120ms ease, filter 120ms ease, box-shadow 120ms ease; }
+    #keypath-defrag-progress .block[data-status=&quot;proven&quot;] { background:color-mix(in srgb,var(--viz-series-3) 78%,var(--card)); color:var(--card-foreground); }
+    #keypath-defrag-progress .block[data-status=&quot;active&quot;] { background:color-mix(in srgb,var(--viz-series-2) 72%,var(--card)); color:var(--card-foreground); }
+    #keypath-defrag-progress .block[data-status=&quot;queued&quot;] { background:var(--muted); color:var(--muted-foreground); }
+    #keypath-defrag-progress .block[data-status=&quot;waiting&quot;] { background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--viz-series-5) 86%,var(--card)) 0 8px,color-mix(in srgb,var(--viz-series-5) 58%,var(--card)) 8px 13px); color:var(--card-foreground); }
+    #keypath-defrag-progress .block:hover, #keypath-defrag-progress .block:focus-visible { filter:brightness(1.1); transform:translateY(-2px) scale(1.04); box-shadow:0 0 0 2px var(--ring); z-index:1; }
+    #keypath-defrag-progress .block::after { content:&quot;&quot;; position:absolute; left:0; bottom:0; width:var(--work-progress,0%); height:4px; background:var(--viz-series-3); transition:width 420ms ease, background 180ms ease; }
+    #keypath-defrag-progress .block[data-working=&quot;true&quot;] { animation:keypath-pulse 1.35s ease-in-out infinite; }
+    #keypath-defrag-progress .block[data-health=&quot;retrying&quot;] { animation:keypath-retry 1.1s ease-in-out infinite; }
+    #keypath-defrag-progress .block[data-health=&quot;retrying&quot;]::after { background:var(--viz-series-2); }
+    #keypath-defrag-progress .block[data-health=&quot;blocked&quot;] { animation:none; box-shadow:inset 0 0 0 2px var(--destructive); }
+    #keypath-defrag-progress .block[data-health=&quot;blocked&quot;]::after, #keypath-defrag-progress .block[data-trend=&quot;backtrack&quot;]::after { background:var(--destructive); }
+    @keyframes keypath-pulse { 0%,100% { filter:brightness(1); box-shadow:0 0 0 0 transparent; } 50% { filter:brightness(1.16); box-shadow:0 0 0 2px var(--viz-series-2); } }
+    @keyframes keypath-retry { 0%,100% { transform:translateX(0); } 35% { transform:translateX(-1px); } 65% { transform:translateX(1px); } }
+    #keypath-defrag-progress .readout { min-height:42px; margin-top:12px; padding-top:11px; border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:18px; align-items:flex-start; }
+    #keypath-defrag-progress .readout strong { display:block; font-weight:500; }
+    #keypath-defrag-progress .readout small { display:block; color:var(--muted-foreground); margin-top:2px; }
+    #keypath-defrag-progress .readout-status { text-transform:uppercase; letter-spacing:.07em; font-size:11px; color:var(--muted-foreground); white-space:nowrap; }
+    #keypath-defrag-progress .bands { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:18px; }
+    #keypath-defrag-progress .band { padding:13px; }
+    #keypath-defrag-progress .band strong { display:block; font-weight:500; margin-bottom:4px; }
+    #keypath-defrag-progress .band span { color:var(--muted-foreground); font-size:12px; }
+    #keypath-defrag-progress .now { border-left:4px solid var(--viz-series-2); }
+    #keypath-defrag-progress .wait { border-left:4px solid var(--viz-series-5); }
+    #keypath-defrag-progress .note { margin-top:12px; color:var(--muted-foreground); font-size:11px; }
+    #keypath-defrag-progress .livebar { display:flex; justify-content:space-between; align-items:center; gap:16px; margin:0 0 14px; padding:11px 13px; }
+    #keypath-defrag-progress .live-main { display:flex; align-items:center; gap:9px; min-width:0; }
+    #keypath-defrag-progress .live-dot { width:9px; height:9px; border-radius:50%; background:var(--viz-series-2); flex:none; }
+    #keypath-defrag-progress .live-dot.online { background:var(--viz-series-3); }
+    #keypath-defrag-progress .live-dot.offline { background:var(--destructive); }
+    #keypath-defrag-progress .live-copy { min-width:0; }
+    #keypath-defrag-progress .live-copy strong { display:block; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #keypath-defrag-progress .live-copy small, #keypath-defrag-progress .live-time { color:var(--muted-foreground); font-size:11px; }
+    #keypath-defrag-progress .chat { margin-top:16px; padding-top:12px; border-top:1px solid var(--border); }
+    #keypath-defrag-progress .chat-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-bottom:5px; }
+    #keypath-defrag-progress .chat-title { display:flex; align-items:center; gap:7px; }
+    #keypath-defrag-progress .chat-title strong { font-weight:500; }
+    #keypath-defrag-progress .chat-presence { display:flex; align-items:center; gap:5px; color:var(--muted-foreground); font-size:11px; }
+    #keypath-defrag-progress .chat-list { display:flex; flex-direction:column; }
+    #keypath-defrag-progress .chat-message { display:grid; grid-template-columns:8px 48px minmax(0,1fr); gap:9px; align-items:baseline; padding:8px 0; border-top:1px solid var(--border); }
+    #keypath-defrag-progress .chat-marker { width:7px; height:7px; border-radius:50%; background:var(--viz-series-1); }
+    #keypath-defrag-progress .chat-body { min-width:0; }
+    #keypath-defrag-progress .chat-time { color:var(--muted-foreground); font-size:10px; white-space:nowrap; }
+    #keypath-defrag-progress .chat-line { font-size:11px; }
+    #keypath-defrag-progress .chat-line strong { font-weight:500; margin-right:5px; }
+    #keypath-defrag-progress .chat-copy { color:var(--muted-foreground); }
+    #keypath-defrag-progress .chat-message[data-tone=&quot;success&quot;] .chat-marker { background:var(--viz-series-3); }
+    #keypath-defrag-progress .chat-message[data-tone=&quot;retry&quot;] .chat-marker { background:var(--viz-series-2); }
+    #keypath-defrag-progress .chat-message[data-tone=&quot;problem&quot;] .chat-marker { background:var(--destructive); }
+    #keypath-defrag-progress .chat-message[data-tone=&quot;waiting&quot;] .chat-marker { background:var(--viz-series-5); }
+    #keypath-defrag-progress .chat-block { color:var(--muted-foreground); font-size:9px; margin-top:2px; text-transform:uppercase; letter-spacing:.05em; }
+    #keypath-defrag-progress .work-readout { display:none; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; margin-top:10px; padding:10px 12px; }
+    #keypath-defrag-progress .work-readout.visible { display:grid; }
+    #keypath-defrag-progress .work-phase { font-size:12px; }
+    #keypath-defrag-progress .work-phase strong { font-weight:500; }
+    #keypath-defrag-progress .work-phase small { display:block; margin-top:2px; color:var(--muted-foreground); }
+    #keypath-defrag-progress .work-score { text-align:right; font-size:11px; color:var(--muted-foreground); }
+    #keypath-defrag-progress .work-score strong { display:block; color:var(--foreground); font-size:18px; font-weight:500; }
+    #keypath-defrag-progress .health-smooth { color:var(--viz-series-3); }
+    #keypath-defrag-progress .health-retrying { color:var(--viz-series-2); }
+    #keypath-defrag-progress .health-blocked { color:var(--destructive); }
+    @media (prefers-reduced-motion:reduce) { #keypath-defrag-progress .block[data-working=&quot;true&quot;], #keypath-defrag-progress .block[data-health=&quot;retrying&quot;] { animation:none; } }
+    @media (max-width:760px) {
+      #keypath-defrag-progress .top { flex-direction:column; align-items:flex-start; }
+      #keypath-defrag-progress .track { grid-template-columns:repeat(8,minmax(0,1fr)); }
+      #keypath-defrag-progress .bands { grid-template-columns:1fr 1fr; }
+    }
+    @media (max-width:460px) {
+      #keypath-defrag-progress .track { grid-template-columns:repeat(5,minmax(0,1fr)); }
+      #keypath-defrag-progress .bands { grid-template-columns:1fr; }
+      #keypath-defrag-progress .readout { flex-direction:column; }
+    }
+  &lt;/style&gt;
+
+  &lt;header class=&quot;top&quot;&gt;
+    &lt;div&gt;&lt;div class=&quot;eyebrow&quot;&gt;KeyPath automated QA&lt;/div&gt;&lt;h1&gt;Consolidating the test surface&lt;/h1&gt;&lt;div class=&quot;sub&quot;&gt;Each block is one concrete capability. Green areas are already reliable; the amber frontier is where work is actively converging.&lt;/div&gt;&lt;/div&gt;
+    &lt;div class=&quot;date&quot;&gt;Updated July 12, 2026&lt;/div&gt;
+  &lt;/header&gt;
+
+  &lt;div class=&quot;legend&quot; aria-label=&quot;Status legend&quot;&gt;
+    &lt;span&gt;&lt;i class=&quot;swatch proven-mark&quot;&gt;&lt;/i&gt;Proven in a disposable VM&lt;/span&gt;
+    &lt;span&gt;&lt;i class=&quot;swatch active-mark&quot;&gt;&lt;/i&gt;Current frontier&lt;/span&gt;
+    &lt;span&gt;&lt;i class=&quot;swatch queued-mark&quot;&gt;&lt;/i&gt;Queued work&lt;/span&gt;
+    &lt;span&gt;&lt;i class=&quot;swatch waiting-mark&quot;&gt;&lt;/i&gt;Waiting on Apple&lt;/span&gt;
+  &lt;/div&gt;
+
+  &lt;section class=&quot;card livebar&quot; aria-live=&quot;polite&quot;&gt;
+    &lt;div class=&quot;live-main&quot;&gt;&lt;span class=&quot;live-dot&quot; id=&quot;keypath-live-dot&quot;&gt;&lt;/span&gt;&lt;div class=&quot;live-copy&quot;&gt;&lt;strong id=&quot;keypath-live-task&quot;&gt;Connecting to live progress…&lt;/strong&gt;&lt;small id=&quot;keypath-live-message&quot;&gt;Waiting for the local progress feed.&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
+    &lt;div class=&quot;live-time&quot; id=&quot;keypath-live-time&quot;&gt;—&lt;/div&gt;
+  &lt;/section&gt;
+
+  &lt;div class=&quot;workspace&quot;&gt;
+    &lt;main class=&quot;main-stage&quot;&gt;
+      &lt;section class=&quot;card disk&quot; aria-label=&quot;KeyPath automation capability map&quot;&gt;
+        &lt;div class=&quot;track&quot; id=&quot;keypath-defrag-grid&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;readout&quot; aria-live=&quot;polite&quot;&gt;
+          &lt;div&gt;&lt;strong id=&quot;keypath-defrag-title&quot;&gt;Select a block&lt;/strong&gt;&lt;small id=&quot;keypath-defrag-detail&quot;&gt;The map is organized roughly from provisioning through full scenario-matrix execution.&lt;/small&gt;&lt;/div&gt;
+          &lt;div class=&quot;readout-status&quot; id=&quot;keypath-defrag-status&quot;&gt;Capability map&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;card work-readout&quot; id=&quot;keypath-work-readout&quot; aria-live=&quot;polite&quot;&gt;
+          &lt;div class=&quot;work-phase&quot;&gt;&lt;strong id=&quot;keypath-work-phase&quot;&gt;&lt;/strong&gt;&lt;small id=&quot;keypath-work-detail&quot;&gt;&lt;/small&gt;&lt;/div&gt;
+          &lt;div class=&quot;work-score&quot;&gt;&lt;strong id=&quot;keypath-work-percent&quot;&gt;&lt;/strong&gt;&lt;span id=&quot;keypath-work-health&quot;&gt;&lt;/span&gt;&lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/section&gt;
+
+      &lt;section class=&quot;bands&quot; aria-label=&quot;Work sequence&quot;&gt;
+        &lt;div class=&quot;card band&quot;&gt;&lt;strong&gt;Foundation consolidated&lt;/strong&gt;&lt;span&gt;Leases, lanes, artifacts, desktop bootstrap, semantic UI, secure secrets, cleanup.&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;card band&quot;&gt;&lt;strong&gt;Installer approvals consolidated&lt;/strong&gt;&lt;span&gt;KeyPath Input Monitoring, helper, background item, SecurityAgent, DriverKit.&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;card band now&quot;&gt;&lt;strong&gt;Defragmenting now&lt;/strong&gt;&lt;span&gt;Kanata permissions → runtime/TCP → real input and virtual output.&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;card band wait&quot;&gt;&lt;strong&gt;External wait&lt;/strong&gt;&lt;span&gt;Apple case 102940025673 gates the managed APNs enrollment proof.&lt;/span&gt;&lt;/div&gt;
+      &lt;/section&gt;
+    &lt;/main&gt;
+
+    &lt;aside class=&quot;chat&quot; aria-label=&quot;Live Codex development updates&quot;&gt;
+      &lt;div class=&quot;chat-head&quot;&gt;&lt;div class=&quot;chat-title&quot;&gt;&lt;strong&gt;Development log&lt;/strong&gt;&lt;/div&gt;&lt;span class=&quot;chat-presence&quot;&gt;&lt;i class=&quot;live-dot online&quot;&gt;&lt;/i&gt;Live&lt;/span&gt;&lt;/div&gt;
+      &lt;div class=&quot;chat-list&quot; id=&quot;keypath-live-activity&quot; aria-live=&quot;polite&quot;&gt;&lt;div class=&quot;chat-message&quot;&gt;&lt;span class=&quot;chat-marker&quot;&gt;&lt;/span&gt;&lt;time class=&quot;chat-time&quot;&gt;—&lt;/time&gt;&lt;div class=&quot;chat-body&quot;&gt;&lt;div class=&quot;chat-line&quot;&gt;&lt;strong&gt;Connecting&lt;/strong&gt;&lt;span class=&quot;chat-copy&quot;&gt;Waiting for the first development update.&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+    &lt;/aside&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;note&quot;&gt;Block counts represent named capabilities, not an estimated percentage of engineering effort.&lt;/div&gt;
+
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&#x27;keypath-defrag-progress&#x27;);
+      const items = [
+        [&#x27;L01&#x27;,&#x27;proven&#x27;,&#x27;Immutable source bundle&#x27;,&#x27;A full commit and signed artifact are bound to every lease.&#x27;],
+        [&#x27;L02&#x27;,&#x27;proven&#x27;,&#x27;Artifact checksum&#x27;,&#x27;Installer SHA-256 is recorded and verified.&#x27;],
+        [&#x27;L03&#x27;,&#x27;proven&#x27;,&#x27;macOS 15 clone&#x27;,&#x27;Disposable Tart lease from a clean base.&#x27;],
+        [&#x27;L04&#x27;,&#x27;proven&#x27;,&#x27;macOS 26 clone&#x27;,&#x27;Disposable Parallels lease contract.&#x27;],
+        [&#x27;L05&#x27;,&#x27;proven&#x27;,&#x27;macOS 27 clone&#x27;,&#x27;Disposable Parallels regression lane.&#x27;],
+        [&#x27;L06&#x27;,&#x27;proven&#x27;,&#x27;Lane identity&#x27;,&#x27;Managed and unmanaged bases cannot be mixed.&#x27;],
+        [&#x27;L07&#x27;,&#x27;proven&#x27;,&#x27;Admission checks&#x27;,&#x27;Profiles, manifest, signing policy, and OS boundaries.&#x27;],
+        [&#x27;L08&#x27;,&#x27;proven&#x27;,&#x27;Owned cleanup&#x27;,&#x27;Only harness-owned leases can be destroyed.&#x27;],
+        [&#x27;G01&#x27;,&#x27;proven&#x27;,&#x27;Console session&#x27;,&#x27;Logged-in desktop user verified before GUI work.&#x27;],
+        [&#x27;G02&#x27;,&#x27;proven&#x27;,&#x27;Peekaboo bootstrap&#x27;,&#x27;Peekaboo 3 and mcporter installed and verified.&#x27;],
+        [&#x27;G03&#x27;,&#x27;proven&#x27;,&#x27;Semantic snapshots&#x27;,&#x27;Fresh AX evidence is saved with the scenario.&#x27;],
+        [&#x27;G04&#x27;,&#x27;proven&#x27;,&#x27;Semantic actions&#x27;,&#x27;Buttons and switches selected by current UI state.&#x27;],
+        [&#x27;G05&#x27;,&#x27;proven&#x27;,&#x27;RFB fallback&#x27;,&#x27;Native framebuffer input works when AX delivery is rejected.&#x27;],
+        [&#x27;G06&#x27;,&#x27;proven&#x27;,&#x27;System Settings secret&#x27;,&#x27;Encrypted QA secret streams through stdin only.&#x27;],
+        [&#x27;G07&#x27;,&#x27;proven&#x27;,&#x27;SecurityAgent secret&#x27;,&#x27;Focused secure-window entry works without AX discovery.&#x27;],
+        [&#x27;G08&#x27;,&#x27;proven&#x27;,&#x27;Screenshot evidence&#x27;,&#x27;Retina and full-frame captures survive artifact collection.&#x27;],
+        [&#x27;I01&#x27;,&#x27;proven&#x27;,&#x27;Signed app install&#x27;,&#x27;Notarized Developer ID build installed in the clone.&#x27;],
+        [&#x27;I02&#x27;,&#x27;proven&#x27;,&#x27;KeyPath launch&#x27;,&#x27;GUI installer runs in the console-user session.&#x27;],
+        [&#x27;I03&#x27;,&#x27;proven&#x27;,&#x27;Input Monitoring&#x27;,&#x27;KeyPath permission independently confirmed by the CLI.&#x27;],
+        [&#x27;I04&#x27;,&#x27;proven&#x27;,&#x27;Helper install&#x27;,&#x27;helperInstalled=true, version 1.1.0.&#x27;],
+        [&#x27;I05&#x27;,&#x27;proven&#x27;,&#x27;Helper readiness&#x27;,&#x27;helperWorking=true after real approval.&#x27;],
+        [&#x27;I06&#x27;,&#x27;proven&#x27;,&#x27;Background item&#x27;,&#x27;KeyPath background switch approved in System Settings.&#x27;],
+        [&#x27;I07&#x27;,&#x27;proven&#x27;,&#x27;Driver installed&#x27;,&#x27;Bundled VirtualHID components installed by KeyPath.&#x27;],
+        [&#x27;I08&#x27;,&#x27;proven&#x27;,&#x27;Driver activated&#x27;,&#x27;System extension reports activated enabled.&#x27;],
+        [&#x27;I09&#x27;,&#x27;proven&#x27;,&#x27;VirtualHID health&#x27;,&#x27;vhidDeviceHealthy and vhidHealthy are true.&#x27;],
+        [&#x27;R01&#x27;,&#x27;active&#x27;,&#x27;Kanata Accessibility&#x27;,&#x27;Grant and independently verify the launcher permission.&#x27;],
+        [&#x27;R02&#x27;,&#x27;active&#x27;,&#x27;Kanata Input Monitoring&#x27;,&#x27;Grant and independently verify live capture permission.&#x27;],
+        [&#x27;R03&#x27;,&#x27;active&#x27;,&#x27;Runtime convergence&#x27;,&#x27;Require Kanata running without forgiving product retries.&#x27;],
+        [&#x27;R04&#x27;,&#x27;active&#x27;,&#x27;TCP readiness&#x27;,&#x27;Require a response on 127.0.0.1:37001.&#x27;],
+        [&#x27;P01&#x27;,&#x27;active&#x27;,&#x27;RFB capture physics&#x27;,&#x27;Prove RFB-injected keys reach Kanata HID capture.&#x27;],
+        [&#x27;P02&#x27;,&#x27;active&#x27;,&#x27;Virtual output physics&#x27;,&#x27;Prove the activated driver emits observable remapped output.&#x27;],
+        [&#x27;P03&#x27;,&#x27;queued&#x27;,&#x27;Overlay observation&#x27;,&#x27;Capture overlay state and input-event evidence.&#x27;],
+        [&#x27;P04&#x27;,&#x27;queued&#x27;,&#x27;First remap proof&#x27;,&#x27;Measure launch-to-confirmed-remap success.&#x27;],
+        [&#x27;M01&#x27;,&#x27;queued&#x27;,&#x27;Clean install scenario&#x27;,&#x27;One unattended golden-path scenario.&#x27;],
+        [&#x27;M02&#x27;,&#x27;queued&#x27;,&#x27;Repair scenario&#x27;,&#x27;Real damaged states and strict convergence attempts.&#x27;],
+        [&#x27;M03&#x27;,&#x27;queued&#x27;,&#x27;Upgrade scenario&#x27;,&#x27;Install an older release before upgrading.&#x27;],
+        [&#x27;M04&#x27;,&#x27;queued&#x27;,&#x27;Reboot persistence&#x27;,&#x27;Verify services, permissions, and TCP after reboot.&#x27;],
+        [&#x27;M05&#x27;,&#x27;queued&#x27;,&#x27;Uninstall scenario&#x27;,&#x27;Remove app, services, helper, and owned state.&#x27;],
+        [&#x27;M06&#x27;,&#x27;queued&#x27;,&#x27;Reinstall scenario&#x27;,&#x27;Fresh behavior after verified uninstall.&#x27;],
+        [&#x27;M07&#x27;,&#x27;queued&#x27;,&#x27;Cancellation fixture&#x27;,&#x27;Exercise real user cancellation and recovery.&#x27;],
+        [&#x27;M08&#x27;,&#x27;queued&#x27;,&#x27;Failure ownership&#x27;,&#x27;Product, selector, transport, provider, OS, environment.&#x27;],
+        [&#x27;M09&#x27;,&#x27;queued&#x27;,&#x27;Resumable runner&#x27;,&#x27;Continue safely from the last verified checkpoint.&#x27;],
+        [&#x27;M10&#x27;,&#x27;queued&#x27;,&#x27;macOS 26 selectors&#x27;,&#x27;Self-verifying System Settings driver.&#x27;],
+        [&#x27;M11&#x27;,&#x27;queued&#x27;,&#x27;macOS 27 selectors&#x27;,&#x27;Separate beta-aware approval driver.&#x27;],
+        [&#x27;M12&#x27;,&#x27;queued&#x27;,&#x27;Nightly diagonal&#x27;,&#x27;Curated core matrix with capacity and TTL admission.&#x27;],
+        [&#x27;M13&#x27;,&#x27;queued&#x27;,&#x27;Weekly pairwise&#x27;,&#x27;Broader pairwise coverage outside the PR path.&#x27;],
+        [&#x27;M14&#x27;,&#x27;queued&#x27;,&#x27;Consolidated report&#x27;,&#x27;Machine-readable results plus sanitized evidence links.&#x27;],
+        [&#x27;D01&#x27;,&#x27;proven&#x27;,&#x27;Profile generator&#x27;,&#x27;PPPC, system extension, and service profiles validate.&#x27;],
+        [&#x27;D02&#x27;,&#x27;proven&#x27;,&#x27;Managed admission&#x27;,&#x27;Profile hashes and signed-app policy are enforced.&#x27;],
+        [&#x27;D03&#x27;,&#x27;waiting&#x27;,&#x27;Vendor certificate&#x27;,&#x27;Apple Developer Support case 102940025673.&#x27;],
+        [&#x27;D04&#x27;,&#x27;waiting&#x27;,&#x27;NanoMDM APNs&#x27;,&#x27;Connect the lab MDM after Apple enables the certificate.&#x27;],
+        [&#x27;D05&#x27;,&#x27;waiting&#x27;,&#x27;Managed base proof&#x27;,&#x27;Enroll, publish profiles, clone, and prove deterministic grants.&#x27;],
+        [&#x27;D06&#x27;,&#x27;queued&#x27;,&#x27;Unique clone identity&#x27;,&#x27;Safe concurrent managed tests without MDM identity collision.&#x27;]
+      ];
+      const grid = root.querySelector(&#x27;#keypath-defrag-grid&#x27;);
+      const title = root.querySelector(&#x27;#keypath-defrag-title&#x27;);
+      const detail = root.querySelector(&#x27;#keypath-defrag-detail&#x27;);
+      const status = root.querySelector(&#x27;#keypath-defrag-status&#x27;);
+      const names = {proven:&#x27;Proven&#x27;,active:&#x27;Current frontier&#x27;,queued:&#x27;Queued&#x27;,waiting:&#x27;Waiting on Apple&#x27;};
+      const buttons = new Map();
+      items.forEach(([id,state,name,description]) =&gt; {
+        const button = document.createElement(&#x27;button&#x27;);
+        button.className = &#x27;block&#x27;;
+        button.dataset.status = state;
+        button.textContent = id;
+        button.dataset.baseLabel = `${id}: ${name}. ${names[state]}. ${description}`;
+        button.setAttribute(&#x27;aria-label&#x27;, button.dataset.baseLabel);
+        const showDetail = () =&gt; {
+          title.textContent = `${id} · ${name}`;
+          detail.textContent = description;
+          status.textContent = names[state];
+        };
+        button.addEventListener(&#x27;mouseenter&#x27;, showDetail);
+        button.addEventListener(&#x27;focus&#x27;, showDetail);
+        button.addEventListener(&#x27;click&#x27;, showDetail);
+        grid.appendChild(button);
+        buttons.set(id, button);
+      });
+      const liveDot = root.querySelector(&#x27;#keypath-live-dot&#x27;);
+      const liveTask = root.querySelector(&#x27;#keypath-live-task&#x27;);
+      const liveMessage = root.querySelector(&#x27;#keypath-live-message&#x27;);
+      const liveTime = root.querySelector(&#x27;#keypath-live-time&#x27;);
+      const liveActivity = root.querySelector(&#x27;#keypath-live-activity&#x27;);
+      const workReadout = root.querySelector(&#x27;#keypath-work-readout&#x27;);
+      const workPhase = root.querySelector(&#x27;#keypath-work-phase&#x27;);
+      const workDetail = root.querySelector(&#x27;#keypath-work-detail&#x27;);
+      const workPercent = root.querySelector(&#x27;#keypath-work-percent&#x27;);
+      const workHealth = root.querySelector(&#x27;#keypath-work-health&#x27;);
+      const healthNames = {smooth:&#x27;Going smoothly&#x27;,retrying:&#x27;Trying another approach&#x27;,blocked:&#x27;Blocked&#x27;};
+      const applyState = (state) =&gt; {
+        Object.entries(state.statuses || {}).forEach(([id,value]) =&gt; {
+          const button = buttons.get(id);
+          if (button &amp;&amp; names[value]) button.dataset.status = value;
+        });
+        const workingBlocks = new Set(state.workingBlocks || []);
+        buttons.forEach((button,id) =&gt; {
+          button.dataset.working = workingBlocks.has(id) ? &#x27;true&#x27; : &#x27;false&#x27;;
+          button.dataset.health = &#x27;&#x27;;
+          button.dataset.trend = &#x27;&#x27;;
+          button.style.setProperty(&#x27;--work-progress&#x27;,&#x27;0%&#x27;);
+          button.setAttribute(&#x27;aria-label&#x27;,button.dataset.baseLabel);
+        });
+        const activeEntries = Object.entries(state.activeWork || {});
+        activeEntries.forEach(([id,work]) =&gt; {
+          const button = buttons.get(id);
+          if (!button) return;
+          const progress = Math.max(0,Math.min(100,Number(work.progress) || 0));
+          button.dataset.working = &#x27;true&#x27;;
+          button.dataset.health = work.health || &#x27;smooth&#x27;;
+          button.dataset.trend = work.trend || &#x27;forward&#x27;;
+          button.style.setProperty(&#x27;--work-progress&#x27;,`${progress}%`);
+          button.setAttribute(&#x27;aria-label&#x27;,`${button.dataset.baseLabel} Active work ${progress}% complete. ${healthNames[work.health] || &#x27;In progress&#x27;}.`);
+        });
+        if (activeEntries.length) {
+          const [id,work] = activeEntries[0];
+          const progress = Math.max(0,Math.min(100,Number(work.progress) || 0));
+          workReadout.classList.add(&#x27;visible&#x27;);
+          workPhase.textContent = `${id} · ${work.phase || &#x27;Active development&#x27;}`;
+          workDetail.textContent = work.detail || `Attempt ${work.attempt || 1} · ${work.completedSteps || 0} of ${work.totalSteps || &#x27;?&#x27;} checkpoints verified`;
+          workPercent.textContent = `${progress}%`;
+          workHealth.textContent = healthNames[work.health] || &#x27;In progress&#x27;;
+          workHealth.className = `health-${work.health || &#x27;smooth&#x27;}`;
+        } else {
+          workReadout.classList.remove(&#x27;visible&#x27;);
+        }
+        liveDot.className = &#x27;live-dot online&#x27;;
+        liveTask.textContent = state.complete ? &#x27;All automation capabilities complete&#x27; : (state.currentTask || &#x27;Monitoring progress&#x27;);
+        liveMessage.textContent = state.message || &#x27;The dashboard is receiving live updates.&#x27;;
+        liveTime.textContent = state.updatedAt ? `Updated ${new Date(state.updatedAt).toLocaleTimeString()}` : &#x27;Live&#x27;;
+        const events = (state.updates || state.activity || []).slice(0,10);
+        liveActivity.replaceChildren(...events.map(event =&gt; {
+          const row = document.createElement(&#x27;div&#x27;); row.className = &#x27;chat-message&#x27;; row.dataset.tone = event.tone || &#x27;working&#x27;;
+          const marker = document.createElement(&#x27;span&#x27;); marker.className = &#x27;chat-marker&#x27;;
+          const time = document.createElement(&#x27;time&#x27;); time.className = &#x27;chat-time&#x27;; time.textContent = event.time || &#x27;Now&#x27;;
+          const body = document.createElement(&#x27;div&#x27;); body.className = &#x27;chat-body&#x27;;
+          const line = document.createElement(&#x27;div&#x27;); line.className = &#x27;chat-line&#x27;;
+          const heading = document.createElement(&#x27;strong&#x27;); heading.textContent = event.title || &#x27;Codex update&#x27;;
+          const copy = document.createElement(&#x27;span&#x27;); copy.className = &#x27;chat-copy&#x27;; copy.textContent = event.message;
+          line.append(heading,copy); body.append(line);
+          if (event.block) { const block = document.createElement(&#x27;div&#x27;); block.className = &#x27;chat-block&#x27;; block.textContent = `${event.block} · ${event.tone || &#x27;working&#x27;}`; body.append(block); }
+          row.append(marker,time,body); return row;
+        }));
+      };
+      const poll = async () =&gt; {
+        try {
+          const response = await fetch(`keypath-test-automation-state.json?t=${Date.now()}`, {cache:&#x27;no-store&#x27;});
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          applyState(await response.json());
+        } catch (_) {
+          liveDot.className = &#x27;live-dot offline&#x27;;
+          liveTask.textContent = &#x27;Live feed unavailable&#x27;;
+          liveMessage.textContent = &#x27;Open this dashboard through the local progress server to receive updates.&#x27;;
+          liveTime.textContent = &#x27;Offline&#x27;;
+        }
+      };
+      poll();
+      window.setInterval(poll, 1200);
+    })();
+  &lt;/script&gt;
+&lt;/div&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

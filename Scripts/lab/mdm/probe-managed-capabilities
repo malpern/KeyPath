@@ -1,0 +1,68 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+    echo "Usage: $0 --output DIR" >&2
+    exit 2
+}
+
+output=
+[[ ${1:-} == --output && -n ${2:-} && $# -eq 2 ]] || usage
+output=$2
+mkdir -p "$output"
+
+cli=${KEYPATH_LAB_CLI:-/Applications/KeyPath.app/Contents/MacOS/keypath-cli}
+python=${KEYPATH_LAB_PYTHON:-/usr/bin/python3}
+tcp_probe=${KEYPATH_LAB_TCP_PROBE:-$(cd "$(dirname "$0")/.." >/dev/null && pwd -P)/probe-kanata-tcp}
+systemextensionsctl=${KEYPATH_LAB_SYSTEMEXTENSIONSCTL:-/usr/bin/systemextensionsctl}
+sfltool=${KEYPATH_LAB_SFLTOOL:-/usr/bin/sfltool}
+launchctl=${KEYPATH_LAB_LAUNCHCTL:-/bin/launchctl}
+[[ -x $cli ]] || { echo "managed capability probe: installed CLI missing" >&2; exit 3; }
+
+set +e
+"$cli" service status --json > "$output/service-status.json" 2> "$output/service-status.stderr"
+status_exit=$?
+set -e
+"$python" - "$output/service-status.json" <<'PY'
+import json
+import sys
+
+status = json.load(open(sys.argv[1]))
+required = [
+    "isOperational",
+    "helperInstalled",
+    "helperWorking",
+    "keyPathAccessibility",
+    "keyPathInputMonitoring",
+    "kanataAccessibility",
+    "kanataInputMonitoring",
+    "kanataBinaryInstalled",
+    "karabinerDriverInstalled",
+    "vhidDeviceHealthy",
+    "kanataRunning",
+    "karabinerDaemonRunning",
+    "vhidHealthy",
+]
+failed = [key for key in required if status.get(key) is not True]
+if failed:
+    raise SystemExit("managed capabilities missing: " + ", ".join(failed))
+if not status.get("helperVersion"):
+    raise SystemExit("managed capabilities missing: helperVersion")
+PY
+[[ $status_exit -eq 0 ]] || { echo "managed capability probe: CLI status exited $status_exit" >&2; exit "$status_exit"; }
+
+"$tcp_probe" > "$output/tcp-readiness.json" 2> "$output/tcp-readiness.stderr"
+"$systemextensionsctl" list > "$output/system-extensions.txt" 2>&1
+grep -Fq 'org.pqrs.Karabiner-DriverKit-VirtualHIDDevice' "$output/system-extensions.txt" || {
+    echo "managed capability probe: VirtualHID system extension is absent" >&2
+    exit 1
+}
+
+"$sfltool" dumpbtm > "$output/background-items.txt" 2>&1 || true
+"$launchctl" print system/com.keypath.kanata > "$output/kanata-launchd.txt" 2>&1
+grep -Eq 'state[[:space:]]*=[[:space:]]*running' "$output/kanata-launchd.txt" || {
+    echo "managed capability probe: Kanata launchd job is not running" >&2
+    exit 1
+}
+
+printf 'managed_capabilities\tpassed\n' | tee "$output/result.tsv"

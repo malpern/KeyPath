@@ -53,6 +53,15 @@ provider_for() {
   case "$1" in 15) print tart ;; 26|27) print parallels ;; *) die "unsupported macOS lane: $1" ;; esac
 }
 
+base_for() {
+  local macos=$1 lane=$2
+  if [[ "$macos" == "15" ]]; then
+    [[ "$lane" == "managed-functional" ]] && print keypath-macos-15-managed || print ghcr.io/cirruslabs/macos-sequoia-base:latest
+  else
+    [[ "$lane" == "managed-functional" ]] && print "keypath-macos-$macos-managed" || print "keypath-macos-$macos"
+  fi
+}
+
 manifest_path() { print -r -- "$LEASES/$1/manifest.tsv"; }
 
 field() {
@@ -236,22 +245,44 @@ run_with_download() {
 }
 
 warmup_desktop() {
-  local macos=$1 slug=$2
+  local macos=$1 lane=$2 slug=$3
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
     "$CRABBOX" warmup --provider "$(provider_for "$macos")" --target macos --desktop --slug "$slug" --ttl 2h
   elif [[ "$macos" == "15" ]]; then
     if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
     export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     "$CRABBOX" warmup --provider tart --target macos --desktop \
-      --tart-image ghcr.io/cirruslabs/macos-sequoia-base:latest \
+      --tart-image "$(base_for "$macos" "$lane")" \
       --tart-user admin --tart-cpu 4 --tart-memory 8192 --ssh-port 22 \
       --slug "$slug" --ttl 2h
   else
     export PATH="$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     "$CRABBOX" warmup --provider parallels --target macos --desktop \
-      --parallels-template "keypath-macos-$macos" --parallels-user keypathqa \
+      --parallels-template "$(base_for "$macos" "$lane")" --parallels-user keypathqa \
       --parallels-work-root /Users/keypathqa/crabbox --ssh-port 22 \
       --slug "$slug" --ttl 2h
+  fi
+}
+
+warmup_lease() {
+  local macos=$1 lane=$2 slug=$3 desktop=$4
+  if [[ "$desktop" == "1" ]]; then
+    warmup_desktop "$macos" "$lane" "$slug"
+  elif [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    "$(launcher_for "$macos")" warmup "$slug"
+  elif [[ "$macos" == "15" ]]; then
+    if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
+    export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    "$CRABBOX" warmup --provider tart --target macos \
+      --tart-image "$(base_for "$macos" "$lane")" \
+      --tart-user admin --tart-cpu 4 --tart-memory 8192 --ssh-port 22 \
+      --slug "$slug" --ttl 2h
+  else
+    export PATH="$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    "$CRABBOX" warmup --provider parallels --target macos \
+      --parallels-template "$(base_for "$macos" "$lane")" \
+      --parallels-user keypathqa --parallels-work-root /Users/keypathqa/crabbox \
+      --ssh-port 22 --slug "$slug" --ttl 2h
   fi
 }
 
@@ -351,10 +382,12 @@ install_archive() {
 }
 
 create_lease() {
-  local macos=$1 archive_key=$2 commit=$3 installer_sha=$4 installer_name=$5 ttl=$6 desktop=$7
+  local macos=$1 lane=$2 archive_key=$3 commit=$4 installer_sha=$5 installer_name=$6 ttl=$7 desktop=$8
   local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds provider_resource exit_code
   launcher=$(launcher_for "$macos")
   provider=$(provider_for "$macos")
+  [[ "$lane" == "managed-functional" || "$lane" == "unmanaged-ui" ]] || die "invalid test lane: $lane"
+  [[ ! ("$macos" == "27" && "$lane" == "managed-functional") ]] || die "managed-functional is not yet supported on macOS 27"
   valid_id "$archive_key"
   archive="$ARCHIVES/$archive_key"
   [[ -f "$archive/ready.tsv" && -d "$archive/repo/.git" ]] || die "prepared archive not found: $archive_key"
@@ -379,11 +412,7 @@ create_lease() {
   git clone -q --local "$archive/repo" "$operation/repo"
   repo="$operation/repo"
   prepare_worktree "$repo"
-  if [[ "$desktop" == "1" ]]; then
-    output=$(cd "$repo" && warmup_desktop "$macos" "$slug" 2>&1)
-  else
-    output=$(cd "$repo" && "$launcher" warmup "$slug" 2>&1)
-  fi
+  output=$(cd "$repo" && warmup_lease "$macos" "$lane" "$slug" "$desktop" 2>&1)
   print -r -- "$output"
   print -r -- "$output" > "$operation/create.log"
   lease=$(print -r -- "$output" | grep -Eo 'cbx_[A-Za-z0-9]+' | tail -1 || true)
@@ -399,6 +428,8 @@ create_lease() {
     print "lease_id\t$lease"
     print "slug\t$slug"
     print "macos\t$macos"
+    print "test_lane\t$lane"
+    print "base_name\t$(base_for "$macos" "$lane")"
     print "provider\t$provider"
     print "archive_key\t$archive_key"
     print "keypath_commit\t$commit"
@@ -434,17 +465,23 @@ create_lease() {
 }
 
 install_app() {
-  local lease=$1 manifest macos repo installer_name provider_resource guest_repo command exit_code
+  local lease=$1 manifest macos lane repo installer_name provider_resource guest_repo command exit_code admission_command
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
+  lane=$(field "$manifest" test_lane)
   repo=$(field "$manifest" worktree)
   installer_name=$(field "$manifest" installer_name)
   provider_resource=$(field "$manifest" provider_resource)
   prepare_worktree "$repo"
   guest_repo="/Users/$([[ "$macos" == "15" ]] && print admin || print keypathqa)/crabbox/$lease/repo"
-  command="set -euo pipefail; rm -rf /tmp/keypath-install; mkdir -p /tmp/keypath-install; ditto -x -k '$guest_repo/.keypath-lab/installer/$installer_name' /tmp/keypath-install; rm -rf /Applications/KeyPath.app; ditto /tmp/keypath-install/KeyPath.app /Applications/KeyPath.app"
+  admission_command="cd '$guest_repo'; Scripts/lab/mdm/verify-lane '$lane'"
+  if [[ "$lane" == "managed-functional" ]]; then
+    admission_command+=" --manifest /Library/KeyPathLab/managed-policy/manifest.json"
+  fi
+  command="set -euo pipefail; $admission_command; rm -rf /tmp/keypath-install; mkdir -p /tmp/keypath-install; ditto -x -k '$guest_repo/.keypath-lab/installer/$installer_name' /tmp/keypath-install; cd '$guest_repo'; if [[ '$lane' == managed-functional ]]; then Scripts/lab/mdm/verify-artifact-policy --app /tmp/keypath-install/KeyPath.app --manifest /Library/KeyPathLab/managed-policy/manifest.json; fi; rm -rf /Applications/KeyPath.app; ditto /tmp/keypath-install/KeyPath.app /Applications/KeyPath.app"
   set +e
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    print "admission $lane" >> "$LOGS/$lease/install-app.log"
     print "install-app $macos $lease $provider_resource" >> "$LOGS/$lease/install-app.log"
     exit_code=0
   elif [[ "$macos" == "15" ]]; then
@@ -457,6 +494,7 @@ install_app() {
   fi
   set -e
   set_field "$manifest" install_app_result "$exit_code"
+  set_field "$manifest" admission_result "$exit_code"
   set_field "$manifest" install_app_at "$(utc_now)"
   cat "$LOGS/$lease/install-app.log"
   return "$exit_code"
@@ -482,7 +520,7 @@ run_command() {
 }
 
 secure_dialog_input() {
-  local lease=$1 app=$2 field_label=$3 submit_button=$4
+  local lease=$1 app=$2 field_label=$3 submit_button=$4 already_focused=$5
   local manifest macos resource key ip secret_file guest_command exit_code
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
@@ -509,17 +547,29 @@ secure_dialog_input() {
 
   # Peekaboo's MCP type response contains the typed value. Suppress both output
   # streams for that command so the secret cannot enter controller logs.
-  local click_command submit_command
-  local -a click_args submit_args
+  local refresh_command click_command submit_command submit_label_quoted
+  local -a refresh_args click_args submit_args
   guest_command='set -euo pipefail; command -v /opt/homebrew/bin/peekaboo >/dev/null; command -v /opt/homebrew/bin/mcporter >/dev/null; '
-  click_args=(/opt/homebrew/bin/peekaboo click --app "$app" --query "$field_label" --json)
-  printf -v click_command '%q ' "${click_args[@]}"
-  guest_command+="$click_command >/dev/null; "
-  guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1'
+  # Protected sheets change the desktop after the preceding toggle. Refresh
+  # immediately so Peekaboo does not reject the semantic target as stale.
+  if [[ "$already_focused" == "0" ]]; then
+    refresh_args=(/opt/homebrew/bin/peekaboo see --app "$app" --json)
+    printf -v refresh_command '%q ' "${refresh_args[@]}"
+    guest_command+="$refresh_command >/dev/null || exit 40; "
+    # Peekaboo 3 accepts the semantic target as the positional click argument.
+    # --query belongs to Scripts/lab/peekaboo-ui and is not a Peekaboo option.
+    click_args=(/opt/homebrew/bin/peekaboo click "$field_label" --app "$app" --foreground --json)
+    printf -v click_command '%q ' "${click_args[@]}"
+    guest_command+="$click_command >/dev/null || exit 41; "
+  elif [[ -n "$submit_button" ]]; then
+    die "--already-focused cannot be combined with a submit button"
+  fi
+  guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1 || exit 42'
   if [[ -n "$submit_button" ]]; then
-    submit_args=(/opt/homebrew/bin/peekaboo click --app "$app" --query "$submit_button" --json)
+    submit_args=(/opt/homebrew/bin/peekaboo click "$submit_button" --app "$app" --foreground --json)
     printf -v submit_command '%q ' "${submit_args[@]}"
-    guest_command+="; $submit_command >/dev/null"
+    printf -v submit_label_quoted '%q' "$submit_button"
+    guest_command+="; $refresh_command >/tmp/keypath-secure-submit.json || exit 44; if ! $submit_command >/dev/null; then $refresh_command >/tmp/keypath-secure-submit.json || exit 43; /usr/bin/python3 -c 'import json,sys; elements=json.load(open(sys.argv[1])).get(\"data\",{}).get(\"ui_elements\",[]); raise SystemExit(1 if any(e.get(\"label\")==sys.argv[2] for e in elements) else 0)' /tmp/keypath-secure-submit.json $submit_label_quoted || exit 43; fi"
   fi
   set +e
   "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")" < "$secret_file"
@@ -532,10 +582,70 @@ secure_dialog_input() {
   if (( exit_code == 0 )); then
     record_command "$lease" passed secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
     print "secure_dialog_input\tpassed"
+  elif (( exit_code == 40 )); then
+    record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
+    die "secure dialog input failed while refreshing the dialog snapshot"
+  elif (( exit_code == 41 )); then
+    record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
+    die "secure dialog input failed while focusing the field"
+  elif (( exit_code == 42 )); then
+    record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
+    die "secure dialog input failed while streaming masked input"
+  elif (( exit_code == 43 )); then
+    record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
+    die "secure dialog input failed while submitting the dialog"
+  elif (( exit_code == 44 )); then
+    record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
+    die "secure dialog input failed while refreshing the submitted dialog"
   else
     record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
     die "secure dialog input failed"
   fi
+}
+
+protected_click() {
+  local lease=$1 app=$2 expected_before=$3 expected_after=$4 x=$5 y=$6
+  local manifest macos resource key ip before after guest_command
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$macos" == "15" ]] || die "protected click currently supports only the Tart macOS 15 lane"
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "protected click requires a desktop-enabled lease"
+  [[ "$x" == <-> && "$y" == <-> ]] || die "protected click coordinates must be non-negative integers"
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Za-z0-9._-]+$' && "$resource" != "unknown" ]] || die "invalid Tart resource id"
+
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    before=${KEYPATH_LAB_TEST_WINDOW_BEFORE:-$expected_before}
+  else
+    key="$HOME/Library/Application Support/crabbox/testboxes/$lease/id_ed25519"
+    [[ -f "$key" && ! -L "$key" && -O "$key" ]] || die "owned CrabBox SSH key not found for lease"
+    if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
+    ip=$($TART ip "$resource")
+    [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
+    printf -v guest_command '%q ' /opt/homebrew/bin/peekaboo see --app "$app" --json
+    guest_command+="| /usr/bin/python3 -c 'import json,sys; print(json.load(sys.stdin).get(\"data\",{}).get(\"window_title\",\"\"))'"
+    before=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")
+  fi
+  [[ "$before" == "$expected_before" ]] || {
+    record_command "$lease" failed protected-click --app "$app" --window "$expected_before" --x "$x" --y "$y"
+    die "protected click precondition failed: expected window '$expected_before', found '${before:-unknown}'"
+  }
+
+  "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$x" --y "$y" >/dev/null
+  sleep "${KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS:-1}"
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    after=${KEYPATH_LAB_TEST_WINDOW_AFTER:-$expected_after}
+  else
+    after=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")
+  fi
+  [[ "$after" == "$expected_after" ]] || {
+    record_command "$lease" failed protected-click --app "$app" --window "$expected_before" --after-window "$expected_after" --x "$x" --y "$y"
+    die "protected click postcondition failed: expected window '$expected_after', found '${after:-unknown}'"
+  }
+  record_command "$lease" passed protected-click --app "$app" --window "$expected_before" --after-window "$expected_after" --x "$x" --y "$y"
+  print "protected_click\tpassed"
+  print "window_before\t$before"
+  print "window_after\t$after"
 }
 
 print_status() {
@@ -551,12 +661,12 @@ print_status() {
 
 list_leases() {
   ensure_roots
-  print "lease_id\tmacos\tprovider\tstatus\texpires_epoch\tcommit\tcleanup"
+  print "lease_id\tmacos\ttest_lane\tbase_name\tprovider\tstatus\texpires_epoch\tcommit\tcleanup"
   local manifest lease
   for manifest in "$LEASES"/*/manifest.tsv(N); do
     [[ "$(field "$manifest" owner)" == "$OWNER" ]] || continue
     lease=$(field "$manifest" lease_id)
-    print "$lease\t$(field "$manifest" macos)\t$(field "$manifest" provider)\t$(field "$manifest" status)\t$(field "$manifest" expires_epoch)\t$(field "$manifest" keypath_commit)\t$(field "$manifest" cleanup_status)"
+    print "$lease\t$(field "$manifest" macos)\t$(field "$manifest" test_lane)\t$(field "$manifest" base_name)\t$(field "$manifest" provider)\t$(field "$manifest" status)\t$(field "$manifest" expires_epoch)\t$(field "$manifest" keypath_commit)\t$(field "$manifest" cleanup_status)"
   done
 }
 
@@ -608,13 +718,29 @@ collect_artifacts() {
 }
 
 scenario() {
-  local lease=$1 name=$2 manifest repo scenario_script
+  local lease=$1 name=$2 manifest repo scenario_script lane
   manifest=$(owned_manifest "$lease")
   repo=$(field "$manifest" worktree)
+  lane=$(field "$manifest" test_lane)
   prepare_worktree "$repo"
   scenario_script="Scripts/lab/scenarios/installer-scenario"
   [[ -x "$repo/$scenario_script" ]] || die "scenario runner missing from archived commit"
-  run_command "$lease" "/bin/zsh" "$scenario_script" "$name"
+  run_command "$lease" "/bin/zsh" "$scenario_script" "$name" "$lane"
+}
+
+desktop_bootstrap() {
+  local lease=$1 install_tools=$2 manifest macos repo output guest_output command
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "desktop bootstrap requires a desktop-enabled lease"
+  repo=$(field "$manifest" worktree)
+  prepare_worktree "$repo"
+  output=".keypath-lab/scenario-output/bootstrap"
+  command=(/bin/zsh Scripts/lab/desktop-bootstrap --output "$output")
+  [[ "$install_tools" == "1" ]] && command+=(--install-tools)
+  run_command "$lease" "${command[@]}"
+  set_field "$manifest" desktop_bootstrap_at "$(utc_now)"
+  set_field "$manifest" desktop_bootstrap_status passed
 }
 
 destroy_lease() {
@@ -667,14 +793,16 @@ case "$action" in
   preflight) [[ $# -eq 0 ]] || die "preflight takes no arguments"; preflight ;;
   prepare-upload) [[ $# -eq 1 ]] || die "prepare-upload requires archive key"; prepare_upload "$1" ;;
   install-archive) [[ $# -eq 5 ]] || die "install-archive requires ticket, key, commit, checksum, and name"; install_archive "$@" ;;
-  create) [[ $# -eq 7 ]] || die "create requires lane, archive, commit, checksum, name, ttl, desktop"; create_lease "$@" ;;
+  create) [[ $# -eq 8 ]] || die "create requires macOS, test lane, archive, commit, checksum, name, ttl, desktop"; create_lease "$@" ;;
   install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
-  secure-dialog-input) [[ $# -eq 4 ]] || die "secure-dialog-input requires lease, app, field, and optional submit value"; secure_dialog_input "$@" ;;
+  secure-dialog-input) [[ $# -eq 5 ]] || die "secure-dialog-input requires lease, app, field, optional submit value, and focus mode"; secure_dialog_input "$@" ;;
+  protected-click) [[ $# -eq 6 ]] || die "protected-click requires lease, app, before window, after window, x, and y"; protected_click "$@" ;;
   run) [[ $# -ge 2 ]] || die "run requires lease and command"; run_command "$@" ;;
   status) [[ $# -eq 1 ]] || die "status requires lease"; print_status "$1" ;;
   list) [[ $# -eq 0 ]] || die "list takes no arguments"; list_leases ;;
   artifacts) [[ $# -eq 1 ]] || die "artifacts requires lease"; collect_artifacts "$1" ;;
   scenario) [[ $# -eq 2 ]] || die "scenario requires lease and name"; scenario "$1" "$2" ;;
+  desktop-bootstrap) [[ $# -eq 2 ]] || die "desktop-bootstrap requires lease and install-tools flag"; desktop_bootstrap "$@" ;;
   destroy) [[ $# -eq 1 ]] || die "destroy requires lease"; destroy_lease "$1" ;;
   cleanup) cleanup_expired "${1:-}" ;;
   *) die "unknown action: $action" ;;

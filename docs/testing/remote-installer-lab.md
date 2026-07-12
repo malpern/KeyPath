@@ -39,9 +39,9 @@ VM creation is admitted centrally on the mini. The default host limits are one
 active Tart lease and two active Parallels leases. `create` takes an atomic
 provider-specific host-side admission lock, counts unexpired owned lease
 manifests, and reserves capacity before another creator for that provider can
-enter. Tart and Parallels provisioning can proceed in parallel. The lock is held only during
-provisioning; each resulting manifest remains the capacity reservation until
-the lease is destroyed or expires.
+enter. Tart and Parallels provisioning can proceed in parallel. The lock is
+held only during provisioning; each resulting manifest remains the capacity
+reservation until the lease is destroyed or expires.
 
 When a pool is full, `create` exits 75 and prints `capacity_busy` plus every
 owning lease, OS, lane, expiry, commit, and slug. This is an infrastructure wait,
@@ -74,6 +74,7 @@ the completed archive.
 SHA=$(git rev-parse HEAD)
 Scripts/lab/keypath-lab create \
   --macos 27 \
+  --lane unmanaged-ui \
   --commit "$SHA" \
   --installer dist/KeyPath.zip \
   --ttl 2h \
@@ -160,6 +161,39 @@ field label, optional submit button, and pass/fail result are recorded. Do not
 use the generic `run` command to improvise password entry. macOS 26 and 27
 Parallels guests remain unsupported until they have an equally constrained
 lease-specific transport.
+
+Driver-extension authorization is owned by `SecurityAgent`, whose secure
+window is not available to Peekaboo snapshots. When a fresh framebuffer image
+proves that its password field is already focused, use the constrained focused
+mode without a submit selector:
+
+```bash
+Scripts/lab/keypath-lab secure-dialog-input cbx_example \
+  --app SecurityAgent --field Password --already-focused
+```
+
+This mode skips AX discovery but uses the same stdin-only encrypted secret
+transport. It is valid only after current visual evidence shows the focused
+secure field, and success still requires the corresponding system-extension
+postcondition.
+
+For a protected control that requires native RFB delivery, use the lease-owned
+guard instead of invoking CrabBox directly:
+
+```bash
+Scripts/lab/keypath-lab protected-click cbx_example \
+  --app 'System Settings' \
+  --window Accessibility \
+  --x 804 --y 494
+```
+
+The coordinates are native framebuffer coordinates measured for the current
+lease. The command snapshots the named app before and after delivery and fails
+if either window title differs from the declared page. When the click is
+expected to open another page or dialog, declare that explicitly with
+`--after-window`. This guard detects a delivered click that landed on the wrong
+System Settings surface; it does not replace the permission's canonical product
+or system postcondition.
 
 `install-app` expands the staged ZIP into `/Applications` on the disposable
 guest. Tart uses the base image's noninteractive sudo contract. Parallels uses

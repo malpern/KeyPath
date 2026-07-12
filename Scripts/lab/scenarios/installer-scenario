@@ -2,6 +2,7 @@
 set -euo pipefail
 
 name=${1:-}
+lane=${2:-}
 installer_dir="$PWD/.keypath-lab/installer"
 artifact_dir="$PWD/.keypath-lab/scenario-output/$name"
 mkdir -p "$artifact_dir"
@@ -28,7 +29,12 @@ case "$name" in
   helper-daemon-health)
     [[ -x "$installed_cli" ]] || { print -u2 "KeyPath CLI is not installed"; exit 3; }
     "$installed_cli" system inspect --json | tee "$artifact_dir/system-inspect.json"
-    nc -vz 127.0.0.1 37001 2>&1 | tee "$artifact_dir/tcp-readiness.txt"
+    Scripts/lab/probe-kanata-tcp 2> "$artifact_dir/tcp-readiness.stderr" | tee "$artifact_dir/tcp-readiness.json"
+    ;;
+  managed-capabilities)
+    [[ "$lane" == "managed-functional" ]] || { print -u2 "managed-functional lease required"; exit 4; }
+    [[ -x "$installed_cli" ]] || { print -u2 "KeyPath CLI is not installed"; exit 3; }
+    Scripts/lab/mdm/probe-managed-capabilities --output "$artifact_dir"
     ;;
   launch)
     open -a KeyPath
@@ -48,7 +54,7 @@ case "$name" in
   reboot-persistence-after)
     [[ -x "$installed_cli" ]] || { print -u2 "KeyPath CLI is not installed"; exit 3; }
     "$installed_cli" system inspect --json | tee "$artifact_dir/after-reboot.json"
-    nc -vz 127.0.0.1 37001 2>&1 | tee "$artifact_dir/tcp-readiness.txt"
+    Scripts/lab/probe-kanata-tcp 2> "$artifact_dir/tcp-readiness.stderr" | tee "$artifact_dir/tcp-readiness.json"
     ;;
   uninstall)
     [[ -x "$installed_cli" ]] || { print -u2 "KeyPath CLI is not installed"; exit 3; }
@@ -74,7 +80,7 @@ case "$name" in
     ;;
   *)
     print -u2 "Unknown scenario: $name"
-    print -u2 "Available: clean-install approvals helper-daemon-health launch repair-reinstall reboot-persistence-before reboot-persistence-after uninstall cancellation-failure artifact-capture macos-27-regression"
+    print -u2 "Available: clean-install approvals helper-daemon-health managed-capabilities launch repair-reinstall reboot-persistence-before reboot-persistence-after uninstall cancellation-failure artifact-capture macos-27-regression"
     exit 2
     ;;
 esac

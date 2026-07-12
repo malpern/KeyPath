@@ -1,0 +1,80 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+    echo "Usage: $0 managed-functional|unmanaged-ui [--manifest manifest.json]" >&2
+    exit 2
+}
+
+lane=${1:-}
+[[ $lane == managed-functional || $lane == unmanaged-ui ]] || usage
+shift
+manifest=
+if [[ ${1:-} == --manifest && -n ${2:-} && $# -eq 2 ]]; then
+    manifest=$2
+elif [[ $# -ne 0 ]]; then
+    usage
+fi
+
+profiles_output=$(/usr/bin/profiles show -type configuration 2>&1 || true)
+export KEYPATH_LAB_SW_VERS_BIN="${SW_VERS_BIN:-/usr/bin/sw_vers}"
+expected=(
+    com.keypath.lab.pppc
+    com.keypath.lab.system-extension
+    com.keypath.lab.service-management
+)
+
+present=0
+for identifier in "${expected[@]}"; do
+    if grep -Fq "$identifier" <<<"$profiles_output"; then
+        ((present += 1))
+    fi
+done
+
+if [[ $lane == managed-functional ]]; then
+    [[ $present -eq ${#expected[@]} ]] || {
+        echo "lane verification failed: managed-functional has $present/${#expected[@]} required profiles" >&2
+        exit 1
+    }
+    enrollment=$(/usr/bin/profiles status -type enrollment 2>&1 || true)
+    grep -Eiq 'MDM enrollment: (Yes|Enrolled)|Enrolled via DEP: Yes' <<<"$enrollment" || {
+        echo "lane verification failed: device is not MDM enrolled" >&2
+        printf '%s\n' "$enrollment" >&2
+        exit 1
+    }
+    [[ -n $manifest && -f $manifest ]] || {
+        echo "lane verification failed: managed-functional requires --manifest" >&2
+        exit 1
+    }
+    /usr/bin/python3 - "$manifest" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+manifest_path = Path(sys.argv[1])
+manifest = json.load(manifest_path.open())
+assert manifest["lane"] == "managed-functional"
+major = int(__import__("subprocess").check_output([__import__("os").environ["KEYPATH_LAB_SW_VERS_BIN"], "-productVersion"], text=True).split(".")[0])
+assert major in manifest["supportedMacOSMajorVersions"], f"policy does not support macOS {major}"
+assert set(manifest["profiles"]) == {
+    "com.keypath.lab.pppc",
+    "com.keypath.lab.system-extension",
+    "com.keypath.lab.service-management",
+}
+for profile in manifest["profiles"].values():
+    path = manifest_path.parent / profile["filename"]
+    assert path.is_file(), f"managed policy profile is missing: {path}"
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    assert actual == profile["sha256"], f"managed policy profile hash mismatch: {path.name}"
+PY
+else
+    [[ $present -eq 0 ]] || {
+        echo "lane verification failed: unmanaged-ui contains $present managed lab profiles" >&2
+        exit 1
+    }
+fi
+
+echo "lane\t$lane"
+echo "profile_count\t$present"
+echo "verification\tpassed"

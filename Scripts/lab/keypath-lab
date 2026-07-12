@@ -12,9 +12,11 @@ Usage: Scripts/lab/keypath-lab [--host HOST] <command> [options]
 
 Commands:
   preflight
-  create --macos 15|26|27 --commit SHA --installer PATH [--ttl 2h] [--desktop]
+  create --macos 15|26|27 --lane managed-functional|unmanaged-ui --commit SHA --installer PATH [--ttl 2h] [--desktop]
   install-app LEASE_ID
-  secure-dialog-input LEASE_ID --app APP --field LABEL [--submit BUTTON]
+  desktop-bootstrap LEASE_ID [--install-tools]
+  protected-click LEASE_ID --app APP --window TITLE --x X --y Y [--after-window TITLE]
+  secure-dialog-input LEASE_ID --app APP --field LABEL [--submit BUTTON] [--already-focused]
   run LEASE_ID -- COMMAND [ARG...]
   status LEASE_ID
   list
@@ -66,6 +68,7 @@ case "$command" in
         ;;
     create)
         macos=
+        lane=
         commit=
         installer=
         ttl=2h
@@ -73,6 +76,7 @@ case "$command" in
         while [[ $# -gt 0 ]]; do
             case "$1" in
                 --macos) macos=${2:-}; shift 2 ;;
+                --lane) lane=${2:-}; shift 2 ;;
                 --commit) commit=${2:-}; shift 2 ;;
                 --installer) installer=${2:-}; shift 2 ;;
                 --ttl) ttl=${2:-}; shift 2 ;;
@@ -81,6 +85,8 @@ case "$command" in
             esac
         done
         [[ $macos == "15" || $macos == "26" || $macos == "27" ]] || die "--macos must be 15, 26, or 27"
+        [[ $lane == "managed-functional" || $lane == "unmanaged-ui" ]] || die "--lane must be managed-functional or unmanaged-ui"
+        [[ ! ($macos == "27" && $lane == "managed-functional") ]] || die "managed-functional is not yet supported on macOS 27"
         [[ $commit =~ ^[0-9a-fA-F]{40}$ ]] || die "--commit must be a full 40-character SHA"
         [[ -f $installer ]] || die "installer not found: $installer"
         resolved=$(git -C "$REPO_ROOT" rev-parse --verify "$commit^{commit}")
@@ -106,12 +112,46 @@ EOF
         [[ $upload_ticket == /tmp/keypath-lab.* ]] || die "host returned an invalid upload ticket"
         scp -q "$temp_dir/archive.tgz" "$host:$upload_ticket"
         remote install-archive "$upload_ticket" "$archive_key" "$commit" "$installer_sha" "$installer_name"
-        remote create "$macos" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$ttl" "$desktop"
+        remote create "$macos" "$lane" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$ttl" "$desktop"
         ;;
     install-app)
         [[ $# -eq 1 ]] || usage
         require_lease_id "$1"
         remote install-app "$1"
+        ;;
+    desktop-bootstrap)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        install_tools=0
+        if [[ ${1:-} == "--install-tools" && $# -eq 1 ]]; then install_tools=1; shift; fi
+        [[ $# -eq 0 ]] || usage
+        remote desktop-bootstrap "$lease" "$install_tools"
+        ;;
+    protected-click)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        app=
+        window=
+        after_window=
+        x=
+        y=
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --app) app=${2:-}; shift 2 ;;
+                --window) window=${2:-}; shift 2 ;;
+                --after-window) after_window=${2:-}; shift 2 ;;
+                --x) x=${2:-}; shift 2 ;;
+                --y) y=${2:-}; shift 2 ;;
+                *) usage ;;
+            esac
+        done
+        [[ -n $app && -n $window && $x =~ ^[0-9]+$ && $y =~ ^[0-9]+$ ]] || usage
+        [[ -n $after_window ]] || after_window=$window
+        remote protected-click "$lease" "$app" "$window" "$after_window" "$x" "$y"
         ;;
     secure-dialog-input)
         lease=${1:-}
@@ -121,16 +161,18 @@ EOF
         app=
         field=
         submit=
+        already_focused=0
         while [[ $# -gt 0 ]]; do
             case "$1" in
                 --app) app=${2:-}; shift 2 ;;
                 --field) field=${2:-}; shift 2 ;;
                 --submit) submit=${2:-}; shift 2 ;;
+                --already-focused) already_focused=1; shift ;;
                 *) usage ;;
             esac
         done
         [[ -n $app && -n $field ]] || usage
-        remote secure-dialog-input "$lease" "$app" "$field" "$submit"
+        remote secure-dialog-input "$lease" "$app" "$field" "$submit" "$already_focused"
         ;;
     run)
         lease=${1:-}
