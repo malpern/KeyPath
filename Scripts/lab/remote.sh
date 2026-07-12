@@ -674,6 +674,12 @@ secure_dialog_input() {
   elif (( exit_code == 44 )); then
     record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
     die "secure dialog input failed while refreshing the submitted dialog"
+  elif (( exit_code == 77 )); then
+    record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
+    die "secure dialog input was submitted but the SecurityAgent sheet did not close"
+  elif (( exit_code == 78 )); then
+    record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
+    die "secure dialog input could not resolve valid SecurityAgent button geometry"
   else
     record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
     die "secure dialog input failed"
