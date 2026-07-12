@@ -62,6 +62,9 @@ exit 0
 EOF
 chmod +x "$ROOT/bin/launcher15" "$ROOT/bin/launcher26" "$ROOT/bin/crabbox"
 
+/bin/bash -n "$LAB_DIR/../qa-macos-27-regression.sh"
+grep -q 'macos-27-regression)' "$LAB_DIR/scenarios/installer-scenario"
+
 run_remote() {
     KEYPATH_LAB_TESTING=1 \
     KEYPATH_LAB_TEST_ROOT="$ROOT" \

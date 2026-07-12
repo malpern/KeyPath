@@ -105,6 +105,7 @@ Scripts/lab/keypath-lab scenario cbx_example reboot-persistence-after
 Scripts/lab/keypath-lab scenario cbx_example uninstall
 Scripts/lab/keypath-lab scenario cbx_example cancellation-failure
 Scripts/lab/keypath-lab scenario cbx_example artifact-capture
+Scripts/lab/keypath-lab scenario cbx_example macos-27-regression
 Scripts/lab/keypath-lab artifacts cbx_example
 ```
 
@@ -116,6 +117,36 @@ point rather than attempting to bypass macOS security UI. Never place Apple IDs,
 passwords, private keys, TCC databases, or other credentials in a scenario or
 artifact bundle. CrabBox does not redact collected files automatically; inspect
 every bundle before sharing or publishing it.
+
+### macOS 27 beta regression capture
+
+On every significant macOS 27 beta seed, run the non-destructive evidence
+capture on an installed signed and notarized build:
+
+```bash
+Scripts/qa-macos-27-regression.sh
+```
+
+For a disposable macOS 27 desktop lease, run the same capture after installing
+the app:
+
+```bash
+Scripts/lab/keypath-lab scenario cbx_example macos-27-regression
+Scripts/lab/keypath-lab artifacts cbx_example
+```
+
+The command records the exact OS build, canonical CLI system snapshot,
+VirtualHID extension state, KeyPath-owned launchd jobs, signatures, Gatekeeper
+and stapling results, processes, TCP readiness, and relevant logs. It also emits
+an operator checklist for Accessibility, Input Monitoring, Background App
+Activity, Driver Extension approval, overlay behavior, and reboot persistence.
+Those interactions remain manual because programmatically modifying TCC or
+bypassing macOS approval UI would invalidate the regression test.
+
+Distribution trust checks are required by default. For harness development
+against a locally signed debug deployment only, set
+`KEYPATH_MACOS27_QA_REQUIRE_DISTRIBUTION_TRUST=0`; never use that override for a
+release or beta-seed result.
 
 ## Failure and recovery
 
