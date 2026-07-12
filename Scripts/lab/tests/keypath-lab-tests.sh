@@ -46,6 +46,7 @@ cat > "$ROOT/bin/crabbox" <<EOF
 echo "crabbox \$*" >> "$CALLS"
 if [[ \$1 == warmup ]]; then
   if [[ " \$* " == *" --provider tart "* ]]; then
+    echo 'leased cbx_stale instance=stale-resource'
     echo 'diagnostic previous=cbx_unrelated'
     printf 'leased cbx_desktop15 instance=test-resource'
   else
@@ -315,6 +316,8 @@ grep -q 'stop-27 cbx_test27' "$CALLS"
 
 desktop_create=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
 assert_contains "$desktop_create" $'lease_id\tcbx_desktop15'
+grep -q $'status\tprovisioning' "$ROOT/KeyPathInstallerLab/leases/cbx_stale/manifest.tsv"
+run_remote destroy cbx_stale >/dev/null
 desktop_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_desktop15/manifest.tsv"
 grep -q $'desktop_enabled\ttrue' "$desktop_manifest"
 desktop_artifacts=$(run_remote artifacts cbx_desktop15)

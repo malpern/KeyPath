@@ -459,12 +459,10 @@ create_lease() {
   (cd "$repo" && warmup_lease "$macos" "$lane" "$slug" "$desktop" 2>&1) | while IFS= read -r line || [[ -n "$line" ]]; do
     print -r -- "$line"
     print -r -- "$line" >> "$create_log"
-    if [[ ! -s "$candidate_file" ]]; then
-      candidate=$(lease_candidate_from_line "$line")
-      if [[ -n "$candidate" ]]; then
-        print -r -- "$candidate" > "$candidate_file"
-        write_provisional_lease_manifest "$candidate" "$slug" "$macos" "$lane" "$provider" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$repo" "$created" "$expires" "$desktop"
-      fi
+    candidate=$(lease_candidate_from_line "$line")
+    if [[ -n "$candidate" ]]; then
+      print -r -- "$candidate" > "$candidate_file"
+      write_provisional_lease_manifest "$candidate" "$slug" "$macos" "$lane" "$provider" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$repo" "$created" "$expires" "$desktop"
     fi
   done
   create_status=${pipestatus[1]}
