@@ -771,6 +771,8 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-defrag-progress .block[data-status=&quot;queued&quot;] { background:var(--muted); color:var(--muted-foreground); }
     #keypath-defrag-progress .block[data-status=&quot;waiting&quot;] { background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--viz-series-5) 86%,var(--card)) 0 8px,color-mix(in srgb,var(--viz-series-5) 58%,var(--card)) 8px 13px); color:var(--card-foreground); }
     #keypath-defrag-progress .block:hover, #keypath-defrag-progress .block:focus-visible { filter:brightness(1.1); transform:translateY(-2px) scale(1.04); box-shadow:0 0 0 2px var(--ring); z-index:1; }
+    #keypath-defrag-progress .block[data-status=&quot;active&quot;] { animation:keypath-pulse 1.35s ease-in-out infinite; }
+    @keyframes keypath-pulse { 0%,100% { filter:brightness(1); box-shadow:0 0 0 0 transparent; } 50% { filter:brightness(1.16); box-shadow:0 0 0 2px var(--viz-series-2); } }
     #keypath-defrag-progress .readout { min-height:42px; margin-top:12px; padding-top:11px; border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:18px; align-items:flex-start; }
     #keypath-defrag-progress .readout strong { display:block; font-weight:500; }
     #keypath-defrag-progress .readout small { display:block; color:var(--muted-foreground); margin-top:2px; }
@@ -782,6 +784,21 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-defrag-progress .now { border-left:4px solid var(--viz-series-2); }
     #keypath-defrag-progress .wait { border-left:4px solid var(--viz-series-5); }
     #keypath-defrag-progress .note { margin-top:12px; color:var(--muted-foreground); font-size:11px; }
+    #keypath-defrag-progress .livebar { display:flex; justify-content:space-between; align-items:center; gap:16px; margin:0 0 14px; padding:11px 13px; }
+    #keypath-defrag-progress .live-main { display:flex; align-items:center; gap:9px; min-width:0; }
+    #keypath-defrag-progress .live-dot { width:9px; height:9px; border-radius:50%; background:var(--viz-series-2); flex:none; }
+    #keypath-defrag-progress .live-dot.online { background:var(--viz-series-3); }
+    #keypath-defrag-progress .live-dot.offline { background:var(--destructive); }
+    #keypath-defrag-progress .live-copy { min-width:0; }
+    #keypath-defrag-progress .live-copy strong { display:block; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #keypath-defrag-progress .live-copy small, #keypath-defrag-progress .live-time { color:var(--muted-foreground); font-size:11px; }
+    #keypath-defrag-progress .activity { margin-top:16px; }
+    #keypath-defrag-progress .activity-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:8px; }
+    #keypath-defrag-progress .activity-head strong { font-weight:500; }
+    #keypath-defrag-progress .activity-list { display:grid; gap:0; }
+    #keypath-defrag-progress .activity-item { display:grid; grid-template-columns:76px 1fr; gap:12px; padding:8px 0; border-top:1px solid var(--border); font-size:12px; }
+    #keypath-defrag-progress .activity-item time { color:var(--muted-foreground); }
+    @media (prefers-reduced-motion:reduce) { #keypath-defrag-progress .block[data-status=&quot;active&quot;] { animation:none; } }
     @media (max-width:760px) {
       #keypath-defrag-progress .top { flex-direction:column; align-items:flex-start; }
       #keypath-defrag-progress .track { grid-template-columns:repeat(8,minmax(0,1fr)); }
@@ -806,6 +823,11 @@ html&gt;body{padding:0}&lt;/style&gt;
     &lt;span&gt;&lt;i class=&quot;swatch waiting-mark&quot;&gt;&lt;/i&gt;Waiting on Apple&lt;/span&gt;
   &lt;/div&gt;
 
+  &lt;section class=&quot;card livebar&quot; aria-live=&quot;polite&quot;&gt;
+    &lt;div class=&quot;live-main&quot;&gt;&lt;span class=&quot;live-dot&quot; id=&quot;keypath-live-dot&quot;&gt;&lt;/span&gt;&lt;div class=&quot;live-copy&quot;&gt;&lt;strong id=&quot;keypath-live-task&quot;&gt;Connecting to live progress…&lt;/strong&gt;&lt;small id=&quot;keypath-live-message&quot;&gt;Waiting for the local progress feed.&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
+    &lt;div class=&quot;live-time&quot; id=&quot;keypath-live-time&quot;&gt;—&lt;/div&gt;
+  &lt;/section&gt;
+
   &lt;section class=&quot;card disk&quot; aria-label=&quot;KeyPath automation capability map&quot;&gt;
     &lt;div class=&quot;track&quot; id=&quot;keypath-defrag-grid&quot;&gt;&lt;/div&gt;
     &lt;div class=&quot;readout&quot; aria-live=&quot;polite&quot;&gt;
@@ -819,6 +841,10 @@ html&gt;body{padding:0}&lt;/style&gt;
     &lt;div class=&quot;card band&quot;&gt;&lt;strong&gt;Installer approvals consolidated&lt;/strong&gt;&lt;span&gt;KeyPath Input Monitoring, helper, background item, SecurityAgent, DriverKit.&lt;/span&gt;&lt;/div&gt;
     &lt;div class=&quot;card band now&quot;&gt;&lt;strong&gt;Defragmenting now&lt;/strong&gt;&lt;span&gt;Kanata permissions → runtime/TCP → real input and virtual output.&lt;/span&gt;&lt;/div&gt;
     &lt;div class=&quot;card band wait&quot;&gt;&lt;strong&gt;External wait&lt;/strong&gt;&lt;span&gt;Apple case 102940025673 gates the managed APNs enrollment proof.&lt;/span&gt;&lt;/div&gt;
+  &lt;/section&gt;
+  &lt;section class=&quot;activity&quot; aria-label=&quot;Recent progress&quot;&gt;
+    &lt;div class=&quot;activity-head&quot;&gt;&lt;strong&gt;Live activity&lt;/strong&gt;&lt;span class=&quot;date&quot; id=&quot;keypath-live-counts&quot;&gt;&lt;/span&gt;&lt;/div&gt;
+    &lt;div class=&quot;activity-list&quot; id=&quot;keypath-live-activity&quot;&gt;&lt;div class=&quot;activity-item&quot;&gt;&lt;time&gt;—&lt;/time&gt;&lt;span&gt;No live events received yet.&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
   &lt;/section&gt;
   &lt;div class=&quot;note&quot;&gt;Block counts represent named capabilities, not an estimated percentage of engineering effort.&lt;/div&gt;
 
@@ -885,6 +911,7 @@ html&gt;body{padding:0}&lt;/style&gt;
       const detail = root.querySelector(&#x27;#keypath-defrag-detail&#x27;);
       const status = root.querySelector(&#x27;#keypath-defrag-status&#x27;);
       const names = {proven:&#x27;Proven&#x27;,active:&#x27;Current frontier&#x27;,queued:&#x27;Queued&#x27;,waiting:&#x27;Waiting on Apple&#x27;};
+      const buttons = new Map();
       items.forEach(([id,state,name,description]) =&gt; {
         const button = document.createElement(&#x27;button&#x27;);
         button.className = &#x27;block&#x27;;
@@ -900,7 +927,48 @@ html&gt;body{padding:0}&lt;/style&gt;
         button.addEventListener(&#x27;focus&#x27;, showDetail);
         button.addEventListener(&#x27;click&#x27;, showDetail);
         grid.appendChild(button);
+        buttons.set(id, button);
       });
+      const liveDot = root.querySelector(&#x27;#keypath-live-dot&#x27;);
+      const liveTask = root.querySelector(&#x27;#keypath-live-task&#x27;);
+      const liveMessage = root.querySelector(&#x27;#keypath-live-message&#x27;);
+      const liveTime = root.querySelector(&#x27;#keypath-live-time&#x27;);
+      const liveActivity = root.querySelector(&#x27;#keypath-live-activity&#x27;);
+      const liveCounts = root.querySelector(&#x27;#keypath-live-counts&#x27;);
+      const applyState = (state) =&gt; {
+        Object.entries(state.statuses || {}).forEach(([id,value]) =&gt; {
+          const button = buttons.get(id);
+          if (button &amp;&amp; names[value]) button.dataset.status = value;
+        });
+        liveDot.className = &#x27;live-dot online&#x27;;
+        liveTask.textContent = state.complete ? &#x27;All automation capabilities complete&#x27; : (state.currentTask || &#x27;Monitoring progress&#x27;);
+        liveMessage.textContent = state.message || &#x27;The dashboard is receiving live updates.&#x27;;
+        liveTime.textContent = state.updatedAt ? `Updated ${new Date(state.updatedAt).toLocaleTimeString()}` : &#x27;Live&#x27;;
+        const counts = {proven:0,active:0,queued:0,waiting:0};
+        buttons.forEach(button =&gt; counts[button.dataset.status]++);
+        liveCounts.textContent = `${counts.proven} proven · ${counts.active} active · ${counts.queued} queued · ${counts.waiting} waiting`;
+        const events = (state.activity || []).slice(0,6);
+        liveActivity.replaceChildren(...events.map(event =&gt; {
+          const row = document.createElement(&#x27;div&#x27;); row.className = &#x27;activity-item&#x27;;
+          const time = document.createElement(&#x27;time&#x27;); time.textContent = event.time || &#x27;Now&#x27;;
+          const copy = document.createElement(&#x27;span&#x27;); copy.textContent = event.message;
+          row.append(time,copy); return row;
+        }));
+      };
+      const poll = async () =&gt; {
+        try {
+          const response = await fetch(`keypath-test-automation-state.json?t=${Date.now()}`, {cache:&#x27;no-store&#x27;});
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          applyState(await response.json());
+        } catch (_) {
+          liveDot.className = &#x27;live-dot offline&#x27;;
+          liveTask.textContent = &#x27;Live feed unavailable&#x27;;
+          liveMessage.textContent = &#x27;Open this dashboard through the local progress server to receive updates.&#x27;;
+          liveTime.textContent = &#x27;Offline&#x27;;
+        }
+      };
+      poll();
+      window.setInterval(poll, 1200);
     })();
   &lt;/script&gt;
 &lt;/div&gt;
