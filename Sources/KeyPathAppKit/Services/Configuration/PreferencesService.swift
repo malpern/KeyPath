@@ -453,6 +453,10 @@ final class PreferencesService: @unchecked Sendable {
     // MARK: - Initialization
 
     init() {
+        // The command-action feature was removed in #879. Clear its retired
+        // preference so older installs do not retain a misleading security flag.
+        UserDefaults.standard.removeObject(forKey: "KeyPath.Security.ConfigCommandActionsEnabled")
+
         // Load stored preferences or use defaults
         let protocolString =
             UserDefaults.standard.string(forKey: Keys.communicationProtocol)

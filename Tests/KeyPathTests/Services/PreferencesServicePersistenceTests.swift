@@ -334,6 +334,24 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         XCTAssertFalse(prefs.isValidPort(65536))
     }
 
+    // MARK: - Retired Preference Cleanup
+
+    func testRetiredCommandActionsPreferenceIsRemovedOnLoad() {
+        let key = "KeyPath.Security.ConfigCommandActionsEnabled"
+        let saved = UserDefaults.standard.object(forKey: key)
+        defer {
+            if let saved { UserDefaults.standard.set(saved, forKey: key) } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+
+        UserDefaults.standard.set(true, forKey: key)
+
+        _ = PreferencesService()
+
+        XCTAssertNil(UserDefaults.standard.object(forKey: key))
+    }
+
     // MARK: - Legacy TCP Port Migration
 
     /// An old install that still has the UDP-era port (54141) stored should be
