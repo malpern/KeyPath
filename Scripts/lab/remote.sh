@@ -585,7 +585,7 @@ secure_dialog_input() {
     guest_command+='IFS= read -r secret_value; secret_path=$(/usr/bin/mktemp /tmp/keypath-secure-input.XXXXXX); /bin/chmod 600 "$secret_path"; trap '\''rm -f "$secret_path"'\'' EXIT; printf '\''%s'\'' "$secret_value" > "$secret_path"; unset secret_value; '
     guest_command+="$field_command \"\$secret_path\" >/dev/null; rm -f \"\$secret_path\"; trap - EXIT"
   else
-    click_args=(/opt/homebrew/bin/peekaboo click --app "$app" --query "$field_label" --json)
+    click_args=(/opt/homebrew/bin/peekaboo click "$field_label" --app "$app" --json)
     printf -v field_command '%q ' "${click_args[@]}"
     guest_command+="$field_command >/dev/null; "
   fi
@@ -593,7 +593,11 @@ secure_dialog_input() {
     guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1'
   fi
   if [[ -n "$submit_button" ]]; then
-    submit_args=(/opt/homebrew/bin/peekaboo click --app "$app" --query "$submit_button" --json)
+    if [[ "$app" == "SecurityAgent" ]]; then
+      submit_args=(/opt/homebrew/bin/peekaboo click "$submit_button" --app "$app" --foreground --input-strategy synthOnly --json)
+    else
+      submit_args=(/opt/homebrew/bin/peekaboo click "$submit_button" --app "$app" --json)
+    fi
     printf -v submit_command '%q ' "${submit_args[@]}"
     guest_command+="; $submit_command >/dev/null"
   fi

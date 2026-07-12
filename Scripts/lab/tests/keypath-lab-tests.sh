@@ -328,8 +328,14 @@ secure_agent_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent
 assert_contains "$secure_agent_result" $'secure_dialog_input\tpassed'
 grep -q 'osascript' "$TMP/guest-ssh-args"
 grep -q 'keypath-secure-input' "$TMP/guest-ssh-args"
+grep -q 'peekaboo.*click.*Allow.*--app.*SecurityAgent' "$TMP/guest-ssh-args"
+grep -q -- '--foreground.*--input-strategy.*synthOnly' "$TMP/guest-ssh-args"
 grep -q 'SecurityAgent.*closed' "$TMP/guest-ssh-args"
 grep -q 'exit\\ 77' "$TMP/guest-ssh-args"
+if grep -q -- '--query' "$TMP/guest-ssh-args"; then
+    echo "secure dialog input used removed Peekaboo --query syntax" >&2
+    exit 1
+fi
 if grep -q '/usr/bin/sudo' "$TMP/guest-ssh-args"; then
     echo "SecurityAgent secure input relied on passwordless sudo validation" >&2
     exit 1
