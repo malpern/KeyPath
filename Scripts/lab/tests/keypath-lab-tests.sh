@@ -19,9 +19,9 @@ case "\$1" in
  run) echo product=15.7.7; echo build=24G720 ;;
  stop)
    echo "stop-15 \$2" >> "$CALLS"
-   if [[ \$2 == cbx_missing ]]; then echo "tart lease not found: cbx_missing"; exit 1; fi
+   if [[ \$2 == cbx_missing || \$2 == cbx_leaked ]]; then echo "tart lease not found: \$2"; exit 1; fi
    ;;
- list) echo cbx_test15 ;;
+ list) echo cbx_test15; echo cbx_leaked ;;
 esac
 EOF
 cat > "$ROOT/bin/launcher26" <<EOF
@@ -341,6 +341,17 @@ missing_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_missing/manifest.tsv"
 sed -i '' 's/cbx_desktop15/cbx_missing/g; s/^status.*/status\tprovisioning-failed/; s/^cleanup_status.*/cleanup_status\tpending/; s/^provider_resource.*/provider_resource\tunknown/' "$missing_manifest"
 run_remote destroy cbx_missing >/dev/null
 grep -q $'cleanup_status\tcomplete' "$missing_manifest"
+
+cp -R "$ROOT/KeyPathInstallerLab/leases/cbx_desktop15" "$ROOT/KeyPathInstallerLab/leases/cbx_leaked"
+leaked_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_leaked/manifest.tsv"
+sed -i '' 's/cbx_desktop15/cbx_leaked/g; s/^status.*/status\tprovisioning-failed/; s/^cleanup_status.*/cleanup_status\tpending/; s/^provider_resource.*/provider_resource\tunknown/' "$leaked_manifest"
+set +e
+run_remote destroy cbx_leaked >/dev/null
+leaked_exit=$?
+set -e
+[[ $leaked_exit -ne 0 ]] || { echo "destroy treated an inventoried lease as absent" >&2; exit 1; }
+grep -q $'cleanup_status\tfailed' "$leaked_manifest"
+rm -rf "$ROOT/KeyPathInstallerLab/leases/cbx_leaked"
 
 rm -rf "$ROOT/KeyPathInstallerLab/leases/cbx_desktop15"
 KEYPATH_LAB_TEST_SLOW_WARMUP=1 run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1 > "$TMP/slow-create.log" 2>&1 &

@@ -50,7 +50,7 @@ sleep 3
 sudo "$kanata" --cfg "$output/physical.kbd" > "$output/physical.log" 2>&1 &
 physical_pid=$!
 sudo "$kanata" --cfg "$output/second-client.kbd" > "$output/second-client.log" 2>&1 &
-output_only_pid=$!
+second_client_pid=$!
 
 for _ in {1..100}; do
   if grep -q 'virtual_hid_keyboard_ready true' "$output/physical.log" 2>/dev/null &&
@@ -64,12 +64,18 @@ grep -q 'virtual_hid_keyboard_ready true' "$output/second-client.log"
 grep -q 'exclusive access and device already open' "$output/second-client.log" ||
   grep -q 'exclusive access and device already open' "$output/physical.log"
 sudo kill -0 "$physical_pid"
-sudo kill -0 "$output_only_pid"
+sudo kill -0 "$second_client_pid"
 
 sudo pkill -TERM -f "$daemon"
-sleep 3
 sudo kill -0 "$physical_pid"
-sudo kill -0 "$output_only_pid"
+sudo kill -0 "$second_client_pid"
+for _ in {1..100}; do
+  if grep -q 'virtual_hid_keyboard_ready false' "$output/physical.log" 2>/dev/null &&
+     grep -q 'virtual_hid_keyboard_ready false' "$output/second-client.log" 2>/dev/null; then
+    break
+  fi
+  sleep 0.1
+done
 grep -q 'virtual_hid_keyboard_ready false' "$output/physical.log"
 grep -q 'virtual_hid_keyboard_ready false' "$output/second-client.log"
 

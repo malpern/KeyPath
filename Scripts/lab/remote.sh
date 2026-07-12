@@ -567,19 +567,19 @@ secure_dialog_input() {
 
   # Peekaboo's MCP type response contains the typed value. Suppress both output
   # streams for that command so the secret cannot enter controller logs.
-  local click_command submit_command
+  local field_command submit_command
   local -a click_args submit_args focus_args
   guest_command='set -euo pipefail; command -v /opt/homebrew/bin/peekaboo >/dev/null; command -v /opt/homebrew/bin/mcporter >/dev/null; '
   if [[ "$field_label" == "AXSecureTextField" ]]; then
     [[ "$app" == "SecurityAgent" ]] || die "AXSecureTextField is supported only for SecurityAgent"
     focus_args=(/usr/bin/osascript -e 'on run argv' -e 'set secretValue to read POSIX file (item 1 of argv) as «class utf8»' -e 'tell application "System Events" to tell process "SecurityAgent" to set value of first UI element of window 1 whose description is "secure text field" to secretValue' -e 'end run')
-    printf -v click_command '%q ' "${focus_args[@]}"
+    printf -v field_command '%q ' "${focus_args[@]}"
     guest_command+='IFS= read -r secret_value; if ! printf '\''%s\n'\'' "$secret_value" | /usr/bin/sudo -S -k /usr/bin/true >/dev/null 2>&1; then unset secret_value; exit 77; fi; secret_path=$(/usr/bin/mktemp /tmp/keypath-secure-input.XXXXXX); /bin/chmod 600 "$secret_path"; trap '\''rm -f "$secret_path"'\'' EXIT; printf '\''%s'\'' "$secret_value" > "$secret_path"; unset secret_value; '
-    guest_command+="$click_command \"\$secret_path\" >/dev/null; rm -f \"\$secret_path\"; trap - EXIT"
+    guest_command+="$field_command \"\$secret_path\" >/dev/null; rm -f \"\$secret_path\"; trap - EXIT"
   else
     click_args=(/opt/homebrew/bin/peekaboo click --app "$app" --query "$field_label" --json)
-    printf -v click_command '%q ' "${click_args[@]}"
-    guest_command+="$click_command >/dev/null; "
+    printf -v field_command '%q ' "${click_args[@]}"
+    guest_command+="$field_command >/dev/null; "
   fi
   if [[ "$field_label" != "AXSecureTextField" ]]; then
     guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1'
@@ -686,7 +686,7 @@ scenario() {
 }
 
 destroy_lease() {
-  local lease=$1 manifest macos launcher exit_code repo
+  local lease=$1 manifest macos launcher exit_code repo inventory inventory_exit
   manifest=$(owned_manifest "$lease")
   [[ "$(field "$manifest" cleanup_status)" != "complete" ]] || { print "already_clean\t$lease"; return; }
   macos=$(field "$manifest" macos)
@@ -700,9 +700,18 @@ destroy_lease() {
   set -e
   set_field "$manifest" cleanup_attempted_at "$(utc_now)"
   set_field "$manifest" cleanup_result "$exit_code"
+  inventory=
+  inventory_exit=1
+  if (( exit_code != 0 )) && [[ "$(field "$manifest" provider_resource)" == "unknown" ]]; then
+    set +e
+    inventory=$("$launcher" list 2>> "$LOGS/$lease/destroy.log")
+    inventory_exit=$?
+    set -e
+    print -r -- "$inventory" >> "$LOGS/$lease/destroy.log"
+  fi
   if (( exit_code == 0 )) || {
-    [[ "$(field "$manifest" provider_resource)" == "unknown" ]] &&
-      grep -q -E 'lease not found|not found.*lease' "$LOGS/$lease/destroy.log"
+    (( inventory_exit == 0 )) &&
+      ! print -r -- "$inventory" | grep -Eo 'cbx_[A-Za-z0-9]+' | grep -Fxq "$lease"
   }; then
     set_field "$manifest" cleanup_status complete
     set_field "$manifest" status destroyed
