@@ -28,6 +28,11 @@ Commands:
 The default host is clawd@keypath-lab-mini. Set KEYPATH_LAB_HOST or pass
 --host to override it. Creation always requires an explicit full commit SHA and
 an installer artifact. No command embeds or prompts for credentials.
+
+VM creation is centrally admitted per provider. Exit 75 with `capacity_busy`
+means another owned lease has the available slot; do not bypass this controller,
+stop that lease, or adopt it. Continue non-VM work or retry after its owner
+destroys it or its TTL expires. See docs/testing/remote-installer-lab.md.
 EOF
     exit 2
 }
