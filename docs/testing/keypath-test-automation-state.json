@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-12T08:01:15-07:00",
-  "currentTask": "Development log simplified",
-  "message": "Removed bubbles and repeated avatars; updates now read as a quiet timestamped transcript.",
+  "updatedAt": "2026-07-12T09:48:48-07:00",
+  "currentTask": "TCP readiness hardened",
+  "message": "R04 now requires a real bounded Kanata layer response; synthetic failure contracts and the installed runtime passed.",
   "complete": false,
   "workingBlocks": [],
   "activeWork": {},
@@ -15,6 +15,76 @@
     "M14": "active"
   },
   "updates": [
+    {
+      "time": "09:48",
+      "block": "R04",
+      "tone": "success",
+      "title": "TCP readiness hardened",
+      "message": "R04 now requires a real bounded Kanata layer response; synthetic failure contracts and the installed runtime passed."
+    },
+    {
+      "time": "09:48",
+      "block": "R03",
+      "tone": "success",
+      "title": "Runtime convergence hardened",
+      "message": "R03 now rejects registered-but-stopped jobs and passed against the real local KeyPath runtime."
+    },
+    {
+      "time": "09:47",
+      "block": "R04",
+      "tone": "retry",
+      "title": "Adapting to the deployed response",
+      "message": "The real runtime returned LayerChange instead of CurrentLayerName; the probe now accepts either documented layer-bearing response and still rejects unrelated JSON."
+    },
+    {
+      "time": "09:46",
+      "block": "R03",
+      "tone": "success",
+      "title": "Runtime failure contract passed",
+      "message": "A registered launchd job no longer counts as live unless it reports state = running."
+    },
+    {
+      "time": "09:46",
+      "block": "R04",
+      "tone": "success",
+      "title": "TCP failure contracts passed",
+      "message": "Valid replies pass; open-but-silent and wrong-protocol sockets now fail deterministically."
+    },
+    {
+      "time": "09:45",
+      "block": "R04",
+      "tone": "retry",
+      "title": "Adjusting for system Python",
+      "message": "The first test run hit Python compatibility, so R04 stepped back while the test harness is made portable."
+    },
+    {
+      "time": "09:45",
+      "block": "R03",
+      "tone": "success",
+      "title": "Runtime liveness check implemented",
+      "message": "R03 now rejects a registered but stopped Kanata launchd job."
+    },
+    {
+      "time": "09:45",
+      "block": "R04",
+      "tone": "success",
+      "title": "Protocol-aware TCP probe implemented",
+      "message": "R04 now requires a valid CurrentLayerName response instead of merely accepting an open socket."
+    },
+    {
+      "time": "09:42",
+      "block": "R04",
+      "tone": "working",
+      "title": "Pairing TCP readiness with runtime proof",
+      "message": "R04 is active alongside R03 because both postconditions must converge independently."
+    },
+    {
+      "time": "09:42",
+      "block": "R03",
+      "tone": "working",
+      "title": "Starting runtime convergence hardening",
+      "message": "Auditing R03 runtime and R04 TCP checks so a forgiving product retry cannot create a false pass."
+    },
     {
       "time": "08:01",
       "block": "M14",

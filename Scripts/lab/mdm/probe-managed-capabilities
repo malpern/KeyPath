@@ -13,7 +13,7 @@ mkdir -p "$output"
 
 cli=${KEYPATH_LAB_CLI:-/Applications/KeyPath.app/Contents/MacOS/keypath-cli}
 python=${KEYPATH_LAB_PYTHON:-/usr/bin/python3}
-nc=${KEYPATH_LAB_NC:-/usr/bin/nc}
+tcp_probe=${KEYPATH_LAB_TCP_PROBE:-$(cd "$(dirname "$0")/.." >/dev/null && pwd -P)/probe-kanata-tcp}
 systemextensionsctl=${KEYPATH_LAB_SYSTEMEXTENSIONSCTL:-/usr/bin/systemextensionsctl}
 sfltool=${KEYPATH_LAB_SFLTOOL:-/usr/bin/sfltool}
 launchctl=${KEYPATH_LAB_LAUNCHCTL:-/bin/launchctl}
@@ -51,7 +51,7 @@ if not status.get("helperVersion"):
 PY
 [[ $status_exit -eq 0 ]] || { echo "managed capability probe: CLI status exited $status_exit" >&2; exit "$status_exit"; }
 
-"$nc" -vz 127.0.0.1 37001 > "$output/tcp-readiness.txt" 2>&1
+"$tcp_probe" > "$output/tcp-readiness.json" 2> "$output/tcp-readiness.stderr"
 "$systemextensionsctl" list > "$output/system-extensions.txt" 2>&1
 grep -Fq 'org.pqrs.Karabiner-DriverKit-VirtualHIDDevice' "$output/system-extensions.txt" || {
     echo "managed capability probe: VirtualHID system extension is absent" >&2
@@ -60,5 +60,9 @@ grep -Fq 'org.pqrs.Karabiner-DriverKit-VirtualHIDDevice' "$output/system-extensi
 
 "$sfltool" dumpbtm > "$output/background-items.txt" 2>&1 || true
 "$launchctl" print system/com.keypath.kanata > "$output/kanata-launchd.txt" 2>&1
+grep -Eq 'state[[:space:]]*=[[:space:]]*running' "$output/kanata-launchd.txt" || {
+    echo "managed capability probe: Kanata launchd job is not running" >&2
+    exit 1
+}
 
 printf 'managed_capabilities\tpassed\n' | tee "$output/result.tsv"

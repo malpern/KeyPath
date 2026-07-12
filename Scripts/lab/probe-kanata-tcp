@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+import argparse
+import json
+import socket
+import sys
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Require a real Kanata TCP protocol response")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=37001)
+    parser.add_argument("--timeout", type=float, default=2.0)
+    args = parser.parse_args()
+    request_id = "keypath-lab-readiness"
+    request = {"RequestCurrentLayerName": {"request_id": request_id}}
+    try:
+        with socket.create_connection((args.host, args.port), timeout=args.timeout) as connection:
+            connection.settimeout(args.timeout)
+            connection.sendall(json.dumps(request, separators=(",", ":")).encode() + b"\n")
+            response = connection.makefile("rb").readline(65537)
+    except (OSError, TimeoutError) as error:
+        raise SystemExit(f"kanata TCP probe failed: {error}") from error
+    if not response or len(response) > 65536:
+        raise SystemExit("kanata TCP probe failed: no bounded line response")
+    try:
+        payload = json.loads(response)
+    except json.JSONDecodeError as error:
+        raise SystemExit(f"kanata TCP probe failed: invalid JSON response: {error}") from error
+    current = payload.get("CurrentLayerName")
+    change = payload.get("LayerChange")
+    current_valid = isinstance(current, dict) and isinstance(current.get("name"), str)
+    change_valid = isinstance(change, dict) and isinstance(change.get("new"), str)
+    if not current_valid and not change_valid:
+        raise SystemExit("kanata TCP probe failed: layer response missing")
+    print(json.dumps(payload, separators=(",", ":")))
+
+
+if __name__ == "__main__":
+    main()

@@ -86,6 +86,12 @@ responds. The presence of a profile is preparation, not proof that KeyPath works
 Run `keypath-lab scenario LEASE managed-capabilities` to capture and assert this
 evidence. The scenario fails unless the lease is `managed-functional`.
 
+Runtime readiness is deliberately stricter than registration or an open port.
+The probe requires the Kanata launchd job to report `state = running`, sends a
+real `RequestCurrentLayerName` request to port 37001, and requires a bounded
+layer-bearing JSON response. A registered-but-stopped job, an open-but-silent
+socket, or unrelated JSON is a failure.
+
 The probe contract can be exercised without a VM:
 
 ```bash
