@@ -230,6 +230,36 @@ lock_exit=$?
 set -e
 [[ $lock_exit -eq 75 ]] || { echo "expected admission-lock contention to exit 75, got $lock_exit" >&2; exit 1; }
 assert_contains "$lock_output" admission_lock_busy
+
+env \
+    KEYPATH_LAB_TESTING=1 \
+    KEYPATH_LAB_TEST_ROOT="$ROOT" \
+    KEYPATH_LAB_LAUNCHER_15="$ROOT/bin/launcher15" \
+    KEYPATH_LAB_LAUNCHER_26="$ROOT/bin/launcher26" \
+    KEYPATH_LAB_LAUNCHER_27="$ROOT/bin/launcher27" \
+    KEYPATH_LAB_CRABBOX="$ROOT/bin/crabbox" \
+    KEYPATH_LAB_TART="$ROOT/bin/tart" \
+    KEYPATH_LAB_GUEST_SSH="$ROOT/bin/guest-ssh" \
+    KEYPATH_LAB_TEST_SSH_KEY="$TMP/id_ed25519" \
+    KEYPATH_LAB_TEST_SECRET_FILE="$TMP/secure-input" \
+    KEYPATH_LAB_ADMISSION_WAIT_ATTEMPTS=3000 \
+    /bin/zsh "$REMOTE" create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 >"$TMP/interrupted-wait.log" 2>&1 &
+interrupted_wait_pid=$!
+for _ in {1..100}; do
+    compgen -G "$ROOT/KeyPathInstallerLab/.provider-admission-tart.owner.*" >/dev/null && break
+    sleep 0.05
+done
+compgen -G "$ROOT/KeyPathInstallerLab/.provider-admission-tart.owner.*" >/dev/null || { echo "contending create did not write pending owner record" >&2; exit 1; }
+kill -TERM "$interrupted_wait_pid"
+set +e
+wait "$interrupted_wait_pid"
+interrupted_wait_exit=$?
+set -e
+[[ $interrupted_wait_exit -eq 143 ]] || { cat "$TMP/interrupted-wait.log" >&2; echo "expected interrupted lock wait to exit 143, got $interrupted_wait_exit" >&2; exit 1; }
+if compgen -G "$ROOT/KeyPathInstallerLab/.provider-admission-tart.owner.*" >/dev/null; then
+    echo "interrupted lock wait left a pending owner record" >&2
+    exit 1
+fi
 rm -rf "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
 
 env \
