@@ -10,12 +10,16 @@ if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
   LAUNCHER_26="${KEYPATH_LAB_LAUNCHER_26:?test launcher 26 is required}"
   LAUNCHER_27="${KEYPATH_LAB_LAUNCHER_27:?test launcher 27 is required}"
   CRABBOX="${KEYPATH_LAB_CRABBOX:?test CrabBox is required}"
+  TART="${KEYPATH_LAB_TART:?test Tart is required}"
+  GUEST_SSH="${KEYPATH_LAB_GUEST_SSH:?test guest SSH is required}"
 else
   LAB_ROOT="$PRODUCTION_ROOT"
   LAUNCHER_15="$LAB_ROOT/keypath15"
   LAUNCHER_26="$LAB_ROOT/keypath26"
   LAUNCHER_27="$LAB_ROOT/keypath27"
   CRABBOX="$LAB_ROOT/SharedTools/bin/crabbox"
+  TART="${KEYPATH_LAB_TART:-$LAB_ROOT/CompatTools/bin/tart}"
+  GUEST_SSH="${KEYPATH_LAB_GUEST_SSH:-/usr/bin/ssh}"
 fi
 
 STATE_ROOT="$LAB_ROOT/KeyPathInstallerLab"
@@ -353,6 +357,55 @@ run_command() {
   return "$exit_code"
 }
 
+secure_dialog_input() {
+  local lease=$1 app=$2 field_label=$3 submit_button=$4
+  local manifest macos resource key ip secret_file guest_command exit_code
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$macos" == "15" ]] || die "secure dialog input currently supports only the Tart macOS 15 lane"
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "secure dialog input requires a desktop-enabled lease"
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Za-z0-9._-]+$' && "$resource" != "unknown" ]] || die "invalid Tart resource id"
+  key="$HOME/Library/Application Support/crabbox/testboxes/$lease/id_ed25519"
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    key="${KEYPATH_LAB_TEST_SSH_KEY:?test SSH key is required}"
+    secret_file="${KEYPATH_LAB_TEST_SECRET_FILE:?test secret file is required}"
+  else
+    [[ -f "$key" && ! -L "$key" && -O "$key" ]] || die "owned CrabBox SSH key not found for lease"
+    secret_file=$(mktemp "$STATE_ROOT/.secure-input.XXXXXXXX")
+    chmod 600 "$secret_file"
+    trap 'rm -f "$secret_file"' EXIT
+    /opt/homebrew/bin/sops -d "$HOME/dotfiles/secrets.env" | awk -F= '$1 == "KEYPATH_TART_ADMIN_PASSWORD" {sub(/^[^=]*=/, ""); print; found=1} END {if (!found) exit 1}' > "$secret_file" || die "KEYPATH_TART_ADMIN_PASSWORD is unavailable"
+  fi
+  [[ -s "$secret_file" ]] || die "secure input secret is empty"
+  if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
+  ip=$($TART ip "$resource")
+  [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
+
+  # Peekaboo's MCP type response contains the typed value. Suppress both output
+  # streams for that command so the secret cannot enter controller logs.
+  guest_command='set -euo pipefail; command -v /opt/homebrew/bin/peekaboo >/dev/null; command -v /opt/homebrew/bin/mcporter >/dev/null; '
+  printf -v guest_command '%s%q ' "$guest_command" /opt/homebrew/bin/peekaboo click --app "$app" --query "$field_label" --json
+  guest_command+=" >/dev/null; "
+  guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1'
+  if [[ -n "$submit_button" ]]; then
+    printf -v guest_command '%s; %q ' "$guest_command" /opt/homebrew/bin/peekaboo click --app "$app" --query "$submit_button" --json
+    guest_command+=" >/dev/null"
+  fi
+  set +e
+  "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")" < "$secret_file"
+  exit_code=$?
+  set -e
+  [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]] || rm -f "$secret_file"
+  if (( exit_code == 0 )); then
+    record_command "$lease" passed secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
+    print "secure_dialog_input\tpassed"
+  else
+    record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
+    die "secure dialog input failed"
+  fi
+}
+
 print_status() {
   local lease=$1 manifest macos launcher
   manifest=$(owned_manifest "$lease")
@@ -484,6 +537,7 @@ case "$action" in
   install-archive) [[ $# -eq 5 ]] || die "install-archive requires ticket, key, commit, checksum, and name"; install_archive "$@" ;;
   create) [[ $# -eq 7 ]] || die "create requires lane, archive, commit, checksum, name, ttl, desktop"; create_lease "$@" ;;
   install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
+  secure-dialog-input) [[ $# -eq 4 ]] || die "secure-dialog-input requires lease, app, field, and optional submit value"; secure_dialog_input "$@" ;;
   run) [[ $# -ge 2 ]] || die "run requires lease and command"; run_command "$@" ;;
   status) [[ $# -eq 1 ]] || die "status requires lease"; print_status "$1" ;;
   list) [[ $# -eq 0 ]] || die "list takes no arguments"; list_leases ;;

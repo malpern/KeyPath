@@ -14,6 +14,7 @@ Commands:
   preflight
   create --macos 15|26|27 --commit SHA --installer PATH [--ttl 2h] [--desktop]
   install-app LEASE_ID
+  secure-dialog-input LEASE_ID --app APP --field LABEL [--submit BUTTON]
   run LEASE_ID -- COMMAND [ARG...]
   status LEASE_ID
   list
@@ -111,6 +112,25 @@ EOF
         [[ $# -eq 1 ]] || usage
         require_lease_id "$1"
         remote install-app "$1"
+        ;;
+    secure-dialog-input)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        app=
+        field=
+        submit=
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --app) app=${2:-}; shift 2 ;;
+                --field) field=${2:-}; shift 2 ;;
+                --submit) submit=${2:-}; shift 2 ;;
+                *) usage ;;
+            esac
+        done
+        [[ -n $app && -n $field ]] || usage
+        remote secure-dialog-input "$lease" "$app" "$field" "$submit"
         ;;
     run)
         lease=${1:-}
