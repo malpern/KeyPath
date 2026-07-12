@@ -18,6 +18,11 @@ perl -0pi -e "s/connect-src blob: data:/connect-src 'self' blob: data:/g" "$OUTP
 # even though both resources come from this local server.
 perl -0pi -e 's/sandbox="allow-scripts"/sandbox="allow-scripts allow-same-origin"/g' "$OUTPUT"
 
+# The live app adds a development conversation rail beside the capability map.
+# Preserve the renderer's responsive wrapper while allowing the two-column view.
+perl -0pi -e 's/max-width:736px/max-width:1180px/g' "$OUTPUT"
+
 grep -Fq "connect-src 'self' blob: data:" "$OUTPUT"
 grep -Fq 'sandbox="allow-scripts allow-same-origin"' "$OUTPUT"
+grep -Fq 'max-width:1180px' "$OUTPUT"
 echo "$OUTPUT"

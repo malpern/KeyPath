@@ -1,24 +1,91 @@
 {
-  "updatedAt": "2026-07-12T07:40:00-07:00",
-  "currentTask": "Waiting for managed-lane enrollment",
-  "message": "R01 and R02 probe contracts pass. No Codex task is actively changing a block; the real VM proof awaits the managed base.",
+  "updatedAt": "2026-07-12T07:45:19-07:00",
+  "currentTask": "Dashboard composition complete",
+  "message": "The capability map keeps the full width; the Codex development conversation now follows beneath it.",
   "complete": false,
   "workingBlocks": [],
+  "activeWork": {},
   "statuses": {
     "R01": "active",
     "R02": "active",
     "R03": "active",
     "R04": "active",
     "P01": "active",
-    "P02": "active"
+    "P02": "active",
+    "M14": "active"
   },
+  "updates": [
+    {
+      "time": "07:45",
+      "block": "M14",
+      "tone": "success",
+      "title": "Dashboard composition complete",
+      "message": "The capability map keeps the full width; the Codex development conversation now follows beneath it."
+    },
+    {
+      "time": "07:56",
+      "block": "M14",
+      "tone": "retry",
+      "title": "Changing the composition",
+      "message": "The side rail made the capability map feel cramped. Moving the conversation below preserves the visual breathing room."
+    },
+    {
+      "time": "07:52",
+      "block": "M14",
+      "tone": "working",
+      "title": "Wiring the live feed",
+      "message": "The right rail now turns structured state updates into a running Codex development conversation."
+    },
+    {
+      "time": "07:49",
+      "block": "M14",
+      "tone": "success",
+      "title": "Visual language chosen",
+      "message": "Progress is a fill line, smooth work breathes, retries wobble, and blockers hold a firm red edge."
+    },
+    {
+      "time": "07:46",
+      "block": "M14",
+      "tone": "working",
+      "title": "Mapping the experience",
+      "message": "Separating frontier status from live engineering health so orange never implies that a task is currently running."
+    },
+    {
+      "time": "07:40",
+      "block": "R01 R02",
+      "tone": "success",
+      "title": "Probe contracts passed",
+      "message": "Managed permission failure cases are now deterministic; the real VM proof still awaits enrollment."
+    }
+  ],
   "activity": [
-    {"time": "07:40", "message": "Managed capability probe hardening committed (4625af72)."},
-    {"time": "07:38", "message": "Kanata Accessibility and Input Monitoring failure contracts passed locally."},
-    {"time": "07:36", "message": "Remote lab preflight passed; no managed macOS base exists yet."},
-    {"time": "14:06", "message": "SecurityAgent focused-input automation committed (266b624b)."},
-    {"time": "14:05", "message": "VirtualHID independently verified as activated enabled and healthy."},
-    {"time": "13:52", "message": "KeyPath helper and managed background item reached working state."},
-    {"time": "13:40", "message": "Secure System Settings password transport passed in a disposable VM."}
+    {
+      "time": "07:40",
+      "message": "Managed capability probe hardening committed (4625af72)."
+    },
+    {
+      "time": "07:38",
+      "message": "Kanata Accessibility and Input Monitoring failure contracts passed locally."
+    },
+    {
+      "time": "07:36",
+      "message": "Remote lab preflight passed; no managed macOS base exists yet."
+    },
+    {
+      "time": "14:06",
+      "message": "SecurityAgent focused-input automation committed (266b624b)."
+    },
+    {
+      "time": "14:05",
+      "message": "VirtualHID independently verified as activated enabled and healthy."
+    },
+    {
+      "time": "13:52",
+      "message": "KeyPath helper and managed background item reached working state."
+    },
+    {
+      "time": "13:40",
+      "message": "Secure System Settings password transport passed in a disposable VM."
+    }
   ]
 }
