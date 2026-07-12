@@ -29,6 +29,7 @@ ARTIFACTS="$STATE_ROOT/artifacts"
 LOGS="$STATE_ROOT/logs"
 OPERATIONS="$STATE_ROOT/operations"
 HELD_ADMISSION_LOCK=
+HELD_ADMISSION_OWNER=
 
 die() { print -u2 "keypath-lab(remote): $*"; exit 1; }
 now_epoch() { date +%s; }
@@ -102,27 +103,33 @@ provider_capacity() {
 
 acquire_admission_lock() {
   local provider=$1 attempt=0 owner owner_pid stale lock_age lock_mtime lock="$STATE_ROOT/provider-admission-$provider.lock"
+  local owner_record="$STATE_ROOT/.provider-admission-$provider.owner.$$"
   local max_attempts=${KEYPATH_LAB_ADMISSION_WAIT_ATTEMPTS:-3000}
   local incomplete_grace=${KEYPATH_LAB_INCOMPLETE_LOCK_GRACE_SECONDS:-5}
   [[ "$max_attempts" == <-> && "$max_attempts" -gt 0 ]] || die "invalid admission wait attempts: $max_attempts"
   [[ "$incomplete_grace" == <-> ]] || die "invalid incomplete lock grace: $incomplete_grace"
+  {
+    print "pid\t$$"
+    print "provider\t$provider"
+    print "created_at\t$(utc_now)"
+  } > "$owner_record"
   while ((attempt < max_attempts)); do
-    if mkdir "$lock" 2>/dev/null; then
-      {
-        print "pid\t$$"
-        print "provider\t$provider"
-        print "created_at\t$(utc_now)"
-      } > "$lock/owner.tsv"
+    if ln "$owner_record" "$lock" 2>/dev/null; then
       HELD_ADMISSION_LOCK="$lock"
+      HELD_ADMISSION_OWNER="$owner_record"
       return
     fi
-    owner_pid=$(field "$lock/owner.tsv" pid 2>/dev/null || true)
-    # Owner metadata is written immediately after mkdir; an older empty lock means
-    # its creator died in that narrow window rather than merely running slowly.
-    lock_mtime=$(stat -f %m "$lock" 2>/dev/null || stat -c %Y "$lock" 2>/dev/null || print 0)
-    lock_age=$(( $(now_epoch) - lock_mtime ))
+    if [[ -d "$lock" ]]; then
+      # Recover directory locks created by the initial implementation of this protocol.
+      owner_pid=$(field "$lock/owner.tsv" pid 2>/dev/null || true)
+      lock_mtime=$(stat -f %m "$lock" 2>/dev/null || stat -c %Y "$lock" 2>/dev/null || print 0)
+      lock_age=$(( $(now_epoch) - lock_mtime ))
+    else
+      owner_pid=$(field "$lock" pid 2>/dev/null || true)
+      lock_age=0
+    fi
     if { [[ "$owner_pid" == <-> ]] && ! kill -0 "$owner_pid" 2>/dev/null; } ||
-       { [[ -z "$owner_pid" && "$lock_age" -ge "$incomplete_grace" ]]; }; then
+       { [[ -d "$lock" && -z "$owner_pid" && "$lock_age" -ge "$incomplete_grace" ]]; }; then
       stale="$STATE_ROOT/provider-admission-$provider.stale.$$"
       if mv "$lock" "$stale" 2>/dev/null; then
         rm -rf "$stale"
@@ -132,17 +139,21 @@ acquire_admission_lock() {
     ((attempt += 1))
     sleep 0.1
   done
-  owner=$(cat "$lock/owner.tsv" 2>/dev/null || print unavailable)
+  rm -f "$owner_record"
+  owner=$([[ -d "$lock" ]] && cat "$lock/owner.tsv" 2>/dev/null || cat "$lock" 2>/dev/null || print unavailable)
   print -u2 "admission_lock_busy"
   print -u2 -- "$owner"
   return 75
 }
 
 release_admission_lock() {
-  [[ -n "$HELD_ADMISSION_LOCK" && -d "$HELD_ADMISSION_LOCK" ]] || return
-  rm -f "$HELD_ADMISSION_LOCK/owner.tsv"
-  rmdir "$HELD_ADMISSION_LOCK"
+  if [[ -n "$HELD_ADMISSION_LOCK" && -n "$HELD_ADMISSION_OWNER" &&
+        -f "$HELD_ADMISSION_LOCK" && "$HELD_ADMISSION_LOCK" -ef "$HELD_ADMISSION_OWNER" ]]; then
+    rm -f "$HELD_ADMISSION_LOCK"
+  fi
+  [[ -n "$HELD_ADMISSION_OWNER" ]] && rm -f "$HELD_ADMISSION_OWNER"
   HELD_ADMISSION_LOCK=
+  HELD_ADMISSION_OWNER=
 }
 
 release_admission_lock_and_exit() {
