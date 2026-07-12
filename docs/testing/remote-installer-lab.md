@@ -86,6 +86,10 @@ records an explicit unavailable status otherwise.
 
 ### Semantic UI automation with Peekaboo 3
 
+For the current capability matrix, security boundaries, and agent handoff
+sequence, see
+[`installer-gui-automation-capabilities.md`](installer-gui-automation-capabilities.md).
+
 Desktop guests can use `Scripts/lab/peekaboo-ui` to discover and operate
 KeyPath and System Settings without framebuffer coordinate assumptions. The
 adapter provides typed commands for snapshots, semantic clicks, dialog
@@ -193,8 +197,11 @@ VirtualHID extension state, KeyPath-owned launchd jobs, signatures, Gatekeeper
 and stapling results, processes, TCP readiness, and relevant logs. It also emits
 an operator checklist for Accessibility, Input Monitoring, Background App
 Activity, Driver Extension approval, overlay behavior, and reboot persistence.
-Those interactions remain manual because programmatically modifying TCC or
-bypassing macOS approval UI would invalidate the regression test.
+Those interactions must use the real logged-in System Settings UI. They may be
+driven by Peekaboo or CrabBox RFB automation; directly modifying TCC or
+bypassing macOS approval UI would invalidate the regression test. Every
+automated interaction still requires the corresponding system/runtime
+postcondition.
 
 Distribution trust checks are required by default. For harness development
 against a locally signed debug deployment only, set
