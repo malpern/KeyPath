@@ -30,6 +30,7 @@ LOGS="$STATE_ROOT/logs"
 OPERATIONS="$STATE_ROOT/operations"
 HELD_ADMISSION_LOCK=
 HELD_ADMISSION_OWNER=
+PENDING_ADMISSION_OWNER=
 
 die() { print -u2 "keypath-lab(remote): $*"; exit 1; }
 now_epoch() { date +%s; }
@@ -108,6 +109,7 @@ acquire_admission_lock() {
   local incomplete_grace=${KEYPATH_LAB_INCOMPLETE_LOCK_GRACE_SECONDS:-5}
   [[ "$max_attempts" == <-> && "$max_attempts" -gt 0 ]] || die "invalid admission wait attempts: $max_attempts"
   [[ "$incomplete_grace" == <-> ]] || die "invalid incomplete lock grace: $incomplete_grace"
+  PENDING_ADMISSION_OWNER="$owner_record"
   {
     print "pid\t$$"
     print "provider\t$provider"
@@ -115,6 +117,7 @@ acquire_admission_lock() {
   } > "$owner_record"
   while ((attempt < max_attempts)); do
     if ln "$owner_record" "$lock" 2>/dev/null; then
+      PENDING_ADMISSION_OWNER=
       HELD_ADMISSION_LOCK="$lock"
       HELD_ADMISSION_OWNER="$owner_record"
       return
@@ -140,13 +143,20 @@ acquire_admission_lock() {
     sleep 0.1
   done
   rm -f "$owner_record"
-  owner=$([[ -d "$lock" ]] && cat "$lock/owner.tsv" 2>/dev/null || cat "$lock" 2>/dev/null || print unavailable)
+  PENDING_ADMISSION_OWNER=
+  if [[ -d "$lock" ]]; then
+    owner=$(cat "$lock/owner.tsv" 2>/dev/null || print unavailable)
+  else
+    owner=$(cat "$lock" 2>/dev/null || print unavailable)
+  fi
   print -u2 "admission_lock_busy"
   print -u2 -- "$owner"
   return 75
 }
 
 release_admission_lock() {
+  [[ -n "$PENDING_ADMISSION_OWNER" ]] && rm -f "$PENDING_ADMISSION_OWNER"
+  PENDING_ADMISSION_OWNER=
   if [[ -n "$HELD_ADMISSION_LOCK" && -n "$HELD_ADMISSION_OWNER" &&
         -f "$HELD_ADMISSION_LOCK" && "$HELD_ADMISSION_LOCK" -ef "$HELD_ADMISSION_OWNER" ]]; then
     rm -f "$HELD_ADMISSION_LOCK"
@@ -342,7 +352,7 @@ install_archive() {
 
 create_lease() {
   local macos=$1 archive_key=$2 commit=$3 installer_sha=$4 installer_name=$5 ttl=$6 desktop=$7
-  local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds provider_resource
+  local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds provider_resource exit_code
   launcher=$(launcher_for "$macos")
   provider=$(provider_for "$macos")
   valid_id "$archive_key"
@@ -350,11 +360,15 @@ create_lease() {
   [[ -f "$archive/ready.tsv" && -d "$archive/repo/.git" ]] || die "prepared archive not found: $archive_key"
   ttl_seconds=$(duration_seconds "$ttl")
   (( ttl_seconds > 0 && ttl_seconds <= 7200 )) || die "TTL must be between 1 second and 2 hours"
-  acquire_admission_lock "$provider" || return $?
   trap 'release_admission_lock' EXIT
   trap 'release_admission_lock_and_exit 130' INT
   trap 'release_admission_lock_and_exit 143' TERM
   trap 'release_admission_lock_and_exit 129' HUP
+  acquire_admission_lock "$provider" || {
+    exit_code=$?
+    trap - EXIT INT TERM HUP
+    return "$exit_code"
+  }
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" && -n "${KEYPATH_LAB_TEST_PAUSE_AFTER_ADMISSION_LOCK:-}" ]]; then
     sleep "$KEYPATH_LAB_TEST_PAUSE_AFTER_ADMISSION_LOCK"
   fi
