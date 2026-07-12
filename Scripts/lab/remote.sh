@@ -705,6 +705,7 @@ protected_click() {
     key="$HOME/Library/Application Support/crabbox/testboxes/$lease/id_ed25519"
     [[ -f "$key" && ! -L "$key" && -O "$key" ]] || die "owned CrabBox SSH key not found for lease"
     if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
+    export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     ip=$($TART ip "$resource")
     [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
     printf -v guest_command '%q ' /opt/homebrew/bin/peekaboo see --app "$app" --json
@@ -718,12 +719,12 @@ protected_click() {
 
   if [[ "$coordinate_space" == "ax" ]]; then
     if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
-      geometry=${KEYPATH_LAB_TEST_DISPLAY_GEOMETRY:-$'2048\t1536\t1024\t768'}
+      geometry=${KEYPATH_LAB_TEST_DISPLAY_GEOMETRY:-'2048 1536 1024 768'}
     else
-      geometry_command='/opt/homebrew/bin/peekaboo list windows --app '$(printf %q "$app")' --json | /usr/bin/python3 -c '\''import json,re,sys; data=json.load(sys.stdin).get("data",{}); windows=data.get("windows",data if isinstance(data,list) else []); names=[w.get("screenName","") for w in windows if isinstance(w,dict)]; m=next((re.search(r"([0-9]+)×([0-9]+)",n) for n in names if re.search(r"([0-9]+)×([0-9]+)",n)),None); print(f"{m.group(1)}\\t{m.group(2)}" if m else "")'\''; printf "\\t"; /usr/bin/osascript -l JavaScript -e '\''ObjC.import("AppKit"); var s=$.NSScreen.mainScreen.frame.size; s.width+"\\t"+s.height'\'''
+      geometry_command='/opt/homebrew/bin/peekaboo list windows --app '$(printf %q "$app")' --json | /usr/bin/python3 -c '\''import json,re,sys; data=json.load(sys.stdin).get("data",{}); windows=data.get("windows",data if isinstance(data,list) else []); names=[w.get("screenName","") for w in windows if isinstance(w,dict)]; m=next((re.search(r"([0-9]+)×([0-9]+)",n) for n in names if re.search(r"([0-9]+)×([0-9]+)",n)),None); print(f"{m.group(1)} {m.group(2)}" if m else "",end="")'\''; printf " "; /usr/bin/osascript -l JavaScript -e '\''ObjC.import("AppKit"); var s=$.NSScreen.mainScreen.frame.size; s.width+" "+s.height'\'''
       geometry=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$geometry_command")")
     fi
-    IFS=$'\t' read -r native_width native_height logical_width logical_height <<< "$geometry"
+    IFS=' ' read -r native_width native_height logical_width logical_height <<< "$geometry"
     [[ "$native_width" == <-> && "$native_height" == <-> && "$logical_width" == <-> && "$logical_height" == <-> && "$logical_width" -gt 0 && "$logical_height" -gt 0 ]] || die "protected click could not measure display geometry"
     (( native_width % logical_width == 0 && native_height % logical_height == 0 )) || die "protected click measured a non-integral display scale"
     scale_x=$((native_width / logical_width))
