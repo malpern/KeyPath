@@ -328,7 +328,9 @@ secure_agent_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent
 assert_contains "$secure_agent_result" $'secure_dialog_input\tpassed'
 grep -q 'osascript' "$TMP/guest-ssh-args"
 grep -q 'keypath-secure-input' "$TMP/guest-ssh-args"
-grep -q 'peekaboo.*click.*Allow.*--app.*SecurityAgent' "$TMP/guest-ssh-args"
+grep -q 'button.*position.*size' "$TMP/guest-ssh-args"
+grep -q 'Allow' "$TMP/guest-ssh-args"
+grep -q 'peekaboo.*click.*--coords.*button_coords.*--global-coords' "$TMP/guest-ssh-args"
 grep -q -- '--foreground.*--input-strategy.*synthOnly' "$TMP/guest-ssh-args"
 grep -q 'SecurityAgent.*closed' "$TMP/guest-ssh-args"
 grep -q 'exit\\ 77' "$TMP/guest-ssh-args"

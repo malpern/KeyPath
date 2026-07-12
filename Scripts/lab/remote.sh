@@ -574,8 +574,8 @@ secure_dialog_input() {
 
   # Peekaboo's MCP type response contains the typed value. Suppress both output
   # streams for that command so the secret cannot enter controller logs.
-  local field_command submit_command postcondition_command
-  local -a click_args submit_args focus_args postcondition_args
+  local field_command submit_command button_geometry_command postcondition_command
+  local -a click_args submit_args focus_args button_geometry_args postcondition_args
   guest_command='set -euo pipefail; command -v /opt/homebrew/bin/peekaboo >/dev/null; command -v /opt/homebrew/bin/mcporter >/dev/null; '
   if [[ "$field_label" == "AXSecureTextField" ]]; then
     [[ "$app" == "SecurityAgent" ]] || die "AXSecureTextField is supported only for SecurityAgent"
@@ -594,17 +594,19 @@ secure_dialog_input() {
   fi
   if [[ -n "$submit_button" ]]; then
     if [[ "$app" == "SecurityAgent" ]]; then
-      submit_args=(/opt/homebrew/bin/peekaboo click "$submit_button" --app "$app" --foreground --input-strategy synthOnly --json)
+      button_geometry_args=(/usr/bin/osascript -e 'on run argv' -e 'tell application "System Events" to tell process "SecurityAgent" to tell button (item 1 of argv) of window 1' -e 'set {buttonX, buttonY} to position' -e 'set {buttonWidth, buttonHeight} to size' -e 'return ((round (buttonX + buttonWidth / 2)) as text) & "," & ((round (buttonY + buttonHeight / 2)) as text)' -e 'end tell' -e 'end run' "$submit_button")
+      printf -v button_geometry_command '%q ' "${button_geometry_args[@]}"
+      guest_command+="; button_coords=\$( $button_geometry_command ); [[ \"\$button_coords\" =~ '^-?[0-9]+,-?[0-9]+$' ]] || exit 78; /opt/homebrew/bin/peekaboo click --coords \"\$button_coords\" --global-coords --foreground --input-strategy synthOnly --json >/dev/null"
     else
       submit_args=(/opt/homebrew/bin/peekaboo click "$submit_button" --app "$app" --json)
+      printf -v submit_command '%q ' "${submit_args[@]}"
+      guest_command+="; $submit_command >/dev/null"
     fi
-    printf -v submit_command '%q ' "${submit_args[@]}"
-    guest_command+="; $submit_command >/dev/null"
   fi
   if [[ "$field_label" == "AXSecureTextField" ]]; then
     postcondition_args=(/usr/bin/osascript -e 'tell application "System Events"' -e 'if not (exists process "SecurityAgent") then return "closed"' -e 'tell process "SecurityAgent"' -e 'if not (exists window 1) then return "closed"' -e 'if not (exists first UI element of window 1 whose description is "secure text field") then return "closed"' -e 'end tell' -e 'end tell' -e 'return "open"')
     printf -v postcondition_command '%q ' "${postcondition_args[@]}"
-    guest_command+="; for attempt in {1..50}; do [[ \$( $postcondition_command ) == closed ]] && exit 0; sleep 0.1; done; exit 77"
+    guest_command+="; for attempt in {1..150}; do [[ \$( $postcondition_command ) == closed ]] && exit 0; sleep 0.1; done; exit 77"
   fi
   set +e
   "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")" < "$secret_file"
