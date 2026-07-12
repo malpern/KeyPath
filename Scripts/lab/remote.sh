@@ -8,11 +8,13 @@ if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
   LAB_ROOT="${KEYPATH_LAB_TEST_ROOT:?KEYPATH_LAB_TEST_ROOT is required in test mode}"
   LAUNCHER_15="${KEYPATH_LAB_LAUNCHER_15:?test launcher 15 is required}"
   LAUNCHER_26="${KEYPATH_LAB_LAUNCHER_26:?test launcher 26 is required}"
+  LAUNCHER_27="${KEYPATH_LAB_LAUNCHER_27:?test launcher 27 is required}"
   CRABBOX="${KEYPATH_LAB_CRABBOX:?test CrabBox is required}"
 else
   LAB_ROOT="$PRODUCTION_ROOT"
   LAUNCHER_15="$LAB_ROOT/keypath15"
   LAUNCHER_26="$LAB_ROOT/keypath26"
+  LAUNCHER_27="$LAB_ROOT/keypath27"
   CRABBOX="$LAB_ROOT/SharedTools/bin/crabbox"
 fi
 
@@ -35,12 +37,13 @@ launcher_for() {
   case "$1" in
     15) print -r -- "$LAUNCHER_15" ;;
     26) print -r -- "$LAUNCHER_26" ;;
+    27) print -r -- "$LAUNCHER_27" ;;
     *) die "unsupported macOS lane: $1" ;;
   esac
 }
 
 provider_for() {
-  case "$1" in 15) print tart ;; 26) print parallels ;; *) die "unsupported macOS lane: $1" ;; esac
+  case "$1" in 15) print tart ;; 26|27) print parallels ;; *) die "unsupported macOS lane: $1" ;; esac
 }
 
 manifest_path() { print -r -- "$LEASES/$1/manifest.tsv"; }
@@ -135,7 +138,7 @@ warmup_desktop() {
   else
     export PATH="$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     "$CRABBOX" warmup --provider parallels --target macos --desktop \
-      --parallels-template keypath-macos-26 --parallels-user keypathqa \
+      --parallels-template "keypath-macos-$macos" --parallels-user keypathqa \
       --parallels-work-root /Users/keypathqa/crabbox --ssh-port 22 \
       --slug "$slug" --ttl 2h
   fi
@@ -145,7 +148,7 @@ preflight() {
   local mount_point
   [[ "$LAB_ROOT" == "$PRODUCTION_ROOT" || "${KEYPATH_LAB_TESTING:-0}" == "1" ]] || die "unsafe lab root"
   [[ -d "$LAB_ROOT" ]] || die "lab root is not mounted: $LAB_ROOT"
-  [[ -x "$LAUNCHER_15" && -x "$LAUNCHER_26" && -x "$CRABBOX" ]] || die "lab launchers or CrabBox are unavailable"
+  [[ -x "$LAUNCHER_15" && -x "$LAUNCHER_26" && -x "$LAUNCHER_27" && -x "$CRABBOX" ]] || die "lab launchers or CrabBox are unavailable"
   if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" ]]; then
     mount_point=$(df -P "$LAB_ROOT" | awk 'NR == 2 {for (i=6; i<=NF; i++) printf "%s%s", (i == 6 ? "" : " "), $i; print ""}')
     [[ "$mount_point" == "/Volumes/KeyPath Lab" ]] || die "lab root is not on the expected external volume"
@@ -153,6 +156,7 @@ preflight() {
   ensure_roots
   "$LAUNCHER_15" doctor
   "$LAUNCHER_26" doctor
+  "$LAUNCHER_27" doctor
   print "host_os\t$(sw_vers -productVersion 2>/dev/null || print unknown)"
   print "host_build\t$(sw_vers -buildVersion 2>/dev/null || print unknown)"
   print "lab_root\t$LAB_ROOT"

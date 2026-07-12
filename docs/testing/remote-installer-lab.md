@@ -18,7 +18,7 @@ remain beneath `KeyPathInstallerLab` on the external volume after cleanup.
 ## Prerequisites
 
 - SSH access to `clawd@keypath-lab-mini` without an interactive password.
-- `/Volumes/KeyPath Lab/CrabBox/keypath15` and `keypath26` executable.
+- `/Volumes/KeyPath Lab/CrabBox/keypath15`, `keypath26`, and `keypath27` executable.
 - Shared CrabBox 0.36.0 tools beneath `CrabBox/SharedTools`.
 - A full 40-character KeyPath commit SHA present in the local repository.
 - A signed installer artifact whose SHA-256 checksum can be recorded.
@@ -51,7 +51,7 @@ the completed archive.
 ```bash
 SHA=$(git rev-parse HEAD)
 Scripts/lab/keypath-lab create \
-  --macos 15 \
+  --macos 27 \
   --commit "$SHA" \
   --installer dist/KeyPath.zip \
   --ttl 2h \
