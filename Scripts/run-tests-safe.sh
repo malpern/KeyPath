@@ -219,6 +219,11 @@ print_run_summary() {
   SUMMARY_PRINTED=1
 }
 
+print_failure_log_paths() {
+  echo "🪵 Full test log: ${LOG:-not-created}"
+  echo "🪵 Full build log: ${BUILD_LOG:-not-created}"
+}
+
 kill_process_tree() {
   local pid="${1:-}"
   local child
@@ -440,6 +445,7 @@ BUILD_DURATION_SECONDS=$(($(date +%s) - BUILD_START_SECONDS))
 if [ "$BUILD_EXIT_CODE" != "0" ]; then
   echo "❌ Test build failed (exit $BUILD_EXIT_CODE)"
   print_run_summary "$BUILD_EXIT_CODE"
+  print_failure_log_paths
   exit "$BUILD_EXIT_CODE"
 fi
 
@@ -542,6 +548,7 @@ fi
 if [ "$EXIT_CODE" = "124" ]; then
   echo "⚠️  Tests timed out; see $LOG"
   print_run_summary "$EXIT_CODE"
+  print_failure_log_paths
   exit 124
 fi
 
@@ -565,6 +572,7 @@ if [ "$IS_SIGNAL_CRASH" = true ]; then
 
   echo "❌ Treating test runner signal crash as failure"
   print_run_summary "$EXIT_CODE"
+  print_failure_log_paths
   exit "$EXIT_CODE"
 fi
 
@@ -586,6 +594,7 @@ if [ "$LOG_SIGNAL_CRASH" = true ]; then
 
   echo "❌ Treating test runner signal crash as failure"
   print_run_summary "$EXIT_CODE"
+  print_failure_log_paths
   exit "$EXIT_CODE"
 fi
 
@@ -594,6 +603,7 @@ if [ "$FAIL_COUNT" -gt 0 ]; then
   echo "❌ $FAIL_COUNT test(s) failed ($PASS_COUNT passed)"
   grep -E "Test Case '.*' failed|Test .* failed after" "$LOG" || true
   print_run_summary "$EXIT_CODE"
+  print_failure_log_paths
   exit 1
 fi
 
@@ -611,4 +621,5 @@ else
   echo "❌ Test run failed (exit $EXIT_CODE, no test output found)"
 fi
 print_run_summary "$EXIT_CODE"
+print_failure_log_paths
 exit $EXIT_CODE

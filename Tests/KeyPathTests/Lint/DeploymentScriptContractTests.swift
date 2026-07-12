@@ -165,6 +165,20 @@ final class DeploymentScriptContractTests: XCTestCase {
             "Legacy noncanonical modules require one marker-gated artifact migration."
         )
     }
+
+    func testSafeTestFailuresAlwaysPrintArtifactPaths() throws {
+        let root = repositoryRoot()
+        let safeTests = try contents(of: root.appendingPathComponent("Scripts/run-tests-safe.sh"))
+
+        XCTAssertTrue(safeTests.contains("print_failure_log_paths()"))
+        XCTAssertTrue(safeTests.contains(#"Full test log: ${LOG:-not-created}"#))
+        XCTAssertTrue(safeTests.contains(#"Full build log: ${BUILD_LOG:-not-created}"#))
+        XCTAssertEqual(
+            safeTests.components(separatedBy: "print_failure_log_paths\n").count - 1,
+            6,
+            "Every build, timeout, crash, parsed-failure, and unexplained nonzero exit must print artifact paths."
+        )
+    }
 }
 
 // MARK: - Helpers
