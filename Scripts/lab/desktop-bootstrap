@@ -35,9 +35,13 @@ mcporter_bin=$(command -v mcporter || true)
 [[ -x "$peekaboo_bin" && -x "$mcporter_bin" ]] || die "Peekaboo 3 and mcporter are required"
 [[ "$($peekaboo_bin --version | head -1)" == Peekaboo\ 3.* ]] || die "Peekaboo 3 is required"
 
-$peekaboo_bin permissions status --json > "$output/peekaboo-permissions-before.json"
+$peekaboo_bin permissions status --json > "$output/peekaboo-permissions-before.json" || true
+# Ensure there is a normal shareable window. A bare Finder desktop has no
+# eligible window, so it cannot trigger or verify capture consent.
+open -a "System Settings"
+sleep 2
 # The first capture can display macOS's private-picker bypass consent sheet.
-$peekaboo_bin see --json > "$output/initial-desktop.json" || true
+$peekaboo_bin see --app "System Settings" --json > "$output/initial-desktop.json" || true
 $peekaboo_bin see --app UserNotificationCenter --json > "$output/user-notification-center.json" || true
 
 consent=$(python3 - "$output/user-notification-center.json" <<'PY'
@@ -60,7 +64,7 @@ if [[ -n "$consent" ]]; then
     > "$output/peekaboo-consent-click.json"
 fi
 
-$peekaboo_bin see --json > "$output/desktop-ready.json"
+$peekaboo_bin see --app "System Settings" --json > "$output/desktop-ready.json"
 $peekaboo_bin permissions status --json > "$output/peekaboo-permissions-after.json"
 
 python3 - "$output/bootstrap.json" "$console_user" "$($peekaboo_bin --version | head -1)" <<'PY'
