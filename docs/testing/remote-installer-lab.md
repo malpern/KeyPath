@@ -128,14 +128,20 @@ Scripts/lab/keypath-lab run cbx_example -- \
   Scripts/lab/peekaboo-ui snapshot \
   --app 'System Settings' --output "$OUT/input-monitoring.json"
 Scripts/lab/keypath-lab run cbx_example -- \
-  Scripts/lab/peekaboo-ui click \
-  --app 'System Settings' --query Add --output "$OUT/add-click.json"
-Scripts/lab/keypath-lab run cbx_example -- \
-  Scripts/lab/peekaboo-ui file \
-  --app 'System Settings' \
+  Scripts/lab/permission-drag \
   --path /Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher \
-  --output "$OUT/file-dialog.json"
+  --target-identifier KeyPath_Title \
+  --output "$OUT/permission-drag.json"
 ```
+
+The Accessibility and Input Monitoring plus-button panels filter the raw
+`kanata-launcher` executable and leave Open disabled. `permission-drag` uses
+the supported KeyPath flow instead: reveal the exact binary in Finder, derive
+the current source and permission-list target geometry from fresh AX snapshots,
+and drag between the two arranged windows. It succeeds only when macOS presents
+an authorization sheet or the expected permission row appears. If authorization
+is requested, follow it with `secure-dialog-input` and verify the new
+`kanata-launcher_Title` row before continuing.
 
 Peekaboo click success means that it delivered an action to the selected UI
 element. It is not proof that macOS accepted a protected change. Background App
@@ -177,15 +183,16 @@ transport. It is valid only after current visual evidence shows the focused
 secure field, and success still requires the corresponding system-extension
 postcondition.
 
-When the SecurityAgent sheet exposes its unnamed `AXSecureTextField`, prefer
-the stricter role-based path with a submit label. The controller writes the
+When an authorization sheet exposes an `AXSecureTextField`, prefer the stricter
+role-based path with a submit label. This covers both standalone SecurityAgent
+windows and sheets hosted by System Settings. The controller writes the
 streamed password to a mode-0600 guest temporary file long enough for
-AppleScript to set the protected field directly, derives the submit button's
+AppleScript to set the protected field in the named app, derives the submit button's
 current center from AX geometry, and delivers a synthesized foreground pointer
 click. The file is removed by an exit trap, the clipboard is never used, and
-the helper succeeds only after the SecurityAgent sheet closes. It does not use
+the helper succeeds only after that secure field disappears. It does not use
 `sudo` as a password oracle because the disposable Tart image intentionally has
-passwordless sudo. Do not generalize this role-based path to other apps.
+passwordless sudo.
 
 For a protected control that requires native RFB delivery, use the lease-owned
 guard instead of invoking CrabBox directly:

@@ -58,4 +58,40 @@ if "$LAB_DIR/peekaboo-ui" click --app KeyPath --output "$TMP/out/bad.json" >/dev
   exit 1
 fi
 
+DRAG_PEEKABOO="$TMP/drag-peekaboo"
+cat > "$DRAG_PEEKABOO" <<'EOF'
+#!/bin/bash
+set -euo pipefail
+printf '%s\n' "$*" >> "$PEEKABOO_CALLS"
+if [[ ${1:-} == see && "$*" == *"--app Finder"* ]]; then
+  printf '{"data":{"ui_elements":[{"label":"kanata-launcher","is_actionable":true,"bounds":{"x":10,"y":20,"width":40,"height":60}}]}}\n'
+elif [[ ${1:-} == see ]]; then
+  printf '{"data":{"ui_elements":[{"identifier":"KeyPath_Title","bounds":{"x":600,"y":100,"width":100,"height":20}}]}}\n'
+else
+  printf '{"success":true}\n'
+fi
+EOF
+chmod +x "$DRAG_PEEKABOO"
+
+FAKE_OPEN="$TMP/open"
+printf '#!/bin/bash\nprintf "%%s\\n" "$*" >> "$OPEN_CALLS"\n' > "$FAKE_OPEN"
+chmod +x "$FAKE_OPEN"
+export OPEN_CALLS="$TMP/open-calls"
+
+FAKE_OSASCRIPT="$TMP/osascript"
+cat > "$FAKE_OSASCRIPT" <<'EOF'
+#!/bin/bash
+[[ "$*" == *'AXSecureTextField'* ]] && echo secure
+exit 0
+EOF
+chmod +x "$FAKE_OSASCRIPT"
+
+touch "$TMP/kanata-launcher"
+KEYPATH_PERMISSION_DRAG_REVEAL_SECONDS=0 KEYPATH_PERMISSION_DRAG_SETTLE_SECONDS=0 \
+  PEEKABOO_BIN="$DRAG_PEEKABOO" OPEN_BIN="$FAKE_OPEN" OSASCRIPT_BIN="$FAKE_OSASCRIPT" \
+  "$LAB_DIR/permission-drag" --path "$TMP/kanata-launcher" --target-identifier KeyPath_Title --output "$TMP/out/drag.json" > "$TMP/drag-result"
+grep -q $'permission_drag\tauthorization-required' "$TMP/drag-result"
+grep -q -- '-R .*kanata-launcher' "$OPEN_CALLS"
+grep -q 'drag --from-coords 30,50 --to-coords 650,110 --duration 1500 --steps 30 --profile linear --json' "$PEEKABOO_CALLS"
+
 echo 'peekaboo-ui shell tests passed'

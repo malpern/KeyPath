@@ -1,0 +1,84 @@
+#!/bin/zsh
+set -euo pipefail
+
+die() { print -u2 "permission-drag: $*"; exit 1; }
+
+usage() {
+  print -u2 "Usage: Scripts/lab/permission-drag --path FILE --target-identifier IDENTIFIER --output FILE"
+  exit 2
+}
+
+peekaboo=${PEEKABOO_BIN:-/opt/homebrew/bin/peekaboo}
+open_bin=${OPEN_BIN:-/usr/bin/open}
+osascript=${OSASCRIPT_BIN:-/usr/bin/osascript}
+file_path=
+target_identifier=
+output=
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --path) file_path=${2:-}; shift 2 ;;
+    --target-identifier) target_identifier=${2:-}; shift 2 ;;
+    --output) output=${2:-}; shift 2 ;;
+    *) usage ;;
+  esac
+done
+
+[[ "$file_path" == /* && -f "$file_path" ]] || die "--path must identify an existing absolute file"
+[[ -n "$target_identifier" ]] || die "--target-identifier is required"
+[[ -n "$output" && "$output" != -* ]] || die "--output is required"
+mkdir -p "${output:h}"
+
+tmp=$(mktemp -d /tmp/keypath-permission-drag.XXXXXX)
+trap 'rm -rf "$tmp"' EXIT
+name=${file_path:t}
+
+"$open_bin" -R "$file_path"
+sleep ${KEYPATH_PERMISSION_DRAG_REVEAL_SECONDS:-2}
+"$osascript" -e 'tell application "System Events" to tell process "Finder" to tell window 1 to set {position, size} to {{0, 40}, {500, 700}}' >/dev/null
+"$osascript" -e 'tell application "System Events" to tell process "System Settings" to tell window 1 to set {position, size} to {{500, 40}, {524, 700}}' >/dev/null
+sleep ${KEYPATH_PERMISSION_DRAG_SETTLE_SECONDS:-1}
+
+"$peekaboo" see --app Finder --json > "$tmp/source.json"
+"$peekaboo" see --app "System Settings" --json > "$tmp/target.json"
+
+coords=$(/usr/bin/python3 - "$tmp/source.json" "$tmp/target.json" "$name" "$target_identifier" <<'PY'
+import json, sys
+
+source = json.load(open(sys.argv[1])).get("data", {}).get("ui_elements", [])
+target = json.load(open(sys.argv[2])).get("data", {}).get("ui_elements", [])
+source_name, target_identifier = sys.argv[3], sys.argv[4]
+
+def center(element):
+    bounds = element.get("bounds") or {}
+    return round(bounds["x"] + bounds["width"] / 2), round(bounds["y"] + bounds["height"] / 2)
+
+source_element = next((e for e in source if e.get("label") == source_name and e.get("is_actionable")), None)
+target_element = next((e for e in target if e.get("identifier") == target_identifier), None)
+if source_element is None or target_element is None:
+    raise SystemExit(1)
+sx, sy = center(source_element)
+tx, ty = center(target_element)
+print(f"{sx},{sy} {tx},{ty}")
+PY
+) || die "could not resolve source or permission-list target"
+
+source_coords=${coords%% *}
+target_coords=${coords##* }
+"$peekaboo" drag --from-coords "$source_coords" --to-coords "$target_coords" --duration 1500 --steps 30 --profile linear --json > "$output"
+sleep ${KEYPATH_PERMISSION_DRAG_SETTLE_SECONDS:-1}
+
+# Delivery is not success. Require either the expected authorization sheet or
+# the newly-added permission row before returning.
+if "$osascript" -l JavaScript -e 'var p=Application("System Events").processes.byName("System Settings"); function all(e){var o=[];try{var x=e.uiElements();for(var i=0;i<x.length;i++){o.push(x[i]);o=o.concat(all(x[i]));}}catch(_){}return o;} all(p.windows[0]).some(function(e){try{return e.subrole()==="AXSecureTextField"}catch(_){return false}}) ? "secure" : "absent"' 2>/dev/null | grep -q secure; then
+  print "permission_drag\tauthorization-required"
+  exit 0
+fi
+
+"$peekaboo" see --app "System Settings" --json > "$tmp/after.json"
+/usr/bin/python3 - "$tmp/after.json" "${name}_Title" <<'PY' || die "drag delivery had no authorization sheet or permission-row postcondition"
+import json, sys
+elements = json.load(open(sys.argv[1])).get("data", {}).get("ui_elements", [])
+raise SystemExit(0 if any(e.get("identifier") == sys.argv[2] for e in elements) else 1)
+PY
+print "permission_drag\tadded"
