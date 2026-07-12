@@ -29,6 +29,31 @@ struct KarabinerConflictServiceTests {
         )
     }
 
+    @Test("Karabiner 16 installed without grabber is not a conflict")
+    func karabiner16WithoutGrabberIsNotAConflict() async {
+        TestSingletonReset.resetAll()
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configurePgrepResult { pattern in
+            // Modern Karabiner releases may run harmless supporting agents,
+            // but only the input grabber competes with Kanata for exclusive
+            // keyboard access.
+            pattern == "karabiner_console_user_server" ? [4444] : []
+        }
+
+        let provider = SystemStateProvider(probes: runner.systemProbeClient())
+        let service = KarabinerConflictService(systemStateProvider: provider)
+
+        let isRunning = await service.isKarabinerElementsRunning()
+        let commands = await runner.executedCommands
+
+        #expect(!isRunning)
+        #expect(
+            commands.filter { $0.executable == "/usr/bin/pgrep" }.map(\.args) == [["-f", "karabiner_grabber"]],
+            "Harmless Karabiner agents and app presence must not be treated as an input conflict"
+        )
+    }
+
     @Test("VirtualHID daemon detection uses injected SystemStateProvider")
     func virtualHIDDaemonDetectionUsesInjectedSystemStateProvider() async {
         TestSingletonReset.resetAll()

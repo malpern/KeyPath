@@ -630,7 +630,6 @@ launchctl list | grep -i karabiner
 # 10916	0	org.pqrs.service.agent.Karabiner-Menu
 # 10919	0	org.pqrs.service.agent.Karabiner-NotificationWindow
 # 10221	0	org.pqrs.service.agent.karabiner_console_user_server
-# 10223	0	org.pqrs.service.agent.karabiner_session_monitor
 ```
 
 **Common Issues**:
