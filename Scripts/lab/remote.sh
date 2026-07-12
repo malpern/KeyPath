@@ -28,7 +28,7 @@ LEASES="$STATE_ROOT/leases"
 ARTIFACTS="$STATE_ROOT/artifacts"
 LOGS="$STATE_ROOT/logs"
 OPERATIONS="$STATE_ROOT/operations"
-ADMISSION_LOCK="$STATE_ROOT/provider-admission.lock"
+HELD_ADMISSION_LOCK=
 
 die() { print -u2 "keypath-lab(remote): $*"; exit 1; }
 now_epoch() { date +%s; }
@@ -101,21 +101,23 @@ provider_capacity() {
 }
 
 acquire_admission_lock() {
-  local provider=$1 attempt=0 owner owner_pid stale max_attempts=${KEYPATH_LAB_ADMISSION_WAIT_ATTEMPTS:-300}
+  local provider=$1 attempt=0 owner owner_pid stale lock="$STATE_ROOT/provider-admission-$provider.lock"
+  local max_attempts=${KEYPATH_LAB_ADMISSION_WAIT_ATTEMPTS:-3000}
   [[ "$max_attempts" == <-> && "$max_attempts" -gt 0 ]] || die "invalid admission wait attempts: $max_attempts"
   while ((attempt < max_attempts)); do
-    if mkdir "$ADMISSION_LOCK" 2>/dev/null; then
+    if mkdir "$lock" 2>/dev/null; then
       {
         print "pid\t$$"
         print "provider\t$provider"
         print "created_at\t$(utc_now)"
-      } > "$ADMISSION_LOCK/owner.tsv"
+      } > "$lock/owner.tsv"
+      HELD_ADMISSION_LOCK="$lock"
       return
     fi
-    owner_pid=$(field "$ADMISSION_LOCK/owner.tsv" pid 2>/dev/null || true)
+    owner_pid=$(field "$lock/owner.tsv" pid 2>/dev/null || true)
     if [[ "$owner_pid" == <-> ]] && ! kill -0 "$owner_pid" 2>/dev/null; then
-      stale="$STATE_ROOT/provider-admission.stale.$$"
-      if mv "$ADMISSION_LOCK" "$stale" 2>/dev/null; then
+      stale="$STATE_ROOT/provider-admission-$provider.stale.$$"
+      if mv "$lock" "$stale" 2>/dev/null; then
         rm -rf "$stale"
         continue
       fi
@@ -123,16 +125,17 @@ acquire_admission_lock() {
     ((attempt += 1))
     sleep 0.1
   done
-  owner=$(cat "$ADMISSION_LOCK/owner.tsv" 2>/dev/null || print unavailable)
+  owner=$(cat "$lock/owner.tsv" 2>/dev/null || print unavailable)
   print -u2 "admission_lock_busy"
   print -u2 -- "$owner"
   return 75
 }
 
 release_admission_lock() {
-  [[ -d "$ADMISSION_LOCK" ]] || return
-  rm -f "$ADMISSION_LOCK/owner.tsv"
-  rmdir "$ADMISSION_LOCK"
+  [[ -n "$HELD_ADMISSION_LOCK" && -d "$HELD_ADMISSION_LOCK" ]] || return
+  rm -f "$HELD_ADMISSION_LOCK/owner.tsv"
+  rmdir "$HELD_ADMISSION_LOCK"
+  HELD_ADMISSION_LOCK=
 }
 
 assert_provider_capacity() {

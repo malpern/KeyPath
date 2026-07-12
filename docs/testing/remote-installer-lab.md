@@ -37,8 +37,9 @@ Scripts/lab/keypath-lab preflight
 Agents may prepare code, artifacts, and local contract tests concurrently, but
 VM creation is admitted centrally on the mini. The default host limits are one
 active Tart lease and two active Parallels leases. `create` takes an atomic
-host-side admission lock, counts unexpired owned lease manifests, and reserves
-capacity before another creator can enter. The lock is held only during
+provider-specific host-side admission lock, counts unexpired owned lease
+manifests, and reserves capacity before another creator for that provider can
+enter. Tart and Parallels provisioning can proceed in parallel. The lock is held only during
 provisioning; each resulting manifest remains the capacity reservation until
 the lease is destroyed or expires.
 
@@ -47,7 +48,7 @@ owning lease, OS, lane, expiry, commit, and slug. This is an infrastructure wait
 not a KeyPath failure. Agents should continue non-VM work or retry after the
 reported lease is destroyed; they must not stop or adopt that lease. A dead
 creator's admission lock is reclaimed automatically, while a live creator gets
-a short bounded window to finish provisioning.
+a five-minute bounded window to finish provisioning.
 
 The limits can be tuned on the mini with `KEYPATH_LAB_CAPACITY_TART` and
 `KEYPATH_LAB_CAPACITY_PARALLELS`. Keep Tart at one until repeated concurrent

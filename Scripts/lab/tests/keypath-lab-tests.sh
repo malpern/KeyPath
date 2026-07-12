@@ -209,21 +209,24 @@ run_remote destroy cbx_test15 >/dev/null
 grep -q 'stop-15 cbx_test15' "$CALLS"
 grep -q $'cleanup_status\tcomplete' "$manifest"
 
-mkdir -p "$ROOT/KeyPathInstallerLab/provider-admission.lock"
-printf 'pid\t%s\nprovider\ttart\n' "$$" > "$ROOT/KeyPathInstallerLab/provider-admission.lock/owner.tsv"
+mkdir -p "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
+printf 'pid\t%s\nprovider\ttart\n' "$$" > "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock/owner.tsv"
+parallel_provider_create=$(run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
+assert_contains "$parallel_provider_create" $'lease_id\tcbx_test26'
+run_remote destroy cbx_test26 >/dev/null
 set +e
 lock_output=$(KEYPATH_LAB_ADMISSION_WAIT_ATTEMPTS=1 run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
 lock_exit=$?
 set -e
 [[ $lock_exit -eq 75 ]] || { echo "expected admission-lock contention to exit 75, got $lock_exit" >&2; exit 1; }
 assert_contains "$lock_output" admission_lock_busy
-rm -rf "$ROOT/KeyPathInstallerLab/provider-admission.lock"
+rm -rf "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
 
-mkdir -p "$ROOT/KeyPathInstallerLab/provider-admission.lock"
-printf 'pid\t99999999\nprovider\tparallels\n' > "$ROOT/KeyPathInstallerLab/provider-admission.lock/owner.tsv"
+mkdir -p "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock"
+printf 'pid\t99999999\nprovider\tparallels\n' > "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock/owner.tsv"
 create26=$(run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create26" $'lease_id\tcbx_test26'
-[[ ! -e "$ROOT/KeyPathInstallerLab/provider-admission.lock" ]]
+[[ ! -e "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock" ]]
 artifacts26=$(run_remote artifacts cbx_test26)
 assert_contains "$artifacts26" $'download_status\t0'
 grep -q 'crabbox run --provider parallels --target macos --id cbx_test26 --stop-after never --download' "$CALLS"
