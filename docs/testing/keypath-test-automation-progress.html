@@ -771,7 +771,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-defrag-progress .block[data-status=&quot;queued&quot;] { background:var(--muted); color:var(--muted-foreground); }
     #keypath-defrag-progress .block[data-status=&quot;waiting&quot;] { background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--viz-series-5) 86%,var(--card)) 0 8px,color-mix(in srgb,var(--viz-series-5) 58%,var(--card)) 8px 13px); color:var(--card-foreground); }
     #keypath-defrag-progress .block:hover, #keypath-defrag-progress .block:focus-visible { filter:brightness(1.1); transform:translateY(-2px) scale(1.04); box-shadow:0 0 0 2px var(--ring); z-index:1; }
-    #keypath-defrag-progress .block[data-status=&quot;active&quot;] { animation:keypath-pulse 1.35s ease-in-out infinite; }
+    #keypath-defrag-progress .block[data-working=&quot;true&quot;] { animation:keypath-pulse 1.35s ease-in-out infinite; }
     @keyframes keypath-pulse { 0%,100% { filter:brightness(1); box-shadow:0 0 0 0 transparent; } 50% { filter:brightness(1.16); box-shadow:0 0 0 2px var(--viz-series-2); } }
     #keypath-defrag-progress .readout { min-height:42px; margin-top:12px; padding-top:11px; border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:18px; align-items:flex-start; }
     #keypath-defrag-progress .readout strong { display:block; font-weight:500; }
@@ -798,7 +798,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-defrag-progress .activity-list { display:grid; gap:0; }
     #keypath-defrag-progress .activity-item { display:grid; grid-template-columns:76px 1fr; gap:12px; padding:8px 0; border-top:1px solid var(--border); font-size:12px; }
     #keypath-defrag-progress .activity-item time { color:var(--muted-foreground); }
-    @media (prefers-reduced-motion:reduce) { #keypath-defrag-progress .block[data-status=&quot;active&quot;] { animation:none; } }
+    @media (prefers-reduced-motion:reduce) { #keypath-defrag-progress .block[data-working=&quot;true&quot;] { animation:none; } }
     @media (max-width:760px) {
       #keypath-defrag-progress .top { flex-direction:column; align-items:flex-start; }
       #keypath-defrag-progress .track { grid-template-columns:repeat(8,minmax(0,1fr)); }
@@ -939,6 +939,10 @@ html&gt;body{padding:0}&lt;/style&gt;
         Object.entries(state.statuses || {}).forEach(([id,value]) =&gt; {
           const button = buttons.get(id);
           if (button &amp;&amp; names[value]) button.dataset.status = value;
+        });
+        const workingBlocks = new Set(state.workingBlocks || []);
+        buttons.forEach((button,id) =&gt; {
+          button.dataset.working = workingBlocks.has(id) ? &#x27;true&#x27; : &#x27;false&#x27;;
         });
         liveDot.className = &#x27;live-dot online&#x27;;
         liveTask.textContent = state.complete ? &#x27;All automation capabilities complete&#x27; : (state.currentTask || &#x27;Monitoring progress&#x27;);

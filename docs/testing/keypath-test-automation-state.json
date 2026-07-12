@@ -3,6 +3,7 @@
   "currentTask": "Preparing Kanata permission automation",
   "message": "The next run will grant and independently verify Kanata Accessibility and Input Monitoring.",
   "complete": false,
+  "workingBlocks": [],
   "statuses": {
     "R01": "active",
     "R02": "active",
