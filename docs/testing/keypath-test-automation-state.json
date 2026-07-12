@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-12T07:45:19-07:00",
-  "currentTask": "Dashboard composition complete",
-  "message": "The capability map keeps the full width; the Codex development conversation now follows beneath it.",
+  "updatedAt": "2026-07-12T08:01:15-07:00",
+  "currentTask": "Development log simplified",
+  "message": "Removed bubbles and repeated avatars; updates now read as a quiet timestamped transcript.",
   "complete": false,
   "workingBlocks": [],
   "activeWork": {},
@@ -15,6 +15,13 @@
     "M14": "active"
   },
   "updates": [
+    {
+      "time": "08:01",
+      "block": "M14",
+      "tone": "success",
+      "title": "Development log simplified",
+      "message": "Removed bubbles and repeated avatars; updates now read as a quiet timestamped transcript."
+    },
     {
       "time": "07:45",
       "block": "M14",

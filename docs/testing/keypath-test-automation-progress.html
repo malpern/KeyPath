@@ -800,24 +800,24 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-defrag-progress .live-copy { min-width:0; }
     #keypath-defrag-progress .live-copy strong { display:block; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     #keypath-defrag-progress .live-copy small, #keypath-defrag-progress .live-time { color:var(--muted-foreground); font-size:11px; }
-    #keypath-defrag-progress .chat { padding:14px; margin-top:16px; }
-    #keypath-defrag-progress .chat-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-bottom:11px; border-bottom:1px solid var(--border); }
-    #keypath-defrag-progress .chat-title { display:flex; align-items:center; gap:8px; }
+    #keypath-defrag-progress .chat { margin-top:16px; padding-top:12px; border-top:1px solid var(--border); }
+    #keypath-defrag-progress .chat-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-bottom:5px; }
+    #keypath-defrag-progress .chat-title { display:flex; align-items:center; gap:7px; }
     #keypath-defrag-progress .chat-title strong { font-weight:500; }
     #keypath-defrag-progress .chat-presence { display:flex; align-items:center; gap:5px; color:var(--muted-foreground); font-size:11px; }
-    #keypath-defrag-progress .chat-list { display:flex; flex-direction:column; gap:12px; padding-top:13px; max-width:820px; }
-    #keypath-defrag-progress .chat-message { display:grid; grid-template-columns:24px minmax(0,1fr); gap:8px; }
-    #keypath-defrag-progress .chat-avatar { width:24px; height:24px; border-radius:7px; display:grid; place-items:center; background:var(--muted); color:var(--foreground); font-size:10px; font-weight:500; }
+    #keypath-defrag-progress .chat-list { display:flex; flex-direction:column; }
+    #keypath-defrag-progress .chat-message { display:grid; grid-template-columns:8px 48px minmax(0,1fr); gap:9px; align-items:baseline; padding:8px 0; border-top:1px solid var(--border); }
+    #keypath-defrag-progress .chat-marker { width:7px; height:7px; border-radius:50%; background:var(--viz-series-1); }
     #keypath-defrag-progress .chat-body { min-width:0; }
-    #keypath-defrag-progress .chat-meta { display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:3px; }
-    #keypath-defrag-progress .chat-meta strong { font-size:11px; font-weight:500; }
-    #keypath-defrag-progress .chat-meta time { color:var(--muted-foreground); font-size:10px; white-space:nowrap; }
-    #keypath-defrag-progress .chat-copy { padding:8px 9px; border-left:3px solid var(--viz-series-1); background:var(--muted); border-radius:2px 8px 8px 8px; font-size:11px; }
-    #keypath-defrag-progress .chat-message[data-tone=&quot;success&quot;] .chat-copy { border-left-color:var(--viz-series-3); }
-    #keypath-defrag-progress .chat-message[data-tone=&quot;retry&quot;] .chat-copy { border-left-color:var(--viz-series-2); }
-    #keypath-defrag-progress .chat-message[data-tone=&quot;problem&quot;] .chat-copy { border-left-color:var(--destructive); }
-    #keypath-defrag-progress .chat-message[data-tone=&quot;waiting&quot;] .chat-copy { border-left-color:var(--viz-series-5); }
-    #keypath-defrag-progress .chat-block { color:var(--muted-foreground); font-size:10px; margin-top:4px; text-transform:uppercase; letter-spacing:.05em; }
+    #keypath-defrag-progress .chat-time { color:var(--muted-foreground); font-size:10px; white-space:nowrap; }
+    #keypath-defrag-progress .chat-line { font-size:11px; }
+    #keypath-defrag-progress .chat-line strong { font-weight:500; margin-right:5px; }
+    #keypath-defrag-progress .chat-copy { color:var(--muted-foreground); }
+    #keypath-defrag-progress .chat-message[data-tone=&quot;success&quot;] .chat-marker { background:var(--viz-series-3); }
+    #keypath-defrag-progress .chat-message[data-tone=&quot;retry&quot;] .chat-marker { background:var(--viz-series-2); }
+    #keypath-defrag-progress .chat-message[data-tone=&quot;problem&quot;] .chat-marker { background:var(--destructive); }
+    #keypath-defrag-progress .chat-message[data-tone=&quot;waiting&quot;] .chat-marker { background:var(--viz-series-5); }
+    #keypath-defrag-progress .chat-block { color:var(--muted-foreground); font-size:9px; margin-top:2px; text-transform:uppercase; letter-spacing:.05em; }
     #keypath-defrag-progress .work-readout { display:none; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; margin-top:10px; padding:10px 12px; }
     #keypath-defrag-progress .work-readout.visible { display:grid; }
     #keypath-defrag-progress .work-phase { font-size:12px; }
@@ -880,9 +880,9 @@ html&gt;body{padding:0}&lt;/style&gt;
       &lt;/section&gt;
     &lt;/main&gt;
 
-    &lt;aside class=&quot;card chat&quot; aria-label=&quot;Live Codex development updates&quot;&gt;
-      &lt;div class=&quot;chat-head&quot;&gt;&lt;div class=&quot;chat-title&quot;&gt;&lt;span class=&quot;chat-avatar&quot;&gt;C&lt;/span&gt;&lt;strong&gt;Codex development&lt;/strong&gt;&lt;/div&gt;&lt;span class=&quot;chat-presence&quot;&gt;&lt;i class=&quot;live-dot online&quot;&gt;&lt;/i&gt;Live&lt;/span&gt;&lt;/div&gt;
-      &lt;div class=&quot;chat-list&quot; id=&quot;keypath-live-activity&quot; aria-live=&quot;polite&quot;&gt;&lt;div class=&quot;chat-message&quot;&gt;&lt;span class=&quot;chat-avatar&quot;&gt;C&lt;/span&gt;&lt;div class=&quot;chat-body&quot;&gt;&lt;div class=&quot;chat-meta&quot;&gt;&lt;strong&gt;Connecting&lt;/strong&gt;&lt;time&gt;—&lt;/time&gt;&lt;/div&gt;&lt;div class=&quot;chat-copy&quot;&gt;Waiting for the first development update.&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+    &lt;aside class=&quot;chat&quot; aria-label=&quot;Live Codex development updates&quot;&gt;
+      &lt;div class=&quot;chat-head&quot;&gt;&lt;div class=&quot;chat-title&quot;&gt;&lt;strong&gt;Development log&lt;/strong&gt;&lt;/div&gt;&lt;span class=&quot;chat-presence&quot;&gt;&lt;i class=&quot;live-dot online&quot;&gt;&lt;/i&gt;Live&lt;/span&gt;&lt;/div&gt;
+      &lt;div class=&quot;chat-list&quot; id=&quot;keypath-live-activity&quot; aria-live=&quot;polite&quot;&gt;&lt;div class=&quot;chat-message&quot;&gt;&lt;span class=&quot;chat-marker&quot;&gt;&lt;/span&gt;&lt;time class=&quot;chat-time&quot;&gt;—&lt;/time&gt;&lt;div class=&quot;chat-body&quot;&gt;&lt;div class=&quot;chat-line&quot;&gt;&lt;strong&gt;Connecting&lt;/strong&gt;&lt;span class=&quot;chat-copy&quot;&gt;Waiting for the first development update.&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
     &lt;/aside&gt;
   &lt;/div&gt;
   &lt;div class=&quot;note&quot;&gt;Block counts represent named capabilities, not an estimated percentage of engineering effort.&lt;/div&gt;
@@ -1023,15 +1023,15 @@ html&gt;body{padding:0}&lt;/style&gt;
         const events = (state.updates || state.activity || []).slice(0,10);
         liveActivity.replaceChildren(...events.map(event =&gt; {
           const row = document.createElement(&#x27;div&#x27;); row.className = &#x27;chat-message&#x27;; row.dataset.tone = event.tone || &#x27;working&#x27;;
-          const avatar = document.createElement(&#x27;span&#x27;); avatar.className = &#x27;chat-avatar&#x27;; avatar.textContent = &#x27;C&#x27;;
+          const marker = document.createElement(&#x27;span&#x27;); marker.className = &#x27;chat-marker&#x27;;
+          const time = document.createElement(&#x27;time&#x27;); time.className = &#x27;chat-time&#x27;; time.textContent = event.time || &#x27;Now&#x27;;
           const body = document.createElement(&#x27;div&#x27;); body.className = &#x27;chat-body&#x27;;
-          const meta = document.createElement(&#x27;div&#x27;); meta.className = &#x27;chat-meta&#x27;;
+          const line = document.createElement(&#x27;div&#x27;); line.className = &#x27;chat-line&#x27;;
           const heading = document.createElement(&#x27;strong&#x27;); heading.textContent = event.title || &#x27;Codex update&#x27;;
-          const time = document.createElement(&#x27;time&#x27;); time.textContent = event.time || &#x27;Now&#x27;;
-          const copy = document.createElement(&#x27;div&#x27;); copy.className = &#x27;chat-copy&#x27;; copy.textContent = event.message;
-          meta.append(heading,time); body.append(meta,copy);
+          const copy = document.createElement(&#x27;span&#x27;); copy.className = &#x27;chat-copy&#x27;; copy.textContent = event.message;
+          line.append(heading,copy); body.append(line);
           if (event.block) { const block = document.createElement(&#x27;div&#x27;); block.className = &#x27;chat-block&#x27;; block.textContent = `${event.block} · ${event.tone || &#x27;working&#x27;}`; body.append(block); }
-          row.append(avatar,body); return row;
+          row.append(marker,time,body); return row;
         }));
       };
       const poll = async () =&gt; {
