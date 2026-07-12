@@ -1,9 +1,9 @@
 {
-  "updatedAt": "2026-07-12T14:15:00-07:00",
-  "currentTask": "Preparing Kanata permission automation",
-  "message": "The next run will grant and independently verify Kanata Accessibility and Input Monitoring.",
+  "updatedAt": "2026-07-12T07:38:00-07:00",
+  "currentTask": "Validating managed Kanata permissions",
+  "message": "R01 and R02 probe contracts now pass; the first real managed VM run awaits the managed base.",
   "complete": false,
-  "workingBlocks": [],
+  "workingBlocks": ["R01", "R02"],
   "statuses": {
     "R01": "active",
     "R02": "active",
@@ -13,6 +13,8 @@
     "P02": "active"
   },
   "activity": [
+    {"time": "07:38", "message": "Kanata Accessibility and Input Monitoring failure contracts passed locally."},
+    {"time": "07:36", "message": "Remote lab preflight passed; no managed macOS base exists yet."},
     {"time": "14:06", "message": "SecurityAgent focused-input automation committed (266b624b)."},
     {"time": "14:05", "message": "VirtualHID independently verified as activated enabled and healthy."},
     {"time": "13:52", "message": "KeyPath helper and managed background item reached working state."},

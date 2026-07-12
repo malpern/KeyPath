@@ -86,6 +86,12 @@ responds. The presence of a profile is preparation, not proof that KeyPath works
 Run `keypath-lab scenario LEASE managed-capabilities` to capture and assert this
 evidence. The scenario fails unless the lease is `managed-functional`.
 
+The probe contract can be exercised without a VM:
+
+```bash
+Scripts/lab/mdm/tests/managed-capability-probe-tests.sh
+```
+
 ## OS boundary
 
 The generated PPPC profile is for macOS 15 and 26. macOS 27 changes managed

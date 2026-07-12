@@ -11,14 +11,19 @@ output=
 output=$2
 mkdir -p "$output"
 
-cli=/Applications/KeyPath.app/Contents/MacOS/keypath-cli
+cli=${KEYPATH_LAB_CLI:-/Applications/KeyPath.app/Contents/MacOS/keypath-cli}
+python=${KEYPATH_LAB_PYTHON:-/usr/bin/python3}
+nc=${KEYPATH_LAB_NC:-/usr/bin/nc}
+systemextensionsctl=${KEYPATH_LAB_SYSTEMEXTENSIONSCTL:-/usr/bin/systemextensionsctl}
+sfltool=${KEYPATH_LAB_SFLTOOL:-/usr/bin/sfltool}
+launchctl=${KEYPATH_LAB_LAUNCHCTL:-/bin/launchctl}
 [[ -x $cli ]] || { echo "managed capability probe: installed CLI missing" >&2; exit 3; }
 
 set +e
 "$cli" service status --json > "$output/service-status.json" 2> "$output/service-status.stderr"
 status_exit=$?
 set -e
-/usr/bin/python3 - "$output/service-status.json" <<'PY'
+"$python" - "$output/service-status.json" <<'PY'
 import json
 import sys
 
@@ -46,14 +51,14 @@ if not status.get("helperVersion"):
 PY
 [[ $status_exit -eq 0 ]] || { echo "managed capability probe: CLI status exited $status_exit" >&2; exit "$status_exit"; }
 
-/usr/bin/nc -vz 127.0.0.1 37001 > "$output/tcp-readiness.txt" 2>&1
-/usr/bin/systemextensionsctl list > "$output/system-extensions.txt" 2>&1
+"$nc" -vz 127.0.0.1 37001 > "$output/tcp-readiness.txt" 2>&1
+"$systemextensionsctl" list > "$output/system-extensions.txt" 2>&1
 grep -Fq 'org.pqrs.Karabiner-DriverKit-VirtualHIDDevice' "$output/system-extensions.txt" || {
     echo "managed capability probe: VirtualHID system extension is absent" >&2
     exit 1
 }
 
-/usr/bin/sfltool dumpbtm > "$output/background-items.txt" 2>&1 || true
-/bin/launchctl print system/com.keypath.kanata > "$output/kanata-launchd.txt" 2>&1
+"$sfltool" dumpbtm > "$output/background-items.txt" 2>&1 || true
+"$launchctl" print system/com.keypath.kanata > "$output/kanata-launchd.txt" 2>&1
 
-echo "managed_capabilities\tpassed" | tee "$output/result.tsv"
+printf 'managed_capabilities\tpassed\n' | tee "$output/result.tsv"
