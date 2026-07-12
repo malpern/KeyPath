@@ -117,6 +117,8 @@ acquire_admission_lock() {
       return
     fi
     owner_pid=$(field "$lock/owner.tsv" pid 2>/dev/null || true)
+    # Owner metadata is written immediately after mkdir; an older empty lock means
+    # its creator died in that narrow window rather than merely running slowly.
     lock_mtime=$(stat -f %m "$lock" 2>/dev/null || stat -c %Y "$lock" 2>/dev/null || print 0)
     lock_age=$(( $(now_epoch) - lock_mtime ))
     if { [[ "$owner_pid" == <-> ]] && ! kill -0 "$owner_pid" 2>/dev/null; } ||
