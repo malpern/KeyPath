@@ -157,6 +157,14 @@ manifest="$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"
 grep -q $'owner\tkeypath-installer-lab-v1' "$manifest"
 grep -q $'macos_build\t24G720' "$manifest"
 
+set +e
+capacity_output=$(run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
+capacity_exit=$?
+set -e
+[[ $capacity_exit -eq 75 ]] || { echo "expected Tart capacity admission to exit 75, got $capacity_exit" >&2; exit 1; }
+assert_contains "$capacity_output" $'capacity_busy\tprovider=tart\tactive=1\tlimit=1'
+assert_contains "$capacity_output" $'active_lease\tcbx_test15'
+
 run_remote run cbx_test15 echo hello >/dev/null
 grep -q 'echo hello' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/commands.tsv"
 run_remote scenario cbx_test15 clean-install >/dev/null
@@ -201,8 +209,24 @@ run_remote destroy cbx_test15 >/dev/null
 grep -q 'stop-15 cbx_test15' "$CALLS"
 grep -q $'cleanup_status\tcomplete' "$manifest"
 
+mkdir -p "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
+printf 'pid\t%s\nprovider\ttart\n' "$$" > "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock/owner.tsv"
+parallel_provider_create=$(run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
+assert_contains "$parallel_provider_create" $'lease_id\tcbx_test26'
+run_remote destroy cbx_test26 >/dev/null
+set +e
+lock_output=$(KEYPATH_LAB_ADMISSION_WAIT_ATTEMPTS=1 run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
+lock_exit=$?
+set -e
+[[ $lock_exit -eq 75 ]] || { echo "expected admission-lock contention to exit 75, got $lock_exit" >&2; exit 1; }
+assert_contains "$lock_output" admission_lock_busy
+rm -rf "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
+
+mkdir -p "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock"
+printf 'pid\t99999999\nprovider\tparallels\n' > "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock/owner.tsv"
 create26=$(run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create26" $'lease_id\tcbx_test26'
+[[ ! -e "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock" ]]
 artifacts26=$(run_remote artifacts cbx_test26)
 assert_contains "$artifacts26" $'download_status\t0'
 grep -q 'crabbox run --provider parallels --target macos --id cbx_test26 --stop-after never --download' "$CALLS"
