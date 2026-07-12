@@ -356,6 +356,12 @@ if grep -q '/usr/bin/sudo\|pbcopy\|the\\ clipboard' "$TMP/guest-ssh-args"; then
     echo "SecurityAgent secure input used an unsafe password path" >&2
     exit 1
 fi
+secure_settings_result=$(run_remote secure-dialog-input cbx_desktop15 'System Settings' AXSecureTextField 'Modify Settings' 0)
+assert_contains "$secure_settings_result" $'secure_dialog_input\tpassed'
+grep -q 'processes.byName.*appName' "$TMP/guest-ssh-args"
+grep -q 'System.*Settings.*Modify.*Settings' "$TMP/guest-ssh-args"
+grep -q 'AXSecureTextField' "$TMP/guest-ssh-args"
+grep -q 'return.*open.*closed' "$TMP/guest-ssh-args"
 secure_focused_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent Password '' 1)
 assert_contains "$secure_focused_result" $'secure_dialog_input\tpassed'
 if grep -q 'peekaboo.*see\|peekaboo.*click' "$TMP/guest-ssh-args"; then
