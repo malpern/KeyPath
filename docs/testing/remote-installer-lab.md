@@ -167,9 +167,11 @@ lease-specific transport.
 
 SecurityAgent password sheets expose an unnamed `AXSecureTextField`. For that
 specific process, the controller validates the streamed password with `sudo`,
-sets the protected field without placing the value in argv or logs, and clears
-the clipboard immediately. The protected action still needs its own system
-postcondition. Do not generalize this role-based field path to other apps.
+then writes it to a mode-0600 guest temporary file long enough for AppleScript
+to set the protected field directly. The file is removed by an exit trap, the
+clipboard is never used, and a failed validation aborts before field input. The
+protected action still needs its own system postcondition. Do not generalize
+this role-based field path to other apps.
 
 `install-app` expands the staged ZIP into `/Applications` on the disposable
 guest. Tart uses the base image's noninteractive sudo contract. Parallels uses

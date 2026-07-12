@@ -324,6 +324,16 @@ if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" 
     echo "secure dialog input leaked its secret into logs or arguments" >&2
     exit 1
 fi
+secure_agent_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent AXSecureTextField Allow)
+assert_contains "$secure_agent_result" $'secure_dialog_input\tpassed'
+grep -q 'osascript' "$TMP/guest-ssh-args"
+grep -q 'keypath-secure-input' "$TMP/guest-ssh-args"
+grep -q 'sudo.*exit\\ 77' "$TMP/guest-ssh-args"
+if grep -q 'pbcopy\|the\\ clipboard' "$TMP/guest-ssh-args"; then
+    echo "SecurityAgent secure input used the guest clipboard" >&2
+    exit 1
+fi
+cmp -s "$TMP/secure-input" "$TMP/guest-ssh-stdin"
 run_remote destroy cbx_desktop15 >/dev/null
 
 cp -R "$ROOT/KeyPathInstallerLab/leases/cbx_desktop15" "$ROOT/KeyPathInstallerLab/leases/cbx_missing"

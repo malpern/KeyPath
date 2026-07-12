@@ -572,9 +572,10 @@ secure_dialog_input() {
   guest_command='set -euo pipefail; command -v /opt/homebrew/bin/peekaboo >/dev/null; command -v /opt/homebrew/bin/mcporter >/dev/null; '
   if [[ "$field_label" == "AXSecureTextField" ]]; then
     [[ "$app" == "SecurityAgent" ]] || die "AXSecureTextField is supported only for SecurityAgent"
-    focus_args=(/usr/bin/osascript -e 'set secretValue to the clipboard' -e 'tell application "System Events" to tell process "SecurityAgent" to set value of first UI element of window 1 whose description is "secure text field" to secretValue')
+    focus_args=(/usr/bin/osascript -e 'on run argv' -e 'set secretValue to read POSIX file (item 1 of argv) as «class utf8»' -e 'tell application "System Events" to tell process "SecurityAgent" to set value of first UI element of window 1 whose description is "secure text field" to secretValue' -e 'end run')
     printf -v click_command '%q ' "${focus_args[@]}"
-    guest_command+="IFS= read -r secret_value; printf '%s\\n' \"\$secret_value\" | /usr/bin/sudo -S -k /usr/bin/true >/dev/null 2>&1; printf '%s' \"\$secret_value\" | /usr/bin/pbcopy; $click_command >/dev/null; /usr/bin/pbcopy </dev/null; unset secret_value"
+    guest_command+='IFS= read -r secret_value; if ! printf '\''%s\n'\'' "$secret_value" | /usr/bin/sudo -S -k /usr/bin/true >/dev/null 2>&1; then unset secret_value; exit 77; fi; secret_path=$(/usr/bin/mktemp /tmp/keypath-secure-input.XXXXXX); /bin/chmod 600 "$secret_path"; trap '\''rm -f "$secret_path"'\'' EXIT; printf '\''%s'\'' "$secret_value" > "$secret_path"; unset secret_value; '
+    guest_command+="$click_command \"\$secret_path\" >/dev/null; rm -f \"\$secret_path\"; trap - EXIT"
   else
     click_args=(/opt/homebrew/bin/peekaboo click --app "$app" --query "$field_label" --json)
     printf -v click_command '%q ' "${click_args[@]}"
