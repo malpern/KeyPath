@@ -15,7 +15,7 @@ Commands:
   create --macos 15|26|27 --lane managed-functional|unmanaged-ui --commit SHA --installer PATH [--ttl 2h] [--desktop]
   install-app LEASE_ID
   desktop-bootstrap LEASE_ID [--install-tools]
-  secure-dialog-input LEASE_ID --app APP --field LABEL [--submit BUTTON]
+  secure-dialog-input LEASE_ID --app APP --field LABEL [--submit BUTTON] [--already-focused]
   run LEASE_ID -- COMMAND [ARG...]
   status LEASE_ID
   list
@@ -136,16 +136,18 @@ EOF
         app=
         field=
         submit=
+        already_focused=0
         while [[ $# -gt 0 ]]; do
             case "$1" in
                 --app) app=${2:-}; shift 2 ;;
                 --field) field=${2:-}; shift 2 ;;
                 --submit) submit=${2:-}; shift 2 ;;
+                --already-focused) already_focused=1; shift ;;
                 *) usage ;;
             esac
         done
         [[ -n $app && -n $field ]] || usage
-        remote secure-dialog-input "$lease" "$app" "$field" "$submit"
+        remote secure-dialog-input "$lease" "$app" "$field" "$submit" "$already_focused"
         ;;
     run)
         lease=${1:-}

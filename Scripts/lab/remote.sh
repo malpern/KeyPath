@@ -396,7 +396,7 @@ run_command() {
 }
 
 secure_dialog_input() {
-  local lease=$1 app=$2 field_label=$3 submit_button=$4
+  local lease=$1 app=$2 field_label=$3 submit_button=$4 already_focused=$5
   local manifest macos resource key ip secret_file guest_command exit_code
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
@@ -428,14 +428,18 @@ secure_dialog_input() {
   guest_command='set -euo pipefail; command -v /opt/homebrew/bin/peekaboo >/dev/null; command -v /opt/homebrew/bin/mcporter >/dev/null; '
   # Protected sheets change the desktop after the preceding toggle. Refresh
   # immediately so Peekaboo does not reject the semantic target as stale.
-  refresh_args=(/opt/homebrew/bin/peekaboo see --app "$app" --json)
-  printf -v refresh_command '%q ' "${refresh_args[@]}"
-  guest_command+="$refresh_command >/dev/null || exit 40; "
-  # Peekaboo 3 accepts the semantic target as the positional click argument.
-  # --query belongs to Scripts/lab/peekaboo-ui and is not a Peekaboo option.
-  click_args=(/opt/homebrew/bin/peekaboo click "$field_label" --app "$app" --foreground --json)
-  printf -v click_command '%q ' "${click_args[@]}"
-  guest_command+="$click_command >/dev/null || exit 41; "
+  if [[ "$already_focused" == "0" ]]; then
+    refresh_args=(/opt/homebrew/bin/peekaboo see --app "$app" --json)
+    printf -v refresh_command '%q ' "${refresh_args[@]}"
+    guest_command+="$refresh_command >/dev/null || exit 40; "
+    # Peekaboo 3 accepts the semantic target as the positional click argument.
+    # --query belongs to Scripts/lab/peekaboo-ui and is not a Peekaboo option.
+    click_args=(/opt/homebrew/bin/peekaboo click "$field_label" --app "$app" --foreground --json)
+    printf -v click_command '%q ' "${click_args[@]}"
+    guest_command+="$click_command >/dev/null || exit 41; "
+  elif [[ -n "$submit_button" ]]; then
+    die "--already-focused cannot be combined with a submit button"
+  fi
   guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1 || exit 42'
   if [[ -n "$submit_button" ]]; then
     submit_args=(/opt/homebrew/bin/peekaboo click "$submit_button" --app "$app" --foreground --json)
@@ -622,7 +626,7 @@ case "$action" in
   install-archive) [[ $# -eq 5 ]] || die "install-archive requires ticket, key, commit, checksum, and name"; install_archive "$@" ;;
   create) [[ $# -eq 8 ]] || die "create requires macOS, test lane, archive, commit, checksum, name, ttl, desktop"; create_lease "$@" ;;
   install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
-  secure-dialog-input) [[ $# -eq 4 ]] || die "secure-dialog-input requires lease, app, field, and optional submit value"; secure_dialog_input "$@" ;;
+  secure-dialog-input) [[ $# -eq 5 ]] || die "secure-dialog-input requires lease, app, field, optional submit value, and focus mode"; secure_dialog_input "$@" ;;
   run) [[ $# -ge 2 ]] || die "run requires lease and command"; run_command "$@" ;;
   status) [[ $# -eq 1 ]] || die "status requires lease"; print_status "$1" ;;
   list) [[ $# -eq 0 ]] || die "list takes no arguments"; list_leases ;;

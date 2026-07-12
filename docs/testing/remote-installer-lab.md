@@ -140,6 +140,21 @@ use the generic `run` command to improvise password entry. macOS 26 and 27
 Parallels guests remain unsupported until they have an equally constrained
 lease-specific transport.
 
+Driver-extension authorization is owned by `SecurityAgent`, whose secure
+window is not available to Peekaboo snapshots. When a fresh framebuffer image
+proves that its password field is already focused, use the constrained focused
+mode without a submit selector:
+
+```bash
+Scripts/lab/keypath-lab secure-dialog-input cbx_example \
+  --app SecurityAgent --field Password --already-focused
+```
+
+This mode skips AX discovery but uses the same stdin-only encrypted secret
+transport. It is valid only after current visual evidence shows the focused
+secure field, and success still requires the corresponding system-extension
+postcondition.
+
 `install-app` expands the staged ZIP into `/Applications` on the disposable
 guest. Tart uses the base image's noninteractive sudo contract. Parallels uses
 the same passwordless `prlctl exec` guest-control channel CrabBox already uses

@@ -227,7 +227,7 @@ desktop_artifacts=$(run_remote artifacts cbx_desktop15)
 assert_contains "$desktop_artifacts" $'screenshot_status\t0'
 desktop_artifact_dir=$(printf '%s\n' "$desktop_artifacts" | awk -F '\t' '$1 == "artifact_dir" {print $2}')
 [[ -f "$desktop_artifact_dir/screenshot.png" ]]
-secure_result=$(run_remote secure-dialog-input cbx_desktop15 'System Settings' Password 'Modify Settings')
+secure_result=$(run_remote secure-dialog-input cbx_desktop15 'System Settings' Password 'Modify Settings' 0)
 assert_contains "$secure_result" $'secure_dialog_input\tpassed'
 grep -q 'admin@192.0.2.15' "$TMP/guest-ssh-args"
 grep -q 'mcporter' "$TMP/guest-ssh-args"
@@ -246,6 +246,12 @@ fi
 cmp -s "$TMP/secure-input" "$TMP/guest-ssh-stdin"
 if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" "$TMP/guest-ssh-args"; then
     echo "secure dialog input leaked its secret into logs or arguments" >&2
+    exit 1
+fi
+secure_focused_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent Password '' 1)
+assert_contains "$secure_focused_result" $'secure_dialog_input\tpassed'
+if grep -q 'peekaboo.*see\|peekaboo.*click' "$TMP/guest-ssh-args"; then
+    echo "already-focused secure input attempted inaccessible AX discovery" >&2
     exit 1
 fi
 run_remote destroy cbx_desktop15 >/dev/null
