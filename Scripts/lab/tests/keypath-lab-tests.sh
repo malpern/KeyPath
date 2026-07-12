@@ -51,6 +51,7 @@ if [[ \$1 == warmup ]]; then
   else
     printf 'leased cbx_desktop26 vm=00000000-0000-0000-0000-000000000000'
   fi
+  [[ \${KEYPATH_LAB_TEST_WARMUP_FAIL:-0} == 1 ]] && exit 9
   exit 0
 fi
 if [[ \$1 == screenshot ]]; then
@@ -368,6 +369,15 @@ set -e
 [[ $protected_wrong_page_exit -ne 0 ]] || { echo "protected click accepted the wrong destination page" >&2; exit 1; }
 assert_contains "$protected_wrong_page" "protected click postcondition failed"
 run_remote destroy cbx_desktop15 >/dev/null
+
+set +e
+KEYPATH_LAB_TEST_WARMUP_FAIL=1 run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1 >/dev/null 2>&1
+warmup_fail_exit=$?
+set -e
+[[ $warmup_fail_exit -ne 0 ]] || { echo "warmup failure fixture unexpectedly succeeded" >&2; exit 1; }
+failed_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_desktop15/manifest.tsv"
+grep -q $'status\tprovisioning-failed' "$failed_manifest"
+grep -q $'provision_result\t9' "$failed_manifest"
 
 if run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 3h 0 >/dev/null 2>&1; then
     echo "create accepted a TTL longer than the launchers support" >&2
