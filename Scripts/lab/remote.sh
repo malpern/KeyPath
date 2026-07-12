@@ -28,6 +28,7 @@ LEASES="$STATE_ROOT/leases"
 ARTIFACTS="$STATE_ROOT/artifacts"
 LOGS="$STATE_ROOT/logs"
 OPERATIONS="$STATE_ROOT/operations"
+ADMISSION_LOCK="$STATE_ROOT/provider-admission.lock"
 
 die() { print -u2 "keypath-lab(remote): $*"; exit 1; }
 now_epoch() { date +%s; }
@@ -98,6 +99,74 @@ duration_seconds() {
 
 ensure_roots() {
   mkdir -p "$ARCHIVES" "$LEASES" "$ARTIFACTS" "$LOGS" "$OPERATIONS"
+}
+
+provider_capacity() {
+  case "$1" in
+    tart) print "${KEYPATH_LAB_CAPACITY_TART:-1}" ;;
+    parallels) print "${KEYPATH_LAB_CAPACITY_PARALLELS:-2}" ;;
+    *) die "unsupported provider capacity key: $1" ;;
+  esac
+}
+
+acquire_admission_lock() {
+  local provider=$1 attempt=0 owner owner_pid stale max_attempts=${KEYPATH_LAB_ADMISSION_WAIT_ATTEMPTS:-300}
+  [[ "$max_attempts" == <-> && "$max_attempts" -gt 0 ]] || die "invalid admission wait attempts: $max_attempts"
+  while ((attempt < max_attempts)); do
+    if mkdir "$ADMISSION_LOCK" 2>/dev/null; then
+      {
+        print "pid\t$$"
+        print "provider\t$provider"
+        print "created_at\t$(utc_now)"
+      } > "$ADMISSION_LOCK/owner.tsv"
+      return
+    fi
+    owner_pid=$(field "$ADMISSION_LOCK/owner.tsv" pid 2>/dev/null || true)
+    if [[ "$owner_pid" == <-> ]] && ! kill -0 "$owner_pid" 2>/dev/null; then
+      stale="$STATE_ROOT/provider-admission.stale.$$"
+      if mv "$ADMISSION_LOCK" "$stale" 2>/dev/null; then
+        rm -rf "$stale"
+        continue
+      fi
+    fi
+    ((attempt += 1))
+    sleep 0.1
+  done
+  owner=$(cat "$ADMISSION_LOCK/owner.tsv" 2>/dev/null || print unavailable)
+  print -u2 "admission_lock_busy"
+  print -u2 -- "$owner"
+  return 75
+}
+
+release_admission_lock() {
+  [[ -d "$ADMISSION_LOCK" ]] || return
+  rm -f "$ADMISSION_LOCK/owner.tsv"
+  rmdir "$ADMISSION_LOCK"
+}
+
+assert_provider_capacity() {
+  local provider=$1 capacity active=0 manifest lease expires cleanup lease_status commit macos lane slug
+  capacity=$(provider_capacity "$provider")
+  [[ "$capacity" == <-> && "$capacity" -gt 0 ]] || die "invalid $provider capacity: $capacity"
+  for manifest in "$LEASES"/*/manifest.tsv(N); do
+    [[ "$(field "$manifest" owner)" == "$OWNER" ]] || continue
+    [[ "$(field "$manifest" provider)" == "$provider" ]] || continue
+    cleanup=$(field "$manifest" cleanup_status)
+    lease_status=$(field "$manifest" status)
+    expires=$(field "$manifest" expires_epoch)
+    [[ "$cleanup" != complete && "$lease_status" != destroyed && "$expires" == <-> && "$expires" -gt "$(now_epoch)" ]] || continue
+    lease=$(field "$manifest" lease_id)
+    commit=$(field "$manifest" keypath_commit)
+    macos=$(field "$manifest" macos)
+    lane=$(field "$manifest" test_lane)
+    slug=$(field "$manifest" slug)
+    ((active += 1))
+    print -u2 "active_lease\t$lease\tprovider=$provider\tmacos=$macos\tlane=${lane:-legacy}\tstatus=$lease_status\texpires_epoch=$expires\tcommit=$commit\tslug=$slug"
+  done
+  if ((active >= capacity)); then
+    print -u2 "capacity_busy\tprovider=$provider\tactive=$active\tlimit=$capacity"
+    return 75
+  fi
 }
 
 record_command() {
@@ -195,6 +264,8 @@ preflight() {
   print "host_os\t$(sw_vers -productVersion 2>/dev/null || print unknown)"
   print "host_build\t$(sw_vers -buildVersion 2>/dev/null || print unknown)"
   print "lab_root\t$LAB_ROOT"
+  print "capacity_tart\t$(provider_capacity tart)"
+  print "capacity_parallels\t$(provider_capacity parallels)"
   print "safety\tdisposable-owned-leases-only"
 }
 
@@ -284,6 +355,9 @@ create_lease() {
   [[ -f "$archive/ready.tsv" && -d "$archive/repo/.git" ]] || die "prepared archive not found: $archive_key"
   ttl_seconds=$(duration_seconds "$ttl")
   (( ttl_seconds > 0 && ttl_seconds <= 7200 )) || die "TTL must be between 1 second and 2 hours"
+  acquire_admission_lock "$provider" || return $?
+  trap 'release_admission_lock' EXIT INT TERM HUP
+  assert_provider_capacity "$provider" || return $?
   slug="keypath${macos}-$(print -r -- "$commit" | cut -c1-8)-$(date -u +%Y%m%d%H%M%S)-$$"
   operation="$OPERATIONS/$slug"
   mkdir -p "$operation"
@@ -336,6 +410,8 @@ create_lease() {
   set_field "$manifest" macos_build "${build:-unknown}"
   set_field "$manifest" status ready
   record_command "$lease" passed sw_vers
+  release_admission_lock
+  trap - EXIT INT TERM HUP
   print "lease_id\t$lease"
   print "manifest\t$manifest"
 }

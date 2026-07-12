@@ -1,34 +1,10 @@
 {
-  "updatedAt": "2026-07-12T09:49:26-07:00",
-  "currentTask": "Starting virtual-output proof",
-  "message": "P02 is active alongside P01: identifying a software-only observation point for remapped output.",
+  "updatedAt": "2026-07-12T10:19:11-07:00",
+  "currentTask": "Shared VM admission verified",
+  "message": "The occupied Tart pool failed closed with exit 75 and listed all owning leases; no VM was created.",
   "complete": false,
-  "workingBlocks": [
-    "P01",
-    "P02"
-  ],
-  "activeWork": {
-    "P01": {
-      "progress": 8,
-      "health": "smooth",
-      "trend": "forward",
-      "phase": "Inventorying input-path evidence",
-      "detail": "Attempt 1 \u00b7 locating existing RFB injection and Kanata capture artifacts",
-      "attempt": 1,
-      "completedSteps": 0,
-      "totalSteps": 6
-    },
-    "P02": {
-      "progress": 8,
-      "health": "smooth",
-      "trend": "forward",
-      "phase": "Inventorying output-path evidence",
-      "detail": "Attempt 1 \u00b7 locating observable VirtualHID output signals",
-      "attempt": 1,
-      "completedSteps": 0,
-      "totalSteps": 6
-    }
-  },
+  "workingBlocks": [],
+  "activeWork": {},
   "statuses": {
     "R01": "active",
     "R02": "active",
@@ -36,9 +12,87 @@
     "R04": "active",
     "P01": "active",
     "P02": "active",
-    "M14": "active"
+    "M14": "active",
+    "M12": "active"
   },
   "updates": [
+    {
+      "time": "10:19",
+      "block": "M12",
+      "tone": "success",
+      "title": "Shared VM admission verified",
+      "message": "The occupied Tart pool failed closed with exit 75 and listed all owning leases; no VM was created."
+    },
+    {
+      "time": "10:16",
+      "block": "M12",
+      "tone": "success",
+      "title": "Admission regression suite passed",
+      "message": "Capacity rejection, owner evidence, lock contention, and stale-lock recovery all pass locally."
+    },
+    {
+      "time": "10:13",
+      "block": "M12",
+      "tone": "working",
+      "title": "Implementing shared VM admission",
+      "message": "M12 now owns the collision fix: one Tart lease, two Parallels leases, with exit 75 and current-owner evidence when full."
+    },
+    {
+      "time": "10:13",
+      "block": "P02",
+      "tone": "waiting",
+      "title": "Output run paused for capacity safety",
+      "message": "P02 is paused at the same shared-provider boundary; this is infrastructure coordination, not a KeyPath result."
+    },
+    {
+      "time": "10:13",
+      "block": "P01",
+      "tone": "waiting",
+      "title": "Physics run paused for capacity safety",
+      "message": "The disposable lease is preserved, but no further VM mutations will occur until provider admission prevents agent collisions."
+    },
+    {
+      "time": "10:00",
+      "block": "P02",
+      "tone": "problem",
+      "title": "Output path blocked before driver install",
+      "message": "P02 cannot reach VirtualHID activation until the helper authorization failure is explained."
+    },
+    {
+      "time": "10:00",
+      "block": "P01",
+      "tone": "problem",
+      "title": "Helper postcondition failed",
+      "message": "The password transport returned success, but KeyPath still reports helperInstalled=false; preserving the lease and inspecting the actual UI/log state."
+    },
+    {
+      "time": "09:54",
+      "block": "P02",
+      "tone": "success",
+      "title": "Physics lease is ready",
+      "message": "The signed app is installed in an unmanaged macOS 15 desktop lease with evidence capture available."
+    },
+    {
+      "time": "09:54",
+      "block": "P01",
+      "tone": "success",
+      "title": "Desktop bootstrap recovered",
+      "message": "Peekaboo 3.9.0 and mcporter are ready in the disposable guest; resuming the real installer path."
+    },
+    {
+      "time": "09:53",
+      "block": "P02",
+      "tone": "retry",
+      "title": "Bootstrap prerequisite missing",
+      "message": "P02 is paused at the same harness setup boundary; this is not a product failure."
+    },
+    {
+      "time": "09:53",
+      "block": "P01",
+      "tone": "retry",
+      "title": "Fresh base needs UI tooling",
+      "message": "The disposable Tart base lacks Peekaboo and mcporter; installing them through desktop-bootstrap --install-tools."
+    },
     {
       "time": "09:49",
       "block": "P02",
