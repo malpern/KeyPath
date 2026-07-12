@@ -762,15 +762,15 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-defrag-progress .proven-mark { background:var(--viz-series-1); }
     #keypath-defrag-progress .active-mark { background:var(--viz-series-2); }
     #keypath-defrag-progress .queued-mark { background:var(--muted); border:1px solid var(--border); }
-    #keypath-defrag-progress .waiting-mark { background:var(--destructive); }
+    #keypath-defrag-progress .waiting-mark { background:var(--viz-series-5); }
     #keypath-defrag-progress .disk { padding:14px; }
     #keypath-defrag-progress .track { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:5px; }
-    #keypath-defrag-progress .block { appearance:none; border:0; border-radius:3px; min-height:42px; padding:5px 3px; font:inherit; font-size:10px; font-weight:500; cursor:pointer; color:var(--foreground); outline-offset:2px; }
+    #keypath-defrag-progress .block { appearance:none; border:0; border-radius:3px; min-height:42px; padding:5px 3px; font:inherit; font-size:10px; font-weight:500; cursor:pointer; color:var(--foreground); outline-offset:2px; transition:transform 120ms ease, filter 120ms ease, box-shadow 120ms ease; }
     #keypath-defrag-progress .block[data-status=&quot;proven&quot;] { background:color-mix(in srgb,var(--viz-series-1) 72%,var(--card)); color:var(--card-foreground); }
     #keypath-defrag-progress .block[data-status=&quot;active&quot;] { background:color-mix(in srgb,var(--viz-series-2) 72%,var(--card)); color:var(--card-foreground); }
     #keypath-defrag-progress .block[data-status=&quot;queued&quot;] { background:var(--muted); color:var(--muted-foreground); }
-    #keypath-defrag-progress .block[data-status=&quot;waiting&quot;] { background:color-mix(in srgb,var(--destructive) 68%,var(--card)); color:var(--card-foreground); }
-    #keypath-defrag-progress .block:hover, #keypath-defrag-progress .block:focus-visible { filter:brightness(1.08); }
+    #keypath-defrag-progress .block[data-status=&quot;waiting&quot;] { background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--viz-series-5) 86%,var(--card)) 0 8px,color-mix(in srgb,var(--viz-series-5) 58%,var(--card)) 8px 13px); color:var(--card-foreground); }
+    #keypath-defrag-progress .block:hover, #keypath-defrag-progress .block:focus-visible { filter:brightness(1.1); transform:translateY(-2px) scale(1.04); box-shadow:0 0 0 2px var(--ring); z-index:1; }
     #keypath-defrag-progress .readout { min-height:42px; margin-top:12px; padding-top:11px; border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:18px; align-items:flex-start; }
     #keypath-defrag-progress .readout strong { display:block; font-weight:500; }
     #keypath-defrag-progress .readout small { display:block; color:var(--muted-foreground); margin-top:2px; }
@@ -780,7 +780,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-defrag-progress .band strong { display:block; font-weight:500; margin-bottom:4px; }
     #keypath-defrag-progress .band span { color:var(--muted-foreground); font-size:12px; }
     #keypath-defrag-progress .now { border-left:4px solid var(--viz-series-2); }
-    #keypath-defrag-progress .wait { border-left:4px solid var(--destructive); }
+    #keypath-defrag-progress .wait { border-left:4px solid var(--viz-series-5); }
     #keypath-defrag-progress .note { margin-top:12px; color:var(--muted-foreground); font-size:11px; }
     @media (max-width:760px) {
       #keypath-defrag-progress .top { flex-direction:column; align-items:flex-start; }
@@ -891,11 +891,14 @@ html&gt;body{padding:0}&lt;/style&gt;
         button.dataset.status = state;
         button.textContent = id;
         button.setAttribute(&#x27;aria-label&#x27;, `${id}: ${name}. ${names[state]}. ${description}`);
-        button.addEventListener(&#x27;click&#x27;, () =&gt; {
+        const showDetail = () =&gt; {
           title.textContent = `${id} · ${name}`;
           detail.textContent = description;
           status.textContent = names[state];
-        });
+        };
+        button.addEventListener(&#x27;mouseenter&#x27;, showDetail);
+        button.addEventListener(&#x27;focus&#x27;, showDetail);
+        button.addEventListener(&#x27;click&#x27;, showDetail);
         grid.appendChild(button);
       });
     })();
