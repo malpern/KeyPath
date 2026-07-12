@@ -1,0 +1,260 @@
+{
+  "updatedAt": "2026-07-12T10:19:11-07:00",
+  "currentTask": "Shared VM admission verified",
+  "message": "The occupied Tart pool failed closed with exit 75 and listed all owning leases; no VM was created.",
+  "complete": false,
+  "workingBlocks": [],
+  "activeWork": {},
+  "statuses": {
+    "R01": "active",
+    "R02": "active",
+    "R03": "active",
+    "R04": "active",
+    "P01": "active",
+    "P02": "active",
+    "M14": "active",
+    "M12": "active"
+  },
+  "updates": [
+    {
+      "time": "10:19",
+      "block": "M12",
+      "tone": "success",
+      "title": "Shared VM admission verified",
+      "message": "The occupied Tart pool failed closed with exit 75 and listed all owning leases; no VM was created."
+    },
+    {
+      "time": "10:16",
+      "block": "M12",
+      "tone": "success",
+      "title": "Admission regression suite passed",
+      "message": "Capacity rejection, owner evidence, lock contention, and stale-lock recovery all pass locally."
+    },
+    {
+      "time": "10:13",
+      "block": "M12",
+      "tone": "working",
+      "title": "Implementing shared VM admission",
+      "message": "M12 now owns the collision fix: one Tart lease, two Parallels leases, with exit 75 and current-owner evidence when full."
+    },
+    {
+      "time": "10:13",
+      "block": "P02",
+      "tone": "waiting",
+      "title": "Output run paused for capacity safety",
+      "message": "P02 is paused at the same shared-provider boundary; this is infrastructure coordination, not a KeyPath result."
+    },
+    {
+      "time": "10:13",
+      "block": "P01",
+      "tone": "waiting",
+      "title": "Physics run paused for capacity safety",
+      "message": "The disposable lease is preserved, but no further VM mutations will occur until provider admission prevents agent collisions."
+    },
+    {
+      "time": "10:00",
+      "block": "P02",
+      "tone": "problem",
+      "title": "Output path blocked before driver install",
+      "message": "P02 cannot reach VirtualHID activation until the helper authorization failure is explained."
+    },
+    {
+      "time": "10:00",
+      "block": "P01",
+      "tone": "problem",
+      "title": "Helper postcondition failed",
+      "message": "The password transport returned success, but KeyPath still reports helperInstalled=false; preserving the lease and inspecting the actual UI/log state."
+    },
+    {
+      "time": "09:54",
+      "block": "P02",
+      "tone": "success",
+      "title": "Physics lease is ready",
+      "message": "The signed app is installed in an unmanaged macOS 15 desktop lease with evidence capture available."
+    },
+    {
+      "time": "09:54",
+      "block": "P01",
+      "tone": "success",
+      "title": "Desktop bootstrap recovered",
+      "message": "Peekaboo 3.9.0 and mcporter are ready in the disposable guest; resuming the real installer path."
+    },
+    {
+      "time": "09:53",
+      "block": "P02",
+      "tone": "retry",
+      "title": "Bootstrap prerequisite missing",
+      "message": "P02 is paused at the same harness setup boundary; this is not a product failure."
+    },
+    {
+      "time": "09:53",
+      "block": "P01",
+      "tone": "retry",
+      "title": "Fresh base needs UI tooling",
+      "message": "The disposable Tart base lacks Peekaboo and mcporter; installing them through desktop-bootstrap --install-tools."
+    },
+    {
+      "time": "09:49",
+      "block": "P02",
+      "tone": "working",
+      "title": "Starting virtual-output proof",
+      "message": "P02 is active alongside P01: identifying a software-only observation point for remapped output."
+    },
+    {
+      "time": "09:49",
+      "block": "P01",
+      "tone": "working",
+      "title": "Starting real input-path proof",
+      "message": "P01 is active: tracing how RFB-injected keys can be proven to reach Kanata rather than merely reach the guest."
+    },
+    {
+      "time": "09:48",
+      "block": "R04",
+      "tone": "success",
+      "title": "TCP readiness hardened",
+      "message": "R04 now requires a real bounded Kanata layer response; synthetic failure contracts and the installed runtime passed."
+    },
+    {
+      "time": "09:48",
+      "block": "R03",
+      "tone": "success",
+      "title": "Runtime convergence hardened",
+      "message": "R03 now rejects registered-but-stopped jobs and passed against the real local KeyPath runtime."
+    },
+    {
+      "time": "09:47",
+      "block": "R04",
+      "tone": "retry",
+      "title": "Adapting to the deployed response",
+      "message": "The real runtime returned LayerChange instead of CurrentLayerName; the probe now accepts either documented layer-bearing response and still rejects unrelated JSON."
+    },
+    {
+      "time": "09:46",
+      "block": "R03",
+      "tone": "success",
+      "title": "Runtime failure contract passed",
+      "message": "A registered launchd job no longer counts as live unless it reports state = running."
+    },
+    {
+      "time": "09:46",
+      "block": "R04",
+      "tone": "success",
+      "title": "TCP failure contracts passed",
+      "message": "Valid replies pass; open-but-silent and wrong-protocol sockets now fail deterministically."
+    },
+    {
+      "time": "09:45",
+      "block": "R04",
+      "tone": "retry",
+      "title": "Adjusting for system Python",
+      "message": "The first test run hit Python compatibility, so R04 stepped back while the test harness is made portable."
+    },
+    {
+      "time": "09:45",
+      "block": "R03",
+      "tone": "success",
+      "title": "Runtime liveness check implemented",
+      "message": "R03 now rejects a registered but stopped Kanata launchd job."
+    },
+    {
+      "time": "09:45",
+      "block": "R04",
+      "tone": "success",
+      "title": "Protocol-aware TCP probe implemented",
+      "message": "R04 now requires a valid CurrentLayerName response instead of merely accepting an open socket."
+    },
+    {
+      "time": "09:42",
+      "block": "R04",
+      "tone": "working",
+      "title": "Pairing TCP readiness with runtime proof",
+      "message": "R04 is active alongside R03 because both postconditions must converge independently."
+    },
+    {
+      "time": "09:42",
+      "block": "R03",
+      "tone": "working",
+      "title": "Starting runtime convergence hardening",
+      "message": "Auditing R03 runtime and R04 TCP checks so a forgiving product retry cannot create a false pass."
+    },
+    {
+      "time": "08:01",
+      "block": "M14",
+      "tone": "success",
+      "title": "Development log simplified",
+      "message": "Removed bubbles and repeated avatars; updates now read as a quiet timestamped transcript."
+    },
+    {
+      "time": "07:45",
+      "block": "M14",
+      "tone": "success",
+      "title": "Dashboard composition complete",
+      "message": "The capability map keeps the full width; the Codex development conversation now follows beneath it."
+    },
+    {
+      "time": "07:56",
+      "block": "M14",
+      "tone": "retry",
+      "title": "Changing the composition",
+      "message": "The side rail made the capability map feel cramped. Moving the conversation below preserves the visual breathing room."
+    },
+    {
+      "time": "07:52",
+      "block": "M14",
+      "tone": "working",
+      "title": "Wiring the live feed",
+      "message": "The right rail now turns structured state updates into a running Codex development conversation."
+    },
+    {
+      "time": "07:49",
+      "block": "M14",
+      "tone": "success",
+      "title": "Visual language chosen",
+      "message": "Progress is a fill line, smooth work breathes, retries wobble, and blockers hold a firm red edge."
+    },
+    {
+      "time": "07:46",
+      "block": "M14",
+      "tone": "working",
+      "title": "Mapping the experience",
+      "message": "Separating frontier status from live engineering health so orange never implies that a task is currently running."
+    },
+    {
+      "time": "07:40",
+      "block": "R01 R02",
+      "tone": "success",
+      "title": "Probe contracts passed",
+      "message": "Managed permission failure cases are now deterministic; the real VM proof still awaits enrollment."
+    }
+  ],
+  "activity": [
+    {
+      "time": "07:40",
+      "message": "Managed capability probe hardening committed (4625af72)."
+    },
+    {
+      "time": "07:38",
+      "message": "Kanata Accessibility and Input Monitoring failure contracts passed locally."
+    },
+    {
+      "time": "07:36",
+      "message": "Remote lab preflight passed; no managed macOS base exists yet."
+    },
+    {
+      "time": "14:06",
+      "message": "SecurityAgent focused-input automation committed (266b624b)."
+    },
+    {
+      "time": "14:05",
+      "message": "VirtualHID independently verified as activated enabled and healthy."
+    },
+    {
+      "time": "13:52",
+      "message": "KeyPath helper and managed background item reached working state."
+    },
+    {
+      "time": "13:40",
+      "message": "Secure System Settings password transport passed in a disposable VM."
+    }
+  ]
+}

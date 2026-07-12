@@ -39,9 +39,9 @@ VM creation is admitted centrally on the mini. The default host limits are one
 active Tart lease and two active Parallels leases. `create` takes an atomic
 provider-specific host-side admission lock, counts unexpired owned lease
 manifests, and reserves capacity before another creator for that provider can
-enter. Tart and Parallels provisioning can proceed in parallel. The lock is held only during
-provisioning; each resulting manifest remains the capacity reservation until
-the lease is destroyed or expires.
+enter. Tart and Parallels provisioning can proceed in parallel. The lock is
+held only during provisioning; each resulting manifest remains the capacity
+reservation until the lease is destroyed or expires.
 
 When a pool is full, `create` exits 75 and prints `capacity_busy` plus every
 owning lease, OS, lane, expiry, commit, and slug. This is an infrastructure wait,
@@ -74,6 +74,7 @@ the completed archive.
 SHA=$(git rev-parse HEAD)
 Scripts/lab/keypath-lab create \
   --macos 27 \
+  --lane unmanaged-ui \
   --commit "$SHA" \
   --installer dist/KeyPath.zip \
   --ttl 2h \
@@ -94,10 +95,6 @@ Scripts/lab/keypath-lab cleanup
 Every manifest records the source commit, macOS product version and build,
 provider, installer name and checksum, expiration, commands/results, artifact
 collection, and cleanup state. `destroy` is idempotent after successful cleanup.
-Creation streams provider output and writes an owned `provisioning` manifest as
-soon as CrabBox reports a lease ID. If the controller is interrupted during
-desktop warmup, the partial lease remains visible to `list`, `status`,
-`destroy`, and expiry cleanup instead of becoming an unowned VM.
 Artifact collection packages scenario output inside the guest and retrieves the
 single archive with CrabBox's native, owner-only `run --download` path. It does
 not parse private SSH-key locations or invoke `scp`. CrabBox 0.36's provider
@@ -165,14 +162,48 @@ use the generic `run` command to improvise password entry. macOS 26 and 27
 Parallels guests remain unsupported until they have an equally constrained
 lease-specific transport.
 
-SecurityAgent password sheets expose an unnamed `AXSecureTextField`. For that
-specific process, the controller writes the streamed password to a mode-0600
-guest temporary file long enough for AppleScript to set the protected field
-directly. The file is removed by an exit trap and the clipboard is never used.
-After submitting, the helper requires the SecurityAgent password sheet to close;
-a rejected password leaves the sheet open and fails the command. It does not use
+Driver-extension authorization is owned by `SecurityAgent`, whose secure
+window is not available to Peekaboo snapshots. When a fresh framebuffer image
+proves that its password field is already focused, use the constrained focused
+mode without a submit selector:
+
+```bash
+Scripts/lab/keypath-lab secure-dialog-input cbx_example \
+  --app SecurityAgent --field Password --already-focused
+```
+
+This mode skips AX discovery but uses the same stdin-only encrypted secret
+transport. It is valid only after current visual evidence shows the focused
+secure field, and success still requires the corresponding system-extension
+postcondition.
+
+When the SecurityAgent sheet exposes its unnamed `AXSecureTextField`, prefer
+the stricter role-based path with a submit label. The controller writes the
+streamed password to a mode-0600 guest temporary file long enough for
+AppleScript to set the protected field directly, derives the submit button's
+current center from AX geometry, and delivers a synthesized foreground pointer
+click. The file is removed by an exit trap, the clipboard is never used, and
+the helper succeeds only after the SecurityAgent sheet closes. It does not use
 `sudo` as a password oracle because the disposable Tart image intentionally has
-passwordless sudo. Do not generalize this role-based field path to other apps.
+passwordless sudo. Do not generalize this role-based path to other apps.
+
+For a protected control that requires native RFB delivery, use the lease-owned
+guard instead of invoking CrabBox directly:
+
+```bash
+Scripts/lab/keypath-lab protected-click cbx_example \
+  --app 'System Settings' \
+  --window Accessibility \
+  --x 804 --y 494
+```
+
+The coordinates are native framebuffer coordinates measured for the current
+lease. The command snapshots the named app before and after delivery and fails
+if either window title differs from the declared page. When the click is
+expected to open another page or dialog, declare that explicitly with
+`--after-window`. This guard detects a delivered click that landed on the wrong
+System Settings surface; it does not replace the permission's canonical product
+or system postcondition.
 
 `install-app` expands the staged ZIP into `/Applications` on the disposable
 guest. Tart uses the base image's noninteractive sudo contract. Parallels uses
@@ -200,27 +231,6 @@ Scripts/lab/keypath-lab scenario cbx_example artifact-capture
 Scripts/lab/keypath-lab scenario cbx_example macos-27-regression
 Scripts/lab/keypath-lab artifacts cbx_example
 ```
-
-For VirtualHID protocol migration work, the guest-side two-client scenario
-tests daemon multiplexing separately from disjoint-device support. Both Kanata
-processes select the lease's single available keyboard because Kanata does not
-establish its VirtualHID output client until it registers an input device:
-
-```bash
-Scripts/lab/keypath-lab run cbx_example -- \
-  Scripts/lab/scenarios/kanata-vhid-two-clients \
-  --kanata /path/to/kanata \
-  --daemon '/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon' \
-  --device 'Virtual USB Keyboard' \
-  --output .keypath-lab/scenario-output/vhid-two-clients
-```
-
-This proves initial readiness, daemon loss, and independent in-process recovery
-for two output clients. The second process's same-device exclusive-access error
-is an expected assertion, not a failure. A full two-input-device test still
-requires two physical HID devices assigned to
-disjoint `macos-dev-names-include` filters; Tart's RFB keyboard is a single
-input source and cannot prove that topology.
 
 The scenario set covers clean installation, every macOS approval gate,
 helper/daemon and TCP health, launch, repair/reinstall, reboot persistence,

@@ -24,6 +24,15 @@ On the proven Tart configuration, the RFB framebuffer was `2048x1536` while
 guest Accessibility coordinates were `1024x768`. The observed scale was 2, but
 an agent must measure it again for every lease.
 
+Treat the coordinate transform itself as test evidence. A July 2026 run showed
+that CrabBox can report a successful RFB click even when an unverified transform
+lands on a different System Settings control. Every protected click must
+therefore record the current framebuffer dimensions and AX window bounds, assert
+the expected System Settings page immediately before delivery, and assert the
+expected page (or explicitly expected dialog) immediately afterward. A changed
+page is a harness failure; never continue to password entry or report the
+permission as granted.
+
 ## Current capability matrix
 
 | Gate | Human required? | Current automation path | Required proof |
@@ -51,7 +60,7 @@ semantic operations:
 
 ```bash
 Scripts/lab/keypath-lab create \
-  --macos 15 --commit "$SHA" --installer dist/KeyPath.zip --desktop
+  --macos 15 --lane unmanaged-ui --commit "$SHA" --installer dist/KeyPath.zip --desktop
 
 Scripts/lab/keypath-lab run "$LEASE" -- \
   Scripts/lab/peekaboo-ui snapshot \

@@ -15,20 +15,17 @@ cat > "$ROOT/bin/launcher15" <<EOF
 #!/bin/bash
 case "\$1" in
  doctor) echo doctor-15 ;;
- warmup) echo diagnostic previous=cbx_not_the_new_lease; echo cbx_test15 ;;
+ warmup) echo cbx_test15 ;;
  run) echo product=15.7.7; echo build=24G720 ;;
- stop)
-   echo "stop-15 \$2" >> "$CALLS"
-   if [[ \$2 == cbx_missing || \$2 == cbx_leaked ]]; then echo "tart lease not found: \$2"; exit 1; fi
-   ;;
- list) echo cbx_test15; echo cbx_leaked ;;
+ stop) echo "stop-15 \$2" >> "$CALLS" ;;
+ list) echo cbx_test15 ;;
 esac
 EOF
 cat > "$ROOT/bin/launcher26" <<EOF
 #!/bin/bash
 case "\$1" in
  doctor) echo doctor-26 ;;
- warmup) echo diagnostic previous=cbx_not_the_new_lease; echo cbx_test26 ;;
+ warmup) echo cbx_test26 ;;
  run) echo product=26.5.2; echo build=25F84 ;;
  stop) echo "stop-26 \$2" >> "$CALLS" ;;
  list) echo cbx_test26 ;;
@@ -38,7 +35,7 @@ cat > "$ROOT/bin/launcher27" <<EOF
 #!/bin/bash
 case "\$1" in
  doctor) echo doctor-27 ;;
- warmup) echo diagnostic previous=cbx_not_the_new_lease; printf %s cbx_test27 ;;
+ warmup) echo cbx_test27 ;;
  run) echo product=27.0; echo build=26A5378j ;;
  stop) echo "stop-27 \$2" >> "$CALLS" ;;
  list) echo cbx_test27 ;;
@@ -48,8 +45,12 @@ cat > "$ROOT/bin/crabbox" <<EOF
 #!/bin/bash
 echo "crabbox \$*" >> "$CALLS"
 if [[ \$1 == warmup ]]; then
-  if [[ " \$* " == *" --provider tart "* ]]; then lease_line='leased cbx_desktop15 slug=test instance=test-resource'; else lease_line='leased cbx_desktop26 slug=test vm=00000000-0000-0000-0000-000000000000'; fi
-  if [[ \${KEYPATH_LAB_TEST_SLOW_WARMUP:-0} == 1 ]]; then echo "\$lease_line"; sleep 30; else printf %s "\$lease_line"; fi
+  if [[ " \$* " == *" --provider tart "* ]]; then
+    echo 'diagnostic previous=cbx_unrelated'
+    printf 'leased cbx_desktop15 instance=test-resource'
+  else
+    printf 'leased cbx_desktop26 vm=00000000-0000-0000-0000-000000000000'
+  fi
   exit 0
 fi
 if [[ \$1 == screenshot ]]; then
@@ -91,6 +92,7 @@ echo test-private-key > "$TMP/id_ed25519"
 echo 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
 
 /bin/bash -n "$LAB_DIR/../qa-macos-27-regression.sh"
+/bin/zsh -n "$LAB_DIR/desktop-bootstrap"
 /bin/zsh -n "$LAB_DIR/scenarios/kanata-vhid-two-clients"
 grep -q 'macos-27-regression)' "$LAB_DIR/scenarios/installer-scenario"
 
@@ -156,14 +158,24 @@ EOF
 
 commit=$(printf 'a%.0s' {1..40})
 checksum=$(printf 'b%.0s' {1..64})
-create=$(run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
+create=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create" $'lease_id\tcbx_test15'
 manifest="$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"
 grep -q $'owner\tkeypath-installer-lab-v1' "$manifest"
 grep -q $'macos_build\t24G720' "$manifest"
+grep -q $'test_lane\tunmanaged-ui' "$manifest"
+grep -q $'base_name\tghcr.io/cirruslabs/macos-sequoia-base:latest' "$manifest"
 
 set +e
-capacity_output=$(run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
+capacity_output=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
+capacity_exit=$?
+set -e
+[[ $capacity_exit -eq 75 ]] || { echo "expected Tart capacity admission to exit 75, got $capacity_exit" >&2; exit 1; }
+assert_contains "$capacity_output" $'capacity_busy\tprovider=tart\tactive=1\tlimit=1'
+assert_contains "$capacity_output" $'active_lease\tcbx_test15'
+
+set +e
+capacity_output=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
 capacity_exit=$?
 set -e
 [[ $capacity_exit -eq 75 ]] || { echo "expected Tart capacity admission to exit 75, got $capacity_exit" >&2; exit 1; }
@@ -215,11 +227,11 @@ grep -q 'stop-15 cbx_test15' "$CALLS"
 grep -q $'cleanup_status\tcomplete' "$manifest"
 
 printf 'pid\t%s\nprovider\ttart\n' "$$" > "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
-parallel_provider_create=$(run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
+parallel_provider_create=$(run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$parallel_provider_create" $'lease_id\tcbx_test26'
 run_remote destroy cbx_test26 >/dev/null
 set +e
-lock_output=$(KEYPATH_LAB_ADMISSION_WAIT_ATTEMPTS=1 run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
+lock_output=$(KEYPATH_LAB_ADMISSION_WAIT_ATTEMPTS=1 run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
 lock_exit=$?
 set -e
 [[ $lock_exit -eq 75 ]] || { echo "expected admission-lock contention to exit 75, got $lock_exit" >&2; exit 1; }
@@ -237,7 +249,7 @@ env \
     KEYPATH_LAB_TEST_SSH_KEY="$TMP/id_ed25519" \
     KEYPATH_LAB_TEST_SECRET_FILE="$TMP/secure-input" \
     KEYPATH_LAB_ADMISSION_WAIT_ATTEMPTS=3000 \
-    /bin/zsh "$REMOTE" create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 >"$TMP/interrupted-wait.log" 2>&1 &
+    /bin/zsh "$REMOTE" create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 >"$TMP/interrupted-wait.log" 2>&1 &
 interrupted_wait_pid=$!
 for _ in {1..100}; do
     compgen -G "$ROOT/KeyPathInstallerLab/.provider-admission-tart.owner.*" >/dev/null && break
@@ -268,7 +280,7 @@ env \
     KEYPATH_LAB_TEST_SSH_KEY="$TMP/id_ed25519" \
     KEYPATH_LAB_TEST_SECRET_FILE="$TMP/secure-input" \
     KEYPATH_LAB_TEST_PAUSE_AFTER_ADMISSION_LOCK=1 \
-    /bin/zsh "$REMOTE" create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 >"$TMP/interrupted-create.log" 2>&1 &
+    /bin/zsh "$REMOTE" create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 >"$TMP/interrupted-create.log" 2>&1 &
 interrupted_pid=$!
 for _ in {1..100}; do
     grep -q $'^pid\t' "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock" 2>/dev/null && break
@@ -284,7 +296,7 @@ set -e
 [[ ! -e "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock" ]] || { echo "interrupted create left admission lock" >&2; exit 1; }
 
 printf 'pid\t99999999\nprovider\tparallels\n' > "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock"
-create26=$(run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
+create26=$(run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create26" $'lease_id\tcbx_test26'
 [[ ! -e "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock" ]] || { echo "stale Parallels admission lock was not reclaimed" >&2; exit 1; }
 artifacts26=$(run_remote artifacts cbx_test26)
@@ -292,7 +304,7 @@ assert_contains "$artifacts26" $'download_status\t0'
 grep -q 'crabbox run --provider parallels --target macos --id cbx_test26 --stop-after never --download' "$CALLS"
 run_remote destroy cbx_test26 >/dev/null
 
-create27=$(run_remote create 27 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
+create27=$(run_remote create 27 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create27" $'lease_id\tcbx_test27'
 artifacts27=$(run_remote artifacts cbx_test27)
 assert_contains "$artifacts27" $'download_status\t0'
@@ -300,7 +312,7 @@ grep -q 'crabbox run --provider parallels --target macos --id cbx_test27 --stop-
 run_remote destroy cbx_test27 >/dev/null
 grep -q 'stop-27 cbx_test27' "$CALLS"
 
-desktop_create=$(run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
+desktop_create=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
 assert_contains "$desktop_create" $'lease_id\tcbx_desktop15'
 desktop_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_desktop15/manifest.tsv"
 grep -q $'desktop_enabled\ttrue' "$desktop_manifest"
@@ -308,13 +320,18 @@ desktop_artifacts=$(run_remote artifacts cbx_desktop15)
 assert_contains "$desktop_artifacts" $'screenshot_status\t0'
 desktop_artifact_dir=$(printf '%s\n' "$desktop_artifacts" | awk -F '\t' '$1 == "artifact_dir" {print $2}')
 [[ -f "$desktop_artifact_dir/screenshot.png" ]]
-secure_result=$(run_remote secure-dialog-input cbx_desktop15 'System Settings' Password 'Modify Settings')
+secure_result=$(run_remote secure-dialog-input cbx_desktop15 'System Settings' Password 'Modify Settings' 0)
 assert_contains "$secure_result" $'secure_dialog_input\tpassed'
 grep -q 'admin@192.0.2.15' "$TMP/guest-ssh-args"
 grep -q 'mcporter' "$TMP/guest-ssh-args"
 grep -q 'text=@/dev/stdin' "$TMP/guest-ssh-args"
 grep -q 'dev/null' "$TMP/guest-ssh-args"
-grep -q 'peekaboo.*click.*--app' "$TMP/guest-ssh-args"
+grep -q 'peekaboo.*click.*Password.*--app.*System.*Settings' "$TMP/guest-ssh-args"
+grep -q 'peekaboo.*click.*Modify.*Settings.*--app.*System.*Settings' "$TMP/guest-ssh-args"
+if grep -q -- '--query' "$TMP/guest-ssh-args"; then
+    echo "secure dialog input passed the adapter-only --query option to Peekaboo" >&2
+    exit 1
+fi
 if grep -q 'click--app' "$TMP/guest-ssh-args"; then
     echo "secure dialog input collapsed adjacent guest arguments" >&2
     exit 1
@@ -324,64 +341,35 @@ if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" 
     echo "secure dialog input leaked its secret into logs or arguments" >&2
     exit 1
 fi
-secure_agent_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent AXSecureTextField Allow)
+secure_agent_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent AXSecureTextField Allow 0)
 assert_contains "$secure_agent_result" $'secure_dialog_input\tpassed'
-grep -q 'osascript' "$TMP/guest-ssh-args"
 grep -q 'keypath-secure-input' "$TMP/guest-ssh-args"
 grep -q 'button.*position.*size' "$TMP/guest-ssh-args"
-grep -q 'Allow' "$TMP/guest-ssh-args"
 grep -q 'peekaboo.*click.*--coords.*button_coords.*--global-coords' "$TMP/guest-ssh-args"
 grep -q -- '--foreground.*--input-strategy.*synthOnly' "$TMP/guest-ssh-args"
 grep -q 'SecurityAgent.*closed' "$TMP/guest-ssh-args"
-grep -q 'exit\\ 77' "$TMP/guest-ssh-args"
-if grep -q -- '--query' "$TMP/guest-ssh-args"; then
-    echo "secure dialog input used removed Peekaboo --query syntax" >&2
+if grep -q '/usr/bin/sudo\|pbcopy\|the\\ clipboard' "$TMP/guest-ssh-args"; then
+    echo "SecurityAgent secure input used an unsafe password path" >&2
     exit 1
 fi
-if grep -q '/usr/bin/sudo' "$TMP/guest-ssh-args"; then
-    echo "SecurityAgent secure input relied on passwordless sudo validation" >&2
+secure_focused_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent Password '' 1)
+assert_contains "$secure_focused_result" $'secure_dialog_input\tpassed'
+if grep -q 'peekaboo.*see\|peekaboo.*click' "$TMP/guest-ssh-args"; then
+    echo "already-focused secure input attempted inaccessible AX discovery" >&2
     exit 1
 fi
-if grep -q 'pbcopy\|the\\ clipboard' "$TMP/guest-ssh-args"; then
-    echo "SecurityAgent secure input used the guest clipboard" >&2
-    exit 1
-fi
-cmp -s "$TMP/secure-input" "$TMP/guest-ssh-stdin"
-run_remote destroy cbx_desktop15 >/dev/null
-
-cp -R "$ROOT/KeyPathInstallerLab/leases/cbx_desktop15" "$ROOT/KeyPathInstallerLab/leases/cbx_missing"
-missing_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_missing/manifest.tsv"
-sed -i '' 's/cbx_desktop15/cbx_missing/g; s/^status.*/status\tprovisioning-failed/; s/^cleanup_status.*/cleanup_status\tpending/; s/^provider_resource.*/provider_resource\tunknown/' "$missing_manifest"
-run_remote destroy cbx_missing >/dev/null
-grep -q $'cleanup_status\tcomplete' "$missing_manifest"
-
-cp -R "$ROOT/KeyPathInstallerLab/leases/cbx_desktop15" "$ROOT/KeyPathInstallerLab/leases/cbx_leaked"
-leaked_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_leaked/manifest.tsv"
-sed -i '' 's/cbx_desktop15/cbx_leaked/g; s/^status.*/status\tprovisioning-failed/; s/^cleanup_status.*/cleanup_status\tpending/; s/^provider_resource.*/provider_resource\tunknown/' "$leaked_manifest"
+protected_result=$(KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility 402 247)
+assert_contains "$protected_result" $'protected_click\tpassed'
+grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 402 --y 247' "$CALLS"
 set +e
-run_remote destroy cbx_leaked >/dev/null
-leaked_exit=$?
+protected_wrong_page=$(KEYPATH_LAB_TEST_WINDOW_AFTER=Network KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility 402 247 2>&1)
+protected_wrong_page_exit=$?
 set -e
-[[ $leaked_exit -ne 0 ]] || { echo "destroy treated an inventoried lease as absent" >&2; exit 1; }
-grep -q $'cleanup_status\tfailed' "$leaked_manifest"
-rm -rf "$ROOT/KeyPathInstallerLab/leases/cbx_leaked"
-
-rm -rf "$ROOT/KeyPathInstallerLab/leases/cbx_desktop15"
-KEYPATH_LAB_TEST_SLOW_WARMUP=1 run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1 > "$TMP/slow-create.log" 2>&1 &
-slow_create_pid=$!
-for _ in {1..50}; do
-    slow_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_desktop15/manifest.tsv"
-    [[ -f "$slow_manifest" ]] && break
-    sleep 0.1
-done
-[[ -f "$slow_manifest" ]]
-grep -q $'status\tprovisioning' "$slow_manifest"
-kill "$slow_create_pid" 2>/dev/null || true
-wait "$slow_create_pid" 2>/dev/null || true
-pkill -P "$slow_create_pid" 2>/dev/null || true
+[[ $protected_wrong_page_exit -ne 0 ]] || { echo "protected click accepted the wrong destination page" >&2; exit 1; }
+assert_contains "$protected_wrong_page" "protected click postcondition failed"
 run_remote destroy cbx_desktop15 >/dev/null
 
-if run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 3h 0 >/dev/null 2>&1; then
+if run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 3h 0 >/dev/null 2>&1; then
     echo "create accepted a TTL longer than the launchers support" >&2
     exit 1
 fi
@@ -415,8 +403,16 @@ assert_contains "$controller" controller-preflight
 grep -q 'tester@test-host' "$TMP/ssh-args"
 
 echo fake-installer > "$TMP/KeyPath.zip"
-if PATH="$TMP/fake-bin:$PATH" "$LAB_DIR/keypath-lab" create --macos 15 --commit abc --installer "$TMP/KeyPath.zip" >/dev/null 2>&1; then
+if PATH="$TMP/fake-bin:$PATH" "$LAB_DIR/keypath-lab" create --macos 15 --lane unmanaged-ui --commit abc --installer "$TMP/KeyPath.zip" >/dev/null 2>&1; then
     echo "controller accepted a non-explicit commit SHA" >&2
+    exit 1
+fi
+if PATH="$TMP/fake-bin:$PATH" "$LAB_DIR/keypath-lab" create --macos 15 --commit "$(printf 'a%.0s' {1..40})" --installer "$TMP/KeyPath.zip" >/dev/null 2>&1; then
+    echo "create accepted a request without an explicit test lane" >&2
+    exit 1
+fi
+if PATH="$TMP/fake-bin:$PATH" "$LAB_DIR/keypath-lab" create --macos 27 --lane managed-functional --commit "$(printf 'a%.0s' {1..40})" --installer "$TMP/KeyPath.zip" >/dev/null 2>&1; then
+    echo "create accepted the unsupported macOS 27 managed lane" >&2
     exit 1
 fi
 

@@ -1,0 +1,217 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+    echo "Usage: $0 --app /path/to/KeyPath.app --output DIR" >&2
+    exit 2
+}
+
+die() {
+    echo "generate-keypath-profiles: $*" >&2
+    exit 1
+}
+
+app=
+output=
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --app) app=${2:-}; shift 2 ;;
+        --output) output=${2:-}; shift 2 ;;
+        *) usage ;;
+    esac
+done
+
+[[ -d $app ]] || die "app bundle not found: $app"
+[[ -n $output ]] || usage
+
+codesign_bin=${CODESIGN_BIN:-/usr/bin/codesign}
+python_bin=${PYTHON_BIN:-/usr/bin/python3}
+launcher="$app/Contents/Library/KeyPath/kanata-launcher"
+engine="$app/Contents/Library/KeyPath/Kanata Engine.app"
+[[ -f $launcher ]] || die "runtime launcher not found: $launcher"
+[[ -d $engine ]] || die "Kanata Engine bundle not found: $engine"
+
+signing_field() {
+    local target=$1 field=$2 details
+    details=$($codesign_bin -dv --verbose=4 "$target" 2>&1) || die "cannot inspect signature: $target"
+    printf '%s\n' "$details" | sed -n "s/^${field}=//p" | head -1
+}
+
+requirement() {
+    local target=$1 output_line
+    output_line=$($codesign_bin -dr - "$target" 2>&1) || die "cannot read designated requirement: $target"
+    printf '%s\n' "$output_line" | sed -n 's/^designated => //p' | head -1
+}
+
+app_id=$(signing_field "$app" Identifier)
+app_team=$(signing_field "$app" TeamIdentifier)
+engine_id=$(signing_field "$engine" Identifier)
+engine_team=$(signing_field "$engine" TeamIdentifier)
+app_requirement=$(requirement "$app")
+launcher_requirement=$(requirement "$launcher")
+engine_requirement=$(requirement "$engine")
+
+[[ $app_id == com.keypath.KeyPath ]] || die "unexpected app identifier: $app_id"
+[[ $app_team == X2RKZ5TG99 ]] || die "unexpected KeyPath team: $app_team"
+[[ $engine_id == com.keypath.kanata-engine ]] || die "unexpected engine identifier: $engine_id"
+[[ $engine_team == X2RKZ5TG99 ]] || die "unexpected engine team: $engine_team"
+[[ -n $app_requirement && -n $launcher_requirement && -n $engine_requirement ]] || die "empty designated requirement"
+
+mkdir -p "$output"
+export KEYPATH_PROFILE_OUTPUT="$output"
+export KEYPATH_APP_REQUIREMENT="$app_requirement"
+export KEYPATH_LAUNCHER_REQUIREMENT="$launcher_requirement"
+export KEYPATH_ENGINE_REQUIREMENT="$engine_requirement"
+export KEYPATH_APP_ID="$app_id"
+export KEYPATH_ENGINE_ID="$engine_id"
+export KEYPATH_TEAM_ID="$app_team"
+export KEYPATH_APP_SHA256
+KEYPATH_APP_SHA256=$(find "$app" -type f -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | awk '{print $1}')
+
+$python_bin <<'PY'
+import hashlib
+import json
+import os
+import plistlib
+import uuid
+from pathlib import Path
+
+out = Path(os.environ["KEYPATH_PROFILE_OUTPUT"])
+team = os.environ["KEYPATH_TEAM_ID"]
+app_id = os.environ["KEYPATH_APP_ID"]
+engine_id = os.environ["KEYPATH_ENGINE_ID"]
+app_req = os.environ["KEYPATH_APP_REQUIREMENT"]
+launcher_req = os.environ["KEYPATH_LAUNCHER_REQUIREMENT"]
+engine_req = os.environ["KEYPATH_ENGINE_REQUIREMENT"]
+
+namespace = uuid.UUID("91ea6339-6e82-4c77-a167-bf3c42f20dc4")
+
+def uid(name):
+    return str(uuid.uuid5(namespace, name)).upper()
+
+def profile(identifier, display_name, payload_type, content):
+    payload_identifier = f"com.keypath.lab.{identifier}.payload"
+    payload = {
+        "PayloadType": payload_type,
+        "PayloadVersion": 1,
+        "PayloadIdentifier": payload_identifier,
+        "PayloadUUID": uid(payload_identifier),
+        "PayloadDisplayName": display_name,
+    }
+    payload.update(content)
+    profile_identifier = f"com.keypath.lab.{identifier}"
+    return {
+        "PayloadType": "Configuration",
+        "PayloadVersion": 1,
+        "PayloadIdentifier": profile_identifier,
+        "PayloadUUID": uid(profile_identifier),
+        "PayloadDisplayName": display_name,
+        "PayloadDescription": "KeyPath disposable managed functional test lane",
+        "PayloadOrganization": "KeyPath Lab",
+        "PayloadRemovalDisallowed": True,
+        "PayloadScope": "System",
+        "PayloadContent": [payload],
+    }
+
+def identity(identifier, identifier_type, requirement):
+    return {
+        "Identifier": identifier,
+        "IdentifierType": identifier_type,
+        "CodeRequirement": requirement,
+        "StaticCode": False,
+        "Allowed": True,
+    }
+
+app = identity(app_id, "bundleID", app_req)
+launcher = identity(
+    "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher",
+    "path",
+    launcher_req,
+)
+engine = identity(engine_id, "bundleID", engine_req)
+
+profiles = {
+    "keypath-pppc.mobileconfig": profile(
+        "pppc",
+        "KeyPath Lab Privacy Permissions",
+        "com.apple.TCC.configuration-profile-policy",
+        {
+            "Services": {
+                "Accessibility": [app, launcher, engine],
+                "ListenEvent": [app, launcher, engine],
+                "SystemPolicyAllFiles": [app],
+            }
+        },
+    ),
+    "keypath-system-extension.mobileconfig": profile(
+        "system-extension",
+        "KeyPath Lab VirtualHID System Extension",
+        "com.apple.system-extension-policy",
+        {
+            "AllowUserOverrides": False,
+            "AllowedSystemExtensions": {
+                "G43BCU2T37": ["org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"]
+            },
+            "AllowedSystemExtensionTypes": {"G43BCU2T37": ["DriverExtension"]},
+        },
+    ),
+    "keypath-service-management.mobileconfig": profile(
+        "service-management",
+        "KeyPath Lab Background Services",
+        "com.apple.servicemanagement",
+        {
+            "Rules": [
+                {
+                    "RuleType": "BundleIdentifier",
+                    "RuleValue": app_id,
+                    "TeamIdentifier": team,
+                }
+            ]
+        },
+    ),
+}
+
+manifest = {
+    "schemaVersion": 1,
+    "lane": "managed-functional",
+    "supportedMacOSMajorVersions": [15, 26],
+    "keyPath": {
+        "bundleIdentifier": app_id,
+        "teamIdentifier": team,
+        "designatedRequirement": app_req,
+    },
+    "kanataLauncher": {
+        "path": "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher",
+        "designatedRequirement": launcher_req,
+    },
+    "kanataEngine": {
+        "bundleIdentifier": engine_id,
+        "teamIdentifier": team,
+        "designatedRequirement": engine_req,
+    },
+    "virtualHID": {
+        "teamIdentifier": "G43BCU2T37",
+        "systemExtensionIdentifier": "org.pqrs.Karabiner-DriverKit-VirtualHIDDevice",
+    },
+    "sourceAppTreeSHA256": os.environ["KEYPATH_APP_SHA256"],
+    "profiles": {},
+}
+
+for filename, data in profiles.items():
+    path = out / filename
+    with path.open("wb") as handle:
+        plistlib.dump(data, handle, fmt=plistlib.FMT_XML, sort_keys=True)
+    manifest["profiles"][data["PayloadIdentifier"]] = {
+        "filename": filename,
+        "payloadUUID": data["PayloadUUID"],
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+    }
+
+(out / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+PY
+
+for profile in "$output"/*.mobileconfig; do
+    /usr/bin/plutil -lint "$profile" >/dev/null
+done
+echo "profiles\t$output"
+echo "manifest\t$output/manifest.json"
