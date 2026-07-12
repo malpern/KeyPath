@@ -211,10 +211,6 @@ public enum WizardSystemPaths {
     public static let karabinerVHIDDevice =
         "/Applications/Karabiner-Elements.app/Contents/Library/bin/karabiner_grabber"
 
-    /// Karabiner-Elements daemon path
-    public static let karabinerDaemon =
-        "/Library/Application Support/org.pqrs.Karabiner-Elements/bin/karabiner_session_monitor"
-
     /// Karabiner-Elements user configuration file
     public static var karabinerConfigPath: String {
         "\(userHomeDirectory)/.config/karabiner/karabiner.json"
