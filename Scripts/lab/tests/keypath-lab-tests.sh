@@ -227,4 +227,6 @@ if PATH="$TMP/fake-bin:$PATH" "$LAB_DIR/keypath-lab" create --macos 15 --commit 
     exit 1
 fi
 
+"$LAB_DIR/tests/peekaboo-ui-tests.sh"
+
 echo "keypath-lab shell tests passed"

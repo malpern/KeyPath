@@ -1,0 +1,106 @@
+#!/bin/zsh
+set -euo pipefail
+
+die() { print -u2 "peekaboo-ui: $*"; exit 1; }
+
+usage() {
+  cat >&2 <<'EOF'
+Usage: Scripts/lab/peekaboo-ui <command> [options]
+
+Commands:
+  preflight
+  snapshot --app APP --output FILE
+  click --app APP --query QUERY --output FILE [--foreground]
+  dialogs --app APP --output FILE
+  file --app APP --path PATH --output FILE [--select BUTTON]
+  screenshot --app APP --output FILE [--retina]
+
+This command runs inside a desktop-enabled disposable guest. Every operation
+writes Peekaboo's JSON result to FILE. It never accepts credentials. A
+successful click proves delivery only; protected System Settings controls must
+also be checked with an independent system/runtime postcondition.
+EOF
+  exit 2
+}
+
+require_value() {
+  [[ -n "${2:-}" ]] || die "$1 requires a value"
+}
+
+require_output_path() {
+  local output=$1 parent
+  [[ -n "$output" && "$output" != -* ]] || die "invalid output path"
+  parent=${output:h}
+  mkdir -p "$parent"
+}
+
+peekaboo_bin=${PEEKABOO_BIN:-$(command -v peekaboo || true)}
+
+command=${1:-}
+[[ -n "$command" ]] || usage
+shift
+
+if [[ "$command" == preflight ]]; then
+  [[ $# -eq 0 ]] || usage
+  [[ -x "$peekaboo_bin" ]] || die "Peekaboo 3.x is required (brew install steipete/tap/peekaboo)"
+  version=$($peekaboo_bin --version 2>/dev/null | head -1)
+  [[ "$version" =~ '^Peekaboo[[:space:]]+3\.' ]] || die "Peekaboo 3.x is required; found: ${version:-unknown}"
+  $peekaboo_bin permissions status --json
+  exit
+fi
+
+[[ -x "$peekaboo_bin" ]] || die "Peekaboo 3.x is required (brew install steipete/tap/peekaboo)"
+
+app=
+output=
+query=
+file_path=
+select_button=Open
+foreground=0
+retina=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --app) require_value "$1" "${2:-}"; app=$2; shift 2 ;;
+    --output) require_value "$1" "${2:-}"; output=$2; shift 2 ;;
+    --query) require_value "$1" "${2:-}"; query=$2; shift 2 ;;
+    --path) require_value "$1" "${2:-}"; file_path=$2; shift 2 ;;
+    --select) require_value "$1" "${2:-}"; select_button=$2; shift 2 ;;
+    --foreground) foreground=1; shift ;;
+    --retina) retina=1; shift ;;
+    *) usage ;;
+  esac
+done
+
+[[ -n "$app" ]] || die "--app is required"
+[[ -n "$output" ]] || die "--output is required"
+require_output_path "$output"
+
+case "$command" in
+  snapshot)
+    $peekaboo_bin see --app "$app" --json > "$output"
+    ;;
+  click)
+    [[ -n "$query" ]] || die "--query is required"
+    args=(click "$query" --app "$app" --json)
+    (( foreground )) && args+=(--foreground)
+    $peekaboo_bin "${args[@]}" > "$output"
+    ;;
+  dialogs)
+    $peekaboo_bin dialog list --app "$app" --json > "$output"
+    ;;
+  file)
+    [[ -n "$file_path" && "$file_path" == /* ]] || die "--path must be absolute"
+    file_directory=${file_path:h}
+    file_name=${file_path:t}
+    [[ -n "$file_name" ]] || die "--path must identify a file"
+    $peekaboo_bin dialog file --app "$app" --path "$file_directory" --name "$file_name" --select "$select_button" --json > "$output"
+    ;;
+  screenshot)
+    args=(image --app "$app" --mode window --path "$output" --json)
+    (( retina )) && args+=(--retina)
+    result="${output}.json"
+    $peekaboo_bin "${args[@]}" > "$result"
+    ;;
+  *) usage ;;
+esac

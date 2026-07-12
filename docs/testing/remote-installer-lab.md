@@ -82,6 +82,47 @@ CrabBox's desktop capability; ordinary creation continues to use the launchers
 unchanged. Artifact collection captures a screenshot for desktop leases and
 records an explicit unavailable status otherwise.
 
+### Semantic UI automation with Peekaboo 3
+
+Desktop guests can use `Scripts/lab/peekaboo-ui` to discover and operate
+KeyPath and System Settings without framebuffer coordinate assumptions. The
+adapter provides typed commands for snapshots, semantic clicks, dialog
+inspection, file selection, and Retina screenshots. Every command writes JSON
+evidence alongside the scenario output so it is included by `artifacts`.
+
+```bash
+OUT=.keypath-lab/scenario-output/approvals/peekaboo
+
+Scripts/lab/keypath-lab run cbx_example -- \
+  Scripts/lab/peekaboo-ui preflight
+Scripts/lab/keypath-lab run cbx_example -- \
+  Scripts/lab/peekaboo-ui snapshot \
+  --app 'System Settings' --output "$OUT/input-monitoring.json"
+Scripts/lab/keypath-lab run cbx_example -- \
+  Scripts/lab/peekaboo-ui click \
+  --app 'System Settings' --query Add --output "$OUT/add-click.json"
+Scripts/lab/keypath-lab run cbx_example -- \
+  Scripts/lab/peekaboo-ui file \
+  --app 'System Settings' \
+  --path /Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher \
+  --output "$OUT/file-dialog.json"
+```
+
+Peekaboo click success means that it delivered an action to the selected UI
+element. It is not proof that macOS accepted a protected change. Background App
+Activity, Driver Extensions, Accessibility, and Input Monitoring must be
+verified through the canonical CLI/system/runtime postcondition after every
+click. Driver Extension activation on macOS 15 may still require CrabBox's
+native RFB click delivery. Use fresh Peekaboo geometry to locate the control,
+convert logical points to framebuffer coordinates using the current display
+scale, and verify activation afterward; never preserve raw coordinates between
+runs.
+
+The adapter deliberately has no password-input command. Do not put a lab
+password in a command line, workflow file, shell trace, or collected artifact.
+Authentication-sheet automation needs a separate secure credential-injection
+contract before it becomes part of the reusable workflow.
+
 `install-app` expands the staged ZIP into `/Applications` on the disposable
 guest. Tart uses the base image's noninteractive sudo contract. Parallels uses
 the same passwordless `prlctl exec` guest-control channel CrabBox already uses
