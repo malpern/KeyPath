@@ -233,7 +233,12 @@ grep -q 'admin@192.0.2.15' "$TMP/guest-ssh-args"
 grep -q 'mcporter' "$TMP/guest-ssh-args"
 grep -q 'text=@/dev/stdin' "$TMP/guest-ssh-args"
 grep -q 'dev/null' "$TMP/guest-ssh-args"
-grep -q 'peekaboo.*click.*--app' "$TMP/guest-ssh-args"
+grep -q 'peekaboo.*click.*Password.*--app.*System.*Settings' "$TMP/guest-ssh-args"
+grep -q 'peekaboo.*click.*Modify.*Settings.*--app.*System.*Settings' "$TMP/guest-ssh-args"
+if grep -q -- '--query' "$TMP/guest-ssh-args"; then
+    echo "secure dialog input passed the adapter-only --query option to Peekaboo" >&2
+    exit 1
+fi
 if grep -q 'click--app' "$TMP/guest-ssh-args"; then
     echo "secure dialog input collapsed adjacent guest arguments" >&2
     exit 1

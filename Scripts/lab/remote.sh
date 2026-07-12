@@ -423,17 +423,25 @@ secure_dialog_input() {
 
   # Peekaboo's MCP type response contains the typed value. Suppress both output
   # streams for that command so the secret cannot enter controller logs.
-  local click_command submit_command
-  local -a click_args submit_args
+  local refresh_command click_command submit_command submit_label_quoted
+  local -a refresh_args click_args submit_args
   guest_command='set -euo pipefail; command -v /opt/homebrew/bin/peekaboo >/dev/null; command -v /opt/homebrew/bin/mcporter >/dev/null; '
-  click_args=(/opt/homebrew/bin/peekaboo click --app "$app" --query "$field_label" --json)
+  # Protected sheets change the desktop after the preceding toggle. Refresh
+  # immediately so Peekaboo does not reject the semantic target as stale.
+  refresh_args=(/opt/homebrew/bin/peekaboo see --app "$app" --json)
+  printf -v refresh_command '%q ' "${refresh_args[@]}"
+  guest_command+="$refresh_command >/dev/null || exit 40; "
+  # Peekaboo 3 accepts the semantic target as the positional click argument.
+  # --query belongs to Scripts/lab/peekaboo-ui and is not a Peekaboo option.
+  click_args=(/opt/homebrew/bin/peekaboo click "$field_label" --app "$app" --foreground --json)
   printf -v click_command '%q ' "${click_args[@]}"
-  guest_command+="$click_command >/dev/null; "
-  guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1'
+  guest_command+="$click_command >/dev/null || exit 41; "
+  guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1 || exit 42'
   if [[ -n "$submit_button" ]]; then
-    submit_args=(/opt/homebrew/bin/peekaboo click --app "$app" --query "$submit_button" --json)
+    submit_args=(/opt/homebrew/bin/peekaboo click "$submit_button" --app "$app" --foreground --json)
     printf -v submit_command '%q ' "${submit_args[@]}"
-    guest_command+="; $submit_command >/dev/null"
+    printf -v submit_label_quoted '%q' "$submit_button"
+    guest_command+="; $refresh_command >/tmp/keypath-secure-submit.json || exit 44; if ! $submit_command >/dev/null; then $refresh_command >/tmp/keypath-secure-submit.json || exit 43; /usr/bin/python3 -c 'import json,sys; elements=json.load(open(sys.argv[1])).get(\"data\",{}).get(\"ui_elements\",[]); raise SystemExit(1 if any(e.get(\"label\")==sys.argv[2] for e in elements) else 0)' /tmp/keypath-secure-submit.json $submit_label_quoted || exit 43; fi"
   fi
   set +e
   "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")" < "$secret_file"
@@ -446,6 +454,21 @@ secure_dialog_input() {
   if (( exit_code == 0 )); then
     record_command "$lease" passed secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
     print "secure_dialog_input\tpassed"
+  elif (( exit_code == 40 )); then
+    record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
+    die "secure dialog input failed while refreshing the dialog snapshot"
+  elif (( exit_code == 41 )); then
+    record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
+    die "secure dialog input failed while focusing the field"
+  elif (( exit_code == 42 )); then
+    record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
+    die "secure dialog input failed while streaming masked input"
+  elif (( exit_code == 43 )); then
+    record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
+    die "secure dialog input failed while submitting the dialog"
+  elif (( exit_code == 44 )); then
+    record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
+    die "secure dialog input failed while refreshing the submitted dialog"
   else
     record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
     die "secure dialog input failed"
