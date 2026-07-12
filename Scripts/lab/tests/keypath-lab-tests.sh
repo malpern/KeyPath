@@ -38,7 +38,7 @@ cat > "$ROOT/bin/launcher27" <<EOF
 #!/bin/bash
 case "\$1" in
  doctor) echo doctor-27 ;;
- warmup) echo diagnostic previous=cbx_not_the_new_lease; echo cbx_test27 ;;
+ warmup) echo diagnostic previous=cbx_not_the_new_lease; printf %s cbx_test27 ;;
  run) echo product=27.0; echo build=26A5378j ;;
  stop) echo "stop-27 \$2" >> "$CALLS" ;;
  list) echo cbx_test27 ;;
@@ -48,8 +48,8 @@ cat > "$ROOT/bin/crabbox" <<EOF
 #!/bin/bash
 echo "crabbox \$*" >> "$CALLS"
 if [[ \$1 == warmup ]]; then
-  if [[ " \$* " == *" --provider tart "* ]]; then echo 'leased cbx_desktop15 slug=test instance=test-resource'; else echo 'leased cbx_desktop26 slug=test vm=00000000-0000-0000-0000-000000000000'; fi
-  if [[ \${KEYPATH_LAB_TEST_SLOW_WARMUP:-0} == 1 ]]; then sleep 30; fi
+  if [[ " \$* " == *" --provider tart "* ]]; then lease_line='leased cbx_desktop15 slug=test instance=test-resource'; else lease_line='leased cbx_desktop26 slug=test vm=00000000-0000-0000-0000-000000000000'; fi
+  if [[ \${KEYPATH_LAB_TEST_SLOW_WARMUP:-0} == 1 ]]; then echo "\$lease_line"; sleep 30; else printf %s "\$lease_line"; fi
   exit 0
 fi
 if [[ \$1 == screenshot ]]; then

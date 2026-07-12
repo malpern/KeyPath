@@ -422,7 +422,7 @@ create_lease() {
   : > "$candidate_file"
   set +e
   if [[ "$desktop" == "1" ]]; then
-    (cd "$repo" && warmup_desktop "$macos" "$slug" 2>&1) | while IFS= read -r line; do
+    (cd "$repo" && warmup_desktop "$macos" "$slug" 2>&1) | while IFS= read -r line || [[ -n "$line" ]]; do
       print -r -- "$line"
       print -r -- "$line" >> "$create_log"
       if [[ ! -s "$candidate_file" ]]; then
@@ -434,7 +434,7 @@ create_lease() {
       fi
     done
   else
-    (cd "$repo" && "$launcher" warmup "$slug" 2>&1) | while IFS= read -r line; do
+    (cd "$repo" && "$launcher" warmup "$slug" 2>&1) | while IFS= read -r line || [[ -n "$line" ]]; do
       print -r -- "$line"
       print -r -- "$line" >> "$create_log"
       if [[ ! -s "$candidate_file" ]]; then
