@@ -13,5 +13,11 @@ python3 "$RENDERER" "$FRAGMENT" "$OUTPUT"
 # This dashboard is served locally and polls only its same-origin state file.
 perl -0pi -e "s/connect-src blob: data:/connect-src 'self' blob: data:/g" "$OUTPUT"
 
+# The rendered app runs inside a srcdoc iframe. Without allow-same-origin the
+# iframe receives an opaque origin, so its relative state-file fetch is blocked
+# even though both resources come from this local server.
+perl -0pi -e 's/sandbox="allow-scripts"/sandbox="allow-scripts allow-same-origin"/g' "$OUTPUT"
+
 grep -Fq "connect-src 'self' blob: data:" "$OUTPUT"
+grep -Fq 'sandbox="allow-scripts allow-same-origin"' "$OUTPUT"
 echo "$OUTPUT"
