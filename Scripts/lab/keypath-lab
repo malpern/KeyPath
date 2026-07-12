@@ -14,6 +14,7 @@ Commands:
   preflight
   create --macos 15|26|27 --commit SHA --installer PATH [--ttl 2h] [--desktop]
   install-app LEASE_ID
+  desktop-bootstrap LEASE_ID [--install-tools]
   secure-dialog-input LEASE_ID --app APP --field LABEL [--submit BUTTON]
   run LEASE_ID -- COMMAND [ARG...]
   status LEASE_ID
@@ -112,6 +113,16 @@ EOF
         [[ $# -eq 1 ]] || usage
         require_lease_id "$1"
         remote install-app "$1"
+        ;;
+    desktop-bootstrap)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        install_tools=0
+        if [[ ${1:-} == "--install-tools" && $# -eq 1 ]]; then install_tools=1; shift; fi
+        [[ $# -eq 0 ]] || usage
+        remote desktop-bootstrap "$lease" "$install_tools"
         ;;
     secure-dialog-input)
         lease=${1:-}

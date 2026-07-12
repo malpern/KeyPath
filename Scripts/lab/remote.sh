@@ -493,6 +493,21 @@ scenario() {
   run_command "$lease" "/bin/zsh" "$scenario_script" "$name"
 }
 
+desktop_bootstrap() {
+  local lease=$1 install_tools=$2 manifest macos repo output guest_output command
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "desktop bootstrap requires a desktop-enabled lease"
+  repo=$(field "$manifest" worktree)
+  prepare_worktree "$repo"
+  output=".keypath-lab/scenario-output/bootstrap"
+  command=(/bin/zsh Scripts/lab/desktop-bootstrap --output "$output")
+  [[ "$install_tools" == "1" ]] && command+=(--install-tools)
+  run_command "$lease" "${command[@]}"
+  set_field "$manifest" desktop_bootstrap_at "$(utc_now)"
+  set_field "$manifest" desktop_bootstrap_status passed
+}
+
 destroy_lease() {
   local lease=$1 manifest macos launcher exit_code repo
   manifest=$(owned_manifest "$lease")
@@ -551,6 +566,7 @@ case "$action" in
   list) [[ $# -eq 0 ]] || die "list takes no arguments"; list_leases ;;
   artifacts) [[ $# -eq 1 ]] || die "artifacts requires lease"; collect_artifacts "$1" ;;
   scenario) [[ $# -eq 2 ]] || die "scenario requires lease and name"; scenario "$1" "$2" ;;
+  desktop-bootstrap) [[ $# -eq 2 ]] || die "desktop-bootstrap requires lease and install-tools flag"; desktop_bootstrap "$@" ;;
   destroy) [[ $# -eq 1 ]] || die "destroy requires lease"; destroy_lease "$1" ;;
   cleanup) cleanup_expired "${1:-}" ;;
   *) die "unknown action: $action" ;;

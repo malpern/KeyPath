@@ -87,6 +87,7 @@ echo test-private-key > "$TMP/id_ed25519"
 echo 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
 
 /bin/bash -n "$LAB_DIR/../qa-macos-27-regression.sh"
+/bin/zsh -n "$LAB_DIR/desktop-bootstrap"
 grep -q 'macos-27-regression)' "$LAB_DIR/scenarios/installer-scenario"
 
 run_remote() {

@@ -1,0 +1,78 @@
+#!/bin/zsh
+set -euo pipefail
+
+die() { print -u2 "desktop-bootstrap: $*"; exit 1; }
+
+usage() {
+  print -u2 "Usage: Scripts/lab/desktop-bootstrap --output DIR [--install-tools]"
+  exit 2
+}
+
+output=
+install_tools=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --output) [[ -n ${2:-} ]] || usage; output=$2; shift 2 ;;
+    --install-tools) install_tools=1; shift ;;
+    *) usage ;;
+  esac
+done
+[[ -n "$output" && "$output" != -* ]] || usage
+mkdir -p "$output"
+
+console_user=$(stat -f '%Su' /dev/console)
+[[ "$console_user" != root && "$console_user" != loginwindow ]] || die "no logged-in console user"
+[[ "$console_user" == "$USER" ]] || die "command user $USER does not own console session $console_user"
+
+if (( install_tools )); then
+  command -v brew >/dev/null || die "Homebrew is required to install desktop tools"
+  command -v peekaboo >/dev/null || brew install steipete/tap/peekaboo
+  command -v mcporter >/dev/null || brew install steipete/tap/mcporter
+fi
+
+peekaboo_bin=$(command -v peekaboo || true)
+mcporter_bin=$(command -v mcporter || true)
+[[ -x "$peekaboo_bin" && -x "$mcporter_bin" ]] || die "Peekaboo 3 and mcporter are required"
+[[ "$($peekaboo_bin --version | head -1)" == Peekaboo\ 3.* ]] || die "Peekaboo 3 is required"
+
+$peekaboo_bin permissions status --json > "$output/peekaboo-permissions-before.json"
+# The first capture can display macOS's private-picker bypass consent sheet.
+$peekaboo_bin see --json > "$output/initial-desktop.json" || true
+$peekaboo_bin see --app UserNotificationCenter --json > "$output/user-notification-center.json" || true
+
+consent=$(python3 - "$output/user-notification-center.json" <<'PY'
+import json, sys
+try:
+    data = json.load(open(sys.argv[1])).get("data", {})
+except Exception:
+    raise SystemExit(1)
+for element in data.get("ui_elements", []):
+    if element.get("is_actionable") and element.get("label") == "Allow":
+        print(data["snapshot_id"], element["id"], sep="\t")
+        break
+PY
+) || true
+
+if [[ -n "$consent" ]]; then
+  snapshot=${consent%%$'\t'*}
+  element=${consent#*$'\t'}
+  $peekaboo_bin click --on "$element" --snapshot "$snapshot" --no-auto-focus --json \
+    > "$output/peekaboo-consent-click.json"
+fi
+
+$peekaboo_bin see --json > "$output/desktop-ready.json"
+$peekaboo_bin permissions status --json > "$output/peekaboo-permissions-after.json"
+
+python3 - "$output/bootstrap.json" "$console_user" "$($peekaboo_bin --version | head -1)" <<'PY'
+import json, platform, sys
+path, user, version = sys.argv[1:]
+with open(path, "w") as f:
+    json.dump({
+        "status": "ready",
+        "consoleUser": user,
+        "macOS": platform.mac_ver()[0],
+        "peekaboo": version,
+    }, f, indent=2)
+    f.write("\n")
+PY
+cat "$output/bootstrap.json"
