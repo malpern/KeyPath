@@ -341,15 +341,18 @@ if grep -q 'peekaboo.*see\|peekaboo.*click' "$TMP/guest-ssh-args"; then
     echo "already-focused secure input attempted inaccessible AX discovery" >&2
     exit 1
 fi
-protected_result=$(KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility 402 247)
+protected_result=$(KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility native 402 247)
 assert_contains "$protected_result" $'protected_click\tpassed'
 grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 402 --y 247' "$CALLS"
 set +e
-protected_wrong_page=$(KEYPATH_LAB_TEST_WINDOW_AFTER=Network KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility 402 247 2>&1)
+protected_wrong_page=$(KEYPATH_LAB_TEST_WINDOW_AFTER=Network KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility native 402 247 2>&1)
 protected_wrong_page_exit=$?
 set -e
 [[ $protected_wrong_page_exit -ne 0 ]] || { echo "protected click accepted the wrong destination page" >&2; exit 1; }
 assert_contains "$protected_wrong_page" "protected click postcondition failed"
+protected_ax_result=$(KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility ax 402 247)
+assert_contains "$protected_ax_result" $'display_scale\t2'
+grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 804 --y 494' "$CALLS"
 run_remote destroy cbx_desktop15 >/dev/null
 
 if run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 3h 0 >/dev/null 2>&1; then

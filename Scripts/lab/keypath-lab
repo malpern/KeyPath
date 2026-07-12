@@ -15,7 +15,7 @@ Commands:
   create --macos 15|26|27 --lane managed-functional|unmanaged-ui --commit SHA --installer PATH [--ttl 2h] [--desktop]
   install-app LEASE_ID
   desktop-bootstrap LEASE_ID [--install-tools]
-  protected-click LEASE_ID --app APP --window TITLE --x X --y Y [--after-window TITLE]
+  protected-click LEASE_ID --app APP --window TITLE (--x X --y Y | --ax-x X --ax-y Y) [--after-window TITLE]
   secure-dialog-input LEASE_ID --app APP --field LABEL [--submit BUTTON] [--already-focused]
   run LEASE_ID -- COMMAND [ARG...]
   status LEASE_ID
@@ -139,6 +139,7 @@ EOF
         after_window=
         x=
         y=
+        coordinate_space=native
         while [[ $# -gt 0 ]]; do
             case "$1" in
                 --app) app=${2:-}; shift 2 ;;
@@ -146,12 +147,14 @@ EOF
                 --after-window) after_window=${2:-}; shift 2 ;;
                 --x) x=${2:-}; shift 2 ;;
                 --y) y=${2:-}; shift 2 ;;
+                --ax-x) x=${2:-}; coordinate_space=ax; shift 2 ;;
+                --ax-y) y=${2:-}; coordinate_space=ax; shift 2 ;;
                 *) usage ;;
             esac
         done
         [[ -n $app && -n $window && $x =~ ^[0-9]+$ && $y =~ ^[0-9]+$ ]] || usage
         [[ -n $after_window ]] || after_window=$window
-        remote protected-click "$lease" "$app" "$window" "$after_window" "$x" "$y"
+        remote protected-click "$lease" "$app" "$window" "$after_window" "$coordinate_space" "$x" "$y"
         ;;
     secure-dialog-input)
         lease=${1:-}

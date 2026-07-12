@@ -604,13 +604,15 @@ secure_dialog_input() {
 }
 
 protected_click() {
-  local lease=$1 app=$2 expected_before=$3 expected_after=$4 x=$5 y=$6
-  local manifest macos resource key ip before after guest_command
+  local lease=$1 app=$2 expected_before=$3 expected_after=$4 coordinate_space=$5 x=$6 y=$7
+  local manifest macos resource key ip before after guest_command geometry_command geometry
+  local native_width native_height logical_width logical_height scale_x scale_y
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$macos" == "15" ]] || die "protected click currently supports only the Tart macOS 15 lane"
   [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "protected click requires a desktop-enabled lease"
   [[ "$x" == <-> && "$y" == <-> ]] || die "protected click coordinates must be non-negative integers"
+  [[ "$coordinate_space" == "native" || "$coordinate_space" == "ax" ]] || die "invalid protected click coordinate space"
   resource=$(field "$manifest" provider_resource)
   [[ "$resource" =~ '^[A-Za-z0-9._-]+$' && "$resource" != "unknown" ]] || die "invalid Tart resource id"
 
@@ -631,6 +633,23 @@ protected_click() {
     die "protected click precondition failed: expected window '$expected_before', found '${before:-unknown}'"
   }
 
+  if [[ "$coordinate_space" == "ax" ]]; then
+    if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+      geometry=${KEYPATH_LAB_TEST_DISPLAY_GEOMETRY:-$'2048\t1536\t1024\t768'}
+    else
+      geometry_command='/opt/homebrew/bin/peekaboo list windows --app '$(printf %q "$app")' --json | /usr/bin/python3 -c '\''import json,re,sys; data=json.load(sys.stdin).get("data",{}); windows=data.get("windows",data if isinstance(data,list) else []); names=[w.get("screenName","") for w in windows if isinstance(w,dict)]; m=next((re.search(r"([0-9]+)×([0-9]+)",n) for n in names if re.search(r"([0-9]+)×([0-9]+)",n)),None); print(f"{m.group(1)}\\t{m.group(2)}" if m else "")'\''; printf "\\t"; /usr/bin/osascript -l JavaScript -e '\''ObjC.import("AppKit"); var s=$.NSScreen.mainScreen.frame.size; s.width+"\\t"+s.height'\'''
+      geometry=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$geometry_command")")
+    fi
+    IFS=$'\t' read -r native_width native_height logical_width logical_height <<< "$geometry"
+    [[ "$native_width" == <-> && "$native_height" == <-> && "$logical_width" == <-> && "$logical_height" == <-> && "$logical_width" -gt 0 && "$logical_height" -gt 0 ]] || die "protected click could not measure display geometry"
+    (( native_width % logical_width == 0 && native_height % logical_height == 0 )) || die "protected click measured a non-integral display scale"
+    scale_x=$((native_width / logical_width))
+    scale_y=$((native_height / logical_height))
+    (( scale_x == scale_y && scale_x > 0 )) || die "protected click measured inconsistent display scales"
+    x=$((x * scale_x))
+    y=$((y * scale_y))
+  fi
+
   "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$x" --y "$y" >/dev/null
   sleep "${KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS:-1}"
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
@@ -646,6 +665,10 @@ protected_click() {
   print "protected_click\tpassed"
   print "window_before\t$before"
   print "window_after\t$after"
+  print "coordinate_space\t$coordinate_space"
+  if [[ "$coordinate_space" == "ax" ]]; then
+    print "display_scale\t$scale_x"
+  fi
 }
 
 print_status() {
@@ -796,7 +819,7 @@ case "$action" in
   create) [[ $# -eq 8 ]] || die "create requires macOS, test lane, archive, commit, checksum, name, ttl, desktop"; create_lease "$@" ;;
   install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
   secure-dialog-input) [[ $# -eq 5 ]] || die "secure-dialog-input requires lease, app, field, optional submit value, and focus mode"; secure_dialog_input "$@" ;;
-  protected-click) [[ $# -eq 6 ]] || die "protected-click requires lease, app, before window, after window, x, and y"; protected_click "$@" ;;
+  protected-click) [[ $# -eq 7 ]] || die "protected-click requires lease, app, before window, after window, coordinate space, x, and y"; protected_click "$@" ;;
   run) [[ $# -ge 2 ]] || die "run requires lease and command"; run_command "$@" ;;
   status) [[ $# -eq 1 ]] || die "status requires lease"; print_status "$1" ;;
   list) [[ $# -eq 0 ]] || die "list takes no arguments"; list_leases ;;
