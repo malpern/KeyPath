@@ -97,6 +97,24 @@ Notes:
   merged**, not `git branch --merged` (squash-merges are not `master` ancestors,
   so that misreports them).
 
+### VM Lab Concurrency (mandatory admission path)
+
+- All disposable KeyPath VM work must go through `Scripts/lab/keypath-lab` from
+  current `master`. Do not create installer-test VMs with raw `crabbox`, `tart`,
+  `prlctl`, `keypath15`, `keypath26`, or `keypath27` commands; those bypass the
+  shared provider admission contract.
+- Before requesting a VM, run `Scripts/lab/keypath-lab list`. Create it with the
+  explicit commit, signed installer, lane, and desktop requirement documented in
+  `docs/testing/remote-installer-lab.md`.
+- Provider capacity is centrally enforced on the mini: one Tart lease and two
+  Parallels leases by default. `create` exits 75 with `capacity_busy` and the
+  current owners when full. Treat that as an infrastructure wait, not a KeyPath
+  failure: continue non-VM work or retry after the owning lease is destroyed or
+  expires. Never stop, adopt, or mutate another agent's lease.
+- A successful lease manifest is the reservation. Always collect artifacts and
+  call `Scripts/lab/keypath-lab destroy <lease>` when finished; do not leave a VM
+  running for another agent to infer ownership.
+
 ### PR Workflow & Git Safety
 
 - Follow the invariants in `docs/process/agent-pr-invariants.md`. Step-by-step
