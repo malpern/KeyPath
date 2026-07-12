@@ -286,6 +286,42 @@ final class CLIOutputContractTests: XCTestCase {
         XCTAssertEqual(decoded.stateMatrixPlan, [InstallerStateMatrixAction.installHelper.rawValue])
     }
 
+    func testPermissionIssuesPreserveTriModeSemantics() {
+        let granted = SystemContextBuilder(
+            permissionsStatus: .granted,
+            helperReady: true,
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
+        XCTAssertFalse(SystemFacade.issues(from: granted).contains { $0.category == "permissions" })
+        XCTAssertTrue(SystemFacade.isOperational(granted))
+
+        let denied = SystemContextBuilder(
+            permissionsStatus: .denied,
+            helperReady: true,
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
+        let deniedIssues = SystemFacade.issues(from: denied).filter { $0.category == "permissions" }
+        XCTAssertTrue(deniedIssues.allSatisfy { $0.severity == "error" })
+        XCTAssertTrue(deniedIssues.allSatisfy(\.requiresUserAction))
+        XCTAssertTrue(deniedIssues.contains { $0.title == "Kanata needs Input Monitoring permission" })
+        XCTAssertFalse(SystemFacade.isOperational(denied))
+
+        let unknown = SystemContextBuilder(
+            permissionsStatus: .unknown,
+            helperReady: true,
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
+        let unknownIssues = SystemFacade.issues(from: unknown).filter { $0.category == "permissions" }
+        XCTAssertTrue(unknownIssues.allSatisfy { $0.severity == "warning" })
+        XCTAssertFalse(unknownIssues.contains(where: \.requiresUserAction))
+        XCTAssertTrue(unknownIssues.contains { $0.title == "Kanata Input Monitoring permission not verified" })
+        XCTAssertFalse(unknownIssues.contains { $0.title.contains(" needs ") })
+        XCTAssertTrue(SystemFacade.isOperational(unknown))
+    }
+
     func testJSONRoundTripsPreserveKeys() throws {
         let changeset = CLIApplyChangeset(enabledCollections: ["A"], disabledCollections: ["B"], customRules: ["caps → esc"])
         let result = CLIApplyResult(collectionsCount: 5, enabledCount: 3, customRulesCount: 2, reloadSuccess: true, changeset: changeset)

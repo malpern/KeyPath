@@ -297,18 +297,25 @@ public struct CLISystemIssue: Codable, Sendable {
     public let action: String
     public let canAutoFix: Bool
     public let remediationURL: String?
+    public let severity: String?
+
+    public var requiresUserAction: Bool {
+        severity != "warning" && !canAutoFix
+    }
 
     public init(
         title: String,
         category: String,
         action: String,
         canAutoFix: Bool,
-        remediationURL: String? = nil
+        remediationURL: String? = nil,
+        severity: String = "error"
     ) {
         self.title = title
         self.category = category
         self.action = action
         self.canAutoFix = canAutoFix
         self.remediationURL = remediationURL
+        self.severity = severity
     }
 }
