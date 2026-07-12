@@ -609,13 +609,12 @@ secure_dialog_input() {
   local -a refresh_args focus_args click_args submit_args button_geometry_args postcondition_args
   guest_command='set -euo pipefail; command -v /opt/homebrew/bin/peekaboo >/dev/null; command -v /opt/homebrew/bin/mcporter >/dev/null; '
   if [[ "$field_label" == "AXSecureTextField" ]]; then
-    [[ "$app" == "SecurityAgent" ]] || die "AXSecureTextField is supported only for SecurityAgent"
     [[ -n "$submit_button" ]] || die "AXSecureTextField requires a submit button for postcondition verification"
     [[ "$already_focused" == "0" ]] || die "AXSecureTextField does not use --already-focused"
-    focus_args=(/usr/bin/osascript -e 'on run argv' -e 'set secretValue to read POSIX file (item 1 of argv) as «class utf8»' -e 'tell application "System Events" to tell process "SecurityAgent" to set value of first UI element of window 1 whose description is "secure text field" to secretValue' -e 'end run')
+    focus_args=(/usr/bin/osascript -l JavaScript -e 'function descendants(element) { var result = []; try { var children = element.uiElements(); for (var i = 0; i < children.length; i++) { result.push(children[i]); result = result.concat(descendants(children[i])); } } catch (_) {} return result; } function run(argv) { var appName = argv[1]; var secret = $.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js.replace(/\r?\n$/, ""); var process = Application("System Events").processes.byName(appName); var field = descendants(process.windows[0]).find(function (element) { try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; } }); if (!field) throw new Error("secure text field not found"); field.value = secret; }')
     printf -v field_command '%q ' "${focus_args[@]}"
     guest_command+='IFS= read -r secret_value; secret_path=$(/usr/bin/mktemp /tmp/keypath-secure-input.XXXXXX); /bin/chmod 600 "$secret_path"; trap '\''rm -f "$secret_path"'\'' EXIT; printf '\''%s'\'' "$secret_value" > "$secret_path"; unset secret_value; '
-    guest_command+="$field_command \"\$secret_path\" >/dev/null; rm -f \"\$secret_path\"; trap - EXIT"
+    guest_command+="$field_command \"\$secret_path\" $(printf %q "$app") >/dev/null; rm -f \"\$secret_path\"; trap - EXIT"
   elif [[ "$already_focused" == "0" ]]; then
     refresh_args=(/opt/homebrew/bin/peekaboo see --app "$app" --json)
     printf -v refresh_command '%q ' "${refresh_args[@]}"
@@ -633,7 +632,7 @@ secure_dialog_input() {
   fi
   if [[ -n "$submit_button" ]]; then
     if [[ "$field_label" == "AXSecureTextField" ]]; then
-      button_geometry_args=(/usr/bin/osascript -e 'on run argv' -e 'tell application "System Events" to tell process "SecurityAgent" to tell button (item 1 of argv) of window 1' -e 'set {buttonX, buttonY} to position' -e 'set {buttonWidth, buttonHeight} to size' -e 'return ((round (buttonX + buttonWidth / 2)) as text) & "," & ((round (buttonY + buttonHeight / 2)) as text)' -e 'end tell' -e 'end run' "$submit_button")
+      button_geometry_args=(/usr/bin/osascript -l JavaScript -e 'function descendants(element) { var result = []; try { var children = element.uiElements(); for (var i = 0; i < children.length; i++) { result.push(children[i]); result = result.concat(descendants(children[i])); } } catch (_) {} return result; } function run(argv) { var process = Application("System Events").processes.byName(argv[0]); var label = argv[1]; var button = descendants(process.windows[0]).find(function (element) { try { return element.role() === "AXButton" && (element.name() === label || element.description() === label); } catch (_) { return false; } }); if (!button) throw new Error("submit button not found"); var position = button.position(); var size = button.size(); return Math.round(position[0] + size[0] / 2) + "," + Math.round(position[1] + size[1] / 2); }' "$app" "$submit_button")
       printf -v button_geometry_command '%q ' "${button_geometry_args[@]}"
       guest_command+="; button_coords=\$( $button_geometry_command ); [[ \"\$button_coords\" =~ '^-?[0-9]+,-?[0-9]+$' ]] || exit 78; /opt/homebrew/bin/peekaboo click --coords \"\$button_coords\" --global-coords --foreground --input-strategy synthOnly --json >/dev/null"
     else
@@ -644,7 +643,7 @@ secure_dialog_input() {
     fi
   fi
   if [[ "$field_label" == "AXSecureTextField" ]]; then
-    postcondition_args=(/usr/bin/osascript -e 'tell application "System Events"' -e 'if not (exists process "SecurityAgent") then return "closed"' -e 'tell process "SecurityAgent"' -e 'if not (exists window 1) then return "closed"' -e 'if not (exists first UI element of window 1 whose description is "secure text field") then return "closed"' -e 'end tell' -e 'end tell' -e 'return "open"')
+    postcondition_args=(/usr/bin/osascript -l JavaScript -e 'function descendants(element) { var result = []; try { var children = element.uiElements(); for (var i = 0; i < children.length; i++) { result.push(children[i]); result = result.concat(descendants(children[i])); } } catch (_) {} return result; } function run(argv) { var processes = Application("System Events").processes.whose({name: argv[0]})(); if (processes.length === 0 || processes[0].windows().length === 0) return "closed"; var open = descendants(processes[0].windows[0]).some(function (element) { try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; } }); return open ? "open" : "closed"; }' "$app")
     printf -v postcondition_command '%q ' "${postcondition_args[@]}"
     guest_command+="; for attempt in {1..150}; do [[ \$( $postcondition_command ) == closed ]] && exit 0; sleep 0.1; done; exit 77"
   fi
