@@ -101,9 +101,11 @@ provider_capacity() {
 }
 
 acquire_admission_lock() {
-  local provider=$1 attempt=0 owner owner_pid stale lock="$STATE_ROOT/provider-admission-$provider.lock"
+  local provider=$1 attempt=0 owner owner_pid stale lock_age lock_mtime lock="$STATE_ROOT/provider-admission-$provider.lock"
   local max_attempts=${KEYPATH_LAB_ADMISSION_WAIT_ATTEMPTS:-3000}
+  local incomplete_grace=${KEYPATH_LAB_INCOMPLETE_LOCK_GRACE_SECONDS:-5}
   [[ "$max_attempts" == <-> && "$max_attempts" -gt 0 ]] || die "invalid admission wait attempts: $max_attempts"
+  [[ "$incomplete_grace" == <-> ]] || die "invalid incomplete lock grace: $incomplete_grace"
   while ((attempt < max_attempts)); do
     if mkdir "$lock" 2>/dev/null; then
       {
@@ -115,7 +117,10 @@ acquire_admission_lock() {
       return
     fi
     owner_pid=$(field "$lock/owner.tsv" pid 2>/dev/null || true)
-    if [[ "$owner_pid" == <-> ]] && ! kill -0 "$owner_pid" 2>/dev/null; then
+    lock_mtime=$(stat -f %m "$lock" 2>/dev/null || stat -c %Y "$lock" 2>/dev/null || print 0)
+    lock_age=$(( $(now_epoch) - lock_mtime ))
+    if { [[ "$owner_pid" == <-> ]] && ! kill -0 "$owner_pid" 2>/dev/null; } ||
+       { [[ -z "$owner_pid" && "$lock_age" -ge "$incomplete_grace" ]]; }; then
       stale="$STATE_ROOT/provider-admission-$provider.stale.$$"
       if mv "$lock" "$stale" 2>/dev/null; then
         rm -rf "$stale"
@@ -136,6 +141,13 @@ release_admission_lock() {
   rm -f "$HELD_ADMISSION_LOCK/owner.tsv"
   rmdir "$HELD_ADMISSION_LOCK"
   HELD_ADMISSION_LOCK=
+}
+
+release_admission_lock_and_exit() {
+  local exit_code=$1
+  trap - EXIT INT TERM HUP
+  release_admission_lock || true
+  exit "$exit_code"
 }
 
 assert_provider_capacity() {
@@ -326,7 +338,13 @@ create_lease() {
   ttl_seconds=$(duration_seconds "$ttl")
   (( ttl_seconds > 0 && ttl_seconds <= 7200 )) || die "TTL must be between 1 second and 2 hours"
   acquire_admission_lock "$provider" || return $?
-  trap 'release_admission_lock' EXIT INT TERM HUP
+  trap 'release_admission_lock' EXIT
+  trap 'release_admission_lock_and_exit 130' INT
+  trap 'release_admission_lock_and_exit 143' TERM
+  trap 'release_admission_lock_and_exit 129' HUP
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" && -n "${KEYPATH_LAB_TEST_PAUSE_AFTER_ADMISSION_LOCK:-}" ]]; then
+    sleep "$KEYPATH_LAB_TEST_PAUSE_AFTER_ADMISSION_LOCK"
+  fi
   assert_provider_capacity "$provider" || return $?
   slug="keypath${macos}-$(print -r -- "$commit" | cut -c1-8)-$(date -u +%Y%m%d%H%M%S)-$$"
   operation="$OPERATIONS/$slug"

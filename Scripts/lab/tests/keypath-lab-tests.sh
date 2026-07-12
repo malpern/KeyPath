@@ -222,6 +222,40 @@ set -e
 assert_contains "$lock_output" admission_lock_busy
 rm -rf "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
 
+env \
+    KEYPATH_LAB_TESTING=1 \
+    KEYPATH_LAB_TEST_ROOT="$ROOT" \
+    KEYPATH_LAB_LAUNCHER_15="$ROOT/bin/launcher15" \
+    KEYPATH_LAB_LAUNCHER_26="$ROOT/bin/launcher26" \
+    KEYPATH_LAB_LAUNCHER_27="$ROOT/bin/launcher27" \
+    KEYPATH_LAB_CRABBOX="$ROOT/bin/crabbox" \
+    KEYPATH_LAB_TART="$ROOT/bin/tart" \
+    KEYPATH_LAB_GUEST_SSH="$ROOT/bin/guest-ssh" \
+    KEYPATH_LAB_TEST_SSH_KEY="$TMP/id_ed25519" \
+    KEYPATH_LAB_TEST_SECRET_FILE="$TMP/secure-input" \
+    KEYPATH_LAB_TEST_PAUSE_AFTER_ADMISSION_LOCK=1 \
+    /bin/zsh "$REMOTE" create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 >"$TMP/interrupted-create.log" 2>&1 &
+interrupted_pid=$!
+for _ in {1..100}; do
+    [[ -f "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock/owner.tsv" ]] && break
+    sleep 0.05
+done
+[[ -f "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock/owner.tsv" ]] || { echo "interrupted create never acquired admission lock" >&2; exit 1; }
+kill -TERM "$interrupted_pid"
+set +e
+wait "$interrupted_pid"
+interrupted_exit=$?
+set -e
+[[ $interrupted_exit -eq 143 ]] || { cat "$TMP/interrupted-create.log" >&2; echo "expected interrupted create to exit 143, got $interrupted_exit" >&2; exit 1; }
+[[ ! -e "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock" ]] || { echo "interrupted create left admission lock" >&2; exit 1; }
+
+mkdir -p "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
+touch -t 202001010000 "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
+create15_after_incomplete_lock=$(KEYPATH_LAB_INCOMPLETE_LOCK_GRACE_SECONDS=1 run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
+assert_contains "$create15_after_incomplete_lock" $'lease_id\tcbx_test15'
+run_remote destroy cbx_test15 >/dev/null
+[[ ! -e "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock" ]]
+
 mkdir -p "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock"
 printf 'pid\t99999999\nprovider\tparallels\n' > "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock/owner.tsv"
 create26=$(run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
