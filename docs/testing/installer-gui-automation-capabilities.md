@@ -51,7 +51,7 @@ semantic operations:
 
 ```bash
 Scripts/lab/keypath-lab create \
-  --macos 15 --commit "$SHA" --installer dist/KeyPath.zip --desktop
+  --macos 15 --lane unmanaged-ui --commit "$SHA" --installer dist/KeyPath.zip --desktop
 
 Scripts/lab/keypath-lab run "$LEASE" -- \
   Scripts/lab/peekaboo-ui snapshot \

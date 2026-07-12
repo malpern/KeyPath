@@ -27,6 +27,11 @@ else
 fi
 EOF
 chmod +x "$TMP/codesign"
+cat > "$TMP/sw_vers" <<'EOF'
+#!/bin/bash
+[[ $1 == -productVersion ]] && echo 26.5.2
+EOF
+chmod +x "$TMP/sw_vers"
 
 CODESIGN_BIN="$TMP/codesign" "$MDM_DIR/generate-keypath-profiles" --app "$app" --output "$TMP/one" >/dev/null
 CODESIGN_BIN="$TMP/codesign" "$MDM_DIR/generate-keypath-profiles" --app "$app" --output "$TMP/two" >/dev/null
@@ -57,5 +62,8 @@ assert payload["AllowedSystemExtensions"]["G43BCU2T37"] == ["org.pqrs.Karabiner-
 service_management = plistlib.load(open(root / "keypath-service-management.mobileconfig", "rb"))
 assert service_management["PayloadContent"][0]["Rules"][0]["TeamIdentifier"] == "X2RKZ5TG99"
 PY
+
+CODESIGN_BIN="$TMP/codesign" SW_VERS_BIN="$TMP/sw_vers" \
+    "$MDM_DIR/verify-artifact-policy" --app "$app" --manifest "$TMP/one/manifest.json" >/dev/null
 
 echo "profile-generator-tests: passed"

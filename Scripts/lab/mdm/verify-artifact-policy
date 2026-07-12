@@ -1,0 +1,63 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+    echo "Usage: $0 --app /path/to/KeyPath.app --manifest manifest.json" >&2
+    exit 2
+}
+
+app=
+manifest=
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --app) app=${2:-}; shift 2 ;;
+        --manifest) manifest=${2:-}; shift 2 ;;
+        *) usage ;;
+    esac
+done
+[[ -d $app && -f $manifest ]] || usage
+
+codesign_bin=${CODESIGN_BIN:-/usr/bin/codesign}
+launcher="$app/Contents/Library/KeyPath/kanata-launcher"
+engine="$app/Contents/Library/KeyPath/Kanata Engine.app"
+[[ -f $launcher && -d $engine ]] || { echo "artifact policy: runtime components missing" >&2; exit 1; }
+
+details() { "$codesign_bin" -dv --verbose=4 "$1" 2>&1; }
+requirement() { "$codesign_bin" -dr - "$1" 2>&1 | sed -n 's/^designated => //p' | head -1; }
+field() { details "$1" | sed -n "s/^$2=//p" | head -1; }
+
+export POLICY_APP_ID="$(field "$app" Identifier)"
+export POLICY_APP_TEAM="$(field "$app" TeamIdentifier)"
+export POLICY_APP_REQUIREMENT="$(requirement "$app")"
+export POLICY_LAUNCHER_REQUIREMENT="$(requirement "$launcher")"
+export POLICY_ENGINE_ID="$(field "$engine" Identifier)"
+export POLICY_ENGINE_TEAM="$(field "$engine" TeamIdentifier)"
+export POLICY_ENGINE_REQUIREMENT="$(requirement "$engine")"
+export POLICY_SW_VERS_BIN="${SW_VERS_BIN:-/usr/bin/sw_vers}"
+
+/usr/bin/python3 - "$manifest" <<'PY'
+import json
+import os
+import sys
+
+manifest = json.load(open(sys.argv[1]))
+import subprocess
+major = int(subprocess.check_output([os.environ["POLICY_SW_VERS_BIN"], "-productVersion"], text=True).split(".")[0])
+if major not in manifest["supportedMacOSMajorVersions"]:
+    raise SystemExit(f"artifact policy: macOS {major} is not supported by this policy")
+
+checks = {
+    "KeyPath bundle identifier": (os.environ["POLICY_APP_ID"], manifest["keyPath"]["bundleIdentifier"]),
+    "KeyPath team": (os.environ["POLICY_APP_TEAM"], manifest["keyPath"]["teamIdentifier"]),
+    "KeyPath requirement": (os.environ["POLICY_APP_REQUIREMENT"], manifest["keyPath"]["designatedRequirement"]),
+    "launcher requirement": (os.environ["POLICY_LAUNCHER_REQUIREMENT"], manifest["kanataLauncher"]["designatedRequirement"]),
+    "engine bundle identifier": (os.environ["POLICY_ENGINE_ID"], manifest["kanataEngine"]["bundleIdentifier"]),
+    "engine team": (os.environ["POLICY_ENGINE_TEAM"], manifest["kanataEngine"]["teamIdentifier"]),
+    "engine requirement": (os.environ["POLICY_ENGINE_REQUIREMENT"], manifest["kanataEngine"]["designatedRequirement"]),
+}
+failed = [name for name, values in checks.items() if values[0] != values[1]]
+if failed:
+    raise SystemExit("artifact policy mismatch: " + ", ".join(failed))
+PY
+
+echo "artifact_policy\tpassed"

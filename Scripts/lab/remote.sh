@@ -50,6 +50,15 @@ provider_for() {
   case "$1" in 15) print tart ;; 26|27) print parallels ;; *) die "unsupported macOS lane: $1" ;; esac
 }
 
+base_for() {
+  local macos=$1 lane=$2
+  if [[ "$macos" == "15" ]]; then
+    [[ "$lane" == "managed-functional" ]] && print keypath-macos-15-managed || print ghcr.io/cirruslabs/macos-sequoia-base:latest
+  else
+    [[ "$lane" == "managed-functional" ]] && print "keypath-macos-$macos-managed" || print "keypath-macos-$macos"
+  fi
+}
+
 manifest_path() { print -r -- "$LEASES/$1/manifest.tsv"; }
 
 field() {
@@ -129,22 +138,44 @@ run_with_download() {
 }
 
 warmup_desktop() {
-  local macos=$1 slug=$2
+  local macos=$1 lane=$2 slug=$3
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
     "$CRABBOX" warmup --provider "$(provider_for "$macos")" --target macos --desktop --slug "$slug" --ttl 2h
   elif [[ "$macos" == "15" ]]; then
     if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
     export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     "$CRABBOX" warmup --provider tart --target macos --desktop \
-      --tart-image ghcr.io/cirruslabs/macos-sequoia-base:latest \
+      --tart-image "$(base_for "$macos" "$lane")" \
       --tart-user admin --tart-cpu 4 --tart-memory 8192 --ssh-port 22 \
       --slug "$slug" --ttl 2h
   else
     export PATH="$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     "$CRABBOX" warmup --provider parallels --target macos --desktop \
-      --parallels-template "keypath-macos-$macos" --parallels-user keypathqa \
+      --parallels-template "$(base_for "$macos" "$lane")" --parallels-user keypathqa \
       --parallels-work-root /Users/keypathqa/crabbox --ssh-port 22 \
       --slug "$slug" --ttl 2h
+  fi
+}
+
+warmup_lease() {
+  local macos=$1 lane=$2 slug=$3 desktop=$4
+  if [[ "$desktop" == "1" ]]; then
+    warmup_desktop "$macos" "$lane" "$slug"
+  elif [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    "$(launcher_for "$macos")" warmup "$slug"
+  elif [[ "$macos" == "15" ]]; then
+    if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
+    export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    "$CRABBOX" warmup --provider tart --target macos \
+      --tart-image "$(base_for "$macos" "$lane")" \
+      --tart-user admin --tart-cpu 4 --tart-memory 8192 --ssh-port 22 \
+      --slug "$slug" --ttl 2h
+  else
+    export PATH="$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    "$CRABBOX" warmup --provider parallels --target macos \
+      --parallels-template "$(base_for "$macos" "$lane")" \
+      --parallels-user keypathqa --parallels-work-root /Users/keypathqa/crabbox \
+      --ssh-port 22 --slug "$slug" --ttl 2h
   fi
 }
 
@@ -242,10 +273,12 @@ install_archive() {
 }
 
 create_lease() {
-  local macos=$1 archive_key=$2 commit=$3 installer_sha=$4 installer_name=$5 ttl=$6 desktop=$7
+  local macos=$1 lane=$2 archive_key=$3 commit=$4 installer_sha=$5 installer_name=$6 ttl=$7 desktop=$8
   local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds provider_resource
   launcher=$(launcher_for "$macos")
   provider=$(provider_for "$macos")
+  [[ "$lane" == "managed-functional" || "$lane" == "unmanaged-ui" ]] || die "invalid test lane: $lane"
+  [[ ! ("$macos" == "27" && "$lane" == "managed-functional") ]] || die "managed-functional is not yet supported on macOS 27"
   valid_id "$archive_key"
   archive="$ARCHIVES/$archive_key"
   [[ -f "$archive/ready.tsv" && -d "$archive/repo/.git" ]] || die "prepared archive not found: $archive_key"
@@ -257,11 +290,7 @@ create_lease() {
   git clone -q --local "$archive/repo" "$operation/repo"
   repo="$operation/repo"
   prepare_worktree "$repo"
-  if [[ "$desktop" == "1" ]]; then
-    output=$(cd "$repo" && warmup_desktop "$macos" "$slug" 2>&1)
-  else
-    output=$(cd "$repo" && "$launcher" warmup "$slug" 2>&1)
-  fi
+  output=$(cd "$repo" && warmup_lease "$macos" "$lane" "$slug" "$desktop" 2>&1)
   print -r -- "$output"
   print -r -- "$output" > "$operation/create.log"
   lease=$(print -r -- "$output" | grep -Eo 'cbx_[A-Za-z0-9]+' | tail -1 || true)
@@ -277,6 +306,8 @@ create_lease() {
     print "lease_id\t$lease"
     print "slug\t$slug"
     print "macos\t$macos"
+    print "test_lane\t$lane"
+    print "base_name\t$(base_for "$macos" "$lane")"
     print "provider\t$provider"
     print "archive_key\t$archive_key"
     print "keypath_commit\t$commit"
@@ -310,17 +341,23 @@ create_lease() {
 }
 
 install_app() {
-  local lease=$1 manifest macos repo installer_name provider_resource guest_repo command exit_code
+  local lease=$1 manifest macos lane repo installer_name provider_resource guest_repo command exit_code admission_command
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
+  lane=$(field "$manifest" test_lane)
   repo=$(field "$manifest" worktree)
   installer_name=$(field "$manifest" installer_name)
   provider_resource=$(field "$manifest" provider_resource)
   prepare_worktree "$repo"
   guest_repo="/Users/$([[ "$macos" == "15" ]] && print admin || print keypathqa)/crabbox/$lease/repo"
-  command="set -euo pipefail; rm -rf /tmp/keypath-install; mkdir -p /tmp/keypath-install; ditto -x -k '$guest_repo/.keypath-lab/installer/$installer_name' /tmp/keypath-install; rm -rf /Applications/KeyPath.app; ditto /tmp/keypath-install/KeyPath.app /Applications/KeyPath.app"
+  admission_command="cd '$guest_repo'; Scripts/lab/mdm/verify-lane '$lane'"
+  if [[ "$lane" == "managed-functional" ]]; then
+    admission_command+=" --manifest /Library/KeyPathLab/managed-policy/manifest.json"
+  fi
+  command="set -euo pipefail; $admission_command; rm -rf /tmp/keypath-install; mkdir -p /tmp/keypath-install; ditto -x -k '$guest_repo/.keypath-lab/installer/$installer_name' /tmp/keypath-install; cd '$guest_repo'; if [[ '$lane' == managed-functional ]]; then Scripts/lab/mdm/verify-artifact-policy --app /tmp/keypath-install/KeyPath.app --manifest /Library/KeyPathLab/managed-policy/manifest.json; fi; rm -rf /Applications/KeyPath.app; ditto /tmp/keypath-install/KeyPath.app /Applications/KeyPath.app"
   set +e
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    print "admission $lane" >> "$LOGS/$lease/install-app.log"
     print "install-app $macos $lease $provider_resource" >> "$LOGS/$lease/install-app.log"
     exit_code=0
   elif [[ "$macos" == "15" ]]; then
@@ -333,6 +370,7 @@ install_app() {
   fi
   set -e
   set_field "$manifest" install_app_result "$exit_code"
+  set_field "$manifest" admission_result "$exit_code"
   set_field "$manifest" install_app_at "$(utc_now)"
   cat "$LOGS/$lease/install-app.log"
   return "$exit_code"
@@ -427,12 +465,12 @@ print_status() {
 
 list_leases() {
   ensure_roots
-  print "lease_id\tmacos\tprovider\tstatus\texpires_epoch\tcommit\tcleanup"
+  print "lease_id\tmacos\ttest_lane\tbase_name\tprovider\tstatus\texpires_epoch\tcommit\tcleanup"
   local manifest lease
   for manifest in "$LEASES"/*/manifest.tsv(N); do
     [[ "$(field "$manifest" owner)" == "$OWNER" ]] || continue
     lease=$(field "$manifest" lease_id)
-    print "$lease\t$(field "$manifest" macos)\t$(field "$manifest" provider)\t$(field "$manifest" status)\t$(field "$manifest" expires_epoch)\t$(field "$manifest" keypath_commit)\t$(field "$manifest" cleanup_status)"
+    print "$lease\t$(field "$manifest" macos)\t$(field "$manifest" test_lane)\t$(field "$manifest" base_name)\t$(field "$manifest" provider)\t$(field "$manifest" status)\t$(field "$manifest" expires_epoch)\t$(field "$manifest" keypath_commit)\t$(field "$manifest" cleanup_status)"
   done
 }
 
@@ -484,13 +522,14 @@ collect_artifacts() {
 }
 
 scenario() {
-  local lease=$1 name=$2 manifest repo scenario_script
+  local lease=$1 name=$2 manifest repo scenario_script lane
   manifest=$(owned_manifest "$lease")
   repo=$(field "$manifest" worktree)
+  lane=$(field "$manifest" test_lane)
   prepare_worktree "$repo"
   scenario_script="Scripts/lab/scenarios/installer-scenario"
   [[ -x "$repo/$scenario_script" ]] || die "scenario runner missing from archived commit"
-  run_command "$lease" "/bin/zsh" "$scenario_script" "$name"
+  run_command "$lease" "/bin/zsh" "$scenario_script" "$name" "$lane"
 }
 
 desktop_bootstrap() {
@@ -558,7 +597,7 @@ case "$action" in
   preflight) [[ $# -eq 0 ]] || die "preflight takes no arguments"; preflight ;;
   prepare-upload) [[ $# -eq 1 ]] || die "prepare-upload requires archive key"; prepare_upload "$1" ;;
   install-archive) [[ $# -eq 5 ]] || die "install-archive requires ticket, key, commit, checksum, and name"; install_archive "$@" ;;
-  create) [[ $# -eq 7 ]] || die "create requires lane, archive, commit, checksum, name, ttl, desktop"; create_lease "$@" ;;
+  create) [[ $# -eq 8 ]] || die "create requires macOS, test lane, archive, commit, checksum, name, ttl, desktop"; create_lease "$@" ;;
   install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
   secure-dialog-input) [[ $# -eq 4 ]] || die "secure-dialog-input requires lease, app, field, and optional submit value"; secure_dialog_input "$@" ;;
   run) [[ $# -ge 2 ]] || die "run requires lease and command"; run_command "$@" ;;

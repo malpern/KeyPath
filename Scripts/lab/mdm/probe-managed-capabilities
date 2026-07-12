@@ -1,0 +1,59 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+    echo "Usage: $0 --output DIR" >&2
+    exit 2
+}
+
+output=
+[[ ${1:-} == --output && -n ${2:-} && $# -eq 2 ]] || usage
+output=$2
+mkdir -p "$output"
+
+cli=/Applications/KeyPath.app/Contents/MacOS/keypath-cli
+[[ -x $cli ]] || { echo "managed capability probe: installed CLI missing" >&2; exit 3; }
+
+set +e
+"$cli" service status --json > "$output/service-status.json" 2> "$output/service-status.stderr"
+status_exit=$?
+set -e
+/usr/bin/python3 - "$output/service-status.json" <<'PY'
+import json
+import sys
+
+status = json.load(open(sys.argv[1]))
+required = [
+    "isOperational",
+    "helperInstalled",
+    "helperWorking",
+    "keyPathAccessibility",
+    "keyPathInputMonitoring",
+    "kanataAccessibility",
+    "kanataInputMonitoring",
+    "kanataBinaryInstalled",
+    "karabinerDriverInstalled",
+    "vhidDeviceHealthy",
+    "kanataRunning",
+    "karabinerDaemonRunning",
+    "vhidHealthy",
+]
+failed = [key for key in required if status.get(key) is not True]
+if failed:
+    raise SystemExit("managed capabilities missing: " + ", ".join(failed))
+if not status.get("helperVersion"):
+    raise SystemExit("managed capabilities missing: helperVersion")
+PY
+[[ $status_exit -eq 0 ]] || { echo "managed capability probe: CLI status exited $status_exit" >&2; exit "$status_exit"; }
+
+/usr/bin/nc -vz 127.0.0.1 37001 > "$output/tcp-readiness.txt" 2>&1
+/usr/bin/systemextensionsctl list > "$output/system-extensions.txt" 2>&1
+grep -Fq 'org.pqrs.Karabiner-DriverKit-VirtualHIDDevice' "$output/system-extensions.txt" || {
+    echo "managed capability probe: VirtualHID system extension is absent" >&2
+    exit 1
+}
+
+/usr/bin/sfltool dumpbtm > "$output/background-items.txt" 2>&1 || true
+/bin/launchctl print system/com.keypath.kanata > "$output/kanata-launchd.txt" 2>&1
+
+echo "managed_capabilities\tpassed" | tee "$output/result.tsv"

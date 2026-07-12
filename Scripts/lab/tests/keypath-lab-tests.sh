@@ -152,11 +152,13 @@ EOF
 
 commit=$(printf 'a%.0s' {1..40})
 checksum=$(printf 'b%.0s' {1..64})
-create=$(run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
+create=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create" $'lease_id\tcbx_test15'
 manifest="$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"
 grep -q $'owner\tkeypath-installer-lab-v1' "$manifest"
 grep -q $'macos_build\t24G720' "$manifest"
+grep -q $'test_lane\tunmanaged-ui' "$manifest"
+grep -q $'base_name\tghcr.io/cirruslabs/macos-sequoia-base:latest' "$manifest"
 
 run_remote run cbx_test15 echo hello >/dev/null
 grep -q 'echo hello' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/commands.tsv"
@@ -202,14 +204,14 @@ run_remote destroy cbx_test15 >/dev/null
 grep -q 'stop-15 cbx_test15' "$CALLS"
 grep -q $'cleanup_status\tcomplete' "$manifest"
 
-create26=$(run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
+create26=$(run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create26" $'lease_id\tcbx_test26'
 artifacts26=$(run_remote artifacts cbx_test26)
 assert_contains "$artifacts26" $'download_status\t0'
 grep -q 'crabbox run --provider parallels --target macos --id cbx_test26 --stop-after never --download' "$CALLS"
 run_remote destroy cbx_test26 >/dev/null
 
-create27=$(run_remote create 27 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
+create27=$(run_remote create 27 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create27" $'lease_id\tcbx_test27'
 artifacts27=$(run_remote artifacts cbx_test27)
 assert_contains "$artifacts27" $'download_status\t0'
@@ -217,7 +219,7 @@ grep -q 'crabbox run --provider parallels --target macos --id cbx_test27 --stop-
 run_remote destroy cbx_test27 >/dev/null
 grep -q 'stop-27 cbx_test27' "$CALLS"
 
-desktop_create=$(run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
+desktop_create=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
 assert_contains "$desktop_create" $'lease_id\tcbx_desktop15'
 desktop_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_desktop15/manifest.tsv"
 grep -q $'desktop_enabled\ttrue' "$desktop_manifest"
@@ -243,7 +245,7 @@ if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" 
 fi
 run_remote destroy cbx_desktop15 >/dev/null
 
-if run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 3h 0 >/dev/null 2>&1; then
+if run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 3h 0 >/dev/null 2>&1; then
     echo "create accepted a TTL longer than the launchers support" >&2
     exit 1
 fi
@@ -277,8 +279,16 @@ assert_contains "$controller" controller-preflight
 grep -q 'tester@test-host' "$TMP/ssh-args"
 
 echo fake-installer > "$TMP/KeyPath.zip"
-if PATH="$TMP/fake-bin:$PATH" "$LAB_DIR/keypath-lab" create --macos 15 --commit abc --installer "$TMP/KeyPath.zip" >/dev/null 2>&1; then
+if PATH="$TMP/fake-bin:$PATH" "$LAB_DIR/keypath-lab" create --macos 15 --lane unmanaged-ui --commit abc --installer "$TMP/KeyPath.zip" >/dev/null 2>&1; then
     echo "controller accepted a non-explicit commit SHA" >&2
+    exit 1
+fi
+if PATH="$TMP/fake-bin:$PATH" "$LAB_DIR/keypath-lab" create --macos 15 --commit "$(printf 'a%.0s' {1..40})" --installer "$TMP/KeyPath.zip" >/dev/null 2>&1; then
+    echo "create accepted a request without an explicit test lane" >&2
+    exit 1
+fi
+if PATH="$TMP/fake-bin:$PATH" "$LAB_DIR/keypath-lab" create --macos 27 --lane managed-functional --commit "$(printf 'a%.0s' {1..40})" --installer "$TMP/KeyPath.zip" >/dev/null 2>&1; then
+    echo "create accepted the unsupported macOS 27 managed lane" >&2
     exit 1
 fi
 

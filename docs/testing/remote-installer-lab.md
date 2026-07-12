@@ -52,6 +52,7 @@ the completed archive.
 SHA=$(git rev-parse HEAD)
 Scripts/lab/keypath-lab create \
   --macos 27 \
+  --lane unmanaged-ui \
   --commit "$SHA" \
   --installer dist/KeyPath.zip \
   --ttl 2h \

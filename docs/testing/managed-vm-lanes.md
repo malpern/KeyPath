@@ -31,8 +31,11 @@ test. CrabBox creates disposable clones from the appropriate powered-off base.
    ```
 
 4. Publish the three profiles through MDM and wait for successful installation.
-5. Copy `manifest.json` into the lab controller's immutable base metadata.
-6. Run `Scripts/lab/mdm/verify-lane managed-functional --manifest manifest.json`.
+5. Copy the three profiles and `manifest.json` into
+   `/Library/KeyPathLab/managed-policy/` in the base. This immutable copy lets
+   admission verify the exact policy without depending on a live MDM response.
+6. Run `Scripts/lab/mdm/verify-lane managed-functional --manifest
+   /Library/KeyPathLab/managed-policy/manifest.json`.
 7. Shut down the VM and create the managed base checkpoint.
 
 The generator derives PPPC designated requirements from the signed app. It
@@ -55,18 +58,33 @@ this from a single successful clone.
 
 ## Test admission rules
 
-The harness must verify its lane before installing KeyPath:
+The harness verifies its lane automatically before installing KeyPath:
 
 - `managed-functional` requires active MDM enrollment, all three lab profile
   identifiers, and the profile manifest used to build the base.
 - `unmanaged-ui` requires all three managed profile identifiers to be absent.
 - A lane mismatch is an infrastructure failure. It must not be reported as a
   KeyPath product failure.
+- Managed admission verifies the policy profile hashes and rejects a signed app
+  whose bundle IDs, teams, or designated requirements do not match that policy.
+
+Create every lease with an explicit lane:
+
+```bash
+Scripts/lab/keypath-lab create --macos 26 --lane managed-functional \
+  --commit "$COMMIT" --installer dist/KeyPath.zip
+```
+
+The lane is recorded in the lease manifest and determines the base name. It
+cannot be changed after creation. Managed macOS 27 creation is rejected until
+that policy has been proven.
 
 After installation, managed tests must still verify behavior: KeyPath and the
 runtime report Accessibility and Input Monitoring, the VirtualHID extension is
 active, background services are approved, Kanata is running, and TCP readiness
 responds. The presence of a profile is preparation, not proof that KeyPath works.
+Run `keypath-lab scenario LEASE managed-capabilities` to capture and assert this
+evidence. The scenario fails unless the lease is `managed-functional`.
 
 ## OS boundary
 

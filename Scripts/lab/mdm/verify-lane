@@ -17,6 +17,7 @@ elif [[ $# -ne 0 ]]; then
 fi
 
 profiles_output=$(/usr/bin/profiles show -type configuration 2>&1 || true)
+export KEYPATH_LAB_SW_VERS_BIN="${SW_VERS_BIN:-/usr/bin/sw_vers}"
 expected=(
     com.keypath.lab.pppc
     com.keypath.lab.system-extension
@@ -46,16 +47,26 @@ if [[ $lane == managed-functional ]]; then
         exit 1
     }
     /usr/bin/python3 - "$manifest" <<'PY'
+import hashlib
 import json
 import sys
+from pathlib import Path
 
-manifest = json.load(open(sys.argv[1]))
+manifest_path = Path(sys.argv[1])
+manifest = json.load(manifest_path.open())
 assert manifest["lane"] == "managed-functional"
+major = int(__import__("subprocess").check_output([__import__("os").environ["KEYPATH_LAB_SW_VERS_BIN"], "-productVersion"], text=True).split(".")[0])
+assert major in manifest["supportedMacOSMajorVersions"], f"policy does not support macOS {major}"
 assert set(manifest["profiles"]) == {
     "com.keypath.lab.pppc",
     "com.keypath.lab.system-extension",
     "com.keypath.lab.service-management",
 }
+for profile in manifest["profiles"].values():
+    path = manifest_path.parent / profile["filename"]
+    assert path.is_file(), f"managed policy profile is missing: {path}"
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    assert actual == profile["sha256"], f"managed policy profile hash mismatch: {path.name}"
 PY
 else
     [[ $present -eq 0 ]] || {
