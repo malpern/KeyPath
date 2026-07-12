@@ -574,14 +574,15 @@ secure_dialog_input() {
 
   # Peekaboo's MCP type response contains the typed value. Suppress both output
   # streams for that command so the secret cannot enter controller logs.
-  local field_command submit_command
-  local -a click_args submit_args focus_args
+  local field_command submit_command postcondition_command
+  local -a click_args submit_args focus_args postcondition_args
   guest_command='set -euo pipefail; command -v /opt/homebrew/bin/peekaboo >/dev/null; command -v /opt/homebrew/bin/mcporter >/dev/null; '
   if [[ "$field_label" == "AXSecureTextField" ]]; then
     [[ "$app" == "SecurityAgent" ]] || die "AXSecureTextField is supported only for SecurityAgent"
+    [[ -n "$submit_button" ]] || die "AXSecureTextField requires a submit button for postcondition verification"
     focus_args=(/usr/bin/osascript -e 'on run argv' -e 'set secretValue to read POSIX file (item 1 of argv) as «class utf8»' -e 'tell application "System Events" to tell process "SecurityAgent" to set value of first UI element of window 1 whose description is "secure text field" to secretValue' -e 'end run')
     printf -v field_command '%q ' "${focus_args[@]}"
-    guest_command+='IFS= read -r secret_value; if ! printf '\''%s\n'\'' "$secret_value" | /usr/bin/sudo -S -k /usr/bin/true >/dev/null 2>&1; then unset secret_value; exit 77; fi; secret_path=$(/usr/bin/mktemp /tmp/keypath-secure-input.XXXXXX); /bin/chmod 600 "$secret_path"; trap '\''rm -f "$secret_path"'\'' EXIT; printf '\''%s'\'' "$secret_value" > "$secret_path"; unset secret_value; '
+    guest_command+='IFS= read -r secret_value; secret_path=$(/usr/bin/mktemp /tmp/keypath-secure-input.XXXXXX); /bin/chmod 600 "$secret_path"; trap '\''rm -f "$secret_path"'\'' EXIT; printf '\''%s'\'' "$secret_value" > "$secret_path"; unset secret_value; '
     guest_command+="$field_command \"\$secret_path\" >/dev/null; rm -f \"\$secret_path\"; trap - EXIT"
   else
     click_args=(/opt/homebrew/bin/peekaboo click --app "$app" --query "$field_label" --json)
@@ -595,6 +596,11 @@ secure_dialog_input() {
     submit_args=(/opt/homebrew/bin/peekaboo click --app "$app" --query "$submit_button" --json)
     printf -v submit_command '%q ' "${submit_args[@]}"
     guest_command+="; $submit_command >/dev/null"
+  fi
+  if [[ "$field_label" == "AXSecureTextField" ]]; then
+    postcondition_args=(/usr/bin/osascript -e 'tell application "System Events"' -e 'if not (exists process "SecurityAgent") then return "closed"' -e 'tell process "SecurityAgent"' -e 'if not (exists window 1) then return "closed"' -e 'if not (exists first UI element of window 1 whose description is "secure text field") then return "closed"' -e 'end tell' -e 'end tell' -e 'return "open"')
+    printf -v postcondition_command '%q ' "${postcondition_args[@]}"
+    guest_command+="; for attempt in {1..50}; do [[ \$( $postcondition_command ) == closed ]] && exit 0; sleep 0.1; done; exit 77"
   fi
   set +e
   "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")" < "$secret_file"
