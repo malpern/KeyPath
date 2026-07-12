@@ -748,104 +748,158 @@ svg {
 html&gt;body{padding:0}&lt;/style&gt;
 &lt;/head&gt;
 &lt;body&gt;
-&lt;div id=&quot;keypath-automation-progress&quot;&gt;
+&lt;div id=&quot;keypath-defrag-progress&quot;&gt;
   &lt;style&gt;
-    #keypath-automation-progress { color: var(--foreground); font-family: system-ui, sans-serif; }
-    #keypath-automation-progress .hero { display:flex; justify-content:space-between; gap:24px; align-items:flex-end; margin-bottom:24px; }
-    #keypath-automation-progress .eyebrow { color:var(--muted-foreground); letter-spacing:.08em; text-transform:uppercase; font-size:12px; }
-    #keypath-automation-progress h1 { margin:4px 0 6px; font-size:30px; font-weight:500; }
-    #keypath-automation-progress .subtitle { color:var(--muted-foreground); max-width:720px; }
-    #keypath-automation-progress .stamp { color:var(--muted-foreground); white-space:nowrap; font-size:12px; }
-    #keypath-automation-progress .metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:28px; }
-    #keypath-automation-progress .metric { padding:16px; }
-    #keypath-automation-progress .metric strong { display:block; font-size:25px; font-weight:500; margin-top:4px; }
-    #keypath-automation-progress .metric span { color:var(--muted-foreground); font-size:12px; }
-    #keypath-automation-progress .section-title { margin:28px 0 12px; font-size:17px; font-weight:500; }
-    #keypath-automation-progress .pipeline { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
-    #keypath-automation-progress .phase { padding:14px; min-height:125px; }
-    #keypath-automation-progress .phase-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
-    #keypath-automation-progress .dot { width:10px; height:10px; border-radius:50%; background:var(--muted-foreground); flex:none; }
-    #keypath-automation-progress .phase.proven .dot { background:var(--viz-series-1); }
-    #keypath-automation-progress .phase.active .dot { background:var(--viz-series-2); }
-    #keypath-automation-progress .phase.blocked .dot { background:var(--destructive); }
-    #keypath-automation-progress .phase p { margin:0; color:var(--muted-foreground); font-size:13px; }
-    #keypath-automation-progress .work { display:grid; grid-template-columns:1.05fr .95fr; gap:22px; }
-    #keypath-automation-progress .list { display:grid; gap:8px; }
-    #keypath-automation-progress .row { display:grid; grid-template-columns:92px 1fr; gap:12px; padding:11px 0; border-bottom:1px solid var(--border); }
-    #keypath-automation-progress .row:last-child { border-bottom:0; }
-    #keypath-automation-progress .status { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted-foreground); }
-    #keypath-automation-progress .status.proven { color:var(--viz-series-1); }
-    #keypath-automation-progress .status.next { color:var(--viz-series-2); }
-    #keypath-automation-progress .status.blocked { color:var(--destructive); }
-    #keypath-automation-progress .row strong { font-weight:500; display:block; }
-    #keypath-automation-progress .row small { display:block; margin-top:3px; color:var(--muted-foreground); }
-    #keypath-automation-progress .decision { padding:16px; margin-bottom:12px; }
-    #keypath-automation-progress .decision strong { display:block; margin-bottom:5px; font-weight:500; }
-    #keypath-automation-progress .decision p { margin:0; color:var(--muted-foreground); font-size:13px; }
-    #keypath-automation-progress .footer { margin-top:28px; padding-top:14px; border-top:1px solid var(--border); color:var(--muted-foreground); font-size:12px; display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+    #keypath-defrag-progress { color:var(--foreground); font-family:system-ui,sans-serif; }
+    #keypath-defrag-progress .top { display:flex; justify-content:space-between; align-items:flex-end; gap:20px; margin-bottom:18px; }
+    #keypath-defrag-progress h1 { margin:3px 0 5px; font-size:28px; font-weight:500; }
+    #keypath-defrag-progress .eyebrow { color:var(--muted-foreground); font-size:11px; text-transform:uppercase; letter-spacing:.09em; }
+    #keypath-defrag-progress .sub { color:var(--muted-foreground); max-width:700px; }
+    #keypath-defrag-progress .date { color:var(--muted-foreground); font-size:12px; white-space:nowrap; }
+    #keypath-defrag-progress .legend { display:flex; flex-wrap:wrap; gap:14px; margin:0 0 14px; font-size:12px; color:var(--muted-foreground); }
+    #keypath-defrag-progress .legend span { display:flex; align-items:center; gap:6px; }
+    #keypath-defrag-progress .swatch { width:11px; height:11px; border-radius:2px; }
+    #keypath-defrag-progress .proven-mark { background:var(--viz-series-1); }
+    #keypath-defrag-progress .active-mark { background:var(--viz-series-2); }
+    #keypath-defrag-progress .queued-mark { background:var(--muted); border:1px solid var(--border); }
+    #keypath-defrag-progress .waiting-mark { background:var(--destructive); }
+    #keypath-defrag-progress .disk { padding:14px; }
+    #keypath-defrag-progress .track { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:5px; }
+    #keypath-defrag-progress .block { appearance:none; border:0; border-radius:3px; min-height:42px; padding:5px 3px; font:inherit; font-size:10px; font-weight:500; cursor:pointer; color:var(--foreground); outline-offset:2px; }
+    #keypath-defrag-progress .block[data-status=&quot;proven&quot;] { background:color-mix(in srgb,var(--viz-series-1) 72%,var(--card)); color:var(--card-foreground); }
+    #keypath-defrag-progress .block[data-status=&quot;active&quot;] { background:color-mix(in srgb,var(--viz-series-2) 72%,var(--card)); color:var(--card-foreground); }
+    #keypath-defrag-progress .block[data-status=&quot;queued&quot;] { background:var(--muted); color:var(--muted-foreground); }
+    #keypath-defrag-progress .block[data-status=&quot;waiting&quot;] { background:color-mix(in srgb,var(--destructive) 68%,var(--card)); color:var(--card-foreground); }
+    #keypath-defrag-progress .block:hover, #keypath-defrag-progress .block:focus-visible { filter:brightness(1.08); }
+    #keypath-defrag-progress .readout { min-height:42px; margin-top:12px; padding-top:11px; border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:18px; align-items:flex-start; }
+    #keypath-defrag-progress .readout strong { display:block; font-weight:500; }
+    #keypath-defrag-progress .readout small { display:block; color:var(--muted-foreground); margin-top:2px; }
+    #keypath-defrag-progress .readout-status { text-transform:uppercase; letter-spacing:.07em; font-size:11px; color:var(--muted-foreground); white-space:nowrap; }
+    #keypath-defrag-progress .bands { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:18px; }
+    #keypath-defrag-progress .band { padding:13px; }
+    #keypath-defrag-progress .band strong { display:block; font-weight:500; margin-bottom:4px; }
+    #keypath-defrag-progress .band span { color:var(--muted-foreground); font-size:12px; }
+    #keypath-defrag-progress .now { border-left:4px solid var(--viz-series-2); }
+    #keypath-defrag-progress .wait { border-left:4px solid var(--destructive); }
+    #keypath-defrag-progress .note { margin-top:12px; color:var(--muted-foreground); font-size:11px; }
     @media (max-width:760px) {
-      #keypath-automation-progress .hero { align-items:flex-start; flex-direction:column; }
-      #keypath-automation-progress .metrics, #keypath-automation-progress .pipeline { grid-template-columns:1fr 1fr; }
-      #keypath-automation-progress .work { grid-template-columns:1fr; }
+      #keypath-defrag-progress .top { flex-direction:column; align-items:flex-start; }
+      #keypath-defrag-progress .track { grid-template-columns:repeat(8,minmax(0,1fr)); }
+      #keypath-defrag-progress .bands { grid-template-columns:1fr 1fr; }
     }
     @media (max-width:460px) {
-      #keypath-automation-progress .metrics, #keypath-automation-progress .pipeline { grid-template-columns:1fr; }
-      #keypath-automation-progress .row { grid-template-columns:76px 1fr; }
+      #keypath-defrag-progress .track { grid-template-columns:repeat(5,minmax(0,1fr)); }
+      #keypath-defrag-progress .bands { grid-template-columns:1fr; }
+      #keypath-defrag-progress .readout { flex-direction:column; }
     }
   &lt;/style&gt;
 
-  &lt;header class=&quot;hero&quot;&gt;
-    &lt;div&gt;
-      &lt;div class=&quot;eyebrow&quot;&gt;KeyPath QA lab&lt;/div&gt;
-      &lt;h1&gt;Test automation progress&lt;/h1&gt;
-      &lt;div class=&quot;subtitle&quot;&gt;Disposable macOS testing is working. The current frontier is completing Kanata permissions and proving real input-to-virtual-output behavior.&lt;/div&gt;
-    &lt;/div&gt;
-    &lt;div class=&quot;stamp&quot;&gt;Updated July 12, 2026 · commits 889f5117, 266b624b&lt;/div&gt;
+  &lt;header class=&quot;top&quot;&gt;
+    &lt;div&gt;&lt;div class=&quot;eyebrow&quot;&gt;KeyPath automated QA&lt;/div&gt;&lt;h1&gt;Consolidating the test surface&lt;/h1&gt;&lt;div class=&quot;sub&quot;&gt;Each block is one concrete capability. Green areas are already reliable; the amber frontier is where work is actively converging.&lt;/div&gt;&lt;/div&gt;
+    &lt;div class=&quot;date&quot;&gt;Updated July 12, 2026&lt;/div&gt;
   &lt;/header&gt;
 
-  &lt;section class=&quot;metrics&quot; aria-label=&quot;Progress summary&quot;&gt;
-    &lt;div class=&quot;card metric&quot;&gt;&lt;span&gt;Proven capabilities&lt;/span&gt;&lt;strong&gt;11&lt;/strong&gt;&lt;span&gt;Observed in disposable VMs&lt;/span&gt;&lt;/div&gt;
-    &lt;div class=&quot;card metric&quot;&gt;&lt;span&gt;Immediate frontier&lt;/span&gt;&lt;strong&gt;3&lt;/strong&gt;&lt;span&gt;Kanata permissions, TCP, physics&lt;/span&gt;&lt;/div&gt;
-    &lt;div class=&quot;card metric&quot;&gt;&lt;span&gt;Apple-gated item&lt;/span&gt;&lt;strong&gt;1&lt;/strong&gt;&lt;span&gt;Managed-lane APNs enrollment&lt;/span&gt;&lt;/div&gt;
-  &lt;/section&gt;
+  &lt;div class=&quot;legend&quot; aria-label=&quot;Status legend&quot;&gt;
+    &lt;span&gt;&lt;i class=&quot;swatch proven-mark&quot;&gt;&lt;/i&gt;Proven in a disposable VM&lt;/span&gt;
+    &lt;span&gt;&lt;i class=&quot;swatch active-mark&quot;&gt;&lt;/i&gt;Current frontier&lt;/span&gt;
+    &lt;span&gt;&lt;i class=&quot;swatch queued-mark&quot;&gt;&lt;/i&gt;Queued work&lt;/span&gt;
+    &lt;span&gt;&lt;i class=&quot;swatch waiting-mark&quot;&gt;&lt;/i&gt;Waiting on Apple&lt;/span&gt;
+  &lt;/div&gt;
 
-  &lt;div class=&quot;section-title&quot;&gt;End-to-end path&lt;/div&gt;
-  &lt;section class=&quot;pipeline&quot; aria-label=&quot;Automation pipeline&quot;&gt;
-    &lt;div class=&quot;card phase proven&quot;&gt;&lt;div class=&quot;phase-head&quot;&gt;&lt;span class=&quot;dot&quot;&gt;&lt;/span&gt;&lt;strong&gt;1 · Provision&lt;/strong&gt;&lt;/div&gt;&lt;p&gt;Immutable source bundle, signed artifact, lane admission, disposable clone, logged-in desktop.&lt;/p&gt;&lt;/div&gt;
-    &lt;div class=&quot;card phase proven&quot;&gt;&lt;div class=&quot;phase-head&quot;&gt;&lt;span class=&quot;dot&quot;&gt;&lt;/span&gt;&lt;strong&gt;2 · Install &amp; approve&lt;/strong&gt;&lt;/div&gt;&lt;p&gt;App install, Input Monitoring, helper, background item, SecurityAgent, DriverKit activation.&lt;/p&gt;&lt;/div&gt;
-    &lt;div class=&quot;card phase active&quot;&gt;&lt;div class=&quot;phase-head&quot;&gt;&lt;span class=&quot;dot&quot;&gt;&lt;/span&gt;&lt;strong&gt;3 · Use &amp; verify&lt;/strong&gt;&lt;/div&gt;&lt;p&gt;VirtualHID is healthy. Kanata permissions, runtime/TCP readiness, and real remap output remain.&lt;/p&gt;&lt;/div&gt;
-    &lt;div class=&quot;card phase blocked&quot;&gt;&lt;div class=&quot;phase-head&quot;&gt;&lt;span class=&quot;dot&quot;&gt;&lt;/span&gt;&lt;strong&gt;4 · Matrix&lt;/strong&gt;&lt;/div&gt;&lt;p&gt;Repair, upgrade, reboot, uninstall, failure fixtures, macOS selectors, scheduler, consolidated report.&lt;/p&gt;&lt;/div&gt;
-  &lt;/section&gt;
-
-  &lt;section class=&quot;work&quot;&gt;
-    &lt;div&gt;
-      &lt;div class=&quot;section-title&quot;&gt;Capability ledger&lt;/div&gt;
-      &lt;div class=&quot;list&quot;&gt;
-        &lt;div class=&quot;row&quot;&gt;&lt;div class=&quot;status proven&quot;&gt;Proven&lt;/div&gt;&lt;div&gt;&lt;strong&gt;Disposable VM lifecycle&lt;/strong&gt;&lt;small&gt;Tart macOS 15 and Parallels macOS 26/27, owned leases, artifacts, cleanup.&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
-        &lt;div class=&quot;row&quot;&gt;&lt;div class=&quot;status proven&quot;&gt;Proven&lt;/div&gt;&lt;div&gt;&lt;strong&gt;Lane admission&lt;/strong&gt;&lt;small&gt;Managed/unmanaged identity, profile hashes, signed-artifact policy, macOS 27 guard.&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
-        &lt;div class=&quot;row&quot;&gt;&lt;div class=&quot;status proven&quot;&gt;Proven&lt;/div&gt;&lt;div&gt;&lt;strong&gt;Logged-in GUI automation&lt;/strong&gt;&lt;small&gt;Peekaboo 3 semantic snapshots/actions with fresh RFB fallback evidence.&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
-        &lt;div class=&quot;row&quot;&gt;&lt;div class=&quot;status proven&quot;&gt;Proven&lt;/div&gt;&lt;div&gt;&lt;strong&gt;Protected password entry&lt;/strong&gt;&lt;small&gt;Encrypted stdin-only secret for System Settings and focused SecurityAgent sheets.&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
-        &lt;div class=&quot;row&quot;&gt;&lt;div class=&quot;status proven&quot;&gt;Proven&lt;/div&gt;&lt;div&gt;&lt;strong&gt;Helper and background service&lt;/strong&gt;&lt;small&gt;helperInstalled=true, helperWorking=true, version 1.1.0.&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
-        &lt;div class=&quot;row&quot;&gt;&lt;div class=&quot;status proven&quot;&gt;Proven&lt;/div&gt;&lt;div&gt;&lt;strong&gt;DriverKit activation&lt;/strong&gt;&lt;small&gt;VirtualHID activated enabled; vhidDeviceHealthy=true and vhidHealthy=true.&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
-        &lt;div class=&quot;row&quot;&gt;&lt;div class=&quot;status next&quot;&gt;Next&lt;/div&gt;&lt;div&gt;&lt;strong&gt;Kanata permissions and runtime&lt;/strong&gt;&lt;small&gt;Grant launcher Accessibility/Input Monitoring, then require running + TCP 37001.&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
-        &lt;div class=&quot;row&quot;&gt;&lt;div class=&quot;status next&quot;&gt;Next&lt;/div&gt;&lt;div&gt;&lt;strong&gt;Functional physics&lt;/strong&gt;&lt;small&gt;Prove RFB input reaches Kanata and VirtualHID produces observable remapped output.&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
-        &lt;div class=&quot;row&quot;&gt;&lt;div class=&quot;status blocked&quot;&gt;Waiting&lt;/div&gt;&lt;div&gt;&lt;strong&gt;Managed functional lane&lt;/strong&gt;&lt;small&gt;Apple case 102940025673 gates the MDM vendor certificate and real APNs enrollment.&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
-      &lt;/div&gt;
+  &lt;section class=&quot;card disk&quot; aria-label=&quot;KeyPath automation capability map&quot;&gt;
+    &lt;div class=&quot;track&quot; id=&quot;keypath-defrag-grid&quot;&gt;&lt;/div&gt;
+    &lt;div class=&quot;readout&quot; aria-live=&quot;polite&quot;&gt;
+      &lt;div&gt;&lt;strong id=&quot;keypath-defrag-title&quot;&gt;Select a block&lt;/strong&gt;&lt;small id=&quot;keypath-defrag-detail&quot;&gt;The map is organized roughly from provisioning through full scenario-matrix execution.&lt;/small&gt;&lt;/div&gt;
+      &lt;div class=&quot;readout-status&quot; id=&quot;keypath-defrag-status&quot;&gt;Capability map&lt;/div&gt;
     &lt;/div&gt;
-
-    &lt;aside&gt;
-      &lt;div class=&quot;section-title&quot;&gt;Recommended sequence&lt;/div&gt;
-      &lt;div class=&quot;card decision&quot;&gt;&lt;strong&gt;1 · Finish macOS 15 golden path&lt;/strong&gt;&lt;p&gt;Automate Kanata permissions, runtime convergence, TCP readiness, then the two physics checks.&lt;/p&gt;&lt;/div&gt;
-      &lt;div class=&quot;card decision&quot;&gt;&lt;strong&gt;2 · Make it resumable&lt;/strong&gt;&lt;p&gt;Promote proven selectors into a product-plan-driven orchestrator with explicit product, selector, transport, provider, and environment failure ownership.&lt;/p&gt;&lt;/div&gt;
-      &lt;div class=&quot;card decision&quot;&gt;&lt;strong&gt;3 · Expand the matrix&lt;/strong&gt;&lt;p&gt;Add install, repair, upgrade, reboot, uninstall, and realistic failure fixtures; then harden macOS 26 and 27 selectors.&lt;/p&gt;&lt;/div&gt;
-      &lt;div class=&quot;card decision&quot;&gt;&lt;strong&gt;4 · Activate managed testing&lt;/strong&gt;&lt;p&gt;When Apple responds, enroll the managed base, publish profiles, and prove deterministic permissions on disposable clones.&lt;/p&gt;&lt;/div&gt;
-      &lt;div class=&quot;section-title&quot;&gt;Known findings&lt;/div&gt;
-      &lt;div class=&quot;card decision&quot;&gt;&lt;strong&gt;Harness fixes landed&lt;/strong&gt;&lt;p&gt;Peekaboo 3 positional click syntax, stale snapshot refresh, foreground secure fields, dismissed-sheet handling, and SecurityAgent focused mode.&lt;/p&gt;&lt;/div&gt;
-      &lt;div class=&quot;card decision&quot;&gt;&lt;strong&gt;Product behavior to investigate&lt;/strong&gt;&lt;p&gt;CLI repair can advance installation but exit 1 with empty JSON when the runtime misses its readiness postcondition. Evidence is preserved as a product finding.&lt;/p&gt;&lt;/div&gt;
-    &lt;/aside&gt;
   &lt;/section&gt;
 
-  &lt;footer class=&quot;footer&quot;&gt;&lt;span&gt;Source of truth: keypath-installer-golden-path&lt;/span&gt;&lt;span&gt;Latest evidence: cbx_7b9e8bcdeda8 · 20260712T140633Z&lt;/span&gt;&lt;/footer&gt;
+  &lt;section class=&quot;bands&quot; aria-label=&quot;Work sequence&quot;&gt;
+    &lt;div class=&quot;card band&quot;&gt;&lt;strong&gt;Foundation consolidated&lt;/strong&gt;&lt;span&gt;Leases, lanes, artifacts, desktop bootstrap, semantic UI, secure secrets, cleanup.&lt;/span&gt;&lt;/div&gt;
+    &lt;div class=&quot;card band&quot;&gt;&lt;strong&gt;Installer approvals consolidated&lt;/strong&gt;&lt;span&gt;KeyPath Input Monitoring, helper, background item, SecurityAgent, DriverKit.&lt;/span&gt;&lt;/div&gt;
+    &lt;div class=&quot;card band now&quot;&gt;&lt;strong&gt;Defragmenting now&lt;/strong&gt;&lt;span&gt;Kanata permissions → runtime/TCP → real input and virtual output.&lt;/span&gt;&lt;/div&gt;
+    &lt;div class=&quot;card band wait&quot;&gt;&lt;strong&gt;External wait&lt;/strong&gt;&lt;span&gt;Apple case 102940025673 gates the managed APNs enrollment proof.&lt;/span&gt;&lt;/div&gt;
+  &lt;/section&gt;
+  &lt;div class=&quot;note&quot;&gt;Block counts represent named capabilities, not an estimated percentage of engineering effort.&lt;/div&gt;
+
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&#x27;keypath-defrag-progress&#x27;);
+      const items = [
+        [&#x27;L01&#x27;,&#x27;proven&#x27;,&#x27;Immutable source bundle&#x27;,&#x27;A full commit and signed artifact are bound to every lease.&#x27;],
+        [&#x27;L02&#x27;,&#x27;proven&#x27;,&#x27;Artifact checksum&#x27;,&#x27;Installer SHA-256 is recorded and verified.&#x27;],
+        [&#x27;L03&#x27;,&#x27;proven&#x27;,&#x27;macOS 15 clone&#x27;,&#x27;Disposable Tart lease from a clean base.&#x27;],
+        [&#x27;L04&#x27;,&#x27;proven&#x27;,&#x27;macOS 26 clone&#x27;,&#x27;Disposable Parallels lease contract.&#x27;],
+        [&#x27;L05&#x27;,&#x27;proven&#x27;,&#x27;macOS 27 clone&#x27;,&#x27;Disposable Parallels regression lane.&#x27;],
+        [&#x27;L06&#x27;,&#x27;proven&#x27;,&#x27;Lane identity&#x27;,&#x27;Managed and unmanaged bases cannot be mixed.&#x27;],
+        [&#x27;L07&#x27;,&#x27;proven&#x27;,&#x27;Admission checks&#x27;,&#x27;Profiles, manifest, signing policy, and OS boundaries.&#x27;],
+        [&#x27;L08&#x27;,&#x27;proven&#x27;,&#x27;Owned cleanup&#x27;,&#x27;Only harness-owned leases can be destroyed.&#x27;],
+        [&#x27;G01&#x27;,&#x27;proven&#x27;,&#x27;Console session&#x27;,&#x27;Logged-in desktop user verified before GUI work.&#x27;],
+        [&#x27;G02&#x27;,&#x27;proven&#x27;,&#x27;Peekaboo bootstrap&#x27;,&#x27;Peekaboo 3 and mcporter installed and verified.&#x27;],
+        [&#x27;G03&#x27;,&#x27;proven&#x27;,&#x27;Semantic snapshots&#x27;,&#x27;Fresh AX evidence is saved with the scenario.&#x27;],
+        [&#x27;G04&#x27;,&#x27;proven&#x27;,&#x27;Semantic actions&#x27;,&#x27;Buttons and switches selected by current UI state.&#x27;],
+        [&#x27;G05&#x27;,&#x27;proven&#x27;,&#x27;RFB fallback&#x27;,&#x27;Native framebuffer input works when AX delivery is rejected.&#x27;],
+        [&#x27;G06&#x27;,&#x27;proven&#x27;,&#x27;System Settings secret&#x27;,&#x27;Encrypted QA secret streams through stdin only.&#x27;],
+        [&#x27;G07&#x27;,&#x27;proven&#x27;,&#x27;SecurityAgent secret&#x27;,&#x27;Focused secure-window entry works without AX discovery.&#x27;],
+        [&#x27;G08&#x27;,&#x27;proven&#x27;,&#x27;Screenshot evidence&#x27;,&#x27;Retina and full-frame captures survive artifact collection.&#x27;],
+        [&#x27;I01&#x27;,&#x27;proven&#x27;,&#x27;Signed app install&#x27;,&#x27;Notarized Developer ID build installed in the clone.&#x27;],
+        [&#x27;I02&#x27;,&#x27;proven&#x27;,&#x27;KeyPath launch&#x27;,&#x27;GUI installer runs in the console-user session.&#x27;],
+        [&#x27;I03&#x27;,&#x27;proven&#x27;,&#x27;Input Monitoring&#x27;,&#x27;KeyPath permission independently confirmed by the CLI.&#x27;],
+        [&#x27;I04&#x27;,&#x27;proven&#x27;,&#x27;Helper install&#x27;,&#x27;helperInstalled=true, version 1.1.0.&#x27;],
+        [&#x27;I05&#x27;,&#x27;proven&#x27;,&#x27;Helper readiness&#x27;,&#x27;helperWorking=true after real approval.&#x27;],
+        [&#x27;I06&#x27;,&#x27;proven&#x27;,&#x27;Background item&#x27;,&#x27;KeyPath background switch approved in System Settings.&#x27;],
+        [&#x27;I07&#x27;,&#x27;proven&#x27;,&#x27;Driver installed&#x27;,&#x27;Bundled VirtualHID components installed by KeyPath.&#x27;],
+        [&#x27;I08&#x27;,&#x27;proven&#x27;,&#x27;Driver activated&#x27;,&#x27;System extension reports activated enabled.&#x27;],
+        [&#x27;I09&#x27;,&#x27;proven&#x27;,&#x27;VirtualHID health&#x27;,&#x27;vhidDeviceHealthy and vhidHealthy are true.&#x27;],
+        [&#x27;R01&#x27;,&#x27;active&#x27;,&#x27;Kanata Accessibility&#x27;,&#x27;Grant and independently verify the launcher permission.&#x27;],
+        [&#x27;R02&#x27;,&#x27;active&#x27;,&#x27;Kanata Input Monitoring&#x27;,&#x27;Grant and independently verify live capture permission.&#x27;],
+        [&#x27;R03&#x27;,&#x27;active&#x27;,&#x27;Runtime convergence&#x27;,&#x27;Require Kanata running without forgiving product retries.&#x27;],
+        [&#x27;R04&#x27;,&#x27;active&#x27;,&#x27;TCP readiness&#x27;,&#x27;Require a response on 127.0.0.1:37001.&#x27;],
+        [&#x27;P01&#x27;,&#x27;active&#x27;,&#x27;RFB capture physics&#x27;,&#x27;Prove RFB-injected keys reach Kanata HID capture.&#x27;],
+        [&#x27;P02&#x27;,&#x27;active&#x27;,&#x27;Virtual output physics&#x27;,&#x27;Prove the activated driver emits observable remapped output.&#x27;],
+        [&#x27;P03&#x27;,&#x27;queued&#x27;,&#x27;Overlay observation&#x27;,&#x27;Capture overlay state and input-event evidence.&#x27;],
+        [&#x27;P04&#x27;,&#x27;queued&#x27;,&#x27;First remap proof&#x27;,&#x27;Measure launch-to-confirmed-remap success.&#x27;],
+        [&#x27;M01&#x27;,&#x27;queued&#x27;,&#x27;Clean install scenario&#x27;,&#x27;One unattended golden-path scenario.&#x27;],
+        [&#x27;M02&#x27;,&#x27;queued&#x27;,&#x27;Repair scenario&#x27;,&#x27;Real damaged states and strict convergence attempts.&#x27;],
+        [&#x27;M03&#x27;,&#x27;queued&#x27;,&#x27;Upgrade scenario&#x27;,&#x27;Install an older release before upgrading.&#x27;],
+        [&#x27;M04&#x27;,&#x27;queued&#x27;,&#x27;Reboot persistence&#x27;,&#x27;Verify services, permissions, and TCP after reboot.&#x27;],
+        [&#x27;M05&#x27;,&#x27;queued&#x27;,&#x27;Uninstall scenario&#x27;,&#x27;Remove app, services, helper, and owned state.&#x27;],
+        [&#x27;M06&#x27;,&#x27;queued&#x27;,&#x27;Reinstall scenario&#x27;,&#x27;Fresh behavior after verified uninstall.&#x27;],
+        [&#x27;M07&#x27;,&#x27;queued&#x27;,&#x27;Cancellation fixture&#x27;,&#x27;Exercise real user cancellation and recovery.&#x27;],
+        [&#x27;M08&#x27;,&#x27;queued&#x27;,&#x27;Failure ownership&#x27;,&#x27;Product, selector, transport, provider, OS, environment.&#x27;],
+        [&#x27;M09&#x27;,&#x27;queued&#x27;,&#x27;Resumable runner&#x27;,&#x27;Continue safely from the last verified checkpoint.&#x27;],
+        [&#x27;M10&#x27;,&#x27;queued&#x27;,&#x27;macOS 26 selectors&#x27;,&#x27;Self-verifying System Settings driver.&#x27;],
+        [&#x27;M11&#x27;,&#x27;queued&#x27;,&#x27;macOS 27 selectors&#x27;,&#x27;Separate beta-aware approval driver.&#x27;],
+        [&#x27;M12&#x27;,&#x27;queued&#x27;,&#x27;Nightly diagonal&#x27;,&#x27;Curated core matrix with capacity and TTL admission.&#x27;],
+        [&#x27;M13&#x27;,&#x27;queued&#x27;,&#x27;Weekly pairwise&#x27;,&#x27;Broader pairwise coverage outside the PR path.&#x27;],
+        [&#x27;M14&#x27;,&#x27;queued&#x27;,&#x27;Consolidated report&#x27;,&#x27;Machine-readable results plus sanitized evidence links.&#x27;],
+        [&#x27;D01&#x27;,&#x27;proven&#x27;,&#x27;Profile generator&#x27;,&#x27;PPPC, system extension, and service profiles validate.&#x27;],
+        [&#x27;D02&#x27;,&#x27;proven&#x27;,&#x27;Managed admission&#x27;,&#x27;Profile hashes and signed-app policy are enforced.&#x27;],
+        [&#x27;D03&#x27;,&#x27;waiting&#x27;,&#x27;Vendor certificate&#x27;,&#x27;Apple Developer Support case 102940025673.&#x27;],
+        [&#x27;D04&#x27;,&#x27;waiting&#x27;,&#x27;NanoMDM APNs&#x27;,&#x27;Connect the lab MDM after Apple enables the certificate.&#x27;],
+        [&#x27;D05&#x27;,&#x27;waiting&#x27;,&#x27;Managed base proof&#x27;,&#x27;Enroll, publish profiles, clone, and prove deterministic grants.&#x27;],
+        [&#x27;D06&#x27;,&#x27;queued&#x27;,&#x27;Unique clone identity&#x27;,&#x27;Safe concurrent managed tests without MDM identity collision.&#x27;]
+      ];
+      const grid = root.querySelector(&#x27;#keypath-defrag-grid&#x27;);
+      const title = root.querySelector(&#x27;#keypath-defrag-title&#x27;);
+      const detail = root.querySelector(&#x27;#keypath-defrag-detail&#x27;);
+      const status = root.querySelector(&#x27;#keypath-defrag-status&#x27;);
+      const names = {proven:&#x27;Proven&#x27;,active:&#x27;Current frontier&#x27;,queued:&#x27;Queued&#x27;,waiting:&#x27;Waiting on Apple&#x27;};
+      items.forEach(([id,state,name,description]) =&gt; {
+        const button = document.createElement(&#x27;button&#x27;);
+        button.className = &#x27;block&#x27;;
+        button.dataset.status = state;
+        button.textContent = id;
+        button.setAttribute(&#x27;aria-label&#x27;, `${id}: ${name}. ${names[state]}. ${description}`);
+        button.addEventListener(&#x27;click&#x27;, () =&gt; {
+          title.textContent = `${id} · ${name}`;
+          detail.textContent = description;
+          status.textContent = names[state];
+        });
+        grid.appendChild(button);
+      });
+    })();
+  &lt;/script&gt;
 &lt;/div&gt;
 
 &lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
