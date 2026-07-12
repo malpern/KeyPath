@@ -374,7 +374,8 @@ secure_dialog_input() {
     [[ -f "$key" && ! -L "$key" && -O "$key" ]] || die "owned CrabBox SSH key not found for lease"
     secret_file=$(mktemp "$STATE_ROOT/.secure-input.XXXXXXXX")
     chmod 600 "$secret_file"
-    trap 'rm -f "$secret_file"' EXIT
+    typeset -g KEYPATH_LAB_SECURE_TEMP="$secret_file"
+    trap '[[ -z ${KEYPATH_LAB_SECURE_TEMP:-} ]] || rm -f "$KEYPATH_LAB_SECURE_TEMP"' EXIT
     /opt/homebrew/bin/sops -d "$HOME/dotfiles/secrets.env" | awk -F= '$1 == "KEYPATH_TART_ADMIN_PASSWORD" {sub(/^[^=]*=/, ""); print; found=1} END {if (!found) exit 1}' > "$secret_file" || die "KEYPATH_TART_ADMIN_PASSWORD is unavailable"
   fi
   [[ -s "$secret_file" ]] || die "secure input secret is empty"
@@ -384,19 +385,26 @@ secure_dialog_input() {
 
   # Peekaboo's MCP type response contains the typed value. Suppress both output
   # streams for that command so the secret cannot enter controller logs.
+  local click_command submit_command
+  local -a click_args submit_args
   guest_command='set -euo pipefail; command -v /opt/homebrew/bin/peekaboo >/dev/null; command -v /opt/homebrew/bin/mcporter >/dev/null; '
-  printf -v guest_command '%s%q ' "$guest_command" /opt/homebrew/bin/peekaboo click --app "$app" --query "$field_label" --json
-  guest_command+=" >/dev/null; "
+  click_args=(/opt/homebrew/bin/peekaboo click --app "$app" --query "$field_label" --json)
+  printf -v click_command '%q ' "${click_args[@]}"
+  guest_command+="$click_command >/dev/null; "
   guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1'
   if [[ -n "$submit_button" ]]; then
-    printf -v guest_command '%s; %q ' "$guest_command" /opt/homebrew/bin/peekaboo click --app "$app" --query "$submit_button" --json
-    guest_command+=" >/dev/null"
+    submit_args=(/opt/homebrew/bin/peekaboo click --app "$app" --query "$submit_button" --json)
+    printf -v submit_command '%q ' "${submit_args[@]}"
+    guest_command+="; $submit_command >/dev/null"
   fi
   set +e
   "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")" < "$secret_file"
   exit_code=$?
   set -e
-  [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]] || rm -f "$secret_file"
+  if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" ]]; then
+    rm -f "$secret_file"
+    KEYPATH_LAB_SECURE_TEMP=
+  fi
   if (( exit_code == 0 )); then
     record_command "$lease" passed secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
     print "secure_dialog_input\tpassed"

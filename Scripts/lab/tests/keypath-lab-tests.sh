@@ -230,6 +230,11 @@ grep -q 'admin@192.0.2.15' "$TMP/guest-ssh-args"
 grep -q 'mcporter' "$TMP/guest-ssh-args"
 grep -q 'text=@/dev/stdin' "$TMP/guest-ssh-args"
 grep -q 'dev/null' "$TMP/guest-ssh-args"
+grep -q 'peekaboo.*click.*--app' "$TMP/guest-ssh-args"
+if grep -q 'click--app' "$TMP/guest-ssh-args"; then
+    echo "secure dialog input collapsed adjacent guest arguments" >&2
+    exit 1
+fi
 cmp -s "$TMP/secure-input" "$TMP/guest-ssh-stdin"
 if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" "$TMP/guest-ssh-args"; then
     echo "secure dialog input leaked its secret into logs or arguments" >&2
