@@ -4,6 +4,7 @@ import KeyPathCLISupport
 import KeyPathCore
 import KeyPathDaemonLifecycle
 import KeyPathInstallationWizard
+import KeyPathPermissions
 import KeyPathWizardCore
 
 public struct SystemFacade: Sendable {
@@ -108,11 +109,7 @@ public struct SystemFacade: Sendable {
         let context = await engine.inspectSystem()
 
         return CLIStatusResult(
-            isOperational: context.permissions.isSystemReady
-                && context.helper.isReady
-                && context.components.hasAllRequired
-                && context.services.isHealthy
-                && !context.conflicts.hasConflicts,
+            isOperational: Self.isOperational(context),
             helperInstalled: context.helper.isInstalled,
             helperWorking: context.helper.isWorking,
             helperVersion: context.helper.version,
@@ -180,7 +177,7 @@ public struct SystemFacade: Sendable {
         }
 
         let initialIssues = Self.issues(from: context)
-        let initialUserActionIssues = initialIssues.filter { !$0.canAutoFix }
+        let initialUserActionIssues = initialIssues.filter(\.requiresUserAction)
         if !initialUserActionIssues.isEmpty, plan.recipes.isEmpty {
             return CLIInstallerReport(
                 success: false,
@@ -258,7 +255,7 @@ public struct SystemFacade: Sendable {
             plannedRecipes: plan.recipes.map { "\($0.id) (\($0.type))" },
             planIntent: "\(planIntent)",
             isOperational: Self.isOperational(context),
-            userActionRequired: Self.issues(from: context).contains { !$0.canAutoFix },
+            userActionRequired: Self.issues(from: context).contains(where: \.requiresUserAction),
             promptsNeeded: plan.metadata.promptsNeeded,
             issues: Self.issues(from: context),
             stateMatrixRow: plan.metadata.stateMatrixRow,
@@ -276,8 +273,10 @@ public struct SystemFacade: Sendable {
         return NSWorkspace.shared.open(url)
     }
 
-    fileprivate static func isOperational(_ context: SystemContext) -> Bool {
-        context.permissions.isSystemReady
+    static func isOperational(_ context: SystemContext) -> Bool {
+        !context.permissions.keyPath.accessibility.isBlocking
+            && !context.permissions.kanata.accessibility.isBlocking
+            && !context.permissions.kanata.inputMonitoring.isBlocking
             && context.helper.isReady
             && context.components.hasAllRequired
             && context.services.isHealthy
@@ -305,7 +304,7 @@ public struct SystemFacade: Sendable {
         )
     }
 
-    fileprivate static func issues(from context: SystemContext) -> [CLISystemIssue] {
+    static func issues(from context: SystemContext) -> [CLISystemIssue] {
         var issues: [CLISystemIssue] = []
 
         if !context.helper.isInstalled {
@@ -408,42 +407,39 @@ public struct SystemFacade: Sendable {
     }
 
     private static func appendPermissionIssues(from context: SystemContext, to issues: inout [CLISystemIssue]) {
-        if !context.permissions.keyPath.accessibility.isReady {
-            issues.append(.init(
-                title: "KeyPath needs Accessibility permission",
-                category: "permissions",
-                action: "Open KeyPath.app and grant Accessibility in System Settings > Privacy & Security > Accessibility",
-                canAutoFix: false,
-                remediationURL: WizardSystemPaths.accessibilitySettings
-            ))
-        }
-        if !context.permissions.keyPath.inputMonitoring.isReady {
-            issues.append(.init(
-                title: "KeyPath needs Input Monitoring permission",
-                category: "permissions",
-                action: "Open KeyPath.app and grant Input Monitoring in System Settings > Privacy & Security > Input Monitoring",
-                canAutoFix: false,
-                remediationURL: WizardSystemPaths.inputMonitoringSettings
-            ))
-        }
-        if !context.permissions.kanata.accessibility.isReady {
-            issues.append(.init(
-                title: "Kanata needs Accessibility permission",
-                category: "permissions",
-                action: "Open the KeyPath Installation Wizard to grant Kanata Engine Accessibility",
-                canAutoFix: false,
-                remediationURL: WizardSystemPaths.accessibilitySettings
-            ))
-        }
-        if !context.permissions.kanata.inputMonitoring.isReady {
-            issues.append(.init(
-                title: "Kanata needs Input Monitoring permission",
-                category: "permissions",
-                action: "Open the KeyPath Installation Wizard to grant Kanata Engine Input Monitoring",
-                canAutoFix: false,
-                remediationURL: WizardSystemPaths.inputMonitoringSettings
-            ))
-        }
+        appendPermissionIssue(
+            status: context.permissions.keyPath.accessibility,
+            subject: "KeyPath",
+            permission: "Accessibility",
+            deniedAction: "Open KeyPath.app and grant Accessibility in System Settings > Privacy & Security > Accessibility",
+            remediationURL: WizardSystemPaths.accessibilitySettings,
+            to: &issues
+        )
+        appendPermissionIssue(
+            status: context.permissions.keyPath.inputMonitoring,
+            subject: "KeyPath",
+            permission: "Input Monitoring",
+            deniedAction: "Open KeyPath.app and grant Input Monitoring in System Settings > Privacy & Security > Input Monitoring",
+            remediationURL: WizardSystemPaths.inputMonitoringSettings,
+            isBlocking: false,
+            to: &issues
+        )
+        appendPermissionIssue(
+            status: context.permissions.kanata.accessibility,
+            subject: "Kanata",
+            permission: "Accessibility",
+            deniedAction: "Open the KeyPath Installation Wizard to grant Kanata Engine Accessibility",
+            remediationURL: WizardSystemPaths.accessibilitySettings,
+            to: &issues
+        )
+        appendPermissionIssue(
+            status: context.permissions.kanata.inputMonitoring,
+            subject: "Kanata",
+            permission: "Input Monitoring",
+            deniedAction: "Open the KeyPath Installation Wizard to grant Kanata Engine Input Monitoring",
+            remediationURL: WizardSystemPaths.inputMonitoringSettings,
+            to: &issues
+        )
         if !context.services.kanataInputCaptureReady {
             let needsManualVHIDApproval = context.requiresManualVHIDDriverApproval
             issues.append(.init(
@@ -459,6 +455,39 @@ public struct SystemFacade: Sendable {
                 remediationURL: needsManualVHIDApproval
                     ? WizardSystemPaths.loginItemsSettings
                     : KeyPathConstants.URLs.terminalInputCaptureTroubleshooting
+            ))
+        }
+    }
+
+    private static func appendPermissionIssue(
+        status: PermissionOracle.Status,
+        subject: String,
+        permission: String,
+        deniedAction: String,
+        remediationURL: String,
+        isBlocking: Bool = true,
+        to issues: inout [CLISystemIssue]
+    ) {
+        switch status {
+        case .granted:
+            return
+        case .denied, .error:
+            issues.append(.init(
+                title: "\(subject) needs \(permission) permission",
+                category: "permissions",
+                action: deniedAction,
+                canAutoFix: false,
+                remediationURL: remediationURL,
+                severity: isBlocking ? .error : .warning
+            ))
+        case .unknown:
+            issues.append(.init(
+                title: "\(subject) \(permission) permission not verified",
+                category: "permissions",
+                action: "Grant Full Disk Access to KeyPath to verify this permission",
+                canAutoFix: false,
+                remediationURL: WizardSystemPaths.fullDiskAccessSettings,
+                severity: .warning
             ))
         }
     }
@@ -499,7 +528,7 @@ public extension CLIInstallerReport {
         title: String
     ) {
         let finalIssues = SystemFacade.issues(from: finalContext ?? initialContext)
-        let finalUserActionIssues = finalIssues.filter { !$0.canAutoFix }
+        let finalUserActionIssues = finalIssues.filter(\.requiresUserAction)
         let finalOperational = finalContext.map(SystemFacade.isOperational) ?? false
         let completedButStillBlocked = report.success
             && report.completionState != .awaitingApproval
@@ -548,7 +577,7 @@ public extension CLIInstallerReport {
 
     init(dryRunPlan plan: InstallPlan, context: SystemContext, title: String) {
         let contextIssues = SystemFacade.issues(from: context)
-        let userActionIssues = contextIssues.filter { !$0.canAutoFix }
+        let userActionIssues = contextIssues.filter(\.requiresUserAction)
         let blockedBy = plan.blockedBy.map { [$0.name] } ?? []
 
         let failureReason: String? = if !blockedBy.isEmpty {
