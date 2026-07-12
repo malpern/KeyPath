@@ -45,7 +45,7 @@ cat > "$ROOT/bin/crabbox" <<EOF
 #!/bin/bash
 echo "crabbox \$*" >> "$CALLS"
 if [[ \$1 == warmup ]]; then
-  if [[ " \$* " == *" --provider tart "* ]]; then echo cbx_desktop15; else echo cbx_desktop26; fi
+  if [[ " \$* " == *" --provider tart "* ]]; then echo 'warmup instance=test-resource cbx_desktop15'; else echo 'warmup vm=00000000-0000-0000-0000-000000000000 cbx_desktop26'; fi
   exit 0
 fi
 if [[ \$1 == screenshot ]]; then
@@ -72,6 +72,20 @@ exit 0
 EOF
 chmod +x "$ROOT/bin/launcher15" "$ROOT/bin/launcher26" "$ROOT/bin/launcher27" "$ROOT/bin/crabbox"
 
+echo 192.0.2.15 > "$TMP/tart-ip"
+cat > "$ROOT/bin/tart" <<EOF
+#!/bin/bash
+[[ \$1 == ip ]] && cat "$TMP/tart-ip"
+EOF
+cat > "$ROOT/bin/guest-ssh" <<EOF
+#!/bin/bash
+printf '%s\n' "\$*" > "$TMP/guest-ssh-args"
+cat > "$TMP/guest-ssh-stdin"
+EOF
+chmod +x "$ROOT/bin/tart" "$ROOT/bin/guest-ssh"
+echo test-private-key > "$TMP/id_ed25519"
+echo 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
+
 /bin/bash -n "$LAB_DIR/../qa-macos-27-regression.sh"
 grep -q 'macos-27-regression)' "$LAB_DIR/scenarios/installer-scenario"
 
@@ -82,6 +96,10 @@ run_remote() {
     KEYPATH_LAB_LAUNCHER_26="$ROOT/bin/launcher26" \
     KEYPATH_LAB_LAUNCHER_27="$ROOT/bin/launcher27" \
     KEYPATH_LAB_CRABBOX="$ROOT/bin/crabbox" \
+    KEYPATH_LAB_TART="$ROOT/bin/tart" \
+    KEYPATH_LAB_GUEST_SSH="$ROOT/bin/guest-ssh" \
+    KEYPATH_LAB_TEST_SSH_KEY="$TMP/id_ed25519" \
+    KEYPATH_LAB_TEST_SECRET_FILE="$TMP/secure-input" \
         /bin/zsh "$REMOTE" "$@"
 }
 
@@ -206,6 +224,17 @@ desktop_artifacts=$(run_remote artifacts cbx_desktop15)
 assert_contains "$desktop_artifacts" $'screenshot_status\t0'
 desktop_artifact_dir=$(printf '%s\n' "$desktop_artifacts" | awk -F '\t' '$1 == "artifact_dir" {print $2}')
 [[ -f "$desktop_artifact_dir/screenshot.png" ]]
+secure_result=$(run_remote secure-dialog-input cbx_desktop15 'System Settings' Password 'Modify Settings')
+assert_contains "$secure_result" $'secure_dialog_input\tpassed'
+grep -q 'admin@192.0.2.15' "$TMP/guest-ssh-args"
+grep -q 'mcporter' "$TMP/guest-ssh-args"
+grep -q 'text=@/dev/stdin' "$TMP/guest-ssh-args"
+grep -q 'dev/null' "$TMP/guest-ssh-args"
+cmp -s "$TMP/secure-input" "$TMP/guest-ssh-stdin"
+if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" "$TMP/guest-ssh-args"; then
+    echo "secure dialog input leaked its secret into logs or arguments" >&2
+    exit 1
+fi
 run_remote destroy cbx_desktop15 >/dev/null
 
 if run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 3h 0 >/dev/null 2>&1; then

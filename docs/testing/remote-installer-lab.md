@@ -61,6 +61,8 @@ Scripts/lab/keypath-lab list
 Scripts/lab/keypath-lab status cbx_example
 Scripts/lab/keypath-lab install-app cbx_example
 Scripts/lab/keypath-lab run cbx_example -- sw_vers
+Scripts/lab/keypath-lab secure-dialog-input cbx_example \
+  --app 'System Settings' --field Password --submit 'Modify Settings'
 Scripts/lab/keypath-lab artifacts cbx_example
 Scripts/lab/keypath-lab destroy cbx_example
 Scripts/lab/keypath-lab cleanup --dry-run
@@ -118,10 +120,20 @@ convert logical points to framebuffer coordinates using the current display
 scale, and verify activation afterward; never preserve raw coordinates between
 runs.
 
-The adapter deliberately has no password-input command. Do not put a lab
-password in a command line, workflow file, shell trace, or collected artifact.
-Authentication-sheet automation needs a separate secure credential-injection
-contract before it becomes part of the reusable workflow.
+For a macOS 15 Tart desktop lease, `secure-dialog-input` handles an
+authentication sheet without putting its password in a command line. It focuses
+the named field with Peekaboo, decrypts only `KEYPATH_TART_ADMIN_PASSWORD` on
+the mini, and streams it over the lease-specific CrabBox SSH connection to
+Peekaboo's supported MCP `type` tool. Peekaboo and `mcporter` must be installed
+in the guest (`brew install steipete/tap/peekaboo steipete/tap/mcporter`).
+
+The command suppresses the complete MCP response because Peekaboo's `type`
+result contains the value it typed. The secret is never an argument, never
+written to `commands.tsv`, and never retained as an artifact. Only the app,
+field label, optional submit button, and pass/fail result are recorded. Do not
+use the generic `run` command to improvise password entry. macOS 26 and 27
+Parallels guests remain unsupported until they have an equally constrained
+lease-specific transport.
 
 `install-app` expands the staged ZIP into `/Applications` on the disposable
 guest. Tart uses the base image's noninteractive sudo contract. Parallels uses
