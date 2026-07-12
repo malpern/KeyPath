@@ -31,6 +31,16 @@ case "\$1" in
  list) echo cbx_test26 ;;
 esac
 EOF
+cat > "$ROOT/bin/launcher27" <<EOF
+#!/bin/bash
+case "\$1" in
+ doctor) echo doctor-27 ;;
+ warmup) echo cbx_test27 ;;
+ run) echo product=27.0; echo build=26A5378j ;;
+ stop) echo "stop-27 \$2" >> "$CALLS" ;;
+ list) echo cbx_test27 ;;
+esac
+EOF
 cat > "$ROOT/bin/crabbox" <<EOF
 #!/bin/bash
 echo "crabbox \$*" >> "$CALLS"
@@ -60,7 +70,7 @@ while [[ \$# -gt 0 ]]; do
 done
 exit 0
 EOF
-chmod +x "$ROOT/bin/launcher15" "$ROOT/bin/launcher26" "$ROOT/bin/crabbox"
+chmod +x "$ROOT/bin/launcher15" "$ROOT/bin/launcher26" "$ROOT/bin/launcher27" "$ROOT/bin/crabbox"
 
 /bin/bash -n "$LAB_DIR/../qa-macos-27-regression.sh"
 grep -q 'macos-27-regression)' "$LAB_DIR/scenarios/installer-scenario"
@@ -70,6 +80,7 @@ run_remote() {
     KEYPATH_LAB_TEST_ROOT="$ROOT" \
     KEYPATH_LAB_LAUNCHER_15="$ROOT/bin/launcher15" \
     KEYPATH_LAB_LAUNCHER_26="$ROOT/bin/launcher26" \
+    KEYPATH_LAB_LAUNCHER_27="$ROOT/bin/launcher27" \
     KEYPATH_LAB_CRABBOX="$ROOT/bin/crabbox" \
         /bin/zsh "$REMOTE" "$@"
 }
@@ -81,6 +92,7 @@ assert_contains() {
 preflight=$(run_remote preflight)
 assert_contains "$preflight" doctor-15
 assert_contains "$preflight" doctor-26
+assert_contains "$preflight" doctor-27
 
 ticket_one=$(run_remote prepare-upload "$(printf 'a%.0s' {1..40})-$(printf 'b%.0s' {1..64})")
 ticket_two=$(run_remote prepare-upload "$(printf 'a%.0s' {1..40})-$(printf 'b%.0s' {1..64})")
@@ -177,6 +189,14 @@ artifacts26=$(run_remote artifacts cbx_test26)
 assert_contains "$artifacts26" $'download_status\t0'
 grep -q 'crabbox run --provider parallels --target macos --id cbx_test26 --stop-after never --download' "$CALLS"
 run_remote destroy cbx_test26 >/dev/null
+
+create27=$(run_remote create 27 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
+assert_contains "$create27" $'lease_id\tcbx_test27'
+artifacts27=$(run_remote artifacts cbx_test27)
+assert_contains "$artifacts27" $'download_status\t0'
+grep -q 'crabbox run --provider parallels --target macos --id cbx_test27 --stop-after never --download' "$CALLS"
+run_remote destroy cbx_test27 >/dev/null
+grep -q 'stop-27 cbx_test27' "$CALLS"
 
 desktop_create=$(run_remote create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
 assert_contains "$desktop_create" $'lease_id\tcbx_desktop15'
