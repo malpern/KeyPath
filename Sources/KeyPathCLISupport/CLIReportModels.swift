@@ -291,16 +291,21 @@ public struct CLIInspectResult: Codable, Sendable {
     }
 }
 
+public enum CLISystemIssueSeverity: String, Codable, Sendable {
+    case error
+    case warning
+}
+
 public struct CLISystemIssue: Codable, Sendable {
     public let title: String
     public let category: String
     public let action: String
     public let canAutoFix: Bool
     public let remediationURL: String?
-    public let severity: String?
+    public let severity: CLISystemIssueSeverity?
 
     public var requiresUserAction: Bool {
-        severity != "warning" && !canAutoFix
+        severity != .warning && !canAutoFix
     }
 
     public init(
@@ -309,7 +314,7 @@ public struct CLISystemIssue: Codable, Sendable {
         action: String,
         canAutoFix: Bool,
         remediationURL: String? = nil,
-        severity: String = "error"
+        severity: CLISystemIssueSeverity = .error
     ) {
         self.title = title
         self.category = category

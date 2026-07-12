@@ -421,6 +421,7 @@ public struct SystemFacade: Sendable {
             permission: "Input Monitoring",
             deniedAction: "Open KeyPath.app and grant Input Monitoring in System Settings > Privacy & Security > Input Monitoring",
             remediationURL: WizardSystemPaths.inputMonitoringSettings,
+            isBlocking: false,
             to: &issues
         )
         appendPermissionIssue(
@@ -464,6 +465,7 @@ public struct SystemFacade: Sendable {
         permission: String,
         deniedAction: String,
         remediationURL: String,
+        isBlocking: Bool = true,
         to issues: inout [CLISystemIssue]
     ) {
         switch status {
@@ -475,7 +477,8 @@ public struct SystemFacade: Sendable {
                 category: "permissions",
                 action: deniedAction,
                 canAutoFix: false,
-                remediationURL: remediationURL
+                remediationURL: remediationURL,
+                severity: isBlocking ? .error : .warning
             ))
         case .unknown:
             issues.append(.init(
@@ -484,7 +487,7 @@ public struct SystemFacade: Sendable {
                 action: "Grant Full Disk Access to KeyPath to verify this permission",
                 canAutoFix: false,
                 remediationURL: WizardSystemPaths.fullDiskAccessSettings,
-                severity: "warning"
+                severity: .warning
             ))
         }
     }

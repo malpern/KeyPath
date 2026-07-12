@@ -2,6 +2,7 @@
 import KeyPathCLISupport
 import KeyPathCore
 @testable import KeyPathInstallationWizard
+import KeyPathPermissions
 import KeyPathWizardCore
 import XCTest
 
@@ -303,8 +304,8 @@ final class CLIOutputContractTests: XCTestCase {
             componentsInstalled: true
         ).build()
         let deniedIssues = SystemFacade.issues(from: denied).filter { $0.category == "permissions" }
-        XCTAssertTrue(deniedIssues.allSatisfy { $0.severity == "error" })
-        XCTAssertTrue(deniedIssues.allSatisfy(\.requiresUserAction))
+        XCTAssertTrue(deniedIssues.contains { $0.severity == .error })
+        XCTAssertTrue(deniedIssues.contains(where: \.requiresUserAction))
         XCTAssertTrue(deniedIssues.contains { $0.title == "Kanata needs Input Monitoring permission" })
         XCTAssertFalse(SystemFacade.isOperational(denied))
 
@@ -315,11 +316,22 @@ final class CLIOutputContractTests: XCTestCase {
             componentsInstalled: true
         ).build()
         let unknownIssues = SystemFacade.issues(from: unknown).filter { $0.category == "permissions" }
-        XCTAssertTrue(unknownIssues.allSatisfy { $0.severity == "warning" })
+        XCTAssertTrue(unknownIssues.allSatisfy { $0.severity == .warning })
         XCTAssertFalse(unknownIssues.contains(where: \.requiresUserAction))
         XCTAssertTrue(unknownIssues.contains { $0.title == "Kanata Input Monitoring permission not verified" })
         XCTAssertFalse(unknownIssues.contains { $0.title.contains(" needs ") })
         XCTAssertTrue(SystemFacade.isOperational(unknown))
+    }
+
+    func testKeyPathInputMonitoringDenialIsSoftForCoreOperation() {
+        let context = contextWithKeyPathInputMonitoring(.denied)
+
+        let issue = SystemFacade.issues(from: context).first {
+            $0.title == "KeyPath needs Input Monitoring permission"
+        }
+        XCTAssertEqual(issue?.severity, .warning)
+        XCTAssertEqual(issue?.requiresUserAction, false)
+        XCTAssertTrue(SystemFacade.isOperational(context))
     }
 
     func testJSONRoundTripsPreserveKeys() throws {
@@ -341,5 +353,37 @@ final class CLIOutputContractTests: XCTestCase {
         let data = try encoder.encode(value)
         let dict = try JSONSerialization.jsonObject(with: data) as! [String: Any]
         return Set(dict.keys)
+    }
+
+    private func contextWithKeyPathInputMonitoring(_ status: PermissionOracle.Status) -> SystemContext {
+        let context = SystemContextBuilder(
+            permissionsStatus: .granted,
+            helperReady: true,
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
+        let keyPathPermissions = PermissionOracle.PermissionSet(
+            accessibility: .granted,
+            inputMonitoring: status,
+            source: "test",
+            confidence: .high,
+            timestamp: context.timestamp
+        )
+        let permissions = PermissionOracle.Snapshot(
+            keyPath: keyPathPermissions,
+            kanata: context.permissions.kanata,
+            timestamp: context.timestamp
+        )
+        return SystemContext(
+            snapshotID: context.snapshotID,
+            permissions: permissions,
+            services: context.services,
+            conflicts: context.conflicts,
+            components: context.components,
+            helper: context.helper,
+            system: context.system,
+            timestamp: context.timestamp,
+            captureStatus: context.captureStatus
+        )
     }
 }
