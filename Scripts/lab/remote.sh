@@ -30,6 +30,7 @@ LOGS="$STATE_ROOT/logs"
 OPERATIONS="$STATE_ROOT/operations"
 HELD_ADMISSION_LOCK=
 HELD_ADMISSION_OWNER=
+PENDING_ADMISSION_OWNER=
 
 die() { print -u2 "keypath-lab(remote): $*"; exit 1; }
 now_epoch() { date +%s; }
@@ -101,6 +102,14 @@ provider_capacity() {
   esac
 }
 
+cleanup_pending_admission_owner_and_exit() {
+  local exit_code=$1
+  trap - INT TERM HUP
+  [[ -n "$PENDING_ADMISSION_OWNER" ]] && rm -f "$PENDING_ADMISSION_OWNER"
+  PENDING_ADMISSION_OWNER=
+  exit "$exit_code"
+}
+
 acquire_admission_lock() {
   local provider=$1 attempt=0 owner owner_pid stale lock_age lock_mtime lock="$STATE_ROOT/provider-admission-$provider.lock"
   local owner_record="$STATE_ROOT/.provider-admission-$provider.owner.$$"
@@ -113,8 +122,14 @@ acquire_admission_lock() {
     print "provider\t$provider"
     print "created_at\t$(utc_now)"
   } > "$owner_record"
+  PENDING_ADMISSION_OWNER="$owner_record"
+  trap 'cleanup_pending_admission_owner_and_exit 130' INT
+  trap 'cleanup_pending_admission_owner_and_exit 143' TERM
+  trap 'cleanup_pending_admission_owner_and_exit 129' HUP
   while ((attempt < max_attempts)); do
     if ln "$owner_record" "$lock" 2>/dev/null; then
+      trap - INT TERM HUP
+      PENDING_ADMISSION_OWNER=
       HELD_ADMISSION_LOCK="$lock"
       HELD_ADMISSION_OWNER="$owner_record"
       return
@@ -139,8 +154,14 @@ acquire_admission_lock() {
     ((attempt += 1))
     sleep 0.1
   done
+  trap - INT TERM HUP
   rm -f "$owner_record"
-  owner=$([[ -d "$lock" ]] && cat "$lock/owner.tsv" 2>/dev/null || cat "$lock" 2>/dev/null || print unavailable)
+  PENDING_ADMISSION_OWNER=
+  if [[ -d "$lock" ]]; then
+    owner=$(cat "$lock/owner.tsv" 2>/dev/null || print unavailable)
+  else
+    owner=$(cat "$lock" 2>/dev/null || print unavailable)
+  fi
   print -u2 "admission_lock_busy"
   print -u2 -- "$owner"
   return 75
