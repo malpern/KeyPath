@@ -16,6 +16,8 @@ BRIDGE_ROOT="$PROJECT_ROOT/Rust/KeyPathKanataHostBridge"
 BUILD_DIR="$PROJECT_ROOT/build/kanata-host-bridge"
 CACHE_INFO="$BUILD_DIR/host-bridge-cache.info"
 BRIDGE_FEATURES="${KEYPATH_KANATA_HOST_BRIDGE_FEATURES:-passthru-output-spike}"
+BRIDGE_TARGET="aarch64-apple-darwin"
+BRIDGE_VERIFY_SCRIPT="$SCRIPT_DIR/verify-kanata-host-bridge.py"
 
 echo "🧩 Building KeyPath Kanata host bridge..."
 
@@ -40,40 +42,75 @@ calculate_source_hash() {
         -exec shasum -a 256 {} + 2>/dev/null | shasum -a 256 | cut -d' ' -f1
 }
 
-CURRENT_HASH=$(calculate_source_hash)
-CACHED_HASH=$(cat "$CACHE_INFO" 2>/dev/null || echo "")
+calculate_build_fingerprint() {
+    {
+        printf 'source=%s\n' "$(calculate_source_hash)"
+        printf 'features=%s\n' "$BRIDGE_FEATURES"
+        printf 'target=%s\n' "$BRIDGE_TARGET"
+        printf 'developer_dir=%s\n' "${DEVELOPER_DIR:-<unset>}"
+        rustc --version --verbose
+        cargo --version
+        xcrun ld -v 2>&1 || true
+    } | shasum -a 256 | cut -d' ' -f1
+}
 
-if [ "$CURRENT_HASH" = "$CACHED_HASH" ] && \
+verify_bridge() {
+    python3 "$BRIDGE_VERIFY_SCRIPT" "$BUILD_DIR/libkeypath_kanata_host_bridge.dylib"
+}
+
+CURRENT_FINGERPRINT=$(calculate_build_fingerprint)
+CACHED_FINGERPRINT=$(cat "$CACHE_INFO" 2>/dev/null || echo "")
+
+if [ "$CURRENT_FINGERPRINT" = "$CACHED_FINGERPRINT" ] && \
    [ -f "$BUILD_DIR/libkeypath_kanata_host_bridge.dylib" ] && \
    [ -f "$BUILD_DIR/libkeypath_kanata_host_bridge.a" ]; then
-    echo "🎯 Cache HIT: Host bridge source unchanged, using existing artifacts"
-    echo "✅ Host bridge ready"
-    exit 0
+    echo "🎯 Cache HIT: Host bridge inputs unchanged, verifying existing artifacts"
+    if verify_bridge; then
+        echo "✅ Host bridge ready"
+        exit 0
+    fi
+    echo "⚠️  Cached host bridge failed its load check; rebuilding" >&2
 fi
 
 echo "🔨 Cache miss, compiling host bridge..."
+
+# The outer cache tracks linker/toolchain identity, but Cargo has its own target
+# cache and does not reliably treat a DEVELOPER_DIR/linker change as a relink
+# input. Remove only this package's release outputs so dependencies stay warm
+# while the final Mach-O artifact is guaranteed to use the current toolchain.
+cargo clean \
+    --manifest-path "$BRIDGE_ROOT/Cargo.toml" \
+    --release \
+    --target "$BRIDGE_TARGET" \
+    --package keypath-kanata-host-bridge
 
 if [ -n "$BRIDGE_FEATURES" ]; then
     cargo build \
         --manifest-path "$BRIDGE_ROOT/Cargo.toml" \
         --release \
         --features "$BRIDGE_FEATURES" \
-        --target aarch64-apple-darwin
+        --target "$BRIDGE_TARGET"
 else
     cargo build \
         --manifest-path "$BRIDGE_ROOT/Cargo.toml" \
         --release \
-        --target aarch64-apple-darwin
+        --target "$BRIDGE_TARGET"
 fi
 
-cp "$BRIDGE_ROOT/target/aarch64-apple-darwin/release/libkeypath_kanata_host_bridge.a" \
+cp "$BRIDGE_ROOT/target/$BRIDGE_TARGET/release/libkeypath_kanata_host_bridge.a" \
    "$BUILD_DIR/libkeypath_kanata_host_bridge.a"
-cp "$BRIDGE_ROOT/target/aarch64-apple-darwin/release/libkeypath_kanata_host_bridge.dylib" \
+cp "$BRIDGE_ROOT/target/$BRIDGE_TARGET/release/libkeypath_kanata_host_bridge.dylib" \
    "$BUILD_DIR/libkeypath_kanata_host_bridge.dylib"
 cp "$BRIDGE_ROOT/include/keypath_kanata_host_bridge.h" \
    "$BUILD_DIR/include/keypath_kanata_host_bridge.h"
 
-echo "$CURRENT_HASH" > "$CACHE_INFO"
+echo "🧪 Verifying host bridge can be loaded by the release runtime..."
+if ! verify_bridge; then
+    echo "❌ Host bridge failed its load check; refusing to cache or package it" >&2
+    exit 1
+fi
+
+echo "$CURRENT_FINGERPRINT" > "$CACHE_INFO"
 
 echo "✅ Host bridge built"
 if [ -n "$BRIDGE_FEATURES" ]; then

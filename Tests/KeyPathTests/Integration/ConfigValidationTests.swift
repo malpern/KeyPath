@@ -21,54 +21,10 @@ final class ConfigValidationTests: XCTestCase {
         continueAfterFailure = true
     }
 
-    private func findKanataBinary() -> String? {
-        let candidates: [String] = [
-            ProcessInfo.processInfo.environment["KEYPATH_KANATA_PATH"],
-            URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent() // Integration
-                .deletingLastPathComponent() // KeyPathTests
-                .deletingLastPathComponent() // Tests
-                .deletingLastPathComponent() // repo root
-                .appendingPathComponent("External/kanata/target/aarch64-apple-darwin/release/kanata")
-                .path,
-            "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
-            "/opt/homebrew/bin/kanata"
-        ].compactMap { $0 }
-
-        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
-    }
-
     @MainActor
     private func validateWithKanata(_ config: String) async throws -> (isValid: Bool, errors: [String]) {
-        guard let binary = findKanataBinary() else {
-            throw XCTSkip("Kanata binary not found — skipping CLI validation")
-        }
-
-        let tempFile = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kanata-test-\(UUID().uuidString).kbd")
-        try config.write(to: tempFile, atomically: true, encoding: .utf8)
-        defer { try? FileManager.default.removeItem(at: tempFile) }
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: binary)
-        process.arguments = ["--cfg", tempFile.path, "--check"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-
-        try process.run()
-        process.waitUntilExit()
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let output = String(data: data, encoding: .utf8) ?? ""
-
-        if process.terminationStatus == 0 {
-            return (true, [])
-        } else {
-            let errors = output.components(separatedBy: .newlines)
-                .filter { $0.contains("[ERROR]") || $0.contains("help:") }
-            return (false, errors)
-        }
+        let result = try await KanataCheckHelper.runCheck(config)
+        return (result.isValid, result.errors)
     }
 
     // MARK: - Default Config Validation

@@ -168,6 +168,14 @@ set -e
 assert_contains "$capacity_output" $'capacity_busy\tprovider=tart\tactive=1\tlimit=1'
 assert_contains "$capacity_output" $'active_lease\tcbx_test15'
 
+set +e
+capacity_output=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
+capacity_exit=$?
+set -e
+[[ $capacity_exit -eq 75 ]] || { echo "expected Tart capacity admission to exit 75, got $capacity_exit" >&2; exit 1; }
+assert_contains "$capacity_output" $'capacity_busy\tprovider=tart\tactive=1\tlimit=1'
+assert_contains "$capacity_output" $'active_lease\tcbx_test15'
+
 run_remote run cbx_test15 echo hello >/dev/null
 grep -q 'echo hello' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/commands.tsv"
 run_remote scenario cbx_test15 clean-install >/dev/null
@@ -212,21 +220,49 @@ run_remote destroy cbx_test15 >/dev/null
 grep -q 'stop-15 cbx_test15' "$CALLS"
 grep -q $'cleanup_status\tcomplete' "$manifest"
 
-mkdir -p "$ROOT/KeyPathInstallerLab/provider-admission.lock"
-printf 'pid\t%s\nprovider\ttart\n' "$$" > "$ROOT/KeyPathInstallerLab/provider-admission.lock/owner.tsv"
+printf 'pid\t%s\nprovider\ttart\n' "$$" > "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
+parallel_provider_create=$(run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
+assert_contains "$parallel_provider_create" $'lease_id\tcbx_test26'
+run_remote destroy cbx_test26 >/dev/null
 set +e
 lock_output=$(KEYPATH_LAB_ADMISSION_WAIT_ATTEMPTS=1 run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
 lock_exit=$?
 set -e
 [[ $lock_exit -eq 75 ]] || { echo "expected admission-lock contention to exit 75, got $lock_exit" >&2; exit 1; }
 assert_contains "$lock_output" admission_lock_busy
-rm -rf "$ROOT/KeyPathInstallerLab/provider-admission.lock"
+rm -rf "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
 
-mkdir -p "$ROOT/KeyPathInstallerLab/provider-admission.lock"
-printf 'pid\t99999999\nprovider\tparallels\n' > "$ROOT/KeyPathInstallerLab/provider-admission.lock/owner.tsv"
+env \
+    KEYPATH_LAB_TESTING=1 \
+    KEYPATH_LAB_TEST_ROOT="$ROOT" \
+    KEYPATH_LAB_LAUNCHER_15="$ROOT/bin/launcher15" \
+    KEYPATH_LAB_LAUNCHER_26="$ROOT/bin/launcher26" \
+    KEYPATH_LAB_LAUNCHER_27="$ROOT/bin/launcher27" \
+    KEYPATH_LAB_CRABBOX="$ROOT/bin/crabbox" \
+    KEYPATH_LAB_TART="$ROOT/bin/tart" \
+    KEYPATH_LAB_GUEST_SSH="$ROOT/bin/guest-ssh" \
+    KEYPATH_LAB_TEST_SSH_KEY="$TMP/id_ed25519" \
+    KEYPATH_LAB_TEST_SECRET_FILE="$TMP/secure-input" \
+    KEYPATH_LAB_TEST_PAUSE_AFTER_ADMISSION_LOCK=1 \
+    /bin/zsh "$REMOTE" create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 >"$TMP/interrupted-create.log" 2>&1 &
+interrupted_pid=$!
+for _ in {1..100}; do
+    grep -q $'^pid\t' "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock" 2>/dev/null && break
+    sleep 0.05
+done
+[[ -f "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock" ]] || { echo "interrupted create never acquired admission lock" >&2; exit 1; }
+kill -TERM "$interrupted_pid"
+set +e
+wait "$interrupted_pid"
+interrupted_exit=$?
+set -e
+[[ $interrupted_exit -eq 143 ]] || { cat "$TMP/interrupted-create.log" >&2; echo "expected interrupted create to exit 143, got $interrupted_exit" >&2; exit 1; }
+[[ ! -e "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock" ]] || { echo "interrupted create left admission lock" >&2; exit 1; }
+
+printf 'pid\t99999999\nprovider\tparallels\n' > "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock"
 create26=$(run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create26" $'lease_id\tcbx_test26'
-[[ ! -e "$ROOT/KeyPathInstallerLab/provider-admission.lock" ]]
+[[ ! -e "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock" ]] || { echo "stale Parallels admission lock was not reclaimed" >&2; exit 1; }
 artifacts26=$(run_remote artifacts cbx_test26)
 assert_contains "$artifacts26" $'download_status\t0'
 grep -q 'crabbox run --provider parallels --target macos --id cbx_test26 --stop-after never --download' "$CALLS"

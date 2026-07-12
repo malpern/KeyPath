@@ -20,52 +20,11 @@ final class PerOptionMatrixTests: XCTestCase {
         continueAfterFailure = true
     }
 
-    // MARK: - Kanata Validation (shared)
-
-    private func findKanataBinary() -> String? {
-        let candidates: [String] = [
-            ProcessInfo.processInfo.environment["KEYPATH_KANATA_PATH"],
-            URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent() // Integration
-                .deletingLastPathComponent() // KeyPathTests
-                .deletingLastPathComponent() // Tests
-                .deletingLastPathComponent() // repo root
-                .appendingPathComponent("External/kanata/target/aarch64-apple-darwin/release/kanata")
-                .path,
-            "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
-            "/opt/homebrew/bin/kanata"
-        ].compactMap { $0 }
-
-        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
-    }
-
     @MainActor
     private func assertKanataValid(_ config: String, _ label: String, file: StaticString = #filePath, line: UInt = #line) async throws {
-        guard let binary = findKanataBinary() else {
-            throw XCTSkip("Kanata binary not found — skipping CLI validation")
-        }
-
-        let tempFile = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kanata-test-\(UUID().uuidString).kbd")
-        try config.write(to: tempFile, atomically: true, encoding: .utf8)
-        defer { try? FileManager.default.removeItem(at: tempFile) }
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: binary)
-        process.arguments = ["--cfg", tempFile.path, "--check"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-
-        try process.run()
-        process.waitUntilExit()
-
-        if process.terminationStatus != 0 {
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            let errors = output.components(separatedBy: .newlines)
-                .filter { $0.contains("[ERROR]") || $0.contains("help:") }
-            XCTFail("\(label) produced invalid kanata. Errors: \(errors)", file: file, line: line)
+        let result = try await KanataCheckHelper.runCheck(config)
+        if !result.isValid {
+            XCTFail("\(label) produced invalid kanata. Errors: \(result.errors)", file: file, line: line)
         }
     }
 
