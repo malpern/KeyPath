@@ -177,6 +177,16 @@ transport. It is valid only after current visual evidence shows the focused
 secure field, and success still requires the corresponding system-extension
 postcondition.
 
+When the SecurityAgent sheet exposes its unnamed `AXSecureTextField`, prefer
+the stricter role-based path with a submit label. The controller writes the
+streamed password to a mode-0600 guest temporary file long enough for
+AppleScript to set the protected field directly, derives the submit button's
+current center from AX geometry, and delivers a synthesized foreground pointer
+click. The file is removed by an exit trap, the clipboard is never used, and
+the helper succeeds only after the SecurityAgent sheet closes. It does not use
+`sudo` as a password oracle because the disposable Tart image intentionally has
+passwordless sudo. Do not generalize this role-based path to other apps.
+
 For a protected control that requires native RFB delivery, use the lease-owned
 guard instead of invoking CrabBox directly:
 

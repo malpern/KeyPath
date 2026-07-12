@@ -381,9 +381,46 @@ install_archive() {
   print "archive\tcreated\t$key"
 }
 
+write_provisional_lease_manifest() {
+  local lease=$1 slug=$2 macos=$3 lane=$4 provider=$5 archive_key=$6 commit=$7 installer_sha=$8 installer_name=$9 repo=${10} created=${11} expires=${12} desktop=${13}
+  local manifest
+  valid_id "$lease"
+  mkdir -p "$LEASES/$lease" "$LOGS/$lease" "$ARTIFACTS/$lease"
+  manifest=$(manifest_path "$lease")
+  [[ -e "$manifest" ]] && return
+  {
+    print "owner\t$OWNER"
+    print "lease_id\t$lease"
+    print "slug\t$slug"
+    print "macos\t$macos"
+    print "test_lane\t$lane"
+    print "base_name\t$(base_for "$macos" "$lane")"
+    print "provider\t$provider"
+    print "archive_key\t$archive_key"
+    print "keypath_commit\t$commit"
+    print "installer_sha256\t$installer_sha"
+    print "installer_name\t$installer_name"
+    print "worktree\t$repo"
+    print "created_epoch\t$created"
+    print "created_at\t$(utc_now)"
+    print "expires_epoch\t$expires"
+    print "status\tprovisioning"
+    print "cleanup_status\tpending"
+    print "desktop_enabled\t$([[ "$desktop" == "1" ]] && print true || print false)"
+    print "provider_resource\tunknown"
+  } > "$manifest"
+}
+
+lease_candidate_from_line() {
+  print -r -- "$1" | awk '
+    $1 == "leased" && $2 ~ /^cbx_[A-Za-z0-9]+$/ {print $2; exit}
+    $0 ~ /^cbx_[A-Za-z0-9]+$/ {print; exit}
+  '
+}
+
 create_lease() {
   local macos=$1 lane=$2 archive_key=$3 commit=$4 installer_sha=$5 installer_name=$6 ttl=$7 desktop=$8
-  local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds provider_resource exit_code
+  local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds provider_resource create_status candidate_file create_log exit_code
   launcher=$(launcher_for "$macos")
   provider=$(provider_for "$macos")
   [[ "$lane" == "managed-functional" || "$lane" == "unmanaged-ui" ]] || die "invalid test lane: $lane"
@@ -406,21 +443,35 @@ create_lease() {
     sleep "$KEYPATH_LAB_TEST_PAUSE_AFTER_ADMISSION_LOCK"
   fi
   assert_provider_capacity "$provider" || return $?
+  created=$(now_epoch)
+  expires=$((created + ttl_seconds))
   slug="keypath${macos}-$(print -r -- "$commit" | cut -c1-8)-$(date -u +%Y%m%d%H%M%S)-$$"
   operation="$OPERATIONS/$slug"
   mkdir -p "$operation"
   git clone -q --local "$archive/repo" "$operation/repo"
   repo="$operation/repo"
   prepare_worktree "$repo"
-  output=$(cd "$repo" && warmup_lease "$macos" "$lane" "$slug" "$desktop" 2>&1)
-  print -r -- "$output"
-  print -r -- "$output" > "$operation/create.log"
-  lease=$(print -r -- "$output" | grep -Eo 'cbx_[A-Za-z0-9]+' | tail -1 || true)
+  create_log="$operation/create.log"
+  candidate_file="$operation/lease-candidate.tsv"
+  : > "$create_log"
+  : > "$candidate_file"
+  set +e
+  (cd "$repo" && warmup_lease "$macos" "$lane" "$slug" "$desktop" 2>&1) | while IFS= read -r line || [[ -n "$line" ]]; do
+    print -r -- "$line"
+    print -r -- "$line" >> "$create_log"
+    candidate=$(lease_candidate_from_line "$line")
+    if [[ -n "$candidate" ]]; then
+      print -r -- "$candidate" > "$candidate_file"
+      write_provisional_lease_manifest "$candidate" "$slug" "$macos" "$lane" "$provider" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$repo" "$created" "$expires" "$desktop"
+    fi
+  done
+  create_status=${pipestatus[1]}
+  set -e
+  output=$(<"$create_log")
+  lease=$(<"$candidate_file")
   [[ -n "$lease" ]] || die "CrabBox did not report a lease id; inspect provider inventory before cleanup"
   valid_id "$lease"
   provider_resource=$(print -r -- "$output" | sed -nE 's/.* (vm|instance)=([^ ]+).*/\2/p' | tail -1)
-  created=$(now_epoch)
-  expires=$((created + ttl_seconds))
   mkdir -p "$LEASES/$lease" "$LOGS/$lease" "$ARTIFACTS/$lease"
   manifest=$(manifest_path "$lease")
   {
@@ -444,6 +495,13 @@ create_lease() {
     print "desktop_enabled\t$([[ "$desktop" == "1" ]] && print true || print false)"
     print "provider_resource\t${provider_resource:-unknown}"
   } > "$manifest"
+  if (( create_status != 0 )); then
+    set_field "$manifest" status provisioning-failed
+    set_field "$manifest" provision_result "$create_status"
+    release_admission_lock
+    trap - EXIT INT TERM HUP
+    return "$create_status"
+  fi
   print -r -- "$output" > "$LOGS/$lease/create.log"
   guest_output=$(cd "$repo" && "$launcher" run "$lease" -- /bin/zsh -lc 'printf "product=%s\n" "$(sw_vers -productVersion)"; printf "build=%s\n" "$(sw_vers -buildVersion)"' 2>&1) || {
     record_command "$lease" failed sw_vers
@@ -547,12 +605,18 @@ secure_dialog_input() {
 
   # Peekaboo's MCP type response contains the typed value. Suppress both output
   # streams for that command so the secret cannot enter controller logs.
-  local refresh_command click_command submit_command submit_label_quoted
-  local -a refresh_args click_args submit_args
+  local refresh_command field_command click_command submit_command submit_label_quoted button_geometry_command postcondition_command
+  local -a refresh_args focus_args click_args submit_args button_geometry_args postcondition_args
   guest_command='set -euo pipefail; command -v /opt/homebrew/bin/peekaboo >/dev/null; command -v /opt/homebrew/bin/mcporter >/dev/null; '
-  # Protected sheets change the desktop after the preceding toggle. Refresh
-  # immediately so Peekaboo does not reject the semantic target as stale.
-  if [[ "$already_focused" == "0" ]]; then
+  if [[ "$field_label" == "AXSecureTextField" ]]; then
+    [[ "$app" == "SecurityAgent" ]] || die "AXSecureTextField is supported only for SecurityAgent"
+    [[ -n "$submit_button" ]] || die "AXSecureTextField requires a submit button for postcondition verification"
+    [[ "$already_focused" == "0" ]] || die "AXSecureTextField does not use --already-focused"
+    focus_args=(/usr/bin/osascript -e 'on run argv' -e 'set secretValue to read POSIX file (item 1 of argv) as «class utf8»' -e 'tell application "System Events" to tell process "SecurityAgent" to set value of first UI element of window 1 whose description is "secure text field" to secretValue' -e 'end run')
+    printf -v field_command '%q ' "${focus_args[@]}"
+    guest_command+='IFS= read -r secret_value; secret_path=$(/usr/bin/mktemp /tmp/keypath-secure-input.XXXXXX); /bin/chmod 600 "$secret_path"; trap '\''rm -f "$secret_path"'\'' EXIT; printf '\''%s'\'' "$secret_value" > "$secret_path"; unset secret_value; '
+    guest_command+="$field_command \"\$secret_path\" >/dev/null; rm -f \"\$secret_path\"; trap - EXIT"
+  elif [[ "$already_focused" == "0" ]]; then
     refresh_args=(/opt/homebrew/bin/peekaboo see --app "$app" --json)
     printf -v refresh_command '%q ' "${refresh_args[@]}"
     guest_command+="$refresh_command >/dev/null || exit 40; "
@@ -564,12 +628,25 @@ secure_dialog_input() {
   elif [[ -n "$submit_button" ]]; then
     die "--already-focused cannot be combined with a submit button"
   fi
-  guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1 || exit 42'
+  if [[ "$field_label" != "AXSecureTextField" ]]; then
+    guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1 || exit 42'
+  fi
   if [[ -n "$submit_button" ]]; then
-    submit_args=(/opt/homebrew/bin/peekaboo click "$submit_button" --app "$app" --foreground --json)
-    printf -v submit_command '%q ' "${submit_args[@]}"
-    printf -v submit_label_quoted '%q' "$submit_button"
-    guest_command+="; $refresh_command >/tmp/keypath-secure-submit.json || exit 44; if ! $submit_command >/dev/null; then $refresh_command >/tmp/keypath-secure-submit.json || exit 43; /usr/bin/python3 -c 'import json,sys; elements=json.load(open(sys.argv[1])).get(\"data\",{}).get(\"ui_elements\",[]); raise SystemExit(1 if any(e.get(\"label\")==sys.argv[2] for e in elements) else 0)' /tmp/keypath-secure-submit.json $submit_label_quoted || exit 43; fi"
+    if [[ "$field_label" == "AXSecureTextField" ]]; then
+      button_geometry_args=(/usr/bin/osascript -e 'on run argv' -e 'tell application "System Events" to tell process "SecurityAgent" to tell button (item 1 of argv) of window 1' -e 'set {buttonX, buttonY} to position' -e 'set {buttonWidth, buttonHeight} to size' -e 'return ((round (buttonX + buttonWidth / 2)) as text) & "," & ((round (buttonY + buttonHeight / 2)) as text)' -e 'end tell' -e 'end run' "$submit_button")
+      printf -v button_geometry_command '%q ' "${button_geometry_args[@]}"
+      guest_command+="; button_coords=\$( $button_geometry_command ); [[ \"\$button_coords\" =~ '^-?[0-9]+,-?[0-9]+$' ]] || exit 78; /opt/homebrew/bin/peekaboo click --coords \"\$button_coords\" --global-coords --foreground --input-strategy synthOnly --json >/dev/null"
+    else
+      submit_args=(/opt/homebrew/bin/peekaboo click "$submit_button" --app "$app" --foreground --json)
+      printf -v submit_command '%q ' "${submit_args[@]}"
+      printf -v submit_label_quoted '%q' "$submit_button"
+      guest_command+="; $refresh_command >/tmp/keypath-secure-submit.json || exit 44; if ! $submit_command >/dev/null; then $refresh_command >/tmp/keypath-secure-submit.json || exit 43; /usr/bin/python3 -c 'import json,sys; elements=json.load(open(sys.argv[1])).get(\"data\",{}).get(\"ui_elements\",[]); raise SystemExit(1 if any(e.get(\"label\")==sys.argv[2] for e in elements) else 0)' /tmp/keypath-secure-submit.json $submit_label_quoted || exit 43; fi"
+    fi
+  fi
+  if [[ "$field_label" == "AXSecureTextField" ]]; then
+    postcondition_args=(/usr/bin/osascript -e 'tell application "System Events"' -e 'if not (exists process "SecurityAgent") then return "closed"' -e 'tell process "SecurityAgent"' -e 'if not (exists window 1) then return "closed"' -e 'if not (exists first UI element of window 1 whose description is "secure text field") then return "closed"' -e 'end tell' -e 'end tell' -e 'return "open"')
+    printf -v postcondition_command '%q ' "${postcondition_args[@]}"
+    guest_command+="; for attempt in {1..150}; do [[ \$( $postcondition_command ) == closed ]] && exit 0; sleep 0.1; done; exit 77"
   fi
   set +e
   "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")" < "$secret_file"
@@ -597,6 +674,12 @@ secure_dialog_input() {
   elif (( exit_code == 44 )); then
     record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
     die "secure dialog input failed while refreshing the submitted dialog"
+  elif (( exit_code == 77 )); then
+    record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
+    die "secure dialog input was submitted but the SecurityAgent sheet did not close"
+  elif (( exit_code == 78 )); then
+    record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
+    die "secure dialog input could not resolve valid SecurityAgent button geometry"
   else
     record_command "$lease" "failed:$exit_code" secure-dialog-input --app "$app" --field "$field_label" ${submit_button:+--submit "$submit_button"}
     die "secure dialog input failed"
@@ -767,7 +850,7 @@ desktop_bootstrap() {
 }
 
 destroy_lease() {
-  local lease=$1 manifest macos launcher exit_code repo
+  local lease=$1 manifest macos launcher exit_code repo inventory inventory_exit
   manifest=$(owned_manifest "$lease")
   [[ "$(field "$manifest" cleanup_status)" != "complete" ]] || { print "already_clean\t$lease"; return; }
   macos=$(field "$manifest" macos)
@@ -781,9 +864,22 @@ destroy_lease() {
   set -e
   set_field "$manifest" cleanup_attempted_at "$(utc_now)"
   set_field "$manifest" cleanup_result "$exit_code"
-  if (( exit_code == 0 )); then
+  inventory=
+  inventory_exit=1
+  if (( exit_code != 0 )) && [[ "$(field "$manifest" provider_resource)" == "unknown" ]]; then
+    set +e
+    inventory=$("$launcher" list 2>> "$LOGS/$lease/destroy.log")
+    inventory_exit=$?
+    set -e
+    print -r -- "$inventory" >> "$LOGS/$lease/destroy.log"
+  fi
+  if (( exit_code == 0 )) || {
+    (( inventory_exit == 0 )) &&
+      ! print -r -- "$inventory" | grep -Eo 'cbx_[A-Za-z0-9]+' | grep -Fxq "$lease"
+  }; then
     set_field "$manifest" cleanup_status complete
     set_field "$manifest" status destroyed
+    exit_code=0
   else
     set_field "$manifest" cleanup_status failed
     set_field "$manifest" status cleanup-failed

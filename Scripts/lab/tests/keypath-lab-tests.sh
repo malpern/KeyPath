@@ -45,7 +45,14 @@ cat > "$ROOT/bin/crabbox" <<EOF
 #!/bin/bash
 echo "crabbox \$*" >> "$CALLS"
 if [[ \$1 == warmup ]]; then
-  if [[ " \$* " == *" --provider tart "* ]]; then echo 'warmup instance=test-resource cbx_desktop15'; else echo 'warmup vm=00000000-0000-0000-0000-000000000000 cbx_desktop26'; fi
+  if [[ " \$* " == *" --provider tart "* ]]; then
+    echo 'leased cbx_stale instance=stale-resource'
+    echo 'diagnostic previous=cbx_unrelated'
+    printf 'leased cbx_desktop15 instance=test-resource'
+  else
+    printf 'leased cbx_desktop26 vm=00000000-0000-0000-0000-000000000000'
+  fi
+  [[ \${KEYPATH_LAB_TEST_WARMUP_FAIL:-0} == 1 ]] && exit 9
   exit 0
 fi
 if [[ \$1 == screenshot ]]; then
@@ -88,6 +95,7 @@ echo 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
 
 /bin/bash -n "$LAB_DIR/../qa-macos-27-regression.sh"
 /bin/zsh -n "$LAB_DIR/desktop-bootstrap"
+/bin/zsh -n "$LAB_DIR/scenarios/kanata-vhid-two-clients"
 grep -q 'macos-27-regression)' "$LAB_DIR/scenarios/installer-scenario"
 
 run_remote() {
@@ -308,6 +316,8 @@ grep -q 'stop-27 cbx_test27' "$CALLS"
 
 desktop_create=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
 assert_contains "$desktop_create" $'lease_id\tcbx_desktop15'
+grep -q $'status\tprovisioning' "$ROOT/KeyPathInstallerLab/leases/cbx_stale/manifest.tsv"
+run_remote destroy cbx_stale >/dev/null
 desktop_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_desktop15/manifest.tsv"
 grep -q $'desktop_enabled\ttrue' "$desktop_manifest"
 desktop_artifacts=$(run_remote artifacts cbx_desktop15)
@@ -335,6 +345,17 @@ if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" 
     echo "secure dialog input leaked its secret into logs or arguments" >&2
     exit 1
 fi
+secure_agent_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent AXSecureTextField Allow 0)
+assert_contains "$secure_agent_result" $'secure_dialog_input\tpassed'
+grep -q 'keypath-secure-input' "$TMP/guest-ssh-args"
+grep -q 'button.*position.*size' "$TMP/guest-ssh-args"
+grep -q 'peekaboo.*click.*--coords.*button_coords.*--global-coords' "$TMP/guest-ssh-args"
+grep -q -- '--foreground.*--input-strategy.*synthOnly' "$TMP/guest-ssh-args"
+grep -q 'SecurityAgent.*closed' "$TMP/guest-ssh-args"
+if grep -q '/usr/bin/sudo\|pbcopy\|the\\ clipboard' "$TMP/guest-ssh-args"; then
+    echo "SecurityAgent secure input used an unsafe password path" >&2
+    exit 1
+fi
 secure_focused_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent Password '' 1)
 assert_contains "$secure_focused_result" $'secure_dialog_input\tpassed'
 if grep -q 'peekaboo.*see\|peekaboo.*click' "$TMP/guest-ssh-args"; then
@@ -354,6 +375,15 @@ protected_ax_result=$(KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote pr
 assert_contains "$protected_ax_result" $'display_scale\t2'
 grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 804 --y 494' "$CALLS"
 run_remote destroy cbx_desktop15 >/dev/null
+
+set +e
+KEYPATH_LAB_TEST_WARMUP_FAIL=1 run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1 >/dev/null 2>&1
+warmup_fail_exit=$?
+set -e
+[[ $warmup_fail_exit -ne 0 ]] || { echo "warmup failure fixture unexpectedly succeeded" >&2; exit 1; }
+failed_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_desktop15/manifest.tsv"
+grep -q $'status\tprovisioning-failed' "$failed_manifest"
+grep -q $'provision_result\t9' "$failed_manifest"
 
 if run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 3h 0 >/dev/null 2>&1; then
     echo "create accepted a TTL longer than the launchers support" >&2
