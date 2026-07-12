@@ -209,8 +209,7 @@ run_remote destroy cbx_test15 >/dev/null
 grep -q 'stop-15 cbx_test15' "$CALLS"
 grep -q $'cleanup_status\tcomplete' "$manifest"
 
-mkdir -p "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
-printf 'pid\t%s\nprovider\ttart\n' "$$" > "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock/owner.tsv"
+printf 'pid\t%s\nprovider\ttart\n' "$$" > "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
 parallel_provider_create=$(run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$parallel_provider_create" $'lease_id\tcbx_test26'
 run_remote destroy cbx_test26 >/dev/null
@@ -222,11 +221,37 @@ set -e
 assert_contains "$lock_output" admission_lock_busy
 rm -rf "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
 
-mkdir -p "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock"
-printf 'pid\t99999999\nprovider\tparallels\n' > "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock/owner.tsv"
+env \
+    KEYPATH_LAB_TESTING=1 \
+    KEYPATH_LAB_TEST_ROOT="$ROOT" \
+    KEYPATH_LAB_LAUNCHER_15="$ROOT/bin/launcher15" \
+    KEYPATH_LAB_LAUNCHER_26="$ROOT/bin/launcher26" \
+    KEYPATH_LAB_LAUNCHER_27="$ROOT/bin/launcher27" \
+    KEYPATH_LAB_CRABBOX="$ROOT/bin/crabbox" \
+    KEYPATH_LAB_TART="$ROOT/bin/tart" \
+    KEYPATH_LAB_GUEST_SSH="$ROOT/bin/guest-ssh" \
+    KEYPATH_LAB_TEST_SSH_KEY="$TMP/id_ed25519" \
+    KEYPATH_LAB_TEST_SECRET_FILE="$TMP/secure-input" \
+    KEYPATH_LAB_TEST_PAUSE_AFTER_ADMISSION_LOCK=1 \
+    /bin/zsh "$REMOTE" create 15 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 >"$TMP/interrupted-create.log" 2>&1 &
+interrupted_pid=$!
+for _ in {1..100}; do
+    grep -q $'^pid\t' "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock" 2>/dev/null && break
+    sleep 0.05
+done
+[[ -f "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock" ]] || { echo "interrupted create never acquired admission lock" >&2; exit 1; }
+kill -TERM "$interrupted_pid"
+set +e
+wait "$interrupted_pid"
+interrupted_exit=$?
+set -e
+[[ $interrupted_exit -eq 143 ]] || { cat "$TMP/interrupted-create.log" >&2; echo "expected interrupted create to exit 143, got $interrupted_exit" >&2; exit 1; }
+[[ ! -e "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock" ]] || { echo "interrupted create left admission lock" >&2; exit 1; }
+
+printf 'pid\t99999999\nprovider\tparallels\n' > "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock"
 create26=$(run_remote create 26 "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create26" $'lease_id\tcbx_test26'
-[[ ! -e "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock" ]]
+[[ ! -e "$ROOT/KeyPathInstallerLab/provider-admission-parallels.lock" ]] || { echo "stale Parallels admission lock was not reclaimed" >&2; exit 1; }
 artifacts26=$(run_remote artifacts cbx_test26)
 assert_contains "$artifacts26" $'download_status\t0'
 grep -q 'crabbox run --provider parallels --target macos --id cbx_test26 --stop-after never --download' "$CALLS"
