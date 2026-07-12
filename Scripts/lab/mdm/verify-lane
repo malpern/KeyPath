@@ -1,0 +1,69 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+    echo "Usage: $0 managed-functional|unmanaged-ui [--manifest manifest.json]" >&2
+    exit 2
+}
+
+lane=${1:-}
+[[ $lane == managed-functional || $lane == unmanaged-ui ]] || usage
+shift
+manifest=
+if [[ ${1:-} == --manifest && -n ${2:-} && $# -eq 2 ]]; then
+    manifest=$2
+elif [[ $# -ne 0 ]]; then
+    usage
+fi
+
+profiles_output=$(/usr/bin/profiles show -type configuration 2>&1 || true)
+expected=(
+    com.keypath.lab.pppc
+    com.keypath.lab.system-extension
+    com.keypath.lab.service-management
+)
+
+present=0
+for identifier in "${expected[@]}"; do
+    if grep -Fq "$identifier" <<<"$profiles_output"; then
+        ((present += 1))
+    fi
+done
+
+if [[ $lane == managed-functional ]]; then
+    [[ $present -eq ${#expected[@]} ]] || {
+        echo "lane verification failed: managed-functional has $present/${#expected[@]} required profiles" >&2
+        exit 1
+    }
+    enrollment=$(/usr/bin/profiles status -type enrollment 2>&1 || true)
+    grep -Eiq 'MDM enrollment: (Yes|Enrolled)|Enrolled via DEP: Yes' <<<"$enrollment" || {
+        echo "lane verification failed: device is not MDM enrolled" >&2
+        printf '%s\n' "$enrollment" >&2
+        exit 1
+    }
+    [[ -n $manifest && -f $manifest ]] || {
+        echo "lane verification failed: managed-functional requires --manifest" >&2
+        exit 1
+    }
+    /usr/bin/python3 - "$manifest" <<'PY'
+import json
+import sys
+
+manifest = json.load(open(sys.argv[1]))
+assert manifest["lane"] == "managed-functional"
+assert set(manifest["profiles"]) == {
+    "com.keypath.lab.pppc",
+    "com.keypath.lab.system-extension",
+    "com.keypath.lab.service-management",
+}
+PY
+else
+    [[ $present -eq 0 ]] || {
+        echo "lane verification failed: unmanaged-ui contains $present managed lab profiles" >&2
+        exit 1
+    }
+fi
+
+echo "lane\t$lane"
+echo "profile_count\t$present"
+echo "verification\tpassed"
