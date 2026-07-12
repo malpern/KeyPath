@@ -1,10 +1,34 @@
 {
-  "updatedAt": "2026-07-12T09:48:48-07:00",
-  "currentTask": "TCP readiness hardened",
-  "message": "R04 now requires a real bounded Kanata layer response; synthetic failure contracts and the installed runtime passed.",
+  "updatedAt": "2026-07-12T09:49:26-07:00",
+  "currentTask": "Starting virtual-output proof",
+  "message": "P02 is active alongside P01: identifying a software-only observation point for remapped output.",
   "complete": false,
-  "workingBlocks": [],
-  "activeWork": {},
+  "workingBlocks": [
+    "P01",
+    "P02"
+  ],
+  "activeWork": {
+    "P01": {
+      "progress": 8,
+      "health": "smooth",
+      "trend": "forward",
+      "phase": "Inventorying input-path evidence",
+      "detail": "Attempt 1 \u00b7 locating existing RFB injection and Kanata capture artifacts",
+      "attempt": 1,
+      "completedSteps": 0,
+      "totalSteps": 6
+    },
+    "P02": {
+      "progress": 8,
+      "health": "smooth",
+      "trend": "forward",
+      "phase": "Inventorying output-path evidence",
+      "detail": "Attempt 1 \u00b7 locating observable VirtualHID output signals",
+      "attempt": 1,
+      "completedSteps": 0,
+      "totalSteps": 6
+    }
+  },
   "statuses": {
     "R01": "active",
     "R02": "active",
@@ -15,6 +39,20 @@
     "M14": "active"
   },
   "updates": [
+    {
+      "time": "09:49",
+      "block": "P02",
+      "tone": "working",
+      "title": "Starting virtual-output proof",
+      "message": "P02 is active alongside P01: identifying a software-only observation point for remapped output."
+    },
+    {
+      "time": "09:49",
+      "block": "P01",
+      "tone": "working",
+      "title": "Starting real input-path proof",
+      "message": "P01 is active: tracing how RFB-injected keys can be proven to reach Kanata rather than merely reach the guest."
+    },
     {
       "time": "09:48",
       "block": "R04",
