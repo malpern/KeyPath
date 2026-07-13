@@ -566,11 +566,7 @@ class ConfigurationServiceTests: XCTestCase {
     }
 
     func testBackupFailedConfigAppliesSafeDefaults() async throws {
-        let original = """
-        (defcfg)
-        (defsrc caps)
-        (deflayer base esc)
-        """
+        let original = KanataConfigFixtures.capsToEscapeBare
         let mappings = [KeyMapping(input: "caps", action: .keystroke(key: "esc"))]
 
         let backupPath = try await configService.backupFailedConfigAndApplySafe(
@@ -1580,13 +1576,7 @@ class ConfigurationServiceTests: XCTestCase {
 
     /// Test that writeConfigurationContent accepts valid content
     func testWriteConfigurationContent_AcceptsValidContent() async throws {
-        let validContent = """
-        (defcfg
-          process-unmapped-keys yes
-        )
-        (defsrc caps)
-        (deflayer base esc)
-        """
+        let validContent = KanataConfigFixtures.capsToEscape
 
         // Should not throw
         try await configService.writeConfigurationContent(validContent)
@@ -1630,14 +1620,7 @@ class ConfigurationServiceTests: XCTestCase {
     func testObserverFiresOnMainActor_OnReload() async throws {
         // First, write a valid config file so reload succeeds
         let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
-        let content = """
-        (defcfg
-          process-unmapped-keys yes
-        )
-
-        (defsrc caps)
-        (deflayer base esc)
-        """
+        let content = KanataConfigFixtures.capsToEscape
         try content.write(to: configPath, atomically: true, encoding: .utf8)
 
         let exp = expectation(description: "Observer fired on reload")

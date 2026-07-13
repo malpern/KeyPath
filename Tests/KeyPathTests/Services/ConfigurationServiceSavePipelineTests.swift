@@ -338,11 +338,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
     }
 
     func testWriteFileAsync_AcceptsKbdWithDefsrc() async throws {
-        let validContent = """
-        (defcfg process-unmapped-keys yes)
-        (defsrc caps)
-        (deflayer base esc)
-        """
+        let validContent = KanataConfigFixtures.capsToEscapeInlineDefcfg
         try await configService.writeFileAsync(
             string: validContent,
             to: tempDirectory.appendingPathComponent("keypath.kbd").path
@@ -700,11 +696,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
     // MARK: - Validation Test Mode Tests
 
     func testValidationInTestMode_PassesValidConfig() async {
-        let validConfig = """
-        (defcfg process-unmapped-keys yes)
-        (defsrc caps)
-        (deflayer base esc)
-        """
+        let validConfig = KanataConfigFixtures.capsToEscapeInlineDefcfg
         let result = await configService.validateConfiguration(validConfig)
         XCTAssertTrue(result.isValid)
         XCTAssertTrue(result.errors.isEmpty)

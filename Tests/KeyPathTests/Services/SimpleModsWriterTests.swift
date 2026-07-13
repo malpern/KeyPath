@@ -102,13 +102,7 @@ final class SimpleModsWriterTests: XCTestCase {
     /// Test that writeBlock adds mappings correctly
     func testWriteBlock_AddsMappingsCorrectly() throws {
         // Start with a valid base config
-        let baseConfig = """
-        (defcfg
-          process-unmapped-keys yes
-        )
-        (defsrc caps)
-        (deflayer base esc)
-        """
+        let baseConfig = KanataConfigFixtures.capsToEscape
 
         try baseConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
 
@@ -136,13 +130,7 @@ final class SimpleModsWriterTests: XCTestCase {
 
     /// Test that writeBlock deduplicates mappings (keeps last per fromKey)
     func testWriteBlock_DeduplicatesMappings() throws {
-        let baseConfig = """
-        (defcfg
-          process-unmapped-keys yes
-        )
-        (defsrc caps)
-        (deflayer base esc)
-        """
+        let baseConfig = KanataConfigFixtures.capsToEscape
 
         try baseConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
 
