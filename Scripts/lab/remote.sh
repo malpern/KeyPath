@@ -111,6 +111,27 @@ provider_capacity() {
   esac
 }
 
+host_free_kib() {
+  if [[ -n "${KEYPATH_LAB_TEST_FREE_KIB:-}" ]]; then
+    print -r -- "$KEYPATH_LAB_TEST_FREE_KIB"
+  else
+    df -Pk /System/Volumes/Data | awk 'NR == 2 {print $4}'
+  fi
+}
+
+assert_internal_disk_reserve() {
+  local minimum_gib=${KEYPATH_LAB_MIN_FREE_DISK_GIB:-100} free_kib minimum_kib
+  [[ "$minimum_gib" == <-> && "$minimum_gib" -gt 0 ]] || die "invalid disk reserve: $minimum_gib GiB"
+  free_kib=$(host_free_kib)
+  [[ "$free_kib" == <-> ]] || die "could not determine internal free space"
+  minimum_kib=$((minimum_gib * 1024 * 1024))
+  print -u2 "disk_reserve\tfree_gib=$((free_kib / 1024 / 1024))\tminimum_gib=$minimum_gib"
+  if (( free_kib < minimum_kib )); then
+    print -u2 "disk_reserve_busy\tfree_gib=$((free_kib / 1024 / 1024))\tminimum_gib=$minimum_gib"
+    return 75
+  fi
+}
+
 acquire_admission_lock() {
   local provider=$1 attempt=0 owner owner_pid stale lock_age lock_mtime lock="$STATE_ROOT/provider-admission-$provider.lock"
   local owner_record="$STATE_ROOT/.provider-admission-$provider.owner.$$"
@@ -304,6 +325,8 @@ preflight() {
   print "lab_root\t$LAB_ROOT"
   print "capacity_tart\t$(provider_capacity tart)"
   print "capacity_parallels\t$(provider_capacity parallels)"
+  print "disk_reserve_minimum_gib\t${KEYPATH_LAB_MIN_FREE_DISK_GIB:-100}"
+  print "disk_reserve_free_gib\t$(( $(host_free_kib) / 1024 / 1024 ))"
   print "safety\tdisposable-owned-leases-only"
 }
 
@@ -443,6 +466,7 @@ create_lease() {
     sleep "$KEYPATH_LAB_TEST_PAUSE_AFTER_ADMISSION_LOCK"
   fi
   assert_provider_capacity "$provider" || return $?
+  assert_internal_disk_reserve || return $?
   created=$(now_epoch)
   expires=$((created + ttl_seconds))
   slug="keypath${macos}-$(print -r -- "$commit" | cut -c1-8)-$(date -u +%Y%m%d%H%M%S)-$$"

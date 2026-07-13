@@ -120,6 +120,7 @@ preflight=$(run_remote preflight)
 assert_contains "$preflight" doctor-15
 assert_contains "$preflight" doctor-26
 assert_contains "$preflight" doctor-27
+assert_contains "$preflight" $'disk_reserve_minimum_gib\t100'
 
 ticket_one=$(run_remote prepare-upload "$(printf 'a%.0s' {1..40})-$(printf 'b%.0s' {1..64})")
 ticket_two=$(run_remote prepare-upload "$(printf 'a%.0s' {1..40})-$(printf 'b%.0s' {1..64})")
@@ -160,6 +161,13 @@ EOF
 
 commit=$(printf 'a%.0s' {1..40})
 checksum=$(printf 'b%.0s' {1..64})
+set +e
+disk_output=$(KEYPATH_LAB_TEST_FREE_KIB=104857599 run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
+disk_exit=$?
+set -e
+[[ $disk_exit -eq 75 ]] || { echo "expected disk reserve admission to exit 75, got $disk_exit" >&2; exit 1; }
+assert_contains "$disk_output" $'disk_reserve_busy\tfree_gib=99\tminimum_gib=100'
+
 create=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create" $'lease_id\tcbx_test15'
 manifest="$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"

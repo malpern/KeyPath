@@ -26,6 +26,19 @@ remain beneath `KeyPathInstallerLab` on the external volume after cleanup.
 `--ttl` defaults to `2h` and accepts values from one second through two hours,
 matching the maximum lifecycle exposed by the existing launchers.
 
+## Host disk reserve
+
+The Mini keeps a 100 GiB internal-data-volume reserve for runner builds,
+indexing, and host OS work. `create` checks this reserve after taking the
+provider admission lock and exits 75 with `disk_reserve_busy` when admitting a
+new lease would be unsafe. It is an infrastructure wait, not a product failure.
+`preflight` reports the current reserve evidence. Set
+`KEYPATH_LAB_MIN_FREE_DISK_GIB` only for a deliberately different host policy.
+
+The primary self-hosted CI and cache-warm workflows run
+`Scripts/lab/host-disk-reserve` before expensive compilation. It exits 75 when
+the same 100 GiB threshold is not met.
+
 Check the non-mutating host/provider contract:
 
 ```bash
