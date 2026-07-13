@@ -11,7 +11,7 @@ extension Notification.Name {
 
 // MARK: - Mapper View
 
-/// Experimental key mapping page with visual keycap-based input/output capture.
+/// Key mapping page with visual keycap-based input/output capture.
 /// Accessible from File menu as "Mapper".
 struct MapperView: View {
     @Environment(KanataViewModel.self) var kanataManager
