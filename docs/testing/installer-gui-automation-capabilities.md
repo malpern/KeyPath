@@ -61,6 +61,34 @@ do. It does not mean every gate is already composed into one unattended
 scenario. The remaining engineering task is orchestration and per-OS selector
 hardening, not a macOS security bypass.
 
+## Core capability inventory
+
+The lab already has the reusable foundations for immutable signed inputs,
+disposable lane-aware leases, provider-capacity admission, logged-in desktop
+sessions, semantic AX interaction, guarded RFB clicks and typing, secret-safe
+authorization, canonical permission/service checks, screenshots and artifacts,
+and owned cleanup. P01 additionally proves that lease-owned RFB input reaches
+KeyPath's intended user-session capture host without hardware.
+
+The remaining core capabilities are:
+
+1. P02 functional output proof: attribute an observed remapped VirtualHID event
+   to a known captured input.
+2. Complete runtime convergence assertions: Accessibility/Input Monitoring for
+   the intended runtime, Kanata running, and TCP readiness must agree across
+   product and independent evidence.
+3. The deterministic managed lane: Apple certificate, NanoMDM enrollment,
+   profile publication, managed-base proof, and unique clone identity.
+4. A resumable scenario runner with differential assertions, explicit failure
+   ownership, sanitized artifacts, and consolidated machine-readable results.
+5. Hardened macOS 26 and macOS 27 selectors before those OS versions can claim
+   the same unattended UI coverage as macOS 15.
+
+Clean install, repair, upgrade, reboot, uninstall, reinstall, cancellation,
+nightly, and pairwise entries are consumers of those foundations. They are
+important scenario coverage, but they are not separate low-level physics or
+orchestration primitives.
+
 ## Supported tools
 
 Create a desktop lease and use the typed guest adapter for evidence-producing
@@ -164,20 +192,22 @@ when a realistic recipe is impractical. Mark such fixtures `synthetic: true`,
 record every mutation, and verify the resulting state with the same differential
 `assert-state` used by normal scenarios.
 
-## Remaining physics checkpoint
+## Physics checkpoints
 
-Before building the broader matrix, run one Tart macOS 15 guest check for the
-two functional assumptions not yet proven end-to-end:
+P01 is proven on a Tart macOS 15 guest: a lease-owned CrabBox VNC/RFB key event
+reached KeyPath's intended user-session input host and appeared in Input Capture
+Experiment. This proves the software-only input transport and KeyPath capture
+path. It does not grant or prove the separate raw `kanata-launcher` legacy
+recovery runtime.
 
-1. Determine whether Kanata's HID capture observes input delivered through the
-   CrabBox RFB path.
-2. Activate the VirtualHID Driver Extension and prove that it produces working
-   virtual output, not merely an installed or enabled status.
+P02 remains: activate the complete runtime path and prove that the healthy
+VirtualHID Driver Extension produces observable remapped output from that
+captured input, not merely an installed, enabled, or device-healthy status.
 
-If either is impossible with virtual input, retain the VM lane for installer,
-repair, and state testing and add an explicitly separate physical-device lane
-for the affected functional probe. Do not weaken the functional assertion to
-make the VM pass.
+If virtual output cannot be observed in the VM, retain the VM lane for
+installer, repair, and state testing and add an explicitly separate
+physical-device lane for that functional probe. Do not weaken the functional
+assertion to make the VM pass.
 
 ## What remains to build
 
