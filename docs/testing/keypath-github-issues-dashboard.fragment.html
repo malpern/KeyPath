@@ -71,6 +71,7 @@
     #keypath-issue-board .activity-dot { width:7px; height:7px; margin-top:5px; border-radius:50%; background:var(--viz-series-1); }
     #keypath-issue-board .activity-row[data-status="active"] .activity-dot { background:var(--viz-series-2); }
     #keypath-issue-board .activity-row[data-status="next"] .activity-dot { background:var(--viz-series-3); }
+    #keypath-issue-board .activity-row[data-status="completed"] .activity-dot { background:var(--viz-series-1); }
     #keypath-issue-board .activity-row strong { display:block; font:500 11px system-ui,sans-serif; }
     #keypath-issue-board .activity-row span { display:block; color:var(--muted-foreground); font:11px system-ui,sans-serif; }
     #keypath-issue-board .note { margin-top:11px; color:var(--muted-foreground); font:11px system-ui,sans-serif; }
@@ -142,7 +143,7 @@
   <script>
     (() => {
       const root = document.getElementById('keypath-issue-board');
-      const names = {active:'Active',next:'Recommended next',queued:'Agent queue',human:'Human / external gate',feature:'Feature deferred',deferred:'Deferred'};
+      const names = {active:'Active',next:'Recommended next',queued:'Agent queue',human:'Human / external gate',feature:'Feature deferred',deferred:'Deferred',completed:'Completed'};
       const typeNames = {bug:'Bug',testing:'Testing',debt:'Technical debt',feature:'Feature',upstream:'Upstream / research',docs:'Documentation / design',other:'Other'};
       const grid = root.querySelector('#issue-grid');
       const title = root.querySelector('#issue-title');
@@ -263,7 +264,8 @@
           });
           return button;
         }));
-        const recent = [...state.issues].sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0,10);
+        const recent = [...state.issues, ...(state.recentlyClosed || [])]
+          .sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0,10);
         root.querySelector('#issue-activity').replaceChildren(...recent.map(issue => {
           const row=document.createElement('div'); row.className='activity-row'; row.dataset.status=issue.dashboardStatus;
           const dot=document.createElement('span'); dot.className='activity-dot';

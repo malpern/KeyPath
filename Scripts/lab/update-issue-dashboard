@@ -10,9 +10,10 @@ import subprocess
 
 
 EXCLUDED = {172, 740, 747, 919}
-ACTIVE = {748}
-NEXT = {848}
+ACTIVE = {848}
+NEXT = set()
 ISSUE_LIMIT = 200
+RECENTLY_CLOSED_LIMIT = 10
 
 
 def issue_status(issue: dict) -> str:
@@ -24,6 +25,8 @@ def issue_status(issue: dict) -> str:
         return "next"
     if number in EXCLUDED or "human-in-loop" in labels or "wwdc26" in labels:
         return "human"
+    if "large-refactor" in labels:
+        return "deferred"
     if labels & {"Feature", "feature-gap", "enhancement"}:
         return "feature"
     if labels & {"bug", "bug-risk", "testing", "tech-debt", "agent-ok"}:
@@ -74,32 +77,43 @@ def main() -> None:
     parser.add_argument("--repo", default="malpern/KeyPath")
     args = parser.parse_args()
     gh = shutil.which("gh") or "/opt/homebrew/bin/gh"
-    result = subprocess.run(
-        [
-            gh,
-            "issue",
-            "list",
-            "--repo",
-            args.repo,
-            "--state",
-            "open",
-            "--limit",
-            str(ISSUE_LIMIT),
-            "--json",
-            "number,title,body,labels,updatedAt,url",
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-        env={**os.environ, "PATH": f"/opt/homebrew/bin:/usr/local/bin:{os.environ.get('PATH', '')}"},
-    )
-    issues = json.loads(result.stdout)
+    def list_issues(state: str, limit: int) -> list[dict]:
+        result = subprocess.run(
+            [
+                gh,
+                "issue",
+                "list",
+                "--repo",
+                args.repo,
+                "--state",
+                state,
+                "--search",
+                "sort:updated-desc",
+                "--limit",
+                str(limit),
+                "--json",
+                "number,title,body,labels,updatedAt,url",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "PATH": f"/opt/homebrew/bin:/usr/local/bin:{os.environ.get('PATH', '')}"},
+        )
+        return json.loads(result.stdout)
+
+    issues = list_issues("open", ISSUE_LIMIT)
+    recently_closed = list_issues("closed", RECENTLY_CLOSED_LIMIT)
     for issue in issues:
         issue["dashboardStatus"] = issue_status(issue)
         issue["dashboardType"] = issue_type(issue)
         issue["descriptionExcerpt"] = description_excerpt(issue.pop("body", ""))
         issue["labels"] = [label["name"] for label in issue.get("labels", [])]
     issues.sort(key=priority)
+    for issue in recently_closed:
+        issue["dashboardStatus"] = "completed"
+        issue["dashboardType"] = issue_type(issue)
+        issue["descriptionExcerpt"] = description_excerpt(issue.pop("body", ""))
+        issue["labels"] = [label["name"] for label in issue.get("labels", [])]
     counts = {}
     for issue in issues:
         status = issue["dashboardStatus"]
@@ -111,6 +125,7 @@ def main() -> None:
         "truncated": len(issues) >= ISSUE_LIMIT,
         "counts": counts,
         "issues": issues,
+        "recentlyClosed": recently_closed,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     temporary = args.output.with_suffix(".tmp")
