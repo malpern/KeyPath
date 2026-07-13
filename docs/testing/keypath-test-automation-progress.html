@@ -221,7 +221,7 @@ code:not(pre code) {
   left: 0;
   width: max-content;
   max-width: min(
-    20rem,
+    30rem,
     var(--tooltip-available-width, calc(100vw - 10px)),
     calc(100vw - 10px)
   );
@@ -243,6 +243,22 @@ code:not(pre code) {
   pointer-events: none;
   user-select: none;
 }
+.tooltip-card { width:min(26rem,calc(100vw - 34px)); padding:8px 6px 6px; }
+.tooltip-kicker { color:var(--muted-foreground); font-size:9px; letter-spacing:.055em; text-transform:uppercase; }
+.tooltip-title-row { display:flex; gap:12px; align-items:baseline; justify-content:space-between; margin-top:2px; }
+.tooltip-title { font-size:13px; font-weight:600; letter-spacing:-.01em; }
+.tooltip-overall { color:var(--muted-foreground); font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.tooltip-summary { margin-top:4px; color:var(--muted-foreground); line-height:1.45; }
+.tooltip-next { margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
+.tooltip-next-title { margin-bottom:2px; color:var(--foreground); font-size:10px; font-weight:600; }
+.tooltip-task { display:grid; grid-template-columns:9px minmax(0,1fr) auto; gap:7px; align-items:start; padding:5px 0; }
+.tooltip-task + .tooltip-task { border-top:1px solid color-mix(in srgb,var(--border) 58%,transparent); }
+.tooltip-task-dot { width:6px; height:6px; border-radius:50%; background:var(--muted-foreground); }
+.tooltip-task[data-status=&quot;active&quot;] .tooltip-task-dot { background:var(--viz-series-2); box-shadow:0 0 0 3px color-mix(in srgb,var(--viz-series-2) 18%,transparent); }
+.tooltip-task[data-status=&quot;done&quot;] .tooltip-task-dot { background:var(--viz-series-3); }
+.tooltip-task[data-status=&quot;blocked&quot;] .tooltip-task-dot { background:var(--destructive); }
+.tooltip-task-label { line-height:1.35; }
+.tooltip-task-value { color:var(--muted-foreground); text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
 
 .viz-grid {
   display: grid;
@@ -950,6 +966,16 @@ html&gt;body{padding:0}&lt;/style&gt;
       const detail = root.querySelector(&#x27;#keypath-defrag-detail&#x27;);
       const status = root.querySelector(&#x27;#keypath-defrag-status&#x27;);
       const names = {proven:&#x27;Proven&#x27;,active:&#x27;Current frontier&#x27;,queued:&#x27;Queued&#x27;,waiting:&#x27;Waiting on Apple&#x27;};
+      const defaultTasks = (state,name) =&gt; {
+        if (state === &#x27;proven&#x27;) return [{label:`Keep ${name} covered by regression runs`,status:&#x27;done&#x27;,progress:100}];
+        if (state === &#x27;waiting&#x27;) return [{label:&#x27;Resume when the external dependency clears&#x27;,status:&#x27;blocked&#x27;,progress:0}];
+        if (state === &#x27;active&#x27;) return [{label:`Finish ${name}`,status:&#x27;active&#x27;,progress:0}];
+        return [{label:`Start ${name}`,status:&#x27;queued&#x27;,progress:0}];
+      };
+      const tooltipPayload = (id,button,state,progress,tasks,summary) =&gt; ({
+        id,name:button.dataset.itemName,status:names[state] || state,progress,
+        summary:summary || button.dataset.description,tasks:tasks?.length ? tasks : defaultTasks(state,button.dataset.itemName)
+      });
       const buttons = new Map();
       items.forEach(([id,state,name,description]) =&gt; {
         const button = document.createElement(&#x27;button&#x27;);
@@ -961,6 +987,7 @@ html&gt;body{padding:0}&lt;/style&gt;
         button.dataset.baseLabel = `${id}: ${name}. ${names[state]}. ${description}`;
         button.dataset.baseTooltip = `${id} · ${name} — ${names[state]}. ${description}`;
         button.dataset.tooltip = button.dataset.baseTooltip;
+        button.dataset.tooltipStructured = JSON.stringify(tooltipPayload(id,button,state,state === &#x27;proven&#x27; ? 100 : 0,defaultTasks(state,name),description));
         button.dataset.tooltipPlacement = &#x27;top&#x27;;
         button.setAttribute(&#x27;aria-label&#x27;, button.dataset.baseLabel);
         const showDetail = () =&gt; {
@@ -1002,6 +1029,8 @@ html&gt;body{padding:0}&lt;/style&gt;
           button.style.setProperty(&#x27;--work-progress&#x27;,&#x27;0%&#x27;);
           button.setAttribute(&#x27;aria-label&#x27;,button.dataset.baseLabel);
           button.dataset.tooltip = button.dataset.baseTooltip;
+          const cardState = button.dataset.status;
+          button.dataset.tooltipStructured = JSON.stringify(tooltipPayload(id,button,cardState,cardState === &#x27;proven&#x27; ? 100 : 0,defaultTasks(cardState,button.dataset.itemName),button.dataset.description));
         });
         const activeEntries = Object.entries(state.activeWork || {});
         activeEntries.forEach(([id,work]) =&gt; {
@@ -1019,6 +1048,8 @@ html&gt;body{padding:0}&lt;/style&gt;
           const activity = isWorking ? &#x27;Actively in progress&#x27; : &#x27;Paused or waiting&#x27;;
           const checkpoints = work.totalSteps ? `${work.completedSteps || 0} of ${work.totalSteps} checkpoints` : &#x27;&#x27;;
           button.dataset.tooltip = `${id} · ${button.dataset.itemName}. ${activity} — ${progress}% complete. Current step: ${phase}. Health: ${health}. ${checkpoints}${checkpoints ? &#x27;.&#x27; : &#x27;&#x27;} ${work.detail || button.dataset.description}`.trim();
+          const tasks = Array.isArray(work.nextTasks) &amp;&amp; work.nextTasks.length ? work.nextTasks : [{label:phase,status:isWorking ? &#x27;active&#x27; : &#x27;queued&#x27;,progress}];
+          button.dataset.tooltipStructured = JSON.stringify(tooltipPayload(id,button,button.dataset.status,progress,tasks,work.detail || button.dataset.description));
         });
         if (activeEntries.length) {
           const [id,work] = activeEntries[0];
@@ -1100,6 +1131,30 @@ html&gt;body{padding:0}&lt;/style&gt;
     target?.nodeType != null &amp;&amp; trigger.contains(target);
   const getContent = (trigger) =&gt;
     trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getStructuredContent = (trigger) =&gt; {
+    try { return JSON.parse(trigger.getAttribute(&quot;data-tooltip-structured&quot;) || &quot;null&quot;); }
+    catch (_) { return null; }
+  };
+  const renderStructuredContent = (floating,content) =&gt; {
+    floating.replaceChildren();
+    const card = document.createElement(&quot;div&quot;); card.className = &quot;tooltip-card&quot;;
+    const kicker = document.createElement(&quot;div&quot;); kicker.className = &quot;tooltip-kicker&quot;; kicker.textContent = `${content.id} · ${content.status}`;
+    const titleRow = document.createElement(&quot;div&quot;); titleRow.className = &quot;tooltip-title-row&quot;;
+    const title = document.createElement(&quot;div&quot;); title.className = &quot;tooltip-title&quot;; title.textContent = content.name;
+    const overall = document.createElement(&quot;div&quot;); overall.className = &quot;tooltip-overall&quot;; overall.textContent = `${Math.max(0,Math.min(100,Number(content.progress) || 0))}% overall`;
+    titleRow.append(title,overall);
+    const summary = document.createElement(&quot;div&quot;); summary.className = &quot;tooltip-summary&quot;; summary.textContent = content.summary;
+    const next = document.createElement(&quot;div&quot;); next.className = &quot;tooltip-next&quot;;
+    const nextTitle = document.createElement(&quot;div&quot;); nextTitle.className = &quot;tooltip-next-title&quot;; nextTitle.textContent = &quot;What’s next&quot;; next.append(nextTitle);
+    (content.tasks || []).forEach(task =&gt; {
+      const row = document.createElement(&quot;div&quot;); row.className = &quot;tooltip-task&quot;; row.dataset.status = task.status || &quot;queued&quot;;
+      const dot = document.createElement(&quot;i&quot;); dot.className = &quot;tooltip-task-dot&quot;;
+      const label = document.createElement(&quot;span&quot;); label.className = &quot;tooltip-task-label&quot;; label.textContent = task.label;
+      const value = document.createElement(&quot;span&quot;); value.className = &quot;tooltip-task-value&quot;; value.textContent = `${Math.max(0,Math.min(100,Number(task.progress) || 0))}%`;
+      row.append(dot,label,value); next.append(row);
+    });
+    card.append(kicker,titleRow,summary,next); floating.append(card);
+  };
   const getPlacement = (trigger) =&gt; {
     const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
     return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
@@ -1201,7 +1256,9 @@ html&gt;body{padding:0}&lt;/style&gt;
     }
     closeTooltip();
     const floating = getTooltip();
-    floating.textContent = content;
+    const structured = getStructuredContent(trigger);
+    if (structured) renderStructuredContent(floating,structured);
+    else floating.textContent = content;
     floating.style.visibility = &quot;hidden&quot;;
     floating.style.transform = &quot;translate(0, 0)&quot;;
     document.body.appendChild(floating);
