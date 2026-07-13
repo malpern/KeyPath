@@ -23,13 +23,7 @@ final class ConfigBackupManagerTests: XCTestCase {
     }
 
     private func writeValidConfig(_ content: String? = nil) throws {
-        let validConfig = content ?? """
-        (defcfg
-          process-unmapped-keys yes
-        )
-        (defsrc caps)
-        (deflayer base esc)
-        """
+        let validConfig = content ?? KanataConfigFixtures.capsToEscape
         try validConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
     }
 

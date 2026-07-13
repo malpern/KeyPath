@@ -80,11 +80,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
     // MARK: - Validation Tests
 
     func testHandleExternalChangeValidatesConfig() async {
-        let validConfig = """
-        (defcfg)
-        (defsrc caps)
-        (deflayer base esc)
-        """
+        let validConfig = KanataConfigFixtures.capsToEscapeBare
         let tempFile = createTempConfigFile(content: validConfig)
 
         let result = await service.handleExternalChange(configPath: tempFile.path)
@@ -108,11 +104,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
 
     func testHandleExternalChangeCallsReloadHandler() async {
         reloadHandlerResult = true
-        let validConfig = """
-        (defcfg)
-        (defsrc caps)
-        (deflayer base esc)
-        """
+        let validConfig = KanataConfigFixtures.capsToEscapeBare
         let tempFile = createTempConfigFile(content: validConfig)
 
         let result = await service.handleExternalChange(configPath: tempFile.path)
@@ -128,11 +120,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         // we should return success:false + pendingReload:true because the config is valid
         // but was never applied to kanata.
         reloadHandlerResult = false
-        let validConfig = """
-        (defcfg)
-        (defsrc caps)
-        (deflayer base esc)
-        """
+        let validConfig = KanataConfigFixtures.capsToEscapeBare
         let tempFile = createTempConfigFile(content: validConfig)
 
         let result = await service.handleExternalChange(configPath: tempFile.path)
@@ -163,11 +151,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
             isKanataProcessRunningProvider: { true }
         )
 
-        let validConfig = """
-        (defcfg)
-        (defsrc caps)
-        (deflayer base esc)
-        """
+        let validConfig = KanataConfigFixtures.capsToEscapeBare
         let tempFile = createTempConfigFile(content: validConfig)
 
         let result = await service.handleExternalChange(configPath: tempFile.path)
@@ -181,11 +165,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
 
     func testCallbacksInvokedOnSuccess() async {
         reloadHandlerResult = true
-        let validConfig = """
-        (defcfg)
-        (defsrc caps)
-        (deflayer base esc)
-        """
+        let validConfig = KanataConfigFixtures.capsToEscapeBare
         let tempFile = createTempConfigFile(content: validConfig)
 
         var detectedCalled = false
@@ -211,11 +191,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         // Force reload handler to fail - in test environment this triggers
         // "service unavailable" path (process not running) which calls onReset
         reloadHandlerResult = false
-        let validConfig = """
-        (defcfg)
-        (defsrc caps)
-        (deflayer base esc)
-        """
+        let validConfig = KanataConfigFixtures.capsToEscapeBare
         let tempFile = createTempConfigFile(content: validConfig)
 
         var detectedCalled = false
