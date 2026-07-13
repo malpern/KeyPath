@@ -12,7 +12,7 @@ def main() -> None:
     parser.add_argument("--state", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[2] / "docs/testing/keypath-test-automation-state.json")
     parser.add_argument("--block", required=True)
     parser.add_argument("--progress", type=int)
-    parser.add_argument("--health", choices=("smooth", "retrying", "blocked"), default="smooth")
+    parser.add_argument("--health", choices=("smooth", "retrying", "blocked", "waiting"), default="smooth")
     parser.add_argument("--trend", choices=("forward", "backtrack"), default="forward")
     parser.add_argument("--phase")
     parser.add_argument("--detail")
@@ -49,9 +49,16 @@ def main() -> None:
         action="store_true",
         help="Keep block progress and evidence visible without marking it as actively worked",
     )
+    parser.add_argument(
+        "--waiting",
+        action="store_true",
+        help="Keep work visible as an external prerequisite without marking it as actively worked",
+    )
     args = parser.parse_args()
-    if args.finish and args.blocked:
-        parser.error("--finish and --blocked cannot be combined")
+    if sum((args.finish, args.blocked, args.waiting)) > 1:
+        parser.error("--finish, --blocked, and --waiting cannot be combined")
+    if args.waiting:
+        args.health = "waiting"
     if args.progress is not None and not 0 <= args.progress <= 100:
         parser.error("--progress must be between 0 and 100")
     next_tasks = []
@@ -79,7 +86,7 @@ def main() -> None:
         working.discard(args.block)
         state.setdefault("statuses", {})[args.block] = "proven"
     else:
-        if args.blocked:
+        if args.blocked or args.waiting:
             working.discard(args.block)
         else:
             working.add(args.block)
@@ -102,7 +109,12 @@ def main() -> None:
             ),
             "unlocks": args.unlocks or previous_work.get("unlocks", []),
         }
-        state.setdefault("statuses", {})[args.block] = "blocked" if args.blocked else "active"
+        if args.waiting:
+            state.setdefault("statuses", {})[args.block] = "waiting"
+        elif args.blocked:
+            state.setdefault("statuses", {})[args.block] = "blocked"
+        else:
+            state.setdefault("statuses", {})[args.block] = "active"
     state["workingBlocks"] = sorted(working)
     updates = state.setdefault("updates", [])
     updates.insert(0, {
