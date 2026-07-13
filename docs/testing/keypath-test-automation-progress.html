@@ -818,6 +818,34 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-defrag-progress .band span { color:var(--muted-foreground); font-size:12px; }
     #keypath-defrag-progress .now { border-left:4px solid var(--viz-series-2); }
     #keypath-defrag-progress .wait { border-left:4px solid var(--viz-series-5); }
+    #keypath-defrag-progress .ledger { margin-top:18px; padding:16px; }
+    #keypath-defrag-progress .ledger-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:14px; }
+    #keypath-defrag-progress .ledger h2 { margin:3px 0 4px; font-size:17px; font-weight:500; }
+    #keypath-defrag-progress .ledger-sub { color:var(--muted-foreground); font-size:12px; max-width:680px; }
+    #keypath-defrag-progress .ledger-summary { color:var(--muted-foreground); font-size:11px; text-align:right; white-space:nowrap; padding-top:4px; }
+    #keypath-defrag-progress .apple-gate { display:grid; grid-template-columns:auto minmax(0,1fr); gap:10px; align-items:start; margin:0 0 14px; padding:11px 12px; border:1px solid color-mix(in srgb,var(--viz-series-5) 65%,var(--border)); border-left:4px solid var(--viz-series-5); border-radius:4px; background:color-mix(in srgb,var(--viz-series-5) 10%,var(--card)); }
+    #keypath-defrag-progress .apple-gate-mark { display:inline-flex; align-items:center; min-height:20px; padding:0 7px; border-radius:999px; background:var(--viz-series-5); color:var(--card-foreground); font-size:10px; font-weight:650; letter-spacing:.04em; text-transform:uppercase; }
+    #keypath-defrag-progress .apple-gate strong { display:block; font-size:12px; font-weight:600; }
+    #keypath-defrag-progress .apple-gate span { display:block; margin-top:2px; color:var(--muted-foreground); font-size:11px; line-height:1.45; }
+    #keypath-defrag-progress .ledger-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:5px; }
+    #keypath-defrag-progress .ledger-table { width:100%; min-width:740px; border-collapse:collapse; font-size:11px; }
+    #keypath-defrag-progress .ledger-table th { padding:8px 10px; background:color-mix(in srgb,var(--muted) 52%,var(--card)); color:var(--muted-foreground); font-size:9px; font-weight:650; letter-spacing:.06em; text-align:left; text-transform:uppercase; }
+    #keypath-defrag-progress .ledger-table td { padding:10px; border-top:1px solid var(--border); vertical-align:top; line-height:1.42; }
+    #keypath-defrag-progress .ledger-table tr[data-status=&quot;waiting&quot;] { background:color-mix(in srgb,var(--viz-series-5) 7%,var(--card)); }
+    #keypath-defrag-progress .ledger-table tr[data-status=&quot;proven&quot;] { background:color-mix(in srgb,var(--viz-series-3) 5%,var(--card)); }
+    #keypath-defrag-progress .ledger-name { display:block; font-weight:600; }
+    #keypath-defrag-progress .ledger-ids { display:block; margin-top:3px; color:var(--muted-foreground); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:9px; letter-spacing:.02em; }
+    #keypath-defrag-progress .ledger-copy { color:var(--muted-foreground); }
+    #keypath-defrag-progress .ledger-status { display:inline-flex; align-items:center; gap:5px; padding:3px 6px; border-radius:999px; background:var(--muted); color:var(--muted-foreground); font-size:9px; font-weight:650; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; }
+    #keypath-defrag-progress .ledger-status::before { content:&quot;&quot;; width:6px; height:6px; border-radius:50%; background:var(--muted-foreground); }
+    #keypath-defrag-progress .ledger-status[data-status=&quot;proven&quot;] { background:color-mix(in srgb,var(--viz-series-3) 18%,var(--card)); color:color-mix(in srgb,var(--viz-series-3) 80%,var(--foreground)); }
+    #keypath-defrag-progress .ledger-status[data-status=&quot;proven&quot;]::before { background:var(--viz-series-3); }
+    #keypath-defrag-progress .ledger-status[data-status=&quot;active&quot;] { background:color-mix(in srgb,var(--viz-series-2) 20%,var(--card)); color:color-mix(in srgb,var(--viz-series-2) 80%,var(--foreground)); }
+    #keypath-defrag-progress .ledger-status[data-status=&quot;active&quot;]::before { background:var(--viz-series-2); }
+    #keypath-defrag-progress .ledger-status[data-status=&quot;blocked&quot;] { background:color-mix(in srgb,var(--blocked-maroon) 16%,var(--card)); color:var(--blocked-maroon); }
+    #keypath-defrag-progress .ledger-status[data-status=&quot;blocked&quot;]::before { background:var(--blocked-maroon); }
+    #keypath-defrag-progress .ledger-status[data-status=&quot;waiting&quot;] { background:color-mix(in srgb,var(--viz-series-5) 22%,var(--card)); color:color-mix(in srgb,var(--viz-series-5) 80%,var(--foreground)); }
+    #keypath-defrag-progress .ledger-status[data-status=&quot;waiting&quot;]::before { background:var(--viz-series-5); }
     #keypath-defrag-progress .note { margin-top:12px; color:var(--muted-foreground); font-size:11px; }
     #keypath-defrag-progress .livebar { display:flex; justify-content:space-between; align-items:center; gap:16px; margin:0 0 14px; padding:11px 13px; }
     #keypath-defrag-progress .live-main { display:flex; align-items:center; gap:9px; min-width:0; }
@@ -860,17 +888,20 @@ html&gt;body{padding:0}&lt;/style&gt;
       #keypath-defrag-progress .top { flex-direction:column; align-items:flex-start; }
       #keypath-defrag-progress .track { grid-template-columns:repeat(8,minmax(0,1fr)); }
       #keypath-defrag-progress .bands { grid-template-columns:1fr 1fr; }
+      #keypath-defrag-progress .ledger-head { flex-direction:column; gap:6px; }
+      #keypath-defrag-progress .ledger-summary { padding-top:0; text-align:left; white-space:normal; }
     }
     @media (max-width:460px) {
       #keypath-defrag-progress .track { grid-template-columns:repeat(5,minmax(0,1fr)); }
       #keypath-defrag-progress .bands { grid-template-columns:1fr; }
       #keypath-defrag-progress .readout { flex-direction:column; }
+      #keypath-defrag-progress .apple-gate { grid-template-columns:1fr; gap:6px; }
     }
   &lt;/style&gt;
 
   &lt;header class=&quot;top&quot;&gt;
     &lt;div&gt;&lt;div class=&quot;eyebrow&quot;&gt;KeyPath automated QA&lt;/div&gt;&lt;h1&gt;Consolidating the test surface&lt;/h1&gt;&lt;div class=&quot;sub&quot;&gt;Each block is one concrete capability. Green areas are already reliable; the amber frontier is where work is actively converging.&lt;/div&gt;&lt;/div&gt;
-    &lt;div class=&quot;date&quot;&gt;Updated July 12, 2026&lt;/div&gt;
+    &lt;div class=&quot;date&quot;&gt;Updated July 13, 2026&lt;/div&gt;
   &lt;/header&gt;
 
   &lt;div class=&quot;legend&quot; aria-label=&quot;Status legend&quot;&gt;
@@ -906,6 +937,15 @@ html&gt;body{padding:0}&lt;/style&gt;
         &lt;div class=&quot;card band&quot;&gt;&lt;strong&gt;Installer approvals consolidated&lt;/strong&gt;&lt;span&gt;KeyPath Input Monitoring, helper, background item, SecurityAgent, DriverKit.&lt;/span&gt;&lt;/div&gt;
         &lt;div class=&quot;card band now&quot;&gt;&lt;strong&gt;Defragmenting now&lt;/strong&gt;&lt;span&gt;Kanata permissions → runtime/TCP → real input and virtual output.&lt;/span&gt;&lt;/div&gt;
         &lt;div class=&quot;card band wait&quot;&gt;&lt;strong&gt;External wait&lt;/strong&gt;&lt;span&gt;Apple case 102940025673 gates the managed APNs enrollment proof.&lt;/span&gt;&lt;/div&gt;
+      &lt;/section&gt;
+
+      &lt;section class=&quot;card ledger&quot; aria-labelledby=&quot;keypath-capability-ledger-title&quot;&gt;
+        &lt;div class=&quot;ledger-head&quot;&gt;
+          &lt;div&gt;&lt;div class=&quot;eyebrow&quot;&gt;Automation capability ledger&lt;/div&gt;&lt;h2 id=&quot;keypath-capability-ledger-title&quot;&gt;What the harness can prove—and what it still needs&lt;/h2&gt;&lt;div class=&quot;ledger-sub&quot;&gt;The map shows individual building blocks. This ledger groups them into the reusable capabilities that make installer testing dependable.&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;ledger-summary&quot; id=&quot;keypath-ledger-summary&quot;&gt;Loading capability state…&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;apple-gate&quot;&gt;&lt;span class=&quot;apple-gate-mark&quot;&gt;Apple gate&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Managed functional testing is the critical external unlock.&lt;/strong&gt;&lt;span&gt;Apple Developer Support case 102940025673 covers the private MDM vendor certificate needed for APNs enrollment. It enables deterministic PPPC, DriverKit, and background-service authorization in disposable managed VMs; it does not replace the real approval-flow checks kept in the unmanaged lane.&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;ledger-wrap&quot;&gt;&lt;table class=&quot;ledger-table&quot;&gt;&lt;thead&gt;&lt;tr&gt;&lt;th scope=&quot;col&quot;&gt;Core capability&lt;/th&gt;&lt;th scope=&quot;col&quot;&gt;What it enables&lt;/th&gt;&lt;th scope=&quot;col&quot;&gt;Automation status&lt;/th&gt;&lt;th scope=&quot;col&quot;&gt;What is needed next&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody id=&quot;keypath-capability-ledger&quot;&gt;&lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;
       &lt;/section&gt;
     &lt;/main&gt;
 
@@ -967,8 +1007,8 @@ html&gt;body{padding:0}&lt;/style&gt;
         [&#x27;M05&#x27;,&#x27;queued&#x27;,&#x27;Uninstall scenario&#x27;,&#x27;Remove app, services, helper, and owned state.&#x27;],
         [&#x27;M06&#x27;,&#x27;queued&#x27;,&#x27;Reinstall scenario&#x27;,&#x27;Fresh behavior after verified uninstall.&#x27;],
         [&#x27;M07&#x27;,&#x27;queued&#x27;,&#x27;Cancellation fixture&#x27;,&#x27;Exercise real user cancellation and recovery.&#x27;],
-        [&#x27;M08&#x27;,&#x27;queued&#x27;,&#x27;Failure ownership&#x27;,&#x27;Product, selector, transport, provider, OS, environment.&#x27;],
-        [&#x27;M09&#x27;,&#x27;queued&#x27;,&#x27;Resumable runner&#x27;,&#x27;Continue safely from the last verified checkpoint.&#x27;],
+        [&#x27;M08&#x27;,&#x27;proven&#x27;,&#x27;Failure ownership&#x27;,&#x27;Product, selector, transport, provider, OS, environment.&#x27;],
+        [&#x27;M09&#x27;,&#x27;proven&#x27;,&#x27;Resumable runner&#x27;,&#x27;Continue safely from the last verified checkpoint.&#x27;],
         [&#x27;M10&#x27;,&#x27;queued&#x27;,&#x27;macOS 26 selectors&#x27;,&#x27;Self-verifying System Settings driver.&#x27;],
         [&#x27;M11&#x27;,&#x27;queued&#x27;,&#x27;macOS 27 selectors&#x27;,&#x27;Separate beta-aware approval driver.&#x27;],
         [&#x27;M12&#x27;,&#x27;queued&#x27;,&#x27;Nightly diagonal&#x27;,&#x27;Curated core matrix with capacity and TTL admission.&#x27;],
@@ -999,6 +1039,16 @@ html&gt;body{padding:0}&lt;/style&gt;
         coreCapability:Boolean(work.coreCapability),unlocks:Array.isArray(work.unlocks) ? work.unlocks : [],
         summary:summary || button.dataset.description,tasks:tasks?.length ? tasks : defaultTasks(state,button.dataset.itemName)
       });
+      const capabilityLedger = [
+        { name:&#x27;Immutable disposable VM lanes&#x27;, ids:[&#x27;L01&#x27;,&#x27;L02&#x27;,&#x27;L03&#x27;,&#x27;L04&#x27;,&#x27;L05&#x27;,&#x27;L06&#x27;,&#x27;L07&#x27;,&#x27;L08&#x27;], enables:&#x27;A signed installer and exact commit run in an owned, disposable VM with capacity admission and cleanup.&#x27;, next:&#x27;Keep the base images fresh; every scenario can consume this now.&#x27; },
+        { name:&#x27;Desktop interaction and secure approval delivery&#x27;, ids:[&#x27;G01&#x27;,&#x27;G02&#x27;,&#x27;G03&#x27;,&#x27;G04&#x27;,&#x27;G05&#x27;,&#x27;G06&#x27;,&#x27;G07&#x27;,&#x27;G08&#x27;,&#x27;P01&#x27;], enables:&#x27;Logged-in GUI automation, semantic selectors, native RFB fallback, screenshots, and secret-safe authorization.&#x27;, next:&#x27;Use this to preserve a small unmanaged UI lane for genuine macOS approval flows.&#x27; },
+        { name:&#x27;Installer evidence and failure ownership&#x27;, ids:[&#x27;I01&#x27;,&#x27;I02&#x27;,&#x27;I03&#x27;,&#x27;I04&#x27;,&#x27;I05&#x27;,&#x27;I06&#x27;,&#x27;I07&#x27;,&#x27;I08&#x27;,&#x27;I09&#x27;,&#x27;M08&#x27;], enables:&#x27;Product claims, independent postconditions, artifacts, and failure classes stay distinguishable.&#x27;, next:&#x27;Apply the contract to each new installer scenario.&#x27; },
+        { name:&#x27;Resumable scenario execution&#x27;, ids:[&#x27;M09&#x27;], enables:&#x27;Interrupted installer scenarios resume only from a verified checkpoint and never replay an uncertain mutation.&#x27;, next:&#x27;Adopt this runner for the future golden-path and repair scenarios.&#x27; },
+        { name:&#x27;Managed functional permission lane&#x27;, ids:[&#x27;D03&#x27;,&#x27;D04&#x27;,&#x27;D05&#x27;,&#x27;D06&#x27;], enables:&#x27;Deterministic PPPC, DriverKit, and service-management state in disposable managed VMs.&#x27;, next:&#x27;Apple must enable MDM vendor certificate access; then enroll NanoMDM and prove a managed base.&#x27;, apple:true },
+        { name:&#x27;Functional runtime and virtual-output proof&#x27;, ids:[&#x27;R01&#x27;,&#x27;R02&#x27;,&#x27;R03&#x27;,&#x27;R04&#x27;,&#x27;P02&#x27;,&#x27;P03&#x27;,&#x27;P04&#x27;], enables:&#x27;A true end-to-end assertion: captured input produces an observable remap while Kanata and TCP are healthy.&#x27;, next:&#x27;Use the managed lane to grant raw-runtime permissions and approve the DriverKit path reproducibly.&#x27;, apple:true },
+        { name:&#x27;Per-OS approval drivers&#x27;, ids:[&#x27;M10&#x27;,&#x27;M11&#x27;], enables:&#x27;Separate self-verifying System Settings selectors for macOS 26 and 27.&#x27;, next:&#x27;Harden the selectors independently; do not reuse macOS 15 coordinates or hierarchy.&#x27; },
+        { name:&#x27;Scenario matrix and consolidated reporting&#x27;, ids:[&#x27;M12&#x27;,&#x27;M13&#x27;,&#x27;M14&#x27;], enables:&#x27;A pruned nightly diagonal, weekly pairwise coverage, and one machine-readable evidence report.&#x27;, next:&#x27;Build on managed functional proof plus the reusable M08/M09 contracts.&#x27;, apple:true }
+      ];
       const buttons = new Map();
       items.forEach(([id,state,name,description]) =&gt; {
         const button = document.createElement(&#x27;button&#x27;);
@@ -1034,7 +1084,44 @@ html&gt;body{padding:0}&lt;/style&gt;
       const workDetail = root.querySelector(&#x27;#keypath-work-detail&#x27;);
       const workPercent = root.querySelector(&#x27;#keypath-work-percent&#x27;);
       const workHealth = root.querySelector(&#x27;#keypath-work-health&#x27;);
+      const ledgerBody = root.querySelector(&#x27;#keypath-capability-ledger&#x27;);
+      const ledgerSummary = root.querySelector(&#x27;#keypath-ledger-summary&#x27;);
       const healthNames = {smooth:&#x27;Going smoothly&#x27;,retrying:&#x27;Trying another approach&#x27;,blocked:&#x27;Blocked&#x27;,waiting:&#x27;Waiting on Apple&#x27;};
+      const ledgerNames = {proven:&#x27;Ready&#x27;,active:&#x27;In development&#x27;,blocked:&#x27;Blocked&#x27;,queued:&#x27;Queued&#x27;,waiting:&#x27;Waiting on Apple&#x27;};
+      const ledgerStatus = (row) =&gt; {
+        const states = row.ids.map(id =&gt; buttons.get(id)?.dataset.status).filter(Boolean);
+        if (row.apple &amp;&amp; states.includes(&#x27;waiting&#x27;)) return &#x27;waiting&#x27;;
+        if (states.length &amp;&amp; states.every(state =&gt; state === &#x27;proven&#x27;)) return &#x27;proven&#x27;;
+        if (states.includes(&#x27;active&#x27;)) return &#x27;active&#x27;;
+        if (states.includes(&#x27;blocked&#x27;)) return &#x27;blocked&#x27;;
+        if (states.includes(&#x27;waiting&#x27;)) return &#x27;waiting&#x27;;
+        return &#x27;queued&#x27;;
+      };
+      const renderLedger = () =&gt; {
+        const counts = {proven:0,active:0,blocked:0,queued:0,waiting:0};
+        ledgerBody.replaceChildren(...capabilityLedger.map(row =&gt; {
+          const state = ledgerStatus(row);
+          counts[state] += 1;
+          const element = document.createElement(&#x27;tr&#x27;); element.dataset.status = state;
+          const capability = document.createElement(&#x27;td&#x27;);
+          const capabilityName = document.createElement(&#x27;span&#x27;); capabilityName.className = &#x27;ledger-name&#x27;; capabilityName.textContent = row.name;
+          const ids = document.createElement(&#x27;span&#x27;); ids.className = &#x27;ledger-ids&#x27;; ids.textContent = row.ids.join(&#x27; · &#x27;);
+          capability.append(capabilityName,ids);
+          const enables = document.createElement(&#x27;td&#x27;); enables.className = &#x27;ledger-copy&#x27;; enables.textContent = row.enables;
+          const stateCell = document.createElement(&#x27;td&#x27;);
+          const badge = document.createElement(&#x27;span&#x27;); badge.className = &#x27;ledger-status&#x27;; badge.dataset.status = state; badge.textContent = ledgerNames[state]; stateCell.append(badge);
+          const next = document.createElement(&#x27;td&#x27;); next.className = &#x27;ledger-copy&#x27;; next.textContent = row.next;
+          element.append(capability,enables,stateCell,next); return element;
+        }));
+        const parts = [];
+        if (counts.proven) parts.push(`${counts.proven} ready`);
+        if (counts.active) parts.push(`${counts.active} in development`);
+        if (counts.waiting) parts.push(`${counts.waiting} waiting on Apple`);
+        if (counts.queued) parts.push(`${counts.queued} queued`);
+        if (counts.blocked) parts.push(`${counts.blocked} blocked`);
+        ledgerSummary.textContent = parts.join(&#x27; · &#x27;);
+      };
+      renderLedger();
       const applyState = (state) =&gt; {
         Object.entries(state.statuses || {}).forEach(([id,value]) =&gt; {
           const button = buttons.get(id);
@@ -1074,6 +1161,7 @@ html&gt;body{padding:0}&lt;/style&gt;
           const tasks = Array.isArray(work.nextTasks) &amp;&amp; work.nextTasks.length ? work.nextTasks : [{label:phase,status:isWorking ? &#x27;active&#x27; : &#x27;queued&#x27;,progress}];
           button.dataset.tooltipStructured = JSON.stringify(tooltipPayload(id,button,button.dataset.status,progress,tasks,work.detail || button.dataset.description,work));
         });
+        renderLedger();
         if (activeEntries.length) {
           const [id,work] = activeEntries[0];
           const progress = Math.max(0,Math.min(100,Number(work.progress) || 0));
