@@ -30,11 +30,32 @@ done
 mkdir -p "${output:h}"
 
 tmp=$(mktemp -d /tmp/keypath-permission-drag.XXXXXX)
-trap 'rm -rf "$tmp"' EXIT
+finder_geometry=
+settings_geometry=
+
+window_geometry() {
+  "$osascript" -l JavaScript -e 'function run(argv) { var p = Application("System Events").processes.byName(argv[0]); if (!p.exists() || p.windows().length === 0) throw new Error("window unavailable"); var w = p.windows[0]; return w.position().concat(w.size()).join(","); }' "$1"
+}
+
+restore_window() {
+  [[ -n "$2" ]] || return 0
+  "$osascript" -l JavaScript -e 'function run(argv) { var values = argv[1].split(",").map(Number); if (values.length !== 4 || values.some(function (value) { return !Number.isFinite(value); })) throw new Error("invalid geometry"); var p = Application("System Events").processes.byName(argv[0]); if (!p.exists() || p.windows().length === 0) return; var w = p.windows[0]; w.position = values.slice(0, 2); w.size = values.slice(2, 4); }' "$1" "$2" >/dev/null 2>&1 || true
+}
+
+cleanup() {
+  restore_window Finder "$finder_geometry"
+  restore_window "System Settings" "$settings_geometry"
+  rm -rf "$tmp"
+}
+trap cleanup EXIT
 name=${file_path:t}
 
 "$open_bin" -R "$file_path"
 sleep ${KEYPATH_PERMISSION_DRAG_REVEAL_SECONDS:-2}
+finder_geometry=$(window_geometry Finder) || die "could not capture Finder window geometry"
+settings_geometry=$(window_geometry "System Settings") || die "could not capture System Settings window geometry"
+[[ "$finder_geometry" =~ '^-?[0-9]+,-?[0-9]+,[0-9]+,[0-9]+$' ]] || die "Finder returned invalid window geometry"
+[[ "$settings_geometry" =~ '^-?[0-9]+,-?[0-9]+,[0-9]+,[0-9]+$' ]] || die "System Settings returned invalid window geometry"
 "$osascript" -e 'tell application "System Events" to tell process "Finder" to tell window 1 to set {position, size} to {{0, 40}, {500, 700}}' >/dev/null
 "$osascript" -e 'tell application "System Events" to tell process "System Settings" to tell window 1 to set {position, size} to {{500, 40}, {524, 700}}' >/dev/null
 sleep ${KEYPATH_PERMISSION_DRAG_SETTLE_SECONDS:-1}

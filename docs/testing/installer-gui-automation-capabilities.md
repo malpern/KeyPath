@@ -86,7 +86,9 @@ Scripts/lab/keypath-lab secure-dialog-input "$LEASE" \
 ```
 
 Peekaboo's MCP `type` result echoes typed text. The secure command suppresses
-that entire response. Never reproduce the MCP call through `keypath-lab run`,
+that entire response. With `--submit`, the command also waits for both the named
+field and submit control to disappear; the protected setting still needs its
+canonical postcondition. Never reproduce the MCP call through `keypath-lab run`,
 put a password in an argument, or collect its output.
 
 For an AX-resistant control, take a fresh semantic snapshot, read the native

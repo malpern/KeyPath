@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-12T18:40:55-07:00",
-  "currentTask": "Hover checklists added",
-  "message": "Every block hover now includes What to do next with per-task status and progress. P01 shows the concrete harness-hardening sequence.",
+  "updatedAt": "2026-07-12T19:05:12-07:00",
+  "currentTask": "P01 harness guardrails pass",
+  "message": "Secure approval now has a real dismissal postcondition; permission targeting is reversible. Focused lab tests pass. Next: disposable-VM proof.",
   "complete": false,
   "workingBlocks": [
     "P01"
@@ -15,30 +15,54 @@
       "detail": "The DriverKit extension is activated and enabled, and the VirtualHID daemon passed health checks. Observable remapping waits on Kanata permissions.",
       "attempt": 1,
       "completedSteps": 6,
-      "totalSteps": 8
+      "totalSteps": 8,
+      "nextTasks": [
+        {
+          "label": "Receive trusted captured input from P01",
+          "status": "blocked",
+          "progress": 0
+        },
+        {
+          "label": "Observe the remapped VirtualHID output",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Package output observation as a reusable assertion",
+          "status": "queued",
+          "progress": 0
+        }
+      ],
+      "blocker": "VirtualHID is healthy, but output cannot be attributed to KeyPath until P01 supplies a trusted captured-input event.",
+      "coreCapability": true,
+      "unlocks": [
+        "End-to-end remap assertions",
+        "Repair and reboot validation",
+        "Scenario-matrix pass/fail evidence"
+      ]
     },
     "P01": {
       "progress": 95,
       "health": "retrying",
-      "trend": "backtrack",
-      "phase": "Harness hardening before another VM",
-      "detail": "Helper, DriverKit, and Accessibility are proven. The remaining work is now tracked as a per-task checklist.",
-      "attempt": 2,
+      "trend": "forward",
+      "phase": "Harness hardening validated; next proof is inside a disposable VM",
+      "detail": "Secure-dialog handling now requires the sheet controls to disappear, and permission drag restores Finder and System Settings geometry on every exit. Focused contract tests pass.",
+      "attempt": 3,
       "completedSteps": 5,
       "totalSteps": 6,
       "nextTasks": [
         {
-          "label": "Harden secure-dialog submission and postconditions",
+          "label": "Verify secure-dialog dismissal and protected state",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Make Input Monitoring targeting deterministic",
           "status": "active",
-          "progress": 35
+          "progress": 65
         },
         {
-          "label": "Fix Input Monitoring navigation and permission drag",
-          "status": "queued",
-          "progress": 10
-        },
-        {
-          "label": "Run focused harness tests and merge",
+          "label": "Prove a non-hardware input path reaches Kanata HID capture",
           "status": "queued",
           "progress": 0
         },
@@ -47,6 +71,13 @@
           "status": "queued",
           "progress": 0
         }
+      ],
+      "blocker": "Input Monitoring approval still needs a disposable-VM proof, and RFB key delivery may bypass the HID path Kanata observes.",
+      "coreCapability": true,
+      "unlocks": [
+        "Runtime and remap proof",
+        "Overlay and reboot verification",
+        "Install, repair, and upgrade matrix"
       ]
     }
   },
@@ -61,6 +92,27 @@
     "M12": "active"
   },
   "updates": [
+    {
+      "time": "19:05",
+      "block": "P01",
+      "tone": "success",
+      "title": "P01 harness guardrails pass",
+      "message": "Secure approval now has a real dismissal postcondition; permission targeting is reversible. Focused lab tests pass. Next: disposable-VM proof."
+    },
+    {
+      "time": "19:02",
+      "block": "P01",
+      "tone": "working",
+      "title": "Hardening permission orchestration",
+      "message": "Implementing sheet-dismissal verification and reversible System Settings geometry before the next VM proof."
+    },
+    {
+      "time": "18:58",
+      "block": "P01",
+      "tone": "working",
+      "title": "Clarified completion and blocker semantics",
+      "message": "Green block fill now means proven only. Progress lines are amber, retrying uses \u21bb, and P01/P02 hovers identify reusable blockers and downstream work they unlock."
+    },
     {
       "time": "18:40",
       "block": "P01",
@@ -249,27 +301,6 @@
       "tone": "retry",
       "title": "Output proof waiting on harness consent",
       "message": "P02 has not failed; it is waiting for P01 to clear Peekaboo\u2019s one-time consent and complete helper activation."
-    },
-    {
-      "time": "12:34",
-      "block": "P01",
-      "tone": "retry",
-      "title": "Harness consent intercepted installer flow",
-      "message": "P01 stepped back slightly: Peekaboo first-run consent\u2014not KeyPath\u2014covered the helper sheet. Clearing it through the current 2048\u00d71536 framebuffer."
-    },
-    {
-      "time": "12:32",
-      "block": "P02",
-      "tone": "success",
-      "title": "Output environment bootstrapped",
-      "message": "P02 remains active on cbx_8c08a8c1ed4b; no parallel Tart VM exists."
-    },
-    {
-      "time": "12:32",
-      "block": "P01",
-      "tone": "success",
-      "title": "Coherent desktop test environment ready",
-      "message": "P01 is at the real installer boundary on cbx_8c08a8c1ed4b; launching KeyPath and inspecting its planned actions."
     }
   ],
   "activity": [

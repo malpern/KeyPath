@@ -249,6 +249,12 @@ code:not(pre code) {
 .tooltip-title { font-size:13px; font-weight:600; letter-spacing:-.01em; }
 .tooltip-overall { color:var(--muted-foreground); font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
 .tooltip-summary { margin-top:4px; color:var(--muted-foreground); line-height:1.45; }
+.tooltip-health { margin-top:6px; color:var(--muted-foreground); font-size:10px; }
+.tooltip-health strong { color:var(--foreground); font-weight:600; }
+.tooltip-foundation { margin-top:9px; padding-left:8px; border-left:2px solid var(--viz-series-2); }
+.tooltip-foundation-label { color:var(--foreground); font-size:10px; font-weight:600; }
+.tooltip-foundation-copy { margin-top:2px; color:var(--muted-foreground); line-height:1.4; }
+.tooltip-unlocks { margin-top:5px; color:var(--muted-foreground); font-size:10px; line-height:1.4; }
 .tooltip-next { margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
 .tooltip-next-title { margin-bottom:2px; color:var(--foreground); font-size:10px; font-weight:600; }
 .tooltip-task { display:grid; grid-template-columns:9px minmax(0,1fr) auto; gap:7px; align-items:start; padding:5px 0; }
@@ -773,6 +779,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-defrag-progress .sub { color:var(--muted-foreground); max-width:700px; }
     #keypath-defrag-progress .date { color:var(--muted-foreground); font-size:12px; white-space:nowrap; }
     #keypath-defrag-progress .legend { display:flex; flex-wrap:wrap; gap:14px; margin:0 0 14px; font-size:12px; color:var(--muted-foreground); }
+    #keypath-defrag-progress .encoding { margin:-8px 0 14px; color:var(--muted-foreground); font-size:10px; }
     #keypath-defrag-progress .legend span { display:flex; align-items:center; gap:6px; }
     #keypath-defrag-progress .swatch { width:11px; height:11px; border-radius:2px; }
     #keypath-defrag-progress .proven-mark { background:var(--viz-series-3); }
@@ -789,12 +796,12 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-defrag-progress .block[data-status=&quot;queued&quot;] { background:var(--muted); color:var(--muted-foreground); }
     #keypath-defrag-progress .block[data-status=&quot;waiting&quot;] { background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--viz-series-5) 86%,var(--card)) 0 8px,color-mix(in srgb,var(--viz-series-5) 58%,var(--card)) 8px 13px); color:var(--card-foreground); }
     #keypath-defrag-progress .block:hover, #keypath-defrag-progress .block:focus-visible { filter:brightness(1.1); transform:translateY(-2px) scale(1.04); box-shadow:0 0 0 2px var(--ring); z-index:1; }
-    #keypath-defrag-progress .block::after { content:&quot;&quot;; position:absolute; left:0; bottom:0; width:var(--work-progress,0%); height:4px; background:var(--viz-series-3); transition:width 420ms ease, background 180ms ease; }
+    #keypath-defrag-progress .block::after { content:&quot;&quot;; position:absolute; left:0; bottom:0; width:var(--work-progress,0%); height:4px; background:var(--viz-series-2); transition:width 420ms ease, background 180ms ease; }
+    #keypath-defrag-progress .block[data-health=&quot;retrying&quot;]::before { content:&quot;↻&quot;; position:absolute; top:1px; right:4px; font-size:10px; font-weight:700; color:color-mix(in srgb,var(--viz-series-2) 70%,black); }
     #keypath-defrag-progress .block[data-working=&quot;true&quot;] { animation:keypath-pulse 1.35s ease-in-out infinite; }
     #keypath-defrag-progress .block[data-health=&quot;retrying&quot;] { animation:keypath-retry 1.1s ease-in-out infinite; }
-    #keypath-defrag-progress .block[data-health=&quot;retrying&quot;]::after { background:var(--viz-series-2); }
     #keypath-defrag-progress .block[data-health=&quot;blocked&quot;] { animation:none; box-shadow:inset 0 0 0 2px var(--destructive); }
-    #keypath-defrag-progress .block[data-health=&quot;blocked&quot;]::after, #keypath-defrag-progress .block[data-trend=&quot;backtrack&quot;]::after { background:var(--destructive); }
+    #keypath-defrag-progress .block[data-health=&quot;blocked&quot;]::after { background:var(--destructive); }
     @keyframes keypath-pulse { 0%,100% { filter:brightness(1); box-shadow:0 0 0 0 transparent; } 50% { filter:brightness(1.16); box-shadow:0 0 0 2px var(--viz-series-2); } }
     @keyframes keypath-retry { 0%,100% { transform:translateX(0); } 35% { transform:translateX(-1px); } 65% { transform:translateX(1px); } }
     #keypath-defrag-progress .readout { min-height:42px; margin-top:12px; padding-top:11px; border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:18px; align-items:flex-start; }
@@ -868,6 +875,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     &lt;span&gt;&lt;i class=&quot;swatch queued-mark&quot;&gt;&lt;/i&gt;Queued work&lt;/span&gt;
     &lt;span&gt;&lt;i class=&quot;swatch waiting-mark&quot;&gt;&lt;/i&gt;Waiting on Apple&lt;/span&gt;
   &lt;/div&gt;
+  &lt;div class=&quot;encoding&quot;&gt;Block fill = completion state · bottom line = progress only · ↻ = retrying · red outline = blocked&lt;/div&gt;
 
   &lt;section class=&quot;card livebar&quot; aria-live=&quot;polite&quot;&gt;
     &lt;div class=&quot;live-main&quot;&gt;&lt;span class=&quot;live-dot&quot; id=&quot;keypath-live-dot&quot;&gt;&lt;/span&gt;&lt;div class=&quot;live-copy&quot;&gt;&lt;strong id=&quot;keypath-live-task&quot;&gt;Connecting to live progress…&lt;/strong&gt;&lt;small id=&quot;keypath-live-message&quot;&gt;Waiting for the local progress feed.&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
@@ -972,8 +980,10 @@ html&gt;body{padding:0}&lt;/style&gt;
         if (state === &#x27;active&#x27;) return [{label:`Finish ${name}`,status:&#x27;active&#x27;,progress:0}];
         return [{label:`Start ${name}`,status:&#x27;queued&#x27;,progress:0}];
       };
-      const tooltipPayload = (id,button,state,progress,tasks,summary) =&gt; ({
+      const tooltipPayload = (id,button,state,progress,tasks,summary,work={}) =&gt; ({
         id,name:button.dataset.itemName,status:names[state] || state,progress,
+        complete:state === &#x27;proven&#x27;,health:work.health,blocker:work.blocker,
+        coreCapability:Boolean(work.coreCapability),unlocks:Array.isArray(work.unlocks) ? work.unlocks : [],
         summary:summary || button.dataset.description,tasks:tasks?.length ? tasks : defaultTasks(state,button.dataset.itemName)
       });
       const buttons = new Map();
@@ -988,7 +998,7 @@ html&gt;body{padding:0}&lt;/style&gt;
         button.dataset.baseTooltip = `${id} · ${name} — ${names[state]}. ${description}`;
         button.dataset.tooltip = button.dataset.baseTooltip;
         button.dataset.tooltipStructured = JSON.stringify(tooltipPayload(id,button,state,state === &#x27;proven&#x27; ? 100 : 0,defaultTasks(state,name),description));
-        button.dataset.tooltipPlacement = &#x27;top&#x27;;
+        button.dataset.tooltipPlacement = &#x27;right&#x27;;
         button.setAttribute(&#x27;aria-label&#x27;, button.dataset.baseLabel);
         const showDetail = () =&gt; {
           title.textContent = `${id} · ${name}`;
@@ -1049,7 +1059,7 @@ html&gt;body{padding:0}&lt;/style&gt;
           const checkpoints = work.totalSteps ? `${work.completedSteps || 0} of ${work.totalSteps} checkpoints` : &#x27;&#x27;;
           button.dataset.tooltip = `${id} · ${button.dataset.itemName}. ${activity} — ${progress}% complete. Current step: ${phase}. Health: ${health}. ${checkpoints}${checkpoints ? &#x27;.&#x27; : &#x27;&#x27;} ${work.detail || button.dataset.description}`.trim();
           const tasks = Array.isArray(work.nextTasks) &amp;&amp; work.nextTasks.length ? work.nextTasks : [{label:phase,status:isWorking ? &#x27;active&#x27; : &#x27;queued&#x27;,progress}];
-          button.dataset.tooltipStructured = JSON.stringify(tooltipPayload(id,button,button.dataset.status,progress,tasks,work.detail || button.dataset.description));
+          button.dataset.tooltipStructured = JSON.stringify(tooltipPayload(id,button,button.dataset.status,progress,tasks,work.detail || button.dataset.description,work));
         });
         if (activeEntries.length) {
           const [id,work] = activeEntries[0];
@@ -1138,12 +1148,26 @@ html&gt;body{padding:0}&lt;/style&gt;
   const renderStructuredContent = (floating,content) =&gt; {
     floating.replaceChildren();
     const card = document.createElement(&quot;div&quot;); card.className = &quot;tooltip-card&quot;;
-    const kicker = document.createElement(&quot;div&quot;); kicker.className = &quot;tooltip-kicker&quot;; kicker.textContent = `${content.id} · ${content.status}`;
+    const kicker = document.createElement(&quot;div&quot;); kicker.className = &quot;tooltip-kicker&quot;; kicker.textContent = `${content.id} · ${content.status} · ${content.complete ? &quot;Complete&quot; : &quot;Not complete&quot;}`;
     const titleRow = document.createElement(&quot;div&quot;); titleRow.className = &quot;tooltip-title-row&quot;;
     const title = document.createElement(&quot;div&quot;); title.className = &quot;tooltip-title&quot;; title.textContent = content.name;
     const overall = document.createElement(&quot;div&quot;); overall.className = &quot;tooltip-overall&quot;; overall.textContent = `${Math.max(0,Math.min(100,Number(content.progress) || 0))}% overall`;
     titleRow.append(title,overall);
     const summary = document.createElement(&quot;div&quot;); summary.className = &quot;tooltip-summary&quot;; summary.textContent = content.summary;
+    const healthLabels = {smooth:&quot;Going smoothly&quot;,retrying:&quot;Retrying another approach&quot;,blocked:&quot;Blocked&quot;};
+    const health = document.createElement(&quot;div&quot;); health.className = &quot;tooltip-health&quot;;
+    const healthLabel = document.createElement(&quot;strong&quot;); healthLabel.textContent = &quot;Health: &quot;;
+    health.append(healthLabel,document.createTextNode(healthLabels[content.health] || (content.complete ? &quot;Proven&quot; : &quot;Not started&quot;)));
+    let foundation = null;
+    if (content.blocker || content.coreCapability) {
+      foundation = document.createElement(&quot;div&quot;); foundation.className = &quot;tooltip-foundation&quot;;
+      const foundationLabel = document.createElement(&quot;div&quot;); foundationLabel.className = &quot;tooltip-foundation-label&quot;; foundationLabel.textContent = content.coreCapability ? &quot;Core capability blocker&quot; : &quot;Current blocker&quot;;
+      const foundationCopy = document.createElement(&quot;div&quot;); foundationCopy.className = &quot;tooltip-foundation-copy&quot;; foundationCopy.textContent = content.blocker || &quot;Reusable infrastructure required by downstream work.&quot;;
+      foundation.append(foundationLabel,foundationCopy);
+      if (content.unlocks?.length) {
+        const unlocks = document.createElement(&quot;div&quot;); unlocks.className = &quot;tooltip-unlocks&quot;; unlocks.textContent = `Unlocks: ${content.unlocks.join(&quot; · &quot;)}`; foundation.append(unlocks);
+      }
+    }
     const next = document.createElement(&quot;div&quot;); next.className = &quot;tooltip-next&quot;;
     const nextTitle = document.createElement(&quot;div&quot;); nextTitle.className = &quot;tooltip-next-title&quot;; nextTitle.textContent = &quot;What’s next&quot;; next.append(nextTitle);
     (content.tasks || []).forEach(task =&gt; {
@@ -1153,7 +1177,9 @@ html&gt;body{padding:0}&lt;/style&gt;
       const value = document.createElement(&quot;span&quot;); value.className = &quot;tooltip-task-value&quot;; value.textContent = `${Math.max(0,Math.min(100,Number(task.progress) || 0))}%`;
       row.append(dot,label,value); next.append(row);
     });
-    card.append(kicker,titleRow,summary,next); floating.append(card);
+    card.append(kicker,titleRow,summary,health);
+    if (foundation) card.append(foundation);
+    card.append(next); floating.append(card);
   };
   const getPlacement = (trigger) =&gt; {
     const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
