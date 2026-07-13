@@ -767,9 +767,10 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-issue-board .queued-mark { background:var(--viz-series-1); }
     #keypath-issue-board .human-mark { background:var(--viz-series-5); }
     #keypath-issue-board .feature-mark { background:var(--muted); border:1px solid var(--border); }
-    #keypath-issue-board .type-key { display:flex; flex-wrap:wrap; align-items:center; gap:11px; margin:-5px 0 14px; color:var(--muted-foreground); font:10px system-ui,sans-serif; }
+    #keypath-issue-board .type-key { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin:-5px 0 14px; color:var(--muted-foreground); font:10px system-ui,sans-serif; }
     #keypath-issue-board .type-key .key-label { text-transform:uppercase; letter-spacing:.06em; }
-    #keypath-issue-board .type-key span { display:inline-flex; align-items:center; gap:5px; }
+    #keypath-issue-board .type-filter { appearance:none; padding:2px 0; border:0; border-bottom:1px solid transparent; color:inherit; background:transparent; font:inherit; cursor:default; }
+    #keypath-issue-board .type-filter:hover,#keypath-issue-board .type-filter:focus-visible { color:var(--foreground); border-bottom-color:var(--foreground); }
     #keypath-issue-board .summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; margin-bottom:14px; overflow:hidden; background:var(--border); border:1px solid var(--border); border-radius:8px; }
     #keypath-issue-board .metric { padding:11px 13px; background:color-mix(in srgb,var(--card) 88%,var(--background)); }
     #keypath-issue-board .metric strong { display:block; font-size:20px; font-weight:500; }
@@ -779,13 +780,13 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-issue-board .track { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:5px; }
     #keypath-issue-board .issue { appearance:none; position:relative; min-height:44px; padding:6px 2px; border:1px solid transparent; border-radius:6px; color:var(--foreground); font:500 10px ui-monospace,SFMono-Regular,Menlo,monospace; cursor:pointer; transition:transform 120ms ease,filter 120ms ease; }
     #keypath-issue-board .issue::before { content:&quot;&quot;; position:absolute; top:5px; right:5px; width:5px; height:5px; border-radius:50%; background:currentColor; opacity:.65; }
-    #keypath-issue-board .type-marker { display:inline-block; width:7px; height:7px; margin-right:4px; background:var(--muted-foreground); vertical-align:1px; }
-    #keypath-issue-board [data-type=&quot;bug&quot;] .type-marker { border-radius:50%; background:var(--viz-series-2); }
-    #keypath-issue-board [data-type=&quot;testing&quot;] .type-marker { background:var(--viz-series-1); transform:rotate(45deg) scale(.78); }
-    #keypath-issue-board [data-type=&quot;debt&quot;] .type-marker { border-radius:1px; background:var(--muted-foreground); }
-    #keypath-issue-board [data-type=&quot;feature&quot;] .type-marker { background:var(--viz-series-5); clip-path:polygon(50% 0,100% 100%,0 100%); }
-    #keypath-issue-board [data-type=&quot;upstream&quot;] .type-marker { border:1px solid var(--viz-series-6); border-radius:50%; background:transparent; }
-    #keypath-issue-board [data-type=&quot;docs&quot;] .type-marker { width:8px; height:2px; background:var(--viz-series-2); }
+    #keypath-issue-board .track[data-highlight-type] .issue { opacity:.25; }
+    #keypath-issue-board .track[data-highlight-type=&quot;bug&quot;] .issue[data-type=&quot;bug&quot;],
+    #keypath-issue-board .track[data-highlight-type=&quot;testing&quot;] .issue[data-type=&quot;testing&quot;],
+    #keypath-issue-board .track[data-highlight-type=&quot;debt&quot;] .issue[data-type=&quot;debt&quot;],
+    #keypath-issue-board .track[data-highlight-type=&quot;feature&quot;] .issue[data-type=&quot;feature&quot;],
+    #keypath-issue-board .track[data-highlight-type=&quot;upstream&quot;] .issue[data-type=&quot;upstream&quot;],
+    #keypath-issue-board .track[data-highlight-type=&quot;docs&quot;] .issue[data-type=&quot;docs&quot;] { opacity:1; transform:translateY(-1px); box-shadow:0 0 0 2px var(--ring); }
     #keypath-issue-board .issue[data-status=&quot;active&quot;] { background:color-mix(in srgb,var(--viz-series-2) 64%,var(--card)); }
     #keypath-issue-board .issue[data-status=&quot;next&quot;] { background:color-mix(in srgb,var(--viz-series-3) 55%,var(--card)); }
     #keypath-issue-board .issue[data-status=&quot;queued&quot;] { background:color-mix(in srgb,var(--viz-series-1) 38%,var(--card)); }
@@ -835,15 +836,15 @@ html&gt;body{padding:0}&lt;/style&gt;
     &lt;span&gt;&lt;i class=&quot;swatch human-mark&quot;&gt;&lt;/i&gt;Human / external gate&lt;/span&gt;
     &lt;span&gt;&lt;i class=&quot;swatch feature-mark&quot;&gt;&lt;/i&gt;Feature or deferred&lt;/span&gt;
   &lt;/div&gt;
-  &lt;div class=&quot;type-key&quot; aria-label=&quot;Issue type legend&quot;&gt;
+  &lt;nav class=&quot;type-key&quot; aria-label=&quot;Highlight issues by label&quot;&gt;
     &lt;span class=&quot;key-label&quot;&gt;Type&lt;/span&gt;
-    &lt;span data-type=&quot;bug&quot;&gt;&lt;i class=&quot;type-marker&quot;&gt;&lt;/i&gt;Bug&lt;/span&gt;
-    &lt;span data-type=&quot;testing&quot;&gt;&lt;i class=&quot;type-marker&quot;&gt;&lt;/i&gt;Test&lt;/span&gt;
-    &lt;span data-type=&quot;debt&quot;&gt;&lt;i class=&quot;type-marker&quot;&gt;&lt;/i&gt;Debt&lt;/span&gt;
-    &lt;span data-type=&quot;feature&quot;&gt;&lt;i class=&quot;type-marker&quot;&gt;&lt;/i&gt;Feature&lt;/span&gt;
-    &lt;span data-type=&quot;upstream&quot;&gt;&lt;i class=&quot;type-marker&quot;&gt;&lt;/i&gt;Upstream&lt;/span&gt;
-    &lt;span data-type=&quot;docs&quot;&gt;&lt;i class=&quot;type-marker&quot;&gt;&lt;/i&gt;Docs&lt;/span&gt;
-  &lt;/div&gt;
+    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;bug&quot;&gt;Bug&lt;/button&gt;
+    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;testing&quot;&gt;Test&lt;/button&gt;
+    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;debt&quot;&gt;Debt&lt;/button&gt;
+    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;feature&quot;&gt;Feature&lt;/button&gt;
+    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;upstream&quot;&gt;Upstream&lt;/button&gt;
+    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;docs&quot;&gt;Docs&lt;/button&gt;
+  &lt;/nav&gt;
 
   &lt;section class=&quot;summary&quot; aria-label=&quot;Open issue summary&quot;&gt;
     &lt;div class=&quot;metric&quot;&gt;&lt;strong id=&quot;metric-open&quot;&gt;—&lt;/strong&gt;&lt;span&gt;Open issues&lt;/span&gt;&lt;/div&gt;
@@ -887,6 +888,16 @@ html&gt;body{padding:0}&lt;/style&gt;
       const detail = root.querySelector(&#x27;#issue-detail&#x27;);
       const labels = root.querySelector(&#x27;#issue-labels&#x27;);
       const link = root.querySelector(&#x27;#issue-link&#x27;);
+      let detailTimer;
+      let highlightTimer;
+      root.querySelectorAll(&#x27;.type-filter&#x27;).forEach(filter =&gt; {
+        const highlight = () =&gt; { clearTimeout(highlightTimer); highlightTimer = setTimeout(() =&gt; { grid.dataset.highlightType = filter.dataset.type; }, 120); };
+        const clearHighlight = () =&gt; { clearTimeout(highlightTimer); grid.removeAttribute(&#x27;data-highlight-type&#x27;); };
+        filter.addEventListener(&#x27;mouseenter&#x27;,highlight);
+        filter.addEventListener(&#x27;mouseleave&#x27;,clearHighlight);
+        filter.addEventListener(&#x27;focus&#x27;,() =&gt; { clearTimeout(highlightTimer); grid.dataset.highlightType = filter.dataset.type; });
+        filter.addEventListener(&#x27;blur&#x27;,clearHighlight);
+      });
       const render = state =&gt; {
         root.querySelector(&#x27;#issues-updated&#x27;).textContent = state.truncated ? `Updated ${new Date(state.updatedAt).toLocaleTimeString()} · first ${state.issueLimit} shown` : `Updated ${new Date(state.updatedAt).toLocaleTimeString()}`;
         root.querySelector(&#x27;#metric-open&#x27;).textContent = `${state.issues.length}${state.truncated ? &#x27;+&#x27; : &#x27;&#x27;}`;
@@ -898,18 +909,17 @@ html&gt;body{padding:0}&lt;/style&gt;
           button.className = &#x27;issue&#x27;;
           button.dataset.status = issue.dashboardStatus;
           button.dataset.type = issue.dashboardType || &#x27;other&#x27;;
-          const marker = document.createElement(&#x27;i&#x27;); marker.className = &#x27;type-marker&#x27;; marker.setAttribute(&#x27;aria-hidden&#x27;,&#x27;true&#x27;);
-          const number = document.createElement(&#x27;span&#x27;); number.textContent = `#${issue.number}`;
-          button.append(marker,number);
-          button.dataset.tooltip = `#${issue.number} · ${typeNames[button.dataset.type]} · ${names[issue.dashboardStatus]} — ${issue.title}`;
-          button.setAttribute(&#x27;aria-label&#x27;,button.dataset.tooltip);
+          button.textContent = `#${issue.number}`;
+          button.setAttribute(&#x27;aria-label&#x27;,`#${issue.number} · ${typeNames[button.dataset.type]} · ${names[issue.dashboardStatus]} — ${issue.title}`);
           const select = () =&gt; {
             title.textContent = `#${issue.number} · ${issue.title}`;
             detail.textContent = names[issue.dashboardStatus];
             labels.replaceChildren(...issue.labels.map(value =&gt; { const badge=document.createElement(&#x27;span&#x27;); badge.className=&#x27;label&#x27;; badge.textContent=value; return badge; }));
             link.href = issue.url; link.textContent = `Open #${issue.number}`;
           };
-          button.addEventListener(&#x27;mouseenter&#x27;,select); button.addEventListener(&#x27;focus&#x27;,select); button.addEventListener(&#x27;click&#x27;,select);
+          button.addEventListener(&#x27;mouseenter&#x27;,() =&gt; { clearTimeout(detailTimer); detailTimer = setTimeout(select,280); });
+          button.addEventListener(&#x27;mouseleave&#x27;,() =&gt; clearTimeout(detailTimer));
+          button.addEventListener(&#x27;focus&#x27;,select); button.addEventListener(&#x27;click&#x27;,select);
           return button;
         }));
         const recent = [...state.issues].sort((a,b) =&gt; b.updatedAt.localeCompare(a.updatedAt)).slice(0,10);
