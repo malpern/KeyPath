@@ -1,0 +1,1218 @@
+{
+  "repository": "malpern/KeyPath",
+  "updatedAt": "2026-07-13T01:16:17.171211+00:00",
+  "issueLimit": 200,
+  "truncated": false,
+  "counts": {
+    "active": 1,
+    "next": 1,
+    "queued": 17,
+    "human": 22,
+    "feature": 40,
+    "deferred": 15
+  },
+  "issues": [
+    {
+      "labels": [
+        "kanata",
+        "driver-kit",
+        "upstream",
+        "research",
+        "bug-risk",
+        "model:sonnet",
+        "agent-ok"
+      ],
+      "number": 982,
+      "title": "Upstream: migrate Kanata to the current VirtualHIDDevice protocol",
+      "updatedAt": "2026-07-12T14:38:58Z",
+      "url": "https://github.com/malpern/KeyPath/issues/982",
+      "dashboardStatus": "active"
+    },
+    {
+      "labels": [
+        "tech-debt",
+        "post-release"
+      ],
+      "number": 748,
+      "title": "Post-1.0: report helper and service freshness explicitly",
+      "updatedAt": "2026-06-06T19:09:37Z",
+      "url": "https://github.com/malpern/KeyPath/issues/748",
+      "dashboardStatus": "next"
+    },
+    {
+      "labels": [
+        "refactor",
+        "tech-debt",
+        "post-release",
+        "model:sonnet",
+        "agent-ok"
+      ],
+      "number": 855,
+      "title": "InstallerEngine conflates provision and diagnose responsibilities",
+      "updatedAt": "2026-07-04T13:30:28Z",
+      "url": "https://github.com/malpern/KeyPath/issues/855",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "refactor",
+        "tech-debt",
+        "post-release",
+        "model:sonnet",
+        "agent-ok"
+      ],
+      "number": 852,
+      "title": "App.swift / AppDelegate is overloaded (879 lines, 16 MARK sections)",
+      "updatedAt": "2026-07-04T13:30:27Z",
+      "url": "https://github.com/malpern/KeyPath/issues/852",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "tech-debt",
+        "testing",
+        "model:sonnet",
+        "agent-ok"
+      ],
+      "number": 848,
+      "title": "Centralize Kanata test fixtures (~350 inline config strings duplicated across tests)",
+      "updatedAt": "2026-07-04T13:30:24Z",
+      "url": "https://github.com/malpern/KeyPath/issues/848",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "refactor",
+        "tech-debt",
+        "post-release"
+      ],
+      "number": 750,
+      "title": "Post-1.0: clean up Swift 6 concurrency and compiler warnings",
+      "updatedAt": "2026-06-06T19:10:00Z",
+      "url": "https://github.com/malpern/KeyPath/issues/750",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "post-release",
+        "model:sonnet",
+        "agent-ok"
+      ],
+      "number": 737,
+      "title": "Post-1.0: move shipping mapper code out of UI/Experimental",
+      "updatedAt": "2026-07-04T13:30:08Z",
+      "url": "https://github.com/malpern/KeyPath/issues/737",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "post-release",
+        "model:sonnet",
+        "agent-ok"
+      ],
+      "number": 736,
+      "title": "Post-1.0: consolidate configuration save/write/validate pipeline",
+      "updatedAt": "2026-07-04T13:30:07Z",
+      "url": "https://github.com/malpern/KeyPath/issues/736",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "tech-debt",
+        "post-release"
+      ],
+      "number": 735,
+      "title": "Post-1.0: unify service health and lifecycle readiness contracts",
+      "updatedAt": "2026-06-06T19:10:11Z",
+      "url": "https://github.com/malpern/KeyPath/issues/735",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "testing",
+        "post-release"
+      ],
+      "number": 604,
+      "title": "Test improvement roadmap: remaining coverage and integration work",
+      "updatedAt": "2026-07-12T00:09:33Z",
+      "url": "https://github.com/malpern/KeyPath/issues/604",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "tech-debt",
+        "post-release"
+      ],
+      "number": 496,
+      "title": "nonisolated(unsafe) dependency container in WizardDependencies (audit \u00a73.5)",
+      "updatedAt": "2026-06-06T16:54:28Z",
+      "url": "https://github.com/malpern/KeyPath/issues/496",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "refactor",
+        "tech-debt",
+        "post-release"
+      ],
+      "number": 495,
+      "title": "Large files could benefit from splitting (audit \u00a79.7)",
+      "updatedAt": "2026-06-06T17:09:55Z",
+      "url": "https://github.com/malpern/KeyPath/issues/495",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "refactor",
+        "tech-debt",
+        "post-release"
+      ],
+      "number": 494,
+      "title": "RulesSummaryView state management cleanup (audit \u00a78.3, \u00a78.5)",
+      "updatedAt": "2026-06-06T17:09:56Z",
+      "url": "https://github.com/malpern/KeyPath/issues/494",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "tech-debt",
+        "post-release"
+      ],
+      "number": 490,
+      "title": "DispatchQueue.main.async in async contexts (audit \u00a73.2)",
+      "updatedAt": "2026-06-06T17:09:58Z",
+      "url": "https://github.com/malpern/KeyPath/issues/490",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "tech-debt",
+        "post-release"
+      ],
+      "number": 488,
+      "title": "Hardcoded keyboard layout dimensions (audit \u00a78.6)",
+      "updatedAt": "2026-06-06T17:09:59Z",
+      "url": "https://github.com/malpern/KeyPath/issues/488",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "refactor",
+        "tech-debt",
+        "post-release"
+      ],
+      "number": 487,
+      "title": "Large modifier chains in OverlayMapperSection (audit \u00a78.4)",
+      "updatedAt": "2026-06-06T17:10:01Z",
+      "url": "https://github.com/malpern/KeyPath/issues/487",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "tech-debt",
+        "post-release"
+      ],
+      "number": 484,
+      "title": "Large computed property chains in RulesSummaryView (audit \u00a77.3)",
+      "updatedAt": "2026-06-06T17:10:04Z",
+      "url": "https://github.com/malpern/KeyPath/issues/484",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "testing",
+        "post-release"
+      ],
+      "number": 365,
+      "title": "Gradually migrate XCTest tests to Swift Testing",
+      "updatedAt": "2026-06-06T17:11:50Z",
+      "url": "https://github.com/malpern/KeyPath/issues/365",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "testing",
+        "post-release"
+      ],
+      "number": 204,
+      "title": "Test KeyPathInsights feature end-to-end",
+      "updatedAt": "2026-06-06T17:11:52Z",
+      "url": "https://github.com/malpern/KeyPath/issues/204",
+      "dashboardStatus": "queued"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "devux",
+        "post-1.0",
+        "model:sonnet",
+        "human-in-loop"
+      ],
+      "number": 934,
+      "title": "Wizard polish batch: restart messaging, prompt wording, progress indicator, completion moment, error recovery, misc",
+      "updatedAt": "2026-07-12T00:09:46Z",
+      "url": "https://github.com/malpern/KeyPath/issues/934",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "documentation",
+        "post-release",
+        "model:haiku",
+        "human-in-loop"
+      ],
+      "number": 920,
+      "title": "[1.1 docs] Capture the 26 placeholder screenshots stripped for 1.0 ship",
+      "updatedAt": "2026-07-04T13:29:50Z",
+      "url": "https://github.com/malpern/KeyPath/issues/920",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "wwdc26",
+        "post-1.0",
+        "bug-risk",
+        "model:sonnet",
+        "human-in-loop"
+      ],
+      "number": 919,
+      "title": "Regression-test permissions, daemon, and TCC behavior on macOS 27 betas",
+      "updatedAt": "2026-07-12T00:38:35Z",
+      "url": "https://github.com/malpern/KeyPath/issues/919",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "testing",
+        "wwdc26",
+        "post-1.0"
+      ],
+      "number": 918,
+      "title": "Swift Testing migration policy: use XCTest interop, port KeyPathTestCase guards to a trait",
+      "updatedAt": "2026-06-12T16:40:48Z",
+      "url": "https://github.com/malpern/KeyPath/issues/918",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "testing",
+        "wwdc26",
+        "post-1.0"
+      ],
+      "number": 917,
+      "title": "Build an eval suite for AI config repair using Apple's Evaluations framework",
+      "updatedAt": "2026-06-12T16:40:40Z",
+      "url": "https://github.com/malpern/KeyPath/issues/917",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "wwdc26",
+        "post-1.0",
+        "tooling"
+      ],
+      "number": 916,
+      "title": "Upgrade toolchain to Xcode 27 / Swift 6.4",
+      "updatedAt": "2026-06-12T16:40:35Z",
+      "url": "https://github.com/malpern/KeyPath/issues/916",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "wwdc26",
+        "post-1.0"
+      ],
+      "number": 915,
+      "title": "Adopt AppKit automatic @Observable tracking in draw/layout (back-deploys to macOS 15)",
+      "updatedAt": "2026-06-12T16:40:27Z",
+      "url": "https://github.com/malpern/KeyPath/issues/915",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "testing",
+        "wwdc26",
+        "post-1.0"
+      ],
+      "number": 914,
+      "title": "Adopt App Intents Testing Framework for intent coverage (macOS 27)",
+      "updatedAt": "2026-06-12T16:40:21Z",
+      "url": "https://github.com/malpern/KeyPath/issues/914",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "wwdc26",
+        "post-1.0"
+      ],
+      "number": 913,
+      "title": "Expose rules/packs/layers as App Intents Entity Schemas for Siri AI & Spotlight (macOS 27)",
+      "updatedAt": "2026-06-12T16:40:15Z",
+      "url": "https://github.com/malpern/KeyPath/issues/913",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "wwdc26",
+        "post-1.0"
+      ],
+      "number": 912,
+      "title": "Adopt Foundation Models framework for AI config repair (on-device + Claude via LanguageModel protocol)",
+      "updatedAt": "2026-06-12T16:39:56Z",
+      "url": "https://github.com/malpern/KeyPath/issues/912",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "devux",
+        "post-release",
+        "human-in-loop"
+      ],
+      "number": 888,
+      "title": "[Design] Post-1.0 copy + terminology cleanup across rule editors",
+      "updatedAt": "2026-07-04T13:29:48Z",
+      "url": "https://github.com/malpern/KeyPath/issues/888",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "Feature",
+        "tier-2",
+        "1.1 release",
+        "model:sonnet",
+        "human-in-loop"
+      ],
+      "number": 868,
+      "title": "[1.1] Reverse prerequisite dialog: disable user flow",
+      "updatedAt": "2026-07-04T13:29:47Z",
+      "url": "https://github.com/malpern/KeyPath/issues/868",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "Feature",
+        "1.1 release",
+        "sprint-epic",
+        "model:opus",
+        "human-in-loop"
+      ],
+      "number": 865,
+      "title": "[Sprint 1.1] Rule dependency awareness: bidirectional prerequisite detection",
+      "updatedAt": "2026-07-12T14:00:23Z",
+      "url": "https://github.com/malpern/KeyPath/issues/865",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "launch-review",
+        "testing",
+        "post-1.0",
+        "model:sonnet",
+        "human-in-loop"
+      ],
+      "number": 747,
+      "title": "Verify permission and setup UX on clean accounts and signed releases",
+      "updatedAt": "2026-07-12T00:09:34Z",
+      "url": "https://github.com/malpern/KeyPath/issues/747",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "post-release",
+        "model:haiku",
+        "human-in-loop"
+      ],
+      "number": 741,
+      "title": "Post-1.0: audit design-system token/style consolidation",
+      "updatedAt": "2026-07-04T13:29:49Z",
+      "url": "https://github.com/malpern/KeyPath/issues/741",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "post-release",
+        "model:sonnet",
+        "agent-ok"
+      ],
+      "number": 740,
+      "title": "Post-1.0: continue targeted error taxonomy cleanup",
+      "updatedAt": "2026-07-04T13:30:10Z",
+      "url": "https://github.com/malpern/KeyPath/issues/740",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "kanata",
+        "upstream",
+        "post-release",
+        "research",
+        "human-in-loop"
+      ],
+      "number": 177,
+      "title": "Upstream: Option key stops working as shortcut modifier after sleep",
+      "updatedAt": "2026-07-12T14:15:25Z",
+      "url": "https://github.com/malpern/KeyPath/issues/177",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "kanata",
+        "driver-kit",
+        "upstream",
+        "post-release",
+        "research",
+        "human-in-loop"
+      ],
+      "number": 176,
+      "title": "Upstream: Bluetooth and Logitech mice disabled or stuck when Kanata runs",
+      "updatedAt": "2026-07-12T14:15:23Z",
+      "url": "https://github.com/malpern/KeyPath/issues/176",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "driver-kit",
+        "upstream",
+        "testing",
+        "post-release",
+        "human-in-loop"
+      ],
+      "number": 175,
+      "title": "Upstream: Sidecar/external displays crash Kanata (null pointer in driverkit)",
+      "updatedAt": "2026-07-12T14:15:22Z",
+      "url": "https://github.com/malpern/KeyPath/issues/175",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "kanata",
+        "upstream",
+        "post-release",
+        "research",
+        "bug-risk",
+        "human-in-loop"
+      ],
+      "number": 174,
+      "title": "Upstream: Kanata crashes or loses config after MacBook sleep/lid close",
+      "updatedAt": "2026-07-12T14:15:20Z",
+      "url": "https://github.com/malpern/KeyPath/issues/174",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "driver-kit",
+        "upstream",
+        "post-release",
+        "research",
+        "bug-risk",
+        "human-in-loop",
+        "agent-ok"
+      ],
+      "number": 172,
+      "title": "Upstream: Virtual HID keyboard doesn't emit native media key usage pages (F-row)",
+      "updatedAt": "2026-07-12T14:15:15Z",
+      "url": "https://github.com/malpern/KeyPath/issues/172",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "bug",
+        "kanata",
+        "driver-kit",
+        "upstream",
+        "post-release",
+        "research",
+        "human-in-loop"
+      ],
+      "number": 171,
+      "title": "Upstream: Kanata drops mouse events from composite HID devices on macOS",
+      "updatedAt": "2026-07-12T14:15:14Z",
+      "url": "https://github.com/malpern/KeyPath/issues/171",
+      "dashboardStatus": "human"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "devux",
+        "1.1 release",
+        "model:sonnet",
+        "agent-ok"
+      ],
+      "number": 954,
+      "title": "Onboarding: post-setup first-success moment \u2014 starter collection + panel tour",
+      "updatedAt": "2026-07-04T13:29:57Z",
+      "url": "https://github.com/malpern/KeyPath/issues/954",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "Feature",
+        "tier-1",
+        "1.1 release",
+        "model:opus",
+        "agent-ok"
+      ],
+      "number": 870,
+      "title": "[1.1] Define rule dependency graph data model and builder",
+      "updatedAt": "2026-07-04T13:30:06Z",
+      "url": "https://github.com/malpern/KeyPath/issues/870",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "Feature",
+        "tier-2",
+        "1.1 release",
+        "model:sonnet",
+        "agent-ok"
+      ],
+      "number": 869,
+      "title": "[1.1] Forward prerequisite dialog: enable / config-edit user flow",
+      "updatedAt": "2026-07-04T13:30:04Z",
+      "url": "https://github.com/malpern/KeyPath/issues/869",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "Feature",
+        "tier-1",
+        "1.1 release",
+        "model:sonnet",
+        "agent-ok"
+      ],
+      "number": 867,
+      "title": "[1.1] Encode per-family dependencies (HRL Toggles, Launcher, Leader-based, Custom)",
+      "updatedAt": "2026-07-04T13:30:03Z",
+      "url": "https://github.com/malpern/KeyPath/issues/867",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "Feature",
+        "tier-1",
+        "1.1 release",
+        "model:sonnet",
+        "agent-ok"
+      ],
+      "number": 866,
+      "title": "[1.1] Implement Prerequisite detector: forward + reverse queries on RuleCollectionsManager",
+      "updatedAt": "2026-07-04T13:30:01Z",
+      "url": "https://github.com/malpern/KeyPath/issues/866",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "tech-debt",
+        "post-release"
+      ],
+      "number": 749,
+      "title": "Post-1.0: harden permission and installer UX",
+      "updatedAt": "2026-06-06T19:09:49Z",
+      "url": "https://github.com/malpern/KeyPath/issues/749",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "feature-gap",
+        "tier-3",
+        "post-release",
+        "model:haiku",
+        "agent-ok"
+      ],
+      "number": 694,
+      "title": "Deferred TODOs: QMK HID-descriptor mapping (unused) + device-enumeration workaround (#254)",
+      "updatedAt": "2026-07-04T13:30:33Z",
+      "url": "https://github.com/malpern/KeyPath/issues/694",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "feature-gap",
+        "tier-3",
+        "post-release",
+        "model:haiku",
+        "agent-ok"
+      ],
+      "number": 688,
+      "title": "Unimplemented feature flags present but not built (JIT permissions, optional wizard)",
+      "updatedAt": "2026-07-04T13:30:32Z",
+      "url": "https://github.com/malpern/KeyPath/issues/688",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "post-release"
+      ],
+      "number": 468,
+      "title": "Multi-pack collection ownership conflict resolution",
+      "updatedAt": "2026-06-06T17:10:05Z",
+      "url": "https://github.com/malpern/KeyPath/issues/468",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "post-release"
+      ],
+      "number": 375,
+      "title": "Pack conflict detection and resolution for multi-mechanism packs",
+      "updatedAt": "2026-06-06T17:10:10Z",
+      "url": "https://github.com/malpern/KeyPath/issues/375",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "post-release",
+        "research"
+      ],
+      "number": 299,
+      "title": "Research: host-to-keyboard display protocol for screen-equipped keyboards (Work Louder, etc.)",
+      "updatedAt": "2026-06-06T17:11:53Z",
+      "url": "https://github.com/malpern/KeyPath/issues/299",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "post-release"
+      ],
+      "number": 293,
+      "title": "feat: Option/AltGr layer labels in overlay",
+      "updatedAt": "2026-06-06T17:10:14Z",
+      "url": "https://github.com/malpern/KeyPath/issues/293",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "post-release"
+      ],
+      "number": 216,
+      "title": "Karabiner parity: mouse-to-scroll (mouse_motion_to_scroll)",
+      "updatedAt": "2026-06-06T17:10:17Z",
+      "url": "https://github.com/malpern/KeyPath/issues/216",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "post-release"
+      ],
+      "number": 215,
+      "title": "Karabiner parity: mouse axis manipulation (mouse_basic)",
+      "updatedAt": "2026-06-06T17:10:18Z",
+      "url": "https://github.com/malpern/KeyPath/issues/215",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "post-release"
+      ],
+      "number": 214,
+      "title": "Karabiner parity: input source switching (select_input_source)",
+      "updatedAt": "2026-06-06T17:10:20Z",
+      "url": "https://github.com/malpern/KeyPath/issues/214",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "post-release"
+      ],
+      "number": 213,
+      "title": "Tracking: 100% Karabiner conversion fidelity roadmap",
+      "updatedAt": "2026-06-06T17:10:22Z",
+      "url": "https://github.com/malpern/KeyPath/issues/213",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "post-release"
+      ],
+      "number": 212,
+      "title": "Karabiner converter: support GokuRakuJoudo (Goku) EDN format import",
+      "updatedAt": "2026-06-06T17:10:23Z",
+      "url": "https://github.com/malpern/KeyPath/issues/212",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "post-release"
+      ],
+      "number": 211,
+      "title": "Karabiner converter: AI-assisted Tier 2+ conversion for complex rules",
+      "updatedAt": "2026-06-06T17:10:25Z",
+      "url": "https://github.com/malpern/KeyPath/issues/211",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "typing-behavior",
+        "post-release"
+      ],
+      "number": 197,
+      "title": "Kanata: Add hidden sequence input modes",
+      "updatedAt": "2026-06-06T17:10:31Z",
+      "url": "https://github.com/malpern/KeyPath/issues/197",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "modifier-management",
+        "post-release"
+      ],
+      "number": 196,
+      "title": "Kanata: Add unmod/unshift modifier suppression",
+      "updatedAt": "2026-06-06T17:10:32Z",
+      "url": "https://github.com/malpern/KeyPath/issues/196",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "mouse-control",
+        "post-release"
+      ],
+      "number": 195,
+      "title": "Kanata: Add movemouse-speed dynamic adjustment",
+      "updatedAt": "2026-06-06T17:10:34Z",
+      "url": "https://github.com/malpern/KeyPath/issues/195",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "typing-behavior",
+        "post-release"
+      ],
+      "number": 194,
+      "title": "Kanata: Add arbitrary-code keycode output",
+      "updatedAt": "2026-06-06T17:10:35Z",
+      "url": "https://github.com/malpern/KeyPath/issues/194",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "config-management",
+        "post-release"
+      ],
+      "number": 193,
+      "title": "Kanata: Add environment-conditional config support",
+      "updatedAt": "2026-06-06T17:10:37Z",
+      "url": "https://github.com/malpern/KeyPath/issues/193",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "config-management",
+        "post-release"
+      ],
+      "number": 192,
+      "title": "Kanata: Expose include directives for user config composition",
+      "updatedAt": "2026-06-06T17:10:38Z",
+      "url": "https://github.com/malpern/KeyPath/issues/192",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "typing-behavior",
+        "post-release"
+      ],
+      "number": 191,
+      "title": "Kanata: Add hold-for-duration behavior",
+      "updatedAt": "2026-06-06T17:10:40Z",
+      "url": "https://github.com/malpern/KeyPath/issues/191",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "typing-behavior",
+        "post-release"
+      ],
+      "number": 190,
+      "title": "Kanata: Add repeat key (rpt/rpt-any) support",
+      "updatedAt": "2026-06-06T17:10:42Z",
+      "url": "https://github.com/malpern/KeyPath/issues/190",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "clipboard",
+        "post-release"
+      ],
+      "number": 189,
+      "title": "Kanata: Add clipboard actions (save/restore/swap)",
+      "updatedAt": "2026-06-06T17:10:43Z",
+      "url": "https://github.com/malpern/KeyPath/issues/189",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "text-output",
+        "post-release"
+      ],
+      "number": 188,
+      "title": "Kanata: Add ZippyChord text expansion support",
+      "updatedAt": "2026-06-06T17:10:45Z",
+      "url": "https://github.com/malpern/KeyPath/issues/188",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "config-management",
+        "post-release"
+      ],
+      "number": 187,
+      "title": "Kanata: Add config cycling (lrld-next/lrld-prev) support",
+      "updatedAt": "2026-06-06T17:10:46Z",
+      "url": "https://github.com/malpern/KeyPath/issues/187",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "macro-automation",
+        "post-release"
+      ],
+      "number": 186,
+      "title": "Kanata: Add arbitrary command execution (cmd) to UI",
+      "updatedAt": "2026-06-06T17:10:48Z",
+      "url": "https://github.com/malpern/KeyPath/issues/186",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "conditional-logic",
+        "post-release"
+      ],
+      "number": 185,
+      "title": "Kanata: Expose user-authored fork actions in UI",
+      "updatedAt": "2026-06-06T17:10:49Z",
+      "url": "https://github.com/malpern/KeyPath/issues/185",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "conditional-logic",
+        "post-release"
+      ],
+      "number": 184,
+      "title": "Kanata: Add switch conditional action support",
+      "updatedAt": "2026-06-06T17:10:50Z",
+      "url": "https://github.com/malpern/KeyPath/issues/184",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "text-output",
+        "post-release"
+      ],
+      "number": 183,
+      "title": "Kanata: Add unicode character output support",
+      "updatedAt": "2026-06-06T17:10:52Z",
+      "url": "https://github.com/malpern/KeyPath/issues/183",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "macro-automation",
+        "post-release"
+      ],
+      "number": 182,
+      "title": "Kanata: Add dynamic macro support (record/playback)",
+      "updatedAt": "2026-06-06T17:10:53Z",
+      "url": "https://github.com/malpern/KeyPath/issues/182",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "mouse-control",
+        "post-release"
+      ],
+      "number": 181,
+      "title": "Kanata: Add mouse key support (movement, clicks, scrolling)",
+      "updatedAt": "2026-06-06T17:10:55Z",
+      "url": "https://github.com/malpern/KeyPath/issues/181",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "modifier-management",
+        "post-release"
+      ],
+      "number": 180,
+      "title": "Kanata: Add defoverrides support",
+      "updatedAt": "2026-06-06T17:10:56Z",
+      "url": "https://github.com/malpern/KeyPath/issues/180",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "modifier-management",
+        "post-release"
+      ],
+      "number": 179,
+      "title": "Kanata: Expose one-shot modifiers as standalone UI behavior",
+      "updatedAt": "2026-06-06T17:10:58Z",
+      "url": "https://github.com/malpern/KeyPath/issues/179",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "typing-behavior",
+        "post-release"
+      ],
+      "number": 178,
+      "title": "Kanata: Add caps-word support",
+      "updatedAt": "2026-06-06T17:11:00Z",
+      "url": "https://github.com/malpern/KeyPath/issues/178",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "post-release"
+      ],
+      "number": 77,
+      "title": "Phase 3: Add chord/macro/sequence suppression to keyboard overlay",
+      "updatedAt": "2026-06-06T17:11:23Z",
+      "url": "https://github.com/malpern/KeyPath/issues/77",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "kanata",
+        "upstream",
+        "post-release"
+      ],
+      "number": 68,
+      "title": "Implement keyberon emission points for OneShotActivated, ChordResolved, TapDanceResolved",
+      "updatedAt": "2026-06-06T17:12:05Z",
+      "url": "https://github.com/malpern/KeyPath/issues/68",
+      "dashboardStatus": "feature"
+    },
+    {
+      "labels": [
+        "post-release",
+        "research"
+      ],
+      "number": 641,
+      "title": "Retrospective: stale-kanata detection (#638) reverted \u2014 revisit only via authoritative HelloOk build-stamp, else let go",
+      "updatedAt": "2026-06-06T17:11:55Z",
+      "url": "https://github.com/malpern/KeyPath/issues/641",
+      "dashboardStatus": "deferred"
+    },
+    {
+      "labels": [
+        "refactor",
+        "post-release"
+      ],
+      "number": 602,
+      "title": "Extract shared CollectionEditorView for rule collection UIs",
+      "updatedAt": "2026-06-06T17:11:58Z",
+      "url": "https://github.com/malpern/KeyPath/issues/602",
+      "dashboardStatus": "deferred"
+    },
+    {
+      "labels": [
+        "refactor",
+        "post-release"
+      ],
+      "number": 388,
+      "title": "Shared keycap rendering + unified hero component across packs and collections",
+      "updatedAt": "2026-06-06T17:11:59Z",
+      "url": "https://github.com/malpern/KeyPath/issues/388",
+      "dashboardStatus": "deferred"
+    },
+    {
+      "labels": [
+        "kanata",
+        "config-management",
+        "post-release"
+      ],
+      "number": 377,
+      "title": "Implement alternative keyboard layouts in kanata base deflayer",
+      "updatedAt": "2026-06-06T17:12:01Z",
+      "url": "https://github.com/malpern/KeyPath/issues/377",
+      "dashboardStatus": "deferred"
+    },
+    {
+      "labels": [
+        "kanata",
+        "driver-kit",
+        "upstream",
+        "post-release"
+      ],
+      "number": 254,
+      "title": "Remove fake device fixtures once macOS multi-device support lands",
+      "updatedAt": "2026-06-06T17:12:03Z",
+      "url": "https://github.com/malpern/KeyPath/issues/254",
+      "dashboardStatus": "deferred"
+    },
+    {
+      "labels": [
+        "refactor",
+        "kanata",
+        "upstream",
+        "post-release"
+      ],
+      "number": 198,
+      "title": "Eliminate fake key layer notifications via native Kanata LayerChange",
+      "updatedAt": "2026-06-06T17:10:29Z",
+      "url": "https://github.com/malpern/KeyPath/issues/198",
+      "dashboardStatus": "deferred"
+    },
+    {
+      "labels": [
+        "refactor",
+        "post-release"
+      ],
+      "number": 149,
+      "title": "Define module boundaries and extraction plan for KeyPathAppKit",
+      "updatedAt": "2026-06-06T17:11:12Z",
+      "url": "https://github.com/malpern/KeyPath/issues/149",
+      "dashboardStatus": "deferred"
+    },
+    {
+      "labels": [
+        "kanata",
+        "upstream",
+        "post-release"
+      ],
+      "number": 121,
+      "title": "Protocol: make TCP Hello framing deterministic (low priority)",
+      "updatedAt": "2026-06-06T17:12:06Z",
+      "url": "https://github.com/malpern/KeyPath/issues/121",
+      "dashboardStatus": "deferred"
+    },
+    {
+      "labels": [
+        "kanata",
+        "post-release"
+      ],
+      "number": 114,
+      "title": "Kanata: Add virtual key press/release variants",
+      "updatedAt": "2026-06-06T17:11:15Z",
+      "url": "https://github.com/malpern/KeyPath/issues/114",
+      "dashboardStatus": "deferred"
+    },
+    {
+      "labels": [
+        "kanata",
+        "post-release"
+      ],
+      "number": 113,
+      "title": "Kanata: Add advanced one-shot variants support",
+      "updatedAt": "2026-06-06T17:11:16Z",
+      "url": "https://github.com/malpern/KeyPath/issues/113",
+      "dashboardStatus": "deferred"
+    },
+    {
+      "labels": [
+        "kanata",
+        "post-release"
+      ],
+      "number": 110,
+      "title": "Kanata: Add advanced macro timing and macro-repeat",
+      "updatedAt": "2026-06-06T17:11:18Z",
+      "url": "https://github.com/malpern/KeyPath/issues/110",
+      "dashboardStatus": "deferred"
+    },
+    {
+      "labels": [
+        "kanata",
+        "post-release"
+      ],
+      "number": 109,
+      "title": "Kanata: Add deftemplate and deflayermap support",
+      "updatedAt": "2026-06-06T17:11:19Z",
+      "url": "https://github.com/malpern/KeyPath/issues/109",
+      "dashboardStatus": "deferred"
+    },
+    {
+      "labels": [
+        "kanata",
+        "post-release"
+      ],
+      "number": 107,
+      "title": "TCP: Handle chord/tap-dance resolution events",
+      "updatedAt": "2026-06-06T17:11:21Z",
+      "url": "https://github.com/malpern/KeyPath/issues/107",
+      "dashboardStatus": "deferred"
+    },
+    {
+      "labels": [
+        "kanata",
+        "post-release"
+      ],
+      "number": 105,
+      "title": "Kanata: Add sequences (defseq) UI support",
+      "updatedAt": "2026-06-06T17:11:22Z",
+      "url": "https://github.com/malpern/KeyPath/issues/105",
+      "dashboardStatus": "deferred"
+    },
+    {
+      "labels": [
+        "post-release",
+        "research"
+      ],
+      "number": 63,
+      "title": "Per-keyboard rule targeting (Karabiner-like) \u2014 device-aware predicates for switch/actions",
+      "updatedAt": "2026-06-06T17:11:57Z",
+      "url": "https://github.com/malpern/KeyPath/issues/63",
+      "dashboardStatus": "deferred"
+    }
+  ]
+}
