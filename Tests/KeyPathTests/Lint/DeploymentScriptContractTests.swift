@@ -92,6 +92,20 @@ final class DeploymentScriptContractTests: XCTestCase {
         )
     }
 
+    func testReleaseBuildReadsVersionMetadataFromPlistPaths() throws {
+        let root = repositoryRoot()
+        let buildAndSign = try contents(of: root.appendingPathComponent("Scripts/build-and-sign.sh"))
+
+        XCTAssertTrue(
+            buildAndSign.contains(#"PlistBuddy -c "Print :CFBundleVersion" "$CONTENTS/Info.plist""#),
+            "Release metadata must read the assembled app plist as a file path."
+        )
+        XCTAssertFalse(
+            buildAndSign.contains(#"defaults read "$CONTENTS/Info""#),
+            "A relative path passed to defaults is interpreted as a preferences domain and falls back to build 0."
+        )
+    }
+
     func testQuickDeployPreservesBuildFailureDiagnostics() throws {
         let root = repositoryRoot()
         let quickDeploy = try contents(of: root.appendingPathComponent("Scripts/quick-deploy.sh"))

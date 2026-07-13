@@ -27,9 +27,9 @@ create_sparkle_archive() {
 
     # Extract version from Info.plist
     local VERSION
-    VERSION=$(defaults read "$CONTENTS/Info" CFBundleShortVersionString 2>/dev/null || echo "1.0.0")
+    VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$CONTENTS/Info.plist" 2>/dev/null || echo "1.0.0")
     local BUILD
-    BUILD=$(defaults read "$CONTENTS/Info" CFBundleVersion 2>/dev/null || echo "1")
+    BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$CONTENTS/Info.plist" 2>/dev/null || echo "1")
     local ARCHIVE_NAME="KeyPath-${VERSION}.zip"
     local SPARKLE_DIR="${DIST_DIR}/sparkle"
 
@@ -279,7 +279,7 @@ MACOS="${CONTENTS}/MacOS"
 	# Inject the main app's version into "Kanata Engine.app" so the bundle version
 	# stays in sync across releases (the source plist uses placeholder values).
 	_MAIN_VER=$(defaults read "$SCRIPT_DIR/../Sources/KeyPathApp/Info" CFBundleShortVersionString 2>/dev/null || echo "1.0")
-	_MAIN_BUILD=$(defaults read "$SCRIPT_DIR/../Sources/KeyPathApp/Info" CFBundleVersion 2>/dev/null || echo "1")
+	_MAIN_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$SCRIPT_DIR/../Sources/KeyPathApp/Info.plist" 2>/dev/null || echo "1")
 	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $_MAIN_VER" "$KANATA_ENGINE_CONTENTS/Info.plist"
 	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $_MAIN_BUILD" "$KANATA_ENGINE_CONTENTS/Info.plist"
 
@@ -413,8 +413,8 @@ echo "APPL????" > "$CONTENTS/PkgInfo"
 echo "🧾 Writing BuildInfo.plist..."
 GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-CFVER=$(defaults read "$CONTENTS/Info" CFBundleShortVersionString 2>/dev/null || echo "1.0.0")
-CFBUILD=$(defaults read "$CONTENTS/Info" CFBundleVersion 2>/dev/null || echo "0")
+CFVER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$CONTENTS/Info.plist" 2>/dev/null || echo "1.0.0")
+CFBUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$CONTENTS/Info.plist" 2>/dev/null || echo "0")
 cat > "$RESOURCES/BuildInfo.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
