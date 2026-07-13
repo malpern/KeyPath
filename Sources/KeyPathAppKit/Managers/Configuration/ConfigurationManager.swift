@@ -10,17 +10,9 @@ final class ConfigurationManager {
     let configDirectory: String
 
     private let configurationService: ConfigurationService
-    private let configBackupManager: ConfigBackupManager
-    private let configFileWatcher: ConfigFileWatcher?
 
-    init(
-        configurationService: ConfigurationService,
-        configBackupManager: ConfigBackupManager,
-        configFileWatcher: ConfigFileWatcher?
-    ) {
+    init(configurationService: ConfigurationService) {
         self.configurationService = configurationService
-        self.configBackupManager = configBackupManager
-        self.configFileWatcher = configFileWatcher
 
         configPath = configurationService.configurationPath
         configDirectory = configurationService.configDirectory
@@ -61,125 +53,6 @@ final class ConfigurationManager {
         // Use CLI validation (TCP-only mode)
         AppLogger.shared.log("📄 [ConfigManager] Using file-based validation")
         return await configurationService.validateConfigViaFile()
-    }
-
-    func validateConfiguration(_ content: String) async -> (isValid: Bool, errors: [String]) {
-        await configurationService.validateConfiguration(content)
-    }
-
-    func writeGeneratedConfig(_ content: String) async throws -> [KeyMapping] {
-        AppLogger.shared.log("💾 [ConfigManager] Writing generated configuration")
-
-        // Suppress file watcher to prevent double reload from our own write
-        configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal writeGeneratedConfig")
-
-        // Validate before saving
-        AppLogger.shared.log("🔍 [ConfigManager] Validating generated config before save...")
-        let validation = await validateConfiguration(content)
-
-        if !validation.isValid {
-            AppLogger.shared.log(
-                "❌ [ConfigManager] Generated config validation failed: \(validation.errors.joined(separator: ", "))"
-            )
-            throw KeyPathError.configuration(.validationFailed(errors: validation.errors))
-        }
-
-        AppLogger.shared.log("✅ [ConfigManager] Generated config validation passed")
-
-        // Backup current config before making changes
-        await backupCurrentConfig()
-
-        // Ensure config directory exists
-        let configDirectoryURL = URL(fileURLWithPath: configDirectory)
-        try Foundation.FileManager().createDirectory(
-            at: configDirectoryURL, withIntermediateDirectories: true
-        )
-
-        // Write the configuration file
-        let configURL = URL(fileURLWithPath: configPath)
-        try content.write(to: configURL, atomically: true, encoding: .utf8)
-
-        AppLogger.shared.log("✅ [ConfigManager] Generated configuration saved to \(configPath)")
-
-        // Parse the saved config to return mappings
-        return parseConfig(content)
-    }
-
-    func writeValidatedConfig(_ content: String) async throws {
-        AppLogger.shared.log("📡 [ConfigManager] Saving validated config (TCP-only mode)")
-
-        let configDir = URL(fileURLWithPath: configDirectory)
-        try Foundation.FileManager().createDirectory(at: configDir, withIntermediateDirectories: true)
-        AppLogger.shared.log("🔍 [ConfigManager] Config directory created/verified: \(configDirectory)")
-
-        let configURL = URL(fileURLWithPath: configPath)
-
-        // Check if file exists before writing
-        let fileExists = Foundation.FileManager().fileExists(atPath: configPath)
-        AppLogger.shared.log("🔍 [ConfigManager] Config file exists before write: \(fileExists)")
-
-        // Write the config
-        try content.write(to: configURL, atomically: true, encoding: .utf8)
-        AppLogger.shared.log("✅ [ConfigManager] Config written to file successfully")
-
-        // Get modification time after write
-        let afterAttributes = try Foundation.FileManager().attributesOfItem(atPath: configPath)
-        let afterModTime = afterAttributes[Foundation.FileAttributeKey.modificationDate] as? Date
-        let fileSize = afterAttributes[Foundation.FileAttributeKey.size] as? Int ?? 0
-        AppLogger.shared.log(
-            "🔍 [ConfigManager] Modification time after write: \(afterModTime?.description ?? "unknown")"
-        )
-        AppLogger.shared.log("🔍 [ConfigManager] File size: \(fileSize) bytes")
-
-        // Post-save validation: verify the file was saved correctly
-        AppLogger.shared.log("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION BEGIN ==========")
-        AppLogger.shared.log("🔍 [Validation-PostSave] Validating saved config at: \(configPath)")
-
-        do {
-            let savedContent = try String(contentsOfFile: configPath, encoding: .utf8)
-            AppLogger.shared.log(
-                "📖 [Validation-PostSave] Successfully read saved file (\(savedContent.count) characters)"
-            )
-
-            let postSaveStart = Date()
-            let postSaveValidation = await validateConfiguration(savedContent)
-            let postSaveDuration = Date().timeIntervalSince(postSaveStart)
-            AppLogger.shared.log(
-                "⏱️ [Validation-PostSave] Validation completed in \(String(format: "%.3f", postSaveDuration)) seconds"
-            )
-
-            if postSaveValidation.isValid {
-                AppLogger.shared.info("✅ [Validation-PostSave] Post-save validation PASSED")
-                AppLogger.shared.info("✅ [Validation-PostSave] Config saved and verified successfully")
-            } else {
-                AppLogger.shared.error("❌ [Validation-PostSave] Post-save validation FAILED")
-                AppLogger.shared.error(
-                    "❌ [Validation-PostSave] Found \(postSaveValidation.errors.count) errors:"
-                )
-                for (index, error) in postSaveValidation.errors.enumerated() {
-                    AppLogger.shared.log("   Error \(index + 1): \(error)")
-                }
-                AppLogger.shared.debug(
-                    "🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END =========="
-                )
-                throw KeyPathError.configuration(.validationFailed(errors: postSaveValidation.errors))
-            }
-        } catch {
-            AppLogger.shared.error("❌ [Validation-PostSave] Failed to read saved config: \(error)")
-            AppLogger.shared.error("❌ [Validation-PostSave] Error type: \(type(of: error))")
-            AppLogger.shared.debug(
-                "🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END =========="
-            )
-            throw error
-        }
-
-        AppLogger.shared.debug("🔍 [Validation-PostSave] ========== POST-SAVE VALIDATION END ==========")
-    }
-
-    func loadExistingMappings() async -> [KeyMapping] {
-        // Deprecated: Use ensureValidStartupConfig instead
-        let result = await ensureValidStartupConfig()
-        return result.mappings
     }
 
     /// Ensures a valid configuration exists on startup, handling invalid configs by backing them up and resetting to default
@@ -262,27 +135,6 @@ final class ConfigurationManager {
         return backupPath
     }
 
-    func saveConfiguration(mappings: [KeyMapping]) async throws {
-        AppLogger.shared.log("💾 [ConfigManager] Saving configuration with \(mappings.count) mappings")
-
-        // Suppress file watcher to prevent double reload from our own write
-        configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveConfiguration")
-
-        // Backup current config before making changes
-        await backupCurrentConfig()
-
-        // Delegate to ConfigurationService for saving
-        try await configurationService.saveConfiguration(keyMappings: mappings)
-        AppLogger.shared.log(
-            "💾 [ConfigManager] Config saved with \(mappings.count) mappings via ConfigurationService"
-        )
-    }
-
-    func backupCurrentConfig() async {
-        AppLogger.shared.log("💾 [ConfigManager] Creating backup of current config")
-        _ = configBackupManager.createPreEditBackup()
-    }
-
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws -> String {
         // Delegate to ConfigurationService for backup and safe config application
         try await configurationService.backupFailedConfigAndApplySafe(
@@ -345,17 +197,6 @@ final class ConfigurationManager {
         }
     }
 
-    func parseConfig(_ content: String) -> [KeyMapping] {
-        // Delegate to ConfigurationService for parsing
-        do {
-            let config = try configurationService.parseConfigurationFromString(content)
-            return config.keyMappings
-        } catch {
-            AppLogger.shared.log("⚠️ [ConfigManager] Failed to parse config: \(error)")
-            return []
-        }
-    }
-
     func generateConfig(mappings: [KeyMapping]) -> String {
         guard !mappings.isEmpty else {
             // Return default config with caps->esc if no mappings
@@ -364,13 +205,5 @@ final class ConfigurationManager {
         }
 
         return KanataConfiguration.generateFromMappings(mappings)
-    }
-
-    func generateConfig(ruleCollections: [RuleCollection]) -> String {
-        let mappings = ruleCollections.enabledMappings()
-        if mappings.isEmpty {
-            return generateConfig(mappings: [])
-        }
-        return KanataConfiguration.generateFromCollections(ruleCollections)
     }
 }
