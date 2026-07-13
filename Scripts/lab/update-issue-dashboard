@@ -9,21 +9,17 @@ import shutil
 import subprocess
 
 
-EXCLUDED = {172, 740, 747, 919}
-ACTIVE = {848}
-NEXT = set()
 ISSUE_LIMIT = 200
 RECENTLY_CLOSED_LIMIT = 10
 
 
 def issue_status(issue: dict) -> str:
-    number = issue["number"]
     labels = {label["name"] for label in issue.get("labels", [])}
-    if number in ACTIVE:
-        return "active"
-    if number in NEXT:
-        return "next"
-    if number in EXCLUDED or "human-in-loop" in labels or "wwdc26" in labels:
+    # Explicit execution state outranks work type and required operator. Topic
+    # labels such as `wwdc26` do not imply that an issue is active or human-gated.
+    if labels & {"on-hold", "tracking-only"}:
+        return "deferred"
+    if "human-in-loop" in labels:
         return "human"
     if "large-refactor" in labels:
         return "deferred"

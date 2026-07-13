@@ -19,17 +19,17 @@ def issue(number: int, *labels: str) -> dict:
 
 
 class IssueDashboardTests(unittest.TestCase):
-    def test_active_and_next_override_general_labels(self) -> None:
-        self.assertEqual(module.issue_status(issue(748, "tech-debt")), "active")
-        self.assertEqual(module.issue_status(issue(848, "testing", "agent-ok")), "next")
-
     def test_upstream_release_wait_is_human_gated(self) -> None:
         self.assertEqual(module.issue_status(issue(982, "bug-risk", "human-in-loop")), "human")
 
-    def test_explicitly_deferred_issues_are_human_gated(self) -> None:
-        for number in (172, 740, 747, 919):
-            with self.subTest(number=number):
-                self.assertEqual(module.issue_status(issue(number, "agent-ok")), "human")
+    def test_on_hold_and_tracking_labels_override_work_type(self) -> None:
+        self.assertEqual(module.issue_status(issue(982, "human-in-loop", "on-hold")), "deferred")
+        self.assertEqual(module.issue_status(issue(604, "testing", "tracking-only")), "deferred")
+        self.assertEqual(module.issue_status(issue(865, "enhancement", "tracking-only", "on-hold")), "deferred")
+
+    def test_topic_labels_do_not_imply_execution_state(self) -> None:
+        self.assertEqual(module.issue_status(issue(912, "wwdc26", "enhancement")), "feature")
+        self.assertEqual(module.issue_status(issue(919, "wwdc26", "human-in-loop")), "human")
 
     def test_features_do_not_enter_agent_bug_queue(self) -> None:
         self.assertEqual(module.issue_status(issue(870, "Feature", "agent-ok")), "feature")
