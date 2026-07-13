@@ -914,6 +914,13 @@ html&gt;body{padding:0}&lt;/style&gt;
   &lt;script&gt;
     (() =&gt; {
       const root = document.getElementById(&#x27;keypath-defrag-progress&#x27;);
+      window.addEventListener(&#x27;error&#x27;, (event) =&gt; {
+        const task = root?.querySelector(&#x27;#keypath-live-task&#x27;);
+        const message = root?.querySelector(&#x27;#keypath-live-message&#x27;);
+        root?.querySelector(&#x27;#keypath-live-dot&#x27;)?.classList.add(&#x27;offline&#x27;);
+        if (task) task.textContent = &#x27;Dashboard initialization failed&#x27;;
+        if (message) message.textContent = event.error?.message || event.message || &#x27;Unknown JavaScript error&#x27;;
+      });
       const items = [
         [&#x27;L01&#x27;,&#x27;proven&#x27;,&#x27;Immutable source bundle&#x27;,&#x27;A full commit and signed artifact are bound to every lease.&#x27;],
         [&#x27;L02&#x27;,&#x27;proven&#x27;,&#x27;Artifact checksum&#x27;,&#x27;Installer SHA-256 is recorded and verified.&#x27;],
@@ -944,7 +951,7 @@ html&gt;body{padding:0}&lt;/style&gt;
         [&#x27;R02&#x27;,&#x27;active&#x27;,&#x27;Kanata Input Monitoring&#x27;,&#x27;Grant and independently verify live capture permission.&#x27;],
         [&#x27;R03&#x27;,&#x27;active&#x27;,&#x27;Runtime convergence&#x27;,&#x27;Require Kanata running without forgiving product retries.&#x27;],
         [&#x27;R04&#x27;,&#x27;active&#x27;,&#x27;TCP readiness&#x27;,&#x27;Require a response on 127.0.0.1:37001.&#x27;],
-        [&#x27;P01&#x27;,&#x27;proven&#x27;,&#x27;RFB capture physics&#x27;,&#x27;Lease-owned RFB keys reach KeyPath&#x27;s intended user-session input host.&#x27;],
+        [&#x27;P01&#x27;,&#x27;proven&#x27;,&#x27;RFB capture physics&#x27;,&#x27;Lease-owned RFB keys reach KeyPath\&#x27;s intended user-session input host.&#x27;],
         [&#x27;P02&#x27;,&#x27;active&#x27;,&#x27;Virtual output physics&#x27;,&#x27;Prove the activated driver emits observable remapped output.&#x27;],
         [&#x27;P03&#x27;,&#x27;queued&#x27;,&#x27;Overlay observation&#x27;,&#x27;Capture overlay state and input-event evidence.&#x27;],
         [&#x27;P04&#x27;,&#x27;queued&#x27;,&#x27;First remap proof&#x27;,&#x27;Measure launch-to-confirmed-remap success.&#x27;],
@@ -1093,13 +1100,14 @@ html&gt;body{padding:0}&lt;/style&gt;
       };
       const poll = async () =&gt; {
         try {
-          const response = await fetch(`keypath-test-automation-state.json?t=${Date.now()}`, {cache:&#x27;no-store&#x27;});
+          const stateURL = new URL(`keypath-test-automation-state.json?t=${Date.now()}`, window.parent.location.href);
+          const response = await fetch(stateURL, {cache:&#x27;no-store&#x27;});
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           applyState(await response.json());
-        } catch (_) {
+        } catch (error) {
           liveDot.className = &#x27;live-dot offline&#x27;;
           liveTask.textContent = &#x27;Live feed unavailable&#x27;;
-          liveMessage.textContent = &#x27;Open this dashboard through the local progress server to receive updates.&#x27;;
+          liveMessage.textContent = error instanceof Error ? error.message : &#x27;Open this dashboard through the local progress server to receive updates.&#x27;;
           liveTime.textContent = &#x27;Offline&#x27;;
         }
       };

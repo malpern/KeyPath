@@ -275,7 +275,7 @@
         }));
       };
       const poll = async () => {
-        try { const response=await fetch(`keypath-github-issues-state.json?t=${Date.now()}`,{cache:'no-store'}); if(!response.ok) throw new Error(); render(await response.json()); }
+        try { const stateURL=new URL(`keypath-github-issues-state.json?t=${Date.now()}`,window.parent.location.href); const response=await fetch(stateURL,{cache:'no-store'}); if(!response.ok) throw new Error(); render(await response.json()); }
         catch (_) { root.querySelector('#issues-updated').textContent='GitHub feed offline'; }
       };
       poll(); window.setInterval(poll,60000);

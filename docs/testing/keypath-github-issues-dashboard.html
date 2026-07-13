@@ -1025,7 +1025,7 @@ html&gt;body{padding:0}&lt;/style&gt;
         }));
       };
       const poll = async () =&gt; {
-        try { const response=await fetch(`keypath-github-issues-state.json?t=${Date.now()}`,{cache:&#x27;no-store&#x27;}); if(!response.ok) throw new Error(); render(await response.json()); }
+        try { const stateURL=new URL(`keypath-github-issues-state.json?t=${Date.now()}`,window.parent.location.href); const response=await fetch(stateURL,{cache:&#x27;no-store&#x27;}); if(!response.ok) throw new Error(); render(await response.json()); }
         catch (_) { root.querySelector(&#x27;#issues-updated&#x27;).textContent=&#x27;GitHub feed offline&#x27;; }
       };
       poll(); window.setInterval(poll,60000);
