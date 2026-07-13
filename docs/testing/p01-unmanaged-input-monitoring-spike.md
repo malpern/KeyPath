@@ -51,9 +51,11 @@ Capture-proof artifacts are retained at:
 
 ## Separate legacy-runtime limitation
 
-The actual input consumer is
-`/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher`. The
-following supported unmanaged paths did not create its Input Monitoring row:
+The legacy recovery runtime still launches
+`/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher` directly.
+It is not the intended healthy-install capture identity proven by P01. The
+following supported unmanaged paths did not create a permission row for that
+legacy executable:
 
 - System Settings Add and the native open panel: the raw executable is filtered
   and Open remains unavailable.
