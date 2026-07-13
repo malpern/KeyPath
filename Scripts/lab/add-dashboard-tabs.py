@@ -31,6 +31,15 @@ def main() -> None:
     )
     document = document.replace("</style>", styles + "</style>", 1)
     document = document.replace("<body>", "<body>" + tabs, 1)
+    if args.active == "issues":
+        navigation = (
+            "<script>const dashboardFrame=document.querySelector('iframe');window.addEventListener('message',event=>{"
+            "if(event.source!==dashboardFrame.contentWindow||event.data?.type!=='keypath-issue-navigation')return;"
+            "const url=String(event.data.url||'');"
+            "if(/^https:\\/\\/github\\.com\\/malpern\\/KeyPath\\/issues\\/\\d+$/.test(url))window.location.href=url;"
+            "});</script>"
+        )
+        document = document.replace("</body>", navigation + "</body>", 1)
     args.page.write_text(document)
 
 

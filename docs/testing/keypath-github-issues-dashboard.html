@@ -793,6 +793,8 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-issue-board .issue[data-status=&quot;human&quot;] { background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--viz-series-5) 55%,var(--card)) 0 7px,color-mix(in srgb,var(--viz-series-5) 35%,var(--card)) 7px 11px); }
     #keypath-issue-board .issue[data-status=&quot;feature&quot;],#keypath-issue-board .issue[data-status=&quot;deferred&quot;] { background:var(--muted); color:var(--muted-foreground); }
     #keypath-issue-board .issue:hover,#keypath-issue-board .issue:focus-visible { filter:brightness(1.15); transform:translateY(-2px); border-color:var(--ring); z-index:1; }
+    #keypath-issue-board .issue.is-selected { border-color:var(--foreground); box-shadow:inset 0 0 0 1px var(--foreground); transform:translateY(-1px); }
+    #keypath-issue-board .issue.is-selected[data-status=&quot;active&quot;] { animation:none; }
     #keypath-issue-board .issue[data-status=&quot;active&quot;] { animation:issue-pulse 1.6s ease-in-out infinite; }
     @keyframes issue-pulse { 0%,100% { box-shadow:0 0 0 0 transparent; } 50% { box-shadow:0 0 0 2px var(--viz-series-2); } }
     #keypath-issue-board .readout { min-height:70px; margin-top:12px; padding-top:11px; border-top:1px solid var(--border); display:grid; grid-template-columns:minmax(0,1fr) auto; gap:16px; }
@@ -890,6 +892,22 @@ html&gt;body{padding:0}&lt;/style&gt;
       const link = root.querySelector(&#x27;#issue-link&#x27;);
       let detailTimer;
       let highlightTimer;
+      let clickTimer;
+      let selectedButton;
+      let selectedIssue;
+      const resetReadout = () =&gt; {
+        title.textContent = &#x27;Select an issue&#x27;;
+        detail.textContent = &#x27;The map is ordered active → next → agent queue → human-gated → features and deferred work.&#x27;;
+        labels.replaceChildren();
+        link.href = &#x27;https://github.com/malpern/KeyPath/issues&#x27;;
+        link.textContent = &#x27;Open GitHub&#x27;;
+      };
+      const showIssue = issue =&gt; {
+        title.textContent = `#${issue.number} · ${issue.title}`;
+        detail.textContent = names[issue.dashboardStatus];
+        labels.replaceChildren(...issue.labels.map(value =&gt; { const badge=document.createElement(&#x27;span&#x27;); badge.className=&#x27;label&#x27;; badge.textContent=value; return badge; }));
+        link.href = issue.url; link.textContent = `Open #${issue.number}`;
+      };
       root.querySelectorAll(&#x27;.type-filter&#x27;).forEach(filter =&gt; {
         const highlight = () =&gt; { clearTimeout(highlightTimer); highlightTimer = setTimeout(() =&gt; { grid.dataset.highlightType = filter.dataset.type; }, 120); };
         const clearHighlight = () =&gt; { clearTimeout(highlightTimer); grid.removeAttribute(&#x27;data-highlight-type&#x27;); };
@@ -911,15 +929,38 @@ html&gt;body{padding:0}&lt;/style&gt;
           button.dataset.type = issue.dashboardType || &#x27;other&#x27;;
           button.textContent = `#${issue.number}`;
           button.setAttribute(&#x27;aria-label&#x27;,`#${issue.number} · ${typeNames[button.dataset.type]} · ${names[issue.dashboardStatus]} — ${issue.title}`);
-          const select = () =&gt; {
-            title.textContent = `#${issue.number} · ${issue.title}`;
-            detail.textContent = names[issue.dashboardStatus];
-            labels.replaceChildren(...issue.labels.map(value =&gt; { const badge=document.createElement(&#x27;span&#x27;); badge.className=&#x27;label&#x27;; badge.textContent=value; return badge; }));
-            link.href = issue.url; link.textContent = `Open #${issue.number}`;
+          button.setAttribute(&#x27;aria-pressed&#x27;,&#x27;false&#x27;);
+          const toggleSelection = () =&gt; {
+            if (selectedButton === button) {
+              button.classList.remove(&#x27;is-selected&#x27;);
+              button.setAttribute(&#x27;aria-pressed&#x27;,&#x27;false&#x27;);
+              selectedButton = undefined;
+              selectedIssue = undefined;
+              resetReadout();
+              return;
+            }
+            if (selectedButton) {
+              selectedButton.classList.remove(&#x27;is-selected&#x27;);
+              selectedButton.setAttribute(&#x27;aria-pressed&#x27;,&#x27;false&#x27;);
+            }
+            selectedButton = button;
+            selectedIssue = issue;
+            button.classList.add(&#x27;is-selected&#x27;);
+            button.setAttribute(&#x27;aria-pressed&#x27;,&#x27;true&#x27;);
+            showIssue(issue);
           };
-          button.addEventListener(&#x27;mouseenter&#x27;,() =&gt; { clearTimeout(detailTimer); detailTimer = setTimeout(select,280); });
-          button.addEventListener(&#x27;mouseleave&#x27;,() =&gt; clearTimeout(detailTimer));
-          button.addEventListener(&#x27;focus&#x27;,select); button.addEventListener(&#x27;click&#x27;,select);
+          button.addEventListener(&#x27;mouseenter&#x27;,() =&gt; { clearTimeout(detailTimer); detailTimer = setTimeout(() =&gt; showIssue(issue),280); });
+          button.addEventListener(&#x27;mouseleave&#x27;,() =&gt; { clearTimeout(detailTimer); selectedIssue ? showIssue(selectedIssue) : resetReadout(); });
+          button.addEventListener(&#x27;focus&#x27;,() =&gt; showIssue(issue));
+          button.addEventListener(&#x27;click&#x27;,event =&gt; {
+            clearTimeout(clickTimer);
+            if (event.detail === 0) toggleSelection();
+            else clickTimer = setTimeout(toggleSelection,220);
+          });
+          button.addEventListener(&#x27;dblclick&#x27;,() =&gt; {
+            clearTimeout(clickTimer);
+            window.parent.postMessage({type:&#x27;keypath-issue-navigation&#x27;,url:issue.url},&#x27;*&#x27;);
+          });
           return button;
         }));
         const recent = [...state.issues].sort((a,b) =&gt; b.updatedAt.localeCompare(a.updatedAt)).slice(0,10);
@@ -1182,5 +1223,5 @@ html&gt;body{padding:0}&lt;/style&gt;
 &lt;/body&gt;
 &lt;/html&gt;
 "></iframe>
-</body>
+<script>const dashboardFrame=document.querySelector('iframe');window.addEventListener('message',event=>{if(event.source!==dashboardFrame.contentWindow||event.data?.type!=='keypath-issue-navigation')return;const url=String(event.data.url||'');if(/^https:\/\/github\.com\/malpern\/KeyPath\/issues\/\d+$/.test(url))window.location.href=url;});</script></body>
 </html>
