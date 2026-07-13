@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+"""Write validated, machine-readable outcomes for KeyPath lab scenarios."""
+
+import argparse
+import datetime
+import json
+import pathlib
+import sys
+
+
+CLASSIFICATIONS = (
+    "keypath-product-failure",
+    "harness-selector-failure",
+    "harness-transport-failure",
+    "provider-failure",
+    "unsupported-os-selector",
+    "environment-precondition-failure",
+)
+
+
+def write_result(args: argparse.Namespace) -> None:
+    if args.status == "passed" and args.classification:
+        raise ValueError("a passed result cannot have a failure classification")
+    if args.status != "passed" and not args.classification:
+        raise ValueError("a non-passing result requires --classification")
+    if args.status != "passed" and not args.step:
+        raise ValueError("a non-passing result requires --step")
+
+    result = {
+        "schemaVersion": 1,
+        "scenario": args.scenario,
+        "status": args.status,
+        "summary": args.summary,
+        "recordedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "evidence": args.evidence,
+    }
+    if args.classification:
+        result["failure"] = {
+            "classification": args.classification,
+            "step": args.step,
+            "message": args.message or args.summary,
+        }
+
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(result, indent=2) + "\n")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    record = commands.add_parser("record", help="record one validated scenario outcome")
+    record.add_argument("--output", required=True, type=pathlib.Path)
+    record.add_argument("--scenario", required=True)
+    record.add_argument("--status", required=True, choices=("passed", "failed", "blocked"))
+    record.add_argument("--summary", required=True)
+    record.add_argument("--classification", choices=CLASSIFICATIONS)
+    record.add_argument("--step")
+    record.add_argument("--message")
+    record.add_argument("--evidence", action="append", default=[])
+
+    selector = commands.add_parser(
+        "selector-self-test",
+        help="record a deliberate selector mismatch as a harness failure",
+    )
+    selector.add_argument("--output", required=True, type=pathlib.Path)
+    selector.add_argument("--scenario", default="failure-ownership-self-test")
+
+    args = parser.parse_args()
+    try:
+        if args.command == "selector-self-test":
+            args.status = "failed"
+            args.summary = "Deliberate missing selector was classified as a harness failure."
+            args.classification = "harness-selector-failure"
+            args.step = "intentional-selector-mismatch"
+            args.message = "The target accessibility identifier was intentionally absent."
+            args.evidence = []
+        write_result(args)
+    except ValueError as error:
+        parser.error(str(error))
+
+
+if __name__ == "__main__":
+    main()
