@@ -33,13 +33,11 @@ LOG="${KEYPATH_TEST_LOG:-$PROJECT_DIR/test_output.safe.txt}"
 BUILD_LOG="${KEYPATH_TEST_BUILD_LOG:-$LOG.build}"
 EXTRA_SWIFT_TEST_ARGS="${SWIFT_TEST_ARGS:-}"
 SWIFT_BUILD_JOBS="${KEYPATH_SWIFT_BUILD_JOBS:-}"
-SWIFT_BUILD_JOB_ARGS=()
 if [ -n "$SWIFT_BUILD_JOBS" ]; then
   [[ "$SWIFT_BUILD_JOBS" =~ ^[1-9][0-9]*$ ]] || {
     echo "❌ KEYPATH_SWIFT_BUILD_JOBS must be a positive integer" >&2
     exit 2
   }
-  SWIFT_BUILD_JOB_ARGS=(--jobs "$SWIFT_BUILD_JOBS")
 fi
 
 echo "🧪 Running tests via swift test with safety guards..."
@@ -447,7 +445,11 @@ if [ "$TEST_PREBUILD" = "0" ]; then
   echo "⏭️  Skipping separate swift build --build-tests step"
   BUILD_EXIT_CODE=0
 else
-  swift build --disable-automatic-resolution --build-tests --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}" "${SWIFT_BUILD_JOB_ARGS[@]}" 2>&1 | tee "$BUILD_LOG"
+  SWIFT_BUILD_COMMAND=(swift build --disable-automatic-resolution --build-tests --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}")
+  if [ -n "$SWIFT_BUILD_JOBS" ]; then
+    SWIFT_BUILD_COMMAND+=(--jobs "$SWIFT_BUILD_JOBS")
+  fi
+  "${SWIFT_BUILD_COMMAND[@]}" 2>&1 | tee "$BUILD_LOG"
   BUILD_EXIT_CODE="${PIPESTATUS[0]}"
 fi
 set -e
@@ -482,7 +484,10 @@ TEST_START_SECONDS="$(date +%s)"
 (
   set +e
   set -o pipefail
-  SWIFT_TEST_COMMAND=(swift test --disable-automatic-resolution --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}" "${SWIFT_BUILD_JOB_ARGS[@]}")
+  SWIFT_TEST_COMMAND=(swift test --disable-automatic-resolution --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}")
+  if [ -n "$SWIFT_BUILD_JOBS" ]; then
+    SWIFT_TEST_COMMAND+=(--jobs "$SWIFT_BUILD_JOBS")
+  fi
   if [ "$TEST_PREBUILD" != "0" ]; then
     SWIFT_TEST_COMMAND+=(--skip-build)
   fi
