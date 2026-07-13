@@ -98,6 +98,25 @@ final class W6DeletionPassLintTests: XCTestCase {
         )
     }
 
+    func testConfigurationManagerDoesNotRegrowSavePipeline() throws {
+        let managerFile = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/Configuration/ConfigurationManager.swift")
+
+        let violations = try matchingLines(
+            in: managerFile,
+            patterns: [
+                #"func\s+writeGeneratedConfig\b"#,
+                #"func\s+writeValidatedConfig\b"#,
+                #"func\s+saveConfiguration\b"#,
+            ]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            "ConfigurationManager owns startup and file utilities, not an alternate save/write pipeline:\n\(violations.sorted().joined(separator: "\n"))"
+        )
+    }
+
     func testDiagnosticsManagerSingleImplementationProtocolDoesNotRegrow() throws {
         let managerFile = repositoryRoot()
             .appendingPathComponent("Sources/KeyPathAppKit/Managers/Diagnostics/DiagnosticsManager.swift")

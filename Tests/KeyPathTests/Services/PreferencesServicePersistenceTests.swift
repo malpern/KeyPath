@@ -201,11 +201,7 @@ final class PreferencesServicePersistenceTests: XCTestCase {
             defer { try? FileManager.default.removeItem(at: tempDir) }
 
             let configService = ConfigurationService(configDirectory: tempDir.path)
-            let manager = ConfigurationManager(
-                configurationService: configService,
-                configBackupManager: ConfigBackupManager(configPath: configService.configurationPath),
-                configFileWatcher: nil
-            )
+            let manager = ConfigurationManager(configurationService: configService)
 
             let prefs = PreferencesService.shared
             let originalPort = prefs.tcpServerPort

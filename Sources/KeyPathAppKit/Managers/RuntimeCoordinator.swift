@@ -279,11 +279,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         serviceHealthMonitor = ServiceHealthMonitor(processLifecycle: lifecycleManager)
 
         // Initialize ConfigurationManager
-        configurationManager = ConfigurationManager(
-            configurationService: configurationService,
-            configBackupManager: configBackupManager,
-            configFileWatcher: configFileWatcher
-        )
+        configurationManager = ConfigurationManager(configurationService: configurationService)
 
         // Initialize DiagnosticsManager
         diagnosticsManager = DiagnosticsManager(
