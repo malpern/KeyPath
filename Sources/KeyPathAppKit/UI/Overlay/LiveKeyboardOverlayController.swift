@@ -179,7 +179,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         // Only restore if system is healthy
         Task { @MainActor in
             let health = await ServiceHealthChecker.shared.checkKanataServiceHealth()
-            if health.isRunning, health.isResponding {
+            if health.isReady {
                 isVisible = true
             } else {
                 AppLogger.shared.log("⚠️ [OverlayController] Skipping overlay restore - Kanata not ready")

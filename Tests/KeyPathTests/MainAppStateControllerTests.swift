@@ -356,7 +356,7 @@ struct MainAppStateControllerBehaviorTests {
                     if !isResponding {
                         observedNonRespondingProbe = true
                     }
-                    return KanataHealthSnapshot(
+                    return KanataRuntimeReadiness(
                         isRunning: true,
                         isResponding: isResponding
                     )
@@ -385,7 +385,7 @@ struct MainAppStateControllerBehaviorTests {
         #if DEBUG
             controller.configureStartupGateTestingState(
                 healthOverride: {
-                    KanataHealthSnapshot(isRunning: false, isResponding: false)
+                    KanataRuntimeReadiness(isRunning: false, isResponding: false)
                 },
                 transientWindowOverride: { false },
                 timingOverride: (
@@ -407,7 +407,7 @@ struct MainAppStateControllerBehaviorTests {
         #if DEBUG
             controller.configureStartupGateTestingState(
                 healthOverride: {
-                    KanataHealthSnapshot(isRunning: false, isResponding: false)
+                    KanataRuntimeReadiness(isRunning: false, isResponding: false)
                 },
                 transientWindowOverride: { true },
                 timingOverride: (
@@ -534,7 +534,7 @@ struct MainAppStateControllerBehaviorTests {
         #if DEBUG
             controller.configureStartupGateTestingState(
                 healthOverride: {
-                    KanataHealthSnapshot(isRunning: true, isResponding: true)
+                    KanataRuntimeReadiness(isRunning: true, isResponding: true)
                 },
                 transientWindowOverride: { false },
                 timingOverride: (
@@ -556,7 +556,7 @@ struct MainAppStateControllerBehaviorTests {
         #if DEBUG
             controller.configureStartupGateTestingState(
                 healthOverride: {
-                    KanataHealthSnapshot(isRunning: true, isResponding: true)
+                    KanataRuntimeReadiness(isRunning: true, isResponding: true)
                 },
                 transientWindowOverride: { false }
             )

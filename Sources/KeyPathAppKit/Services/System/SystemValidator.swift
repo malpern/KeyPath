@@ -769,9 +769,7 @@ public class SystemValidator {
         let kanataHealth = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot(
             tcpPort: PreferencesService.shared.tcpServerPort
         )
-        let kanataRunning = kanataHealth.isRunning
-            && kanataHealth.isResponding
-            && kanataHealth.inputCaptureReady
+        let kanataRunning = kanataHealth.readiness.isReady
         let kanataTCPConfigured = checkTCPConfiguration()
         let stderrDiagnosis = await ServiceHealthChecker.shared.diagnoseDaemonStderr()
         let configParseError = Self.effectiveConfigParseError(

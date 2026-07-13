@@ -128,14 +128,14 @@ class MainAppStateController {
 
     #if DEBUG
         @ObservationIgnored private var startupGateHealthOverride:
-            (() async -> KanataHealthSnapshot)?
+            (() async -> KanataRuntimeReadiness)?
         @ObservationIgnored private var startupGateTransientWindowOverride:
             (() async -> Bool)?
         @ObservationIgnored private var startupGateTimingOverride:
             (definitiveGrace: TimeInterval, transientGrace: TimeInterval, checkInterval: TimeInterval)?
 
         func configureStartupGateTestingState(
-            healthOverride: (() async -> KanataHealthSnapshot)? = nil,
+            healthOverride: (() async -> KanataRuntimeReadiness)? = nil,
             transientWindowOverride: (() async -> Bool)? = nil,
             timingOverride: (
                 definitiveGrace: TimeInterval,
@@ -777,7 +777,7 @@ class MainAppStateController {
         )
     }
 
-    private func currentKanataStartupHealth() async -> KanataHealthSnapshot {
+    private func currentKanataStartupHealth() async -> KanataRuntimeReadiness {
         #if DEBUG
             if let override = startupGateHealthOverride {
                 return await override()
