@@ -21,8 +21,10 @@ perl -0pi -e 's/sandbox="allow-scripts"/sandbox="allow-scripts allow-same-origin
 # The live app adds a development conversation rail beside the capability map.
 # Preserve the renderer's responsive wrapper while allowing the two-column view.
 perl -0pi -e 's/max-width:736px/max-width:1180px/g' "$OUTPUT"
+python3 "$SCRIPT_DIR/add-dashboard-tabs.py" "$OUTPUT" --active automation
 
 grep -Fq "connect-src 'self' blob: data:" "$OUTPUT"
 grep -Fq 'sandbox="allow-scripts allow-same-origin"' "$OUTPUT"
 grep -Fq 'max-width:1180px' "$OUTPUT"
+grep -Fq 'aria-current="page">Automation lab' "$OUTPUT"
 echo "$OUTPUT"

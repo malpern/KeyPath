@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd -P)
+REPO_ROOT=$(cd "$SCRIPT_DIR/../.." >/dev/null && pwd -P)
+FRAGMENT="$REPO_ROOT/docs/testing/keypath-github-issues-dashboard.fragment.html"
+RENDERER=${KEYPATH_VISUALIZE_RENDERER:-$HOME/.codex/plugins/cache/openai-bundled/visualize/1.0.11/skills/visualize/scripts/render.py}
+OUTPUT="$REPO_ROOT/docs/testing/keypath-github-issues-dashboard.html"
+
+"$SCRIPT_DIR/update-issue-dashboard"
+python3 "$RENDERER" "$FRAGMENT" "$OUTPUT"
+perl -0pi -e "s/connect-src blob: data:/connect-src 'self' blob: data:/g" "$OUTPUT"
+perl -0pi -e 's/sandbox="allow-scripts"/sandbox="allow-scripts allow-same-origin"/g' "$OUTPUT"
+perl -0pi -e 's/max-width:736px/max-width:1180px/g' "$OUTPUT"
+python3 "$SCRIPT_DIR/add-dashboard-tabs.py" "$OUTPUT" --active issues
+
+grep -Fq "connect-src 'self' blob: data:" "$OUTPUT"
+grep -Fq 'aria-current="page">GitHub issues' "$OUTPUT"
+echo "$OUTPUT"
