@@ -1,10 +1,9 @@
 {
   "repository": "malpern/KeyPath",
-  "updatedAt": "2026-07-13T03:16:24.461587+00:00",
+  "updatedAt": "2026-07-13T03:36:51.695028+00:00",
   "issueLimit": 200,
   "truncated": false,
   "counts": {
-    "active": 1,
     "next": 1,
     "queued": 16,
     "human": 23,
@@ -12,19 +11,6 @@
     "deferred": 15
   },
   "issues": [
-    {
-      "labels": [
-        "tech-debt",
-        "post-release"
-      ],
-      "number": 748,
-      "title": "Post-1.0: report helper and service freshness explicitly",
-      "updatedAt": "2026-07-13T03:16:22Z",
-      "url": "https://github.com/malpern/KeyPath/issues/748",
-      "dashboardStatus": "active",
-      "dashboardType": "debt",
-      "descriptionExcerpt": "Context Recent release-blocker work fixed stale SMAppService recovery for Kanata and the privileged helper. Runtime is healthy after the final signed/notarized build, but one observation remains ambiguous: launchd may keep an existing helper process alive\u2026"
-    },
     {
       "labels": [
         "tech-debt",
