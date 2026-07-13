@@ -821,6 +821,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-issue-board .activity-dot { width:7px; height:7px; margin-top:5px; border-radius:50%; background:var(--viz-series-1); }
     #keypath-issue-board .activity-row[data-status=&quot;active&quot;] .activity-dot { background:var(--viz-series-2); }
     #keypath-issue-board .activity-row[data-status=&quot;next&quot;] .activity-dot { background:var(--viz-series-3); }
+    #keypath-issue-board .activity-row[data-status=&quot;completed&quot;] .activity-dot { background:var(--viz-series-1); }
     #keypath-issue-board .activity-row strong { display:block; font:500 11px system-ui,sans-serif; }
     #keypath-issue-board .activity-row span { display:block; color:var(--muted-foreground); font:11px system-ui,sans-serif; }
     #keypath-issue-board .note { margin-top:11px; color:var(--muted-foreground); font:11px system-ui,sans-serif; }
@@ -892,7 +893,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   &lt;script&gt;
     (() =&gt; {
       const root = document.getElementById(&#x27;keypath-issue-board&#x27;);
-      const names = {active:&#x27;Active&#x27;,next:&#x27;Recommended next&#x27;,queued:&#x27;Agent queue&#x27;,human:&#x27;Human / external gate&#x27;,feature:&#x27;Feature deferred&#x27;,deferred:&#x27;Deferred&#x27;};
+      const names = {active:&#x27;Active&#x27;,next:&#x27;Recommended next&#x27;,queued:&#x27;Agent queue&#x27;,human:&#x27;Human / external gate&#x27;,feature:&#x27;Feature deferred&#x27;,deferred:&#x27;Deferred&#x27;,completed:&#x27;Completed&#x27;};
       const typeNames = {bug:&#x27;Bug&#x27;,testing:&#x27;Testing&#x27;,debt:&#x27;Technical debt&#x27;,feature:&#x27;Feature&#x27;,upstream:&#x27;Upstream / research&#x27;,docs:&#x27;Documentation / design&#x27;,other:&#x27;Other&#x27;};
       const grid = root.querySelector(&#x27;#issue-grid&#x27;);
       const title = root.querySelector(&#x27;#issue-title&#x27;);
@@ -1013,7 +1014,8 @@ html&gt;body{padding:0}&lt;/style&gt;
           });
           return button;
         }));
-        const recent = [...state.issues].sort((a,b) =&gt; b.updatedAt.localeCompare(a.updatedAt)).slice(0,10);
+        const recent = [...state.issues, ...(state.recentlyClosed || [])]
+          .sort((a,b) =&gt; b.updatedAt.localeCompare(a.updatedAt)).slice(0,10);
         root.querySelector(&#x27;#issue-activity&#x27;).replaceChildren(...recent.map(issue =&gt; {
           const row=document.createElement(&#x27;div&#x27;); row.className=&#x27;activity-row&#x27;; row.dataset.status=issue.dashboardStatus;
           const dot=document.createElement(&#x27;span&#x27;); dot.className=&#x27;activity-dot&#x27;;
