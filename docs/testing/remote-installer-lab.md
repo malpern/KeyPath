@@ -145,6 +145,12 @@ is requested, follow it with `secure-dialog-input` and verify the new
 original geometry and restores it on every exit path, so a failed attempt does
 not leave later UI targeting in a modified coordinate space.
 
+The July 12 macOS 15 unmanaged spike confirmed that the authenticated synthetic
+drag still did not create a `kanata-launcher` row. Treat the drag adapter as an
+evidence-producing experiment, not a solved registration path, until its row
+and canonical permission postconditions pass. See
+[`p01-unmanaged-input-monitoring-spike.md`](p01-unmanaged-input-monitoring-spike.md).
+
 Peekaboo click success means that it delivered an action to the selected UI
 element. It is not proof that macOS accepted a protected change. Background App
 Activity, Driver Extensions, Accessibility, and Input Monitoring must be
@@ -233,6 +239,20 @@ expected to open another page or dialog, declare that explicitly with
 `--after-window`. This guard detects a delivered click that landed on the wrong
 System Settings surface; it does not replace the permission's canonical product
 or system postcondition.
+
+For ordinary text or single-key input on a macOS 15 desktop lease, use the
+lease-owned VNC path rather than calling CrabBox directly:
+
+```bash
+Scripts/lab/keypath-lab desktop-type cbx_example --text q
+```
+
+The controller verifies ownership, desktop capability, OS lane, and the exact
+provider resource before invoking CrabBox `desktop type`. On macOS this is an
+RFB key event (`method=vnc-key`), not guest-side AppleScript or CGEvent
+injection. The command proves delivery only; the scenario must separately
+observe its expected application or runtime postcondition. P01 used a captured
+key chip in KeyPath's Input Capture Experiment as that postcondition.
 
 `install-app` expands the staged ZIP into `/Applications` on the disposable
 guest. Tart uses the base image's noninteractive sudo contract. Parallels uses

@@ -16,6 +16,7 @@ Commands:
   install-app LEASE_ID
   desktop-bootstrap LEASE_ID [--install-tools]
   protected-click LEASE_ID --app APP --window TITLE (--x X --y Y | --ax-x X --ax-y Y) [--after-window TITLE]
+  desktop-type LEASE_ID --text TEXT
   secure-dialog-input LEASE_ID --app APP --field LABEL [--submit BUTTON] [--already-focused]
   run LEASE_ID -- COMMAND [ARG...]
   status LEASE_ID
@@ -160,6 +161,14 @@ EOF
         [[ -n $app && -n $window && $x =~ ^[0-9]+$ && $y =~ ^[0-9]+$ ]] || usage
         [[ -n $after_window ]] || after_window=$window
         remote protected-click "$lease" "$app" "$window" "$after_window" "$coordinate_space" "$x" "$y"
+        ;;
+    desktop-type)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        [[ ${1:-} == "--text" && $# -eq 2 ]] || usage
+        remote desktop-type "$lease" "$2"
         ;;
     secure-dialog-input)
         lease=${1:-}

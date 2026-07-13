@@ -382,6 +382,8 @@ assert_contains "$protected_wrong_page" "protected click postcondition failed"
 protected_ax_result=$(KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility ax 402 247)
 assert_contains "$protected_ax_result" $'display_scale\t2'
 grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 804 --y 494' "$CALLS"
+run_remote desktop-type cbx_desktop15 q >/dev/null
+grep -q 'crabbox desktop type --provider tart --target macos --id test-resource --text q' "$CALLS"
 run_remote destroy cbx_desktop15 >/dev/null
 
 set +e
