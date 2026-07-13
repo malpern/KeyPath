@@ -44,7 +44,7 @@ public struct KanataRuntimeHost: Sendable, Equatable {
     public static func current(
         bundlePath: String = Bundle.main.bundlePath
     ) -> KanataRuntimeHost {
-        let resolvedBundlePath = resolveAppBundlePath(from: bundlePath)
+        let resolvedBundlePath = appBundlePath(containing: bundlePath)
         let engineBundlePath = "\(resolvedBundlePath)/Contents/Library/KeyPath/Kanata Engine.app"
         return KanataRuntimeHost(
             launcherPath: "\(resolvedBundlePath)/\(launcherBundleRelativePath)",
@@ -54,8 +54,14 @@ public struct KanataRuntimeHost: Sendable, Equatable {
         )
     }
 
-    private static func resolveAppBundlePath(from bundlePath: String) -> String {
+    public static func appBundlePath(containing bundlePath: String) -> String {
         let normalizedPath = bundlePath.hasSuffix("/") ? String(bundlePath.dropLast()) : bundlePath
+        if let appBoundary = normalizedPath.range(of: ".app/", options: .backwards) {
+            return String(normalizedPath[..<appBoundary.upperBound].dropLast())
+        }
+        if normalizedPath.hasSuffix(".app") {
+            return normalizedPath
+        }
         let suffixes = [
             "/Contents/Library/KeyPath",
             "/Contents/MacOS"

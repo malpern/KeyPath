@@ -65,6 +65,27 @@ struct BuildInfoTests {
         #expect(!info.build.isEmpty)
     }
 
+    @Test("bundled CLI resolves the containing app build")
+    func bundledCLIResolvesContainingAppBuild() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("KeyPath-BuildInfo-\(UUID().uuidString).app")
+        let contents = root.appendingPathComponent("Contents")
+        try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let info: [String: Any] = [
+            "CFBundleShortVersionString": "1.2.3",
+            "CFBundleVersion": "42",
+        ]
+        let data = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+        try data.write(to: contents.appendingPathComponent("Info.plist"))
+
+        let build = BuildInfo.current(
+            bundlePath: contents.appendingPathComponent("MacOS/keypath-cli").path
+        )
+        #expect(build.version == "1.2.3")
+        #expect(build.build == "42")
+    }
+
     @Test("current returns non-empty date")
     func currentReturnsNonEmptyDate() {
         let info = BuildInfo.current()
