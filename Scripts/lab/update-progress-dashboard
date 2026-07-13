@@ -19,6 +19,13 @@ def main() -> None:
     parser.add_argument("--attempt", type=int, default=1)
     parser.add_argument("--completed-steps", type=int, default=0)
     parser.add_argument("--total-steps", type=int, default=0)
+    parser.add_argument(
+        "--next-task",
+        action="append",
+        default=[],
+        metavar="LABEL|STATUS|PROGRESS",
+        help="Add a hover checklist item; STATUS is queued, active, done, or blocked",
+    )
     parser.add_argument("--tone", choices=("working", "success", "retry", "problem", "waiting"), default="working")
     parser.add_argument("--title", required=True)
     parser.add_argument("--message", required=True)
@@ -26,6 +33,18 @@ def main() -> None:
     args = parser.parse_args()
     if args.progress is not None and not 0 <= args.progress <= 100:
         parser.error("--progress must be between 0 and 100")
+    next_tasks = []
+    for raw_task in args.next_task:
+        try:
+            label, task_status, raw_progress = raw_task.rsplit("|", 2)
+            task_progress = int(raw_progress)
+        except ValueError:
+            parser.error("--next-task must use LABEL|STATUS|PROGRESS")
+        if not label.strip() or task_status not in {"queued", "active", "done", "blocked"}:
+            parser.error("--next-task requires a label and STATUS queued, active, done, or blocked")
+        if not 0 <= task_progress <= 100:
+            parser.error("--next-task progress must be between 0 and 100")
+        next_tasks.append({"label": label.strip(), "status": task_status, "progress": task_progress})
 
     state = json.loads(args.state.read_text())
     now = datetime.datetime.now().astimezone()
@@ -39,6 +58,7 @@ def main() -> None:
         working.discard(args.block)
     else:
         working.add(args.block)
+        previous_work = active_work.get(args.block, {})
         active_work[args.block] = {
             "progress": args.progress or 0,
             "health": args.health,
@@ -48,6 +68,7 @@ def main() -> None:
             "attempt": args.attempt,
             "completedSteps": args.completed_steps,
             "totalSteps": args.total_steps,
+            "nextTasks": next_tasks or previous_work.get("nextTasks", []),
         }
         state.setdefault("statuses", {})[args.block] = "active"
     state["workingBlocks"] = sorted(working)

@@ -148,10 +148,12 @@ element. It is not proof that macOS accepted a protected change. Background App
 Activity, Driver Extensions, Accessibility, and Input Monitoring must be
 verified through the canonical CLI/system/runtime postcondition after every
 click. Driver Extension activation on macOS 15 may still require CrabBox's
-native RFB click delivery. Use fresh Peekaboo geometry to locate the control,
-convert logical points to framebuffer coordinates using the current display
-scale, and verify activation afterward; never preserve raw coordinates between
-runs.
+native RFB click delivery. Use fresh Peekaboo geometry to locate the control
+and compare it with the current CrabBox desktop viewport before clicking. In
+the Tart 1024x768 desktop lane, Peekaboo's Accessibility bounds already match
+the 1024x768 VNC viewport even though the backing display reports 2048x1536;
+doubling those coordinates targets the wrong pixel. Never infer a scale from
+the backing display alone, and never preserve raw coordinates between runs.
 
 For a macOS 15 Tart desktop lease, `secure-dialog-input` handles an
 authentication sheet without putting its password in a command line. It focuses
@@ -167,6 +169,21 @@ field label, optional submit button, and pass/fail result are recorded. Do not
 use the generic `run` command to improvise password entry. macOS 26 and 27
 Parallels guests remain unsupported until they have an equally constrained
 lease-specific transport.
+
+On macOS 15 authentication sheets, use an explicit submit selector when the
+button is available:
+
+```bash
+Scripts/lab/keypath-lab secure-dialog-input cbx_example \
+  --app 'System Settings' --field Password --submit 'Modify Settings'
+```
+
+The controller must strip the encrypted dotenv record's terminating newline
+before sending the password. A newline passed to Peekaboo's type transport can
+become part of the secure-field value rather than a Return key. Always confirm
+success by checking that the sheet is gone and the protected state changed;
+`secure_dialog_input passed` proves only that the secret transport and click
+completed.
 
 Driver-extension authorization is owned by `SecurityAgent`, whose secure
 window is not available to Peekaboo snapshots. When a fresh framebuffer image
