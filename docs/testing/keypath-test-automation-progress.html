@@ -772,7 +772,7 @@ html&gt;body{padding:0}&lt;/style&gt;
 &lt;body&gt;
 &lt;div id=&quot;keypath-defrag-progress&quot;&gt;
   &lt;style&gt;
-    #keypath-defrag-progress { color:var(--foreground); font-family:system-ui,sans-serif; }
+    #keypath-defrag-progress { --blocked-maroon:#813548; color:var(--foreground); font-family:system-ui,sans-serif; }
     #keypath-defrag-progress .top { display:flex; justify-content:space-between; align-items:flex-end; gap:20px; margin-bottom:18px; }
     #keypath-defrag-progress h1 { margin:3px 0 5px; font-size:28px; font-weight:500; }
     #keypath-defrag-progress .eyebrow { color:var(--muted-foreground); font-size:11px; text-transform:uppercase; letter-spacing:.09em; }
@@ -784,7 +784,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-defrag-progress .swatch { width:11px; height:11px; border-radius:2px; }
     #keypath-defrag-progress .proven-mark { background:var(--viz-series-3); }
     #keypath-defrag-progress .active-mark { background:var(--viz-series-2); }
-    #keypath-defrag-progress .blocked-mark { background:var(--destructive); }
+    #keypath-defrag-progress .blocked-mark { background:var(--blocked-maroon); }
     #keypath-defrag-progress .queued-mark { background:var(--muted); border:1px solid var(--border); }
     #keypath-defrag-progress .waiting-mark { background:var(--viz-series-5); }
     #keypath-defrag-progress .workspace { display:block; }
@@ -794,7 +794,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-defrag-progress .block { appearance:none; position:relative; overflow:hidden; border:0; border-radius:3px; min-height:42px; padding:5px 3px 8px; font:inherit; font-size:10px; font-weight:500; cursor:pointer; color:var(--foreground); outline-offset:2px; transition:transform 120ms ease, filter 120ms ease, box-shadow 120ms ease; }
     #keypath-defrag-progress .block[data-status=&quot;proven&quot;] { background:color-mix(in srgb,var(--viz-series-3) 78%,var(--card)); color:var(--card-foreground); }
     #keypath-defrag-progress .block[data-status=&quot;active&quot;] { background:color-mix(in srgb,var(--viz-series-2) 72%,var(--card)); color:var(--card-foreground); }
-    #keypath-defrag-progress .block[data-status=&quot;blocked&quot;] { background:color-mix(in srgb,var(--destructive) 62%,var(--card)); color:var(--card-foreground); }
+    #keypath-defrag-progress .block[data-status=&quot;blocked&quot;] { background:color-mix(in srgb,var(--blocked-maroon) 68%,var(--card)); color:var(--card-foreground); }
     #keypath-defrag-progress .block[data-status=&quot;queued&quot;] { background:var(--muted); color:var(--muted-foreground); }
     #keypath-defrag-progress .block[data-status=&quot;waiting&quot;] { background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--viz-series-5) 86%,var(--card)) 0 8px,color-mix(in srgb,var(--viz-series-5) 58%,var(--card)) 8px 13px); color:var(--card-foreground); }
     #keypath-defrag-progress .block:hover, #keypath-defrag-progress .block:focus-visible { filter:brightness(1.1); transform:translateY(-2px) scale(1.04); box-shadow:0 0 0 2px var(--ring); z-index:1; }
@@ -802,8 +802,10 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-defrag-progress .block[data-health=&quot;retrying&quot;]::before { content:&quot;↻&quot;; position:absolute; top:1px; right:4px; font-size:10px; font-weight:700; color:color-mix(in srgb,var(--viz-series-2) 70%,black); }
     #keypath-defrag-progress .block[data-working=&quot;true&quot;] { animation:keypath-pulse 1.35s ease-in-out infinite; }
     #keypath-defrag-progress .block[data-health=&quot;retrying&quot;] { animation:keypath-retry 1.1s ease-in-out infinite; }
-    #keypath-defrag-progress .block[data-health=&quot;blocked&quot;] { animation:none; box-shadow:inset 0 0 0 2px var(--destructive); }
-    #keypath-defrag-progress .block[data-health=&quot;blocked&quot;]::after { background:var(--destructive); }
+    #keypath-defrag-progress .block[data-health=&quot;blocked&quot;] { animation:none; box-shadow:inset 0 0 0 2px var(--blocked-maroon); }
+    #keypath-defrag-progress .block[data-health=&quot;blocked&quot;]::after { background:var(--blocked-maroon); }
+    #keypath-defrag-progress .block[data-health=&quot;waiting&quot;] { animation:none; }
+    #keypath-defrag-progress .block[data-health=&quot;waiting&quot;]::after { background:var(--viz-series-5); }
     @keyframes keypath-pulse { 0%,100% { filter:brightness(1); box-shadow:0 0 0 0 transparent; } 50% { filter:brightness(1.16); box-shadow:0 0 0 2px var(--viz-series-2); } }
     @keyframes keypath-retry { 0%,100% { transform:translateX(0); } 35% { transform:translateX(-1px); } 65% { transform:translateX(1px); } }
     #keypath-defrag-progress .readout { min-height:42px; margin-top:12px; padding-top:11px; border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:18px; align-items:flex-start; }
@@ -1032,7 +1034,7 @@ html&gt;body{padding:0}&lt;/style&gt;
       const workDetail = root.querySelector(&#x27;#keypath-work-detail&#x27;);
       const workPercent = root.querySelector(&#x27;#keypath-work-percent&#x27;);
       const workHealth = root.querySelector(&#x27;#keypath-work-health&#x27;);
-      const healthNames = {smooth:&#x27;Going smoothly&#x27;,retrying:&#x27;Trying another approach&#x27;,blocked:&#x27;Blocked&#x27;};
+      const healthNames = {smooth:&#x27;Going smoothly&#x27;,retrying:&#x27;Trying another approach&#x27;,blocked:&#x27;Blocked&#x27;,waiting:&#x27;Waiting on Apple&#x27;};
       const applyState = (state) =&gt; {
         Object.entries(state.statuses || {}).forEach(([id,value]) =&gt; {
           const button = buttons.get(id);

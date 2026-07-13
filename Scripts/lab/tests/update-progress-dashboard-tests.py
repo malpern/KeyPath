@@ -70,6 +70,13 @@ class UpdateProgressDashboardTests(unittest.TestCase):
         self.assertIn("P01", state["activeWork"])
         self.assertNotIn("P01", state["workingBlocks"])
 
+    def test_waiting_keeps_evidence_without_marking_work_active(self) -> None:
+        self.run_updater("--progress", "62", "--waiting")
+        state = json.loads(self.state.read_text())
+        self.assertEqual(state["statuses"]["P01"], "waiting")
+        self.assertEqual(state["activeWork"]["P01"]["health"], "waiting")
+        self.assertNotIn("P01", state["workingBlocks"])
+
     def test_rejects_finish_and_blocked_together(self) -> None:
         result = self.run_updater("--finish", "--blocked", check=False)
         self.assertNotEqual(result.returncode, 0)
