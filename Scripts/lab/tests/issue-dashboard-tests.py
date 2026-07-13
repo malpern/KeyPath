@@ -37,6 +37,14 @@ class IssueDashboardTests(unittest.TestCase):
     def test_issue_limit_is_explicit(self) -> None:
         self.assertEqual(module.ISSUE_LIMIT, 200)
 
+    def test_issue_type_uses_stable_label_precedence(self) -> None:
+        self.assertEqual(module.issue_type(issue(1, "bug-risk", "upstream")), "bug")
+        self.assertEqual(module.issue_type(issue(2, "testing", "tech-debt")), "testing")
+        self.assertEqual(module.issue_type(issue(3, "refactor", "enhancement")), "debt")
+        self.assertEqual(module.issue_type(issue(4, "Feature", "upstream")), "feature")
+        self.assertEqual(module.issue_type(issue(5, "research", "devux")), "upstream")
+        self.assertEqual(module.issue_type(issue(6, "documentation")), "docs")
+
 
 if __name__ == "__main__":
     unittest.main()
