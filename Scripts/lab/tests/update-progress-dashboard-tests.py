@@ -63,6 +63,18 @@ class UpdateProgressDashboardTests(unittest.TestCase):
         self.assertNotIn("P01", state["activeWork"])
         self.assertNotIn("P01", state["workingBlocks"])
 
+    def test_blocked_keeps_evidence_without_marking_work_active(self) -> None:
+        self.run_updater("--progress", "62", "--health", "blocked", "--blocked")
+        state = json.loads(self.state.read_text())
+        self.assertEqual(state["statuses"]["P01"], "blocked")
+        self.assertIn("P01", state["activeWork"])
+        self.assertNotIn("P01", state["workingBlocks"])
+
+    def test_rejects_finish_and_blocked_together(self) -> None:
+        result = self.run_updater("--finish", "--blocked", check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("cannot be combined", result.stderr)
+
     def test_embedded_dashboard_script_parses_after_srcdoc_decoding(self) -> None:
         source = DASHBOARD.read_text()
         srcdoc = re.search(r'srcdoc="(.*?)">\s*</iframe>', source, re.DOTALL)
