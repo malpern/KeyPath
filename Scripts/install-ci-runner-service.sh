@@ -28,6 +28,7 @@ RUNNER_DIR="${RUNNER_DIR:-/Users/$RUNNER_USER/actions-runner}"
 LABEL="${LABEL:-com.keypath.ci-runner}"
 PLIST="/Library/LaunchDaemons/$LABEL.plist"
 ACTION="${1:-install}"
+RUNNER_UID="$(id -u "$RUNNER_USER" 2>/dev/null || true)"
 
 if [[ $EUID -ne 0 ]]; then
     echo "❌ Must run as root: sudo $0 $ACTION" >&2
@@ -62,6 +63,29 @@ stop_manual_runner() {
     # it gets the signal.
     # shellcheck disable=SC2086
     kill $pids 2>/dev/null || true
+}
+
+# GitHub's svc.sh creates a per-user LaunchAgent.  Leaving that agent loaded
+# while installing the durable LaunchDaemon starts a second listener for the
+# same registration, which produces a SessionConflict loop.  Remove only the
+# legacy agent for this runner directory; a separately configured runner (such
+# as keypath-mini-2) remains untouched.
+remove_legacy_runner_agent() {
+    local runner_name legacy_dir legacy_plist legacy_label
+
+    [[ -n "$RUNNER_UID" ]] || return 0
+    runner_name="$(/usr/libexec/PlistBuddy -c 'Print :agentName' "$RUNNER_DIR/.runner" 2>/dev/null || true)"
+    [[ -n "$runner_name" ]] || return 0
+
+    legacy_dir="/Users/$RUNNER_USER/Library/LaunchAgents"
+    legacy_plist="$legacy_dir/actions.runner.malpern-KeyPath.$runner_name.plist"
+    [[ -f "$legacy_plist" ]] || return 0
+
+    legacy_label="${legacy_plist##*/}"
+    legacy_label="${legacy_label%.plist}"
+    echo "⏸️  Removing legacy per-user runner service: $legacy_label"
+    launchctl bootout "gui/$RUNNER_UID/$legacy_label" 2>/dev/null || true
+    rm -f "$legacy_plist"
 }
 
 if [[ "$ACTION" == "uninstall" ]]; then
@@ -99,6 +123,8 @@ if manual_runner_alive; then
     exit 1
 fi
 
+remove_legacy_runner_agent
+
 mkdir -p "$RUNNER_DIR/_diag"
 
 echo "✍️  Writing $PLIST"
@@ -128,10 +154,15 @@ cat > "$PLIST" <<PLIST_EOF
     </dict>
     <key>ThrottleInterval</key>
     <integer>10</integer>
+    <!--
+      CI is intentionally headless.  Do not create an artificial interactive
+      login session: on macOS 27 AppSSO attempts an invalid XPC target-UID
+      handoff from that session and traps SwiftPM while it resolves a binary
+      artifact.  A background service has the least privilege the build needs
+      and remains available before anyone logs in.
+    -->
     <key>ProcessType</key>
-    <string>Interactive</string>
-    <key>SessionCreate</key>
-    <true/>
+    <string>Background</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>HOME</key>
