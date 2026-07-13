@@ -312,7 +312,7 @@
 - **Severity:** Medium
 
 ### 9.2 Notification.Name definitions scattered across 6 locations
-- **Location:** `Sources/KeyPathWizardCore/WizardServiceProtocols.swift:97-100`, `Sources/KeyPathAppKit/Utilities/Notifications.swift:5-60`, `UI/Experimental/MapperView.swift:9`, `UI/Overlay/LiveKeyboardOverlayTypes.swift:183-211`, `UI/Preferences/WindowHeightPreferenceKey.swift:14`, `KeyPathInsights/InsightsPreferences.swift:46`
+- **Location:** `Sources/KeyPathWizardCore/WizardServiceProtocols.swift:97-100`, `Sources/KeyPathAppKit/Utilities/Notifications.swift:5-60`, `UI/Mapper/MapperView.swift:9`, `UI/Overlay/LiveKeyboardOverlayTypes.swift:183-211`, `UI/Preferences/WindowHeightPreferenceKey.swift:14`, `KeyPathInsights/InsightsPreferences.swift:46`
 - **What:** Notification names defined in 6 separate extension blocks across different modules.
 - **Why:** No centralized notification registry; discovery and deduplication require searching the entire codebase.
 - **Action:** Consolidate all notification definitions into `Notifications.swift` with organized sections per module.
