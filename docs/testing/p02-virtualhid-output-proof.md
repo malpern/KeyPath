@@ -44,6 +44,31 @@ postcondition remained:
 org.pqrs.Karabiner-DriverKit-VirtualHIDDevice [activated waiting for user]
 ```
 
+## Follow-up confirmation
+
+A second clean unmanaged macOS 15.7.7 lease, `cbx_1a98a85674e7`, repeated the
+result with the signed KeyPath candidate from commit `7ca790ab`. Its artifacts
+are retained at:
+
+`/Volumes/KeyPath Lab/CrabBox/KeyPathInstallerLab/artifacts/cbx_1a98a85674e7/20260713T054117Z`
+
+This run separately proved the preceding approval path: KeyPath Accessibility
+and Input Monitoring were true, and the real Login Items password sheet was
+completed through the secure dialog helper. The product then reported its
+helper installed, working, and fresh. Repair installed the DriverKit component,
+but the operating-system postcondition still was:
+
+```text
+org.pqrs.Karabiner-DriverKit-VirtualHIDDevice [activated waiting for user]
+```
+
+The direct Driver Extensions settings surface showed the extension row but no
+supported enable control or authorization sheet. Semantic focus, row/detail
+activation, and scrolling did not change that state. This separates the
+working KeyPath-helper approval flow from the unresolved DriverKit activation:
+do not retry helper/background-item approval when the extension is already in
+this state.
+
 ## Required proof shape
 
 P02 passes only when all of the following are true in one disposable lease:
