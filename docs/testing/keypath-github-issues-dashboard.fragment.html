@@ -43,6 +43,8 @@
     #keypath-issue-board .issue[data-status="human"] { background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--viz-series-5) 55%,var(--card)) 0 7px,color-mix(in srgb,var(--viz-series-5) 35%,var(--card)) 7px 11px); }
     #keypath-issue-board .issue[data-status="feature"],#keypath-issue-board .issue[data-status="deferred"] { background:var(--muted); color:var(--muted-foreground); }
     #keypath-issue-board .issue:hover,#keypath-issue-board .issue:focus-visible { filter:brightness(1.15); transform:translateY(-2px); border-color:var(--ring); z-index:1; }
+    #keypath-issue-board .issue.is-selected { border-color:var(--foreground); box-shadow:inset 0 0 0 1px var(--foreground); transform:translateY(-1px); }
+    #keypath-issue-board .issue.is-selected[data-status="active"] { animation:none; }
     #keypath-issue-board .issue[data-status="active"] { animation:issue-pulse 1.6s ease-in-out infinite; }
     @keyframes issue-pulse { 0%,100% { box-shadow:0 0 0 0 transparent; } 50% { box-shadow:0 0 0 2px var(--viz-series-2); } }
     #keypath-issue-board .readout { min-height:70px; margin-top:12px; padding-top:11px; border-top:1px solid var(--border); display:grid; grid-template-columns:minmax(0,1fr) auto; gap:16px; }
@@ -140,6 +142,22 @@
       const link = root.querySelector('#issue-link');
       let detailTimer;
       let highlightTimer;
+      let clickTimer;
+      let selectedButton;
+      let selectedIssue;
+      const resetReadout = () => {
+        title.textContent = 'Select an issue';
+        detail.textContent = 'The map is ordered active → next → agent queue → human-gated → features and deferred work.';
+        labels.replaceChildren();
+        link.href = 'https://github.com/malpern/KeyPath/issues';
+        link.textContent = 'Open GitHub';
+      };
+      const showIssue = issue => {
+        title.textContent = `#${issue.number} · ${issue.title}`;
+        detail.textContent = names[issue.dashboardStatus];
+        labels.replaceChildren(...issue.labels.map(value => { const badge=document.createElement('span'); badge.className='label'; badge.textContent=value; return badge; }));
+        link.href = issue.url; link.textContent = `Open #${issue.number}`;
+      };
       root.querySelectorAll('.type-filter').forEach(filter => {
         const highlight = () => { clearTimeout(highlightTimer); highlightTimer = setTimeout(() => { grid.dataset.highlightType = filter.dataset.type; }, 120); };
         const clearHighlight = () => { clearTimeout(highlightTimer); grid.removeAttribute('data-highlight-type'); };
@@ -161,15 +179,38 @@
           button.dataset.type = issue.dashboardType || 'other';
           button.textContent = `#${issue.number}`;
           button.setAttribute('aria-label',`#${issue.number} · ${typeNames[button.dataset.type]} · ${names[issue.dashboardStatus]} — ${issue.title}`);
-          const select = () => {
-            title.textContent = `#${issue.number} · ${issue.title}`;
-            detail.textContent = names[issue.dashboardStatus];
-            labels.replaceChildren(...issue.labels.map(value => { const badge=document.createElement('span'); badge.className='label'; badge.textContent=value; return badge; }));
-            link.href = issue.url; link.textContent = `Open #${issue.number}`;
+          button.setAttribute('aria-pressed','false');
+          const toggleSelection = () => {
+            if (selectedButton === button) {
+              button.classList.remove('is-selected');
+              button.setAttribute('aria-pressed','false');
+              selectedButton = undefined;
+              selectedIssue = undefined;
+              resetReadout();
+              return;
+            }
+            if (selectedButton) {
+              selectedButton.classList.remove('is-selected');
+              selectedButton.setAttribute('aria-pressed','false');
+            }
+            selectedButton = button;
+            selectedIssue = issue;
+            button.classList.add('is-selected');
+            button.setAttribute('aria-pressed','true');
+            showIssue(issue);
           };
-          button.addEventListener('mouseenter',() => { clearTimeout(detailTimer); detailTimer = setTimeout(select,280); });
-          button.addEventListener('mouseleave',() => clearTimeout(detailTimer));
-          button.addEventListener('focus',select); button.addEventListener('click',select);
+          button.addEventListener('mouseenter',() => { clearTimeout(detailTimer); detailTimer = setTimeout(() => showIssue(issue),280); });
+          button.addEventListener('mouseleave',() => { clearTimeout(detailTimer); selectedIssue ? showIssue(selectedIssue) : resetReadout(); });
+          button.addEventListener('focus',() => showIssue(issue));
+          button.addEventListener('click',event => {
+            clearTimeout(clickTimer);
+            if (event.detail === 0) toggleSelection();
+            else clickTimer = setTimeout(toggleSelection,220);
+          });
+          button.addEventListener('dblclick',() => {
+            clearTimeout(clickTimer);
+            window.parent.postMessage({type:'keypath-issue-navigation',url:issue.url},'*');
+          });
           return button;
         }));
         const recent = [...state.issues].sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0,10);

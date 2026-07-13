@@ -6,6 +6,8 @@ import unittest
 
 
 SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "update-issue-dashboard"
+LAB_DIR = SCRIPT.parent
+REPO_ROOT = LAB_DIR.parents[1]
 loader = importlib.machinery.SourceFileLoader("update_issue_dashboard", str(SCRIPT))
 spec = importlib.util.spec_from_loader(loader.name, loader)
 module = importlib.util.module_from_spec(spec)
@@ -44,6 +46,15 @@ class IssueDashboardTests(unittest.TestCase):
         self.assertEqual(module.issue_type(issue(4, "Feature", "upstream")), "feature")
         self.assertEqual(module.issue_type(issue(5, "research", "devux")), "upstream")
         self.assertEqual(module.issue_type(issue(6, "documentation")), "docs")
+
+    def test_card_navigation_contract_is_generated_safely(self) -> None:
+        fragment = (REPO_ROOT / "docs/testing/keypath-github-issues-dashboard.fragment.html").read_text()
+        tab_renderer = (LAB_DIR / "add-dashboard-tabs.py").read_text()
+        self.assertIn("button.setAttribute('aria-pressed','false')", fragment)
+        self.assertIn("button.addEventListener('dblclick'", fragment)
+        self.assertIn("keypath-issue-navigation", fragment)
+        self.assertIn("event.source!==dashboardFrame.contentWindow", tab_renderer)
+        self.assertIn(r"github\\.com\\/malpern\\/KeyPath\\/issues", tab_renderer)
 
 
 if __name__ == "__main__":
