@@ -29,6 +29,46 @@ public struct SystemCompatibilityStatus: Sendable, Equatable {
     )
 }
 
+/// Whether live runtime identity evidence matches the currently installed app.
+/// Freshness is diagnostic only: a stale but working process remains operational.
+public enum RuntimeFreshness: String, Codable, Sendable, Equatable {
+    case fresh
+    case stale
+    case unknown
+
+    public static func classify(actual: String?, expected: String) -> RuntimeFreshness {
+        guard let actual, !actual.isEmpty, !expected.isEmpty else { return .unknown }
+        return actual == expected ? .fresh : .stale
+    }
+}
+
+public struct RuntimeIdentity: Sendable, Equatable {
+    public let programIdentifier: String
+    public let parentBundleIdentifier: String
+    public let parentBundleVersion: String
+
+    public init(
+        programIdentifier: String,
+        parentBundleIdentifier: String,
+        parentBundleVersion: String
+    ) {
+        self.programIdentifier = programIdentifier
+        self.parentBundleIdentifier = parentBundleIdentifier
+        self.parentBundleVersion = parentBundleVersion
+    }
+
+    public var diagnosticDescription: String {
+        "\(parentBundleIdentifier) build \(parentBundleVersion) · \(programIdentifier)"
+    }
+}
+
+public extension RuntimeFreshness {
+    static func classify(actual: RuntimeIdentity?, expected: RuntimeIdentity) -> RuntimeFreshness {
+        guard let actual else { return .unknown }
+        return actual == expected ? .fresh : .stale
+    }
+}
+
 /// Complete snapshot of system state at a point in time
 /// This is a pure data structure with no side effects - just state and computed properties
 public struct SystemSnapshot: Sendable {
@@ -365,6 +405,7 @@ public struct HealthStatus: Sendable {
     public let kanataInputCaptureIssue: String?
     public let activeRuntimePathTitle: String?
     public let activeRuntimePathDetail: String?
+    public let kanataServiceFreshness: RuntimeFreshness
     /// True when the daemon stderr log shows kanata was rejected by macOS
     /// at runtime despite the TCC database reporting permissions as granted
     /// (stale grant after a rebuild/move/upgrade).
@@ -398,6 +439,7 @@ public struct HealthStatus: Sendable {
         kanataInputCaptureIssue: String? = nil,
         activeRuntimePathTitle: String? = nil,
         activeRuntimePathDetail: String? = nil,
+        kanataServiceFreshness: RuntimeFreshness = .unknown,
         kanataPermissionRejected: Bool = false,
         configParseError: String? = nil,
         staleEnabledRegistration: Bool = false,
@@ -415,6 +457,7 @@ public struct HealthStatus: Sendable {
         self.kanataInputCaptureIssue = kanataInputCaptureIssue
         self.activeRuntimePathTitle = activeRuntimePathTitle
         self.activeRuntimePathDetail = activeRuntimePathDetail
+        self.kanataServiceFreshness = kanataServiceFreshness
         self.kanataPermissionRejected = kanataPermissionRejected
         self.configParseError = configParseError
         self.staleEnabledRegistration = staleEnabledRegistration
@@ -468,6 +511,11 @@ public struct HelperStatus: Sendable {
 
     public var displayVersion: String {
         version ?? "Unknown"
+    }
+
+    public func freshness(expectedVersion: String) -> RuntimeFreshness {
+        guard isInstalled, isWorking else { return .unknown }
+        return RuntimeFreshness.classify(actual: version, expected: expectedVersion)
     }
 
     /// Convenience factory for empty/fallback state

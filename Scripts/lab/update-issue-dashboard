@@ -10,8 +10,8 @@ import subprocess
 
 
 EXCLUDED = {172, 740, 747, 919}
-ACTIVE = {982}
-NEXT = {748}
+ACTIVE = {748}
+NEXT = {848}
 ISSUE_LIMIT = 200
 
 

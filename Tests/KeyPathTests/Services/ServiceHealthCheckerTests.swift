@@ -439,6 +439,27 @@ final class ServiceHealthCheckerTests: XCTestCase {
         XCTAssertTrue(decision.isHealthy)
     }
 
+    func testLaunchctlProgramIdentityExtractsSMAppServiceSource() {
+        let output = """
+        system/com.keypath.kanata = {
+            program identifier = Contents/Library/KeyPath/kanata-launcher (mode: 2)
+            parent bundle identifier = com.keypath.KeyPath
+            parent bundle version = 4
+            pid = 123
+        }
+        """
+
+        XCTAssertEqual(
+            ServiceHealthChecker.launchctlProgramIdentity(from: output),
+            ServiceHealthChecker.LaunchctlProgramIdentity(
+                programIdentifier: "Contents/Library/KeyPath/kanata-launcher",
+                parentBundleIdentifier: "com.keypath.KeyPath",
+                parentBundleVersion: "4"
+            )
+        )
+        XCTAssertNil(ServiceHealthChecker.launchctlProgramIdentity(from: "pid = 123"))
+    }
+
     func testDiagnoseDaemonStderrReturnsInputCaptureFailureForBuiltInKeyboard() async throws {
         let stderrURL = tempLaunchDaemonsDir.appendingPathComponent("kanata-stderr.log")
         try """

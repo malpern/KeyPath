@@ -229,6 +229,8 @@ final class CLIOutputSnapshotTests: XCTestCase {
             helperInstalled: true,
             helperWorking: true,
             helperVersion: "1.0",
+            helperExpectedVersion: "1.1.0",
+            helperFreshness: "stale",
             keyPathAccessibility: true,
             keyPathInputMonitoring: true,
             kanataAccessibility: true,
@@ -241,6 +243,8 @@ final class CLIOutputSnapshotTests: XCTestCase {
             vhidHealthy: true,
             activeRuntimePathTitle: "LaunchDaemon",
             activeRuntimePathDetail: "Running",
+            kanataServiceFreshness: "stale",
+            kanataExpectedIdentity: "com.keypath.KeyPath build 4 · Contents/Library/KeyPath/kanata-launcher",
             hasConflicts: false,
             timestamp: fixedDate
         )
@@ -248,11 +252,13 @@ final class CLIOutputSnapshotTests: XCTestCase {
         let dict = try JSONSerialization.jsonObject(with: Data(json.utf8)) as! [String: Any]
         let expectedKeys: Set = [
             "isOperational", "helperInstalled", "helperWorking", "helperVersion",
+            "helperExpectedVersion", "helperFreshness",
             "keyPathAccessibility", "keyPathInputMonitoring",
             "kanataAccessibility", "kanataInputMonitoring",
             "kanataBinaryInstalled", "karabinerDriverInstalled", "vhidDeviceHealthy",
             "kanataRunning", "karabinerDaemonRunning", "vhidHealthy",
             "activeRuntimePathTitle", "activeRuntimePathDetail",
+            "kanataServiceFreshness", "kanataExpectedIdentity",
             "hasConflicts", "timestamp",
         ]
         XCTAssertEqual(Set(dict.keys), expectedKeys, "Status result key set changed — this breaks agent contracts")

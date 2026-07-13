@@ -836,7 +836,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   &lt;/header&gt;
 
   &lt;div class=&quot;legend&quot; aria-label=&quot;Issue status legend&quot;&gt;
-    &lt;span&gt;&lt;i class=&quot;swatch active-mark&quot;&gt;&lt;/i&gt;Active upstream&lt;/span&gt;
+    &lt;span&gt;&lt;i class=&quot;swatch active-mark&quot;&gt;&lt;/i&gt;Active&lt;/span&gt;
     &lt;span&gt;&lt;i class=&quot;swatch next-mark&quot;&gt;&lt;/i&gt;Recommended next&lt;/span&gt;
     &lt;span&gt;&lt;i class=&quot;swatch queued-mark&quot;&gt;&lt;/i&gt;Agent queue&lt;/span&gt;
     &lt;span&gt;&lt;i class=&quot;swatch human-mark&quot;&gt;&lt;/i&gt;Human / external gate&lt;/span&gt;
@@ -870,8 +870,8 @@ html&gt;body{padding:0}&lt;/style&gt;
       &lt;/section&gt;
 
       &lt;section class=&quot;lanes&quot; aria-label=&quot;Work sequence&quot;&gt;
-        &lt;div class=&quot;lane active&quot;&gt;&lt;strong&gt;Active&lt;/strong&gt;&lt;span&gt;#982 upstream protocol migration&lt;/span&gt;&lt;/div&gt;
-        &lt;div class=&quot;lane next&quot;&gt;&lt;strong&gt;Next if waiting&lt;/strong&gt;&lt;span&gt;#748 runtime freshness diagnostics&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;lane active&quot;&gt;&lt;strong&gt;Active&lt;/strong&gt;&lt;span&gt;#748 runtime freshness diagnostics&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;lane next&quot;&gt;&lt;strong&gt;Next&lt;/strong&gt;&lt;span&gt;#848 centralized Kanata test fixtures&lt;/span&gt;&lt;/div&gt;
         &lt;div class=&quot;lane&quot;&gt;&lt;strong&gt;Bug-first queue&lt;/strong&gt;&lt;span&gt;Reliability and test debt before features&lt;/span&gt;&lt;/div&gt;
         &lt;div class=&quot;lane human&quot;&gt;&lt;strong&gt;Explicitly deferred&lt;/strong&gt;&lt;span&gt;#172, #740, #747, #919 and human lanes&lt;/span&gt;&lt;/div&gt;
       &lt;/section&gt;
@@ -892,7 +892,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   &lt;script&gt;
     (() =&gt; {
       const root = document.getElementById(&#x27;keypath-issue-board&#x27;);
-      const names = {active:&#x27;Active upstream&#x27;,next:&#x27;Recommended next&#x27;,queued:&#x27;Agent queue&#x27;,human:&#x27;Human / external gate&#x27;,feature:&#x27;Feature deferred&#x27;,deferred:&#x27;Deferred&#x27;};
+      const names = {active:&#x27;Active&#x27;,next:&#x27;Recommended next&#x27;,queued:&#x27;Agent queue&#x27;,human:&#x27;Human / external gate&#x27;,feature:&#x27;Feature deferred&#x27;,deferred:&#x27;Deferred&#x27;};
       const typeNames = {bug:&#x27;Bug&#x27;,testing:&#x27;Testing&#x27;,debt:&#x27;Technical debt&#x27;,feature:&#x27;Feature&#x27;,upstream:&#x27;Upstream / research&#x27;,docs:&#x27;Documentation / design&#x27;,other:&#x27;Other&#x27;};
       const grid = root.querySelector(&#x27;#issue-grid&#x27;);
       const title = root.querySelector(&#x27;#issue-title&#x27;);

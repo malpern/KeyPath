@@ -121,6 +121,35 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         public let launchctlExitCode: Int32?
         public let staleEnabledRegistration: Bool
         public let recentlyRestarted: Bool
+        public let activeProgramIdentity: LaunchctlProgramIdentity?
+
+        public init(
+            managementState: WizardServiceManagementState,
+            isRunning: Bool,
+            isResponding: Bool,
+            inputCaptureReady: Bool,
+            inputCaptureIssue: String?,
+            launchctlExitCode: Int32?,
+            staleEnabledRegistration: Bool,
+            recentlyRestarted: Bool,
+            activeProgramIdentity: LaunchctlProgramIdentity? = nil
+        ) {
+            self.managementState = managementState
+            self.isRunning = isRunning
+            self.isResponding = isResponding
+            self.inputCaptureReady = inputCaptureReady
+            self.inputCaptureIssue = inputCaptureIssue
+            self.launchctlExitCode = launchctlExitCode
+            self.staleEnabledRegistration = staleEnabledRegistration
+            self.recentlyRestarted = recentlyRestarted
+            self.activeProgramIdentity = activeProgramIdentity
+        }
+    }
+
+    public struct LaunchctlProgramIdentity: Sendable, Equatable {
+        public let programIdentifier: String
+        public let parentBundleIdentifier: String
+        public let parentBundleVersion: String
     }
 
     public struct KanataInputCaptureStatus: Sendable, Equatable {
@@ -650,7 +679,8 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             recentlyRestarted: Self.wasRecentlyRestarted(
                 Self.kanataServiceID,
                 within: Self.kanataRestartGraceWindow
-            )
+            ),
+            activeProgramIdentity: runningState.programIdentity
         )
     }
 
@@ -709,7 +739,7 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         managementState _: WizardServiceManagementState,
         launchctlTargets: [String]
     ) async
-        -> (isRunning: Bool, exitCode: Int32?)
+        -> (isRunning: Bool, exitCode: Int32?, programIdentity: LaunchctlProgramIdentity?)
     {
         var lastExitCode: Int32?
         for target in launchctlTargets {
@@ -722,16 +752,40 @@ public final class ServiceHealthChecker: @unchecked Sendable {
                 continue
             }
 
+            let programIdentity = Self.launchctlProgramIdentity(from: evidence.stdout)
             for line in evidence.stdout.components(separatedBy: "\n") where line.contains("pid =") {
                 let components = line.components(separatedBy: "=")
                 if components.count == 2,
                    Int(components[1].trimmingCharacters(in: .whitespaces)) != nil
                 {
-                    return (true, evidence.exitCode)
+                    return (true, evidence.exitCode, programIdentity)
                 }
             }
         }
-        return (false, lastExitCode)
+        return (false, lastExitCode, nil)
+    }
+
+    public nonisolated static func launchctlProgramIdentity(from output: String) -> LaunchctlProgramIdentity? {
+        func value(for key: String) -> String? {
+            let prefix = "\(key) = "
+            return output.components(separatedBy: "\n")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .first { $0.hasPrefix(prefix) }
+                .map { String($0.dropFirst(prefix.count)) }
+        }
+
+        guard let rawProgramIdentifier = value(for: "program identifier"),
+              let parentBundleIdentifier = value(for: "parent bundle identifier"),
+              let parentBundleVersion = value(for: "parent bundle version")
+        else { return nil }
+
+        let programIdentifier = rawProgramIdentifier.components(separatedBy: " (mode:").first
+            ?? rawProgramIdentifier
+        return LaunchctlProgramIdentity(
+            programIdentifier: programIdentifier,
+            parentBundleIdentifier: parentBundleIdentifier,
+            parentBundleVersion: parentBundleVersion
+        )
     }
 
     /// Resolve the input-capture status, layering kanata's authoritative

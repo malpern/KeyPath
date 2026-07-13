@@ -6,6 +6,8 @@ public struct CLIStatusResult: Codable, Sendable {
     public let helperInstalled: Bool
     public let helperWorking: Bool
     public let helperVersion: String?
+    public let helperExpectedVersion: String
+    public let helperFreshness: String
     public let keyPathAccessibility: Bool
     public let keyPathInputMonitoring: Bool
     public let kanataAccessibility: Bool
@@ -18,6 +20,8 @@ public struct CLIStatusResult: Codable, Sendable {
     public let vhidHealthy: Bool
     public let activeRuntimePathTitle: String?
     public let activeRuntimePathDetail: String?
+    public let kanataServiceFreshness: String
+    public let kanataExpectedIdentity: String
     public let hasConflicts: Bool
     public let timestamp: Date
 
@@ -26,6 +30,8 @@ public struct CLIStatusResult: Codable, Sendable {
         helperInstalled: Bool,
         helperWorking: Bool,
         helperVersion: String?,
+        helperExpectedVersion: String,
+        helperFreshness: String,
         keyPathAccessibility: Bool,
         keyPathInputMonitoring: Bool,
         kanataAccessibility: Bool,
@@ -38,6 +44,8 @@ public struct CLIStatusResult: Codable, Sendable {
         vhidHealthy: Bool,
         activeRuntimePathTitle: String?,
         activeRuntimePathDetail: String?,
+        kanataServiceFreshness: String,
+        kanataExpectedIdentity: String,
         hasConflicts: Bool,
         timestamp: Date
     ) {
@@ -45,6 +53,8 @@ public struct CLIStatusResult: Codable, Sendable {
         self.helperInstalled = helperInstalled
         self.helperWorking = helperWorking
         self.helperVersion = helperVersion
+        self.helperExpectedVersion = helperExpectedVersion
+        self.helperFreshness = helperFreshness
         self.keyPathAccessibility = keyPathAccessibility
         self.keyPathInputMonitoring = keyPathInputMonitoring
         self.kanataAccessibility = kanataAccessibility
@@ -57,6 +67,8 @@ public struct CLIStatusResult: Codable, Sendable {
         self.vhidHealthy = vhidHealthy
         self.activeRuntimePathTitle = activeRuntimePathTitle
         self.activeRuntimePathDetail = activeRuntimePathDetail
+        self.kanataServiceFreshness = kanataServiceFreshness
+        self.kanataExpectedIdentity = kanataExpectedIdentity
         self.hasConflicts = hasConflicts
         self.timestamp = timestamp
     }

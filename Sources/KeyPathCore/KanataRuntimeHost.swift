@@ -8,6 +8,8 @@ import Foundation
 /// those paths independently so the eventual in-process host migration only
 /// needs to change this model.
 public struct KanataRuntimeHost: Sendable, Equatable {
+    public static let launcherBundleRelativePath = "Contents/Library/KeyPath/kanata-launcher"
+
     public let launcherPath: String
     public let bridgeLibraryPath: String
     public let bundledCorePath: String
@@ -45,7 +47,7 @@ public struct KanataRuntimeHost: Sendable, Equatable {
         let resolvedBundlePath = resolveAppBundlePath(from: bundlePath)
         let engineBundlePath = "\(resolvedBundlePath)/Contents/Library/KeyPath/Kanata Engine.app"
         return KanataRuntimeHost(
-            launcherPath: "\(resolvedBundlePath)/Contents/Library/KeyPath/kanata-launcher",
+            launcherPath: "\(resolvedBundlePath)/\(launcherBundleRelativePath)",
             bridgeLibraryPath: "\(resolvedBundlePath)/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib",
             bundledCorePath: "\(engineBundlePath)/Contents/MacOS/kanata",
             kanataEngineBundlePath: engineBundlePath

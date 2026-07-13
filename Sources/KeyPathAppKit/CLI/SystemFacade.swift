@@ -113,6 +113,8 @@ public struct SystemFacade: Sendable {
             helperInstalled: context.helper.isInstalled,
             helperWorking: context.helper.isWorking,
             helperVersion: context.helper.version,
+            helperExpectedVersion: KeyPathHelperContract.version,
+            helperFreshness: context.helper.freshness(expectedVersion: KeyPathHelperContract.version).rawValue,
             keyPathAccessibility: context.permissions.keyPath.accessibility.isReady,
             keyPathInputMonitoring: context.permissions.keyPath.inputMonitoring.isReady,
             kanataAccessibility: context.permissions.kanata.accessibility.isReady,
@@ -125,6 +127,8 @@ public struct SystemFacade: Sendable {
             vhidHealthy: context.services.vhidHealthy,
             activeRuntimePathTitle: context.services.activeRuntimePathTitle,
             activeRuntimePathDetail: context.services.activeRuntimePathDetail,
+            kanataServiceFreshness: context.services.kanataServiceFreshness.rawValue,
+            kanataExpectedIdentity: RuntimeIdentity.expectedKeyPathKanata().diagnosticDescription,
             hasConflicts: context.conflicts.hasConflicts,
             timestamp: context.timestamp
         )
