@@ -1,6 +1,6 @@
 {
   "repository": "malpern/KeyPath",
-  "updatedAt": "2026-07-13T02:42:51.277060+00:00",
+  "updatedAt": "2026-07-13T02:59:22.967285+00:00",
   "issueLimit": 200,
   "truncated": false,
   "counts": {
@@ -19,7 +19,7 @@
       ],
       "number": 748,
       "title": "Post-1.0: report helper and service freshness explicitly",
-      "updatedAt": "2026-07-13T02:36:57Z",
+      "updatedAt": "2026-07-13T02:59:21Z",
       "url": "https://github.com/malpern/KeyPath/issues/748",
       "dashboardStatus": "active",
       "dashboardType": "debt",

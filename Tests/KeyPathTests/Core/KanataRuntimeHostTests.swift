@@ -22,6 +22,15 @@ final class KanataRuntimeHostTests: XCTestCase {
         XCTAssertEqual(host.kanataEngineBundlePath, "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app")
     }
 
+    func testAppBundlePathFindsContainingAppFromBundledCLI() {
+        XCTAssertEqual(
+            KanataRuntimeHost.appBundlePath(
+                containing: "/Applications/KeyPath.app/Contents/MacOS/keypath-cli"
+            ),
+            "/Applications/KeyPath.app"
+        )
+    }
+
     func testPreferredCoreBinaryAlwaysReturnsBundledPath() {
         let host = KanataRuntimeHost(
             launcherPath: "/tmp/kanata-launcher",
