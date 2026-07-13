@@ -71,6 +71,7 @@ private func formatHumanReadable(_ status: CLIStatusResult, noColor: Bool) -> St
     if let version = status.helperVersion {
         lines.append("Version: \(version)")
     }
+    lines.append("Freshness: \(status.helperFreshness) (expected \(status.helperExpectedVersion))")
     lines.append("")
     lines.append("--- Permissions ---")
     lines.append("KeyPath:")
@@ -87,6 +88,11 @@ private func formatHumanReadable(_ status: CLIStatusResult, noColor: Bool) -> St
     lines.append("")
     lines.append("--- Services ---")
     lines.append("Kanata Running: \(check(status.kanataRunning))")
+    lines.append("Kanata Freshness: \(status.kanataServiceFreshness)")
+    if let activeRuntimeIdentity = status.activeRuntimePathDetail {
+        lines.append("Kanata Runtime: \(activeRuntimeIdentity)")
+    }
+    lines.append("Expected Runtime: \(status.kanataExpectedIdentity)")
     lines.append("Karabiner Daemon: \(check(status.karabinerDaemonRunning))")
     lines.append("VHID Healthy: \(check(status.vhidHealthy))")
 

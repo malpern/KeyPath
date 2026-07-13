@@ -19,6 +19,8 @@ final class CLIReportModelsTests: XCTestCase {
             helperInstalled: true,
             helperWorking: true,
             helperVersion: "1.0",
+            helperExpectedVersion: "1.1.0",
+            helperFreshness: "stale",
             keyPathAccessibility: true,
             keyPathInputMonitoring: true,
             kanataAccessibility: true,
@@ -31,16 +33,20 @@ final class CLIReportModelsTests: XCTestCase {
             vhidHealthy: true,
             activeRuntimePathTitle: "test",
             activeRuntimePathDetail: "detail",
+            kanataServiceFreshness: "stale",
+            kanataExpectedIdentity: "com.keypath.KeyPath build 4 · Contents/Library/KeyPath/kanata-launcher",
             hasConflicts: false,
             timestamp: Date()
         )
         let keys = try jsonKeys(status)
         let required: Set = [
             "isOperational", "helperInstalled", "helperWorking",
+            "helperExpectedVersion", "helperFreshness",
             "keyPathAccessibility", "keyPathInputMonitoring",
             "kanataAccessibility", "kanataInputMonitoring",
             "kanataBinaryInstalled", "karabinerDriverInstalled", "vhidDeviceHealthy",
             "kanataRunning", "karabinerDaemonRunning", "vhidHealthy",
+            "kanataServiceFreshness", "kanataExpectedIdentity",
             "hasConflicts", "timestamp",
         ]
         XCTAssertTrue(required.isSubset(of: keys), "Missing required keys: \(required.subtracting(keys))")

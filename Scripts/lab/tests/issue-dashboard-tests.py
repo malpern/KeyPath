@@ -20,8 +20,11 @@ def issue(number: int, *labels: str) -> dict:
 
 class IssueDashboardTests(unittest.TestCase):
     def test_active_and_next_override_general_labels(self) -> None:
-        self.assertEqual(module.issue_status(issue(982, "bug-risk", "agent-ok")), "active")
-        self.assertEqual(module.issue_status(issue(748, "tech-debt")), "next")
+        self.assertEqual(module.issue_status(issue(748, "tech-debt")), "active")
+        self.assertEqual(module.issue_status(issue(848, "testing", "agent-ok")), "next")
+
+    def test_upstream_release_wait_is_human_gated(self) -> None:
+        self.assertEqual(module.issue_status(issue(982, "bug-risk", "human-in-loop")), "human")
 
     def test_explicitly_deferred_issues_are_human_gated(self) -> None:
         for number in (172, 740, 747, 919):

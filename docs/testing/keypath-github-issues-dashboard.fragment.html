@@ -86,7 +86,7 @@
   </header>
 
   <div class="legend" aria-label="Issue status legend">
-    <span><i class="swatch active-mark"></i>Active upstream</span>
+    <span><i class="swatch active-mark"></i>Active</span>
     <span><i class="swatch next-mark"></i>Recommended next</span>
     <span><i class="swatch queued-mark"></i>Agent queue</span>
     <span><i class="swatch human-mark"></i>Human / external gate</span>
@@ -120,8 +120,8 @@
       </section>
 
       <section class="lanes" aria-label="Work sequence">
-        <div class="lane active"><strong>Active</strong><span>#982 upstream protocol migration</span></div>
-        <div class="lane next"><strong>Next if waiting</strong><span>#748 runtime freshness diagnostics</span></div>
+        <div class="lane active"><strong>Active</strong><span>#748 runtime freshness diagnostics</span></div>
+        <div class="lane next"><strong>Next</strong><span>#848 centralized Kanata test fixtures</span></div>
         <div class="lane"><strong>Bug-first queue</strong><span>Reliability and test debt before features</span></div>
         <div class="lane human"><strong>Explicitly deferred</strong><span>#172, #740, #747, #919 and human lanes</span></div>
       </section>
@@ -142,7 +142,7 @@
   <script>
     (() => {
       const root = document.getElementById('keypath-issue-board');
-      const names = {active:'Active upstream',next:'Recommended next',queued:'Agent queue',human:'Human / external gate',feature:'Feature deferred',deferred:'Deferred'};
+      const names = {active:'Active',next:'Recommended next',queued:'Agent queue',human:'Human / external gate',feature:'Feature deferred',deferred:'Deferred'};
       const typeNames = {bug:'Bug',testing:'Testing',debt:'Technical debt',feature:'Feature',upstream:'Upstream / research',docs:'Documentation / design',other:'Other'};
       const grid = root.querySelector('#issue-grid');
       const title = root.querySelector('#issue-title');

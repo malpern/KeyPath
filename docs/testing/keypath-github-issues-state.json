@@ -1,35 +1,17 @@
 {
   "repository": "malpern/KeyPath",
-  "updatedAt": "2026-07-13T01:16:17.171211+00:00",
+  "updatedAt": "2026-07-13T02:42:51.277060+00:00",
   "issueLimit": 200,
   "truncated": false,
   "counts": {
     "active": 1,
     "next": 1,
-    "queued": 17,
-    "human": 22,
+    "queued": 16,
+    "human": 23,
     "feature": 40,
     "deferred": 15
   },
   "issues": [
-    {
-      "labels": [
-        "kanata",
-        "driver-kit",
-        "upstream",
-        "research",
-        "bug-risk",
-        "model:sonnet",
-        "agent-ok"
-      ],
-      "number": 982,
-      "title": "Upstream: migrate Kanata to the current VirtualHIDDevice protocol",
-      "updatedAt": "2026-07-12T14:38:58Z",
-      "url": "https://github.com/malpern/KeyPath/issues/982",
-      "dashboardStatus": "active",
-      "dashboardType": "bug",
-      "descriptionExcerpt": "Direction Treat this as an upstream-first Kanata compatibility project, independent of KeyPath integration. The immediate goal is to make the latest upstream Kanata compatible with the current Karabiner-DriverKit-VirtualHIDDevice protocol, validate the result\u2026"
-    },
     {
       "labels": [
         "tech-debt",
@@ -37,11 +19,26 @@
       ],
       "number": 748,
       "title": "Post-1.0: report helper and service freshness explicitly",
-      "updatedAt": "2026-06-06T19:09:37Z",
+      "updatedAt": "2026-07-13T02:36:57Z",
       "url": "https://github.com/malpern/KeyPath/issues/748",
-      "dashboardStatus": "next",
+      "dashboardStatus": "active",
       "dashboardType": "debt",
       "descriptionExcerpt": "Context Recent release-blocker work fixed stale SMAppService recovery for Kanata and the privileged helper. Runtime is healthy after the final signed/notarized build, but one observation remains ambiguous: launchd may keep an existing helper process alive\u2026"
+    },
+    {
+      "labels": [
+        "tech-debt",
+        "testing",
+        "model:sonnet",
+        "agent-ok"
+      ],
+      "number": 848,
+      "title": "Centralize Kanata test fixtures (~350 inline config strings duplicated across tests)",
+      "updatedAt": "2026-07-04T13:30:24Z",
+      "url": "https://github.com/malpern/KeyPath/issues/848",
+      "dashboardStatus": "next",
+      "dashboardType": "testing",
+      "descriptionExcerpt": "Problem Roughly 350 ad-hoc Kanata config string literals (defcfg, defsrc, deflayer, defvar) are inlined across Tests/KeyPathTests/. There is no shared fixture/builder library. Tests/TestSupport/ exists but contains only SystemContextBuilder.swift and\u2026"
     },
     {
       "labels": [
@@ -74,21 +71,6 @@
       "dashboardStatus": "queued",
       "dashboardType": "debt",
       "descriptionExcerpt": "Problem App.swift owns: window creation, wizard presentation, keyboard-layout detection, emergency-stop handling, headless auto-start, first-activation flow, fresh-install detection, menu bar setup, and SMAppService dev utilities. The first-activation block\u2026"
-    },
-    {
-      "labels": [
-        "tech-debt",
-        "testing",
-        "model:sonnet",
-        "agent-ok"
-      ],
-      "number": 848,
-      "title": "Centralize Kanata test fixtures (~350 inline config strings duplicated across tests)",
-      "updatedAt": "2026-07-04T13:30:24Z",
-      "url": "https://github.com/malpern/KeyPath/issues/848",
-      "dashboardStatus": "queued",
-      "dashboardType": "testing",
-      "descriptionExcerpt": "Problem Roughly 350 ad-hoc Kanata config string literals (defcfg, defsrc, deflayer, defvar) are inlined across Tests/KeyPathTests/. There is no shared fixture/builder library. Tests/TestSupport/ exists but contains only SystemContextBuilder.swift and\u2026"
     },
     {
       "labels": [
@@ -277,6 +259,24 @@
       "dashboardStatus": "queued",
       "dashboardType": "testing",
       "descriptionExcerpt": "Goal Validate the KeyPathInsights feature works correctly in a production-signed app build. Test checklist - [ ] Confirm KeyPathInsights plugin loads at app startup - [ ] Verify opt-in/consent flow appears and persists correctly - [ ] Generate sample activity\u2026"
+    },
+    {
+      "labels": [
+        "kanata",
+        "driver-kit",
+        "upstream",
+        "research",
+        "bug-risk",
+        "model:sonnet",
+        "human-in-loop"
+      ],
+      "number": 982,
+      "title": "Upstream: migrate Kanata to the current VirtualHIDDevice protocol",
+      "updatedAt": "2026-07-13T02:28:52Z",
+      "url": "https://github.com/malpern/KeyPath/issues/982",
+      "dashboardStatus": "human",
+      "dashboardType": "bug",
+      "descriptionExcerpt": "Direction Treat this as an upstream-first Kanata compatibility project, independent of KeyPath integration. The immediate goal is to make the latest upstream Kanata compatible with the current Karabiner-DriverKit-VirtualHIDDevice protocol, validate the result\u2026"
     },
     {
       "labels": [

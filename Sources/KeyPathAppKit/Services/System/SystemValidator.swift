@@ -7,6 +7,16 @@ import KeyPathWizardCore
 import os.lock
 import ServiceManagement
 
+extension RuntimeIdentity {
+    static func expectedKeyPathKanata(buildVersion: String = BuildInfo.current().build) -> RuntimeIdentity {
+        RuntimeIdentity(
+            programIdentifier: KanataRuntimeHost.launcherBundleRelativePath,
+            parentBundleIdentifier: KeyPathConstants.Bundle.bundleID,
+            parentBundleVersion: buildVersion
+        )
+    }
+}
+
 /// Stateless system validation service
 ///
 /// This replaces StartupValidator + SystemStatusChecker with a single, simple validator.
@@ -811,6 +821,22 @@ public class SystemValidator {
         let (kanataSMStatus, helperSMStatus) = await (kanataSMAppServiceStatus, helperSMAppServiceStatus)
         let kanataSMAppServiceRegistered = kanataSMStatus == .enabled || kanataSMStatus == .requiresApproval
         let loginItemsApprovalRequired = kanataSMStatus == .requiresApproval || helperSMStatus == .requiresApproval
+        let expectedRuntimeIdentity = RuntimeIdentity.expectedKeyPathKanata()
+        let activeRuntimeIdentity = kanataHealth.activeProgramIdentity.map {
+            RuntimeIdentity(
+                programIdentifier: $0.programIdentifier,
+                parentBundleIdentifier: $0.parentBundleIdentifier,
+                parentBundleVersion: $0.parentBundleVersion
+            )
+        }
+        let kanataServiceFreshness = kanataRunning
+            ? RuntimeFreshness.classify(actual: activeRuntimeIdentity, expected: expectedRuntimeIdentity)
+            : .unknown
+        let activeRuntimePathTitle: String? = switch kanataServiceFreshness {
+        case .fresh: "Bundled runtime"
+        case .stale: "Stale runtime"
+        case .unknown: nil
+        }
 
         return HealthStatus(
             kanataLaunchdLoaded: !kanataHealth.staleEnabledRegistration &&
@@ -823,6 +849,9 @@ public class SystemValidator {
             vhidHealthy: vhidHealthy,
             kanataInputCaptureReady: kanataHealth.inputCaptureReady,
             kanataInputCaptureIssue: kanataHealth.inputCaptureIssue,
+            activeRuntimePathTitle: activeRuntimePathTitle,
+            activeRuntimePathDetail: activeRuntimeIdentity?.diagnosticDescription,
+            kanataServiceFreshness: kanataServiceFreshness,
             kanataPermissionRejected: stderrDiagnosis.permissionRejected,
             configParseError: configParseError,
             staleEnabledRegistration: kanataHealth.staleEnabledRegistration,
