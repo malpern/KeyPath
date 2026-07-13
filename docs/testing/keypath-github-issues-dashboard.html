@@ -813,8 +813,6 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-issue-board .lane { padding:11px; border-top:2px solid var(--border); }
     #keypath-issue-board .lane strong { display:block; font:500 12px system-ui,sans-serif; }
     #keypath-issue-board .lane span { color:var(--muted-foreground); font:11px system-ui,sans-serif; }
-    #keypath-issue-board .lane.active { border-color:var(--viz-series-2); }
-    #keypath-issue-board .lane.next { border-color:var(--viz-series-3); }
     #keypath-issue-board .lane.human { border-color:var(--viz-series-5); }
     #keypath-issue-board .lane.hold { border-color:var(--muted-foreground); }
     #keypath-issue-board .activity { margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }
@@ -878,7 +876,7 @@ html&gt;body{padding:0}&lt;/style&gt;
       &lt;section class=&quot;lanes&quot; aria-label=&quot;Work sequence&quot;&gt;
         &lt;div class=&quot;lane&quot;&gt;&lt;strong&gt;Agent queue&lt;/strong&gt;&lt;span&gt;Reliability and test debt before features&lt;/span&gt;&lt;/div&gt;
         &lt;div class=&quot;lane human&quot;&gt;&lt;strong&gt;Human / external gate&lt;/strong&gt;&lt;span&gt;Needs hands-on validation or an external dependency&lt;/span&gt;&lt;/div&gt;
-        &lt;div class=&quot;lane hold&quot;&gt;&lt;strong&gt;On hold&lt;/strong&gt;&lt;span&gt;#982 and other explicitly paused work&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;lane hold&quot;&gt;&lt;strong&gt;On hold&lt;/strong&gt;&lt;span&gt;Explicitly paused with the on-hold label&lt;/span&gt;&lt;/div&gt;
         &lt;div class=&quot;lane&quot;&gt;&lt;strong&gt;Feature / tracking&lt;/strong&gt;&lt;span&gt;Deferred product work and tracking epics&lt;/span&gt;&lt;/div&gt;
       &lt;/section&gt;
     &lt;/main&gt;

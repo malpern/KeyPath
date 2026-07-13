@@ -63,8 +63,6 @@
     #keypath-issue-board .lane { padding:11px; border-top:2px solid var(--border); }
     #keypath-issue-board .lane strong { display:block; font:500 12px system-ui,sans-serif; }
     #keypath-issue-board .lane span { color:var(--muted-foreground); font:11px system-ui,sans-serif; }
-    #keypath-issue-board .lane.active { border-color:var(--viz-series-2); }
-    #keypath-issue-board .lane.next { border-color:var(--viz-series-3); }
     #keypath-issue-board .lane.human { border-color:var(--viz-series-5); }
     #keypath-issue-board .lane.hold { border-color:var(--muted-foreground); }
     #keypath-issue-board .activity { margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }
@@ -128,7 +126,7 @@
       <section class="lanes" aria-label="Work sequence">
         <div class="lane"><strong>Agent queue</strong><span>Reliability and test debt before features</span></div>
         <div class="lane human"><strong>Human / external gate</strong><span>Needs hands-on validation or an external dependency</span></div>
-        <div class="lane hold"><strong>On hold</strong><span>#982 and other explicitly paused work</span></div>
+        <div class="lane hold"><strong>On hold</strong><span>Explicitly paused with the on-hold label</span></div>
         <div class="lane"><strong>Feature / tracking</strong><span>Deferred product work and tracking epics</span></div>
       </section>
     </main>

@@ -32,7 +32,6 @@ class IssueDashboardTests(unittest.TestCase):
         self.assertIn("data-status=\"hold\"", fragment)
         self.assertIn("id=\"metric-hold\"", fragment)
         self.assertIn("hold:'On hold'", fragment)
-        self.assertIn("#982", fragment)
 
     def test_topic_labels_do_not_imply_execution_state(self) -> None:
         self.assertEqual(module.issue_status(issue(912, "wwdc26", "enhancement")), "feature")
