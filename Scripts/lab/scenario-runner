@@ -1,0 +1,264 @@
+#!/usr/bin/env python3
+"""Run a checkpointed lab scenario without replaying uncertain mutations."""
+
+import argparse
+import datetime
+import hashlib
+import json
+import os
+import pathlib
+import re
+import subprocess
+import sys
+import tempfile
+from typing import Any
+
+
+STEP_ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+STATE_VERSION = 1
+
+
+class PlanError(ValueError):
+    pass
+
+
+def now() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+
+def canonical_digest(plan: dict[str, Any]) -> str:
+    payload = json.dumps(plan, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(payload).hexdigest()
+
+
+def command(value: Any, field: str, step_id: str) -> list[str]:
+    if not isinstance(value, list) or not value or not all(isinstance(part, str) and part for part in value):
+        raise PlanError(f"step {step_id} requires a non-empty {field} command array")
+    return value
+
+
+def validate_plan(plan: Any) -> dict[str, Any]:
+    if not isinstance(plan, dict) or plan.get("schemaVersion") != 1:
+        raise PlanError("plan requires schemaVersion 1")
+    if not isinstance(plan.get("scenario"), str) or not plan["scenario"]:
+        raise PlanError("plan requires a scenario name")
+    steps = plan.get("steps")
+    if not isinstance(steps, list) or not steps:
+        raise PlanError("plan requires one or more steps")
+
+    seen: set[str] = set()
+    for step in steps:
+        if not isinstance(step, dict):
+            raise PlanError("each step must be an object")
+        step_id = step.get("id")
+        if not isinstance(step_id, str) or not STEP_ID.fullmatch(step_id):
+            raise PlanError("step ids must use lowercase letters, numbers, and dashes")
+        if step_id in seen:
+            raise PlanError(f"duplicate step id: {step_id}")
+        seen.add(step_id)
+        command(step.get("verify"), "verify", step_id)
+        command(step.get("action"), "action", step_id)
+        has_recovery = "recovery" in step or "recoveryVerify" in step
+        if has_recovery:
+            command(step.get("recovery"), "recovery", step_id)
+            command(step.get("recoveryVerify"), "recoveryVerify", step_id)
+    return plan
+
+
+def write_json(path: pathlib.Path, value: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w") as handle:
+            json.dump(value, handle, indent=2)
+            handle.write("\n")
+        os.chmod(temporary_name, 0o600)
+        os.replace(temporary_name, path)
+    except BaseException:
+        os.unlink(temporary_name)
+        raise
+
+
+def initial_state(plan: dict[str, Any], digest: str) -> dict[str, Any]:
+    return {
+        "schemaVersion": STATE_VERSION,
+        "scenario": plan["scenario"],
+        "planDigest": digest,
+        "status": "running",
+        "updatedAt": now(),
+        "steps": [
+            {"id": step["id"], "status": "pending", "attempts": 0}
+            for step in plan["steps"]
+        ],
+    }
+
+
+def load_state(path: pathlib.Path, plan: dict[str, Any], digest: str) -> dict[str, Any]:
+    if not path.exists():
+        return initial_state(plan, digest)
+    try:
+        state = json.loads(path.read_text())
+    except json.JSONDecodeError as error:
+        raise PlanError(f"state file is not valid JSON: {error}") from error
+    expected_steps = [step["id"] for step in plan["steps"]]
+    actual_steps = [step.get("id") for step in state.get("steps", [])]
+    if state.get("schemaVersion") != STATE_VERSION or state.get("scenario") != plan["scenario"]:
+        raise PlanError("state belongs to a different scenario")
+    if state.get("planDigest") != digest:
+        raise PlanError("plan changed after checkpoints were recorded; use a new state path")
+    if actual_steps != expected_steps:
+        raise PlanError("state step order does not match the plan")
+    return state
+
+
+def save_state(path: pathlib.Path, state: dict[str, Any]) -> None:
+    state["updatedAt"] = now()
+    write_json(path, state)
+
+
+def run_command(command_value: list[str], log: pathlib.Path, cwd: pathlib.Path) -> int:
+    log.parent.mkdir(parents=True, exist_ok=True)
+    with log.open("w") as handle:
+        return subprocess.run(command_value, cwd=cwd, stdout=handle, stderr=subprocess.STDOUT).returncode
+
+
+def record_blocked(result_tool: pathlib.Path, result: pathlib.Path, scenario: str, step: str, summary: str) -> None:
+    subprocess.run(
+        [
+            str(result_tool), "record", "--output", str(result), "--scenario", scenario,
+            "--status", "blocked", "--summary", summary,
+            "--classification", "harness-transport-failure", "--step", step,
+            "--message", "Runner interruption left this mutation uncertain; a recovery path is required.",
+        ],
+        check=True,
+    )
+
+
+def record_product_failure(result_tool: pathlib.Path, result: pathlib.Path, scenario: str, step: str, evidence: str) -> None:
+    subprocess.run(
+        [
+            str(result_tool), "record", "--output", str(result), "--scenario", scenario,
+            "--status", "failed", "--summary", "Scenario action completed without its required postcondition.",
+            "--classification", "keypath-product-failure", "--step", step,
+            "--evidence", evidence,
+        ],
+        check=True,
+    )
+
+
+def transition(state: dict[str, Any], step_state: dict[str, Any], status: str, path: pathlib.Path) -> None:
+    step_state["status"] = status
+    step_state["updatedAt"] = now()
+    state["currentStep"] = step_state["id"]
+    save_state(path, state)
+
+
+def complete(state: dict[str, Any], step_state: dict[str, Any], path: pathlib.Path) -> None:
+    step_state["status"] = "verified"
+    step_state["verifiedAt"] = now()
+    step_state.pop("uncertainSince", None)
+    state.pop("currentStep", None)
+    save_state(path, state)
+
+
+def recover_uncertain_step(
+    plan_step: dict[str, Any], state: dict[str, Any], step_state: dict[str, Any], state_path: pathlib.Path,
+    workdir: pathlib.Path, result_tool: pathlib.Path, result_path: pathlib.Path,
+) -> bool:
+    step_id = plan_step["id"]
+    attempt = step_state["attempts"]
+    if run_command(plan_step["verify"], workdir / f"{step_id}.resume-verify-{attempt}.log", workdir) == 0:
+        complete(state, step_state, state_path)
+        return True
+    if "recovery" not in plan_step:
+        state["status"] = "blocked"
+        step_state["blocker"] = "interrupted mutation has no declared recovery path"
+        save_state(state_path, state)
+        record_blocked(
+            result_tool, result_path, state["scenario"], step_id,
+            f"Interrupted {step_id} could not be verified and has no recovery path.",
+        )
+        return False
+    transition(state, step_state, "recovering", state_path)
+    if run_command(plan_step["recovery"], workdir / f"{step_id}.recovery-{attempt}.log", workdir) != 0:
+        state["status"] = "blocked"
+        step_state["blocker"] = "declared recovery command failed"
+        save_state(state_path, state)
+        record_blocked(result_tool, result_path, state["scenario"], step_id, f"Recovery for interrupted {step_id} failed.")
+        return False
+    if run_command(plan_step["recoveryVerify"], workdir / f"{step_id}.recovery-verify-{attempt}.log", workdir) != 0:
+        state["status"] = "blocked"
+        step_state["blocker"] = "declared recovery did not reach its safe postcondition"
+        save_state(state_path, state)
+        record_blocked(result_tool, result_path, state["scenario"], step_id, f"Recovery for interrupted {step_id} was not verified.")
+        return False
+    transition(state, step_state, "pending", state_path)
+    return True
+
+
+def run(plan_path: pathlib.Path, state_path: pathlib.Path, result_path: pathlib.Path) -> int:
+    try:
+        plan = validate_plan(json.loads(plan_path.read_text()))
+        digest = canonical_digest(plan)
+        state = load_state(state_path, plan, digest)
+    except (OSError, json.JSONDecodeError, PlanError) as error:
+        print(f"scenario-runner: {error}", file=sys.stderr)
+        return 2
+
+    if state.get("status") in ("passed", "failed", "blocked"):
+        print(f"scenario-runner: existing run is {state['status']}; use a new state path", file=sys.stderr)
+        return 3
+
+    workdir = state_path.parent / "logs"
+    result_tool = pathlib.Path(__file__).with_name("scenario-result")
+    by_id = {step["id"]: step for step in plan["steps"]}
+    for step_state in state["steps"]:
+        plan_step = by_id[step_state["id"]]
+        if step_state["status"] == "verified":
+            continue
+        if step_state["status"] in ("in-flight", "recovering"):
+            if not recover_uncertain_step(plan_step, state, step_state, state_path, workdir, result_tool, result_path):
+                return 3
+            if step_state["status"] == "verified":
+                continue
+
+        attempt = step_state["attempts"] + 1
+        transition(state, step_state, "verifying", state_path)
+        if run_command(plan_step["verify"], workdir / f"{plan_step['id']}.verify-{attempt}.log", workdir) == 0:
+            complete(state, step_state, state_path)
+            continue
+
+        step_state["attempts"] = attempt
+        step_state["uncertainSince"] = now()
+        transition(state, step_state, "in-flight", state_path)
+        action_exit = run_command(plan_step["action"], workdir / f"{plan_step['id']}.action-{attempt}.log", workdir)
+        if action_exit != 0:
+            if not recover_uncertain_step(plan_step, state, step_state, state_path, workdir, result_tool, result_path):
+                return 3
+            continue
+        evidence = str((workdir / f"{plan_step['id']}.verify-after-{attempt}.log").relative_to(state_path.parent))
+        if run_command(plan_step["verify"], workdir / f"{plan_step['id']}.verify-after-{attempt}.log", workdir) != 0:
+            state["status"] = "failed"
+            step_state["blocker"] = "action exited successfully but its postcondition was absent"
+            save_state(state_path, state)
+            record_product_failure(result_tool, result_path, state["scenario"], plan_step["id"], evidence)
+            return 1
+        complete(state, step_state, state_path)
+
+    state["status"] = "passed"
+    state.pop("currentStep", None)
+    save_state(state_path, state)
+    return 0
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--plan", required=True, type=pathlib.Path)
+    parser.add_argument("--state", required=True, type=pathlib.Path)
+    parser.add_argument("--result", required=True, type=pathlib.Path)
+    args = parser.parse_args()
+    raise SystemExit(run(args.plan, args.state, args.result))
+
+
+if __name__ == "__main__":
+    main()
