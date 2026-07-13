@@ -878,15 +878,11 @@ public final class InstallerEngine {
     }
 
     /// Check Kanata service health (running + TCP responsive)
-    public func checkKanataServiceHealth(tcpPort: Int = KeyPathConstants.Networking.defaultTCPPort) async -> KanataHealthSnapshot {
+    public func checkKanataServiceHealth(tcpPort: Int = KeyPathConstants.Networking.defaultTCPPort) async -> KanataRuntimeReadiness {
         let runtimeSnapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot(
             tcpPort: tcpPort
         )
-        return KanataHealthSnapshot(
-            isRunning: runtimeSnapshot.isRunning,
-            isResponding: runtimeSnapshot.isResponding,
-            inputCaptureReady: runtimeSnapshot.inputCaptureReady
-        )
+        return runtimeSnapshot.readiness
     }
 
     /// Convenience wrapper that chains inspectSystem() → makePlan() → execute() internally.

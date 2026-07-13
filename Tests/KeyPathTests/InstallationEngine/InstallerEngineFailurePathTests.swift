@@ -549,8 +549,8 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
 
     // MARK: - Health Check Types
 
-    func testKanataHealthSnapshot_AllHealthy() {
-        let snapshot = KanataHealthSnapshot(
+    func testKanataRuntimeReadiness_AllEvidenceReady() {
+        let snapshot = KanataRuntimeReadiness(
             isRunning: true,
             isResponding: true,
             inputCaptureReady: true
@@ -558,10 +558,11 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         XCTAssertTrue(snapshot.isRunning)
         XCTAssertTrue(snapshot.isResponding)
         XCTAssertTrue(snapshot.inputCaptureReady)
+        XCTAssertTrue(snapshot.isReady)
     }
 
-    func testKanataHealthSnapshot_PartialFailure() {
-        let snapshot = KanataHealthSnapshot(
+    func testKanataRuntimeReadiness_RequiresEverySignal() {
+        let snapshot = KanataRuntimeReadiness(
             isRunning: true,
             isResponding: false,
             inputCaptureReady: false
@@ -569,6 +570,30 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         XCTAssertTrue(snapshot.isRunning)
         XCTAssertFalse(snapshot.isResponding)
         XCTAssertFalse(snapshot.inputCaptureReady)
+        XCTAssertFalse(snapshot.isReady)
+    }
+
+    func testHealthStatusProjectsExplicitRuntimeEvidenceBeforeLegacySummary() {
+        let health = HealthStatus(
+            kanataProcessRunning: true,
+            kanataTCPResponding: false,
+            kanataRunning: true,
+            karabinerDaemonRunning: true,
+            vhidHealthy: true
+        )
+
+        XCTAssertFalse(health.kanataRuntimeReadiness.isReady)
+        XCTAssertFalse(health.isHealthy, "A running process without TCP readiness is not system healthy")
+    }
+
+    func testHealthStatusRetainsLegacyRuntimeSummaryFallback() {
+        let health = HealthStatus(
+            kanataRunning: true,
+            karabinerDaemonRunning: true,
+            vhidHealthy: true
+        )
+
+        XCTAssertTrue(health.kanataRuntimeReadiness.isReady)
     }
 
     // MARK: - Stub Coordinator Tests

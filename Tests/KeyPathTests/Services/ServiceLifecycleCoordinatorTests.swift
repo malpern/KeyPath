@@ -173,6 +173,24 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         )
     }
 
+    func testPostStartReadinessAcceptsLiveRuntimeDespiteStaleRegistrationMetadata() {
+        let snapshot = ServiceHealthChecker.KanataServiceRuntimeSnapshot(
+            managementState: .smappserviceActive,
+            isRunning: true,
+            isResponding: true,
+            inputCaptureReady: true,
+            inputCaptureIssue: nil,
+            launchctlExitCode: 0,
+            staleEnabledRegistration: true,
+            recentlyRestarted: false
+        )
+
+        XCTAssertTrue(
+            ServiceLifecycleCoordinator.shouldAcceptPostStartRuntime(snapshot),
+            "Current process, TCP, and input-capture evidence must outrank stale registration metadata"
+        )
+    }
+
     // MARK: - Restart
 
     func testRestartCallsStopThenStart() async {

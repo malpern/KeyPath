@@ -144,6 +144,14 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             self.recentlyRestarted = recentlyRestarted
             self.activeProgramIdentity = activeProgramIdentity
         }
+
+        public var readiness: KanataRuntimeReadiness {
+            KanataRuntimeReadiness(
+                isRunning: isRunning,
+                isResponding: isResponding,
+                inputCaptureReady: inputCaptureReady
+            )
+        }
     }
 
     public struct LaunchctlProgramIdentity: Sendable, Equatable {
@@ -543,39 +551,30 @@ public final class ServiceHealthChecker: @unchecked Sendable {
 
     // MARK: - Kanata-Specific Health Check
 
-    /// Unified Kanata service health check: launchctl PID check + TCP probe.
+    /// Lightweight Kanata process + TCP readiness probe.
     ///
-    /// This provides a comprehensive health check that verifies both:
-    /// 1. The process is running (via launchctl print)
-    /// 2. The TCP server is responding (via socket connection)
-    ///
-    /// - Parameters:
-    ///   - tcpPort: TCP port to probe (default: 37001)
-    ///   - timeoutMs: TCP connection timeout in milliseconds (default: 300)
-    /// - Returns: `KanataHealthSnapshot` with running and responding status
+    /// This method does not inspect input capture; its returned
+    /// `inputCaptureReady` value preserves the legacy process/TCP-only contract.
+    /// Call `checkKanataServiceRuntimeSnapshot` when input-capture evidence is required.
     public nonisolated func checkKanataServiceHealth(
         tcpPort: Int = KeyPathConstants.Networking.defaultTCPPort,
         timeoutMs: Int = 300
-    ) async -> KanataHealthSnapshot {
+    ) async -> KanataRuntimeReadiness {
         if TestEnvironment.shouldSkipAdminOperations {
-            // Keep tests hermetic: avoid probing launchctl and real TCP sockets.
-            return KanataHealthSnapshot(isRunning: false, isResponding: false)
+            return KanataRuntimeReadiness(isRunning: false, isResponding: false)
         }
 
         let managementState = await getDaemonManager()?.refreshManagementState() ?? Self.fallbackManagementState
         let targets = await getDaemonManager()?.preferredLaunchctlTargets(for: managementState) ?? []
-
-        // 1) launchctl check for PID using SubprocessRunner
-        let runningState = await evaluateKanataLaunchctlRunningState(managementState: managementState, launchctlTargets: targets)
-        let isRunning = runningState.isRunning
-
-        // 2) TCP readiness through the shared system-state provider.
+        let runningState = await evaluateKanataLaunchctlRunningState(
+            managementState: managementState,
+            launchctlTargets: targets
+        )
         let tcpOK = await probeConfiguredTCPPort(defaultPort: tcpPort, timeoutMs: timeoutMs)
 
-        return KanataHealthSnapshot(
-            isRunning: isRunning,
-            isResponding: tcpOK
-        )
+        // Preserve this API's intentionally narrow process + TCP probe. Input-capture
+        // evidence belongs to the richer runtime snapshot used by installer/lifecycle paths.
+        return KanataRuntimeReadiness(isRunning: runningState.isRunning, isResponding: tcpOK)
     }
 
     public nonisolated func checkKanataServiceRuntimeSnapshot(
@@ -826,7 +825,7 @@ public final class ServiceHealthChecker: @unchecked Sendable {
             return .unhealthy(reason: runtimeSnapshot.inputCaptureIssue ?? "input-capture-not-ready")
         }
 
-        if runtimeSnapshot.isRunning, runtimeSnapshot.isResponding {
+        if runtimeSnapshot.readiness.isReady {
             return .healthy
         }
 

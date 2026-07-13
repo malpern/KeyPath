@@ -383,6 +383,28 @@ public struct ConflictStatus: Sendable {
     }
 }
 
+// MARK: - Runtime Readiness
+
+/// Canonical evidence that the Kanata runtime can currently remap input.
+///
+/// Registration and startup grace periods are deliberately not represented here:
+/// they are lifecycle policy, not proof that the runtime is ready.
+public struct KanataRuntimeReadiness: Sendable, Equatable {
+    public let isRunning: Bool
+    public let isResponding: Bool
+    public let inputCaptureReady: Bool
+
+    public init(isRunning: Bool, isResponding: Bool, inputCaptureReady: Bool = true) {
+        self.isRunning = isRunning
+        self.isResponding = isResponding
+        self.inputCaptureReady = inputCaptureReady
+    }
+
+    public var isReady: Bool {
+        isRunning && isResponding && inputCaptureReady
+    }
+}
+
 // MARK: - Health Status
 
 public struct HealthStatus: Sendable {
@@ -467,8 +489,19 @@ public struct HealthStatus: Sendable {
 
     /// Overall health (includes Kanata runtime)
     public var isHealthy: Bool {
-        kanataRunning && karabinerDaemonRunning && vhidHealthy && kanataInputCaptureReady
+        kanataRuntimeReadiness.isReady && karabinerDaemonRunning && vhidHealthy
             && (kanataTCPConfigured ?? true)
+    }
+
+    /// Project the broader system snapshot onto the canonical runtime-readiness contract.
+    /// Older snapshots that lack explicit process/TCP evidence retain their historical
+    /// `kanataRunning` fallback instead of becoming false negatives.
+    public var kanataRuntimeReadiness: KanataRuntimeReadiness {
+        KanataRuntimeReadiness(
+            isRunning: kanataProcessRunning ?? kanataRunning,
+            isResponding: kanataTCPResponding ?? kanataRunning,
+            inputCaptureReady: kanataInputCaptureReady
+        )
     }
 
     /// Health of background services only (Karabiner daemon + VHID driver)
