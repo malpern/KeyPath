@@ -29,6 +29,9 @@ jobs:
           submodules: true
           persist-credentials: false
 
+      - name: Verify runner disk reserve
+        run: ./Scripts/lab/host-disk-reserve
+
       - name: Add Homebrew to PATH
         run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
 
@@ -113,6 +116,9 @@ jobs:
         with:
           submodules: true
           persist-credentials: false
+
+      - name: Verify runner disk reserve
+        run: ./Scripts/lab/host-disk-reserve
 
       - name: Add Homebrew to PATH
         run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
