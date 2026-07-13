@@ -758,6 +758,20 @@ protected_click() {
   fi
 }
 
+desktop_type() {
+  local lease=$1 text=$2 manifest macos resource
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$macos" == "15" ]] || die "desktop type currently supports only the Tart macOS 15 lane"
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "desktop type requires a desktop-enabled lease"
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Za-z0-9._-]+$' && "$resource" != "unknown" ]] || die "invalid Tart resource id"
+  if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
+  export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  "$CRABBOX" desktop type --provider tart --target macos --id "$resource" --text "$text"
+  record_command "$lease" passed desktop-type --bytes "${#text}"
+}
+
 print_status() {
   local lease=$1 manifest macos launcher
   manifest=$(owned_manifest "$lease")
@@ -920,6 +934,7 @@ case "$action" in
   install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
   secure-dialog-input) [[ $# -eq 5 ]] || die "secure-dialog-input requires lease, app, field, optional submit value, and focus mode"; secure_dialog_input "$@" ;;
   protected-click) [[ $# -eq 7 ]] || die "protected-click requires lease, app, before window, after window, coordinate space, x, and y"; protected_click "$@" ;;
+  desktop-type) [[ $# -eq 2 ]] || die "desktop-type requires lease and text"; desktop_type "$@" ;;
   run) [[ $# -ge 2 ]] || die "run requires lease and command"; run_command "$@" ;;
   status) [[ $# -eq 1 ]] || die "status requires lease"; print_status "$1" ;;
   list) [[ $# -eq 0 ]] || die "list takes no arguments"; list_leases ;;

@@ -1,26 +1,24 @@
 {
-  "updatedAt": "2026-07-12T19:05:12-07:00",
-  "currentTask": "P01 harness guardrails pass",
-  "message": "Secure approval now has a real dismissal postcondition; permission targeting is reversible. Focused lab tests pass. Next: disposable-VM proof.",
+  "updatedAt": "2026-07-12T19:49:14-07:00",
+  "currentTask": "P01 RFB capture proven",
+  "message": "KeyPath captured a real CrabBox VNC key event in its user-session input host. P01 is complete and the lease-owned input path is reusable.",
   "complete": false,
-  "workingBlocks": [
-    "P01"
-  ],
+  "workingBlocks": [],
   "activeWork": {
     "P02": {
-      "progress": 72,
+      "progress": 75,
       "health": "smooth",
       "trend": "forward",
-      "phase": "VirtualHID active; waiting for Kanata permissions",
-      "detail": "The DriverKit extension is activated and enabled, and the VirtualHID daemon passed health checks. Observable remapping waits on Kanata permissions.",
+      "phase": "VirtualHID active; captured-input dependency cleared",
+      "detail": "The DriverKit extension and VirtualHID daemon are healthy, and P01 now supplies a trusted RFB-captured input event. The next proof is observable remapped output.",
       "attempt": 1,
       "completedSteps": 6,
       "totalSteps": 8,
       "nextTasks": [
         {
           "label": "Receive trusted captured input from P01",
-          "status": "blocked",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Observe the remapped VirtualHID output",
@@ -33,51 +31,12 @@
           "progress": 0
         }
       ],
-      "blocker": "VirtualHID is healthy, but output cannot be attributed to KeyPath until P01 supplies a trusted captured-input event.",
+      "blocker": "No upstream dependency remains; P02 must now observe and attribute the remapped VirtualHID output.",
       "coreCapability": true,
       "unlocks": [
         "End-to-end remap assertions",
         "Repair and reboot validation",
         "Scenario-matrix pass/fail evidence"
-      ]
-    },
-    "P01": {
-      "progress": 95,
-      "health": "retrying",
-      "trend": "forward",
-      "phase": "Harness hardening validated; next proof is inside a disposable VM",
-      "detail": "Secure-dialog handling now requires the sheet controls to disappear, and permission drag restores Finder and System Settings geometry on every exit. Focused contract tests pass.",
-      "attempt": 3,
-      "completedSteps": 5,
-      "totalSteps": 6,
-      "nextTasks": [
-        {
-          "label": "Verify secure-dialog dismissal and protected state",
-          "status": "done",
-          "progress": 100
-        },
-        {
-          "label": "Make Input Monitoring targeting deterministic",
-          "status": "active",
-          "progress": 65
-        },
-        {
-          "label": "Prove a non-hardware input path reaches Kanata HID capture",
-          "status": "queued",
-          "progress": 0
-        },
-        {
-          "label": "Repeat disposable macOS 15 P01 proof",
-          "status": "queued",
-          "progress": 0
-        }
-      ],
-      "blocker": "Input Monitoring approval still needs a disposable-VM proof, and RFB key delivery may bypass the HID path Kanata observes.",
-      "coreCapability": true,
-      "unlocks": [
-        "Runtime and remap proof",
-        "Overlay and reboot verification",
-        "Install, repair, and upgrade matrix"
       ]
     }
   },
@@ -86,12 +45,61 @@
     "R02": "active",
     "R03": "active",
     "R04": "active",
-    "P01": "active",
+    "P01": "proven",
     "P02": "active",
     "M14": "active",
     "M12": "active"
   },
   "updates": [
+    {
+      "time": "19:49",
+      "block": "P01",
+      "tone": "success",
+      "title": "P01 RFB capture proven",
+      "message": "KeyPath captured a real CrabBox VNC key event in its user-session input host. P01 is complete and the lease-owned input path is reusable."
+    },
+    {
+      "time": "19:39",
+      "block": "P01",
+      "tone": "working",
+      "title": "P01 retargeted to intended runtime",
+      "message": "ADR-032 makes KeyPath user-session capture the correct physics target. Starting a clean RFB capture proof."
+    },
+    {
+      "time": "19:37",
+      "block": "P01",
+      "tone": "problem",
+      "title": "P01 narrowed to raw-binary consent",
+      "message": "KeyPath IM is automated. Raw kanata-launcher registration remains blocked: file panel filters it and synthetic drag creates no row."
+    },
+    {
+      "time": "19:26",
+      "block": "P01",
+      "tone": "retry",
+      "title": "Kanata row postcondition missing",
+      "message": "Authentication passed, but the launcher row did not appear. Retrying on the unlocked page; no product failure claimed."
+    },
+    {
+      "time": "19:24",
+      "block": "P01",
+      "tone": "success",
+      "title": "KeyPath Input Monitoring enabled",
+      "message": "Supported UI path reached Input Monitoring; KeyPath_Toggle is 1 and the running app oracle logged AX and IM granted."
+    },
+    {
+      "time": "19:20",
+      "block": "P01",
+      "tone": "retry",
+      "title": "Wizard sequencing corrected",
+      "message": "Escape closed the wizard after validation. Retrying without destructive dismissal; this is harness sequencing, not a KeyPath failure."
+    },
+    {
+      "time": "19:13",
+      "block": "P01",
+      "tone": "working",
+      "title": "Fresh P01 VM proof starting",
+      "message": "Tart capacity is free. Creating a disposable unmanaged macOS 15 desktop from merged harness code."
+    },
     {
       "time": "19:05",
       "block": "P01",
@@ -252,55 +260,6 @@
       "tone": "retry",
       "title": "P01 corrected coordinate transform",
       "message": "P01 stepped back to fix a harness assumption: the current lease uses 1:1 RFB coordinates, not the prior lease\u2019s 2x scale."
-    },
-    {
-      "time": "13:16",
-      "block": "P01",
-      "tone": "retry",
-      "title": "P01 permission order clarified",
-      "message": "P01 found a real orchestration dependency: grant Full Disk Access before trusting the product\u2019s Kanata permission verification."
-    },
-    {
-      "time": "13:10",
-      "block": "P02",
-      "tone": "success",
-      "title": "P02 driver activation proven",
-      "message": "P02 advanced: VirtualHID is activated and healthy. The remaining dependency is starting Kanata after P01 grants permissions."
-    },
-    {
-      "time": "13:10",
-      "block": "P01",
-      "tone": "working",
-      "title": "P01 permissions boundary",
-      "message": "P01 is actively completing Accessibility and Input Monitoring. The software-only VNC injection path is already proven."
-    },
-    {
-      "time": "13:00",
-      "block": "P02",
-      "tone": "retry",
-      "title": "Protected driver submit needs VNC Return",
-      "message": "P02 reached the genuine driver authorization sheet. Password entry remains secret-safe; protected submit is moving to VNC Return with postcondition verification."
-    },
-    {
-      "time": "12:43",
-      "block": "P02",
-      "tone": "working",
-      "title": "Driver installation unblocked",
-      "message": "P02 is moving forward: helper is operational and the next installer recipes target VirtualHID and runtime services."
-    },
-    {
-      "time": "12:43",
-      "block": "P01",
-      "tone": "success",
-      "title": "Helper postcondition passed",
-      "message": "P01 recovered cleanly: helper authorization is now verified by keypath-cli, not inferred from the click."
-    },
-    {
-      "time": "12:34",
-      "block": "P02",
-      "tone": "retry",
-      "title": "Output proof waiting on harness consent",
-      "message": "P02 has not failed; it is waiting for P01 to clear Peekaboo\u2019s one-time consent and complete helper activation."
     }
   ],
   "activity": [

@@ -51,6 +51,14 @@ class UpdateProgressDashboardTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("STATUS queued, active, done, or blocked", result.stderr)
 
+    def test_finish_marks_block_proven_and_stops_pulsing(self) -> None:
+        self.run_updater("--progress", "80")
+        self.run_updater("--finish")
+        state = json.loads(self.state.read_text())
+        self.assertEqual(state["statuses"]["P01"], "proven")
+        self.assertNotIn("P01", state["activeWork"])
+        self.assertNotIn("P01", state["workingBlocks"])
+
 
 if __name__ == "__main__":
     unittest.main()

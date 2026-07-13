@@ -70,6 +70,7 @@ def main() -> None:
     if args.finish:
         active_work.pop(args.block, None)
         working.discard(args.block)
+        state.setdefault("statuses", {})[args.block] = "proven"
     else:
         working.add(args.block)
         previous_work = active_work.get(args.block, {})
