@@ -30,6 +30,23 @@ def issue_status(issue: dict) -> str:
     return "deferred"
 
 
+def issue_type(issue: dict) -> str:
+    labels = {label["name"].lower() for label in issue.get("labels", [])}
+    if labels & {"bug", "bug-risk"}:
+        return "bug"
+    if labels & {"testing", "reliability"}:
+        return "testing"
+    if labels & {"tech-debt", "refactor"}:
+        return "debt"
+    if labels & {"feature", "enhancement", "feature-gap"}:
+        return "feature"
+    if labels & {"upstream", "research"}:
+        return "upstream"
+    if labels & {"documentation", "design", "devux"}:
+        return "docs"
+    return "other"
+
+
 def priority(issue: dict) -> tuple:
     order = {"active": 0, "next": 1, "queued": 2, "human": 3, "feature": 4, "deferred": 5}
     return (order[issue["dashboardStatus"]], -issue["number"])
@@ -68,6 +85,7 @@ def main() -> None:
     issues = json.loads(result.stdout)
     for issue in issues:
         issue["dashboardStatus"] = issue_status(issue)
+        issue["dashboardType"] = issue_type(issue)
         issue["labels"] = [label["name"] for label in issue.get("labels", [])]
     issues.sort(key=priority)
     counts = {}
