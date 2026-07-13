@@ -64,6 +64,13 @@ class IssueDashboardTests(unittest.TestCase):
         self.assertTrue(excerpt.endswith("…"))
         self.assertNotIn("**", excerpt)
 
+    def test_type_highlight_can_be_persistently_toggled(self) -> None:
+        fragment = (REPO_ROOT / "docs/testing/keypath-github-issues-dashboard.fragment.html").read_text()
+        self.assertIn("selectedType === filter.dataset.type ? undefined", fragment)
+        self.assertIn("candidate.setAttribute('aria-pressed'", fragment)
+        self.assertIn("showType(selectedType)", fragment)
+        self.assertNotIn('.issue::before { content:"";', fragment)
+
 
 if __name__ == "__main__":
     unittest.main()

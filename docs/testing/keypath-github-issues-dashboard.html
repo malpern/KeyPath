@@ -769,8 +769,8 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-issue-board .feature-mark { background:var(--muted); border:1px solid var(--border); }
     #keypath-issue-board .type-key { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin:-5px 0 14px; color:var(--muted-foreground); font:10px system-ui,sans-serif; }
     #keypath-issue-board .type-key .key-label { text-transform:uppercase; letter-spacing:.06em; }
-    #keypath-issue-board .type-filter { appearance:none; padding:2px 0; border:0; border-bottom:1px solid transparent; color:inherit; background:transparent; font:inherit; cursor:default; }
-    #keypath-issue-board .type-filter:hover,#keypath-issue-board .type-filter:focus-visible { color:var(--foreground); border-bottom-color:var(--foreground); }
+    #keypath-issue-board .type-filter { appearance:none; padding:2px 0; border:0; border-bottom:1px solid transparent; color:inherit; background:transparent; font:inherit; cursor:pointer; }
+    #keypath-issue-board .type-filter:hover,#keypath-issue-board .type-filter:focus-visible,#keypath-issue-board .type-filter[aria-pressed=&quot;true&quot;] { color:var(--foreground); border-bottom-color:var(--foreground); }
     #keypath-issue-board .summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; margin-bottom:14px; overflow:hidden; background:var(--border); border:1px solid var(--border); border-radius:8px; }
     #keypath-issue-board .metric { padding:11px 13px; background:color-mix(in srgb,var(--card) 88%,var(--background)); }
     #keypath-issue-board .metric strong { display:block; font-size:20px; font-weight:500; }
@@ -779,7 +779,6 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-issue-board .board { padding:14px; background:color-mix(in srgb,var(--card) 82%,var(--background)); border:1px solid var(--border); border-radius:8px; }
     #keypath-issue-board .track { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:5px; }
     #keypath-issue-board .issue { appearance:none; position:relative; min-height:44px; padding:6px 2px; border:1px solid transparent; border-radius:6px; color:var(--foreground); font:500 10px ui-monospace,SFMono-Regular,Menlo,monospace; cursor:pointer; transition:transform 120ms ease,border-color 120ms ease; }
-    #keypath-issue-board .issue::before { content:&quot;&quot;; position:absolute; top:5px; right:5px; width:5px; height:5px; border-radius:50%; background:currentColor; opacity:.65; }
     #keypath-issue-board .track[data-highlight-type] .issue { opacity:.25; }
     #keypath-issue-board .track[data-highlight-type=&quot;bug&quot;] .issue[data-type=&quot;bug&quot;],
     #keypath-issue-board .track[data-highlight-type=&quot;testing&quot;] .issue[data-type=&quot;testing&quot;],
@@ -845,12 +844,12 @@ html&gt;body{padding:0}&lt;/style&gt;
   &lt;/div&gt;
   &lt;nav class=&quot;type-key&quot; aria-label=&quot;Highlight issues by label&quot;&gt;
     &lt;span class=&quot;key-label&quot;&gt;Type&lt;/span&gt;
-    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;bug&quot;&gt;Bug&lt;/button&gt;
-    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;testing&quot;&gt;Test&lt;/button&gt;
-    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;debt&quot;&gt;Debt&lt;/button&gt;
-    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;feature&quot;&gt;Feature&lt;/button&gt;
-    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;upstream&quot;&gt;Upstream&lt;/button&gt;
-    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;docs&quot;&gt;Docs&lt;/button&gt;
+    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;bug&quot; aria-pressed=&quot;false&quot;&gt;Bug&lt;/button&gt;
+    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;testing&quot; aria-pressed=&quot;false&quot;&gt;Test&lt;/button&gt;
+    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;debt&quot; aria-pressed=&quot;false&quot;&gt;Debt&lt;/button&gt;
+    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;feature&quot; aria-pressed=&quot;false&quot;&gt;Feature&lt;/button&gt;
+    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;upstream&quot; aria-pressed=&quot;false&quot;&gt;Upstream&lt;/button&gt;
+    &lt;button class=&quot;type-filter&quot; type=&quot;button&quot; data-type=&quot;docs&quot; aria-pressed=&quot;false&quot;&gt;Docs&lt;/button&gt;
   &lt;/nav&gt;
 
   &lt;section class=&quot;summary&quot; aria-label=&quot;Open issue summary&quot;&gt;
@@ -910,6 +909,7 @@ html&gt;body{padding:0}&lt;/style&gt;
       let clickTimer;
       let selectedButton;
       let selectedIssue;
+      let selectedType;
       const resetReadout = () =&gt; {
         title.textContent = &#x27;Select an issue&#x27;;
         detail.textContent = &#x27;The map is ordered active → next → agent queue → human-gated → features and deferred work.&#x27;;
@@ -946,13 +946,20 @@ html&gt;body{padding:0}&lt;/style&gt;
         hoverCard.style.visibility = &#x27;&#x27;;
         hoverCard.setAttribute(&#x27;aria-hidden&#x27;,&#x27;false&#x27;);
       };
-      root.querySelectorAll(&#x27;.type-filter&#x27;).forEach(filter =&gt; {
+      const typeFilters = root.querySelectorAll(&#x27;.type-filter&#x27;);
+      typeFilters.forEach(filter =&gt; {
+        const showType = type =&gt; { type ? grid.dataset.highlightType = type : grid.removeAttribute(&#x27;data-highlight-type&#x27;); };
         const highlight = () =&gt; { clearTimeout(highlightTimer); highlightTimer = setTimeout(() =&gt; { grid.dataset.highlightType = filter.dataset.type; }, 120); };
-        const clearHighlight = () =&gt; { clearTimeout(highlightTimer); grid.removeAttribute(&#x27;data-highlight-type&#x27;); };
+        const restoreSelection = () =&gt; { clearTimeout(highlightTimer); showType(selectedType); };
         filter.addEventListener(&#x27;mouseenter&#x27;,highlight);
-        filter.addEventListener(&#x27;mouseleave&#x27;,clearHighlight);
+        filter.addEventListener(&#x27;mouseleave&#x27;,restoreSelection);
         filter.addEventListener(&#x27;focus&#x27;,() =&gt; { clearTimeout(highlightTimer); grid.dataset.highlightType = filter.dataset.type; });
-        filter.addEventListener(&#x27;blur&#x27;,clearHighlight);
+        filter.addEventListener(&#x27;blur&#x27;,restoreSelection);
+        filter.addEventListener(&#x27;click&#x27;,() =&gt; {
+          selectedType = selectedType === filter.dataset.type ? undefined : filter.dataset.type;
+          typeFilters.forEach(candidate =&gt; candidate.setAttribute(&#x27;aria-pressed&#x27;,String(candidate.dataset.type === selectedType)));
+          showType(selectedType);
+        });
       });
       const render = state =&gt; {
         root.querySelector(&#x27;#issues-updated&#x27;).textContent = state.truncated ? `Updated ${new Date(state.updatedAt).toLocaleTimeString()} · first ${state.issueLimit} shown` : `Updated ${new Date(state.updatedAt).toLocaleTimeString()}`;
