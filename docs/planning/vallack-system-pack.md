@@ -24,7 +24,7 @@ Related issues: #340 (research), #374 (system pack spec), #375 (conflict detecti
 
 ## Step 1: Expand SystemActionInfo.allActions ✅
 
-**File:** `Sources/KeyPathAppKit/UI/Experimental/Mapper/MapperActionTypes.swift`
+**File:** `Sources/KeyPathAppKit/UI/Mapper/MapperActionTypes.swift`
 
 Added 17 new actions:
 - Cursor movement: Word Left/Right (`A-left`/`A-right`), Line Start/End (`home`/`end`)
