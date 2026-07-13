@@ -1,31 +1,14 @@
 {
   "repository": "malpern/KeyPath",
-  "updatedAt": "2026-07-13T13:27:36.611431+00:00",
+  "updatedAt": "2026-07-13T14:08:53.524335+00:00",
   "issueLimit": 200,
   "truncated": false,
   "counts": {
-    "queued": 1,
     "human": 2,
     "hold": 72,
     "deferred": 2
   },
   "issues": [
-    {
-      "labels": [
-        "refactor",
-        "tech-debt",
-        "tier-3",
-        "post-release",
-        "agent-ok"
-      ],
-      "number": 737,
-      "title": "Post-1.0: move shipping mapper code out of UI/Experimental",
-      "updatedAt": "2026-07-13T11:18:50Z",
-      "url": "https://github.com/malpern/KeyPath/issues/737",
-      "dashboardStatus": "queued",
-      "dashboardType": "debt",
-      "descriptionExcerpt": "Context Split out from #731 after the stable-1.0 release blockers were fixed. The mapper is a shipping feature, but some mapper implementation still lives under UI/Experimental, which makes ownership and navigation misleading. Evidence From #731\u2026"
-    },
     {
       "labels": [
         "post-release",
@@ -1281,6 +1264,22 @@
   "recentlyClosed": [
     {
       "labels": [
+        "refactor",
+        "tech-debt",
+        "tier-3",
+        "post-release",
+        "agent-ok"
+      ],
+      "number": 737,
+      "title": "Post-1.0: move shipping mapper code out of UI/Experimental",
+      "updatedAt": "2026-07-13T14:08:41Z",
+      "url": "https://github.com/malpern/KeyPath/issues/737",
+      "dashboardStatus": "completed",
+      "dashboardType": "debt",
+      "descriptionExcerpt": "Context Split out from #731 after the stable-1.0 release blockers were fixed. The mapper is a shipping feature, but some mapper implementation still lives under UI/Experimental, which makes ownership and navigation misleading. Evidence From #731\u2026"
+    },
+    {
+      "labels": [
         "tech-debt",
         "post-release"
       ],
@@ -1406,19 +1405,6 @@
       "dashboardStatus": "completed",
       "dashboardType": "debt",
       "descriptionExcerpt": "Code Audit Findings \u00a78.3 + \u00a78.5 \u2014 Low Problem: - \u00a78.3: 21 separate \\@State\\ declarations including dictionaries, optionals, and sets. Harder to reason about state coherence. - \u00a78.5: \\@Bindable var kanataManager = kanataManager\\ declared inside body, recreated\u2026"
-    },
-    {
-      "labels": [
-        "refactor",
-        "post-release"
-      ],
-      "number": 602,
-      "title": "Extract shared CollectionEditorView for rule collection UIs",
-      "updatedAt": "2026-07-13T11:16:25Z",
-      "url": "https://github.com/malpern/KeyPath/issues/602",
-      "dashboardStatus": "completed",
-      "dashboardType": "debt",
-      "descriptionExcerpt": "Summary Several rule collection views follow the same pattern \u2014 a grid/list of configurable items with inline editing, preset selection, and save/cancel actions. Each is implemented independently, resulting in ~2-3K lines of duplicated structure across 4-5\u2026"
     }
   ]
 }
