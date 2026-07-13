@@ -137,9 +137,6 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
     WizardDependencies.permissionRequestService = PermissionRequestService.shared
     WizardDependencies.privilegedOperations = PrivilegedOperationsRouter.shared
 
-    WizardDependencies.smServiceFactory = { plistName in
-        HelperManager.smServiceFactory(plistName)
-    }
     WizardDependencies.helperNeedsApproval = {
         HelperManager.shared.helperNeedsLoginItemsApproval()
     }
@@ -167,11 +164,6 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
     }
     WizardDependencies.hasExternalKanataRunning = {
         ExternalKanataService.hasExternalKanataRunning()
-    }
-
-    // TCP readiness probe
-    WizardDependencies.tcpProbe = { port, timeoutMs in
-        SystemStateProvider.probeTCPPort(port: port, timeoutMs: timeoutMs)
     }
 
     // Page view factories for pages that live in KeyPathAppKit
@@ -208,9 +200,6 @@ func configureCLIWizardDependencies(systemValidator: SystemValidator) {
     WizardDependencies.permissionRequestService = PermissionRequestService.shared
     WizardDependencies.privilegedOperations = PrivilegedOperationsRouter.shared
 
-    WizardDependencies.smServiceFactory = { plistName in
-        HelperManager.smServiceFactory(plistName)
-    }
     WizardDependencies.helperNeedsApproval = {
         HelperManager.shared.helperNeedsLoginItemsApproval()
     }
@@ -247,8 +236,5 @@ func configureCLIWizardDependencies(systemValidator: SystemValidator) {
     }
     WizardDependencies.hasExternalKanataRunning = {
         ExternalKanataService.hasExternalKanataRunning()
-    }
-    WizardDependencies.tcpProbe = { port, timeoutMs in
-        SystemStateProvider.probeTCPPort(port: port, timeoutMs: timeoutMs)
     }
 }
