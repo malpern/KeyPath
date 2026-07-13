@@ -17,9 +17,10 @@
     #keypath-issue-board .queued-mark { background:var(--viz-series-1); }
     #keypath-issue-board .human-mark { background:var(--viz-series-5); }
     #keypath-issue-board .feature-mark { background:var(--muted); border:1px solid var(--border); }
-    #keypath-issue-board .type-key { display:flex; flex-wrap:wrap; align-items:center; gap:11px; margin:-5px 0 14px; color:var(--muted-foreground); font:10px system-ui,sans-serif; }
+    #keypath-issue-board .type-key { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin:-5px 0 14px; color:var(--muted-foreground); font:10px system-ui,sans-serif; }
     #keypath-issue-board .type-key .key-label { text-transform:uppercase; letter-spacing:.06em; }
-    #keypath-issue-board .type-key span { display:inline-flex; align-items:center; gap:5px; }
+    #keypath-issue-board .type-filter { appearance:none; padding:2px 0; border:0; border-bottom:1px solid transparent; color:inherit; background:transparent; font:inherit; cursor:default; }
+    #keypath-issue-board .type-filter:hover,#keypath-issue-board .type-filter:focus-visible { color:var(--foreground); border-bottom-color:var(--foreground); }
     #keypath-issue-board .summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; margin-bottom:14px; overflow:hidden; background:var(--border); border:1px solid var(--border); border-radius:8px; }
     #keypath-issue-board .metric { padding:11px 13px; background:color-mix(in srgb,var(--card) 88%,var(--background)); }
     #keypath-issue-board .metric strong { display:block; font-size:20px; font-weight:500; }
@@ -29,13 +30,13 @@
     #keypath-issue-board .track { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:5px; }
     #keypath-issue-board .issue { appearance:none; position:relative; min-height:44px; padding:6px 2px; border:1px solid transparent; border-radius:6px; color:var(--foreground); font:500 10px ui-monospace,SFMono-Regular,Menlo,monospace; cursor:pointer; transition:transform 120ms ease,filter 120ms ease; }
     #keypath-issue-board .issue::before { content:""; position:absolute; top:5px; right:5px; width:5px; height:5px; border-radius:50%; background:currentColor; opacity:.65; }
-    #keypath-issue-board .type-marker { display:inline-block; width:7px; height:7px; margin-right:4px; background:var(--muted-foreground); vertical-align:1px; }
-    #keypath-issue-board [data-type="bug"] .type-marker { border-radius:50%; background:var(--viz-series-2); }
-    #keypath-issue-board [data-type="testing"] .type-marker { background:var(--viz-series-1); transform:rotate(45deg) scale(.78); }
-    #keypath-issue-board [data-type="debt"] .type-marker { border-radius:1px; background:var(--muted-foreground); }
-    #keypath-issue-board [data-type="feature"] .type-marker { background:var(--viz-series-5); clip-path:polygon(50% 0,100% 100%,0 100%); }
-    #keypath-issue-board [data-type="upstream"] .type-marker { border:1px solid var(--viz-series-6); border-radius:50%; background:transparent; }
-    #keypath-issue-board [data-type="docs"] .type-marker { width:8px; height:2px; background:var(--viz-series-2); }
+    #keypath-issue-board .track[data-highlight-type] .issue { opacity:.25; }
+    #keypath-issue-board .track[data-highlight-type="bug"] .issue[data-type="bug"],
+    #keypath-issue-board .track[data-highlight-type="testing"] .issue[data-type="testing"],
+    #keypath-issue-board .track[data-highlight-type="debt"] .issue[data-type="debt"],
+    #keypath-issue-board .track[data-highlight-type="feature"] .issue[data-type="feature"],
+    #keypath-issue-board .track[data-highlight-type="upstream"] .issue[data-type="upstream"],
+    #keypath-issue-board .track[data-highlight-type="docs"] .issue[data-type="docs"] { opacity:1; transform:translateY(-1px); box-shadow:0 0 0 2px var(--ring); }
     #keypath-issue-board .issue[data-status="active"] { background:color-mix(in srgb,var(--viz-series-2) 64%,var(--card)); }
     #keypath-issue-board .issue[data-status="next"] { background:color-mix(in srgb,var(--viz-series-3) 55%,var(--card)); }
     #keypath-issue-board .issue[data-status="queued"] { background:color-mix(in srgb,var(--viz-series-1) 38%,var(--card)); }
@@ -85,15 +86,15 @@
     <span><i class="swatch human-mark"></i>Human / external gate</span>
     <span><i class="swatch feature-mark"></i>Feature or deferred</span>
   </div>
-  <div class="type-key" aria-label="Issue type legend">
+  <nav class="type-key" aria-label="Highlight issues by label">
     <span class="key-label">Type</span>
-    <span data-type="bug"><i class="type-marker"></i>Bug</span>
-    <span data-type="testing"><i class="type-marker"></i>Test</span>
-    <span data-type="debt"><i class="type-marker"></i>Debt</span>
-    <span data-type="feature"><i class="type-marker"></i>Feature</span>
-    <span data-type="upstream"><i class="type-marker"></i>Upstream</span>
-    <span data-type="docs"><i class="type-marker"></i>Docs</span>
-  </div>
+    <button class="type-filter" type="button" data-type="bug">Bug</button>
+    <button class="type-filter" type="button" data-type="testing">Test</button>
+    <button class="type-filter" type="button" data-type="debt">Debt</button>
+    <button class="type-filter" type="button" data-type="feature">Feature</button>
+    <button class="type-filter" type="button" data-type="upstream">Upstream</button>
+    <button class="type-filter" type="button" data-type="docs">Docs</button>
+  </nav>
 
   <section class="summary" aria-label="Open issue summary">
     <div class="metric"><strong id="metric-open">—</strong><span>Open issues</span></div>
@@ -137,6 +138,16 @@
       const detail = root.querySelector('#issue-detail');
       const labels = root.querySelector('#issue-labels');
       const link = root.querySelector('#issue-link');
+      let detailTimer;
+      let highlightTimer;
+      root.querySelectorAll('.type-filter').forEach(filter => {
+        const highlight = () => { clearTimeout(highlightTimer); highlightTimer = setTimeout(() => { grid.dataset.highlightType = filter.dataset.type; }, 120); };
+        const clearHighlight = () => { clearTimeout(highlightTimer); grid.removeAttribute('data-highlight-type'); };
+        filter.addEventListener('mouseenter',highlight);
+        filter.addEventListener('mouseleave',clearHighlight);
+        filter.addEventListener('focus',() => { clearTimeout(highlightTimer); grid.dataset.highlightType = filter.dataset.type; });
+        filter.addEventListener('blur',clearHighlight);
+      });
       const render = state => {
         root.querySelector('#issues-updated').textContent = state.truncated ? `Updated ${new Date(state.updatedAt).toLocaleTimeString()} · first ${state.issueLimit} shown` : `Updated ${new Date(state.updatedAt).toLocaleTimeString()}`;
         root.querySelector('#metric-open').textContent = `${state.issues.length}${state.truncated ? '+' : ''}`;
@@ -148,18 +159,17 @@
           button.className = 'issue';
           button.dataset.status = issue.dashboardStatus;
           button.dataset.type = issue.dashboardType || 'other';
-          const marker = document.createElement('i'); marker.className = 'type-marker'; marker.setAttribute('aria-hidden','true');
-          const number = document.createElement('span'); number.textContent = `#${issue.number}`;
-          button.append(marker,number);
-          button.dataset.tooltip = `#${issue.number} · ${typeNames[button.dataset.type]} · ${names[issue.dashboardStatus]} — ${issue.title}`;
-          button.setAttribute('aria-label',button.dataset.tooltip);
+          button.textContent = `#${issue.number}`;
+          button.setAttribute('aria-label',`#${issue.number} · ${typeNames[button.dataset.type]} · ${names[issue.dashboardStatus]} — ${issue.title}`);
           const select = () => {
             title.textContent = `#${issue.number} · ${issue.title}`;
             detail.textContent = names[issue.dashboardStatus];
             labels.replaceChildren(...issue.labels.map(value => { const badge=document.createElement('span'); badge.className='label'; badge.textContent=value; return badge; }));
             link.href = issue.url; link.textContent = `Open #${issue.number}`;
           };
-          button.addEventListener('mouseenter',select); button.addEventListener('focus',select); button.addEventListener('click',select);
+          button.addEventListener('mouseenter',() => { clearTimeout(detailTimer); detailTimer = setTimeout(select,280); });
+          button.addEventListener('mouseleave',() => clearTimeout(detailTimer));
+          button.addEventListener('focus',select); button.addEventListener('click',select);
           return button;
         }));
         const recent = [...state.issues].sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0,10);
