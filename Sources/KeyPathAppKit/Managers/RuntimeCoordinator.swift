@@ -1403,27 +1403,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     // MARK: - Config Maintenance
 
-    /// Configuration management errors
-    enum ConfigError: Error, LocalizedError {
-        case noBackupAvailable
-        case reloadFailed(String)
-        case validationFailed([String])
-        case postSaveValidationFailed(errors: [String])
-
-        var errorDescription: String? {
-            switch self {
-            case .noBackupAvailable:
-                "No backup configuration available for rollback"
-            case let .reloadFailed(message):
-                "Config reload failed: \(message)"
-            case let .validationFailed(errors):
-                "Config validation failed: \(errors.joined(separator: ", "))"
-            case let .postSaveValidationFailed(errors):
-                "Post-save validation failed: \(errors.joined(separator: ", "))"
-            }
-        }
-    }
-
     /// Backup current working config before making changes
     func backupCurrentConfig() async {
         let config = await configurationService.current()

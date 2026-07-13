@@ -117,6 +117,27 @@ final class W6DeletionPassLintTests: XCTestCase {
         )
     }
 
+    func testUnusedConfigApplyTaxonomyDoesNotRegrow() throws {
+        let prototype = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Models/ConfigApplyTypes.swift")
+        let runtimeCoordinator = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Managers/RuntimeCoordinator.swift")
+
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: prototype.path),
+            "Do not restore the unused ConfigApplyTypes prototype; live apply paths use KeyPathError and ReloadDisposition"
+        )
+
+        let violations = try matchingLines(
+            in: runtimeCoordinator,
+            patterns: [#"enum\s+ConfigError\b"#]
+        )
+        XCTAssertTrue(
+            violations.isEmpty,
+            "RuntimeCoordinator should not own a second, unused ConfigError taxonomy:\n\(violations.joined(separator: "\n"))"
+        )
+    }
+
     func testDiagnosticsManagerSingleImplementationProtocolDoesNotRegrow() throws {
         let managerFile = repositoryRoot()
             .appendingPathComponent("Sources/KeyPathAppKit/Managers/Diagnostics/DiagnosticsManager.swift")
