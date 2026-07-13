@@ -193,6 +193,20 @@ final class DeploymentScriptContractTests: XCTestCase {
             "Every build, timeout, crash, parsed-failure, and unexplained nonzero exit must print artifact paths."
         )
     }
+
+    func testCIRunnerInstallerReadsGitHubJSONRegistration() throws {
+        let root = repositoryRoot()
+        let installer = try contents(of: root.appendingPathComponent("Scripts/install-ci-runner-service.sh"))
+
+        XCTAssertTrue(
+            installer.contains("/usr/bin/plutil -extract agentName raw -o - \"$RUNNER_DIR/.runner\""),
+            "The runner installer must read agentName from GitHub's JSON .runner metadata."
+        )
+        XCTAssertFalse(
+            installer.contains("PlistBuddy -c 'Print :agentName' \"$RUNNER_DIR/.runner\""),
+            "PlistBuddy cannot read GitHub's JSON .runner file and leaves a duplicate LaunchAgent loaded."
+        )
+    }
 }
 
 // MARK: - Helpers
