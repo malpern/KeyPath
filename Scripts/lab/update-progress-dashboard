@@ -26,6 +26,20 @@ def main() -> None:
         metavar="LABEL|STATUS|PROGRESS",
         help="Add a hover checklist item; STATUS is queued, active, done, or blocked",
     )
+    parser.add_argument("--blocker", help="Describe the current limiting condition shown in the block hover")
+    parser.add_argument(
+        "--core-capability",
+        action="store_true",
+        default=None,
+        help="Mark this work as reusable infrastructure for downstream blocks",
+    )
+    parser.add_argument(
+        "--unlocks",
+        action="append",
+        default=[],
+        metavar="CAPABILITY",
+        help="Name a downstream capability this work unlocks",
+    )
     parser.add_argument("--tone", choices=("working", "success", "retry", "problem", "waiting"), default="working")
     parser.add_argument("--title", required=True)
     parser.add_argument("--message", required=True)
@@ -69,6 +83,13 @@ def main() -> None:
             "completedSteps": args.completed_steps,
             "totalSteps": args.total_steps,
             "nextTasks": next_tasks or previous_work.get("nextTasks", []),
+            "blocker": args.blocker or previous_work.get("blocker"),
+            "coreCapability": (
+                args.core_capability
+                if args.core_capability is not None
+                else previous_work.get("coreCapability", False)
+            ),
+            "unlocks": args.unlocks or previous_work.get("unlocks", []),
         }
         state.setdefault("statuses", {})[args.block] = "active"
     state["workingBlocks"] = sorted(working)

@@ -332,6 +332,8 @@ grep -q 'text=@/dev/stdin' "$TMP/guest-ssh-args"
 grep -q 'dev/null' "$TMP/guest-ssh-args"
 grep -q 'peekaboo.*click.*Password.*--app.*System.*Settings' "$TMP/guest-ssh-args"
 grep -q 'peekaboo.*click.*Modify.*Settings.*--app.*System.*Settings' "$TMP/guest-ssh-args"
+grep -q 'keypath-secure-postcondition' "$TMP/guest-ssh-args"
+grep -q 'keypath-secure-postcondition.json.*79' "$TMP/guest-ssh-args"
 if grep -q -- '--query' "$TMP/guest-ssh-args"; then
     echo "secure dialog input passed the adapter-only --query option to Peekaboo" >&2
     exit 1

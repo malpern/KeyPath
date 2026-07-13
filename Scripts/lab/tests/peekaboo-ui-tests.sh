@@ -81,10 +81,16 @@ export OPEN_CALLS="$TMP/open-calls"
 FAKE_OSASCRIPT="$TMP/osascript"
 cat > "$FAKE_OSASCRIPT" <<'EOF'
 #!/bin/bash
+printf '%s\n' "$*" >> "$OSASCRIPT_CALLS"
+if [[ "$*" == *'return w.position().concat(w.size()).join'* ]]; then
+  [[ "${*: -1}" == Finder ]] && echo '80,90,640,480' || echo '700,100,800,600'
+  exit 0
+fi
 [[ "$*" == *'AXSecureTextField'* ]] && echo secure
 exit 0
 EOF
 chmod +x "$FAKE_OSASCRIPT"
+export OSASCRIPT_CALLS="$TMP/osascript-calls"
 
 touch "$TMP/kanata-launcher"
 KEYPATH_PERMISSION_DRAG_REVEAL_SECONDS=0 KEYPATH_PERMISSION_DRAG_SETTLE_SECONDS=0 \
@@ -93,5 +99,7 @@ KEYPATH_PERMISSION_DRAG_REVEAL_SECONDS=0 KEYPATH_PERMISSION_DRAG_SETTLE_SECONDS=
 grep -q $'permission_drag\tauthorization-required' "$TMP/drag-result"
 grep -q -- '-R .*kanata-launcher' "$OPEN_CALLS"
 grep -q 'drag --from-coords 30,50 --to-coords 650,110 --duration 1500 --steps 30 --profile linear --json' "$PEEKABOO_CALLS"
+grep -q 'Finder 80,90,640,480' "$OSASCRIPT_CALLS"
+grep -q 'System Settings 700,100,800,600' "$OSASCRIPT_CALLS"
 
 echo 'peekaboo-ui shell tests passed'

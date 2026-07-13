@@ -141,7 +141,9 @@ the current source and permission-list target geometry from fresh AX snapshots,
 and drag between the two arranged windows. It succeeds only when macOS presents
 an authorization sheet or the expected permission row appears. If authorization
 is requested, follow it with `secure-dialog-input` and verify the new
-`kanata-launcher_Title` row before continuing.
+`kanata-launcher_Title` row before continuing. The adapter records both windows'
+original geometry and restores it on every exit path, so a failed attempt does
+not leave later UI targeting in a modified coordinate space.
 
 Peekaboo click success means that it delivered an action to the selected UI
 element. It is not proof that macOS accepted a protected change. Background App
@@ -181,9 +183,10 @@ Scripts/lab/keypath-lab secure-dialog-input cbx_example \
 The controller must strip the encrypted dotenv record's terminating newline
 before sending the password. A newline passed to Peekaboo's type transport can
 become part of the secure-field value rather than a Return key. Always confirm
-success by checking that the sheet is gone and the protected state changed;
-`secure_dialog_input passed` proves only that the secret transport and click
-completed.
+success by checking that the protected state changed. When `--submit` is used,
+`secure_dialog_input passed` proves the secret transport completed and both the
+named password field and submit control disappeared; it still does not prove
+that macOS accepted the underlying protected-state change.
 
 Driver-extension authorization is owned by `SecurityAgent`, whose secure
 window is not available to Peekaboo snapshots. When a fresh framebuffer image
