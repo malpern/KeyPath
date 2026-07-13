@@ -15,5 +15,7 @@ perl -0pi -e 's/max-width:736px/max-width:1180px/g' "$OUTPUT"
 python3 "$SCRIPT_DIR/add-dashboard-tabs.py" "$OUTPUT" --active issues
 
 grep -Fq "connect-src 'self' blob: data:" "$OUTPUT"
+grep -Fq 'sandbox="allow-scripts allow-same-origin"' "$OUTPUT"
+grep -Fq 'max-width:1180px' "$OUTPUT"
 grep -Fq 'aria-current="page">GitHub issues' "$OUTPUT"
 echo "$OUTPUT"

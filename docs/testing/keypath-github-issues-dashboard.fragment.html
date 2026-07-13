@@ -118,8 +118,8 @@
       const labels = root.querySelector('#issue-labels');
       const link = root.querySelector('#issue-link');
       const render = state => {
-        root.querySelector('#issues-updated').textContent = `Updated ${new Date(state.updatedAt).toLocaleTimeString()}`;
-        root.querySelector('#metric-open').textContent = state.issues.length;
+        root.querySelector('#issues-updated').textContent = state.truncated ? `Updated ${new Date(state.updatedAt).toLocaleTimeString()} · first ${state.issueLimit} shown` : `Updated ${new Date(state.updatedAt).toLocaleTimeString()}`;
+        root.querySelector('#metric-open').textContent = `${state.issues.length}${state.truncated ? '+' : ''}`;
         root.querySelector('#metric-agent').textContent = (state.counts.active || 0) + (state.counts.next || 0) + (state.counts.queued || 0);
         root.querySelector('#metric-human').textContent = state.counts.human || 0;
         root.querySelector('#metric-feature').textContent = state.counts.feature || 0;

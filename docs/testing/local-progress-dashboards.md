@@ -6,6 +6,8 @@ The local dashboard server exposes two related but visually distinct views:
   map.
 - `keypath-github-issues-dashboard.html` is the open GitHub issue operations
   view. It refreshes through the authenticated local GitHub CLI every minute.
+  If the repository reaches the 200-issue fetch ceiling, the dashboard marks
+  its open count with `+` and states that only the first 200 are shown.
 
 Both pages include the same two-tab navigation. The automation dashboard keeps
 its capability IDs and proven/active/queued vocabulary. The issue dashboard

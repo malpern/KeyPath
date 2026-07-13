@@ -1,6 +1,8 @@
 {
   "repository": "malpern/KeyPath",
-  "updatedAt": "2026-07-13T01:05:43.367984+00:00",
+  "updatedAt": "2026-07-13T01:16:17.171211+00:00",
+  "issueLimit": 200,
+  "truncated": false,
   "counts": {
     "active": 1,
     "next": 1,

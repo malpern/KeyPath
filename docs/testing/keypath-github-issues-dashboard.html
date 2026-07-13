@@ -868,8 +868,8 @@ html&gt;body{padding:0}&lt;/style&gt;
       const labels = root.querySelector(&#x27;#issue-labels&#x27;);
       const link = root.querySelector(&#x27;#issue-link&#x27;);
       const render = state =&gt; {
-        root.querySelector(&#x27;#issues-updated&#x27;).textContent = `Updated ${new Date(state.updatedAt).toLocaleTimeString()}`;
-        root.querySelector(&#x27;#metric-open&#x27;).textContent = state.issues.length;
+        root.querySelector(&#x27;#issues-updated&#x27;).textContent = state.truncated ? `Updated ${new Date(state.updatedAt).toLocaleTimeString()} · first ${state.issueLimit} shown` : `Updated ${new Date(state.updatedAt).toLocaleTimeString()}`;
+        root.querySelector(&#x27;#metric-open&#x27;).textContent = `${state.issues.length}${state.truncated ? &#x27;+&#x27; : &#x27;&#x27;}`;
         root.querySelector(&#x27;#metric-agent&#x27;).textContent = (state.counts.active || 0) + (state.counts.next || 0) + (state.counts.queued || 0);
         root.querySelector(&#x27;#metric-human&#x27;).textContent = state.counts.human || 0;
         root.querySelector(&#x27;#metric-feature&#x27;).textContent = state.counts.feature || 0;

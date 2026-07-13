@@ -34,6 +34,9 @@ class IssueDashboardTests(unittest.TestCase):
         self.assertEqual(module.issue_status(issue(2, "testing")), "queued")
         self.assertEqual(module.issue_status(issue(3, "tech-debt")), "queued")
 
+    def test_issue_limit_is_explicit(self) -> None:
+        self.assertEqual(module.ISSUE_LIMIT, 200)
+
 
 if __name__ == "__main__":
     unittest.main()
