@@ -56,6 +56,14 @@ class IssueDashboardTests(unittest.TestCase):
         self.assertIn("event.source!==dashboardFrame.contentWindow", tab_renderer)
         self.assertIn(r"github\\.com\\/malpern\\/KeyPath\\/issues", tab_renderer)
 
+    def test_description_excerpt_is_plain_bounded_text(self) -> None:
+        body = "## Context\n\n**Important** `detail` " + ("word " * 80)
+        excerpt = module.description_excerpt(body)
+        self.assertTrue(excerpt.startswith("Context Important detail"))
+        self.assertLessEqual(len(excerpt), 261)
+        self.assertTrue(excerpt.endswith("…"))
+        self.assertNotIn("**", excerpt)
+
 
 if __name__ == "__main__":
     unittest.main()
