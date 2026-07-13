@@ -83,6 +83,7 @@ Scripts/lab/keypath-lab create \
 Scripts/lab/keypath-lab list
 Scripts/lab/keypath-lab status cbx_example
 Scripts/lab/keypath-lab install-app cbx_example
+Scripts/lab/keypath-lab nameplate cbx_example enable
 Scripts/lab/keypath-lab run cbx_example -- sw_vers
 Scripts/lab/keypath-lab secure-dialog-input cbx_example \
   --app 'System Settings' --field Password --submit 'Modify Settings'
@@ -106,6 +107,37 @@ controller mirrors the existing provider launcher configuration while adding
 CrabBox's desktop capability; ordinary creation continues to use the launchers
 unchanged. Artifact collection captures a screenshot for desktop leases and
 records an explicit unavailable status otherwise.
+
+### Disposable desktop identity with Nameplate
+
+Nameplate can label an owned desktop lease without modifying its base image:
+
+```bash
+Scripts/lab/keypath-lab nameplate cbx_example enable
+Scripts/lab/keypath-lab nameplate cbx_example status
+Scripts/lab/keypath-lab nameplate cbx_example hide
+Scripts/lab/keypath-lab nameplate cbx_example show
+```
+
+`enable` is accepted only for a desktop-enabled lease. It downloads the pinned
+Nameplate `0.2.5` archive in the guest, verifies its SHA-256 checksum, Developer
+ID signature, and Gatekeeper acceptance, and installs it beneath the console
+user's `~/Applications`. The generated tag names the macOS lane, test lane,
+provider, lease, and its disposable status. The version, checksum, visibility,
+and last-change time are recorded in the owned lease manifest.
+
+Nameplate's launch-at-login setting stays disabled because it registers an
+`SMAppService` login item and would pollute the Background Items state that
+KeyPath tests inspect. After a reboot, explicitly run `nameplate ... show`.
+Automatic updates, watermarks, and connection-triggered splashes are also
+disabled so a two-hour lease stays pinned and visually quiet.
+
+Nameplate is operator instrumentation, not KeyPath evidence. `artifacts`
+therefore hides a visible Nameplate before the controller screenshot and
+restores it afterward. If hiding fails, the controller refuses to capture that
+screenshot and records `unavailable:nameplate-hide-failed` instead of silently
+producing contaminated evidence. Scenario scripts that take their own
+screenshots should bracket them with `nameplate ... hide` and `show` as well.
 
 ### Semantic UI automation with Peekaboo 3
 
