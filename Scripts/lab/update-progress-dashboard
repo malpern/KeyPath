@@ -44,7 +44,14 @@ def main() -> None:
     parser.add_argument("--title", required=True)
     parser.add_argument("--message", required=True)
     parser.add_argument("--finish", action="store_true")
+    parser.add_argument(
+        "--blocked",
+        action="store_true",
+        help="Keep block progress and evidence visible without marking it as actively worked",
+    )
     args = parser.parse_args()
+    if args.finish and args.blocked:
+        parser.error("--finish and --blocked cannot be combined")
     if args.progress is not None and not 0 <= args.progress <= 100:
         parser.error("--progress must be between 0 and 100")
     next_tasks = []
@@ -72,7 +79,10 @@ def main() -> None:
         working.discard(args.block)
         state.setdefault("statuses", {})[args.block] = "proven"
     else:
-        working.add(args.block)
+        if args.blocked:
+            working.discard(args.block)
+        else:
+            working.add(args.block)
         previous_work = active_work.get(args.block, {})
         active_work[args.block] = {
             "progress": args.progress or 0,
@@ -92,7 +102,7 @@ def main() -> None:
             ),
             "unlocks": args.unlocks or previous_work.get("unlocks", []),
         }
-        state.setdefault("statuses", {})[args.block] = "active"
+        state.setdefault("statuses", {})[args.block] = "blocked" if args.blocked else "active"
     state["workingBlocks"] = sorted(working)
     updates = state.setdefault("updates", [])
     updates.insert(0, {
