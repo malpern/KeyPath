@@ -691,8 +691,7 @@ secure_dialog_input() {
 
 protected_click() {
   local lease=$1 app=$2 expected_before=$3 expected_after=$4 coordinate_space=$5 x=$6 y=$7
-  local manifest macos resource key ip before after guest_command geometry_command geometry
-  local native_width native_height logical_width logical_height scale_x scale_y
+  local manifest macos resource key ip before after guest_command
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$macos" == "15" ]] || die "protected click currently supports only the Tart macOS 15 lane"
@@ -720,22 +719,11 @@ protected_click() {
     die "protected click precondition failed: expected window '$expected_before', found '${before:-unknown}'"
   }
 
-  if [[ "$coordinate_space" == "ax" ]]; then
-    if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
-      geometry=${KEYPATH_LAB_TEST_DISPLAY_GEOMETRY:-'2048 1536 1024 768'}
-    else
-      geometry_command='/opt/homebrew/bin/peekaboo list windows --app '$(printf %q "$app")' --json | /usr/bin/python3 -c '\''import json,re,sys; data=json.load(sys.stdin).get("data",{}); windows=data.get("windows",data if isinstance(data,list) else []); names=[w.get("screenName","") for w in windows if isinstance(w,dict)]; m=next((re.search(r"([0-9]+)×([0-9]+)",n) for n in names if re.search(r"([0-9]+)×([0-9]+)",n)),None); print(f"{m.group(1)} {m.group(2)}" if m else "",end="")'\''; printf " "; /usr/bin/osascript -l JavaScript -e '\''ObjC.import("AppKit"); var s=$.NSScreen.mainScreen.frame.size; s.width+" "+s.height'\'''
-      geometry=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$geometry_command")")
-    fi
-    IFS=' ' read -r native_width native_height logical_width logical_height <<< "$geometry"
-    [[ "$native_width" == <-> && "$native_height" == <-> && "$logical_width" == <-> && "$logical_height" == <-> && "$logical_width" -gt 0 && "$logical_height" -gt 0 ]] || die "protected click could not measure display geometry"
-    (( native_width % logical_width == 0 && native_height % logical_height == 0 )) || die "protected click measured a non-integral display scale"
-    scale_x=$((native_width / logical_width))
-    scale_y=$((native_height / logical_height))
-    (( scale_x == scale_y && scale_x > 0 )) || die "protected click measured inconsistent display scales"
-    x=$((x * scale_x))
-    y=$((y * scale_y))
-  fi
+  # Tart's VNC/RFB viewport uses the same 1024x768 logical coordinate space
+  # exposed by Accessibility. NSScreen's 2x backing dimensions are not input
+  # coordinates, so multiplying fresh AX bounds targets a different control.
+  # `native` remains an explicit escape hatch for a caller that already has a
+  # verified framebuffer point.
 
   "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$x" --y "$y" >/dev/null
   sleep "${KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS:-1}"
@@ -754,7 +742,7 @@ protected_click() {
   print "window_after\t$after"
   print "coordinate_space\t$coordinate_space"
   if [[ "$coordinate_space" == "ax" ]]; then
-    print "display_scale\t$scale_x"
+    print "input_mapping\tax-direct"
   fi
 }
 

@@ -230,11 +230,13 @@ Scripts/lab/keypath-lab protected-click cbx_example \
   --ax-x 402 --ax-y 247
 ```
 
-With `--ax-x` and `--ax-y`, the command measures the current display's logical
-and native dimensions and converts Accessibility coordinates to framebuffer
-coordinates. Raw native coordinates remain available as `--x` and `--y` for
-diagnostics. The command snapshots the named app before and after delivery and fails
-if either window title differs from the declared page. When the click is
+With `--ax-x` and `--ax-y`, the command delivers the fresh Accessibility point
+unchanged. On the Tart macOS 15 lane, the VNC input viewport matches that
+logical coordinate space even though the backing display reports a 2x Retina
+size. Raw native coordinates remain available as `--x` and `--y` for
+diagnostics where a framebuffer point has been independently verified. The
+command snapshots the named app before and after delivery and fails if either
+window title differs from the declared page. When the click is
 expected to open another page or dialog, declare that explicitly with
 `--after-window`. This guard detects a delivered click that landed on the wrong
 System Settings surface; it does not replace the permission's canonical product

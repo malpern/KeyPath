@@ -36,10 +36,11 @@ expected page (or explicitly expected dialog) immediately afterward. A changed
 page is a harness failure; never continue to password entry or report the
 permission as granted.
 
-Pass Accessibility coordinates to `keypath-lab protected-click` with `--ax-x`
-and `--ax-y`. The controller measures the guest's native and logical display
-dimensions and applies the scale itself. Reserve raw `--x` and `--y` coordinates
-for diagnostics where the native framebuffer point is already known.
+Pass fresh Accessibility coordinates to `keypath-lab protected-click` with
+`--ax-x` and `--ax-y`. On the Tart macOS 15 lane the controller sends those
+points unchanged because the VNC viewport is already in logical coordinates;
+the backing-display scale must not be applied. Reserve raw `--x` and `--y`
+coordinates for diagnostics where the native framebuffer point is already known.
 
 ## Current capability matrix
 
