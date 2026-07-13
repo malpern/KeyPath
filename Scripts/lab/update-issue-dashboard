@@ -17,7 +17,9 @@ def issue_status(issue: dict) -> str:
     labels = {label["name"] for label in issue.get("labels", [])}
     # Explicit execution state outranks work type and required operator. Topic
     # labels such as `wwdc26` do not imply that an issue is active or human-gated.
-    if labels & {"on-hold", "tracking-only"}:
+    if "on-hold" in labels:
+        return "hold"
+    if "tracking-only" in labels:
         return "deferred"
     if "human-in-loop" in labels:
         return "human"
@@ -58,7 +60,7 @@ def description_excerpt(body: str, limit: int = 260) -> str:
 
 
 def priority(issue: dict) -> tuple:
-    order = {"active": 0, "next": 1, "queued": 2, "human": 3, "feature": 4, "deferred": 5}
+    order = {"active": 0, "next": 1, "queued": 2, "human": 3, "hold": 4, "feature": 5, "deferred": 6}
     return (order[issue["dashboardStatus"]], -issue["number"])
 
 

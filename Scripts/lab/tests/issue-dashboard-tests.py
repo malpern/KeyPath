@@ -23,9 +23,15 @@ class IssueDashboardTests(unittest.TestCase):
         self.assertEqual(module.issue_status(issue(982, "bug-risk", "human-in-loop")), "human")
 
     def test_on_hold_and_tracking_labels_override_work_type(self) -> None:
-        self.assertEqual(module.issue_status(issue(982, "human-in-loop", "on-hold")), "deferred")
+        self.assertEqual(module.issue_status(issue(982, "human-in-loop", "on-hold")), "hold")
         self.assertEqual(module.issue_status(issue(604, "testing", "tracking-only")), "deferred")
-        self.assertEqual(module.issue_status(issue(865, "enhancement", "tracking-only", "on-hold")), "deferred")
+        self.assertEqual(module.issue_status(issue(865, "enhancement", "tracking-only", "on-hold")), "hold")
+
+    def test_on_hold_is_a_distinct_visible_dashboard_state(self) -> None:
+        fragment = (REPO_ROOT / "docs/testing/keypath-github-issues-dashboard.fragment.html").read_text()
+        self.assertIn("data-status=\"hold\"", fragment)
+        self.assertIn("id=\"metric-hold\"", fragment)
+        self.assertIn("hold:'On hold'", fragment)
 
     def test_topic_labels_do_not_imply_execution_state(self) -> None:
         self.assertEqual(module.issue_status(issue(912, "wwdc26", "enhancement")), "feature")

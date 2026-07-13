@@ -766,12 +766,13 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-issue-board .next-mark { background:var(--viz-series-3); }
     #keypath-issue-board .queued-mark { background:var(--viz-series-1); }
     #keypath-issue-board .human-mark { background:var(--viz-series-5); }
+    #keypath-issue-board .hold-mark { background:transparent; border:1px solid var(--muted-foreground); }
     #keypath-issue-board .feature-mark { background:var(--muted); border:1px solid var(--border); }
     #keypath-issue-board .type-key { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin:-5px 0 14px; color:var(--muted-foreground); font:10px system-ui,sans-serif; }
     #keypath-issue-board .type-key .key-label { text-transform:uppercase; letter-spacing:.06em; }
     #keypath-issue-board .type-filter { appearance:none; padding:2px 0; border:0; border-bottom:1px solid transparent; color:inherit; background:transparent; font:inherit; cursor:pointer; }
     #keypath-issue-board .type-filter:hover,#keypath-issue-board .type-filter:focus-visible,#keypath-issue-board .type-filter[aria-pressed=&quot;true&quot;] { color:var(--foreground); border-bottom-color:var(--foreground); }
-    #keypath-issue-board .summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; margin-bottom:14px; overflow:hidden; background:var(--border); border:1px solid var(--border); border-radius:8px; }
+    #keypath-issue-board .summary { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:1px; margin-bottom:14px; overflow:hidden; background:var(--border); border:1px solid var(--border); border-radius:8px; }
     #keypath-issue-board .metric { padding:11px 13px; background:color-mix(in srgb,var(--card) 88%,var(--background)); }
     #keypath-issue-board .metric strong { display:block; font-size:20px; font-weight:500; }
     #keypath-issue-board .metric span { color:var(--muted-foreground); font:11px system-ui,sans-serif; text-transform:uppercase; letter-spacing:.06em; }
@@ -790,6 +791,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-issue-board .issue[data-status=&quot;next&quot;] { background:color-mix(in srgb,var(--viz-series-3) 55%,var(--card)); }
     #keypath-issue-board .issue[data-status=&quot;queued&quot;] { background:color-mix(in srgb,var(--viz-series-1) 38%,var(--card)); }
     #keypath-issue-board .issue[data-status=&quot;human&quot;] { background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--viz-series-5) 55%,var(--card)) 0 7px,color-mix(in srgb,var(--viz-series-5) 35%,var(--card)) 7px 11px); }
+    #keypath-issue-board .issue[data-status=&quot;hold&quot;] { background:color-mix(in srgb,var(--muted) 78%,var(--card)); color:var(--muted-foreground); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--muted-foreground) 35%,transparent); }
     #keypath-issue-board .issue[data-status=&quot;feature&quot;],#keypath-issue-board .issue[data-status=&quot;deferred&quot;] { background:var(--muted); color:var(--muted-foreground); }
     #keypath-issue-board .issue:hover,#keypath-issue-board .issue:focus-visible { transform:translateY(-2px); border-color:var(--ring); z-index:1; }
     #keypath-issue-board .issue.is-selected { border-color:var(--foreground); box-shadow:inset 0 0 0 1px var(--foreground); transform:translateY(-1px); }
@@ -811,9 +813,8 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-issue-board .lane { padding:11px; border-top:2px solid var(--border); }
     #keypath-issue-board .lane strong { display:block; font:500 12px system-ui,sans-serif; }
     #keypath-issue-board .lane span { color:var(--muted-foreground); font:11px system-ui,sans-serif; }
-    #keypath-issue-board .lane.active { border-color:var(--viz-series-2); }
-    #keypath-issue-board .lane.next { border-color:var(--viz-series-3); }
     #keypath-issue-board .lane.human { border-color:var(--viz-series-5); }
+    #keypath-issue-board .lane.hold { border-color:var(--muted-foreground); }
     #keypath-issue-board .activity { margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }
     #keypath-issue-board .activity h2 { margin:0 0 8px; font:500 14px system-ui,sans-serif; }
     #keypath-issue-board .activity-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:22px; }
@@ -832,7 +833,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   &lt;/style&gt;
 
   &lt;header class=&quot;top&quot;&gt;
-    &lt;div&gt;&lt;div class=&quot;eyebrow repo-mark&quot;&gt;malpern / KeyPath&lt;/div&gt;&lt;h1&gt;Issue operations&lt;/h1&gt;&lt;div class=&quot;sub&quot;&gt;Bug-first work queue. Each cell is an open GitHub issue; color shows whether it is active, next, agent-queued, human-gated, or deferred feature work.&lt;/div&gt;&lt;/div&gt;
+    &lt;div&gt;&lt;div class=&quot;eyebrow repo-mark&quot;&gt;malpern / KeyPath&lt;/div&gt;&lt;h1&gt;Issue operations&lt;/h1&gt;&lt;div class=&quot;sub&quot;&gt;Bug-first work queue. Each cell is an open GitHub issue; color shows whether it is active, agent-queued, human-gated, on hold, or deferred feature work.&lt;/div&gt;&lt;/div&gt;
     &lt;div class=&quot;date&quot; id=&quot;issues-updated&quot;&gt;Loading GitHub…&lt;/div&gt;
   &lt;/header&gt;
 
@@ -841,7 +842,8 @@ html&gt;body{padding:0}&lt;/style&gt;
     &lt;span&gt;&lt;i class=&quot;swatch next-mark&quot;&gt;&lt;/i&gt;Recommended next&lt;/span&gt;
     &lt;span&gt;&lt;i class=&quot;swatch queued-mark&quot;&gt;&lt;/i&gt;Agent queue&lt;/span&gt;
     &lt;span&gt;&lt;i class=&quot;swatch human-mark&quot;&gt;&lt;/i&gt;Human / external gate&lt;/span&gt;
-    &lt;span&gt;&lt;i class=&quot;swatch feature-mark&quot;&gt;&lt;/i&gt;Feature or deferred&lt;/span&gt;
+    &lt;span&gt;&lt;i class=&quot;swatch hold-mark&quot;&gt;&lt;/i&gt;On hold&lt;/span&gt;
+    &lt;span&gt;&lt;i class=&quot;swatch feature-mark&quot;&gt;&lt;/i&gt;Feature or tracking&lt;/span&gt;
   &lt;/div&gt;
   &lt;nav class=&quot;type-key&quot; aria-label=&quot;Highlight issues by label&quot;&gt;
     &lt;span class=&quot;key-label&quot;&gt;Type&lt;/span&gt;
@@ -857,7 +859,8 @@ html&gt;body{padding:0}&lt;/style&gt;
     &lt;div class=&quot;metric&quot;&gt;&lt;strong id=&quot;metric-open&quot;&gt;—&lt;/strong&gt;&lt;span&gt;Open issues&lt;/span&gt;&lt;/div&gt;
     &lt;div class=&quot;metric&quot;&gt;&lt;strong id=&quot;metric-agent&quot;&gt;—&lt;/strong&gt;&lt;span&gt;Agent queue&lt;/span&gt;&lt;/div&gt;
     &lt;div class=&quot;metric&quot;&gt;&lt;strong id=&quot;metric-human&quot;&gt;—&lt;/strong&gt;&lt;span&gt;Human gated&lt;/span&gt;&lt;/div&gt;
-    &lt;div class=&quot;metric&quot;&gt;&lt;strong id=&quot;metric-feature&quot;&gt;—&lt;/strong&gt;&lt;span&gt;Features deferred&lt;/span&gt;&lt;/div&gt;
+    &lt;div class=&quot;metric&quot;&gt;&lt;strong id=&quot;metric-hold&quot;&gt;—&lt;/strong&gt;&lt;span&gt;On hold&lt;/span&gt;&lt;/div&gt;
+    &lt;div class=&quot;metric&quot;&gt;&lt;strong id=&quot;metric-feature&quot;&gt;—&lt;/strong&gt;&lt;span&gt;Features / tracking&lt;/span&gt;&lt;/div&gt;
   &lt;/section&gt;
 
   &lt;div class=&quot;workspace&quot;&gt;
@@ -865,16 +868,16 @@ html&gt;body{padding:0}&lt;/style&gt;
       &lt;section class=&quot;board&quot; aria-label=&quot;GitHub issue map&quot;&gt;
         &lt;div class=&quot;track&quot; id=&quot;issue-grid&quot;&gt;&lt;/div&gt;
         &lt;div class=&quot;readout&quot; aria-live=&quot;polite&quot;&gt;
-          &lt;div&gt;&lt;strong id=&quot;issue-title&quot;&gt;Select an issue&lt;/strong&gt;&lt;small id=&quot;issue-detail&quot;&gt;The map is ordered active → next → agent queue → human-gated → features and deferred work.&lt;/small&gt;&lt;div class=&quot;labels&quot; id=&quot;issue-labels&quot;&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;div&gt;&lt;strong id=&quot;issue-title&quot;&gt;Select an issue&lt;/strong&gt;&lt;small id=&quot;issue-detail&quot;&gt;The map is ordered active → agent queue → human-gated → on hold → features and tracking work.&lt;/small&gt;&lt;div class=&quot;labels&quot; id=&quot;issue-labels&quot;&gt;&lt;/div&gt;&lt;/div&gt;
           &lt;a id=&quot;issue-link&quot; href=&quot;https://github.com/malpern/KeyPath/issues&quot; target=&quot;_blank&quot; rel=&quot;noreferrer&quot;&gt;Open GitHub&lt;/a&gt;
         &lt;/div&gt;
       &lt;/section&gt;
 
       &lt;section class=&quot;lanes&quot; aria-label=&quot;Work sequence&quot;&gt;
-        &lt;div class=&quot;lane active&quot;&gt;&lt;strong&gt;Active&lt;/strong&gt;&lt;span&gt;#748 runtime freshness diagnostics&lt;/span&gt;&lt;/div&gt;
-        &lt;div class=&quot;lane next&quot;&gt;&lt;strong&gt;Next&lt;/strong&gt;&lt;span&gt;#848 centralized Kanata test fixtures&lt;/span&gt;&lt;/div&gt;
-        &lt;div class=&quot;lane&quot;&gt;&lt;strong&gt;Bug-first queue&lt;/strong&gt;&lt;span&gt;Reliability and test debt before features&lt;/span&gt;&lt;/div&gt;
-        &lt;div class=&quot;lane human&quot;&gt;&lt;strong&gt;Explicitly deferred&lt;/strong&gt;&lt;span&gt;#172, #740, #747, #919 and human lanes&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;lane&quot;&gt;&lt;strong&gt;Agent queue&lt;/strong&gt;&lt;span&gt;Reliability and test debt before features&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;lane human&quot;&gt;&lt;strong&gt;Human / external gate&lt;/strong&gt;&lt;span&gt;Needs hands-on validation or an external dependency&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;lane hold&quot;&gt;&lt;strong&gt;On hold&lt;/strong&gt;&lt;span&gt;Explicitly paused with the on-hold label&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;lane&quot;&gt;&lt;strong&gt;Feature / tracking&lt;/strong&gt;&lt;span&gt;Deferred product work and tracking epics&lt;/span&gt;&lt;/div&gt;
       &lt;/section&gt;
     &lt;/main&gt;
 
@@ -893,7 +896,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   &lt;script&gt;
     (() =&gt; {
       const root = document.getElementById(&#x27;keypath-issue-board&#x27;);
-      const names = {active:&#x27;Active&#x27;,next:&#x27;Recommended next&#x27;,queued:&#x27;Agent queue&#x27;,human:&#x27;Human / external gate&#x27;,feature:&#x27;Feature deferred&#x27;,deferred:&#x27;Deferred&#x27;,completed:&#x27;Completed&#x27;};
+      const names = {active:&#x27;Active&#x27;,next:&#x27;Recommended next&#x27;,queued:&#x27;Agent queue&#x27;,human:&#x27;Human / external gate&#x27;,hold:&#x27;On hold&#x27;,feature:&#x27;Feature deferred&#x27;,deferred:&#x27;Tracking / deferred&#x27;,completed:&#x27;Completed&#x27;};
       const typeNames = {bug:&#x27;Bug&#x27;,testing:&#x27;Testing&#x27;,debt:&#x27;Technical debt&#x27;,feature:&#x27;Feature&#x27;,upstream:&#x27;Upstream / research&#x27;,docs:&#x27;Documentation / design&#x27;,other:&#x27;Other&#x27;};
       const grid = root.querySelector(&#x27;#issue-grid&#x27;);
       const title = root.querySelector(&#x27;#issue-title&#x27;);
@@ -913,7 +916,7 @@ html&gt;body{padding:0}&lt;/style&gt;
       let selectedType;
       const resetReadout = () =&gt; {
         title.textContent = &#x27;Select an issue&#x27;;
-        detail.textContent = &#x27;The map is ordered active → next → agent queue → human-gated → features and deferred work.&#x27;;
+        detail.textContent = &#x27;The map is ordered active → agent queue → human-gated → on hold → features and tracking work.&#x27;;
         labels.replaceChildren();
         link.href = &#x27;https://github.com/malpern/KeyPath/issues&#x27;;
         link.textContent = &#x27;Open GitHub&#x27;;
@@ -967,7 +970,8 @@ html&gt;body{padding:0}&lt;/style&gt;
         root.querySelector(&#x27;#metric-open&#x27;).textContent = `${state.issues.length}${state.truncated ? &#x27;+&#x27; : &#x27;&#x27;}`;
         root.querySelector(&#x27;#metric-agent&#x27;).textContent = (state.counts.active || 0) + (state.counts.next || 0) + (state.counts.queued || 0);
         root.querySelector(&#x27;#metric-human&#x27;).textContent = state.counts.human || 0;
-        root.querySelector(&#x27;#metric-feature&#x27;).textContent = state.counts.feature || 0;
+        root.querySelector(&#x27;#metric-hold&#x27;).textContent = state.counts.hold || 0;
+        root.querySelector(&#x27;#metric-feature&#x27;).textContent = (state.counts.feature || 0) + (state.counts.deferred || 0);
         grid.replaceChildren(...state.issues.map(issue =&gt; {
           const button = document.createElement(&#x27;button&#x27;);
           button.className = &#x27;issue&#x27;;
