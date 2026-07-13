@@ -28,7 +28,7 @@
     #keypath-issue-board .workspace { display:block; }
     #keypath-issue-board .board { padding:14px; background:color-mix(in srgb,var(--card) 82%,var(--background)); border:1px solid var(--border); border-radius:8px; }
     #keypath-issue-board .track { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:5px; }
-    #keypath-issue-board .issue { appearance:none; position:relative; min-height:44px; padding:6px 2px; border:1px solid transparent; border-radius:6px; color:var(--foreground); font:500 10px ui-monospace,SFMono-Regular,Menlo,monospace; cursor:pointer; transition:transform 120ms ease,filter 120ms ease; }
+    #keypath-issue-board .issue { appearance:none; position:relative; min-height:44px; padding:6px 2px; border:1px solid transparent; border-radius:6px; color:var(--foreground); font:500 10px ui-monospace,SFMono-Regular,Menlo,monospace; cursor:pointer; transition:transform 120ms ease,border-color 120ms ease; }
     #keypath-issue-board .issue::before { content:""; position:absolute; top:5px; right:5px; width:5px; height:5px; border-radius:50%; background:currentColor; opacity:.65; }
     #keypath-issue-board .track[data-highlight-type] .issue { opacity:.25; }
     #keypath-issue-board .track[data-highlight-type="bug"] .issue[data-type="bug"],
@@ -42,7 +42,7 @@
     #keypath-issue-board .issue[data-status="queued"] { background:color-mix(in srgb,var(--viz-series-1) 38%,var(--card)); }
     #keypath-issue-board .issue[data-status="human"] { background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--viz-series-5) 55%,var(--card)) 0 7px,color-mix(in srgb,var(--viz-series-5) 35%,var(--card)) 7px 11px); }
     #keypath-issue-board .issue[data-status="feature"],#keypath-issue-board .issue[data-status="deferred"] { background:var(--muted); color:var(--muted-foreground); }
-    #keypath-issue-board .issue:hover,#keypath-issue-board .issue:focus-visible { filter:brightness(1.15); transform:translateY(-2px); border-color:var(--ring); z-index:1; }
+    #keypath-issue-board .issue:hover,#keypath-issue-board .issue:focus-visible { transform:translateY(-2px); border-color:var(--ring); z-index:1; }
     #keypath-issue-board .issue.is-selected { border-color:var(--foreground); box-shadow:inset 0 0 0 1px var(--foreground); transform:translateY(-1px); }
     #keypath-issue-board .issue.is-selected[data-status="active"] { animation:none; }
     #keypath-issue-board .issue[data-status="active"] { animation:issue-pulse 1.6s ease-in-out infinite; }
@@ -53,6 +53,11 @@
     #keypath-issue-board .readout a { align-self:start; color:var(--viz-series-1); font:500 12px system-ui,sans-serif; }
     #keypath-issue-board .labels { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
     #keypath-issue-board .label { padding:1px 6px; border:1px solid var(--border); border-radius:999px; color:var(--muted-foreground); font-size:10px; }
+    #keypath-issue-board .issue-hover-card { display:none; position:fixed; z-index:40; width:min(390px,calc(100vw - 24px)); padding:14px; border:1px solid var(--border); border-radius:10px; color:var(--popover-foreground); background:var(--popover); font-family:system-ui,sans-serif; pointer-events:none; }
+    #keypath-issue-board .issue-hover-card.is-visible { display:block; }
+    #keypath-issue-board .issue-hover-card strong { display:block; margin-bottom:8px; font-size:14px; font-weight:500; line-height:1.35; }
+    #keypath-issue-board .issue-hover-card p { margin:9px 0 0; color:var(--muted-foreground); font-size:12px; line-height:1.45; }
+    #keypath-issue-board .issue-hover-card .labels { margin-top:0; }
     #keypath-issue-board .lanes { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:12px; }
     #keypath-issue-board .lane { padding:11px; border-top:2px solid var(--border); }
     #keypath-issue-board .lane strong { display:block; font:500 12px system-ui,sans-serif; }
@@ -129,6 +134,11 @@
     </aside>
   </div>
   <div class="note">Dashboard priority is an operating view, not a replacement for GitHub labels. Refreshes from the local GitHub CLI every 60 seconds.</div>
+  <aside class="issue-hover-card" id="issue-hover-card" aria-hidden="true">
+    <strong id="issue-hover-title"></strong>
+    <div class="labels" id="issue-hover-labels"></div>
+    <p id="issue-hover-description"></p>
+  </aside>
 
   <script>
     (() => {
@@ -140,7 +150,12 @@
       const detail = root.querySelector('#issue-detail');
       const labels = root.querySelector('#issue-labels');
       const link = root.querySelector('#issue-link');
+      const hoverCard = root.querySelector('#issue-hover-card');
+      const hoverTitle = root.querySelector('#issue-hover-title');
+      const hoverLabels = root.querySelector('#issue-hover-labels');
+      const hoverDescription = root.querySelector('#issue-hover-description');
       let detailTimer;
+      let hoverTimer;
       let highlightTimer;
       let clickTimer;
       let selectedButton;
@@ -157,6 +172,29 @@
         detail.textContent = names[issue.dashboardStatus];
         labels.replaceChildren(...issue.labels.map(value => { const badge=document.createElement('span'); badge.className='label'; badge.textContent=value; return badge; }));
         link.href = issue.url; link.textContent = `Open #${issue.number}`;
+      };
+      const hideHoverCard = () => {
+        clearTimeout(hoverTimer);
+        hoverCard.classList.remove('is-visible');
+        hoverCard.setAttribute('aria-hidden','true');
+      };
+      const showHoverCard = (issue,button) => {
+        hoverTitle.textContent = `#${issue.number} · ${issue.title}`;
+        hoverLabels.replaceChildren(...issue.labels.map(value => { const badge=document.createElement('span'); badge.className='label'; badge.textContent=value; return badge; }));
+        hoverDescription.textContent = issue.descriptionExcerpt || 'No description provided.';
+        hoverCard.style.left = '0px';
+        hoverCard.style.top = '0px';
+        hoverCard.style.visibility = 'hidden';
+        hoverCard.classList.add('is-visible');
+        const anchor = button.getBoundingClientRect();
+        const card = hoverCard.getBoundingClientRect();
+        const left = Math.max(10,Math.min(window.innerWidth-card.width-10,anchor.left+(anchor.width-card.width)/2));
+        const below = anchor.bottom+10;
+        const top = below+card.height <= window.innerHeight-10 ? below : Math.max(10,anchor.top-card.height-10);
+        hoverCard.style.left = `${left}px`;
+        hoverCard.style.top = `${top}px`;
+        hoverCard.style.visibility = '';
+        hoverCard.setAttribute('aria-hidden','false');
       };
       root.querySelectorAll('.type-filter').forEach(filter => {
         const highlight = () => { clearTimeout(highlightTimer); highlightTimer = setTimeout(() => { grid.dataset.highlightType = filter.dataset.type; }, 120); };
@@ -199,9 +237,14 @@
             button.setAttribute('aria-pressed','true');
             showIssue(issue);
           };
-          button.addEventListener('mouseenter',() => { clearTimeout(detailTimer); detailTimer = setTimeout(() => showIssue(issue),280); });
-          button.addEventListener('mouseleave',() => { clearTimeout(detailTimer); selectedIssue ? showIssue(selectedIssue) : resetReadout(); });
-          button.addEventListener('focus',() => showIssue(issue));
+          button.addEventListener('mouseenter',() => {
+            clearTimeout(detailTimer); clearTimeout(hoverTimer);
+            detailTimer = setTimeout(() => showIssue(issue),280);
+            hoverTimer = setTimeout(() => showHoverCard(issue,button),360);
+          });
+          button.addEventListener('mouseleave',() => { clearTimeout(detailTimer); hideHoverCard(); selectedIssue ? showIssue(selectedIssue) : resetReadout(); });
+          button.addEventListener('focus',() => { showIssue(issue); showHoverCard(issue,button); });
+          button.addEventListener('blur',hideHoverCard);
           button.addEventListener('click',event => {
             clearTimeout(clickTimer);
             if (event.detail === 0) toggleSelection();

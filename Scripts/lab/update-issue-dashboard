@@ -4,6 +4,7 @@ import datetime as dt
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 
@@ -47,6 +48,16 @@ def issue_type(issue: dict) -> str:
     return "other"
 
 
+def description_excerpt(body: str, limit: int = 260) -> str:
+    text = re.sub(r"(?m)^\s{0,3}#{1,6}\s*", "", body or "")
+    text = re.sub(r"[`*_>]", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) <= limit:
+        return text
+    clipped = text[:limit].rsplit(" ", 1)[0].rstrip(" ,.;:-")
+    return f"{clipped}…"
+
+
 def priority(issue: dict) -> tuple:
     order = {"active": 0, "next": 1, "queued": 2, "human": 3, "feature": 4, "deferred": 5}
     return (order[issue["dashboardStatus"]], -issue["number"])
@@ -75,7 +86,7 @@ def main() -> None:
             "--limit",
             str(ISSUE_LIMIT),
             "--json",
-            "number,title,labels,updatedAt,url",
+            "number,title,body,labels,updatedAt,url",
         ],
         check=True,
         capture_output=True,
@@ -86,6 +97,7 @@ def main() -> None:
     for issue in issues:
         issue["dashboardStatus"] = issue_status(issue)
         issue["dashboardType"] = issue_type(issue)
+        issue["descriptionExcerpt"] = description_excerpt(issue.pop("body", ""))
         issue["labels"] = [label["name"] for label in issue.get("labels", [])]
     issues.sort(key=priority)
     counts = {}

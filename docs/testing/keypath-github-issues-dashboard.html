@@ -778,7 +778,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-issue-board .workspace { display:block; }
     #keypath-issue-board .board { padding:14px; background:color-mix(in srgb,var(--card) 82%,var(--background)); border:1px solid var(--border); border-radius:8px; }
     #keypath-issue-board .track { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:5px; }
-    #keypath-issue-board .issue { appearance:none; position:relative; min-height:44px; padding:6px 2px; border:1px solid transparent; border-radius:6px; color:var(--foreground); font:500 10px ui-monospace,SFMono-Regular,Menlo,monospace; cursor:pointer; transition:transform 120ms ease,filter 120ms ease; }
+    #keypath-issue-board .issue { appearance:none; position:relative; min-height:44px; padding:6px 2px; border:1px solid transparent; border-radius:6px; color:var(--foreground); font:500 10px ui-monospace,SFMono-Regular,Menlo,monospace; cursor:pointer; transition:transform 120ms ease,border-color 120ms ease; }
     #keypath-issue-board .issue::before { content:&quot;&quot;; position:absolute; top:5px; right:5px; width:5px; height:5px; border-radius:50%; background:currentColor; opacity:.65; }
     #keypath-issue-board .track[data-highlight-type] .issue { opacity:.25; }
     #keypath-issue-board .track[data-highlight-type=&quot;bug&quot;] .issue[data-type=&quot;bug&quot;],
@@ -792,7 +792,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-issue-board .issue[data-status=&quot;queued&quot;] { background:color-mix(in srgb,var(--viz-series-1) 38%,var(--card)); }
     #keypath-issue-board .issue[data-status=&quot;human&quot;] { background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--viz-series-5) 55%,var(--card)) 0 7px,color-mix(in srgb,var(--viz-series-5) 35%,var(--card)) 7px 11px); }
     #keypath-issue-board .issue[data-status=&quot;feature&quot;],#keypath-issue-board .issue[data-status=&quot;deferred&quot;] { background:var(--muted); color:var(--muted-foreground); }
-    #keypath-issue-board .issue:hover,#keypath-issue-board .issue:focus-visible { filter:brightness(1.15); transform:translateY(-2px); border-color:var(--ring); z-index:1; }
+    #keypath-issue-board .issue:hover,#keypath-issue-board .issue:focus-visible { transform:translateY(-2px); border-color:var(--ring); z-index:1; }
     #keypath-issue-board .issue.is-selected { border-color:var(--foreground); box-shadow:inset 0 0 0 1px var(--foreground); transform:translateY(-1px); }
     #keypath-issue-board .issue.is-selected[data-status=&quot;active&quot;] { animation:none; }
     #keypath-issue-board .issue[data-status=&quot;active&quot;] { animation:issue-pulse 1.6s ease-in-out infinite; }
@@ -803,6 +803,11 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-issue-board .readout a { align-self:start; color:var(--viz-series-1); font:500 12px system-ui,sans-serif; }
     #keypath-issue-board .labels { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
     #keypath-issue-board .label { padding:1px 6px; border:1px solid var(--border); border-radius:999px; color:var(--muted-foreground); font-size:10px; }
+    #keypath-issue-board .issue-hover-card { display:none; position:fixed; z-index:40; width:min(390px,calc(100vw - 24px)); padding:14px; border:1px solid var(--border); border-radius:10px; color:var(--popover-foreground); background:var(--popover); font-family:system-ui,sans-serif; pointer-events:none; }
+    #keypath-issue-board .issue-hover-card.is-visible { display:block; }
+    #keypath-issue-board .issue-hover-card strong { display:block; margin-bottom:8px; font-size:14px; font-weight:500; line-height:1.35; }
+    #keypath-issue-board .issue-hover-card p { margin:9px 0 0; color:var(--muted-foreground); font-size:12px; line-height:1.45; }
+    #keypath-issue-board .issue-hover-card .labels { margin-top:0; }
     #keypath-issue-board .lanes { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:12px; }
     #keypath-issue-board .lane { padding:11px; border-top:2px solid var(--border); }
     #keypath-issue-board .lane strong { display:block; font:500 12px system-ui,sans-serif; }
@@ -879,6 +884,11 @@ html&gt;body{padding:0}&lt;/style&gt;
     &lt;/aside&gt;
   &lt;/div&gt;
   &lt;div class=&quot;note&quot;&gt;Dashboard priority is an operating view, not a replacement for GitHub labels. Refreshes from the local GitHub CLI every 60 seconds.&lt;/div&gt;
+  &lt;aside class=&quot;issue-hover-card&quot; id=&quot;issue-hover-card&quot; aria-hidden=&quot;true&quot;&gt;
+    &lt;strong id=&quot;issue-hover-title&quot;&gt;&lt;/strong&gt;
+    &lt;div class=&quot;labels&quot; id=&quot;issue-hover-labels&quot;&gt;&lt;/div&gt;
+    &lt;p id=&quot;issue-hover-description&quot;&gt;&lt;/p&gt;
+  &lt;/aside&gt;
 
   &lt;script&gt;
     (() =&gt; {
@@ -890,7 +900,12 @@ html&gt;body{padding:0}&lt;/style&gt;
       const detail = root.querySelector(&#x27;#issue-detail&#x27;);
       const labels = root.querySelector(&#x27;#issue-labels&#x27;);
       const link = root.querySelector(&#x27;#issue-link&#x27;);
+      const hoverCard = root.querySelector(&#x27;#issue-hover-card&#x27;);
+      const hoverTitle = root.querySelector(&#x27;#issue-hover-title&#x27;);
+      const hoverLabels = root.querySelector(&#x27;#issue-hover-labels&#x27;);
+      const hoverDescription = root.querySelector(&#x27;#issue-hover-description&#x27;);
       let detailTimer;
+      let hoverTimer;
       let highlightTimer;
       let clickTimer;
       let selectedButton;
@@ -907,6 +922,29 @@ html&gt;body{padding:0}&lt;/style&gt;
         detail.textContent = names[issue.dashboardStatus];
         labels.replaceChildren(...issue.labels.map(value =&gt; { const badge=document.createElement(&#x27;span&#x27;); badge.className=&#x27;label&#x27;; badge.textContent=value; return badge; }));
         link.href = issue.url; link.textContent = `Open #${issue.number}`;
+      };
+      const hideHoverCard = () =&gt; {
+        clearTimeout(hoverTimer);
+        hoverCard.classList.remove(&#x27;is-visible&#x27;);
+        hoverCard.setAttribute(&#x27;aria-hidden&#x27;,&#x27;true&#x27;);
+      };
+      const showHoverCard = (issue,button) =&gt; {
+        hoverTitle.textContent = `#${issue.number} · ${issue.title}`;
+        hoverLabels.replaceChildren(...issue.labels.map(value =&gt; { const badge=document.createElement(&#x27;span&#x27;); badge.className=&#x27;label&#x27;; badge.textContent=value; return badge; }));
+        hoverDescription.textContent = issue.descriptionExcerpt || &#x27;No description provided.&#x27;;
+        hoverCard.style.left = &#x27;0px&#x27;;
+        hoverCard.style.top = &#x27;0px&#x27;;
+        hoverCard.style.visibility = &#x27;hidden&#x27;;
+        hoverCard.classList.add(&#x27;is-visible&#x27;);
+        const anchor = button.getBoundingClientRect();
+        const card = hoverCard.getBoundingClientRect();
+        const left = Math.max(10,Math.min(window.innerWidth-card.width-10,anchor.left+(anchor.width-card.width)/2));
+        const below = anchor.bottom+10;
+        const top = below+card.height &lt;= window.innerHeight-10 ? below : Math.max(10,anchor.top-card.height-10);
+        hoverCard.style.left = `${left}px`;
+        hoverCard.style.top = `${top}px`;
+        hoverCard.style.visibility = &#x27;&#x27;;
+        hoverCard.setAttribute(&#x27;aria-hidden&#x27;,&#x27;false&#x27;);
       };
       root.querySelectorAll(&#x27;.type-filter&#x27;).forEach(filter =&gt; {
         const highlight = () =&gt; { clearTimeout(highlightTimer); highlightTimer = setTimeout(() =&gt; { grid.dataset.highlightType = filter.dataset.type; }, 120); };
@@ -949,9 +987,14 @@ html&gt;body{padding:0}&lt;/style&gt;
             button.setAttribute(&#x27;aria-pressed&#x27;,&#x27;true&#x27;);
             showIssue(issue);
           };
-          button.addEventListener(&#x27;mouseenter&#x27;,() =&gt; { clearTimeout(detailTimer); detailTimer = setTimeout(() =&gt; showIssue(issue),280); });
-          button.addEventListener(&#x27;mouseleave&#x27;,() =&gt; { clearTimeout(detailTimer); selectedIssue ? showIssue(selectedIssue) : resetReadout(); });
-          button.addEventListener(&#x27;focus&#x27;,() =&gt; showIssue(issue));
+          button.addEventListener(&#x27;mouseenter&#x27;,() =&gt; {
+            clearTimeout(detailTimer); clearTimeout(hoverTimer);
+            detailTimer = setTimeout(() =&gt; showIssue(issue),280);
+            hoverTimer = setTimeout(() =&gt; showHoverCard(issue,button),360);
+          });
+          button.addEventListener(&#x27;mouseleave&#x27;,() =&gt; { clearTimeout(detailTimer); hideHoverCard(); selectedIssue ? showIssue(selectedIssue) : resetReadout(); });
+          button.addEventListener(&#x27;focus&#x27;,() =&gt; { showIssue(issue); showHoverCard(issue,button); });
+          button.addEventListener(&#x27;blur&#x27;,hideHoverCard);
           button.addEventListener(&#x27;click&#x27;,event =&gt; {
             clearTimeout(clickTimer);
             if (event.detail === 0) toggleSelection();
