@@ -203,6 +203,9 @@ recovery runtime.
 P02 remains: activate the complete runtime path and prove that the healthy
 VirtualHID Driver Extension produces observable remapped output from that
 captured input, not merely an installed, enabled, or device-healthy status.
+The first unmanaged macOS 15 attempt reached the genuine Driver Extensions
+control but remained `activated waiting for user`; its evidence and managed-lane
+resume criteria are in [P02 VirtualHID output proof](p02-virtualhid-output-proof.md).
 
 If virtual output cannot be observed in the VM, retain the VM lane for
 installer, repair, and state testing and add an explicitly separate

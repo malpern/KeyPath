@@ -1,17 +1,19 @@
 {
-  "updatedAt": "2026-07-12T19:49:14-07:00",
-  "currentTask": "P01 RFB capture proven",
-  "message": "KeyPath captured a real CrabBox VNC key event in its user-session input host. P01 is complete and the lease-owned input path is reusable.",
+  "updatedAt": "2026-07-12T21:27:05-07:00",
+  "currentTask": "P02 has a platform gate",
+  "message": "The VM reached the real VirtualHID approval control, but macOS has not transitioned the driver out of waiting-for-user. Captured RFB input is ready; remapped-output proof waits on a deterministic approval lane.",
   "complete": false,
-  "workingBlocks": [],
+  "workingBlocks": [
+    "P02"
+  ],
   "activeWork": {
     "P02": {
-      "progress": 75,
-      "health": "smooth",
-      "trend": "forward",
-      "phase": "VirtualHID active; captured-input dependency cleared",
-      "detail": "The DriverKit extension and VirtualHID daemon are healthy, and P01 now supplies a trusted RFB-captured input event. The next proof is observable remapped output.",
-      "attempt": 1,
+      "progress": 82,
+      "health": "blocked",
+      "trend": "backtrack",
+      "phase": "Awaiting a deterministic VirtualHID approval lane",
+      "detail": "The real macOS 15 driver extension is installed and exposed in System Settings. Its approval toggle was driven through the lease-owned UI, but systemextensionsctl still reports activated waiting for user; a focused-app output assertion cannot be honestly run until this state changes.",
+      "attempt": 3,
       "completedSteps": 6,
       "totalSteps": 8,
       "nextTasks": [
@@ -21,7 +23,17 @@
           "progress": 100
         },
         {
-          "label": "Observe the remapped VirtualHID output",
+          "label": "Install a deterministic q-to-w mapping",
+          "status": "active",
+          "progress": 30
+        },
+        {
+          "label": "Activate VirtualHID in a deterministic lane",
+          "status": "blocked",
+          "progress": 0
+        },
+        {
+          "label": "Observe focused-app output through RFB",
           "status": "queued",
           "progress": 0
         },
@@ -31,7 +43,7 @@
           "progress": 0
         }
       ],
-      "blocker": "No upstream dependency remains; P02 must now observe and attribute the remapped VirtualHID output.",
+      "blocker": "Unmanaged macOS leaves the DriverKit extension at activated waiting for user after current UI automation; this is a platform-approval gap, not evidence of a KeyPath remapping defect.",
       "coreCapability": true,
       "unlocks": [
         "End-to-end remap assertions",
@@ -51,6 +63,20 @@
     "M12": "active"
   },
   "updates": [
+    {
+      "time": "21:27",
+      "block": "P02",
+      "tone": "problem",
+      "title": "P02 has a platform gate",
+      "message": "The VM reached the real VirtualHID approval control, but macOS has not transitioned the driver out of waiting-for-user. Captured RFB input is ready; remapped-output proof waits on a deterministic approval lane."
+    },
+    {
+      "time": "20:29",
+      "block": "P02",
+      "tone": "working",
+      "title": "P02 output proof starting",
+      "message": "Composing a software-only q-to-w proof: known RFB input, healthy runtime, and independently observed focused-app output."
+    },
     {
       "time": "19:49",
       "block": "P01",
@@ -246,20 +272,6 @@
       "tone": "success",
       "title": "P01 click guard implemented",
       "message": "P01 advanced: wrong-coordinate clicks now fail immediately instead of silently corrupting the permission flow. The focused harness suite passes."
-    },
-    {
-      "time": "13:23",
-      "block": "P01",
-      "tone": "working",
-      "title": "P01 wrong-page clicks now classified",
-      "message": "P01 converted the VM evidence into a harness contract: successful delivery is insufficient unless the intended System Settings page is verified before and after."
-    },
-    {
-      "time": "13:20",
-      "block": "P01",
-      "tone": "retry",
-      "title": "P01 corrected coordinate transform",
-      "message": "P01 stepped back to fix a harness assumption: the current lease uses 1:1 RFB coordinates, not the prior lease\u2019s 2x scale."
     }
   ],
   "activity": [
