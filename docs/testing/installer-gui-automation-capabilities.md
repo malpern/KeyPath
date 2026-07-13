@@ -20,9 +20,12 @@ Use this order for GUI work:
    interaction.
 
 Never reuse coordinates from an earlier lease or a scaled screenshot preview.
-On the proven Tart configuration, the RFB framebuffer was `2048x1536` while
-guest Accessibility coordinates were `1024x768`. The observed scale was 2, but
-an agent must measure it again for every lease.
+The July 2026 macOS 15 Tart run exposed a deceptive display report: the backing
+display reported `2048x1536`, but both Peekaboo Accessibility bounds and the
+CrabBox VNC input viewport used `1024x768`. The correct RFB target was therefore
+the AX point itself, not that point multiplied by two. An agent must compare
+fresh AX bounds with the actual input viewport for every lease; backing-display
+dimensions alone are not a coordinate transform.
 
 Treat the coordinate transform itself as test evidence. A July 2026 run showed
 that CrabBox can report a successful RFB click even when an unverified transform

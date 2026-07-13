@@ -1,10 +1,55 @@
 {
-  "updatedAt": "2026-07-12T10:19:11-07:00",
-  "currentTask": "Shared VM admission verified",
-  "message": "The occupied Tart pool failed closed with exit 75 and listed all owning leases; no VM was created.",
+  "updatedAt": "2026-07-12T18:40:55-07:00",
+  "currentTask": "Hover checklists added",
+  "message": "Every block hover now includes What to do next with per-task status and progress. P01 shows the concrete harness-hardening sequence.",
   "complete": false,
-  "workingBlocks": [],
-  "activeWork": {},
+  "workingBlocks": [
+    "P01"
+  ],
+  "activeWork": {
+    "P02": {
+      "progress": 72,
+      "health": "smooth",
+      "trend": "forward",
+      "phase": "VirtualHID active; waiting for Kanata permissions",
+      "detail": "The DriverKit extension is activated and enabled, and the VirtualHID daemon passed health checks. Observable remapping waits on Kanata permissions.",
+      "attempt": 1,
+      "completedSteps": 6,
+      "totalSteps": 8
+    },
+    "P01": {
+      "progress": 95,
+      "health": "retrying",
+      "trend": "backtrack",
+      "phase": "Harness hardening before another VM",
+      "detail": "Helper, DriverKit, and Accessibility are proven. The remaining work is now tracked as a per-task checklist.",
+      "attempt": 2,
+      "completedSteps": 5,
+      "totalSteps": 6,
+      "nextTasks": [
+        {
+          "label": "Harden secure-dialog submission and postconditions",
+          "status": "active",
+          "progress": 35
+        },
+        {
+          "label": "Fix Input Monitoring navigation and permission drag",
+          "status": "queued",
+          "progress": 10
+        },
+        {
+          "label": "Run focused harness tests and merge",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Repeat disposable macOS 15 P01 proof",
+          "status": "queued",
+          "progress": 0
+        }
+      ]
+    }
+  },
   "statuses": {
     "R01": "active",
     "R02": "active",
@@ -17,214 +62,214 @@
   },
   "updates": [
     {
-      "time": "10:19",
-      "block": "M12",
-      "tone": "success",
-      "title": "Shared VM admission verified",
-      "message": "The occupied Tart pool failed closed with exit 75 and listed all owning leases; no VM was created."
-    },
-    {
-      "time": "10:16",
-      "block": "M12",
-      "tone": "success",
-      "title": "Admission regression suite passed",
-      "message": "Capacity rejection, owner evidence, lock contention, and stale-lock recovery all pass locally."
-    },
-    {
-      "time": "10:13",
-      "block": "M12",
+      "time": "18:40",
+      "block": "P01",
       "tone": "working",
-      "title": "Implementing shared VM admission",
-      "message": "M12 now owns the collision fix: one Tart lease, two Parallels leases, with exit 75 and current-owner evidence when full."
+      "title": "Hover checklists added",
+      "message": "Every block hover now includes What to do next with per-task status and progress. P01 shows the concrete harness-hardening sequence."
     },
     {
-      "time": "10:13",
-      "block": "P02",
-      "tone": "waiting",
-      "title": "Output run paused for capacity safety",
-      "message": "P02 is paused at the same shared-provider boundary; this is infrastructure coordination, not a KeyPath result."
+      "time": "18:37",
+      "block": "P01",
+      "tone": "retry",
+      "title": "Input Monitoring path needs hardening",
+      "message": "The product gates through DriverKit are proven. Input Monitoring is not yet claimed: the drag failed its row postcondition and secure input reported success while the auth sheet remained. Artifacts and exact targeting evidence are being preserved."
     },
     {
-      "time": "10:13",
+      "time": "18:22",
+      "block": "P01",
+      "tone": "success",
+      "title": "Privileged helper proven",
+      "message": "The helper is running. Captured two targeting rules: AX bounds already match the Tart VNC viewport, and field-only secure input submits the Login Items sheet via its trailing newline."
+    },
+    {
+      "time": "18:04",
+      "block": "P01",
+      "tone": "working",
+      "title": "P01 fresh VM admitted",
+      "message": "P01 is actively running on the sole admitted Tart lease; P02 remains paused until Kanata permissions and runtime readiness pass."
+    },
+    {
+      "time": "15:51",
+      "block": "P01",
+      "tone": "success",
+      "title": "P01 permission automation merged",
+      "message": "PR #1138 merged as f5c53044. Accessibility and Input Monitoring setup are repeatable; the lease artifacts were collected and the VM was cleanly destroyed. Next active slice is the logged-in GUI installer action."
+    },
+    {
+      "time": "15:45",
+      "block": "P01",
+      "tone": "success",
+      "title": "P01 permission setup automated",
+      "message": "Fresh-VM proof passed for both Kanata permission rows using Finder drag plus postcondition-verified authorization. The reusable primitive is under local review before PR."
+    },
+    {
+      "time": "14:43",
+      "block": "P01",
+      "tone": "success",
+      "title": "P01 secure authorization merged",
+      "message": "PR #1137 is merged and master is current. Active work now narrows to selecting kanata-launcher in the Open panel and verifying its permission row appears."
+    },
+    {
+      "time": "14:40",
+      "block": "P01",
+      "tone": "working",
+      "title": "P01 secure authorization rebased",
+      "message": "PR #1137 is current with master and rerunning checks. Live VM evidence confirms the authorization sheet closes only after a valid credential and protected submit."
+    },
+    {
+      "time": "14:35",
+      "block": "P01",
+      "tone": "retry",
+      "title": "P01 authorization false positive removed",
+      "message": "System Settings authorization is now independently verified. The remaining retry is file-picker selection, not credential entry or protected-click delivery."
+    },
+    {
+      "time": "14:26",
+      "block": "P01",
+      "tone": "success",
+      "title": "P01 calibrated click proven",
+      "message": "Fresh-VM proof succeeded: guarded RFB delivery plus PermissionOracle postcondition. PR #1135 carries the production parser fix."
+    },
+    {
+      "time": "14:21",
+      "block": "P01",
+      "tone": "working",
+      "title": "P01 fresh run admitted",
+      "message": "P01 is actively starting the first fresh VM run with merged admission and calibrated protected-click guards."
+    },
+    {
+      "time": "14:00",
+      "block": "P01",
+      "tone": "success",
+      "title": "P01 orchestration merged",
+      "message": "Automatic click calibration and self-documenting VM admission are merged. No agent is actively mutating this block while Tart is occupied."
+    },
+    {
+      "time": "13:46",
       "block": "P01",
       "tone": "waiting",
-      "title": "Physics run paused for capacity safety",
-      "message": "The disposable lease is preserved, but no further VM mutations will occur until provider admission prevents agent collisions."
+      "title": "P01 safely waiting",
+      "message": "PR #1130 is code-green but reviewer infrastructure failed twice without a finding. The sole Tart VM is also owned by another agent; P01 is no longer pulsing."
     },
     {
-      "time": "10:00",
-      "block": "P02",
-      "tone": "problem",
-      "title": "Output path blocked before driver install",
-      "message": "P02 cannot reach VirtualHID activation until the helper authorization failure is explained."
-    },
-    {
-      "time": "10:00",
-      "block": "P01",
-      "tone": "problem",
-      "title": "Helper postcondition failed",
-      "message": "The password transport returned success, but KeyPath still reports helperInstalled=false; preserving the lease and inspecting the actual UI/log state."
-    },
-    {
-      "time": "09:54",
-      "block": "P02",
-      "tone": "success",
-      "title": "Physics lease is ready",
-      "message": "The signed app is installed in an unmanaged macOS 15 desktop lease with evidence capture available."
-    },
-    {
-      "time": "09:54",
-      "block": "P01",
-      "tone": "success",
-      "title": "Desktop bootstrap recovered",
-      "message": "Peekaboo 3.9.0 and mcporter are ready in the disposable guest; resuming the real installer path."
-    },
-    {
-      "time": "09:53",
-      "block": "P02",
-      "tone": "retry",
-      "title": "Bootstrap prerequisite missing",
-      "message": "P02 is paused at the same harness setup boundary; this is not a product failure."
-    },
-    {
-      "time": "09:53",
-      "block": "P01",
-      "tone": "retry",
-      "title": "Fresh base needs UI tooling",
-      "message": "The disposable Tart base lacks Peekaboo and mcporter; installing them through desktop-bootstrap --install-tools."
-    },
-    {
-      "time": "09:49",
-      "block": "P02",
-      "tone": "working",
-      "title": "Starting virtual-output proof",
-      "message": "P02 is active alongside P01: identifying a software-only observation point for remapped output."
-    },
-    {
-      "time": "09:49",
+      "time": "13:41",
       "block": "P01",
       "tone": "working",
-      "title": "Starting real input-path proof",
-      "message": "P01 is active: tracing how RFB-injected keys can be proven to reach Kanata rather than merely reach the guest."
+      "title": "P01 calibration published",
+      "message": "PR #1130 is open. P01 is actively validating automatic per-lease coordinate calibration while another agent owns Tart."
     },
     {
-      "time": "09:48",
-      "block": "R04",
+      "time": "13:36",
+      "block": "P01",
+      "tone": "working",
+      "title": "P01 parallel-safe calibration work",
+      "message": "P01 is actively developing automatic coordinate calibration while another agent owns Tart; no VM collision is occurring."
+    },
+    {
+      "time": "13:32",
+      "block": "P01",
       "tone": "success",
-      "title": "TCP readiness hardened",
-      "message": "R04 now requires a real bounded Kanata layer response; synthetic failure contracts and the installed runtime passed."
+      "title": "P01 harness merged",
+      "message": "PR #1129 merged and master is current. P01 stays active for the fresh guarded permission run; P02 remains paused until Kanata starts."
     },
     {
-      "time": "09:48",
-      "block": "R03",
+      "time": "13:29",
+      "block": "P01",
+      "tone": "working",
+      "title": "P01 published for review",
+      "message": "PR #1129 is open. P01 remains active while CI and the enforced Claude review validate the guarded-click harness."
+    },
+    {
+      "time": "13:26",
+      "block": "P01",
       "tone": "success",
-      "title": "Runtime convergence hardened",
-      "message": "R03 now rejects registered-but-stopped jobs and passed against the real local KeyPath runtime."
+      "title": "P01 click guard implemented",
+      "message": "P01 advanced: wrong-coordinate clicks now fail immediately instead of silently corrupting the permission flow. The focused harness suite passes."
     },
     {
-      "time": "09:47",
-      "block": "R04",
+      "time": "13:23",
+      "block": "P01",
+      "tone": "working",
+      "title": "P01 wrong-page clicks now classified",
+      "message": "P01 converted the VM evidence into a harness contract: successful delivery is insufficient unless the intended System Settings page is verified before and after."
+    },
+    {
+      "time": "13:20",
+      "block": "P01",
       "tone": "retry",
-      "title": "Adapting to the deployed response",
-      "message": "The real runtime returned LayerChange instead of CurrentLayerName; the probe now accepts either documented layer-bearing response and still rejects unrelated JSON."
+      "title": "P01 corrected coordinate transform",
+      "message": "P01 stepped back to fix a harness assumption: the current lease uses 1:1 RFB coordinates, not the prior lease\u2019s 2x scale."
     },
     {
-      "time": "09:46",
-      "block": "R03",
-      "tone": "success",
-      "title": "Runtime failure contract passed",
-      "message": "A registered launchd job no longer counts as live unless it reports state = running."
-    },
-    {
-      "time": "09:46",
-      "block": "R04",
-      "tone": "success",
-      "title": "TCP failure contracts passed",
-      "message": "Valid replies pass; open-but-silent and wrong-protocol sockets now fail deterministically."
-    },
-    {
-      "time": "09:45",
-      "block": "R04",
+      "time": "13:16",
+      "block": "P01",
       "tone": "retry",
-      "title": "Adjusting for system Python",
-      "message": "The first test run hit Python compatibility, so R04 stepped back while the test harness is made portable."
+      "title": "P01 permission order clarified",
+      "message": "P01 found a real orchestration dependency: grant Full Disk Access before trusting the product\u2019s Kanata permission verification."
     },
     {
-      "time": "09:45",
-      "block": "R03",
+      "time": "13:10",
+      "block": "P02",
       "tone": "success",
-      "title": "Runtime liveness check implemented",
-      "message": "R03 now rejects a registered but stopped Kanata launchd job."
+      "title": "P02 driver activation proven",
+      "message": "P02 advanced: VirtualHID is activated and healthy. The remaining dependency is starting Kanata after P01 grants permissions."
     },
     {
-      "time": "09:45",
-      "block": "R04",
-      "tone": "success",
-      "title": "Protocol-aware TCP probe implemented",
-      "message": "R04 now requires a valid CurrentLayerName response instead of merely accepting an open socket."
-    },
-    {
-      "time": "09:42",
-      "block": "R04",
+      "time": "13:10",
+      "block": "P01",
       "tone": "working",
-      "title": "Pairing TCP readiness with runtime proof",
-      "message": "R04 is active alongside R03 because both postconditions must converge independently."
+      "title": "P01 permissions boundary",
+      "message": "P01 is actively completing Accessibility and Input Monitoring. The software-only VNC injection path is already proven."
     },
     {
-      "time": "09:42",
-      "block": "R03",
-      "tone": "working",
-      "title": "Starting runtime convergence hardening",
-      "message": "Auditing R03 runtime and R04 TCP checks so a forgiving product retry cannot create a false pass."
-    },
-    {
-      "time": "08:01",
-      "block": "M14",
-      "tone": "success",
-      "title": "Development log simplified",
-      "message": "Removed bubbles and repeated avatars; updates now read as a quiet timestamped transcript."
-    },
-    {
-      "time": "07:45",
-      "block": "M14",
-      "tone": "success",
-      "title": "Dashboard composition complete",
-      "message": "The capability map keeps the full width; the Codex development conversation now follows beneath it."
-    },
-    {
-      "time": "07:56",
-      "block": "M14",
+      "time": "13:00",
+      "block": "P02",
       "tone": "retry",
-      "title": "Changing the composition",
-      "message": "The side rail made the capability map feel cramped. Moving the conversation below preserves the visual breathing room."
+      "title": "Protected driver submit needs VNC Return",
+      "message": "P02 reached the genuine driver authorization sheet. Password entry remains secret-safe; protected submit is moving to VNC Return with postcondition verification."
     },
     {
-      "time": "07:52",
-      "block": "M14",
+      "time": "12:43",
+      "block": "P02",
       "tone": "working",
-      "title": "Wiring the live feed",
-      "message": "The right rail now turns structured state updates into a running Codex development conversation."
+      "title": "Driver installation unblocked",
+      "message": "P02 is moving forward: helper is operational and the next installer recipes target VirtualHID and runtime services."
     },
     {
-      "time": "07:49",
-      "block": "M14",
+      "time": "12:43",
+      "block": "P01",
       "tone": "success",
-      "title": "Visual language chosen",
-      "message": "Progress is a fill line, smooth work breathes, retries wobble, and blockers hold a firm red edge."
+      "title": "Helper postcondition passed",
+      "message": "P01 recovered cleanly: helper authorization is now verified by keypath-cli, not inferred from the click."
     },
     {
-      "time": "07:46",
-      "block": "M14",
-      "tone": "working",
-      "title": "Mapping the experience",
-      "message": "Separating frontier status from live engineering health so orange never implies that a task is currently running."
+      "time": "12:34",
+      "block": "P02",
+      "tone": "retry",
+      "title": "Output proof waiting on harness consent",
+      "message": "P02 has not failed; it is waiting for P01 to clear Peekaboo\u2019s one-time consent and complete helper activation."
     },
     {
-      "time": "07:40",
-      "block": "R01 R02",
+      "time": "12:34",
+      "block": "P01",
+      "tone": "retry",
+      "title": "Harness consent intercepted installer flow",
+      "message": "P01 stepped back slightly: Peekaboo first-run consent\u2014not KeyPath\u2014covered the helper sheet. Clearing it through the current 2048\u00d71536 framebuffer."
+    },
+    {
+      "time": "12:32",
+      "block": "P02",
       "tone": "success",
-      "title": "Probe contracts passed",
-      "message": "Managed permission failure cases are now deterministic; the real VM proof still awaits enrollment."
+      "title": "Output environment bootstrapped",
+      "message": "P02 remains active on cbx_8c08a8c1ed4b; no parallel Tart VM exists."
+    },
+    {
+      "time": "12:32",
+      "block": "P01",
+      "tone": "success",
+      "title": "Coherent desktop test environment ready",
+      "message": "P01 is at the real installer boundary on cbx_8c08a8c1ed4b; launching KeyPath and inspecting its planned actions."
     }
   ],
   "activity": [
