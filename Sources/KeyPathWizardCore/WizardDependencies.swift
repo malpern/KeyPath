@@ -22,7 +22,7 @@ public enum WizardDependencies {
     public static var runtimeCoordinator: (any RuntimeCoordinating)?
 
     /// HelperManager instance
-    public nonisolated(unsafe) static var helperManager: (any WizardHelperManaging)?
+    public static var helperManager: (any WizardHelperManaging)?
 
     /// KanataDaemonManager instance
     public static var daemonManager: (any WizardDaemonManaging)?
@@ -36,10 +36,10 @@ public enum WizardDependencies {
     public static var helperMaintenance: (any WizardHelperMaintaining)?
 
     /// FullDiskAccessChecker instance
-    public nonisolated(unsafe) static var fullDiskAccessChecker: (any WizardFullDiskAccessChecking)?
+    public static var fullDiskAccessChecker: (any WizardFullDiskAccessChecking)?
 
     /// PermissionRequestService instance
-    public nonisolated(unsafe) static var permissionRequestService: (any WizardPermissionRequesting)?
+    public static var permissionRequestService: (any WizardPermissionRequesting)?
 
     /// PrivilegedOperationsCoordinator instance
     public static var privilegedOperations: (any WizardPrivilegedOperating)?
@@ -60,55 +60,40 @@ public enum WizardDependencies {
 
     // MARK: - Type-Erased Closures
 
-    /// SMAppService factory for helper plist (type-erased)
-    public nonisolated(unsafe) static var smServiceFactory: ((String) -> Any)?
-
     /// Check if the helper needs Login Items approval in System Settings
-    public nonisolated(unsafe) static var helperNeedsApproval: (() -> Bool)?
+    public static var helperNeedsApproval: (() -> Bool)?
 
     /// UninstallCoordinator factory (type-erased, creates new instance each call)
     public static var createUninstallCoordinator: (() -> any WizardUninstalling)?
 
     /// AdminCommandExecutor - execute(batch:) for privileged commands
-    public nonisolated(unsafe) static var executePrivilegedBatch: ((PrivilegedCommandRunner.Batch) async throws -> (exitCode: Int32, output: String))?
+    public static var executePrivilegedBatch: ((PrivilegedCommandRunner.Batch) async throws -> (exitCode: Int32, output: String))?
 
     /// KeyPathAppKitResources bundle accessor
-    public nonisolated(unsafe) static var resourceBundle: Bundle?
+    public static var resourceBundle: Bundle?
 
     // MARK: - ExternalKanataService (static methods)
 
     /// Get info about externally-running Kanata process
-    public nonisolated(unsafe) static var getExternalKanataInfo: (() -> WizardSystemPaths.RunningKanataInfo?)?
+    public static var getExternalKanataInfo: (() -> WizardSystemPaths.RunningKanataInfo?)?
 
     /// Stop an externally-running Kanata process
-    public nonisolated(unsafe) static var stopExternalKanata: ((WizardSystemPaths.RunningKanataInfo) async -> Result<Void, Error>)?
+    public static var stopExternalKanata: ((WizardSystemPaths.RunningKanataInfo) async -> Result<Void, Error>)?
 
     /// Check if external Kanata is running
-    public nonisolated(unsafe) static var hasExternalKanataRunning: (() -> Bool)?
-
-    // MARK: - TCP readiness probe
-
-    /// TCP connectivity probe
-    public nonisolated(unsafe) static var tcpProbe: ((Int, Int) -> Bool)?
-
-    // MARK: - NotificationObserverManager factory
-
-    /// Factory to create notification observer managers
-    public nonisolated(unsafe) static var createNotificationObserverManager: (() -> Any)?
+    public static var hasExternalKanataRunning: (() -> Bool)?
 
     // MARK: - Ad-hoc Signature Cache
 
     /// Whether the app is running ad-hoc signed (not notarized).
     /// Cached at startup by KeyPathAppKit to avoid blocking the main thread
     /// with a synchronous codesign subprocess call from SwiftUI views.
-    public nonisolated(unsafe) static var isRunningAdHoc: Bool = false
+    public static var isRunningAdHoc: Bool = false
 
     // MARK: - Test Support
 
     /// Reset all dependencies to nil/false for test teardown.
     /// Call from KeyPathTestCase.tearDown() within `MainActor.assumeIsolated` or `MainActor.run`.
-    /// The nonisolated(unsafe) properties are safe to clear here because XCTest runs tests
-    /// serially and wizard views are not active during teardown.
     public static func reset() {
         runtimeCoordinator = nil
         helperManager = nil
@@ -121,7 +106,6 @@ public enum WizardDependencies {
         makeKanataMigrationPage = nil
         makeKarabinerImportPage = nil
         makeCommunicationPage = nil
-        smServiceFactory = nil
         helperNeedsApproval = nil
         createUninstallCoordinator = nil
         executePrivilegedBatch = nil
@@ -129,8 +113,6 @@ public enum WizardDependencies {
         getExternalKanataInfo = nil
         stopExternalKanata = nil
         hasExternalKanataRunning = nil
-        tcpProbe = nil
-        createNotificationObserverManager = nil
         isRunningAdHoc = false
     }
 }
