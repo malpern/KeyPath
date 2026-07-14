@@ -138,6 +138,21 @@ final class W6DeletionPassLintTests: XCTestCase {
         )
     }
 
+    func testWizardDependenciesRemainMainActorIsolated() throws {
+        let dependencies = repositoryRoot()
+            .appendingPathComponent("Sources/KeyPathWizardCore/WizardDependencies.swift")
+
+        let violations = try matchingLines(
+            in: dependencies,
+            patterns: [#"nonisolated\s*\(unsafe\)"#]
+        )
+
+        XCTAssertTrue(
+            violations.isEmpty,
+            "WizardDependencies is @MainActor; do not bypass its isolation with unsafe global state:\n\(violations.joined(separator: "\n"))"
+        )
+    }
+
     func testDiagnosticsManagerSingleImplementationProtocolDoesNotRegrow() throws {
         let managerFile = repositoryRoot()
             .appendingPathComponent("Sources/KeyPathAppKit/Managers/Diagnostics/DiagnosticsManager.swift")

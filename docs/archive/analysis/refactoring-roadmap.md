@@ -246,10 +246,10 @@ edfbbed9 Add activity logging infrastructure and refactoring roadmap
 - `Sources/KeyPathAppKit/Utilities/KeyDisplayFormatter.swift`
 
 ### Phase 2 - Mapper Components
-- `Sources/KeyPathAppKit/UI/Experimental/Mapper/AdvancedBehaviorManager.swift`
-- `Sources/KeyPathAppKit/UI/Experimental/Mapper/MapperActionTypes.swift`
-- `Sources/KeyPathAppKit/UI/Experimental/Mapper/AppConditionManager.swift`
-- `Sources/KeyPathAppKit/UI/Experimental/Mapper/KeyMappingFormatter.swift`
+- `Sources/KeyPathAppKit/UI/Mapper/AdvancedBehaviorManager.swift`
+- `Sources/KeyPathAppKit/UI/Mapper/MapperActionTypes.swift`
+- `Sources/KeyPathAppKit/UI/Mapper/AppConditionManager.swift`
+- `Sources/KeyPathAppKit/UI/Mapper/KeyMappingFormatter.swift`
 
 ### Phase 3 - Config Generation
 - `Sources/KeyPathAppKit/Infrastructure/Config/KanataConfigurationGenerator.swift`

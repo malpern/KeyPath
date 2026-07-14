@@ -353,7 +353,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return false
         }
         let health = await ServiceHealthChecker.shared.checkKanataServiceHealth()
-        let completed = health.isRunning && health.isResponding
+        let completed = health.isReady
         LiveKeyboardOverlayController.shared.setOnboardingCompleted(completed)
         return completed
     }

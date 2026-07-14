@@ -6,6 +6,18 @@ lane=${2:-}
 installer_dir="$PWD/.keypath-lab/installer"
 artifact_dir="$PWD/.keypath-lab/scenario-output/$name"
 mkdir -p "$artifact_dir"
+result_tool="$PWD/Scripts/lab/scenario-result"
+
+require_installed_cli() {
+  if [[ -x "$installed_cli" ]]; then
+    return
+  fi
+  "$result_tool" record --output "$artifact_dir/result.json" --scenario "$name" \
+    --status failed --summary "KeyPath CLI is not installed." \
+    --classification environment-precondition-failure --step installed-cli
+  print -u2 "KeyPath CLI is not installed"
+  exit 3
+}
 
 record_system() {
   sw_vers > "$artifact_dir/sw-vers.txt"
@@ -27,13 +39,19 @@ case "$name" in
     print "Capture each prompt before and after approval; never copy TCC databases into artifacts."
     ;;
   helper-daemon-health)
-    [[ -x "$installed_cli" ]] || { print -u2 "KeyPath CLI is not installed"; exit 3; }
+    require_installed_cli
     "$installed_cli" system inspect --json | tee "$artifact_dir/system-inspect.json"
     Scripts/lab/probe-kanata-tcp 2> "$artifact_dir/tcp-readiness.stderr" | tee "$artifact_dir/tcp-readiness.json"
     ;;
   managed-capabilities)
-    [[ "$lane" == "managed-functional" ]] || { print -u2 "managed-functional lease required"; exit 4; }
-    [[ -x "$installed_cli" ]] || { print -u2 "KeyPath CLI is not installed"; exit 3; }
+    if [[ "$lane" != "managed-functional" ]]; then
+      "$result_tool" record --output "$artifact_dir/result.json" --scenario "$name" \
+        --status blocked --summary "Managed-functional lease required." \
+        --classification environment-precondition-failure --step lane-admission
+      print -u2 "managed-functional lease required"
+      exit 4
+    fi
+    require_installed_cli
     Scripts/lab/mdm/probe-managed-capabilities --output "$artifact_dir"
     ;;
   launch)
@@ -42,28 +60,31 @@ case "$name" in
     pgrep -fl '/Applications/KeyPath.app/Contents/MacOS/KeyPath' | tee "$artifact_dir/processes.txt"
     ;;
   repair-reinstall)
-    [[ -x "$installed_cli" ]] || { print -u2 "KeyPath CLI is not installed"; exit 3; }
+    require_installed_cli
     "$installed_cli" system repair --json | tee "$artifact_dir/repair.json"
     "$installed_cli" system inspect --json | tee "$artifact_dir/post-repair.json"
     ;;
   reboot-persistence-before)
-    [[ -x "$installed_cli" ]] || { print -u2 "KeyPath CLI is not installed"; exit 3; }
+    require_installed_cli
     "$installed_cli" system inspect --json > "$artifact_dir/before-reboot.json"
     print "Run the host-approved guest reboot, then execute reboot-persistence-after on the same lease."
     ;;
   reboot-persistence-after)
-    [[ -x "$installed_cli" ]] || { print -u2 "KeyPath CLI is not installed"; exit 3; }
+    require_installed_cli
     "$installed_cli" system inspect --json | tee "$artifact_dir/after-reboot.json"
     Scripts/lab/probe-kanata-tcp 2> "$artifact_dir/tcp-readiness.stderr" | tee "$artifact_dir/tcp-readiness.json"
     ;;
   uninstall)
-    [[ -x "$installed_cli" ]] || { print -u2 "KeyPath CLI is not installed"; exit 3; }
+    require_installed_cli
     "$installed_cli" system uninstall --json | tee "$artifact_dir/uninstall.json"
     test ! -e /Applications/KeyPath.app
     ;;
   cancellation-failure)
     print "Use a disposable lease to cancel one approval flow and inject one non-destructive failure."
     print "Record the visible recovery action, CLI result, and KeyPath logs; do not corrupt the base image."
+    ;;
+  failure-ownership-self-test)
+    "$result_tool" selector-self-test --output "$artifact_dir/result.json" --scenario "$name"
     ;;
   artifact-capture)
     mkdir -p "$artifact_dir/logs"
@@ -72,7 +93,7 @@ case "$name" in
     print "Scenario artifacts written to $artifact_dir; follow with keypath-lab artifacts <lease-id>."
     ;;
   macos-27-regression)
-    [[ -x "$installed_cli" ]] || { print -u2 "KeyPath CLI is not installed"; exit 3; }
+    require_installed_cli
     product_major=$(sw_vers -productVersion | cut -d. -f1)
     [[ "$product_major" == "27" ]] || { print -u2 "macOS 27 guest required"; exit 4; }
     Scripts/qa-macos-27-regression.sh "$artifact_dir/evidence"
@@ -80,7 +101,7 @@ case "$name" in
     ;;
   *)
     print -u2 "Unknown scenario: $name"
-    print -u2 "Available: clean-install approvals helper-daemon-health managed-capabilities launch repair-reinstall reboot-persistence-before reboot-persistence-after uninstall cancellation-failure artifact-capture macos-27-regression"
+    print -u2 "Available: clean-install approvals helper-daemon-health managed-capabilities launch repair-reinstall reboot-persistence-before reboot-persistence-after uninstall cancellation-failure failure-ownership-self-test artifact-capture macos-27-regression"
     exit 2
     ;;
 esac

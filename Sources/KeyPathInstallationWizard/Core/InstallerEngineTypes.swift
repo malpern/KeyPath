@@ -232,9 +232,7 @@ public enum InstallerPostcondition: String, Codable, Sendable, Equatable, CaseIt
 
         switch self {
         case .runtimeReadyOrApprovalPending:
-            let processRunning = context.services.kanataProcessRunning ?? context.services.kanataRunning
-            let tcpResponding = context.services.kanataTCPResponding ?? context.services.kanataRunning
-            return (processRunning && tcpResponding && context.services.kanataInputCaptureReady)
+            return context.services.kanataRuntimeReadiness.isReady
                 || context.services.loginItemsApprovalRequired == true
         case .vhidServicesHealthy:
             return context.components.vhidServicesHealthy && context.services.vhidHealthy
@@ -583,28 +581,6 @@ public struct InstallerReport: Sendable {
         self.recommendedRecovery = recommendedRecovery
         self.recoveryPlan = recoveryPlan
         self.failedPostconditions = failedPostconditions
-    }
-}
-
-// MARK: - Service Health Types
-
-/// Health status of the Kanata service (running + TCP responsive)
-public struct KanataHealthSnapshot: Sendable {
-    /// Whether the service process is running (launchctl PID check)
-    public let isRunning: Bool
-    /// Whether the service is responding to TCP health checks
-    public let isResponding: Bool
-    /// Whether Kanata can actually capture input from the active keyboard devices.
-    public let inputCaptureReady: Bool
-
-    public init(isRunning: Bool, isResponding: Bool, inputCaptureReady: Bool = true) {
-        self.isRunning = isRunning
-        self.isResponding = isResponding
-        self.inputCaptureReady = inputCaptureReady
-    }
-
-    public var isReady: Bool {
-        isRunning && isResponding && inputCaptureReady
     }
 }
 

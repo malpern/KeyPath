@@ -16,12 +16,13 @@
     #keypath-issue-board .next-mark { background:var(--viz-series-3); }
     #keypath-issue-board .queued-mark { background:var(--viz-series-1); }
     #keypath-issue-board .human-mark { background:var(--viz-series-5); }
+    #keypath-issue-board .hold-mark { background:transparent; border:1px solid var(--muted-foreground); }
     #keypath-issue-board .feature-mark { background:var(--muted); border:1px solid var(--border); }
     #keypath-issue-board .type-key { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin:-5px 0 14px; color:var(--muted-foreground); font:10px system-ui,sans-serif; }
     #keypath-issue-board .type-key .key-label { text-transform:uppercase; letter-spacing:.06em; }
     #keypath-issue-board .type-filter { appearance:none; padding:2px 0; border:0; border-bottom:1px solid transparent; color:inherit; background:transparent; font:inherit; cursor:pointer; }
     #keypath-issue-board .type-filter:hover,#keypath-issue-board .type-filter:focus-visible,#keypath-issue-board .type-filter[aria-pressed="true"] { color:var(--foreground); border-bottom-color:var(--foreground); }
-    #keypath-issue-board .summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; margin-bottom:14px; overflow:hidden; background:var(--border); border:1px solid var(--border); border-radius:8px; }
+    #keypath-issue-board .summary { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:1px; margin-bottom:14px; overflow:hidden; background:var(--border); border:1px solid var(--border); border-radius:8px; }
     #keypath-issue-board .metric { padding:11px 13px; background:color-mix(in srgb,var(--card) 88%,var(--background)); }
     #keypath-issue-board .metric strong { display:block; font-size:20px; font-weight:500; }
     #keypath-issue-board .metric span { color:var(--muted-foreground); font:11px system-ui,sans-serif; text-transform:uppercase; letter-spacing:.06em; }
@@ -40,6 +41,7 @@
     #keypath-issue-board .issue[data-status="next"] { background:color-mix(in srgb,var(--viz-series-3) 55%,var(--card)); }
     #keypath-issue-board .issue[data-status="queued"] { background:color-mix(in srgb,var(--viz-series-1) 38%,var(--card)); }
     #keypath-issue-board .issue[data-status="human"] { background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--viz-series-5) 55%,var(--card)) 0 7px,color-mix(in srgb,var(--viz-series-5) 35%,var(--card)) 7px 11px); }
+    #keypath-issue-board .issue[data-status="hold"] { background:color-mix(in srgb,var(--muted) 78%,var(--card)); color:var(--muted-foreground); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--muted-foreground) 35%,transparent); }
     #keypath-issue-board .issue[data-status="feature"],#keypath-issue-board .issue[data-status="deferred"] { background:var(--muted); color:var(--muted-foreground); }
     #keypath-issue-board .issue:hover,#keypath-issue-board .issue:focus-visible { transform:translateY(-2px); border-color:var(--ring); z-index:1; }
     #keypath-issue-board .issue.is-selected { border-color:var(--foreground); box-shadow:inset 0 0 0 1px var(--foreground); transform:translateY(-1px); }
@@ -61,9 +63,8 @@
     #keypath-issue-board .lane { padding:11px; border-top:2px solid var(--border); }
     #keypath-issue-board .lane strong { display:block; font:500 12px system-ui,sans-serif; }
     #keypath-issue-board .lane span { color:var(--muted-foreground); font:11px system-ui,sans-serif; }
-    #keypath-issue-board .lane.active { border-color:var(--viz-series-2); }
-    #keypath-issue-board .lane.next { border-color:var(--viz-series-3); }
     #keypath-issue-board .lane.human { border-color:var(--viz-series-5); }
+    #keypath-issue-board .lane.hold { border-color:var(--muted-foreground); }
     #keypath-issue-board .activity { margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }
     #keypath-issue-board .activity h2 { margin:0 0 8px; font:500 14px system-ui,sans-serif; }
     #keypath-issue-board .activity-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:22px; }
@@ -82,7 +83,7 @@
   </style>
 
   <header class="top">
-    <div><div class="eyebrow repo-mark">malpern / KeyPath</div><h1>Issue operations</h1><div class="sub">Bug-first work queue. Each cell is an open GitHub issue; color shows whether it is active, next, agent-queued, human-gated, or deferred feature work.</div></div>
+    <div><div class="eyebrow repo-mark">malpern / KeyPath</div><h1>Issue operations</h1><div class="sub">Bug-first work queue. Each cell is an open GitHub issue; color shows whether it is active, agent-queued, human-gated, on hold, or deferred feature work.</div></div>
     <div class="date" id="issues-updated">Loading GitHub…</div>
   </header>
 
@@ -91,7 +92,8 @@
     <span><i class="swatch next-mark"></i>Recommended next</span>
     <span><i class="swatch queued-mark"></i>Agent queue</span>
     <span><i class="swatch human-mark"></i>Human / external gate</span>
-    <span><i class="swatch feature-mark"></i>Feature or deferred</span>
+    <span><i class="swatch hold-mark"></i>On hold</span>
+    <span><i class="swatch feature-mark"></i>Feature or tracking</span>
   </div>
   <nav class="type-key" aria-label="Highlight issues by label">
     <span class="key-label">Type</span>
@@ -107,7 +109,8 @@
     <div class="metric"><strong id="metric-open">—</strong><span>Open issues</span></div>
     <div class="metric"><strong id="metric-agent">—</strong><span>Agent queue</span></div>
     <div class="metric"><strong id="metric-human">—</strong><span>Human gated</span></div>
-    <div class="metric"><strong id="metric-feature">—</strong><span>Features deferred</span></div>
+    <div class="metric"><strong id="metric-hold">—</strong><span>On hold</span></div>
+    <div class="metric"><strong id="metric-feature">—</strong><span>Features / tracking</span></div>
   </section>
 
   <div class="workspace">
@@ -115,16 +118,16 @@
       <section class="board" aria-label="GitHub issue map">
         <div class="track" id="issue-grid"></div>
         <div class="readout" aria-live="polite">
-          <div><strong id="issue-title">Select an issue</strong><small id="issue-detail">The map is ordered active → next → agent queue → human-gated → features and deferred work.</small><div class="labels" id="issue-labels"></div></div>
+          <div><strong id="issue-title">Select an issue</strong><small id="issue-detail">The map is ordered active → agent queue → human-gated → on hold → features and tracking work.</small><div class="labels" id="issue-labels"></div></div>
           <a id="issue-link" href="https://github.com/malpern/KeyPath/issues" target="_blank" rel="noreferrer">Open GitHub</a>
         </div>
       </section>
 
       <section class="lanes" aria-label="Work sequence">
-        <div class="lane active"><strong>Active</strong><span>#748 runtime freshness diagnostics</span></div>
-        <div class="lane next"><strong>Next</strong><span>#848 centralized Kanata test fixtures</span></div>
-        <div class="lane"><strong>Bug-first queue</strong><span>Reliability and test debt before features</span></div>
-        <div class="lane human"><strong>Explicitly deferred</strong><span>#172, #740, #747, #919 and human lanes</span></div>
+        <div class="lane"><strong>Agent queue</strong><span>Reliability and test debt before features</span></div>
+        <div class="lane human"><strong>Human / external gate</strong><span>Needs hands-on validation or an external dependency</span></div>
+        <div class="lane hold"><strong>On hold</strong><span>Explicitly paused with the on-hold label</span></div>
+        <div class="lane"><strong>Feature / tracking</strong><span>Deferred product work and tracking epics</span></div>
       </section>
     </main>
 
@@ -143,7 +146,7 @@
   <script>
     (() => {
       const root = document.getElementById('keypath-issue-board');
-      const names = {active:'Active',next:'Recommended next',queued:'Agent queue',human:'Human / external gate',feature:'Feature deferred',deferred:'Deferred',completed:'Completed'};
+      const names = {active:'Active',next:'Recommended next',queued:'Agent queue',human:'Human / external gate',hold:'On hold',feature:'Feature deferred',deferred:'Tracking / deferred',completed:'Completed'};
       const typeNames = {bug:'Bug',testing:'Testing',debt:'Technical debt',feature:'Feature',upstream:'Upstream / research',docs:'Documentation / design',other:'Other'};
       const grid = root.querySelector('#issue-grid');
       const title = root.querySelector('#issue-title');
@@ -163,7 +166,7 @@
       let selectedType;
       const resetReadout = () => {
         title.textContent = 'Select an issue';
-        detail.textContent = 'The map is ordered active → next → agent queue → human-gated → features and deferred work.';
+        detail.textContent = 'The map is ordered active → agent queue → human-gated → on hold → features and tracking work.';
         labels.replaceChildren();
         link.href = 'https://github.com/malpern/KeyPath/issues';
         link.textContent = 'Open GitHub';
@@ -217,7 +220,8 @@
         root.querySelector('#metric-open').textContent = `${state.issues.length}${state.truncated ? '+' : ''}`;
         root.querySelector('#metric-agent').textContent = (state.counts.active || 0) + (state.counts.next || 0) + (state.counts.queued || 0);
         root.querySelector('#metric-human').textContent = state.counts.human || 0;
-        root.querySelector('#metric-feature').textContent = state.counts.feature || 0;
+        root.querySelector('#metric-hold').textContent = state.counts.hold || 0;
+        root.querySelector('#metric-feature').textContent = (state.counts.feature || 0) + (state.counts.deferred || 0);
         grid.replaceChildren(...state.issues.map(issue => {
           const button = document.createElement('button');
           button.className = 'issue';
@@ -275,7 +279,7 @@
         }));
       };
       const poll = async () => {
-        try { const response=await fetch(`keypath-github-issues-state.json?t=${Date.now()}`,{cache:'no-store'}); if(!response.ok) throw new Error(); render(await response.json()); }
+        try { const stateURL=new URL(`keypath-github-issues-state.json?t=${Date.now()}`,window.parent.location.href); const response=await fetch(stateURL,{cache:'no-store'}); if(!response.ok) throw new Error(); render(await response.json()); }
         catch (_) { root.querySelector('#issues-updated').textContent='GitHub feed offline'; }
       };
       poll(); window.setInterval(poll,60000);

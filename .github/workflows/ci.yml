@@ -44,6 +44,9 @@ jobs:
         submodules: true
         persist-credentials: false
 
+    - name: Verify runner disk reserve
+      run: ./Scripts/lab/host-disk-reserve
+
     - name: Add Homebrew and Cargo to PATH
       run: |
         echo "/opt/homebrew/bin" >> $GITHUB_PATH
@@ -109,6 +112,8 @@ jobs:
         KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS: "1"
         KEYPATH_TEST_ENFORCE_CLEAN_SUMMARY: "1"
         KEYPATH_TEST_RESET_MODULE_CACHE: "0"
+        KEYPATH_SWIFT_BUILD_JOBS: "4"
+        SCRATCH_PATH: ${{ runner.temp }}/keypath-build
       run: |
         echo "Running full named test lane..."
         export CI_ENVIRONMENT=true

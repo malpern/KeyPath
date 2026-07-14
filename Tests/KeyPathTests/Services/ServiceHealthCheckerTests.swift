@@ -437,6 +437,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
         let decision = ServiceHealthChecker.decideKanataHealth(for: snapshot)
         XCTAssertEqual(decision, .healthy)
         XCTAssertTrue(decision.isHealthy)
+        XCTAssertTrue(snapshot.readiness.isReady, "Live runtime evidence must outrank stale registration metadata")
     }
 
     func testLaunchctlProgramIdentityExtractsSMAppServiceSource() {

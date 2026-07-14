@@ -192,6 +192,13 @@ Every failed step must use one of these top-level classifications:
 A self-test with a deliberately incorrect selector must prove that it produces
 `harness-selector-failure`, never a KeyPath failure.
 
+The executable schema, classification contract, and selector self-test are in
+[Scenario Failure Ownership](scenario-failure-ownership.md).
+
+Interrupted scenarios use the [Resumable Scenario Runner](resumable-scenario-runner.md).
+It checkpoints only independently verified postconditions, so a restarted
+controller never blindly repeats an uncertain installer mutation.
+
 ### Fixtures reproduce reality when possible
 
 Create starting states through the path that produces them in real use: install

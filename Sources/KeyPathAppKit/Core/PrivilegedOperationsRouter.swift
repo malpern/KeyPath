@@ -949,7 +949,7 @@ public final class PrivilegedOperationsRouter {
                 timeoutMs: timeoutMs
             )
 
-            if snapshot.isRunning, snapshot.isResponding, snapshot.inputCaptureReady {
+            if snapshot.readiness.isReady {
                 return .ready
             }
 

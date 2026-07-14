@@ -89,7 +89,7 @@ final class InstallerEngineHealthCheckTests: KeyPathAsyncTestCase {
         let health = await engine.checkKanataServiceHealth()
 
         // Verify structure
-        XCTAssertNotNil(health, "checkKanataServiceHealth() should return a KanataHealthSnapshot")
+        XCTAssertNotNil(health, "checkKanataServiceHealth() should return runtime readiness evidence")
 
         // isRunning and isResponding should be booleans
         _ = health.isRunning

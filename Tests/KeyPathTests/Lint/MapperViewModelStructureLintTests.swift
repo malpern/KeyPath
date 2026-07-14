@@ -3,7 +3,7 @@ import Foundation
 
 final class MapperViewModelStructureLintTests: XCTestCase {
     func testMapperSelectionLogicLivesInDedicatedExtension() throws {
-        let file = LintScanner.path("Sources/KeyPathAppKit/UI/Experimental/MapperViewModel+Selection.swift")
+        let file = LintScanner.path("Sources/KeyPathAppKit/UI/Mapper/MapperViewModel+Selection.swift")
         let contents = try String(contentsOf: file, encoding: .utf8)
 
         for requiredText in [
@@ -18,7 +18,7 @@ final class MapperViewModelStructureLintTests: XCTestCase {
     }
 
     func testMapperBaseFileDoesNotRegainSelectionMethods() throws {
-        let file = LintScanner.path("Sources/KeyPathAppKit/UI/Experimental/MapperViewModel.swift")
+        let file = LintScanner.path("Sources/KeyPathAppKit/UI/Mapper/MapperViewModel.swift")
         let violations = try LintScanner.matchingLines(
             in: file,
             patterns: [

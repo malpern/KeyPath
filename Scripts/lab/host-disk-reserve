@@ -1,0 +1,26 @@
+#!/bin/bash
+set -euo pipefail
+
+path=${KEYPATH_DISK_RESERVE_PATH:-/System/Volumes/Data}
+minimum_gib=${KEYPATH_MIN_FREE_DISK_GIB:-100}
+
+[[ "$minimum_gib" =~ ^[0-9]+$ && "$minimum_gib" -gt 0 ]] || {
+  echo "host-disk-reserve: KEYPATH_MIN_FREE_DISK_GIB must be a positive integer" >&2
+  exit 2
+}
+
+free_kib=$(df -Pk "$path" | awk 'NR == 2 {print $4}')
+[[ "$free_kib" =~ ^[0-9]+$ ]] || {
+  echo "host-disk-reserve: could not determine free space for $path" >&2
+  exit 2
+}
+
+minimum_kib=$((minimum_gib * 1024 * 1024))
+printf 'disk_reserve_path\t%s\n' "$path"
+printf 'disk_reserve_free_gib\t%d\n' "$((free_kib / 1024 / 1024))"
+printf 'disk_reserve_minimum_gib\t%s\n' "$minimum_gib"
+
+if (( free_kib < minimum_kib )); then
+  echo "disk_reserve_busy: free space is below the ${minimum_gib} GiB safety reserve" >&2
+  exit 75
+fi

@@ -360,7 +360,7 @@ final class ServiceLifecycleCoordinator {
             lastSummary =
                 "state=\(managementState.description), running=\(snapshot.isRunning), tcp=\(snapshot.isResponding), inputCapture=\(snapshot.inputCaptureReady), decision=\(decision)"
 
-            if snapshot.isRunning, snapshot.isResponding, snapshot.inputCaptureReady, !snapshot.staleEnabledRegistration {
+            if Self.shouldAcceptPostStartRuntime(snapshot) {
                 AppLogger.shared.log("✅ [Service] Runtime readiness verified after start (\(reason)): \(lastSummary)")
                 return .ready
             }
@@ -371,6 +371,12 @@ final class ServiceLifecycleCoordinator {
         }
 
         return .failed("Kanata start did not reach runtime readiness after \(RuntimeReadinessTiming.timeoutMs)ms (\(lastSummary))")
+    }
+
+    static func shouldAcceptPostStartRuntime(
+        _ snapshot: ServiceHealthChecker.KanataServiceRuntimeSnapshot
+    ) -> Bool {
+        snapshot.readiness.isReady
     }
 
     private func sleepForReadinessPoll() async {

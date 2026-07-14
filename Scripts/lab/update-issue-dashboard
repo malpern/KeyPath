@@ -9,21 +9,19 @@ import shutil
 import subprocess
 
 
-EXCLUDED = {172, 740, 747, 919}
-ACTIVE = {848}
-NEXT = set()
 ISSUE_LIMIT = 200
 RECENTLY_CLOSED_LIMIT = 10
 
 
 def issue_status(issue: dict) -> str:
-    number = issue["number"]
     labels = {label["name"] for label in issue.get("labels", [])}
-    if number in ACTIVE:
-        return "active"
-    if number in NEXT:
-        return "next"
-    if number in EXCLUDED or "human-in-loop" in labels or "wwdc26" in labels:
+    # Explicit execution state outranks work type and required operator. Topic
+    # labels such as `wwdc26` do not imply that an issue is active or human-gated.
+    if "on-hold" in labels:
+        return "hold"
+    if "tracking-only" in labels:
+        return "deferred"
+    if "human-in-loop" in labels:
         return "human"
     if "large-refactor" in labels:
         return "deferred"
@@ -62,7 +60,7 @@ def description_excerpt(body: str, limit: int = 260) -> str:
 
 
 def priority(issue: dict) -> tuple:
-    order = {"active": 0, "next": 1, "queued": 2, "human": 3, "feature": 4, "deferred": 5}
+    order = {"active": 0, "next": 1, "queued": 2, "human": 3, "hold": 4, "feature": 5, "deferred": 6}
     return (order[issue["dashboardStatus"]], -issue["number"])
 
 

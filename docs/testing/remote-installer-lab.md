@@ -26,6 +26,19 @@ remain beneath `KeyPathInstallerLab` on the external volume after cleanup.
 `--ttl` defaults to `2h` and accepts values from one second through two hours,
 matching the maximum lifecycle exposed by the existing launchers.
 
+## Host disk reserve
+
+The Mini keeps a 100 GiB internal-data-volume reserve for runner builds,
+indexing, and host OS work. `create` checks this reserve after taking the
+provider admission lock and exits 75 with `disk_reserve_busy` when admitting a
+new lease would be unsafe. It is an infrastructure wait, not a product failure.
+`preflight` reports the current reserve evidence. Set
+`KEYPATH_LAB_MIN_FREE_DISK_GIB` only for a deliberately different host policy.
+
+The primary self-hosted CI and cache-warm workflows run
+`Scripts/lab/host-disk-reserve` before expensive compilation. It exits 75 when
+the same 100 GiB threshold is not met.
+
 Check the non-mutating host/provider contract:
 
 ```bash
@@ -107,6 +120,23 @@ controller mirrors the existing provider launcher configuration while adding
 CrabBox's desktop capability; ordinary creation continues to use the launchers
 unchanged. Artifact collection captures a screenshot for desktop leases and
 records an explicit unavailable status otherwise.
+
+### Desktop-base admission
+
+`--desktop` reserves a display-capable lease; it does not by itself prove that
+the guest is ready for semantic UI automation. Before a scenario relies on
+System Settings, admit the base through these postconditions:
+
+- a real console user is logged in (not merely an SSH account);
+- the guest has a Python runtime for the scenario drivers; and
+- `Scripts/lab/peekaboo-ui preflight` succeeds for that console session.
+
+If any condition is absent, record an `environment-precondition-failure`,
+collect artifacts, and destroy the lease. Do not fall back to raw provider
+commands or treat the result as a KeyPath failure. The macOS 26 Parallels base
+observed on July 13, 2026 was SSH-ready but had no logged-in console user and
+no Python runtime; it needs a new clean base checkpoint after automatic login
+and desktop-tool provisioning before selector scenarios can run.
 
 ### Disposable desktop identity with Nameplate
 

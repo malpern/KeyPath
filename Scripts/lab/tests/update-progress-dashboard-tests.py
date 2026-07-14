@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
+import html
 import json
 import pathlib
+import re
 import subprocess
 import tempfile
 import unittest
 
 
 UPDATER = pathlib.Path(__file__).resolve().parents[1] / "update-progress-dashboard"
+REPO_ROOT = UPDATER.parents[2]
+DASHBOARD = REPO_ROOT / "docs/testing/keypath-test-automation-progress.html"
 
 
 class UpdateProgressDashboardTests(unittest.TestCase):
@@ -58,6 +62,40 @@ class UpdateProgressDashboardTests(unittest.TestCase):
         self.assertEqual(state["statuses"]["P01"], "proven")
         self.assertNotIn("P01", state["activeWork"])
         self.assertNotIn("P01", state["workingBlocks"])
+
+    def test_blocked_keeps_evidence_without_marking_work_active(self) -> None:
+        self.run_updater("--progress", "62", "--health", "blocked", "--blocked")
+        state = json.loads(self.state.read_text())
+        self.assertEqual(state["statuses"]["P01"], "blocked")
+        self.assertIn("P01", state["activeWork"])
+        self.assertNotIn("P01", state["workingBlocks"])
+
+    def test_waiting_keeps_evidence_without_marking_work_active(self) -> None:
+        self.run_updater("--progress", "62", "--waiting")
+        state = json.loads(self.state.read_text())
+        self.assertEqual(state["statuses"]["P01"], "waiting")
+        self.assertEqual(state["activeWork"]["P01"]["health"], "waiting")
+        self.assertNotIn("P01", state["workingBlocks"])
+
+    def test_rejects_finish_and_blocked_together(self) -> None:
+        result = self.run_updater("--finish", "--blocked", check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("cannot be combined", result.stderr)
+
+    def test_embedded_dashboard_script_parses_after_srcdoc_decoding(self) -> None:
+        source = DASHBOARD.read_text()
+        srcdoc = re.search(r'srcdoc="(.*?)">\s*</iframe>', source, re.DOTALL)
+        self.assertIsNotNone(srcdoc)
+        decoded = html.unescape(srcdoc.group(1))
+        scripts = re.findall(r"<script(?:\s[^>]*)?>(.*?)</script>", decoded, re.DOTALL)
+        dashboard_script = next(script for script in scripts if "const items = [" in script)
+        result = subprocess.run(
+            ["node", "-e", "new Function(process.argv[1])", dashboard_script],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("window.parent.location.href", dashboard_script)
 
 
 if __name__ == "__main__":
