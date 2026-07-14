@@ -15,6 +15,7 @@ Commands:
   create --macos 15|26|27 --lane managed-functional|unmanaged-ui --commit SHA --installer PATH [--ttl 2h] [--desktop]
   install-app LEASE_ID
   desktop-bootstrap LEASE_ID [--install-tools]
+  nameplate LEASE_ID enable|show|hide|status
   protected-click LEASE_ID --app APP --window TITLE (--x X --y Y | --ax-x X --ax-y Y) [--after-window TITLE]
   desktop-type LEASE_ID --text TEXT
   secure-dialog-input LEASE_ID --app APP --field LABEL [--submit BUTTON] [--already-focused]
@@ -134,6 +135,14 @@ EOF
         if [[ ${1:-} == "--install-tools" && $# -eq 1 ]]; then install_tools=1; shift; fi
         [[ $# -eq 0 ]] || usage
         remote desktop-bootstrap "$lease" "$install_tools"
+        ;;
+    nameplate)
+        lease=${1:-}
+        nameplate_action=${2:-}
+        [[ -n $lease && $# -eq 2 ]] || usage
+        require_lease_id "$lease"
+        case "$nameplate_action" in enable|show|hide|status) ;; *) usage ;; esac
+        remote nameplate "$lease" "$nameplate_action"
         ;;
     protected-click)
         lease=${1:-}

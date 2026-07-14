@@ -3,6 +3,8 @@ set -euo pipefail
 
 PRODUCTION_ROOT="/Volumes/KeyPath Lab/CrabBox"
 OWNER="keypath-installer-lab-v1"
+NAMEPLATE_VERSION="0.2.5"
+NAMEPLATE_SHA256="96d1b6c58167b4a8f3713a61a7e216f8a24c2adad36c9027db974f852d543a3d"
 
 if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
   LAB_ROOT="${KEYPATH_LAB_TEST_ROOT:?KEYPATH_LAB_TEST_ROOT is required in test mode}"
@@ -820,6 +822,7 @@ list_leases() {
 
 collect_artifacts() {
   local lease=$1 manifest output exit_code macos repo archive
+  local nameplate_restore=0 nameplate_hide_status=not-needed nameplate_restore_status=not-needed
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   repo=$(field "$manifest" worktree)
@@ -832,6 +835,15 @@ collect_artifacts() {
   if [[ -d "$repo/.crabbox/captures" ]]; then
     cp -R "$repo/.crabbox/captures" "$output/controller-crabbox-captures"
   fi
+  if [[ "$(field "$manifest" nameplate_state)" == visible ]]; then
+    set +e
+    (nameplate_control "$lease" hide) > "$output/nameplate-hide.log" 2>&1
+    nameplate_hide_status=$?
+    set -e
+    if (( nameplate_hide_status == 0 )); then
+      nameplate_restore=1
+    fi
+  fi
   archive="$output/scenario-output.tar.gz"
   set +e
   (cd "$repo" && run_with_download "$macos" "$lease" ".keypath-lab/scenario-output.tar.gz" "$archive" \
@@ -841,7 +853,10 @@ collect_artifacts() {
   if (( exit_code == 0 )); then
     tar -xzf "$archive" -C "$output"
   fi
-  if [[ "$(field "$manifest" desktop_enabled)" == "true" ]]; then
+  if [[ "$(field "$manifest" desktop_enabled)" == "true" && "$nameplate_hide_status" != "0" && "$nameplate_hide_status" != not-needed ]]; then
+    screenshot_exit=unavailable:nameplate-hide-failed
+    set_field "$manifest" screenshot_status "$screenshot_exit"
+  elif [[ "$(field "$manifest" desktop_enabled)" == "true" ]]; then
     set +e
     if [[ "$macos" == "15" ]]; then
       if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
@@ -857,11 +872,23 @@ collect_artifacts() {
     screenshot_exit=unavailable:lease-not-created-with-desktop
     set_field "$manifest" screenshot_status "$screenshot_exit"
   fi
+  if (( nameplate_restore )); then
+    set +e
+    (nameplate_control "$lease" show) > "$output/nameplate-restore.log" 2>&1
+    nameplate_restore_status=$?
+    set -e
+  fi
   set_field "$manifest" artifacts_status "$exit_code"
   set_field "$manifest" artifacts_last_collected_at "$(utc_now)"
+  set_field "$manifest" nameplate_artifact_hide_status "$nameplate_hide_status"
+  set_field "$manifest" nameplate_artifact_restore_status "$nameplate_restore_status"
+  cp "$manifest" "$output/manifest.tsv"
+  cp "$LEASES/$lease/commands.tsv" "$output/commands.tsv" 2>/dev/null || true
   print "artifact_dir\t$output"
   print "download_status\t$exit_code"
   print "screenshot_status\t$screenshot_exit"
+  print "nameplate_hide_status\t$nameplate_hide_status"
+  print "nameplate_restore_status\t$nameplate_restore_status"
   return "$exit_code"
 }
 
@@ -889,6 +916,40 @@ desktop_bootstrap() {
   run_command "$lease" "${command[@]}"
   set_field "$manifest" desktop_bootstrap_at "$(utc_now)"
   set_field "$manifest" desktop_bootstrap_status passed
+}
+
+nameplate_control() {
+  local lease=$1 nameplate_action=$2 manifest macos lane provider repo script output version checksum state
+  manifest=$(owned_manifest "$lease")
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "Nameplate requires a desktop-enabled lease"
+  repo=$(field "$manifest" worktree)
+  prepare_worktree "$repo"
+  script="Scripts/lab/nameplate-instrumentation"
+  [[ -x "$repo/$script" ]] || die "Nameplate instrumentation is missing from the archived commit"
+  if [[ "$nameplate_action" != enable ]]; then
+    [[ "$(field "$manifest" nameplate_version)" == "$NAMEPLATE_VERSION" ]] || die "Nameplate is not enabled for lease: $lease"
+  fi
+  macos=$(field "$manifest" macos)
+  lane=$(field "$manifest" test_lane)
+  provider=$(field "$manifest" provider)
+  case "$nameplate_action" in
+    enable) output=$(run_command "$lease" /bin/zsh "$script" enable "$macos" "$lane" "$provider" "$lease") ;;
+    show|hide|status) output=$(run_command "$lease" /bin/zsh "$script" "$nameplate_action") ;;
+    *) die "invalid Nameplate action: $nameplate_action" ;;
+  esac
+  print -r -- "$output"
+  version=$(printf '%s\n' "$output" | awk -F '\t' '$1 == "nameplate_version" {print $2; exit}')
+  checksum=$(printf '%s\n' "$output" | awk -F '\t' '$1 == "nameplate_sha256" {print $2; exit}')
+  state=$(printf '%s\n' "$output" | awk -F '\t' '$1 == "nameplate_state" {print $2; exit}')
+  [[ "$version" == "$NAMEPLATE_VERSION" ]] || die "guest reported unexpected Nameplate version: ${version:-missing}"
+  [[ "$checksum" == "$NAMEPLATE_SHA256" ]] || die "guest reported unexpected Nameplate checksum"
+  [[ "$state" == visible || "$state" == hidden ]] || die "guest reported invalid Nameplate state: ${state:-missing}"
+  if [[ "$nameplate_action" != status ]]; then
+    set_field "$manifest" nameplate_version "$version"
+    set_field "$manifest" nameplate_sha256 "$checksum"
+    set_field "$manifest" nameplate_state "$state"
+    set_field "$manifest" nameplate_last_changed_at "$(utc_now)"
+  fi
 }
 
 destroy_lease() {
@@ -965,6 +1026,7 @@ case "$action" in
   artifacts) [[ $# -eq 1 ]] || die "artifacts requires lease"; collect_artifacts "$1" ;;
   scenario) [[ $# -eq 2 ]] || die "scenario requires lease and name"; scenario "$1" "$2" ;;
   desktop-bootstrap) [[ $# -eq 2 ]] || die "desktop-bootstrap requires lease and install-tools flag"; desktop_bootstrap "$@" ;;
+  nameplate) [[ $# -eq 2 ]] || die "nameplate requires lease and action"; nameplate_control "$@" ;;
   destroy) [[ $# -eq 1 ]] || die "destroy requires lease"; destroy_lease "$1" ;;
   cleanup) cleanup_expired "${1:-}" ;;
   *) die "unknown action: $action" ;;
