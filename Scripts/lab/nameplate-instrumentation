@@ -1,0 +1,153 @@
+#!/bin/zsh
+set -euo pipefail
+
+readonly NAMEPLATE_VERSION="0.2.5"
+readonly NAMEPLATE_SHA256="96d1b6c58167b4a8f3713a61a7e216f8a24c2adad36c9027db974f852d543a3d"
+readonly NAMEPLATE_URL="https://github.com/steipete/Nameplate/releases/download/v${NAMEPLATE_VERSION}/Nameplate-${NAMEPLATE_VERSION}.zip"
+readonly NAMEPLATE_BUNDLE_ID="com.steipete.nameplate"
+NAMEPLATE_TEMP=
+
+die() { print -u2 "nameplate-instrumentation: $*"; exit 1; }
+
+usage() {
+  print -u2 "Usage: Scripts/lab/nameplate-instrumentation enable MACOS LANE PROVIDER LEASE"
+  print -u2 "       Scripts/lab/nameplate-instrumentation show|hide|status"
+  exit 2
+}
+
+print_metadata() {
+  print "nameplate_version\t$NAMEPLATE_VERSION"
+  print "nameplate_sha256\t$NAMEPLATE_SHA256"
+}
+
+valid_component() {
+  [[ "$1" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid identity component: $1"
+}
+
+app_path="$HOME/Applications/Nameplate.app"
+
+assert_console_user() {
+  local console_user
+  console_user=$(/usr/bin/stat -f '%Su' /dev/console)
+  [[ "$console_user" != root && "$console_user" != loginwindow ]] || die "no logged-in console user"
+  [[ "$console_user" == "$USER" ]] || die "command user $USER does not own console session $console_user"
+}
+
+installed_version() {
+  [[ -d "$app_path" && ! -L "$app_path" ]] || return 1
+  /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app_path/Contents/Info.plist" 2>/dev/null
+}
+
+is_running() {
+  /usr/bin/pgrep -x Nameplate >/dev/null 2>&1
+}
+
+wait_for_state() {
+  local expected=$1 attempt
+  for attempt in {1..40}; do
+    if [[ "$expected" == running ]] && is_running; then return 0; fi
+    if [[ "$expected" == stopped ]] && ! is_running; then return 0; fi
+    sleep 0.25
+  done
+  die "Nameplate did not become $expected"
+}
+
+show_nameplate() {
+  [[ "$(installed_version || true)" == "$NAMEPLATE_VERSION" ]] || die "pinned Nameplate $NAMEPLATE_VERSION is not installed"
+  /usr/bin/open -gj "$app_path"
+  wait_for_state running
+  print_metadata
+  print "nameplate_state\tvisible"
+}
+
+hide_nameplate() {
+  if is_running; then
+    /usr/bin/pkill -x Nameplate || true
+    wait_for_state stopped
+  fi
+  print_metadata
+  print "nameplate_state\thidden"
+}
+
+status_nameplate() {
+  local version=not-installed state=hidden
+  version=$(installed_version || print not-installed)
+  is_running && state=visible
+  print "nameplate_version\t$version"
+  print "nameplate_sha256\t$([[ "$version" == "$NAMEPLATE_VERSION" ]] && print "$NAMEPLATE_SHA256" || print unknown)"
+  print "nameplate_state\t$state"
+}
+
+enable_nameplate() {
+  [[ $# -eq 4 ]] || usage
+  local macos=$1 lane=$2 provider=$3 lease=$4 color name location temp archive extracted_app actual_sha
+  valid_component "$macos"
+  valid_component "$lane"
+  valid_component "$provider"
+  valid_component "$lease"
+  case "$macos" in
+    15) color="#1D9E75" ;;
+    26) color="#7F77DD" ;;
+    27) color="#E24B30" ;;
+    *) die "unsupported macOS lane: $macos" ;;
+  esac
+
+  temp=$(mktemp -d "${TMPDIR:-/tmp}/keypath-nameplate.XXXXXXXX")
+  NAMEPLATE_TEMP=$temp
+  trap '[[ -n "${NAMEPLATE_TEMP:-}" ]] && rm -rf "$NAMEPLATE_TEMP"' EXIT
+  archive="$temp/Nameplate.zip"
+  /usr/bin/curl --fail --location --silent --show-error "$NAMEPLATE_URL" --output "$archive"
+  actual_sha=$(/usr/bin/shasum -a 256 "$archive" | /usr/bin/awk '{print $1}')
+  [[ "$actual_sha" == "$NAMEPLATE_SHA256" ]] || die "Nameplate checksum mismatch"
+  /usr/bin/ditto -x -k "$archive" "$temp/extracted"
+  extracted_app=$(find "$temp/extracted" -maxdepth 2 -type d -name Nameplate.app -print -quit)
+  [[ -n "$extracted_app" ]] || die "Nameplate.app missing from pinned archive"
+  /usr/bin/codesign --verify --deep --strict "$extracted_app"
+  /usr/sbin/spctl --assess --type execute "$extracted_app"
+
+  if is_running; then
+    /usr/bin/pkill -x Nameplate || true
+    wait_for_state stopped
+  fi
+  mkdir -p "$HOME/Applications"
+  [[ ! -e "$app_path" || ( -d "$app_path" && ! -L "$app_path" ) ]] || die "unsafe Nameplate destination"
+  rm -rf "$app_path"
+  /usr/bin/ditto "$extracted_app" "$app_path"
+  /usr/bin/codesign --verify --deep --strict "$app_path"
+  /usr/sbin/spctl --assess --type execute "$app_path"
+
+  name="KeyPath macOS $macos · $lane"
+  location="$provider · $lease · DISPOSABLE"
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" customName -string "$name"
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" colorHex -string "$color"
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" glyph -string "KP"
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" customLocation -string "$location"
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" useFleetFile -bool false
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" hasCompletedFirstRun -bool true
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" overlaysEnabled -bool true
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" visibilityModeRaw -string always
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" frameEnabled -bool true
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" frameThickness -float 4
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" tagEnabled -bool true
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" tagShowsGlyph -bool true
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" watermarkEnabled -bool false
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" splashEnabled -bool false
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" splashOnWake -bool false
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" splashOnUnlock -bool false
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" splashOnDisplayChange -bool false
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" launchAtLogin -bool false
+  /usr/bin/defaults write "$NAMEPLATE_BUNDLE_ID" autoUpdateEnabled -bool false
+
+  show_nameplate
+}
+
+action=${1:-}
+shift || true
+case "$action" in
+  metadata) [[ $# -eq 0 ]] || usage; print_metadata ;;
+  enable) assert_console_user; enable_nameplate "$@" ;;
+  show) [[ $# -eq 0 ]] || usage; assert_console_user; show_nameplate ;;
+  hide) [[ $# -eq 0 ]] || usage; assert_console_user; hide_nameplate ;;
+  status) [[ $# -eq 0 ]] || usage; assert_console_user; status_nameplate ;;
+  *) usage ;;
+esac

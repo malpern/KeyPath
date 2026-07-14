@@ -98,11 +98,20 @@ semantic operations:
 Scripts/lab/keypath-lab create \
   --macos 15 --lane unmanaged-ui --commit "$SHA" --installer dist/KeyPath.zip --desktop
 
+Scripts/lab/keypath-lab nameplate "$LEASE" enable
+
 Scripts/lab/keypath-lab run "$LEASE" -- \
   Scripts/lab/peekaboo-ui snapshot \
   --app 'System Settings' \
   --output .keypath-lab/scenario-output/approvals/system-settings.json
 ```
+
+The optional Nameplate label is click-through operator instrumentation. It is
+installed only in the disposable guest, never in a base image. Keep it visible
+while choosing or attaching to a lease, then hide it around scenario-owned
+screenshots. The controller's `artifacts` command performs that hide/restore
+automatically. Nameplate launch-at-login remains disabled so its own
+`SMAppService` registration cannot affect KeyPath Background Items evidence.
 
 For a password sheet on the Tart lane:
 

@@ -16,7 +16,16 @@ cat > "$ROOT/bin/launcher15" <<EOF
 case "\$1" in
  doctor) echo doctor-15 ;;
  warmup) echo cbx_test15 ;;
- run) echo product=15.7.7; echo build=24G720 ;;
+ run)
+   if [[ "\$*" == *"nameplate-instrumentation"* ]]; then
+     [[ -f "$ROOT/fail-nameplate-hide" && " \$* " == *" hide "* ]] && exit 9
+     [[ -f "$ROOT/fail-nameplate-show" && " \$* " == *" show "* ]] && exit 10
+     echo $'nameplate_version\t0.2.5'
+     echo $'nameplate_sha256\t96d1b6c58167b4a8f3713a61a7e216f8a24c2adad36c9027db974f852d543a3d'
+     [[ " \$* " == *" hide "* ]] && echo $'nameplate_state\thidden' || echo $'nameplate_state\tvisible'
+   else
+     echo product=15.7.7; echo build=24G720
+   fi ;;
  stop) echo "stop-15 \$2" >> "$CALLS" ;;
  list) echo cbx_test15 ;;
 esac
@@ -26,7 +35,14 @@ cat > "$ROOT/bin/launcher26" <<EOF
 case "\$1" in
  doctor) echo doctor-26 ;;
  warmup) echo cbx_test26 ;;
- run) echo product=26.5.2; echo build=25F84 ;;
+ run)
+   if [[ "\$*" == *"nameplate-instrumentation"* ]]; then
+     echo $'nameplate_version\t0.2.5'
+     echo $'nameplate_sha256\t96d1b6c58167b4a8f3713a61a7e216f8a24c2adad36c9027db974f852d543a3d'
+     [[ " \$* " == *" hide "* ]] && echo $'nameplate_state\thidden' || echo $'nameplate_state\tvisible'
+   else
+     echo product=26.5.2; echo build=25F84
+   fi ;;
  stop) echo "stop-26 \$2" >> "$CALLS" ;;
  list) echo cbx_test26 ;;
 esac
@@ -36,7 +52,14 @@ cat > "$ROOT/bin/launcher27" <<EOF
 case "\$1" in
  doctor) echo doctor-27 ;;
  warmup) echo cbx_test27 ;;
- run) echo product=27.0; echo build=26A5378j ;;
+ run)
+   if [[ "\$*" == *"nameplate-instrumentation"* ]]; then
+     echo $'nameplate_version\t0.2.5'
+     echo $'nameplate_sha256\t96d1b6c58167b4a8f3713a61a7e216f8a24c2adad36c9027db974f852d543a3d'
+     [[ " \$* " == *" hide "* ]] && echo $'nameplate_state\thidden' || echo $'nameplate_state\tvisible'
+   else
+     echo product=27.0; echo build=26A5378j
+   fi ;;
  stop) echo "stop-27 \$2" >> "$CALLS" ;;
  list) echo cbx_test27 ;;
 esac
@@ -95,6 +118,7 @@ echo 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
 
 /bin/bash -n "$LAB_DIR/../qa-macos-27-regression.sh"
 /bin/zsh -n "$LAB_DIR/desktop-bootstrap"
+/bin/zsh -n "$LAB_DIR/nameplate-instrumentation"
 /bin/zsh -n "$LAB_DIR/scenarios/kanata-vhid-two-clients"
 grep -q 'macos-27-regression)' "$LAB_DIR/scenarios/installer-scenario"
 
@@ -115,6 +139,19 @@ run_remote() {
 assert_contains() {
     [[ $1 == *"$2"* ]] || { echo "expected '$2' in: $1" >&2; exit 1; }
 }
+
+nameplate_metadata=$(/bin/zsh "$LAB_DIR/nameplate-instrumentation" metadata)
+assert_contains "$nameplate_metadata" $'nameplate_version\t0.2.5'
+assert_contains "$nameplate_metadata" $'nameplate_sha256\t96d1b6c58167b4a8f3713a61a7e216f8a24c2adad36c9027db974f852d543a3d'
+grep -q 'NAMEPLATE_VERSION="0.2.5"' "$LAB_DIR/remote.sh"
+grep -q 'NAMEPLATE_SHA256="96d1b6c58167b4a8f3713a61a7e216f8a24c2adad36c9027db974f852d543a3d"' "$LAB_DIR/remote.sh"
+if grep -q 'launchAtLogin -bool true' "$LAB_DIR/nameplate-instrumentation"; then
+    echo "Nameplate instrumentation enabled launch at login" >&2
+    exit 1
+fi
+grep -q 'useFleetFile -bool false' "$LAB_DIR/nameplate-instrumentation"
+grep -q 'hasCompletedFirstRun -bool true' "$LAB_DIR/nameplate-instrumentation"
+[[ $(grep -c '/usr/bin/pkill -x Nameplate || true' "$LAB_DIR/nameplate-instrumentation") -eq 2 ]]
 
 preflight=$(run_remote preflight)
 assert_contains "$preflight" doctor-15
@@ -148,7 +185,9 @@ archive_key="$(printf 'a%.0s' {1..40})-$(printf 'b%.0s' {1..64})"
 repo="$ROOT/KeyPathInstallerLab/archives/$archive_key/repo"
 mkdir -p "$repo/.keypath-lab/installer" "$repo/Scripts/lab/scenarios"
 cp "$LAB_DIR/scenarios/installer-scenario" "$repo/Scripts/lab/scenarios/installer-scenario"
+cp "$LAB_DIR/nameplate-instrumentation" "$repo/Scripts/lab/nameplate-instrumentation"
 chmod +x "$repo/Scripts/lab/scenarios/installer-scenario"
+chmod +x "$repo/Scripts/lab/nameplate-instrumentation"
 echo installer > "$repo/.keypath-lab/installer/KeyPath.zip"
 git -C "$repo" init -q
 git -C "$repo" config user.name test
@@ -209,6 +248,10 @@ if grep -q 'crabbox cp' "$CALLS"; then
     exit 1
 fi
 [[ -f "$(find "$ROOT/KeyPathInstallerLab/artifacts/cbx_test15" -path '*/scenario-output/controller-capture/sw-vers.txt' -print -quit)" ]]
+if run_remote nameplate cbx_test15 enable >/dev/null 2>&1; then
+    echo "Nameplate accepted a non-desktop lease" >&2
+    exit 1
+fi
 
 operation_repo="$ROOT/KeyPathInstallerLab/operations/$(grep $'^slug\t' "$manifest" | cut -f2)/repo"
 mkdir -p "$operation_repo/.crabbox/captures"
@@ -328,10 +371,46 @@ grep -q $'status\tprovisioning' "$ROOT/KeyPathInstallerLab/leases/cbx_stale/mani
 run_remote destroy cbx_stale >/dev/null
 desktop_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_desktop15/manifest.tsv"
 grep -q $'desktop_enabled\ttrue' "$desktop_manifest"
+nameplate_enable=$(run_remote nameplate cbx_desktop15 enable)
+assert_contains "$nameplate_enable" $'nameplate_state\tvisible'
+grep -q $'nameplate_version\t0.2.5' "$desktop_manifest"
+grep -q $'nameplate_sha256\t96d1b6c58167b4a8f3713a61a7e216f8a24c2adad36c9027db974f852d543a3d' "$desktop_manifest"
+grep -q $'nameplate_state\tvisible' "$desktop_manifest"
+nameplate_status=$(run_remote nameplate cbx_desktop15 status)
+assert_contains "$nameplate_status" $'nameplate_state\tvisible'
+nameplate_hide=$(run_remote nameplate cbx_desktop15 hide)
+assert_contains "$nameplate_hide" $'nameplate_state\thidden'
+nameplate_show=$(run_remote nameplate cbx_desktop15 show)
+assert_contains "$nameplate_show" $'nameplate_state\tvisible'
 desktop_artifacts=$(run_remote artifacts cbx_desktop15)
 assert_contains "$desktop_artifacts" $'screenshot_status\t0'
+assert_contains "$desktop_artifacts" $'nameplate_hide_status\t0'
+assert_contains "$desktop_artifacts" $'nameplate_restore_status\t0'
 desktop_artifact_dir=$(printf '%s\n' "$desktop_artifacts" | awk -F '\t' '$1 == "artifact_dir" {print $2}')
 [[ -f "$desktop_artifact_dir/screenshot.png" ]]
+[[ -f "$desktop_artifact_dir/nameplate-hide.log" && -f "$desktop_artifact_dir/nameplate-restore.log" ]]
+grep -q $'nameplate_state\tvisible' "$desktop_manifest"
+touch "$ROOT/fail-nameplate-hide"
+failed_hide_artifacts=$(run_remote artifacts cbx_desktop15)
+rm "$ROOT/fail-nameplate-hide"
+assert_contains "$failed_hide_artifacts" $'download_status\t0'
+assert_contains "$failed_hide_artifacts" $'screenshot_status\tunavailable:nameplate-hide-failed'
+assert_contains "$failed_hide_artifacts" $'nameplate_hide_status\t1'
+assert_contains "$failed_hide_artifacts" $'nameplate_restore_status\tnot-needed'
+failed_hide_artifact_dir=$(printf '%s\n' "$failed_hide_artifacts" | awk -F '\t' '$1 == "artifact_dir" {print $2}')
+[[ -f "$failed_hide_artifact_dir/nameplate-hide.log" && ! -f "$failed_hide_artifact_dir/screenshot.png" ]]
+grep -q 'guest reported unexpected Nameplate version: missing' "$failed_hide_artifact_dir/nameplate-hide.log"
+touch "$ROOT/fail-nameplate-show"
+failed_restore_artifacts=$(run_remote artifacts cbx_desktop15)
+rm "$ROOT/fail-nameplate-show"
+assert_contains "$failed_restore_artifacts" $'download_status\t0'
+assert_contains "$failed_restore_artifacts" $'screenshot_status\t0'
+assert_contains "$failed_restore_artifacts" $'nameplate_hide_status\t0'
+assert_contains "$failed_restore_artifacts" $'nameplate_restore_status\t1'
+failed_restore_artifact_dir=$(printf '%s\n' "$failed_restore_artifacts" | awk -F '\t' '$1 == "artifact_dir" {print $2}')
+[[ -f "$failed_restore_artifact_dir/nameplate-hide.log" && -f "$failed_restore_artifact_dir/nameplate-restore.log" ]]
+grep -q 'guest reported unexpected Nameplate version: missing' "$failed_restore_artifact_dir/nameplate-restore.log"
+grep -q $'nameplate_state\thidden' "$desktop_manifest"
 secure_result=$(run_remote secure-dialog-input cbx_desktop15 'System Settings' Password 'Modify Settings' 0)
 assert_contains "$secure_result" $'secure_dialog_input\tpassed'
 grep -q 'admin@192.0.2.15' "$TMP/guest-ssh-args"
