@@ -26,6 +26,7 @@ class IssueDashboardTests(unittest.TestCase):
         self.assertEqual(module.issue_status(issue(982, "human-in-loop", "on-hold")), "hold")
         self.assertEqual(module.issue_status(issue(604, "testing", "tracking-only")), "deferred")
         self.assertEqual(module.issue_status(issue(865, "enhancement", "tracking-only", "on-hold")), "hold")
+        self.assertEqual(module.issue_status(issue(870, "recommended-next", "on-hold")), "hold")
 
     def test_on_hold_is_a_distinct_visible_dashboard_state(self) -> None:
         fragment = (REPO_ROOT / "docs/testing/keypath-github-issues-dashboard.fragment.html").read_text()
@@ -45,6 +46,12 @@ class IssueDashboardTests(unittest.TestCase):
         self.assertEqual(module.issue_status(issue(2, "testing")), "queued")
         self.assertEqual(module.issue_status(issue(3, "tech-debt")), "queued")
 
+    def test_recommended_next_overrides_feature_classification(self) -> None:
+        self.assertEqual(
+            module.issue_status(issue(870, "enhancement", "agent-ok", "recommended-next")),
+            "next",
+        )
+
     def test_issue_limit_is_explicit(self) -> None:
         self.assertEqual(module.ISSUE_LIMIT, 200)
 
@@ -55,6 +62,11 @@ class IssueDashboardTests(unittest.TestCase):
         self.assertEqual(module.issue_type(issue(4, "Feature", "upstream")), "feature")
         self.assertEqual(module.issue_type(issue(5, "research", "devux")), "upstream")
         self.assertEqual(module.issue_type(issue(6, "documentation")), "docs")
+
+    def test_issue_scope_uses_explicit_mutually_exclusive_labels(self) -> None:
+        self.assertEqual(module.issue_scope(issue(1, "keypath", "testing")), "keypath")
+        self.assertEqual(module.issue_scope(issue(2, "kanata", "upstream")), "kanata")
+        self.assertEqual(module.issue_scope(issue(3, "testing")), "other")
 
     def test_card_navigation_contract_is_generated_safely(self) -> None:
         fragment = (REPO_ROOT / "docs/testing/keypath-github-issues-dashboard.fragment.html").read_text()
@@ -75,9 +87,12 @@ class IssueDashboardTests(unittest.TestCase):
 
     def test_type_highlight_can_be_persistently_toggled(self) -> None:
         fragment = (REPO_ROOT / "docs/testing/keypath-github-issues-dashboard.fragment.html").read_text()
-        self.assertIn("selectedType === filter.dataset.type ? undefined", fragment)
+        self.assertIn("selectedFilter === filterValue ? undefined", fragment)
         self.assertIn("candidate.setAttribute('aria-pressed'", fragment)
-        self.assertIn("showType(selectedType)", fragment)
+        self.assertIn("showFilter(selectedFilter)", fragment)
+        self.assertIn('data-filter="scope" data-value="keypath"', fragment)
+        self.assertIn('data-filter="scope" data-value="kanata"', fragment)
+        self.assertIn("button.dataset.scope = issue.dashboardScope", fragment)
         self.assertNotIn('.issue::before { content:"";', fragment)
 
 

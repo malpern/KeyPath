@@ -1,27 +1,84 @@
 {
   "repository": "malpern/KeyPath",
-  "updatedAt": "2026-07-13T14:08:53.524335+00:00",
+  "updatedAt": "2026-07-14T22:31:50.340273+00:00",
   "issueLimit": 200,
   "truncated": false,
   "counts": {
+    "next": 3,
     "human": 2,
-    "hold": 72,
-    "deferred": 2
+    "hold": 67,
+    "deferred": 1
   },
   "issues": [
+    {
+      "labels": [
+        "enhancement",
+        "tier-1",
+        "1.1 release",
+        "agent-ok",
+        "keypath",
+        "recommended-next"
+      ],
+      "number": 870,
+      "title": "[1.1] Define rule dependency graph data model and builder",
+      "updatedAt": "2026-07-14T20:16:48Z",
+      "url": "https://github.com/malpern/KeyPath/issues/870",
+      "dashboardStatus": "next",
+      "dashboardType": "feature",
+      "dashboardScope": "keypath",
+      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865) \u2014 the dependency-detection sprint epic. Start here; everything else in the sprint depends on this. Goal A pure-data RuleDependencyGraph value type that captures the provides and requires relations\u2026"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "tier-1",
+        "1.1 release",
+        "agent-ok",
+        "keypath",
+        "recommended-next"
+      ],
+      "number": 867,
+      "title": "[1.1] Encode per-family dependencies (HRL Toggles, Launcher, Leader-based, Custom)",
+      "updatedAt": "2026-07-14T20:16:48Z",
+      "url": "https://github.com/malpern/KeyPath/issues/867",
+      "dashboardStatus": "next",
+      "dashboardType": "feature",
+      "dashboardScope": "keypath",
+      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on the dependency-graph data model. Goal Concrete \"requires\" derivations for each family in the catalog. This is the per-family code that introspects a RuleCollectionConfiguration and\u2026"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "tier-1",
+        "1.1 release",
+        "agent-ok",
+        "keypath",
+        "recommended-next"
+      ],
+      "number": 866,
+      "title": "[1.1] Implement Prerequisite detector: forward + reverse queries on RuleCollectionsManager",
+      "updatedAt": "2026-07-14T20:16:48Z",
+      "url": "https://github.com/malpern/KeyPath/issues/866",
+      "dashboardStatus": "next",
+      "dashboardType": "feature",
+      "dashboardScope": "keypath",
+      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on the dependency-graph data model sub-issue. Goal Add RuleCollectionsManager+PrerequisiteDetection.swift as a sibling to the existing\u2026"
+    },
     {
       "labels": [
         "post-release",
         "wwdc26",
         "bug-risk",
-        "human-in-loop"
+        "human-in-loop",
+        "keypath"
       ],
       "number": 919,
       "title": "Regression-test permissions, daemon, and TCC behavior on macOS 27 betas",
-      "updatedAt": "2026-07-13T11:17:42Z",
+      "updatedAt": "2026-07-14T20:12:49Z",
       "url": "https://github.com/malpern/KeyPath/issues/919",
       "dashboardStatus": "human",
       "dashboardType": "bug",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Post-1.0 tracking, but should happen during the macOS 27 beta cycle (public release expected September 2026). From the WWDC 2026 review \u2014 see docs/wwdc-2026-macos-27-opportunities.md (PR #911), \u00a710. Why Nothing announced at WWDC26 changes SMAppService, XPC\u2026"
     },
     {
@@ -29,15 +86,36 @@
         "launch-review",
         "testing",
         "post-release",
-        "human-in-loop"
+        "human-in-loop",
+        "keypath"
       ],
       "number": 747,
       "title": "Verify permission and setup UX on clean accounts and signed releases",
-      "updatedAt": "2026-07-13T11:17:42Z",
+      "updatedAt": "2026-07-14T20:25:24Z",
       "url": "https://github.com/malpern/KeyPath/issues/747",
       "dashboardStatus": "human",
       "dashboardType": "testing",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Context KeyPath depends on macOS permissions and service-management state that can be confusing during first run and upgrade: Accessibility, Input Monitoring, Full Disk Access, Login Items, privileged helper registration, and the Kanata launch daemon. The\u2026"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "devux",
+        "tier-3",
+        "post-release",
+        "agent-ok",
+        "on-hold",
+        "keypath"
+      ],
+      "number": 1181,
+      "title": "Standardize permission-action vocabulary in the setup wizard",
+      "updatedAt": "2026-07-14T20:25:00Z",
+      "url": "https://github.com/malpern/KeyPath/issues/1181",
+      "dashboardStatus": "hold",
+      "dashboardType": "feature",
+      "dashboardScope": "keypath",
+      "descriptionExcerpt": "Current behavior The Accessibility and Input Monitoring pages use Turn On, Add in Settings, and Open Settings Manually for related permission actions. The underlying flows are now distinct and reliable, but the labels do not consistently explain which action\u2026"
     },
     {
       "labels": [
@@ -55,6 +133,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/982",
       "dashboardStatus": "hold",
       "dashboardType": "bug",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Direction Treat this as an upstream-first Kanata compatibility project, independent of KeyPath integration. The immediate goal is to make the latest upstream Kanata compatible with the current Karabiner-DriverKit-VirtualHIDDevice protocol, validate the result\u2026"
     },
     {
@@ -64,14 +143,16 @@
         "1.1 release",
         "needs-decision",
         "human-in-loop",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 954,
       "title": "Onboarding: post-setup first-success moment \u2014 starter collection + panel tour",
-      "updatedAt": "2026-07-13T11:17:44Z",
+      "updatedAt": "2026-07-14T20:12:44Z",
       "url": "https://github.com/malpern/KeyPath/issues/954",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Second half of the onboarding arc started in #932 (welcome page before the permission gauntlet). Once enough permissions are in place and setup completes, the arc should end in a working mapping, not a closed wizard \u2014 teach the core panel interaction and get\u2026"
     },
     {
@@ -80,14 +161,16 @@
         "post-release",
         "needs-decision",
         "human-in-loop",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 920,
       "title": "[1.1 docs] Capture the 26 placeholder screenshots stripped for 1.0 ship",
-      "updatedAt": "2026-07-13T11:17:42Z",
+      "updatedAt": "2026-07-14T20:12:47Z",
       "url": "https://github.com/malpern/KeyPath/issues/920",
       "dashboardStatus": "hold",
       "dashboardType": "docs",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Seven published guides reference placeholder-.png screenshots that were never captured. For the 1.0 public release these were stripped from the guide markdown (their ![...]() image lines removed) so they don't render as broken <img icons on the website \u2014 the\u2026"
     },
     {
@@ -97,14 +180,16 @@
         "post-release",
         "needs-decision",
         "wwdc26",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 918,
       "title": "Swift Testing migration policy: use XCTest interop, port KeyPathTestCase guards to a trait",
-      "updatedAt": "2026-07-13T11:17:55Z",
+      "updatedAt": "2026-07-14T20:12:50Z",
       "url": "https://github.com/malpern/KeyPath/issues/918",
       "dashboardStatus": "hold",
       "dashboardType": "testing",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Post-1.0. Not for the 1.0 launch. From the WWDC 2026 review \u2014 see docs/wwdc-2026-macos-27-opportunities.md (PR #911), opportunity #7. Why The codebase is ~294 XCTest files vs ~48 Swift Testing files. WWDC26 shipped Swift Testing \u2194 XCTest interoperability\u2026"
     },
     {
@@ -114,14 +199,16 @@
         "post-release",
         "needs-decision",
         "wwdc26",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 917,
       "title": "Build an eval suite for AI config repair using Apple's Evaluations framework",
-      "updatedAt": "2026-07-13T11:17:55Z",
+      "updatedAt": "2026-07-14T20:12:52Z",
       "url": "https://github.com/malpern/KeyPath/issues/917",
       "dashboardStatus": "hold",
       "dashboardType": "testing",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Post-1.0. Not for the 1.0 launch. From the WWDC 2026 review \u2014 see docs/wwdc-2026-macos-27-opportunities.md (PR #911), opportunity #6. Why KeyPath ships an LLM feature (AnthropicConfigRepairService) with no systematic quality measurement. WWDC26's Evaluations\u2026"
     },
     {
@@ -131,14 +218,16 @@
         "needs-decision",
         "wwdc26",
         "tooling",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 916,
       "title": "Upgrade toolchain to Xcode 27 / Swift 6.4",
-      "updatedAt": "2026-07-13T11:17:55Z",
+      "updatedAt": "2026-07-14T20:12:54Z",
       "url": "https://github.com/malpern/KeyPath/issues/916",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Post-1.0. Not for the 1.0 launch. From the WWDC 2026 review \u2014 see docs/wwdc-2026-macos-27-opportunities.md (PR #911), opportunity #5. Why (near-free wins) - Significant ViewBuilder build-time improvements in Xcode 27 \u2014 real money across 23 targets and ~350\u2026"
     },
     {
@@ -147,14 +236,16 @@
         "post-release",
         "needs-decision",
         "wwdc26",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 915,
       "title": "Adopt AppKit automatic @Observable tracking in draw/layout (back-deploys to macOS 15)",
-      "updatedAt": "2026-07-13T11:17:55Z",
+      "updatedAt": "2026-07-14T20:12:55Z",
       "url": "https://github.com/malpern/KeyPath/issues/915",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Post-1.0. Not for the 1.0 launch. From the WWDC 2026 review \u2014 see docs/wwdc-2026-macos-27-opportunities.md (PR #911), opportunity #4. Why WWDC26: AppKit now automatically tracks @Observable property reads in draw, layout, updateConstraints, updateLayer (and\u2026"
     },
     {
@@ -164,14 +255,16 @@
         "post-release",
         "needs-decision",
         "wwdc26",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 914,
       "title": "Adopt App Intents Testing Framework for intent coverage (macOS 27)",
-      "updatedAt": "2026-07-13T11:17:55Z",
+      "updatedAt": "2026-07-14T20:12:57Z",
       "url": "https://github.com/malpern/KeyPath/issues/914",
       "dashboardStatus": "hold",
       "dashboardType": "testing",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Post-1.0. Not for the 1.0 launch. From the WWDC 2026 review \u2014 see docs/wwdc-2026-macos-27-opportunities.md (PR #911), opportunity #3. Why Intent QA currently leans on Computer Use UI automation, which is slow and flaky by nature. The new App Intents Testing\u2026"
     },
     {
@@ -180,14 +273,16 @@
         "post-release",
         "needs-decision",
         "wwdc26",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 913,
       "title": "Expose rules/packs/layers as App Intents Entity Schemas for Siri AI & Spotlight (macOS 27)",
-      "updatedAt": "2026-07-13T11:17:53Z",
+      "updatedAt": "2026-07-14T20:12:58Z",
       "url": "https://github.com/malpern/KeyPath/issues/913",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Post-1.0. Not for the 1.0 launch. From the WWDC 2026 review \u2014 see docs/wwdc-2026-macos-27-opportunities.md (PR #911), opportunity #2. Why On macOS 27, the rebuilt Siri AI lives in Spotlight, and the new App Intents Entity Schemas feed Spotlight's semantic\u2026"
     },
     {
@@ -196,14 +291,16 @@
         "post-release",
         "needs-decision",
         "wwdc26",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 912,
       "title": "Adopt Foundation Models framework for AI config repair (on-device + Claude via LanguageModel protocol)",
-      "updatedAt": "2026-07-13T11:17:53Z",
+      "updatedAt": "2026-07-14T20:13:00Z",
       "url": "https://github.com/malpern/KeyPath/issues/912",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Post-1.0. Not for the 1.0 launch. From the WWDC 2026 review \u2014 see docs/wwdc-2026-macos-27-opportunities.md (PR #911), opportunity #1 (highest reward). Why The biggest UX barrier to the AI repair feature is \"bring your own Anthropic API key\" (Keychain\u2026"
     },
     {
@@ -212,31 +309,17 @@
         "post-release",
         "needs-decision",
         "human-in-loop",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 888,
       "title": "[Design] Post-1.0 copy + terminology cleanup across rule editors",
-      "updatedAt": "2026-07-13T11:17:53Z",
+      "updatedAt": "2026-07-14T20:13:01Z",
       "url": "https://github.com/malpern/KeyPath/issues/888",
       "dashboardStatus": "hold",
       "dashboardType": "docs",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Output of the Thu 1.0 design-review pass (gate 5 of the release plan). None of these block 1.0; they're queued as a single backlog so the next design sprint can pick them up together. Full context in the RELEASE-READINESS working doc. Theme 1 \u2014 Timing\u2026"
-    },
-    {
-      "labels": [
-        "enhancement",
-        "tier-1",
-        "1.1 release",
-        "agent-ok",
-        "on-hold"
-      ],
-      "number": 870,
-      "title": "[1.1] Define rule dependency graph data model and builder",
-      "updatedAt": "2026-07-13T11:17:42Z",
-      "url": "https://github.com/malpern/KeyPath/issues/870",
-      "dashboardStatus": "hold",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865) \u2014 the dependency-detection sprint epic. Start here; everything else in the sprint depends on this. Goal A pure-data RuleDependencyGraph value type that captures the provides and requires relations\u2026"
     },
     {
       "labels": [
@@ -244,14 +327,16 @@
         "tier-2",
         "1.1 release",
         "agent-ok",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 869,
       "title": "[1.1] Forward prerequisite dialog: enable / config-edit user flow",
-      "updatedAt": "2026-07-13T11:17:42Z",
+      "updatedAt": "2026-07-14T20:13:05Z",
       "url": "https://github.com/malpern/KeyPath/issues/869",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on the detector sub-issue. Goal User-facing dialog that surfaces forward-direction missing prerequisites at save time, with a single-click \"fix it for me\" action. User scenario Alex\u2026"
     },
     {
@@ -260,63 +345,34 @@
         "tier-2",
         "1.1 release",
         "human-in-loop",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 868,
       "title": "[1.1] Reverse prerequisite dialog: disable user flow",
-      "updatedAt": "2026-07-13T11:17:42Z",
+      "updatedAt": "2026-07-14T20:13:06Z",
       "url": "https://github.com/malpern/KeyPath/issues/868",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on the detector sub-issue. Can run in parallel with the forward dialog sub-issue once the detector lands. Goal User-facing dialog that surfaces reverse-direction orphan warnings when a\u2026"
-    },
-    {
-      "labels": [
-        "enhancement",
-        "tier-1",
-        "1.1 release",
-        "agent-ok",
-        "on-hold"
-      ],
-      "number": 867,
-      "title": "[1.1] Encode per-family dependencies (HRL Toggles, Launcher, Leader-based, Custom)",
-      "updatedAt": "2026-07-13T11:17:42Z",
-      "url": "https://github.com/malpern/KeyPath/issues/867",
-      "dashboardStatus": "hold",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on the dependency-graph data model. Goal Concrete \"requires\" derivations for each family in the catalog. This is the per-family code that introspects a RuleCollectionConfiguration and\u2026"
-    },
-    {
-      "labels": [
-        "enhancement",
-        "tier-1",
-        "1.1 release",
-        "agent-ok",
-        "on-hold"
-      ],
-      "number": 866,
-      "title": "[1.1] Implement Prerequisite detector: forward + reverse queries on RuleCollectionsManager",
-      "updatedAt": "2026-07-13T11:17:42Z",
-      "url": "https://github.com/malpern/KeyPath/issues/866",
-      "dashboardStatus": "hold",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on the dependency-graph data model sub-issue. Goal Add RuleCollectionsManager+PrerequisiteDetection.swift as a sibling to the existing\u2026"
     },
     {
       "labels": [
         "enhancement",
         "1.1 release",
         "sprint-epic",
-        "human-in-loop",
         "tracking-only",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 865,
       "title": "[Sprint 1.1] Rule dependency awareness: bidirectional prerequisite detection",
-      "updatedAt": "2026-07-13T11:18:50Z",
+      "updatedAt": "2026-07-14T20:13:11Z",
       "url": "https://github.com/malpern/KeyPath/issues/865",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Status: Sprint planning spike \u2014 high-level requirements only. Sub-issues fan out the work. Problem The existing conflict detector at\u2026"
     },
     {
@@ -327,33 +383,36 @@
         "post-release",
         "needs-decision",
         "tracking-only",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 855,
       "title": "InstallerEngine conflates provision and diagnose responsibilities",
-      "updatedAt": "2026-07-13T11:17:42Z",
+      "updatedAt": "2026-07-14T20:13:12Z",
       "url": "https://github.com/malpern/KeyPath/issues/855",
       "dashboardStatus": "hold",
       "dashboardType": "debt",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Current assessment InstallerEngine remains a large, sensitive facade for install, repair, uninstall, and system inspection. The underlying maintenance debt is real, but the original standalone extraction plan is no longer the desired implementation strategy\u2026"
     },
     {
       "labels": [
-        "enhancement",
-        "feature-gap",
+        "tech-debt",
         "tier-3",
         "post-release",
         "needs-decision",
         "human-in-loop",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 688,
       "title": "Decide the future of deferred permission-flow feature flags",
-      "updatedAt": "2026-07-13T11:18:50Z",
+      "updatedAt": "2026-07-14T20:25:29Z",
       "url": "https://github.com/malpern/KeyPath/issues/688",
       "dashboardStatus": "hold",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Current state Two default-off feature flags remain: - useJustInTimePermissionRequests - allowOptionalWizard They are not dead declarations: current code has guarded call sites in keyboard capture, config reload, and setup-banner behavior. However, they are\u2026"
+      "dashboardType": "debt",
+      "dashboardScope": "keypath",
+      "descriptionExcerpt": "Verified current state Two default-off feature flags still guard live alternate paths: - useJustInTimePermissionRequests - gates permission prompting before keyboard capture in KeyboardCapture.startCapture - gates permission prompting before config reload in\u2026"
     },
     {
       "labels": [
@@ -361,14 +420,16 @@
         "post-release",
         "needs-decision",
         "human-in-loop",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 488,
       "title": "Accessibility: evaluate adaptive base sizing for the overlay keyboard",
-      "updatedAt": "2026-07-13T11:18:50Z",
+      "updatedAt": "2026-07-14T20:13:19Z",
       "url": "https://github.com/malpern/KeyPath/issues/488",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Current evidence The original audit claim is stale: overlay keyboard sizing already scales through a GeometryReader, and the base unit/gap constants are localized rather than scattered. The remaining question is product/accessibility behavior: should the\u2026"
     },
     {
@@ -376,14 +437,16 @@
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 468,
       "title": "Multi-pack collection ownership conflict resolution",
-      "updatedAt": "2026-07-13T11:17:50Z",
+      "updatedAt": "2026-07-14T20:13:20Z",
       "url": "https://github.com/malpern/KeyPath/issues/468",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Context Currently InstalledPackTracker.packManagingCollection() returns the first installed pack that claims ownership of a given collection. This works because Ben Vallack Nav is the only multi-collection system pack today. What breaks If a second system\u2026"
     },
     {
@@ -391,14 +454,16 @@
         "refactor",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 388,
       "title": "Shared keycap rendering + unified hero component across packs and collections",
-      "updatedAt": "2026-07-13T11:17:50Z",
+      "updatedAt": "2026-07-14T20:13:22Z",
       "url": "https://github.com/malpern/KeyPath/issues/388",
       "dashboardStatus": "hold",
       "dashboardType": "debt",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Context The Vallack system pack and Quick Launcher both have custom \"hero\" keyboard diagrams in the gallery, but they use completely different rendering paths from the live overlay. This creates visual drift \u2014 labels, icons, and styling diverge because each\u2026"
     },
     {
@@ -416,6 +481,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/377",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Context KeyPath currently supports 8+ logical keymaps (QWERTY, Colemak, Colemak-DH, Dvorak, Workman, Graphite, AZERTY, QWERTZ) but the support is display-only \u2014 the overlay shows correct labels for the selected keymap, but the generated kanata config always\u2026"
     },
     {
@@ -423,14 +489,16 @@
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 375,
       "title": "Pack conflict detection and resolution for multi-mechanism packs",
-      "updatedAt": "2026-07-13T11:17:50Z",
+      "updatedAt": "2026-07-14T20:13:23Z",
       "url": "https://github.com/malpern/KeyPath/issues/375",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Context As packs get richer \u2014 bundling layer toggles + key assignments + chords (see #374) \u2014 the conflict surface area grows. Currently, conflict resolution is simple: autoResolveConflicts: true means the new mapping silently wins. That's fine for single-key\u2026"
     },
     {
@@ -438,14 +506,16 @@
         "testing",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 365,
       "title": "Gradually migrate XCTest tests to Swift Testing",
-      "updatedAt": "2026-07-13T11:17:50Z",
+      "updatedAt": "2026-07-14T20:13:25Z",
       "url": "https://github.com/malpern/KeyPath/issues/365",
       "dashboardStatus": "hold",
       "dashboardType": "testing",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Summary We're currently running both XCTest (~1541 tests) and Swift Testing (~505 tests) frameworks. Swift Testing is the future \u2014 better diagnostics, parameterized tests, cleaner syntax. Approach - Write all new tests in Swift Testing (@Test, #expect)\u2026"
     },
     {
@@ -453,14 +523,16 @@
         "enhancement",
         "post-release",
         "research",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 299,
       "title": "Research: host-to-keyboard display protocol for screen-equipped keyboards (Work Louder, etc.)",
-      "updatedAt": "2026-07-13T11:17:53Z",
+      "updatedAt": "2026-07-14T20:13:27Z",
       "url": "https://github.com/malpern/KeyPath/issues/299",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "The Dream KeyPath knows what kanata layer you're on. Your keyboard has a screen. Connect the dots: - Switch to vim layer \u2192 keyboard screen shows vim shortcuts - Activate macro pad layer \u2192 screen updates with macro labels - HRM active \u2192 show which modifier is\u2026"
     },
     {
@@ -468,47 +540,33 @@
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 293,
       "title": "feat: Option/AltGr layer labels in overlay",
-      "updatedAt": "2026-07-13T11:17:50Z",
+      "updatedAt": "2026-07-14T20:13:28Z",
       "url": "https://github.com/malpern/KeyPath/issues/293",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Problem UCKeyTranslate is currently called with no modifiers and Shift only. Many international layouts have important characters on Option (e.g., \u20ac on Option+2) or AltGr (European keyboards). These aren't shown anywhere in the overlay. Solution Add an Option\u2026"
-    },
-    {
-      "labels": [
-        "kanata",
-        "driver-kit",
-        "upstream",
-        "post-release",
-        "research",
-        "human-in-loop",
-        "on-hold"
-      ],
-      "number": 254,
-      "title": "Remove fake device fixtures once macOS multi-device support lands",
-      "updatedAt": "2026-07-13T11:17:53Z",
-      "url": "https://github.com/malpern/KeyPath/issues/254",
-      "dashboardStatus": "hold",
-      "dashboardType": "upstream",
-      "descriptionExcerpt": "Context PreviewFixtures.connectedDevices provides fake device data for UI development of per-device key mappings. This was added because macOS multi-device support is blocked upstream \u2014 real multi-device enumeration isn't available yet. Upstream Blockers\u2026"
     },
     {
       "labels": [
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 216,
       "title": "Karabiner parity: mouse-to-scroll (mouse_motion_to_scroll)",
-      "updatedAt": "2026-07-13T11:17:50Z",
+      "updatedAt": "2026-07-14T20:13:30Z",
       "url": "https://github.com/malpern/KeyPath/issues/216",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Summary Karabiner-Elements supports mousemotiontoscroll manipulator type that converts mouse movement into scroll wheel events (e.g., hold a modifier and move mouse to scroll). Kanata has no equivalent. Karabiner Features - Converts mouse X/Y movement into\u2026"
     },
     {
@@ -516,14 +574,16 @@
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 215,
       "title": "Karabiner parity: mouse axis manipulation (mouse_basic)",
-      "updatedAt": "2026-07-13T11:17:50Z",
+      "updatedAt": "2026-07-14T20:13:32Z",
       "url": "https://github.com/malpern/KeyPath/issues/215",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Summary Karabiner-Elements supports mousebasic manipulator type for flipping, swapping, and discarding mouse axes (e.g., invert scroll direction, swap X/Y axes). Kanata has no equivalent. Karabiner Features - flip: Invert mouse X, Y, verticalwheel\u2026"
     },
     {
@@ -531,14 +591,16 @@
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 214,
       "title": "Karabiner parity: input source switching (select_input_source)",
-      "updatedAt": "2026-07-13T11:17:50Z",
+      "updatedAt": "2026-07-14T20:13:33Z",
       "url": "https://github.com/malpern/KeyPath/issues/214",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Summary Karabiner-Elements supports selectinputsource as an output action, allowing users to switch keyboard input methods (e.g., English \u2194 Japanese) as part of a key mapping rule. Kanata has no native equivalent. Current State - Kanata: No native input\u2026"
     },
     {
@@ -546,14 +608,16 @@
         "enhancement",
         "post-release",
         "tracking-only",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 213,
       "title": "Tracking: 100% Karabiner conversion fidelity roadmap",
-      "updatedAt": "2026-07-13T11:17:44Z",
+      "updatedAt": "2026-07-14T20:13:35Z",
       "url": "https://github.com/malpern/KeyPath/issues/213",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Summary Tracking issue for achieving 100% fidelity Karabiner \u2192 KeyPath conversion. This encompasses three categories of work: Category 1: KeyPath UI Gaps (Kanata supports, needs UI) These features can be converted to working Kanata .kbd config today, but\u2026"
     },
     {
@@ -561,14 +625,16 @@
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 212,
       "title": "Karabiner converter: support GokuRakuJoudo (Goku) EDN format import",
-      "updatedAt": "2026-07-13T11:17:49Z",
+      "updatedAt": "2026-07-14T20:13:36Z",
       "url": "https://github.com/malpern/KeyPath/issues/212",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Summary Add support for importing [GokuRakuJoudo](https://github.com/yqrashawn/GokuRakuJoudo) (Goku) EDN configs in addition to raw Karabiner JSON. Why Goku is a popular DSL that generates Karabiner JSON from a more concise EDN (Clojure data notation) format\u2026"
     },
     {
@@ -576,14 +642,16 @@
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 211,
       "title": "Karabiner converter: AI-assisted Tier 2+ conversion for complex rules",
-      "updatedAt": "2026-07-13T11:17:49Z",
+      "updatedAt": "2026-07-14T20:13:38Z",
       "url": "https://github.com/malpern/KeyPath/issues/211",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Summary After the MVP Karabiner converter ships (Tier 1: deterministic conversion of simple remaps, tap-hold, chords, macros, app rules, launchers), explore using AI to improve conversion fidelity for complex rules that resist mechanical translation. Tier 2+\u2026"
     },
     {
@@ -591,14 +659,16 @@
         "testing",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 204,
       "title": "Test KeyPathInsights feature end-to-end",
-      "updatedAt": "2026-07-13T11:17:48Z",
+      "updatedAt": "2026-07-14T20:13:40Z",
       "url": "https://github.com/malpern/KeyPath/issues/204",
       "dashboardStatus": "hold",
       "dashboardType": "testing",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Goal Validate the KeyPathInsights feature works correctly in a production-signed app build. Test checklist - [ ] Confirm KeyPathInsights plugin loads at app startup - [ ] Verify opt-in/consent flow appears and persists correctly - [ ] Generate sample activity\u2026"
     },
     {
@@ -617,6 +687,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/198",
       "dashboardStatus": "hold",
       "dashboardType": "debt",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Make Kanata's layer-while-held emit native LayerChange TCP broadcasts on activation and deactivation. This single upstream change enables eliminating the entire fake key layer notification system, the OneShotLayerOverrideState reconciliation\u2026"
     },
     {
@@ -634,6 +705,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/197",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Add support for alternative sequence-input-mode options beyond the default visible-backspaced. Kanata Modes visible-backspaced ;; (current) type keys visibly, backspace on match hidden-suppressed ;; suppress keys until match/timeout hidden-delay-type\u2026"
     },
     {
@@ -651,6 +723,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/196",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Add support for unmod and unshift, which temporarily release modifiers while outputting a key. Kanata Syntax (unmod $key) ;; release all mods (unmod ($mods) $key) ;; release specific mods (unshift $key) ;; release only shift User Value Niche but\u2026"
     },
     {
@@ -668,6 +741,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/195",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Add support for movemouse-speed to dynamically adjust mouse movement speed as a percentage. Depends on mouse keys support. Kanata Syntax (movemouse-speed $percentage) User Value Fine/coarse mouse control toggle. Hold a key to slow down mouse for\u2026"
     },
     {
@@ -685,6 +759,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/194",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Add support for arbitrary-code to send raw OS-level keycodes that Kanata doesn't have named keys for. Kanata Syntax (arbitrary-code $number) User Value Escape hatch for obscure keys, vendor-specific keycodes, or keys not yet named in Kanata. Niche but\u2026"
     },
     {
@@ -702,6 +777,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/193",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Add support for Kanata's environment and defaliasenvcond blocks, enabling different config based on environment variables. Kanata Syntax (environment (LOCATION work) (defalias ...work-specific aliases...) ) (environment (LOCATION home) (defalias\u2026"
     },
     {
@@ -719,6 +795,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/192",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary KeyPath uses include internally for app-specific configs but doesn't let users compose configs from multiple external .kbd files. Kanata Syntax (include path/to/file.kbd) User Value Advanced users can maintain hand-written Kanata config snippets and\u2026"
     },
     {
@@ -736,6 +813,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/191",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Add support for hold-for-duration, which activates an action only after holding a key for a specific duration. Unlike tap-hold, there is no tap action. Kanata Syntax (hold-for-duration $ms $action) User Value Useful for \"safety\" keys that require\u2026"
     },
     {
@@ -753,6 +831,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/190",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Add support for Kanata's rpt and rpt-any actions, which repeat the last key pressed or last action performed. Kanata Syntax rpt ;; repeat last key rpt-any ;; repeat last action (including chords/combos) User Value Simple but handy for Vim-style\u2026"
     },
     {
@@ -770,6 +849,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/189",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Add support for Kanata's clipboard management actions, enabling a multi-slot clipboard ring from keyboard shortcuts. Kanata Syntax (clipboard-set $text) (clipboard-save $id) (clipboard-restore $id) (clipboard-save-swap $id1 $id2) User Value\u2026"
     },
     {
@@ -787,6 +867,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/188",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Add support for Kanata's defzippy feature, which enables chord-triggered text expansion from an external dictionary file. Kanata Syntax (defzippy $filepath) External file format: chordkeys outputtext User Value Built-in text expansion (like\u2026"
     },
     {
@@ -804,6 +885,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/187",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Add support for cycling through multiple Kanata config files at runtime using lrld-next, lrld-prev, and lrld-num. Kanata Syntax lrld-next ;; load next config lrld-prev ;; load previous config (lrld-num 2) ;; load config #2 User Value Users who\u2026"
     },
     {
@@ -821,6 +903,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/186",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Expose Kanata's cmd action in the UI, allowing users to run shell commands from key presses. KeyPath already uses push-msg for app launching but doesn't expose raw command execution. Kanata Syntax (cmd $program $arg1 $arg2 ...) (cmd-log $log-level\u2026"
     },
     {
@@ -838,6 +921,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/185",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary KeyPath auto-generates fork for shift/ctrl variants but doesn't let users author arbitrary forks. Users should be able to create \"if modifier X is held, do A; otherwise do B\" rules. Kanata Syntax (fork $action-if-not-triggered $action-if-triggered\u2026"
     },
     {
@@ -855,6 +939,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/184",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Add support for Kanata's switch action, which enables complex conditional logic based on key history, timing, active layers, and input state. Kanata Syntax (switch ((key-history a 1)) a break ((key-timing 1 lt 200)) b break ((layer vim)) c break () d\u2026"
     },
     {
@@ -872,6 +957,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/183",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Add UI support for outputting arbitrary Unicode characters via Kanata's unicode action. Kanata Syntax (unicode \u2014) ;; em-dash (unicode \u00e9) ;; accented e (unicode U+1F600) ;; emoji by codepoint User Value Writers and international users can output\u2026"
     },
     {
@@ -889,11 +975,13 @@
       "url": "https://github.com/malpern/KeyPath/issues/182",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Add support for Kanata's dynamic macros, which let users record and replay keystroke sequences at runtime without editing config. Kanata Syntax (dynamic-macro-record $id) ;; Start recording (dynamic-macro-play $id) ;; Play back\u2026"
     },
     {
       "labels": [
         "enhancement",
+        "kanata",
         "mouse-control",
         "post-release",
         "needs-decision",
@@ -901,10 +989,11 @@
       ],
       "number": 181,
       "title": "Kanata: Add mouse key support (movement, clicks, scrolling)",
-      "updatedAt": "2026-07-13T11:17:46Z",
+      "updatedAt": "2026-07-14T20:12:42Z",
       "url": "https://github.com/malpern/KeyPath/issues/181",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Add UI support for Kanata's mouse control features: mouse movement, button clicks, and scroll wheel emulation from the keyboard. Kanata Syntax Movement (movemouse-up $interval $distance) (movemouse-accel-up $interval $accel-time $min $max) Clicks\u2026"
     },
     {
@@ -922,6 +1011,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/180",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Add UI support for Kanata's defoverrides, which intercepts specific key+modifier combinations at a low level and replaces them. Kanata Syntax (defoverrides (lsft bspc) (del) ;; Shift+Backspace = Delete (lctl a) (home) ;; Ctrl+A = Home ) User Value\u2026"
     },
     {
@@ -939,6 +1029,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/179",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary KeyPath uses one-shot-press internally for layer activation but doesn't expose one-shot modifiers as a user-configurable behavior in the mapper UI. Kanata Syntax (one-shot $timeout $action) (one-shot-press $timeout $action) (one-shot-release $timeout\u2026"
     },
     {
@@ -956,6 +1047,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/178",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary Add UI support for Kanata's caps-word feature, which auto-shifts letters until a word boundary (space, punctuation, timeout). Kanata Syntax (caps-word $timeout) (caps-word-toggle $timeout) (caps-word-custom $timeout ($shifted-keys)\u2026"
     },
     {
@@ -974,45 +1066,8 @@
       "url": "https://github.com/malpern/KeyPath/issues/177",
       "dashboardStatus": "hold",
       "dashboardType": "bug",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "[!NOTE] Status: upstream watch item; not yet reproduced through KeyPath. The upstream report remains open, but it has no current KeyPath-specific reproduction, logs, or confirmed causal path. Preserve it because persistent modifier corruption would be serious\u2026"
-    },
-    {
-      "labels": [
-        "kanata",
-        "driver-kit",
-        "upstream",
-        "post-release",
-        "research",
-        "bug-risk",
-        "human-in-loop",
-        "on-hold"
-      ],
-      "number": 176,
-      "title": "Upstream: Bluetooth and Logitech mice disabled or stuck when Kanata runs",
-      "updatedAt": "2026-07-13T11:18:38Z",
-      "url": "https://github.com/malpern/KeyPath/issues/176",
-      "dashboardStatus": "hold",
-      "dashboardType": "bug",
-      "descriptionExcerpt": "[!NOTE] Status: upstream hardware-compatibility watch item; no confirmed current KeyPath reproduction. The two referenced upstream reports are closed, and the bundled Kanata contains the related macOS mouse event-tap fix (29c9366). Some combined Bluetooth\u2026"
-    },
-    {
-      "labels": [
-        "driver-kit",
-        "upstream",
-        "testing",
-        "post-release",
-        "research",
-        "bug-risk",
-        "human-in-loop",
-        "on-hold"
-      ],
-      "number": 175,
-      "title": "Upstream: Sidecar/external displays crash Kanata (null pointer in driverkit)",
-      "updatedAt": "2026-07-13T11:18:36Z",
-      "url": "https://github.com/malpern/KeyPath/issues/175",
-      "dashboardStatus": "hold",
-      "dashboardType": "bug",
-      "descriptionExcerpt": "[!NOTE] Status: upstream issue resolved and relevant fixes are bundled; no confirmed remaining KeyPath bug. The original null-product-string crash was fixed in the driverkit dependency, and the current bundled Kanata also contains later macOS\u2026"
     },
     {
       "labels": [
@@ -1030,10 +1085,12 @@
       "url": "https://github.com/malpern/KeyPath/issues/174",
       "dashboardStatus": "hold",
       "dashboardType": "bug",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "[!IMPORTANT] Status: plausible direct KeyPath reliability bug; current-stack reproduction required. Sleep and lid-close recovery are normal KeyPath user paths, and the upstream issue remains open. The bundled Kanata now includes output-loss recovery plus\u2026"
     },
     {
       "labels": [
+        "kanata",
         "driver-kit",
         "upstream",
         "post-release",
@@ -1044,10 +1101,11 @@
       ],
       "number": 172,
       "title": "Upstream: Virtual HID keyboard doesn't emit native media key usage pages (F-row)",
-      "updatedAt": "2026-07-13T11:17:53Z",
+      "updatedAt": "2026-07-14T20:12:42Z",
       "url": "https://github.com/malpern/KeyPath/issues/172",
       "dashboardStatus": "hold",
       "dashboardType": "bug",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "[!IMPORTANT] Status: plausible direct KeyPath behavior; reproduction required on the current bundled stack. The upstream report includes current macOS 26 behavior where media keys work with Kanata disabled and fail with Kanata enabled. Because KeyPath routes\u2026"
     },
     {
@@ -1067,6 +1125,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/171",
       "dashboardStatus": "hold",
       "dashboardType": "bug",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "[!NOTE] Status: upstream watch item; no confirmed current KeyPath reproduction. This affects a niche class of composite keyboard/pointing devices represented by upstream Kanata issue #708. Keep it for provenance and future affected-user reports, but do not\u2026"
     },
     {
@@ -1084,6 +1143,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/121",
       "dashboardStatus": "hold",
       "dashboardType": "upstream",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Follow-up to the current client-only TCP handshake fix in KeyPath (Hello parsing now uses the initial response and only reads more lines if needed). Problem: Hello() can fail when broadcast lines (e.g., KeyInput) interleave with the HelloOk response, causing\u2026"
     },
     {
@@ -1100,6 +1160,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/114",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Problem Kanata supports virtual key press and release actions but KeyPath only models tap. Current State Virtual key tap only Missing Virtual key press Virtual key release Impact Users can't create hold-based virtual key actions. Fix 1. Model press/release\u2026"
     },
     {
@@ -1116,6 +1177,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/113",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Problem Kanata supports 5 types of one-shot behavior but KeyPath only exposes 1 type. Current State Basic one-shot support only. Missing Variants one-shot-press one-shot-release one-shot-press-pcancel one-shot-release-pcancel Impact Power users can't\u2026"
     },
     {
@@ -1132,6 +1194,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/110",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Problem Kanata supports advanced macro features but KeyPath only supports basic macros: Timed macros (delays between keys) Dynamic macros (record on-the-fly) Macro-repeat variants Current State Basic macro support only - simple key sequences without timing\u2026"
     },
     {
@@ -1148,6 +1211,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/109",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Problem Kanata supports code generation (deftemplate) and pattern layers (deflayermap) but KeyPath doesn't expose these features. Missing Features deftemplate: Code generation for repetitive config deflayermap: Pattern-based layer syntax Dynamic conditionals\u2026"
     },
     {
@@ -1164,6 +1228,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/107",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Problem Kanata TCP protocol sends ChordResolved and TapDanceResolved events but KeyPath doesn't handle them. This is tracked as MAL-10 for keyberon emission points. Currently Handled LayerChange ConfigFileReload Ready ConfigError MessagePush Not Handled\u2026"
     },
     {
@@ -1180,6 +1245,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/105",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Problem Kanata supports sequences (defseq) for git shortcuts and Vim leader sequences, but KeyPath only parses them - users can't create/edit sequences via UI. Impact Can't create git shortcuts (e.g., \"gs\" \u2192 \"git status\") Can't create Vim leader sequences\u2026"
     },
     {
@@ -1187,14 +1253,16 @@
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 77,
       "title": "Phase 3: Add chord/macro/sequence suppression to keyboard overlay",
-      "updatedAt": "2026-07-13T11:17:44Z",
+      "updatedAt": "2026-07-14T20:13:42Z",
       "url": "https://github.com/malpern/KeyPath/issues/77",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Centralized suppression plan (authoritative) This issue is the authoritative source for finishing suppression in the keyboard overlay. The doc docs/central-suppression.md should mirror this issue, not diverge. Goal When Kanata transforms input (remaps\u2026"
     },
     {
@@ -1213,6 +1281,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/68",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
+      "dashboardScope": "kanata",
       "descriptionExcerpt": "Summary The TCP protocol types and Swift handlers are ready for three overlay events, but the keyberon emission points are not yet implemented: | Event | Protocol | Swift | Keyberon Emission | | -- | -- | -- | -- | | OneShotActivated | \u2705 | \u2705 | \u274c Not\u2026"
     },
     {
@@ -1220,48 +1289,112 @@
         "post-release",
         "research",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 63,
       "title": "Per-keyboard rule targeting (Karabiner-like) \u2014 device-aware predicates for switch/actions",
-      "updatedAt": "2026-07-13T11:17:44Z",
+      "updatedAt": "2026-07-14T20:13:43Z",
       "url": "https://github.com/malpern/KeyPath/issues/63",
       "dashboardStatus": "hold",
       "dashboardType": "upstream",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Problem Kanata can only select devices at startup (macos-dev-names-, linux-dev-names-). Within a single process there\u2019s no way to target or exclude specific keyboards inside rules (layers, overrides, aliases, etc.). Users want Karabiner-style per-device\u2026"
-    },
-    {
-      "labels": [
-        "enhancement",
-        "devux",
-        "post-release",
-        "human-in-loop",
-        "tracking-only"
-      ],
-      "number": 934,
-      "title": "Wizard polish batch: restart messaging, prompt wording, progress indicator, completion moment, error recovery, misc",
-      "updatedAt": "2026-07-13T11:18:50Z",
-      "url": "https://github.com/malpern/KeyPath/issues/934",
-      "dashboardStatus": "deferred",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Grouped polish items from the 2026-07-02 fresh-install QA review (log + code audit). Split out anything that grows. The moments that hurt (tier 1) - [ ] Restart-needed messaging: AX polled \"denied\" for 50s while the user was granting it; only read granted\u2026"
     },
     {
       "labels": [
         "testing",
         "post-release",
-        "tracking-only"
+        "tracking-only",
+        "keypath"
       ],
       "number": 604,
       "title": "Tracking: targeted remaining test coverage and integration gaps",
-      "updatedAt": "2026-07-13T11:18:50Z",
+      "updatedAt": "2026-07-14T20:13:17Z",
       "url": "https://github.com/malpern/KeyPath/issues/604",
       "dashboardStatus": "deferred",
       "dashboardType": "testing",
+      "dashboardScope": "keypath",
       "descriptionExcerpt": "Status Tracking-only roadmap. Do not implement this issue as one PR. The original phases 1-3 are substantially complete through PRs #610, #612, #613, and #615: - thin and misleading test suites were audited and expanded; - the named coordinators gained\u2026"
     }
   ],
   "recentlyClosed": [
+    {
+      "labels": [
+        "enhancement",
+        "devux",
+        "post-release",
+        "tracking-only",
+        "keypath"
+      ],
+      "number": 934,
+      "title": "Wizard polish batch: restart messaging, prompt wording, progress indicator, completion moment, error recovery, misc",
+      "updatedAt": "2026-07-14T20:25:27Z",
+      "url": "https://github.com/malpern/KeyPath/issues/934",
+      "dashboardStatus": "completed",
+      "dashboardType": "feature",
+      "dashboardScope": "keypath",
+      "descriptionExcerpt": "This tracking batch was re-audited against current master on 2026-07-14. It should not remain open as a broad implementation target. Completed or no longer actionable - [x] Progress indicator, wizard-open flicker, cosmetic error severity, and validation-loop\u2026"
+    },
+    {
+      "labels": [
+        "kanata",
+        "driver-kit",
+        "upstream",
+        "post-release",
+        "research",
+        "human-in-loop",
+        "on-hold"
+      ],
+      "number": 254,
+      "title": "Remove fake device fixtures once macOS multi-device support lands",
+      "updatedAt": "2026-07-14T04:13:40Z",
+      "url": "https://github.com/malpern/KeyPath/issues/254",
+      "dashboardStatus": "completed",
+      "dashboardType": "upstream",
+      "dashboardScope": "kanata",
+      "descriptionExcerpt": "Context PreviewFixtures.connectedDevices provides fake device data for UI development of per-device key mappings. This was added because macOS multi-device support is blocked upstream \u2014 real multi-device enumeration isn't available yet. Upstream Blockers\u2026"
+    },
+    {
+      "labels": [
+        "kanata",
+        "driver-kit",
+        "upstream",
+        "post-release",
+        "research",
+        "bug-risk",
+        "human-in-loop",
+        "on-hold"
+      ],
+      "number": 176,
+      "title": "Upstream: Bluetooth and Logitech mice disabled or stuck when Kanata runs",
+      "updatedAt": "2026-07-14T04:13:38Z",
+      "url": "https://github.com/malpern/KeyPath/issues/176",
+      "dashboardStatus": "completed",
+      "dashboardType": "bug",
+      "dashboardScope": "kanata",
+      "descriptionExcerpt": "[!NOTE] Status: upstream hardware-compatibility watch item; no confirmed current KeyPath reproduction. The two referenced upstream reports are closed, and the bundled Kanata contains the related macOS mouse event-tap fix (29c9366). Some combined Bluetooth\u2026"
+    },
+    {
+      "labels": [
+        "driver-kit",
+        "upstream",
+        "testing",
+        "post-release",
+        "research",
+        "bug-risk",
+        "human-in-loop",
+        "on-hold"
+      ],
+      "number": 175,
+      "title": "Upstream: Sidecar/external displays crash Kanata (null pointer in driverkit)",
+      "updatedAt": "2026-07-14T04:13:36Z",
+      "url": "https://github.com/malpern/KeyPath/issues/175",
+      "dashboardStatus": "completed",
+      "dashboardType": "bug",
+      "dashboardScope": "other",
+      "descriptionExcerpt": "[!NOTE] Status: upstream issue resolved and relevant fixes are bundled; no confirmed remaining KeyPath bug. The original null-product-string crash was fixed in the driverkit dependency, and the current bundled Kanata also contains later macOS\u2026"
+    },
     {
       "labels": [
         "refactor",
@@ -1276,6 +1409,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/737",
       "dashboardStatus": "completed",
       "dashboardType": "debt",
+      "dashboardScope": "other",
       "descriptionExcerpt": "Context Split out from #731 after the stable-1.0 release blockers were fixed. The mapper is a shipping feature, but some mapper implementation still lives under UI/Experimental, which makes ownership and navigation misleading. Evidence From #731\u2026"
     },
     {
@@ -1289,6 +1423,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/484",
       "dashboardStatus": "completed",
       "dashboardType": "debt",
+      "dashboardScope": "other",
       "descriptionExcerpt": "Code Audit Finding \u00a77.3 \u2014 Medium Problem: Five computed properties chain filtering and sorting on every render: allCollections \u2192 sortedCollections \u2192 filteredCollections \u2192 filteredCustomRules \u2192 filteredAppKeymaps. Scales poorly with large rule sets. Location\u2026"
     },
     {
@@ -1306,6 +1441,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/694",
       "dashboardStatus": "completed",
       "dashboardType": "feature",
+      "dashboardScope": "other",
       "descriptionExcerpt": "Tier: 3 (minor / deferred-by-design) From the pre-release feature-gap audit. Two unrelated deferred TODOs tracked together for cleanup. Items 1. QMK HID-descriptor key identification \u2014 declared but not used by the current keymap-based flow\u2026"
     },
     {
@@ -1320,6 +1456,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/487",
       "dashboardStatus": "completed",
       "dashboardType": "debt",
+      "dashboardScope": "other",
       "descriptionExcerpt": "Code Audit Finding \u00a78.4 \u2014 Medium Problem: Body view chains 16+ .onChange() modifiers using intermediate let bindings, spanning 750+ lines. Obscures core view hierarchy. Location: Sources/KeyPathAppKit/UI/Overlay/OverlayMapperSection.swift:62-120 Action\u2026"
     },
     {
@@ -1336,6 +1473,7 @@
       "url": "https://github.com/malpern/KeyPath/issues/852",
       "dashboardStatus": "completed",
       "dashboardType": "debt",
+      "dashboardScope": "other",
       "descriptionExcerpt": "Problem App.swift owns: window creation, wizard presentation, keyboard-layout detection, emergency-stop handling, headless auto-start, first-activation flow, fresh-install detection, menu bar setup, and SMAppService dev utilities. The first-activation block\u2026"
     },
     {
@@ -1349,62 +1487,8 @@
       "url": "https://github.com/malpern/KeyPath/issues/641",
       "dashboardStatus": "completed",
       "dashboardType": "upstream",
+      "dashboardScope": "other",
       "descriptionExcerpt": "Retrospective + go/no-go for #638 (KeyPath should detect a stale running kanata). We built it, found it doesn't work in practice, and reverted it (#640). Capturing why, and a recommendation. The goal (#638) A kanata daemon can outlive a KeyPath\u2026"
-    },
-    {
-      "labels": [
-        "refactor",
-        "post-release"
-      ],
-      "number": 149,
-      "title": "Define module boundaries and extraction plan for KeyPathAppKit",
-      "updatedAt": "2026-07-13T11:16:25Z",
-      "url": "https://github.com/malpern/KeyPath/issues/149",
-      "dashboardStatus": "completed",
-      "dashboardType": "debt",
-      "descriptionExcerpt": "KeyPathAppKit is a monolithic target (\\~121k Swift LOC). Directory structure exists but compile-time boundaries do not, so layering can drift. Baseline Findings (2026-02-06) Initial build benchmark for swift build --product KeyPath (debug): clean: 74s noop\u2026"
-    },
-    {
-      "labels": [
-        "refactor",
-        "tech-debt",
-        "post-release"
-      ],
-      "number": 495,
-      "title": "Large files could benefit from splitting (audit \u00a79.7)",
-      "updatedAt": "2026-07-13T11:16:25Z",
-      "url": "https://github.com/malpern/KeyPath/issues/495",
-      "dashboardStatus": "completed",
-      "dashboardType": "debt",
-      "descriptionExcerpt": "Code Audit Finding \u00a79.7 \u2014 Low Problem: 8 files exceed 1000 lines; several already use MARK sections indicating natural split points. Files: - \\RuntimeCoordinator.swift\\ (1487 lines) - \\WizardDesignSystem.swift\\ (1242) - \\LauncherCollectionView.swift\\ (1053)\u2026"
-    },
-    {
-      "labels": [
-        "post-release",
-        "model:haiku",
-        "human-in-loop"
-      ],
-      "number": 741,
-      "title": "Post-1.0: audit design-system token/style consolidation",
-      "updatedAt": "2026-07-13T11:16:25Z",
-      "url": "https://github.com/malpern/KeyPath/issues/741",
-      "dashboardStatus": "completed",
-      "dashboardType": "other",
-      "descriptionExcerpt": "Context Split out from #731 after the stable-1.0 release blockers were fixed. 731 noted multiple design token/style files may be noisy, but this was not a 1.0 stability issue unless it blocked specific UI fixes. Direction Audit design-system/style definitions\u2026"
-    },
-    {
-      "labels": [
-        "refactor",
-        "tech-debt",
-        "post-release"
-      ],
-      "number": 494,
-      "title": "RulesSummaryView state management cleanup (audit \u00a78.3, \u00a78.5)",
-      "updatedAt": "2026-07-13T11:16:25Z",
-      "url": "https://github.com/malpern/KeyPath/issues/494",
-      "dashboardStatus": "completed",
-      "dashboardType": "debt",
-      "descriptionExcerpt": "Code Audit Findings \u00a78.3 + \u00a78.5 \u2014 Low Problem: - \u00a78.3: 21 separate \\@State\\ declarations including dictionaries, optionals, and sets. Harder to reason about state coherence. - \u00a78.5: \\@Bindable var kanataManager = kanataManager\\ declared inside body, recreated\u2026"
     }
   ]
 }
