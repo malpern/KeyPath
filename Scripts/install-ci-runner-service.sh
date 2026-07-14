@@ -74,7 +74,11 @@ remove_legacy_runner_agent() {
     local runner_name legacy_dir legacy_plist legacy_label
 
     [[ -n "$RUNNER_UID" ]] || return 0
-    runner_name="$(/usr/libexec/PlistBuddy -c 'Print :agentName' "$RUNNER_DIR/.runner" 2>/dev/null || true)"
+    # GitHub stores runner registration metadata as JSON, not a property list.
+    # macOS plutil reads JSON and avoids adding a jq dependency to this boot-time
+    # installer.  A plist-only parser silently returns no name and leaves the
+    # conflicting LaunchAgent loaded.
+    runner_name="$(/usr/bin/plutil -extract agentName raw -o - "$RUNNER_DIR/.runner" 2>/dev/null || true)"
     [[ -n "$runner_name" ]] || return 0
 
     legacy_dir="/Users/$RUNNER_USER/Library/LaunchAgents"
