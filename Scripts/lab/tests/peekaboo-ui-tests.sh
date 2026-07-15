@@ -102,4 +102,9 @@ grep -q 'drag --from-coords 30,50 --to-coords 650,110 --duration 1500 --steps 30
 grep -q 'Finder 80,90,640,480' "$OSASCRIPT_CALLS"
 grep -q 'System Settings 700,100,800,600' "$OSASCRIPT_CALLS"
 
+if grep -q '/usr/bin/python3' "$LAB_DIR/permission-drag" "$LAB_DIR/remote.sh"; then
+  echo 'desktop QA helper bypassed the provisioned Python 3 on PATH' >&2
+  exit 1
+fi
+
 echo 'peekaboo-ui shell tests passed'

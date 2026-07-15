@@ -138,6 +138,11 @@ observed on July 13, 2026 was SSH-ready but had no logged-in console user and
 no Python runtime; it needs a new clean base checkpoint after automatic login
 and desktop-tool provisioning before selector scenarios can run.
 
+For a console-ready candidate base, run `desktop-bootstrap --install-tools`
+once before capturing its checkpoint. It installs Python 3 as well as
+Peekaboo and mcporter, then records the console-user and Peekaboo evidence.
+This is base provisioning, not a per-scenario setup step.
+
 ### Disposable desktop identity with Nameplate
 
 Nameplate can label an owned desktop lease without modifying its base image:

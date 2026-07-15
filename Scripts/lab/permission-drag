@@ -11,6 +11,7 @@ usage() {
 peekaboo=${PEEKABOO_BIN:-/opt/homebrew/bin/peekaboo}
 open_bin=${OPEN_BIN:-/usr/bin/open}
 osascript=${OSASCRIPT_BIN:-/usr/bin/osascript}
+python_bin=$(command -v python3 || true)
 file_path=
 target_identifier=
 output=
@@ -27,6 +28,7 @@ done
 [[ "$file_path" == /* && -f "$file_path" ]] || die "--path must identify an existing absolute file"
 [[ -n "$target_identifier" ]] || die "--target-identifier is required"
 [[ -n "$output" && "$output" != -* ]] || die "--output is required"
+[[ -x "$python_bin" ]] || die "Python 3 is required"
 mkdir -p "${output:h}"
 
 tmp=$(mktemp -d /tmp/keypath-permission-drag.XXXXXX)
@@ -63,7 +65,7 @@ sleep ${KEYPATH_PERMISSION_DRAG_SETTLE_SECONDS:-1}
 "$peekaboo" see --app Finder --json > "$tmp/source.json"
 "$peekaboo" see --app "System Settings" --json > "$tmp/target.json"
 
-coords=$(/usr/bin/python3 - "$tmp/source.json" "$tmp/target.json" "$name" "$target_identifier" <<'PY'
+coords=$("$python_bin" - "$tmp/source.json" "$tmp/target.json" "$name" "$target_identifier" <<'PY'
 import json, sys
 
 source = json.load(open(sys.argv[1])).get("data", {}).get("ui_elements", [])
@@ -97,7 +99,7 @@ if "$osascript" -l JavaScript -e 'var p=Application("System Events").processes.b
 fi
 
 "$peekaboo" see --app "System Settings" --json > "$tmp/after.json"
-/usr/bin/python3 - "$tmp/after.json" "${name}_Title" <<'PY' || die "drag delivery had no authorization sheet or permission-row postcondition"
+"$python_bin" - "$tmp/after.json" "${name}_Title" <<'PY' || die "drag delivery had no authorization sheet or permission-row postcondition"
 import json, sys
 elements = json.load(open(sys.argv[1])).get("data", {}).get("ui_elements", [])
 raise SystemExit(0 if any(e.get("identifier") == sys.argv[2] for e in elements) else 1)
