@@ -113,6 +113,15 @@ printf '%s\n' "\$*" > "$TMP/guest-ssh-args"
 cat > "$TMP/guest-ssh-stdin"
 EOF
 chmod +x "$ROOT/bin/tart" "$ROOT/bin/guest-ssh"
+cat > "$ROOT/bin/prlctl" <<EOF
+#!/bin/bash
+echo "prlctl \$*" >> "$CALLS"
+if [[ \$1 == capture && \$3 == --file ]]; then
+  mkdir -p "\$(dirname "\$4")"
+  echo png > "\$4"
+fi
+EOF
+chmod +x "$ROOT/bin/prlctl"
 echo test-private-key > "$TMP/id_ed25519"
 echo 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
 
@@ -131,6 +140,7 @@ run_remote() {
     KEYPATH_LAB_CRABBOX="$ROOT/bin/crabbox" \
     KEYPATH_LAB_TART="$ROOT/bin/tart" \
     KEYPATH_LAB_GUEST_SSH="$ROOT/bin/guest-ssh" \
+    KEYPATH_LAB_PRLCTL="$ROOT/bin/prlctl" \
     KEYPATH_LAB_TEST_SSH_KEY="$TMP/id_ed25519" \
     KEYPATH_LAB_TEST_SECRET_FILE="$TMP/secure-input" \
         /bin/zsh "$REMOTE" "$@"
@@ -364,6 +374,13 @@ assert_contains "$artifacts27" $'download_status\t0'
 grep -q 'crabbox run --provider parallels --target macos --id cbx_test27 --stop-after never --download' "$CALLS"
 run_remote destroy cbx_test27 >/dev/null
 grep -q 'stop-27 cbx_test27' "$CALLS"
+
+desktop26_create=$(run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
+assert_contains "$desktop26_create" $'lease_id\tcbx_desktop26'
+desktop26_artifacts=$(run_remote artifacts cbx_desktop26)
+assert_contains "$desktop26_artifacts" $'screenshot_status\t0'
+grep -q 'prlctl capture 00000000-0000-0000-0000-000000000000 --file' "$CALLS"
+run_remote destroy cbx_desktop26 >/dev/null
 
 desktop_create=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
 assert_contains "$desktop_create" $'lease_id\tcbx_desktop15'

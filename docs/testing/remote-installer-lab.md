@@ -113,7 +113,10 @@ Artifact collection packages scenario output inside the guest and retrieves the
 single archive with CrabBox's native, owner-only `run --download` path. It does
 not parse private SSH-key locations or invoke `scp`. CrabBox 0.36's provider
 `cp` command is not supported by these providers, and its aggregate desktop
-artifact workflow requires a desktop-enabled lease.
+artifact workflow requires a desktop-enabled lease. Controller screenshots use
+CrabBox for Tart leases and Parallels' read-only `prlctl capture` for Parallels
+leases; CrabBox's generic screenshot command expects a VNC endpoint that the
+Parallels desktop base intentionally does not expose.
 
 Pass `--desktop` when approval interaction or screenshots are required. The
 controller mirrors the existing provider launcher configuration while adding
