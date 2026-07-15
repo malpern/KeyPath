@@ -8,7 +8,7 @@ final class ServiceStatusEvaluatorActionTests: XCTestCase {
             operationSucceeded: true,
             kanataIsRunning: true,
             systemState: .active,
-            issues: [staleInputCaptureIssue()]
+            issuesBeforeAction: [staleInputCaptureIssue()]
         )
 
         XCTAssertEqual(status, .running)
@@ -19,7 +19,7 @@ final class ServiceStatusEvaluatorActionTests: XCTestCase {
             operationSucceeded: true,
             kanataIsRunning: false,
             systemState: .serviceNotRunning,
-            issues: [staleInputCaptureIssue()]
+            issuesBeforeAction: [staleInputCaptureIssue()]
         )
 
         XCTAssertEqual(status, .stopped)
@@ -40,7 +40,7 @@ final class ServiceStatusEvaluatorActionTests: XCTestCase {
             operationSucceeded: true,
             kanataIsRunning: true,
             systemState: .active,
-            issues: [permissionIssue]
+            issuesBeforeAction: [permissionIssue]
         )
 
         XCTAssertEqual(
@@ -54,7 +54,7 @@ final class ServiceStatusEvaluatorActionTests: XCTestCase {
             operationSucceeded: false,
             kanataIsRunning: true,
             systemState: .active,
-            issues: [staleInputCaptureIssue()]
+            issuesBeforeAction: [staleInputCaptureIssue()]
         )
 
         XCTAssertEqual(

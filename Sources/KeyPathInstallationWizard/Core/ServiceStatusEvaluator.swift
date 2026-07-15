@@ -25,12 +25,12 @@ public enum ServiceStatusEvaluator {
         operationSucceeded: Bool,
         kanataIsRunning: Bool,
         systemState: WizardSystemState,
-        issues: [WizardIssue]
+        issuesBeforeAction: [WizardIssue]
     ) -> ServiceProcessStatus {
-        let effectiveIssues = operationSucceeded ? issues.filter { issue in
+        let effectiveIssues = operationSucceeded ? issuesBeforeAction.filter { issue in
             if case .daemon = issue.identifier { return false }
             return true
-        } : issues
+        } : issuesBeforeAction
 
         return evaluate(
             kanataIsRunning: kanataIsRunning,
