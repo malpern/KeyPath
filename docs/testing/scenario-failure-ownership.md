@@ -28,6 +28,25 @@ The supported classifications are:
 Attach only sanitized artifact-relative evidence paths. Do not put secrets,
 credentials, or raw tool responses in `result.json`.
 
+## Consolidated report
+
+After collecting scenario artifacts under one directory, build the
+machine-readable evidence index with:
+
+```bash
+Scripts/lab/scenario-report \
+  --input .keypath-lab/scenario-output \
+  --output .keypath-lab/scenario-report.json
+```
+
+The report recursively discovers `result.json` files, validates their outcome
+contract, and counts statuses and failure owners. Evidence links are rewritten
+relative to the supplied artifact root and include an `exists` flag. Absolute
+paths, parent traversal, symlink escapes, malformed results, and unclassified
+non-passing outcomes fail the report instead of being published. Failure
+messages are intentionally omitted from the consolidated report so raw tool
+details cannot spread beyond the individual sanitized result.
+
 ## Selector self-test
 
 Run this in every runner test suite:
