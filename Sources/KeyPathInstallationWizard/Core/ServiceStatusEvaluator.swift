@@ -10,6 +10,40 @@ public enum ServiceProcessStatus: Equatable {
     case failed(message: String?)
 }
 
+// MARK: - Service Action Completion
+
+enum ServiceActionTarget: Equatable {
+    case running
+    case stopped
+}
+
+enum ServiceActionCompletion: Equatable {
+    case verifiedRunning
+    case verifiedStopped
+    case refreshRequired
+}
+
+/// Reconciles an explicit service action with the passive wizard status snapshot.
+///
+/// Successful lifecycle operations have already verified their postcondition. That
+/// result must take precedence over issues captured before the action began. A failed
+/// operation requires a fresh snapshot so the UI can explain the current state.
+enum ServiceActionCompletionEvaluator {
+    static func evaluate(
+        operationSucceeded: Bool,
+        target: ServiceActionTarget
+    ) -> ServiceActionCompletion {
+        guard operationSucceeded else { return .refreshRequired }
+
+        switch target {
+        case .running:
+            return .verifiedRunning
+        case .stopped:
+            return .verifiedStopped
+        }
+    }
+}
+
 // MARK: - Service Status Evaluator
 
 /// Single source of truth for service status evaluation across all wizard pages

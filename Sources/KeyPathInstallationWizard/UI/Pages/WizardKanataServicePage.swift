@@ -125,12 +125,7 @@ public struct WizardKanataServicePage: View {
 
     // MARK: - Helper Methods
 
-    private enum DesiredServiceState {
-        case running
-        case stopped
-    }
-
-    private func evaluateServiceCompletion(target: DesiredServiceState, actionName: String) {
+    private func evaluateServiceCompletion(target: ServiceActionTarget, actionName: String) {
         switch target {
         case .running:
             switch serviceStatus {
@@ -152,6 +147,32 @@ public struct WizardKanataServicePage: View {
             default:
                 actionStatus = .error(message: "\(actionName) did not complete. Try again.")
             }
+        }
+    }
+
+    @MainActor
+    private func completeServiceAction(
+        succeeded: Bool,
+        target: ServiceActionTarget,
+        actionName: String
+    ) async {
+        isPerformingAction = false
+
+        switch ServiceActionCompletionEvaluator.evaluate(
+            operationSucceeded: succeeded,
+            target: target
+        ) {
+        case .verifiedRunning:
+            serviceStatus = .running
+            evaluateServiceCompletion(target: target, actionName: actionName)
+            onRefresh()
+        case .verifiedStopped:
+            serviceStatus = .stopped
+            evaluateServiceCompletion(target: target, actionName: actionName)
+            onRefresh()
+        case .refreshRequired:
+            await refreshStatusAsync()
+            evaluateServiceCompletion(target: target, actionName: actionName)
         }
     }
 
@@ -224,10 +245,12 @@ public struct WizardKanataServicePage: View {
         actionStatus = .inProgress(message: "Starting KeyPath runtime…")
 
         Task { @MainActor in
-            _ = await kanataManager.startKanata(reason: "Wizard service start button")
-            isPerformingAction = false
-            await refreshStatusAsync()
-            evaluateServiceCompletion(target: .running, actionName: "Kanata start")
+            let succeeded = await kanataManager.startKanata(reason: "Wizard service start button")
+            await completeServiceAction(
+                succeeded: succeeded,
+                target: .running,
+                actionName: "Kanata start"
+            )
         }
     }
 
@@ -241,10 +264,12 @@ public struct WizardKanataServicePage: View {
         actionStatus = .inProgress(message: "Restarting KeyPath runtime…")
 
         Task { @MainActor in
-            _ = await kanataManager.restartKanata(reason: "Wizard service restart button")
-            isPerformingAction = false
-            await refreshStatusAsync()
-            evaluateServiceCompletion(target: .running, actionName: "Kanata restart")
+            let succeeded = await kanataManager.restartKanata(reason: "Wizard service restart button")
+            await completeServiceAction(
+                succeeded: succeeded,
+                target: .running,
+                actionName: "Kanata restart"
+            )
         }
     }
 
@@ -258,10 +283,12 @@ public struct WizardKanataServicePage: View {
         actionStatus = .inProgress(message: "Stopping KeyPath runtime…")
 
         Task { @MainActor in
-            _ = await kanataManager.stopKanata(reason: "Wizard service stop button")
-            isPerformingAction = false
-            await refreshStatusAsync()
-            evaluateServiceCompletion(target: .stopped, actionName: "Kanata stop")
+            let succeeded = await kanataManager.stopKanata(reason: "Wizard service stop button")
+            await completeServiceAction(
+                succeeded: succeeded,
+                target: .stopped,
+                actionName: "Kanata stop"
+            )
         }
     }
 
