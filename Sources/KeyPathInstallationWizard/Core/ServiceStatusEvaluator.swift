@@ -15,6 +15,25 @@ public enum ServiceProcessStatus: Equatable {
 /// Single source of truth for service status evaluation across all wizard pages
 /// Pure function approach - no side effects, consistent results
 public enum ServiceStatusEvaluator {
+    /// Evaluates a fresh runtime observation after an explicit lifecycle action.
+    ///
+    /// A successful lifecycle operation has already verified runtime readiness, so
+    /// pre-action issues must not override it. The fresh process observation still
+    /// has to match the requested result. Failed operations retain current issues to
+    /// explain the failure while the parent launches a canonical system refresh.
+    public static func evaluateAfterAction(
+        operationSucceeded: Bool,
+        kanataIsRunning: Bool,
+        systemState: WizardSystemState,
+        issues: [WizardIssue]
+    ) -> ServiceProcessStatus {
+        evaluate(
+            kanataIsRunning: kanataIsRunning,
+            systemState: systemState,
+            issues: operationSucceeded ? [] : issues
+        )
+    }
+
     /// Evaluates service status using the same logic for both summary and detail pages
     /// - Parameters:
     ///   - kanataIsRunning: Whether kanata process is currently running
