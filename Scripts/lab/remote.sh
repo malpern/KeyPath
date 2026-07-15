@@ -822,6 +822,7 @@ list_leases() {
 
 collect_artifacts() {
   local lease=$1 manifest output exit_code macos repo archive provider_resource parallels_cli
+  local parallels_resource_pattern='^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$'
   local nameplate_restore=0 nameplate_hide_status=not-needed nameplate_restore_status=not-needed
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
@@ -864,7 +865,7 @@ collect_artifacts() {
       (cd "$repo" && "$CRABBOX" screenshot --provider tart --target macos --id "$lease" --output "$output/screenshot.png") >> "$output/download.log" 2>&1
     else
       provider_resource=$(field "$manifest" provider_resource)
-      [[ "$provider_resource" =~ '^[A-Fa-f0-9-]+$' && "$provider_resource" != "unknown" ]] || die "invalid Parallels resource id"
+      [[ "$provider_resource" =~ $parallels_resource_pattern ]] || die "invalid Parallels resource id"
       parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
       [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
       "$parallels_cli" capture "$provider_resource" --file "$output/screenshot.png" >> "$output/download.log" 2>&1

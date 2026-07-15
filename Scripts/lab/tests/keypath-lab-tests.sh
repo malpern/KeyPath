@@ -380,6 +380,17 @@ assert_contains "$desktop26_create" $'lease_id\tcbx_desktop26'
 desktop26_artifacts=$(run_remote artifacts cbx_desktop26)
 assert_contains "$desktop26_artifacts" $'screenshot_status\t0'
 grep -q 'prlctl capture 00000000-0000-0000-0000-000000000000 --file' "$CALLS"
+desktop26_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_desktop26/manifest.tsv"
+awk -F '\t' 'BEGIN {OFS="\t"} $1 == "provider_resource" {$2="-option-like-id"} {print}' "$desktop26_manifest" > "$desktop26_manifest.tmp"
+mv "$desktop26_manifest.tmp" "$desktop26_manifest"
+prlctl_calls_before=$(grep -c '^prlctl capture ' "$CALLS")
+set +e
+invalid_resource_output=$(run_remote artifacts cbx_desktop26 2>&1)
+invalid_resource_exit=$?
+set -e
+[[ $invalid_resource_exit -eq 1 ]]
+assert_contains "$invalid_resource_output" 'invalid Parallels resource id'
+[[ $(grep -c '^prlctl capture ' "$CALLS") -eq $prlctl_calls_before ]]
 run_remote destroy cbx_desktop26 >/dev/null
 
 desktop_create=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
