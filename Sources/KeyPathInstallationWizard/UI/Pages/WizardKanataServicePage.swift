@@ -125,7 +125,12 @@ public struct WizardKanataServicePage: View {
 
     // MARK: - Helper Methods
 
-    private func evaluateServiceCompletion(target: ServiceActionTarget, actionName: String) {
+    private enum DesiredServiceState {
+        case running
+        case stopped
+    }
+
+    private func evaluateServiceCompletion(target: DesiredServiceState, actionName: String) {
         switch target {
         case .running:
             switch serviceStatus {
@@ -153,27 +158,13 @@ public struct WizardKanataServicePage: View {
     @MainActor
     private func completeServiceAction(
         succeeded: Bool,
-        target: ServiceActionTarget,
+        target: DesiredServiceState,
         actionName: String
     ) async {
         isPerformingAction = false
-
-        switch ServiceActionCompletionEvaluator.evaluate(
-            operationSucceeded: succeeded,
-            target: target
-        ) {
-        case .verifiedRunning:
-            serviceStatus = .running
-            evaluateServiceCompletion(target: target, actionName: actionName)
-            onRefresh()
-        case .verifiedStopped:
-            serviceStatus = .stopped
-            evaluateServiceCompletion(target: target, actionName: actionName)
-            onRefresh()
-        case .refreshRequired:
-            await refreshStatusAsync()
-            evaluateServiceCompletion(target: target, actionName: actionName)
-        }
+        await refreshStatusAsync(actionSucceeded: succeeded)
+        evaluateServiceCompletion(target: target, actionName: actionName)
+        onRefresh()
     }
 
     /// Auto-clear success status after 3 seconds
@@ -299,7 +290,7 @@ public struct WizardKanataServicePage: View {
         }
     }
 
-    private func refreshStatusAsync() async {
+    private func refreshStatusAsync(actionSucceeded: Bool? = nil) async {
         guard let kanataManager else {
             AppLogger.shared.log("⚠️ [WizardKanataServicePage] kanataManager not configured — skipping status refresh")
             return
@@ -307,11 +298,20 @@ public struct WizardKanataServicePage: View {
         let runtimeStatus = await kanataManager.currentRuntimeStatus()
         let isInTransientStartupWindow = await kanataManager.isInTransientRuntimeStartupWindow()
 
-        let processStatus = ServiceStatusEvaluator.evaluate(
-            kanataIsRunning: runtimeStatus.isRunning,
-            systemState: systemState,
-            issues: issues
-        )
+        let processStatus = if let actionSucceeded {
+            ServiceStatusEvaluator.evaluateAfterAction(
+                operationSucceeded: actionSucceeded,
+                kanataIsRunning: runtimeStatus.isRunning,
+                systemState: systemState,
+                issues: issues
+            )
+        } else {
+            ServiceStatusEvaluator.evaluate(
+                kanataIsRunning: runtimeStatus.isRunning,
+                systemState: systemState,
+                issues: issues
+            )
+        }
 
         guard !Task.isCancelled else { return }
 
