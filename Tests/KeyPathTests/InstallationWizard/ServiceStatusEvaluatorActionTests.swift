@@ -25,6 +25,30 @@ final class ServiceStatusEvaluatorActionTests: XCTestCase {
         XCTAssertEqual(status, .stopped)
     }
 
+    func testSuccessfulActionRetainsPermissionIssue() {
+        let permissionIssue = WizardIssue(
+            identifier: .permission(.kanataInputMonitoring),
+            severity: .error,
+            category: .permissions,
+            title: "Input Monitoring permission required",
+            description: "Permission remains denied",
+            autoFixAction: nil,
+            userAction: nil
+        )
+
+        let status = ServiceStatusEvaluator.evaluateAfterAction(
+            operationSucceeded: true,
+            kanataIsRunning: true,
+            systemState: .active,
+            issues: [permissionIssue]
+        )
+
+        XCTAssertEqual(
+            status,
+            ServiceProcessStatus.failed(message: "Input Monitoring permission required")
+        )
+    }
+
     func testFailedActionRetainsCurrentIssue() {
         let status = ServiceStatusEvaluator.evaluateAfterAction(
             operationSucceeded: false,

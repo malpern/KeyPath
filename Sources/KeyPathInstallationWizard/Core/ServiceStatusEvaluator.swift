@@ -17,19 +17,25 @@ public enum ServiceProcessStatus: Equatable {
 public enum ServiceStatusEvaluator {
     /// Evaluates a fresh runtime observation after an explicit lifecycle action.
     ///
-    /// A successful operation suppresses issues captured before the action began,
-    /// while the fresh process observation still has to match the requested result.
-    /// Failed operations retain the current issues so the UI can explain the failure.
+    /// A successful operation suppresses daemon issues captured before the action
+    /// began, while the fresh process observation still has to match the requested
+    /// result. Permission issues cannot be repaired by a service action and remain
+    /// visible. Failed operations retain all current issues to explain the failure.
     public static func evaluateAfterAction(
         operationSucceeded: Bool,
         kanataIsRunning: Bool,
         systemState: WizardSystemState,
         issues: [WizardIssue]
     ) -> ServiceProcessStatus {
-        evaluate(
+        let effectiveIssues = operationSucceeded ? issues.filter { issue in
+            if case .daemon = issue.identifier { return false }
+            return true
+        } : issues
+
+        return evaluate(
             kanataIsRunning: kanataIsRunning,
             systemState: systemState,
-            issues: operationSucceeded ? [] : issues
+            issues: effectiveIssues
         )
     }
 
