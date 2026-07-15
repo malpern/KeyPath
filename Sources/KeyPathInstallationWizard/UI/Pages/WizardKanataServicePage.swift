@@ -155,6 +155,18 @@ public struct WizardKanataServicePage: View {
         }
     }
 
+    @MainActor
+    private func completeServiceAction(
+        succeeded: Bool,
+        target: DesiredServiceState,
+        actionName: String
+    ) async {
+        isPerformingAction = false
+        await refreshStatusAsync(actionSucceeded: succeeded)
+        evaluateServiceCompletion(target: target, actionName: actionName)
+        onRefresh()
+    }
+
     /// Auto-clear success status after 3 seconds
     private func scheduleStatusClear() {
         Task { @MainActor in
@@ -224,10 +236,12 @@ public struct WizardKanataServicePage: View {
         actionStatus = .inProgress(message: "Starting KeyPath runtime…")
 
         Task { @MainActor in
-            _ = await kanataManager.startKanata(reason: "Wizard service start button")
-            isPerformingAction = false
-            await refreshStatusAsync()
-            evaluateServiceCompletion(target: .running, actionName: "Kanata start")
+            let succeeded = await kanataManager.startKanata(reason: "Wizard service start button")
+            await completeServiceAction(
+                succeeded: succeeded,
+                target: .running,
+                actionName: "Kanata start"
+            )
         }
     }
 
@@ -241,10 +255,12 @@ public struct WizardKanataServicePage: View {
         actionStatus = .inProgress(message: "Restarting KeyPath runtime…")
 
         Task { @MainActor in
-            _ = await kanataManager.restartKanata(reason: "Wizard service restart button")
-            isPerformingAction = false
-            await refreshStatusAsync()
-            evaluateServiceCompletion(target: .running, actionName: "Kanata restart")
+            let succeeded = await kanataManager.restartKanata(reason: "Wizard service restart button")
+            await completeServiceAction(
+                succeeded: succeeded,
+                target: .running,
+                actionName: "Kanata restart"
+            )
         }
     }
 
@@ -258,10 +274,12 @@ public struct WizardKanataServicePage: View {
         actionStatus = .inProgress(message: "Stopping KeyPath runtime…")
 
         Task { @MainActor in
-            _ = await kanataManager.stopKanata(reason: "Wizard service stop button")
-            isPerformingAction = false
-            await refreshStatusAsync()
-            evaluateServiceCompletion(target: .stopped, actionName: "Kanata stop")
+            let succeeded = await kanataManager.stopKanata(reason: "Wizard service stop button")
+            await completeServiceAction(
+                succeeded: succeeded,
+                target: .stopped,
+                actionName: "Kanata stop"
+            )
         }
     }
 
@@ -272,7 +290,7 @@ public struct WizardKanataServicePage: View {
         }
     }
 
-    private func refreshStatusAsync() async {
+    private func refreshStatusAsync(actionSucceeded: Bool? = nil) async {
         guard let kanataManager else {
             AppLogger.shared.log("⚠️ [WizardKanataServicePage] kanataManager not configured — skipping status refresh")
             return
@@ -280,11 +298,20 @@ public struct WizardKanataServicePage: View {
         let runtimeStatus = await kanataManager.currentRuntimeStatus()
         let isInTransientStartupWindow = await kanataManager.isInTransientRuntimeStartupWindow()
 
-        let processStatus = ServiceStatusEvaluator.evaluate(
-            kanataIsRunning: runtimeStatus.isRunning,
-            systemState: systemState,
-            issues: issues
-        )
+        let processStatus = if let actionSucceeded {
+            ServiceStatusEvaluator.evaluateAfterAction(
+                operationSucceeded: actionSucceeded,
+                kanataIsRunning: runtimeStatus.isRunning,
+                systemState: systemState,
+                issues: issues
+            )
+        } else {
+            ServiceStatusEvaluator.evaluate(
+                kanataIsRunning: runtimeStatus.isRunning,
+                systemState: systemState,
+                issues: issues
+            )
+        }
 
         guard !Task.isCancelled else { return }
 
