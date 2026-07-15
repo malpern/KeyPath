@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+"""Consolidate validated KeyPath lab scenario results into one safe report."""
+
+import argparse
+import datetime
+import json
+import pathlib
+import sys
+
+
+STATUSES = ("passed", "failed", "blocked")
+CLASSIFICATIONS = (
+    "keypath-product-failure",
+    "harness-selector-failure",
+    "harness-transport-failure",
+    "provider-failure",
+    "unsupported-os-selector",
+    "environment-precondition-failure",
+)
+
+
+class ReportError(ValueError):
+    pass
+
+
+def safe_relative(path: pathlib.Path, root: pathlib.Path, label: str) -> pathlib.Path:
+    if path.is_absolute() or ".." in path.parts:
+        raise ReportError(f"{label} must be an artifact-relative path")
+    resolved = (root / path).resolve()
+    try:
+        return resolved.relative_to(root.resolve())
+    except ValueError as error:
+        raise ReportError(f"{label} escapes the artifact root") from error
+
+
+def load_result(path: pathlib.Path, root: pathlib.Path) -> dict:
+    if path.is_symlink():
+        raise ReportError(f"{path.relative_to(root)} must not be a symlink")
+    try:
+        result = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise ReportError(f"cannot read {path.relative_to(root)}: {error}") from error
+    if result.get("schemaVersion") != 1:
+        raise ReportError(f"{path.relative_to(root)} has an unsupported schemaVersion")
+    scenario = result.get("scenario")
+    status = result.get("status")
+    summary = result.get("summary")
+    evidence = result.get("evidence")
+    if not isinstance(scenario, str) or not scenario:
+        raise ReportError(f"{path.relative_to(root)} has no scenario")
+    if status not in STATUSES:
+        raise ReportError(f"{path.relative_to(root)} has an invalid status")
+    if not isinstance(summary, str) or not summary:
+        raise ReportError(f"{path.relative_to(root)} has no summary")
+    if not isinstance(evidence, list) or not all(isinstance(item, str) for item in evidence):
+        raise ReportError(f"{path.relative_to(root)} has invalid evidence")
+
+    entry = {
+        "scenario": scenario,
+        "status": status,
+        "summary": summary,
+        "result": str(path.relative_to(root)),
+        "evidence": [],
+    }
+    for value in evidence:
+        if not value:
+            raise ReportError(f"evidence in {path.relative_to(root)} must not be empty")
+        relative = safe_relative(pathlib.Path(value), path.parent, f"evidence in {path.relative_to(root)}")
+        target = path.parent / relative
+        entry["evidence"].append({
+            "path": str(target.resolve().relative_to(root.resolve())),
+            "exists": target.is_file(),
+        })
+    if status != "passed":
+        failure = result.get("failure")
+        if not isinstance(failure, dict) or failure.get("classification") not in CLASSIFICATIONS or not failure.get("step"):
+            raise ReportError(f"{path.relative_to(root)} has no classified failure")
+        entry["failure"] = {
+            "classification": failure["classification"],
+            "step": failure["step"],
+        }
+    elif "failure" in result:
+        raise ReportError(f"{path.relative_to(root)} attaches a failure to a passing result")
+    return entry
+
+
+def build_report(root: pathlib.Path) -> dict:
+    root = root.resolve()
+    if not root.is_dir():
+        raise ReportError(f"input is not a directory: {root}")
+    paths = sorted(path for path in root.rglob("result.json") if path.is_file())
+    entries = [load_result(path, root) for path in paths]
+    status_counts = {status: 0 for status in STATUSES}
+    classification_counts: dict[str, int] = {}
+    for entry in entries:
+        status_counts[entry["status"]] += 1
+        if "failure" in entry:
+            classification = entry["failure"]["classification"]
+            classification_counts[classification] = classification_counts.get(classification, 0) + 1
+    return {
+        "schemaVersion": 1,
+        "generatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "artifactRoot": ".",
+        "summary": {
+            "total": len(entries),
+            "statuses": status_counts,
+            "failureClassifications": dict(sorted(classification_counts.items())),
+        },
+        "results": entries,
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--input", required=True, type=pathlib.Path, help="artifact root to scan")
+    parser.add_argument("--output", required=True, type=pathlib.Path, help="report JSON path")
+    args = parser.parse_args()
+    try:
+        report = build_report(args.input)
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(report, indent=2) + "\n")
+    except (OSError, ReportError) as error:
+        print(f"scenario-report: {error}", file=sys.stderr)
+        raise SystemExit(2)
+
+
+if __name__ == "__main__":
+    main()
