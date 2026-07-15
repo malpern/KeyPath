@@ -8,7 +8,7 @@ final class ServiceStatusEvaluatorActionTests: XCTestCase {
             operationSucceeded: true,
             kanataIsRunning: true,
             systemState: .active,
-            issuesBeforeAction: [staleInputCaptureIssue()]
+            issues: [staleInputCaptureIssue()]
         )
 
         XCTAssertEqual(status, .running)
@@ -19,13 +19,13 @@ final class ServiceStatusEvaluatorActionTests: XCTestCase {
             operationSucceeded: true,
             kanataIsRunning: false,
             systemState: .serviceNotRunning,
-            issuesBeforeAction: [staleInputCaptureIssue()]
+            issues: [staleInputCaptureIssue()]
         )
 
         XCTAssertEqual(status, .stopped)
     }
 
-    func testSuccessfulActionRetainsPermissionIssue() {
+    func testSuccessfulActionSupersedesPreActionPermissionIssue() {
         let permissionIssue = WizardIssue(
             identifier: .permission(.kanataInputMonitoring),
             severity: .error,
@@ -40,13 +40,10 @@ final class ServiceStatusEvaluatorActionTests: XCTestCase {
             operationSucceeded: true,
             kanataIsRunning: true,
             systemState: .active,
-            issuesBeforeAction: [permissionIssue]
+            issues: [permissionIssue]
         )
 
-        XCTAssertEqual(
-            status,
-            ServiceProcessStatus.failed(message: "Input Monitoring permission required")
-        )
+        XCTAssertEqual(status, .running)
     }
 
     func testFailedActionRetainsCurrentIssue() {
@@ -54,7 +51,7 @@ final class ServiceStatusEvaluatorActionTests: XCTestCase {
             operationSucceeded: false,
             kanataIsRunning: true,
             systemState: .active,
-            issuesBeforeAction: [staleInputCaptureIssue()]
+            issues: [staleInputCaptureIssue()]
         )
 
         XCTAssertEqual(

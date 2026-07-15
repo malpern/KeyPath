@@ -159,14 +159,10 @@ public struct WizardKanataServicePage: View {
     private func completeServiceAction(
         succeeded: Bool,
         target: DesiredServiceState,
-        actionName: String,
-        issuesBeforeAction: [WizardIssue]
+        actionName: String
     ) async {
         isPerformingAction = false
-        await refreshStatusAsync(
-            actionSucceeded: succeeded,
-            issuesBeforeAction: issuesBeforeAction
-        )
+        await refreshStatusAsync(actionSucceeded: succeeded)
         evaluateServiceCompletion(target: target, actionName: actionName)
         onRefresh()
     }
@@ -238,15 +234,13 @@ public struct WizardKanataServicePage: View {
         isPerformingAction = true
         serviceStatus = .starting
         actionStatus = .inProgress(message: "Starting KeyPath runtime…")
-        let issuesBeforeAction = issues
 
         Task { @MainActor in
             let succeeded = await kanataManager.startKanata(reason: "Wizard service start button")
             await completeServiceAction(
                 succeeded: succeeded,
                 target: .running,
-                actionName: "Kanata start",
-                issuesBeforeAction: issuesBeforeAction
+                actionName: "Kanata start"
             )
         }
     }
@@ -259,15 +253,13 @@ public struct WizardKanataServicePage: View {
         isPerformingAction = true
         serviceStatus = .stopping
         actionStatus = .inProgress(message: "Restarting KeyPath runtime…")
-        let issuesBeforeAction = issues
 
         Task { @MainActor in
             let succeeded = await kanataManager.restartKanata(reason: "Wizard service restart button")
             await completeServiceAction(
                 succeeded: succeeded,
                 target: .running,
-                actionName: "Kanata restart",
-                issuesBeforeAction: issuesBeforeAction
+                actionName: "Kanata restart"
             )
         }
     }
@@ -280,15 +272,13 @@ public struct WizardKanataServicePage: View {
         isPerformingAction = true
         serviceStatus = .stopping
         actionStatus = .inProgress(message: "Stopping KeyPath runtime…")
-        let issuesBeforeAction = issues
 
         Task { @MainActor in
             let succeeded = await kanataManager.stopKanata(reason: "Wizard service stop button")
             await completeServiceAction(
                 succeeded: succeeded,
                 target: .stopped,
-                actionName: "Kanata stop",
-                issuesBeforeAction: issuesBeforeAction
+                actionName: "Kanata stop"
             )
         }
     }
@@ -300,24 +290,7 @@ public struct WizardKanataServicePage: View {
         }
     }
 
-    private func refreshStatusAsync() async {
-        await refreshStatusAsync(actionSucceeded: nil, evaluationIssues: issues)
-    }
-
-    private func refreshStatusAsync(
-        actionSucceeded: Bool,
-        issuesBeforeAction: [WizardIssue]
-    ) async {
-        await refreshStatusAsync(
-            actionSucceeded: actionSucceeded,
-            evaluationIssues: issuesBeforeAction
-        )
-    }
-
-    private func refreshStatusAsync(
-        actionSucceeded: Bool?,
-        evaluationIssues: [WizardIssue]
-    ) async {
+    private func refreshStatusAsync(actionSucceeded: Bool? = nil) async {
         guard let kanataManager else {
             AppLogger.shared.log("⚠️ [WizardKanataServicePage] kanataManager not configured — skipping status refresh")
             return
@@ -330,13 +303,13 @@ public struct WizardKanataServicePage: View {
                 operationSucceeded: actionSucceeded,
                 kanataIsRunning: runtimeStatus.isRunning,
                 systemState: systemState,
-                issuesBeforeAction: evaluationIssues
+                issues: issues
             )
         } else {
             ServiceStatusEvaluator.evaluate(
                 kanataIsRunning: runtimeStatus.isRunning,
                 systemState: systemState,
-                issues: evaluationIssues
+                issues: issues
             )
         }
 
