@@ -36,18 +36,18 @@ python_bin=$(command -v python3 || true)
 peekaboo_bin=$(command -v peekaboo || true)
 mcporter_bin=$(command -v mcporter || true)
 [[ -x "$peekaboo_bin" && -x "$mcporter_bin" ]] || die "Peekaboo 3 and mcporter are required"
-[[ "$($peekaboo_bin --version | head -1)" == Peekaboo\ 3.* ]] || die "Peekaboo 3 is required"
+[[ "$("$peekaboo_bin" --version | head -1)" == Peekaboo\ 3.* ]] || die "Peekaboo 3 is required"
 
-$peekaboo_bin permissions status --json > "$output/peekaboo-permissions-before.json" || true
+"$peekaboo_bin" permissions status --json > "$output/peekaboo-permissions-before.json" || true
 # Ensure there is a normal shareable window. A bare Finder desktop has no
 # eligible window, so it cannot trigger or verify capture consent.
 open -a "System Settings"
 sleep 2
 # The first capture can display macOS's private-picker bypass consent sheet.
-$peekaboo_bin see --app "System Settings" --json > "$output/initial-desktop.json" || true
-$peekaboo_bin see --app UserNotificationCenter --json > "$output/user-notification-center.json" || true
+"$peekaboo_bin" see --app "System Settings" --json > "$output/initial-desktop.json" || true
+"$peekaboo_bin" see --app UserNotificationCenter --json > "$output/user-notification-center.json" || true
 
-consent=$($python_bin - "$output/user-notification-center.json" <<'PY'
+consent=$("$python_bin" - "$output/user-notification-center.json" <<'PY'
 import json, sys
 try:
     data = json.load(open(sys.argv[1])).get("data", {})
@@ -63,14 +63,14 @@ PY
 if [[ -n "$consent" ]]; then
   snapshot=${consent%%$'\t'*}
   element=${consent#*$'\t'}
-  $peekaboo_bin click --on "$element" --snapshot "$snapshot" --no-auto-focus --json \
+  "$peekaboo_bin" click --on "$element" --snapshot "$snapshot" --no-auto-focus --json \
     > "$output/peekaboo-consent-click.json"
 fi
 
-$peekaboo_bin see --app "System Settings" --json > "$output/desktop-ready.json"
-$peekaboo_bin permissions status --json > "$output/peekaboo-permissions-after.json"
+"$peekaboo_bin" see --app "System Settings" --json > "$output/desktop-ready.json"
+"$peekaboo_bin" permissions status --json > "$output/peekaboo-permissions-after.json"
 
-$python_bin - "$output/bootstrap.json" "$console_user" "$($peekaboo_bin --version | head -1)" <<'PY'
+"$python_bin" - "$output/bootstrap.json" "$console_user" "$("$peekaboo_bin" --version | head -1)" <<'PY'
 import json, platform, sys
 path, user, version = sys.argv[1:]
 with open(path, "w") as f:
