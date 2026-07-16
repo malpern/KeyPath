@@ -21,17 +21,24 @@ jobs:
       - name: Verify SwiftPM label boundary
         run: |
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-          runner_json="$(env -u GH_TOKEN -u GITHUB_TOKEN gh api repos/malpern/KeyPath/actions/runners)" || {
+          runner_json="$(env -u GH_TOKEN -u GITHUB_TOKEN gh api "repos/${{ github.repository }}/actions/runners")" || {
             echo "Runner label audit requires the Mini's existing gh authentication." >&2
             exit 1
           }
-          headless_labels="$(jq -r '.runners[] | select(.name == "keypath-mini") | [.labels[].name] | join(",")' <<<"$runner_json")"
-          interactive_labels="$(jq -r '.runners[] | select(.name == "keypath-mini-2") | [.labels[].name] | join(",")' <<<"$runner_json")"
+          headless="$(jq -c '[.runners[] | select(.status == "online" and .name == "keypath-mini")]' <<<"$runner_json")"
+          interactive="$(jq -c '[.runners[] | select(.status == "online" and .name == "keypath-mini-2")]' <<<"$runner_json")"
 
-          [[ -n "$headless_labels" && -n "$interactive_labels" ]] || {
-            echo "Expected both keypath-mini runner registrations." >&2
+          [[ "$(jq 'length' <<<"$headless")" == "1" ]] || {
+            echo "Expected exactly one online keypath-mini registration." >&2
             exit 1
           }
+          [[ "$(jq 'length' <<<"$interactive")" == "1" ]] || {
+            echo "Expected exactly one online keypath-mini-2 registration." >&2
+            exit 1
+          }
+
+          headless_labels="$(jq -r '.[0] | [.labels[].name] | join(",")' <<<"$headless")"
+          interactive_labels="$(jq -r '.[0] | [.labels[].name] | join(",")' <<<"$interactive")"
           [[ ",$headless_labels," != *",swiftpm-safe,"* ]] || {
             echo "Headless keypath-mini must not carry swiftpm-safe." >&2
             exit 1

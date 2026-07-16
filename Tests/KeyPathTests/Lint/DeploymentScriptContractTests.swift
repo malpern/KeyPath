@@ -233,6 +233,10 @@ final class DeploymentScriptContractTests: XCTestCase {
             "Runner health should still exercise either registered runner."
         )
         XCTAssertTrue(runnerHealth.contains("Verify SwiftPM label boundary"))
+        XCTAssertTrue(runnerHealth.contains(#"repos/${{ github.repository }}/actions/runners"#))
+        XCTAssertTrue(runnerHealth.contains(#"select(.status == "online" and .name == "keypath-mini")"#))
+        XCTAssertTrue(runnerHealth.contains("Expected exactly one online keypath-mini registration"))
+        XCTAssertTrue(runnerHealth.contains("Expected exactly one online keypath-mini-2 registration"))
         XCTAssertTrue(runnerHealth.contains("Headless keypath-mini must not carry swiftpm-safe"))
         XCTAssertTrue(runnerHealth.contains("Interactive keypath-mini-2 must carry swiftpm-safe"))
         XCTAssertTrue(
