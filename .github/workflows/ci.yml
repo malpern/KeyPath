@@ -20,7 +20,10 @@ concurrency:
 jobs:
   build-and-test:
     runs-on: [self-hosted, macOS, keypath]
-    timeout-minutes: 10
+    # Warm runs normally finish in 2-3 minutes, but a cold Kanata + Swift test
+    # rebuild has exceeded 10 minutes while still compiling. Keep a finite
+    # bound with enough room for the measured cold path.
+    timeout-minutes: 15
     # Separate from the workflow-level concurrency group above (which cancels
     # stale runs of the *same* PR): this queues jobs from *different* PRs onto
     # the single physical runner instead of letting them execute in parallel.
