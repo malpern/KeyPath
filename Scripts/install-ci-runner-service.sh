@@ -159,11 +159,11 @@ cat > "$PLIST" <<PLIST_EOF
     <key>ThrottleInterval</key>
     <integer>10</integer>
     <!--
-      CI is intentionally headless.  Do not create an artificial interactive
-      login session: on macOS 27 AppSSO attempts an invalid XPC target-UID
-      handoff from that session and traps SwiftPM while it resolves a binary
-      artifact.  A background service has the least privilege the build needs
-      and remains available before anyone logs in.
+      This runner is intentionally headless and boot-available. On macOS 27,
+      AppSSO traps SwiftPM binary-artifact requests from this system launch
+      domain. Do not assign this registration the swiftpm-safe label; route
+      SwiftPM jobs to a real logged-in LaunchAgent. This daemon remains useful
+      for lightweight jobs that do not resolve or build Swift packages.
     -->
     <key>ProcessType</key>
     <string>Background</string>

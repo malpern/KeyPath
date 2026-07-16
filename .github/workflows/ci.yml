@@ -19,7 +19,9 @@ concurrency:
 
 jobs:
   build-and-test:
-    runs-on: [self-hosted, macOS, keypath]
+    # macOS 27 AppSSO traps SwiftPM binary-artifact requests from a headless
+    # LaunchDaemon. Only the interactive runner carries swiftpm-safe.
+    runs-on: [self-hosted, macOS, keypath, swiftpm-safe]
     # Warm runs normally finish in 2-3 minutes. A measured cold run spent about
     # 3 minutes on setup/Kanata and was still compiling Swift tests after another
     # 12 minutes, before test execution. Keep a finite bound with real headroom.
