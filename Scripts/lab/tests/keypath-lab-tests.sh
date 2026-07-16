@@ -72,6 +72,8 @@ if [[ \$1 == warmup ]]; then
     echo 'leased cbx_stale instance=stale-resource'
     echo 'diagnostic previous=cbx_unrelated'
     printf 'leased cbx_desktop15 instance=test-resource'
+  elif [[ " \$* " == *"keypath27-"* ]]; then
+    printf 'leased cbx_desktop27 vm=11111111-1111-1111-1111-111111111111'
   else
     printf 'leased cbx_desktop26 vm=00000000-0000-0000-0000-000000000000'
   fi
@@ -110,12 +112,42 @@ EOF
 cat > "$ROOT/bin/guest-ssh" <<EOF
 #!/bin/bash
 printf '%s\n' "\$*" > "$TMP/guest-ssh-args"
-cat > "$TMP/guest-ssh-stdin"
+if [[ " \$* " == *" /bin/test -p /tmp/keypath-console-login-"* ]]; then
+  cat >/dev/null
+else
+  cat > "$TMP/guest-ssh-stdin"
+fi
 EOF
 chmod +x "$ROOT/bin/tart" "$ROOT/bin/guest-ssh"
 cat > "$ROOT/bin/prlctl" <<EOF
 #!/bin/bash
 echo "prlctl \$*" >> "$CALLS"
+if [[ \$1 == exec && " \$* " == *sysadminctl*autologin*set* ]]; then
+  touch "$TMP/console-fifo-ready"
+  for _ in {1..100}; do
+    if [[ -f "$TMP/guest-ssh-stdin" ]]; then
+      if [[ \${KEYPATH_LAB_TEST_CONSOLE_AUTH_FAIL:-0} == 1 ]]; then
+        echo started
+        exit 9
+      fi
+      exit 0
+    fi
+    sleep 0.01
+  done
+  exit 9
+fi
+if [[ \$1 == exec && " \$* " == *" /usr/bin/test -p /tmp/keypath-console-login-"* ]]; then
+  [[ -f "$TMP/console-fifo-ready" ]]
+fi
+if [[ \$1 == exec && " \$* " == *" /usr/sbin/sysadminctl -autologin status "* ]]; then
+  echo 'Automatic login is ON.'
+fi
+if [[ \$1 == exec && " \$* " == *" /usr/bin/stat -f %Su /dev/console "* ]]; then
+  echo keypathqa
+fi
+if [[ \$1 == status ]]; then
+  echo running
+fi
 if [[ \$1 == capture && \$3 == --file ]]; then
   mkdir -p "\$(dirname "\$4")"
   echo png > "\$4"
@@ -123,7 +155,8 @@ fi
 EOF
 chmod +x "$ROOT/bin/prlctl"
 echo test-private-key > "$TMP/id_ed25519"
-echo 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
+printf 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
+grep -Fq 'IFS= read -r KEYPATH_GUEST_PASSWORD < \"\$fifo\" || [[ -n \"\$KEYPATH_GUEST_PASSWORD\" ]]' "$REMOTE"
 
 /bin/bash -n "$LAB_DIR/../qa-macos-27-regression.sh"
 /bin/zsh -n "$LAB_DIR/desktop-bootstrap"
@@ -143,6 +176,9 @@ run_remote() {
     KEYPATH_LAB_PRLCTL="$ROOT/bin/prlctl" \
     KEYPATH_LAB_TEST_SSH_KEY="$TMP/id_ed25519" \
     KEYPATH_LAB_TEST_SECRET_FILE="$TMP/secure-input" \
+    KEYPATH_LAB_TEST_CONSOLE_AUTH_FAIL="${KEYPATH_LAB_TEST_CONSOLE_AUTH_FAIL:-0}" \
+    KEYPATH_LAB_TEST_CURSOR_BEFORE="${KEYPATH_LAB_TEST_CURSOR_BEFORE:-10 10}" \
+    KEYPATH_LAB_TEST_CURSOR_AFTER="${KEYPATH_LAB_TEST_CURSOR_AFTER:-160 120}" \
         /bin/zsh "$REMOTE" "$@"
 }
 
@@ -374,6 +410,40 @@ assert_contains "$artifacts27" $'download_status\t0'
 grep -q 'crabbox run --provider parallels --target macos --id cbx_test27 --stop-after never --download' "$CALLS"
 run_remote destroy cbx_test27 >/dev/null
 grep -q 'stop-27 cbx_test27' "$CALLS"
+
+desktop27_create=$(run_remote create 27 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
+assert_contains "$desktop27_create" $'lease_id\tcbx_desktop27'
+console_login=$(KEYPATH_LAB_CONSOLE_LOGIN_POLL_SECONDS=0 run_remote console-login cbx_desktop27)
+assert_contains "$console_login" $'console_login\tpassed'
+assert_contains "$console_login" $'console_user\tkeypathqa'
+[[ "$(cat "$TMP/guest-ssh-stdin")" == "$(cat "$TMP/secure-input")" ]] || { echo "console login streamed the wrong credential" >&2; exit 1; }
+grep -q 'prlctl exec 11111111-1111-1111-1111-111111111111 /bin/zsh -lc' "$CALLS"
+grep -q 'sysadminctl.*autologin.*set.*userName.*keypathqa.*password' "$CALLS"
+grep -q 'prlctl restart 11111111-1111-1111-1111-111111111111' "$CALLS"
+grep -q $'console_login_status\tpassed' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
+rfb_probe=$(KEYPATH_LAB_RFB_POINTER_SETTLE_SECONDS=0 run_remote rfb-pointer-probe cbx_desktop27 160 120)
+assert_contains "$rfb_probe" $'rfb_pointer_probe\tpassed'
+assert_contains "$rfb_probe" $'cursor_before\t10 10'
+assert_contains "$rfb_probe" $'cursor_after\t160 120'
+grep -q 'crabbox desktop click --provider parallels --target macos --id cbx_desktop27 --x 160 --y 120' "$CALLS"
+set +e
+rfb_probe_undelivered=$(KEYPATH_LAB_TEST_CURSOR_AFTER='10 10' KEYPATH_LAB_RFB_POINTER_SETTLE_SECONDS=0 run_remote rfb-pointer-probe cbx_desktop27 160 120 2>&1)
+rfb_probe_undelivered_status=$?
+set -e
+[[ $rfb_probe_undelivered_status -ne 0 ]]
+assert_contains "$rfb_probe_undelivered" 'CrabBox acknowledged the RFB click but the guest cursor did not move'
+if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" "$CALLS"; then
+    echo "console login leaked its secret into logs or arguments" >&2
+    exit 1
+fi
+set +e
+console_login_bad_credential=$(KEYPATH_LAB_TEST_CONSOLE_AUTH_FAIL=1 KEYPATH_LAB_CONSOLE_LOGIN_POLL_SECONDS=0 run_remote console-login cbx_desktop27 2>&1)
+console_login_bad_credential_status=$?
+set -e
+[[ $console_login_bad_credential_status -ne 0 ]]
+assert_contains "$console_login_bad_credential" 'KEYPATH_LAB_GUEST_PASSWORD does not authenticate the keypathqa guest account'
+grep -q $'console_login_status\tcredential-mismatch' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
+run_remote destroy cbx_desktop27 >/dev/null
 
 desktop26_create=$(run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
 assert_contains "$desktop26_create" $'lease_id\tcbx_desktop26'

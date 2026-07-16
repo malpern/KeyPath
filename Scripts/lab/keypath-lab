@@ -14,6 +14,8 @@ Commands:
   preflight
   create --macos 15|26|27 --lane managed-functional|unmanaged-ui --commit SHA --installer PATH [--ttl 2h] [--desktop]
   install-app LEASE_ID
+  console-login LEASE_ID
+  rfb-pointer-probe LEASE_ID --x X --y Y
   desktop-bootstrap LEASE_ID [--install-tools]
   nameplate LEASE_ID enable|show|hide|status
   protected-click LEASE_ID --app APP --window TITLE (--x X --y Y | --ax-x X --ax-y Y) [--after-window TITLE]
@@ -125,6 +127,28 @@ EOF
         [[ $# -eq 1 ]] || usage
         require_lease_id "$1"
         remote install-app "$1"
+        ;;
+    console-login)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote console-login "$1"
+        ;;
+    rfb-pointer-probe)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        x=
+        y=
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --x) x=${2:-}; shift 2 ;;
+                --y) y=${2:-}; shift 2 ;;
+                *) usage ;;
+            esac
+        done
+        [[ $x =~ ^[0-9]+$ && $y =~ ^[0-9]+$ ]] || usage
+        remote rfb-pointer-probe "$lease" "$x" "$y"
         ;;
     desktop-bootstrap)
         lease=${1:-}

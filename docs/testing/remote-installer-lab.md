@@ -141,6 +141,61 @@ observed on July 13, 2026 was SSH-ready but had no logged-in console user and
 no Python runtime; it needs a new clean base checkpoint after automatic login
 and desktop-tool provisioning before selector scenarios can run.
 
+The macOS 27 Parallels base is intentionally preserved at `loginwindow`. Before
+running `desktop-bootstrap`, establish its disposable clone's console session
+through the owned controller:
+
+```bash
+Scripts/lab/keypath-lab console-login cbx_example
+```
+
+This command is macOS-27/Parallels-only. It streams
+`KEYPATH_LAB_GUEST_PASSWORD` from
+the encrypted host secrets over the lease-owned SSH channel into a root-owned
+FIFO in the disposable guest. The command first verifies that the credential
+authenticates the `keypathqa` account. The value is held briefly in an
+owner-only controller temp file so it can be streamed and checked for accidental
+log disclosure; that file is removed before the guest reboots. The value never
+appears in controller arguments or logs.
+
+The command asks `sysadminctl` to enable automatic login first. macOS 27 build
+`26A5378j` can return success while logging `SACSetAutoLoginPassword error:22`
+and leaving automatic login disabled. When the postcondition catches that
+false success, the disposable clone falls back to writing the same
+login-window state, including the reversible `/etc/kcpassword` representation.
+That credential-bearing file exists only inside the disposable clone and is
+removed with the lease. It also aligns CrabBox's mode-0600 guest credential
+file with the verified account password so ARD authentication uses the same
+known credential; that credential-bearing file is likewise confined to the
+disposable clone. The command then reboots and does not succeed until
+`/dev/console` is owned by `keypathqa`. This avoids relying on
+pre-login RFB delivery, which macOS 27 can acknowledge without applying the
+input, while preserving RFB for post-login UI interaction. The controller also
+checks that automatic login names `keypathqa` before it reboots; a zero exit
+from `sysadminctl` alone is not accepted as proof. A credential mismatch is
+reported explicitly and does not mutate the guest account.
+
+After console login, verify that the RFB path delivers input instead of merely
+acknowledging the protocol write:
+
+```bash
+Scripts/lab/keypath-lab rfb-pointer-probe cbx_example --x 160 --y 120
+```
+
+The probe reads the guest cursor location, sends one CrabBox RFB click, and
+requires the cursor location to change. It refuses to run until
+`console-login` has established and verified the `keypathqa` console session.
+
+On macOS 27 build `26A5378j`, this probe currently reports that authenticated
+RFB input is acknowledged but not delivered. Unified logs show the console
+agent checking in with event posting disabled. This is a distinct platform
+permission boundary, not a console-login failure: Apple's supported
+command-line Remote Management setup is view-only, and toggling ordinary
+Screen Sharing off and on did not grant event posting in this build. Full
+control therefore remains gated on enabling Remote Management control through
+System Settings or an MDM profile. Keep the failed probe as evidence and do not
+classify an installer scenario as agent-drivable until the probe passes.
+
 For a console-ready candidate base, run `desktop-bootstrap --install-tools`
 once before capturing its checkpoint. It installs Python 3 as well as
 Peekaboo and mcporter, then records the console-user and Peekaboo evidence.

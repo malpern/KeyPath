@@ -923,6 +923,195 @@ desktop_bootstrap() {
   set_field "$manifest" desktop_bootstrap_status passed
 }
 
+console_login() {
+  local lease=$1 manifest macos resource parallels_cli secret_file exit_code console_user attempt guest_command autologin_status guest_control_ready configure_stage
+  local guest_ip key known_hosts known_hosts_option fifo status_file configure_pid fifo_ready stream_exit
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$macos" == "27" ]] || die "console login currently supports only the macOS 27 Parallels lane"
+  [[ "$(field "$manifest" provider)" == "parallels" ]] || die "console login requires a Parallels lease"
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "console login requires a desktop-enabled lease"
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$' ]] || die "invalid Parallels resource id"
+  parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+  [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+  if ! "$parallels_cli" status "$resource" 2>/dev/null | grep -q running; then
+    "$parallels_cli" start "$resource" > "$LOGS/$lease/console-login-start.log" 2>&1 || die "failed to start the disposable Parallels guest"
+  fi
+  guest_control_ready=0
+  for attempt in {1..90}; do
+    if "$parallels_cli" exec "$resource" /usr/bin/true >/dev/null 2>&1; then
+      guest_control_ready=1
+      break
+    fi
+    sleep "${KEYPATH_LAB_CONSOLE_LOGIN_POLL_SECONDS:-2}"
+  done
+  (( guest_control_ready == 1 )) || die "Parallels guest control did not become ready"
+
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    secret_file="${KEYPATH_LAB_TEST_SECRET_FILE:?test secret file is required}"
+    key="${KEYPATH_LAB_TEST_SSH_KEY:?test SSH key is required}"
+    known_hosts=/dev/null
+    guest_ip=192.0.2.27
+  else
+    key="$HOME/Library/Application Support/crabbox/testboxes/$lease/id_ed25519"
+    [[ -f "$key" && ! -L "$key" && -O "$key" ]] || die "owned CrabBox SSH key not found for lease"
+    known_hosts="$HOME/Library/Application Support/crabbox/testboxes/$lease/known_hosts"
+    [[ -f "$known_hosts" && ! -L "$known_hosts" && -O "$known_hosts" ]] || die "owned CrabBox known-hosts file not found for lease"
+    guest_ip=$("$parallels_cli" list -i -f -j "$resource" | python3 -c 'import json,sys; rows=json.load(sys.stdin); addresses=rows[0].get("Network",{}).get("ipAddresses",[]) if rows else []; print(next((item.get("ip","") for item in addresses if item.get("type")=="ipv4"),""),end="")')
+    [[ "$guest_ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Parallels returned an invalid guest address"
+    secret_file=$(mktemp "$STATE_ROOT/.console-login.XXXXXXXX")
+    chmod 600 "$secret_file"
+    typeset -g KEYPATH_LAB_SECURE_TEMP="$secret_file"
+    trap '[[ -z ${KEYPATH_LAB_SECURE_TEMP:-} ]] || rm -f "$KEYPATH_LAB_SECURE_TEMP"' EXIT
+    /opt/homebrew/bin/sops -d "$HOME/dotfiles/secrets.env" | awk -F= '$1 == "KEYPATH_LAB_GUEST_PASSWORD" {sub(/^[^=]*=/, ""); printf "%s", $0; found=1} END {if (!found) exit 1}' > "$secret_file" || die "KEYPATH_LAB_GUEST_PASSWORD is unavailable"
+  fi
+  [[ -s "$secret_file" ]] || die "console login secret is empty"
+  known_hosts_option=${known_hosts// /\\ }
+
+  # Configure automatic login inside the disposable clone through Parallels'
+  # root guest-control channel. prlctl exec does not forward stdin, so the root
+  # process creates a lease-specific FIFO and the existing lease-owned SSH
+  # channel streams the password into it. The controller's short-lived,
+  # owner-only temp file is removed before the reboot; the value never appears
+  # in process arguments or logs.
+  # sysadminctl's protected prompt cannot be driven through prlctl because
+  # guest-control does not forward stdin. Expand the FIFO-fed value only inside
+  # the isolated guest process; the controller command contains the variable
+  # reference, never its value, and both output streams stay suppressed.
+  fifo="/tmp/keypath-console-login-$lease-$$.fifo"
+  status_file="/tmp/keypath-console-login-$lease-$$.status"
+  guest_command="set -euo pipefail; fifo=$(printf %q "$fifo"); status_file=$(printf %q "$status_file"); rm -f \"\$fifo\" \"\$status_file\"; print -r -- started > \"\$status_file\"; /usr/bin/mkfifo \"\$fifo\"; /usr/sbin/chown keypathqa:staff \"\$fifo\"; /bin/chmod 600 \"\$fifo\"; trap 'rm -f \"\$fifo\"' EXIT; KEYPATH_GUEST_PASSWORD=; IFS= read -r KEYPATH_GUEST_PASSWORD < \"\$fifo\" || [[ -n \"\$KEYPATH_GUEST_PASSWORD\" ]]; print -r -- credential-received >> \"\$status_file\"; /usr/bin/dscl . -authonly keypathqa \"\$KEYPATH_GUEST_PASSWORD\" || exit 91; print -r -- credential-valid >> \"\$status_file\"; set +e; /usr/sbin/sysadminctl -autologin set -userName keypathqa -password \"\$KEYPATH_GUEST_PASSWORD\"; sysadmin_result=\$?; set -e; autologin_status=\$(/usr/sbin/sysadminctl -autologin status 2>&1 || true); if [[ \"\$autologin_status\" != *'Automatic login is ON'* && \"\$autologin_status\" != *'Automatic login user: keypathqa'* ]]; then kcpassword_tmp=\$(/usr/bin/mktemp /etc/kcpassword.XXXXXXXX); trap 'rm -f \"\$fifo\" \"\$kcpassword_tmp\"' EXIT; printf %s \"\$KEYPATH_GUEST_PASSWORD\" | /usr/bin/perl -e 'binmode STDIN; binmode STDOUT; local \$/; my \$password = <STDIN>; my @key = (0x7d,0x89,0x52,0x23,0xd2,0xbc,0xdd,0xea,0xa3,0xb9,0x1f); \$password .= chr(0); \$password .= chr(0) while length(\$password) % 12; print pack(\"C*\", map { ord(substr(\$password, \$_, 1)) ^ \$key[\$_ % @key] } 0 .. length(\$password)-1);' > \"\$kcpassword_tmp\"; /usr/sbin/chown root:wheel \"\$kcpassword_tmp\"; /bin/chmod 600 \"\$kcpassword_tmp\"; /bin/mv -f \"\$kcpassword_tmp\" /etc/kcpassword; /usr/bin/defaults write /Library/Preferences/com.apple.loginwindow autoLoginUser -string keypathqa; print -r -- method:kcpassword-fallback >> \"\$status_file\"; fi; /bin/mkdir -p /var/db/crabbox; printf '%s\n' \"\$KEYPATH_GUEST_PASSWORD\" > /var/db/crabbox/vnc.password; /usr/sbin/chown root:wheel /var/db/crabbox/vnc.password; /bin/chmod 600 /var/db/crabbox/vnc.password; print -r -- rfb-credential:aligned >> \"\$status_file\"; unset KEYPATH_GUEST_PASSWORD; print -r -- sysadminctl-exit:\$sysadmin_result >> \"\$status_file\"; exit 0"
+  set +e
+  "$parallels_cli" exec "$resource" /bin/zsh -lc "$(printf %q "$guest_command")" \
+    > "$LOGS/$lease/console-login-configure.log" 2>&1 &
+  configure_pid=$!
+  fifo_ready=0
+  for attempt in {1..300}; do
+    if "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_option" -i "$key" "keypathqa@$guest_ip" \
+      "/bin/test -p $(printf %q "$fifo")" </dev/null >/dev/null 2>&1; then
+      fifo_ready=1
+      break
+    fi
+    sleep 0.1
+  done
+  if (( fifo_ready == 1 )); then
+    "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_option" -i "$key" "keypathqa@$guest_ip" \
+      "/bin/zsh -c $(printf %q "/bin/cat > $(printf %q "$fifo")")" < "$secret_file" >/dev/null 2>&1
+    stream_exit=$?
+  else
+    stream_exit=76
+    kill "$configure_pid" 2>/dev/null || true
+  fi
+  wait "$configure_pid"
+  exit_code=$?
+  "$parallels_cli" exec "$resource" /bin/cat "$status_file" >> "$LOGS/$lease/console-login-configure.log" 2>&1 || true
+  "$parallels_cli" exec "$resource" /bin/rm -f "$status_file" >/dev/null 2>&1 || true
+  configure_stage=$(< "$LOGS/$lease/console-login-configure.log")
+  (( stream_exit == 0 )) || exit_code=$stream_exit
+  if grep -Fq -f "$secret_file" "$LOGS/$lease/console-login-configure.log"; then
+    : > "$LOGS/$lease/console-login-configure.log"
+    exit_code=90
+  fi
+  set -e
+  if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" ]]; then
+    rm -f "$secret_file"
+    KEYPATH_LAB_SECURE_TEMP=
+    trap - EXIT
+  fi
+  if (( exit_code != 0 )); then
+    if [[ "$configure_stage" != *credential-valid* ]]; then
+      set_field "$manifest" console_login_status credential-mismatch
+      record_command "$lease" failed:credential-mismatch console-login
+      die "KEYPATH_LAB_GUEST_PASSWORD does not authenticate the keypathqa guest account"
+    fi
+    set_field "$manifest" console_login_status "configure-failed:$exit_code"
+    record_command "$lease" "failed:$exit_code" console-login
+    die "failed to configure automatic login in the disposable guest"
+  fi
+  autologin_status=$("$parallels_cli" exec "$resource" /usr/sbin/sysadminctl -autologin status 2>&1 || true)
+  if [[ "$autologin_status" != *"Automatic login is ON"* && "$autologin_status" != *"Automatic login user: keypathqa"* ]]; then
+    set_field "$manifest" console_login_status "configure-postcondition-failed"
+    record_command "$lease" failed console-login
+    die "automatic login remained disabled after configuration"
+  fi
+
+  # A reboot is required because the source base is intentionally captured at
+  # loginwindow. Use the provider-owned restart so the clone cannot be stranded
+  # stopped when its guest-control connection closes during shutdown.
+  "$parallels_cli" restart "$resource" \
+    > "$LOGS/$lease/console-login-reboot.log" 2>&1 || die "failed to restart the disposable Parallels guest"
+  console_user=
+  for attempt in {1..90}; do
+    sleep "${KEYPATH_LAB_CONSOLE_LOGIN_POLL_SECONDS:-2}"
+    console_user=$("$parallels_cli" exec "$resource" /usr/bin/stat -f %Su /dev/console 2>/dev/null | tail -1 || true)
+    [[ "$console_user" == "keypathqa" ]] && break
+  done
+  if [[ "$console_user" != "keypathqa" ]]; then
+    set_field "$manifest" console_login_status "postcondition-failed"
+    record_command "$lease" failed console-login
+    die "automatic login did not establish the keypathqa console session"
+  fi
+
+  set_field "$manifest" console_login_status passed
+  set_field "$manifest" console_login_at "$(utc_now)"
+  record_command "$lease" passed console-login
+  print "console_login\tpassed"
+  print "console_user\t$console_user"
+}
+
+rfb_pointer_probe() {
+  local lease=$1 x=$2 y=$3 manifest macos resource parallels_cli key known_hosts known_hosts_option guest_ip cursor_command before after
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$macos" == "27" ]] || die "RFB pointer probe currently supports only the macOS 27 Parallels lane"
+  [[ "$(field "$manifest" provider)" == "parallels" ]] || die "RFB pointer probe requires a Parallels lease"
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "RFB pointer probe requires a desktop-enabled lease"
+  [[ "$(field "$manifest" console_login_status)" == "passed" ]] || die "RFB pointer probe requires a verified console login"
+  [[ "$x" == <-> && "$y" == <-> ]] || die "RFB pointer coordinates must be non-negative integers"
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$' ]] || die "invalid Parallels resource id"
+
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    before=${KEYPATH_LAB_TEST_CURSOR_BEFORE:-"10 10"}
+    key=${KEYPATH_LAB_TEST_SSH_KEY:?test SSH key is required}
+  else
+    parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+    [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+    key="$HOME/Library/Application Support/crabbox/testboxes/$lease/id_ed25519"
+    [[ -f "$key" && ! -L "$key" && -O "$key" ]] || die "owned CrabBox SSH key not found for lease"
+    known_hosts="$HOME/Library/Application Support/crabbox/testboxes/$lease/known_hosts"
+    [[ -f "$known_hosts" && ! -L "$known_hosts" && -O "$known_hosts" ]] || die "owned CrabBox known-hosts file not found for lease"
+    known_hosts_option=${known_hosts// /\\ }
+    guest_ip=$("$parallels_cli" list -i -f -j "$resource" | python3 -c 'import json,sys; rows=json.load(sys.stdin); addresses=rows[0].get("Network",{}).get("ipAddresses",[]) if rows else []; print(next((item.get("ip","") for item in addresses if item.get("type")=="ipv4"),""),end="")')
+    [[ "$guest_ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Parallels returned an invalid guest address"
+    cursor_command='/usr/bin/osascript -l JavaScript -e '\''ObjC.import("CoreGraphics"); p=$.CGEventGetLocation($.CGEventCreate(null)); p.x+" "+p.y'\'''
+    before=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_option" -i "$key" "keypathqa@$guest_ip" "/bin/zsh -lc $(printf %q "$cursor_command")")
+  fi
+  [[ "$before" =~ '^[0-9]+(\.[0-9]+)? [0-9]+(\.[0-9]+)?$' ]] || die "RFB pointer probe could not read the initial guest cursor location"
+
+  if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" ]]; then
+    export PATH="/Applications/Parallels Desktop.app/Contents/MacOS:$PATH"
+  fi
+  CRABBOX_PARALLELS_USER=keypathqa CRABBOX_SSH_USER=keypathqa CRABBOX_SSH_PORT=22 CRABBOX_SSH_KEY="$key" \
+    "$CRABBOX" desktop click --provider parallels --target macos --id "$lease" --x "$x" --y "$y" >/dev/null
+  sleep "${KEYPATH_LAB_RFB_POINTER_SETTLE_SECONDS:-1}"
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    after=${KEYPATH_LAB_TEST_CURSOR_AFTER:-"$x $y"}
+  else
+    after=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_option" -i "$key" "keypathqa@$guest_ip" "/bin/zsh -lc $(printf %q "$cursor_command")")
+  fi
+  [[ "$after" =~ '^[0-9]+(\.[0-9]+)? [0-9]+(\.[0-9]+)?$' ]] || die "RFB pointer probe could not read the resulting guest cursor location"
+  if [[ "$after" == "$before" ]]; then
+    record_command "$lease" failed rfb-pointer-probe --x "$x" --y "$y"
+    die "CrabBox acknowledged the RFB click but the guest cursor did not move"
+  fi
+  record_command "$lease" passed rfb-pointer-probe --x "$x" --y "$y"
+  print "rfb_pointer_probe\tpassed"
+  print "cursor_before\t$before"
+  print "cursor_after\t$after"
+}
+
 nameplate_control() {
   local lease=$1 nameplate_action=$2 manifest macos lane provider repo script output version checksum state
   manifest=$(owned_manifest "$lease")
@@ -1031,6 +1220,8 @@ case "$action" in
   artifacts) [[ $# -eq 1 ]] || die "artifacts requires lease"; collect_artifacts "$1" ;;
   scenario) [[ $# -eq 2 ]] || die "scenario requires lease and name"; scenario "$1" "$2" ;;
   desktop-bootstrap) [[ $# -eq 2 ]] || die "desktop-bootstrap requires lease and install-tools flag"; desktop_bootstrap "$@" ;;
+  console-login) [[ $# -eq 1 ]] || die "console-login requires lease"; console_login "$1" ;;
+  rfb-pointer-probe) [[ $# -eq 3 ]] || die "rfb-pointer-probe requires lease, x, and y"; rfb_pointer_probe "$@" ;;
   nameplate) [[ $# -eq 2 ]] || die "nameplate requires lease and action"; nameplate_control "$@" ;;
   destroy) [[ $# -eq 1 ]] || die "destroy requires lease"; destroy_lease "$1" ;;
   cleanup) cleanup_expired "${1:-}" ;;
