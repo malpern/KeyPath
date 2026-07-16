@@ -952,7 +952,7 @@ console_login() {
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
     secret_file="${KEYPATH_LAB_TEST_SECRET_FILE:?test secret file is required}"
     key="${KEYPATH_LAB_TEST_SSH_KEY:?test SSH key is required}"
-    known_hosts=/dev/null
+    known_hosts="${KEYPATH_LAB_TEST_KNOWN_HOSTS:-/dev/null}"
     guest_ip=192.0.2.27
   else
     key="$HOME/Library/Application Support/crabbox/testboxes/$lease/id_ed25519"
@@ -968,6 +968,8 @@ console_login() {
     /opt/homebrew/bin/sops -d "$HOME/dotfiles/secrets.env" | awk -F= '$1 == "KEYPATH_LAB_GUEST_PASSWORD" {sub(/^[^=]*=/, ""); printf "%s", $0; found=1} END {if (!found) exit 1}' > "$secret_file" || die "KEYPATH_LAB_GUEST_PASSWORD is unavailable"
   fi
   [[ -s "$secret_file" ]] || die "console login secret is empty"
+  # OpenSSH parses -o values a second time, so spaces in this path must remain
+  # escaped even though the complete option is already one shell argument.
   known_hosts_option=${known_hosts// /\\ }
   credential_timeout=${KEYPATH_LAB_CONSOLE_CREDENTIAL_TIMEOUT_SECONDS:-30}
   [[ "$credential_timeout" == <-> && "$credential_timeout" -gt 0 ]] || die "console login credential timeout must be a positive integer"
@@ -1002,9 +1004,13 @@ console_login() {
     sleep 0.1
   done
   if (( fifo_ready == 1 )); then
-    /usr/bin/perl -e 'my $timeout = shift; alarm $timeout; exec @ARGV or exit 127' "$credential_timeout" \
-      "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_option" -i "$key" "keypathqa@$guest_ip" \
-      "/bin/zsh -c $(printf %q "/bin/cat > $(printf %q "$fifo")")" < "$secret_file" >/dev/null 2>&1
+    # The decrypted dotenv value intentionally has no trailing newline. Frame
+    # it as one record so the guest's `read` completes immediately instead of
+    # waiting indefinitely after receiving a partial line from the FIFO.
+    { /bin/cat "$secret_file"; printf '\n'; } | \
+      /usr/bin/perl -e 'my $timeout = shift; alarm $timeout; exec @ARGV or exit 127' "$credential_timeout" \
+        "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_option" -i "$key" "keypathqa@$guest_ip" \
+        "/bin/zsh -c $(printf %q "/bin/cat > $(printf %q "$fifo")")" >/dev/null 2>&1
     stream_exit=$?
     (( stream_exit == 0 )) || kill "$configure_pid" 2>/dev/null || true
   else
@@ -1078,6 +1084,55 @@ console_login() {
   record_command "$lease" passed console-login
   print "console_login\tpassed"
   print "console_user\t$console_user"
+}
+
+secure_console_submit() {
+  local lease=$1 manifest macos resource parallels_cli secret_file
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$macos" == "27" ]] || die "secure console submit currently supports only the macOS 27 Parallels lane"
+  [[ "$(field "$manifest" provider)" == "parallels" ]] || die "secure console submit requires a Parallels lease"
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "secure console submit requires a desktop-enabled lease"
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$' ]] || die "invalid Parallels resource id"
+  parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+  [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    secret_file="${KEYPATH_LAB_TEST_SECRET_FILE:?test secret file is required}"
+  else
+    secret_file=$(mktemp "$STATE_ROOT/.secure-console.XXXXXXXX")
+    chmod 600 "$secret_file"
+    typeset -g KEYPATH_LAB_SECURE_TEMP="$secret_file"
+    trap '[[ -z ${KEYPATH_LAB_SECURE_TEMP:-} ]] || rm -f "$KEYPATH_LAB_SECURE_TEMP"' EXIT
+    /opt/homebrew/bin/sops -d "$HOME/dotfiles/secrets.env" | awk -F= '$1 == "KEYPATH_LAB_GUEST_PASSWORD" {sub(/^[^=]*=/, ""); printf "%s", $0; found=1} END {if (!found) exit 1}' > "$secret_file" || die "KEYPATH_LAB_GUEST_PASSWORD is unavailable"
+  fi
+  [[ -s "$secret_file" ]] || die "secure console secret is empty"
+
+  # Convert the credential to Parallels key codes in a pipe. The plaintext is
+  # read only from the owner-only temp file and never enters argv, logs, the
+  # guest pasteboard, or an artifact. Keep the accepted alphabet deliberately
+  # narrow; expanding it requires an explicit key-map review.
+  python3 -c 'import json,sys
+codes={"a":38,"b":56,"c":54,"d":40,"e":26,"f":41,"g":42,"h":43,"i":31,"j":44,"k":45,"l":46,"m":58,"n":57,"o":32,"p":33,"q":24,"r":27,"s":39,"t":28,"u":30,"v":55,"w":25,"x":53,"y":29,"z":52,"1":10,"2":11,"3":12,"4":13,"5":14,"6":15,"7":16,"8":17,"9":18,"0":19,"-":20}
+value=open(sys.argv[1],"r",encoding="utf-8").read()
+if not value or any(ch not in codes for ch in value): raise SystemExit(64)
+for ch in value: print(json.dumps([{"key":codes[ch]}],separators=(",",":")))' "$secret_file" | \
+    while IFS= read -r key_event; do
+      printf '%s\n' "$key_event" | "$parallels_cli" send-key-event "$resource" --json >/dev/null || exit 1
+      sleep "${KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS:-0.2}"
+    done || die "failed to deliver the guest credential through Parallels key events"
+  sleep "${KEYPATH_LAB_SECURE_CONSOLE_SETTLE_SECONDS:-0.25}"
+  "$parallels_cli" send-key-event "$resource" --key 36 >/dev/null
+
+  if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" ]]; then
+    rm -f "$secret_file"
+    KEYPATH_LAB_SECURE_TEMP=
+    trap - EXIT
+  fi
+  record_command "$lease" passed secure-console-submit
+  print "secure_console_submit\tpassed"
+  print "credential_transport\tparallels-key-events"
 }
 
 rfb_pointer_probe() {
@@ -1241,6 +1296,7 @@ case "$action" in
   scenario) [[ $# -eq 2 ]] || die "scenario requires lease and name"; scenario "$1" "$2" ;;
   desktop-bootstrap) [[ $# -eq 2 ]] || die "desktop-bootstrap requires lease and install-tools flag"; desktop_bootstrap "$@" ;;
   console-login) [[ $# -eq 1 ]] || die "console-login requires lease"; console_login "$1" ;;
+  secure-console-submit) [[ $# -eq 1 ]] || die "secure-console-submit requires lease"; secure_console_submit "$1" ;;
   rfb-pointer-probe) [[ $# -eq 3 ]] || die "rfb-pointer-probe requires lease, x, and y"; rfb_pointer_probe "$@" ;;
   nameplate) [[ $# -eq 2 ]] || die "nameplate requires lease and action"; nameplate_control "$@" ;;
   destroy) [[ $# -eq 1 ]] || die "destroy requires lease"; destroy_lease "$1" ;;

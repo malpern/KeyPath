@@ -198,15 +198,32 @@ The probe reads the guest cursor location, sends one CrabBox RFB click, and
 requires the cursor location to change. It refuses to run until
 `console-login` has established and verified the `keypathqa` console session.
 
-On macOS 27 build `26A5378j`, this probe currently reports that authenticated
-RFB input is acknowledged but not delivered. Unified logs show the console
-agent checking in with event posting disabled. This is a distinct platform
-permission boundary, not a console-login failure: Apple's supported
-command-line Remote Management setup is view-only, and toggling ordinary
-Screen Sharing off and on did not grant event posting in this build. Full
-control therefore remains gated on enabling Remote Management control through
-System Settings or an MDM profile. Keep the failed probe as evidence and do not
-classify an installer scenario as agent-drivable until the probe passes.
+On macOS 27 build `26A5378j`, ordinary Screen Sharing initially acknowledges
+RFB input without delivering it. Unified logs report that the console agent has
+event posting disabled. Apple's supported command-line setup is view-only, so
+enable Remote Management control through the real logged-in System Settings UI
+before classifying the lease as agent-drivable.
+
+For the Parallels lane, operate that one-time prerequisite through the lease's
+real Parallels console. When the authorization sheet has its password field
+focused, submit the encrypted guest credential without exposing it to argv,
+logs, screenshots, or the pasteboard:
+
+```bash
+Scripts/lab/keypath-lab secure-console-submit cbx_example
+Scripts/lab/keypath-lab rfb-pointer-probe cbx_example --x 160 --y 120
+```
+
+`secure-console-submit` emits one Parallels key event at a time with a bounded
+inter-key delay. Parallels can drop characters when a complete credential is
+sent as one unpaced event batch. The command deliberately reports credential
+transport only; the RFB probe is the required independent postcondition.
+
+On July 16, 2026, the supported UI flow enabled Remote Management and VNC
+control for `keypathqa`, and the probe moved the guest cursor from
+`684.703125 141.1875` to `80 60`. That proves event posting for this disposable
+clone and OS build. Repeat the UI approval and probe for a fresh clone or beta
+seed; do not infer delivery from the visible toggle alone.
 
 For a console-ready candidate base, run `desktop-bootstrap --install-tools`
 once before capturing its checkpoint. It installs Python 3 as well as
