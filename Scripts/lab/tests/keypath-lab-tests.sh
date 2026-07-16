@@ -125,6 +125,9 @@ chmod +x "$ROOT/bin/tart" "$ROOT/bin/guest-ssh"
 cat > "$ROOT/bin/prlctl" <<EOF
 #!/bin/bash
 echo "prlctl \$*" >> "$CALLS"
+if [[ \$1 == exec && \$3 == /usr/bin/true && \${KEYPATH_LAB_TEST_GUEST_CONTROL_FAIL:-0} == 1 ]]; then
+  exit 1
+fi
 if [[ \$1 == exec && " \$* " == *sysadminctl*autologin*set* ]]; then
   touch "$TMP/console-fifo-ready"
   for _ in {1..100}; do
@@ -146,7 +149,11 @@ if [[ \$1 == exec && " \$* " == *" /usr/sbin/sysadminctl -autologin status "* ]]
   echo 'Automatic login is ON.'
 fi
 if [[ \$1 == exec && " \$* " == *" /usr/bin/stat -f %Su /dev/console "* ]]; then
-  echo keypathqa
+  if [[ \${KEYPATH_LAB_TEST_CONSOLE_USER_FAIL:-0} == 1 ]]; then
+    echo loginwindow
+  else
+    echo keypathqa
+  fi
 fi
 if [[ \$1 == status ]]; then
   echo running
@@ -160,6 +167,8 @@ chmod +x "$ROOT/bin/prlctl"
 echo test-private-key > "$TMP/id_ed25519"
 printf 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
 grep -Fq 'exec 3<> \"\$fifo\"; KEYPATH_GUEST_PASSWORD=; IFS= read -r -t $credential_timeout -u 3 KEYPATH_GUEST_PASSWORD || [[ -n \"\$KEYPATH_GUEST_PASSWORD\" ]]' "$REMOTE"
+grep -Fq '/usr/bin/mktemp /etc/kcpassword.XXXXXXXX' "$REMOTE"
+grep -Fq "Automatic login user: keypathqa" "$REMOTE"
 
 /bin/bash -n "$LAB_DIR/../qa-macos-27-regression.sh"
 /bin/zsh -n "$LAB_DIR/desktop-bootstrap"
@@ -181,6 +190,8 @@ run_remote() {
     KEYPATH_LAB_TEST_SECRET_FILE="$TMP/secure-input" \
     KEYPATH_LAB_TEST_CONSOLE_AUTH_FAIL="${KEYPATH_LAB_TEST_CONSOLE_AUTH_FAIL:-0}" \
     KEYPATH_LAB_TEST_STREAM_FAIL="${KEYPATH_LAB_TEST_STREAM_FAIL:-0}" \
+    KEYPATH_LAB_TEST_GUEST_CONTROL_FAIL="${KEYPATH_LAB_TEST_GUEST_CONTROL_FAIL:-0}" \
+    KEYPATH_LAB_TEST_CONSOLE_USER_FAIL="${KEYPATH_LAB_TEST_CONSOLE_USER_FAIL:-0}" \
     KEYPATH_LAB_TEST_CURSOR_BEFORE="${KEYPATH_LAB_TEST_CURSOR_BEFORE:-10 10}" \
     KEYPATH_LAB_TEST_CURSOR_AFTER="${KEYPATH_LAB_TEST_CURSOR_AFTER:-160 120}" \
         /bin/zsh "$REMOTE" "$@"
@@ -443,6 +454,19 @@ set -e
 [[ $console_login_stream_failure_status -ne 0 ]]
 assert_contains "$console_login_stream_failure" 'failed to stream the guest credential into the disposable guest'
 grep -q $'console_login_status\tcredential-stream-failed:17' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
+set +e
+console_login_guest_control_failure=$(KEYPATH_LAB_TEST_GUEST_CONTROL_FAIL=1 KEYPATH_LAB_CONSOLE_LOGIN_POLL_SECONDS=0 run_remote console-login cbx_desktop27 2>&1)
+console_login_guest_control_failure_status=$?
+set -e
+[[ $console_login_guest_control_failure_status -ne 0 ]]
+assert_contains "$console_login_guest_control_failure" 'Parallels guest control did not become ready'
+set +e
+console_login_console_user_failure=$(KEYPATH_LAB_TEST_CONSOLE_USER_FAIL=1 KEYPATH_LAB_CONSOLE_LOGIN_POLL_SECONDS=0 run_remote console-login cbx_desktop27 2>&1)
+console_login_console_user_failure_status=$?
+set -e
+[[ $console_login_console_user_failure_status -ne 0 ]]
+assert_contains "$console_login_console_user_failure" 'automatic login did not establish the keypathqa console session'
+grep -q $'console_login_status\tpostcondition-failed' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
 if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" "$CALLS"; then
     echo "console login leaked its secret into controller logs or arguments" >&2
     exit 1
