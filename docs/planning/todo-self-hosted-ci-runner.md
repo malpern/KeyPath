@@ -39,11 +39,13 @@ A persistent Mac Mini cuts CI wall time to ~2-3min and enables the full test sui
 - [x] `code-quality`: Removed SwiftLint/SwiftFormat install step
 - [x] `code-quality`: SwiftLint/SwiftFormat now only lint changed files (not entire codebase)
 
-The build-and-test timeout was raised from 10 to 15 minutes on July 15, 2026.
-Warm runs still complete in roughly 2-3 minutes, but a cold Kanata rebuild plus
-Swift test compilation twice reached the old 10-minute cap while compilers were
-actively making progress. Fifteen minutes preserves a failure bound without
-misclassifying a healthy cold rebuild as a test failure.
+The build-and-test timeout was raised from 10 to 25 minutes on July 15, 2026.
+Warm runs still complete in roughly 2-3 minutes, but cold Kanata and Swift test
+rebuilds reached both the 10- and 15-minute caps while compilers were actively
+making progress. In the measured 15-minute run, setup and Kanata took about 3
+minutes and Swift had compiled 1,380 of 1,457 test-build steps when GitHub
+cancelled it. Twenty-five minutes preserves a finite failure bound while leaving
+room to link and execute the tests after a healthy cold rebuild.
 
 ### Security
 - [x] Fork PR approval set to "Require approval for all external contributors"
