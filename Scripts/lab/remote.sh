@@ -925,7 +925,7 @@ desktop_bootstrap() {
 
 console_login() {
   local lease=$1 manifest macos resource parallels_cli secret_file exit_code console_user attempt guest_command autologin_status guest_control_ready configure_stage
-  local guest_ip key known_hosts known_hosts_option fifo status_file configure_pid fifo_ready stream_exit
+  local guest_ip key known_hosts known_hosts_option fifo status_file configure_pid fifo_ready stream_exit credential_timeout
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$macos" == "27" ]] || die "console login currently supports only the macOS 27 Parallels lane"
@@ -968,6 +968,8 @@ console_login() {
   fi
   [[ -s "$secret_file" ]] || die "console login secret is empty"
   known_hosts_option=${known_hosts// /\\ }
+  credential_timeout=${KEYPATH_LAB_CONSOLE_CREDENTIAL_TIMEOUT_SECONDS:-30}
+  [[ "$credential_timeout" == <-> && "$credential_timeout" -gt 0 ]] || die "console login credential timeout must be a positive integer"
 
   # Configure automatic login inside the disposable clone through Parallels'
   # root guest-control channel. prlctl exec does not forward stdin, so the root
@@ -984,7 +986,7 @@ console_login() {
   # confined to the leak-checked controller log.
   fifo="/tmp/keypath-console-login-$lease-$$.fifo"
   status_file="/tmp/keypath-console-login-$lease-$$.status"
-  guest_command="set -euo pipefail; fifo=$(printf %q "$fifo"); status_file=$(printf %q "$status_file"); rm -f \"\$fifo\" \"\$status_file\"; print -r -- started > \"\$status_file\"; /usr/bin/mkfifo \"\$fifo\"; /usr/sbin/chown keypathqa:staff \"\$fifo\"; /bin/chmod 600 \"\$fifo\"; trap 'rm -f \"\$fifo\"' EXIT; KEYPATH_GUEST_PASSWORD=; IFS= read -r KEYPATH_GUEST_PASSWORD < \"\$fifo\" || [[ -n \"\$KEYPATH_GUEST_PASSWORD\" ]]; print -r -- credential-received >> \"\$status_file\"; /usr/bin/dscl . -authonly keypathqa \"\$KEYPATH_GUEST_PASSWORD\" || exit 91; print -r -- credential-valid >> \"\$status_file\"; set +e; /usr/sbin/sysadminctl -autologin set -userName keypathqa -password \"\$KEYPATH_GUEST_PASSWORD\"; sysadmin_result=\$?; set -e; autologin_status=\$(/usr/sbin/sysadminctl -autologin status 2>&1 || true); if [[ \"\$autologin_status\" != *'Automatic login is ON'* && \"\$autologin_status\" != *'Automatic login user: keypathqa'* ]]; then kcpassword_tmp=\$(/usr/bin/mktemp /etc/kcpassword.XXXXXXXX); trap 'rm -f \"\$fifo\" \"\$kcpassword_tmp\"' EXIT; printf %s \"\$KEYPATH_GUEST_PASSWORD\" | /usr/bin/perl -e 'binmode STDIN; binmode STDOUT; local \$/; my \$password = <STDIN>; my @key = (0x7d,0x89,0x52,0x23,0xd2,0xbc,0xdd,0xea,0xa3,0xb9,0x1f); \$password .= chr(0); \$password .= chr(0) while length(\$password) % 12; print pack(\"C*\", map { ord(substr(\$password, \$_, 1)) ^ \$key[\$_ % @key] } 0 .. length(\$password)-1);' > \"\$kcpassword_tmp\"; /usr/sbin/chown root:wheel \"\$kcpassword_tmp\"; /bin/chmod 600 \"\$kcpassword_tmp\"; /bin/mv -f \"\$kcpassword_tmp\" /etc/kcpassword; /usr/bin/defaults write /Library/Preferences/com.apple.loginwindow autoLoginUser -string keypathqa; print -r -- method:kcpassword-fallback >> \"\$status_file\"; fi; /bin/mkdir -p /var/db/crabbox; printf '%s\n' \"\$KEYPATH_GUEST_PASSWORD\" > /var/db/crabbox/vnc.password; /usr/sbin/chown root:wheel /var/db/crabbox/vnc.password; /bin/chmod 600 /var/db/crabbox/vnc.password; print -r -- rfb-credential:aligned >> \"\$status_file\"; unset KEYPATH_GUEST_PASSWORD; print -r -- sysadminctl-exit:\$sysadmin_result >> \"\$status_file\"; exit 0"
+  guest_command="set -euo pipefail; fifo=$(printf %q "$fifo"); status_file=$(printf %q "$status_file"); rm -f \"\$fifo\" \"\$status_file\"; print -r -- started > \"\$status_file\"; /usr/bin/mkfifo \"\$fifo\"; /usr/sbin/chown keypathqa:staff \"\$fifo\"; /bin/chmod 600 \"\$fifo\"; trap 'rm -f \"\$fifo\"' EXIT; exec 3<> \"\$fifo\"; KEYPATH_GUEST_PASSWORD=; IFS= read -r -t $credential_timeout -u 3 KEYPATH_GUEST_PASSWORD || [[ -n \"\$KEYPATH_GUEST_PASSWORD\" ]]; print -r -- credential-received >> \"\$status_file\"; /usr/bin/dscl . -authonly keypathqa \"\$KEYPATH_GUEST_PASSWORD\" || exit 91; print -r -- credential-valid >> \"\$status_file\"; set +e; /usr/sbin/sysadminctl -autologin set -userName keypathqa -password \"\$KEYPATH_GUEST_PASSWORD\"; sysadmin_result=\$?; set -e; autologin_status=\$(/usr/sbin/sysadminctl -autologin status 2>&1 || true); if [[ \"\$autologin_status\" != *'Automatic login is ON'* && \"\$autologin_status\" != *'Automatic login user: keypathqa'* ]]; then kcpassword_tmp=\$(/usr/bin/mktemp /etc/kcpassword.XXXXXXXX); trap 'rm -f \"\$fifo\" \"\$kcpassword_tmp\"' EXIT; printf %s \"\$KEYPATH_GUEST_PASSWORD\" | /usr/bin/perl -e 'binmode STDIN; binmode STDOUT; local \$/; my \$password = <STDIN>; my @key = (0x7d,0x89,0x52,0x23,0xd2,0xbc,0xdd,0xea,0xa3,0xb9,0x1f); \$password .= chr(0); \$password .= chr(0) while length(\$password) % 12; print pack(\"C*\", map { ord(substr(\$password, \$_, 1)) ^ \$key[\$_ % @key] } 0 .. length(\$password)-1);' > \"\$kcpassword_tmp\"; /usr/sbin/chown root:wheel \"\$kcpassword_tmp\"; /bin/chmod 600 \"\$kcpassword_tmp\"; /bin/mv -f \"\$kcpassword_tmp\" /etc/kcpassword; /usr/bin/defaults write /Library/Preferences/com.apple.loginwindow autoLoginUser -string keypathqa; print -r -- method:kcpassword-fallback >> \"\$status_file\"; fi; /bin/mkdir -p /var/db/crabbox; printf '%s\n' \"\$KEYPATH_GUEST_PASSWORD\" > /var/db/crabbox/vnc.password; /usr/sbin/chown root:wheel /var/db/crabbox/vnc.password; /bin/chmod 600 /var/db/crabbox/vnc.password; print -r -- rfb-credential:aligned >> \"\$status_file\"; unset KEYPATH_GUEST_PASSWORD; print -r -- sysadminctl-exit:\$sysadmin_result >> \"\$status_file\"; exit 0"
   set +e
   "$parallels_cli" exec "$resource" /bin/zsh -lc "$(printf %q "$guest_command")" \
     > "$LOGS/$lease/console-login-configure.log" 2>&1 &
@@ -1002,6 +1004,7 @@ console_login() {
     "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_option" -i "$key" "keypathqa@$guest_ip" \
       "/bin/zsh -c $(printf %q "/bin/cat > $(printf %q "$fifo")")" < "$secret_file" >/dev/null 2>&1
     stream_exit=$?
+    (( stream_exit == 0 )) || kill "$configure_pid" 2>/dev/null || true
   else
     stream_exit=76
     kill "$configure_pid" 2>/dev/null || true
@@ -1023,6 +1026,11 @@ console_login() {
     trap - EXIT
   fi
   if (( exit_code != 0 )); then
+    if (( stream_exit != 0 )); then
+      set_field "$manifest" console_login_status "credential-stream-failed:$stream_exit"
+      record_command "$lease" "failed:$stream_exit" console-login
+      die "failed to stream the guest credential into the disposable guest"
+    fi
     if [[ "$configure_stage" != *credential-valid* ]]; then
       set_field "$manifest" console_login_status credential-mismatch
       record_command "$lease" failed:credential-mismatch console-login

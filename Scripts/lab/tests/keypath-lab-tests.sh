@@ -115,6 +115,9 @@ printf '%s\n' "\$*" > "$TMP/guest-ssh-args"
 if [[ " \$* " == *" /bin/test -p /tmp/keypath-console-login-"* ]]; then
   cat >/dev/null
 else
+  if [[ \${KEYPATH_LAB_TEST_STREAM_FAIL:-0} == 1 ]]; then
+    exit 17
+  fi
   cat > "$TMP/guest-ssh-stdin"
 fi
 EOF
@@ -156,7 +159,7 @@ EOF
 chmod +x "$ROOT/bin/prlctl"
 echo test-private-key > "$TMP/id_ed25519"
 printf 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
-grep -Fq 'IFS= read -r KEYPATH_GUEST_PASSWORD < \"\$fifo\" || [[ -n \"\$KEYPATH_GUEST_PASSWORD\" ]]' "$REMOTE"
+grep -Fq 'exec 3<> \"\$fifo\"; KEYPATH_GUEST_PASSWORD=; IFS= read -r -t $credential_timeout -u 3 KEYPATH_GUEST_PASSWORD || [[ -n \"\$KEYPATH_GUEST_PASSWORD\" ]]' "$REMOTE"
 
 /bin/bash -n "$LAB_DIR/../qa-macos-27-regression.sh"
 /bin/zsh -n "$LAB_DIR/desktop-bootstrap"
@@ -177,6 +180,7 @@ run_remote() {
     KEYPATH_LAB_TEST_SSH_KEY="$TMP/id_ed25519" \
     KEYPATH_LAB_TEST_SECRET_FILE="$TMP/secure-input" \
     KEYPATH_LAB_TEST_CONSOLE_AUTH_FAIL="${KEYPATH_LAB_TEST_CONSOLE_AUTH_FAIL:-0}" \
+    KEYPATH_LAB_TEST_STREAM_FAIL="${KEYPATH_LAB_TEST_STREAM_FAIL:-0}" \
     KEYPATH_LAB_TEST_CURSOR_BEFORE="${KEYPATH_LAB_TEST_CURSOR_BEFORE:-10 10}" \
     KEYPATH_LAB_TEST_CURSOR_AFTER="${KEYPATH_LAB_TEST_CURSOR_AFTER:-160 120}" \
         /bin/zsh "$REMOTE" "$@"
@@ -432,6 +436,13 @@ rfb_probe_undelivered_status=$?
 set -e
 [[ $rfb_probe_undelivered_status -ne 0 ]]
 assert_contains "$rfb_probe_undelivered" 'CrabBox acknowledged the RFB click but the guest cursor did not move'
+set +e
+console_login_stream_failure=$(KEYPATH_LAB_TEST_STREAM_FAIL=1 KEYPATH_LAB_CONSOLE_CREDENTIAL_TIMEOUT_SECONDS=1 KEYPATH_LAB_CONSOLE_LOGIN_POLL_SECONDS=0 run_remote console-login cbx_desktop27 2>&1)
+console_login_stream_failure_status=$?
+set -e
+[[ $console_login_stream_failure_status -ne 0 ]]
+assert_contains "$console_login_stream_failure" 'failed to stream the guest credential into the disposable guest'
+grep -q $'console_login_status\tcredential-stream-failed:17' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
 if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" "$CALLS"; then
     echo "console login leaked its secret into controller logs or arguments" >&2
     exit 1

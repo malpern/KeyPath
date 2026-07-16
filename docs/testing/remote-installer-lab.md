@@ -163,6 +163,11 @@ offers a noninteractive stdin form. Do not enable process-argument capture
 during `console-login`; destroy the clone after collecting the normal lab
 artifacts.
 
+The guest opens the FIFO read/write and applies a bounded credential-read
+timeout, so a failed SSH stream cannot leave the root guest-control action
+blocked forever. Stream transport failures are reported separately from
+credential-authentication failures.
+
 The command asks `sysadminctl` to enable automatic login first. macOS 27 build
 `26A5378j` can return success while logging `SACSetAutoLoginPassword error:22`
 and leaving automatic login disabled. When the postcondition catches that
