@@ -974,11 +974,14 @@ console_login() {
   # process creates a lease-specific FIFO and the existing lease-owned SSH
   # channel streams the password into it. The controller's short-lived,
   # owner-only temp file is removed before the reboot; the value never appears
-  # in process arguments or logs.
+  # in controller process arguments or logs. Inside the disposable guest,
+  # dscl and sysadminctl have no noninteractive stdin form and briefly receive
+  # the value in argv. Do not run process-argument capture during this action.
   # sysadminctl's protected prompt cannot be driven through prlctl because
   # guest-control does not forward stdin. Expand the FIFO-fed value only inside
   # the isolated guest process; the controller command contains the variable
-  # reference, never its value, and both output streams stay suppressed.
+  # reference, never its value, and both guest command output streams stay
+  # confined to the leak-checked controller log.
   fifo="/tmp/keypath-console-login-$lease-$$.fifo"
   status_file="/tmp/keypath-console-login-$lease-$$.status"
   guest_command="set -euo pipefail; fifo=$(printf %q "$fifo"); status_file=$(printf %q "$status_file"); rm -f \"\$fifo\" \"\$status_file\"; print -r -- started > \"\$status_file\"; /usr/bin/mkfifo \"\$fifo\"; /usr/sbin/chown keypathqa:staff \"\$fifo\"; /bin/chmod 600 \"\$fifo\"; trap 'rm -f \"\$fifo\"' EXIT; KEYPATH_GUEST_PASSWORD=; IFS= read -r KEYPATH_GUEST_PASSWORD < \"\$fifo\" || [[ -n \"\$KEYPATH_GUEST_PASSWORD\" ]]; print -r -- credential-received >> \"\$status_file\"; /usr/bin/dscl . -authonly keypathqa \"\$KEYPATH_GUEST_PASSWORD\" || exit 91; print -r -- credential-valid >> \"\$status_file\"; set +e; /usr/sbin/sysadminctl -autologin set -userName keypathqa -password \"\$KEYPATH_GUEST_PASSWORD\"; sysadmin_result=\$?; set -e; autologin_status=\$(/usr/sbin/sysadminctl -autologin status 2>&1 || true); if [[ \"\$autologin_status\" != *'Automatic login is ON'* && \"\$autologin_status\" != *'Automatic login user: keypathqa'* ]]; then kcpassword_tmp=\$(/usr/bin/mktemp /etc/kcpassword.XXXXXXXX); trap 'rm -f \"\$fifo\" \"\$kcpassword_tmp\"' EXIT; printf %s \"\$KEYPATH_GUEST_PASSWORD\" | /usr/bin/perl -e 'binmode STDIN; binmode STDOUT; local \$/; my \$password = <STDIN>; my @key = (0x7d,0x89,0x52,0x23,0xd2,0xbc,0xdd,0xea,0xa3,0xb9,0x1f); \$password .= chr(0); \$password .= chr(0) while length(\$password) % 12; print pack(\"C*\", map { ord(substr(\$password, \$_, 1)) ^ \$key[\$_ % @key] } 0 .. length(\$password)-1);' > \"\$kcpassword_tmp\"; /usr/sbin/chown root:wheel \"\$kcpassword_tmp\"; /bin/chmod 600 \"\$kcpassword_tmp\"; /bin/mv -f \"\$kcpassword_tmp\" /etc/kcpassword; /usr/bin/defaults write /Library/Preferences/com.apple.loginwindow autoLoginUser -string keypathqa; print -r -- method:kcpassword-fallback >> \"\$status_file\"; fi; /bin/mkdir -p /var/db/crabbox; printf '%s\n' \"\$KEYPATH_GUEST_PASSWORD\" > /var/db/crabbox/vnc.password; /usr/sbin/chown root:wheel /var/db/crabbox/vnc.password; /bin/chmod 600 /var/db/crabbox/vnc.password; print -r -- rfb-credential:aligned >> \"\$status_file\"; unset KEYPATH_GUEST_PASSWORD; print -r -- sysadminctl-exit:\$sysadmin_result >> \"\$status_file\"; exit 0"

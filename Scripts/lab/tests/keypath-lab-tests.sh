@@ -433,7 +433,7 @@ set -e
 [[ $rfb_probe_undelivered_status -ne 0 ]]
 assert_contains "$rfb_probe_undelivered" 'CrabBox acknowledged the RFB click but the guest cursor did not move'
 if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" "$CALLS"; then
-    echo "console login leaked its secret into logs or arguments" >&2
+    echo "console login leaked its secret into controller logs or arguments" >&2
     exit 1
 fi
 set +e

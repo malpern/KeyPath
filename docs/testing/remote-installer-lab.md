@@ -156,7 +156,12 @@ FIFO in the disposable guest. The command first verifies that the credential
 authenticates the `keypathqa` account. The value is held briefly in an
 owner-only controller temp file so it can be streamed and checked for accidental
 log disclosure; that file is removed before the guest reboots. The value never
-appears in controller arguments or logs.
+appears in controller arguments or logs. Inside the disposable guest, macOS's
+noninteractive `dscl` authentication and `sysadminctl` automatic-login commands
+briefly receive the value in their process arguments because neither command
+offers a noninteractive stdin form. Do not enable process-argument capture
+during `console-login`; destroy the clone after collecting the normal lab
+artifacts.
 
 The command asks `sysadminctl` to enable automatic login first. macOS 27 build
 `26A5378j` can return success while logging `SACSetAutoLoginPassword error:22`
