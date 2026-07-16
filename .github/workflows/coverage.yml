@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   narrow-coverage:
-    runs-on: [self-hosted, macOS, keypath]
+    runs-on: [self-hosted, macOS, keypath, swiftpm-safe]
     timeout-minutes: 10
     env:
       COVERAGE_BASELINE_PERCENT: "0.27"
@@ -96,7 +96,7 @@ jobs:
   # enforce a floor yet — the narrow lane above is the only gate. Once these
   # numbers are trusted, a realistic per-file floor can be added here.
   full-coverage:
-    runs-on: [self-hosted, macOS, keypath]
+    runs-on: [self-hosted, macOS, keypath, swiftpm-safe]
     # Sequence after the narrow lane: the two jobs share the self-hosted runner's
     # workspace/.build, so running them in parallel risks clobbering each other's
     # default.profdata (CLAUDE.md: avoid concurrent broad Swift builds). `needs`

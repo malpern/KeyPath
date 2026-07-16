@@ -20,7 +20,7 @@
 ## Phase 2: Parallel CI ✅
 
 ### 2a. Register a second runner on the Mini ✅
-**Done:** `keypath-mini-2` installed at `~/actions-runner-2` with LaunchAgent. Both runners online with labels `self-hosted,macOS,ARM64,keypath`. Verified: `build-and-test` (2m7s) and `code-quality` (11s) run in parallel on separate runners.
+**Done:** `keypath-mini-2` installed at `~/actions-runner-2` with LaunchAgent. Both runners are online. On macOS 27, only the interactive runner carries `swiftpm-safe`; SwiftPM jobs require that label while lightweight jobs can still run in parallel on the headless runner.
 
 ### 2b. Add concurrency control to ci.yml ✅
 **Done:** Added `concurrency: group: ci-${{ github.event.pull_request.number || github.ref }}, cancel-in-progress: true`. Verified: stale runs get cancelled on rapid pushes.

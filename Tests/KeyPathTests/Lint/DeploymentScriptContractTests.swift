@@ -207,6 +207,36 @@ final class DeploymentScriptContractTests: XCTestCase {
             "PlistBuddy cannot read GitHub's JSON .runner file and leaves a duplicate LaunchAgent loaded."
         )
     }
+
+    func testSwiftPMWorkflowsRequireInteractiveSafeRunner() throws {
+        let root = repositoryRoot()
+        let ci = try contents(of: root.appendingPathComponent(".github/workflows/ci.yml"))
+        let cacheWarm = try contents(of: root.appendingPathComponent(".github/workflows/cache-warm.yml"))
+        let coverage = try contents(of: root.appendingPathComponent(".github/workflows/coverage.yml"))
+        let runnerHealth = try contents(of: root.appendingPathComponent(".github/workflows/runner-health.yml"))
+        let installer = try contents(of: root.appendingPathComponent("Scripts/install-ci-runner-service.sh"))
+        let safeRunner = "runs-on: [self-hosted, macOS, keypath, swiftpm-safe]"
+
+        XCTAssertEqual(
+            ci.components(separatedBy: safeRunner).count - 1,
+            1,
+            "Only build-and-test should require the SwiftPM-safe interactive runner in ci.yml."
+        )
+        XCTAssertTrue(cacheWarm.contains(safeRunner))
+        XCTAssertEqual(
+            coverage.components(separatedBy: safeRunner).count - 1,
+            2,
+            "Every coverage job invokes SwiftPM and must use the safe runner."
+        )
+        XCTAssertFalse(
+            runnerHealth.contains(safeRunner),
+            "Runner health should still exercise either registered runner."
+        )
+        XCTAssertTrue(
+            installer.contains("Do not assign this registration the swiftpm-safe label"),
+            "The headless service installer must preserve the macOS 27 AppSSO routing boundary."
+        )
+    }
 }
 
 // MARK: - Helpers

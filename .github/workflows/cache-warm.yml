@@ -13,7 +13,7 @@ on:
 
 jobs:
   warm-cache:
-    runs-on: [self-hosted, macOS, keypath]
+    runs-on: [self-hosted, macOS, keypath, swiftpm-safe]
     timeout-minutes: 5
     steps:
       - name: Checkout code
