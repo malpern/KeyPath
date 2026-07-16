@@ -232,6 +232,9 @@ final class DeploymentScriptContractTests: XCTestCase {
             runnerHealth.contains(safeRunner),
             "Runner health should still exercise either registered runner."
         )
+        XCTAssertTrue(runnerHealth.contains("Verify SwiftPM label boundary"))
+        XCTAssertTrue(runnerHealth.contains("Headless keypath-mini must not carry swiftpm-safe"))
+        XCTAssertTrue(runnerHealth.contains("Interactive keypath-mini-2 must carry swiftpm-safe"))
         XCTAssertTrue(
             installer.contains("Do not assign this registration the swiftpm-safe label"),
             "The headless service installer must preserve the macOS 27 AppSSO routing boundary."

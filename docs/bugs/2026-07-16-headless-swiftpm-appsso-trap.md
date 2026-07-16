@@ -43,9 +43,17 @@ interactive runner. The corresponding crash reports on the Mini are
   either runner.
 - The boot-available headless runner remains registered, but must not receive
   the `swiftpm-safe` label while this macOS behavior persists.
+- The scheduled runner-health workflow audits the live GitHub runner labels
+  every six hours and fails if that boundary drifts. Runner labels are GitHub
+  registration metadata, not local LaunchDaemon configuration, so the service
+  installer also preserves an explicit warning at the point of maintenance.
 
 This makes scheduling fail closed: if the logged-in runner is unavailable, a
 SwiftPM job queues instead of running in a context known to crash.
+
+Serializing SwiftPM work onto one runner is an accepted temporary capacity
+tradeoff. The second runner still handles lightweight work in parallel; adding
+`swiftpm-safe` to the headless runner merely to regain throughput is unsafe.
 
 ## Re-enable criteria
 
