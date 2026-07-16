@@ -153,6 +153,9 @@ fi
 if [[ \$1 == exec && " \$* " == *" /usr/bin/test -p /tmp/keypath-console-login-"* ]]; then
   [[ -f "$TMP/console-fifo-ready" ]]
 fi
+if [[ \$1 == send-key-event && " \$* " == *" --json "* ]]; then
+  cat >> "$TMP/secure-console-key-events.jsonl"
+fi
 if [[ \$1 == exec && " \$* " == *" /usr/sbin/sysadminctl -autologin status "* ]]; then
   echo 'Automatic login is ON.'
 fi
@@ -438,10 +441,44 @@ grep -q 'stop-27 cbx_test27' "$CALLS"
 
 desktop27_create=$(run_remote create 27 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
 assert_contains "$desktop27_create" $'lease_id\tcbx_desktop27'
-console_login=$(KEYPATH_LAB_CONSOLE_LOGIN_POLL_SECONDS=0 run_remote console-login cbx_desktop27)
+test_known_hosts="$TMP/known hosts/known_hosts"
+mkdir -p "$(dirname "$test_known_hosts")"
+touch "$test_known_hosts"
+console_login=$(KEYPATH_LAB_TEST_KNOWN_HOSTS="$test_known_hosts" KEYPATH_LAB_CONSOLE_LOGIN_POLL_SECONDS=0 run_remote console-login cbx_desktop27)
 assert_contains "$console_login" $'console_login\tpassed'
 assert_contains "$console_login" $'console_user\tkeypathqa'
 [[ "$(cat "$TMP/guest-ssh-stdin")" == "$(cat "$TMP/secure-input")" ]] || { echo "console login streamed the wrong credential" >&2; exit 1; }
+{ cat "$TMP/secure-input"; printf '\n'; } | cmp -s - "$TMP/guest-ssh-stdin" || { echo "console login did not frame the credential as one FIFO record" >&2; exit 1; }
+escaped_test_known_hosts=${test_known_hosts// /\\ }
+grep -Fq "UserKnownHostsFile=$escaped_test_known_hosts" "$TMP/guest-ssh-args"
+secure_console_submit=$(KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS=0 KEYPATH_LAB_SECURE_CONSOLE_SETTLE_SECONDS=0 run_remote secure-console-submit cbx_desktop27)
+assert_contains "$secure_console_submit" $'secure_console_submit\tpassed'
+assert_contains "$secure_console_submit" $'credential_transport\tparallels-key-events'
+python3 -c 'import json,sys
+codes={"a":38,"b":56,"c":54,"d":40,"e":26,"f":41,"g":42,"h":43,"i":31,"j":44,"k":45,"l":46,"m":58,"n":57,"o":32,"p":33,"q":24,"r":27,"s":39,"t":28,"u":30,"v":55,"w":25,"x":53,"y":29,"z":52,"1":10,"2":11,"3":12,"4":13,"5":14,"6":15,"7":16,"8":17,"9":18,"0":19,"-":20}
+events=[json.loads(line) for line in open(sys.argv[1]) if line.strip()]
+expected=[[{"key":codes[ch]}] for ch in open(sys.argv[2]).read()]
+assert events == expected' "$TMP/secure-console-key-events.jsonl" "$TMP/secure-input"
+! grep -Fq 'fixture-password-that-must-not-leak' "$TMP/secure-console-key-events.jsonl"
+grep -q 'prlctl send-key-event 11111111-1111-1111-1111-111111111111 --key 36' "$CALLS"
+if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" "$CALLS" "$TMP/guest-ssh-args"; then
+    echo "secure console submit leaked its secret into controller logs or arguments" >&2
+    exit 1
+fi
+cp "$TMP/secure-input" "$TMP/secure-input.valid"
+printf 'Unsupported-credential' > "$TMP/secure-input"
+secure_console_calls_before=$(wc -l < "$CALLS")
+set +e
+secure_console_rejected=$(KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS=0 KEYPATH_LAB_SECURE_CONSOLE_SETTLE_SECONDS=0 run_remote secure-console-submit cbx_desktop27 2>&1)
+secure_console_rejected_status=$?
+set -e
+mv "$TMP/secure-input.valid" "$TMP/secure-input"
+[[ $secure_console_rejected_status -ne 0 ]] || { echo "unsupported secure console credential unexpectedly passed" >&2; exit 1; }
+assert_contains "$secure_console_rejected" 'failed to deliver the guest credential through Parallels key events'
+if tail -n "+$((secure_console_calls_before + 1))" "$CALLS" | grep -q 'send-key-event'; then
+    echo "unsupported secure console credential sent a key event" >&2
+    exit 1
+fi
 grep -q 'prlctl exec 11111111-1111-1111-1111-111111111111 /bin/zsh -lc' "$CALLS"
 grep -q 'sysadminctl.*autologin.*set.*userName.*keypathqa.*password' "$CALLS"
 grep -q 'prlctl restart 11111111-1111-1111-1111-111111111111' "$CALLS"

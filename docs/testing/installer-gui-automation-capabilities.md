@@ -51,7 +51,8 @@ for diagnostics where the native framebuffer point is already known.
 | Full Disk Access | No inherent human requirement | Same real-UI path, including file selection when the app must be added. | KeyPath's canonical FDA check after relaunch if required |
 | Driver/System Extension | No inherent human requirement | Open Login Items & Extensions semantically, locate the current row, then use fresh native RFB coordinates when the switch ignores semantic input. | VirtualHID extension state and functional device readiness |
 | Login Items/Background Activity | No inherent human requirement | Operate the actual Login Items UI with Peekaboo or RFB. | Current `SMAppService` status plus launchd, process, and TCP evidence |
-| Authentication/keychain sheet | No | `keypath-lab secure-dialog-input` streams `KEYPATH_TART_ADMIN_PASSWORD` through the lease-owned SSH channel into Peekaboo's MCP `type` tool. | Sheet closes and the protected setting changes |
+| Authentication/keychain sheet | No | On Tart, `keypath-lab secure-dialog-input` streams `KEYPATH_TART_ADMIN_PASSWORD` through the lease-owned SSH channel into Peekaboo's MCP `type` tool. On the macOS 27 Parallels lane, focus the secure field in the real console and use `secure-console-submit`; it sends the encrypted guest credential as paced Parallels key events. | Sheet closes and the protected setting changes; credential transport success alone is insufficient |
+| macOS 27 Remote Management input | No inherent human requirement | Enable Remote Management and VNC control in the disposable clone's real System Settings UI. The command-line setup is view-only. Submit the focused authorization sheet with `secure-console-submit`. | `rfb-pointer-probe` observes the guest cursor move; build `26A5378j` passed after the supported UI approval |
 | KeyPath GUI installer | No, once a desktop session exists | Launch and operate KeyPath inside the logged-in console session. Root may install files, but headless root cannot perform the app-owned `SMAppService` registration flow. | Installer state matrix and runtime postconditions |
 | Overlay and keyboard behavior | Partly | Capture screenshots, inspect AX state, send test input, and verify runtime events automatically. Human review remains useful for subjective visual quality. | Screenshot/evidence plus observed input and overlay state |
 | Reboot, services, trust, logs, artifacts, cleanup | No | Existing lab commands and scenarios | Post-reboot CLI inspection, signature/Gatekeeper results, logs, artifact manifest, and destroyed lease |
@@ -82,7 +83,9 @@ The remaining core capabilities are:
 4. A resumable scenario runner with differential assertions, explicit failure
    ownership, sanitized artifacts, and consolidated machine-readable results.
 5. Hardened macOS 26 and macOS 27 selectors before those OS versions can claim
-   the same unattended UI coverage as macOS 15.
+   the same unattended UI coverage as macOS 15. The macOS 27 console session,
+   secret-safe Remote Management authorization, and RFB event delivery are now
+   proven; selector capture and composition remain.
 
 Clean install, repair, upgrade, reboot, uninstall, reinstall, cancellation,
 nightly, and pairwise entries are consumers of those foundations. They are

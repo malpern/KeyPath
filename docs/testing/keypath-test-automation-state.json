@@ -1,9 +1,10 @@
 {
-  "updatedAt": "2026-07-12T21:27:05-07:00",
-  "currentTask": "P02 has a platform gate",
-  "message": "The VM reached the real VirtualHID approval control, but macOS has not transitioned the driver out of waiting-for-user. Captured RFB input is ready; remapped-output proof waits on a deterministic approval lane.",
+  "updatedAt": "2026-07-16T10:17:39-07:00",
+  "currentTask": "M11 Remote Management delivery proven",
+  "message": "Supported-UI approval plus paced secure input enabled Remote Management; the independent RFB probe now delivers events on macOS 27 build 26A5378j.",
   "complete": false,
   "workingBlocks": [
+    "M11",
     "P02"
   ],
   "activeWork": {
@@ -50,6 +51,59 @@
         "Repair and reboot validation",
         "Scenario-matrix pass/fail evidence"
       ]
+    },
+    "M11": {
+      "progress": 71,
+      "health": "smooth",
+      "trend": "forward",
+      "phase": "Remote Management input delivery proven",
+      "detail": "A disposable macOS 27 build 26A5378j clone now has a verified keypathqa console session, supported-UI Remote Management approval, paced secret-safe credential transport, and independently observed RFB cursor delivery. Selector capture and driver composition remain.",
+      "attempt": 1,
+      "completedSteps": 5,
+      "totalSteps": 7,
+      "nextTasks": [
+        {
+          "label": "Create and reserve fresh macOS 27 desktop lease",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Verify encrypted QA account credential",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Establish logged-in console session",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Enable Remote Management through supported UI",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Prove RFB event posting with cursor postcondition",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Capture macOS 27 semantic selectors",
+          "status": "active",
+          "progress": 10
+        },
+        {
+          "label": "Compose self-verifying macOS 27 approval driver",
+          "status": "queued",
+          "progress": 0
+        }
+      ],
+      "blocker": null,
+      "coreCapability": true,
+      "unlocks": [
+        "macOS 27 agent-driven System Settings automation",
+        "macOS 27 installer scenarios"
+      ]
     }
   },
   "statuses": {
@@ -60,9 +114,17 @@
     "P01": "proven",
     "P02": "active",
     "M14": "active",
-    "M12": "active"
+    "M12": "active",
+    "M11": "active"
   },
   "updates": [
+    {
+      "time": "10:17",
+      "block": "M11",
+      "tone": "success",
+      "title": "M11 Remote Management delivery proven",
+      "message": "Supported-UI approval plus paced secure input enabled Remote Management; the independent RFB probe now delivers events on macOS 27 build 26A5378j."
+    },
     {
       "time": "21:27",
       "block": "P02",
@@ -265,13 +327,6 @@
       "tone": "working",
       "title": "P01 published for review",
       "message": "PR #1129 is open. P01 remains active while CI and the enforced Claude review validate the guarded-click harness."
-    },
-    {
-      "time": "13:26",
-      "block": "P01",
-      "tone": "success",
-      "title": "P01 click guard implemented",
-      "message": "P01 advanced: wrong-coordinate clicks now fail immediately instead of silently corrupting the permission flow. The focused harness suite passes."
     }
   ],
   "activity": [
