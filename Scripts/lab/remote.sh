@@ -926,6 +926,7 @@ desktop_bootstrap() {
 console_login() {
   local lease=$1 manifest macos resource parallels_cli secret_file exit_code console_user attempt guest_command autologin_status guest_control_ready configure_stage
   local guest_ip key known_hosts known_hosts_option fifo status_file configure_pid fifo_ready stream_exit credential_timeout
+  local secret_leak
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$macos" == "27" ]] || die "console login currently supports only the macOS 27 Parallels lane"
@@ -1001,7 +1002,8 @@ console_login() {
     sleep 0.1
   done
   if (( fifo_ready == 1 )); then
-    "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_option" -i "$key" "keypathqa@$guest_ip" \
+    /usr/bin/perl -e 'my $timeout = shift; alarm $timeout; exec @ARGV or exit 127' "$credential_timeout" \
+      "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_option" -i "$key" "keypathqa@$guest_ip" \
       "/bin/zsh -c $(printf %q "/bin/cat > $(printf %q "$fifo")")" < "$secret_file" >/dev/null 2>&1
     stream_exit=$?
     (( stream_exit == 0 )) || kill "$configure_pid" 2>/dev/null || true
@@ -1015,8 +1017,10 @@ console_login() {
   "$parallels_cli" exec "$resource" /bin/rm -f "$status_file" >/dev/null 2>&1 || true
   configure_stage=$(< "$LOGS/$lease/console-login-configure.log")
   (( stream_exit == 0 )) || exit_code=$stream_exit
+  secret_leak=0
   if grep -Fq -f "$secret_file" "$LOGS/$lease/console-login-configure.log"; then
     : > "$LOGS/$lease/console-login-configure.log"
+    secret_leak=1
     exit_code=90
   fi
   set -e
@@ -1026,6 +1030,11 @@ console_login() {
     trap - EXIT
   fi
   if (( exit_code != 0 )); then
+    if (( secret_leak == 1 )); then
+      set_field "$manifest" console_login_status credential-leak-detected
+      record_command "$lease" failed:credential-leak console-login
+      die "guest credential disclosure was detected and redacted from the controller log"
+    fi
     if (( stream_exit != 0 )); then
       set_field "$manifest" console_login_status "credential-stream-failed:$stream_exit"
       record_command "$lease" "failed:$stream_exit" console-login

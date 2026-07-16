@@ -118,6 +118,10 @@ else
   if [[ \${KEYPATH_LAB_TEST_STREAM_FAIL:-0} == 1 ]]; then
     exit 17
   fi
+  if [[ \${KEYPATH_LAB_TEST_STREAM_HANG:-0} == 1 ]]; then
+    sleep 10
+    exit 0
+  fi
   cat > "$TMP/guest-ssh-stdin"
 fi
 EOF
@@ -130,6 +134,10 @@ if [[ \$1 == exec && \$3 == /usr/bin/true && \${KEYPATH_LAB_TEST_GUEST_CONTROL_F
 fi
 if [[ \$1 == exec && " \$* " == *sysadminctl*autologin*set* ]]; then
   touch "$TMP/console-fifo-ready"
+  if [[ \${KEYPATH_LAB_TEST_SECRET_LEAK:-0} == 1 ]]; then
+    echo fixture-password-that-must-not-leak
+    exit 0
+  fi
   for _ in {1..100}; do
     if [[ -f "$TMP/guest-ssh-stdin" ]]; then
       if [[ \${KEYPATH_LAB_TEST_CONSOLE_AUTH_FAIL:-0} == 1 ]]; then
@@ -190,8 +198,10 @@ run_remote() {
     KEYPATH_LAB_TEST_SECRET_FILE="$TMP/secure-input" \
     KEYPATH_LAB_TEST_CONSOLE_AUTH_FAIL="${KEYPATH_LAB_TEST_CONSOLE_AUTH_FAIL:-0}" \
     KEYPATH_LAB_TEST_STREAM_FAIL="${KEYPATH_LAB_TEST_STREAM_FAIL:-0}" \
+    KEYPATH_LAB_TEST_STREAM_HANG="${KEYPATH_LAB_TEST_STREAM_HANG:-0}" \
     KEYPATH_LAB_TEST_GUEST_CONTROL_FAIL="${KEYPATH_LAB_TEST_GUEST_CONTROL_FAIL:-0}" \
     KEYPATH_LAB_TEST_CONSOLE_USER_FAIL="${KEYPATH_LAB_TEST_CONSOLE_USER_FAIL:-0}" \
+    KEYPATH_LAB_TEST_SECRET_LEAK="${KEYPATH_LAB_TEST_SECRET_LEAK:-0}" \
     KEYPATH_LAB_TEST_CURSOR_BEFORE="${KEYPATH_LAB_TEST_CURSOR_BEFORE:-10 10}" \
     KEYPATH_LAB_TEST_CURSOR_AFTER="${KEYPATH_LAB_TEST_CURSOR_AFTER:-160 120}" \
         /bin/zsh "$REMOTE" "$@"
@@ -454,6 +464,14 @@ set -e
 [[ $console_login_stream_failure_status -ne 0 ]]
 assert_contains "$console_login_stream_failure" 'failed to stream the guest credential into the disposable guest'
 grep -q $'console_login_status\tcredential-stream-failed:17' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
+SECONDS=0
+set +e
+console_login_stream_hang=$(KEYPATH_LAB_TEST_STREAM_HANG=1 KEYPATH_LAB_CONSOLE_CREDENTIAL_TIMEOUT_SECONDS=1 KEYPATH_LAB_CONSOLE_LOGIN_POLL_SECONDS=0 run_remote console-login cbx_desktop27 2>&1)
+console_login_stream_hang_status=$?
+set -e
+[[ $console_login_stream_hang_status -ne 0 ]]
+[[ $SECONDS -le 4 ]]
+assert_contains "$console_login_stream_hang" 'failed to stream the guest credential into the disposable guest'
 set +e
 console_login_guest_control_failure=$(KEYPATH_LAB_TEST_GUEST_CONTROL_FAIL=1 KEYPATH_LAB_CONSOLE_LOGIN_POLL_SECONDS=0 run_remote console-login cbx_desktop27 2>&1)
 console_login_guest_control_failure_status=$?
@@ -467,6 +485,17 @@ set -e
 [[ $console_login_console_user_failure_status -ne 0 ]]
 assert_contains "$console_login_console_user_failure" 'automatic login did not establish the keypathqa console session'
 grep -q $'console_login_status\tpostcondition-failed' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
+set +e
+console_login_leak=$(KEYPATH_LAB_TEST_SECRET_LEAK=1 KEYPATH_LAB_CONSOLE_CREDENTIAL_TIMEOUT_SECONDS=1 KEYPATH_LAB_CONSOLE_LOGIN_POLL_SECONDS=0 run_remote console-login cbx_desktop27 2>&1)
+console_login_leak_status=$?
+set -e
+[[ $console_login_leak_status -ne 0 ]]
+assert_contains "$console_login_leak" 'guest credential disclosure was detected and redacted from the controller log'
+grep -q $'console_login_status\tcredential-leak-detected' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
+if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab"; then
+    echo "console login retained a disclosed credential after redaction" >&2
+    exit 1
+fi
 if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" "$CALLS"; then
     echo "console login leaked its secret into controller logs or arguments" >&2
     exit 1

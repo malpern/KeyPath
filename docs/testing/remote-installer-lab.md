@@ -164,9 +164,11 @@ during `console-login`; destroy the clone after collecting the normal lab
 artifacts.
 
 The guest opens the FIFO read/write and applies a bounded credential-read
-timeout, so a failed SSH stream cannot leave the root guest-control action
-blocked forever. Stream transport failures are reported separately from
-credential-authentication failures.
+timeout. The controller applies the same bound with a watchdog around the SSH
+writer, so a failed or stalled stream cannot leave either side blocked forever.
+Stream transport failures, credential-authentication failures, and detected
+credential disclosure have distinct fail-closed statuses. If disclosure is
+detected, the controller log is immediately redacted.
 
 The command asks `sysadminctl` to enable automatic login first. macOS 27 build
 `26A5378j` can return success while logging `SACSetAutoLoginPassword error:22`
