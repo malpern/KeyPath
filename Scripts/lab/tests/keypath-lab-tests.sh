@@ -260,6 +260,11 @@ repo="$ROOT/KeyPathInstallerLab/archives/$archive_key/repo"
 mkdir -p "$repo/.keypath-lab/installer" "$repo/Scripts/lab/scenarios"
 cp "$LAB_DIR/scenarios/installer-scenario" "$repo/Scripts/lab/scenarios/installer-scenario"
 cp "$LAB_DIR/nameplate-instrumentation" "$repo/Scripts/lab/nameplate-instrumentation"
+mkdir -p "$repo/.keypath-lab/managed-policy"
+for profile in keypath-pppc.mobileconfig keypath-system-extension.mobileconfig keypath-service-management.mobileconfig; do
+    printf '<plist version="1.0"><dict/></plist>\n' > "$repo/.keypath-lab/managed-policy/$profile"
+done
+printf '{"lane":"managed-functional"}\n' > "$repo/.keypath-lab/managed-policy/manifest.json"
 chmod +x "$repo/Scripts/lab/scenarios/installer-scenario"
 chmod +x "$repo/Scripts/lab/nameplate-instrumentation"
 echo installer > "$repo/.keypath-lab/installer/KeyPath.zip"
@@ -357,6 +362,21 @@ printf 'pid\t%s\nprovider\ttart\n' "$$" > "$ROOT/KeyPathInstallerLab/provider-ad
 parallel_provider_create=$(run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$parallel_provider_create" $'lease_id\tcbx_test26'
 run_remote destroy cbx_test26 >/dev/null
+
+managed_create=$(run_remote create 26 managed-functional "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
+assert_contains "$managed_create" $'managed_policy_rehydration\tpassed'
+assert_contains "$managed_create" $'lease_id\tcbx_test26'
+managed_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_test26/manifest.tsv"
+grep -q $'managed_policy_result\t0' "$managed_manifest"
+grep -q $'managed-policy-rehydration' "$ROOT/KeyPathInstallerLab/leases/cbx_test26/commands.tsv"
+set +e
+managed_busy_output=$(run_remote create 26 managed-functional "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
+managed_busy_exit=$?
+set -e
+[[ $managed_busy_exit -eq 75 ]] || { echo "expected managed identity contention to exit 75, got $managed_busy_exit" >&2; exit 1; }
+assert_contains "$managed_busy_output" $'managed_identity_busy\tactive_lease=cbx_test26'
+run_remote destroy cbx_test26 >/dev/null
+
 set +e
 lock_output=$(KEYPATH_LAB_ADMISSION_WAIT_ATTEMPTS=1 run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
 lock_exit=$?

@@ -85,6 +85,14 @@ The lane is recorded in the lease manifest and determines the base name. It
 cannot be changed after creation. Managed macOS 27 creation is rejected until
 that policy has been proven.
 
+For a managed lease, `create` derives a fresh policy set from that exact signed
+installer, copies the manifest into the clone, publishes all three profiles,
+waits for NanoMDM acknowledgements, queries the installed profile inventory,
+and runs system-level lane admission before reporting the lease ready. Policy
+publication fails closed if NanoMDM has zero or multiple enrollment identities.
+Only one live managed-functional lease is admitted while clones share the base
+enrollment identity.
+
 After installation, managed tests must still verify behavior: KeyPath and the
 runtime report Accessibility and Input Monitoring, the VirtualHID extension is
 active, background services are approved, Kanata is running, and TCP readiness

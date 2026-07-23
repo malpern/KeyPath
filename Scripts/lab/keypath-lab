@@ -112,6 +112,14 @@ case "$command" in
         installer_name=$(basename "$installer")
         [[ $installer_name =~ ^[A-Za-z0-9._-]+$ ]] || die "installer filename must contain only letters, numbers, dots, underscores, and dashes"
         cp "$installer" "$temp_dir/repo/.keypath-lab/installer/$installer_name"
+        if [[ $lane == "managed-functional" ]]; then
+            mkdir -p "$temp_dir/installer-extract"
+            /usr/bin/ditto -x -k "$installer" "$temp_dir/installer-extract"
+            [[ -d $temp_dir/installer-extract/KeyPath.app ]] || die "managed installer must contain KeyPath.app at its root"
+            "$SCRIPT_DIR/mdm/generate-keypath-profiles" \
+                --app "$temp_dir/installer-extract/KeyPath.app" \
+                --output "$temp_dir/repo/.keypath-lab/managed-policy" >/dev/null
+        fi
         cat > "$temp_dir/repo/.keypath-lab/source.tsv" <<EOF
 keypath_commit	$commit
 installer_name	$installer_name

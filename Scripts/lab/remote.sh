@@ -230,6 +230,22 @@ assert_provider_capacity() {
   fi
 }
 
+assert_managed_identity_available() {
+  local lane=$1 manifest cleanup lease_status expires existing_lease
+  [[ "$lane" == managed-functional ]] || return 0
+  for manifest in "$LEASES"/*/manifest.tsv(N); do
+    [[ "$(field "$manifest" owner)" == "$OWNER" ]] || continue
+    [[ "$(field "$manifest" test_lane)" == managed-functional ]] || continue
+    cleanup=$(field "$manifest" cleanup_status)
+    lease_status=$(field "$manifest" status)
+    expires=$(field "$manifest" expires_epoch)
+    [[ "$cleanup" != complete && "$lease_status" != destroyed && "$expires" == <-> && "$expires" -gt "$(now_epoch)" ]] || continue
+    existing_lease=$(field "$manifest" lease_id)
+    print -u2 "managed_identity_busy\tactive_lease=$existing_lease\tstatus=$lease_status\texpires_epoch=$expires"
+    return 75
+  done
+}
+
 record_command() {
   local lease=$1 result=$2; shift 2
   local command_text
@@ -246,6 +262,45 @@ prepare_worktree() {
     ':(exclude).crabbox/captures/**' \
     ':(exclude).crabbox/runs/**')
   [[ -z "$changes" ]] || die "refusing to sync a changing checkout"
+}
+
+rehydrate_managed_clone() {
+  local lease=$1 manifest repo provider_resource profile_dir guest_policy guest_repo parallels_cli evidence filename
+  manifest=$(owned_manifest "$lease")
+  repo=$(field "$manifest" worktree)
+  provider_resource=$(field "$manifest" provider_resource)
+  profile_dir="$repo/.keypath-lab/managed-policy"
+  guest_policy=/Library/KeyPathLab/managed-policy
+  guest_repo="/Users/keypathqa/crabbox/$lease/repo"
+  evidence="$ARTIFACTS/$lease/managed-policy"
+  for filename in keypath-pppc.mobileconfig keypath-system-extension.mobileconfig keypath-service-management.mobileconfig manifest.json; do
+    [[ -f "$profile_dir/$filename" && ! -L "$profile_dir/$filename" ]] || die "managed policy archive is missing: $filename"
+  done
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    mkdir -p "$evidence"
+    cp "$profile_dir/manifest.json" "$evidence/manifest.json"
+    print "managed_policy_rehydration\tpassed"
+    return
+  fi
+  [[ "$provider_resource" =~ '^[A-Fa-f0-9-]{36}$' ]] || die "invalid managed Parallels resource id"
+  parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+  [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+  "$parallels_cli" exec "$provider_resource" /bin/mkdir -p "$guest_policy"
+  for filename in keypath-pppc.mobileconfig keypath-system-extension.mobileconfig keypath-service-management.mobileconfig manifest.json; do
+    "$parallels_cli" exec "$provider_resource" /usr/bin/tee "$guest_policy/$filename" < "$profile_dir/$filename" >/dev/null
+  done
+  "$parallels_cli" exec "$provider_resource" /bin/chmod 444 \
+    "$guest_policy/keypath-pppc.mobileconfig" \
+    "$guest_policy/keypath-system-extension.mobileconfig" \
+    "$guest_policy/keypath-service-management.mobileconfig" \
+    "$guest_policy/manifest.json"
+  "$repo/Scripts/lab/mdm/publish-managed-profiles" \
+    --profile-dir "$profile_dir" \
+    --evidence-dir "$evidence"
+  "$parallels_cli" exec "$provider_resource" \
+    "$guest_repo/Scripts/lab/mdm/verify-lane" managed-functional \
+    --manifest "$guest_policy/manifest.json"
+  print "managed_policy_rehydration\tpassed"
 }
 
 run_with_download() {
@@ -445,7 +500,7 @@ lease_candidate_from_line() {
 
 create_lease() {
   local macos=$1 lane=$2 archive_key=$3 commit=$4 installer_sha=$5 installer_name=$6 ttl=$7 desktop=$8
-  local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds provider_resource create_status candidate_file create_log exit_code
+  local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds provider_resource create_status candidate_file create_log exit_code managed_policy_exit
   launcher=$(launcher_for "$macos")
   provider=$(provider_for "$macos")
   [[ "$lane" == "managed-functional" || "$lane" == "unmanaged-ui" ]] || die "invalid test lane: $lane"
@@ -468,6 +523,7 @@ create_lease() {
     sleep "$KEYPATH_LAB_TEST_PAUSE_AFTER_ADMISSION_LOCK"
   fi
   assert_provider_capacity "$provider" || return $?
+  assert_managed_identity_available "$lane" || return $?
   assert_internal_disk_reserve || return $?
   created=$(now_epoch)
   expires=$((created + ttl_seconds))
@@ -540,6 +596,22 @@ create_lease() {
   build=$(print -r -- "$guest_output" | sed -n 's/^build=//p' | tail -1)
   set_field "$manifest" macos_product_version "${product:-unknown}"
   set_field "$manifest" macos_build "${build:-unknown}"
+  if [[ "$lane" == managed-functional ]]; then
+    set +e
+    rehydrate_managed_clone "$lease" > "$LOGS/$lease/managed-policy.log" 2>&1
+    managed_policy_exit=$?
+    set -e
+    set_field "$manifest" managed_policy_result "$managed_policy_exit"
+    set_field "$manifest" managed_policy_at "$(utc_now)"
+    cat "$LOGS/$lease/managed-policy.log"
+    if ((managed_policy_exit != 0)); then
+      set_field "$manifest" status managed-policy-failed
+      release_admission_lock
+      trap - EXIT INT TERM HUP
+      return "$managed_policy_exit"
+    fi
+    record_command "$lease" passed managed-policy-rehydration
+  fi
   set_field "$manifest" status ready
   record_command "$lease" passed sw_vers
   release_admission_lock
