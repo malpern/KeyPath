@@ -562,7 +562,7 @@ install_app() {
   if [[ "$lane" == "managed-functional" ]]; then
     admission_command+=" --manifest /Library/KeyPathLab/managed-policy/manifest.json"
   fi
-  command="set -euo pipefail; $admission_command; rm -rf /tmp/keypath-install; mkdir -p /tmp/keypath-install; ditto -x -k '$guest_repo/.keypath-lab/installer/$installer_name' /tmp/keypath-install; cd '$guest_repo'; if [[ '$lane' == managed-functional ]]; then Scripts/lab/mdm/verify-artifact-policy --app /tmp/keypath-install/KeyPath.app --manifest /Library/KeyPathLab/managed-policy/manifest.json; fi; rm -rf /Applications/KeyPath.app; ditto /tmp/keypath-install/KeyPath.app /Applications/KeyPath.app"
+  command="setopt errexit nounset pipefail; $admission_command; rm -rf /tmp/keypath-install; mkdir -p /tmp/keypath-install; ditto -x -k '$guest_repo/.keypath-lab/installer/$installer_name' /tmp/keypath-install; cd '$guest_repo'; if [[ '$lane' == managed-functional ]]; then Scripts/lab/mdm/verify-artifact-policy --app /tmp/keypath-install/KeyPath.app --manifest /Library/KeyPathLab/managed-policy/manifest.json; fi; rm -rf /Applications/KeyPath.app; ditto /tmp/keypath-install/KeyPath.app /Applications/KeyPath.app"
   set +e
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
     print "admission $lane" >> "$LOGS/$lease/install-app.log"
@@ -1090,7 +1090,7 @@ secure_console_submit() {
   local lease=$1 manifest macos resource parallels_cli secret_file
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
-  [[ "$macos" == "27" ]] || die "secure console submit currently supports only the macOS 27 Parallels lane"
+  [[ "$macos" == "26" || "$macos" == "27" ]] || die "secure console submit requires a macOS 26 or 27 Parallels lane"
   [[ "$(field "$manifest" provider)" == "parallels" ]] || die "secure console submit requires a Parallels lease"
   [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "secure console submit requires a desktop-enabled lease"
   resource=$(field "$manifest" provider_resource)
@@ -1117,13 +1117,20 @@ secure_console_submit() {
 codes={"a":38,"b":56,"c":54,"d":40,"e":26,"f":41,"g":42,"h":43,"i":31,"j":44,"k":45,"l":46,"m":58,"n":57,"o":32,"p":33,"q":24,"r":27,"s":39,"t":28,"u":30,"v":55,"w":25,"x":53,"y":29,"z":52,"1":10,"2":11,"3":12,"4":13,"5":14,"6":15,"7":16,"8":17,"9":18,"0":19,"-":20}
 value=open(sys.argv[1],"r",encoding="utf-8").read()
 if not value or any(ch not in codes for ch in value): raise SystemExit(64)
-for ch in value: print(json.dumps([{"key":codes[ch]}],separators=(",",":")))' "$secret_file" | \
-    while IFS= read -r key_event; do
+for ch in value: print(json.dumps([{"key":codes[ch]}],separators=(",",":")))' "$secret_file" 3<&- | \
+    while IFS= read -r key_event <&3; do
       printf '%s\n' "$key_event" | "$parallels_cli" send-key-event "$resource" --json >/dev/null || exit 1
       sleep "${KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS:-0.2}"
-    done || die "failed to deliver the guest credential through Parallels key events"
+  done 3<&0 || die "failed to deliver the guest credential through Parallels key events"
   sleep "${KEYPATH_LAB_SECURE_CONSOLE_SETTLE_SECONDS:-0.25}"
-  "$parallels_cli" send-key-event "$resource" --key 36 >/dev/null
+  if [[ "$macos" == "26" ]]; then
+    # SecurityAgent accepts password text from the Parallels console but
+    # ignores synthetic application clicks. Leave the protected Enroll action
+    # to a real user click.
+    :
+  else
+    "$parallels_cli" send-key-event "$resource" --key 36 >/dev/null
+  fi
 
   if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" ]]; then
     rm -f "$secret_file"
@@ -1133,6 +1140,74 @@ for ch in value: print(json.dumps([{"key":codes[ch]}],separators=(",",":")))' "$
   record_command "$lease" passed secure-console-submit
   print "secure_console_submit\tpassed"
   print "credential_transport\tparallels-key-events"
+}
+
+reset_guest_password() {
+  local lease=$1 manifest resource parallels_cli secret_file key known_hosts known_hosts_option guest_ip
+  local fifo account_file guest_command reset_pid fifo_ready attempt stream_exit reset_exit enrollment_account
+  manifest=$(owned_manifest "$lease")
+  [[ "$(field "$manifest" provider)" == "parallels" ]] || die "guest password reset requires a Parallels lease"
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "guest password reset requires a desktop-enabled lease"
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$' ]] || die "invalid Parallels resource id"
+  parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+  [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+
+  key="$HOME/Library/Application Support/crabbox/testboxes/$lease/id_ed25519"
+  [[ -f "$key" && ! -L "$key" && -O "$key" ]] || die "owned CrabBox SSH key not found for lease"
+  known_hosts="$HOME/Library/Application Support/crabbox/testboxes/$lease/known_hosts"
+  [[ -f "$known_hosts" && ! -L "$known_hosts" && -O "$known_hosts" ]] || die "owned CrabBox known-hosts file not found for lease"
+  known_hosts_option=${known_hosts// /\\ }
+  guest_ip=$("$parallels_cli" list -i -f -j "$resource" | python3 -c 'import json,sys; rows=json.load(sys.stdin); addresses=rows[0].get("Network",{}).get("ipAddresses",[]) if rows else []; print(next((item.get("ip","") for item in addresses if item.get("type")=="ipv4"),""),end="")')
+  [[ "$guest_ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Parallels returned an invalid guest address"
+
+  secret_file=$(mktemp "$STATE_ROOT/.guest-password-reset.XXXXXXXX")
+  chmod 600 "$secret_file"
+  typeset -g KEYPATH_LAB_SECURE_TEMP="$secret_file"
+  trap '[[ -z ${KEYPATH_LAB_SECURE_TEMP:-} ]] || rm -f "$KEYPATH_LAB_SECURE_TEMP"' EXIT
+  /opt/homebrew/bin/sops -d "$HOME/dotfiles/secrets.env" | awk -F= '$1 == "KEYPATH_LAB_GUEST_PASSWORD" {sub(/^[^=]*=/, ""); printf "%s", $0; found=1} END {if (!found) exit 1}' > "$secret_file" || die "KEYPATH_LAB_GUEST_PASSWORD is unavailable"
+  [[ -s "$secret_file" ]] || die "guest password reset secret is empty"
+
+  fifo="/tmp/keypath-password-reset-$lease-$$.fifo"
+  account_file="/tmp/keypath-password-reset-$lease-$$.account"
+  guest_command="set -euo pipefail; fifo=$(printf %q "$fifo"); account_file=$(printf %q "$account_file"); rm -f \"\$fifo\" \"\$account_file\"; /usr/bin/mkfifo \"\$fifo\"; /usr/sbin/chown keypathqa:staff \"\$fifo\"; /bin/chmod 600 \"\$fifo\"; trap 'rm -f \"\$fifo\"' EXIT; password=; IFS= read -r password < \"\$fifo\"; if /usr/sbin/sysadminctl -resetPasswordFor keypathqa -newPassword \"\$password\" >/dev/null 2>&1 && /usr/bin/dscl . -authonly keypathqa \"\$password\"; then account=keypathqa; else /usr/sbin/sysadminctl -deleteUser keypathmdm >/dev/null 2>&1 || true; /usr/sbin/sysadminctl -addUser keypathmdm -fullName 'KeyPath MDM' -password \"\$password\" -admin >/dev/null; /usr/bin/dscl . -authonly keypathmdm \"\$password\"; /usr/sbin/dseditgroup -o checkmember -m keypathmdm admin | /usr/bin/grep -q 'yes'; account=keypathmdm; fi; printf '%s\n' \"\$account\" > \"\$account_file\"; /bin/chmod 600 \"\$account_file\"; unset password"
+  set +e
+  "$parallels_cli" exec "$resource" /bin/zsh -lc "$(printf %q "$guest_command")" >/dev/null 2>&1 &
+  reset_pid=$!
+  fifo_ready=0
+  for attempt in {1..300}; do
+    if "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_option" -i "$key" "keypathqa@$guest_ip" \
+      "/bin/test -p $(printf %q "$fifo")" </dev/null >/dev/null 2>&1; then
+      fifo_ready=1
+      break
+    fi
+    sleep 0.1
+  done
+  if (( fifo_ready == 1 )); then
+    { /bin/cat "$secret_file"; printf '\n'; } | \
+      "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_option" -i "$key" "keypathqa@$guest_ip" \
+        "/bin/zsh -c $(printf %q "/bin/cat > $(printf %q "$fifo")")" >/dev/null 2>&1
+    stream_exit=$?
+  else
+    stream_exit=76
+    kill "$reset_pid" 2>/dev/null || true
+  fi
+  wait "$reset_pid"
+  reset_exit=$?
+  set -e
+  "$parallels_cli" exec "$resource" /bin/rm -f "$fifo" >/dev/null 2>&1 || true
+  enrollment_account=$("$parallels_cli" exec "$resource" /bin/cat "$account_file" 2>/dev/null | tail -1 || true)
+  "$parallels_cli" exec "$resource" /bin/rm -f "$account_file" >/dev/null 2>&1 || true
+  rm -f "$secret_file"
+  KEYPATH_LAB_SECURE_TEMP=
+  trap - EXIT
+  (( stream_exit == 0 && reset_exit == 0 )) || die "failed to reset or provision and verify a disposable enrollment administrator"
+  [[ "$enrollment_account" == "keypathqa" || "$enrollment_account" == "keypathmdm" ]] || die "disposable enrollment administrator result was invalid"
+
+  record_command "$lease" passed reset-guest-password
+  print "guest_password_reset\tpassed"
+  print "credential_verification\tpassed"
+  print "enrollment_account\t$enrollment_account"
 }
 
 rfb_pointer_probe() {
@@ -1296,6 +1371,7 @@ case "$action" in
   scenario) [[ $# -eq 2 ]] || die "scenario requires lease and name"; scenario "$1" "$2" ;;
   desktop-bootstrap) [[ $# -eq 2 ]] || die "desktop-bootstrap requires lease and install-tools flag"; desktop_bootstrap "$@" ;;
   console-login) [[ $# -eq 1 ]] || die "console-login requires lease"; console_login "$1" ;;
+  reset-guest-password) [[ $# -eq 1 ]] || die "reset-guest-password requires lease"; reset_guest_password "$1" ;;
   secure-console-submit) [[ $# -eq 1 ]] || die "secure-console-submit requires lease"; secure_console_submit "$1" ;;
   rfb-pointer-probe) [[ $# -eq 3 ]] || die "rfb-pointer-probe requires lease, x, and y"; rfb_pointer_probe "$@" ;;
   nameplate) [[ $# -eq 2 ]] || die "nameplate requires lease and action"; nameplate_control "$@" ;;

@@ -16,7 +16,8 @@ elif [[ $# -ne 0 ]]; then
     usage
 fi
 
-profiles_output=$(/usr/bin/profiles show -type configuration 2>&1 || true)
+profiles_bin=${PROFILES_BIN:-/usr/bin/profiles}
+profiles_output=$("$profiles_bin" show -type=configuration 2>&1 || true)
 export KEYPATH_LAB_SW_VERS_BIN="${SW_VERS_BIN:-/usr/bin/sw_vers}"
 expected=(
     com.keypath.lab.pppc
@@ -36,7 +37,7 @@ if [[ $lane == managed-functional ]]; then
         echo "lane verification failed: managed-functional has $present/${#expected[@]} required profiles" >&2
         exit 1
     }
-    enrollment=$(/usr/bin/profiles status -type enrollment 2>&1 || true)
+    enrollment=$("$profiles_bin" status -type=enrollment 2>&1 || true)
     grep -Eiq 'MDM enrollment: (Yes|Enrolled)|Enrolled via DEP: Yes' <<<"$enrollment" || {
         echo "lane verification failed: device is not MDM enrolled" >&2
         printf '%s\n' "$enrollment" >&2

@@ -76,9 +76,9 @@ Continue in this order:
 
 1. Use the proven KeyPath-owned input event as P02's input and observe the
    remapped VirtualHID output.
-2. Prove the managed-functional PPPC profile grants ListenEvent to the exact
-   signed launcher requirement. This is the preferred non-hardware functional
-   lane once the lab MDM path is available.
+2. Prove the managed-functional PPPC profile targets the exact signed launcher
+   requirement and allows a standard user to approve ListenEvent without admin
+   authorization. Apple does not permit MDM to grant ListenEvent directly.
 3. If PPPC cannot target this raw executable reliably, spike packaging the
    launcher as a properly signed app bundle or service whose designated
    requirement macOS can represent consistently in TCC and MDM.

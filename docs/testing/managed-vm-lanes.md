@@ -7,7 +7,7 @@ base image is cloned for a test and is never itself used as a test machine.
 
 | Lane | Base state | Purpose |
 | --- | --- | --- |
-| `managed-functional` | MDM enrolled; KeyPath PPPC, system-extension, and service-management profiles installed; KeyPath never installed | Deterministic install, use, repair, upgrade, and uninstall scenarios without testing Apple's approval UI |
+| `managed-functional` | MDM enrolled; KeyPath PPPC, system-extension, and service-management profiles installed; KeyPath never installed | Deterministic system-extension, service-management, install, repair, upgrade, and uninstall scenarios; Input Monitoring still uses Apple's approval UI |
 | `unmanaged-ui` | No MDM enrollment, lab profiles, KeyPath installation, or KeyPath TCC history | A small set of tests that verify KeyPath correctly explains and responds to real macOS approval prompts |
 
 Do not convert a clone from one lane into the other. Enrollment, TCC,
@@ -42,6 +42,12 @@ The generator derives PPPC designated requirements from the signed app. It
 fails if the expected KeyPath identifiers or team change, rather than silently
 creating an overly broad profile. The VirtualHID system extension remains
 restricted to its upstream team and extension identifier.
+
+Apple does not allow an MDM profile to grant `ListenEvent` (Input Monitoring).
+The PPPC payload therefore uses `AllowStandardUserToSetSystemService`, which
+lets a standard user make that choice without administrator authorization but
+does not make the choice for them. Managed functional tests must complete and
+verify the genuine Input Monitoring approval before claiming runtime readiness.
 
 ## Clone identity and MDM
 
@@ -100,6 +106,7 @@ Scripts/lab/mdm/tests/managed-capability-probe-tests.sh
 
 ## OS boundary
 
-The generated PPPC profile is for macOS 15 and 26. macOS 27 changes managed
-privacy consent and needs its own separately proven configuration. Until that
-spike passes, macOS 27 must not claim the same deterministic permission lane.
+The generated PPPC profile is for macOS 15 and 26. Accessibility grants through
+PPPC are deprecated as of macOS 26.2, and macOS 27 removes the legacy managed
+privacy behavior. Until the macOS 27 spike passes, it must not claim the same
+managed permission lane.
