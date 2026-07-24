@@ -68,6 +68,27 @@ final class RuleDependencyGraphTests: XCTestCase {
         )
     }
 
+    func testMultipleActiveProvidersHaveStableOrdering() {
+        let firstProviderID = uuid(1)
+        let secondProviderID = uuid(2)
+        let navigationActivation = layerActivation("nav")
+        let graph = RuleDependencyGraph.build(from: [
+            contribution(
+                secondProviderID,
+                provides: [navigationActivation]
+            ),
+            contribution(
+                firstProviderID,
+                provides: [navigationActivation]
+            ),
+        ], enabledCollectionIDs: [secondProviderID, firstProviderID])
+
+        XCTAssertEqual(
+            graph.activeProviders(for: navigationActivation),
+            [firstProviderID, secondProviderID]
+        )
+    }
+
     func testRequirementCanBeMissingWithNoKnownProvider() {
         let consumerID = uuid(1)
         let requirement = RuleRequirement(capability: layerContent("sym"))

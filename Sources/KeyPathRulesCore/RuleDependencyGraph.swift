@@ -5,6 +5,11 @@ import Foundation
 /// Layer names are open-ended because custom rules and packs can introduce
 /// them. Canonicalizing at this boundary prevents equivalent Kanata layer names
 /// such as `FUN` and ` fun ` from producing different graph nodes.
+///
+/// Raw Kanata syntax is case-sensitive, but KeyPath's `RuleCollectionLayer`
+/// model and layer-creation path lowercase custom layer names before config
+/// generation. This type represents those canonical KeyPath layer names, not
+/// arbitrary identifiers parsed from an external Kanata configuration.
 public struct RuleLayerIdentifier: RawRepresentable, Hashable, Sendable {
     public let rawValue: String
 
