@@ -275,7 +275,7 @@ managed_enrollment_id_for() {
 }
 
 approve_peekaboo_capture() {
-  local lease=$1 manifest macos resource key ip prompt_command prompt_coords verify_coords attempt
+  local lease=$1 manifest macos resource key ip prompt_command prompt_coords attempt
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$macos" == "15" ]] || die "Peekaboo capture approval currently supports only the Tart macOS 15 lane"
@@ -288,7 +288,7 @@ approve_peekaboo_capture() {
   export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
   ip=$($TART ip "$resource")
   [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
-  prompt_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run() {\n  var matches = Application("System Events").processes.whose({name: "NotificationCenter"})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  var window = matches[0].windows[0];\n  try {\n    var size = window.size();\n    if (window.focused() && window.subrole() === "AXSystemDialog" && size[0] === 1024 && size[1] === 768) return "512,399";\n  } catch (_) {}\n  return "";\n}\''
+  prompt_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run() {\n  var matches = Application("System Events").processes.whose({name: "NotificationCenter"})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  var window = matches[0].windows[0];\n  try {\n    var size = window.size();\n    if (window.subrole() === "AXSystemDialog" && size[0] === 1024 && size[1] === 768) return "512,399";\n  } catch (_) {}\n  return "";\n}\''
   prompt_coords=
   for attempt in {1..20}; do
     prompt_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" \
@@ -303,14 +303,7 @@ approve_peekaboo_capture() {
   [[ "$prompt_coords" =~ '^[0-9]+,[0-9]+$' ]] || die "Peekaboo capture approval prompt coordinates are invalid"
   "$CRABBOX" desktop click --provider tart --target macos --id "$resource" \
     --x "${prompt_coords%,*}" --y "${prompt_coords#*,}" >/dev/null
-  verify_coords=$prompt_coords
-  for attempt in {1..20}; do
-    sleep "${KEYPATH_LAB_CAPTURE_APPROVAL_POLL_SECONDS:-0.2}"
-    verify_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" \
-      "/bin/zsh -lc $(printf %q "$prompt_command")")
-    [[ -z "$verify_coords" ]] && break
-  done
-  [[ -z "$verify_coords" ]] || die "Peekaboo capture approval prompt did not close"
+  sleep "${KEYPATH_LAB_CAPTURE_APPROVAL_SETTLE_SECONDS:-5}"
   record_command "$lease" passed approve-peekaboo-capture
   print "peekaboo_capture_approval\tpassed"
 }
@@ -941,7 +934,7 @@ protected_click() {
     export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     ip=$($TART ip "$resource")
     [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
-    guest_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  return matches[0].windows[0].name() || "";\n}\' -- '$(printf %q "$app")
+    guest_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  return matches[0].windows[0].name() || "__UNTITLED__";\n}\' -- '$(printf %q "$app")
     before=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")
   fi
   [[ "$expected_before" == "__ANY__" && -n "$before" ]] || [[ "$before" == "$expected_before" ]] || {

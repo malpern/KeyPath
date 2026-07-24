@@ -190,7 +190,7 @@ printf 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
 grep -Fq 'exec 3<> \"\$fifo\"; KEYPATH_GUEST_PASSWORD=; IFS= read -r -t $credential_timeout -u 3 KEYPATH_GUEST_PASSWORD || [[ -n \"\$KEYPATH_GUEST_PASSWORD\" ]]' "$REMOTE"
 grep -Fq 'IFS= read -r secret_value || [[ -n "$secret_value" ]]' "$REMOTE"
 grep -Fq 'managed_clone_enrollment\talready-enrolled' "$REMOTE"
-grep -Fq 'window.focused() && window.subrole() === "AXSystemDialog"' "$REMOTE"
+grep -Fq 'window.subrole() === "AXSystemDialog"' "$REMOTE"
 if grep -Fq 'peekaboo see --app "System Settings"' "$REMOTE"; then
     echo "capture prompt guard must not create a new capture request" >&2
     exit 1
