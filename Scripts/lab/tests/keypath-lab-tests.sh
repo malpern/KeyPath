@@ -16,7 +16,7 @@ cat > "$ROOT/bin/launcher15" <<EOF
 echo "launcher15 \$*" >> "$CALLS"
 case "\$1" in
  doctor) echo doctor-15 ;;
- warmup) echo cbx_test15 ;;
+ warmup) echo "\${KEYPATH_LAB_TEST_LEASE_15:-cbx_test15}" ;;
  run)
    if [[ "\$*" == *"nameplate-instrumentation"* ]]; then
      [[ -f "$ROOT/fail-nameplate-hide" && " \$* " == *" hide "* ]] && exit 9
@@ -25,7 +25,7 @@ case "\$1" in
      echo $'nameplate_sha256\t96d1b6c58167b4a8f3713a61a7e216f8a24c2adad36c9027db974f852d543a3d'
      [[ " \$* " == *" hide "* ]] && echo $'nameplate_state\thidden' || echo $'nameplate_state\tvisible'
    elif [[ "\$*" == *"IOPlatformUUID"* ]]; then
-     echo 15151515-1515-1515-1515-151515151516
+     [[ "\$*" == *"cbx_test15b"* ]] && echo 15151515-1515-1515-1515-151515151517 || echo 15151515-1515-1515-1515-151515151516
    else
      echo product=15.7.7; echo build=24G720
    fi ;;
@@ -227,6 +227,9 @@ run_remote() {
     KEYPATH_LAB_TEST_TART_STOP_MISSING="${KEYPATH_LAB_TEST_TART_STOP_MISSING:-0}" \
     KEYPATH_LAB_TEST_CURSOR_BEFORE="${KEYPATH_LAB_TEST_CURSOR_BEFORE:-10 10}" \
     KEYPATH_LAB_TEST_CURSOR_AFTER="${KEYPATH_LAB_TEST_CURSOR_AFTER:-160 120}" \
+    KEYPATH_LAB_TEST_LEASE_15="${KEYPATH_LAB_TEST_LEASE_15:-cbx_test15}" \
+    KEYPATH_LAB_CAPACITY_TART="${KEYPATH_LAB_CAPACITY_TART:-1}" \
+    KEYPATH_LAB_CAPACITY_PARALLELS="${KEYPATH_LAB_CAPACITY_PARALLELS:-2}" \
         /bin/zsh "$REMOTE" "$@"
 }
 
@@ -403,6 +406,7 @@ assert_contains "$managed_create" $'enrollment_id\t26262626-2626-2626-2626-26262
 assert_contains "$managed_create" $'lease_id\tcbx_test26'
 managed_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_test26/manifest.tsv"
 grep -q $'managed_policy_result\t0' "$managed_manifest"
+grep -q $'managed_identity_scope\tshared:26262626-2626-2626-2626-262626262626' "$managed_manifest"
 grep -q $'managed-policy-rehydration' "$ROOT/KeyPathInstallerLab/leases/cbx_test26/commands.tsv"
 set +e
 managed_busy_output=$(run_remote create 26 managed-functional "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
@@ -410,6 +414,7 @@ managed_busy_exit=$?
 set -e
 [[ $managed_busy_exit -eq 75 ]] || { echo "expected managed identity contention to exit 75, got $managed_busy_exit" >&2; exit 1; }
 assert_contains "$managed_busy_output" $'managed_identity_busy\tactive_lease=cbx_test26'
+assert_contains "$managed_busy_output" $'scope=shared:26262626-2626-2626-2626-262626262626'
 run_remote destroy cbx_test26 >/dev/null
 
 set +e
@@ -454,10 +459,18 @@ managed15_create=$(run_remote create 15 managed-functional "$archive_key" "$comm
 assert_contains "$managed15_create" $'managed_policy_rehydration\tpassed'
 assert_contains "$managed15_create" $'enrollment_id\t15151515-1515-1515-1515-151515151516'
 assert_contains "$managed15_create" $'lease_id\tcbx_test15'
+grep -q $'managed_identity_scope\tunique-clone' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"
 grep -F 'launcher15 run cbx_test15' "$CALLS" | grep -Fq '/usr/bin/install'
 grep -F 'launcher15 run cbx_test15' "$CALLS" | grep -Fq '/Users/admin/crabbox/cbx_test15/repo/.keypath-lab/managed-policy/keypath-pppc.mobileconfig'
 grep -F 'launcher15 run cbx_test15' "$CALLS" | grep -Fq '/Users/admin/crabbox/cbx_test15/repo/Scripts/lab/mdm/verify-lane'
 grep -F 'launcher15 run cbx_test15' "$CALLS" | grep -Fq '/Library/KeyPathLab/managed-policy/manifest.json'
+managed15_second=$(KEYPATH_LAB_CAPACITY_TART=2 KEYPATH_LAB_TEST_LEASE_15=cbx_test15b \
+    run_remote create 15 managed-functional "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
+assert_contains "$managed15_second" $'managed_policy_rehydration\tpassed'
+assert_contains "$managed15_second" $'enrollment_id\t15151515-1515-1515-1515-151515151517'
+assert_contains "$managed15_second" $'lease_id\tcbx_test15b'
+grep -q $'managed_identity_scope\tunique-clone' "$ROOT/KeyPathInstallerLab/leases/cbx_test15b/manifest.tsv"
+run_remote destroy cbx_test15b >/dev/null
 run_remote destroy cbx_test15 >/dev/null
 sed -i '' $'s/^status\t.*/status\tready/; s/^cleanup_status\t.*/cleanup_status\tpending/' \
     "$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"

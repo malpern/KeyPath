@@ -57,16 +57,18 @@ verify the genuine Input Monitoring approval before claiming runtime readiness.
 
 ## Clone identity and MDM
 
-Initially run managed clones sequentially. A checkpoint made after enrollment
-contains the enrollment identity. Multiple concurrent clones of that checkpoint
-can appear to the MDM server as the same device. Profiles already installed in
-the checkpoint remain useful, but commands and inventory updates can be routed
-to the wrong clone.
+Managed-clone concurrency depends on the provider's identity behavior. The
+macOS 15 Tart lane randomizes the clone hardware identity, rejects a clone that
+retains the base identity, and enrolls the personalized clone as a distinct MDM
+device. Those leases therefore use the `unique-clone` identity scope and may
+coexist when Tart host capacity permits.
 
-Before enabling concurrent managed tests, add a clone-personalization phase
-that enrolls each clone with a unique MDM identity, or prove that the chosen
-virtualization and MDM stack regenerate device identity safely. Do not infer
-this from a single successful clone.
+The macOS 26 Parallels lane still inherits the base enrollment identity.
+Multiple clones of that checkpoint can appear to the MDM server as the same
+device, so commands and inventory updates could be routed to the wrong clone.
+Those leases use a scope keyed by the shared enrollment identity, and admission
+allows only one active lease in that scope. Do not remove that serialization
+until clone personalization and fresh enrollment are proven on macOS 26.
 
 ## Test admission rules
 
@@ -98,8 +100,9 @@ and runs system-level lane admission before reporting the lease ready. Policy
 publication routes through the base-specific enrollment identity stored under
 the controller's `managed-identities` directory and fails closed when that
 identity is absent or invalid.
-Only one live managed-functional lease is admitted while clones share the base
-enrollment identity.
+The lease manifest records `managed_identity_scope`. Admission serializes only
+leases that share the same enrollment identity; personalized macOS 15 clones
+do not weaken the shared-identity protection for macOS 26.
 
 After installation, managed tests must still verify behavior: KeyPath and the
 runtime report Accessibility and Input Monitoring, the VirtualHID extension is

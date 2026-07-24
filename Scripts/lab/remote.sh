@@ -230,9 +230,24 @@ assert_provider_capacity() {
   fi
 }
 
+managed_identity_scope_for() {
+  local macos=$1 lane=$2 base_name enrollment_id
+  [[ "$lane" == managed-functional ]] || { print none; return 0; }
+  if [[ "$macos" == "15" ]]; then
+    print unique-clone
+    return 0
+  fi
+  base_name=$(base_for "$macos" "$lane")
+  enrollment_id=$(managed_enrollment_id_for "$base_name")
+  print -r -- "shared:$enrollment_id"
+}
+
 assert_managed_identity_available() {
-  local lane=$1 manifest cleanup lease_status expires existing_lease
+  local macos=$1 lane=$2 requested_scope manifest cleanup lease_status expires
+  local existing_lease existing_scope existing_macos
   [[ "$lane" == managed-functional ]] || return 0
+  requested_scope=$(managed_identity_scope_for "$macos" "$lane")
+  [[ "$requested_scope" == unique-clone ]] && return 0
   for manifest in "$LEASES"/*/manifest.tsv(N); do
     [[ "$(field "$manifest" owner)" == "$OWNER" ]] || continue
     [[ "$(field "$manifest" test_lane)" == managed-functional ]] || continue
@@ -240,8 +255,15 @@ assert_managed_identity_available() {
     lease_status=$(field "$manifest" status)
     expires=$(field "$manifest" expires_epoch)
     [[ "$cleanup" != complete && "$lease_status" != destroyed && "$expires" == <-> && "$expires" -gt "$(now_epoch)" ]] || continue
+    existing_macos=$(field "$manifest" macos)
+    if [[ -z "$existing_macos" ]]; then
+      existing_scope=legacy-unknown
+    else
+      existing_scope=$(managed_identity_scope_for "$existing_macos" managed-functional)
+    fi
+    [[ "$existing_scope" == "$requested_scope" || "$existing_scope" == legacy-unknown ]] || continue
     existing_lease=$(field "$manifest" lease_id)
-    print -u2 "managed_identity_busy\tactive_lease=$existing_lease\tstatus=$lease_status\texpires_epoch=$expires"
+    print -u2 "managed_identity_busy\tactive_lease=$existing_lease\tscope=$requested_scope\tstatus=$lease_status\texpires_epoch=$expires"
     return 75
   done
 }
@@ -584,8 +606,9 @@ install_archive() {
 
 write_provisional_lease_manifest() {
   local lease=$1 slug=$2 macos=$3 lane=$4 provider=$5 archive_key=$6 commit=$7 installer_sha=$8 installer_name=$9 repo=${10} created=${11} expires=${12} desktop=${13}
-  local manifest
+  local manifest identity_scope
   valid_id "$lease"
+  identity_scope=$(managed_identity_scope_for "$macos" "$lane")
   mkdir -p "$LEASES/$lease" "$LOGS/$lease" "$ARTIFACTS/$lease"
   manifest=$(manifest_path "$lease")
   [[ -e "$manifest" ]] && return
@@ -596,6 +619,7 @@ write_provisional_lease_manifest() {
     print "macos\t$macos"
     print "test_lane\t$lane"
     print "base_name\t$(base_for "$macos" "$lane")"
+    print "managed_identity_scope\t$identity_scope"
     print "provider\t$provider"
     print "archive_key\t$archive_key"
     print "keypath_commit\t$commit"
@@ -621,7 +645,8 @@ lease_candidate_from_line() {
 
 create_lease() {
   local macos=$1 lane=$2 archive_key=$3 commit=$4 installer_sha=$5 installer_name=$6 ttl=$7 desktop=$8
-  local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds provider_resource create_status candidate_file create_log exit_code managed_policy_exit
+  local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds
+  local provider_resource create_status candidate_file create_log exit_code managed_policy_exit identity_scope
   launcher=$(launcher_for "$macos")
   provider=$(provider_for "$macos")
   [[ "$lane" == "managed-functional" || "$lane" == "unmanaged-ui" ]] || die "invalid test lane: $lane"
@@ -647,7 +672,7 @@ create_lease() {
     sleep "$KEYPATH_LAB_TEST_PAUSE_AFTER_ADMISSION_LOCK"
   fi
   assert_provider_capacity "$provider" || return $?
-  assert_managed_identity_available "$lane" || return $?
+  assert_managed_identity_available "$macos" "$lane" || return $?
   assert_internal_disk_reserve || return $?
   created=$(now_epoch)
   expires=$((created + ttl_seconds))
@@ -680,6 +705,7 @@ create_lease() {
   provider_resource=$(print -r -- "$output" | sed -nE 's/.* (vm|instance)=([^ ]+).*/\2/p' | tail -1)
   mkdir -p "$LEASES/$lease" "$LOGS/$lease" "$ARTIFACTS/$lease"
   manifest=$(manifest_path "$lease")
+  identity_scope=$(managed_identity_scope_for "$macos" "$lane")
   {
     print "owner\t$OWNER"
     print "lease_id\t$lease"
@@ -687,6 +713,7 @@ create_lease() {
     print "macos\t$macos"
     print "test_lane\t$lane"
     print "base_name\t$(base_for "$macos" "$lane")"
+    print "managed_identity_scope\t$identity_scope"
     print "provider\t$provider"
     print "archive_key\t$archive_key"
     print "keypath_commit\t$commit"
