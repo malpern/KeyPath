@@ -73,10 +73,13 @@ extension RuleCollectionsManager {
         case .applyWithoutProviders:
             return []
         case .enableRequiredProvidersAndApply:
-            // Ambiguous graphs cannot be auto-fixed safely. Interactive callers
-            // hide the action; non-interactive callers fall back to applying
-            // without providers.
-            return context.recommendedProviderIDs ?? []
+            guard let providerIDs = context.recommendedProviderIDs else {
+                AppLogger.shared.log(
+                    "⚠️ [RuleCollections] Automatic prerequisite resolution aborted because a requirement has multiple providers"
+                )
+                return nil
+            }
+            return providerIDs
         }
     }
 

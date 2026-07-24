@@ -327,6 +327,42 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
         XCTAssertTrue(manager.ruleCollections[id: second.id]?.isEnabled == false)
     }
 
+    func testNonInteractiveAutomaticFixAbortsWhenProvidersAreAmbiguous() async throws {
+        let manager = try makeManager()
+        defer { TestEnvironment.forceTestMode = false }
+        let first = layerContentProvider(
+            id: uuid(43),
+            name: "First Function",
+            enabled: false
+        )
+        let second = layerContentProvider(
+            id: uuid(44),
+            name: "Second Function",
+            enabled: false
+        )
+        let candidate = homeRowToggles(
+            id: uuid(45),
+            enabled: false,
+            assignments: ["a": "fun"]
+        )
+        manager.ruleCollections = [first, second, candidate]
+
+        var regenerationCount = 0
+        manager.onBeforeSave = { regenerationCount += 1 }
+
+        let appliedProviderIDs = await manager.applyProposedCollectionWithPrerequisites(
+            candidate,
+            rollbackMessage: "Test rollback",
+            nonInteractiveChoice: .enableRequiredProvidersAndApply
+        )
+
+        XCTAssertNil(appliedProviderIDs)
+        XCTAssertEqual(regenerationCount, 0)
+        XCTAssertTrue(manager.ruleCollections[id: candidate.id]?.isEnabled == false)
+        XCTAssertTrue(manager.ruleCollections[id: first.id]?.isEnabled == false)
+        XCTAssertTrue(manager.ruleCollections[id: second.id]?.isEnabled == false)
+    }
+
     func testFailedAtomicSaveRestoresCandidateAndProvider() async throws {
         let manager = try makeManager()
         defer { TestEnvironment.forceTestMode = false }
