@@ -268,6 +268,11 @@ printf '{"lane":"managed-functional"}\n' > "$repo/.keypath-lab/managed-policy/ma
 chmod +x "$repo/Scripts/lab/scenarios/installer-scenario"
 chmod +x "$repo/Scripts/lab/nameplate-instrumentation"
 echo installer > "$repo/.keypath-lab/installer/KeyPath.zip"
+mkdir -p "$ROOT/KeyPathInstallerLab/managed-identities"
+printf '%s\n' '15151515-1515-1515-1515-151515151515' \
+    > "$ROOT/KeyPathInstallerLab/managed-identities/keypath-macos-15-managed.enrollment-id"
+printf '%s\n' '26262626-2626-2626-2626-262626262626' \
+    > "$ROOT/KeyPathInstallerLab/managed-identities/keypath-macos-26-managed.enrollment-id"
 git -C "$repo" init -q
 git -C "$repo" config user.name test
 git -C "$repo" config user.email test@example.com
@@ -365,6 +370,7 @@ run_remote destroy cbx_test26 >/dev/null
 
 managed_create=$(run_remote create 26 managed-functional "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$managed_create" $'managed_policy_rehydration\tpassed'
+assert_contains "$managed_create" $'enrollment_id\t26262626-2626-2626-2626-262626262626'
 assert_contains "$managed_create" $'lease_id\tcbx_test26'
 managed_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_test26/manifest.tsv"
 grep -q $'managed_policy_result\t0' "$managed_manifest"

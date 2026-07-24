@@ -264,14 +264,27 @@ prepare_worktree() {
   [[ -z "$changes" ]] || die "refusing to sync a changing checkout"
 }
 
+managed_enrollment_id_for() {
+  local base_name=$1 identity_file enrollment_id
+  valid_id "$base_name"
+  identity_file="$STATE_ROOT/managed-identities/$base_name.enrollment-id"
+  [[ -f "$identity_file" && ! -L "$identity_file" ]] || die "managed enrollment identity is unavailable for base: $base_name"
+  enrollment_id=$(<"$identity_file")
+  [[ "$enrollment_id" =~ '^[A-Fa-f0-9-]{36}$' ]] || die "invalid managed enrollment identity for base: $base_name"
+  print -r -- "$enrollment_id"
+}
+
 rehydrate_managed_clone() {
-  local lease=$1 manifest repo provider_resource profile_dir guest_policy guest_repo parallels_cli evidence filename
+  local lease=$1 manifest macos base_name enrollment_id repo provider_resource profile_dir guest_policy guest_repo parallels_cli evidence filename launcher copy_command verify_command
   manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  base_name=$(field "$manifest" base_name)
+  enrollment_id=$(managed_enrollment_id_for "$base_name")
   repo=$(field "$manifest" worktree)
   provider_resource=$(field "$manifest" provider_resource)
   profile_dir="$repo/.keypath-lab/managed-policy"
   guest_policy=/Library/KeyPathLab/managed-policy
-  guest_repo="/Users/keypathqa/crabbox/$lease/repo"
+  guest_repo="/Users/$([[ "$macos" == "15" ]] && print admin || print keypathqa)/crabbox/$lease/repo"
   evidence="$ARTIFACTS/$lease/managed-policy"
   for filename in keypath-pppc.mobileconfig keypath-system-extension.mobileconfig keypath-service-management.mobileconfig manifest.json; do
     [[ -f "$profile_dir/$filename" && ! -L "$profile_dir/$filename" ]] || die "managed policy archive is missing: $filename"
@@ -279,27 +292,43 @@ rehydrate_managed_clone() {
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
     mkdir -p "$evidence"
     cp "$profile_dir/manifest.json" "$evidence/manifest.json"
+    print "enrollment_id\t$enrollment_id"
     print "managed_policy_rehydration\tpassed"
     return
   fi
-  [[ "$provider_resource" =~ '^[A-Fa-f0-9-]{36}$' ]] || die "invalid managed Parallels resource id"
-  parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
-  [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
-  "$parallels_cli" exec "$provider_resource" /bin/mkdir -p "$guest_policy"
-  for filename in keypath-pppc.mobileconfig keypath-system-extension.mobileconfig keypath-service-management.mobileconfig manifest.json; do
-    "$parallels_cli" exec "$provider_resource" /usr/bin/tee "$guest_policy/$filename" < "$profile_dir/$filename" >/dev/null
-  done
-  "$parallels_cli" exec "$provider_resource" /bin/chmod 444 \
-    "$guest_policy/keypath-pppc.mobileconfig" \
-    "$guest_policy/keypath-system-extension.mobileconfig" \
-    "$guest_policy/keypath-service-management.mobileconfig" \
-    "$guest_policy/manifest.json"
+  if [[ "$macos" == "15" ]]; then
+    launcher=$(launcher_for "$macos")
+    copy_command="setopt errexit nounset pipefail; mkdir -p '$guest_policy';"
+    for filename in keypath-pppc.mobileconfig keypath-system-extension.mobileconfig keypath-service-management.mobileconfig manifest.json; do
+      copy_command+=" /usr/bin/install -m 444 '$guest_repo/.keypath-lab/managed-policy/$filename' '$guest_policy/$filename';"
+    done
+    (cd "$repo" && "$launcher" run "$lease" -- /bin/zsh -lc "sudo -n /bin/zsh -lc $(printf %q "$copy_command")")
+  else
+    [[ "$provider_resource" =~ '^[A-Fa-f0-9-]{36}$' ]] || die "invalid managed Parallels resource id"
+    parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+    [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+    "$parallels_cli" exec "$provider_resource" /bin/mkdir -p "$guest_policy"
+    for filename in keypath-pppc.mobileconfig keypath-system-extension.mobileconfig keypath-service-management.mobileconfig manifest.json; do
+      "$parallels_cli" exec "$provider_resource" /usr/bin/tee "$guest_policy/$filename" < "$profile_dir/$filename" >/dev/null
+    done
+    "$parallels_cli" exec "$provider_resource" /bin/chmod 444 \
+      "$guest_policy/keypath-pppc.mobileconfig" \
+      "$guest_policy/keypath-system-extension.mobileconfig" \
+      "$guest_policy/keypath-service-management.mobileconfig" \
+      "$guest_policy/manifest.json"
+  fi
   "$repo/Scripts/lab/mdm/publish-managed-profiles" \
     --profile-dir "$profile_dir" \
-    --evidence-dir "$evidence"
-  "$parallels_cli" exec "$provider_resource" \
-    "$guest_repo/Scripts/lab/mdm/verify-lane" managed-functional \
-    --manifest "$guest_policy/manifest.json"
+    --evidence-dir "$evidence" \
+    --enrollment-id "$enrollment_id"
+  if [[ "$macos" == "15" ]]; then
+    verify_command="'$guest_repo/Scripts/lab/mdm/verify-lane' managed-functional --manifest '$guest_policy/manifest.json'"
+    (cd "$repo" && "$launcher" run "$lease" -- /bin/zsh -lc "sudo -n /bin/zsh -lc $(printf %q "$verify_command")")
+  else
+    "$parallels_cli" exec "$provider_resource" \
+      "$guest_repo/Scripts/lab/mdm/verify-lane" managed-functional \
+      --manifest "$guest_policy/manifest.json"
+  fi
   print "managed_policy_rehydration\tpassed"
 }
 
