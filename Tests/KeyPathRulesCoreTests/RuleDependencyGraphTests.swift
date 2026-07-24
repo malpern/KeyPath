@@ -29,6 +29,23 @@ final class RuleDependencyGraphTests: XCTestCase {
         XCTAssertEqual(graph.capabilitiesProvided(by: providerID), [functionContent])
     }
 
+    func testHyperAliasCapabilityCanBeProvidedAndRequired() {
+        let providerID = uuid(1)
+        let consumerID = uuid(2)
+        let hyperAlias = RuleCapability.keyAlias(.hyper)
+        let requirement = RuleRequirement(
+            capability: hyperAlias,
+            evidence: [.configuration(field: "modifier", value: "hyper")]
+        )
+        let graph = RuleDependencyGraph.build(from: [
+            contribution(providerID, provides: [hyperAlias]),
+            contribution(consumerID, requirements: [requirement]),
+        ], enabledCollectionIDs: [providerID, consumerID])
+
+        XCTAssertEqual(graph.activeProviders(for: hyperAlias), [providerID])
+        XCTAssertEqual(graph.requirements(for: consumerID), [requirement])
+    }
+
     func testDisabledProviderIsKnownButNotActive() {
         let providerID = uuid(1)
         let functionContent = layerContent("fun")
@@ -209,6 +226,77 @@ final class RuleDependencyGraphTests: XCTestCase {
 
         XCTAssertEqual(graph.enabledCollectionIDs, [collectionID])
         XCTAssertEqual(graph.collectionIDs, [collectionID])
+    }
+
+    func testEquivalentRequirementEvidenceAcrossContributionsIsDeduplicated() {
+        let collectionID = uuid(1)
+        let graph = RuleDependencyGraph.build(from: [
+            contribution(
+                collectionID,
+                requirements: [
+                    RuleRequirement(
+                        capability: layerContent("fun"),
+                        evidence: [.keys(["a", "b"])]
+                    ),
+                ]
+            ),
+            contribution(
+                collectionID,
+                requirements: [
+                    RuleRequirement(
+                        capability: layerContent("fun"),
+                        evidence: [.keys(["b", "a"])]
+                    ),
+                ]
+            ),
+        ])
+
+        XCTAssertEqual(
+            graph.requirements(for: collectionID),
+            [
+                RuleRequirement(
+                    capability: layerContent("fun"),
+                    evidence: [.keys(["a", "b"])]
+                ),
+            ]
+        )
+    }
+
+    func testDifferentEvidenceForOneCapabilityIsCombined() {
+        let collectionID = uuid(1)
+        let graph = RuleDependencyGraph.build(from: [
+            contribution(
+                collectionID,
+                requirements: [
+                    RuleRequirement(
+                        capability: layerContent("fun"),
+                        evidence: [.keys(["a"])]
+                    ),
+                ]
+            ),
+            contribution(
+                collectionID,
+                requirements: [
+                    RuleRequirement(
+                        capability: layerContent("fun"),
+                        evidence: [.configuration(field: "mode", value: "toggle")]
+                    ),
+                ]
+            ),
+        ])
+
+        XCTAssertEqual(
+            graph.requirements(for: collectionID),
+            [
+                RuleRequirement(
+                    capability: layerContent("fun"),
+                    evidence: [
+                        .keys(["a"]),
+                        .configuration(field: "mode", value: "toggle"),
+                    ]
+                ),
+            ]
+        )
     }
 
     private func contribution(

@@ -185,19 +185,33 @@ public struct RuleDependencyGraph: Equatable, Sendable {
         enabledCollectionIDs: Set<UUID> = []
     ) -> Self {
         var capabilitiesByCollection: [UUID: Set<RuleCapability>] = [:]
-        var requirementsByCollection: [UUID: Set<RuleRequirement>] = [:]
+        var requirementEvidenceByCollection:
+            [UUID: [RuleCapability: Set<RuleDependencyEvidence>]] = [:]
         var providersByCapability: [RuleCapability: Set<UUID>] = [:]
 
         for contribution in contributions {
             capabilitiesByCollection[contribution.collectionID, default: []]
                 .formUnion(contribution.provides)
-            requirementsByCollection[contribution.collectionID, default: []]
-                .formUnion(contribution.requirements.map(\.normalized))
+            _ = requirementEvidenceByCollection[contribution.collectionID, default: [:]]
+
+            for requirement in contribution.requirements.map(\.normalized) {
+                requirementEvidenceByCollection[
+                    contribution.collectionID,
+                    default: [:]
+                ][requirement.capability, default: []]
+                    .formUnion(requirement.evidence)
+            }
 
             for capability in contribution.provides {
                 providersByCapability[capability, default: []]
                     .insert(contribution.collectionID)
             }
+        }
+
+        let requirementsByCollection = requirementEvidenceByCollection.mapValues { requirements in
+            Set(requirements.map { capability, evidence in
+                RuleRequirement(capability: capability, evidence: evidence)
+            })
         }
 
         var activeProvidersByCapability: [RuleCapability: Set<UUID>] = [:]
@@ -245,6 +259,9 @@ public struct RuleDependencyGraph: Equatable, Sendable {
     }
 
     /// Requirements contributed by a collection in deterministic order.
+    ///
+    /// Contributions requiring the same capability are represented once with
+    /// their normalized evidence combined.
     public func requirements(for collectionID: UUID) -> [RuleRequirement] {
         requirementsByCollection[collectionID, default: []]
             .sorted { $0.stableSortKey < $1.stableSortKey }
