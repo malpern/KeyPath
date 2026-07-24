@@ -341,8 +341,8 @@ rehydrate_managed_clone() {
         print "managed_clone_enrollment\talready-enrolled"
       else
         desktop_bootstrap "$lease" 1
-        approve_peekaboo_capture "$lease"
         run_command "$lease" /bin/zsh Scripts/lab/mdm/enroll-clone-ui
+        approve_peekaboo_capture "$lease"
         protected_click "$lease" "System Settings" "__ANY__" "Device Management" native 249 226 1
         sleep "${KEYPATH_LAB_PROFILE_LIST_SETTLE_SECONDS:-5}"
         protected_click "$lease" "System Settings" "Device Management" "Device Management" native 600 216 2
@@ -968,6 +968,12 @@ protected_click() {
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
     after=${KEYPATH_LAB_TEST_WINDOW_AFTER:-$expected_after}
   else
+    after=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")
+  fi
+  if [[ "$after" != "$expected_after" && "$expected_before" == "__ANY__" ]]; then
+    sleep "${KEYPATH_LAB_INITIAL_SETTINGS_RETRY_SECONDS:-5}"
+    "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$x" --y "$y" >/dev/null
+    sleep "${KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS:-1}"
     after=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")
   fi
   [[ "$after" == "$expected_after" ]] || {
