@@ -20,10 +20,9 @@ final class RuleDependencyGraphTests: XCTestCase {
         let graph = RuleDependencyGraph.build(from: [
             contribution(
                 providerID,
-                isEnabled: true,
                 provides: [functionContent]
             ),
-        ])
+        ], enabledCollectionIDs: [providerID])
 
         XCTAssertEqual(graph.knownProviders(for: functionContent), [providerID])
         XCTAssertEqual(graph.activeProviders(for: functionContent), [providerID])
@@ -36,7 +35,6 @@ final class RuleDependencyGraphTests: XCTestCase {
         let graph = RuleDependencyGraph.build(from: [
             contribution(
                 providerID,
-                isEnabled: false,
                 provides: [functionContent]
             ),
         ])
@@ -52,15 +50,13 @@ final class RuleDependencyGraphTests: XCTestCase {
         let graph = RuleDependencyGraph.build(from: [
             contribution(
                 secondProviderID,
-                isEnabled: false,
                 provides: [navigationActivation]
             ),
             contribution(
                 firstProviderID,
-                isEnabled: true,
                 provides: [navigationActivation]
             ),
-        ])
+        ], enabledCollectionIDs: [firstProviderID])
 
         XCTAssertEqual(
             graph.knownProviders(for: navigationActivation),
@@ -78,10 +74,9 @@ final class RuleDependencyGraphTests: XCTestCase {
         let graph = RuleDependencyGraph.build(from: [
             contribution(
                 consumerID,
-                isEnabled: true,
                 requirements: [requirement]
             ),
-        ])
+        ], enabledCollectionIDs: [consumerID])
 
         XCTAssertEqual(graph.requirements(for: consumerID), [requirement])
         XCTAssertTrue(graph.knownProviders(for: requirement.capability).isEmpty)
@@ -94,10 +89,9 @@ final class RuleDependencyGraphTests: XCTestCase {
         let graph = RuleDependencyGraph.build(from: [
             contribution(
                 providerID,
-                isEnabled: true,
                 provides: [layerContent("  FUN\n")]
             ),
-        ])
+        ], enabledCollectionIDs: [providerID])
 
         XCTAssertEqual(
             graph.knownProviders(for: normalizedCapability),
@@ -128,10 +122,9 @@ final class RuleDependencyGraphTests: XCTestCase {
         let graph = RuleDependencyGraph.build(from: [
             contribution(
                 consumerID,
-                isEnabled: true,
                 requirements: [requirement]
             ),
-        ])
+        ], enabledCollectionIDs: [consumerID])
 
         let storedRequirement = try XCTUnwrap(
             graph.requirements(for: consumerID).first
@@ -151,23 +144,21 @@ final class RuleDependencyGraphTests: XCTestCase {
         )
     }
 
-    func testContributionsForOneCollectionAreMerged() {
+    func testContributionsForOneCollectionShareOneAuthoritativeEnabledState() {
         let collectionID = uuid(1)
         let graph = RuleDependencyGraph.build(from: [
             contribution(
                 collectionID,
-                isEnabled: false,
                 provides: [layerContent("fun")]
             ),
             contribution(
                 collectionID,
-                isEnabled: true,
                 provides: [layerActivation("fun")],
                 requirements: [
                     RuleRequirement(capability: layerActivation("nav")),
                 ]
             ),
-        ])
+        ], enabledCollectionIDs: [collectionID])
 
         XCTAssertEqual(graph.collectionIDs, [collectionID])
         XCTAssertEqual(
@@ -182,17 +173,30 @@ final class RuleDependencyGraphTests: XCTestCase {
             graph.activeProviders(for: layerContent("fun")),
             [collectionID]
         )
+        XCTAssertEqual(
+            graph.activeProviders(for: layerActivation("fun")),
+            [collectionID]
+        )
+    }
+
+    func testEnabledCollectionWithoutDependencyContributionIsRetained() {
+        let collectionID = uuid(1)
+        let graph = RuleDependencyGraph.build(
+            from: [],
+            enabledCollectionIDs: [collectionID]
+        )
+
+        XCTAssertEqual(graph.enabledCollectionIDs, [collectionID])
+        XCTAssertEqual(graph.collectionIDs, [collectionID])
     }
 
     private func contribution(
         _ collectionID: UUID,
-        isEnabled: Bool,
         provides: Set<RuleCapability> = [],
         requirements: Set<RuleRequirement> = []
     ) -> RuleDependencyContribution {
         RuleDependencyContribution(
             collectionID: collectionID,
-            isEnabled: isEnabled,
             provides: provides,
             requirements: requirements
         )

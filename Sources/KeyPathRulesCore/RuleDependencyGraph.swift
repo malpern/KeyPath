@@ -122,20 +122,22 @@ public struct RuleRequirement: Hashable, Sendable {
 /// Family-specific extraction from `RuleCollection` intentionally lives in
 /// issue #867. Keeping this input generic makes the graph independently
 /// testable and reusable by future import, pack, and CLI validation paths.
+///
+/// Enabled state is intentionally not part of a contribution. Independent
+/// extractors may emit multiple contributions for one collection, while
+/// enabled state has exactly one collection-wide source of truth supplied to
+/// the graph builder.
 public struct RuleDependencyContribution: Equatable, Sendable {
     public let collectionID: UUID
-    public let isEnabled: Bool
     public let provides: Set<RuleCapability>
     public let requirements: Set<RuleRequirement>
 
     public init(
         collectionID: UUID,
-        isEnabled: Bool,
         provides: Set<RuleCapability> = [],
         requirements: Set<RuleRequirement> = []
     ) {
         self.collectionID = collectionID
-        self.isEnabled = isEnabled
         self.provides = provides
         self.requirements = requirements
     }
@@ -171,17 +173,17 @@ public struct RuleDependencyGraph: Equatable, Sendable {
     ///
     /// Multiple contributions for one collection are merged. This supports
     /// independent extractors without making ordering part of graph semantics.
-    public static func build(from contributions: [RuleDependencyContribution]) -> Self {
-        var enabledCollectionIDs: Set<UUID> = []
+    /// Enabled state is supplied once per graph snapshot so extractors cannot
+    /// disagree about a collection's state.
+    public static func build(
+        from contributions: [RuleDependencyContribution],
+        enabledCollectionIDs: Set<UUID> = []
+    ) -> Self {
         var capabilitiesByCollection: [UUID: Set<RuleCapability>] = [:]
         var requirementsByCollection: [UUID: Set<RuleRequirement>] = [:]
         var providersByCapability: [RuleCapability: Set<UUID>] = [:]
 
         for contribution in contributions {
-            if contribution.isEnabled {
-                enabledCollectionIDs.insert(contribution.collectionID)
-            }
-
             capabilitiesByCollection[contribution.collectionID, default: []]
                 .formUnion(contribution.provides)
             requirementsByCollection[contribution.collectionID, default: []]
@@ -213,7 +215,8 @@ public struct RuleDependencyGraph: Equatable, Sendable {
 
     /// All known collections in deterministic UUID order.
     public var collectionIDs: [UUID] {
-        Set(capabilitiesByCollection.keys)
+        enabledCollectionIDs
+            .union(capabilitiesByCollection.keys)
             .union(requirementsByCollection.keys)
             .sorted(by: Self.uuidLessThan)
     }
