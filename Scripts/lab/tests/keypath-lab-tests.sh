@@ -24,11 +24,20 @@ case "\$1" in
      echo $'nameplate_version\t0.2.5'
      echo $'nameplate_sha256\t96d1b6c58167b4a8f3713a61a7e216f8a24c2adad36c9027db974f852d543a3d'
      [[ " \$* " == *" hide "* ]] && echo $'nameplate_state\thidden' || echo $'nameplate_state\tvisible'
+   elif [[ "\$*" == *"IOPlatformUUID"* ]]; then
+     echo 15151515-1515-1515-1515-151515151516
    else
      echo product=15.7.7; echo build=24G720
    fi ;;
- stop) echo "stop-15 \$2" >> "$CALLS" ;;
- list) echo cbx_test15 ;;
+ stop)
+   echo "stop-15 \$2" >> "$CALLS"
+   [[ \${KEYPATH_LAB_TEST_TART_STOP_MISSING:-0} == 1 ]] && { echo "tart lease not found: \$2" >&2; exit 4; }
+   exit 0
+   ;;
+ list)
+   [[ \${KEYPATH_LAB_TEST_TART_STOP_MISSING:-0} == 1 ]] || echo cbx_test15
+   exit 0
+   ;;
 esac
 EOF
 cat > "$ROOT/bin/launcher26" <<EOF
@@ -179,11 +188,13 @@ chmod +x "$ROOT/bin/prlctl"
 echo test-private-key > "$TMP/id_ed25519"
 printf 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
 grep -Fq 'exec 3<> \"\$fifo\"; KEYPATH_GUEST_PASSWORD=; IFS= read -r -t $credential_timeout -u 3 KEYPATH_GUEST_PASSWORD || [[ -n \"\$KEYPATH_GUEST_PASSWORD\" ]]' "$REMOTE"
+grep -Fq 'IFS= read -r secret_value || [[ -n "$secret_value" ]]' "$REMOTE"
 grep -Fq '/usr/bin/mktemp /etc/kcpassword.XXXXXXXX' "$REMOTE"
 grep -Fq "Automatic login user: keypathqa" "$REMOTE"
 
 /bin/bash -n "$LAB_DIR/../qa-macos-27-regression.sh"
 /bin/zsh -n "$LAB_DIR/desktop-bootstrap"
+/bin/zsh -n "$LAB_DIR/mdm/enroll-clone-ui"
 /bin/zsh -n "$LAB_DIR/nameplate-instrumentation"
 /bin/zsh -n "$LAB_DIR/scenarios/kanata-vhid-two-clients"
 grep -q 'macos-27-regression)' "$LAB_DIR/scenarios/installer-scenario"
@@ -206,6 +217,7 @@ run_remote() {
     KEYPATH_LAB_TEST_GUEST_CONTROL_FAIL="${KEYPATH_LAB_TEST_GUEST_CONTROL_FAIL:-0}" \
     KEYPATH_LAB_TEST_CONSOLE_USER_FAIL="${KEYPATH_LAB_TEST_CONSOLE_USER_FAIL:-0}" \
     KEYPATH_LAB_TEST_SECRET_LEAK="${KEYPATH_LAB_TEST_SECRET_LEAK:-0}" \
+    KEYPATH_LAB_TEST_TART_STOP_MISSING="${KEYPATH_LAB_TEST_TART_STOP_MISSING:-0}" \
     KEYPATH_LAB_TEST_CURSOR_BEFORE="${KEYPATH_LAB_TEST_CURSOR_BEFORE:-10 10}" \
     KEYPATH_LAB_TEST_CURSOR_AFTER="${KEYPATH_LAB_TEST_CURSOR_AFTER:-160 120}" \
         /bin/zsh "$REMOTE" "$@"
@@ -258,9 +270,17 @@ fi
 
 archive_key="$(printf 'a%.0s' {1..40})-$(printf 'b%.0s' {1..64})"
 repo="$ROOT/KeyPathInstallerLab/archives/$archive_key/repo"
-mkdir -p "$repo/.keypath-lab/installer" "$repo/Scripts/lab/scenarios"
+mkdir -p "$repo/.keypath-lab/installer" "$repo/Scripts/lab/scenarios" "$repo/Scripts/lab/mdm"
 cp "$LAB_DIR/scenarios/installer-scenario" "$repo/Scripts/lab/scenarios/installer-scenario"
 cp "$LAB_DIR/nameplate-instrumentation" "$repo/Scripts/lab/nameplate-instrumentation"
+cat > "$repo/Scripts/lab/mdm/publish-managed-profiles" <<'EOF'
+#!/bin/bash
+if [[ ${KEYPATH_LAB_TEST_PUBLISH_FAIL:-0} == 1 ]]; then
+    echo 'fixture managed profile publication failed' >&2
+    exit 42
+fi
+printf 'enrollment_id\t%s\n' "${@: -1}"
+EOF
 mkdir -p "$repo/.keypath-lab/managed-policy"
 for profile in keypath-pppc.mobileconfig keypath-system-extension.mobileconfig keypath-service-management.mobileconfig; do
     printf '<plist version="1.0"><dict/></plist>\n' > "$repo/.keypath-lab/managed-policy/$profile"
@@ -268,6 +288,7 @@ done
 printf '{"lane":"managed-functional"}\n' > "$repo/.keypath-lab/managed-policy/manifest.json"
 chmod +x "$repo/Scripts/lab/scenarios/installer-scenario"
 chmod +x "$repo/Scripts/lab/nameplate-instrumentation"
+chmod +x "$repo/Scripts/lab/mdm/publish-managed-profiles"
 echo installer > "$repo/.keypath-lab/installer/KeyPath.zip"
 mkdir -p "$ROOT/KeyPathInstallerLab/managed-identities"
 printf '%s\n' '15151515-1515-1515-1515-151515151515' \
@@ -424,12 +445,35 @@ rm -rf "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
 
 managed15_create=$(run_remote create 15 managed-functional "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$managed15_create" $'managed_policy_rehydration\tpassed'
-assert_contains "$managed15_create" $'enrollment_id\t15151515-1515-1515-1515-151515151515'
+assert_contains "$managed15_create" $'enrollment_id\t15151515-1515-1515-1515-151515151516'
 assert_contains "$managed15_create" $'lease_id\tcbx_test15'
 grep -F 'launcher15 run cbx_test15' "$CALLS" | grep -Fq '/usr/bin/install'
 grep -F 'launcher15 run cbx_test15' "$CALLS" | grep -Fq '/Users/admin/crabbox/cbx_test15/repo/.keypath-lab/managed-policy/keypath-pppc.mobileconfig'
 grep -F 'launcher15 run cbx_test15' "$CALLS" | grep -Fq '/Users/admin/crabbox/cbx_test15/repo/Scripts/lab/mdm/verify-lane'
 grep -F 'launcher15 run cbx_test15' "$CALLS" | grep -Fq '/Library/KeyPathLab/managed-policy/manifest.json'
+run_remote destroy cbx_test15 >/dev/null
+sed -i '' $'s/^status\t.*/status\tready/; s/^cleanup_status\t.*/cleanup_status\tpending/' \
+    "$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"
+KEYPATH_LAB_TEST_TART_STOP_MISSING=1 run_remote destroy cbx_test15 >/dev/null
+grep -q $'status\tdestroyed' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"
+grep -q $'cleanup_status\tcomplete' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"
+
+set +e
+managed_publish_failure=$(KEYPATH_LAB_TEST_PUBLISH_MANAGED=1 KEYPATH_LAB_TEST_PUBLISH_FAIL=1 \
+    run_remote create 15 managed-functional "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
+managed_publish_exit=$?
+set -e
+[[ $managed_publish_exit -eq 42 ]] || {
+    echo "expected managed publication failure to exit 42, got $managed_publish_exit" >&2
+    exit 1
+}
+assert_contains "$managed_publish_failure" 'fixture managed profile publication failed'
+if [[ "$managed_publish_failure" == *$'managed_policy_rehydration\tpassed'* ]]; then
+    echo "managed publication failure continued into a false-positive verification" >&2
+    exit 1
+fi
+grep -q $'managed_policy_result\t42' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"
+grep -q $'status\tmanaged-policy-failed' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"
 run_remote destroy cbx_test15 >/dev/null
 
 env \
