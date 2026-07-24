@@ -10,9 +10,9 @@ is Kanata Accessibility.
 The legacy PPPC payload draws the launcher and engine Accessibility switches as
 managed and enabled, but macOS 26.2 and later no longer honor an Accessibility
 grant from that payload. KeyPath's independent oracle correctly finds no
-Accessibility TCC record and refuses to call the runtime operational. Apple
-documents the replacement as the declarative
-`com.apple.configuration.app-settings` configuration.
+Accessibility TCC record and refuses to call the runtime operational.
+[Apple documents the replacement](https://developer.apple.com/documentation/devicemanagement/privacypreferencespolicycontrol/services-data.dictionary)
+as the declarative `com.apple.configuration.app-settings` configuration.
 
 The smaller alternative is a managed macOS 15 lane, where the legacy
 Accessibility grant remains supported and the lab already has native VNC input

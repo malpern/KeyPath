@@ -120,8 +120,8 @@ macOS 26.2 and later, the managed Accessibility switches can appear enabled
 while the system has no corresponding TCC grant. Runtime admission must require
 KeyPath's independent permission result and must fail in that state.
 
-Apple's replacement is the declarative
-`com.apple.configuration.app-settings` configuration. Until the lab publishes
-and verifies that declaration, macOS 26.2 and later cannot claim a deterministic
-managed Accessibility lane. macOS 27 also removes the legacy PPPC behavior
-entirely.
+[Apple's replacement](https://developer.apple.com/documentation/devicemanagement/privacypreferencespolicycontrol/services-data.dictionary)
+is the declarative `com.apple.configuration.app-settings` configuration. Until
+the lab publishes and verifies that declaration, macOS 26.2 and later cannot
+claim a deterministic managed Accessibility lane. macOS 27 also removes the
+legacy PPPC behavior entirely.
