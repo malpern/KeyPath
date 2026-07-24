@@ -230,9 +230,24 @@ assert_provider_capacity() {
   fi
 }
 
+managed_identity_scope_for() {
+  local macos=$1 lane=$2 base_name enrollment_id
+  [[ "$lane" == managed-functional ]] || { print none; return 0; }
+  if [[ "$macos" == "15" ]]; then
+    print unique-clone
+    return 0
+  fi
+  base_name=$(base_for "$macos" "$lane")
+  enrollment_id=$(managed_enrollment_id_for "$base_name")
+  print -r -- "shared:$enrollment_id"
+}
+
 assert_managed_identity_available() {
-  local lane=$1 manifest cleanup lease_status expires existing_lease
+  local macos=$1 lane=$2 requested_scope manifest cleanup lease_status expires
+  local existing_lease existing_scope existing_macos
   [[ "$lane" == managed-functional ]] || return 0
+  requested_scope=$(managed_identity_scope_for "$macos" "$lane")
+  [[ "$requested_scope" == unique-clone ]] && return 0
   for manifest in "$LEASES"/*/manifest.tsv(N); do
     [[ "$(field "$manifest" owner)" == "$OWNER" ]] || continue
     [[ "$(field "$manifest" test_lane)" == managed-functional ]] || continue
@@ -240,8 +255,15 @@ assert_managed_identity_available() {
     lease_status=$(field "$manifest" status)
     expires=$(field "$manifest" expires_epoch)
     [[ "$cleanup" != complete && "$lease_status" != destroyed && "$expires" == <-> && "$expires" -gt "$(now_epoch)" ]] || continue
+    existing_macos=$(field "$manifest" macos)
+    if [[ -z "$existing_macos" ]]; then
+      existing_scope=legacy-unknown
+    else
+      existing_scope=$(managed_identity_scope_for "$existing_macos" managed-functional)
+    fi
+    [[ "$existing_scope" == "$requested_scope" || "$existing_scope" == legacy-unknown ]] || continue
     existing_lease=$(field "$manifest" lease_id)
-    print -u2 "managed_identity_busy\tactive_lease=$existing_lease\tstatus=$lease_status\texpires_epoch=$expires"
+    print -u2 "managed_identity_busy\tactive_lease=$existing_lease\tscope=$requested_scope\tstatus=$lease_status\texpires_epoch=$expires"
     return 75
   done
 }
@@ -264,43 +286,164 @@ prepare_worktree() {
   [[ -z "$changes" ]] || die "refusing to sync a changing checkout"
 }
 
-rehydrate_managed_clone() {
-  local lease=$1 manifest repo provider_resource profile_dir guest_policy guest_repo parallels_cli evidence filename
+managed_enrollment_id_for() {
+  local base_name=$1 identity_file enrollment_id
+  valid_id "$base_name"
+  identity_file="$STATE_ROOT/managed-identities/$base_name.enrollment-id"
+  [[ -f "$identity_file" && ! -L "$identity_file" ]] || die "managed enrollment identity is unavailable for base: $base_name"
+  enrollment_id=$(<"$identity_file")
+  [[ "$enrollment_id" =~ '^[A-Fa-f0-9-]{36}$' ]] || die "invalid managed enrollment identity for base: $base_name"
+  print -r -- "$enrollment_id"
+}
+
+approve_peekaboo_capture() {
+  local lease=$1 manifest macos resource key ip prompt_command prompt_coords attempt
   manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$macos" == "15" ]] || die "Peekaboo capture approval currently supports only the Tart macOS 15 lane"
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Za-z0-9._-]+$' && "$resource" != "unknown" ]] || die "invalid Tart resource id"
+
+  key="$HOME/Library/Application Support/crabbox/testboxes/$lease/id_ed25519"
+  [[ -f "$key" && ! -L "$key" && -O "$key" ]] || die "owned CrabBox SSH key not found for lease"
+  if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
+  export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  ip=$($TART ip "$resource")
+  [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
+  prompt_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run() {\n  var matches = Application("System Events").processes.whose({name: "NotificationCenter"})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  var window = matches[0].windows[0];\n  try {\n    var size = window.size();\n    if (window.subrole() === "AXSystemDialog" && size[0] === 1024 && size[1] === 768) return "512,399";\n  } catch (_) {}\n  return "";\n}\''
+  prompt_coords=
+  for attempt in {1..20}; do
+    prompt_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" \
+      "/bin/zsh -lc $(printf %q "$prompt_command")")
+    [[ -n "$prompt_coords" ]] && break
+    sleep "${KEYPATH_LAB_CAPTURE_APPROVAL_POLL_SECONDS:-0.2}"
+  done
+  if [[ -z "$prompt_coords" ]]; then
+    print "peekaboo_capture_approval\talready-approved"
+    return 0
+  fi
+  [[ "$prompt_coords" =~ '^[0-9]+,[0-9]+$' ]] || die "Peekaboo capture approval prompt coordinates are invalid"
+  "$CRABBOX" desktop click --provider tart --target macos --id "$resource" \
+    --x "${prompt_coords%,*}" --y "${prompt_coords#*,}" >/dev/null
+  sleep "${KEYPATH_LAB_CAPTURE_APPROVAL_SETTLE_SECONDS:-5}"
+  record_command "$lease" passed approve-peekaboo-capture
+  print "peekaboo_capture_approval\tpassed"
+}
+
+rehydrate_managed_clone() {
+  local lease=$1 manifest macos base_name base_enrollment_id enrollment_id repo provider_resource profile_dir guest_policy guest_repo parallels_cli evidence filename launcher copy_command verify_command identity_output
+  local enrollment_ready enrollment_record enrollment_status attempt
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  base_name=$(field "$manifest" base_name)
+  base_enrollment_id=$(managed_enrollment_id_for "$base_name")
   repo=$(field "$manifest" worktree)
   provider_resource=$(field "$manifest" provider_resource)
   profile_dir="$repo/.keypath-lab/managed-policy"
   guest_policy=/Library/KeyPathLab/managed-policy
-  guest_repo="/Users/keypathqa/crabbox/$lease/repo"
+  guest_repo="/Users/$([[ "$macos" == "15" ]] && print admin || print keypathqa)/crabbox/$lease/repo"
   evidence="$ARTIFACTS/$lease/managed-policy"
   for filename in keypath-pppc.mobileconfig keypath-system-extension.mobileconfig keypath-service-management.mobileconfig manifest.json; do
     [[ -f "$profile_dir/$filename" && ! -L "$profile_dir/$filename" ]] || die "managed policy archive is missing: $filename"
   done
-  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+  if [[ "$macos" == "15" ]]; then
+    launcher=$(launcher_for "$macos")
+    identity_output=$(cd "$repo" && "$launcher" run "$lease" -- /bin/zsh -lc \
+      "/usr/sbin/ioreg -rd1 -c IOPlatformExpertDevice -a | /usr/bin/plutil -extract 0.IOPlatformUUID raw -")
+    enrollment_id=$(print -r -- "$identity_output" | sed -nE '/^[A-Fa-f0-9-]{36}$/p' | tail -1)
+    [[ "$enrollment_id" =~ '^[A-Fa-f0-9-]{36}$' ]] || die "managed clone hardware identity is unavailable"
+    [[ "$enrollment_id" != "$base_enrollment_id" ]] || die "managed clone retained the base hardware identity; Tart random serial personalization is required"
+    if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" ]]; then
+      enrollment_ready=0
+      enrollment_record="$HOME/Library/Application Support/KeyPathLabMDM/state/nanomdm/dbkv/enrollments"
+      enrollment_status=$(cd "$repo" && "$launcher" run "$lease" -- /usr/bin/profiles status -type enrollment 2>/dev/null || true)
+      if print -r -- "$enrollment_status" | grep -Fq 'MDM enrollment: Yes' &&
+        find "$enrollment_record" -type f -name "$enrollment_id.type" -print -quit 2>/dev/null | grep -q .; then
+        enrollment_ready=1
+        print "managed_clone_enrollment\talready-enrolled"
+      else
+        desktop_bootstrap "$lease" 1
+        run_command "$lease" /bin/zsh Scripts/lab/mdm/enroll-clone-ui
+        approve_peekaboo_capture "$lease"
+        protected_click "$lease" "System Settings" "__ANY__" "Device Management" native 249 226 1
+        sleep "${KEYPATH_LAB_PROFILE_LIST_SETTLE_SECONDS:-20}"
+        protected_click "$lease" "System Settings" "Device Management" "Device Management" native 600 216 2
+        protected_click "$lease" "System Settings" "Device Management" "Device Management" native 329 610
+        secure_dialog_input "$lease" SecurityAgent AXSecureTextField Enroll 0
+        for attempt in {1..150}; do
+          enrollment_status=$(cd "$repo" && "$launcher" run "$lease" -- /usr/bin/profiles status -type enrollment 2>/dev/null || true)
+          if print -r -- "$enrollment_status" | grep -Fq 'MDM enrollment: Yes' &&
+            find "$enrollment_record" -type f -name "$enrollment_id.type" -print -quit 2>/dev/null | grep -q .; then
+            enrollment_ready=1
+            break
+          fi
+          sleep "${KEYPATH_LAB_MANAGED_ENROLLMENT_POLL_SECONDS:-0.2}"
+        done
+        ((enrollment_ready == 1)) && print "managed_clone_enrollment\tuser-approved"
+      fi
+      ((enrollment_ready == 1)) || die "managed clone did not establish its unique NanoMDM enrollment"
+    fi
+    copy_command="setopt errexit nounset pipefail; mkdir -p '$guest_policy';"
+    for filename in keypath-pppc.mobileconfig keypath-system-extension.mobileconfig keypath-service-management.mobileconfig manifest.json; do
+      copy_command+=" /usr/bin/install -m 444 '$guest_repo/.keypath-lab/managed-policy/$filename' '$guest_policy/$filename';"
+    done
+    (cd "$repo" && "$launcher" run "$lease" -- /bin/zsh -lc "sudo -n /bin/zsh -lc $(printf %q "$copy_command")")
+  else
+    enrollment_id=$base_enrollment_id
+    [[ "$provider_resource" =~ '^[A-Fa-f0-9-]{36}$' ]] || die "invalid managed Parallels resource id"
+    parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+    [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+    "$parallels_cli" exec "$provider_resource" /bin/mkdir -p "$guest_policy"
+    for filename in keypath-pppc.mobileconfig keypath-system-extension.mobileconfig keypath-service-management.mobileconfig manifest.json; do
+      "$parallels_cli" exec "$provider_resource" /usr/bin/tee "$guest_policy/$filename" < "$profile_dir/$filename" >/dev/null
+    done
+    "$parallels_cli" exec "$provider_resource" /bin/chmod 444 \
+      "$guest_policy/keypath-pppc.mobileconfig" \
+      "$guest_policy/keypath-system-extension.mobileconfig" \
+      "$guest_policy/keypath-service-management.mobileconfig" \
+      "$guest_policy/manifest.json"
+  fi
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" && "${KEYPATH_LAB_TEST_PUBLISH_MANAGED:-0}" != "1" ]]; then
     mkdir -p "$evidence"
     cp "$profile_dir/manifest.json" "$evidence/manifest.json"
-    print "managed_policy_rehydration\tpassed"
-    return
+    print "enrollment_id\t$enrollment_id"
+  else
+    "$repo/Scripts/lab/mdm/publish-managed-profiles" \
+      --profile-dir "$profile_dir" \
+      --evidence-dir "$evidence" \
+      --enrollment-id "$enrollment_id" || return $?
   fi
-  [[ "$provider_resource" =~ '^[A-Fa-f0-9-]{36}$' ]] || die "invalid managed Parallels resource id"
-  parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
-  [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
-  "$parallels_cli" exec "$provider_resource" /bin/mkdir -p "$guest_policy"
-  for filename in keypath-pppc.mobileconfig keypath-system-extension.mobileconfig keypath-service-management.mobileconfig manifest.json; do
-    "$parallels_cli" exec "$provider_resource" /usr/bin/tee "$guest_policy/$filename" < "$profile_dir/$filename" >/dev/null
-  done
-  "$parallels_cli" exec "$provider_resource" /bin/chmod 444 \
-    "$guest_policy/keypath-pppc.mobileconfig" \
-    "$guest_policy/keypath-system-extension.mobileconfig" \
-    "$guest_policy/keypath-service-management.mobileconfig" \
-    "$guest_policy/manifest.json"
-  "$repo/Scripts/lab/mdm/publish-managed-profiles" \
-    --profile-dir "$profile_dir" \
-    --evidence-dir "$evidence"
-  "$parallels_cli" exec "$provider_resource" \
-    "$guest_repo/Scripts/lab/mdm/verify-lane" managed-functional \
-    --manifest "$guest_policy/manifest.json"
+  if [[ "$macos" == "15" ]]; then
+    verify_command="'$guest_repo/Scripts/lab/mdm/verify-lane' managed-functional --manifest '$guest_policy/manifest.json'"
+    (cd "$repo" && "$launcher" run "$lease" -- /bin/zsh -lc "sudo -n /bin/zsh -lc $(printf %q "$verify_command")")
+  else
+    "$parallels_cli" exec "$provider_resource" \
+      "$guest_repo/Scripts/lab/mdm/verify-lane" managed-functional \
+      --manifest "$guest_policy/manifest.json"
+  fi
   print "managed_policy_rehydration\tpassed"
+}
+
+resume_managed_policy() {
+  local lease=$1 manifest lane result
+  manifest=$(owned_manifest "$lease")
+  lane=$(field "$manifest" test_lane)
+  [[ "$lane" == managed-functional ]] || die "managed policy resume requires a managed-functional lease"
+
+  set +e
+  rehydrate_managed_clone "$lease" > "$LOGS/$lease/managed-policy.log" 2>&1
+  result=$?
+  set -e
+  set_field "$manifest" managed_policy_result "$result"
+  set_field "$manifest" managed_policy_at "$(utc_now)"
+  cat "$LOGS/$lease/managed-policy.log"
+  if ((result != 0)); then
+    set_field "$manifest" status managed-policy-failed
+    return "$result"
+  fi
+  set_field "$manifest" status ready
+  record_command "$lease" passed managed-policy-rehydration
+  print "managed_policy_resume\tpassed"
 }
 
 run_with_download() {
@@ -331,7 +474,7 @@ warmup_desktop() {
     export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     "$CRABBOX" warmup --provider tart --target macos --desktop \
       --tart-image "$(base_for "$macos" "$lane")" \
-      --tart-user admin --tart-cpu 4 --tart-memory 8192 --ssh-port 22 \
+      --tart-user admin --tart-cpu 4 --tart-memory 8192 --tart-random-serial --ssh-port 22 \
       --slug "$slug" --ttl 2h
   else
     export PATH="$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
@@ -353,7 +496,7 @@ warmup_lease() {
     export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     "$CRABBOX" warmup --provider tart --target macos \
       --tart-image "$(base_for "$macos" "$lane")" \
-      --tart-user admin --tart-cpu 4 --tart-memory 8192 --ssh-port 22 \
+      --tart-user admin --tart-cpu 4 --tart-memory 8192 --tart-random-serial --ssh-port 22 \
       --slug "$slug" --ttl 2h
   else
     export PATH="$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
@@ -463,8 +606,9 @@ install_archive() {
 
 write_provisional_lease_manifest() {
   local lease=$1 slug=$2 macos=$3 lane=$4 provider=$5 archive_key=$6 commit=$7 installer_sha=$8 installer_name=$9 repo=${10} created=${11} expires=${12} desktop=${13}
-  local manifest
+  local manifest identity_scope
   valid_id "$lease"
+  identity_scope=$(managed_identity_scope_for "$macos" "$lane")
   mkdir -p "$LEASES/$lease" "$LOGS/$lease" "$ARTIFACTS/$lease"
   manifest=$(manifest_path "$lease")
   [[ -e "$manifest" ]] && return
@@ -475,6 +619,7 @@ write_provisional_lease_manifest() {
     print "macos\t$macos"
     print "test_lane\t$lane"
     print "base_name\t$(base_for "$macos" "$lane")"
+    print "managed_identity_scope\t$identity_scope"
     print "provider\t$provider"
     print "archive_key\t$archive_key"
     print "keypath_commit\t$commit"
@@ -500,11 +645,15 @@ lease_candidate_from_line() {
 
 create_lease() {
   local macos=$1 lane=$2 archive_key=$3 commit=$4 installer_sha=$5 installer_name=$6 ttl=$7 desktop=$8
-  local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds provider_resource create_status candidate_file create_log exit_code managed_policy_exit
+  local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds
+  local provider_resource create_status candidate_file create_log exit_code managed_policy_exit identity_scope
   launcher=$(launcher_for "$macos")
   provider=$(provider_for "$macos")
   [[ "$lane" == "managed-functional" || "$lane" == "unmanaged-ui" ]] || die "invalid test lane: $lane"
   [[ ! ("$macos" == "27" && "$lane" == "managed-functional") ]] || die "managed-functional is not yet supported on macOS 27"
+  if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" && "$macos" == "15" && "$lane" == "managed-functional" ]]; then
+    desktop=1
+  fi
   valid_id "$archive_key"
   archive="$ARCHIVES/$archive_key"
   [[ -f "$archive/ready.tsv" && -d "$archive/repo/.git" ]] || die "prepared archive not found: $archive_key"
@@ -523,7 +672,7 @@ create_lease() {
     sleep "$KEYPATH_LAB_TEST_PAUSE_AFTER_ADMISSION_LOCK"
   fi
   assert_provider_capacity "$provider" || return $?
-  assert_managed_identity_available "$lane" || return $?
+  assert_managed_identity_available "$macos" "$lane" || return $?
   assert_internal_disk_reserve || return $?
   created=$(now_epoch)
   expires=$((created + ttl_seconds))
@@ -556,6 +705,7 @@ create_lease() {
   provider_resource=$(print -r -- "$output" | sed -nE 's/.* (vm|instance)=([^ ]+).*/\2/p' | tail -1)
   mkdir -p "$LEASES/$lease" "$LOGS/$lease" "$ARTIFACTS/$lease"
   manifest=$(manifest_path "$lease")
+  identity_scope=$(managed_identity_scope_for "$macos" "$lane")
   {
     print "owner\t$OWNER"
     print "lease_id\t$lease"
@@ -563,6 +713,7 @@ create_lease() {
     print "macos\t$macos"
     print "test_lane\t$lane"
     print "base_name\t$(base_for "$macos" "$lane")"
+    print "managed_identity_scope\t$identity_scope"
     print "provider\t$provider"
     print "archive_key\t$archive_key"
     print "keypath_commit\t$commit"
@@ -711,7 +862,7 @@ secure_dialog_input() {
     [[ "$already_focused" == "0" ]] || die "AXSecureTextField does not use --already-focused"
     focus_args=(/usr/bin/osascript -l JavaScript -e 'function descendants(element) { var result = []; try { var children = element.uiElements(); for (var i = 0; i < children.length; i++) { result.push(children[i]); result = result.concat(descendants(children[i])); } } catch (_) {} return result; } function run(argv) { var appName = argv[1]; var secret = $.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js.replace(/\r?\n$/, ""); var process = Application("System Events").processes.byName(appName); var field = descendants(process.windows[0]).find(function (element) { try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; } }); if (!field) throw new Error("secure text field not found"); field.value = secret; }')
     printf -v field_command '%q ' "${focus_args[@]}"
-    guest_command+='IFS= read -r secret_value; secret_path=$(/usr/bin/mktemp /tmp/keypath-secure-input.XXXXXX); /bin/chmod 600 "$secret_path"; trap '\''rm -f "$secret_path"'\'' EXIT; printf '\''%s'\'' "$secret_value" > "$secret_path"; unset secret_value; '
+    guest_command+='IFS= read -r secret_value || [[ -n "$secret_value" ]]; secret_path=$(/usr/bin/mktemp /tmp/keypath-secure-input.XXXXXX); /bin/chmod 600 "$secret_path"; trap '\''rm -f "$secret_path"'\'' EXIT; printf '\''%s'\'' "$secret_value" > "$secret_path"; unset secret_value; '
     guest_command+="$field_command \"\$secret_path\" $(printf %q "$app") >/dev/null; rm -f \"\$secret_path\"; trap - EXIT"
   elif [[ "$already_focused" == "0" ]]; then
     refresh_args=(/opt/homebrew/bin/peekaboo see --app "$app" --json)
@@ -732,7 +883,7 @@ secure_dialog_input() {
     if [[ "$field_label" == "AXSecureTextField" ]]; then
       button_geometry_args=(/usr/bin/osascript -l JavaScript -e 'function descendants(element) { var result = []; try { var children = element.uiElements(); for (var i = 0; i < children.length; i++) { result.push(children[i]); result = result.concat(descendants(children[i])); } } catch (_) {} return result; } function run(argv) { var process = Application("System Events").processes.byName(argv[0]); var label = argv[1]; var button = descendants(process.windows[0]).find(function (element) { try { return element.role() === "AXButton" && (element.name() === label || element.description() === label); } catch (_) { return false; } }); if (!button) throw new Error("submit button not found"); var position = button.position(); var size = button.size(); return Math.round(position[0] + size[0] / 2) + "," + Math.round(position[1] + size[1] / 2); }' "$app" "$submit_button")
       printf -v button_geometry_command '%q ' "${button_geometry_args[@]}"
-      guest_command+="; button_coords=\$( $button_geometry_command ); [[ \"\$button_coords\" =~ '^-?[0-9]+,-?[0-9]+$' ]] || exit 78; /opt/homebrew/bin/peekaboo click --coords \"\$button_coords\" --global-coords --foreground --input-strategy synthOnly --json >/dev/null"
+      guest_command+="; button_coords=\$( $button_geometry_command ); [[ \"\$button_coords\" =~ '^-?[0-9]+,-?[0-9]+$' ]] || exit 78; /opt/homebrew/bin/peekaboo click --coords \"\$button_coords\" --global-coords --foreground --input-strategy synthOnly --json >/dev/null 2>&1 || true"
     else
       submit_args=(/opt/homebrew/bin/peekaboo click "$submit_button" --app "$app" --foreground --json)
       printf -v submit_command '%q ' "${submit_args[@]}"
@@ -788,7 +939,7 @@ secure_dialog_input() {
 }
 
 protected_click() {
-  local lease=$1 app=$2 expected_before=$3 expected_after=$4 coordinate_space=$5 x=$6 y=$7
+  local lease=$1 app=$2 expected_before=$3 expected_after=$4 coordinate_space=$5 x=$6 y=$7 count=${8:-1}
   local manifest macos resource key ip before after guest_command geometry_command geometry
   local native_width native_height logical_width logical_height scale_x scale_y
   manifest=$(owned_manifest "$lease")
@@ -796,6 +947,7 @@ protected_click() {
   [[ "$macos" == "15" ]] || die "protected click currently supports only the Tart macOS 15 lane"
   [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "protected click requires a desktop-enabled lease"
   [[ "$x" == <-> && "$y" == <-> ]] || die "protected click coordinates must be non-negative integers"
+  [[ "$count" == "1" || "$count" == "2" ]] || die "protected click count must be 1 or 2"
   [[ "$coordinate_space" == "native" || "$coordinate_space" == "ax" ]] || die "invalid protected click coordinate space"
   resource=$(field "$manifest" provider_resource)
   [[ "$resource" =~ '^[A-Za-z0-9._-]+$' && "$resource" != "unknown" ]] || die "invalid Tart resource id"
@@ -809,11 +961,10 @@ protected_click() {
     export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     ip=$($TART ip "$resource")
     [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
-    printf -v guest_command '%q ' /opt/homebrew/bin/peekaboo see --app "$app" --json
-    guest_command+="| /usr/bin/env python3 -c 'import json,sys; print(json.load(sys.stdin).get(\"data\",{}).get(\"window_title\",\"\"))'"
+    guest_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  return matches[0].windows[0].name() || "__UNTITLED__";\n}\' -- '$(printf %q "$app")
     before=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")
   fi
-  [[ "$before" == "$expected_before" ]] || {
+  [[ "$expected_before" == "__ANY__" && -n "$before" ]] || [[ "$before" == "$expected_before" ]] || {
     record_command "$lease" failed protected-click --app "$app" --window "$expected_before" --x "$x" --y "$y"
     die "protected click precondition failed: expected window '$expected_before', found '${before:-unknown}'"
   }
@@ -835,11 +986,21 @@ protected_click() {
     y=$((y * scale_y))
   fi
 
-  "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$x" --y "$y" >/dev/null
+  if [[ "$count" == "2" ]]; then
+    "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$x" --y "$y" --count 2 >/dev/null
+  else
+    "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$x" --y "$y" >/dev/null
+  fi
   sleep "${KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS:-1}"
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
     after=${KEYPATH_LAB_TEST_WINDOW_AFTER:-$expected_after}
   else
+    after=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")
+  fi
+  if [[ "$after" != "$expected_after" && "$expected_before" == "__ANY__" ]]; then
+    sleep "${KEYPATH_LAB_INITIAL_SETTINGS_RETRY_SECONDS:-5}"
+    "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$x" --y "$y" >/dev/null
+    sleep "${KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS:-1}"
     after=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")
   fi
   [[ "$after" == "$expected_after" ]] || {
@@ -851,6 +1012,7 @@ protected_click() {
   print "window_before\t$before"
   print "window_after\t$after"
   print "coordinate_space\t$coordinate_space"
+  print "click_count\t$count"
   if [[ "$coordinate_space" == "ax" ]]; then
     print "display_scale\t$scale_x"
   fi
@@ -1371,7 +1533,7 @@ nameplate_control() {
 }
 
 destroy_lease() {
-  local lease=$1 manifest macos launcher exit_code repo inventory inventory_exit
+  local lease=$1 manifest macos launcher exit_code repo inventory inventory_exit provider_resource
   manifest=$(owned_manifest "$lease")
   [[ "$(field "$manifest" cleanup_status)" != "complete" ]] || { print "already_clean\t$lease"; return; }
   macos=$(field "$manifest" macos)
@@ -1387,7 +1549,8 @@ destroy_lease() {
   set_field "$manifest" cleanup_result "$exit_code"
   inventory=
   inventory_exit=1
-  if (( exit_code != 0 )) && [[ "$(field "$manifest" provider_resource)" == "unknown" ]]; then
+  provider_resource=$(field "$manifest" provider_resource)
+  if (( exit_code != 0 )); then
     set +e
     inventory=$("$launcher" list 2>> "$LOGS/$lease/destroy.log")
     inventory_exit=$?
@@ -1396,7 +1559,8 @@ destroy_lease() {
   fi
   if (( exit_code == 0 )) || {
     (( inventory_exit == 0 )) &&
-      ! print -r -- "$inventory" | grep -Eo 'cbx_[A-Za-z0-9]+' | grep -Fxq "$lease"
+      ! print -r -- "$inventory" | grep -Eo 'cbx_[A-Za-z0-9]+' | grep -Fxq "$lease" &&
+      { [[ "$provider_resource" == "unknown" ]] || ! print -r -- "$inventory" | grep -Fq "$provider_resource"; }
   }; then
     set_field "$manifest" cleanup_status complete
     set_field "$manifest" status destroyed
@@ -1436,7 +1600,8 @@ case "$action" in
   create) [[ $# -eq 8 ]] || die "create requires macOS, test lane, archive, commit, checksum, name, ttl, desktop"; create_lease "$@" ;;
   install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
   secure-dialog-input) [[ $# -eq 5 ]] || die "secure-dialog-input requires lease, app, field, optional submit value, and focus mode"; secure_dialog_input "$@" ;;
-  protected-click) [[ $# -eq 7 ]] || die "protected-click requires lease, app, before window, after window, coordinate space, x, and y"; protected_click "$@" ;;
+  resume-managed-policy) [[ $# -eq 1 ]] || die "resume-managed-policy requires a lease"; resume_managed_policy "$1" ;;
+  protected-click) [[ $# -eq 7 || $# -eq 8 ]] || die "protected-click requires lease, app, before window, after window, coordinate space, x, y, and optional count"; protected_click "$@" ;;
   desktop-type) [[ $# -eq 2 ]] || die "desktop-type requires lease and text"; desktop_type "$@" ;;
   run) [[ $# -ge 2 ]] || die "run requires lease and command"; run_command "$@" ;;
   status) [[ $# -eq 1 ]] || die "status requires lease"; print_status "$1" ;;
