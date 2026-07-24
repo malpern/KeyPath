@@ -232,6 +232,32 @@ final class RuleCollectionDependencyExtractorTests: XCTestCase {
         )
     }
 
+    func testLauncherConfigurationOverridesLegacyMomentaryActivatorSource() {
+        let launcher = makeCollection(
+            id: RuleCollectionIdentifier.launcher,
+            targetLayer: .custom("launcher"),
+            momentaryActivator: MomentaryActivator(
+                input: "hyper",
+                targetLayer: .custom("launcher"),
+                sourceLayer: .custom("legacy-source")
+            ),
+            configuration: .launcherGrid(LauncherGridConfig(
+                activationMode: .holdHyper,
+                mappings: []
+            ))
+        )
+
+        let contribution = extractor.contribution(for: launcher)
+
+        XCTAssertNotNil(requirement(in: contribution, for: .keyAlias(.hyper)))
+        XCTAssertNil(
+            requirement(
+                in: contribution,
+                for: .layerActivation(layer("legacy-source"))
+            )
+        )
+    }
+
     func testCapsLockRemapProvidesHyperOnlyForExactConfiguredHoldOutput() {
         for (output, expected) in [
             ("hyper", true),

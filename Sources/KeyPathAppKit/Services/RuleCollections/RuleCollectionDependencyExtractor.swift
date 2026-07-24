@@ -26,13 +26,15 @@ struct RuleCollectionDependencyExtractor {
                 requirements: &requirements
             )
 
-        case let .homeRowMods(config) where config.holdMode == .layers:
-            addLayerAssignments(
-                enabledKeys: config.enabledKeys,
-                assignments: config.layerAssignments,
-                provides: &provides,
-                requirements: &requirements
-            )
+        case let .homeRowMods(config):
+            if config.holdMode == .layers {
+                addLayerAssignments(
+                    enabledKeys: config.enabledKeys,
+                    assignments: config.layerAssignments,
+                    provides: &provides,
+                    requirements: &requirements
+                )
+            }
 
         case let .launcherGrid(config):
             addLauncherContribution(
@@ -49,12 +51,17 @@ struct RuleCollectionDependencyExtractor {
                 }
             }
 
-        case let .tapHoldPicker(config)
-            where collection.id == RuleCollectionIdentifier.capsLockRemap
-            && config.selectedHoldOutput == "hyper":
-            provides.insert(.keyAlias(.hyper))
+        case let .tapHoldPicker(config):
+            if collection.id == RuleCollectionIdentifier.capsLockRemap,
+               config.selectedHoldOutput == "hyper"
+            {
+                provides.insert(.keyAlias(.hyper))
+            }
 
-        default:
+        // Keep dependency-free families explicit so a new configuration case
+        // produces a compiler error until its dependency semantics are chosen.
+        case .list, .table, .singleKeyPicker, .chordGroups,
+             .layerPresetPicker, .autoShiftSymbols, .keyRepeatControl:
             break
         }
 
@@ -64,6 +71,9 @@ struct RuleCollectionDependencyExtractor {
             provides.insert(.layerActivation(RuleLayerIdentifier(.navigation)))
         }
 
+        // Launcher configuration is the activation source of truth. The
+        // persisted momentary activator is a legacy Hyper-link representation;
+        // its source layer is not consulted by config generation.
         let usesConfigurationDefinedLauncherActivation =
             collection.configuration.launcherGridConfig != nil
 
@@ -91,14 +101,10 @@ struct RuleCollectionDependencyExtractor {
            !hasOwnActivation
         {
             let target = RuleLayerIdentifier(collection.targetLayer)
-            var evidence: Set<RuleDependencyEvidence> = []
             let mappingIDs = effectiveMappings.map(\.id)
-            if !mappingIDs.isEmpty {
-                evidence.insert(.mappingIDs(mappingIDs))
-            }
             requirements.insert(RuleRequirement(
                 capability: .layerActivation(target),
-                evidence: evidence
+                evidence: [.mappingIDs(mappingIDs)]
             ))
         }
 
