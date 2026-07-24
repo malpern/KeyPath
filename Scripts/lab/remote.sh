@@ -344,7 +344,7 @@ rehydrate_managed_clone() {
         run_command "$lease" /bin/zsh Scripts/lab/mdm/enroll-clone-ui
         approve_peekaboo_capture "$lease"
         protected_click "$lease" "System Settings" "__ANY__" "Device Management" native 249 226 1
-        sleep "${KEYPATH_LAB_PROFILE_LIST_SETTLE_SECONDS:-5}"
+        sleep "${KEYPATH_LAB_PROFILE_LIST_SETTLE_SECONDS:-20}"
         protected_click "$lease" "System Settings" "Device Management" "Device Management" native 600 216 2
         protected_click "$lease" "System Settings" "Device Management" "Device Management" native 329 610
         secure_dialog_input "$lease" SecurityAgent AXSecureTextField Enroll 0
