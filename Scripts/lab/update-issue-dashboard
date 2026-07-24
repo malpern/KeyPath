@@ -23,6 +23,8 @@ def issue_status(issue: dict) -> str:
         return "deferred"
     if "human-in-loop" in labels:
         return "human"
+    if "recommended-next" in labels:
+        return "next"
     if "large-refactor" in labels:
         return "deferred"
     if labels & {"Feature", "feature-gap", "enhancement"}:
