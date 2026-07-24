@@ -124,8 +124,8 @@ public struct RuleRequirement: Hashable, Sendable {
 
 /// One collection's dependency contribution to a graph snapshot.
 ///
-/// Family-specific extraction from `RuleCollection` intentionally lives in
-/// issue #867. Keeping this input generic makes the graph independently
+/// Family-specific extraction from `RuleCollection` intentionally lives in an
+/// app-layer adapter. Keeping this input generic makes the graph independently
 /// testable and reusable by future import, pack, and CLI validation paths.
 ///
 /// Enabled state is intentionally not part of a contribution. Independent

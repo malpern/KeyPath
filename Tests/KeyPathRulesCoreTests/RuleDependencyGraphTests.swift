@@ -141,6 +141,15 @@ final class RuleDependencyGraphTests: XCTestCase {
         )
     }
 
+    func testRuleCollectionLayerBridgeUsesCanonicalKanataName() {
+        let layer = RuleCollectionLayer.custom("MiXeD")
+
+        XCTAssertEqual(
+            RuleLayerIdentifier(layer),
+            RuleLayerIdentifier("mixed")
+        )
+    }
+
     func testEvidenceIsPreservedAndNormalizedForStableQueries() throws {
         let consumerID = uuid(1)
         let firstMappingID = uuid(10)
