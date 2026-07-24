@@ -136,6 +136,9 @@ else
 fi
 EOF
 chmod +x "$ROOT/bin/tart" "$ROOT/bin/guest-ssh"
+mkdir -p "$ROOT/CompatTools/KeyPathUSB/bin" "$ROOT/CompatTools/KeyPathUSB/tart-usb.app/Contents/MacOS"
+cp "$ROOT/bin/crabbox" "$ROOT/CompatTools/KeyPathUSB/bin/crabbox-usb"
+cp "$ROOT/bin/tart" "$ROOT/CompatTools/KeyPathUSB/tart-usb.app/Contents/MacOS/tart"
 cat > "$ROOT/bin/prlctl" <<EOF
 #!/bin/bash
 echo "prlctl \$*" >> "$CALLS"
@@ -394,6 +397,12 @@ fi
 run_remote destroy cbx_test15 >/dev/null
 grep -q 'stop-15 cbx_test15' "$CALLS"
 grep -q $'cleanup_status\tcomplete' "$manifest"
+
+usb_create=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 1)
+assert_contains "$usb_create" $'lease_id\tcbx_test15'
+usb_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"
+grep -q $'tart_usb_passthrough\ttrue' "$usb_manifest"
+run_remote destroy cbx_test15 >/dev/null
 
 printf 'pid\t%s\nprovider\ttart\n' "$$" > "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
 parallel_provider_create=$(run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
