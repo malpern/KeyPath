@@ -77,9 +77,6 @@ struct WindowSnappingActivationModeTests {
         if let idx = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
             manager.ruleCollections[idx].isEnabled = false
         }
-        manager.onPrerequisiteResolution = { _ in
-            .enableRequiredProvidersAndApply
-        }
 
         let autoEnabled = await manager.updateWindowSnappingActivationMode(
             id: RuleCollectionIdentifier.windowSnapping,
@@ -89,6 +86,20 @@ struct WindowSnappingActivationModeTests {
         #expect(autoEnabled == "Quick Launcher")
         let launcher = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.launcher }
         #expect(launcher?.isEnabled == true)
+    }
+
+    @Test("Catalog-only cancelled Home Row Mods edits resolve to catalog state")
+    func catalogOnlyHomeRowModsFallback() {
+        var attempted = HomeRowModsConfig()
+        attempted.holdMode = .layers
+
+        let persisted = KanataViewModel.persistedHomeRowModsConfig(
+            collectionId: RuleCollectionIdentifier.homeRowMods,
+            collections: []
+        )
+
+        #expect(persisted.holdMode == .modifiers)
+        #expect(persisted != attempted)
     }
 
     @Test("Activation mode updates activation hint")

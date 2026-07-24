@@ -368,9 +368,10 @@ class KanataViewModel {
     func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async -> HomeRowModsConfig {
         let wasNewlyEnabled = await manager.updateHomeRowModsConfig(collectionId: collectionId, config: config)
         ruleCollections = manager.rulesManager.ruleCollections
-        let persistedConfig = ruleCollections
-            .first(where: { $0.id == collectionId })?
-            .configuration.homeRowModsConfig ?? config
+        let persistedConfig = Self.persistedHomeRowModsConfig(
+            collectionId: collectionId,
+            collections: ruleCollections
+        )
         AppLogger.shared.log(
             "🧪 [QA] Persisted Home Row Mods config collection=\(collectionId.uuidString) mode=\(config.holdMode.rawValue) keys=\(config.enabledKeys.sorted().joined(separator: ",")) tapWindow=\(config.timing.tapWindow) holdDelay=\(config.timing.holdDelay)"
         )
@@ -379,6 +380,19 @@ class KanataViewModel {
             showToast("Turned on \(name)", type: .success)
         }
         return persistedConfig
+    }
+
+    static func persistedHomeRowModsConfig(
+        collectionId: UUID,
+        collections: [RuleCollection]
+    ) -> HomeRowModsConfig {
+        collections
+            .first(where: { $0.id == collectionId })?
+            .configuration.homeRowModsConfig
+            ?? RuleCollectionCatalog().defaultCollections()
+            .first(where: { $0.id == collectionId })?
+            .configuration.homeRowModsConfig
+            ?? HomeRowModsConfig()
     }
 
     func updateHomeRowLayerTogglesConfig(collectionId: UUID, config: HomeRowLayerTogglesConfig) async {

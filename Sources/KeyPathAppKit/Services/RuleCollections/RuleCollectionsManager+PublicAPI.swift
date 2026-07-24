@@ -656,7 +656,8 @@ extension RuleCollectionsManager {
         guard let enabledProviderIDs = await applyProposedCollectionWithPrerequisites(
             candidate,
             rollbackMessage:
-            "Could not save Window Snapping. Your previous rule state was restored."
+            "Could not save Window Snapping. Your previous rule state was restored.",
+            nonInteractiveChoice: .enableRequiredProvidersAndApply
         ) else {
             return nil
         }

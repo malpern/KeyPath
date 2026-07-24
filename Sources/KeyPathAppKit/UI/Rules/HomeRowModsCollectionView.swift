@@ -182,8 +182,12 @@ struct HomeRowModsCollectionView: View {
     // MARK: - Helpers
 
     func updateConfig() {
+        updateConfig(config)
+    }
+
+    func updateConfig(_ updatedConfig: HomeRowModsConfig) {
         AppLogger.shared.log("🧪 [QA] Home Row Mods config changed: \(homeRowModsAccessibilityValue)")
-        onConfigChanged(config)
+        onConfigChanged(updatedConfig)
     }
 
     var activeHoldAssignments: [String: String] {

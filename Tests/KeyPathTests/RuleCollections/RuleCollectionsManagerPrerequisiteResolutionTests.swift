@@ -100,6 +100,29 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
         XCTAssertTrue(manager.ruleCollections[id: provider.id]?.isEnabled == false)
     }
 
+    func testCancelCatalogOnlyCandidateDoesNotInsertAttemptedConfig() async throws {
+        let manager = try makeManager()
+        defer { TestEnvironment.forceTestMode = false }
+        manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
+            .filter { $0.id != RuleCollectionIdentifier.homeRowMods }
+        manager.onPrerequisiteResolution = { _ in nil }
+
+        var attempted = HomeRowModsConfig()
+        attempted.holdMode = .layers
+
+        _ = await manager.updateHomeRowModsConfig(
+            id: RuleCollectionIdentifier.homeRowMods,
+            config: attempted
+        )
+
+        XCTAssertNil(
+            manager.ruleCollections.first {
+                $0.id == RuleCollectionIdentifier.homeRowMods
+            },
+            "Cancelling a catalog-only edit must not insert its attempted config"
+        )
+    }
+
     func testSaveWithoutProvidersAppliesOnlyCandidateEdit() async throws {
         let manager = try makeManager()
         defer { TestEnvironment.forceTestMode = false }

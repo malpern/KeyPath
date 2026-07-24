@@ -48,29 +48,35 @@ extension RuleCollectionsManager {
     /// `nil` means the user cancelled and nothing should be applied.
     func confirmedPrerequisiteProviderIDs(
         for candidate: RuleCollection,
-        operation: RulePrerequisiteOperation
+        operation: RulePrerequisiteOperation,
+        nonInteractiveChoice: RulePrerequisiteResolutionChoice = .applyWithoutProviders
     ) async -> [UUID]? {
         let missing = prerequisites(for: candidate)
         guard !missing.isEmpty else { return [] }
-
-        // Non-interactive clients preserve the established behavior: apply the
-        // candidate while leaving missing providers disabled.
-        guard let onPrerequisiteResolution else { return [] }
 
         let context = prerequisiteResolutionContext(
             operation: operation,
             candidate: candidate,
             prerequisites: missing
         )
-        guard let choice = await onPrerequisiteResolution(context) else {
-            return nil
+        let choice: RulePrerequisiteResolutionChoice
+        if let onPrerequisiteResolution {
+            guard let confirmedChoice = await onPrerequisiteResolution(context) else {
+                return nil
+            }
+            choice = confirmedChoice
+        } else {
+            choice = nonInteractiveChoice
         }
 
         switch choice {
         case .applyWithoutProviders:
             return []
         case .enableRequiredProvidersAndApply:
-            return context.recommendedProviderIDs
+            // Ambiguous graphs cannot be auto-fixed safely. Interactive callers
+            // hide the action; non-interactive callers fall back to applying
+            // without providers.
+            return context.recommendedProviderIDs ?? []
         }
     }
 
@@ -106,12 +112,14 @@ extension RuleCollectionsManager {
     /// single mutation and regeneration, restoring the full snapshot on failure.
     func applyProposedCollectionWithPrerequisites(
         _ candidate: RuleCollection,
-        rollbackMessage: String
+        rollbackMessage: String,
+        nonInteractiveChoice: RulePrerequisiteResolutionChoice = .applyWithoutProviders
     ) async -> [UUID]? {
         let snapshot = snapshotRuleState()
         guard let providerIDs = await confirmedPrerequisiteProviderIDs(
             for: candidate,
-            operation: .save
+            operation: .save,
+            nonInteractiveChoice: nonInteractiveChoice
         ) else {
             return nil
         }
