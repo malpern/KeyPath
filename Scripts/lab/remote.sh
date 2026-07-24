@@ -275,20 +275,12 @@ managed_enrollment_id_for() {
 }
 
 approve_peekaboo_capture() {
-  local lease=$1 manifest macos resource repo launcher key ip capture_exit prompt_command prompt_coords verify_coords
+  local lease=$1 manifest macos resource key ip prompt_command prompt_coords verify_coords attempt
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$macos" == "15" ]] || die "Peekaboo capture approval currently supports only the Tart macOS 15 lane"
   resource=$(field "$manifest" provider_resource)
-  repo=$(field "$manifest" worktree)
-  launcher=$(launcher_for "$macos")
   [[ "$resource" =~ '^[A-Za-z0-9._-]+$' && "$resource" != "unknown" ]] || die "invalid Tart resource id"
-
-  set +e
-  (cd "$repo" && "$launcher" run "$lease" -- /bin/zsh -lc \
-    '/opt/homebrew/bin/peekaboo see --app "System Settings" --json >/dev/null 2>&1')
-  capture_exit=$?
-  set -e
 
   key="$HOME/Library/Application Support/crabbox/testboxes/$lease/id_ed25519"
   [[ -f "$key" && ! -L "$key" && -O "$key" ]] || die "owned CrabBox SSH key not found for lease"
@@ -296,19 +288,28 @@ approve_peekaboo_capture() {
   export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
   ip=$($TART ip "$resource")
   [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
-  prompt_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run() {\n  var matches = Application("System Events").processes.whose({name: "UserNotificationCenter"})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  var elements = descendants(matches[0].windows[0]);\n  var expected = elements.some(function (element) {\n    try { return (element.name() || "").indexOf("boo.peekaboo.peekaboo") >= 0; }\n    catch (_) { return false; }\n  });\n  var button = elements.find(function (element) {\n    try { return element.role() === "AXButton" && element.name() === "Allow"; }\n    catch (_) { return false; }\n  });\n  if (!expected || !button) return "";\n  var position = button.position();\n  var size = button.size();\n  return Math.round(position[0] + size[0] / 2) + "," + Math.round(position[1] + size[1] / 2);\n}\''
-  prompt_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" \
-    "/bin/zsh -lc $(printf %q "$prompt_command")")
-  if [[ -z "$prompt_coords" && "$capture_exit" -eq 0 ]]; then
+  prompt_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run() {\n  var matches = Application("System Events").processes.whose({name: "NotificationCenter"})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  var window = matches[0].windows[0];\n  try {\n    var size = window.size();\n    if (window.focused() && window.subrole() === "AXSystemDialog" && size[0] === 1024 && size[1] === 768) return "512,399";\n  } catch (_) {}\n  return "";\n}\''
+  prompt_coords=
+  for attempt in {1..20}; do
+    prompt_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" \
+      "/bin/zsh -lc $(printf %q "$prompt_command")")
+    [[ -n "$prompt_coords" ]] && break
+    sleep "${KEYPATH_LAB_CAPTURE_APPROVAL_POLL_SECONDS:-0.2}"
+  done
+  if [[ -z "$prompt_coords" ]]; then
     print "peekaboo_capture_approval\talready-approved"
     return 0
   fi
-  [[ "$prompt_coords" =~ '^[0-9]+,[0-9]+$' ]] || die "Peekaboo capture failed without the expected macOS approval prompt"
+  [[ "$prompt_coords" =~ '^[0-9]+,[0-9]+$' ]] || die "Peekaboo capture approval prompt coordinates are invalid"
   "$CRABBOX" desktop click --provider tart --target macos --id "$resource" \
     --x "${prompt_coords%,*}" --y "${prompt_coords#*,}" >/dev/null
-  sleep "${KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS:-1}"
-  verify_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" \
-    "/bin/zsh -lc $(printf %q "$prompt_command")")
+  verify_coords=$prompt_coords
+  for attempt in {1..20}; do
+    sleep "${KEYPATH_LAB_CAPTURE_APPROVAL_POLL_SECONDS:-0.2}"
+    verify_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" \
+      "/bin/zsh -lc $(printf %q "$prompt_command")")
+    [[ -z "$verify_coords" ]] && break
+  done
   [[ -z "$verify_coords" ]] || die "Peekaboo capture approval prompt did not close"
   record_command "$lease" passed approve-peekaboo-capture
   print "peekaboo_capture_approval\tpassed"
@@ -349,7 +350,8 @@ rehydrate_managed_clone() {
         desktop_bootstrap "$lease" 1
         approve_peekaboo_capture "$lease"
         run_command "$lease" /bin/zsh Scripts/lab/mdm/enroll-clone-ui
-        protected_click "$lease" "System Settings" "Screen Saver" "Device Management" native 249 226 1
+        protected_click "$lease" "System Settings" "__ANY__" "Device Management" native 249 226 1
+        sleep "${KEYPATH_LAB_PROFILE_LIST_SETTLE_SECONDS:-5}"
         protected_click "$lease" "System Settings" "Device Management" "Device Management" native 600 216 2
         protected_click "$lease" "System Settings" "Device Management" "Device Management" native 329 610
         secure_dialog_input "$lease" SecurityAgent AXSecureTextField Enroll 0
@@ -942,7 +944,7 @@ protected_click() {
     guest_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  return matches[0].windows[0].name() || "";\n}\' -- '$(printf %q "$app")
     before=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")
   fi
-  [[ "$before" == "$expected_before" ]] || {
+  [[ "$expected_before" == "__ANY__" && -n "$before" ]] || [[ "$before" == "$expected_before" ]] || {
     record_command "$lease" failed protected-click --app "$app" --window "$expected_before" --x "$x" --y "$y"
     die "protected click precondition failed: expected window '$expected_before', found '${before:-unknown}'"
   }

@@ -21,11 +21,9 @@ var frame = $.NSScreen.mainScreen.frame;
 sudo -n /usr/bin/profiles remove -type configuration \
     -identifier com.keypath.lab.mdm -forced >/dev/null 2>&1 || true
 
-# Give the controller a deterministic page-title precondition before it uses
-# real VNC pointer input. Guest-side synthesized coordinates do not map
-# consistently to the Tart framebuffer.
-/usr/bin/open 'x-apple.systempreferences:com.apple.ScreenSaver-Settings.extension'
-sleep "${KEYPATH_LAB_UI_SETTLE_SECONDS:-1}"
+# The controller uses real VNC pointer input and verifies that the sidebar click
+# reaches Device Management. Avoid opening an intermediate Settings URL here:
+# macOS may apply that navigation asynchronously after the profile is opened.
 /usr/bin/open "$profile"
 sleep "${KEYPATH_LAB_UI_SETTLE_SECONDS:-1}"
 print "managed_enrollment_profile\tdownloaded"

@@ -190,7 +190,11 @@ printf 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
 grep -Fq 'exec 3<> \"\$fifo\"; KEYPATH_GUEST_PASSWORD=; IFS= read -r -t $credential_timeout -u 3 KEYPATH_GUEST_PASSWORD || [[ -n \"\$KEYPATH_GUEST_PASSWORD\" ]]' "$REMOTE"
 grep -Fq 'IFS= read -r secret_value || [[ -n "$secret_value" ]]' "$REMOTE"
 grep -Fq 'managed_clone_enrollment\talready-enrolled' "$REMOTE"
-grep -Fq '[[ -z "$prompt_coords" && "$capture_exit" -eq 0 ]]' "$REMOTE"
+grep -Fq 'window.focused() && window.subrole() === "AXSystemDialog"' "$REMOTE"
+if grep -Fq 'peekaboo see --app "System Settings"' "$REMOTE"; then
+    echo "capture prompt guard must not create a new capture request" >&2
+    exit 1
+fi
 grep -q 'resume-managed-policy)' "$LAB_DIR/keypath-lab"
 grep -Fq '/usr/bin/mktemp /etc/kcpassword.XXXXXXXX' "$REMOTE"
 grep -Fq "Automatic login user: keypathqa" "$REMOTE"
@@ -757,6 +761,8 @@ grep -q 'crabbox desktop click --provider tart --target macos --id test-resource
 protected_double_result=$(KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility native 402 247 2)
 assert_contains "$protected_double_result" $'click_count\t2'
 grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 402 --y 247 --count 2' "$CALLS"
+protected_any_result=$(KEYPATH_LAB_TEST_WINDOW_BEFORE=General KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' __ANY__ Accessibility native 402 247)
+assert_contains "$protected_any_result" $'window_before\tGeneral'
 set +e
 protected_wrong_page=$(KEYPATH_LAB_TEST_WINDOW_AFTER=Network KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility native 402 247 2>&1)
 protected_wrong_page_exit=$?
