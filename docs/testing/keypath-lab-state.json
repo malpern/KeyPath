@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-24T20:00:00Z",
+  "host": {
+    "name": "KeyPath lab mini",
+    "connectivity": "unknown",
+    "console": "unknown",
+    "power": "unknown",
+    "diskFreeGiB": null,
+    "osVersion": null,
+    "osBuild": null,
+    "keyboard": {
+      "name": "Kinesis mWave",
+      "state": "unknown"
+    }
+  },
+  "run": {
+    "id": null,
+    "title": "No active lab run",
+    "status": "idle",
+    "startedAt": null,
+    "finishedAt": null,
+    "currentStage": null,
+    "nextAction": "Start a KeyPath lab command to populate this view.",
+    "requiresHuman": false,
+    "stages": []
+  },
+  "resources": [],
+  "leases": [],
+  "events": []
+}

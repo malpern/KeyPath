@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+import argparse
+import datetime
+import fcntl
+import json
+import os
+import pathlib
+import tempfile
+from contextlib import contextmanager
+
+
+DEFAULT_STATE = pathlib.Path(
+    os.environ.get("KEYPATH_LAB_DASHBOARD_STATE", "/tmp/keypath-lab-state.json")
+)
+SEED_STATE = (
+    pathlib.Path(__file__).resolve().parents[2]
+    / "docs/testing/keypath-lab-state.json"
+)
+VALID_RUN_STATUSES = {"idle", "active", "waiting", "passed", "failed"}
+VALID_STAGE_STATUSES = {"queued", "active", "waiting", "passed", "failed", "skipped"}
+VALID_RESOURCE_STATES = {
+    "queued",
+    "creating",
+    "booting",
+    "ready",
+    "running",
+    "waiting",
+    "stopped",
+    "failed",
+    "destroyed",
+}
+
+
+def now_iso() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+
+
+@contextmanager
+def locked_state(path: pathlib.Path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    with lock_path.open("a+") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if path.exists():
+            state = json.loads(path.read_text())
+        else:
+            state = json.loads(SEED_STATE.read_text())
+        yield state
+        fd, temporary = tempfile.mkstemp(prefix=path.name + ".", dir=path.parent)
+        try:
+            with os.fdopen(fd, "w") as handle:
+                json.dump(state, handle, indent=2)
+                handle.write("\n")
+            os.replace(temporary, path)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+        fcntl.flock(lock, fcntl.LOCK_UN)
+
+
+def upsert(items: list[dict], key: str, value: str, replacement: dict) -> None:
+    for index, item in enumerate(items):
+        if item.get(key) == value:
+            items[index] = {**item, **replacement}
+            return
+    items.append(replacement)
+
+
+def parse_resource(raw: str, parser: argparse.ArgumentParser) -> dict:
+    parts = raw.split("|", 3)
+    if len(parts) < 3:
+        parser.error("--resource must use KIND|ID|STATE|DETAIL")
+    kind, resource_id, state = (part.strip() for part in parts[:3])
+    detail = parts[3].strip() if len(parts) == 4 else ""
+    if not kind or not resource_id or state not in VALID_RESOURCE_STATES:
+        parser.error("--resource requires KIND, ID, and a valid STATE")
+    return {"kind": kind, "id": resource_id, "state": state, "detail": detail}
+
+
+def parse_host(raw: str, parser: argparse.ArgumentParser) -> tuple[str, object]:
+    if "=" not in raw:
+        parser.error("--host must use KEY=VALUE")
+    key, value = raw.split("=", 1)
+    key = key.strip()
+    value = value.strip()
+    if not key:
+        parser.error("--host requires a key")
+    if value == "null":
+        parsed: object = None
+    elif value.lower() in {"true", "false"}:
+        parsed = value.lower() == "true"
+    else:
+        try:
+            parsed = int(value)
+        except ValueError:
+            parsed = value
+    return key, parsed
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Atomically update the live KeyPath lab-state dashboard")
+    parser.add_argument("--state", type=pathlib.Path, default=DEFAULT_STATE)
+    parser.add_argument("--reset", action="store_true")
+    parser.add_argument("--snapshot", type=pathlib.Path)
+    parser.add_argument("--run-id")
+    parser.add_argument("--title")
+    parser.add_argument("--status", choices=sorted(VALID_RUN_STATUSES))
+    parser.add_argument("--stage")
+    parser.add_argument("--stage-label")
+    parser.add_argument("--stage-status", choices=sorted(VALID_STAGE_STATUSES))
+    parser.add_argument("--detail")
+    parser.add_argument("--next")
+    parser.add_argument("--requires-human", choices=("true", "false"))
+    parser.add_argument("--resource", action="append", default=[])
+    parser.add_argument("--host", action="append", default=[])
+    parser.add_argument("--event-tone", choices=("neutral", "working", "success", "waiting", "problem"), default="neutral")
+    args = parser.parse_args()
+
+    resources = [parse_resource(raw, parser) for raw in args.resource]
+    host_updates = [parse_host(raw, parser) for raw in args.host]
+    snapshot = json.loads(args.snapshot.read_text()) if args.snapshot else None
+    timestamp = now_iso()
+
+    with locked_state(args.state) as state:
+        if args.reset:
+            state.clear()
+            state.update(json.loads(SEED_STATE.read_text()))
+        if snapshot:
+            state["host"] = snapshot.get("host", state.get("host", {}))
+            state["leases"] = snapshot.get("leases", [])
+            observed = snapshot.get("resources", [])
+            existing = {
+                item.get("id"): item
+                for item in state.get("resources", [])
+                if item.get("id")
+            }
+            for resource in observed:
+                existing[resource["id"]] = {**existing.get(resource["id"], {}), **resource}
+            state["resources"] = list(existing.values())[-12:]
+
+        host = state.setdefault("host", {})
+        for key, value in host_updates:
+            if key.startswith("keyboard."):
+                host.setdefault("keyboard", {})[key.split(".", 1)[1]] = value
+            else:
+                host[key] = value
+
+        run = state.setdefault("run", {})
+        if args.run_id and run.get("id") != args.run_id:
+            run.clear()
+            run.update(
+                {
+                    "id": args.run_id,
+                    "title": args.title or args.run_id,
+                    "status": args.status or "active",
+                    "startedAt": timestamp,
+                    "finishedAt": None,
+                    "currentStage": None,
+                    "nextAction": args.next,
+                    "requiresHuman": args.requires_human == "true",
+                    "stages": [],
+                }
+            )
+        elif args.run_id:
+            run["id"] = args.run_id
+        if args.title:
+            run["title"] = args.title
+        if args.status:
+            run["status"] = args.status
+            if args.status in {"passed", "failed"}:
+                run["finishedAt"] = timestamp
+        if args.next is not None:
+            run["nextAction"] = args.next
+        if args.requires_human is not None:
+            run["requiresHuman"] = args.requires_human == "true"
+
+        if args.stage:
+            stage_status = args.stage_status or "active"
+            stages = run.setdefault("stages", [])
+            existing = next((item for item in stages if item.get("id") == args.stage), None)
+            stage = {
+                "id": args.stage,
+                "label": args.stage_label or (existing or {}).get("label") or args.stage.replace("-", " ").title(),
+                "status": stage_status,
+                "detail": args.detail or (existing or {}).get("detail") or "",
+                "startedAt": (existing or {}).get("startedAt") or timestamp,
+                "finishedAt": timestamp if stage_status in {"passed", "failed", "skipped"} else None,
+            }
+            upsert(stages, "id", args.stage, stage)
+            if stage_status in {"active", "waiting", "failed"}:
+                run["currentStage"] = args.stage
+
+        state_resources = state.setdefault("resources", [])
+        for resource in resources:
+            upsert(state_resources, "id", resource["id"], resource)
+        state["resources"] = state_resources[-12:]
+
+        if args.title or args.detail or args.stage:
+            state.setdefault("events", []).insert(
+                0,
+                {
+                    "time": timestamp,
+                    "tone": args.event_tone,
+                    "stage": args.stage,
+                    "title": args.title or args.stage_label or args.stage,
+                    "detail": args.detail or "",
+                },
+            )
+            state["events"] = state["events"][:80]
+        state["updatedAt"] = timestamp
+
+
+if __name__ == "__main__":
+    main()

@@ -1074,6 +1074,141 @@ list_leases() {
   done
 }
 
+lab_state() {
+  ensure_roots
+  python3 - "$STATE_ROOT" <<'PY'
+import datetime
+import json
+import pathlib
+import re
+import subprocess
+import sys
+
+
+state_root = pathlib.Path(sys.argv[1])
+
+
+def command(*arguments):
+    return subprocess.run(
+        arguments,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=8,
+    )
+
+
+def manifest(path):
+    result = {}
+    for line in path.read_text(errors="replace").splitlines():
+        if "\t" in line:
+            key, value = line.split("\t", 1)
+            result[key] = value
+    return result
+
+
+root_state = {}
+try:
+    root_state = json.loads(command("ioreg", "-n", "Root", "-d1", "-a").stdout)
+except (json.JSONDecodeError, subprocess.TimeoutExpired):
+    pass
+
+power = command("pmset", "-g", "custom").stdout
+console_locked = bool(root_state.get("IOConsoleLocked", True))
+caffeinate_running = command("pgrep", "-x", "caffeinate").returncode == 0
+sleep_disabled = bool(re.search(r"^\s*sleep\s+0\s*$", power, re.MULTILINE))
+disk = command("df", "-Pk", "/System/Volumes/Data").stdout.splitlines()
+disk_free_gib = None
+if len(disk) > 1:
+    fields = disk[1].split()
+    if len(fields) >= 4 and fields[3].isdigit():
+        disk_free_gib = int(fields[3]) // 1024 // 1024
+
+usb = command("ioreg", "-p", "IOUSB", "-l", "-w0").stdout
+keyboard_name = "Kinesis mWave" if "mWave" in usb else None
+
+leases = []
+resources_by_id = {}
+for path in (state_root / "leases").glob("*/manifest.tsv"):
+    try:
+        item = manifest(path)
+    except OSError:
+        continue
+    if item.get("owner") != "keypath-installer-lab-v1":
+        continue
+    status = item.get("status", "unknown")
+    cleanup = item.get("cleanup_status", "unknown")
+    if status == "destroyed" and cleanup == "complete":
+        continue
+    lease = {
+        "id": item.get("lease_id", path.parent.name),
+        "provider": item.get("provider", "unknown"),
+        "os": item.get("macos", "unknown"),
+        "lane": item.get("test_lane", "legacy"),
+        "status": status,
+        "cleanup": cleanup,
+        "expiresEpoch": int(item.get("expires_epoch", "0") or 0),
+        "resource": item.get("provider_resource", "unknown"),
+    }
+    leases.append(lease)
+    resource_id = lease["resource"]
+    if resource_id and resource_id != "unknown":
+        resource_state = {
+            "provisioning": "creating",
+            "created": "booting",
+            "ready": "ready",
+            "provisioning-failed": "failed",
+            "verification-failed": "failed",
+            "managed-policy-failed": "failed",
+            "cleanup-failed": "failed",
+        }.get(status, "running")
+        resources_by_id[resource_id] = {
+            "kind": "vm",
+            "id": resource_id,
+            "state": resource_state,
+            "detail": f"macOS {lease['os']} · {lease['provider']} · {lease['lane']}",
+            "lease": lease["id"],
+        }
+
+processes = command("ps", "-Ao", "pid=,etime=,command=").stdout
+for line in processes.splitlines():
+    match = re.search(r"/tart(?:-usb\.app/Contents/MacOS/tart)?\s+run\s+([A-Za-z0-9._-]+)", line)
+    if not match:
+        continue
+    resource_id = match.group(1)
+    resources_by_id.setdefault(
+        resource_id,
+        {
+            "kind": "vm",
+            "id": resource_id,
+            "state": "booting",
+            "detail": "Tart process is running; waiting for the lease manifest.",
+        },
+    )
+
+leases.sort(key=lambda item: item["expiresEpoch"], reverse=True)
+result = {
+    "capturedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+    "host": {
+        "name": "KeyPath lab mini",
+        "connectivity": "online",
+        "console": "locked" if console_locked else "unlocked",
+        "power": "awake" if caffeinate_running or sleep_disabled else "energy-saving",
+        "diskFreeGiB": disk_free_gib,
+        "osVersion": command("sw_vers", "-productVersion").stdout.strip() or None,
+        "osBuild": command("sw_vers", "-buildVersion").stdout.strip() or None,
+        "keyboard": {
+            "name": keyboard_name or "No matching USB keyboard",
+            "state": "connected-to-host" if keyboard_name else "disconnected",
+        },
+    },
+    "leases": leases[:12],
+    "resources": list(resources_by_id.values())[-12:],
+}
+print(json.dumps(result, separators=(",", ":")))
+PY
+}
+
 collect_artifacts() {
   local lease=$1 manifest output exit_code macos repo archive provider_resource parallels_cli
   local parallels_resource_pattern='^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$'
@@ -1626,6 +1761,7 @@ case "$action" in
   run) [[ $# -ge 2 ]] || die "run requires lease and command"; run_command "$@" ;;
   status) [[ $# -eq 1 ]] || die "status requires lease"; print_status "$1" ;;
   list) [[ $# -eq 0 ]] || die "list takes no arguments"; list_leases ;;
+  lab-state) [[ $# -eq 0 ]] || die "lab-state takes no arguments"; lab_state ;;
   artifacts) [[ $# -eq 1 ]] || die "artifacts requires lease"; collect_artifacts "$1" ;;
   scenario) [[ $# -eq 2 ]] || die "scenario requires lease and name"; scenario "$1" "$2" ;;
   desktop-bootstrap) [[ $# -eq 2 ]] || die "desktop-bootstrap requires lease and install-tools flag"; desktop_bootstrap "$@" ;;

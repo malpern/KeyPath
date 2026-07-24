@@ -1,0 +1,479 @@
+<div id="keypath-lab-state">
+  <style>
+    #keypath-lab-state {
+      --lab-bg:#090b0f;
+      --lab-panel:#0e1117;
+      --lab-panel-2:#121720;
+      --lab-line:#29303c;
+      --lab-text:#f1f4f8;
+      --lab-muted:#7f8998;
+      --lab-orange:#ff9650;
+      --lab-cyan:#35c7df;
+      --lab-green:#52df8b;
+      --lab-purple:#a787ff;
+      --lab-red:#ff6f75;
+      min-height:100%;
+      color:var(--lab-text);
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    }
+    #keypath-lab-state * { box-sizing:border-box; }
+    #keypath-lab-state .shell {
+      overflow:hidden;
+      border:1px solid #343b49;
+      border-radius:18px;
+      background:
+        radial-gradient(circle at 78% -10%,rgba(53,199,223,.09),transparent 35%),
+        linear-gradient(180deg,#0c0f14,var(--lab-bg));
+      box-shadow:0 24px 70px rgba(0,0,0,.32);
+    }
+    #keypath-lab-state .top {
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:24px;
+      padding:24px 26px 20px;
+      border-bottom:1px solid var(--lab-line);
+    }
+    #keypath-lab-state .eyebrow {
+      display:flex;
+      align-items:center;
+      gap:9px;
+      margin-bottom:9px;
+      color:var(--lab-orange);
+      font-size:11px;
+      font-weight:700;
+      letter-spacing:.13em;
+      text-transform:uppercase;
+    }
+    #keypath-lab-state .eyebrow::before {
+      content:"";
+      width:7px;
+      height:7px;
+      border:1px solid currentColor;
+      border-radius:2px;
+      transform:rotate(45deg);
+      box-shadow:0 0 12px currentColor;
+    }
+    #keypath-lab-state h1 {
+      margin:0;
+      font:600 clamp(25px,3vw,38px)/1.05 system-ui,sans-serif;
+      letter-spacing:-.035em;
+    }
+    #keypath-lab-state .subtitle {
+      max-width:720px;
+      margin-top:8px;
+      color:var(--lab-muted);
+      font:13px/1.5 system-ui,sans-serif;
+    }
+    #keypath-lab-state .host-state {
+      display:flex;
+      align-items:center;
+      gap:9px;
+      min-width:max-content;
+      padding:9px 12px;
+      border:1px solid var(--lab-line);
+      border-radius:999px;
+      color:var(--lab-muted);
+      background:rgba(255,255,255,.025);
+      font-size:11px;
+    }
+    #keypath-lab-state .host-state i,
+    #keypath-lab-state .status-dot {
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      background:var(--lab-muted);
+      box-shadow:0 0 0 3px color-mix(in srgb,var(--lab-muted) 15%,transparent);
+    }
+    #keypath-lab-state .host-state[data-state="online"] i { background:var(--lab-green); box-shadow:0 0 12px var(--lab-green); }
+    #keypath-lab-state .host-state[data-state="offline"] i { background:var(--lab-red); box-shadow:0 0 12px var(--lab-red); }
+    #keypath-lab-state .workspace {
+      display:grid;
+      grid-template-columns:minmax(0,1.6fr) minmax(270px,.7fr);
+      min-height:540px;
+    }
+    #keypath-lab-state main { min-width:0; padding:22px 24px 26px; }
+    #keypath-lab-state aside { min-width:0; border-left:1px solid var(--lab-line); background:rgba(255,255,255,.018); }
+    #keypath-lab-state .run-head {
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:24px;
+      align-items:end;
+    }
+    #keypath-lab-state .run-kicker {
+      color:var(--lab-muted);
+      font-size:10px;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+    }
+    #keypath-lab-state .run-title {
+      margin-top:5px;
+      overflow:hidden;
+      color:var(--lab-text);
+      font:500 20px/1.25 system-ui,sans-serif;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    #keypath-lab-state .run-meta {
+      display:flex;
+      align-items:baseline;
+      gap:10px;
+    }
+    #keypath-lab-state .elapsed { font-size:27px; letter-spacing:-.04em; }
+    #keypath-lab-state .run-status { color:var(--lab-muted); font-size:11px; text-transform:uppercase; }
+    #keypath-lab-state .notice {
+      display:grid;
+      grid-template-columns:auto minmax(0,1fr) auto;
+      gap:12px;
+      align-items:center;
+      margin:18px 0 20px;
+      padding:12px 14px;
+      border:1px solid color-mix(in srgb,var(--lab-cyan) 45%,var(--lab-line));
+      border-radius:10px;
+      background:color-mix(in srgb,var(--lab-cyan) 8%,transparent);
+    }
+    #keypath-lab-state .notice[data-tone="human"] { border-color:color-mix(in srgb,var(--lab-purple) 55%,var(--lab-line)); background:color-mix(in srgb,var(--lab-purple) 10%,transparent); }
+    #keypath-lab-state .notice[data-tone="problem"] { border-color:color-mix(in srgb,var(--lab-red) 55%,var(--lab-line)); background:color-mix(in srgb,var(--lab-red) 9%,transparent); }
+    #keypath-lab-state .notice-mark {
+      width:10px;
+      height:10px;
+      border:2px solid var(--lab-cyan);
+      border-radius:50%;
+      box-shadow:0 0 14px var(--lab-cyan);
+    }
+    #keypath-lab-state .notice[data-tone="human"] .notice-mark { border-color:var(--lab-purple); box-shadow:0 0 14px var(--lab-purple); }
+    #keypath-lab-state .notice[data-tone="problem"] .notice-mark { border-color:var(--lab-red); box-shadow:0 0 14px var(--lab-red); }
+    #keypath-lab-state .notice strong { display:block; font:600 12px system-ui,sans-serif; }
+    #keypath-lab-state .notice span { display:block; margin-top:2px; color:var(--lab-muted); font:11px/1.4 system-ui,sans-serif; }
+    #keypath-lab-state .owner {
+      padding:4px 7px;
+      border:1px solid var(--lab-line);
+      border-radius:999px;
+      color:var(--lab-muted);
+      font-size:9px;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+    }
+    #keypath-lab-state .section-label {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin:17px 0 9px;
+      color:var(--lab-muted);
+      font-size:10px;
+      letter-spacing:.11em;
+      text-transform:uppercase;
+    }
+    #keypath-lab-state .pipeline {
+      display:grid;
+      grid-template-columns:repeat(6,minmax(0,1fr));
+      gap:8px;
+    }
+    #keypath-lab-state .stage {
+      position:relative;
+      min-height:72px;
+      overflow:hidden;
+      padding:10px;
+      border:1px solid var(--lab-line);
+      border-radius:8px;
+      background:var(--lab-panel);
+    }
+    #keypath-lab-state .stage::before {
+      content:"";
+      display:block;
+      width:7px;
+      height:7px;
+      margin-bottom:13px;
+      border-radius:2px;
+      background:#3a414e;
+    }
+    #keypath-lab-state .stage strong {
+      display:block;
+      overflow:hidden;
+      font-size:10px;
+      font-weight:600;
+      line-height:1.3;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    #keypath-lab-state .stage span { display:block; margin-top:4px; color:var(--lab-muted); font-size:9px; }
+    #keypath-lab-state .stage[data-status="passed"] { border-color:color-mix(in srgb,var(--lab-green) 38%,var(--lab-line)); }
+    #keypath-lab-state .stage[data-status="passed"]::before { background:var(--lab-green); box-shadow:0 0 12px var(--lab-green); }
+    #keypath-lab-state .stage[data-status="active"] { border-color:var(--lab-purple); background:color-mix(in srgb,var(--lab-purple) 12%,var(--lab-panel)); }
+    #keypath-lab-state .stage[data-status="active"]::before { background:var(--lab-purple); box-shadow:0 0 12px var(--lab-purple); }
+    #keypath-lab-state .stage[data-status="active"]::after {
+      content:"";
+      position:absolute;
+      left:-30%;
+      bottom:0;
+      width:36%;
+      height:2px;
+      background:linear-gradient(90deg,transparent,var(--lab-purple),transparent);
+      animation:lab-scan 1.8s linear infinite;
+    }
+    #keypath-lab-state .stage[data-status="waiting"] { border-color:color-mix(in srgb,var(--lab-orange) 55%,var(--lab-line)); }
+    #keypath-lab-state .stage[data-status="waiting"]::before { background:var(--lab-orange); box-shadow:0 0 12px var(--lab-orange); }
+    #keypath-lab-state .stage[data-status="failed"] { border-color:var(--lab-red); }
+    #keypath-lab-state .stage[data-status="failed"]::before { background:var(--lab-red); box-shadow:0 0 12px var(--lab-red); }
+    @keyframes lab-scan { to { left:110%; } }
+    #keypath-lab-state .resource-grid {
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:8px;
+    }
+    #keypath-lab-state .resource {
+      min-width:0;
+      padding:12px;
+      border:1px solid var(--lab-line);
+      border-radius:9px;
+      background:var(--lab-panel-2);
+    }
+    #keypath-lab-state .resource-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    #keypath-lab-state .resource-kind { color:var(--lab-muted); font-size:9px; letter-spacing:.1em; text-transform:uppercase; }
+    #keypath-lab-state .resource-name { margin-top:8px; overflow:hidden; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+    #keypath-lab-state .resource-detail { margin-top:5px; color:var(--lab-muted); font:10px/1.35 system-ui,sans-serif; }
+    #keypath-lab-state .resource[data-state="ready"] .status-dot,
+    #keypath-lab-state .resource[data-state="running"] .status-dot { background:var(--lab-green); box-shadow:0 0 10px var(--lab-green); }
+    #keypath-lab-state .resource[data-state="booting"] .status-dot,
+    #keypath-lab-state .resource[data-state="creating"] .status-dot { background:var(--lab-purple); box-shadow:0 0 10px var(--lab-purple); animation:lab-breathe 1.5s ease-in-out infinite; }
+    #keypath-lab-state .resource[data-state="waiting"] .status-dot { background:var(--lab-orange); box-shadow:0 0 10px var(--lab-orange); }
+    #keypath-lab-state .resource[data-state="failed"] .status-dot { background:var(--lab-red); box-shadow:0 0 10px var(--lab-red); }
+    @keyframes lab-breathe { 50% { opacity:.35; transform:scale(.75); } }
+    #keypath-lab-state .metrics {
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      border-top:1px solid var(--lab-line);
+      border-bottom:1px solid var(--lab-line);
+    }
+    #keypath-lab-state .metric { padding:15px 14px; border-right:1px solid var(--lab-line); }
+    #keypath-lab-state .metric:last-child { border-right:0; }
+    #keypath-lab-state .metric strong { display:block; font-size:19px; font-weight:500; }
+    #keypath-lab-state .metric span { display:block; margin-top:3px; color:var(--lab-muted); font:9px system-ui,sans-serif; letter-spacing:.08em; text-transform:uppercase; }
+    #keypath-lab-state .event-head { padding:16px 15px 9px; }
+    #keypath-lab-state .event-head strong { display:block; font:600 13px system-ui,sans-serif; }
+    #keypath-lab-state .event-head span { color:var(--lab-muted); font:10px system-ui,sans-serif; }
+    #keypath-lab-state .events { max-height:470px; overflow:auto; padding:0 15px 18px; }
+    #keypath-lab-state .event {
+      display:grid;
+      grid-template-columns:8px minmax(0,1fr) auto;
+      gap:9px;
+      padding:10px 0;
+      border-top:1px solid var(--lab-line);
+    }
+    #keypath-lab-state .event .status-dot { width:7px; height:7px; margin-top:4px; }
+    #keypath-lab-state .event[data-tone="working"] .status-dot { background:var(--lab-purple); box-shadow:0 0 8px var(--lab-purple); }
+    #keypath-lab-state .event[data-tone="success"] .status-dot { background:var(--lab-green); box-shadow:0 0 8px var(--lab-green); }
+    #keypath-lab-state .event[data-tone="waiting"] .status-dot { background:var(--lab-orange); box-shadow:0 0 8px var(--lab-orange); }
+    #keypath-lab-state .event[data-tone="problem"] .status-dot { background:var(--lab-red); box-shadow:0 0 8px var(--lab-red); }
+    #keypath-lab-state .event strong { display:block; font:500 10px/1.35 system-ui,sans-serif; }
+    #keypath-lab-state .event p { margin:3px 0 0; color:var(--lab-muted); font:10px/1.35 system-ui,sans-serif; }
+    #keypath-lab-state .event time { color:var(--lab-muted); font-size:9px; }
+    #keypath-lab-state .empty { padding:12px; border:1px dashed var(--lab-line); border-radius:8px; color:var(--lab-muted); font:11px/1.4 system-ui,sans-serif; }
+    #keypath-lab-state .footer {
+      display:flex;
+      justify-content:space-between;
+      gap:20px;
+      padding:12px 20px;
+      border-top:1px solid var(--lab-line);
+      color:var(--lab-muted);
+      font:9px/1.4 system-ui,sans-serif;
+    }
+    @media(prefers-reduced-motion:reduce) {
+      #keypath-lab-state .stage[data-status="active"]::after,
+      #keypath-lab-state .resource .status-dot { animation:none; }
+    }
+    @media(max-width:900px) {
+      #keypath-lab-state .workspace { grid-template-columns:1fr; }
+      #keypath-lab-state aside { border-top:1px solid var(--lab-line); border-left:0; }
+      #keypath-lab-state .pipeline { grid-template-columns:repeat(4,minmax(0,1fr)); }
+    }
+    @media(max-width:620px) {
+      #keypath-lab-state .top,#keypath-lab-state .run-head { grid-template-columns:1fr; display:grid; }
+      #keypath-lab-state .host-state { justify-self:start; }
+      #keypath-lab-state .pipeline { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      #keypath-lab-state .resource-grid { grid-template-columns:1fr; }
+      #keypath-lab-state .notice { grid-template-columns:auto minmax(0,1fr); }
+      #keypath-lab-state .owner { display:none; }
+    }
+  </style>
+
+  <section class="shell">
+    <header class="top">
+      <div>
+        <div class="eyebrow">KeyPath · live lab</div>
+        <h1>What the lab is doing now</h1>
+        <div class="subtitle">A live operating view of host readiness, disposable VMs, test stages, human handoffs, evidence, and cleanup.</div>
+      </div>
+      <div class="host-state" id="lab-host-state" data-state="unknown"><i></i><span>Connecting to mini…</span></div>
+    </header>
+
+    <div class="workspace">
+      <main>
+        <div class="run-head">
+          <div><div class="run-kicker">Current run</div><div class="run-title" id="lab-run-title">Waiting for lab state…</div></div>
+          <div class="run-meta"><strong class="elapsed" id="lab-elapsed">—</strong><span class="run-status" id="lab-run-status">idle</span></div>
+        </div>
+
+        <section class="notice" id="lab-notice" data-tone="system" aria-live="polite">
+          <i class="notice-mark"></i>
+          <div><strong id="lab-notice-title">Connecting to the lab</strong><span id="lab-notice-detail">Reading the mini, leases, and active run.</span></div>
+          <span class="owner" id="lab-notice-owner">system</span>
+        </section>
+
+        <div class="section-label"><span>Run pipeline</span><span id="lab-stage-summary">0 / 0 complete</span></div>
+        <section class="pipeline" id="lab-pipeline" aria-label="Current lab run stages"></section>
+
+        <div class="section-label"><span>Resources in the lab</span><span id="lab-resource-summary">No active resources</span></div>
+        <section class="resource-grid" id="lab-resources" aria-label="Lab resources"></section>
+      </main>
+
+      <aside>
+        <section class="metrics" aria-label="Lab summary">
+          <div class="metric"><strong id="lab-vm-count">0</strong><span>VM resources</span></div>
+          <div class="metric"><strong id="lab-lease-count">0</strong><span>Open leases</span></div>
+          <div class="metric"><strong id="lab-disk">—</strong><span>Disk free</span></div>
+        </section>
+        <div class="event-head"><strong>Live event stream</strong><span>Meaningful transitions, newest first</span></div>
+        <div class="events" id="lab-events"></div>
+      </aside>
+    </div>
+
+    <footer class="footer">
+      <span id="lab-updated">Waiting for first snapshot…</span>
+      <span>Dashboard state is routing; lease manifests and captured evidence remain authoritative.</span>
+    </footer>
+  </section>
+
+  <script>
+    (() => {
+      const root = document.getElementById('keypath-lab-state');
+      const stateURL = new URL('keypath-lab-state.json', window.parent.location.href).href;
+      const defaultStages = [
+        ['source','Prepare source'],
+        ['build','Build'],
+        ['sign','Sign'],
+        ['deploy','Deploy'],
+        ['host','Host ready'],
+        ['accessory','USB listener'],
+        ['assign','Assign keyboard'],
+        ['clone','Clone VM'],
+        ['boot','Boot + network'],
+        ['test','Run test'],
+        ['evidence','Capture evidence'],
+        ['cleanup','Cleanup']
+      ];
+      let latestState;
+      const text = (selector,value) => { root.querySelector(selector).textContent=value; };
+      const statusLabel = value => ({idle:'idle',active:'running',waiting:'waiting',passed:'complete',failed:'failed'}[value] || value || 'unknown');
+      const shortTime = value => value ? new Date(value).toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'}) : '—';
+      const duration = (start,end) => {
+        if(!start) return '—';
+        const seconds=Math.max(0,Math.floor(((end ? new Date(end) : new Date())-new Date(start))/1000));
+        if(seconds<60) return `${seconds}s`;
+        const minutes=Math.floor(seconds/60);
+        return minutes<60 ? `${minutes}m ${String(seconds%60).padStart(2,'0')}s` : `${Math.floor(minutes/60)}h ${String(minutes%60).padStart(2,'0')}m`;
+      };
+      const stageDuration = stage => stage.startedAt ? duration(stage.startedAt,stage.finishedAt) : statusLabel(stage.status);
+      const renderStages = run => {
+        const actual=new Map((run.stages||[]).map(stage=>[stage.id,stage]));
+        const ordered=[];
+        defaultStages.forEach(([id,label])=>ordered.push(actual.get(id)||{id,label,status:'queued'}));
+        (run.stages||[]).forEach(stage=>{ if(!defaultStages.some(([id])=>id===stage.id)) ordered.push(stage); });
+        const nodes=ordered.map(stage=>{
+          const node=document.createElement('article');
+          node.className='stage'; node.dataset.status=stage.status||'queued';
+          const mark=document.createElement('i');
+          const label=document.createElement('strong'); label.textContent=stage.label||stage.id;
+          const meta=document.createElement('span'); meta.textContent=stageDuration(stage);
+          node.append(mark,label,meta);
+          node.title=stage.detail||stage.label||stage.id;
+          return node;
+        });
+        root.querySelector('#lab-pipeline').replaceChildren(...nodes);
+        const passed=ordered.filter(stage=>stage.status==='passed'||stage.status==='skipped').length;
+        text('#lab-stage-summary',`${passed} / ${ordered.length} complete`);
+      };
+      const resourceNode = resource => {
+        const node=document.createElement('article');
+        node.className='resource'; node.dataset.state=resource.state||'unknown';
+        const top=document.createElement('div'); top.className='resource-top';
+        const kind=document.createElement('span'); kind.className='resource-kind'; kind.textContent=resource.kind||'resource';
+        const dot=document.createElement('i'); dot.className='status-dot'; top.append(kind,dot);
+        const name=document.createElement('div'); name.className='resource-name'; name.textContent=resource.id||'unknown';
+        const detail=document.createElement('div'); detail.className='resource-detail'; detail.textContent=resource.detail||statusLabel(resource.state);
+        node.append(top,name,detail); return node;
+      };
+      const renderResources = state => {
+        const host=state.host||{};
+        const resources=[
+          {kind:'host',id:host.name||'KeyPath lab mini',state:host.connectivity==='online'?(host.console==='locked'?'waiting':'ready'):'failed',detail:`${host.osVersion||'macOS ?'} ${host.osBuild||''} · ${host.console||'console ?'} · ${host.power||'power ?'}`},
+          {kind:'usb',id:host.keyboard?.name||'USB keyboard',state:host.keyboard?.state==='connected-to-host'?'ready':'waiting',detail:host.keyboard?.state||'unknown'},
+          ...(state.resources||[])
+        ];
+        root.querySelector('#lab-resources').replaceChildren(...resources.map(resourceNode));
+        const vmCount=(state.resources||[]).filter(item=>item.kind==='vm'&&!['destroyed','stopped'].includes(item.state)).length;
+        text('#lab-vm-count',String(vmCount));
+        text('#lab-lease-count',String((state.leases||[]).length));
+        text('#lab-disk',host.diskFreeGiB==null?'—':`${host.diskFreeGiB}G`);
+        text('#lab-resource-summary',`${vmCount} VM${vmCount===1?'':'s'} · ${(state.leases||[]).length} lease${(state.leases||[]).length===1?'':'s'}`);
+      };
+      const renderEvents = state => {
+        const events=state.events||[];
+        if(!events.length) {
+          const empty=document.createElement('div'); empty.className='empty'; empty.textContent='No structured run events yet. Host and resource snapshots will continue updating.';
+          root.querySelector('#lab-events').replaceChildren(empty); return;
+        }
+        const nodes=events.slice(0,30).map(event=>{
+          const row=document.createElement('article'); row.className='event'; row.dataset.tone=event.tone||'neutral';
+          const dot=document.createElement('i'); dot.className='status-dot';
+          const body=document.createElement('div'); const title=document.createElement('strong'); title.textContent=event.title||event.stage||'Lab event';
+          const detail=document.createElement('p'); detail.textContent=event.detail||''; body.append(title,detail);
+          const time=document.createElement('time'); time.textContent=shortTime(event.time); row.append(dot,body,time); return row;
+        });
+        root.querySelector('#lab-events').replaceChildren(...nodes);
+      };
+      const renderNotice = state => {
+        const host=state.host||{}; const run=state.run||{};
+        let tone='system',owner='system',title='Lab is ready',detail=run.nextAction||'Waiting for the next command.';
+        if(host.connectivity!=='online') {
+          tone='problem'; title='The lab mini is offline'; detail='Reconnect the host before starting or trusting a VM run.';
+        } else if(host.console==='locked') {
+          tone='human'; owner='Micah'; title='The lab mini is locked'; detail='Unlock the clawd desktop before a test that needs macOS UI or Accessory Access.';
+        } else if(run.requiresHuman) {
+          tone='human'; owner='Micah'; title='Waiting for your action'; detail=run.nextAction||'Complete the visible lab handoff.';
+        } else if(run.status==='failed') {
+          tone='problem'; owner='agent'; title='Run stopped at a failed stage'; detail=run.nextAction||'Inspect the latest event and clean up the disposable resource.';
+        } else if(run.status==='active') {
+          owner='agent'; title='Automation is moving'; detail=run.nextAction||'The next stage will begin automatically.';
+        } else if(run.status==='passed') {
+          title='Run complete'; detail=run.nextAction||'Evidence is ready and cleanup is complete.';
+        }
+        const notice=root.querySelector('#lab-notice'); notice.dataset.tone=tone;
+        text('#lab-notice-title',title); text('#lab-notice-detail',detail); text('#lab-notice-owner',owner);
+      };
+      const render = state => {
+        latestState=state;
+        const host=state.host||{}; const run=state.run||{};
+        const hostState=root.querySelector('#lab-host-state'); hostState.dataset.state=host.connectivity||'unknown';
+        hostState.querySelector('span').textContent=`${host.connectivity||'unknown'} · ${host.console||'console ?'} · ${host.power||'power ?'}`;
+        text('#lab-run-title',run.title||'No active lab run');
+        text('#lab-run-status',statusLabel(run.status));
+        text('#lab-elapsed',duration(run.startedAt,run.finishedAt));
+        text('#lab-updated',`Snapshot ${shortTime(state.updatedAt)} · refreshes every 5 seconds`);
+        renderNotice(state); renderStages(run); renderResources(state); renderEvents(state);
+      };
+      const refresh = async () => {
+        try {
+          const response=await fetch(`${stateURL}?t=${Date.now()}`,{cache:'no-store'});
+          if(!response.ok) throw new Error(`HTTP ${response.status}`);
+          render(await response.json());
+        } catch(error) {
+          render({...latestState,host:{...(latestState?.host||{}),connectivity:'offline'},updatedAt:new Date().toISOString()});
+        }
+      };
+      refresh(); setInterval(refresh,5000);
+      setInterval(()=>{ if(latestState) text('#lab-elapsed',duration(latestState.run?.startedAt,latestState.run?.finishedAt)); },1000);
+    })();
+  </script>
+</div>

@@ -27,6 +27,7 @@ Commands:
   run LEASE_ID -- COMMAND [ARG...]
   status LEASE_ID
   list
+  lab-state
   artifacts LEASE_ID
   scenario LEASE_ID NAME
   destroy LEASE_ID
@@ -73,10 +74,103 @@ require_lease_id() {
     [[ $1 =~ ^[A-Za-z0-9._-]+$ ]] || die "invalid lease id: $1"
 }
 
+LAB_DASHBOARD_UPDATER="$SCRIPT_DIR/update-lab-dashboard"
+LAB_DASHBOARD_STATE=${KEYPATH_LAB_DASHBOARD_STATE:-/tmp/keypath-lab-state.json}
+
+lab_update() {
+    [[ ${KEYPATH_LAB_DASHBOARD_DISABLED:-0} == "1" ]] && return 0
+    [[ -x $LAB_DASHBOARD_UPDATER ]] || return 0
+    "$LAB_DASHBOARD_UPDATER" --state "$LAB_DASHBOARD_STATE" "$@" >/dev/null 2>&1 || true
+}
+
+new_run_id() {
+    printf '%s-%s-%s' "$1" "$(date -u +%Y%m%dT%H%M%SZ)" "$$"
+}
+
+tracked_remote() {
+    local run_id=$1 title=$2 stage=$3 stage_label=$4 next=$5
+    shift 5
+    local exit_code
+    lab_update --run-id "$run_id" --title "$title" --status active \
+        --stage "$stage" --stage-label "$stage_label" --stage-status active \
+        --next "$next" --event-tone working
+    set +e
+    remote "$@"
+    exit_code=$?
+    set -e
+    if (( exit_code == 0 )); then
+        lab_update --run-id "$run_id" --title "$title" --status passed \
+            --stage "$stage" --stage-label "$stage_label" --stage-status passed \
+            --next "$next" --event-tone success
+    else
+        lab_update --run-id "$run_id" --title "$title" --status failed \
+            --stage "$stage" --stage-label "$stage_label" --stage-status failed \
+            --detail "The lab command exited with status $exit_code." \
+            --next "Inspect the latest controller output, then clean up any disposable resource." \
+            --event-tone problem
+    fi
+    return "$exit_code"
+}
+
+observe_create_line() {
+    local run_id=$1 usb_passthrough=$2 line=$3 lease_candidate
+    if [[ $line == provisioning\ provider=* ]]; then
+        lease_candidate=$(printf '%s\n' "$line" | sed -nE 's/.* lease=(cbx_[A-Za-z0-9]+).*/\1/p')
+        lab_update --run-id "$run_id" --status active \
+            --stage clone --stage-label "Clone VM" --stage-status active \
+            --detail "$line" --next "Wait for the disposable guest to begin booting." \
+            --resource "lease|${lease_candidate:-pending}|creating|Disposable lease requested" \
+            --event-tone working
+        if [[ $usb_passthrough == "1" ]]; then
+            lab_update --run-id "$run_id" \
+                --stage accessory --stage-label "USB listener" --stage-status active \
+                --detail "The signed Tart app is registering for USB accessories." \
+                --event-tone working
+            lab_update --run-id "$run_id" --status waiting \
+                --stage assign --stage-label "Assign keyboard" --stage-status waiting \
+                --next "On the mini, choose Kinesis mWave from the Accessory Access menu." \
+                --requires-human true --event-tone waiting
+        fi
+    elif [[ $line == leased\ cbx_* || $line == cbx_* ]]; then
+        if [[ $usb_passthrough == "1" ]]; then
+            lab_update --run-id "$run_id" \
+                --stage accessory --stage-label "USB listener" --stage-status passed \
+                --detail "Accessory Access registration completed." --event-tone success
+            lab_update --run-id "$run_id" \
+                --stage assign --stage-label "Assign keyboard" --stage-status passed \
+                --detail "The accessory handoff is no longer blocking guest readiness." \
+                --event-tone success
+        fi
+        lab_update --run-id "$run_id" --status active \
+            --stage boot --stage-label "Boot + network" --stage-status active \
+            --detail "$line" --next "Wait for guest networking and independent version verification." \
+            --requires-human false --event-tone working
+    elif [[ $line == tart\ ip*timed\ out* ]]; then
+        lab_update --run-id "$run_id" --status failed \
+            --stage boot --stage-label "Boot + network" --stage-status failed \
+            --detail "$line" --next "Inspect USB assignment and the Tart guest boot path, then clean up." \
+            --requires-human false --event-tone problem
+    elif [[ $line == lease_id$'\t'* ]]; then
+        lease_candidate=${line#*$'\t'}
+        lab_update --run-id "$run_id" \
+            --stage clone --stage-label "Clone VM" --stage-status passed \
+            --detail "The disposable provider resource was created." \
+            --event-tone success
+        lab_update --run-id "$run_id" --status active \
+            --stage boot --stage-label "Boot + network" --stage-status passed \
+            --detail "Lease $lease_candidate is ready." \
+            --resource "lease|$lease_candidate|ready|Owned disposable KeyPath lab lease" \
+            --next "Install KeyPath or start the requested scenario." \
+            --event-tone success
+    fi
+}
+
 case "$command" in
     preflight)
         [[ $# -eq 0 ]] || usage
-        remote preflight
+        run_id=$(new_run_id preflight)
+        tracked_remote "$run_id" "Check lab readiness" host "Host ready" \
+            "The mini is ready for a disposable VM run." preflight
         ;;
     create)
         macos=
@@ -107,6 +201,11 @@ case "$command" in
         resolved=$(git -C "$REPO_ROOT" rev-parse --verify "$commit^{commit}")
         [[ $resolved == "$commit" ]] || die "commit does not resolve exactly: $commit"
 
+        run_id=$(new_run_id create)
+        lab_update --run-id "$run_id" --title "Create macOS $macos $lane lease" --status active \
+            --stage source --stage-label "Prepare source" --stage-status active \
+            --detail "Packaging commit ${commit:0:8} and the selected installer." \
+            --next "Build the immutable source and installer archive." --event-tone working
         installer_sha=$(shasum -a 256 "$installer" | awk '{print $1}')
         archive_key="${commit}-${installer_sha}"
         temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/keypath-lab.XXXXXX")
@@ -131,16 +230,55 @@ installer_sha256	$installer_sha
 EOF
         tar -czf "$temp_dir/archive.tgz" -C "$temp_dir" repo
 
+        lab_update --run-id "$run_id" --stage source --stage-label "Prepare source" --stage-status passed \
+            --detail "The immutable source and installer archive is ready." --event-tone success
+        lab_update --run-id "$run_id" \
+            --stage deploy --stage-label "Deploy" --stage-status active \
+            --detail "Source archive is ready; transferring it to the lab mini." \
+            --next "Upload and verify the immutable archive." --event-tone working
         upload_ticket=$(remote prepare-upload "$archive_key")
         [[ $upload_ticket == /tmp/keypath-lab.* ]] || die "host returned an invalid upload ticket"
         scp -q "$temp_dir/archive.tgz" "$host:$upload_ticket"
         remote install-archive "$upload_ticket" "$archive_key" "$commit" "$installer_sha" "$installer_name"
-        remote create "$macos" "$lane" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$ttl" "$desktop" "$tart_usb_passthrough"
+        lab_update --run-id "$run_id" --stage deploy --stage-label "Deploy" --stage-status passed \
+            --detail "The mini accepted and verified the archive." --event-tone success
+        lab_update --run-id "$run_id" \
+            --stage host --stage-label "Host ready" --stage-status active \
+            --detail "The mini accepted the archive; checking admission and capacity." \
+            --next "Reserve provider capacity and clone the VM." --event-tone working
+        set +e
+        remote create "$macos" "$lane" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$ttl" "$desktop" "$tart_usb_passthrough" 2>&1 |
+            while IFS= read -r line || [[ -n $line ]]; do
+                printf '%s\n' "$line"
+                observe_create_line "$run_id" "$tart_usb_passthrough" "$line"
+            done
+        create_exit=${PIPESTATUS[0]}
+        set -e
+        if (( create_exit == 0 )); then
+            lab_update --run-id "$run_id" \
+                --stage host --stage-label "Host ready" --stage-status passed \
+                --detail "Host admission and provider capacity checks passed." --event-tone success
+            lab_update --run-id "$run_id" \
+                --stage clone --stage-label "Clone VM" --stage-status passed \
+                --detail "The disposable provider resource was created." --event-tone success
+            lab_update --run-id "$run_id" --title "Create macOS $macos $lane lease" --status passed \
+                --stage boot --stage-label "Boot + network" --stage-status passed \
+                --next "Lease ready. Install KeyPath or start a scenario." \
+                --requires-human false --event-tone success
+        else
+            lab_update --run-id "$run_id" --title "Create macOS $macos $lane lease" --status failed \
+                --detail "Lease creation exited with status $create_exit." \
+                --next "Inspect the final failed stage and verify disposable-resource cleanup." \
+                --requires-human false --event-tone problem
+            exit "$create_exit"
+        fi
         ;;
     install-app)
         [[ $# -eq 1 ]] || usage
         require_lease_id "$1"
-        remote install-app "$1"
+        run_id=$(new_run_id install)
+        tracked_remote "$run_id" "Install KeyPath in $1" test "Install app" \
+            "Run a scenario or capture post-install evidence." install-app "$1"
         ;;
     console-login)
         [[ $# -eq 1 ]] || usage
@@ -274,21 +412,31 @@ EOF
         [[ $# -eq 0 ]] || usage
         remote list
         ;;
+    lab-state)
+        [[ $# -eq 0 ]] || usage
+        remote lab-state
+        ;;
     artifacts)
         [[ $# -eq 1 ]] || usage
         require_lease_id "$1"
-        remote artifacts "$1"
+        run_id=$(new_run_id evidence)
+        tracked_remote "$run_id" "Capture evidence from $1" evidence "Capture evidence" \
+            "Review the sanitized artifacts, then destroy the lease." artifacts "$1"
         ;;
     scenario)
         [[ $# -eq 2 ]] || usage
         require_lease_id "$1"
         [[ $2 =~ ^[a-z0-9-]+$ ]] || die "invalid scenario name: $2"
-        remote scenario "$1" "$2"
+        run_id=$(new_run_id scenario)
+        tracked_remote "$run_id" "Run $2 on $1" test "Run test" \
+            "Capture evidence if the scenario passes; inspect ownership if it fails." scenario "$1" "$2"
         ;;
     destroy)
         [[ $# -eq 1 ]] || usage
         require_lease_id "$1"
-        remote destroy "$1"
+        run_id=$(new_run_id cleanup)
+        tracked_remote "$run_id" "Destroy lease $1" cleanup "Cleanup" \
+            "The provider resource and owned worktree should now be absent." destroy "$1"
         ;;
     cleanup)
         if [[ ${1:-} == "--dry-run" && $# -eq 1 ]]; then
