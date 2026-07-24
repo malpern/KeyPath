@@ -3,7 +3,6 @@ set -euo pipefail
 
 profile=${1:-/Users/admin/Downloads/keypath-lab-mdm.mobileconfig}
 peekaboo=${KEYPATH_LAB_PEEKABOO:-/opt/homebrew/bin/peekaboo}
-poll_seconds=${KEYPATH_LAB_UI_POLL_SECONDS:-0.2}
 transition_seconds=${KEYPATH_LAB_UI_TRANSITION_SECONDS:-2}
 
 [[ -f "$profile" && ! -L "$profile" ]] || {
@@ -25,53 +24,21 @@ var frame = $.NSScreen.mainScreen.frame;
     exit 3
 }
 
-authorization_ready() {
-    /usr/bin/osascript -l JavaScript -e '
-function descendants(element) {
-    var result = [];
-    try {
-        var children = element.uiElements();
-        for (var i = 0; i < children.length; i++) {
-            result.push(children[i]);
-            result = result.concat(descendants(children[i]));
-        }
-    } catch (_) {}
-    return result;
-}
-function run() {
-    var matches = Application("System Events").processes.whose({name: "SecurityAgent"})();
-    if (matches.length === 0 || matches[0].windows().length === 0) return "no";
-    return descendants(matches[0].windows[0]).some(function (element) {
-        try { return element.subrole() === "AXSecureTextField"; }
-        catch (_) { return false; }
-    }) ? "yes" : "no";
-}' 2>/dev/null
-}
-
 sudo -n /usr/bin/profiles remove -type configuration \
     -identifier com.keypath.lab.mdm -forced >/dev/null 2>&1 || true
 /usr/bin/open "$profile"
 
 # This is intentionally a macOS 15-only, fixed-display driver. Each click is
-# guarded by the 1024x768 precondition above and the final SecurityAgent
-# postcondition below. macOS 26 and 27 have separate selector contracts.
+# guarded by the 1024x768 precondition above. The protected Enroll action is
+# deliberately left to the controller's real VNC click; SecurityAgent is the
+# controller-side postcondition. macOS 26 and 27 use separate contracts.
 sleep "${KEYPATH_LAB_UI_SETTLE_SECONDS:-1}"
 "$peekaboo" click --coords 249,226 --global-coords --app "System Settings" \
     --foreground --input-strategy synthOnly --json >/dev/null
 sleep "$transition_seconds"
 "$peekaboo" click --coords 600,215 --global-coords --app "System Settings" \
-    --foreground --input-strategy synthOnly --double --json >/dev/null
-sleep "$transition_seconds"
-"$peekaboo" click --coords 329,610 --global-coords --app "System Settings" \
     --foreground --input-strategy synthOnly --json >/dev/null
-
-for attempt in {1..150}; do
-    if [[ "$(authorization_ready || true)" == yes ]]; then
-        print "managed_enrollment_authorization\tready"
-        exit 0
-    fi
-    sleep "$poll_seconds"
-done
-
-print -u2 "timed out waiting for the managed enrollment authorization sheet"
-exit 1
+sleep "${KEYPATH_LAB_UI_SELECTION_SECONDS:-0.5}"
+"$peekaboo" click --coords 600,215 --global-coords --app "System Settings" \
+    --foreground --input-strategy synthOnly --double --json >/dev/null
+print "managed_enrollment_review\trequested"

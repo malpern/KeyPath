@@ -349,6 +349,7 @@ rehydrate_managed_clone() {
         desktop_bootstrap "$lease" 1
         approve_peekaboo_capture "$lease"
         run_command "$lease" /bin/zsh Scripts/lab/mdm/enroll-clone-ui
+        protected_click "$lease" "System Settings" "Device Management" "Device Management" native 329 610
         secure_dialog_input "$lease" SecurityAgent AXSecureTextField Enroll 0
         for attempt in {1..150}; do
           enrollment_status=$(cd "$repo" && "$launcher" run "$lease" -- /usr/bin/profiles status -type enrollment 2>/dev/null || true)
