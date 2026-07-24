@@ -9,11 +9,14 @@ VNC input did not appear as a guest HID device: Kanata reported
 `InputGrab active=true devices=0`. This is an input-source limitation in the
 lab, not a confirmed KeyPath remapping defect.
 
-The next proof should inject `q` through a guest-visible test HID device (for
-example an isolated IOHIDUserDevice helper) and retain TextEdit as the
-independent output oracle. Do not weaken the proof to accept KeyPath's
-simulation result; simulation correctly reported q-to-w in this run, while the
-real VNC event bypassed Kanata and produced `q`.
+The next proof must inject `q` through a guest-visible physical HID device or
+an Apple-authorized virtual HID device and retain TextEdit as the independent
+output oracle. A locally signed `IOHIDUserDevice` helper is not sufficient:
+macOS requires the restricted
+`com.apple.developer.hid.virtual.device` entitlement and AMFI rejects an ad-hoc
+signature that merely declares it. Do not weaken the proof to accept KeyPath's
+simulation result; simulation correctly reported q-to-w in these runs, while
+the real non-HID events bypassed Kanata and produced `q`.
 
 The legacy PPPC payload draws the launcher and engine Accessibility switches as
 managed and enabled, but macOS 26.2 and later no longer honor an Accessibility
@@ -99,6 +102,37 @@ The exact rule was installed with `keypath-cli rule ensure q w --apply`.
 The same run's runtime log reported no captured input device. This cleanly
 separates the working output runtime from the unsuitable Tart VNC input source.
 
+## Tart keyboard-path follow-up on July 23, 2026
+
+Lease `cbx_f7009ff1b833` used KeyPath commit
+`229ec8014fd708fa4931b63d1c915879bd830f6d` and the same signed installer
+SHA-256. Managed admission passed, the real background-item and Input
+Monitoring approvals were completed, repair reported `isOperational: true`,
+and the exact q-to-w rule was applied. Kanata reported a successful live
+reload and `InputGrab active=true`.
+
+Two additional input routes still produced literal `q` in an independently
+observed empty TextEdit document:
+
+1. A key sent to Tart's focused graphical VM window.
+2. A guest-side synthesized key event delivered by Peekaboo.
+
+The graphical Tart run exposed a guest `Virtual USB Keyboard`, but Tart 2.32.1
+also configures `VZMacKeyboardConfiguration`. The focused-window key continued
+to bypass Kanata, so the mere presence of the USB keyboard device is not proof
+that Tart delivered the event through it.
+
+A locally built Tart 2.32.1 experiment removed the Mac keyboard configuration
+and retained only `VZUSBKeyboardConfiguration`. After the host's removable
+volume access prompt was approved, the guest did not reach SSH or a responsive
+desktop within three minutes. The experiment was stopped, the stock Tart
+runtime was restored, and KeyPath again reported `isOperational: true`.
+USB-only Tart is therefore not an admitted lab route.
+
+An ad-hoc-signed `IOHIDUserDevice` prototype was also rejected before launch.
+AMFI reported that its restricted entitlements were not validated. The dead
+prototype was removed rather than retained as a misleading resume path.
+
 ## Evidence captured on July 12, 2026
 
 The disposable unmanaged proof used lease `cbx_1b376f03fbb6`, macOS 15.7.7
@@ -175,15 +209,20 @@ proof.
 
 Continue with one explicit path:
 
-1. Add a lease-scoped, guest-visible test HID input helper and repeat the
-   q-to-w TextEdit proof in a disposable `keypath-macos-15-managed` clone.
+1. Attach or pass through a real USB keyboard to a disposable managed clone,
+   or obtain an Apple-authorized build carrying
+   `com.apple.developer.hid.virtual.device`, then repeat the q-to-w TextEdit
+   proof.
 2. Add NanoMDM Declarative Device Management support and publish an
    `com.apple.configuration.app-settings` Accessibility configuration for
    macOS 26.2 and later.
 
-The macOS 15 base is the smaller route to P02. The declarative route is the
-durable macOS 26 and 27 investment. Do not continue treating successful
-installation of the legacy macOS 26 PPPC payload as an Accessibility grant.
+The macOS 15 base remains the smaller route to P02 only when a real HID input
+source is available. The declarative route is the durable macOS 26 and 27
+investment. Do not retry Tart VNC, guest synthesized events, an ad-hoc
+restricted entitlement, or the USB-only Tart configuration. Do not continue
+treating successful installation of the legacy macOS 26 PPPC payload as an
+Accessibility grant.
 
 Keep the unmanaged lane for a small number of real approval-flow tests. If its
 DriverKit state remains `activated waiting for user`, preserve the command
