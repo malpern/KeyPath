@@ -347,6 +347,7 @@ rehydrate_managed_clone() {
         print "managed_clone_enrollment\talready-enrolled"
       else
         desktop_bootstrap "$lease" 1
+        approve_peekaboo_capture "$lease"
         run_command "$lease" /bin/zsh Scripts/lab/mdm/enroll-clone-ui
         protected_click "$lease" "System Settings" "Screen Saver" "Device Management" native 249 226 1
         protected_click "$lease" "System Settings" "Device Management" "Device Management" native 600 216 2
