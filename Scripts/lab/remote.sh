@@ -347,8 +347,9 @@ rehydrate_managed_clone() {
         print "managed_clone_enrollment\talready-enrolled"
       else
         desktop_bootstrap "$lease" 1
-        approve_peekaboo_capture "$lease"
         run_command "$lease" /bin/zsh Scripts/lab/mdm/enroll-clone-ui
+        protected_click "$lease" "System Settings" "Screen Saver" "Device Management" native 249 226 1
+        protected_click "$lease" "System Settings" "Device Management" "Device Management" native 600 216 2
         protected_click "$lease" "System Settings" "Device Management" "Device Management" native 329 610
         secure_dialog_input "$lease" SecurityAgent AXSecureTextField Enroll 0
         for attempt in {1..150}; do
@@ -915,7 +916,7 @@ secure_dialog_input() {
 }
 
 protected_click() {
-  local lease=$1 app=$2 expected_before=$3 expected_after=$4 coordinate_space=$5 x=$6 y=$7
+  local lease=$1 app=$2 expected_before=$3 expected_after=$4 coordinate_space=$5 x=$6 y=$7 count=${8:-1}
   local manifest macos resource key ip before after guest_command geometry_command geometry
   local native_width native_height logical_width logical_height scale_x scale_y
   manifest=$(owned_manifest "$lease")
@@ -923,6 +924,7 @@ protected_click() {
   [[ "$macos" == "15" ]] || die "protected click currently supports only the Tart macOS 15 lane"
   [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "protected click requires a desktop-enabled lease"
   [[ "$x" == <-> && "$y" == <-> ]] || die "protected click coordinates must be non-negative integers"
+  [[ "$count" == "1" || "$count" == "2" ]] || die "protected click count must be 1 or 2"
   [[ "$coordinate_space" == "native" || "$coordinate_space" == "ax" ]] || die "invalid protected click coordinate space"
   resource=$(field "$manifest" provider_resource)
   [[ "$resource" =~ '^[A-Za-z0-9._-]+$' && "$resource" != "unknown" ]] || die "invalid Tart resource id"
@@ -961,7 +963,11 @@ protected_click() {
     y=$((y * scale_y))
   fi
 
-  "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$x" --y "$y" >/dev/null
+  if [[ "$count" == "2" ]]; then
+    "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$x" --y "$y" --count 2 >/dev/null
+  else
+    "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$x" --y "$y" >/dev/null
+  fi
   sleep "${KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS:-1}"
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
     after=${KEYPATH_LAB_TEST_WINDOW_AFTER:-$expected_after}
@@ -977,6 +983,7 @@ protected_click() {
   print "window_before\t$before"
   print "window_after\t$after"
   print "coordinate_space\t$coordinate_space"
+  print "click_count\t$count"
   if [[ "$coordinate_space" == "ax" ]]; then
     print "display_scale\t$scale_x"
   fi
@@ -1565,7 +1572,7 @@ case "$action" in
   install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
   secure-dialog-input) [[ $# -eq 5 ]] || die "secure-dialog-input requires lease, app, field, optional submit value, and focus mode"; secure_dialog_input "$@" ;;
   resume-managed-policy) [[ $# -eq 1 ]] || die "resume-managed-policy requires a lease"; resume_managed_policy "$1" ;;
-  protected-click) [[ $# -eq 7 ]] || die "protected-click requires lease, app, before window, after window, coordinate space, x, and y"; protected_click "$@" ;;
+  protected-click) [[ $# -eq 7 || $# -eq 8 ]] || die "protected-click requires lease, app, before window, after window, coordinate space, x, y, and optional count"; protected_click "$@" ;;
   desktop-type) [[ $# -eq 2 ]] || die "desktop-type requires lease and text"; desktop_type "$@" ;;
   run) [[ $# -ge 2 ]] || die "run requires lease and command"; run_command "$@" ;;
   status) [[ $# -eq 1 ]] || die "status requires lease"; print_status "$1" ;;

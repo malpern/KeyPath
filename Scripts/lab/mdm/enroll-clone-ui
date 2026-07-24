@@ -2,15 +2,9 @@
 set -euo pipefail
 
 profile=${1:-/Users/admin/Downloads/keypath-lab-mdm.mobileconfig}
-peekaboo=${KEYPATH_LAB_PEEKABOO:-/opt/homebrew/bin/peekaboo}
-transition_seconds=${KEYPATH_LAB_UI_TRANSITION_SECONDS:-2}
 
 [[ -f "$profile" && ! -L "$profile" ]] || {
     print -u2 "managed enrollment profile is unavailable: $profile"
-    exit 2
-}
-[[ -x "$peekaboo" ]] || {
-    print -u2 "Peekaboo is unavailable: $peekaboo"
     exit 2
 }
 
@@ -26,19 +20,12 @@ var frame = $.NSScreen.mainScreen.frame;
 
 sudo -n /usr/bin/profiles remove -type configuration \
     -identifier com.keypath.lab.mdm -forced >/dev/null 2>&1 || true
-/usr/bin/open "$profile"
 
-# This is intentionally a macOS 15-only, fixed-display driver. Each click is
-# guarded by the 1024x768 precondition above. The protected Enroll action is
-# deliberately left to the controller's real VNC click; SecurityAgent is the
-# controller-side postcondition. macOS 26 and 27 use separate contracts.
+# Give the controller a deterministic page-title precondition before it uses
+# real VNC pointer input. Guest-side synthesized coordinates do not map
+# consistently to the Tart framebuffer.
+/usr/bin/open 'x-apple.systempreferences:com.apple.ScreenSaver-Settings.extension'
 sleep "${KEYPATH_LAB_UI_SETTLE_SECONDS:-1}"
-"$peekaboo" click --coords 249,226 --global-coords --foreground \
-    --input-strategy synthOnly --json >/dev/null
-sleep "$transition_seconds"
-"$peekaboo" click --coords 600,215 --global-coords --foreground \
-    --input-strategy synthOnly --json >/dev/null
-sleep "${KEYPATH_LAB_UI_SELECTION_SECONDS:-0.5}"
-"$peekaboo" click --coords 600,215 --global-coords --foreground \
-    --input-strategy synthOnly --double --json >/dev/null
-print "managed_enrollment_review\trequested"
+/usr/bin/open "$profile"
+sleep "${KEYPATH_LAB_UI_SETTLE_SECONDS:-1}"
+print "managed_enrollment_profile\tdownloaded"

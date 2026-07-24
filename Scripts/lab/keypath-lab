@@ -20,7 +20,7 @@ Commands:
   rfb-pointer-probe LEASE_ID --x X --y Y
   desktop-bootstrap LEASE_ID [--install-tools]
   nameplate LEASE_ID enable|show|hide|status
-  protected-click LEASE_ID --app APP --window TITLE (--x X --y Y | --ax-x X --ax-y Y) [--after-window TITLE]
+  protected-click LEASE_ID --app APP --window TITLE (--x X --y Y | --ax-x X --ax-y Y) [--after-window TITLE] [--count 1|2]
   desktop-type LEASE_ID --text TEXT
   secure-dialog-input LEASE_ID --app APP --field LABEL [--submit BUTTON] [--already-focused]
   resume-managed-policy LEASE_ID
@@ -199,6 +199,7 @@ EOF
         after_window=
         x=
         y=
+        count=1
         coordinate_space=native
         while [[ $# -gt 0 ]]; do
             case "$1" in
@@ -209,12 +210,13 @@ EOF
                 --y) y=${2:-}; shift 2 ;;
                 --ax-x) x=${2:-}; coordinate_space=ax; shift 2 ;;
                 --ax-y) y=${2:-}; coordinate_space=ax; shift 2 ;;
+                --count) count=${2:-}; shift 2 ;;
                 *) usage ;;
             esac
         done
-        [[ -n $app && -n $window && $x =~ ^[0-9]+$ && $y =~ ^[0-9]+$ ]] || usage
+        [[ -n $app && -n $window && $x =~ ^[0-9]+$ && $y =~ ^[0-9]+$ && $count =~ ^[12]$ ]] || usage
         [[ -n $after_window ]] || after_window=$window
-        remote protected-click "$lease" "$app" "$window" "$after_window" "$coordinate_space" "$x" "$y"
+        remote protected-click "$lease" "$app" "$window" "$after_window" "$coordinate_space" "$x" "$y" "$count"
         ;;
     desktop-type)
         lease=${1:-}
