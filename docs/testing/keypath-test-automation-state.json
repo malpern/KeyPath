@@ -1,22 +1,21 @@
 {
-  "updatedAt": "2026-07-16T10:17:39-07:00",
-  "currentTask": "M11 Remote Management delivery proven",
-  "message": "Supported-UI approval plus paced secure input enabled Remote Management; the independent RFB probe now delivers events on macOS 27 build 26A5378j.",
+  "updatedAt": "2026-07-24T10:55:00-07:00",
+  "currentTask": "P02 signed USB Tart deployed; owned lab lane in review",
+  "message": "Apple's Claim USB Accessory capability is confirmed for dev.malpern.keypathlab.tart. The generated development profile contains com.apple.developer.accessory-access.usb, the signed Tart app validates on the mini, and PR #1196 is adding an owned USB-enabled lease path. Keep the keyboard disconnected until that lane is merged and the disposable VM is ready.",
   "complete": false,
   "workingBlocks": [
-    "M11",
     "P02"
   ],
   "activeWork": {
     "P02": {
-      "progress": 82,
-      "health": "blocked",
-      "trend": "backtrack",
-      "phase": "Awaiting a deterministic VirtualHID approval lane",
-      "detail": "The real macOS 15 driver extension is installed and exposed in System Settings. Its approval toggle was driven through the lease-owned UI, but systemextensionsctl still reports activated waiting for user; a focused-app output assertion cannot be honestly run until this state changes.",
-      "attempt": 3,
+      "progress": 97,
+      "health": "working",
+      "trend": "forward",
+      "phase": "Signed USB Tart deployed; owned lease integration in review",
+      "detail": "Apple capability activation and provisioning are proven. The signed Tart app and matching CrabBox binary validate on the macOS 27 mini without replacing shared tools. PR #1196 adds a guarded, manifest-recorded USB passthrough option to the normal lab controller.",
+      "attempt": 5,
       "completedSteps": 6,
-      "totalSteps": 8,
+      "totalSteps": 7,
       "nextTasks": [
         {
           "label": "Receive trusted captured input from P01",
@@ -24,27 +23,37 @@
           "progress": 100
         },
         {
-          "label": "Install a deterministic q-to-w mapping",
+          "label": "Prove managed helper, DriverKit, and VirtualHID",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Approve and verify launcher Input Monitoring",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Enroll and admit macOS 15 managed base",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Install deterministic q-to-w mapping",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Observe TextEdit output from Tart VNC input",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Expose real USB HID passthrough on the macOS 27 host",
           "status": "active",
-          "progress": 30
-        },
-        {
-          "label": "Activate VirtualHID in a deterministic lane",
-          "status": "blocked",
-          "progress": 0
-        },
-        {
-          "label": "Observe focused-app output through RFB",
-          "status": "queued",
-          "progress": 0
-        },
-        {
-          "label": "Package output observation as a reusable assertion",
-          "status": "queued",
-          "progress": 0
+          "progress": 90
         }
       ],
-      "blocker": "Unmanaged macOS leaves the DriverKit extension at activated waiting for user after current UI automation; this is a platform-approval gap, not evidence of a KeyPath remapping defect.",
+      "blocker": "Merge PR #1196 after required CI and claude-review, create the owned USB-enabled macOS 15 lease, then connect the physical keyboard for host selection and guest q-to-w proof.",
       "coreCapability": true,
       "unlocks": [
         "End-to-end remap assertions",
@@ -52,12 +61,357 @@
         "Scenario-matrix pass/fail evidence"
       ]
     },
+    "R01": {
+      "progress": 72,
+      "health": "blocked",
+      "trend": "forward",
+      "phase": "macOS 26 legacy managed Accessibility is visually on but functionally absent",
+      "detail": "The exact signed launcher and engine appear in Accessibility with managed-on switches, but the independent oracle finds no user or system TCC record on macOS 26.5.2. This matches Apple's macOS 26.2 deprecation of grants through the legacy PPPC payload.",
+      "attempt": 2,
+      "completedSteps": 2,
+      "totalSteps": 4,
+      "nextTasks": [
+        {
+          "label": "KeyPath Accessibility approval",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Publish exact launcher and engine identities",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Provide supported managed Accessibility grant",
+          "status": "blocked",
+          "progress": 0
+        },
+        {
+          "label": "Verify launcher TCC permission independently",
+          "status": "queued",
+          "progress": 0
+        }
+      ],
+      "blocker": "Use a macOS 15 managed base or publish Apple's declarative app-settings Accessibility configuration for macOS 26.2+.",
+      "coreCapability": true,
+      "unlocks": [
+        "Kanata Input Monitoring",
+        "Runtime convergence"
+      ]
+    },
+    "R02": {
+      "progress": 100,
+      "health": "smooth",
+      "trend": "forward",
+      "phase": "Kanata Input Monitoring granted and independently observed",
+      "detail": "Real Parallels-console clicks enabled both managed launcher rows. KeyPath's log then read kTCCServiceListenEvent result 2 (granted) for the exact kanata-launcher path from the system TCC store.",
+      "attempt": 2,
+      "completedSteps": 3,
+      "totalSteps": 3,
+      "nextTasks": [
+        {
+          "label": "KeyPath Input Monitoring approval",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Enable launcher and engine through real macOS UI",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Verify Kanata permission independently",
+          "status": "done",
+          "progress": 100
+        }
+      ],
+      "blocker": null,
+      "coreCapability": false,
+      "unlocks": []
+    },
+    "R03": {
+      "progress": 65,
+      "health": "blocked",
+      "trend": "forward",
+      "phase": "VirtualHID is healthy; Kanata waits only on Accessibility",
+      "detail": "Helper, DriverKit, VirtualHID daemon, device health, KeyPath permissions, and launcher Input Monitoring all pass. Kanata remains stopped and TCP refuses connections because the launcher's Accessibility grant is absent.",
+      "attempt": 2,
+      "completedSteps": 5,
+      "totalSteps": 7,
+      "nextTasks": [
+        {
+          "label": "Enable managed DriverKit approval",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Verify helper and VirtualHID readiness",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Grant launcher Accessibility through an OS-valid lane",
+          "status": "blocked",
+          "progress": 0
+        },
+        {
+          "label": "Verify Kanata and TCP readiness",
+          "status": "queued",
+          "progress": 0
+        }
+      ],
+      "blocker": "R01 is the only remaining runtime permission gate; R02 and VirtualHID are proven.",
+      "coreCapability": false,
+      "unlocks": []
+    },
+    "P03": {
+      "progress": 30,
+      "health": "waiting",
+      "trend": "forward",
+      "phase": "Waiting on the P02 macOS 15 managed base",
+      "detail": "Useful overlay-plus-input evidence requires the Apple-gated managed runtime path: activated VirtualHID, raw-runtime permissions, Kanata, and TCP readiness.",
+      "attempt": 1,
+      "completedSteps": 0,
+      "totalSteps": 0,
+      "nextTasks": [
+        {
+          "label": "Open and identify overlay controls",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Provision managed runtime prerequisites",
+          "status": "blocked",
+          "progress": 0
+        },
+        {
+          "label": "Generate verified remapped input",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Capture overlay plus input evidence",
+          "status": "queued",
+          "progress": 0
+        }
+      ],
+      "blocker": "P02 must finish the macOS 15 managed-base enrollment and functional output proof before overlay evidence is meaningful.",
+      "coreCapability": false,
+      "unlocks": []
+    },
+    "R04": {
+      "progress": 0,
+      "health": "waiting",
+      "trend": "forward",
+      "phase": "Waiting on P02/R03 runtime convergence",
+      "detail": "TCP readiness at 127.0.0.1:37001 can only be proven after the Apple-gated managed DriverKit and raw-runtime PPPC prerequisites allow Kanata to converge.",
+      "attempt": 1,
+      "completedSteps": 0,
+      "totalSteps": 0,
+      "nextTasks": [
+        {
+          "label": "Provision managed DriverKit and PPPC lane",
+          "status": "blocked",
+          "progress": 0
+        },
+        {
+          "label": "Converge Kanata runtime",
+          "status": "blocked",
+          "progress": 0
+        },
+        {
+          "label": "Probe TCP readiness independently",
+          "status": "queued",
+          "progress": 0
+        }
+      ],
+      "blocker": "R03 must converge on the macOS 15 managed lane before TCP readiness can be asserted.",
+      "coreCapability": false,
+      "unlocks": []
+    },
+    "P04": {
+      "progress": 0,
+      "health": "waiting",
+      "trend": "forward",
+      "phase": "Waiting on the P02 first-remap proof",
+      "detail": "The first confirmed remap requires activated VirtualHID, managed raw-runtime permissions, Kanata convergence, and TCP readiness. All are gated by the managed-functional lane.",
+      "attempt": 1,
+      "completedSteps": 0,
+      "totalSteps": 0,
+      "nextTasks": [
+        {
+          "label": "Provision managed DriverKit and PPPC lane",
+          "status": "blocked",
+          "progress": 0
+        },
+        {
+          "label": "Prove VirtualHID output (P02)",
+          "status": "blocked",
+          "progress": 0
+        },
+        {
+          "label": "Converge runtime and TCP (R03/R04)",
+          "status": "blocked",
+          "progress": 0
+        },
+        {
+          "label": "Measure launch-to-confirmed-remap",
+          "status": "queued",
+          "progress": 0
+        }
+      ],
+      "blocker": "P02 and R03/R04 must pass on the macOS 15 managed lane before launch-to-remap timing is meaningful.",
+      "coreCapability": false,
+      "unlocks": []
+    },
+    "M01": {
+      "progress": 0,
+      "health": "waiting",
+      "trend": "forward",
+      "phase": "Waiting on Apple: managed clean-install lane",
+      "detail": "An unattended clean install must prove the fully functional managed runtime, including DriverKit and raw-runtime permissions.",
+      "attempt": 1,
+      "completedSteps": 0,
+      "totalSteps": 0,
+      "nextTasks": [],
+      "blocker": "Waiting on Apple Developer Support case 102940025673 for the managed-functional lane.",
+      "coreCapability": false,
+      "unlocks": []
+    },
+    "M02": {
+      "progress": 0,
+      "health": "waiting",
+      "trend": "forward",
+      "phase": "Waiting on Apple: managed repair lane",
+      "detail": "Repair scenarios require a healthy functional runtime as their before-and-after assertion baseline.",
+      "attempt": 1,
+      "completedSteps": 0,
+      "totalSteps": 0,
+      "nextTasks": [],
+      "blocker": "Waiting on Apple Developer Support case 102940025673 for the managed-functional lane.",
+      "coreCapability": false,
+      "unlocks": []
+    },
+    "M03": {
+      "progress": 0,
+      "health": "waiting",
+      "trend": "forward",
+      "phase": "Waiting on Apple: managed upgrade lane",
+      "detail": "Upgrade scenarios require deterministic permission, DriverKit, and runtime assertions across versions.",
+      "attempt": 1,
+      "completedSteps": 0,
+      "totalSteps": 0,
+      "nextTasks": [],
+      "blocker": "Waiting on Apple Developer Support case 102940025673 for the managed-functional lane.",
+      "coreCapability": false,
+      "unlocks": []
+    },
+    "M04": {
+      "progress": 0,
+      "health": "waiting",
+      "trend": "forward",
+      "phase": "Waiting on Apple: managed reboot baseline",
+      "detail": "Reboot persistence requires a runtime that has first converged with managed DriverKit and PPPC grants.",
+      "attempt": 1,
+      "completedSteps": 0,
+      "totalSteps": 0,
+      "nextTasks": [],
+      "blocker": "Waiting on Apple Developer Support case 102940025673 because R03/R04 need the managed-functional lane.",
+      "coreCapability": false,
+      "unlocks": []
+    },
+    "M05": {
+      "progress": 0,
+      "health": "waiting",
+      "trend": "forward",
+      "phase": "Waiting on Apple: managed uninstall baseline",
+      "detail": "The full uninstall assertion needs a deterministically functional install as its starting state.",
+      "attempt": 1,
+      "completedSteps": 0,
+      "totalSteps": 0,
+      "nextTasks": [],
+      "blocker": "Waiting on Apple Developer Support case 102940025673 for the managed-functional lane.",
+      "coreCapability": false,
+      "unlocks": []
+    },
+    "M06": {
+      "progress": 0,
+      "health": "waiting",
+      "trend": "forward",
+      "phase": "Waiting on Apple: managed reinstall baseline",
+      "detail": "Reinstall requires the managed functional install and verified uninstall path first.",
+      "attempt": 1,
+      "completedSteps": 0,
+      "totalSteps": 0,
+      "nextTasks": [],
+      "blocker": "Waiting on Apple Developer Support case 102940025673 because M05 requires the managed-functional lane.",
+      "coreCapability": false,
+      "unlocks": []
+    },
+    "M07": {
+      "progress": 0,
+      "health": "waiting",
+      "trend": "forward",
+      "phase": "Waiting on Apple: managed cancellation recovery",
+      "detail": "Cancellation and recovery must converge back to a verified functional runtime, which requires the managed lane.",
+      "attempt": 1,
+      "completedSteps": 0,
+      "totalSteps": 0,
+      "nextTasks": [],
+      "blocker": "Waiting on Apple Developer Support case 102940025673 for the managed-functional lane.",
+      "coreCapability": false,
+      "unlocks": []
+    },
+    "M12": {
+      "progress": 0,
+      "health": "waiting",
+      "trend": "forward",
+      "phase": "Waiting on Apple: executable nightly diagonal",
+      "detail": "The nightly diagonal is a consumer of the functional scenario foundations; its full curated run cannot be valid until the managed lane enables P02 through M07.",
+      "attempt": 1,
+      "completedSteps": 0,
+      "totalSteps": 0,
+      "nextTasks": [
+        {
+          "label": "Enable managed-functional lane",
+          "status": "blocked",
+          "progress": 0
+        },
+        {
+          "label": "Prove core functional scenarios",
+          "status": "blocked",
+          "progress": 0
+        },
+        {
+          "label": "Schedule capacity- and TTL-aware nightly diagonal",
+          "status": "queued",
+          "progress": 0
+        }
+      ],
+      "blocker": "Waiting on Apple Developer Support case 102940025673 because the nightly matrix requires managed functional scenarios.",
+      "coreCapability": false,
+      "unlocks": []
+    },
+    "M13": {
+      "progress": 0,
+      "health": "waiting",
+      "trend": "forward",
+      "phase": "Waiting on Apple: executable weekly pairwise",
+      "detail": "Weekly pairwise coverage consumes the same managed functional scenarios as the nightly diagonal, at broader combinations.",
+      "attempt": 1,
+      "completedSteps": 0,
+      "totalSteps": 0,
+      "nextTasks": [],
+      "blocker": "Waiting on Apple Developer Support case 102940025673 because M12 and its managed scenario foundations must be available first.",
+      "coreCapability": false,
+      "unlocks": []
+    },
     "M11": {
       "progress": 71,
       "health": "smooth",
       "trend": "forward",
-      "phase": "Remote Management input delivery proven",
-      "detail": "A disposable macOS 27 build 26A5378j clone now has a verified keypathqa console session, supported-UI Remote Management approval, paced secret-safe credential transport, and independently observed RFB cursor delivery. Selector capture and driver composition remain.",
+      "phase": "Delivery proven; selector work deliberately queued",
+      "detail": "A disposable macOS 27 build 26A5378j clone proved the console session, supported-UI Remote Management approval, secret-safe credential transport, and RFB cursor delivery. Selector capture and driver composition remain, but no M11 lease or process is active while D05 is the current frontier.",
       "attempt": 1,
       "completedSteps": 5,
       "totalSteps": 7,
@@ -89,7 +443,7 @@
         },
         {
           "label": "Capture macOS 27 semantic selectors",
-          "status": "active",
+          "status": "queued",
           "progress": 10
         },
         {
@@ -104,20 +458,235 @@
         "macOS 27 agent-driven System Settings automation",
         "macOS 27 installer scenarios"
       ]
+    },
+    "M14": {
+      "progress": 100,
+      "health": "proven",
+      "trend": "forward",
+      "phase": "Consolidated machine-readable report proven",
+      "detail": "PR #1184 merged a narrow report generator over existing scenario result files. It validates status and failure ownership, counts outcomes, rewrites evidence links relative to the artifact root, reports missing evidence, and rejects traversal, symlink escape, and malformed-result inputs.",
+      "attempt": 1,
+      "completedSteps": 4,
+      "totalSteps": 4,
+      "nextTasks": [
+        {
+          "label": "Aggregate recursive scenario results",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Sanitize and validate evidence links",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Exercise mixed pass and blocked report",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Merge required CI and review",
+          "status": "done",
+          "progress": 100
+        }
+      ],
+      "blocker": "",
+      "coreCapability": false,
+      "unlocks": [
+        "One machine-readable evidence index for future M12 and M13 runs"
+      ]
+    },
+    "M10": {
+      "progress": 100,
+      "health": "proven",
+      "trend": "forward",
+      "phase": "macOS 26 selector lane proven",
+      "detail": "The rebuilt desktop base preserved the original clean source and passed fresh lease proofs on macOS 26.5.2. The fail-closed driver captured the live Input Monitoring window, Add control, and main-window identity; native Parallels capture produced a 2040x1280 PNG before artifacts were downloaded and both clones were destroyed.",
+      "attempt": 10,
+      "completedSteps": 5,
+      "totalSteps": 5,
+      "nextTasks": [
+        {
+          "label": "Define version-gated selector contract",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Capture macOS 26 semantic evidence",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Restore CI runner build stability",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Bootstrap macOS 26 desktop user and automation tools",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Validate in disposable Parallels lease",
+          "status": "done",
+          "progress": 100
+        }
+      ],
+      "blocker": "",
+      "coreCapability": true,
+      "unlocks": [
+        "M11 macOS 27 selectors"
+      ]
     }
   },
   "statuses": {
     "R01": "active",
-    "R02": "active",
+    "R02": "proven",
     "R03": "active",
-    "R04": "active",
+    "R04": "queued",
     "P01": "proven",
     "P02": "active",
-    "M14": "active",
-    "M12": "active",
-    "M11": "active"
+    "M14": "proven",
+    "M12": "queued",
+    "P03": "queued",
+    "P04": "queued",
+    "D06": "proven",
+    "M01": "queued",
+    "M02": "queued",
+    "M03": "queued",
+    "M04": "queued",
+    "M05": "queued",
+    "M06": "queued",
+    "M07": "queued",
+    "M13": "queued",
+    "M08": "proven",
+    "M09": "proven",
+    "M10": "proven",
+    "M11": "queued",
+    "D03": "proven",
+    "D04": "proven",
+    "D05": "proven"
   },
   "updates": [
+    {
+      "time": "10:55",
+      "block": "P02",
+      "tone": "working",
+      "title": "P02 Apple capability and signed deployment proven",
+      "message": "Apple confirmed Claim USB Accessory for the dedicated App ID. The generated profile contains com.apple.developer.accessory-access.usb, the signed Tart app validates on the mini, and PR #1196 is carrying the owned USB-enabled lease option through required review."
+    },
+    {
+      "time": "07:26",
+      "block": "P02",
+      "tone": "working",
+      "title": "P02 App ID created; managed entitlement request required",
+      "message": "The dedicated macOS App ID exists and the Tart signing package is ready. Apple's API and Xcode both reject automatic Accessory Access activation, confirming that the Account Holder must submit the managed-capability request in the web portal."
+    },
+    {
+      "time": "07:26",
+      "block": "D06",
+      "tone": "success",
+      "title": "D06 identity-scoped admission merged",
+      "message": "PR #1191 merged after the automated reviewer retry and all required checks passed. Randomized macOS 15 clones can coexist while shared macOS 26 identity protection remains serialized."
+    },
+    {
+      "time": "06:30",
+      "block": "P02",
+      "tone": "working",
+      "title": "P02 USB passthrough implementation ready for entitlement proof",
+      "message": "Tart builds with a new macOS 27 USB passthrough flag, and CrabBox now carries an explicit opt-in through YAML, environment, and CLI configuration. Provider/configuration tests pass; Apple signing entitlement and physical accessory selection remain."
+    },
+    {
+      "time": "06:20",
+      "block": "P02",
+      "tone": "working",
+      "title": "P02 supported USB passthrough route identified",
+      "message": "The macOS 27 mini exposes Apple's new physical USB passthrough API. Tart 2.32.1 lacks a flag and the host currently has no USB accessory attached; implementation can proceed without repeating the rejected VNC or USB-only experiments."
+    },
+    {
+      "time": "06:13",
+      "block": "P02",
+      "tone": "working",
+      "title": "P02 guest-visible HID input proof resumed",
+      "message": "With D06 concurrency proven, work returns to the remaining end-to-end boundary: deliver lease-scoped input through the focused Tart display as a real guest HID event and observe q-to-w output."
+    },
+    {
+      "time": "06:12",
+      "block": "D06",
+      "tone": "success",
+      "title": "D06 unique managed-clone identity proven",
+      "message": "Identity-scoped admission passed regression tests and live proof with two simultaneous randomized macOS 15 managed VMs, distinct MDM identities, and all three profile acknowledgements. macOS 26 shared-identity serialization remains enforced."
+    },
+    {
+      "time": "18:58",
+      "block": "P02",
+      "tone": "problem",
+      "title": "P02 runtime proven; Tart VNC is not a HID input oracle",
+      "message": "The macOS 15 managed clone is operational and q-to-w simulation passes, but the real TextEdit test received q. Kanata captured zero devices, so the next lab issue is a guest-visible test HID input source\u2014not another permission retry."
+    },
+    {
+      "time": "17:56",
+      "block": "P02",
+      "tone": "working",
+      "title": "macOS 15 managed base staged for enrollment",
+      "message": "PR #1189 merged after CI and enforced review. A fresh Sequoia staging image is running with the private lab profile reviewed in the real System Settings flow and waiting at the security-sensitive Enroll confirmation."
+    },
+    {
+      "time": "17:38",
+      "block": "P02",
+      "tone": "problem",
+      "title": "P02 narrowed to the macOS 26 Accessibility boundary",
+      "message": "DriverKit, VirtualHID, helper, and genuine launcher Input Monitoring pass. macOS 26.2+ draws the legacy managed Accessibility switch on but creates no TCC grant; next build the missing macOS 15 managed base or add NanoMDM declarative app settings."
+    },
+    {
+      "time": "17:36",
+      "block": "D06",
+      "tone": "success",
+      "title": "Sequential managed clones now converge automatically",
+      "message": "Create derives exact installer policy, publishes and acknowledges all profiles, verifies system admission, and rejects ambiguous or concurrent shared enrollment identity."
+    },
+    {
+      "time": "16:37",
+      "block": "D06",
+      "tone": "working",
+      "title": "D06 managed clone rehydration is the active frontier",
+      "message": "The first fresh clone proved enrollment persists but device profiles must be re-published. Manual rehydration passes; the next work is making that automatic and fail-closed."
+    },
+    {
+      "time": "16:37",
+      "block": "D05",
+      "tone": "success",
+      "title": "D05 managed base and policy admission proven",
+      "message": "A fresh managed-functional clone was created from the dedicated macOS 26 base; all three policies were re-delivered and acknowledged, system-level lane admission passed, and the exact signed KeyPath artifact installed under policy."
+    },
+    {
+      "time": "16:28",
+      "block": "D05",
+      "tone": "success",
+      "title": "D05 managed policy set proven end to end",
+      "message": "macOS acknowledged all three managed policies; MDM inventory and the in-VM exact-manifest admission check both passed. The remaining D05 step is preserving a genuinely clean managed base."
+    },
+    {
+      "time": "16:15",
+      "block": "D05",
+      "tone": "working",
+      "title": "D05 Managed enrollment proven; policy deployment next",
+      "message": "A disposable macOS 26 VM is User Approved enrolled and checked into NanoMDM. The active frontier is managed PPPC, DriverKit, and service-management policy publication with independent postconditions."
+    },
+    {
+      "time": "16:15",
+      "block": "D04",
+      "tone": "success",
+      "title": "D04 NanoMDM APNs enrollment channel proven",
+      "message": "NanoMDM, SCEP, pinned private-LAN TLS, and the APNs topic are running; the enrolled VM completed Authenticate and TokenUpdate."
+    },
+    {
+      "time": "16:15",
+      "block": "D03",
+      "tone": "success",
+      "title": "D03 Apple MDM vendor certificate approved",
+      "message": "Apple approved case 102940025673; the MDM vendor certificate and signed APNs push certificate are installed and valid through July 23, 2027."
+    },
     {
       "time": "10:17",
       "block": "M11",
@@ -126,210 +695,172 @@
       "message": "Supported-UI approval plus paced secure input enabled Remote Management; the independent RFB probe now delivers events on macOS 27 build 26A5378j."
     },
     {
-      "time": "21:27",
-      "block": "P02",
+      "time": "18:15",
+      "block": "M11",
       "tone": "problem",
-      "title": "P02 has a platform gate",
-      "message": "The VM reached the real VirtualHID approval control, but macOS has not transitioned the driver out of waiting-for-user. Captured RFB input is ready; remapped-output proof waits on a deterministic approval lane."
+      "title": "M11 console proven; RFB control Apple-gated",
+      "message": "Lease cbx_7737a72b52ef reached a verified keypathqa console session after catching sysadminctl's false success and using the disposable-clone fallback. RFB authentication succeeds, but macOS checks in with event posting disabled; ordinary Screen Sharing and command-line Remote Management remain view-only. Evidence was collected and the lease destroyed."
     },
     {
-      "time": "20:29",
-      "block": "P02",
-      "tone": "working",
-      "title": "P02 output proof starting",
-      "message": "Composing a software-only q-to-w proof: known RFB input, healthy runtime, and independently observed focused-app output."
-    },
-    {
-      "time": "19:49",
-      "block": "P01",
+      "time": "16:37",
+      "block": "M14",
       "tone": "success",
-      "title": "P01 RFB capture proven",
-      "message": "KeyPath captured a real CrabBox VNC key event in its user-session input host. P01 is complete and the lease-owned input path is reusable."
+      "title": "M14 consolidated report proven",
+      "message": "PR #1184 merged after focused report tests, a mixed-result CLI proof, the 4,746-test local safe suite, required CI, and claude-review. Evidence links are artifact-relative and unsafe or malformed inputs fail closed."
     },
     {
-      "time": "19:39",
-      "block": "P01",
-      "tone": "working",
-      "title": "P01 retargeted to intended runtime",
-      "message": "ADR-032 makes KeyPath user-session capture the correct physics target. Starting a clean RFB capture proof."
-    },
-    {
-      "time": "19:37",
-      "block": "P01",
+      "time": "16:20",
+      "block": "M11",
       "tone": "problem",
-      "title": "P01 narrowed to raw-binary consent",
-      "message": "KeyPath IM is automated. Raw kanata-launcher registration remains blocked: file panel filters it and synthetic drag creates no row."
-    },
-    {
-      "time": "19:26",
-      "block": "P01",
-      "tone": "retry",
-      "title": "Kanata row postcondition missing",
-      "message": "Authentication passed, but the launcher row did not appear. Retrying on the unlocked page; no product failure claimed."
-    },
-    {
-      "time": "19:24",
-      "block": "P01",
-      "tone": "success",
-      "title": "KeyPath Input Monitoring enabled",
-      "message": "Supported UI path reached Input Monitoring; KeyPath_Toggle is 1 and the running app oracle logged AX and IM granted."
-    },
-    {
-      "time": "19:20",
-      "block": "P01",
-      "tone": "retry",
-      "title": "Wizard sequencing corrected",
-      "message": "Escape closed the wizard after validation. Retrying without destructive dismissal; this is harness sequencing, not a KeyPath failure."
-    },
-    {
-      "time": "19:13",
-      "block": "P01",
-      "tone": "working",
-      "title": "Fresh P01 VM proof starting",
-      "message": "Tart capacity is free. Creating a disposable unmanaged macOS 15 desktop from merged harness code."
-    },
-    {
-      "time": "19:05",
-      "block": "P01",
-      "tone": "success",
-      "title": "P01 harness guardrails pass",
-      "message": "Secure approval now has a real dismissal postcondition; permission targeting is reversible. Focused lab tests pass. Next: disposable-VM proof."
-    },
-    {
-      "time": "19:02",
-      "block": "P01",
-      "tone": "working",
-      "title": "Hardening permission orchestration",
-      "message": "Implementing sheet-dismissal verification and reversible System Settings geometry before the next VM proof."
-    },
-    {
-      "time": "18:58",
-      "block": "P01",
-      "tone": "working",
-      "title": "Clarified completion and blocker semantics",
-      "message": "Green block fill now means proven only. Progress lines are amber, retrying uses \u21bb, and P01/P02 hovers identify reusable blockers and downstream work they unlock."
-    },
-    {
-      "time": "18:40",
-      "block": "P01",
-      "tone": "working",
-      "title": "Hover checklists added",
-      "message": "Every block hover now includes What to do next with per-task status and progress. P01 shows the concrete harness-hardening sequence."
-    },
-    {
-      "time": "18:37",
-      "block": "P01",
-      "tone": "retry",
-      "title": "Input Monitoring path needs hardening",
-      "message": "The product gates through DriverKit are proven. Input Monitoring is not yet claimed: the drag failed its row postcondition and secure input reported success while the auth sheet remained. Artifacts and exact targeting evidence are being preserved."
-    },
-    {
-      "time": "18:22",
-      "block": "P01",
-      "tone": "success",
-      "title": "Privileged helper proven",
-      "message": "The helper is running. Captured two targeting rules: AX bounds already match the Tart VNC viewport, and field-only secure input submits the Login Items sheet via its trailing newline."
-    },
-    {
-      "time": "18:04",
-      "block": "P01",
-      "tone": "working",
-      "title": "P01 fresh VM admitted",
-      "message": "P01 is actively running on the sole admitted Tart lease; P02 remains paused until Kanata permissions and runtime readiness pass."
-    },
-    {
-      "time": "15:51",
-      "block": "P01",
-      "tone": "success",
-      "title": "P01 permission automation merged",
-      "message": "PR #1138 merged as f5c53044. Accessibility and Input Monitoring setup are repeatable; the lease artifacts were collected and the VM was cleanly destroyed. Next active slice is the logged-in GUI installer action."
+      "title": "M11 blocked before selector capture",
+      "message": "Fresh macOS 27 lease cbx_86986a1fbbd1 verified the encrypted QA credential but remained at loginwindow. Parallels RFB click/type reported success without changing the captured screen; artifacts were collected and the owned lease was destroyed."
     },
     {
       "time": "15:45",
-      "block": "P01",
-      "tone": "success",
-      "title": "P01 permission setup automated",
-      "message": "Fresh-VM proof passed for both Kanata permission rows using Finder drag plus postcondition-verified authorization. The reusable primitive is under local review before PR."
-    },
-    {
-      "time": "14:43",
-      "block": "P01",
-      "tone": "success",
-      "title": "P01 secure authorization merged",
-      "message": "PR #1137 is merged and master is current. Active work now narrows to selecting kanata-launcher in the Open panel and verifying its permission row appears."
-    },
-    {
-      "time": "14:40",
-      "block": "P01",
+      "block": "R01",
       "tone": "working",
-      "title": "P01 secure authorization rebased",
-      "message": "PR #1137 is current with master and rerunning checks. Live VM evidence confirms the authorization sheet closes only after a valid credential and protected submit."
+      "title": "Non-MDM functional fallback identified",
+      "message": "MDM remains the supported unattended clean-clone path. A separate one-time manually approved base may unblock functional coverage, and Kanata Engine.app\u2014not the raw launcher\u2014is the correct stable manual TCC target for the next isolated proof."
     },
     {
-      "time": "14:35",
-      "block": "P01",
-      "tone": "retry",
-      "title": "P01 authorization false positive removed",
-      "message": "System Settings authorization is now independently verified. The remaining retry is file-picker selection, not credential entry or protected-click delivery."
-    },
-    {
-      "time": "14:26",
-      "block": "P01",
+      "time": "15:42",
+      "block": "M10",
       "tone": "success",
-      "title": "P01 calibrated click proven",
-      "message": "Fresh-VM proof succeeded: guarded RFB delivery plus PermissionOracle postcondition. PR #1135 carries the production parser fix."
+      "title": "M10 artifact capture complete",
+      "message": "PR #1183 merged native Parallels screenshot capture after a fresh macOS 26 lease produced a 2040x1280 PNG with download and screenshot status 0; required CI and review passed and the lease was destroyed."
     },
     {
-      "time": "14:21",
-      "block": "P01",
-      "tone": "working",
-      "title": "P01 fresh run admitted",
-      "message": "P01 is actively starting the first fresh VM run with merged admission and calibrated protected-click guards."
-    },
-    {
-      "time": "14:00",
-      "block": "P01",
+      "time": "15:18",
+      "block": "M10",
       "tone": "success",
-      "title": "P01 orchestration merged",
-      "message": "Automatic click calibration and self-documenting VM admission are merged. No agent is actively mutating this block while Tart is occupied."
+      "title": "M10 macOS 26 selector lane proven",
+      "message": "Fresh lease cbx_1b5360d0251a passed desktop bootstrap and Peekaboo preflight on macOS 26.5.2, captured the expected Input Monitoring selectors, downloaded its evidence bundle, and completed cleanup."
     },
     {
-      "time": "13:46",
-      "block": "P01",
-      "tone": "waiting",
-      "title": "P01 safely waiting",
-      "message": "PR #1130 is code-green but reviewer infrastructure failed twice without a finding. The sole Tart VM is also owned by another agent; P01 is no longer pulsing."
+      "time": "10:42",
+      "block": "M10",
+      "tone": "problem",
+      "title": "M10 awaits one controlled base login",
+      "message": "A separate macOS 26 Desktop Base was cloned while preserving the clean source. The bootstrap fix is in PR #1179; one controlled KeyPath QA login/password reset is needed before automatic login and desktop tooling can finish."
     },
     {
-      "time": "13:41",
-      "block": "P01",
+      "time": "09:50",
+      "block": "M10",
       "tone": "working",
-      "title": "P01 calibration published",
-      "message": "PR #1130 is open. P01 is actively validating automatic per-lease coordinate calibration while another agent owns Tart."
+      "title": "M10 resumed on repaired CI",
+      "message": "Both self-hosted Mini runners completed the full gate. M10 is rebased on the repair, its selector-driver tests pass locally, and fresh CI is queued."
     },
     {
-      "time": "13:36",
-      "block": "P01",
+      "time": "09:35",
+      "block": "M10",
+      "tone": "problem",
+      "title": "M10 trap traced to headless AppSSO",
+      "message": "Crash reports show macOS 27 AppSSO trapping swift-package only in the synthetic runner session. Fresh stable-Xcode builds pass over SSH with the same cache and CI environment."
+    },
+    {
+      "time": "08:22",
+      "block": "M10",
+      "tone": "problem",
+      "title": "M10 Swift trap persists after disk recovery",
+      "message": "The reserve check passed, but swift build still exited 133 before tests. The blocker is now isolated to runner cache or toolchain state."
+    },
+    {
+      "time": "08:19",
+      "block": "M10",
       "tone": "working",
-      "title": "P01 parallel-safe calibration work",
-      "message": "P01 is actively developing automatic coordinate calibration while another agent owns Tart; no VM collision is occurring."
+      "title": "M10 CI rerun resumed",
+      "message": "Disk cleanup restored 232 GiB free and the 100 GiB reserve guard is live; PR #1174 is rebasing onto current master."
     },
     {
-      "time": "13:32",
-      "block": "P01",
+      "time": "06:26",
+      "block": "M10",
+      "tone": "problem",
+      "title": "M10 CI blocked by runner build crash",
+      "message": "PR #1174 is awaiting a healthy CI rerun after the Mini swift build Trace/BPT trap."
+    },
+    {
+      "time": "06:14",
+      "block": "M10",
+      "tone": "working",
+      "title": "M10 selector evidence driver in review",
+      "message": "PR #1174 adds macOS 26 admission and fail-closed selector evidence; CI is running."
+    },
+    {
+      "time": "06:02",
+      "block": "M10",
+      "tone": "working",
+      "title": "M10 macOS 26 selector driver started",
+      "message": "Building a self-verifying per-OS driver; no macOS 15 coordinates will be reused."
+    },
+    {
+      "time": "05:54",
+      "block": "M09",
       "tone": "success",
-      "title": "P01 harness merged",
-      "message": "PR #1129 merged and master is current. P01 stays active for the fresh guarded permission run; P02 remains paused until Kanata starts."
+      "title": "M09 resumable runner proven",
+      "message": "PR #1170 merged after fresh Mini CI. Interrupted scenarios now resume from verified checkpoints without blind mutation replay."
     },
     {
-      "time": "13:29",
-      "block": "P01",
+      "time": "05:51",
+      "block": "M09",
       "tone": "working",
-      "title": "P01 published for review",
-      "message": "PR #1129 is open. P01 remains active while CI and the enforced Claude review validate the guarded-click harness."
+      "title": "M09 recovery behavior verified",
+      "message": "Interruption tests prove the runner avoids duplicate mutations and resumes only from verified state."
+    },
+    {
+      "time": "05:48",
+      "block": "M09",
+      "tone": "working",
+      "title": "M09 resumable runner started",
+      "message": "Building checkpointed execution that never blindly repeats an interrupted mutation."
+    },
+    {
+      "time": "05:46",
+      "block": "M08",
+      "tone": "success",
+      "title": "M08 failure ownership proven",
+      "message": "PR #1169 merged after fresh Mini CI passed. The live dashboard now marks M08 reliable."
+    },
+    {
+      "time": "05:13",
+      "block": "M08",
+      "tone": "problem",
+      "title": "M08 blocked by offline CI runners",
+      "message": "PR #1169 is ready, but required CI cannot start until a self-hosted runner returns online."
     }
   ],
   "activity": [
+    {
+      "time": "17:56",
+      "message": "PR #1189 merged and master advanced; the macOS 15.7.7 managed-base staging image is ready at MDM enrollment confirmation."
+    },
+    {
+      "time": "10:17",
+      "message": "M11 Remote Management approval and RFB delivery passed on macOS 27; PR #1187 merged, evidence was collected, and the lease was destroyed."
+    },
+    {
+      "time": "18:15",
+      "message": "M11 autonomous console-session delivery passed on macOS 27; the remaining RFB input boundary is explicitly classified as Remote Management UI or MDM approval."
+    },
+    {
+      "time": "16:37",
+      "message": "PR #1184 merged the M14 consolidated result and sanitized evidence report; integration master is current."
+    },
+    {
+      "time": "16:20",
+      "message": "M11 recorded a non-Apple lab blocker at macOS 27 pre-login RFB delivery; evidence collected and lease destroyed without claiming selector success."
+    },
+    {
+      "time": "15:45",
+      "message": "Permission-path review queued a separate manually pre-approved functional-base spike while preserving MDM as the deterministic target."
+    },
+    {
+      "time": "15:42",
+      "message": "PR #1183 merged; native Parallels artifact screenshots are proven and regression-tested."
+    },
+    {
+      "time": "15:18",
+      "message": "M10 disposable macOS 26 selector proof passed; artifacts collected and lease destroyed."
+    },
     {
       "time": "07:40",
       "message": "Managed capability probe hardening committed (4625af72)."
