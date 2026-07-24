@@ -80,6 +80,35 @@ final class RuleCollectionDependencyExtractorTests: XCTestCase {
         )
     }
 
+    func testMismatchedActivatorTargetDoesNotSatisfyCollectionLayerActivation() {
+        let mappingID = uuid(23)
+        let collection = makeCollection(
+            mappings: [
+                KeyMapping(
+                    id: mappingID,
+                    input: "a",
+                    action: .keystroke(key: "b")
+                ),
+            ],
+            targetLayer: .custom("fun"),
+            momentaryActivator: MomentaryActivator(
+                input: "space",
+                targetLayer: .custom("other")
+            )
+        )
+
+        let contribution = extractor.contribution(for: collection)
+
+        XCTAssertTrue(contribution.provides.contains(.layerActivation(layer("other"))))
+        XCTAssertEqual(
+            requirement(in: contribution, for: .layerActivation(layer("fun"))),
+            RuleRequirement(
+                capability: .layerActivation(layer("fun")),
+                evidence: [.mappingIDs([mappingID])]
+            )
+        )
+    }
+
     func testCustomRulesUseCollectionExtractionAndPreserveEnabledState() {
         let enabledRule = CustomRule(
             id: uuid(21),

@@ -93,7 +93,6 @@ struct RuleCollectionDependencyExtractor {
         }
 
         let hasOwnActivation = usesConfigurationDefinedLauncherActivation
-            || functionalActivator(in: collection) != nil
             || provides.contains(.layerActivation(RuleLayerIdentifier(collection.targetLayer)))
 
         if collection.targetLayer != .base,
