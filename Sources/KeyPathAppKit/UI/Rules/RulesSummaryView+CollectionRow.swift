@@ -53,13 +53,11 @@ struct ExpandableCollectionRow: View {
     /// For tapHoldPicker style: callback to select hold output
     var onSelectHoldOutput: ((String) -> Void)?
     /// For homeRowMods style: callback to update config
-    var onUpdateHomeRowModsConfig: ((HomeRowModsConfig) -> Void)?
+    var onUpdateHomeRowModsConfig: ((HomeRowModsConfig, @escaping (HomeRowModsConfig) -> Void) -> Void)?
     /// For homeRowMods style: existing layer names to offer in layer-mode popover
     var homeRowAvailableLayers: [String] = []
     /// For homeRowMods style: create any missing layers before enabling layer mode
     var onEnsureHomeRowLayersExist: (([String]) async -> Void)?
-    /// For homeRowMods style: enable catalog layer collections when switching to layer mode
-    var onEnableLayerCollections: (([UUID]) async -> Void)?
     /// For homeRowMods style: callback to open modal
     var onOpenHomeRowModsModal: (() -> Void)?
     /// For homeRowMods style: callback to open modal with a specific key selected
@@ -429,18 +427,18 @@ struct ExpandableCollectionRow: View {
                             get: { effectiveHomeRowModsConfig },
                             set: { newConfig in
                                 localHomeRowModsConfig = newConfig
-                                onUpdateHomeRowModsConfig?(newConfig)
                             }
                         ),
                         availableLayers: homeRowAvailableLayers,
                         onConfigChanged: { newConfig in
                             localHomeRowModsConfig = newConfig
-                            onUpdateHomeRowModsConfig?(newConfig)
+                            onUpdateHomeRowModsConfig?(newConfig) { persistedConfig in
+                                localHomeRowModsConfig = persistedConfig
+                            }
                         },
                         onEnsureLayersExist: { layerNames in
                             await onEnsureHomeRowLayersExist?(layerNames)
-                        },
-                        onEnableLayerCollections: onEnableLayerCollections
+                        }
                     )
                     .padding(.top, 8)
                     .padding(.bottom, 12)

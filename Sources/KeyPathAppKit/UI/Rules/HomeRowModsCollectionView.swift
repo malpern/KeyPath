@@ -11,7 +11,6 @@ struct HomeRowModsCollectionView: View {
     let availableLayers: [String]
     let onConfigChanged: (HomeRowModsConfig) -> Void
     let onEnsureLayersExist: ([String]) async -> Void
-    let onEnableLayerCollections: (([UUID]) async -> Void)?
     var holdTimingBinding: Binding<Double>?
     var holdTimingValue: Int = 180
     var holdTimingDefault: Int = 180

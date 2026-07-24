@@ -186,10 +186,13 @@ extension PackDetailView {
         // VM method returns Void (it's the manager layer underneath that
         // returns Bool-for-newly-enabled). Mirrors Rules' call site. If we
         // want surfaced error toasts here later, call the manager directly.
-        await kanataManager.updateHomeRowModsConfig(
+        let persistedConfig = await kanataManager.updateHomeRowModsConfig(
             collectionId: collectionID,
             config: newConfig
         )
+        await MainActor.run {
+            homeRowModsConfig = persistedConfig
+        }
     }
 
     /// Mirror of `applyHomeRowEdit` for Auto Shift Symbols.

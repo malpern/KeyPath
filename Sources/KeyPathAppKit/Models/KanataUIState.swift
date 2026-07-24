@@ -54,6 +54,9 @@ struct KanataUIState: Sendable {
     /// Save-time mapping conflict resolution (#460)
     let pendingMappingConflict: MappingConflictContext?
 
+    /// Enable/save prerequisite resolution (#869)
+    let pendingPrerequisiteResolution: RulePrerequisiteDialogModel?
+
     /// Empty state for initialization fallback
     static let empty = KanataUIState(
         lastError: nil,
@@ -70,7 +73,8 @@ struct KanataUIState: Sendable {
         validationError: nil,
         saveStatus: .idle,
         pendingRuleConflict: nil,
-        pendingMappingConflict: nil
+        pendingMappingConflict: nil,
+        pendingPrerequisiteResolution: nil
     )
 }
 

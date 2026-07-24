@@ -77,6 +77,9 @@ struct WindowSnappingActivationModeTests {
         if let idx = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
             manager.ruleCollections[idx].isEnabled = false
         }
+        manager.onPrerequisiteResolution = { _ in
+            .enableRequiredProvidersAndApply
+        }
 
         let autoEnabled = await manager.updateWindowSnappingActivationMode(
             id: RuleCollectionIdentifier.windowSnapping,

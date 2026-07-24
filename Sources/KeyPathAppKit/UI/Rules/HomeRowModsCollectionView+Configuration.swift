@@ -178,17 +178,8 @@ extension HomeRowModsCollectionView {
 
         Button {
             if mode == .layers {
-                Task {
-                    let ids = [
-                        RuleCollectionIdentifier.vimNavigation,
-                        RuleCollectionIdentifier.symbolLayer,
-                        RuleCollectionIdentifier.numpadLayer,
-                        RuleCollectionIdentifier.funLayer
-                    ]
-                    await onEnableLayerCollections?(ids)
-                    config.layerAssignments = recommendedLayerAssignments
-                    applyHoldMode(.layers)
-                }
+                config.layerAssignments = recommendedLayerAssignments
+                applyHoldMode(.layers)
                 return
             }
             applyHoldMode(mode)
