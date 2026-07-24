@@ -1107,14 +1107,10 @@ def manifest(path):
     return result
 
 
-root_state = {}
-try:
-    root_state = json.loads(command("ioreg", "-n", "Root", "-d1", "-a").stdout)
-except (json.JSONDecodeError, subprocess.TimeoutExpired):
-    pass
-
 power = command("pmset", "-g", "custom").stdout
-console_locked = bool(root_state.get("IOConsoleLocked", True))
+console = command("ioreg", "-n", "Root", "-d1").stdout
+console_match = re.search(r'"IOConsoleLocked"\s*=\s*(Yes|No)', console)
+console_locked = console_match is None or console_match.group(1) == "Yes"
 caffeinate_running = command("pgrep", "-x", "caffeinate").returncode == 0
 sleep_disabled = bool(re.search(r"^\s*sleep\s+0\s*$", power, re.MULTILINE))
 disk = command("df", "-Pk", "/System/Volumes/Data").stdout.splitlines()

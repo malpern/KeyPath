@@ -140,6 +140,11 @@ class LabDashboardTests(unittest.TestCase):
         self.assertIn("target=refresh_lab", server)
         self.assertIn('"lab-state"', server)
 
+    def test_console_lock_string_is_parsed_by_value(self) -> None:
+        remote = (LAB_DIR / "remote.sh").read_text()
+        self.assertIn('r\'"IOConsoleLocked"\\s*=\\s*(Yes|No)\'', remote)
+        self.assertIn('console_match.group(1) == "Yes"', remote)
+
 
 if __name__ == "__main__":
     unittest.main()
