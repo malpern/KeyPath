@@ -24,6 +24,8 @@ else
   GUEST_SSH="${KEYPATH_LAB_GUEST_SSH:-/usr/bin/ssh}"
 fi
 
+TART_USB_TOOL_ROOT="${KEYPATH_LAB_TART_USB_TOOL_ROOT:-$LAB_ROOT/CompatTools/KeyPathUSB}"
+
 STATE_ROOT="$LAB_ROOT/KeyPathInstallerLab"
 ARCHIVES="$STATE_ROOT/archives"
 LEASES="$STATE_ROOT/leases"
@@ -644,13 +646,22 @@ lease_candidate_from_line() {
 }
 
 create_lease() {
-  local macos=$1 lane=$2 archive_key=$3 commit=$4 installer_sha=$5 installer_name=$6 ttl=$7 desktop=$8
+  local macos=$1 lane=$2 archive_key=$3 commit=$4 installer_sha=$5 installer_name=$6 ttl=$7 desktop=$8 tart_usb_passthrough=${9:-0}
   local launcher provider archive repo slug output lease created expires manifest guest_output product build operation ttl_seconds
   local provider_resource create_status candidate_file create_log exit_code managed_policy_exit identity_scope
   launcher=$(launcher_for "$macos")
   provider=$(provider_for "$macos")
   [[ "$lane" == "managed-functional" || "$lane" == "unmanaged-ui" ]] || die "invalid test lane: $lane"
   [[ ! ("$macos" == "27" && "$lane" == "managed-functional") ]] || die "managed-functional is not yet supported on macOS 27"
+  [[ "$tart_usb_passthrough" == "0" || "$tart_usb_passthrough" == "1" ]] || die "invalid Tart USB passthrough setting"
+  [[ "$tart_usb_passthrough" == "0" || "$macos" == "15" ]] || die "Tart USB passthrough requires macOS 15"
+  if [[ "$tart_usb_passthrough" == "1" ]]; then
+    [[ -x "$TART_USB_TOOL_ROOT/bin/crabbox-usb" ]] || die "USB-enabled CrabBox is unavailable"
+    [[ -x "$TART_USB_TOOL_ROOT/tart-usb.app/Contents/MacOS/tart" ]] || die "signed USB-enabled Tart is unavailable"
+    CRABBOX="$TART_USB_TOOL_ROOT/bin/crabbox-usb"
+    export CRABBOX_TART_USB_PASSTHROUGH=true
+    export PATH="$TART_USB_TOOL_ROOT/bin:$PATH"
+  fi
   if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" && "$macos" == "15" && "$lane" == "managed-functional" ]]; then
     desktop=1
   fi
@@ -726,6 +737,7 @@ create_lease() {
     print "status\tcreated"
     print "cleanup_status\tpending"
     print "desktop_enabled\t$([[ "$desktop" == "1" ]] && print true || print false)"
+    print "tart_usb_passthrough\t$([[ "$tart_usb_passthrough" == "1" ]] && print true || print false)"
     print "provider_resource\t${provider_resource:-unknown}"
   } > "$manifest"
   if (( create_status != 0 )); then
@@ -1597,7 +1609,7 @@ case "$action" in
   preflight) [[ $# -eq 0 ]] || die "preflight takes no arguments"; preflight ;;
   prepare-upload) [[ $# -eq 1 ]] || die "prepare-upload requires archive key"; prepare_upload "$1" ;;
   install-archive) [[ $# -eq 5 ]] || die "install-archive requires ticket, key, commit, checksum, and name"; install_archive "$@" ;;
-  create) [[ $# -eq 8 ]] || die "create requires macOS, test lane, archive, commit, checksum, name, ttl, desktop"; create_lease "$@" ;;
+  create) [[ $# -eq 8 || $# -eq 9 ]] || die "create requires macOS, test lane, archive, commit, checksum, name, ttl, desktop, and optional Tart USB passthrough"; create_lease "$@" ;;
   install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
   secure-dialog-input) [[ $# -eq 5 ]] || die "secure-dialog-input requires lease, app, field, optional submit value, and focus mode"; secure_dialog_input "$@" ;;
   resume-managed-policy) [[ $# -eq 1 ]] || die "resume-managed-policy requires a lease"; resume_managed_policy "$1" ;;
