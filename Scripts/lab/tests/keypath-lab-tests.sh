@@ -194,6 +194,7 @@ grep -Fq 'exec 3<> \"\$fifo\"; KEYPATH_GUEST_PASSWORD=; IFS= read -r -t $credent
 grep -Fq 'IFS= read -r secret_value || [[ -n "$secret_value" ]]' "$REMOTE"
 grep -Fq 'managed_clone_enrollment\talready-enrolled' "$REMOTE"
 grep -Fq 'window.subrole() === "AXSystemDialog"' "$REMOTE"
+grep -Fq 'usb_prefix="$TART_USB_TOOL_ROOT/bin:"' "$REMOTE"
 if grep -Fq 'peekaboo see --app "System Settings"' "$REMOTE"; then
     echo "capture prompt guard must not create a new capture request" >&2
     exit 1
