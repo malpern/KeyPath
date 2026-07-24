@@ -65,6 +65,10 @@ class KanataViewModel {
     var showPrerequisiteResolutionDialog = false
     var pendingPrerequisiteResolution: RulePrerequisiteDialogModel?
 
+    // Disable-time dependent resolution (#868)
+    var showDependentResolutionDialog = false
+    var pendingDependentResolution: RuleDependentResolutionDialogModel?
+
     enum ToastType {
         case success
         case error
@@ -152,6 +156,9 @@ class KanataViewModel {
 
         pendingPrerequisiteResolution = state.pendingPrerequisiteResolution
         showPrerequisiteResolutionDialog = state.pendingPrerequisiteResolution != nil
+
+        pendingDependentResolution = state.pendingDependentResolution
+        showDependentResolutionDialog = state.pendingDependentResolution != nil
 
         // Map validation error to alert properties
         if let error = state.validationError {
@@ -577,6 +584,13 @@ class KanataViewModel {
     ) {
         showPrerequisiteResolutionDialog = false
         manager.resolvePrerequisiteResolution(with: choice)
+    }
+
+    func resolveDependentResolution(
+        with choice: RuleDependentResolutionChoice?
+    ) {
+        showDependentResolutionDialog = false
+        manager.resolveDependentResolution(with: choice)
     }
 }
 

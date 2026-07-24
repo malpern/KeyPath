@@ -116,7 +116,7 @@ struct RulePrerequisiteDialogModel: Equatable, Sendable {
         }
     }
 
-    private static func evidenceDescriptions(
+    static func evidenceDescriptions(
         _ evidence: [RuleDependencyEvidence]
     ) -> [String] {
         evidence.map { item in
@@ -148,7 +148,7 @@ struct RulePrerequisiteDialogModel: Equatable, Sendable {
         }
     }
 
-    private static func displayName(_ rawValue: String) -> String {
+    static func displayName(_ rawValue: String) -> String {
         rawValue
             .replacingOccurrences(of: "_", with: " ")
             .replacingOccurrences(of: "-", with: " ")
