@@ -33,12 +33,12 @@ sudo -n /usr/bin/profiles remove -type configuration \
 # deliberately left to the controller's real VNC click; SecurityAgent is the
 # controller-side postcondition. macOS 26 and 27 use separate contracts.
 sleep "${KEYPATH_LAB_UI_SETTLE_SECONDS:-1}"
-"$peekaboo" click --coords 249,226 --global-coords --app "System Settings" \
-    --foreground --input-strategy synthOnly --json >/dev/null
+"$peekaboo" click --coords 249,226 --global-coords --foreground \
+    --input-strategy synthOnly --json >/dev/null
 sleep "$transition_seconds"
-"$peekaboo" click --coords 600,215 --global-coords --app "System Settings" \
-    --foreground --input-strategy synthOnly --json >/dev/null
+"$peekaboo" click --coords 600,215 --global-coords --foreground \
+    --input-strategy synthOnly --json >/dev/null
 sleep "${KEYPATH_LAB_UI_SELECTION_SECONDS:-0.5}"
-"$peekaboo" click --coords 600,215 --global-coords --app "System Settings" \
-    --foreground --input-strategy synthOnly --double --json >/dev/null
+"$peekaboo" click --coords 600,215 --global-coords --foreground \
+    --input-strategy synthOnly --double --json >/dev/null
 print "managed_enrollment_review\trequested"
