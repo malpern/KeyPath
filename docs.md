@@ -40,6 +40,7 @@ theme: parchment
 <li><a href="{{ '/guides/vim-navigation/' | relative_url }}">Vim Navigation</a></li>
 <li><a href="{{ '/guides/leader-key/' | relative_url }}">Leader Key</a></li>
 <li><a href="{{ '/guides/tap-hold/' | relative_url }}">One Key, Multiple Actions</a></li>
+<li><a href="{{ '/guides/conflict-resolution/' | relative_url }}">Make Rules Work Together</a></li>
 <li><a href="{{ '/guides/simple-packs/' | relative_url }}">Quick Tweaks</a></li>
 <li><a href="{{ '/guides/key-repeat-control/' | relative_url }}">Fast Navigation</a></li>
 </ul>

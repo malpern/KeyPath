@@ -1,6 +1,6 @@
 #!/bin/bash
 # Publish guides from master to the gh-pages branch.
-# Copies all guides/*.md files and syncs docs.md if changed.
+# Copies guide Markdown, the docs landing page, and shared help images.
 #
 # Usage:
 #   ./Scripts/publish-guides.sh              # publish all guides
@@ -39,13 +39,19 @@ else
     echo "  copied all guides/*.md"
 fi
 
+# Keep landing-page navigation and guide artwork in the same publish.
+cp "$REPO_ROOT/docs.md" "$GHPAGES_WORKTREE/docs.md"
+mkdir -p "$GHPAGES_WORKTREE/images/help"
+cp -R "$REPO_ROOT/images/help/." "$GHPAGES_WORKTREE/images/help/"
+echo "  synced docs.md and images/help/"
+
 # Check for changes
 if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
     echo "✅ No changes to publish"
     exit 0
 fi
 
-git add guides/
+git add guides/ docs.md images/help/
 CHANGED=$(git diff --cached --name-only | wc -l | tr -d ' ')
 git commit -m "Publish $CHANGED guide(s) from master $(git -C "$REPO_ROOT" rev-parse --short HEAD)"
 git push origin gh-pages
