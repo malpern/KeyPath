@@ -13,7 +13,7 @@ write_tool() {
 }
 
 write_tool keypath-cli 'cat <<JSON
-{"isOperational":true,"helperInstalled":true,"helperWorking":true,"helperVersion":"1.2.3","keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":true,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":true,"vhidDeviceHealthy":true,"kanataRunning":true,"karabinerDaemonRunning":true,"vhidHealthy":true}
+{"apiVersion":1,"data":{"isOperational":true,"helperInstalled":true,"helperWorking":true,"helperVersion":"1.2.3","keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":true,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":true,"vhidDeviceHealthy":true,"kanataRunning":true,"karabinerDaemonRunning":true,"vhidHealthy":true}}
 JSON'
 write_tool tcp-probe 'echo "{\"CurrentLayerName\":{\"name\":\"base\"}}"'
 write_tool systemextensionsctl 'echo "activated enabled team org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"'
@@ -37,7 +37,7 @@ test -s "$TMP/pass/kanata-launchd.txt"
 test -s "$TMP/pass/tcp-readiness.json"
 
 write_tool keypath-cli 'cat <<JSON
-{"isOperational":true,"helperInstalled":true,"helperWorking":true,"helperVersion":"1.2.3","keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":false,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":true,"vhidDeviceHealthy":true,"kanataRunning":true,"karabinerDaemonRunning":true,"vhidHealthy":true}
+{"apiVersion":1,"data":{"isOperational":true,"helperInstalled":true,"helperWorking":true,"helperVersion":"1.2.3","keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":false,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":true,"vhidDeviceHealthy":true,"kanataRunning":true,"karabinerDaemonRunning":true,"vhidHealthy":true}}
 JSON'
 if run_probe "$TMP/missing-permission" >"$TMP/missing.stdout" 2>"$TMP/missing.stderr"; then
     echo "expected missing Kanata Accessibility to fail" >&2

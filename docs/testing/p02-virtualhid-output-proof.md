@@ -2,10 +2,21 @@
 
 ## Current result
 
-P02 is not yet proven. A managed macOS 26.5.2 lease now proves the helper,
-DriverKit extension, VirtualHID daemon, exact installer-derived profile
-publication, and genuine Input Monitoring approval. The remaining runtime gate
-is Kanata Accessibility.
+P02 is not yet proven. A disposable managed macOS 15.7.7 clone now proves the
+complete healthy runtime, exact q-to-w configuration, and independently
+observed target-app output. The target received `q`, not `w`, because Tart's
+VNC input did not appear as a guest HID device: Kanata reported
+`InputGrab active=true devices=0`. This is an input-source limitation in the
+lab, not a confirmed KeyPath remapping defect.
+
+The next proof must inject `q` through a guest-visible physical HID device or
+an Apple-authorized virtual HID device and retain TextEdit as the independent
+output oracle. A locally signed `IOHIDUserDevice` helper is not sufficient:
+macOS requires the restricted
+`com.apple.developer.hid.virtual.device` entitlement and AMFI rejects an ad-hoc
+signature that merely declares it. Do not weaken the proof to accept KeyPath's
+simulation result; simulation correctly reported q-to-w in these runs, while
+the real non-HID events bypassed Kanata and produced `q`.
 
 The legacy PPPC payload draws the launcher and engine Accessibility switches as
 managed and enabled, but macOS 26.2 and later no longer honor an Accessibility
@@ -14,10 +25,11 @@ Accessibility TCC record and refuses to call the runtime operational.
 [Apple documents the replacement](https://developer.apple.com/documentation/devicemanagement/privacypreferencespolicycontrol/services-data.dictionary)
 as the declarative `com.apple.configuration.app-settings` configuration.
 
-The smaller alternative is a managed macOS 15 lane, where the legacy
-Accessibility grant remains supported and the lab already has native VNC input
-and `desktop-type`. The controller correctly targets
-`keypath-macos-15-managed`, but that base does not exist yet.
+The smaller alternative is now available: `keypath-macos-15-managed` is a
+stopped Tart base running macOS 15.7.7. It is user-approved MDM enrolled and
+has the exact three installer-derived device profiles installed. System-level
+lane admission passed before the staging image was renamed to the final base.
+Disposable-clone admission and exact policy rehydration are now proven.
 
 This is an approval-lane limitation, not a confirmed KeyPath remapping defect.
 Do not turn it into a product bug or bypass it by modifying system-extension or
@@ -49,6 +61,77 @@ The same log showed no user or system TCC entry for
 failed closed with Kanata not running or TCP responsive. The lab also extended
 its Parallels RFB pointer probe to macOS 26; this clone rejected RFB
 authentication, so no native input assertion was claimed.
+
+## Managed macOS 15 base evidence on July 23, 2026
+
+The `keypath-macos-15-managed` Tart base was built from the clean
+`ghcr.io/cirruslabs/macos-sequoia-base:latest` source with a new virtual serial
+number and MAC address. It runs macOS 15.7.7 (`24G720`) and contains no KeyPath
+installation.
+
+The base completed user-approved enrollment in the private lab NanoMDM
+instance. NanoMDM acknowledged the exact PPPC, system-extension, and
+service-management profiles generated from the signed installer with SHA-256
+`8dcbc201ce9333f5afff305fdd0956863613b45542556f81e6382fb772be87f4`.
+ProfileList and the in-guest root-level system inventory both contained all
+three identifiers, and immutable policy inputs were retained under
+`/Library/KeyPathLab/managed-policy/`.
+
+Controller evidence is retained at:
+
+`/Volumes/KeyPath Lab/CrabBox/KeyPathInstallerLab/artifacts/base-keypath-macos-15-managed/20260724T013334Z/managed-policy`
+
+## Disposable macOS 15 proof attempt on July 23, 2026
+
+Lease `cbx_629d00243876` used KeyPath commit
+`e13836bae9b0f1a15c7b47cfc8783abad1f9d8a0` and the signed installer with
+SHA-256 `8dcbc201ce9333f5afff305fdd0956863613b45542556f81e6382fb772be87f4`.
+Artifacts are retained at:
+
+`/Volumes/KeyPath Lab/CrabBox/KeyPathInstallerLab/artifacts/cbx_629d00243876/20260724T015650Z`
+
+The controller rehydrated all three profiles against the macOS 15 base's
+explicit enrollment identity, and root-level lane admission passed. Repair
+then produced an activated-enabled DriverKit extension, healthy helper,
+running Kanata and VirtualHID daemons, a healthy VirtualHID device, and TCP
+readiness. The CLI reported `isOperational: true`.
+
+The exact rule was installed with `keypath-cli rule ensure q w --apply`.
+`keypath-cli simulate q` reported `w`. With an empty TextEdit document focused,
+`desktop-type --text q` reported `method=vnc-key`, but TextEdit contained `q`.
+The same run's runtime log reported no captured input device. This cleanly
+separates the working output runtime from the unsuitable Tart VNC input source.
+
+## Tart keyboard-path follow-up on July 23, 2026
+
+Lease `cbx_f7009ff1b833` used KeyPath commit
+`229ec8014fd708fa4931b63d1c915879bd830f6d` and the same signed installer
+SHA-256. Managed admission passed, the real background-item and Input
+Monitoring approvals were completed, repair reported `isOperational: true`,
+and the exact q-to-w rule was applied. Kanata reported a successful live
+reload and `InputGrab active=true`.
+
+Two additional input routes still produced literal `q` in an independently
+observed empty TextEdit document:
+
+1. A key sent to Tart's focused graphical VM window.
+2. A guest-side synthesized key event delivered by Peekaboo.
+
+The graphical Tart run exposed a guest `Virtual USB Keyboard`, but Tart 2.32.1
+also configures `VZMacKeyboardConfiguration`. The focused-window key continued
+to bypass Kanata, so the mere presence of the USB keyboard device is not proof
+that Tart delivered the event through it.
+
+A locally built Tart 2.32.1 experiment removed the Mac keyboard configuration
+and retained only `VZUSBKeyboardConfiguration`. After the host's removable
+volume access prompt was approved, the guest did not reach SSH or a responsive
+desktop within three minutes. The experiment was stopped, the stock Tart
+runtime was restored, and KeyPath again reported `isOperational: true`.
+USB-only Tart is therefore not an admitted lab route.
+
+An ad-hoc-signed `IOHIDUserDevice` prototype was also rejected before launch.
+AMFI reported that its restricted entitlements were not validated. The dead
+prototype was removed rather than retained as a misleading resume path.
 
 ## Evidence captured on July 12, 2026
 
@@ -124,17 +207,22 @@ proof.
 
 ## Resume path
 
-Choose one explicit path:
+Continue with one explicit path:
 
-1. Build and admit `keypath-macos-15-managed`, then run the proof shape above
-   with the existing Tart `protected-click` and `desktop-type` primitives.
+1. Attach or pass through a real USB keyboard to a disposable managed clone,
+   or obtain an Apple-authorized build carrying
+   `com.apple.developer.hid.virtual.device`, then repeat the q-to-w TextEdit
+   proof.
 2. Add NanoMDM Declarative Device Management support and publish an
    `com.apple.configuration.app-settings` Accessibility configuration for
    macOS 26.2 and later.
 
-The macOS 15 base is the smaller route to P02. The declarative route is the
-durable macOS 26 and 27 investment. Do not continue treating successful
-installation of the legacy macOS 26 PPPC payload as an Accessibility grant.
+The macOS 15 base remains the smaller route to P02 only when a real HID input
+source is available. The declarative route is the durable macOS 26 and 27
+investment. Do not retry Tart VNC, guest synthesized events, an ad-hoc
+restricted entitlement, or the USB-only Tart configuration. Do not continue
+treating successful installation of the legacy macOS 26 PPPC payload as an
+Accessibility grant.
 
 Keep the unmanaged lane for a small number of real approval-flow tests. If its
 DriverKit state remains `activated waiting for user`, preserve the command

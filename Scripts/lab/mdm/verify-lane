@@ -17,7 +17,21 @@ elif [[ $# -ne 0 ]]; then
 fi
 
 profiles_bin=${PROFILES_BIN:-/usr/bin/profiles}
-profiles_output=$("$profiles_bin" show -type=configuration 2>&1 || true)
+id_bin=${ID_BIN:-/usr/bin/id}
+sudo_bin=${SUDO_BIN:-/usr/bin/sudo}
+if [[ $("$id_bin" -u) -eq 0 ]]; then
+    profiles_output=$("$profiles_bin" show -type=configuration 2>&1 || true)
+else
+    set +e
+    profiles_output=$("$sudo_bin" -n "$profiles_bin" show -type=configuration 2>&1)
+    profiles_status=$?
+    set -e
+    [[ $profiles_status -eq 0 ]] || {
+        echo "lane verification failed: system profile inventory requires root or non-interactive sudo" >&2
+        printf '%s\n' "$profiles_output" >&2
+        exit 1
+    }
+fi
 export KEYPATH_LAB_SW_VERS_BIN="${SW_VERS_BIN:-/usr/bin/sw_vers}"
 expected=(
     com.keypath.lab.pppc
@@ -76,6 +90,6 @@ else
     }
 fi
 
-echo "lane\t$lane"
-echo "profile_count\t$present"
-echo "verification\tpassed"
+printf 'lane\t%s\n' "$lane"
+printf 'profile_count\t%s\n' "$present"
+printf 'verification\tpassed\n'

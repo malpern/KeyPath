@@ -27,7 +27,10 @@ set -e
 import json
 import sys
 
-status = json.load(open(sys.argv[1]))
+payload = json.load(open(sys.argv[1]))
+status = payload.get("data", payload)
+if not isinstance(status, dict):
+    raise SystemExit("managed capability status payload is not an object")
 required = [
     "isOperational",
     "helperInstalled",

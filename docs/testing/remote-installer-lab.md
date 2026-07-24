@@ -64,8 +64,12 @@ creator's admission lock is reclaimed automatically, while a live creator gets
 a five-minute bounded window to finish provisioning.
 
 The limits can be tuned on the mini with `KEYPATH_LAB_CAPACITY_TART` and
-`KEYPATH_LAB_CAPACITY_PARALLELS`. Keep Tart at one until repeated concurrent
-Tart runs prove that the host and provider inventory remain isolated.
+`KEYPATH_LAB_CAPACITY_PARALLELS`. Provider capacity and managed identity
+admission are independent: raising Tart capacity permits concurrent randomized,
+freshly enrolled macOS 15 managed clones, while macOS 26 managed clones remain
+serialized on their shared enrollment identity even when Parallels has spare
+capacity. Keep Tart at one by default until repeated concurrent Tart runs prove
+that host resources and provider inventory remain isolated.
 
 ## Lifecycle
 
