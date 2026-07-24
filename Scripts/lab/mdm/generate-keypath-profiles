@@ -113,22 +113,26 @@ def profile(identifier, display_name, payload_type, content):
         "PayloadContent": [payload],
     }
 
-def identity(identifier, identifier_type, requirement):
+def identity(identifier, identifier_type, requirement, authorization):
     return {
         "Identifier": identifier,
         "IdentifierType": identifier_type,
         "CodeRequirement": requirement,
         "StaticCode": False,
-        "Allowed": True,
+        "Authorization": authorization,
     }
 
-app = identity(app_id, "bundleID", app_req)
-launcher = identity(
-    "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher",
-    "path",
-    launcher_req,
-)
-engine = identity(engine_id, "bundleID", engine_req)
+def identities(authorization):
+    return [
+        identity(app_id, "bundleID", app_req, authorization),
+        identity(
+            "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher",
+            "path",
+            launcher_req,
+            authorization,
+        ),
+        identity(engine_id, "bundleID", engine_req, authorization),
+    ]
 
 profiles = {
     "keypath-pppc.mobileconfig": profile(
@@ -137,9 +141,13 @@ profiles = {
         "com.apple.TCC.configuration-profile-policy",
         {
             "Services": {
-                "Accessibility": [app, launcher, engine],
-                "ListenEvent": [app, launcher, engine],
-                "SystemPolicyAllFiles": [app],
+                "Accessibility": identities("Allow"),
+                # Apple does not permit MDM to grant ListenEvent directly.
+                # This makes the setting user-configurable without admin auth.
+                "ListenEvent": identities("AllowStandardUserToSetSystemService"),
+                "SystemPolicyAllFiles": [
+                    identity(app_id, "bundleID", app_req, "Allow")
+                ],
             }
         },
     ),

@@ -1,0 +1,64 @@
+#!/bin/bash
+set -euo pipefail
+
+base=${KEYPATH_LAB_MDM_HOME:-"$HOME/Library/Application Support/KeyPathLabMDM"}
+mode=${1:-}
+
+read_secret() {
+    local path=$1
+    [[ -f $path ]] || {
+        echo "missing server secret: $path" >&2
+        exit 1
+    }
+    local value
+    IFS= read -r value < "$path"
+    [[ -n $value ]] || {
+        echo "empty server secret: $path" >&2
+        exit 1
+    }
+    printf '%s' "$value"
+}
+
+case $mode in
+    nanomdm)
+        nanomdm="$base/bin/nanomdm-darwin-arm64-v0.9.0/nanomdm-darwin-arm64"
+        [[ -x $nanomdm ]] || {
+            echo "NanoMDM binary is missing: $nanomdm" >&2
+            exit 1
+        }
+        export NANOMDM_API
+        NANOMDM_API=$(read_secret "$base/secrets/nanomdm-api")
+        exec "$nanomdm" \
+            -listen 127.0.0.1:9000 \
+            -ca "$base/state/scep/depot/ca.pem" \
+            -storage filekv \
+            -storage-dsn "$base/state/nanomdm/dbkv" \
+            -debug
+        ;;
+    proxy)
+        caddy="$base/bin/caddy"
+        [[ -x $caddy ]] || {
+            echo "Caddy binary is missing: $caddy" >&2
+            exit 1
+        }
+        exec "$caddy" run --config "$base/state/Caddyfile"
+        ;;
+    scep)
+        scep="$base/bin/scepserver-darwin-arm64"
+        [[ -x $scep ]] || {
+            echo "SCEP binary is missing: $scep" >&2
+            exit 1
+        }
+        challenge=$(read_secret "$base/secrets/scep-challenge")
+        exec "$scep" \
+            -http-addr 127.0.0.1:8080 \
+            -depot "$base/state/scep/depot" \
+            -challenge "$challenge" \
+            -allowrenew 0 \
+            -log-json
+        ;;
+    *)
+        echo "Usage: $0 nanomdm|proxy|scep" >&2
+        exit 2
+        ;;
+esac

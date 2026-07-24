@@ -1,0 +1,9 @@
+https://192.168.1.162:8443 {
+    tls internal
+    reverse_proxy 127.0.0.1:8080
+}
+
+https://192.168.1.162:9443 {
+    tls internal
+    reverse_proxy 127.0.0.1:9000
+}

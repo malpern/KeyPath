@@ -1,0 +1,145 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+    echo "Usage: $0 --profile-dir DIR --evidence-dir DIR [--enrollment-id UUID]" >&2
+    exit 2
+}
+
+die() {
+    echo "publish-managed-profiles: $*" >&2
+    exit 1
+}
+
+profile_dir=
+evidence_dir=
+enrollment_id=
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --profile-dir) profile_dir=${2:-}; shift 2 ;;
+        --evidence-dir) evidence_dir=${2:-}; shift 2 ;;
+        --enrollment-id) enrollment_id=${2:-}; shift 2 ;;
+        *) usage ;;
+    esac
+done
+
+[[ -d $profile_dir && -n $evidence_dir ]] || usage
+
+base=${KEYPATH_LAB_MDM_HOME:-"$HOME/Library/Application Support/KeyPathLabMDM"}
+db="$base/state/nanomdm/dbkv"
+cmdr=${KEYPATH_LAB_MDM_CMDR:-"$base/bin/nanomdm-darwin-arm64-v0.9.0/cmdr.py"}
+curl_bin=${KEYPATH_LAB_MDM_CURL:-/usr/bin/curl}
+uuidgen_bin=${KEYPATH_LAB_MDM_UUIDGEN:-/usr/bin/uuidgen}
+python_bin=${PYTHON_BIN:-/usr/bin/python3}
+sleep_bin=${KEYPATH_LAB_MDM_SLEEP:-/bin/sleep}
+api_url=${KEYPATH_LAB_MDM_API_URL:-http://127.0.0.1:9000}
+netrc=${KEYPATH_LAB_MDM_NETRC:-"$base/secrets/nanomdm.netrc"}
+poll_attempts=${KEYPATH_LAB_MDM_POLL_ATTEMPTS:-20}
+
+[[ -d $db/enrollments && -d $db/queue ]] || die "NanoMDM filekv storage is unavailable"
+[[ -x $cmdr && -x $curl_bin && -x $uuidgen_bin && -x $python_bin ]] || die "NanoMDM command dependencies are unavailable"
+[[ -f $netrc && ! -L $netrc ]] || die "NanoMDM API credential file is unavailable"
+[[ $poll_attempts =~ ^[0-9]+$ && $poll_attempts -gt 0 ]] || die "invalid poll attempt count"
+
+profiles=(
+    "pppc:keypath-pppc.mobileconfig"
+    "system-extension:keypath-system-extension.mobileconfig"
+    "service-management:keypath-service-management.mobileconfig"
+)
+for entry in "${profiles[@]}"; do
+    filename=${entry#*:}
+    [[ -f $profile_dir/$filename && ! -L $profile_dir/$filename ]] || die "managed profile is unavailable: $filename"
+done
+[[ -f $profile_dir/manifest.json && ! -L $profile_dir/manifest.json ]] || die "managed policy manifest is unavailable"
+
+if [[ -z $enrollment_id ]]; then
+    enrollment_ids=()
+    while IFS= read -r type_file; do
+        enrollment_ids+=("$(basename "$type_file" .type)")
+    done < <(find "$db/enrollments" -type f -name '*.type' -print | sort)
+    [[ ${#enrollment_ids[@]} -eq 1 ]] || die "expected exactly one NanoMDM enrollment, found ${#enrollment_ids[@]}"
+    enrollment_id=${enrollment_ids[0]}
+fi
+[[ $enrollment_id =~ ^[A-Fa-f0-9-]{36}$ ]] || die "invalid enrollment id"
+
+mkdir -p "$evidence_dir/commands" "$evidence_dir/responses"
+
+wait_for_report() {
+    local uuid=$1 report= attempt=0
+    while ((attempt < poll_attempts)); do
+        report=$(find "$db/queue" -type f -name "$enrollment_id.$uuid.queueitem.report" -print -quit)
+        if [[ -n $report ]]; then
+            printf '%s' "$report"
+            return
+        fi
+        ((attempt += 1))
+        "$sleep_bin" 1
+    done
+    die "timed out waiting for command report: $uuid"
+}
+
+report_status() {
+    "$python_bin" - "$1" <<'PY'
+import plistlib
+import sys
+
+with open(sys.argv[1], "rb") as handle:
+    print(plistlib.load(handle).get("Status", ""))
+PY
+}
+
+for entry in "${profiles[@]}"; do
+    label=${entry%%:*}
+    filename=${entry#*:}
+    uuid=$("$uuidgen_bin")
+    [[ $uuid =~ ^[A-Fa-f0-9-]{36}$ ]] || die "UUID generator returned an invalid value"
+    "$cmdr" -u "$uuid" InstallProfile "$profile_dir/$filename" > "$evidence_dir/commands/$label.plist"
+    "$curl_bin" --silent --show-error --fail \
+        --netrc-file "$netrc" \
+        --data-binary @"$evidence_dir/commands/$label.plist" \
+        "$api_url/v1/enqueue/$enrollment_id" \
+        > "$evidence_dir/responses/enqueue-$label.json"
+    report=$(wait_for_report "$uuid")
+    cp "$report" "$evidence_dir/responses/$label-report.plist"
+    status=$(report_status "$report")
+    [[ $status == Acknowledged ]] || die "$label profile returned status: ${status:-missing}"
+    printf 'profile_acknowledged\t%s\t%s\n' "$label" "$uuid"
+done
+
+uuid=$("$uuidgen_bin")
+[[ $uuid =~ ^[A-Fa-f0-9-]{36}$ ]] || die "UUID generator returned an invalid value"
+"$cmdr" -u "$uuid" ProfileList > "$evidence_dir/commands/profile-list.plist"
+"$curl_bin" --silent --show-error --fail \
+    --netrc-file "$netrc" \
+    --data-binary @"$evidence_dir/commands/profile-list.plist" \
+    "$api_url/v1/enqueue/$enrollment_id" \
+    > "$evidence_dir/responses/enqueue-profile-list.json"
+report=$(wait_for_report "$uuid")
+cp "$report" "$evidence_dir/responses/profile-list-report.plist"
+"$python_bin" - "$report" <<'PY'
+import plistlib
+import sys
+
+expected = {
+    "com.keypath.lab.pppc",
+    "com.keypath.lab.system-extension",
+    "com.keypath.lab.service-management",
+}
+with open(sys.argv[1], "rb") as handle:
+    report = plistlib.load(handle)
+if report.get("Status") != "Acknowledged":
+    raise SystemExit("ProfileList was not acknowledged")
+actual = {
+    item.get("PayloadIdentifier")
+    for item in report.get("ProfileList", [])
+    if item.get("PayloadIdentifier")
+}
+missing = sorted(expected - actual)
+if missing:
+    raise SystemExit("ProfileList missing: " + ", ".join(missing))
+PY
+
+cp "$profile_dir/manifest.json" "$evidence_dir/manifest.json"
+printf 'enrollment_id\t%s\n' "$enrollment_id"
+printf 'profile_count\t3\n'
+printf 'verification\tpassed\n'

@@ -54,6 +54,10 @@ pppc = plistlib.load(open(root / "keypath-pppc.mobileconfig", "rb"))
 services = pppc["PayloadContent"][0]["Services"]
 assert {"Accessibility", "ListenEvent", "SystemPolicyAllFiles"} == set(services)
 assert [item["IdentifierType"] for item in services["Accessibility"]] == ["bundleID", "path", "bundleID"]
+assert {item["Authorization"] for item in services["Accessibility"]} == {"Allow"}
+assert {item["Authorization"] for item in services["ListenEvent"]} == {"AllowStandardUserToSetSystemService"}
+assert {item["Authorization"] for item in services["SystemPolicyAllFiles"]} == {"Allow"}
+assert all("Allowed" not in item for items in services.values() for item in items)
 
 system_extension = plistlib.load(open(root / "keypath-system-extension.mobileconfig", "rb"))
 payload = system_extension["PayloadContent"][0]

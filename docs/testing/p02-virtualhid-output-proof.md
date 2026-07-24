@@ -2,16 +2,53 @@
 
 ## Current result
 
-P02 is not yet proven. The unmanaged macOS 15 lane reaches the genuine
-VirtualHID Driver Extension control, but the operating system still reports the
-extension as `activated waiting for user` after the current supported UI-driven
-attempt. Until that becomes `activated enabled`, a `q` to `w` remapping result
-in a focused app would not be attributable to KeyPath's normal VirtualHID
-output path.
+P02 is not yet proven. A managed macOS 26.5.2 lease now proves the helper,
+DriverKit extension, VirtualHID daemon, exact installer-derived profile
+publication, and genuine Input Monitoring approval. The remaining runtime gate
+is Kanata Accessibility.
+
+The legacy PPPC payload draws the launcher and engine Accessibility switches as
+managed and enabled, but macOS 26.2 and later no longer honor an Accessibility
+grant from that payload. KeyPath's independent oracle correctly finds no
+Accessibility TCC record and refuses to call the runtime operational.
+[Apple documents the replacement](https://developer.apple.com/documentation/devicemanagement/privacypreferencespolicycontrol/services-data.dictionary)
+as the declarative `com.apple.configuration.app-settings` configuration.
+
+The smaller alternative is a managed macOS 15 lane, where the legacy
+Accessibility grant remains supported and the lab already has native VNC input
+and `desktop-type`. The controller correctly targets
+`keypath-macos-15-managed`, but that base does not exist yet.
 
 This is an approval-lane limitation, not a confirmed KeyPath remapping defect.
 Do not turn it into a product bug or bypass it by modifying system-extension or
 privacy databases.
+
+## Managed macOS 26 evidence on July 23, 2026
+
+Lease `cbx_30fc557d2c01` used macOS 26.5.2 (`25F84`), KeyPath commit
+`03b3858dd200c9645265f6e9bf519359c834d2e4`, and signed installer SHA-256
+`8dcbc201ce9333f5afff305fdd0956863613b45542556f81e6382fb772be87f4`.
+Final artifacts are retained at:
+
+`/Volumes/KeyPath Lab/CrabBox/KeyPathInstallerLab/artifacts/cbx_30fc557d2c01/20260724T003624Z`
+
+The lease proved:
+
+1. Automatic exact-policy publication, acknowledgement, ProfileList inventory,
+   and system-level managed admission.
+2. A fresh helper at version `1.1.0`.
+3. The VirtualHID system extension at `activated enabled`.
+4. A healthy VirtualHID daemon and device.
+5. Real console clicks enabling the `Kanata Engine` and `kanata-launcher`
+   Input Monitoring rows.
+6. A system TCC result of `2` (granted) for the launcher's
+   `kTCCServiceListenEvent` entry.
+
+The same log showed no user or system TCC entry for
+`kTCCServiceAccessibility`, despite the managed-on switch. Repair therefore
+failed closed with Kanata not running or TCP responsive. The lab also extended
+its Parallels RFB pointer probe to macOS 26; this clone rejected RFB
+authentication, so no native input assertion was claimed.
 
 ## Evidence captured on July 12, 2026
 
@@ -87,11 +124,17 @@ proof.
 
 ## Resume path
 
-Prefer the managed-functional lane once lab MDM/APNs enrollment is available.
-It can pre-approve the signed KeyPath PPPC, DriverKit, and service-management
-requirements without asking the test to exercise Apple's approval UI. Verify
-the lane admission contract before installation, then run the proof shape
-above.
+Choose one explicit path:
+
+1. Build and admit `keypath-macos-15-managed`, then run the proof shape above
+   with the existing Tart `protected-click` and `desktop-type` primitives.
+2. Add NanoMDM Declarative Device Management support and publish an
+   `com.apple.configuration.app-settings` Accessibility configuration for
+   macOS 26.2 and later.
+
+The macOS 15 base is the smaller route to P02. The declarative route is the
+durable macOS 26 and 27 investment. Do not continue treating successful
+installation of the legacy macOS 26 PPPC payload as an Accessibility grant.
 
 Keep the unmanaged lane for a small number of real approval-flow tests. If its
 DriverKit state remains `activated waiting for user`, preserve the command
