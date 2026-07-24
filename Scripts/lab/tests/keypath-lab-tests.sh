@@ -568,6 +568,11 @@ run_remote destroy cbx_desktop27 >/dev/null
 
 desktop26_create=$(run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
 assert_contains "$desktop26_create" $'lease_id\tcbx_desktop26'
+rfb_probe26=$(KEYPATH_LAB_TEST_SSH_KEY="$TMP/test-ssh-key" KEYPATH_LAB_TEST_CURSOR_BEFORE='10 10' KEYPATH_LAB_TEST_CURSOR_AFTER='170 130' KEYPATH_LAB_RFB_POINTER_SETTLE_SECONDS=0 run_remote rfb-pointer-probe cbx_desktop26 170 130)
+assert_contains "$rfb_probe26" $'rfb_pointer_probe\tpassed'
+assert_contains "$rfb_probe26" $'cursor_before\t10 10'
+assert_contains "$rfb_probe26" $'cursor_after\t170 130'
+grep -q 'crabbox desktop click --provider parallels --target macos --id cbx_desktop26 --x 170 --y 130' "$CALLS"
 desktop26_artifacts=$(run_remote artifacts cbx_desktop26)
 assert_contains "$desktop26_artifacts" $'screenshot_status\t0'
 grep -q 'prlctl capture 00000000-0000-0000-0000-000000000000 --file' "$CALLS"

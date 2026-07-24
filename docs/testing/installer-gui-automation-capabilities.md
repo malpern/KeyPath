@@ -85,7 +85,9 @@ The remaining core capabilities are:
 5. Hardened macOS 26 and macOS 27 selectors before those OS versions can claim
    the same unattended UI coverage as macOS 15. The macOS 27 console session,
    secret-safe Remote Management authorization, and RFB event delivery are now
-   proven; selector capture and composition remain.
+   proven. The macOS 26 pointer probe is implemented and fails closed when RFB
+   authentication is not configured; selector capture, Remote Management base
+   setup, and composition remain.
 
 Clean install, repair, upgrade, reboot, uninstall, reinstall, cancellation,
 nightly, and pairwise entries are consumers of those foundations. They are

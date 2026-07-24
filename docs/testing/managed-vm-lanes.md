@@ -114,7 +114,14 @@ Scripts/lab/mdm/tests/managed-capability-probe-tests.sh
 
 ## OS boundary
 
-The generated PPPC profile is for macOS 15 and 26. Accessibility grants through
-PPPC are deprecated as of macOS 26.2, and macOS 27 removes the legacy managed
-privacy behavior. Until the macOS 27 spike passes, it must not claim the same
-managed permission lane.
+The generated legacy PPPC profile remains an admission input for macOS 15 and
+26, but its Accessibility grant is functional only before macOS 26.2. On
+macOS 26.2 and later, the managed Accessibility switches can appear enabled
+while the system has no corresponding TCC grant. Runtime admission must require
+KeyPath's independent permission result and must fail in that state.
+
+Apple's replacement is the declarative
+`com.apple.configuration.app-settings` configuration. Until the lab publishes
+and verifies that declaration, macOS 26.2 and later cannot claim a deterministic
+managed Accessibility lane. macOS 27 also removes the legacy PPPC behavior
+entirely.

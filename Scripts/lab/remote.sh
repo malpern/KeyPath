@@ -1286,10 +1286,12 @@ rfb_pointer_probe() {
   local lease=$1 x=$2 y=$3 manifest macos resource parallels_cli key known_hosts known_hosts_option guest_ip cursor_command before after
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
-  [[ "$macos" == "27" ]] || die "RFB pointer probe currently supports only the macOS 27 Parallels lane"
+  [[ "$macos" == "26" || "$macos" == "27" ]] || die "RFB pointer probe currently supports only the macOS 26 and 27 Parallels lanes"
   [[ "$(field "$manifest" provider)" == "parallels" ]] || die "RFB pointer probe requires a Parallels lease"
   [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "RFB pointer probe requires a desktop-enabled lease"
-  [[ "$(field "$manifest" console_login_status)" == "passed" ]] || die "RFB pointer probe requires a verified console login"
+  if [[ "$macos" == "27" ]]; then
+    [[ "$(field "$manifest" console_login_status)" == "passed" ]] || die "RFB pointer probe requires a verified console login on macOS 27"
+  fi
   [[ "$x" == <-> && "$y" == <-> ]] || die "RFB pointer coordinates must be non-negative integers"
   resource=$(field "$manifest" provider_resource)
   [[ "$resource" =~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$' ]] || die "invalid Parallels resource id"
