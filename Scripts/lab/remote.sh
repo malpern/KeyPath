@@ -57,6 +57,14 @@ provider_for() {
   case "$1" in 15) print tart ;; 26|27) print parallels ;; *) die "unsupported macOS lane: $1" ;; esac
 }
 
+configure_tart_path() {
+  local usb_prefix=
+  if [[ "${CRABBOX_TART_USB_PASSTHROUGH:-false}" == "true" ]]; then
+    usb_prefix="$TART_USB_TOOL_ROOT/bin:"
+  fi
+  export PATH="${usb_prefix}$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+}
+
 base_for() {
   local macos=$1 lane=$2
   if [[ "$macos" == "15" ]]; then
@@ -473,7 +481,7 @@ warmup_desktop() {
     "$CRABBOX" warmup --provider "$(provider_for "$macos")" --target macos --desktop --slug "$slug" --ttl 2h
   elif [[ "$macos" == "15" ]]; then
     if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
-    export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    configure_tart_path
     "$CRABBOX" warmup --provider tart --target macos --desktop \
       --tart-image "$(base_for "$macos" "$lane")" \
       --tart-user admin --tart-cpu 4 --tart-memory 8192 --tart-random-serial --ssh-port 22 \
@@ -495,7 +503,7 @@ warmup_lease() {
     "$(launcher_for "$macos")" warmup "$slug"
   elif [[ "$macos" == "15" ]]; then
     if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
-    export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    configure_tart_path
     "$CRABBOX" warmup --provider tart --target macos \
       --tart-image "$(base_for "$macos" "$lane")" \
       --tart-user admin --tart-cpu 4 --tart-memory 8192 --tart-random-serial --ssh-port 22 \
