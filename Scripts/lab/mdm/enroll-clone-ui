@@ -16,9 +16,10 @@ transition_seconds=${KEYPATH_LAB_UI_TRANSITION_SECONDS:-2}
 }
 
 screen_bounds=$(/usr/bin/osascript -l JavaScript -e '
-function run() {
-    return Application("Finder").desktop.window.bounds().join(",");
-}' 2>/dev/null)
+ObjC.import("AppKit");
+var frame = $.NSScreen.mainScreen.frame;
+"0,0," + frame.size.width + "," + frame.size.height;
+' 2>/dev/null)
 [[ "$screen_bounds" == "0,0,1024,768" ]] || {
     print -u2 "managed enrollment driver requires the macOS 15 Tart 1024x768 desktop; found: $screen_bounds"
     exit 3
