@@ -23,6 +23,7 @@ Commands:
   protected-click LEASE_ID --app APP --window TITLE (--x X --y Y | --ax-x X --ax-y Y) [--after-window TITLE]
   desktop-type LEASE_ID --text TEXT
   secure-dialog-input LEASE_ID --app APP --field LABEL [--submit BUTTON] [--already-focused]
+  resume-managed-policy LEASE_ID
   run LEASE_ID -- COMMAND [ARG...]
   status LEASE_ID
   list
@@ -243,6 +244,11 @@ EOF
         done
         [[ -n $app && -n $field ]] || usage
         remote secure-dialog-input "$lease" "$app" "$field" "$submit" "$already_focused"
+        ;;
+    resume-managed-policy)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote resume-managed-policy "$1"
         ;;
     run)
         lease=${1:-}

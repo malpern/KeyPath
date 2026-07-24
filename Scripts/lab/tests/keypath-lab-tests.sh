@@ -189,6 +189,9 @@ echo test-private-key > "$TMP/id_ed25519"
 printf 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
 grep -Fq 'exec 3<> \"\$fifo\"; KEYPATH_GUEST_PASSWORD=; IFS= read -r -t $credential_timeout -u 3 KEYPATH_GUEST_PASSWORD || [[ -n \"\$KEYPATH_GUEST_PASSWORD\" ]]' "$REMOTE"
 grep -Fq 'IFS= read -r secret_value || [[ -n "$secret_value" ]]' "$REMOTE"
+grep -Fq 'managed_clone_enrollment\talready-enrolled' "$REMOTE"
+grep -Fq '[[ -z "$prompt_coords" && "$capture_exit" -eq 0 ]]' "$REMOTE"
+grep -q 'resume-managed-policy)' "$LAB_DIR/keypath-lab"
 grep -Fq '/usr/bin/mktemp /etc/kcpassword.XXXXXXXX' "$REMOTE"
 grep -Fq "Automatic login user: keypathqa" "$REMOTE"
 
@@ -474,6 +477,11 @@ if [[ "$managed_publish_failure" == *$'managed_policy_rehydration\tpassed'* ]]; 
 fi
 grep -q $'managed_policy_result\t42' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"
 grep -q $'status\tmanaged-policy-failed' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"
+managed_resume=$(KEYPATH_LAB_TEST_PUBLISH_MANAGED=1 run_remote resume-managed-policy cbx_test15)
+assert_contains "$managed_resume" $'managed_policy_rehydration\tpassed'
+assert_contains "$managed_resume" $'managed_policy_resume\tpassed'
+grep -q $'managed_policy_result\t0' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"
+grep -q $'status\tready' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"
 run_remote destroy cbx_test15 >/dev/null
 
 env \

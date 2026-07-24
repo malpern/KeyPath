@@ -289,10 +289,6 @@ approve_peekaboo_capture() {
     '/opt/homebrew/bin/peekaboo see --app "System Settings" --json >/dev/null 2>&1')
   capture_exit=$?
   set -e
-  if ((capture_exit == 0)); then
-    print "peekaboo_capture_approval\talready-approved"
-    return 0
-  fi
 
   key="$HOME/Library/Application Support/crabbox/testboxes/$lease/id_ed25519"
   [[ -f "$key" && ! -L "$key" && -O "$key" ]] || die "owned CrabBox SSH key not found for lease"
@@ -303,6 +299,10 @@ approve_peekaboo_capture() {
   prompt_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run() {\n  var matches = Application("System Events").processes.whose({name: "UserNotificationCenter"})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  var elements = descendants(matches[0].windows[0]);\n  var expected = elements.some(function (element) {\n    try { return (element.name() || "").indexOf("boo.peekaboo.peekaboo") >= 0; }\n    catch (_) { return false; }\n  });\n  var button = elements.find(function (element) {\n    try { return element.role() === "AXButton" && element.name() === "Allow"; }\n    catch (_) { return false; }\n  });\n  if (!expected || !button) return "";\n  var position = button.position();\n  var size = button.size();\n  return Math.round(position[0] + size[0] / 2) + "," + Math.round(position[1] + size[1] / 2);\n}\''
   prompt_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" \
     "/bin/zsh -lc $(printf %q "$prompt_command")")
+  if [[ -z "$prompt_coords" && "$capture_exit" -eq 0 ]]; then
+    print "peekaboo_capture_approval\talready-approved"
+    return 0
+  fi
   [[ "$prompt_coords" =~ '^[0-9]+,[0-9]+$' ]] || die "Peekaboo capture failed without the expected macOS approval prompt"
   "$CRABBOX" desktop click --provider tart --target macos --id "$resource" \
     --x "${prompt_coords%,*}" --y "${prompt_coords#*,}" >/dev/null
@@ -316,6 +316,7 @@ approve_peekaboo_capture() {
 
 rehydrate_managed_clone() {
   local lease=$1 manifest macos base_name base_enrollment_id enrollment_id repo provider_resource profile_dir guest_policy guest_repo parallels_cli evidence filename launcher copy_command verify_command identity_output
+  local enrollment_ready enrollment_record enrollment_status attempt
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   base_name=$(field "$manifest" base_name)
@@ -337,23 +338,30 @@ rehydrate_managed_clone() {
     [[ "$enrollment_id" =~ '^[A-Fa-f0-9-]{36}$' ]] || die "managed clone hardware identity is unavailable"
     [[ "$enrollment_id" != "$base_enrollment_id" ]] || die "managed clone retained the base hardware identity; Tart random serial personalization is required"
     if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" ]]; then
-      desktop_bootstrap "$lease" 1
-      approve_peekaboo_capture "$lease"
-      run_command "$lease" /bin/zsh Scripts/lab/mdm/enroll-clone-ui
-      secure_dialog_input "$lease" SecurityAgent AXSecureTextField Enroll 0
-      local enrollment_ready=0 attempt enrollment_status enrollment_record
+      enrollment_ready=0
       enrollment_record="$HOME/Library/Application Support/KeyPathLabMDM/state/nanomdm/dbkv/enrollments"
-      for attempt in {1..150}; do
-        enrollment_status=$(cd "$repo" && "$launcher" run "$lease" -- /usr/bin/profiles status -type enrollment 2>/dev/null || true)
-        if print -r -- "$enrollment_status" | grep -Fq 'MDM enrollment: Yes' &&
-          find "$enrollment_record" -type f -name "$enrollment_id.type" -print -quit 2>/dev/null | grep -q .; then
-          enrollment_ready=1
-          break
-        fi
-        sleep "${KEYPATH_LAB_MANAGED_ENROLLMENT_POLL_SECONDS:-0.2}"
-      done
+      enrollment_status=$(cd "$repo" && "$launcher" run "$lease" -- /usr/bin/profiles status -type enrollment 2>/dev/null || true)
+      if print -r -- "$enrollment_status" | grep -Fq 'MDM enrollment: Yes' &&
+        find "$enrollment_record" -type f -name "$enrollment_id.type" -print -quit 2>/dev/null | grep -q .; then
+        enrollment_ready=1
+        print "managed_clone_enrollment\talready-enrolled"
+      else
+        desktop_bootstrap "$lease" 1
+        approve_peekaboo_capture "$lease"
+        run_command "$lease" /bin/zsh Scripts/lab/mdm/enroll-clone-ui
+        secure_dialog_input "$lease" SecurityAgent AXSecureTextField Enroll 0
+        for attempt in {1..150}; do
+          enrollment_status=$(cd "$repo" && "$launcher" run "$lease" -- /usr/bin/profiles status -type enrollment 2>/dev/null || true)
+          if print -r -- "$enrollment_status" | grep -Fq 'MDM enrollment: Yes' &&
+            find "$enrollment_record" -type f -name "$enrollment_id.type" -print -quit 2>/dev/null | grep -q .; then
+            enrollment_ready=1
+            break
+          fi
+          sleep "${KEYPATH_LAB_MANAGED_ENROLLMENT_POLL_SECONDS:-0.2}"
+        done
+        ((enrollment_ready == 1)) && print "managed_clone_enrollment\tuser-approved"
+      fi
       ((enrollment_ready == 1)) || die "managed clone did not establish its unique NanoMDM enrollment"
-      print "managed_clone_enrollment\tuser-approved"
     fi
     copy_command="setopt errexit nounset pipefail; mkdir -p '$guest_policy';"
     for filename in keypath-pppc.mobileconfig keypath-system-extension.mobileconfig keypath-service-management.mobileconfig manifest.json; do
@@ -394,6 +402,28 @@ rehydrate_managed_clone() {
       --manifest "$guest_policy/manifest.json"
   fi
   print "managed_policy_rehydration\tpassed"
+}
+
+resume_managed_policy() {
+  local lease=$1 manifest lane result
+  manifest=$(owned_manifest "$lease")
+  lane=$(field "$manifest" test_lane)
+  [[ "$lane" == managed-functional ]] || die "managed policy resume requires a managed-functional lease"
+
+  set +e
+  rehydrate_managed_clone "$lease" > "$LOGS/$lease/managed-policy.log" 2>&1
+  result=$?
+  set -e
+  set_field "$manifest" managed_policy_result "$result"
+  set_field "$manifest" managed_policy_at "$(utc_now)"
+  cat "$LOGS/$lease/managed-policy.log"
+  if ((result != 0)); then
+    set_field "$manifest" status managed-policy-failed
+    return "$result"
+  fi
+  set_field "$manifest" status ready
+  record_command "$lease" passed managed-policy-rehydration
+  print "managed_policy_resume\tpassed"
 }
 
 run_with_download() {
@@ -905,8 +935,7 @@ protected_click() {
     export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     ip=$($TART ip "$resource")
     [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
-    printf -v guest_command '%q ' /opt/homebrew/bin/peekaboo see --app "$app" --json
-    guest_command+="| /usr/bin/env python3 -c 'import json,sys; print(json.load(sys.stdin).get(\"data\",{}).get(\"window_title\",\"\"))'"
+    guest_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  return matches[0].windows[0].name() || "";\n}\' -- '$(printf %q "$app")
     before=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")
   fi
   [[ "$before" == "$expected_before" ]] || {
@@ -1534,6 +1563,7 @@ case "$action" in
   create) [[ $# -eq 8 ]] || die "create requires macOS, test lane, archive, commit, checksum, name, ttl, desktop"; create_lease "$@" ;;
   install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
   secure-dialog-input) [[ $# -eq 5 ]] || die "secure-dialog-input requires lease, app, field, optional submit value, and focus mode"; secure_dialog_input "$@" ;;
+  resume-managed-policy) [[ $# -eq 1 ]] || die "resume-managed-policy requires a lease"; resume_managed_policy "$1" ;;
   protected-click) [[ $# -eq 7 ]] || die "protected-click requires lease, app, before window, after window, coordinate space, x, and y"; protected_click "$@" ;;
   desktop-type) [[ $# -eq 2 ]] || die "desktop-type requires lease and text"; desktop_type "$@" ;;
   run) [[ $# -ge 2 ]] || die "run requires lease and command"; run_command "$@" ;;

@@ -25,13 +25,6 @@ var frame = $.NSScreen.mainScreen.frame;
     exit 3
 }
 
-click_global() {
-    local coordinates=$1 mode=${2:-single}
-    local -a args=(click --coords "$coordinates" --global-coords --foreground --json)
-    [[ "$mode" == double ]] && args+=(--double)
-    "$peekaboo" "${args[@]}" >/dev/null
-}
-
 authorization_ready() {
     /usr/bin/osascript -l JavaScript -e '
 function descendants(element) {
@@ -63,11 +56,14 @@ sudo -n /usr/bin/profiles remove -type configuration \
 # guarded by the 1024x768 precondition above and the final SecurityAgent
 # postcondition below. macOS 26 and 27 have separate selector contracts.
 sleep "${KEYPATH_LAB_UI_SETTLE_SECONDS:-1}"
-click_global 249,226
+"$peekaboo" click --coords 249,226 --global-coords --app "System Settings" \
+    --foreground --input-strategy synthOnly --json >/dev/null
 sleep "$transition_seconds"
-click_global 600,215 double
+"$peekaboo" click --coords 600,215 --global-coords --app "System Settings" \
+    --foreground --input-strategy synthOnly --double --json >/dev/null
 sleep "$transition_seconds"
-click_global 329,610
+"$peekaboo" click --coords 329,610 --global-coords --app "System Settings" \
+    --foreground --input-strategy synthOnly --json >/dev/null
 
 for attempt in {1..150}; do
     if [[ "$(authorization_ready || true)" == yes ]]; then
