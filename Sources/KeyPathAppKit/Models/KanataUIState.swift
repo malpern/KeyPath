@@ -57,6 +57,9 @@ struct KanataUIState: Sendable {
     /// Enable/save prerequisite resolution (#869)
     let pendingPrerequisiteResolution: RulePrerequisiteDialogModel?
 
+    /// Disable-time dependent resolution (#868)
+    let pendingDependentResolution: RuleDependentResolutionDialogModel?
+
     /// Empty state for initialization fallback
     static let empty = KanataUIState(
         lastError: nil,
@@ -74,7 +77,8 @@ struct KanataUIState: Sendable {
         saveStatus: .idle,
         pendingRuleConflict: nil,
         pendingMappingConflict: nil,
-        pendingPrerequisiteResolution: nil
+        pendingPrerequisiteResolution: nil,
+        pendingDependentResolution: nil
     )
 }
 

@@ -52,6 +52,15 @@ extension RuleCollectionsManager {
         }
         candidate.isEnabled = isEnabled
 
+        if !isEnabled {
+            guard await confirmedDisableOfProvider(
+                id: candidate.id,
+                name: candidate.name
+            ) else {
+                return false
+            }
+        }
+
         // Ensure home row mods config exists if this is a home row mods collection.
         if candidate.displayStyle == .homeRowMods,
            case .homeRowMods = candidate.configuration
@@ -901,6 +910,15 @@ extension RuleCollectionsManager {
     func toggleCustomRule(id: UUID, isEnabled: Bool) async {
         let snapshot = snapshotRuleState()
         guard let existing = customRules.first(where: { $0.id == id }) else { return }
+
+        if !isEnabled {
+            guard await confirmedDisableOfProvider(
+                id: existing.id,
+                name: existing.displayTitle
+            ) else {
+                return
+            }
+        }
 
         if isEnabled,
            let conflict = conflictInfo(for: existing)

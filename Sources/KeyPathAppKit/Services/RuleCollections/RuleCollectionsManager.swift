@@ -95,6 +95,11 @@ final class RuleCollectionsManager {
     var onPrerequisiteResolution:
         ((RulePrerequisiteResolutionContext) async -> RulePrerequisiteResolutionChoice?)?
 
+    /// Callback for confirming a disable that would orphan enabled dependents.
+    /// Returns `.disableAnyway`, or nil to keep the provider enabled.
+    var onDependentResolution:
+        ((RuleDependentResolutionContext) async -> RuleDependentResolutionChoice?)?
+
     /// Callback to suppress file watcher before internal saves (prevents double-reload beep)
     var onBeforeSave: (() -> Void)?
 

@@ -120,6 +120,11 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     var prerequisiteResolutionContinuation:
         CheckedContinuation<RulePrerequisiteResolutionChoice?, Never>?
 
+    // Reverse dependent resolution state (#868)
+    var pendingDependentResolution: RuleDependentResolutionDialogModel?
+    var dependentResolutionContinuation:
+        CheckedContinuation<RuleDependentResolutionChoice?, Never>?
+
     /// Rule collections are now managed by RuleCollectionsCoordinator
     var ruleCollections: [RuleCollection] {
         get { ruleCollectionsCoordinator.ruleCollections }
@@ -454,6 +459,9 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
         ruleCollectionsManager.onPrerequisiteResolution = { [weak self] context in
             await self?.promptForPrerequisiteResolution(context)
+        }
+        ruleCollectionsManager.onDependentResolution = { [weak self] context in
+            await self?.promptForDependentResolution(context)
         }
         // Note: onActionURI callback not needed - RuleCollectionsManager.handleActionURI()
         // already dispatches to ActionDispatcher. Setting this would cause double dispatch.
@@ -1123,7 +1131,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             // Rule conflict resolution
             pendingRuleConflict: pendingRuleConflict,
             pendingMappingConflict: pendingMappingConflict,
-            pendingPrerequisiteResolution: pendingPrerequisiteResolution
+            pendingPrerequisiteResolution: pendingPrerequisiteResolution,
+            pendingDependentResolution: pendingDependentResolution
         )
     }
 
@@ -1578,6 +1587,43 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         pendingPrerequisiteResolution = nil
         prerequisiteResolutionContinuation?.resume(returning: choice)
         prerequisiteResolutionContinuation = nil
+        notifyStateChanged()
+    }
+
+    /// Prompts before disabling a provider that is still required by enabled rules.
+    @MainActor
+    func promptForDependentResolution(
+        _ context: RuleDependentResolutionContext
+    ) async -> RuleDependentResolutionChoice? {
+        dependentResolutionContinuation?.resume(returning: nil)
+        dependentResolutionContinuation = nil
+
+        pendingDependentResolution = RuleDependentResolutionDialogModel(
+            context: context
+        )
+        notifyStateChanged()
+        openPreferencesTab(.openSettingsRules)
+
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                dependentResolutionContinuation = continuation
+            }
+        } onCancel: {
+            Task { @MainActor in
+                self.dependentResolutionContinuation?.resume(returning: nil)
+                self.dependentResolutionContinuation = nil
+                self.pendingDependentResolution = nil
+                self.notifyStateChanged()
+            }
+        }
+    }
+
+    func resolveDependentResolution(
+        with choice: RuleDependentResolutionChoice?
+    ) {
+        pendingDependentResolution = nil
+        dependentResolutionContinuation?.resume(returning: choice)
+        dependentResolutionContinuation = nil
         notifyStateChanged()
     }
 

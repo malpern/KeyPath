@@ -92,6 +92,22 @@ struct SettingsContainerView: View {
                 .interactiveDismissDisabled()
             }
         }
+        .sheet(isPresented: $kanataManager.showDependentResolutionDialog) {
+            if let model = kanataManager.pendingDependentResolution {
+                RuleDependentResolutionDialog(
+                    model: model,
+                    onKeepEnabled: {
+                        kanataManager.resolveDependentResolution(with: nil)
+                    },
+                    onDisableAnyway: {
+                        kanataManager.resolveDependentResolution(
+                            with: .disableAnyway
+                        )
+                    }
+                )
+                .interactiveDismissDisabled()
+            }
+        }
         .frame(
             minWidth: 680,
             idealWidth: 680,
