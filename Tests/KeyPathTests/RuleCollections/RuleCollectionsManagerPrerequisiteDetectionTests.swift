@@ -38,6 +38,23 @@ final class RuleCollectionsManagerPrerequisiteDetectionTests: XCTestCase {
         ])
     }
 
+    func testForwardAnalysisAppendsBrandNewCandidate() {
+        let manager = makeManager()
+        let candidate = homeRowToggles(
+            id: uuid(3),
+            enabled: false,
+            assignments: ["a": "fun"]
+        )
+        manager.ruleCollections = []
+
+        let prerequisites = manager.prerequisites(for: candidate)
+
+        XCTAssertEqual(prerequisites.map(\.consumerCollectionID), [candidate.id])
+        XCTAssertEqual(prerequisites.map(\.missingCapability), [
+            .layerContent(layer("fun")),
+        ])
+    }
+
     func testForwardAnalysisFindsMissingActivationPath() {
         let manager = makeManager()
         let consumer = collection(
