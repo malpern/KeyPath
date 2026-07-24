@@ -192,7 +192,6 @@ public struct RuleDependencyGraph: Equatable, Sendable {
         for contribution in contributions {
             capabilitiesByCollection[contribution.collectionID, default: []]
                 .formUnion(contribution.provides)
-            _ = requirementEvidenceByCollection[contribution.collectionID, default: [:]]
 
             for requirement in contribution.requirements.map(\.normalized) {
                 requirementEvidenceByCollection[
