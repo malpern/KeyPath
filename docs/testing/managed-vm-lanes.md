@@ -38,6 +38,12 @@ test. CrabBox creates disposable clones from the appropriate powered-off base.
    /Library/KeyPathLab/managed-policy/manifest.json`.
 7. Shut down the VM and create the managed base checkpoint.
 
+Lane verification reads the system profile inventory. On macOS 15, an
+unprivileged `profiles show -type=configuration` invocation reports only the
+current user's profiles and can hide every MDM-installed device profile. The
+verifier therefore requires root or non-interactive `sudo` when the caller is
+not root; inability to read the system inventory is an admission failure.
+
 The generator derives PPPC designated requirements from the signed app. It
 fails if the expected KeyPath identifiers or team change, rather than silently
 creating an overly broad profile. The VirtualHID system extension remains

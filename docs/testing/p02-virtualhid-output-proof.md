@@ -14,10 +14,12 @@ Accessibility TCC record and refuses to call the runtime operational.
 [Apple documents the replacement](https://developer.apple.com/documentation/devicemanagement/privacypreferencespolicycontrol/services-data.dictionary)
 as the declarative `com.apple.configuration.app-settings` configuration.
 
-The smaller alternative is a managed macOS 15 lane, where the legacy
-Accessibility grant remains supported and the lab already has native VNC input
-and `desktop-type`. The controller correctly targets
-`keypath-macos-15-managed`, but that base does not exist yet.
+The smaller alternative is now available: `keypath-macos-15-managed` is a
+stopped Tart base running macOS 15.7.7. It is user-approved MDM enrolled and
+has the exact three installer-derived device profiles installed. System-level
+lane admission passed before the staging image was renamed to the final base.
+The next proof must use a disposable clone from that base; base admission alone
+is not functional output proof.
 
 This is an approval-lane limitation, not a confirmed KeyPath remapping defect.
 Do not turn it into a product bug or bypass it by modifying system-extension or
@@ -49,6 +51,25 @@ The same log showed no user or system TCC entry for
 failed closed with Kanata not running or TCP responsive. The lab also extended
 its Parallels RFB pointer probe to macOS 26; this clone rejected RFB
 authentication, so no native input assertion was claimed.
+
+## Managed macOS 15 base evidence on July 23, 2026
+
+The `keypath-macos-15-managed` Tart base was built from the clean
+`ghcr.io/cirruslabs/macos-sequoia-base:latest` source with a new virtual serial
+number and MAC address. It runs macOS 15.7.7 (`24G720`) and contains no KeyPath
+installation.
+
+The base completed user-approved enrollment in the private lab NanoMDM
+instance. NanoMDM acknowledged the exact PPPC, system-extension, and
+service-management profiles generated from the signed installer with SHA-256
+`8dcbc201ce9333f5afff305fdd0956863613b45542556f81e6382fb772be87f4`.
+ProfileList and the in-guest root-level system inventory both contained all
+three identifiers, and immutable policy inputs were retained under
+`/Library/KeyPathLab/managed-policy/`.
+
+Controller evidence is retained at:
+
+`/Volumes/KeyPath Lab/CrabBox/KeyPathInstallerLab/artifacts/base-keypath-macos-15-managed/20260724T013334Z/managed-policy`
 
 ## Evidence captured on July 12, 2026
 
@@ -124,10 +145,11 @@ proof.
 
 ## Resume path
 
-Choose one explicit path:
+Continue with one explicit path:
 
-1. Build and admit `keypath-macos-15-managed`, then run the proof shape above
-   with the existing Tart `protected-click` and `desktop-type` primitives.
+1. Create a disposable clone from `keypath-macos-15-managed`, then run the
+   proof shape above with the existing Tart `protected-click` and
+   `desktop-type` primitives.
 2. Add NanoMDM Declarative Device Management support and publish an
    `com.apple.configuration.app-settings` Accessibility configuration for
    macOS 26.2 and later.
