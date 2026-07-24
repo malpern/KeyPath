@@ -34,6 +34,12 @@ class IssueDashboardTests(unittest.TestCase):
         self.assertIn("id=\"metric-hold\"", fragment)
         self.assertIn("hold:'On hold'", fragment)
 
+    def test_recommended_next_is_a_distinct_visible_dashboard_state(self) -> None:
+        fragment = (REPO_ROOT / "docs/testing/keypath-github-issues-dashboard.fragment.html").read_text()
+        self.assertIn("data-status=\"next\"", fragment)
+        self.assertIn("next-mark", fragment)
+        self.assertIn("next:'Recommended next'", fragment)
+
     def test_topic_labels_do_not_imply_execution_state(self) -> None:
         self.assertEqual(module.issue_status(issue(912, "wwdc26", "enhancement")), "feature")
         self.assertEqual(module.issue_status(issue(919, "wwdc26", "human-in-loop")), "human")
@@ -49,6 +55,14 @@ class IssueDashboardTests(unittest.TestCase):
     def test_recommended_next_overrides_feature_classification(self) -> None:
         self.assertEqual(
             module.issue_status(issue(870, "enhancement", "agent-ok", "recommended-next")),
+            "next",
+        )
+        self.assertEqual(
+            module.issue_status(issue(870, "recommended-next", "human-in-loop")),
+            "human",
+        )
+        self.assertEqual(
+            module.issue_status(issue(870, "recommended-next", "large-refactor")),
             "next",
         )
 
