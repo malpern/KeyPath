@@ -289,13 +289,6 @@ rehydrate_managed_clone() {
   for filename in keypath-pppc.mobileconfig keypath-system-extension.mobileconfig keypath-service-management.mobileconfig manifest.json; do
     [[ -f "$profile_dir/$filename" && ! -L "$profile_dir/$filename" ]] || die "managed policy archive is missing: $filename"
   done
-  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
-    mkdir -p "$evidence"
-    cp "$profile_dir/manifest.json" "$evidence/manifest.json"
-    print "enrollment_id\t$enrollment_id"
-    print "managed_policy_rehydration\tpassed"
-    return
-  fi
   if [[ "$macos" == "15" ]]; then
     launcher=$(launcher_for "$macos")
     copy_command="setopt errexit nounset pipefail; mkdir -p '$guest_policy';"
@@ -317,10 +310,16 @@ rehydrate_managed_clone() {
       "$guest_policy/keypath-service-management.mobileconfig" \
       "$guest_policy/manifest.json"
   fi
-  "$repo/Scripts/lab/mdm/publish-managed-profiles" \
-    --profile-dir "$profile_dir" \
-    --evidence-dir "$evidence" \
-    --enrollment-id "$enrollment_id"
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    mkdir -p "$evidence"
+    cp "$profile_dir/manifest.json" "$evidence/manifest.json"
+    print "enrollment_id\t$enrollment_id"
+  else
+    "$repo/Scripts/lab/mdm/publish-managed-profiles" \
+      --profile-dir "$profile_dir" \
+      --evidence-dir "$evidence" \
+      --enrollment-id "$enrollment_id"
+  fi
   if [[ "$macos" == "15" ]]; then
     verify_command="'$guest_repo/Scripts/lab/mdm/verify-lane' managed-functional --manifest '$guest_policy/manifest.json'"
     (cd "$repo" && "$launcher" run "$lease" -- /bin/zsh -lc "sudo -n /bin/zsh -lc $(printf %q "$verify_command")")

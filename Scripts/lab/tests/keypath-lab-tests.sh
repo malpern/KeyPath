@@ -13,6 +13,7 @@ CALLS="$TMP/calls.log"
 
 cat > "$ROOT/bin/launcher15" <<EOF
 #!/bin/bash
+echo "launcher15 \$*" >> "$CALLS"
 case "\$1" in
  doctor) echo doctor-15 ;;
  warmup) echo cbx_test15 ;;
@@ -34,7 +35,7 @@ cat > "$ROOT/bin/launcher26" <<EOF
 #!/bin/bash
 case "\$1" in
  doctor) echo doctor-26 ;;
- warmup) echo cbx_test26 ;;
+ warmup) echo 'leased cbx_test26 vm=00000000-0000-0000-0000-000000000000' ;;
  run)
    if [[ "\$*" == *"nameplate-instrumentation"* ]]; then
      echo $'nameplate_version\t0.2.5'
@@ -420,6 +421,16 @@ if compgen -G "$ROOT/KeyPathInstallerLab/.provider-admission-tart.owner.*" >/dev
     exit 1
 fi
 rm -rf "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
+
+managed15_create=$(run_remote create 15 managed-functional "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
+assert_contains "$managed15_create" $'managed_policy_rehydration\tpassed'
+assert_contains "$managed15_create" $'enrollment_id\t15151515-1515-1515-1515-151515151515'
+assert_contains "$managed15_create" $'lease_id\tcbx_test15'
+grep -F 'launcher15 run cbx_test15' "$CALLS" | grep -Fq '/usr/bin/install'
+grep -F 'launcher15 run cbx_test15' "$CALLS" | grep -Fq '/Users/admin/crabbox/cbx_test15/repo/.keypath-lab/managed-policy/keypath-pppc.mobileconfig'
+grep -F 'launcher15 run cbx_test15' "$CALLS" | grep -Fq '/Users/admin/crabbox/cbx_test15/repo/Scripts/lab/mdm/verify-lane'
+grep -F 'launcher15 run cbx_test15' "$CALLS" | grep -Fq '/Library/KeyPathLab/managed-policy/manifest.json'
+run_remote destroy cbx_test15 >/dev/null
 
 env \
     KEYPATH_LAB_TESTING=1 \
