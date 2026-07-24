@@ -88,6 +88,20 @@ struct WindowSnappingActivationModeTests {
         #expect(launcher?.isEnabled == true)
     }
 
+    @Test("Catalog-only cancelled Home Row Mods edits resolve to catalog state")
+    func catalogOnlyHomeRowModsFallback() {
+        var attempted = HomeRowModsConfig()
+        attempted.holdMode = .layers
+
+        let persisted = KanataViewModel.persistedHomeRowModsConfig(
+            collectionId: RuleCollectionIdentifier.homeRowMods,
+            collections: []
+        )
+
+        #expect(persisted.holdMode == .modifiers)
+        #expect(persisted != attempted)
+    }
+
     @Test("Activation mode updates activation hint")
     func activationHint() async {
         let manager = await createManagerWithWindowSnapping()

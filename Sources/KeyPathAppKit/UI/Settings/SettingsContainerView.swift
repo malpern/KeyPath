@@ -39,6 +39,8 @@ struct SettingsContainerView: View {
     @State private var canManageRules: Bool = true
 
     var body: some View {
+        @Bindable var kanataManager = kanataManager
+
         TabView(selection: $selection) {
             StatusSettingsTabView()
                 .tabItem {
@@ -76,6 +78,20 @@ struct SettingsContainerView: View {
         }
         .accessibilityIdentifier("settings-window")
         .background(tabShortcutHandlers)
+        .sheet(isPresented: $kanataManager.showPrerequisiteResolutionDialog) {
+            if let model = kanataManager.pendingPrerequisiteResolution {
+                RulePrerequisiteResolutionDialog(
+                    model: model,
+                    onChoice: { choice in
+                        kanataManager.resolvePrerequisiteResolution(with: choice)
+                    },
+                    onCancel: {
+                        kanataManager.resolvePrerequisiteResolution(with: nil)
+                    }
+                )
+                .interactiveDismissDisabled()
+            }
+        }
         .frame(
             minWidth: 680,
             idealWidth: 680,

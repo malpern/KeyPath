@@ -90,6 +90,11 @@ final class RuleCollectionsManager {
     /// Returns the id of the collection to disable, or nil if cancelled.
     var onMappingConflictResolution: ((MappingConflictContext) async -> UUID?)?
 
+    /// Callback for resolving newly introduced rule prerequisites.
+    /// Returns the user's confirmed apply choice, or nil if cancelled.
+    var onPrerequisiteResolution:
+        ((RulePrerequisiteResolutionContext) async -> RulePrerequisiteResolutionChoice?)?
+
     /// Callback to suppress file watcher before internal saves (prevents double-reload beep)
     var onBeforeSave: (() -> Void)?
 

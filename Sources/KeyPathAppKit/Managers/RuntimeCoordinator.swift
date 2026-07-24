@@ -115,6 +115,11 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     var pendingMappingConflict: MappingConflictContext?
     var mappingConflictContinuation: CheckedContinuation<UUID?, Never>?
 
+    // Forward prerequisite resolution state (#869)
+    var pendingPrerequisiteResolution: RulePrerequisiteDialogModel?
+    var prerequisiteResolutionContinuation:
+        CheckedContinuation<RulePrerequisiteResolutionChoice?, Never>?
+
     /// Rule collections are now managed by RuleCollectionsCoordinator
     var ruleCollections: [RuleCollection] {
         get { ruleCollectionsCoordinator.ruleCollections }
@@ -446,6 +451,9 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
         ruleCollectionsManager.onMappingConflictResolution = { [weak self] context in
             await self?.promptForMappingConflict(context)
+        }
+        ruleCollectionsManager.onPrerequisiteResolution = { [weak self] context in
+            await self?.promptForPrerequisiteResolution(context)
         }
         // Note: onActionURI callback not needed - RuleCollectionsManager.handleActionURI()
         // already dispatches to ActionDispatcher. Setting this would cause double dispatch.
@@ -1114,7 +1122,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
             // Rule conflict resolution
             pendingRuleConflict: pendingRuleConflict,
-            pendingMappingConflict: pendingMappingConflict
+            pendingMappingConflict: pendingMappingConflict,
+            pendingPrerequisiteResolution: pendingPrerequisiteResolution
         )
     }
 
@@ -1533,6 +1542,42 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         pendingMappingConflict = nil
         mappingConflictContinuation?.resume(returning: collectionID)
         mappingConflictContinuation = nil
+        notifyStateChanged()
+    }
+
+    /// Prompts before applying an enable or save that introduces an unmet
+    /// requirement. The dialog receives a prepared presentation snapshot.
+    @MainActor
+    func promptForPrerequisiteResolution(
+        _ context: RulePrerequisiteResolutionContext
+    ) async -> RulePrerequisiteResolutionChoice? {
+        prerequisiteResolutionContinuation?.resume(returning: nil)
+        prerequisiteResolutionContinuation = nil
+
+        pendingPrerequisiteResolution = RulePrerequisiteDialogModel(context: context)
+        notifyStateChanged()
+        openPreferencesTab(.openSettingsRules)
+
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                prerequisiteResolutionContinuation = continuation
+            }
+        } onCancel: {
+            Task { @MainActor in
+                self.prerequisiteResolutionContinuation?.resume(returning: nil)
+                self.prerequisiteResolutionContinuation = nil
+                self.pendingPrerequisiteResolution = nil
+                self.notifyStateChanged()
+            }
+        }
+    }
+
+    func resolvePrerequisiteResolution(
+        with choice: RulePrerequisiteResolutionChoice?
+    ) {
+        pendingPrerequisiteResolution = nil
+        prerequisiteResolutionContinuation?.resume(returning: choice)
+        prerequisiteResolutionContinuation = nil
         notifyStateChanged()
     }
 

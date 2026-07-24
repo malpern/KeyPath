@@ -11,7 +11,6 @@ struct HomeRowModsCollectionView: View {
     let availableLayers: [String]
     let onConfigChanged: (HomeRowModsConfig) -> Void
     let onEnsureLayersExist: ([String]) async -> Void
-    let onEnableLayerCollections: (([UUID]) async -> Void)?
     var holdTimingBinding: Binding<Double>?
     var holdTimingValue: Int = 180
     var holdTimingDefault: Int = 180
@@ -183,8 +182,12 @@ struct HomeRowModsCollectionView: View {
     // MARK: - Helpers
 
     func updateConfig() {
+        updateConfig(config)
+    }
+
+    func updateConfig(_ updatedConfig: HomeRowModsConfig) {
         AppLogger.shared.log("🧪 [QA] Home Row Mods config changed: \(homeRowModsAccessibilityValue)")
-        onConfigChanged(config)
+        onConfigChanged(updatedConfig)
     }
 
     var activeHoldAssignments: [String: String] {

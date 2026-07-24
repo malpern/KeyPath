@@ -61,18 +61,23 @@ extension RulesTabView {
             onSelectHoldOutput: style == .tapHoldPicker ? { hold in
                 Task { await kanataManager.updateCollectionHoldOutput(collection.id, holdOutput: hold) }
             } : nil,
-            onUpdateHomeRowModsConfig: style == .homeRowMods ? { config in
+            onUpdateHomeRowModsConfig: style == .homeRowMods ? { config, completion in
                 pendingToggles[collection.id] = true
-                Task { await kanataManager.updateHomeRowModsConfig(collectionId: collection.id, config: config) }
+                Task {
+                    let persistedConfig = await kanataManager.updateHomeRowModsConfig(
+                        collectionId: collection.id,
+                        config: config
+                    )
+                    await MainActor.run {
+                        completion(persistedConfig)
+                    }
+                }
             } : nil,
             homeRowAvailableLayers: style == .homeRowMods ? availableHomeRowLayers(for: collection) : [],
             onEnsureHomeRowLayersExist: style == .homeRowMods ? { layerNames in
                 for layerName in layerNames {
                     await kanataManager.underlyingManager.rulesManager.createLayer(layerName)
                 }
-            } : nil,
-            onEnableLayerCollections: style == .homeRowMods ? { collectionIds in
-                await kanataManager.batchEnableCollections(collectionIds)
             } : nil,
             onOpenHomeRowModsModal: style == .homeRowMods ? {
                 homeRowModsEditState = HomeRowModsEditState(collection: collection, selectedKey: nil)

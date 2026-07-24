@@ -42,9 +42,6 @@ extension PackDetailView {
                             await kanataManager.underlyingManager.rulesManager.createLayer(name)
                         }
                     },
-                    onEnableLayerCollections: { collectionIds in
-                        await kanataManager.batchEnableCollections(collectionIds)
-                    },
                     holdTimingBinding: holdTimingQuickSetting != nil ? sliderBinding(for: "holdTimeout") : nil,
                     holdTimingValue: quickSettingValues["holdTimeout"] ?? holdTimingDefaultValue,
                     holdTimingDefault: holdTimingDefaultValue,

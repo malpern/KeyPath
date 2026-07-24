@@ -61,6 +61,10 @@ class KanataViewModel {
     var showMappingConflictDialog = false
     var pendingMappingConflict: MappingConflictContext?
 
+    // Enable/save prerequisite resolution (#869)
+    var showPrerequisiteResolutionDialog = false
+    var pendingPrerequisiteResolution: RulePrerequisiteDialogModel?
+
     enum ToastType {
         case success
         case error
@@ -145,6 +149,9 @@ class KanataViewModel {
         // Handle save-time mapping conflict resolution dialog (#460)
         pendingMappingConflict = state.pendingMappingConflict
         showMappingConflictDialog = state.pendingMappingConflict != nil
+
+        pendingPrerequisiteResolution = state.pendingPrerequisiteResolution
+        showPrerequisiteResolutionDialog = state.pendingPrerequisiteResolution != nil
 
         // Map validation error to alert properties
         if let error = state.validationError {
@@ -357,9 +364,14 @@ class KanataViewModel {
         ruleCollections = manager.rulesManager.ruleCollections
     }
 
-    func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async {
+    @discardableResult
+    func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async -> HomeRowModsConfig {
         let wasNewlyEnabled = await manager.updateHomeRowModsConfig(collectionId: collectionId, config: config)
         ruleCollections = manager.rulesManager.ruleCollections
+        let persistedConfig = Self.persistedHomeRowModsConfig(
+            collectionId: collectionId,
+            collections: ruleCollections
+        )
         AppLogger.shared.log(
             "🧪 [QA] Persisted Home Row Mods config collection=\(collectionId.uuidString) mode=\(config.holdMode.rawValue) keys=\(config.enabledKeys.sorted().joined(separator: ",")) tapWindow=\(config.timing.tapWindow) holdDelay=\(config.timing.holdDelay)"
         )
@@ -367,6 +379,20 @@ class KanataViewModel {
             let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
             showToast("Turned on \(name)", type: .success)
         }
+        return persistedConfig
+    }
+
+    static func persistedHomeRowModsConfig(
+        collectionId: UUID,
+        collections: [RuleCollection]
+    ) -> HomeRowModsConfig {
+        collections
+            .first(where: { $0.id == collectionId })?
+            .configuration.homeRowModsConfig
+            ?? RuleCollectionCatalog().defaultCollections()
+            .first(where: { $0.id == collectionId })?
+            .configuration.homeRowModsConfig
+            ?? HomeRowModsConfig()
     }
 
     func updateHomeRowLayerTogglesConfig(collectionId: UUID, config: HomeRowLayerTogglesConfig) async {
@@ -544,6 +570,13 @@ class KanataViewModel {
     func resolveMappingConflict(disabling collectionID: UUID?) {
         showMappingConflictDialog = false
         manager.resolveMappingConflict(disabling: collectionID)
+    }
+
+    func resolvePrerequisiteResolution(
+        with choice: RulePrerequisiteResolutionChoice?
+    ) {
+        showPrerequisiteResolutionDialog = false
+        manager.resolvePrerequisiteResolution(with: choice)
     }
 }
 

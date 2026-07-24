@@ -177,20 +177,6 @@ extension HomeRowModsCollectionView {
         let isHovered = hoveredHoldBehavior == mode
 
         Button {
-            if mode == .layers {
-                Task {
-                    let ids = [
-                        RuleCollectionIdentifier.vimNavigation,
-                        RuleCollectionIdentifier.symbolLayer,
-                        RuleCollectionIdentifier.numpadLayer,
-                        RuleCollectionIdentifier.funLayer
-                    ]
-                    await onEnableLayerCollections?(ids)
-                    config.layerAssignments = recommendedLayerAssignments
-                    applyHoldMode(.layers)
-                }
-                return
-            }
             applyHoldMode(mode)
         } label: {
             HStack(spacing: 10) {
@@ -239,10 +225,15 @@ extension HomeRowModsCollectionView {
     }
 
     func applyHoldMode(_ mode: HomeRowHoldMode) {
-        config.holdMode = mode
-        config.hasUserSelectedHoldMode = true
+        var updatedConfig = config
+        if mode == .layers {
+            updatedConfig.layerAssignments = recommendedLayerAssignments
+        }
+        updatedConfig.holdMode = mode
+        updatedConfig.hasUserSelectedHoldMode = true
+        config = updatedConfig
         selectedKey = nil
-        updateConfig()
+        updateConfig(updatedConfig)
     }
 
     var holdBehaviorExplanationText: String {

@@ -47,10 +47,30 @@ extension RuleCollectionsManager {
 
         let catalogMatch = RuleCollectionCatalog().defaultCollections().first { $0.id == id }
         AppLogger.shared.log("🔀 [RuleCollections] catalogMatch=\(catalogMatch?.name ?? "nil")")
-        let candidate = ruleCollections.first(where: { $0.id == id }) ?? catalogMatch
+        guard var candidate = ruleCollections.first(where: { $0.id == id }) ?? catalogMatch else {
+            return false
+        }
+        candidate.isEnabled = isEnabled
 
-        if var candidate, isEnabled {
-            candidate.isEnabled = true
+        // Ensure home row mods config exists if this is a home row mods collection.
+        if candidate.displayStyle == .homeRowMods,
+           case .homeRowMods = candidate.configuration
+        {
+            // Already configured.
+        } else if candidate.displayStyle == .homeRowMods {
+            candidate.configuration = .homeRowMods(HomeRowModsConfig())
+        }
+
+        var prerequisiteProviderIDs: [UUID] = []
+        if isEnabled {
+            guard let confirmedProviderIDs = await confirmedPrerequisiteProviderIDs(
+                for: candidate,
+                operation: .enable
+            ) else {
+                return false
+            }
+            prerequisiteProviderIDs = confirmedProviderIDs
+
             if let conflict = conflictInfo(for: candidate) {
                 if autoResolveConflicts {
                     AppLogger.shared.log(
@@ -82,38 +102,17 @@ extension RuleCollectionsManager {
             }
         }
 
-        guard let resolvedCandidate = candidate else { return false }
-
-        if let index = ruleCollections.firstIndex(where: { $0.id == id }) {
-            ruleCollections[index].isEnabled = isEnabled
-            // Ensure home row mods config exists if this is a home row mods collection
-            if case .homeRowMods = ruleCollections[index].configuration {
-                // Already has config, nothing to do
-            } else if resolvedCandidate.displayStyle == .homeRowMods {
-                ruleCollections[index].configuration = .homeRowMods(HomeRowModsConfig())
-            }
-        } else {
-            var newCollection = resolvedCandidate
-            newCollection.isEnabled = isEnabled
-            // Ensure home row mods config exists if this is a home row mods collection
-            if newCollection.displayStyle == .homeRowMods {
-                if case .homeRowMods = newCollection.configuration {
-                    // Already has config
-                } else {
-                    newCollection.configuration = .homeRowMods(HomeRowModsConfig())
-                }
-            }
-            ruleCollections.append(newCollection)
-        }
-
-        dedupeRuleCollectionsInPlace()
+        applyPrerequisiteChangeInMemory(
+            candidate: candidate,
+            providerIDs: prerequisiteProviderIDs
+        )
 
         AppLogger.shared.log("🔀 [RuleCollections] After toggle - collections: \(ruleCollections.map { "\($0.name) (enabled: \($0.isEnabled))" }.joined(separator: ", "))")
 
         // Special handling: If Leader Key collection is toggled off, reset all momentary activators to default (space)
         if id == RuleCollectionIdentifier.leaderKey {
             if isEnabled {
-                let key = leaderKeyOutput(from: resolvedCandidate) ?? leaderPreferenceSnapshot.key
+                let key = leaderKeyOutput(from: candidate) ?? leaderPreferenceSnapshot.key
                 syncLeaderKeyPreference(key: key, enabled: true)
             } else {
                 syncLeaderKeyPreference(enabled: false)
@@ -121,7 +120,6 @@ extension RuleCollectionsManager {
             }
         }
 
-        refreshLayerIndicatorState()
         AppLogger.shared.log("🔀 [RuleCollections] Calling regenerateConfigFromCollections...")
         let applied = await regenerateConfigFromCollections()
         guard applied else {
@@ -466,58 +464,44 @@ extension RuleCollectionsManager {
     /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
     @discardableResult
     func updateHomeRowModsConfig(id: UUID, config: HomeRowModsConfig) async -> Bool {
-        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
-            // Try to find in catalog and add it
-            let catalog = RuleCollectionCatalog()
-            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                catalogCollection.configuration.updateHomeRowModsConfig(config)
-                catalogCollection.isEnabled = true
-                ruleCollections.append(catalogCollection)
-                dedupeRuleCollectionsInPlace()
-                refreshLayerIndicatorState()
-                await regenerateConfigFromCollections()
-                return true
-            }
+        guard var candidate = ruleCollections.first(where: { $0.id == id })
+            ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id })
+        else {
             return false
         }
 
-        let wasNewlyEnabled = !ruleCollections[index].isEnabled
-        ruleCollections[index].configuration.updateHomeRowModsConfig(config)
-        ruleCollections[index].isEnabled = true
+        let wasNewlyEnabled = !candidate.isEnabled
+        candidate.configuration.updateHomeRowModsConfig(config)
+        candidate.isEnabled = true
 
-        dedupeRuleCollectionsInPlace()
-        refreshLayerIndicatorState()
-        await regenerateConfigFromCollections()
-        return wasNewlyEnabled
+        let appliedProviderIDs = await applyProposedCollectionWithPrerequisites(
+            candidate,
+            rollbackMessage:
+            "Could not save Home Row Mods. Your previous rule state was restored."
+        )
+        return appliedProviderIDs != nil && wasNewlyEnabled
     }
 
     /// Update home row layer toggles configuration
     /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
     @discardableResult
     func updateHomeRowLayerTogglesConfig(id: UUID, config: HomeRowLayerTogglesConfig) async -> Bool {
-        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
-            // Try to find in catalog and add it
-            let catalog = RuleCollectionCatalog()
-            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                catalogCollection.configuration.updateHomeRowLayerTogglesConfig(config)
-                catalogCollection.isEnabled = true
-                ruleCollections.append(catalogCollection)
-                dedupeRuleCollectionsInPlace()
-                refreshLayerIndicatorState()
-                await regenerateConfigFromCollections()
-                return true
-            }
+        guard var candidate = ruleCollections.first(where: { $0.id == id })
+            ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id })
+        else {
             return false
         }
 
-        let wasNewlyEnabled = !ruleCollections[index].isEnabled
-        ruleCollections[index].configuration.updateHomeRowLayerTogglesConfig(config)
-        ruleCollections[index].isEnabled = true
+        let wasNewlyEnabled = !candidate.isEnabled
+        candidate.configuration.updateHomeRowLayerTogglesConfig(config)
+        candidate.isEnabled = true
 
-        dedupeRuleCollectionsInPlace()
-        refreshLayerIndicatorState()
-        await regenerateConfigFromCollections()
-        return wasNewlyEnabled
+        let appliedProviderIDs = await applyProposedCollectionWithPrerequisites(
+            candidate,
+            rollbackMessage:
+            "Could not save Home Row Layer Toggles. Your previous rule state was restored."
+        )
+        return appliedProviderIDs != nil && wasNewlyEnabled
     }
 
     /// Update chord groups configuration
@@ -582,34 +566,25 @@ extension RuleCollectionsManager {
     /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
     @discardableResult
     func updateLauncherConfig(id: UUID, config: LauncherGridConfig) async -> Bool {
-        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
-            // Try to find in catalog and add it
-            let catalog = RuleCollectionCatalog()
-            if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                catalogCollection.configuration.updateLauncherGridConfig(config)
-                catalogCollection.isEnabled = true
-                ruleCollections.append(catalogCollection)
-                dedupeRuleCollectionsInPlace()
-                refreshLayerIndicatorState()
-                await regenerateConfigFromCollections()
-                // Cache warm new launcher icons
-                await warmLauncherIconCache(for: config)
-                return true
-            }
+        guard var candidate = ruleCollections.first(where: { $0.id == id })
+            ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id })
+        else {
             return false
         }
 
-        let wasNewlyEnabled = !ruleCollections[index].isEnabled
-        ruleCollections[index].configuration.updateLauncherGridConfig(config)
-        ruleCollections[index].isEnabled = true
+        let wasNewlyEnabled = !candidate.isEnabled
+        candidate.configuration.updateLauncherGridConfig(config)
+        candidate.isEnabled = true
 
-        dedupeRuleCollectionsInPlace()
-        refreshLayerIndicatorState()
-        await regenerateConfigFromCollections()
-
-        // Cache warm new launcher icons
-        await warmLauncherIconCache(for: config)
-        return wasNewlyEnabled
+        let appliedProviderIDs = await applyProposedCollectionWithPrerequisites(
+            candidate,
+            rollbackMessage:
+            "Could not save Launcher. Your previous rule state was restored."
+        )
+        if appliedProviderIDs != nil {
+            await warmLauncherIconCache(for: config)
+        }
+        return appliedProviderIDs != nil && wasNewlyEnabled
     }
 
     /// Update auto shift symbols configuration
@@ -670,17 +645,26 @@ extension RuleCollectionsManager {
     /// Update window snapping activation mode
     /// - Returns: name of auto-enabled dependency, or nil
     func updateWindowSnappingActivationMode(id: UUID, mode: WindowSnappingActivationMode) async -> String? {
-        guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else { return nil }
+        guard var candidate = ruleCollections.first(where: { $0.id == id }) else {
+            return nil
+        }
 
-        ruleCollections[index].windowSnappingActivationMode = mode
-        ruleCollections[index].momentaryActivator = Self.momentaryActivatorForWindowSnapping(mode)
-        ruleCollections[index].activationHint = Self.activationHintForWindowSnapping(mode)
+        candidate.windowSnappingActivationMode = mode
+        candidate.momentaryActivator = Self.momentaryActivatorForWindowSnapping(mode)
+        candidate.activationHint = Self.activationHintForWindowSnapping(mode)
 
-        let autoEnabled = autoEnableWindowSnappingDependency(mode)
-        dedupeRuleCollectionsInPlace()
-        refreshLayerIndicatorState()
-        await regenerateConfigFromCollections()
-        return autoEnabled
+        guard let enabledProviderIDs = await applyProposedCollectionWithPrerequisites(
+            candidate,
+            rollbackMessage:
+            "Could not save Window Snapping. Your previous rule state was restored.",
+            nonInteractiveChoice: .enableRequiredProvidersAndApply
+        ) else {
+            return nil
+        }
+
+        return enabledProviderIDs.compactMap { providerID in
+            ruleCollections.first(where: { $0.id == providerID })?.name
+        }.first
     }
 
     private static func momentaryActivatorForWindowSnapping(_ mode: WindowSnappingActivationMode) -> MomentaryActivator {
@@ -696,29 +680,6 @@ extension RuleCollectionsManager {
         switch mode {
         case .leader: "Leader → w → action key"
         case .quickLauncher: "Hyper + w → action key"
-        }
-    }
-
-    private func autoEnableWindowSnappingDependency(_ mode: WindowSnappingActivationMode) -> String? {
-        switch mode {
-        case .leader:
-            let navID = RuleCollectionIdentifier.leaderKey
-            if !ruleCollections.contains(where: { $0.id == navID && $0.isEnabled }) {
-                if let idx = ruleCollections.firstIndex(where: { $0.id == navID }) {
-                    ruleCollections[idx].isEnabled = true
-                    return "Leader Key"
-                }
-            }
-            return nil
-        case .quickLauncher:
-            let launcherID = RuleCollectionIdentifier.launcher
-            if !ruleCollections.contains(where: { $0.id == launcherID && $0.isEnabled }) {
-                if let idx = ruleCollections.firstIndex(where: { $0.id == launcherID }) {
-                    ruleCollections[idx].isEnabled = true
-                    return "Quick Launcher"
-                }
-            }
-            return nil
         }
     }
 
