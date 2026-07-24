@@ -95,7 +95,9 @@ For a managed lease, `create` derives a fresh policy set from that exact signed
 installer, copies the manifest into the clone, publishes all three profiles,
 waits for NanoMDM acknowledgements, queries the installed profile inventory,
 and runs system-level lane admission before reporting the lease ready. Policy
-publication fails closed if NanoMDM has zero or multiple enrollment identities.
+publication routes through the base-specific enrollment identity stored under
+the controller's `managed-identities` directory and fails closed when that
+identity is absent or invalid.
 Only one live managed-functional lease is admitted while clones share the base
 enrollment identity.
 

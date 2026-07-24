@@ -2,10 +2,18 @@
 
 ## Current result
 
-P02 is not yet proven. A managed macOS 26.5.2 lease now proves the helper,
-DriverKit extension, VirtualHID daemon, exact installer-derived profile
-publication, and genuine Input Monitoring approval. The remaining runtime gate
-is Kanata Accessibility.
+P02 is not yet proven. A disposable managed macOS 15.7.7 clone now proves the
+complete healthy runtime, exact q-to-w configuration, and independently
+observed target-app output. The target received `q`, not `w`, because Tart's
+VNC input did not appear as a guest HID device: Kanata reported
+`InputGrab active=true devices=0`. This is an input-source limitation in the
+lab, not a confirmed KeyPath remapping defect.
+
+The next proof should inject `q` through a guest-visible test HID device (for
+example an isolated IOHIDUserDevice helper) and retain TextEdit as the
+independent output oracle. Do not weaken the proof to accept KeyPath's
+simulation result; simulation correctly reported q-to-w in this run, while the
+real VNC event bypassed Kanata and produced `q`.
 
 The legacy PPPC payload draws the launcher and engine Accessibility switches as
 managed and enabled, but macOS 26.2 and later no longer honor an Accessibility
@@ -18,8 +26,7 @@ The smaller alternative is now available: `keypath-macos-15-managed` is a
 stopped Tart base running macOS 15.7.7. It is user-approved MDM enrolled and
 has the exact three installer-derived device profiles installed. System-level
 lane admission passed before the staging image was renamed to the final base.
-The next proof must use a disposable clone from that base; base admission alone
-is not functional output proof.
+Disposable-clone admission and exact policy rehydration are now proven.
 
 This is an approval-lane limitation, not a confirmed KeyPath remapping defect.
 Do not turn it into a product bug or bypass it by modifying system-extension or
@@ -70,6 +77,27 @@ three identifiers, and immutable policy inputs were retained under
 Controller evidence is retained at:
 
 `/Volumes/KeyPath Lab/CrabBox/KeyPathInstallerLab/artifacts/base-keypath-macos-15-managed/20260724T013334Z/managed-policy`
+
+## Disposable macOS 15 proof attempt on July 23, 2026
+
+Lease `cbx_629d00243876` used KeyPath commit
+`e13836bae9b0f1a15c7b47cfc8783abad1f9d8a0` and the signed installer with
+SHA-256 `8dcbc201ce9333f5afff305fdd0956863613b45542556f81e6382fb772be87f4`.
+Artifacts are retained at:
+
+`/Volumes/KeyPath Lab/CrabBox/KeyPathInstallerLab/artifacts/cbx_629d00243876/20260724T015650Z`
+
+The controller rehydrated all three profiles against the macOS 15 base's
+explicit enrollment identity, and root-level lane admission passed. Repair
+then produced an activated-enabled DriverKit extension, healthy helper,
+running Kanata and VirtualHID daemons, a healthy VirtualHID device, and TCP
+readiness. The CLI reported `isOperational: true`.
+
+The exact rule was installed with `keypath-cli rule ensure q w --apply`.
+`keypath-cli simulate q` reported `w`. With an empty TextEdit document focused,
+`desktop-type --text q` reported `method=vnc-key`, but TextEdit contained `q`.
+The same run's runtime log reported no captured input device. This cleanly
+separates the working output runtime from the unsuitable Tart VNC input source.
 
 ## Evidence captured on July 12, 2026
 
@@ -147,9 +175,8 @@ proof.
 
 Continue with one explicit path:
 
-1. Create a disposable clone from `keypath-macos-15-managed`, then run the
-   proof shape above with the existing Tart `protected-click` and
-   `desktop-type` primitives.
+1. Add a lease-scoped, guest-visible test HID input helper and repeat the
+   q-to-w TextEdit proof in a disposable `keypath-macos-15-managed` clone.
 2. Add NanoMDM Declarative Device Management support and publish an
    `com.apple.configuration.app-settings` Accessibility configuration for
    macOS 26.2 and later.
