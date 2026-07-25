@@ -1,9 +1,11 @@
 {
-  "updatedAt": "2026-07-24T20:32:32-07:00",
-  "currentTask": "M11 candidate provisioned; privacy approvals next",
-  "message": "Pinned tool provisioning now works from the clean macOS 27 source. The active candidate is ready for one-time Screen Recording, Accessibility, and Remote Management approval.",
+  "updatedAt": "2026-07-24T20:55:00-07:00",
+  "currentTask": "M11 privacy ownership isolated; stable lab host in progress",
+  "message": "The live candidate proved macOS 27 will not grant Screen Recording to a standalone SSH-launched binary. A stable Peekaboo Lab Host app now owns the reusable desktop identity; implementation is being committed before fresh-clone validation.",
   "complete": false,
-  "workingBlocks": [],
+  "workingBlocks": [
+    "M11"
+  ],
   "activeWork": {
     "P02": {
       "progress": 98,
@@ -390,12 +392,12 @@
       "unlocks": []
     },
     "M11": {
-      "progress": 88,
-      "health": "waiting",
+      "progress": 91,
+      "health": "working",
       "trend": "forward",
-      "phase": "Automation-base candidate ready for privacy approvals",
-      "detail": "A fresh macOS 27 candidate now provisions Python 3.12.13, Peekaboo 3.9.8, and mcporter 0.12.3 from pinned verified archives without Homebrew. The candidate is logged in and the tooling is proven. Screen Recording and Accessibility remain denied; changing those security-sensitive settings requires explicit action-time confirmation.",
-      "attempt": 3,
+      "phase": "Stable TCC owner implemented; fresh candidate next",
+      "detail": "The live candidate proved SSH can report missing Screen Recording but cannot create an approvable application row. Console registration exposed Terminal and ssh-keygen-wrapper ownership instead. The infrastructure now installs a stable Peekaboo Lab Host app and login agent so tests can use one narrowly approved desktop bridge across clones.",
+      "attempt": 4,
       "completedSteps": 7,
       "totalSteps": 8,
       "nextTasks": [
@@ -410,9 +412,9 @@
           "progress": 100
         },
         {
-          "label": "Grant Screen Recording and Accessibility to signed Peekaboo tooling",
-          "status": "blocked",
-          "progress": 50
+          "label": "Install stable Peekaboo Lab Host permission owner",
+          "status": "active",
+          "progress": 85
         },
         {
           "label": "Remove inherited Apple Account state and enable Remote Management",
@@ -425,7 +427,7 @@
           "progress": 10
         }
       ],
-      "blocker": "The candidate is at the one-time macOS privacy-approval boundary. Screen Recording, Accessibility, and Remote Management changes require explicit confirmation before I apply them.",
+      "blocker": "No external blocker. Commit the permission-owner infrastructure, provision a fresh immutable-source candidate, approve that app once, then require fresh-clone proof.",
       "coreCapability": true,
       "unlocks": [
         "macOS 27 agent-driven System Settings automation",
@@ -535,12 +537,19 @@
     "M08": "proven",
     "M09": "proven",
     "M10": "proven",
-    "M11": "waiting",
+    "M11": "active",
     "D03": "proven",
     "D04": "proven",
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "20:55",
+      "block": "M11",
+      "tone": "working",
+      "title": "M11 permission ownership isolated",
+      "message": "The clean macOS 27 candidate proved standalone SSH launches cannot become a reusable Screen Recording identity. A stable Peekaboo Lab Host app now owns the TCC boundary; fresh immutable-source validation is next."
+    },
     {
       "time": "20:32",
       "block": "M11",
