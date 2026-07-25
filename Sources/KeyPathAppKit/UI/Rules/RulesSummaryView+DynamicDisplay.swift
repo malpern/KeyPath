@@ -58,14 +58,16 @@ extension RulesTabView {
 
         switch config.activationMode {
         case .holdHyper:
-            switch config.hyperTriggerMode {
-            case .hold:
-                return "Hold Hyper to quickly launch apps and websites with keyboard shortcuts."
-            case .tap:
-                return "Tap Hyper to toggle the launcher on/off. Then press a shortcut key."
-            }
+            return KeyboardConceptCopy.launcherActivationDescription(
+                mode: config.activationMode,
+                hyperTriggerMode: config.hyperTriggerMode
+            )
         case .leaderSequence:
-            return "Press \(currentLeaderKeyDisplay) → L to activate the launcher layer."
+            return KeyboardConceptCopy.launcherActivationDescription(
+                mode: config.activationMode,
+                hyperTriggerMode: config.hyperTriggerMode,
+                leaderKeyDisplay: currentLeaderKeyDisplay
+            )
         }
     }
 

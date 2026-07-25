@@ -190,6 +190,44 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
         assertContains(output, "(multi XX (push-msg \"layer:base\"))")
     }
 
+    func testLauncherLeaderSequenceGeneratesNavigationLayerActivator() throws {
+        let navCollection = try makeCollection(
+            id: XCTUnwrap(UUID(uuidString: "22222222-2222-2222-2222-222222222222")),
+            name: "Navigation",
+            summary: "Nav layer",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
+        )
+        let config = LauncherGridConfig(
+            activationMode: .leaderSequence,
+            mappings: []
+        )
+        let launcherCollection = makeCollection(
+            id: RuleCollectionIdentifier.launcher,
+            name: "Launcher",
+            summary: "Launcher grid",
+            category: .productivity,
+            mappings: [],
+            targetLayer: .custom("launcher"),
+            momentaryActivator: MomentaryActivator(
+                input: "hyper",
+                targetLayer: .custom("launcher")
+            ),
+            configuration: .launcherGrid(config)
+        )
+
+        let activator = launcherCollection.momentaryActivator
+        XCTAssertEqual(activator?.input, "l")
+        XCTAssertEqual(activator?.sourceLayer, .navigation)
+        XCTAssertEqual(activator?.targetLayer, .custom("launcher"))
+
+        let output = KanataConfiguration.generateFromCollections([navCollection, launcherCollection])
+        assertContains(output, "layer_launcher_l")
+        assertContains(output, "@layer_launcher_l")
+    }
+
     private func makeCollection(
         id: UUID,
         name: String,

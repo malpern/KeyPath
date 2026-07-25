@@ -13,7 +13,7 @@ struct RuleCollectionCatalog {
             ?? RuleCollection(
                 id: RuleCollectionIdentifier.launcher,
                 name: "Quick Launcher",
-                summary: "Hold Hyper to quickly launch apps and websites with keyboard shortcuts.",
+                summary: KeyboardConceptCopy.launcherCatalogSummary,
                 category: .layers,
                 mappings: [],
                 icon: "arrow.up.forward.app",

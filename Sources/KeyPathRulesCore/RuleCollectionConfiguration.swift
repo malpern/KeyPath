@@ -626,6 +626,16 @@ public struct LauncherGridConfig: Codable, Equatable, Sendable {
         LauncherGridConfig(activationMode: .holdHyper, hyperTriggerMode: .hold, mappings: defaultMappings, hasSeenWelcome: false)
     }
 
+    /// Resolves the runtime layer activator from the selected launcher mode.
+    public func momentaryActivator(targetLayer: RuleCollectionLayer) -> MomentaryActivator {
+        switch activationMode {
+        case .holdHyper:
+            MomentaryActivator(input: "hyper", targetLayer: targetLayer)
+        case .leaderSequence:
+            MomentaryActivator(input: "l", targetLayer: targetLayer, sourceLayer: .navigation)
+        }
+    }
+
     /// Custom decoding to handle missing hyperTriggerMode in existing configs
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)

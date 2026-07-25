@@ -170,12 +170,10 @@ extension OverlayInspectorPanel {
 
     /// Description for launcher activation mode
     private var launcherActivationDescription: String {
-        switch launcherActivationMode {
-        case .holdHyper:
-            launcherHyperTriggerMode.description + " Then press a shortcut key."
-        case .leaderSequence:
-            "Press Leader, then L, then press a shortcut key."
-        }
+        KeyboardConceptCopy.launcherActivationDescription(
+            mode: launcherActivationMode,
+            hyperTriggerMode: launcherHyperTriggerMode
+        )
     }
 
     /// Load launcher config from store

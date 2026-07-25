@@ -520,9 +520,8 @@ public enum PackRegistry {
         id: "com.keypath.pack.quick-launcher",
         version: "1.0.0",
         name: "Quick Launcher",
-        tagline: "Hold Hyper, press a key to launch an app or website",
-        shortDescription:
-        "Launch any app or open any URL with a single key. Hold Hyper, press the key. Drag apps onto keys to assign them.",
+        tagline: "Turn one key into an app and website launcher",
+        shortDescription: KeyboardConceptCopy.launcherPackDescription,
         longDescription: "",
         category: "Productivity",
         iconSymbol: "arrow.up.forward.app",
@@ -618,9 +617,8 @@ public enum PackRegistry {
         id: "com.keypath.pack.leader-key",
         version: "1.0.0",
         name: "Leader Key",
-        tagline: "Pick which key activates the navigation layer",
-        shortDescription:
-        "Choose which key activates all your layers — Space, Caps Lock, Tab, or Backtick. Applies to Vim Nav, Window Snapping, and every other layer pack.",
+        tagline: "Choose the key that starts your layer shortcuts",
+        shortDescription: KeyboardConceptCopy.leaderPackDescription,
         longDescription: "",
         category: "Productivity",
         iconSymbol: "hand.point.up.left",
