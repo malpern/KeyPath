@@ -1,6 +1,8 @@
 #!/bin/zsh
 set -euo pipefail
 
+die() { print -u2 "macos-27-selector-scenario: $*"; exit 1; }
+
 usage() {
   print -u2 "Usage: Scripts/lab/macos-27-selector-scenario --output DIRECTORY"
   exit 2
@@ -26,7 +28,17 @@ readiness="$output/accessibility-readiness.json"
 
 mkdir -p "$output"
 "$osascript_bin" -e 'tell application "System Settings" to quit' >/dev/null 2>&1 || true
-"$open_bin" "$url"
+"$sleep_bin" 1
+
+opened=0
+for attempt in {1..5}; do
+  if "$open_bin" "$url"; then
+    opened=1
+    break
+  fi
+  "$sleep_bin" 1
+done
+(( opened )) || die "could not open the Accessibility privacy pane after five attempts"
 
 ready=0
 for attempt in {1..15}; do
