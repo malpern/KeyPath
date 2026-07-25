@@ -203,3 +203,30 @@ next step.
 - **Loop check:** not looping. The second installer invocation was based on a
   materially changed state and dry-run plan; it proved convergence, while the
   preserved first-pass failure identifies the exact single-pass defect.
+
+## 2026-07-25 08:49 PDT — M01 one-pass clean install proven
+
+- **Outcome:** advanced
+- **Completed milestone:** M01 passes on fresh randomized macOS 15 managed
+  lease `cbx_ce33c403f2f2` with exactly one installer invocation.
+- **Evidence:**
+  - Product fix `ef09ad7b7` passed 41 focused regression tests and was packaged
+    as the exact admitted signed candidate.
+  - The fresh clone completed managed admission before KeyPath was allowed to
+    mutate installer state.
+  - The wizard established the privileged helper and independently showed
+    KeyPath plus `kanata-launcher` Accessibility and Input Monitoring green.
+  - The single **Fix** invocation completed with `ready=true` and zero blocking
+    issues; there was no installer retry.
+  - `managed-capabilities` reports `managed_capabilities passed`.
+  - `helper-daemon-health` reports `isOperational=true`, no issues, no planned
+    recipes, state `Running and TCP responding`, and a valid Kanata TCP
+    response.
+- **Current blocker:** none for M01.
+- **Next action:** preserve the evidence, remove the disposable lease after
+  capture, then admit up to two independent tracks: lifecycle scenarios
+  (M02/M04/M05) and version transition (M03). Keep M06 after M05 and the matrix
+  consumers after their scenario prerequisites.
+- **Loop check:** not looping. A stuck splash was traced to the reusable base's
+  orphan-cleanup alert intercepting first activation; relaunching after cleanup
+  exposed the supported wizard. The installer itself was invoked only once.

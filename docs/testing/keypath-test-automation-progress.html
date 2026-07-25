@@ -861,6 +861,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-defrag-progress .execution-head span { color:var(--muted-foreground); font-size:11px; text-align:right; }
     #keypath-defrag-progress .execution-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:7px; }
     #keypath-defrag-progress .execution-card { min-width:0; padding:9px; border:1px solid var(--border); border-radius:5px; background:color-mix(in srgb,var(--muted) 34%,transparent); }
+    #keypath-defrag-progress .execution-card[data-status=&quot;proven&quot;] { border-color:color-mix(in srgb,var(--viz-series-3) 65%,var(--border)); background:color-mix(in srgb,var(--viz-series-3) 9%,var(--card)); }
     #keypath-defrag-progress .execution-card[data-status=&quot;active&quot;] { border-color:var(--viz-series-2); background:color-mix(in srgb,var(--viz-series-2) 12%,var(--card)); }
     #keypath-defrag-progress .execution-card[data-status=&quot;next&quot;] { border-color:color-mix(in srgb,var(--viz-series-1) 55%,var(--border)); }
     #keypath-defrag-progress .execution-card[data-status=&quot;blocked&quot;] { border-color:color-mix(in srgb,var(--destructive) 60%,var(--border)); }
@@ -868,6 +869,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-defrag-progress .execution-label { font-size:11px; font-weight:500; }
     #keypath-defrag-progress .execution-badge { padding:2px 5px; border-radius:999px; background:var(--muted); color:var(--muted-foreground); font-size:8px; font-weight:650; letter-spacing:.05em; white-space:nowrap; }
     #keypath-defrag-progress .execution-card[data-status=&quot;active&quot;] .execution-badge { background:color-mix(in srgb,var(--viz-series-2) 28%,var(--card)); color:var(--foreground); }
+    #keypath-defrag-progress .execution-card[data-status=&quot;proven&quot;] .execution-badge { background:color-mix(in srgb,var(--viz-series-3) 22%,var(--card)); color:var(--foreground); }
     #keypath-defrag-progress .execution-card[data-status=&quot;next&quot;] .execution-badge { background:color-mix(in srgb,var(--viz-series-1) 20%,var(--card)); color:var(--foreground); }
     #keypath-defrag-progress .execution-card[data-status=&quot;blocked&quot;] .execution-badge { background:color-mix(in srgb,var(--destructive) 18%,var(--card)); color:var(--foreground); }
     #keypath-defrag-progress .execution-platform, #keypath-defrag-progress .execution-detail { color:var(--muted-foreground); font-size:9px; }
@@ -1184,9 +1186,10 @@ html&gt;body{padding:0}&lt;/style&gt;
           topline.append(label,badge); card.append(topline,platform,blocks,trackDetail); return card;
         }));
         const gate = state.parallelReadyAfter?.gate;
+        const gateProven = state.parallelReadyAfter?.gateStatus === &#x27;proven&#x27;;
         const maxTracks = state.parallelReadyAfter?.maxConcurrentTracks;
         parallelNote.textContent = gate
-          ? `${parallelReady.size} scenarios can branch after ${gate} · up to ${maxTracks || 1} independent tracks`
+          ? `${parallelReady.size} scenarios ${gateProven ? &#x27;ready now&#x27; : `can branch after ${gate}`} · up to ${maxTracks || 1} independent tracks`
           : &#x27;No parallel branch has been admitted yet&#x27;;
         parallelReady.forEach(id =&gt; {
           const button = buttons.get(id);

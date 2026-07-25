@@ -1,29 +1,27 @@
 {
-  "updatedAt": "2026-07-25T08:17:46-07:00",
-  "currentTask": "M01: re-prove the corrected installer in one pass on a fresh managed clone",
-  "message": "The M01 ordering fix is committed as ef09ad7b7, 41 focused regression tests pass, and the signed candidate is installed on a fresh randomized macOS 15 clone that has completed managed admission. The installer has not been run on that clone yet, preserving a clean one-pass proof. The dashboard now separates the active baseline gate from work that can run in parallel after M01.",
+  "updatedAt": "2026-07-25T08:49:19-07:00",
+  "currentTask": "M01 one-pass clean install proven",
+  "message": "Fresh randomized macOS 15 lease cbx_ce33c403f2f2 completed the corrected installer exactly once. KeyPath reported ready=true with zero blocking issues; independent managed-capabilities passed; system inspect reports isOperational=true with no planned repairs; and the TCP probe returned a valid Kanata response. Lifecycle and upgrade tracks are now parallel-ready.",
   "complete": false,
-  "workingBlocks": [
-    "M01"
-  ],
+  "workingBlocks": [],
   "executionTracks": [
     {
       "id": "baseline",
       "label": "Baseline gate",
       "platform": "Tart \u00b7 macOS 15",
-      "status": "active",
-      "badge": "ACTIVE NOW",
+      "status": "proven",
+      "badge": "PROVEN",
       "blocks": [
         "M01"
       ],
-      "detail": "Finish the untouched-clone, one-pass clean-install proof before branching into lifecycle scenarios."
+      "detail": "The untouched-clone, one-pass clean-install proof passed independently. This gate no longer blocks downstream work."
     },
     {
       "id": "lifecycle",
       "label": "Lifecycle scenarios",
       "platform": "Tart \u00b7 macOS 15",
       "status": "next",
-      "badge": "PARALLEL AFTER M01",
+      "badge": "PARALLEL READY",
       "blocks": [
         "M02",
         "M04",
@@ -36,7 +34,7 @@
       "label": "Version transition",
       "platform": "Separate VM lease",
       "status": "next",
-      "badge": "PARALLEL AFTER M01",
+      "badge": "PARALLEL READY",
       "blocks": [
         "M03"
       ],
@@ -72,6 +70,7 @@
   ],
   "parallelReadyAfter": {
     "gate": "M01",
+    "gateStatus": "proven",
     "blocks": [
       "M02",
       "M03",
@@ -79,7 +78,7 @@
       "M05"
     ],
     "maxConcurrentTracks": 2,
-    "note": "Use separate disposable leases and avoid two jobs mutating the same VM or installer state."
+    "note": "M01 is proven. Use separate disposable leases and avoid two jobs mutating the same VM or installer state."
   },
   "activeWork": {
     "P02": {
@@ -323,48 +322,6 @@
       "blocker": "P02 and R03/R04 must pass on the macOS 15 managed lane before launch-to-remap timing is meaningful.",
       "coreCapability": false,
       "unlocks": []
-    },
-    "M01": {
-      "progress": 90,
-      "health": "working",
-      "trend": "forward",
-      "phase": "Fresh-clone one-pass validation",
-      "detail": "The postcondition-ordering fix is committed, focused tests pass, and the exact signed candidate is admitted on a fresh randomized macOS 15 clone. Supported first-run cleanup and launcher approvals are the final prerequisite before the clone's only installer pass.",
-      "attempt": 3,
-      "completedSteps": 4,
-      "totalSteps": 5,
-      "nextTasks": [
-        {
-          "label": "Complete fresh managed admission and permissions",
-          "status": "done",
-          "progress": 100
-        },
-        {
-          "label": "Capture first-pass ordering failure",
-          "status": "done",
-          "progress": 100
-        },
-        {
-          "label": "Prove second-pass convergence independently",
-          "status": "done",
-          "progress": 100
-        },
-        {
-          "label": "Fix installer recipe ordering or postcondition scope",
-          "status": "done",
-          "progress": 100
-        },
-        {
-          "label": "Re-prove one-pass clean install on a fresh clone",
-          "status": "active",
-          "progress": 50
-        }
-      ],
-      "blocker": "The fresh clone is intentionally untouched by the installer. Its supported first-run cleanup and launcher approvals must finish before the single-pass assertion.",
-      "coreCapability": true,
-      "unlocks": [
-        "Repair, upgrade, reboot, uninstall, and reinstall scenarios"
-      ]
     },
     "M02": {
       "progress": 0,
@@ -634,7 +591,7 @@
     "P03": "queued",
     "P04": "queued",
     "D06": "proven",
-    "M01": "active",
+    "M01": "proven",
     "M02": "queued",
     "M03": "queued",
     "M04": "queued",
@@ -651,6 +608,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "08:49",
+      "block": "M01",
+      "tone": "success",
+      "title": "M01 one-pass clean install proven",
+      "message": "Fresh randomized macOS 15 lease cbx_ce33c403f2f2 completed the corrected installer exactly once. KeyPath reported ready=true with zero blocking issues; independent managed-capabilities passed; system inspect reports isOperational=true with no planned repairs; and the TCP probe returned a valid Kanata response. Lifecycle and upgrade tracks are now parallel-ready."
+    },
     {
       "time": "08:17",
       "block": "M01",
@@ -853,76 +817,6 @@
       "tone": "problem",
       "title": "P02 narrowed to the macOS 26 Accessibility boundary",
       "message": "DriverKit, VirtualHID, helper, and genuine launcher Input Monitoring pass. macOS 26.2+ draws the legacy managed Accessibility switch on but creates no TCC grant; next build the missing macOS 15 managed base or add NanoMDM declarative app settings."
-    },
-    {
-      "time": "17:36",
-      "block": "D06",
-      "tone": "success",
-      "title": "Sequential managed clones now converge automatically",
-      "message": "Create derives exact installer policy, publishes and acknowledges all profiles, verifies system admission, and rejects ambiguous or concurrent shared enrollment identity."
-    },
-    {
-      "time": "16:37",
-      "block": "D06",
-      "tone": "working",
-      "title": "D06 managed clone rehydration is the active frontier",
-      "message": "The first fresh clone proved enrollment persists but device profiles must be re-published. Manual rehydration passes; the next work is making that automatic and fail-closed."
-    },
-    {
-      "time": "16:37",
-      "block": "D05",
-      "tone": "success",
-      "title": "D05 managed base and policy admission proven",
-      "message": "A fresh managed-functional clone was created from the dedicated macOS 26 base; all three policies were re-delivered and acknowledged, system-level lane admission passed, and the exact signed KeyPath artifact installed under policy."
-    },
-    {
-      "time": "16:28",
-      "block": "D05",
-      "tone": "success",
-      "title": "D05 managed policy set proven end to end",
-      "message": "macOS acknowledged all three managed policies; MDM inventory and the in-VM exact-manifest admission check both passed. The remaining D05 step is preserving a genuinely clean managed base."
-    },
-    {
-      "time": "16:15",
-      "block": "D05",
-      "tone": "working",
-      "title": "D05 Managed enrollment proven; policy deployment next",
-      "message": "A disposable macOS 26 VM is User Approved enrolled and checked into NanoMDM. The active frontier is managed PPPC, DriverKit, and service-management policy publication with independent postconditions."
-    },
-    {
-      "time": "16:15",
-      "block": "D04",
-      "tone": "success",
-      "title": "D04 NanoMDM APNs enrollment channel proven",
-      "message": "NanoMDM, SCEP, pinned private-LAN TLS, and the APNs topic are running; the enrolled VM completed Authenticate and TokenUpdate."
-    },
-    {
-      "time": "16:15",
-      "block": "D03",
-      "tone": "success",
-      "title": "D03 Apple MDM vendor certificate approved",
-      "message": "Apple approved case 102940025673; the MDM vendor certificate and signed APNs push certificate are installed and valid through July 23, 2027."
-    },
-    {
-      "time": "10:17",
-      "block": "M11",
-      "tone": "success",
-      "title": "M11 Remote Management delivery proven",
-      "message": "Supported-UI approval plus paced secure input enabled Remote Management; the independent RFB probe now delivers events on macOS 27 build 26A5378j."
-    },
-    {
-      "time": "18:15",
-      "block": "M11",
-      "tone": "problem",
-      "title": "M11 console proven; RFB control Apple-gated",
-      "message": "Lease cbx_7737a72b52ef reached a verified keypathqa console session after catching sysadminctl's false success and using the disposable-clone fallback. RFB authentication succeeds, but macOS checks in with event posting disabled; ordinary Screen Sharing and command-line Remote Management remain view-only. Evidence was collected and the lease destroyed."
-    },
-    {
-      "time": "16:37",
-      "block": "M14",
-      "tone": "success",
-      "title": "M14 consolidated report proven",
-      "message": "PR #1184 merged after focused report tests, a mixed-result CLI proof, the 4,746-test local safe suite, required CI, and claude-review. Evidence links are artifact-relative and unsafe or malformed inputs fail closed."
     }
   ],
   "activity": [
