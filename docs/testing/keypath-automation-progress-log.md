@@ -44,3 +44,37 @@ next step.
   record the exact new failure before choosing the next route.
 - **Loop check:** not looping. The work moved from an unexplained host-lock
   failure to a verified host fix and a narrower guest-control gate.
+
+## 2026-07-24 22:53 PDT — checkpoint 1
+
+- **Outcome:** looping
+- **Completed milestone:** Guest Screen Sharing was replaced with Remote
+  Management through the supported System Settings UI. Remote Management and
+  its VNC-password option are on, so the baseline blocker is cleared.
+- **Evidence:**
+  - Active lease `cbx_adb383f1f5d2` remains ready on macOS 27 resource
+    `9b5c8578-3f31-46c1-bb29-c7b26d2cf691`.
+  - The mini is reachable, `RestoreMachineState` remains `0`, and caffeinate is
+    active.
+  - The live Sharing pane shows Remote Management on.
+  - CrabBox source confirms Parallels reads
+    `/var/db/crabbox/vnc.password`; a secret-safe comparison proved that file
+    exactly matches the current eight-character encrypted lab credential.
+  - Three `secure-console-submit` attempts were recorded at 22:25, 22:27, and
+    22:47 PDT, but RFB authentication did not change.
+  - Parallels 26.4.0 accepts explicit JSON `press` and `release` events. The
+    helper now emits one paced event batch and reports delivery separately from
+    its unverified credential postcondition.
+  - `bash Scripts/lab/tests/keypath-lab-tests.sh` passes, including the
+    credential-leak and unsupported-character guards.
+- **Current blocker:** The Remote Management UI password is not yet proven to
+  equal the lease credential. RFB therefore still lacks an authenticated
+  control path for the native Peekaboo host approvals.
+- **Next action:** Do not repeat the old per-key helper. Have the user invoke
+  the corrected batched helper while the VNC password field is focused, then
+  make one RFB probe the postcondition. If that fails, inspect the resulting
+  field length and RFB security negotiation rather than typing again.
+- **Loop check:** looping was detected and stopped. Repeating the old helper
+  produced transport-success messages without a changed RFB result; the
+  materially different path is a tested single-batch press/release transport
+  plus an independent RFB postcondition.

@@ -1,11 +1,9 @@
 {
-  "updatedAt": "2026-07-24T21:27:00-07:00",
-  "currentTask": "M11 native permission owner proven; Screen Sharing disconnect policy identified",
-  "message": "A brand-new macOS 27 candidate from commit df51458b passed console login, clean-keychain, reboot, and pinned-tool setup. The native Peekaboo Lab Host launched through LaunchServices as the intended long-lived manual bridge. Host logs show Screen Sharing explicitly re-locked clawd when its connection timed out; disabling RestoreMachineState needs one host administrator authentication after the current session is unlocked.",
+  "updatedAt": "2026-07-24T23:03:00-07:00",
+  "currentTask": "M11 Remote Management enabled; credential delivery corrected",
+  "message": "The fresh macOS 27 candidate now has Remote Management enabled through the supported UI. RFB reaches the service but rejects the UI password. The saved lease credential is correct; the old helper repeated ambiguous per-key processes and overclaimed success. A tested replacement sends one paced press/release batch and reports the credential postcondition as unverified until RFB proves it.",
   "complete": false,
-  "workingBlocks": [
-    "M11"
-  ],
+  "workingBlocks": [],
   "activeWork": {
     "P02": {
       "progress": 98,
@@ -392,12 +390,12 @@
       "unlocks": []
     },
     "M11": {
-      "progress": 94,
+      "progress": 95,
       "health": "blocked",
       "trend": "forward",
-      "phase": "Native TCC owner proven; Screen Sharing disconnect re-lock isolated",
-      "detail": "Commit df51458b replaced the ignored shell-script app with a signed native arm64 launcher. A fresh macOS 27 clone installed it, and LaunchServices started the expected Peekaboo manual bridge with the stable daemon socket and narrow com.keypath.lab.peekaboo-host identity. Host logs prove caffeinate remained effective; ScreensharingAgent intentionally restored the locked state after a connection timeout.",
-      "attempt": 5,
+      "phase": "Remote Management on; corrected credential delivery awaits live proof",
+      "detail": "The supported UI now has Remote Management and VNC password authentication enabled. The encrypted lease credential matches the guest credential file, but RFB rejects the UI password. Three old helper attempts produced no changed postcondition, so that loop was stopped. The replacement emits one explicit, paced press/release batch and passed the complete lab-controller test suite without exposing the credential.",
+      "attempt": 6,
       "completedSteps": 8,
       "totalSteps": 9,
       "nextTasks": [
@@ -417,9 +415,9 @@
           "progress": 100
         },
         {
-          "label": "Approve host app and enable guest Remote Management",
+          "label": "Enable Remote Management and prove the VNC credential",
           "status": "blocked",
-          "progress": 40
+          "progress": 80
         },
         {
           "label": "Checkpoint and validate a brand-new automation-base clone",
@@ -427,7 +425,7 @@
           "progress": 10
         }
       ],
-      "blocker": "The mini's clawd console is at the host login screen. After unlock, one administrator-authenticated RestoreMachineState=false change is needed so Screen Sharing disconnects stop re-locking it; then the guest privacy approvals can resume.",
+      "blocker": "Remote Management is on, but the UI VNC password has not passed an RFB authentication postcondition. The corrected secure helper is tested; credential entry must be handed to the user, followed by one independent RFB probe.",
       "coreCapability": true,
       "unlocks": [
         "macOS 27 agent-driven System Settings automation",
@@ -543,6 +541,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "23:03",
+      "block": "M11",
+      "tone": "waiting",
+      "title": "Remote Management on; credential loop stopped",
+      "message": "RFB reaches the macOS 27 guest but rejects the UI password. Three identical helper attempts changed no postcondition, so that path was stopped. A tested replacement now sends one explicit paced press/release batch and reports delivery without claiming authentication."
+    },
     {
       "time": "21:27",
       "block": "M11",
