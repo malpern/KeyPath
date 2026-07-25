@@ -31,5 +31,4 @@ final class ChordPressWindowCopyTests: XCTestCase {
         XCTAssertTrue(value.contains("faster fallback"))
         XCTAssertTrue(value.contains("easier chord"))
     }
-
 }
