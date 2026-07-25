@@ -340,10 +340,17 @@ final class PerRuleOptionCoverageTests: XCTestCase {
             configuration: .sequences(SequencesConfig(globalTimeout: 750))
         )
         sequencesCollection.isEnabled = false
+        let preserved = KanataDefseqParser.parseSequences(
+            from: "(defseq window-leader (space w))"
+        )
 
-        let config = KanataConfiguration.generateFromCollections([sequencesCollection])
+        let config = KanataConfiguration.generateFromCollections(
+            [sequencesCollection],
+            sequences: preserved
+        )
 
         XCTAssertFalse(config.contains("sequence-timeout"))
+        assertContains(config, "window-leader (space w)", "preserved manual sequence")
     }
 
     func testEnabledSequenceCollectionWithoutSequencesOmitsPauseLimit() {
