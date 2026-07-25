@@ -249,16 +249,4 @@ final class SequencesConfigTests: XCTestCase {
         XCTAssertEqual(decoded.keys, original.keys, "Should preserve keys")
         XCTAssertEqual(decoded.description, original.description, "Should preserve description")
     }
-
-    // MARK: - Timeout Presets Tests
-
-    func testTimeoutPresets() {
-        XCTAssertEqual(SequenceTimeout.fast.rawValue, 300, "Fast should be 300ms")
-        XCTAssertEqual(SequenceTimeout.moderate.rawValue, 500, "Moderate should be 500ms")
-        XCTAssertEqual(SequenceTimeout.relaxed.rawValue, 1000, "Relaxed should be 1000ms")
-
-        XCTAssertEqual(SequenceTimeout.fast.displayName, "Fast (300ms)")
-        XCTAssertEqual(SequenceTimeout.moderate.displayName, "Moderate (500ms)")
-        XCTAssertEqual(SequenceTimeout.relaxed.displayName, "Relaxed (1000ms)")
-    }
 }

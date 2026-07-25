@@ -210,30 +210,3 @@ public struct SequenceConflict: Identifiable {
         }
     }
 }
-
-// MARK: - SequenceTimeout
-
-/// Timeout presets for sequence completion
-public enum SequenceTimeout: Int, CaseIterable, Codable, Sendable {
-    case fast = 300 // Experienced users
-    case moderate = 500 // Default
-    case relaxed = 1000 // Learning mode
-
-    /// Display name (e.g., "Fast (300ms)")
-    public var displayName: String {
-        switch self {
-        case .fast: "Fast (300ms)"
-        case .moderate: "Moderate (500ms)"
-        case .relaxed: "Relaxed (1000ms)"
-        }
-    }
-
-    /// Description of timeout behavior
-    public var description: String {
-        switch self {
-        case .fast: "For experienced users - requires quick key presses"
-        case .moderate: "Balanced timeout - works for most users"
-        case .relaxed: "Longer timeout - ideal for learning sequences"
-        }
-    }
-}
