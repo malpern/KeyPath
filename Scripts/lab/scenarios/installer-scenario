@@ -234,9 +234,88 @@ case "$name" in
       --evidence reinstalled-app-identity.txt --evidence run-state.json \
       --evidence post-reinstall-status.json --evidence post-reinstall-ready.tsv
     ;;
-  cancellation-failure)
-    print "Use a disposable lease to cancel one approval flow and inject one non-destructive failure."
-    print "Record the visible recovery action, CLI result, and KeyPath logs; do not corrupt the base image."
+  cancellation-recovery-before)
+    require_installed_cli
+    if ! assert_ready | tee "$artifact_dir/ready.tsv"; then
+      record_scenario_result blocked \
+        "Cancellation recovery requires an independently ready runtime baseline." \
+        --classification environment-precondition-failure --step pre-cancellation-ready
+      exit 4
+    fi
+    "$installed_cli" service status --json > "$artifact_dir/service-status.json"
+    "$installed_cli" system inspect --json > "$artifact_dir/system-inspect.json"
+    /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
+    capture_app_identity "$artifact_dir/app-identity.txt"
+    /usr/bin/pgrep -x KeyPath > "$artifact_dir/keypath-pid.txt"
+    config_sentinel="$HOME/.config/keypath/.keypath-lab-preserve"
+    if [[ ! -f "$config_sentinel" ]]; then
+      mkdir -p "${config_sentinel:h}"
+      print -n 'keypath-lab-preserve-v1' > "$config_sentinel"
+    fi
+    /usr/bin/shasum -a 256 "$config_sentinel" > "$artifact_dir/config-sentinel.sha256"
+    record_scenario_result passed \
+      "Ready runtime, running GUI, app identity, and preserved configuration captured before the operator cancellation checkpoint." \
+      --evidence ready.tsv --evidence service-status.json \
+      --evidence system-inspect.json --evidence app-identity.txt \
+      --evidence keypath-pid.txt --evidence config-sentinel.sha256
+    print "Open KeyPath's real uninstall confirmation, capture it, click Cancel through the lease-owned desktop, then run cancellation-recovery-after."
+    ;;
+  cancellation-recovery-after)
+    before_dir="$PWD/.keypath-lab/scenario-output/cancellation-recovery-before"
+    before_result="$before_dir/result.json"
+    if [[ ! -s "$before_result" ]] || \
+       ! /usr/bin/python3 -c 'import json,sys; raise SystemExit(0 if json.load(open(sys.argv[1])).get("status") == "passed" else 1)' "$before_result"; then
+      record_scenario_result blocked \
+        "The same lease must pass cancellation-recovery-before before post-cancellation verification." \
+        --classification environment-precondition-failure --step cancellation-checkpoint
+      exit 4
+    fi
+    require_installed_cli
+    /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
+    capture_app_identity "$artifact_dir/app-identity.txt"
+    if ! /usr/bin/cmp -s "$before_dir/app-identity.txt" "$artifact_dir/app-identity.txt"; then
+      record_scenario_result failed \
+        "KeyPath app identity changed across the cancellation checkpoint." \
+        --classification keypath-product-failure --step cancellation-preserved-app \
+        --evidence app-identity.txt
+      exit 1
+    fi
+    /usr/bin/pgrep -x KeyPath > "$artifact_dir/keypath-pid.txt"
+    config_sentinel="$HOME/.config/keypath/.keypath-lab-preserve"
+    expected_config_sha=$(/usr/bin/awk '{print $1}' "$before_dir/config-sentinel.sha256")
+    actual_config_sha=$(/usr/bin/shasum -a 256 "$config_sentinel" | /usr/bin/awk '{print $1}')
+    if [[ "$actual_config_sha" != "$expected_config_sha" ]]; then
+      record_scenario_result failed \
+        "Preserved configuration changed across the cancellation checkpoint." \
+        --classification keypath-product-failure --step cancellation-preserved-configuration
+      exit 1
+    fi
+    assert_ready | tee "$artifact_dir/post-cancel-ready.tsv"
+    "$installed_cli" service status --json > "$artifact_dir/post-cancel-status.json"
+    Scripts/lab/damage-kanata-service | tee "$artifact_dir/damage.tsv"
+    "$installed_cli" service status --json > "$artifact_dir/damaged-status.json" || true
+    Scripts/lab/assert-runtime-state degraded | tee "$artifact_dir/damaged-state.tsv"
+    state="$artifact_dir/run-state.json"
+    runner_result="$artifact_dir/runner-result.json"
+    plan="$PWD/Scripts/lab/scenarios/plans/repair-kanata-service.json"
+    Scripts/lab/scenario-runner --plan "$plan" --state "$state" --result "$runner_result"
+    "$installed_cli" service status --json > "$artifact_dir/post-repair-status.json"
+    assert_ready | tee "$artifact_dir/post-repair-ready.tsv"
+    Scripts/lab/probe-kanata-tcp 2> "$artifact_dir/tcp-readiness.stderr" | tee "$artifact_dir/tcp-readiness.json"
+    final_config_sha=$(/usr/bin/shasum -a 256 "$config_sentinel" | /usr/bin/awk '{print $1}')
+    if [[ "$final_config_sha" != "$expected_config_sha" ]]; then
+      record_scenario_result failed \
+        "Preserved configuration changed during recovery." \
+        --classification keypath-product-failure --step recovery-preserved-configuration
+      exit 1
+    fi
+    record_scenario_result passed \
+      "The real uninstall confirmation was cancelled without changing the app or configuration, then a non-destructive Kanata failure recovered once to an independently ready runtime." \
+      --evidence app-identity.txt --evidence keypath-pid.txt \
+      --evidence post-cancel-ready.tsv --evidence post-cancel-status.json \
+      --evidence damage.tsv --evidence damaged-state.tsv \
+      --evidence run-state.json --evidence post-repair-status.json \
+      --evidence post-repair-ready.tsv --evidence tcp-readiness.json
     ;;
   failure-ownership-self-test)
     "$result_tool" selector-self-test --output "$artifact_dir/result.json" --scenario "$name"
@@ -256,7 +335,7 @@ case "$name" in
     ;;
   *)
     print -u2 "Unknown scenario: $name"
-    print -u2 "Available: clean-install approvals helper-daemon-health managed-capabilities launch repair-reinstall repair-kanata-service upgrade-beta3-to-current reboot-persistence-before reboot-persistence-after uninstall reinstall cancellation-failure failure-ownership-self-test artifact-capture macos-27-regression"
+    print -u2 "Available: clean-install approvals helper-daemon-health managed-capabilities launch repair-reinstall repair-kanata-service upgrade-beta3-to-current reboot-persistence-before reboot-persistence-after uninstall reinstall cancellation-recovery-before cancellation-recovery-after failure-ownership-self-test artifact-capture macos-27-regression"
     exit 2
     ;;
 esac

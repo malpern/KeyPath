@@ -254,6 +254,11 @@ grep -Fq 'Reboot persistence requires an independently ready runtime baseline.' 
 grep -Fq 'The boot marker did not change; no guest reboot was proven.' "$LAB_DIR/scenarios/installer-scenario"
 grep -Fq 'KeyPath app identity changed across the guest reboot.' "$LAB_DIR/scenarios/installer-scenario"
 grep -Fq 'The independently ready KeyPath runtime did not recover after reboot.' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'Cancellation recovery requires an independently ready runtime baseline.' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'The same lease must pass cancellation-recovery-before before post-cancellation verification.' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'Scripts/lab/damage-kanata-service' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'cancellation-recovery-before)' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'cancellation-recovery-after)' "$LAB_DIR/scenarios/installer-scenario"
 grep -q 'macos-27-regression)' "$LAB_DIR/scenarios/installer-scenario"
 
 run_remote() {

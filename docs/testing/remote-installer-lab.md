@@ -505,7 +505,9 @@ Scripts/lab/keypath-lab scenario cbx_example reboot-persistence-before
 # Reboot the disposable guest through the approved lab workflow.
 Scripts/lab/keypath-lab scenario cbx_example reboot-persistence-after
 Scripts/lab/keypath-lab scenario cbx_example uninstall
-Scripts/lab/keypath-lab scenario cbx_example cancellation-failure
+Scripts/lab/keypath-lab scenario cbx_example cancellation-recovery-before
+# Open and capture KeyPath's real uninstall confirmation, then click Cancel.
+Scripts/lab/keypath-lab scenario cbx_example cancellation-recovery-after
 Scripts/lab/keypath-lab scenario cbx_example artifact-capture
 Scripts/lab/keypath-lab scenario cbx_example macos-27-regression
 Scripts/lab/keypath-lab artifacts cbx_example
@@ -513,9 +515,13 @@ Scripts/lab/keypath-lab artifacts cbx_example
 
 The scenario set covers clean installation, every macOS approval gate,
 helper/daemon and TCP health, launch, repair/reinstall, reboot persistence,
-uninstall, cancellation/failure rendering, and final artifact capture. Approval
-and cancellation cases intentionally give an operator a controlled observation
-point rather than attempting to bypass macOS security UI. Never place Apple IDs,
+uninstall, cancellation/recovery, and final artifact capture. The cancellation
+pair captures a ready baseline, gives the operator a controlled observation point
+for the real uninstall confirmation, verifies that Cancel preserved the app and
+configuration, injects a non-destructive Kanata-service failure, and performs one
+checkpointed repair. Approval and cancellation cases intentionally retain that
+operator observation point rather than attempting to bypass macOS security UI.
+Never place Apple IDs,
 passwords, private keys, TCC databases, or other credentials in a scenario or
 artifact bundle. CrabBox does not redact collected files automatically; inspect
 every bundle before sharing or publishing it.
