@@ -5,8 +5,11 @@ import KeyPathRulesCore
 /// Keep first-use UI copy based on these definitions so Leader and Hyper do not
 /// acquire different meanings in the catalog, editors, and onboarding.
 enum KeyboardConceptCopy {
+    static let leaderMeaning =
+        "Your Leader key is the starting key for KeyPath layers and sequences."
+
     static let leaderDefinition =
-        "Your Leader key is the starting key for KeyPath layers and sequences. It is Space by default."
+        "\(leaderMeaning) It is Space by default."
 
     static let hyperDefinition =
         "Hyper combines Control, Option, Command, and Shift into one modifier. Apps rarely use all four together, so Hyper creates clean shortcuts that are unlikely to conflict. Caps Lock Remap provides Hyper by default when you hold Caps Lock."
@@ -37,7 +40,7 @@ enum KeyboardConceptCopy {
                 "\(hyperDefinition) Tap your Hyper key to turn the launcher on or off, then press a shortcut key."
             }
         case .leaderSequence:
-            "\(leaderDefinition) Press \(leaderKeyDisplay), then L, then a shortcut key."
+            "\(leaderMeaning) Press \(leaderKeyDisplay), then L, then a shortcut key."
         }
     }
 }
