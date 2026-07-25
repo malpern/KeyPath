@@ -16,12 +16,13 @@ Your arrow keys move through text at the same sluggish speed as every other key.
 
 ## What You Get
 
-Enable **Fast Navigation** and you get per-key repeat speed control:
+Enable **Fast Navigation** and you get per-key repeat speed control. KeyPath
+describes speed in repeats per second, so higher values always feel faster:
 
-- **Arrow keys** (←→↑↓) — start repeating in 150ms, repeat every 20ms (~50 keys/sec)
-- **Delete** (⌫) — starts in 210ms, repeats every 20ms
-- **Forward Delete** — starts in 210ms, repeats every 20ms
-- **Regular keys** (letters, numbers) — unchanged at system defaults (500ms delay, 30ms interval)
+- **Arrow keys** (←→↑↓) — start repeating in 150 ms, then repeat 50 times per second (20 ms interval)
+- **Delete** (⌫) — starts in 210 ms, then repeats 50 times per second
+- **Forward Delete** — starts in 210 ms, then repeats 50 times per second
+- **Regular keys** (letters, numbers) — start after 500 ms, then repeat about 33 times per second (30 ms interval)
 
 The result: hold an arrow key and it flies. Hold a letter and it stays steady.
 
@@ -42,11 +43,11 @@ Fast Navigation is **enabled by default** for new installations. To check or tog
 
 Three named presets to get started quickly:
 
-| Preset | Arrow delay | Arrow interval | Feel |
-|--------|-------------|----------------|------|
-| **Balanced** (default) | 150ms | 20ms (50/sec) | Fast arrows, steady text |
-| **Fast Navigation** | 120ms | 15ms (67/sec) | Maximum speed for power users |
-| **Careful** | 250ms | 35ms (29/sec) | Slower, fewer accidental repeats |
+| Preset | Repeat start delay | Repeat speed | Feel |
+|--------|--------------------|--------------|------|
+| **Balanced** (default) | 150 ms | 50 repeats/sec (20 ms interval) | Fast arrows, steady text |
+| **Fast Navigation** | 120 ms | 67 repeats/sec (15 ms interval) | Maximum speed for power users |
+| **Careful** | 300 ms | 40 repeats/sec (25 ms interval) | Slower, fewer accidental repeats |
 
 Select a preset card in the pack detail view. You can further customize in Settings.
 
@@ -57,14 +58,20 @@ Select a preset card in the pack detail view. You can further customize in Setti
 Click **Settings…** in the pack detail view to fine-tune:
 
 ### Global defaults
-- **Delay** — how long to hold before repeating starts (default: 500ms)
-- **Interval** — time between repeats once started (default: 30ms)
+- **Repeat start delay** — how long you hold a key before repeating starts. Moving right starts later.
+- **Repeat speed** — how quickly the key repeats after it starts. Moving right is always faster.
+- **Interval** — the equivalent milliseconds between repeats, shown as a secondary technical detail.
 
 ### Per-key overrides
-- **Arrow keys** — toggle fast arrows on/off, adjust delay and interval independently
+- **Arrow keys** — toggle fast arrows on/off, then adjust start delay and repeat speed independently
 - **Delete** — toggle fast delete, adjust separately
 - **Forward Delete** — toggle and adjust
 - **Custom keys** — add any key to the override list with its own speed settings
+
+For example, **50 repeats/sec** and a **20 ms interval** describe the same
+setting. KeyPath stores the interval because that is what the keyboard engine
+uses, while the main control shows repeats per second because it matches the
+way speed feels.
 
 ---
 
@@ -88,7 +95,7 @@ This is not a hack — it's using the keyboard firmware's built-in repeat contro
 ## Tips
 
 - **Pair with Vim Navigation** — fast arrow keys make the H/J/K/L navigation layer even snappier for long-distance moves
-- **Adjust delete carefully** — too fast and you'll overshoot. The 210ms delay gives you time to lift your finger.
+- **Adjust delete carefully** — too fast and you'll overshoot. The 210 ms start delay gives you time to lift your finger.
 - **The test area is your friend** — adjust values, then immediately feel the result in the test text field
 - Works standalone — no dependency on any other pack
 
@@ -104,9 +111,9 @@ This is not a hack — it's using the keyboard firmware's built-in repeat contro
 
 ### I'm getting accidental repeated characters when typing
 
-The global default delay (500ms) should prevent this. If you've lowered it:
+The global repeat start delay (500 ms) should prevent this. If you've lowered it:
 1. Go to Settings in the pack detail
-2. Increase the global delay back toward 500ms
+2. Increase the global repeat start delay back toward 500 ms
 3. Only lower the per-key overrides for arrow/delete keys
 
 ### I want different speeds for up/down vs. left/right
