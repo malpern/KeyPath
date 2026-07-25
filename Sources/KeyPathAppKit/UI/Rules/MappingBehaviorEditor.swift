@@ -245,8 +245,6 @@ struct MappingBehaviorEditor: View {
             GroupBox(TimingCopy.multiTapWindow) {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text(TimingCopy.multiTapWindow)
-                            .foregroundColor(.secondary)
                         Spacer()
                         Stepper(
                             "\(tapDanceWindow) ms",

@@ -12,6 +12,9 @@ final class TimingCopyTests: XCTestCase {
 
     func testOnlySingleClockVariantsHideHoldActivationDelay() {
         XCTAssertTrue(TimingCopy.DualRoleVariant.basic.usesHoldActivationDelay)
+        XCTAssertTrue(TimingCopy.DualRoleVariant.holdOnOtherKeyPress.usesHoldActivationDelay)
+        XCTAssertTrue(TimingCopy.DualRoleVariant.holdOnOtherKeyRelease.usesHoldActivationDelay)
+        XCTAssertTrue(TimingCopy.DualRoleVariant.customTapKeys.usesHoldActivationDelay)
         XCTAssertFalse(TimingCopy.DualRoleVariant.releaseOrder.usesHoldActivationDelay)
         XCTAssertFalse(TimingCopy.DualRoleVariant.oppositeHandPress.usesHoldActivationDelay)
         XCTAssertFalse(TimingCopy.DualRoleVariant.oppositeHandRelease.usesHoldActivationDelay)
