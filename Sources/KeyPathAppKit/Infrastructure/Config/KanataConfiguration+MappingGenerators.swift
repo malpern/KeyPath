@@ -173,7 +173,9 @@ extension KanataConfiguration {
                 activateHoldOnOtherKey: false,
                 quickTap: false,
                 customTapKeys: [],
-                requirePriorIdleOverrideMs: config.protectFastTyping ? config.fastTypingProtectionWindowMs : nil
+                // A zero override is deliberate when protection is off: it keeps
+                // Auto Shift independent from any nonzero global home-row setting.
+                requirePriorIdleOverrideMs: config.protectFastTyping ? config.fastTypingProtectionWindowMs : 0
             )
 
             let mapping = KeyMapping(

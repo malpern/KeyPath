@@ -127,7 +127,7 @@ struct AutoShiftMappingGenerationTests {
     }
 
     @Test("Fast-typing protection can be disabled without changing hold delay")
-    func disablesProtectionOverride() {
+    func disablesProtectionWithZeroOverride() {
         let config = AutoShiftSymbolsConfig(
             timeoutMs: 200,
             protectFastTyping: false,
@@ -142,7 +142,7 @@ struct AutoShiftMappingGenerationTests {
             return
         }
         #expect(behavior.tapTimeout == 200)
-        #expect(behavior.requirePriorIdleOverrideMs == nil)
+        #expect(behavior.requirePriorIdleOverrideMs == 0)
     }
 
     @Test("Empty enabled keys produces no mappings")

@@ -231,6 +231,20 @@ final class PerRuleOptionCoverageTests: XCTestCase {
         assertContains(autoShiftWithLayers, "tap-hold-require-prior-idle 230", "home row layer toggles global protection")
         assertContains(autoShiftWithLayers, "beh_base_min (tap-hold 175 175 min S-min (require-prior-idle 120))", "auto-shift override with home row layer toggles")
 
+        autoShift.protectFastTyping = false
+        let unprotectedAutoShiftCollection = collection(
+            id: RuleCollectionIdentifier.autoShiftSymbols,
+            name: "Auto Shift Symbols",
+            configuration: .autoShiftSymbols(autoShift)
+        )
+        let unprotectedAutoShiftWithMods = KanataConfiguration.generateFromCollections([homeRowModsCollection, unprotectedAutoShiftCollection])
+        assertContains(unprotectedAutoShiftWithMods, "tap-hold-require-prior-idle 210", "home row mods global protection remains enabled")
+        assertContains(unprotectedAutoShiftWithMods, "beh_base_min (tap-hold 175 175 min S-min (require-prior-idle 0))", "unprotected auto-shift bypasses home row mods protection")
+
+        let unprotectedAutoShiftWithLayers = KanataConfiguration.generateFromCollections([homeRowLayersCollection, unprotectedAutoShiftCollection])
+        assertContains(unprotectedAutoShiftWithLayers, "tap-hold-require-prior-idle 230", "home row layer toggles global protection remains enabled")
+        assertContains(unprotectedAutoShiftWithLayers, "beh_base_min (tap-hold 175 175 min S-min (require-prior-idle 0))", "unprotected auto-shift bypasses home row layer toggles protection")
+
         var repeatConfig = KeyRepeatControlConfig()
         repeatConfig.isEnabled = true
         repeatConfig.globalDelayMs = 175
