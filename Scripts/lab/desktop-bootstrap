@@ -1,9 +1,11 @@
 #!/bin/zsh
 set -euo pipefail
 
+SCRIPT_DIR=${0:A:h}
 PEEKABOO_VERSION="3.9.8"
 PEEKABOO_URL="https://github.com/openclaw/Peekaboo/releases/download/v${PEEKABOO_VERSION}/peekaboo-macos-universal.tar.gz"
 PEEKABOO_SHA256="0336348cb690ccd10834dfb571daf79381dbc06f9a1fc58b8642cbeb388993ed"
+PEEKABOO_HOST_SHA256="d1f772b1a6384cbf2f178ff4c924c8007c65a635ca5df7a67864f2aef11ff351"
 MCPORTER_VERSION="0.12.3"
 MCPORTER_URL="https://github.com/openclaw/mcporter/releases/download/v${MCPORTER_VERSION}/mcporter-macos-arm64-v${MCPORTER_VERSION}.tar.gz"
 MCPORTER_SHA256="bb896bde3b7e2eef0a700bcd2598678f4f4184306e63b2e12465d780a1184b78"
@@ -28,7 +30,8 @@ download_verified() {
 
 install_desktop_tools() {
   local temp local_bin local_lib peekaboo_home host_app host_contents host_executable
-  local launch_agents host_launch_agent python_candidate python_ready=0
+  local host_launcher_source host_launcher_sha launch_agents host_launch_agent
+  local python_candidate python_ready=0
   temp=$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/keypath-desktop-tools.XXXXXX")
   trap "/bin/rm -rf '$temp'" EXIT
   local_bin="$HOME/.local/bin"
@@ -52,6 +55,11 @@ install_desktop_tools() {
   host_app="$HOME/Applications/Peekaboo Lab Host.app"
   host_contents="$host_app/Contents"
   host_executable="$host_contents/MacOS/PeekabooLabHost"
+  host_launcher_source="$SCRIPT_DIR/assets/peekaboo-lab-host-arm64"
+  [[ -x "$host_launcher_source" ]] || die "Peekaboo Lab Host launcher is unavailable"
+  host_launcher_sha=$(/usr/bin/shasum -a 256 "$host_launcher_source" | /usr/bin/awk '{print $1}')
+  [[ "$host_launcher_sha" == "$PEEKABOO_HOST_SHA256" ]] ||
+    die "Peekaboo Lab Host launcher checksum mismatch"
   /bin/mkdir -p "$host_contents/MacOS" "$HOME/Applications"
   /bin/cat > "$host_contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -77,18 +85,7 @@ install_desktop_tools() {
 </dict>
 </plist>
 PLIST
-  /bin/cat > "$host_executable" <<'HOST'
-#!/bin/zsh
-set -euo pipefail
-socket="$HOME/Library/Application Support/Peekaboo/daemon.sock"
-/bin/mkdir -p "${socket:h}"
-/bin/rm -f "$socket"
-exec "$HOME/.local/bin/peekaboo" daemon run \
-  --mode manual \
-  --bridge-socket "$socket" \
-  --idle-timeout-seconds 31536000 \
-  --input-strategy actionFirst
-HOST
+  /bin/cp "$host_launcher_source" "$host_executable"
   /bin/chmod 0755 "$host_executable"
   /usr/bin/plutil -lint "$host_contents/Info.plist" >/dev/null
   /usr/bin/codesign --force --sign - --identifier com.keypath.lab.peekaboo-host "$host_app"
