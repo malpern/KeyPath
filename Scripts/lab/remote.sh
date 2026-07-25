@@ -1767,29 +1767,68 @@ reset_desktop_keychain() {
 }
 
 reboot_guest() {
-  local lease=$1 manifest resource parallels_cli state attempt ready=0
+  local lease=$1 manifest provider macos repo launcher resource parallels_cli state attempt ready=0 request_exit=0 poll_exit=0
   manifest=$(owned_manifest "$lease")
-  [[ "$(field "$manifest" provider)" == "parallels" ]] || die "guest reboot currently requires a Parallels lease"
-  resource=$(field "$manifest" provider_resource)
-  [[ "$resource" =~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$' ]] || die "invalid Parallels resource id"
-  parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
-  [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
-  "$parallels_cli" restart "$resource" >/dev/null
-  sleep 3
-  for attempt in {1..600}; do
-    state=$("$parallels_cli" list -i -f -j "$resource" 2>/dev/null |
-      python3 -c 'import json,sys; rows=json.load(sys.stdin); print(rows[0].get("State","") if rows else "",end="")' 2>/dev/null || true)
-    if [[ "$state" == "running" ]] &&
-      "$parallels_cli" exec "$resource" /usr/bin/true >/dev/null 2>&1; then
-      ready=1
-      break
-    fi
-    sleep 0.1
-  done
-  (( ready == 1 )) || die "Parallels guest control did not recover after reboot"
+  provider=$(field "$manifest" provider)
+  case "$provider" in
+    parallels)
+      resource=$(field "$manifest" provider_resource)
+      [[ "$resource" =~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$' ]] || die "invalid Parallels resource id"
+      parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+      [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+      "$parallels_cli" restart "$resource" >/dev/null
+      sleep 3
+      for attempt in {1..600}; do
+        state=$("$parallels_cli" list -i -f -j "$resource" 2>/dev/null |
+          python3 -c 'import json,sys; rows=json.load(sys.stdin); print(rows[0].get("State","") if rows else "",end="")' 2>/dev/null || true)
+        if [[ "$state" == "running" ]] &&
+          "$parallels_cli" exec "$resource" /usr/bin/true >/dev/null 2>&1; then
+          ready=1
+          break
+        fi
+        sleep 0.1
+      done
+      (( ready == 1 )) || die "Parallels guest control did not recover after reboot"
+      ;;
+    tart)
+      macos=$(field "$manifest" macos)
+      [[ "$macos" == "15" ]] || die "unexpected Tart macOS lane: $macos"
+      repo=$(field "$manifest" worktree)
+      prepare_worktree "$repo"
+      launcher=$(launcher_for "$macos")
+      set +e
+      (cd "$repo" && "$launcher" run "$lease" -- /bin/zsh -lc 'sudo -n /sbin/shutdown -r now') \
+        > "$LOGS/$lease/reboot-request.log" 2>&1
+      request_exit=$?
+      set -e
+      if (( request_exit != 0 )) && /usr/bin/grep -Eqi 'sudo:|not permitted|permission denied' "$LOGS/$lease/reboot-request.log"; then
+        cat "$LOGS/$lease/reboot-request.log"
+        die "Tart guest rejected the reboot request"
+      fi
+      sleep "${KEYPATH_LAB_TART_REBOOT_SETTLE_SECONDS:-3}"
+      for attempt in {1..120}; do
+        set +e
+        (cd "$repo" && "$launcher" run "$lease" -- /usr/bin/true) \
+          > "$LOGS/$lease/reboot-readiness.log" 2>&1
+        poll_exit=$?
+        set -e
+        if (( poll_exit == 0 )); then
+          ready=1
+          break
+        fi
+        sleep "${KEYPATH_LAB_TART_REBOOT_POLL_SECONDS:-1}"
+      done
+      if (( ready != 1 )); then
+        cat "$LOGS/$lease/reboot-readiness.log"
+        die "Tart guest SSH did not recover after reboot"
+      fi
+      ;;
+    *) die "unsupported reboot provider: $provider" ;;
+  esac
   set_field "$manifest" guest_reboot_at "$(utc_now)"
   record_command "$lease" passed reboot-guest
   print "guest_reboot\tpassed"
+  print "provider\t$provider"
 }
 
 rfb_pointer_probe() {

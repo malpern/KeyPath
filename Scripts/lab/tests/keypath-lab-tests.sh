@@ -241,7 +241,7 @@ grep -Fq 'NSAccessibilityUsageDescription' "$LAB_DIR/desktop-bootstrap"
 grep -Fq 'reset-desktop-keychain)' "$LAB_DIR/keypath-lab"
 grep -Fq 'reboot-guest)' "$LAB_DIR/keypath-lab"
 grep -Fq 'desktop keychain reset requires a verified console login' "$REMOTE"
-grep -Fq 'guest reboot currently requires a Parallels lease' "$REMOTE"
+grep -Fq 'Tart guest SSH did not recover after reboot' "$REMOTE"
 /bin/zsh -n "$LAB_DIR/mdm/enroll-clone-ui"
 /bin/zsh -n "$LAB_DIR/nameplate-instrumentation"
 /bin/zsh -n "$LAB_DIR/scenarios/kanata-vhid-two-clients"
@@ -416,6 +416,11 @@ run_remote install-app cbx_test15 >/dev/null
 grep -q 'install-app 15 cbx_test15' "$ROOT/KeyPathInstallerLab/logs/cbx_test15/install-app.log"
 run_remote install-fixture cbx_test15 >/dev/null
 grep -q 'install-fixture 15 cbx_test15' "$ROOT/KeyPathInstallerLab/logs/cbx_test15/install-fixture.log"
+tart_reboot=$(KEYPATH_LAB_TART_REBOOT_SETTLE_SECONDS=0 KEYPATH_LAB_TART_REBOOT_POLL_SECONDS=0 run_remote reboot-guest cbx_test15)
+assert_contains "$tart_reboot" $'guest_reboot\tpassed'
+assert_contains "$tart_reboot" $'provider\ttart'
+grep -q 'launcher15 run cbx_test15 -- /bin/zsh -lc sudo -n /sbin/shutdown -r now' "$CALLS"
+grep -q $'guest_reboot_at\t' "$manifest"
 
 artifacts=$(run_remote artifacts cbx_test15)
 assert_contains "$artifacts" $'download_status\t0'
