@@ -218,7 +218,7 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
             configuration: .launcherGrid(config)
         )
 
-        let activator = KanataConfiguration.effectiveMomentaryActivator(for: launcherCollection)
+        let activator = launcherCollection.momentaryActivator
         XCTAssertEqual(activator?.input, "l")
         XCTAssertEqual(activator?.sourceLayer, .navigation)
         XCTAssertEqual(activator?.targetLayer, .custom("launcher"))

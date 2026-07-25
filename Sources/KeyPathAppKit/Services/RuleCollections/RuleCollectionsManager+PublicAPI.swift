@@ -583,7 +583,6 @@ extension RuleCollectionsManager {
 
         let wasNewlyEnabled = !candidate.isEnabled
         candidate.configuration.updateLauncherGridConfig(config)
-        candidate.momentaryActivator = config.momentaryActivator(targetLayer: candidate.targetLayer)
         candidate.isEnabled = true
 
         let appliedProviderIDs = await applyProposedCollectionWithPrerequisites(

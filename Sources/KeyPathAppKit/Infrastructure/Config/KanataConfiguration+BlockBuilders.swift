@@ -183,11 +183,7 @@ extension KanataConfiguration {
         }
 
         for collection in collections {
-            guard collection.isEnabled,
-                  let activator = effectiveMomentaryActivator(for: collection)
-            else {
-                continue
-            }
+            guard collection.isEnabled, let activator = collection.momentaryActivator else { continue }
 
             // Skip "hyper" activators - they're integrated into the hyper hold action
             // (handled by KanataBehaviorRenderer via hyperLinkedLayerInfos set above)
@@ -444,23 +440,19 @@ extension KanataConfiguration {
         }
 
         for collection in collections {
-            guard collection.isEnabled,
-                  let activator = effectiveMomentaryActivator(for: collection)
-            else {
-                continue
-            }
+            guard collection.isEnabled, let activator = collection.momentaryActivator else { continue }
             let tapKey = KanataKeyConverter.convertToKanataKey(activator.input)
             activatorKeysBySourceLayer[activator.sourceLayer, default: []].insert(tapKey)
         }
 
         // Detect layers that should be activated when "hyper" is triggered.
-        // These are collections whose effective activator input is "hyper" (like Quick Launcher).
+        // These are collections with momentaryActivator.input == "hyper" (like Quick Launcher).
         // Since "hyper" isn't a physical key, we integrate these layers into the hyper hold action
         // of collections like Caps Lock Remap that output hyper on hold.
         let hyperLinkedLayerInfos: [HyperLinkedLayerInfo] = collections
             .filter(\.isEnabled)
             .compactMap { collection -> HyperLinkedLayerInfo? in
-                guard let activator = effectiveMomentaryActivator(for: collection),
+                guard let activator = collection.momentaryActivator,
                       activator.input.lowercased() == "hyper"
                 else {
                     return nil
@@ -479,7 +471,7 @@ extension KanataConfiguration {
             oneShotLayers.insert(pref.targetLayer)
         }
         for collection in collections where collection.isEnabled {
-            guard let activator = effectiveMomentaryActivator(for: collection) else { continue }
+            guard let activator = collection.momentaryActivator else { continue }
             guard activator.input.lowercased() != "hyper" else { continue }
             if activator.targetLayer == .navigation, navActivationMode == .tapToToggle {
                 oneShotLayers.insert(activator.targetLayer)
@@ -494,13 +486,6 @@ extension KanataConfiguration {
             hyperLinkedLayerInfos: hyperLinkedLayerInfos,
             oneShotLayers: oneShotLayers
         )
-    }
-
-    static func effectiveMomentaryActivator(for collection: RuleCollection) -> MomentaryActivator? {
-        if let launcherConfig = collection.configuration.launcherGridConfig {
-            return launcherConfig.momentaryActivator(targetLayer: collection.targetLayer)
-        }
-        return collection.momentaryActivator
     }
 
     static func effectiveMappings(for collection: RuleCollection) -> [KeyMapping] {

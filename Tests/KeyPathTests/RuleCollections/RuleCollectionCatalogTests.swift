@@ -122,25 +122,61 @@ final class RuleCollectionCatalogTests: XCTestCase {
 
     // MARK: - Launcher Collection
 
-    func testUpgradedLauncherRepairsActivatorFromActivationMode() throws {
+    func testLauncherConfigurationKeepsActivatorInSync() throws {
         let catalog = RuleCollectionCatalog()
         var launcher = try XCTUnwrap(
             catalog.defaultCollections().first { $0.id == RuleCollectionIdentifier.launcher }
+        )
+
+        XCTAssertEqual(launcher.momentaryActivator?.input, "hyper")
+        XCTAssertEqual(launcher.momentaryActivator?.sourceLayer, .base)
+
+        launcher.configuration = .launcherGrid(LauncherGridConfig(
+            activationMode: .leaderSequence,
+            mappings: []
+        ))
+
+        XCTAssertEqual(launcher.momentaryActivator?.input, "l")
+        XCTAssertEqual(launcher.momentaryActivator?.sourceLayer, .navigation)
+        XCTAssertEqual(launcher.momentaryActivator?.targetLayer, .custom("launcher"))
+
+        launcher.configuration = .launcherGrid(LauncherGridConfig(
+            activationMode: .holdHyper,
+            mappings: []
+        ))
+
+        XCTAssertEqual(launcher.momentaryActivator?.input, "hyper")
+        XCTAssertEqual(launcher.momentaryActivator?.sourceLayer, .base)
+        XCTAssertEqual(launcher.momentaryActivator?.targetLayer, .custom("launcher"))
+    }
+
+    func testDecodedLauncherRepairsStalePersistedActivator() throws {
+        var launcher = try XCTUnwrap(
+            RuleCollectionCatalog().defaultCollections().first {
+                $0.id == RuleCollectionIdentifier.launcher
+            }
         )
         launcher.configuration = .launcherGrid(LauncherGridConfig(
             activationMode: .leaderSequence,
             mappings: []
         ))
-        launcher.momentaryActivator = MomentaryActivator(
-            input: "hyper",
-            targetLayer: .custom("launcher")
+
+        let encoded = try JSONEncoder().encode(launcher)
+        var json = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: encoded) as? [String: Any]
         )
+        json["momentaryActivator"] = [
+            "input": "hyper",
+            "sourceLayer": "base",
+            "targetLayer": "launcher",
+        ]
+        let staleData = try JSONSerialization.data(withJSONObject: json)
 
-        let upgraded = catalog.upgradedCollection(from: launcher)
+        let decoded = try JSONDecoder().decode(RuleCollection.self, from: staleData)
 
-        XCTAssertEqual(upgraded.momentaryActivator?.input, "l")
-        XCTAssertEqual(upgraded.momentaryActivator?.sourceLayer, .navigation)
-        XCTAssertEqual(upgraded.momentaryActivator?.targetLayer, .custom("launcher"))
+        XCTAssertEqual(decoded.momentaryActivator?.input, "l")
+        XCTAssertEqual(decoded.momentaryActivator?.sourceLayer, .navigation)
+        XCTAssertEqual(decoded.momentaryActivator?.targetLayer, .custom("launcher"))
     }
 
     func testLauncherCollection_HasCorrectID() {
