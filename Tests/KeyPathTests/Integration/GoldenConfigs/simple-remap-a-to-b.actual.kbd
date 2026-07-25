@@ -80,7 +80,7 @@ PHYSICAL KEYBOARD LAYOUT - DEFSRC
 
   ;; === Collection: Quick Launcher (enabled) ===
   ;; UUID: <UUID>
-  ;; Description: Hold Hyper to quickly launch apps and websites with keyboard shortcuts.
+  ;; Description: Hyper combines Control, Option, Command, and Shift into one shortcut modifier. Caps Lock Remap provides it by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.
   ;; (no mappings)
 
   ;; === Collection: a → b (enabled) ===
@@ -196,7 +196,7 @@ LAYER DEFINITIONS
 
   ;; === Collection: Quick Launcher (enabled) ===
   ;; UUID: <UUID>
-  ;; Description: Hold Hyper to quickly launch apps and websites with keyboard shortcuts.
+  ;; Description: Hyper combines Control, Option, Command, and Shift into one shortcut modifier. Caps Lock Remap provides it by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.
   ;; (no mappings)
 
   ;; === Collection: a → b (enabled) ===
@@ -251,7 +251,7 @@ LAYER DEFINITIONS
 
   ;; === Collection: Quick Launcher (enabled) ===
   ;; UUID: <UUID>
-  ;; Description: Hold Hyper to quickly launch apps and websites with keyboard shortcuts.
+  ;; Description: Hyper combines Control, Option, Command, and Shift into one shortcut modifier. Caps Lock Remap provides it by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.
   ;; (no mappings)
 
   ;; === Collection: a → b (enabled) ===
@@ -306,7 +306,7 @@ LAYER DEFINITIONS
 
   ;; === Collection: Quick Launcher (enabled) ===
   ;; UUID: <UUID>
-  ;; Description: Hold Hyper to quickly launch apps and websites with keyboard shortcuts.
+  ;; Description: Hyper combines Control, Option, Command, and Shift into one shortcut modifier. Caps Lock Remap provides it by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.
   ;; (no mappings)
 
   ;; === Collection: a → b (enabled) ===
@@ -361,7 +361,7 @@ LAYER DEFINITIONS
 
   ;; === Collection: Quick Launcher (enabled) ===
   ;; UUID: <UUID>
-  ;; Description: Hold Hyper to quickly launch apps and websites with keyboard shortcuts.
+  ;; Description: Hyper combines Control, Option, Command, and Shift into one shortcut modifier. Caps Lock Remap provides it by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.
   ;; (no mappings)
 
   ;; === Collection: a → b (enabled) ===

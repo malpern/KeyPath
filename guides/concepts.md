@@ -136,10 +136,10 @@ The challenge is avoiding misfires during fast typing. KeyPath uses opposite-han
 
 Every modifier combination you try is already taken by some app. The solution: create a modifier that *no app uses*.
 
-- **Hyper** = Control + Option + Command + Shift (all four at once)
+- **Hyper** combines Control + Option + Command + Shift into one shortcut modifier.
 - **Meh** = Control + Option + Shift (three modifiers, no Command)
 
-No application on your Mac uses these combinations, so they give you dozens of shortcuts that will never conflict with anything. A common setup: tap Caps Lock for Escape, hold it for Hyper — now every letter key becomes a unique, conflict-free shortcut.
+No application on your Mac uses these combinations, so they give you dozens of shortcuts that will never conflict with anything. **Caps Lock Remap** provides Hyper by default when you hold Caps Lock — now every letter key can become a unique, conflict-free shortcut.
 
 ![Conflict-free shortcuts — Hyper gives you 36+ unique bindings]({{ '/images/help/concepts-hyper-key.png' | relative_url }})
 
@@ -169,6 +169,16 @@ Beyond single keys, you can trigger actions from combinations:
 ![Chords and sequences]({{ '/images/help/concepts-chords-sequences.png' | relative_url }})
 
 These let you create memorable shortcuts without running out of modifier combinations.
+
+### Leader and Hyper are not the same thing
+
+Your **Leader key** is the starting key for KeyPath layers and sequences. It is
+Space by default. **Hyper** is a shortcut modifier made from Control, Option,
+Command, and Shift together; Caps Lock Remap provides it by default.
+
+Use Leader when you want a path such as `Leader → W → L`. Use Hyper when you
+want a modifier shortcut such as `Hyper + S`. Some rules, including Quick
+Launcher, let you choose either style.
 
 ---
 
