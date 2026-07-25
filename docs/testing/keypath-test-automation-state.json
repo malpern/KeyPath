@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-24T23:03:00-07:00",
-  "currentTask": "M11 Remote Management enabled; credential delivery corrected",
-  "message": "The fresh macOS 27 candidate now has Remote Management enabled through the supported UI. RFB reaches the service but rejects the UI password. The saved lease credential is correct; the old helper repeated ambiguous per-key processes and overclaimed success. A tested replacement sends one paced press/release batch and reports the credential postcondition as unverified until RFB proves it.",
+  "updatedAt": "2026-07-25T04:42:00-07:00",
+  "currentTask": "M11 desktop automation proven; fresh-base clone validation next",
+  "message": "The macOS 27 candidate now has authenticated Remote Management input plus verified Screen Recording, Accessibility, and event synthesis for the signed Peekaboo Lab Host. Desktop bootstrap and a live macOS 27 selector capture pass. The remaining M11 step is to route desktop leases to a separate reusable base, checkpoint this candidate, and prove a brand-new clone.",
   "complete": false,
   "workingBlocks": [],
   "activeWork": {
@@ -390,14 +390,14 @@
       "unlocks": []
     },
     "M11": {
-      "progress": 95,
-      "health": "blocked",
+      "progress": 98,
+      "health": "smooth",
       "trend": "forward",
-      "phase": "Remote Management on; corrected credential delivery awaits live proof",
-      "detail": "The supported UI now has Remote Management and VNC password authentication enabled. The encrypted lease credential matches the guest credential file, but RFB rejects the UI password. Three old helper attempts produced no changed postcondition, so that loop was stopped. The replacement emits one explicit, paced press/release batch and passed the complete lab-controller test suite without exposing the credential.",
-      "attempt": 6,
-      "completedSteps": 8,
-      "totalSteps": 9,
+      "phase": "Desktop automation proven; reusable-base validation next",
+      "detail": "The supported UI now has Remote Management and VNC authentication enabled, and an independent RFB probe moved the guest cursor. The signed Peekaboo Lab Host reports Screen Recording, Accessibility, and event synthesis granted. Desktop bootstrap passes and the fail-closed macOS 27 selector driver captured the live Accessibility surface with the expected host row.",
+      "attempt": 7,
+      "completedSteps": 9,
+      "totalSteps": 10,
       "nextTasks": [
         {
           "label": "Publish fail-closed macOS 27 selector driver (PR #1206)",
@@ -416,16 +416,21 @@
         },
         {
           "label": "Enable Remote Management and prove the VNC credential",
-          "status": "blocked",
-          "progress": 80
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Grant and verify Peekaboo desktop permissions",
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Checkpoint and validate a brand-new automation-base clone",
-          "status": "queued",
-          "progress": 10
+          "status": "active",
+          "progress": 35
         }
       ],
-      "blocker": "Remote Management is on, but the UI VNC password has not passed an RFB authentication postcondition. The corrected secure helper is tested; credential entry must be handed to the user, followed by one independent RFB probe.",
+      "blocker": "The controller still routes every macOS 27 lease to the pristine loginwindow source. It needs an explicit desktop-base source before checkpointing and fresh-clone validation can be trusted.",
       "coreCapability": true,
       "unlocks": [
         "macOS 27 agent-driven System Settings automation",
@@ -541,6 +546,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "04:42",
+      "block": "M11",
+      "tone": "active",
+      "title": "macOS 27 desktop automation proven",
+      "message": "Authenticated RFB moved the guest cursor. Screen Recording, Accessibility, and event synthesis are independently granted to Peekaboo Lab Host; desktop bootstrap and a fresh semantic selector capture both pass. Work has moved to explicit desktop-base routing and brand-new clone validation."
+    },
     {
       "time": "23:03",
       "block": "M11",
