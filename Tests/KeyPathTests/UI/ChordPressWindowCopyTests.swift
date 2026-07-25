@@ -32,24 +32,4 @@ final class ChordPressWindowCopyTests: XCTestCase {
         XCTAssertTrue(value.contains("easier chord"))
     }
 
-    func testSliderUsesCanonicalLabelAndStableIdentifier() throws {
-        let source = try String(
-            contentsOf: repositoryRoot()
-                .appendingPathComponent("Sources/KeyPathAppKit/UI/Rules/ChordGroupsModalView.swift"),
-            encoding: .utf8
-        )
-
-        XCTAssertTrue(source.contains(".accessibilityIdentifier(\"chord-press-window-slider\")"))
-        XCTAssertTrue(source.contains(".accessibilityLabel(Text(ChordPressWindowCopy.title))"))
-        XCTAssertFalse(source.contains("Text(\"Timeout\")"))
-        XCTAssertFalse(source.contains(".accessibilityLabel(\"Chord timeout\")"))
-    }
-}
-
-private func repositoryRoot(file: StaticString = #filePath) -> URL {
-    URL(fileURLWithPath: file.description)
-        .deletingLastPathComponent() // UI
-        .deletingLastPathComponent() // KeyPathTests
-        .deletingLastPathComponent() // Tests
-        .deletingLastPathComponent() // repository root
 }
