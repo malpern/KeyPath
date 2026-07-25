@@ -799,6 +799,51 @@ public struct AutoShiftSymbolsConfig: Codable, Equatable, Sendable {
 
 // MARK: - Key Repeat Control Configuration
 
+/// Converts between KeyPath's user-facing repeat speed and Kanata's interval.
+///
+/// Kanata persists milliseconds between repeats, where smaller values are
+/// faster. The UI presents repeats per second, where larger values are faster.
+public struct KeyRepeatSpeedScale: Equatable, Sendable {
+    public let intervalRange: ClosedRange<Int>
+    public let intervalStep: Int
+
+    public init(intervalRange: ClosedRange<Int>, intervalStep: Int) {
+        precondition(intervalStep > 0, "Key repeat interval step must be positive")
+        self.intervalRange = intervalRange
+        self.intervalStep = intervalStep
+    }
+
+    public var repeatsPerSecondRange: ClosedRange<Double> {
+        repeatsPerSecond(forIntervalMs: intervalRange.upperBound) ... repeatsPerSecond(forIntervalMs: intervalRange.lowerBound)
+    }
+
+    public func repeatsPerSecond(forIntervalMs intervalMs: Int) -> Double {
+        let clampedInterval = min(max(intervalMs, intervalRange.lowerBound), intervalRange.upperBound)
+        return 1000.0 / Double(clampedInterval)
+    }
+
+    /// Converts a user-facing speed to the nearest supported interval.
+    ///
+    /// Supported values are multiples of `intervalStep` within
+    /// `intervalRange`. Midpoints round away from zero before clamping.
+    public func intervalMs(forRepeatsPerSecond repeatsPerSecond: Double) -> Int {
+        if repeatsPerSecond.isNaN || repeatsPerSecond <= 0 {
+            return intervalRange.upperBound
+        }
+        if repeatsPerSecond == .infinity {
+            return intervalRange.lowerBound
+        }
+
+        let clampedSpeed = min(
+            max(repeatsPerSecond, repeatsPerSecondRange.lowerBound),
+            repeatsPerSecondRange.upperBound
+        )
+        let rawInterval = 1000.0 / clampedSpeed
+        let snappedInterval = Int((rawInterval / Double(intervalStep)).rounded()) * intervalStep
+        return min(max(snappedInterval, intervalRange.lowerBound), intervalRange.upperBound)
+    }
+}
+
 /// A per-key repeat rate override within the managed-repeat system.
 public struct KeyRepeatOverride: Codable, Equatable, Sendable, Identifiable {
     public var id: String {
@@ -843,6 +888,8 @@ public struct KeyRepeatControlConfig: Codable, Equatable, Sendable {
 
     public static let defaultGlobalDelayMs = 500
     public static let defaultGlobalIntervalMs = 30
+    public static let globalSpeedScale = KeyRepeatSpeedScale(intervalRange: 5 ... 200, intervalStep: 5)
+    public static let overrideSpeedScale = KeyRepeatSpeedScale(intervalRange: 5 ... 100, intervalStep: 5)
 
     public static let defaultPerKeyOverrides: [KeyRepeatOverride] = [
         KeyRepeatOverride(key: "left", delayMs: 150, intervalMs: 20),
@@ -863,14 +910,6 @@ public struct KeyRepeatControlConfig: Codable, Equatable, Sendable {
         self.globalDelayMs = globalDelayMs
         self.globalIntervalMs = globalIntervalMs
         self.perKeyOverrides = perKeyOverrides
-    }
-
-    /// Human-readable repeat speed (keys per second) from interval in ms
-    public static func keysPerSecond(fromIntervalMs ms: Int) -> String {
-        guard ms > 0 else { return "—" }
-        let kps = 1000.0 / Double(ms)
-        if kps >= 10 { return "\(Int(kps))/sec" }
-        return String(format: "%.1f/sec", kps)
     }
 
     /// Named presets for common configurations
