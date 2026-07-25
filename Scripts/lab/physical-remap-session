@@ -1,0 +1,291 @@
+#!/usr/bin/env python3
+"""Prepare and observe the single physical-HID proof shared by P02-P04."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+import time
+
+
+ROOT = pathlib.Path(__file__).resolve().parent
+RESULT = pathlib.Path(os.environ.get("KEYPATH_PHYSICAL_RESULT", ROOT / "scenario-result"))
+ASSERT_READY = pathlib.Path(os.environ.get("KEYPATH_PHYSICAL_ASSERT_READY", ROOT / "assert-runtime-state"))
+PEEKABOO_UI = pathlib.Path(os.environ.get("KEYPATH_PHYSICAL_PEEKABOO_UI", ROOT / "peekaboo-ui"))
+PEEKABOO = pathlib.Path(os.environ.get("KEYPATH_PHYSICAL_PEEKABOO", pathlib.Path.home() / ".local/bin/peekaboo"))
+INSTALLED_CLI = pathlib.Path(os.environ.get(
+    "KEYPATH_PHYSICAL_INSTALLED_CLI", "/Applications/KeyPath.app/Contents/MacOS/keypath-cli"
+))
+SW_VERS = os.environ.get("KEYPATH_PHYSICAL_SW_VERS", "/usr/bin/sw_vers")
+IOREG = os.environ.get("KEYPATH_PHYSICAL_IOREG", "/usr/sbin/ioreg")
+OPEN = os.environ.get("KEYPATH_PHYSICAL_OPEN", "/usr/bin/open")
+OSASCRIPT = os.environ.get("KEYPATH_PHYSICAL_OSASCRIPT", "/usr/bin/osascript")
+SLEEP_SCALE = max(0.0, float(os.environ.get("KEYPATH_PHYSICAL_SLEEP_SCALE", "1")))
+
+
+def run(command: list[str], output: pathlib.Path | None = None) -> subprocess.CompletedProcess[str]:
+    if output is None:
+        return subprocess.run(command, check=False, capture_output=True, text=True)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w") as handle:
+        return subprocess.run(command, check=False, stdout=handle, stderr=subprocess.STDOUT, text=True)
+
+
+def pause(seconds: float) -> None:
+    time.sleep(seconds * SLEEP_SCALE)
+
+
+def record(directory: pathlib.Path, scenario: str, status: str, summary: str,
+           classification: str | None = None, step: str | None = None,
+           message: str | None = None, evidence: tuple[str, ...] = ()) -> None:
+    command = [str(RESULT), "record", "--output", str(directory / "result.json"),
+               "--scenario", scenario, "--status", status, "--summary", summary]
+    if classification:
+        command += ["--classification", classification]
+    if step:
+        command += ["--step", step]
+    if message:
+        command += ["--message", message]
+    for item in evidence:
+        command += ["--evidence", item]
+    result = run(command)
+    if result.returncode:
+        raise RuntimeError(result.stderr or "could not record scenario result")
+
+
+def snapshot(app: str, output: pathlib.Path) -> subprocess.CompletedProcess[str]:
+    return run([str(PEEKABOO_UI), "snapshot", "--app", app, "--output", str(output)])
+
+
+def textedit_value() -> str:
+    result = run([OSASCRIPT, "-e", 'tell application "TextEdit" to get text of document 1'])
+    return result.stdout.rstrip("\n") if result.returncode == 0 else ""
+
+
+def overlay_key_state(path: pathlib.Path) -> tuple[bool, bool]:
+    try:
+        root = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return False, False
+    found = False
+    pressed = False
+
+    def walk(value: object) -> None:
+        nonlocal found, pressed
+        if isinstance(value, dict):
+            if value.get("identifier") == "keycap-code-12":
+                found = True
+                state = str(value.get("value", value.get("accessibilityValue", ""))).casefold()
+                pressed = state in ("pressed", "held")
+            for child in value.values():
+                walk(child)
+        elif isinstance(value, list):
+            for child in value:
+                walk(child)
+
+    walk(root)
+    return found, pressed
+
+
+def prepare(args: argparse.Namespace) -> int:
+    output = args.output
+    prep = output / "prepare"
+    prep.mkdir(parents=True, exist_ok=True)
+    version = run([SW_VERS, "-productVersion"])
+    if version.returncode or version.stdout.strip().split(".")[0] != "15":
+        record(prep, "physical-remap-prepare", "blocked", "The physical remap session requires macOS 15.",
+               "environment-precondition-failure", "os-admission")
+        return 4
+    run([SW_VERS], prep / "sw-vers.txt")
+    hid = run([IOREG, "-r", "-c", "IOHIDDevice", "-l"])
+    inventory = hid.stdout
+    retained_keys = ("Product", "Manufacturer", "Transport", "VendorID", "ProductID", "PrimaryUsage")
+    safe_inventory = "\n".join(
+        line for line in inventory.splitlines() if any(key in line for key in retained_keys)
+    ) + "\n"
+    (prep / "hid-inventory.txt").write_text(safe_inventory)
+    if hid.returncode or args.device_match.casefold() not in inventory.casefold():
+        record(prep, "physical-remap-prepare", "blocked",
+               "The named physical keyboard is not visible inside the guest.",
+               "environment-precondition-failure", "physical-hid-admission",
+               f"Missing guest HID match: {args.device_match}", ("hid-inventory.txt",))
+        return 4
+    manifest = pathlib.Path("/Library/KeyPathLab/managed-policy/manifest.json")
+    ready_command = [str(ASSERT_READY), "ready"]
+    if manifest.exists():
+        ready_command += ["--managed-policy-manifest", str(manifest)]
+    ready = run(ready_command, prep / "runtime-ready.tsv")
+    if ready.returncode:
+        record(prep, "physical-remap-prepare", "blocked",
+               "The physical proof requires an independently ready runtime.",
+               "environment-precondition-failure", "runtime-ready", evidence=("runtime-ready.tsv",))
+        return 4
+    if not INSTALLED_CLI.is_file() or not os.access(INSTALLED_CLI, os.X_OK):
+        record(prep, "physical-remap-prepare", "blocked", "The installed KeyPath CLI is unavailable.",
+               "environment-precondition-failure", "installed-cli")
+        return 4
+    rule = run([str(INSTALLED_CLI), "rule", "ensure", "q", "w", "--apply"], prep / "rule-q-to-w.json")
+    simulate = run([str(INSTALLED_CLI), "simulate", "q"], prep / "simulation.txt")
+    if rule.returncode or simulate.returncode:
+        record(prep, "physical-remap-prepare", "failed", "Could not establish the deterministic q-to-w rule.",
+               "keypath-product-failure", "q-to-w-rule", evidence=("rule-q-to-w.json", "simulation.txt"))
+        return 1
+    run([OPEN, "-a", "KeyPath"])
+    pause(2)
+    overlay = prep / "overlay-ready.json"
+    if snapshot("KeyPath", overlay).returncode or "keyboard-overlay" not in overlay.read_text(errors="replace"):
+        run([str(PEEKABOO), "hotkey", "cmd,alt,l", "--app", "KeyPath"])
+        pause(1)
+        if snapshot("KeyPath", overlay).returncode or "keyboard-overlay" not in overlay.read_text(errors="replace"):
+            record(prep, "physical-remap-prepare", "blocked", "The KeyPath overlay is not AX-visible.",
+                   "environment-precondition-failure", "overlay-ready", evidence=("overlay-ready.json",))
+            return 4
+    textedit_script = (
+        'tell application "TextEdit"\nactivate\n'
+        'if (count documents) = 0 then make new document\n'
+        'set text of document 1 to ""\nend tell'
+    )
+    if run([OSASCRIPT, "-e", textedit_script]).returncode:
+        record(prep, "physical-remap-prepare", "blocked", "Could not prepare the independent TextEdit oracle.",
+               "environment-precondition-failure", "textedit-ready")
+        return 4
+    pause(1)
+    if snapshot("TextEdit", prep / "textedit-ready.json").returncode:
+        record(prep, "physical-remap-prepare", "blocked", "TextEdit is not AX-visible.",
+               "environment-precondition-failure", "textedit-ready")
+        return 4
+    (prep / "session.json").write_text(json.dumps({
+        "schemaVersion": 1,
+        "deviceMatch": args.device_match,
+        "sourceKey": "q",
+        "expectedOutput": "w",
+    }, indent=2) + "\n")
+    record(prep, "physical-remap-prepare", "passed",
+           "Ready runtime, physical guest HID, q-to-w rule, overlay, and TextEdit oracle are armed.",
+           evidence=("sw-vers.txt", "hid-inventory.txt", "runtime-ready.tsv", "rule-q-to-w.json",
+                     "simulation.txt", "overlay-ready.json", "textedit-ready.json", "session.json"))
+    print("physical_remap_session\tarmed")
+    print("next\trun observe, then hold the named keyboard's physical q key until it completes")
+    return 0
+
+
+def observe(args: argparse.Namespace) -> int:
+    output = args.output
+    prep_result = output / "prepare" / "result.json"
+    try:
+        prepared = json.loads(prep_result.read_text()).get("status") == "passed"
+    except (OSError, json.JSONDecodeError):
+        prepared = False
+    if not prepared:
+        target = output / "P02"
+        target.mkdir(parents=True, exist_ok=True)
+        record(target, "P02-physical-remap", "blocked", "Run the passed prepare stage first.",
+               "environment-precondition-failure", "prepare-checkpoint")
+        return 4
+    run([OSASCRIPT, "-e", 'tell application "KeyPath" to quit'])
+    pause(0.5)
+    started = time.monotonic_ns()
+    if run([OPEN, "-a", "KeyPath"]).returncode:
+        return 4
+    overlay_ready = output / "P04" / "overlay-after-launch.json"
+    overlay_ready.parent.mkdir(parents=True, exist_ok=True)
+    for _ in range(30):
+        if snapshot("KeyPath", overlay_ready).returncode == 0 \
+                and "keyboard-overlay" in overlay_ready.read_text(errors="replace"):
+            break
+        pause(0.1)
+    else:
+        return 4
+    clear = run([OSASCRIPT, "-e", 'tell application "TextEdit" to set text of document 1 to ""',
+                 "-e", 'tell application "TextEdit" to activate'])
+    if clear.returncode:
+        return 4
+    print("physical_remap_session\twaiting")
+    print("operator_action\thold the physical q key until this command completes")
+    sys.stdout.flush()
+    deadline = time.monotonic() + args.timeout_seconds
+    value = ""
+    while time.monotonic() < deadline:
+        value = textedit_value()
+        if value:
+            break
+        pause(0.05)
+    detected = time.monotonic_ns()
+    elapsed_ms = round((detected - started) / 1_000_000, 3)
+
+    p02 = output / "P02"
+    p03 = output / "P03"
+    p04 = output / "P04"
+    for directory in (p02, p03, p04):
+        directory.mkdir(parents=True, exist_ok=True)
+    (p02 / "textedit-output.txt").write_text(value + "\n")
+    shutil.copy2(output / "prepare" / "hid-inventory.txt", p02 / "hid-inventory.txt")
+    shutil.copy2(output / "prepare" / "runtime-ready.tsv", p02 / "runtime-ready.tsv")
+    timing = {"schemaVersion": 1, "launchToOutputMilliseconds": elapsed_ms, "output": value}
+    (p04 / "timing.json").write_text(json.dumps(timing, indent=2) + "\n")
+    overlay_ax = p03 / "overlay-during-physical-q.json"
+    overlay_capture = snapshot("KeyPath", overlay_ax)
+    run([str(PEEKABOO_UI), "screenshot", "--app", "KeyPath", "--output", str(p03 / "overlay-during-physical-q.png")])
+    snapshot("TextEdit", p02 / "textedit-after.json")
+    found_key, overlay_pressed = overlay_key_state(overlay_ax)
+
+    p02_passed = value == "w"
+    if p02_passed:
+        record(p02, "P02-physical-remap", "passed",
+               "A guest-visible physical q produced independently observed virtual output w in TextEdit.",
+               evidence=("hid-inventory.txt", "runtime-ready.tsv", "textedit-output.txt", "textedit-after.json"))
+    elif not value:
+        record(p02, "P02-physical-remap", "blocked", "No physical input reached TextEdit before timeout.",
+               "environment-precondition-failure", "physical-keypress", evidence=("hid-inventory.txt", "runtime-ready.tsv"))
+    else:
+        record(p02, "P02-physical-remap", "failed", f"Physical q produced {value!r}, not remapped output 'w'.",
+               "keypath-product-failure", "virtual-output", evidence=("hid-inventory.txt", "runtime-ready.tsv", "textedit-output.txt", "textedit-after.json"))
+
+    if overlay_capture.returncode == 0 and found_key and overlay_pressed:
+        record(p03, "P03-overlay-observation", "passed",
+               "The KeyPath overlay exposed physical Q as pressed during the proven q-to-w event.",
+               evidence=("overlay-during-physical-q.json", "overlay-during-physical-q.png"))
+    elif not found_key:
+        record(p03, "P03-overlay-observation", "failed", "The fresh overlay AX tree lacked physical Q keycap state.",
+               "harness-selector-failure", "overlay-keycap-selector", evidence=("overlay-during-physical-q.json",))
+    else:
+        record(p03, "P03-overlay-observation", "failed", "The overlay did not report physical Q as pressed during observation.",
+               "keypath-product-failure", "overlay-input-state", evidence=("overlay-during-physical-q.json", "overlay-during-physical-q.png"))
+
+    if p02_passed:
+        record(p04, "P04-first-remap-timing", "passed",
+               f"KeyPath relaunch to the first confirmed physical q-to-w output took {elapsed_ms} ms.",
+               evidence=("overlay-after-launch.json", "timing.json"))
+    else:
+        record(p04, "P04-first-remap-timing", "blocked", "No successful physical remap was available to time.",
+               "environment-precondition-failure", "p02-output-proof", evidence=("timing.json",))
+    print(f"physical_remap_output\t{value or 'timeout'}")
+    print(f"launch_to_output_ms\t{elapsed_ms}")
+    print(f"overlay_q_pressed\t{str(overlay_pressed).lower()}")
+    return 0 if p02_passed and overlay_pressed else 1
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    prepare_parser = subparsers.add_parser("prepare")
+    prepare_parser.add_argument("--output", required=True, type=pathlib.Path)
+    prepare_parser.add_argument("--device-match", required=True)
+    observe_parser = subparsers.add_parser("observe")
+    observe_parser.add_argument("--output", required=True, type=pathlib.Path)
+    observe_parser.add_argument("--timeout-seconds", type=int, default=120)
+    args = parser.parse_args()
+    if args.command == "prepare":
+        raise SystemExit(prepare(args))
+    if not 1 <= args.timeout_seconds <= 300:
+        parser.error("--timeout-seconds must be between 1 and 300")
+    raise SystemExit(observe(args))
+
+
+if __name__ == "__main__":
+    main()

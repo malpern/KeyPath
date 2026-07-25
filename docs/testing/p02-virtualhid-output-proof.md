@@ -197,13 +197,32 @@ P02 passes only when all of the following are true in one disposable lease:
    VirtualHID daemon running, Kanata running, and TCP readiness responding.
 2. A deterministic configuration maps physical `q` to virtual `w`.
 3. The harness focuses an independent target app with an observable text value.
-4. `keypath-lab desktop-type LEASE --text q` reports the native `vnc-key`
-   delivery method.
-5. The target app's accessibility value changes to `w`, not `q`.
+4. The guest HID inventory contains the explicitly named physical keyboard;
+   VNC, Peekaboo, and guest-synthesized events are not accepted as the source.
+5. While the operator holds physical `q`, the overlay's `keycap-code-12`
+   accessibility value is `pressed` or `held`.
+6. The target app's accessibility value changes to `w`, not `q`.
 
-Step 5 is the functional assertion. Driver metadata, a successful click, and a
+Step 6 is the functional assertion. Driver metadata, a successful click, and a
 KeyPath-local input monitor are useful preparation evidence but are not output
 proof.
+
+Use the two-stage physical session so P02 output, P03 overlay state, and P04
+first-confirmation timing come from the same physical event:
+
+```bash
+Scripts/lab/keypath-lab run LEASE -- Scripts/lab/physical-remap-session prepare \
+  --output .keypath-lab/scenario-output/physical-remap-session \
+  --device-match M-VAVE
+Scripts/lab/keypath-lab run LEASE -- Scripts/lab/physical-remap-session observe \
+  --output .keypath-lab/scenario-output/physical-remap-session
+```
+
+Run `observe`, then hold the physical `q` key until it completes. The watcher
+clears and focuses TextEdit itself, rejects a missing guest-visible keyboard,
+and writes separate machine-readable P02, P03, and P04 results. A literal `q`
+is a product failure only after the named physical HID and independently ready
+runtime were admitted; a timeout remains an environment precondition failure.
 
 ## Resume path
 

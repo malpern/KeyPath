@@ -145,7 +145,7 @@
       "automation": "physical",
       "estimatedMinutes": 50,
       "cleanup": "destroy-owned-lease",
-      "steps": ["create-usb-lease", "install-exact-artifact", "operator-physical-keypress", "capture-remapped-output", "artifact-capture"],
+      "steps": ["create-usb-lease", "install-exact-artifact", "physical-remap-session-prepare", "operator-physical-keypress", "physical-remap-session-observe", "artifact-capture"],
       "factors": {"platform": "macos15", "lane": "managed", "family": "input-output", "boundary": "physical-hid", "evidence": "visual-runtime"}
     }
   ]
