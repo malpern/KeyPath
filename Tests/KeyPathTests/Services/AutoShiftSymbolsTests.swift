@@ -196,8 +196,8 @@ struct AutoShiftKanataRenderingTests {
         #expect(output.contains("require-prior-idle 180"))
     }
 
-    @Test("No require-prior-idle when protectFastTyping is false")
-    func noRequirePriorIdleWhenDisabled() {
+    @Test("Zero require-prior-idle override when protectFastTyping is false")
+    func zeroRequirePriorIdleOverrideWhenDisabled() {
         let config = AutoShiftSymbolsConfig(timeoutMs: 180, protectFastTyping: false, enabledKeys: Set(["dot"]))
         let collection = RuleCollection(
             id: RuleCollectionIdentifier.autoShiftSymbols,
@@ -210,7 +210,7 @@ struct AutoShiftKanataRenderingTests {
         )
 
         let output = KanataConfiguration.generateFromCollections([collection])
-        #expect(!output.contains("require-prior-idle"))
+        #expect(output.contains("(require-prior-idle 0)"))
     }
 }
 
