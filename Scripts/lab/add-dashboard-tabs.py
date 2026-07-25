@@ -15,8 +15,6 @@ def main() -> None:
         f'aria-current="{"page" if args.active == "automation" else "false"}">Automation lab</a>'
         '<a href="keypath-github-issues-dashboard.html" '
         f'aria-current="{"page" if args.active == "issues" else "false"}">GitHub issues</a>'
-        '<a href="keypath-lab-state-dashboard.html" '
-        f'aria-current="{"page" if args.active == "lab" else "false"}">Lab state</a>'
         "</nav>"
     )
     styles = (

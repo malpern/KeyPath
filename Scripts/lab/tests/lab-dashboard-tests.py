@@ -107,7 +107,7 @@ class LabDashboardTests(unittest.TestCase):
         self.assertEqual(state["resources"][0]["state"], "ready")
         self.assertEqual(state["resources"][0]["detail"], "Guest verified")
 
-    def test_all_dashboards_include_three_tab_navigation(self) -> None:
+    def test_all_dashboards_include_two_tab_navigation(self) -> None:
         for filename in (
             "keypath-test-automation-progress.html",
             "keypath-github-issues-dashboard.html",
@@ -116,7 +116,7 @@ class LabDashboardTests(unittest.TestCase):
             document = (REPO_ROOT / "docs/testing" / filename).read_text()
             self.assertIn(">Automation lab</a>", document)
             self.assertIn(">GitHub issues</a>", document)
-            self.assertIn(">Lab state</a>", document)
+            self.assertNotIn(">Lab state</a>", document)
 
     def test_lab_dashboard_embedded_script_parses(self) -> None:
         source = LAB_DASHBOARD.read_text()
