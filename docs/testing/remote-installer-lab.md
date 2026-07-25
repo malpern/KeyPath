@@ -287,6 +287,13 @@ provisioning, not a per-scenario setup step. A successful install or a visible
 toggle is not enough: require `peekaboo permissions status --json`, a real
 semantic capture, and a new disposable clone from the captured base.
 
+Register the promoted Parallels source under the distinct CrabBox template
+alias `keypath-macos-27-desktop`. The controller selects that alias only for
+macOS 27 leases created with `--desktop`; headless macOS 27 leases continue to
+clone `keypath-macos-27`, preserving the pristine loginwindow source. A desktop
+lease manifest must record `base_name=keypath-macos-27-desktop` before its
+fresh-clone evidence is accepted.
+
 ### Disposable desktop identity with Nameplate
 
 Nameplate can label an owned desktop lease without modifying its base image:

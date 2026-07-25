@@ -568,6 +568,7 @@ run_remote destroy cbx_test26 >/dev/null
 
 create27=$(run_remote create 27 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create27" $'lease_id\tcbx_test27'
+grep -q $'base_name\tkeypath-macos-27' "$ROOT/KeyPathInstallerLab/leases/cbx_test27/manifest.tsv"
 artifacts27=$(run_remote artifacts cbx_test27)
 assert_contains "$artifacts27" $'download_status\t0'
 grep -q 'crabbox run --provider parallels --target macos --id cbx_test27 --stop-after never --download' "$CALLS"
@@ -576,6 +577,8 @@ grep -q 'stop-27 cbx_test27' "$CALLS"
 
 desktop27_create=$(run_remote create 27 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
 assert_contains "$desktop27_create" $'lease_id\tcbx_desktop27'
+grep -q -- '--parallels-template keypath-macos-27-desktop' "$CALLS"
+grep -q $'base_name\tkeypath-macos-27-desktop' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
 test_known_hosts="$TMP/known hosts/known_hosts"
 mkdir -p "$(dirname "$test_known_hosts")"
 touch "$test_known_hosts"

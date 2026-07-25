@@ -66,9 +66,11 @@ configure_tart_path() {
 }
 
 base_for() {
-  local macos=$1 lane=$2
+  local macos=$1 lane=$2 desktop=${3:-0}
   if [[ "$macos" == "15" ]]; then
     [[ "$lane" == "managed-functional" ]] && print keypath-macos-15-managed || print ghcr.io/cirruslabs/macos-sequoia-base:latest
+  elif [[ "$macos" == "27" && "$desktop" == "1" ]]; then
+    print keypath-macos-27-desktop
   else
     [[ "$lane" == "managed-functional" ]] && print "keypath-macos-$macos-managed" || print "keypath-macos-$macos"
   fi
@@ -478,18 +480,23 @@ run_with_download() {
 warmup_desktop() {
   local macos=$1 lane=$2 slug=$3
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
-    "$CRABBOX" warmup --provider "$(provider_for "$macos")" --target macos --desktop --slug "$slug" --ttl 2h
+    if [[ "$(provider_for "$macos")" == "parallels" ]]; then
+      "$CRABBOX" warmup --provider parallels --target macos --desktop \
+        --parallels-template "$(base_for "$macos" "$lane" 1)" --slug "$slug" --ttl 2h
+    else
+      "$CRABBOX" warmup --provider tart --target macos --desktop --slug "$slug" --ttl 2h
+    fi
   elif [[ "$macos" == "15" ]]; then
     if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
     configure_tart_path
     "$CRABBOX" warmup --provider tart --target macos --desktop \
-      --tart-image "$(base_for "$macos" "$lane")" \
+      --tart-image "$(base_for "$macos" "$lane" 1)" \
       --tart-user admin --tart-cpu 4 --tart-memory 8192 --tart-random-serial --ssh-port 22 \
       --slug "$slug" --ttl 2h
   else
     export PATH="$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     "$CRABBOX" warmup --provider parallels --target macos --desktop \
-      --parallels-template "$(base_for "$macos" "$lane")" --parallels-user keypathqa \
+      --parallels-template "$(base_for "$macos" "$lane" 1)" --parallels-user keypathqa \
       --parallels-work-root /Users/keypathqa/crabbox --ssh-port 22 \
       --slug "$slug" --ttl 2h
   fi
@@ -628,7 +635,7 @@ write_provisional_lease_manifest() {
     print "slug\t$slug"
     print "macos\t$macos"
     print "test_lane\t$lane"
-    print "base_name\t$(base_for "$macos" "$lane")"
+    print "base_name\t$(base_for "$macos" "$lane" "$desktop")"
     print "managed_identity_scope\t$identity_scope"
     print "provider\t$provider"
     print "archive_key\t$archive_key"
@@ -731,7 +738,7 @@ create_lease() {
     print "slug\t$slug"
     print "macos\t$macos"
     print "test_lane\t$lane"
-    print "base_name\t$(base_for "$macos" "$lane")"
+    print "base_name\t$(base_for "$macos" "$lane" "$desktop")"
     print "managed_identity_scope\t$identity_scope"
     print "provider\t$provider"
     print "archive_key\t$archive_key"
