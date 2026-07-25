@@ -578,15 +578,17 @@ Before an automated macOS 27 System Settings flow relies on selectors, capture
 fresh accessibility evidence in the guest:
 
 ```bash
-Scripts/lab/macos-27-selector-driver \
-  --output artifacts/macos-27-selectors \
-  --expect Privacy_Accessibility \
-  --expect Accessibility
+Scripts/lab/macos-27-selector-scenario \
+  --output .keypath-lab/scenario-output/macos-27-selectors
 ```
 
-The driver admits only macOS 27, requires Peekaboo's desktop permissions, and
-writes the exact OS version, build, preflight, accessibility snapshot, and
-expected selector contract. Missing desktop permissions are an
+The scenario reopens the macOS 27 Accessibility privacy pane, waits for its
+semantic UI contract, and then runs the fail-closed driver. The driver admits
+only macOS 27, requires Peekaboo's desktop permissions, and writes the exact OS
+version, build, preflight, accessibility snapshot, and expected selector
+contract. The contract uses the page identifier, explanatory copy, and the
+visible `Peekaboo Lab Host` row rather than relying on the private deep-link
+token to appear in the accessibility tree. Missing desktop permissions are an
 `environment-precondition-failure`; a missing expected selector is an
 `unsupported-os-selector`. Either result blocks the scenario instead of
 guessing coordinates or attributing a harness problem to KeyPath.

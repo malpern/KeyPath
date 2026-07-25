@@ -106,7 +106,7 @@
       "estimatedMinutes": 26,
       "nightlyCore": true,
       "cleanup": "destroy-owned-lease",
-      "steps": ["create-desktop-lease", "desktop-bootstrap", "macos-27-selector-driver", "artifact-capture"],
+      "steps": ["create-desktop-lease", "desktop-bootstrap", "macos-27-selector-scenario", "artifact-capture"],
       "factors": {"platform": "macos27", "lane": "unmanaged", "family": "selectors", "boundary": "approval-ui", "evidence": "semantic-ui"}
     },
     {
