@@ -330,10 +330,19 @@ assert_contains "$disk_output" $'disk_reserve_busy\tfree_gib=99\tminimum_gib=100
 create=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create" $'lease_id\tcbx_test15'
 manifest="$ROOT/KeyPathInstallerLab/leases/cbx_test15/manifest.tsv"
+operation_repo="$ROOT/KeyPathInstallerLab/operations/$(grep $'^slug\t' "$manifest" | cut -f2)/repo"
 grep -q $'owner\tkeypath-installer-lab-v1' "$manifest"
 grep -q $'macos_build\t24G720' "$manifest"
 grep -q $'test_lane\tunmanaged-ui' "$manifest"
 grep -q $'base_name\tghcr.io/cirruslabs/macos-sequoia-base:latest' "$manifest"
+archive_object=$(find "$repo/.git/objects" -type f -print -quit)
+object_relative_path=${archive_object#"$repo/.git/objects/"}
+operation_object="$operation_repo/.git/objects/$object_relative_path"
+[[ -f "$operation_object" ]]
+if [[ $(stat -f %i "$archive_object") == "$(stat -f %i "$operation_object")" ]]; then
+    echo "operation repository must not hard-link archive Git objects" >&2
+    exit 1
+fi
 
 set +e
 capacity_output=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
@@ -373,7 +382,6 @@ if run_remote nameplate cbx_test15 enable >/dev/null 2>&1; then
     exit 1
 fi
 
-operation_repo="$ROOT/KeyPathInstallerLab/operations/$(grep $'^slug\t' "$manifest" | cut -f2)/repo"
 mkdir -p "$operation_repo/.crabbox/captures"
 echo failure-evidence > "$operation_repo/.crabbox/captures/failure.tar.gz"
 run_remote run cbx_test15 echo generated-output-is-safe >/dev/null
