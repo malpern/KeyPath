@@ -143,3 +143,32 @@ next step.
   CrabBox source failed once; registering the same backed-up base bundle as a
   normal stopped source was a materially different correction, and the next
   fresh clone passed end to end.
+
+## 2026-07-25 06:39 PDT — R01 managed Accessibility completion checkpoint
+
+- **Outcome:** advanced
+- **Completed milestone:** R01 is proven on a fresh randomized macOS 15
+  managed-functional clone, and the exact signed KeyPath app is installed.
+- **Evidence:**
+  - Lease `cbx_a6d8a327390c` enrolled with a unique clone identity and
+    acknowledged the PPPC, system-extension, and service-management profiles.
+  - Independent lane verification reported three profiles and
+    `verification passed`.
+  - Installer admission reported `artifact_policy passed`, proving the staged
+    build matches the identities encoded in those profiles.
+  - The installed CLI reported `keyPathAccessibility: true` and
+    `keyPathInputMonitoring: true`.
+  - Commit `0c91bf811` replaces synthetic protected-field typing with
+    stdin-only native RFB key delivery, clears interrupted values safely, uses
+    a real RFB submit click, and requires the SecurityAgent sheet to close.
+  - The full `Scripts/lab/tests/keypath-lab-tests.sh` suite passes.
+- **Current blocker:** R01 has none. The broader managed-capabilities scenario
+  is red because the fresh clone does not yet have the privileged helper,
+  DriverKit extension, Kanata daemon, or VirtualHID runtime installed and
+  running.
+- **Next action:** exercise the supported KeyPath system install/repair path on
+  this admitted clone, then rerun the independent managed-capabilities and TCP
+  probes.
+- **Loop check:** not looping. The failed display-scale probe exposed an
+  undeclared Peekaboo path dependency; it was replaced with an AppKit-only
+  scale measurement, and the next protected-sheet attempt passed.

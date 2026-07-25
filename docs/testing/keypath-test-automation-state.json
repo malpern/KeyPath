@@ -1,9 +1,11 @@
 {
-  "updatedAt": "2026-07-25T05:28:00-07:00",
-  "currentTask": "M11 complete; select the next remote-capable automation issue",
-  "message": "The reusable macOS 27 Desktop Automation Base is proven from a brand-new CrabBox lease. The fresh clone inherited its console login and native privacy approvals, passed desktop bootstrap, accepted authenticated RFB input, and passed the fail-closed macOS 27 selector capture. P02 remains parked at its onsite physical-USB boundary.",
+  "updatedAt": "2026-07-25T06:39:00-07:00",
+  "currentTask": "R03: install and start the managed runtime stack on the proven macOS 15 fixture",
+  "message": "R01 is proven on a fresh randomized macOS 15 clone: enrollment, exact policy delivery, installer-policy matching, KeyPath Accessibility, and KeyPath Input Monitoring all pass independently. The exact signed app is installed. The active frontier is now the helper, DriverKit, Kanata, VirtualHID, and TCP startup path; P02 remains parked at its onsite physical-USB boundary.",
   "complete": false,
-  "workingBlocks": [],
+  "workingBlocks": [
+    "R03"
+  ],
   "activeWork": {
     "P02": {
       "progress": 98,
@@ -45,13 +47,13 @@
       ]
     },
     "R01": {
-      "progress": 72,
-      "health": "blocked",
+      "progress": 100,
+      "health": "smooth",
       "trend": "forward",
-      "phase": "macOS 26 legacy managed Accessibility is visually on but functionally absent",
-      "detail": "The exact signed launcher and engine appear in Accessibility with managed-on switches, but the independent oracle finds no user or system TCC record on macOS 26.5.2. This matches Apple's macOS 26.2 deprecation of grants through the legacy PPPC payload.",
-      "attempt": 2,
-      "completedSteps": 2,
+      "phase": "Managed Accessibility proven on a fresh macOS 15 randomized clone",
+      "detail": "Lease cbx_a6d8a327390c enrolled with a unique identity, acknowledged all three exact signed-build profiles, passed independent lane and artifact-policy verification, and reported keyPathAccessibility=true plus keyPathInputMonitoring=true from the installed KeyPath CLI.",
+      "attempt": 3,
+      "completedSteps": 4,
       "totalSteps": 4,
       "nextTasks": [
         {
@@ -66,16 +68,16 @@
         },
         {
           "label": "Provide supported managed Accessibility grant",
-          "status": "blocked",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Verify launcher TCC permission independently",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         }
       ],
-      "blocker": "Use a macOS 15 managed base or publish Apple's declarative app-settings Accessibility configuration for macOS 26.2+.",
+      "blocker": null,
       "coreCapability": true,
       "unlocks": [
         "Kanata Input Monitoring",
@@ -114,11 +116,11 @@
     },
     "R03": {
       "progress": 65,
-      "health": "blocked",
+      "health": "working",
       "trend": "forward",
-      "phase": "VirtualHID is healthy; Kanata waits only on Accessibility",
-      "detail": "Helper, DriverKit, VirtualHID daemon, device health, KeyPath permissions, and launcher Input Monitoring all pass. Kanata remains stopped and TCP refuses connections because the launcher's Accessibility grant is absent.",
-      "attempt": 2,
+      "phase": "Fresh managed fixture ready; installing the system runtime stack",
+      "detail": "The fresh macOS 15 clone now proves KeyPath Accessibility and Input Monitoring for the exact signed build. The first managed-capabilities probe correctly finds the app permissions and bundled Kanata binary, while helper installation, DriverKit, VirtualHID, Kanata launch, and TCP readiness remain to be established.",
+      "attempt": 3,
       "completedSteps": 5,
       "totalSteps": 7,
       "nextTasks": [
@@ -134,8 +136,8 @@
         },
         {
           "label": "Grant launcher Accessibility through an OS-valid lane",
-          "status": "blocked",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Verify Kanata and TCP readiness",
@@ -143,7 +145,7 @@
           "progress": 0
         }
       ],
-      "blocker": "R01 is the only remaining runtime permission gate; R02 and VirtualHID are proven.",
+      "blocker": "The signed app is present but its privileged helper, DriverKit extension, daemons, and VirtualHID runtime have not yet been installed and started on this fresh clone.",
       "coreCapability": false,
       "unlocks": []
     },
@@ -518,7 +520,7 @@
     }
   },
   "statuses": {
-    "R01": "active",
+    "R01": "proven",
     "R02": "proven",
     "R03": "active",
     "R04": "queued",
@@ -546,6 +548,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "06:39",
+      "block": "R01",
+      "tone": "success",
+      "title": "Fresh managed clone proves KeyPath permissions",
+      "message": "The randomized macOS 15 clone enrolled successfully, acknowledged all three exact-build profiles, passed independent lane and artifact-policy verification, and reports KeyPath Accessibility plus Input Monitoring as granted. R01 is complete; R03 now owns the remaining helper, DriverKit, Kanata, VirtualHID, and TCP runtime work."
+    },
     {
       "time": "05:28",
       "block": "M11",
