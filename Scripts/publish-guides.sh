@@ -53,6 +53,6 @@ fi
 
 git add guides/ docs.md images/help/
 CHANGED=$(git diff --cached --name-only | wc -l | tr -d ' ')
-git commit -m "Publish $CHANGED guide(s) from master $(git -C "$REPO_ROOT" rev-parse --short HEAD)"
+git commit -m "Publish $CHANGED file(s) from master $(git -C "$REPO_ROOT" rev-parse --short HEAD)"
 git push origin gh-pages
 echo "✅ Published to gh-pages"
