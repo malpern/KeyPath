@@ -27,7 +27,8 @@ download_verified() {
 }
 
 install_desktop_tools() {
-  local temp local_bin local_lib peekaboo_home python_candidate python_ready=0
+  local temp local_bin local_lib peekaboo_home host_app host_contents host_executable
+  local launch_agents host_launch_agent python_candidate python_ready=0
   temp=$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/keypath-desktop-tools.XXXXXX")
   trap "/bin/rm -rf '$temp'" EXIT
   local_bin="$HOME/.local/bin"
@@ -42,6 +43,79 @@ install_desktop_tools() {
     /bin/cp -R "$temp/peekaboo-macos-universal/." "$peekaboo_home/"
     /bin/ln -sfn "$peekaboo_home/peekaboo" "$local_bin/peekaboo"
   fi
+
+  # TCC cannot grant Screen Recording to a standalone executable selected in
+  # System Settings. Give the signed Peekaboo daemon a stable application
+  # identity and launch it from the logged-in Aqua session. Tests invoked over
+  # SSH then use the approved bridge instead of widening Screen Recording to
+  # every remote shell.
+  host_app="$HOME/Applications/Peekaboo Lab Host.app"
+  host_contents="$host_app/Contents"
+  host_executable="$host_contents/MacOS/PeekabooLabHost"
+  /bin/mkdir -p "$host_contents/MacOS" "$HOME/Applications"
+  /bin/cat > "$host_contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleExecutable</key>
+  <string>PeekabooLabHost</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.keypath.lab.peekaboo-host</string>
+  <key>CFBundleName</key>
+  <string>Peekaboo Lab Host</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>1.0</string>
+  <key>LSBackgroundOnly</key>
+  <true/>
+  <key>NSAccessibilityUsageDescription</key>
+  <string>Drive the disposable KeyPath lab desktop for automated validation.</string>
+  <key>NSScreenCaptureUsageDescription</key>
+  <string>Capture the disposable KeyPath lab desktop for automated validation.</string>
+</dict>
+</plist>
+PLIST
+  /bin/cat > "$host_executable" <<'HOST'
+#!/bin/zsh
+set -euo pipefail
+socket="$HOME/Library/Application Support/Peekaboo/daemon.sock"
+/bin/mkdir -p "${socket:h}"
+/bin/rm -f "$socket"
+exec "$HOME/.local/bin/peekaboo" daemon run \
+  --mode manual \
+  --bridge-socket "$socket" \
+  --idle-timeout-seconds 31536000 \
+  --input-strategy actionFirst
+HOST
+  /bin/chmod 0755 "$host_executable"
+  /usr/bin/plutil -lint "$host_contents/Info.plist" >/dev/null
+  /usr/bin/codesign --force --sign - --identifier com.keypath.lab.peekaboo-host "$host_app"
+  /usr/bin/codesign --verify --strict "$host_app"
+
+  launch_agents="$HOME/Library/LaunchAgents"
+  host_launch_agent="$launch_agents/com.keypath.lab.peekaboo-host.plist"
+  /bin/mkdir -p "$launch_agents"
+  /bin/cat > "$host_launch_agent" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.keypath.lab.peekaboo-host</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/open</string>
+    <string>-gj</string>
+    <string>$host_app</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>
+PLIST
+  /usr/bin/plutil -lint "$host_launch_agent" >/dev/null
 
   if [[ ! -x "$local_bin/mcporter" ]]; then
     download_verified "$MCPORTER_URL" "$MCPORTER_SHA256" "$temp/mcporter.tar.gz"

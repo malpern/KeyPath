@@ -223,6 +223,26 @@ inter-key delay. Parallels can drop characters when a complete credential is
 sent as one unpaced event batch. The command deliberately reports credential
 transport only; the RFB probe is the required independent postcondition.
 
+When building a new versioned macOS 27 desktop base, an inherited login
+keychain can still use the source image's old password after the lab has
+aligned the disposable account password. Repair only that owned candidate:
+
+```bash
+Scripts/lab/keypath-lab reset-desktop-keychain cbx_example
+Scripts/lab/keypath-lab reboot-guest cbx_example
+```
+
+`reset-desktop-keychain` is admitted only for a macOS 27, Parallels,
+desktop-enabled lease with a verified console login. It creates a fresh login
+keychain using the encrypted guest credential and moves the previous keychain
+to a timestamped `.before-desktop-base-*` backup. Do not use it in ordinary
+scenario clones and do not delete the backup until the candidate has passed
+fresh-clone validation.
+
+`reboot-guest` is an owned provider transport, not proof that the desktop is
+ready. After it returns, independently verify the console user, privacy
+permissions, and whichever runtime postcondition the scenario requires.
+
 For non-secret navigation of an expected disposable-guest dialog, the
 controller can send one bounded Parallels key event:
 
@@ -250,8 +270,22 @@ For a console-ready candidate base, run `desktop-bootstrap --install-tools`
 once before capturing its checkpoint. It installs Python 3 as well as
 Peekaboo and mcporter into the console user's `~/.local` tree from pinned
 release archives with checked SHA-256 digests; the clean source does not need
-Homebrew. It then records the console-user and Peekaboo evidence. This is base
-provisioning, not a per-scenario setup step.
+Homebrew.
+
+The bootstrap also installs a stable, ad-hoc-signed
+`~/Applications/Peekaboo Lab Host.app` and a per-user login agent. macOS 27's
+Screen Recording picker accepts applications, not Peekaboo's standalone
+command-line executable. Approve Screen Recording and Accessibility for this
+lab-only host application through the real logged-in System Settings UI. The
+application owns the long-lived Peekaboo bridge, so SSH-driven tests use that
+approved desktop process instead of granting broad capture access to every
+remote shell. Preserve the same application path, identifier, and bytes when
+capturing the base; changing any of them invalidates the reusable TCC identity.
+
+The bootstrap then records the console-user and Peekaboo evidence. This is base
+provisioning, not a per-scenario setup step. A successful install or a visible
+toggle is not enough: require `peekaboo permissions status --json`, a real
+semantic capture, and a new disposable clone from the captured base.
 
 ### Disposable desktop identity with Nameplate
 

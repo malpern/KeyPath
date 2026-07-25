@@ -16,6 +16,8 @@ Commands:
   install-app LEASE_ID
   console-login LEASE_ID
   reset-guest-password LEASE_ID
+  reset-desktop-keychain LEASE_ID
+  reboot-guest LEASE_ID
   secure-console-submit LEASE_ID
   console-key LEASE_ID --key PARALLELS_KEY_CODE [--modifier PARALLELS_KEY_CODE]
   rfb-pointer-probe LEASE_ID --x X --y Y
@@ -152,6 +154,16 @@ EOF
         [[ $# -eq 1 ]] || usage
         require_lease_id "$1"
         remote reset-guest-password "$1"
+        ;;
+    reset-desktop-keychain)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote reset-desktop-keychain "$1"
+        ;;
+    reboot-guest)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote reboot-guest "$1"
         ;;
     secure-console-submit)
         [[ $# -eq 1 ]] || usage

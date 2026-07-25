@@ -1490,6 +1490,105 @@ reset_guest_password() {
   print "enrollment_account\t$enrollment_account"
 }
 
+reset_desktop_keychain() {
+  local lease=$1 manifest macos resource parallels_cli secret_file key known_hosts known_hosts_option guest_ip
+  local fifo marker guest_command reset_pid fifo_ready attempt stream_exit reset_exit backup
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$macos" == "27" ]] || die "desktop keychain reset requires the macOS 27 lane"
+  [[ "$(field "$manifest" provider)" == "parallels" ]] || die "desktop keychain reset requires a Parallels lease"
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "desktop keychain reset requires a desktop-enabled lease"
+  [[ "$(field "$manifest" console_login_status)" == "passed" ]] || die "desktop keychain reset requires a verified console login"
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$' ]] || die "invalid Parallels resource id"
+  parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+  [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+
+  key="$HOME/Library/Application Support/crabbox/testboxes/$lease/id_ed25519"
+  [[ -f "$key" && ! -L "$key" && -O "$key" ]] || die "owned CrabBox SSH key not found for lease"
+  known_hosts="$HOME/Library/Application Support/crabbox/testboxes/$lease/known_hosts"
+  [[ -f "$known_hosts" && ! -L "$known_hosts" && -O "$known_hosts" ]] || die "owned CrabBox known-hosts file not found for lease"
+  known_hosts_option=${known_hosts// /\\ }
+  guest_ip=$("$parallels_cli" list -i -f -j "$resource" | python3 -c 'import json,sys; rows=json.load(sys.stdin); addresses=rows[0].get("Network",{}).get("ipAddresses",[]) if rows else []; print(next((item.get("ip","") for item in addresses if item.get("type")=="ipv4"),""),end="")')
+  [[ "$guest_ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Parallels returned an invalid guest address"
+
+  secret_file=$(mktemp "$STATE_ROOT/.desktop-keychain-reset.XXXXXXXX")
+  chmod 600 "$secret_file"
+  typeset -g KEYPATH_LAB_SECURE_TEMP="$secret_file"
+  trap '[[ -z ${KEYPATH_LAB_SECURE_TEMP:-} ]] || rm -f "$KEYPATH_LAB_SECURE_TEMP"' EXIT
+  /opt/homebrew/bin/sops -d "$HOME/dotfiles/secrets.env" | awk -F= '$1 == "KEYPATH_LAB_GUEST_PASSWORD" {sub(/^[^=]*=/, ""); printf "%s", $0; found=1} END {if (!found) exit 1}' > "$secret_file" || die "KEYPATH_LAB_GUEST_PASSWORD is unavailable"
+  [[ -s "$secret_file" ]] || die "desktop keychain reset secret is empty"
+
+  fifo="/tmp/keypath-keychain-reset-$lease-$$.fifo"
+  marker="/tmp/keypath-keychain-reset-$lease-$$.marker"
+  guest_command="set -euo pipefail; fifo=$(printf %q "$fifo"); marker=$(printf %q "$marker"); home=/Users/keypathqa; keychain=\"\$home/Library/Keychains/login.keychain-db\"; rm -f \"\$fifo\" \"\$marker\"; /usr/bin/mkfifo \"\$fifo\"; /usr/sbin/chown keypathqa:staff \"\$fifo\"; /bin/chmod 600 \"\$fifo\"; trap 'rm -f \"\$fifo\"' EXIT; password=; IFS= read -r password < \"\$fifo\"; backup=none; if [[ -e \"\$keychain\" ]]; then backup=\"\${keychain}.before-desktop-base-$(date -u +%Y%m%dT%H%M%SZ)\"; /bin/mv \"\$keychain\" \"\$backup\"; fi; /usr/sbin/chown -R keypathqa:staff \"\$home/Library/Keychains\"; /usr/bin/sudo -u keypathqa /usr/bin/env HOME=\"\$home\" /usr/bin/security create-keychain -p \"\$password\" \"\$keychain\"; /usr/bin/sudo -u keypathqa /usr/bin/env HOME=\"\$home\" /usr/bin/security list-keychains -d user -s \"\$keychain\"; /usr/bin/sudo -u keypathqa /usr/bin/env HOME=\"\$home\" /usr/bin/security default-keychain -d user -s \"\$keychain\"; /usr/bin/sudo -u keypathqa /usr/bin/env HOME=\"\$home\" /usr/bin/security unlock-keychain -p \"\$password\" \"\$keychain\"; /usr/bin/sudo -u keypathqa /usr/bin/env HOME=\"\$home\" /usr/bin/security set-keychain-settings -lut 21600 \"\$keychain\"; printf '%s\n' \"\$backup\" > \"\$marker\"; /bin/chmod 600 \"\$marker\"; unset password"
+  set +e
+  "$parallels_cli" exec "$resource" /bin/zsh -lc "$(printf %q "$guest_command")" >/dev/null 2>&1 &
+  reset_pid=$!
+  fifo_ready=0
+  for attempt in {1..300}; do
+    if "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_option" -i "$key" "keypathqa@$guest_ip" \
+      "/bin/test -p $(printf %q "$fifo")" </dev/null >/dev/null 2>&1; then
+      fifo_ready=1
+      break
+    fi
+    sleep 0.1
+  done
+  if (( fifo_ready == 1 )); then
+    { /bin/cat "$secret_file"; printf '\n'; } | \
+      "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_option" -i "$key" "keypathqa@$guest_ip" \
+        "/bin/zsh -c $(printf %q "/bin/cat > $(printf %q "$fifo")")" >/dev/null 2>&1
+    stream_exit=$?
+  else
+    stream_exit=76
+    kill "$reset_pid" 2>/dev/null || true
+  fi
+  wait "$reset_pid"
+  reset_exit=$?
+  set -e
+  "$parallels_cli" exec "$resource" /bin/rm -f "$fifo" >/dev/null 2>&1 || true
+  backup=$("$parallels_cli" exec "$resource" /bin/cat "$marker" 2>/dev/null | tail -1 || true)
+  "$parallels_cli" exec "$resource" /bin/rm -f "$marker" >/dev/null 2>&1 || true
+  rm -f "$secret_file"
+  KEYPATH_LAB_SECURE_TEMP=
+  trap - EXIT
+  (( stream_exit == 0 && reset_exit == 0 )) || die "failed to establish a fresh disposable desktop keychain"
+  [[ "$backup" == none || "$backup" == /Users/keypathqa/Library/Keychains/login.keychain-db.before-desktop-base-* ]] ||
+    die "desktop keychain reset returned an invalid backup path"
+
+  set_field "$manifest" desktop_keychain_status passed
+  set_field "$manifest" desktop_keychain_at "$(utc_now)"
+  record_command "$lease" passed reset-desktop-keychain
+  print "desktop_keychain_reset\tpassed"
+  print "previous_keychain\t$backup"
+}
+
+reboot_guest() {
+  local lease=$1 manifest resource parallels_cli state attempt ready=0
+  manifest=$(owned_manifest "$lease")
+  [[ "$(field "$manifest" provider)" == "parallels" ]] || die "guest reboot currently requires a Parallels lease"
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$' ]] || die "invalid Parallels resource id"
+  parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+  [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+  "$parallels_cli" restart "$resource" >/dev/null
+  sleep 3
+  for attempt in {1..600}; do
+    state=$("$parallels_cli" list -i -f -j "$resource" 2>/dev/null |
+      python3 -c 'import json,sys; rows=json.load(sys.stdin); print(rows[0].get("State","") if rows else "",end="")' 2>/dev/null || true)
+    if [[ "$state" == "running" ]] &&
+      "$parallels_cli" exec "$resource" /usr/bin/true >/dev/null 2>&1; then
+      ready=1
+      break
+    fi
+    sleep 0.1
+  done
+  (( ready == 1 )) || die "Parallels guest control did not recover after reboot"
+  set_field "$manifest" guest_reboot_at "$(utc_now)"
+  record_command "$lease" passed reboot-guest
+  print "guest_reboot\tpassed"
+}
+
 rfb_pointer_probe() {
   local lease=$1 x=$2 y=$3 manifest macos resource parallels_cli key known_hosts known_hosts_option guest_ip cursor_command before after
   manifest=$(owned_manifest "$lease")
@@ -1657,6 +1756,8 @@ case "$action" in
   desktop-bootstrap) [[ $# -eq 2 ]] || die "desktop-bootstrap requires lease and install-tools flag"; desktop_bootstrap "$@" ;;
   console-login) [[ $# -eq 1 ]] || die "console-login requires lease"; console_login "$1" ;;
   reset-guest-password) [[ $# -eq 1 ]] || die "reset-guest-password requires lease"; reset_guest_password "$1" ;;
+  reset-desktop-keychain) [[ $# -eq 1 ]] || die "reset-desktop-keychain requires lease"; reset_desktop_keychain "$1" ;;
+  reboot-guest) [[ $# -eq 1 ]] || die "reboot-guest requires lease"; reboot_guest "$1" ;;
   secure-console-submit) [[ $# -eq 1 ]] || die "secure-console-submit requires lease"; secure_console_submit "$1" ;;
   console-key) [[ $# -eq 3 ]] || die "console-key requires lease, Parallels key code, and modifier code"; console_key "$1" "$2" "$3" ;;
   rfb-pointer-probe) [[ $# -eq 3 ]] || die "rfb-pointer-probe requires lease, x, and y"; rfb_pointer_probe "$@" ;;
