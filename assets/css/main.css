@@ -3779,6 +3779,13 @@ li {
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
 }
 
+/* Rouge also emits `pre.highlight` for untyped fenced blocks. Keep those
+   scrollable instead of inheriting the wrapper's visible overflow on phones. */
+pre.highlight {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
 /* Rouge syntax highlighting tokens */
 .highlight .c { color: var(--color-text-secondary); font-style: italic; } /* Comment */
 .highlight .err { color: #a61717; background-color: #e3d2d2; } /* Error */

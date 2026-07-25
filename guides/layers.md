@@ -3,6 +3,7 @@ layout: default
 title: "Layers"
 description: "A whole second keyboard under your fingers — navigation, numbers, symbols, and more"
 theme: parchment
+header_image: header-layers.png
 permalink: /guides/layers/
 ---
 
@@ -81,9 +82,6 @@ These use a two-step activation: hold Space (the Leader key) to enter the naviga
 | **Window Snapping** | Space + W | Tile windows to halves, corners, screens |
 | **Mission Control** | Space + M | Expose, desktops, notification center |
 
-<!-- Screenshot: Overlay showing the navigation layer with key hints -->
-![Screenshot — The overlay showing layer key hints]({{ '/images/help/placeholder-overlay-nav-layer.png' | relative_url }})
-
 ### Installing a layer pack
 
 1. Open the **Pack Gallery**
@@ -99,9 +97,6 @@ See the [Packs & Layers catalog]({{ '/guides/packs/' | relative_url }}) for deta
 ## The overlay shows you where you are
 
 The keyboard overlay updates in real time as you switch layers. When you hold a trigger key, the overlay shows the current layer's key assignments — so you always know what each key does right now.
-
-<!-- Screenshot: Overlay transitioning from base to nav layer -->
-![Screenshot — Overlay showing layer transition]({{ '/images/help/placeholder-overlay-layer-transition.png' | relative_url }})
 
 This is especially useful when you're learning a new layer. Keep the overlay visible and glance at it while you build muscle memory.
 
@@ -129,6 +124,19 @@ Most layer packs use Space as the "Leader" — the gateway to all your layers. H
 This two-step design means you only "use up" one key (Space) on the base layer, but you get access to six or more layers through it.
 
 If you'd rather use a different key as your Leader, install the [Leader Key]({{ '/guides/packs/' | relative_url }}) pack — you can switch to Caps Lock, Tab, or Backtick.
+
+---
+
+## When layers depend on each other
+
+A key that opens the Function layer is useful only when something supplies
+Function-layer actions. KeyPath checks these relationships when you turn rules
+on, edit them, or turn them off. If a change would leave a layer key with
+nothing useful behind it, KeyPath identifies the affected keys and offers a
+safe choice.
+
+See **[Make Rules Work Together]({{ '/guides/conflict-resolution/' | relative_url }})**
+for each warning and what its buttons do.
 
 ---
 

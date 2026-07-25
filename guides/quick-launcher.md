@@ -33,7 +33,14 @@ Default mappings ship ready to use: **S** = Safari, **T** = Terminal, **F** = Fi
 3. Find **Quick Launcher** in the Productivity section
 4. Toggle it **on**
 
-The Quick Launcher uses the **Hyper key** (all four modifiers at once). If you haven't set up a Hyper key yet, enable the **Caps Lock Remap** pack first — it turns Caps Lock hold into Hyper.
+The Quick Launcher uses the **Hyper key** (all four modifiers at once). If you
+haven't set up a Hyper key yet, KeyPath can offer to enable **Caps Lock Remap**
+when you turn on Quick Launcher. Caps Lock Remap turns Caps Lock hold into
+Hyper. You can accept that one-click fix or continue and choose a different
+Hyper provider later.
+
+See **[Make Rules Work Together]({{ '/guides/conflict-resolution/' | relative_url }})**
+for an explanation of requirement warnings and each available action.
 
 ---
 
