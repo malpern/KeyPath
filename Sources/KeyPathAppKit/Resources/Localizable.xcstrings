@@ -2146,6 +2146,38 @@
         }
       }
     },
+    "Custom Leader hold delay in milliseconds": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタムLeaderホールド遅延（ミリ秒）"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom Leader hold delay in milliseconds"
+          }
+        }
+      }
+    },
+    "How long to hold the Leader key before KeyPath shows the Shortcut List. Default is Long (300 ms). Medium (200 ms) matches previous behavior.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPathがショートカットリストを表示するまでLeaderキーを押し続ける時間。デフォルトは長め（300ミリ秒）です。標準（200ミリ秒）は以前の動作と同じです。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How long to hold the Leader key before KeyPath shows the Shortcut List. Default is Long (300 ms). Medium (200 ms) matches previous behavior."
+          }
+        }
+      }
+    },
     "How to Clean Up:": {
       "localizations": {
         "ja": {
@@ -2766,6 +2798,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Layer Changes"
+          }
+        }
+      }
+    },
+    "Leader hold delay": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leaderホールド遅延"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leader hold delay"
           }
         }
       }
