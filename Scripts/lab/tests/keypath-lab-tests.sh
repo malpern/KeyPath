@@ -587,12 +587,15 @@ assert_contains "$console_login" $'console_user\tkeypathqa'
 escaped_test_known_hosts=${test_known_hosts// /\\ }
 grep -Fq "UserKnownHostsFile=$escaped_test_known_hosts" "$TMP/guest-ssh-args"
 secure_console_submit=$(KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS=0 KEYPATH_LAB_SECURE_CONSOLE_SETTLE_SECONDS=0 run_remote secure-console-submit cbx_desktop27)
-assert_contains "$secure_console_submit" $'secure_console_submit\tpassed'
-assert_contains "$secure_console_submit" $'credential_transport\tparallels-key-events'
+assert_contains "$secure_console_submit" $'secure_console_submit\tdelivered'
+assert_contains "$secure_console_submit" $'credential_transport\tparallels-key-events-batched'
+assert_contains "$secure_console_submit" $'credential_postcondition\tunverified'
 python3 -c 'import json,sys
 codes={"a":38,"b":56,"c":54,"d":40,"e":26,"f":41,"g":42,"h":43,"i":31,"j":44,"k":45,"l":46,"m":58,"n":57,"o":32,"p":33,"q":24,"r":27,"s":39,"t":28,"u":30,"v":55,"w":25,"x":53,"y":29,"z":52,"1":10,"2":11,"3":12,"4":13,"5":14,"6":15,"7":16,"8":17,"9":18,"0":19,"-":20}
-events=[json.loads(line) for line in open(sys.argv[1]) if line.strip()]
-expected=[[{"key":codes[ch]}] for ch in open(sys.argv[2]).read()]
+events=json.loads(open(sys.argv[1]).read())
+expected=[]
+for ch in open(sys.argv[2]).read():
+    expected.extend(({"key":codes[ch],"event":"press","delay":0},{"key":codes[ch],"event":"release","delay":0}))
 assert events == expected' "$TMP/secure-console-key-events.jsonl" "$TMP/secure-input"
 ! grep -Fq 'fixture-password-that-must-not-leak' "$TMP/secure-console-key-events.jsonl"
 grep -q 'prlctl send-key-event 11111111-1111-1111-1111-111111111111 --key 36' "$CALLS"
@@ -616,7 +619,7 @@ secure_console_rejected_status=$?
 set -e
 mv "$TMP/secure-input.valid" "$TMP/secure-input"
 [[ $secure_console_rejected_status -ne 0 ]] || { echo "unsupported secure console credential unexpectedly passed" >&2; exit 1; }
-assert_contains "$secure_console_rejected" 'failed to deliver the guest credential through Parallels key events'
+assert_contains "$secure_console_rejected" 'failed to encode the guest credential as Parallels key events'
 if tail -n "+$((secure_console_calls_before + 1))" "$CALLS" | grep -q 'send-key-event'; then
     echo "unsupported secure console credential sent a key event" >&2
     exit 1
