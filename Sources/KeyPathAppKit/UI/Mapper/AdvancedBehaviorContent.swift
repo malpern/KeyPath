@@ -261,20 +261,24 @@ struct AdvancedBehaviorContent: View {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 8) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Tap")
+                                Text(activeTimingLabel)
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
                                 TextField("", value: $viewModel.tapTimeout, format: .number)
                                     .textFieldStyle(.roundedBorder)
                                     .frame(width: 50)
+                                    .accessibilityLabel(activeTimingLabel)
                             }
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Hold")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                                TextField("", value: $viewModel.holdTimeout, format: .number)
-                                    .textFieldStyle(.roundedBorder)
-                                    .frame(width: 50)
+                            if timingVariant.usesHoldActivationDelay {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(TimingCopy.holdActivationDelay)
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                    TextField("", value: $viewModel.holdTimeout, format: .number)
+                                        .textFieldStyle(.roundedBorder)
+                                        .frame(width: 50)
+                                        .accessibilityLabel(TimingCopy.holdActivationDelay)
+                                }
                             }
                             Text("ms")
                                 .font(.subheadline)
@@ -284,9 +288,13 @@ struct AdvancedBehaviorContent: View {
                 } else {
                     // Single timing value
                     HStack(spacing: 8) {
+                        Text(activeTimingLabel)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                         TextField("", value: $viewModel.tappingTerm, format: .number)
                             .textFieldStyle(.roundedBorder)
                             .frame(width: 60)
+                            .accessibilityLabel(activeTimingLabel)
 
                         Text("ms")
                             .font(.subheadline)
@@ -400,10 +408,10 @@ struct AdvancedBehaviorContent: View {
                             .foregroundColor(viewModel.holdBehavior == behaviorType ? .accentColor : .secondary)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Select \(behaviorType.rawValue)")
+                    .accessibilityLabel("Select \(behaviorType.displayName)")
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(behaviorType.rawValue)
+                        Text(behaviorType.displayName)
                             .font(.subheadline)
                             .foregroundColor(.primary)
 
@@ -416,7 +424,7 @@ struct AdvancedBehaviorContent: View {
                     }
                 }
                 .accessibilityIdentifier("mapper-hold-behavior-\(behaviorType.rawValue.lowercased().replacingOccurrences(of: " ", with: "-"))")
-                .accessibilityLabel(behaviorType.rawValue)
+                .accessibilityLabel(behaviorType.displayName)
 
                 // Custom keys input (shown when Custom keys is selected)
                 if behaviorType == .customKeys, viewModel.holdBehavior == .customKeys {
@@ -438,6 +446,19 @@ struct AdvancedBehaviorContent: View {
         let index = viewModel.tapDanceSteps.count
         guard index < MapperViewModel.tapDanceLabels.count else { return "More Taps" }
         return MapperViewModel.tapDanceLabels[index]
+    }
+
+    private var timingVariant: TimingCopy.DualRoleVariant {
+        TimingCopy.dualRoleVariant(for: viewModel.holdBehavior)
+    }
+
+    private var isEditingTapDance: Bool {
+        viewModel.holdAction.isEmpty &&
+            (!viewModel.doubleTapAction.isEmpty || viewModel.tapDanceSteps.contains { !$0.action.isEmpty })
+    }
+
+    private var activeTimingLabel: String {
+        isEditingTapDance ? TimingCopy.multiTapWindow : timingVariant.primaryWindowLabel
     }
 
     private func formatKeyForDisplay(_ key: String) -> String {
