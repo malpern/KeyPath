@@ -223,6 +223,23 @@ inter-key delay. Parallels can drop characters when a complete credential is
 sent as one unpaced event batch. The command deliberately reports credential
 transport only; the RFB probe is the required independent postcondition.
 
+For non-secret navigation of an expected disposable-guest dialog, the
+controller can send one bounded Parallels key event:
+
+```bash
+Scripts/lab/keypath-lab console-key cbx_example --key 23
+Scripts/lab/keypath-lab console-key cbx_example --key 36
+```
+
+Parallels uses X11-style key codes; `23` is Tab and `36` is Return. An optional
+`--modifier CODE` holds that modifier only for the duration of the key event.
+The command is admitted only for an owned, desktop-enabled macOS 26 or 27
+Parallels lease. It records transport, not UI success. Use it only when the
+expected dialog is already visible, and verify the intended state through a
+fresh screenshot, accessibility snapshot, or runtime postcondition. Never use
+it for credentials; use `secure-console-submit` for the focused authorization
+field.
+
 On July 16, 2026, the supported UI flow enabled Remote Management and VNC
 control for `keypathqa`, and the probe moved the guest cursor from
 `684.703125 141.1875` to `80 60`. That proves event posting for this disposable
@@ -464,6 +481,23 @@ the app:
 Scripts/lab/keypath-lab scenario cbx_example macos-27-regression
 Scripts/lab/keypath-lab artifacts cbx_example
 ```
+
+Before an automated macOS 27 System Settings flow relies on selectors, capture
+fresh accessibility evidence in the guest:
+
+```bash
+Scripts/lab/macos-27-selector-driver \
+  --output artifacts/macos-27-selectors \
+  --expect Privacy_Accessibility \
+  --expect Accessibility
+```
+
+The driver admits only macOS 27, requires Peekaboo's desktop permissions, and
+writes the exact OS version, build, preflight, accessibility snapshot, and
+expected selector contract. Missing desktop permissions are an
+`environment-precondition-failure`; a missing expected selector is an
+`unsupported-os-selector`. Either result blocks the scenario instead of
+guessing coordinates or attributing a harness problem to KeyPath.
 
 The command records the exact OS build, canonical CLI system snapshot,
 VirtualHID extension state, KeyPath-owned launchd jobs, signatures, Gatekeeper
