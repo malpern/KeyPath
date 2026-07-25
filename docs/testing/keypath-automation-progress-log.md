@@ -408,3 +408,34 @@ next step.
 - **Loop check:** not looping. Direct lease-owned RFB and the existing
   secret-safe secure-dialog path replaced the failed Screen Sharing approach;
   each step changed a canonical postcondition, and the final scenario passed.
+
+## 2026-07-25 14:45 PDT — M05 independent assertion catches live-process defect
+
+- **Outcome:** advanced
+- **Completed milestone:** M05 reached a fully healthy managed macOS 15
+  baseline, executed the supported uninstall once, and converted a previously
+  invisible uninstall gap into a committed product fix.
+- **Evidence:**
+  - Lease `cbx_cc3e5c6f5813` completed randomized managed enrollment and exact
+    installer-policy admission.
+  - Before uninstall, service status reported the helper, Kanata runtime,
+    shared DriverKit extension, VirtualHID device, permissions, and TCP channel
+    healthy and operational.
+  - The uninstall report said every supported removal step passed; independent
+    inspection confirmed the app bundle, helper, and KeyPath launchd state
+    were absent and the configuration plus shared driver were preserved.
+  - The independent assertion nevertheless found PID 3920 still executing
+    `/Applications/KeyPath.app/Contents/MacOS/KeyPath` from the deleted bundle,
+    so it correctly refused to record M05 as passed.
+  - Commit `bd3e81e08` changes CLI uninstall to close a running KeyPath app,
+    wait, force-terminate only if graceful termination does not complete, and
+    refuse to uninstall if the app still cannot be closed. The focused CLI
+    test and release build passed.
+- **Current blocker:** the corrected signed archive is in Apple notarization;
+  managed exact-build admission and the M05 rerun wait on its acceptance.
+- **Next action:** staple and verify the accepted candidate, create an exact
+  managed lease, rerun M05, then execute M06 on that same lease only after the
+  uninstall result is independently passed.
+- **Loop check:** not looping. The first live uninstall produced new canonical
+  evidence, the failing path was identified precisely, and the next attempt
+  uses changed product behavior rather than repeating the rejected action.

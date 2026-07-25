@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-25T14:02:00-07:00",
-  "currentTask": "M05 uninstall proof and M06 reinstall harness started",
-  "message": "M05 is defining a fail-closed uninstall postcondition for app, helper, KeyPath services, preserved configuration, and intentionally shared DriverKit state. M06 is being authored in parallel, but its live proof remains serial behind M05 on the same disposable lifecycle lease.",
+  "updatedAt": "2026-07-25T14:45:00-07:00",
+  "currentTask": "M05 caught a live-process uninstall defect; fixed candidate is in notarization",
+  "message": "A fresh managed macOS 15 baseline passed every readiness check. The supported uninstall removed the app, helper, and services but left the already-running KeyPath GUI alive from the deleted bundle, so the fail-closed M05 assertion correctly rejected the run. Commit bd3e81e08 closes the app before CLI uninstall; its signed replacement is awaiting Apple notarization before the exact-build rerun. M06 remains serially gated behind a genuine M05 pass.",
   "complete": false,
   "workingBlocks": [
     "M05",
@@ -24,13 +24,13 @@
       "label": "Lifecycle scenarios",
       "platform": "macOS 15 Tart \u00b7 macOS 26 Parallels",
       "status": "active",
-      "badge": "M05 ACTIVE",
+      "badge": "DEFECT FOUND",
       "blocks": [
         "M02",
         "M04",
         "M05"
       ],
-      "detail": "M02 is proven. M05 now owns the live macOS 15 uninstall proof while the M06 reinstall contract is authored in parallel. M04 remains separately paused at the trusted Parallels consent boundary."
+      "detail": "M02 is proven. M05 reached a fully ready live baseline and caught an orphaned GUI process after CLI uninstall. The fix is committed and signed; the exact replacement is awaiting notarization for the rerun. M04 remains separately paused at the trusted Parallels consent boundary."
     },
     {
       "id": "upgrade",
@@ -48,14 +48,14 @@
       "label": "Dependent chain",
       "platform": "Scenario consumers",
       "status": "active",
-      "badge": "M06 AUTHORING",
+      "badge": "M06 READY",
       "blocks": [
         "M06",
         "M07",
         "M12",
         "M13"
       ],
-      "detail": "M06 assertion authoring can proceed now, but its live mutation must follow M05's verified uninstall on the same lease. M07 and the nightly/weekly matrices remain downstream."
+      "detail": "The M06 same-lease reinstall contract and assertions are implemented and tested. Its live mutation must still follow a verified M05 uninstall. M07 and the nightly/weekly matrices remain downstream."
     },
     {
       "id": "physical",
@@ -446,34 +446,34 @@
       "unlocks": []
     },
     "M05": {
-      "progress": 10,
+      "progress": 80,
       "health": "smooth",
       "trend": "forward",
-      "phase": "Defining independent uninstall postconditions",
-      "detail": "The live proof will require an independently ready randomized macOS 15 baseline, one supported uninstall, removal of the app, helper, and KeyPath-owned services, preservation of user configuration, and explicit classification of the shared VirtualHID driver.",
-      "attempt": 1,
-      "completedSteps": 0,
+      "phase": "Product defect fixed; exact candidate awaiting notarization",
+      "detail": "The randomized managed clone reached independent runtime and TCP readiness. Its supported uninstall removed filesystem and launchd state while preserving configuration and the shared driver, but left the running KeyPath GUI alive. The assertion rejected the false green. Commit bd3e81e08 fixes the CLI boundary and is signed for a clean rerun after notarization.",
+      "attempt": 2,
+      "completedSteps": 3,
       "totalSteps": 5,
       "nextTasks": [
         {
           "label": "Harden uninstall assertion contract",
-          "status": "active",
-          "progress": 25
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Admit independently ready managed clone",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Run one supported uninstall",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
-          "label": "Verify owned components removed and config preserved",
-          "status": "queued",
-          "progress": 0
+          "label": "Verify fixed candidate leaves no live app process",
+          "status": "active",
+          "progress": 50
         },
         {
           "label": "Preserve evidence for M06",
@@ -481,29 +481,29 @@
           "progress": 0
         }
       ],
-      "blocker": null,
+      "blocker": "The corrected signed candidate is waiting for Apple notarization before exact-build managed admission and rerun.",
       "coreCapability": false,
       "unlocks": []
     },
     "M06": {
-      "progress": 10,
+      "progress": 50,
       "health": "smooth",
       "trend": "forward",
-      "phase": "Authoring same-lease reinstall assertions",
-      "detail": "Harness work is parallel-safe now. The live scenario will require M05 evidence from the same lease, reinstall the exact candidate through host-controlled admission, run one supported convergence action, and independently prove runtime plus TCP readiness.",
+      "phase": "Harness complete; waiting for passed M05 evidence",
+      "detail": "The same-lease gate, exact-candidate reinstall plan, preserved-configuration check, one-action convergence, and independent runtime/TCP assertions are implemented and tested. Live execution remains correctly blocked until M05 passes.",
       "attempt": 1,
-      "completedSteps": 0,
+      "completedSteps": 2,
       "totalSteps": 4,
       "nextTasks": [
         {
-          "label": "Require same-lease M05 evidence",
-          "status": "active",
-          "progress": 25
+          "label": "Implement same-lease M05 evidence gate",
+          "status": "done",
+          "progress": 100
         },
         {
-          "label": "Reinstall exact candidate through host controller",
-          "status": "queued",
-          "progress": 0
+          "label": "Implement host-controlled exact reinstall",
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Run one supported runtime convergence",
@@ -516,7 +516,7 @@
           "progress": 0
         }
       ],
-      "blocker": null,
+      "blocker": "Live M06 execution requires a passed M05 result from the same corrected-candidate lease.",
       "coreCapability": false,
       "unlocks": []
     },
@@ -735,6 +735,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "14:45",
+      "block": "M05",
+      "tone": "working",
+      "title": "M05 caught an orphaned-app uninstall defect",
+      "message": "Lease cbx_cc3e5c6f5813 reached fully ready runtime and TCP health. The supported uninstall removed the bundle, helper, and services but left the running KeyPath GUI process alive; the independent assertion rejected the run. Commit bd3e81e08 fixes CLI uninstall by closing the app first. A signed exact candidate is now in Apple notarization before rerun."
+    },
     {
       "time": "14:02",
       "block": "M05",
