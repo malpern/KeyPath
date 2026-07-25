@@ -177,8 +177,62 @@ case "$name" in
     ;;
   uninstall)
     require_installed_cli
+    if ! assert_ready | tee "$artifact_dir/pre-uninstall-ready.tsv"; then
+      record_scenario_result blocked \
+        "Uninstall requires an independently ready runtime baseline." \
+        --classification environment-precondition-failure --step pre-uninstall-ready
+      exit 4
+    fi
+    "$installed_cli" service status --json > "$artifact_dir/pre-uninstall-status.json"
+    capture_app_identity "$artifact_dir/pre-uninstall-app-identity.txt"
+    config_sentinel="$HOME/.config/keypath/.keypath-lab-preserve"
+    mkdir -p "${config_sentinel:h}"
+    print -n 'keypath-lab-preserve-v1' > "$config_sentinel"
+    /usr/bin/shasum -a 256 "$config_sentinel" > "$artifact_dir/config-sentinel.sha256"
+    expected_config_sha=$(/usr/bin/awk '{print $1}' "$artifact_dir/config-sentinel.sha256")
     "$installed_cli" system uninstall --json | tee "$artifact_dir/uninstall.json"
-    test ! -e /Applications/KeyPath.app
+    Scripts/lab/assert-uninstalled-state \
+      --preserved-config "$config_sentinel" \
+      --expected-sha256 "$expected_config_sha" | tee "$artifact_dir/uninstalled-state.tsv"
+    record_scenario_result passed \
+      "KeyPath-owned app, helper, services, and transient user state were removed while configuration and the shared VirtualHID driver were preserved." \
+      --evidence pre-uninstall-ready.tsv --evidence pre-uninstall-status.json \
+      --evidence pre-uninstall-app-identity.txt --evidence uninstall.json \
+      --evidence config-sentinel.sha256 --evidence uninstalled-state.tsv
+    ;;
+  reinstall)
+    uninstall_dir="$PWD/.keypath-lab/scenario-output/uninstall"
+    uninstall_result="$uninstall_dir/result.json"
+    if [[ ! -s "$uninstall_result" ]] || \
+       ! /usr/bin/python3 -c 'import json,sys; raise SystemExit(0 if json.load(open(sys.argv[1])).get("status") == "passed" else 1)' "$uninstall_result"; then
+      record_scenario_result blocked \
+        "Reinstall requires a passed M05 uninstall result from this same lease." \
+        --classification environment-precondition-failure --step same-lease-uninstall
+      exit 4
+    fi
+    require_installed_cli
+    /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
+    capture_app_identity "$artifact_dir/reinstalled-app-identity.txt"
+    config_sentinel="$HOME/.config/keypath/.keypath-lab-preserve"
+    expected_config_sha=$(/usr/bin/awk '{print $1}' "$uninstall_dir/config-sentinel.sha256")
+    actual_config_sha=$(/usr/bin/shasum -a 256 "$config_sentinel" | /usr/bin/awk '{print $1}')
+    if [[ "$actual_config_sha" != "$expected_config_sha" ]]; then
+      record_scenario_result failed \
+        "Preserved configuration did not survive the reinstall boundary." \
+        --classification keypath-product-failure --step configuration-preservation \
+        --evidence reinstalled-app-identity.txt
+      exit 1
+    fi
+    state="$artifact_dir/run-state.json"
+    result="$artifact_dir/runner-result.json"
+    plan="$PWD/Scripts/lab/scenarios/plans/reinstall-runtime.json"
+    Scripts/lab/scenario-runner --plan "$plan" --state "$state" --result "$result"
+    "$installed_cli" service status --json > "$artifact_dir/post-reinstall-status.json"
+    assert_ready | tee "$artifact_dir/post-reinstall-ready.tsv"
+    record_scenario_result passed \
+      "The exact candidate reinstalled after verified uninstall and converged once to an independently ready runtime without changing preserved configuration." \
+      --evidence reinstalled-app-identity.txt --evidence run-state.json \
+      --evidence post-reinstall-status.json --evidence post-reinstall-ready.tsv
     ;;
   cancellation-failure)
     print "Use a disposable lease to cancel one approval flow and inject one non-destructive failure."
@@ -202,7 +256,7 @@ case "$name" in
     ;;
   *)
     print -u2 "Unknown scenario: $name"
-    print -u2 "Available: clean-install approvals helper-daemon-health managed-capabilities launch repair-reinstall repair-kanata-service upgrade-beta3-to-current reboot-persistence-before reboot-persistence-after uninstall cancellation-failure failure-ownership-self-test artifact-capture macos-27-regression"
+    print -u2 "Available: clean-install approvals helper-daemon-health managed-capabilities launch repair-reinstall repair-kanata-service upgrade-beta3-to-current reboot-persistence-before reboot-persistence-after uninstall reinstall cancellation-failure failure-ownership-self-test artifact-capture macos-27-regression"
     exit 2
     ;;
 esac

@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+"""Independently assert KeyPath-owned state is removed after uninstall."""
+
+import argparse
+import hashlib
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+
+OWNED_SYSTEM_PATHS = (
+    "/Applications/KeyPath.app",
+    "/Library/PrivilegedHelperTools/com.keypath.helper",
+    "/Library/LaunchDaemons/com.keypath.kanata.plist",
+    "/Library/LaunchDaemons/com.keypath.karabiner-vhiddaemon.plist",
+    "/Library/LaunchDaemons/com.keypath.karabiner-vhidmanager.plist",
+    "/Library/LaunchDaemons/com.keypath.helper.plist",
+    "/Library/LaunchDaemons/com.keypath.logrotate.plist",
+    "/Library/KeyPath/bin/kanata",
+    "/usr/local/etc/kanata",
+    "/usr/local/bin/keypath-logrotate.sh",
+    "/etc/newsyslog.d/com.keypath.conf",
+)
+OWNED_LAUNCHD_LABELS = (
+    "system/com.keypath.kanata",
+    "system/com.keypath.helper",
+    "system/com.keypath.karabiner-vhiddaemon",
+    "system/com.keypath.karabiner-vhidmanager",
+    "system/com.keypath.logrotate",
+)
+SHARED_DRIVER_ID = "org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"
+
+
+def run(command: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+def rooted(root: Path, path: str) -> Path:
+    return root / path.removeprefix("/")
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(65536), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--preserved-config", required=True, type=Path)
+    parser.add_argument("--expected-sha256", required=True)
+    args = parser.parse_args()
+
+    root = Path(os.environ.get("KEYPATH_LAB_ROOT", "/"))
+    home = Path(os.environ.get("KEYPATH_LAB_HOME", str(Path.home())))
+    launchctl = os.environ.get("KEYPATH_LAB_LAUNCHCTL", "/bin/launchctl")
+    pgrep = os.environ.get("KEYPATH_LAB_PGREP", "/usr/bin/pgrep")
+    systemextensionsctl = os.environ.get(
+        "KEYPATH_LAB_SYSTEMEXTENSIONSCTL", "/usr/bin/systemextensionsctl"
+    )
+
+    failures: list[str] = []
+    remaining_paths = [str(rooted(root, path)) for path in OWNED_SYSTEM_PATHS if rooted(root, path).exists()]
+    user_paths = (
+        home / "Library/Application Support/KeyPath",
+        home / "Library/Logs/KeyPath",
+    )
+    remaining_paths.extend(str(path) for path in user_paths if path.exists())
+    remaining_paths.extend(str(path) for path in (home / "Library/Preferences").glob("com.keypath*.plist"))
+    if remaining_paths:
+        failures.append("owned paths remain: " + ", ".join(sorted(remaining_paths)))
+
+    active_labels = [label for label in OWNED_LAUNCHD_LABELS if run([launchctl, "print", label]).returncode == 0]
+    if active_labels:
+        failures.append("owned launchd jobs remain: " + ", ".join(active_labels))
+
+    if run([pgrep, "-f", "/Applications/KeyPath.app"]).returncode == 0:
+        failures.append("a KeyPath application process is still running")
+
+    if not args.preserved_config.is_file():
+        failures.append(f"preserved configuration sentinel is missing: {args.preserved_config}")
+    elif sha256(args.preserved_config) != args.expected_sha256:
+        failures.append("preserved configuration sentinel changed during uninstall")
+
+    extensions = run([systemextensionsctl, "list"])
+    driver_lines = [line for line in extensions.stdout.splitlines() if SHARED_DRIVER_ID in line]
+    if extensions.returncode != 0:
+        failures.append("system extension inventory failed")
+    elif not any("activated enabled" in line for line in driver_lines):
+        failures.append("the shared VirtualHID driver was removed or is not activated and enabled")
+
+    if failures:
+        for failure in failures:
+            print(f"uninstall assertion: {failure}", file=sys.stderr)
+        return 1
+
+    print("keypath_owned_state\tremoved")
+    print("user_configuration\tpreserved")
+    print("shared_vhid_driver\tpreserved")
+    print("uninstall_state\tverified")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
