@@ -441,7 +441,7 @@ public enum ChordCategory: String, Codable, Sendable, CaseIterable {
     }
 }
 
-/// Preset timeout speeds with descriptions.
+/// Preset chord press windows with descriptions.
 public enum ChordSpeed: String, CaseIterable, Codable, Sendable {
     case lightning = "Lightning Fast"
     case fast = "Fast"
@@ -460,13 +460,13 @@ public enum ChordSpeed: String, CaseIterable, Codable, Sendable {
     public var description: String {
         switch self {
         case .lightning:
-            "For experts (150ms) - requires precise timing"
+            "150 ms · Fastest fallback; requires the most precise press"
         case .fast:
-            "For experienced users (250ms) - Ben Vallack's preferred speed"
+            "250 ms · Quick fallback with a tight, practiced press"
         case .moderate:
-            "Balanced (400ms) - good for learning"
+            "400 ms · More time to finish the chord; fallback waits longer"
         case .deliberate:
-            "Relaxed (600ms) - easiest to trigger reliably"
+            "600 ms · Most forgiving press; fallback waits longest"
         }
     }
 
