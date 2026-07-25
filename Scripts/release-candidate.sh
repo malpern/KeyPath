@@ -34,6 +34,11 @@ Options:
 Environment:
   CODESIGN_IDENTITY   Developer ID Application identity override.
   NOTARY_PROFILE      notarytool keychain profile override.
+  KP_NOTARY_WAIT_TIMEOUT
+                      Maximum Apple processing wait before preserving recovery
+                      evidence and stopping (default: 15m).
+  KP_NOTARY_STATE_FILE
+                      Optional notarization recovery-state file override.
 EOF
 }
 

@@ -65,6 +65,26 @@ whole build/sign/notarize/deploy flow. Update old worktrees before running
 `quick-deploy.sh`; older scripts that do not use this lock can still overwrite
 the installed app and invalidate the running process.
 
+Notarization upload and waiting are separate operations. After upload,
+`build-and-sign.sh` records the submission ID, archive SHA-256, profile, and
+status beside the archive, then waits up to 15 minutes by default. Override the
+limit only for an intentional longer watch:
+
+```bash
+KP_NOTARY_WAIT_TIMEOUT=30m ./Scripts/release-candidate.sh
+```
+
+If Apple is still processing, or the local wait client fails, the release stops
+before stapling or deployment and prints the recovery-state path plus exact
+inspection and retry commands. Check the existing submission first. Apple does
+not expose a cancel command, and the release scripts never create a duplicate
+submission automatically. If one explicit retry is justified, verify that the
+archive still has the recorded checksum and submit that exact archive once with
+`--no-wait`; do not stack additional submissions. The script returns exit 75
+when Apple still reports `In Progress`, reserving a distinct transient result
+for automation even though the current release entry points stop on any
+nonzero result. Permanent statuses such as `Invalid` return exit 1.
+
 Opt into slower work only when needed:
 
 ```bash
