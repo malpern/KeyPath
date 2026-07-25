@@ -96,6 +96,9 @@ class UpdateProgressDashboardTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("window.parent.location.href", dashboard_script)
+        self.assertIn("keypath-execution-grid", decoded)
+        self.assertIn("state.executionTracks", dashboard_script)
+        self.assertIn("state.parallelReadyAfter", dashboard_script)
 
 
 if __name__ == "__main__":

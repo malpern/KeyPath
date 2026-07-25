@@ -855,6 +855,25 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-defrag-progress .live-copy { min-width:0; }
     #keypath-defrag-progress .live-copy strong { display:block; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     #keypath-defrag-progress .live-copy small, #keypath-defrag-progress .live-time { color:var(--muted-foreground); font-size:11px; }
+    #keypath-defrag-progress .execution { margin:0 0 14px; padding:13px; }
+    #keypath-defrag-progress .execution-head { display:flex; justify-content:space-between; align-items:baseline; gap:16px; margin-bottom:10px; }
+    #keypath-defrag-progress .execution-head strong { font-weight:500; }
+    #keypath-defrag-progress .execution-head span { color:var(--muted-foreground); font-size:11px; text-align:right; }
+    #keypath-defrag-progress .execution-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:7px; }
+    #keypath-defrag-progress .execution-card { min-width:0; padding:9px; border:1px solid var(--border); border-radius:5px; background:color-mix(in srgb,var(--muted) 34%,transparent); }
+    #keypath-defrag-progress .execution-card[data-status=&quot;active&quot;] { border-color:var(--viz-series-2); background:color-mix(in srgb,var(--viz-series-2) 12%,var(--card)); }
+    #keypath-defrag-progress .execution-card[data-status=&quot;next&quot;] { border-color:color-mix(in srgb,var(--viz-series-1) 55%,var(--border)); }
+    #keypath-defrag-progress .execution-card[data-status=&quot;blocked&quot;] { border-color:color-mix(in srgb,var(--destructive) 60%,var(--border)); }
+    #keypath-defrag-progress .execution-topline { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:5px; }
+    #keypath-defrag-progress .execution-label { font-size:11px; font-weight:500; }
+    #keypath-defrag-progress .execution-badge { padding:2px 5px; border-radius:999px; background:var(--muted); color:var(--muted-foreground); font-size:8px; font-weight:650; letter-spacing:.05em; white-space:nowrap; }
+    #keypath-defrag-progress .execution-card[data-status=&quot;active&quot;] .execution-badge { background:color-mix(in srgb,var(--viz-series-2) 28%,var(--card)); color:var(--foreground); }
+    #keypath-defrag-progress .execution-card[data-status=&quot;next&quot;] .execution-badge { background:color-mix(in srgb,var(--viz-series-1) 20%,var(--card)); color:var(--foreground); }
+    #keypath-defrag-progress .execution-card[data-status=&quot;blocked&quot;] .execution-badge { background:color-mix(in srgb,var(--destructive) 18%,var(--card)); color:var(--foreground); }
+    #keypath-defrag-progress .execution-platform, #keypath-defrag-progress .execution-detail { color:var(--muted-foreground); font-size:9px; }
+    #keypath-defrag-progress .execution-platform { margin-top:3px; }
+    #keypath-defrag-progress .execution-blocks { margin:7px 0 4px; font-size:10px; font-weight:600; letter-spacing:.035em; }
+    #keypath-defrag-progress .execution-detail { line-height:1.35; }
     #keypath-defrag-progress .chat { margin-top:16px; padding-top:12px; border-top:1px solid var(--border); }
     #keypath-defrag-progress .chat-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-bottom:5px; }
     #keypath-defrag-progress .chat-title { display:flex; align-items:center; gap:7px; }
@@ -887,12 +906,15 @@ html&gt;body{padding:0}&lt;/style&gt;
     @media (max-width:760px) {
       #keypath-defrag-progress .top { flex-direction:column; align-items:flex-start; }
       #keypath-defrag-progress .track { grid-template-columns:repeat(8,minmax(0,1fr)); }
+      #keypath-defrag-progress .execution-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
       #keypath-defrag-progress .bands { grid-template-columns:1fr 1fr; }
       #keypath-defrag-progress .ledger-head { flex-direction:column; gap:6px; }
       #keypath-defrag-progress .ledger-summary { padding-top:0; text-align:left; white-space:normal; }
     }
     @media (max-width:460px) {
       #keypath-defrag-progress .track { grid-template-columns:repeat(5,minmax(0,1fr)); }
+      #keypath-defrag-progress .execution-grid { grid-template-columns:1fr; }
+      #keypath-defrag-progress .execution-head { align-items:flex-start; flex-direction:column; }
       #keypath-defrag-progress .bands { grid-template-columns:1fr; }
       #keypath-defrag-progress .readout { flex-direction:column; }
       #keypath-defrag-progress .apple-gate { grid-template-columns:1fr; gap:6px; }
@@ -916,6 +938,11 @@ html&gt;body{padding:0}&lt;/style&gt;
   &lt;section class=&quot;card livebar&quot; aria-live=&quot;polite&quot;&gt;
     &lt;div class=&quot;live-main&quot;&gt;&lt;span class=&quot;live-dot&quot; id=&quot;keypath-live-dot&quot;&gt;&lt;/span&gt;&lt;div class=&quot;live-copy&quot;&gt;&lt;strong id=&quot;keypath-live-task&quot;&gt;Connecting to live progress…&lt;/strong&gt;&lt;small id=&quot;keypath-live-message&quot;&gt;Waiting for the local progress feed.&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
     &lt;div class=&quot;live-time&quot; id=&quot;keypath-live-time&quot;&gt;—&lt;/div&gt;
+  &lt;/section&gt;
+
+  &lt;section class=&quot;card execution&quot; aria-label=&quot;Automation execution tracks&quot;&gt;
+    &lt;div class=&quot;execution-head&quot;&gt;&lt;strong&gt;Execution tracks&lt;/strong&gt;&lt;span id=&quot;keypath-parallel-note&quot;&gt;Loading concurrency guidance…&lt;/span&gt;&lt;/div&gt;
+    &lt;div class=&quot;execution-grid&quot; id=&quot;keypath-execution-grid&quot;&gt;&lt;/div&gt;
   &lt;/section&gt;
 
   &lt;div class=&quot;workspace&quot;&gt;
@@ -1086,6 +1113,8 @@ html&gt;body{padding:0}&lt;/style&gt;
       const workHealth = root.querySelector(&#x27;#keypath-work-health&#x27;);
       const ledgerBody = root.querySelector(&#x27;#keypath-capability-ledger&#x27;);
       const ledgerSummary = root.querySelector(&#x27;#keypath-ledger-summary&#x27;);
+      const executionGrid = root.querySelector(&#x27;#keypath-execution-grid&#x27;);
+      const parallelNote = root.querySelector(&#x27;#keypath-parallel-note&#x27;);
       const healthNames = {smooth:&#x27;Going smoothly&#x27;,retrying:&#x27;Trying another approach&#x27;,blocked:&#x27;Blocked&#x27;,waiting:&#x27;Waiting on Apple&#x27;};
       const ledgerNames = {proven:&#x27;Ready&#x27;,active:&#x27;In development&#x27;,blocked:&#x27;Blocked&#x27;,queued:&#x27;Queued&#x27;,waiting:&#x27;Waiting on Apple&#x27;};
       const ledgerStatus = (row) =&gt; {
@@ -1142,6 +1171,29 @@ html&gt;body{padding:0}&lt;/style&gt;
           const cardState = button.dataset.status;
           button.dataset.tooltipStructured = JSON.stringify(tooltipPayload(id,button,cardState,cardState === &#x27;proven&#x27; ? 100 : 0,defaultTasks(cardState,button.dataset.itemName),button.dataset.description));
         });
+        const executionTracks = state.executionTracks || [];
+        const parallelReady = new Set(state.parallelReadyAfter?.blocks || []);
+        executionGrid.replaceChildren(...executionTracks.map(track =&gt; {
+          const card = document.createElement(&#x27;div&#x27;); card.className = &#x27;execution-card&#x27;; card.dataset.status = track.status || &#x27;gated&#x27;;
+          const topline = document.createElement(&#x27;div&#x27;); topline.className = &#x27;execution-topline&#x27;;
+          const label = document.createElement(&#x27;span&#x27;); label.className = &#x27;execution-label&#x27;; label.textContent = track.label || track.id;
+          const badge = document.createElement(&#x27;span&#x27;); badge.className = &#x27;execution-badge&#x27;; badge.textContent = track.badge || track.status || &#x27;TRACK&#x27;;
+          const platform = document.createElement(&#x27;div&#x27;); platform.className = &#x27;execution-platform&#x27;; platform.textContent = track.platform || &#x27;&#x27;;
+          const blocks = document.createElement(&#x27;div&#x27;); blocks.className = &#x27;execution-blocks&#x27;; blocks.textContent = (track.blocks || []).join(&#x27; · &#x27;);
+          const trackDetail = document.createElement(&#x27;div&#x27;); trackDetail.className = &#x27;execution-detail&#x27;; trackDetail.textContent = track.detail || &#x27;&#x27;;
+          topline.append(label,badge); card.append(topline,platform,blocks,trackDetail); return card;
+        }));
+        const gate = state.parallelReadyAfter?.gate;
+        const maxTracks = state.parallelReadyAfter?.maxConcurrentTracks;
+        parallelNote.textContent = gate
+          ? `${parallelReady.size} scenarios can branch after ${gate} · up to ${maxTracks || 1} independent tracks`
+          : &#x27;No parallel branch has been admitted yet&#x27;;
+        parallelReady.forEach(id =&gt; {
+          const button = buttons.get(id);
+          if (!button) return;
+          button.setAttribute(&#x27;aria-label&#x27;,`${button.getAttribute(&#x27;aria-label&#x27;)} Parallel-ready after ${gate}.`);
+          button.dataset.tooltip = `${button.dataset.tooltip} Parallel-ready after ${gate}.`;
+        });
         const activeEntries = Object.entries(state.activeWork || {});
         activeEntries.forEach(([id,work]) =&gt; {
           const button = buttons.get(id);
@@ -1162,8 +1214,9 @@ html&gt;body{padding:0}&lt;/style&gt;
           button.dataset.tooltipStructured = JSON.stringify(tooltipPayload(id,button,button.dataset.status,progress,tasks,work.detail || button.dataset.description,work));
         });
         renderLedger();
-        if (activeEntries.length) {
-          const [id,work] = activeEntries[0];
+        const primaryEntry = activeEntries.find(([id]) =&gt; workingBlocks.has(id)) || activeEntries[0];
+        if (primaryEntry) {
+          const [id,work] = primaryEntry;
           const progress = Math.max(0,Math.min(100,Number(work.progress) || 0));
           workReadout.classList.add(&#x27;visible&#x27;);
           workPhase.textContent = `${id} · ${work.phase || &#x27;Active development&#x27;}`;

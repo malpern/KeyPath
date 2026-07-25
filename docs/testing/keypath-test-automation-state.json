@@ -1,11 +1,86 @@
 {
-  "updatedAt": "2026-07-25T07:08:00-07:00",
-  "currentTask": "M01: make the clean managed install converge in one supported installer pass",
-  "message": "R01, R03, and R04 now pass on the fresh randomized macOS 15 clone: all four runtime permissions, helper health, DriverKit activation, VirtualHID health, Kanata, both daemons, and TCP readiness are independently proven. The lab also found a real clean-install ordering defect: the first installer pass activates VirtualHID, then checks for a launch daemon that a later recipe has not installed yet. A second state-aware pass succeeds. M01 now owns the single-pass fix.",
+  "updatedAt": "2026-07-25T08:17:46-07:00",
+  "currentTask": "M01: re-prove the corrected installer in one pass on a fresh managed clone",
+  "message": "The M01 ordering fix is committed as ef09ad7b7, 41 focused regression tests pass, and the signed candidate is installed on a fresh randomized macOS 15 clone that has completed managed admission. The installer has not been run on that clone yet, preserving a clean one-pass proof. The dashboard now separates the active baseline gate from work that can run in parallel after M01.",
   "complete": false,
   "workingBlocks": [
     "M01"
   ],
+  "executionTracks": [
+    {
+      "id": "baseline",
+      "label": "Baseline gate",
+      "platform": "Tart \u00b7 macOS 15",
+      "status": "active",
+      "badge": "ACTIVE NOW",
+      "blocks": [
+        "M01"
+      ],
+      "detail": "Finish the untouched-clone, one-pass clean-install proof before branching into lifecycle scenarios."
+    },
+    {
+      "id": "lifecycle",
+      "label": "Lifecycle scenarios",
+      "platform": "Tart \u00b7 macOS 15",
+      "status": "next",
+      "badge": "PARALLEL AFTER M01",
+      "blocks": [
+        "M02",
+        "M04",
+        "M05"
+      ],
+      "detail": "Repair, reboot persistence, and uninstall can use independent fresh clones. Start conservatively with one Tart job at a time while the lane stabilizes."
+    },
+    {
+      "id": "upgrade",
+      "label": "Version transition",
+      "platform": "Separate VM lease",
+      "status": "next",
+      "badge": "PARALLEL AFTER M01",
+      "blocks": [
+        "M03"
+      ],
+      "detail": "The upgrade scenario is independent of repair and uninstall and can run beside the lifecycle track when it has a separate lease."
+    },
+    {
+      "id": "dependent",
+      "label": "Dependent chain",
+      "platform": "Scenario consumers",
+      "status": "gated",
+      "badge": "SERIAL / GATED",
+      "blocks": [
+        "M06",
+        "M07",
+        "M12",
+        "M13"
+      ],
+      "detail": "Reinstall follows verified uninstall; nightly and weekly matrices wait for the underlying scenarios to be proven."
+    },
+    {
+      "id": "physical",
+      "label": "Physical input",
+      "platform": "Onsite mWave",
+      "status": "blocked",
+      "badge": "ONSITE",
+      "blocks": [
+        "P02",
+        "P03",
+        "P04"
+      ],
+      "detail": "Remote isolation is complete. The remaining output proof needs a physical keypress at the mini."
+    }
+  ],
+  "parallelReadyAfter": {
+    "gate": "M01",
+    "blocks": [
+      "M02",
+      "M03",
+      "M04",
+      "M05"
+    ],
+    "maxConcurrentTracks": 2,
+    "note": "Use separate disposable leases and avoid two jobs mutating the same VM or installer state."
+  },
   "activeWork": {
     "P02": {
       "progress": 98,
@@ -250,13 +325,13 @@
       "unlocks": []
     },
     "M01": {
-      "progress": 60,
+      "progress": 90,
       "health": "working",
       "trend": "forward",
-      "phase": "Clean install reaches green in two passes; fixing recipe ordering",
-      "detail": "The first supported installer pass installs components and activates the DriverKit extension, then fails activate-vhid-manager because it checks for com.keypath.karabiner-vhiddaemon.plist before install-required-runtime-services runs. A second state-aware installer pass installs the runtime services and the independent managed-capabilities scenario passes.",
-      "attempt": 2,
-      "completedSteps": 3,
+      "phase": "Fresh-clone one-pass validation",
+      "detail": "The postcondition-ordering fix is committed, focused tests pass, and the exact signed candidate is admitted on a fresh randomized macOS 15 clone. Supported first-run cleanup and launcher approvals are the final prerequisite before the clone's only installer pass.",
+      "attempt": 3,
+      "completedSteps": 4,
       "totalSteps": 5,
       "nextTasks": [
         {
@@ -276,16 +351,16 @@
         },
         {
           "label": "Fix installer recipe ordering or postcondition scope",
-          "status": "active",
-          "progress": 25
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Re-prove one-pass clean install on a fresh clone",
-          "status": "queued",
-          "progress": 0
+          "status": "active",
+          "progress": 50
         }
       ],
-      "blocker": "Product defect: activate-vhid-manager requires a runtime-service postcondition before the runtime-service installation recipe executes.",
+      "blocker": "The fresh clone is intentionally untouched by the installer. Its supported first-run cleanup and launcher approvals must finish before the single-pass assertion.",
       "coreCapability": true,
       "unlocks": [
         "Repair, upgrade, reboot, uninstall, and reinstall scenarios"
@@ -576,6 +651,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "08:17",
+      "block": "M01",
+      "tone": "working",
+      "title": "Parallel tracks mapped; corrected candidate awaits one-pass proof",
+      "message": "The dashboard now distinguishes the active M01 baseline gate, lifecycle and upgrade work that can branch in parallel afterward, the serial downstream chain, and onsite-only input work. Fix ef09ad7b7 passed 41 focused tests; its fresh managed clone remains uncontaminated before the one-pass installer run."
+    },
     {
       "time": "07:08",
       "block": "M01",
