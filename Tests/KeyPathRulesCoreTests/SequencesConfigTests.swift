@@ -17,7 +17,11 @@ final class SequencesConfigTests: XCTestCase {
 
         XCTAssertEqual(config.sequences.count, 0, "Default config should have no sequences")
         XCTAssertNil(config.activeSequenceID, "Default config should have no active sequence")
-        XCTAssertEqual(config.globalTimeout, 500, "Default timeout should be 500ms")
+        XCTAssertEqual(
+            config.globalTimeout,
+            SequencesConfig.defaultPauseLimitMs,
+            "Default pause limit should use the shared model default"
+        )
     }
 
     func testPresets() {
@@ -129,6 +133,18 @@ final class SequencesConfigTests: XCTestCase {
 
     // MARK: - Validation Tests
 
+    func testPauseLimitRangeIncludesSupportedBoundaries() {
+        XCTAssertEqual(SequencesConfig.minimumPauseLimitMs, 300)
+        XCTAssertEqual(SequencesConfig.maximumPauseLimitMs, 2000)
+        XCTAssertEqual(SequencesConfig.pauseLimitStepMs, 50)
+        XCTAssertTrue(SequencesConfig(globalTimeout: 300).isValidTimeout)
+        XCTAssertTrue(SequencesConfig(globalTimeout: 2000).isValidTimeout)
+        XCTAssertFalse(SequencesConfig(globalTimeout: 299).isValidTimeout)
+        XCTAssertFalse(SequencesConfig(globalTimeout: 2001).isValidTimeout)
+        XCTAssertEqual(SequencesConfig(globalTimeout: 299).clampedPauseLimitMs, 300)
+        XCTAssertEqual(SequencesConfig(globalTimeout: 2001).clampedPauseLimitMs, 2000)
+    }
+
     func testSequenceValidation_Valid() {
         let valid = SequenceDefinition(
             name: "Valid",
@@ -232,17 +248,5 @@ final class SequencesConfigTests: XCTestCase {
         XCTAssertEqual(decoded.name, original.name, "Should preserve name")
         XCTAssertEqual(decoded.keys, original.keys, "Should preserve keys")
         XCTAssertEqual(decoded.description, original.description, "Should preserve description")
-    }
-
-    // MARK: - Timeout Presets Tests
-
-    func testTimeoutPresets() {
-        XCTAssertEqual(SequenceTimeout.fast.rawValue, 300, "Fast should be 300ms")
-        XCTAssertEqual(SequenceTimeout.moderate.rawValue, 500, "Moderate should be 500ms")
-        XCTAssertEqual(SequenceTimeout.relaxed.rawValue, 1000, "Relaxed should be 1000ms")
-
-        XCTAssertEqual(SequenceTimeout.fast.displayName, "Fast (300ms)")
-        XCTAssertEqual(SequenceTimeout.moderate.displayName, "Moderate (500ms)")
-        XCTAssertEqual(SequenceTimeout.relaxed.displayName, "Relaxed (1000ms)")
     }
 }

@@ -16,7 +16,7 @@ import SwiftUI
 /// - Visual key sequence builder with dropdowns
 /// - Preset sequences for quick setup
 /// - Conflict detection with warnings
-/// - Global timeout configuration
+/// - Sequence pause limit configuration
 struct SequencesModalView: View {
     // MARK: - State
 
@@ -227,7 +227,7 @@ struct SequencesModalView: View {
                     // Description
                     descriptionSection(for: sequence)
 
-                    // Global Timeout
+                    // Sequence pause limit
                     timeoutSection
 
                     // Conflicts
@@ -384,11 +384,11 @@ struct SequencesModalView: View {
         }
     }
 
-    // MARK: - Timeout Section
+    // MARK: - Sequence Pause Limit
 
     private var timeoutSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Global Timeout")
+            Text("Sequence pause limit")
                 .font(.headline)
 
             VStack(alignment: .leading, spacing: 8) {
@@ -396,28 +396,36 @@ struct SequencesModalView: View {
                     Slider(value: Binding(
                         get: { Double(localConfig.globalTimeout) },
                         set: { localConfig.globalTimeout = Int($0) }
-                    ), in: 300 ... 1000, step: 50)
+                    ), in: Double(SequencesConfig.minimumPauseLimitMs) ... Double(SequencesConfig.maximumPauseLimitMs),
+                    step: Double(SequencesConfig.pauseLimitStepMs))
                         .accessibilityIdentifier("sequences-modal-timeout-slider")
-                        .accessibilityLabel("Global timeout")
+                        .accessibilityLabel("Sequence pause limit")
                         .accessibilityValue("\(localConfig.globalTimeout) ms")
 
-                    Text("\(localConfig.globalTimeout)ms")
+                    Text("\(localConfig.globalTimeout) ms")
                         .font(.system(.body, design: .monospaced))
                         .frame(width: 70, alignment: .trailing)
                 }
 
-                Text(timeoutPreset.description)
+                Text(pauseLimitDescription)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Text("The timer restarts after each matching key. If you pause longer than this, KeyPath clears the incomplete sequence.")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
         }
     }
 
-    private var timeoutPreset: SequenceTimeout {
+    private var pauseLimitDescription: LocalizedStringKey {
         switch localConfig.globalTimeout {
-        case ..<400: .fast
-        case 400 ..< 800: .moderate
-        default: .relaxed
+        case ..<400:
+            "Requires a quick rhythm and clears incomplete sequences sooner."
+        case 400 ..< 800:
+            "Balances comfortable entry with a short wait after incomplete sequences."
+        default:
+            "Allows longer pauses while learning, but incomplete sequences stay pending longer."
         }
     }
 

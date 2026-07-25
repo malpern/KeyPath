@@ -57,6 +57,7 @@ theme: parchment
 <li><a href="{{ '/guides/quick-launcher/' | relative_url }}">Quick Launcher</a></li>
 <li><a href="{{ '/guides/action-uri/' | relative_url }}">Launching Apps</a></li>
 <li><a href="{{ '/guides/chords/' | relative_url }}">Chords</a></li>
+<li><a href="{{ '/guides/sequences/' | relative_url }}">Memorable Shortcut Paths</a></li>
 <li><a href="{{ '/guides/auto-shift/' | relative_url }}">Auto-Shift Symbols</a></li>
 <li><a href="{{ '/guides/alternative-layouts/' | relative_url }}">Alternative Layouts</a></li>
 <li><a href="{{ '/guides/keyboard-layouts/' | relative_url }}">Works With Your Keyboard</a></li>
