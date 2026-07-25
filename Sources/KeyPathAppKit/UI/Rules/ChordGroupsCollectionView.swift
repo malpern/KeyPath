@@ -112,7 +112,7 @@ struct ChordGroupsCollectionView: View {
                     .fontWeight(.medium)
 
                 if let group = selectedGroup {
-                    Text("\(group.name): \(group.chords.count) chords • \(ChordPressWindowCopy.summary(milliseconds: group.timeout))")
+                    Text("\(group.name): \(group.chords.count) chords • \(ChordPressWindowCopy.compactSummary(milliseconds: group.timeout))")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

@@ -31,4 +31,11 @@ final class ChordPressWindowCopyTests: XCTestCase {
         XCTAssertTrue(value.contains("faster fallback"))
         XCTAssertTrue(value.contains("easier chord"))
     }
+
+    func testCompactSummaryAvoidsRepeatingTheFullControlName() {
+        let summary = ChordPressWindowCopy.compactSummary(milliseconds: 250)
+
+        XCTAssertEqual(summary, "250 ms window")
+        XCTAssertFalse(summary.contains("Chord press window"))
+    }
 }

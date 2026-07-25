@@ -236,12 +236,12 @@ struct ChordGroupsModalView: View {
                     )
                     .accessibilityIdentifier("chord-press-window-slider")
                     .accessibilityLabel(Text(ChordPressWindowCopy.title))
-                    .accessibilityValue(
+                    .accessibilityValue(Text(
                         ChordPressWindowCopy.accessibilityValue(
                             milliseconds: group.timeout,
                             speed: ChordSpeed.nearest(to: group.timeout)
                         )
-                    )
+                    ))
 
                     // Speed preset buttons
                     HStack(spacing: 8) {
@@ -447,7 +447,7 @@ private struct GroupRowView: View {
                         .fontWeight(isSelected ? .semibold : .regular)
                         .foregroundColor(isSelected ? .white : .primary)
 
-                    Text("\(group.chords.count) chords • \(ChordPressWindowCopy.summary(milliseconds: group.timeout))")
+                    Text("\(group.chords.count) chords • \(ChordPressWindowCopy.compactSummary(milliseconds: group.timeout))")
                         .font(.caption)
                         .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
                 }

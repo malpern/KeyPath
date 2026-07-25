@@ -25,6 +25,13 @@ enum ChordPressWindowCopy {
         )
     }
 
+    static func compactSummary(milliseconds: Int) -> String {
+        String(
+            localized: "\(milliseconds) ms window",
+            comment: "Short chord press window value for repeated sidebar rows. The variable is milliseconds."
+        )
+    }
+
     static func accessibilityValue(milliseconds: Int, speed: ChordSpeed) -> String {
         String(
             localized: "\(milliseconds) milliseconds, \(speed.rawValue). Lower values give faster fallback; higher values give an easier chord.",
