@@ -1341,7 +1341,7 @@ console_login() {
 }
 
 secure_console_submit() {
-  local lease=$1 manifest macos resource parallels_cli secret_file key_events
+  local lease=$1 manifest macos resource parallels_cli secret_file key_events key_event
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$macos" == "26" || "$macos" == "27" ]] || die "secure console submit requires a macOS 26 or 27 Parallels lane"
@@ -1363,10 +1363,12 @@ secure_console_submit() {
   fi
   [[ -s "$secret_file" ]] || die "secure console secret is empty"
 
-  # Convert the credential to one paced Parallels event batch. The plaintext is
+  # Convert the credential to explicit, paced Parallels event pairs. The
+  # plaintext is
   # read only from the owner-only temp file and never enters argv, logs, the
-  # guest pasteboard, or an artifact. Explicit press/release pairs avoid relying
-  # on the ambiguous default event of one short-lived prlctl process per key.
+  # guest pasteboard, or an artifact. One short-lived prlctl process per
+  # explicit press/release pair prevents macOS from dropping a large burst
+  # without relying on Parallels' ambiguous default key event.
   # Keep the accepted alphabet deliberately narrow; expanding it requires an
   # explicit key-map review.
   key_events=$(python3 -c 'import json,sys
@@ -1374,7 +1376,7 @@ codes={"a":38,"b":56,"c":54,"d":40,"e":26,"f":41,"g":42,"h":43,"i":31,"j":44,"k"
 value=open(sys.argv[1],"r",encoding="utf-8").read()
 if not value or any(ch not in codes for ch in value): raise SystemExit(64)
 delay=max(0,round(float(sys.argv[2])*1000))
-events=[
+replace_events=[
     {"key":115,"event":"press","delay":delay},
     {"key":38,"event":"press","delay":delay},
     {"key":38,"event":"release","delay":delay},
@@ -1382,13 +1384,16 @@ events=[
     {"key":22,"event":"press","delay":delay},
     {"key":22,"event":"release","delay":delay},
 ]
+print(json.dumps(replace_events,separators=(",",":")))
 for ch in value:
-    events.extend(({"key":codes[ch],"event":"press","delay":delay},{"key":codes[ch],"event":"release","delay":delay}))
-print(json.dumps(events,separators=(",",":")))' "$secret_file" "${KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS:-0.2}" 3<&-) || \
+    print(json.dumps(({"key":codes[ch],"event":"press","delay":delay},{"key":codes[ch],"event":"release","delay":delay}),separators=(",",":")))' "$secret_file" "${KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS:-0.2}" 3<&-) || \
     die "failed to encode the guest credential as Parallels key events"
   [[ -n "$key_events" ]] || die "failed to encode the guest credential as Parallels key events"
-  printf '%s\n' "$key_events" | "$parallels_cli" send-key-event "$resource" --json >/dev/null || \
-    die "failed to deliver the guest credential through Parallels key events"
+  while IFS= read -r key_event; do
+    printf '%s\n' "$key_event" | "$parallels_cli" send-key-event "$resource" --json >/dev/null || \
+      die "failed to deliver the guest credential through Parallels key events"
+    sleep "${KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS:-0.2}"
+  done <<< "$key_events"
   key_events=
   sleep "${KEYPATH_LAB_SECURE_CONSOLE_SETTLE_SECONDS:-0.25}"
   if [[ "$macos" == "26" ]]; then
@@ -1408,7 +1413,7 @@ print(json.dumps(events,separators=(",",":")))' "$secret_file" "${KEYPATH_LAB_SE
   record_command "$lease" delivered secure-console-submit
   print "secure_console_submit\tdelivered"
   print "credential_field\treplaced-focused-value"
-  print "credential_transport\tparallels-key-events-batched"
+  print "credential_transport\tparallels-explicit-pairs-paced"
   print "credential_postcondition\tunverified"
 }
 
