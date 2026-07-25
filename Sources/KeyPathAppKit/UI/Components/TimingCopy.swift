@@ -67,4 +67,11 @@ enum TimingCopy {
         case .customKeys: .customTapKeys
         }
     }
+
+    static func showsHoldActivationDelay(
+        for variant: DualRoleVariant,
+        isEditingTapDance: Bool
+    ) -> Bool {
+        !isEditingTapDance && variant.usesHoldActivationDelay
+    }
 }

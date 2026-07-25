@@ -269,7 +269,7 @@ struct AdvancedBehaviorContent: View {
                                     .frame(width: 50)
                                     .accessibilityLabel(activeTimingLabel)
                             }
-                            if timingVariant.usesHoldActivationDelay {
+                            if showsHoldActivationDelay {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(TimingCopy.holdActivationDelay)
                                         .font(.caption2)
@@ -459,6 +459,13 @@ struct AdvancedBehaviorContent: View {
 
     private var activeTimingLabel: String {
         isEditingTapDance ? TimingCopy.multiTapWindow : timingVariant.primaryWindowLabel
+    }
+
+    private var showsHoldActivationDelay: Bool {
+        TimingCopy.showsHoldActivationDelay(
+            for: timingVariant,
+            isEditingTapDance: isEditingTapDance
+        )
     }
 
     private func formatKeyForDisplay(_ key: String) -> String {

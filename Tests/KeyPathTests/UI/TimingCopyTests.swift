@@ -36,4 +36,9 @@ final class TimingCopyTests: XCTestCase {
         XCTAssertEqual(TimingCopy.activateHoldOnOtherKeyRelease, "Activate hold after another key is released")
         XCTAssertTrue(TimingCopy.multiTapWindowExplanation.contains("After every tap"))
     }
+
+    func testTapDanceNeverShowsAnUnrelatedHoldActivationDelay() {
+        XCTAssertFalse(TimingCopy.showsHoldActivationDelay(for: .basic, isEditingTapDance: true))
+        XCTAssertTrue(TimingCopy.showsHoldActivationDelay(for: .basic, isEditingTapDance: false))
+    }
 }
