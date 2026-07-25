@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-25T12:00:00-07:00",
-  "currentTask": "M04 isolated a trusted Input Monitoring transport gap",
-  "message": "The managed macOS 26 clone proved the helper, driver, virtual HID, and KeyPath permissions, but Kanata remains non-operational. Visual switch changes did not produce real Input Monitoring consent, so reboot-persistence proof is paused while the lab adds a trusted Parallels input path.",
+  "updatedAt": "2026-07-25T12:05:00-07:00",
+  "currentTask": "M04 proof contract hardened; trusted consent remains gated",
+  "message": "The reboot scenario now requires a healthy baseline, a changed boot marker, stable signed app identity, and independently ready runtime/TCP after reboot. Its live proof remains paused until the lab can commit trusted Kanata Input Monitoring consent.",
   "complete": false,
   "workingBlocks": [
     "M04"
@@ -405,11 +405,11 @@
       ]
     },
     "M04": {
-      "progress": 60,
+      "progress": 70,
       "health": "blocked",
       "trend": "paused",
       "phase": "Trusted Input Monitoring event boundary",
-      "detail": "Lease cbx_cd38fd327f7c admitted the exact candidate and proved its helper, driver, virtual HID, and KeyPath permissions. Kanata Input Monitoring and Accessibility remain false, Kanata is stopped, and the TCP probe refuses connection even when System Settings visually shows enabled switches.",
+      "detail": "Lease cbx_cd38fd327f7c isolated the trusted-consent gap and was destroyed after artifact capture. Commit 26d1c11c4 hardens the M04 harness so it cannot pass without a ready baseline, a proven reboot, stable signed app identity, and independently ready runtime/TCP afterward.",
       "attempt": 1,
       "completedSteps": 3,
       "totalSteps": 5,
@@ -687,6 +687,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "12:05",
+      "block": "M04",
+      "tone": "working",
+      "title": "M04 false-green paths closed",
+      "message": "Commit 26d1c11c4 makes the reboot proof require pre-reboot readiness, a changed boot marker, unchanged signed app identity, and post-reboot runtime/TCP readiness. The lab, scenario runner, result contract, and runtime assertion suites pass; final live proof still needs trusted Input Monitoring consent."
+    },
     {
       "time": "12:00",
       "block": "M04",

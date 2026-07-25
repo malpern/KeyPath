@@ -353,3 +353,27 @@ next step.
   explicitly retired because the canonical permission and TCP evidence did
   not change. The next attempt must use a materially different trusted input
   transport or a human console action.
+
+## 2026-07-25 12:05 PDT — M04 proof contract hardened
+
+- **Outcome:** advanced
+- **Completed milestone:** commit `26d1c11c4` closes the reboot scenario's
+  false-green paths while the trusted-consent transport remains gated.
+- **Evidence:**
+  - The pre-reboot leg now requires independent runtime readiness and captures
+    service status, system inspection, boot marker, and signed app identity.
+  - The post-reboot leg refuses to run without same-lease pre-reboot evidence,
+    requires the boot marker to change, compares app identity across reboot,
+    and requires independent runtime plus TCP readiness.
+  - Failures are recorded as a precondition block or KeyPath product failure
+    at the exact failed postcondition instead of becoming an ambiguous shell
+    exit.
+  - The full lab controller test, scenario-result tests, scenario-runner tests,
+    and runtime-state tests pass.
+- **Current blocker:** no change to the live M04 gate: current remote Parallels
+  input cannot commit trusted Kanata Input Monitoring consent.
+- **Next action:** prepare the M05 uninstall and M06 reinstall assertion
+  contracts remotely, while keeping their final live proof dependent on an
+  independently ready managed runtime.
+- **Loop check:** not looping. This was new durable harness work and did not
+  repeat the failed consent UI approach.
