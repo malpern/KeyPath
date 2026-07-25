@@ -107,6 +107,150 @@ final class SigningPipelineTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.state.path))
     }
 
+    func testNotaryWrapperPreservesCandidateWhenSubmitClientFailsAfterUpload() throws {
+        let fixture = try makeNotaryFixture(
+            waitExit: 0,
+            infoStatus: nil,
+            submitExit: 138,
+            submitOutput: "",
+            submitError: "notarytool terminated unexpectedly",
+            historyEntries: [
+                [
+                    "id": submissionID,
+                    "name": "KeyPath.zip",
+                    "status": "In Progress",
+                    "createdDate": "2099-07-25T16:21:02.550Z",
+                ],
+            ]
+        )
+        let script = """
+        unset KP_SIGN_DRY_RUN
+        source \(signingLibPath)
+        KP_NOTARY_CMD="\(fixture.stub.path)"
+        KP_NOTARY_STATE_FILE="\(fixture.state.path)"
+        kp_notarize_zip "\(fixture.archive.path)" "KeyPath-Profile"
+        """
+        let result = runScript(script, env: ["KP_NOTARY_TEST_LOG": fixture.log.path])
+
+        XCTAssertEqual(result.code, 138)
+        XCTAssertTrue(result.stderr.contains("client exited 138"))
+        XCTAssertTrue(result.stderr.contains("notarytool terminated unexpectedly"))
+        XCTAssertTrue(result.stderr.contains("Do not retry automatically"))
+        XCTAssertTrue(result.stderr.contains(submissionID))
+
+        let state = try notaryState(at: fixture.state)
+        XCTAssertEqual(state["status"] as? String, "submit-client-failed")
+        XCTAssertEqual(state["submitExitCode"] as? Int, 138)
+        XCTAssertEqual(state["submitStderr"] as? String, "notarytool terminated unexpectedly")
+        let candidates = try XCTUnwrap(state["candidateSubmissions"] as? [[String: Any]])
+        XCTAssertEqual(candidates.compactMap { $0["id"] as? String }, [submissionID])
+
+        let invocations = try String(contentsOf: fixture.log, encoding: .utf8)
+        XCTAssertTrue(invocations.contains("history --keychain-profile KeyPath-Profile --output-format json"))
+    }
+
+    func testNotaryWrapperPreservesAllRecentCandidatesWhenSubmitRecoveryIsAmbiguous() throws {
+        let alternateSubmissionID = "ed168bf6-1910-4bb9-9d57-9114cea6e013"
+        let fixture = try makeNotaryFixture(
+            waitExit: 0,
+            infoStatus: nil,
+            submitExit: 138,
+            submitOutput: "",
+            historyEntries: [
+                [
+                    "id": submissionID,
+                    "name": "KeyPath.zip",
+                    "status": "In Progress",
+                    "createdDate": "2099-07-25T16:21:02.550Z",
+                ],
+                [
+                    "id": alternateSubmissionID,
+                    "name": "KeyPath.zip",
+                    "status": "In Progress",
+                    "createdDate": "2099-07-25T16:22:20.233Z",
+                ],
+            ]
+        )
+        let script = """
+        unset KP_SIGN_DRY_RUN
+        source \(signingLibPath)
+        KP_NOTARY_CMD="\(fixture.stub.path)"
+        KP_NOTARY_STATE_FILE="\(fixture.state.path)"
+        kp_notarize_zip "\(fixture.archive.path)" "KeyPath-Profile"
+        """
+        let result = runScript(script, env: ["KP_NOTARY_TEST_LOG": fixture.log.path])
+
+        XCTAssertEqual(result.code, 138)
+        XCTAssertTrue(result.stderr.contains(submissionID))
+        XCTAssertTrue(result.stderr.contains(alternateSubmissionID))
+
+        let state = try notaryState(at: fixture.state)
+        let candidates = try XCTUnwrap(state["candidateSubmissions"] as? [[String: Any]])
+        XCTAssertEqual(candidates.compactMap { $0["id"] as? String }, [submissionID, alternateSubmissionID])
+        XCTAssertNil(state["submissionId"] as? String)
+    }
+
+    func testNotaryWrapperKeepsAuthoritativeSubmitIDWhenClientExitsAfterResponse() throws {
+        let fixture = try makeNotaryFixture(
+            waitExit: 0,
+            infoStatus: nil,
+            submitExit: 138,
+            submitOutput: "{\"id\":\"\(submissionID)\",\"message\":\"Successfully uploaded file\"}",
+            historyEntries: [
+                [
+                    "id": "ed168bf6-1910-4bb9-9d57-9114cea6e013",
+                    "name": "KeyPath.zip",
+                    "status": "In Progress",
+                    "createdDate": "2099-07-25T16:22:20.233Z",
+                ],
+            ]
+        )
+        let script = """
+        unset KP_SIGN_DRY_RUN
+        source \(signingLibPath)
+        KP_NOTARY_CMD="\(fixture.stub.path)"
+        KP_NOTARY_STATE_FILE="\(fixture.state.path)"
+        kp_notarize_zip "\(fixture.archive.path)" "KeyPath-Profile"
+        """
+        let result = runScript(script, env: ["KP_NOTARY_TEST_LOG": fixture.log.path])
+
+        XCTAssertEqual(result.code, 138)
+        XCTAssertTrue(result.stderr.contains("captured before the local client failed: \(submissionID)"))
+        XCTAssertFalse(result.stdout.contains(submissionID))
+
+        let state = try notaryState(at: fixture.state)
+        XCTAssertEqual(state["submissionId"] as? String, submissionID)
+        XCTAssertTrue((state["candidateSubmissions"] as? [[String: Any]])?.isEmpty == true)
+
+        let invocations = try String(contentsOf: fixture.log, encoding: .utf8)
+        XCTAssertFalse(invocations.contains("history --keychain-profile"))
+    }
+
+    func testNotaryWrapperWritesRecoveryStateWhenHistoryIsMalformed() throws {
+        let fixture = try makeNotaryFixture(
+            waitExit: 0,
+            infoStatus: nil,
+            submitExit: 138,
+            submitOutput: "",
+            historyOutput: "[]"
+        )
+        let script = """
+        unset KP_SIGN_DRY_RUN
+        source \(signingLibPath)
+        KP_NOTARY_CMD="\(fixture.stub.path)"
+        KP_NOTARY_STATE_FILE="\(fixture.state.path)"
+        kp_notarize_zip "\(fixture.archive.path)" "KeyPath-Profile"
+        """
+        let result = runScript(script, env: ["KP_NOTARY_TEST_LOG": fixture.log.path])
+
+        XCTAssertEqual(result.code, 138)
+        XCTAssertTrue(result.stderr.contains("Recovery state: \(fixture.state.path)"))
+
+        let state = try notaryState(at: fixture.state)
+        XCTAssertEqual(state["status"] as? String, "submit-client-failed")
+        XCTAssertTrue((state["candidateSubmissions"] as? [[String: Any]])?.isEmpty == true)
+    }
+
     func testNotaryWrapperRecordsSubmissionBeforeBoundedWait() throws {
         let fixture = try makeNotaryFixture(waitExit: 0, waitStatus: "Accepted", infoStatus: nil)
         let script = """
@@ -233,7 +377,12 @@ final class SigningPipelineTests: XCTestCase {
         waitExit: Int32,
         waitStatus: String? = nil,
         infoStatus: String?,
-        submitID: String? = nil
+        submitID: String? = nil,
+        submitExit: Int32 = 0,
+        submitOutput: String? = nil,
+        submitError: String? = nil,
+        historyOutput: String? = nil,
+        historyEntries: [[String: String]] = []
     ) throws -> (archive: URL, stub: URL, log: URL, state: URL) {
         let directory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -254,6 +403,20 @@ final class SigningPipelineTests: XCTestCase {
             "printf '%s\\n' '{\"id\":\"\(submissionID)\",\"status\":\"\($0)\"}'"
         } ?? "exit 69"
         let resolvedSubmitID = submitID ?? submissionID
+        let resolvedSubmitOutput = submitOutput ?? "{\"id\":\"\(resolvedSubmitID)\",\"message\":\"Successfully uploaded file\"}"
+        let historyJSON: String = if let historyOutput {
+            historyOutput
+        } else {
+            try XCTUnwrap(
+                String(
+                    data: JSONSerialization.data(withJSONObject: ["history": historyEntries]),
+                    encoding: .utf8
+                )
+            )
+        }
+        let submitErrorStatement = submitError.map {
+            "printf '%s\\n' '\($0)' >&2"
+        } ?? ":"
         let stubSource = """
         #!/bin/bash
         printf '%s\\n' "$*" >> "$KP_NOTARY_TEST_LOG"
@@ -263,7 +426,9 @@ final class SigningPipelineTests: XCTestCase {
                     *" --no-wait "*) ;;
                     *) exit 64 ;;
                 esac
-                printf '%s\\n' '{"id":"\(resolvedSubmitID)","message":"Successfully uploaded file"}'
+                printf '%s\\n' '\(resolvedSubmitOutput)'
+                \(submitErrorStatement)
+                exit \(submitExit)
                 ;;
             wait)
                 \(waitResponse)
@@ -271,6 +436,9 @@ final class SigningPipelineTests: XCTestCase {
                 ;;
             info)
                 \(infoResponse)
+                ;;
+            history)
+                printf '%s\\n' '\(historyJSON)'
                 ;;
             *)
                 exit 2
