@@ -1374,7 +1374,14 @@ codes={"a":38,"b":56,"c":54,"d":40,"e":26,"f":41,"g":42,"h":43,"i":31,"j":44,"k"
 value=open(sys.argv[1],"r",encoding="utf-8").read()
 if not value or any(ch not in codes for ch in value): raise SystemExit(64)
 delay=max(0,round(float(sys.argv[2])*1000))
-events=[]
+events=[
+    {"key":115,"event":"press","delay":delay},
+    {"key":38,"event":"press","delay":delay},
+    {"key":38,"event":"release","delay":delay},
+    {"key":115,"event":"release","delay":delay},
+    {"key":22,"event":"press","delay":delay},
+    {"key":22,"event":"release","delay":delay},
+]
 for ch in value:
     events.extend(({"key":codes[ch],"event":"press","delay":delay},{"key":codes[ch],"event":"release","delay":delay}))
 print(json.dumps(events,separators=(",",":")))' "$secret_file" "${KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS:-0.2}" 3<&-) || \
@@ -1400,6 +1407,7 @@ print(json.dumps(events,separators=(",",":")))' "$secret_file" "${KEYPATH_LAB_SE
   fi
   record_command "$lease" delivered secure-console-submit
   print "secure_console_submit\tdelivered"
+  print "credential_field\treplaced-focused-value"
   print "credential_transport\tparallels-key-events-batched"
   print "credential_postcondition\tunverified"
 }

@@ -588,12 +588,20 @@ escaped_test_known_hosts=${test_known_hosts// /\\ }
 grep -Fq "UserKnownHostsFile=$escaped_test_known_hosts" "$TMP/guest-ssh-args"
 secure_console_submit=$(KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS=0 KEYPATH_LAB_SECURE_CONSOLE_SETTLE_SECONDS=0 run_remote secure-console-submit cbx_desktop27)
 assert_contains "$secure_console_submit" $'secure_console_submit\tdelivered'
+assert_contains "$secure_console_submit" $'credential_field\treplaced-focused-value'
 assert_contains "$secure_console_submit" $'credential_transport\tparallels-key-events-batched'
 assert_contains "$secure_console_submit" $'credential_postcondition\tunverified'
 python3 -c 'import json,sys
 codes={"a":38,"b":56,"c":54,"d":40,"e":26,"f":41,"g":42,"h":43,"i":31,"j":44,"k":45,"l":46,"m":58,"n":57,"o":32,"p":33,"q":24,"r":27,"s":39,"t":28,"u":30,"v":55,"w":25,"x":53,"y":29,"z":52,"1":10,"2":11,"3":12,"4":13,"5":14,"6":15,"7":16,"8":17,"9":18,"0":19,"-":20}
 events=json.loads(open(sys.argv[1]).read())
-expected=[]
+expected=[
+    {"key":115,"event":"press","delay":0},
+    {"key":38,"event":"press","delay":0},
+    {"key":38,"event":"release","delay":0},
+    {"key":115,"event":"release","delay":0},
+    {"key":22,"event":"press","delay":0},
+    {"key":22,"event":"release","delay":0},
+]
 for ch in open(sys.argv[2]).read():
     expected.extend(({"key":codes[ch],"event":"press","delay":0},{"key":codes[ch],"event":"release","delay":0}))
 assert events == expected' "$TMP/secure-console-key-events.jsonl" "$TMP/secure-input"
