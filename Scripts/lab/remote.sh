@@ -1078,7 +1078,7 @@ protected_click() {
     if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
       geometry=${KEYPATH_LAB_TEST_DISPLAY_GEOMETRY:-'2048 1536 1024 768'}
     else
-      geometry_command='/opt/homebrew/bin/peekaboo list windows --app '$(printf %q "$app")' --json | /usr/bin/env python3 -c '\''import json,re,sys; data=json.load(sys.stdin).get("data",{}); windows=data.get("windows",data if isinstance(data,list) else []); names=[w.get("screenName","") for w in windows if isinstance(w,dict)]; m=next((re.search(r"([0-9]+)×([0-9]+)",n) for n in names if re.search(r"([0-9]+)×([0-9]+)",n)),None); print(f"{m.group(1)} {m.group(2)}" if m else "",end="")'\''; printf " "; /usr/bin/osascript -l JavaScript -e '\''ObjC.import("AppKit"); var s=$.NSScreen.mainScreen.frame.size; s.width+" "+s.height'\'''
+      geometry_command='/usr/bin/osascript -l JavaScript -e '\''ObjC.import("AppKit"); var screen=$.NSScreen.mainScreen; var logical=screen.frame.size; var scale=Number(screen.backingScaleFactor); Math.round(logical.width*scale)+" "+Math.round(logical.height*scale)+" "+Math.round(logical.width)+" "+Math.round(logical.height)'\'''
       geometry=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$geometry_command")")
     fi
     IFS=' ' read -r native_width native_height logical_width logical_height <<< "$geometry"
