@@ -439,3 +439,27 @@ next step.
 - **Loop check:** not looping. The first live uninstall produced new canonical
   evidence, the failing path was identified precisely, and the next attempt
   uses changed product behavior rather than repeating the rejected action.
+
+## 2026-07-25 14:59 PDT — corrected M05 lease ready at external notarization gate
+
+- **Outcome:** unchanged with reason
+- **Completed milestone:** replacement lease `cbx_9e1c128d616f` completed
+  randomized macOS 15 enrollment and exact-policy admission for commit
+  `bd3e81e083dae89797aaa9f4184fc94524907b79` and archive SHA-256
+  `579db98e2fe103600fe3f70c25cd6c45e43460db67be6e517790c1a7264a9c88`.
+- **Evidence:** all three PPPC, system-extension, and service-management
+  profiles were acknowledged; managed-functional verification passed; the
+  clone is live at `192.168.64.29` with installation not yet started. The full
+  25-test CLI smoke suite, uninstall-state tests, runtime-state tests, six
+  scenario-runner tests, and three scenario-result tests pass for the fix.
+- **Current blocker:** Apple submission
+  `74c86813-2c51-42cd-9383-c53d5c1b3301` is still `In Progress` after the
+  bounded 15-minute wait. Installing the unnotarized archive would weaken the
+  release-realistic installer gate and is intentionally not accepted.
+- **Next action:** query that exact submission. Once accepted, staple and
+  verify the candidate, install it on `cbx_9e1c128d616f`, establish independent
+  readiness, rerun M05, and execute M06 only after the same-lease M05 result
+  passes.
+- **Loop check:** not looping. The replacement clone and test evidence are new
+  progress; repeated notarization polling stopped at the time boundary, and no
+  additional submission will be stacked.

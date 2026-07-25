@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-25T14:45:00-07:00",
-  "currentTask": "M05 caught a live-process uninstall defect; fixed candidate is in notarization",
-  "message": "A fresh managed macOS 15 baseline passed every readiness check. The supported uninstall removed the app, helper, and services but left the already-running KeyPath GUI alive from the deleted bundle, so the fail-closed M05 assertion correctly rejected the run. Commit bd3e81e08 closes the app before CLI uninstall; its signed replacement is awaiting Apple notarization before the exact-build rerun. M06 remains serially gated behind a genuine M05 pass.",
+  "updatedAt": "2026-07-25T14:59:00-07:00",
+  "currentTask": "Corrected M05 clone admitted; Apple notarization exceeded the bounded wait",
+  "message": "Replacement lease cbx_9e1c128d616f is randomized, enrolled, and has acknowledged all three exact-build profiles for commit bd3e81e08 and archive 579db98e. Apple submission 74c86813 remains In Progress after the 15-minute cutoff, so installation is intentionally held rather than weakening the release-realistic gate. Resume by checking that submission, then install, prove ready, rerun M05, and run M06 on the same lease.",
   "complete": false,
   "workingBlocks": [
     "M05",
@@ -449,8 +449,8 @@
       "progress": 80,
       "health": "smooth",
       "trend": "forward",
-      "phase": "Product defect fixed; exact candidate awaiting notarization",
-      "detail": "The randomized managed clone reached independent runtime and TCP readiness. Its supported uninstall removed filesystem and launchd state while preserving configuration and the shared driver, but left the running KeyPath GUI alive. The assertion rejected the false green. Commit bd3e81e08 fixes the CLI boundary and is signed for a clean rerun after notarization.",
+      "phase": "Corrected managed clone ready; notarization externally pending",
+      "detail": "The first randomized clone exposed an orphaned GUI after uninstall. Commit bd3e81e08 fixes the CLI boundary. Replacement lease cbx_9e1c128d616f is already enrolled and exact-policy admitted, but installation is held because Apple submission 74c86813 remains In Progress beyond the bounded wait.",
       "attempt": 2,
       "completedSteps": 3,
       "totalSteps": 5,
@@ -481,7 +481,7 @@
           "progress": 0
         }
       ],
-      "blocker": "The corrected signed candidate is waiting for Apple notarization before exact-build managed admission and rerun.",
+      "blocker": "Apple notarization submission 74c86813-2c51-42cd-9383-c53d5c1b3301 remains In Progress. The corrected exact-build clone is admitted and waiting at the pre-install gate.",
       "coreCapability": false,
       "unlocks": []
     },
@@ -735,6 +735,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "14:59",
+      "block": "M05",
+      "tone": "blocked",
+      "title": "Corrected clone ready; notarization exceeded cutoff",
+      "message": "Replacement lease cbx_9e1c128d616f completed randomized enrollment and acknowledged all exact-build profiles for commit bd3e81e08. Apple submission 74c86813 remains In Progress after 15 minutes, so installation is held at the release-realistic gate. No lab setup or permission step is blocking the resume."
+    },
     {
       "time": "14:45",
       "block": "M05",
