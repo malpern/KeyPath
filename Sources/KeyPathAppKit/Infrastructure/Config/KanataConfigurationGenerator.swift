@@ -100,10 +100,11 @@ public struct KanataConfiguration: Sendable {
         let keyRepeatConfig = enabledCollections
             .compactMap(\.configuration.keyRepeatControlConfig)
             .first
-        let sequencePauseLimitMs = enabledCollections
+        let sequencesConfig = enabledCollections
             .compactMap(\.configuration.sequencesConfig)
-            .first?
-            .clampedPauseLimitMs
+            .first
+        let hasSequences = !sequences.isEmpty || !(sequencesConfig?.sequences.isEmpty ?? true)
+        let sequencePauseLimitMs = hasSequences ? sequencesConfig?.clampedPauseLimitMs : nil
 
         // All defcfg header construction flows through KanataDefcfg (single source of truth).
         // `concurrent-tap-hold` is required by kanata whenever defchordsv2 is emitted, which
