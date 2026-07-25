@@ -1184,6 +1184,33 @@ desktop_bootstrap() {
   set_field "$manifest" desktop_bootstrap_status passed
 }
 
+verify_console_login() {
+  local lease=$1 manifest macos resource parallels_cli console_user
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$macos" == "27" ]] || die "inherited console-login verification currently supports only the macOS 27 lane"
+  [[ "$(field "$manifest" provider)" == "parallels" ]] || die "inherited console-login verification requires a Parallels lease"
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "inherited console-login verification requires a desktop-enabled lease"
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$' ]] || die "invalid Parallels resource id"
+  parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+  [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+  console_user=$("$parallels_cli" exec "$resource" /usr/bin/stat -f %Su /dev/console 2>/dev/null || true)
+  if [[ "$console_user" != "keypathqa" ]]; then
+    set_field "$manifest" console_login_status postcondition-failed
+    set_field "$manifest" console_login_method inherited-base
+    record_command "$lease" failed verify-console-login
+    die "fresh desktop-base clone did not inherit the keypathqa console session"
+  fi
+  set_field "$manifest" console_login_status passed
+  set_field "$manifest" console_login_method inherited-base
+  set_field "$manifest" console_login_at "$(utc_now)"
+  record_command "$lease" passed verify-console-login
+  print "console_login\tpassed"
+  print "console_login_method\tinherited-base"
+  print "console_user\t$console_user"
+}
+
 console_login() {
   local lease=$1 manifest macos resource parallels_cli secret_file exit_code console_user attempt guest_command autologin_status guest_control_ready configure_stage
   local guest_ip key known_hosts known_hosts_option fifo status_file configure_pid fifo_ready stream_exit credential_timeout
@@ -1783,6 +1810,7 @@ case "$action" in
   scenario) [[ $# -eq 2 ]] || die "scenario requires lease and name"; scenario "$1" "$2" ;;
   desktop-bootstrap) [[ $# -eq 2 ]] || die "desktop-bootstrap requires lease and install-tools flag"; desktop_bootstrap "$@" ;;
   console-login) [[ $# -eq 1 ]] || die "console-login requires lease"; console_login "$1" ;;
+  verify-console-login) [[ $# -eq 1 ]] || die "verify-console-login requires lease"; verify_console_login "$1" ;;
   reset-guest-password) [[ $# -eq 1 ]] || die "reset-guest-password requires lease"; reset_guest_password "$1" ;;
   reset-desktop-keychain) [[ $# -eq 1 ]] || die "reset-desktop-keychain requires lease"; reset_desktop_keychain "$1" ;;
   reboot-guest) [[ $# -eq 1 ]] || die "reboot-guest requires lease"; reboot_guest "$1" ;;

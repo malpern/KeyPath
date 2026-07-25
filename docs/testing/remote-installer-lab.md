@@ -294,6 +294,18 @@ clone `keypath-macos-27`, preserving the pristine loginwindow source. A desktop
 lease manifest must record `base_name=keypath-macos-27-desktop` before its
 fresh-clone evidence is accepted.
 
+On a fresh clone, admit the inherited console state without replaying
+credential-bearing setup:
+
+```bash
+Scripts/lab/keypath-lab verify-console-login cbx_example
+```
+
+This read-only check requires `/dev/console` to be owned by `keypathqa` and
+records `console_login_method=inherited-base`. Only then run the RFB pointer
+probe and desktop bootstrap. Use `console-login` for candidate construction or
+repair, not to make a fresh-base acceptance test pass.
+
 ### Disposable desktop identity with Nameplate
 
 Nameplate can label an owned desktop lease without modifying its base image:

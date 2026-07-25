@@ -579,6 +579,18 @@ desktop27_create=$(run_remote create 27 unmanaged-ui "$archive_key" "$commit" "$
 assert_contains "$desktop27_create" $'lease_id\tcbx_desktop27'
 grep -q -- '--parallels-template keypath-macos-27-desktop' "$CALLS"
 grep -q $'base_name\tkeypath-macos-27-desktop' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
+set +e
+inherited_console_failure=$(KEYPATH_LAB_TEST_CONSOLE_USER_FAIL=1 run_remote verify-console-login cbx_desktop27 2>&1)
+inherited_console_failure_status=$?
+set -e
+[[ $inherited_console_failure_status -ne 0 ]]
+assert_contains "$inherited_console_failure" 'fresh desktop-base clone did not inherit the keypathqa console session'
+grep -q $'console_login_status\tpostcondition-failed' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
+inherited_console=$(run_remote verify-console-login cbx_desktop27)
+assert_contains "$inherited_console" $'console_login\tpassed'
+assert_contains "$inherited_console" $'console_login_method\tinherited-base'
+assert_contains "$inherited_console" $'console_user\tkeypathqa'
+grep -q $'console_login_method\tinherited-base' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
 test_known_hosts="$TMP/known hosts/known_hosts"
 mkdir -p "$(dirname "$test_known_hosts")"
 touch "$test_known_hosts"

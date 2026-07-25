@@ -15,6 +15,7 @@ Commands:
   create --macos 15|26|27 --lane managed-functional|unmanaged-ui --commit SHA --installer PATH [--ttl 2h] [--desktop] [--tart-usb-passthrough]
   install-app LEASE_ID
   console-login LEASE_ID
+  verify-console-login LEASE_ID
   reset-guest-password LEASE_ID
   reset-desktop-keychain LEASE_ID
   reboot-guest LEASE_ID
@@ -149,6 +150,11 @@ EOF
         [[ $# -eq 1 ]] || usage
         require_lease_id "$1"
         remote console-login "$1"
+        ;;
+    verify-console-login)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote verify-console-login "$1"
         ;;
     reset-guest-password)
         [[ $# -eq 1 ]] || usage
