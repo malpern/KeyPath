@@ -41,6 +41,11 @@ public struct SequencesConfig: Codable, Equatable, Sendable {
             && globalTimeout <= Self.maximumPauseLimitMs
     }
 
+    /// Safe value for runtime generation when persisted or imported data predates validation.
+    public var clampedPauseLimitMs: Int {
+        min(max(globalTimeout, Self.minimumPauseLimitMs), Self.maximumPauseLimitMs)
+    }
+
     // MARK: - Preset Factory
 
     /// Default preset sequences (Window Management, App Launcher, Navigation)

@@ -103,7 +103,7 @@ public struct KanataConfiguration: Sendable {
         let sequencePauseLimitMs = enabledCollections
             .compactMap(\.configuration.sequencesConfig)
             .first?
-            .globalTimeout
+            .clampedPauseLimitMs
 
         // All defcfg header construction flows through KanataDefcfg (single source of truth).
         // `concurrent-tap-hold` is required by kanata whenever defchordsv2 is emitted, which

@@ -346,6 +346,24 @@ final class PerRuleOptionCoverageTests: XCTestCase {
         XCTAssertFalse(config.contains("sequence-timeout"))
     }
 
+    func testSequencePauseLimitClampsOutOfRangeStoredValues() {
+        for (stored, expected) in [
+            (SequencesConfig.minimumPauseLimitMs - 1, SequencesConfig.minimumPauseLimitMs),
+            (SequencesConfig.maximumPauseLimitMs + 1, SequencesConfig.maximumPauseLimitMs)
+        ] {
+            let sequencesCollection = collection(
+                id: RuleCollectionIdentifier.sequences,
+                name: "Sequences",
+                configuration: .sequences(SequencesConfig(globalTimeout: stored))
+            )
+
+            let config = KanataConfiguration.generateFromCollections([sequencesCollection])
+
+            assertContains(config, "sequence-timeout \(expected)", "clamped sequence pause limit")
+            XCTAssertFalse(config.contains("sequence-timeout \(stored)"))
+        }
+    }
+
     private func catalogCollection(_ id: UUID) throws -> RuleCollection {
         try XCTUnwrap(
             RuleCollectionCatalog().defaultCollections().first { $0.id == id },

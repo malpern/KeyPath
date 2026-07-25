@@ -141,6 +141,8 @@ final class SequencesConfigTests: XCTestCase {
         XCTAssertTrue(SequencesConfig(globalTimeout: 2000).isValidTimeout)
         XCTAssertFalse(SequencesConfig(globalTimeout: 299).isValidTimeout)
         XCTAssertFalse(SequencesConfig(globalTimeout: 2001).isValidTimeout)
+        XCTAssertEqual(SequencesConfig(globalTimeout: 299).clampedPauseLimitMs, 300)
+        XCTAssertEqual(SequencesConfig(globalTimeout: 2001).clampedPauseLimitMs, 2000)
     }
 
     func testSequenceValidation_Valid() {
