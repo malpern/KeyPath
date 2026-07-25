@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-24T20:55:00-07:00",
-  "currentTask": "M11 privacy ownership isolated; stable lab host in progress",
-  "message": "The live candidate proved macOS 27 will not grant Screen Recording to a standalone SSH-launched binary. A stable Peekaboo Lab Host app now owns the reusable desktop identity; implementation is being committed before fresh-clone validation.",
+  "updatedAt": "2026-07-24T21:22:00-07:00",
+  "currentTask": "M11 native permission owner proven; guest approvals gated by host lock",
+  "message": "A brand-new macOS 27 candidate from commit df51458b passed console login, clean-keychain, reboot, and pinned-tool setup. The native Peekaboo Lab Host launched through LaunchServices as the intended long-lived manual bridge. The mini's clawd console then returned to its login screen, so the guest's Screen Recording and Accessibility toggles cannot be completed until the host session is unlocked.",
   "complete": false,
   "workingBlocks": [
     "M11"
@@ -392,14 +392,14 @@
       "unlocks": []
     },
     "M11": {
-      "progress": 91,
-      "health": "working",
+      "progress": 94,
+      "health": "blocked",
       "trend": "forward",
-      "phase": "Stable TCC owner implemented; fresh candidate next",
-      "detail": "The live candidate proved SSH can report missing Screen Recording but cannot create an approvable application row. Console registration exposed Terminal and ssh-keygen-wrapper ownership instead. The infrastructure now installs a stable Peekaboo Lab Host app and login agent so tests can use one narrowly approved desktop bridge across clones.",
-      "attempt": 4,
-      "completedSteps": 7,
-      "totalSteps": 8,
+      "phase": "Native TCC owner proven in a fresh candidate; host console relocked",
+      "detail": "Commit df51458b replaced the ignored shell-script app with a signed native arm64 launcher. A fresh macOS 27 clone installed it, and LaunchServices started the expected Peekaboo manual bridge with the stable daemon socket and narrow com.keypath.lab.peekaboo-host identity. The remaining privacy approvals require the mini's visible console, which unexpectedly returned to the host login screen despite sleep and screensaver prevention.",
+      "attempt": 5,
+      "completedSteps": 8,
+      "totalSteps": 9,
       "nextTasks": [
         {
           "label": "Publish fail-closed macOS 27 selector driver (PR #1206)",
@@ -413,13 +413,13 @@
         },
         {
           "label": "Install stable Peekaboo Lab Host permission owner",
-          "status": "active",
-          "progress": 85
+          "status": "done",
+          "progress": 100
         },
         {
-          "label": "Remove inherited Apple Account state and enable Remote Management",
+          "label": "Approve host app and enable guest Remote Management",
           "status": "blocked",
-          "progress": 35
+          "progress": 40
         },
         {
           "label": "Checkpoint and validate a brand-new automation-base clone",
@@ -427,7 +427,7 @@
           "progress": 10
         }
       ],
-      "blocker": "No external blocker. Commit the permission-owner infrastructure, provision a fresh immutable-source candidate, approve that app once, then require fresh-clone proof.",
+      "blocker": "The mini's clawd console is at the host login screen. SSH, Tailscale, the VM, and the new app-owned bridge remain healthy, but the guest privacy UI cannot be operated until the host session is unlocked.",
       "coreCapability": true,
       "unlocks": [
         "macOS 27 agent-driven System Settings automation",
@@ -543,6 +543,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "21:22",
+      "block": "M11",
+      "tone": "waiting",
+      "title": "M11 native permission owner proven; host console relocked",
+      "message": "Fresh-clone setup passed and the signed native Peekaboo Lab Host now owns the stable manual bridge. Screen Recording, Accessibility, and Remote Management remain because the mini's clawd desktop unexpectedly returned to its login screen."
+    },
     {
       "time": "20:55",
       "block": "M11",
