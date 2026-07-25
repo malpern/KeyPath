@@ -3,7 +3,7 @@ layout: default
 title: "Make Rules Work Together"
 description: "How KeyPath protects your setup when rules overlap or depend on each other"
 theme: parchment
-header_image: header-conflict-resolution.png
+header_image: header-conflict-resolution.jpg
 header_image_alt: "Watercolor diagram of two keyboard rules meeting at one key and another rule crossing a bridge to the keyboard behavior it needs"
 permalink: /guides/conflict-resolution/
 ---

@@ -1,6 +1,7 @@
 #!/bin/bash
 # Publish guides from master to the gh-pages branch.
 # Copies guide Markdown, the docs landing page, and shared help images.
+# Every publish keeps those three surfaces in sync from a clean source checkout.
 #
 # Usage:
 #   ./Scripts/publish-guides.sh              # publish all guides
@@ -10,6 +11,13 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 GHPAGES_WORKTREE="$REPO_ROOT/.worktrees/gh-pages"
+
+if ! git -C "$REPO_ROOT" diff --quiet -- guides docs.md images/help ||
+    ! git -C "$REPO_ROOT" diff --cached --quiet -- guides docs.md images/help ||
+    [ -n "$(git -C "$REPO_ROOT" ls-files --others --exclude-standard -- guides docs.md images/help)" ]; then
+    echo "❌ Refusing to publish uncommitted guide, navigation, or artwork changes"
+    exit 1
+fi
 
 if [ ! -d "$GHPAGES_WORKTREE" ]; then
     echo "Creating gh-pages worktree..."
