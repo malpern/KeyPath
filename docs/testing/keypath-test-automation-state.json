@@ -1,59 +1,44 @@
 {
-  "updatedAt": "2026-07-24T10:55:00-07:00",
-  "currentTask": "P02 signed USB Tart deployed; owned lab lane in review",
-  "message": "Apple's Claim USB Accessory capability is confirmed for dev.malpern.keypathlab.tart. The generated development profile contains com.apple.developer.accessory-access.usb, the signed Tart app validates on the mini, and PR #1196 is adding an owned USB-enabled lease path. Keep the keyboard disconnected until that lane is merged and the disposable VM is ready.",
+  "updatedAt": "2026-07-24T20:03:44-07:00",
+  "currentTask": "M11 exposed a missing macOS 27 automation base",
+  "message": "The core VM survived. The problem is base role separation: the only macOS 27 source is clean and carries stale Apple Account state, while UI automation needs a separately prepared, permissioned desktop base. Driver hardening continues while that base task is made explicit.",
   "complete": false,
   "workingBlocks": [
-    "P02"
+    "M11"
   ],
   "activeWork": {
     "P02": {
-      "progress": 97,
-      "health": "working",
+      "progress": 98,
+      "health": "blocked",
       "trend": "forward",
-      "phase": "Signed USB Tart deployed; owned lease integration in review",
-      "detail": "Apple capability activation and provisioning are proven. The signed Tart app and matching CrabBox binary validate on the macOS 27 mini without replacing shared tools. PR #1196 adds a guarded, manifest-recorded USB passthrough option to the normal lab controller.",
-      "attempt": 5,
-      "completedSteps": 6,
-      "totalSteps": 7,
+      "phase": "Remote USB boundary fully isolated",
+      "detail": "Matched non-USB macOS 15 clone passes. Three USB trials show: empty XHCI stalls before vm.start; removing the synthetic keyboard does not help; preconfiguring the mWave instead stalls in Accessory Access registration with no prompt. Tart capacity is clean and the known signed lab binary is restored.",
+      "attempt": 4,
+      "completedSteps": 5,
+      "totalSteps": 6,
       "nextTasks": [
         {
-          "label": "Receive trusted captured input from P01",
+          "label": "Non-USB managed control",
           "status": "done",
           "progress": 100
         },
         {
-          "label": "Prove managed helper, DriverKit, and VirtualHID",
+          "label": "Empty-controller and keyboard-conflict isolation",
           "status": "done",
           "progress": 100
         },
         {
-          "label": "Approve and verify launcher Input Monitoring",
+          "label": "Accessory Access pre-start isolation",
           "status": "done",
           "progress": 100
         },
         {
-          "label": "Enroll and admit macOS 15 managed base",
-          "status": "done",
-          "progress": 100
-        },
-        {
-          "label": "Install deterministic q-to-w mapping",
-          "status": "done",
-          "progress": 100
-        },
-        {
-          "label": "Observe TextEdit output from Tart VNC input",
-          "status": "done",
-          "progress": 100
-        },
-        {
-          "label": "Expose real USB HID passthrough on the macOS 27 host",
-          "status": "active",
-          "progress": 90
+          "label": "Physical mWave q-to-w proof onsite",
+          "status": "blocked",
+          "progress": 0
         }
       ],
-      "blocker": "Merge PR #1196 after required CI and claude-review, create the owned USB-enabled macOS 15 lease, then connect the physical keyboard for host selection and guest q-to-w proof.",
+      "blocker": "The remaining acceptance test requires an onsite mWave keypress. macOS 27 beta Accessory Access also fails to complete registration remotely despite Tart being foreground and the console unlocked.",
       "coreCapability": true,
       "unlocks": [
         "End-to-end remap assertions",
@@ -407,52 +392,42 @@
       "unlocks": []
     },
     "M11": {
-      "progress": 71,
-      "health": "smooth",
+      "progress": 78,
+      "health": "retrying",
       "trend": "forward",
-      "phase": "Delivery proven; selector work deliberately queued",
-      "detail": "A disposable macOS 27 build 26A5378j clone proved the console session, supported-UI Remote Management approval, secret-safe credential transport, and RFB cursor delivery. Selector capture and driver composition remain, but no M11 lease or process is active while D05 is the current frontier.",
-      "attempt": 1,
+      "phase": "macOS 27 Desktop Automation Base gap isolated",
+      "detail": "A fresh clean-base clone provisions in 28 seconds, but selector work is blocked by missing user-local tools, Screen Recording/Accessibility approval, Remote Management control, and an inherited Apple Account alert. Tool installation is now scripted; the durable fix is a separate prepared desktop base, not per-clone repair.",
+      "attempt": 2,
       "completedSteps": 5,
-      "totalSteps": 7,
+      "totalSteps": 8,
       "nextTasks": [
         {
-          "label": "Create and reserve fresh macOS 27 desktop lease",
+          "label": "Restore CrabBox template/source mapping after host restart",
           "status": "done",
           "progress": 100
         },
         {
-          "label": "Verify encrypted QA account credential",
+          "label": "Create fresh current-master macOS 27 clone",
           "status": "done",
           "progress": 100
         },
         {
-          "label": "Establish logged-in console session",
-          "status": "done",
-          "progress": 100
+          "label": "Add fail-closed macOS 27 selector driver",
+          "status": "active",
+          "progress": 70
         },
         {
-          "label": "Enable Remote Management through supported UI",
-          "status": "done",
-          "progress": 100
-        },
-        {
-          "label": "Prove RFB event posting with cursor postcondition",
-          "status": "done",
-          "progress": 100
-        },
-        {
-          "label": "Capture macOS 27 semantic selectors",
+          "label": "Prepare dedicated macOS 27 Desktop Automation Base",
           "status": "queued",
-          "progress": 10
+          "progress": 15
         },
         {
-          "label": "Compose self-verifying macOS 27 approval driver",
-          "status": "queued",
-          "progress": 0
+          "label": "Capture live selectors and compose approval driver",
+          "status": "blocked",
+          "progress": 20
         }
       ],
-      "blocker": null,
+      "blocker": "The clean macOS 27 base is intentionally not selector-ready. A one-time prepared desktop base must remove the inherited Apple Account and grant signed tool permissions before unattended selector capture is reliable.",
       "coreCapability": true,
       "unlocks": [
         "macOS 27 agent-driven System Settings automation",
@@ -545,7 +520,7 @@
     "R03": "active",
     "R04": "queued",
     "P01": "proven",
-    "P02": "active",
+    "P02": "blocked",
     "M14": "proven",
     "M12": "queued",
     "P03": "queued",
@@ -562,12 +537,68 @@
     "M08": "proven",
     "M09": "proven",
     "M10": "proven",
-    "M11": "queued",
+    "M11": "active",
     "D03": "proven",
     "D04": "proven",
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "20:03",
+      "block": "M11",
+      "tone": "retry",
+      "title": "M11 exposed a missing macOS 27 automation base",
+      "message": "The core VM survived. The problem is base role separation: the only macOS 27 source is clean and carries stale Apple Account state, while UI automation needs a separately prepared, permissioned desktop base. Driver hardening continues while that base task is made explicit."
+    },
+    {
+      "time": "19:49",
+      "block": "M11",
+      "tone": "working",
+      "title": "M11 macOS 27 selector work resumed",
+      "message": "P02 is parked at its onsite boundary. The lab is now provisioning a fresh macOS 27 desktop clone so selector evidence is current rather than inherited from last week\u2019s stopped VM."
+    },
+    {
+      "time": "19:47",
+      "block": "P02",
+      "tone": "waiting",
+      "title": "P02 remote work complete; physical mWave proof remains",
+      "message": "Remote testing reached the safe boundary. The managed clone and network are healthy without USB; every USB-controller variant stops before guest networking, and Apple\u2019s pre-start API stalls before authorization completes. No leases or orphan VMs remain, the mWave is back on the host, and the known signed Tart app is restored."
+    },
+    {
+      "time": "19:38",
+      "block": "P02",
+      "tone": "working",
+      "title": "P02 empty-controller cause isolated; testing Apple\u2019s pre-start path",
+      "message": "Removing Tart\u2019s synthetic keyboard did not change the timeout. The next remote-safe experiment follows Apple\u2019s other supported route: authorize the mWave first and place it on the virtual controller before the VM starts."
+    },
+    {
+      "time": "19:30",
+      "block": "P02",
+      "tone": "working",
+      "title": "P02 mWave-only boot trial is running",
+      "message": "A third matched clone is starting with the passthrough controller enabled and Tart\u2019s synthetic USB keyboard removed. This isolates whether two virtual USB keyboard paths are preventing the macOS 15 guest from booting."
+    },
+    {
+      "time": "19:16",
+      "block": "P02",
+      "tone": "retry",
+      "title": "P02 USB startup failure isolated by matched control",
+      "message": "The non-USB clone passed boot, networking, MDM, and lane admission; the otherwise identical USB-enabled clone timed out before guest IP. No orphan or capacity leak remains. Investigation now moves USB registration after startup."
+    },
+    {
+      "time": "19:09",
+      "block": "P02",
+      "tone": "success",
+      "title": "P02 non-USB control passed end to end",
+      "message": "A fresh managed macOS 15 clone passed boot, networking, desktop bootstrap, MDM enrollment, all three profile acknowledgements, and lane verification. The matched mWave USB-enabled startup is next."
+    },
+    {
+      "time": "18:59",
+      "block": "P02",
+      "tone": "working",
+      "title": "P02 remote USB A/B proof started",
+      "message": "The signed USB Tart path is merged and the mWave is attached. Remote work is now preserving archive isolation, releasing the expired Tart slot, and comparing matched non-USB and USB-enabled boots before the final onsite keystroke."
+    },
     {
       "time": "10:55",
       "block": "P02",
@@ -721,111 +752,6 @@
       "tone": "working",
       "title": "Non-MDM functional fallback identified",
       "message": "MDM remains the supported unattended clean-clone path. A separate one-time manually approved base may unblock functional coverage, and Kanata Engine.app\u2014not the raw launcher\u2014is the correct stable manual TCC target for the next isolated proof."
-    },
-    {
-      "time": "15:42",
-      "block": "M10",
-      "tone": "success",
-      "title": "M10 artifact capture complete",
-      "message": "PR #1183 merged native Parallels screenshot capture after a fresh macOS 26 lease produced a 2040x1280 PNG with download and screenshot status 0; required CI and review passed and the lease was destroyed."
-    },
-    {
-      "time": "15:18",
-      "block": "M10",
-      "tone": "success",
-      "title": "M10 macOS 26 selector lane proven",
-      "message": "Fresh lease cbx_1b5360d0251a passed desktop bootstrap and Peekaboo preflight on macOS 26.5.2, captured the expected Input Monitoring selectors, downloaded its evidence bundle, and completed cleanup."
-    },
-    {
-      "time": "10:42",
-      "block": "M10",
-      "tone": "problem",
-      "title": "M10 awaits one controlled base login",
-      "message": "A separate macOS 26 Desktop Base was cloned while preserving the clean source. The bootstrap fix is in PR #1179; one controlled KeyPath QA login/password reset is needed before automatic login and desktop tooling can finish."
-    },
-    {
-      "time": "09:50",
-      "block": "M10",
-      "tone": "working",
-      "title": "M10 resumed on repaired CI",
-      "message": "Both self-hosted Mini runners completed the full gate. M10 is rebased on the repair, its selector-driver tests pass locally, and fresh CI is queued."
-    },
-    {
-      "time": "09:35",
-      "block": "M10",
-      "tone": "problem",
-      "title": "M10 trap traced to headless AppSSO",
-      "message": "Crash reports show macOS 27 AppSSO trapping swift-package only in the synthetic runner session. Fresh stable-Xcode builds pass over SSH with the same cache and CI environment."
-    },
-    {
-      "time": "08:22",
-      "block": "M10",
-      "tone": "problem",
-      "title": "M10 Swift trap persists after disk recovery",
-      "message": "The reserve check passed, but swift build still exited 133 before tests. The blocker is now isolated to runner cache or toolchain state."
-    },
-    {
-      "time": "08:19",
-      "block": "M10",
-      "tone": "working",
-      "title": "M10 CI rerun resumed",
-      "message": "Disk cleanup restored 232 GiB free and the 100 GiB reserve guard is live; PR #1174 is rebasing onto current master."
-    },
-    {
-      "time": "06:26",
-      "block": "M10",
-      "tone": "problem",
-      "title": "M10 CI blocked by runner build crash",
-      "message": "PR #1174 is awaiting a healthy CI rerun after the Mini swift build Trace/BPT trap."
-    },
-    {
-      "time": "06:14",
-      "block": "M10",
-      "tone": "working",
-      "title": "M10 selector evidence driver in review",
-      "message": "PR #1174 adds macOS 26 admission and fail-closed selector evidence; CI is running."
-    },
-    {
-      "time": "06:02",
-      "block": "M10",
-      "tone": "working",
-      "title": "M10 macOS 26 selector driver started",
-      "message": "Building a self-verifying per-OS driver; no macOS 15 coordinates will be reused."
-    },
-    {
-      "time": "05:54",
-      "block": "M09",
-      "tone": "success",
-      "title": "M09 resumable runner proven",
-      "message": "PR #1170 merged after fresh Mini CI. Interrupted scenarios now resume from verified checkpoints without blind mutation replay."
-    },
-    {
-      "time": "05:51",
-      "block": "M09",
-      "tone": "working",
-      "title": "M09 recovery behavior verified",
-      "message": "Interruption tests prove the runner avoids duplicate mutations and resumes only from verified state."
-    },
-    {
-      "time": "05:48",
-      "block": "M09",
-      "tone": "working",
-      "title": "M09 resumable runner started",
-      "message": "Building checkpointed execution that never blindly repeats an interrupted mutation."
-    },
-    {
-      "time": "05:46",
-      "block": "M08",
-      "tone": "success",
-      "title": "M08 failure ownership proven",
-      "message": "PR #1169 merged after fresh Mini CI passed. The live dashboard now marks M08 reliable."
-    },
-    {
-      "time": "05:13",
-      "block": "M08",
-      "tone": "problem",
-      "title": "M08 blocked by offline CI runners",
-      "message": "PR #1169 is ready, but required CI cannot start until a self-hosted runner returns online."
     }
   ],
   "activity": [
