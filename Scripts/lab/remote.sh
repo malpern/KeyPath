@@ -857,7 +857,7 @@ secure_dialog_input() {
   local lease=$1 app=$2 field_label=$3 submit_button=$4 already_focused=$5
   local manifest macos resource key ip secret_file guest_command exit_code
   local focus_command focus_result button_geometry_command button_coords postcondition_command postcondition_result
-  local geometry_command geometry native_width native_height logical_width logical_height scale_x scale_y click_x click_y
+  local geometry_command geometry native_width native_height logical_width logical_height scale_x scale_y click_x click_y focus_x focus_y
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$macos" == "15" ]] || die "secure dialog input currently supports only the Tart macOS 15 lane"
@@ -890,38 +890,71 @@ secure_dialog_input() {
     # only to focus and inspect the protected sheet, then deliver the secret as
     # real RFB key events over CrabBox stdin. The secret never enters argv,
     # guest storage, or controller output.
-    focus_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) throw new Error("dialog process not found");\n  var field = descendants(matches[0].windows[0]).find(function (element) {\n    try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; }\n  });\n  if (!field) throw new Error("secure text field not found");\n  field.focused = true;\n  return field.focused() ? "focused" : "not-focused";\n}\' -- '$(printf %q "$app")
+    focus_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) throw new Error("dialog process not found");\n  var window = matches[0].windows[0];\n  var sheets = window.sheets();\n  var root = sheets.length > 0 ? sheets[0] : window;\n  var fields = root.textFields.whose({subrole: "AXSecureTextField"})();\n  var field = fields.length > 0 ? fields[0] : descendants(root).find(function (element) {\n    try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; }\n  });\n  if (!field) throw new Error("secure text field not found");\n  field.focused = true;\n  var position = field.position();\n  var size = field.size();\n  return (field.focused() ? "focused" : "not-focused") + "," + Math.round(position[0] + size[0] / 2) + "," + Math.round(position[1] + size[1] / 2);\n}\' -- '$(printf %q "$app")
     set +e
     focus_result=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$focus_command")" </dev/null)
     exit_code=$?
     set -e
-    if (( exit_code != 0 )) || [[ "$focus_result" != "focused" ]]; then
+    if (( exit_code != 0 )) || [[ ! "$focus_result" =~ '^focused,[0-9]+,[0-9]+$' ]]; then
       record_command "$lease" "failed:41" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
       die "secure dialog input failed while focusing the field"
     fi
+    IFS=',' read -r _ focus_x focus_y <<< "$focus_result"
 
-    # Clear any value left by a prior interrupted attempt. Backspace is a
-    # supported RFB keysym, and a fixed upper bound avoids learning or logging
-    # the protected field's current length.
+    if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+      geometry=${KEYPATH_LAB_TEST_DISPLAY_GEOMETRY:-'2048 1536 1024 768'}
+    else
+      geometry_command='/usr/bin/osascript -l JavaScript -e '\''ObjC.import("AppKit"); var screen=$.NSScreen.mainScreen; var logical=screen.frame.size; var scale=Number(screen.backingScaleFactor); Math.round(logical.width*scale)+" "+Math.round(logical.height*scale)+" "+Math.round(logical.width)+" "+Math.round(logical.height)'\'''
+      geometry=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$geometry_command")")
+    fi
+    IFS=' ' read -r native_width native_height logical_width logical_height <<< "$geometry"
+    [[ "$native_width" == <-> && "$native_height" == <-> && "$logical_width" == <-> && "$logical_height" == <-> && "$logical_width" -gt 0 && "$logical_height" -gt 0 ]] || die "secure dialog input could not measure display geometry"
+    (( native_width % logical_width == 0 && native_height % logical_height == 0 )) || die "secure dialog input measured a non-integral display scale"
+    scale_x=$((native_width / logical_width))
+    scale_y=$((native_height / logical_height))
+    (( scale_x == scale_y && scale_x > 0 )) || die "secure dialog input measured inconsistent display scales"
+    focus_x=$((focus_x * scale_x))
+    focus_y=$((focus_y * scale_y))
+
     set +e
-    printf '\b%.0s' {1..128} | "$CRABBOX" desktop type --provider tart --target macos --id "$resource" >/dev/null 2>&1
+    "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$focus_x" --y "$focus_y" >/dev/null 2>&1
     exit_code=$?
     set -e
     if (( exit_code != 0 )); then
-      record_command "$lease" "failed:42" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
-      die "secure dialog input failed while clearing the protected field"
+      record_command "$lease" "failed:41" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+      die "secure dialog input failed while giving the field native pointer focus"
     fi
 
-    set +e
-    "$CRABBOX" desktop type --provider tart --target macos --id "$resource" < "$secret_file" >/dev/null 2>&1
-    exit_code=$?
-    set -e
+    if [[ "$app" == "System Settings" ]]; then
+      # System Settings authorization sheets accept local CGEvent synthesis but
+      # intentionally ignore remote VNC key events. Stream the secret directly
+      # into one guest osascript process; it never enters argv, logs, clipboard,
+      # or a guest file.
+      local system_settings_type_command
+      system_settings_type_command=$'/usr/bin/osascript -l JavaScript -e \'\nObjC.import("Foundation");\nfunction run() {\n  var data = $.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile;\n  var payload = $.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding).js;\n  if (!payload) throw new Error("secure input is empty");\n  var events = Application("System Events");\n  var process = events.processes.byName("System Settings");\n  var fields = process.windows[0].sheets[0].textFields.whose({subrole: "AXSecureTextField"})();\n  if (fields.length === 0) throw new Error("secure text field not found");\n  fields[0].focused = true;\n  for (var i = 0; i < 128; i++) events.keyCode(51);\n  events.keystroke(payload);\n}\''
+      set +e
+      "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$system_settings_type_command")" < "$secret_file" >/dev/null 2>&1
+      exit_code=$?
+      set -e
+    else
+      # Clear any value left by a prior interrupted attempt. Backspace is a
+      # supported RFB keysym, and a fixed upper bound avoids learning or
+      # logging the protected field's current length.
+      set +e
+      printf '\b%.0s' {1..128} | "$CRABBOX" desktop type --provider tart --target macos --id "$resource" >/dev/null 2>&1
+      exit_code=$?
+      if (( exit_code == 0 )); then
+        "$CRABBOX" desktop type --provider tart --target macos --id "$resource" < "$secret_file" >/dev/null 2>&1
+        exit_code=$?
+      fi
+      set -e
+    fi
     if (( exit_code != 0 )); then
       record_command "$lease" "failed:42" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
       die "secure dialog input failed while streaming masked input"
     fi
 
-    button_geometry_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var process = Application("System Events").processes.byName(argv[0]);\n  var button = descendants(process.windows[0]).find(function (element) {\n    try { return element.role() === "AXButton" && (element.name() === argv[1] || element.description() === argv[1]); } catch (_) { return false; }\n  });\n  if (!button) throw new Error("submit button not found");\n  var position = button.position();\n  var size = button.size();\n  return Math.round(position[0] + size[0] / 2) + "," + Math.round(position[1] + size[1] / 2);\n}\' -- '$(printf %q "$app")' '$(printf %q "$submit_button")
+    button_geometry_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var process = Application("System Events").processes.byName(argv[0]);\n  var window = process.windows[0];\n  var sheets = window.sheets();\n  var root = sheets.length > 0 ? sheets[0] : window;\n  var button = root.buttons().find(function (element) {\n    try { return element.role() === "AXButton" && (element.name() === argv[1] || element.description() === argv[1]); } catch (_) { return false; }\n  });\n  if (!button) button = descendants(root).find(function (element) {\n    try { return element.role() === "AXButton" && (element.name() === argv[1] || element.description() === argv[1]); } catch (_) { return false; }\n  });\n  if (!button) throw new Error("submit button not found");\n  var position = button.position();\n  var size = button.size();\n  return Math.round(position[0] + size[0] / 2) + "," + Math.round(position[1] + size[1] / 2);\n}\' -- '$(printf %q "$app")' '$(printf %q "$submit_button")
     set +e
     button_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$button_geometry_command")" </dev/null)
     exit_code=$?
@@ -956,7 +989,7 @@ secure_dialog_input() {
       die "secure dialog input failed while submitting the dialog"
     fi
 
-    postcondition_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "closed";\n  var open = descendants(matches[0].windows[0]).some(function (element) {\n    try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; }\n  });\n  return open ? "open" : "closed";\n}\' -- '$(printf %q "$app")
+    postcondition_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "closed";\n  var window = matches[0].windows[0];\n  var sheets = window.sheets();\n  var root = sheets.length > 0 ? sheets[0] : window;\n  var open = root.textFields.whose({subrole: "AXSecureTextField"})().length > 0 || descendants(root).some(function (element) {\n    try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; }\n  });\n  return open ? "open" : "closed";\n}\' -- '$(printf %q "$app")
     postcondition_result=open
     for attempt in {1..150}; do
       postcondition_result=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$postcondition_command")" </dev/null) || postcondition_result=open

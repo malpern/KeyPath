@@ -128,8 +128,12 @@ cat > "$ROOT/bin/guest-ssh" <<EOF
 #!/bin/bash
 printf '%s\n' "\$*" > "$TMP/guest-ssh-args"
 printf '%s\n' "\$*" >> "$TMP/guest-ssh-calls"
+if [[ " \$* " == *"fileHandleWithStandardInput"* ]]; then
+  cat > "$TMP/system-settings-secure-stdin"
+  exit 0
+fi
 if [[ " \$* " == *"field.focused"* ]]; then
-  printf focused
+  printf 'focused,400,220'
   exit 0
 fi
 if [[ " \$* " == *"button.position"* ]]; then
@@ -837,6 +841,7 @@ grep -q 'button.position()' "$TMP/guest-ssh-calls"
 grep -q 'return open.*open.*closed' "$TMP/guest-ssh-calls"
 [[ $(grep -c 'crabbox desktop type --provider tart --target macos --id test-resource$' "$CALLS") -ge 2 ]]
 grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 800 --y 600' "$CALLS"
+grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 800 --y 440' "$CALLS"
 cmp -s "$TMP/secure-input" "$TMP/crabbox-desktop-type-stdin"
 if grep -q -- '--text' "$CALLS" || grep -q '/usr/bin/sudo\|pbcopy\|the\\ clipboard\|events.keystroke' "$TMP/guest-ssh-calls"; then
     echo "SecurityAgent secure input used an unsafe password path" >&2
@@ -846,6 +851,12 @@ secure_settings_result=$(run_remote secure-dialog-input cbx_desktop15 'System Se
 assert_contains "$secure_settings_result" $'secure_dialog_input\tpassed'
 grep -q 'System.*Settings.*Modify.*Settings' "$TMP/guest-ssh-calls"
 grep -q 'AXSecureTextField' "$TMP/guest-ssh-calls"
+grep -q 'fileHandleWithStandardInput' "$TMP/guest-ssh-calls"
+cmp -s "$TMP/secure-input" "$TMP/system-settings-secure-stdin"
+if grep -Fq 'fixture-password-that-must-not-leak' "$TMP/guest-ssh-calls"; then
+    echo "System Settings secure input leaked its secret into guest arguments" >&2
+    exit 1
+fi
 secure_focused_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent Password '' 1)
 assert_contains "$secure_focused_result" $'secure_dialog_input\tpassed'
 if grep -q 'peekaboo.*see\|peekaboo.*click' "$TMP/guest-ssh-args"; then
