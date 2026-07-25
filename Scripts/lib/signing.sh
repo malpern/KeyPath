@@ -129,8 +129,16 @@ kp_notarize_zip() {
         return 0
     fi
 
-    local archive_path
-    archive_path=$(cd "$(dirname "$zip_path")" >/dev/null && pwd -P)/$(basename "$zip_path")
+    local archive_directory
+    if ! archive_directory=$(cd "$(dirname "$zip_path")" >/dev/null && pwd -P); then
+        echo "❌ Notarization archive directory does not exist or is inaccessible: $(dirname "$zip_path")" >&2
+        return 1
+    fi
+    local archive_path="$archive_directory/$(basename "$zip_path")"
+    if [ ! -f "$archive_path" ]; then
+        echo "❌ Notarization archive does not exist: $archive_path" >&2
+        return 1
+    fi
     local archive_sha256
     archive_sha256=$(/usr/bin/shasum -a 256 "$archive_path" | /usr/bin/awk '{print $1}')
 
@@ -148,7 +156,8 @@ kp_notarize_zip() {
     fi
 
     local submission_id
-    if ! submission_id=$(printf '%s' "$submit_output" | kp_notary_json_field id); then
+    submission_id=$(printf '%s' "$submit_output" | kp_notary_json_field id 2>/dev/null) || true
+    if [ -z "$submission_id" ]; then
         echo "❌ Notarization upload returned no parseable submission ID." >&2
         echo "$submit_output" >&2
         return 1

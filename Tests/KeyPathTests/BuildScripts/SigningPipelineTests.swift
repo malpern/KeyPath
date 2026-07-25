@@ -75,6 +75,38 @@ final class SigningPipelineTests: XCTestCase {
         XCTAssertNotEqual(result.code, 0, "notary wrapper should bubble up failures")
     }
 
+    func testNotaryWrapperRejectsInaccessibleArchiveDirectory() {
+        let script = """
+        unset KP_SIGN_DRY_RUN
+        source \(signingLibPath)
+        KP_NOTARY_CMD=/bin/false kp_notarize_zip "/path/that/does/not/exist/KeyPath.zip" "NoProfile"
+        """
+        let result = runScript(script)
+
+        XCTAssertNotEqual(result.code, 0)
+        XCTAssertTrue(result.stderr.contains("archive directory does not exist or is inaccessible"))
+    }
+
+    func testNotaryWrapperRejectsEmptySubmissionID() throws {
+        let fixture = try makeNotaryFixture(
+            waitExit: 0,
+            infoStatus: nil,
+            submitID: ""
+        )
+        let script = """
+        unset KP_SIGN_DRY_RUN
+        source \(signingLibPath)
+        KP_NOTARY_CMD="\(fixture.stub.path)"
+        KP_NOTARY_STATE_FILE="\(fixture.state.path)"
+        kp_notarize_zip "\(fixture.archive.path)" "KeyPath-Profile"
+        """
+        let result = runScript(script, env: ["KP_NOTARY_TEST_LOG": fixture.log.path])
+
+        XCTAssertNotEqual(result.code, 0)
+        XCTAssertTrue(result.stderr.contains("no parseable submission ID"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.state.path))
+    }
+
     func testNotaryWrapperRecordsSubmissionBeforeBoundedWait() throws {
         let fixture = try makeNotaryFixture(waitExit: 0, waitStatus: "Accepted", infoStatus: nil)
         let script = """
@@ -177,7 +209,8 @@ final class SigningPipelineTests: XCTestCase {
     private func makeNotaryFixture(
         waitExit: Int32,
         waitStatus: String? = nil,
-        infoStatus: String?
+        infoStatus: String?,
+        submitID: String? = nil
     ) throws -> (archive: URL, stub: URL, log: URL, state: URL) {
         let directory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -194,6 +227,7 @@ final class SigningPipelineTests: XCTestCase {
         let infoResponse = infoStatus.map {
             "printf '%s\\n' '{\"id\":\"\(submissionID)\",\"status\":\"\($0)\"}'"
         } ?? "exit 69"
+        let resolvedSubmitID = submitID ?? submissionID
         let stubSource = """
         #!/bin/bash
         printf '%s\\n' "$*" >> "$KP_NOTARY_TEST_LOG"
@@ -203,7 +237,7 @@ final class SigningPipelineTests: XCTestCase {
                     *" --no-wait "*) ;;
                     *) exit 64 ;;
                 esac
-                printf '%s\\n' '{"id":"\(submissionID)","message":"Successfully uploaded file"}'
+                printf '%s\\n' '{"id":"\(resolvedSubmitID)","message":"Successfully uploaded file"}'
                 ;;
             wait)
                 \(waitResponse)
