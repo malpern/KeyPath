@@ -59,6 +59,8 @@ fi
 # Keep landing-page navigation and guide artwork in the same publish.
 cp "$REPO_ROOT/docs.md" "$GHPAGES_WORKTREE/docs.md"
 mkdir -p "$GHPAGES_WORKTREE/images/help"
+# Keep this additive: gh-pages also contains site-only media that is not present
+# on master. Remove retired source images explicitly in the publication commit.
 cp -R "$REPO_ROOT/images/help/." "$GHPAGES_WORKTREE/images/help/"
 echo "  synced docs.md and images/help/"
 
