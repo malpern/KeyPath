@@ -564,3 +564,32 @@ next step.
 - **Loop check:** not looping. This did not retry the rejected Tart VNC,
   synthetic-event, ad-hoc HID entitlement, or USB-only boot routes; it reduced
   the remaining physical work to one admitted event with explicit evidence.
+
+## 2026-07-25 16:47 PDT — final remote USB route audited and closed
+
+- **Outcome:** unchanged with reason
+- **Completed milestone:** the remaining post-boot USB-attachment hypothesis
+  was resolved from the signed Tart fork and the existing matched live trials.
+- **Evidence:**
+  - `USBPassthroughManager` attaches a physical accessory only through
+    `virtualMachine.usbControllers.first` after the VM reaches the running
+    state.
+  - Tart can expose that controller only by placing an
+    `VZXHCIControllerConfiguration` in the immutable VM configuration before
+    startup; there is no supported running-VM controller-add operation.
+  - The retained remote A/B work already proved a healthy non-USB macOS 15
+    boot and repeated pre-network stalls for every USB-controller variant,
+    including removal of Tart's synthetic keyboard.
+  - The uncommitted preconfigured-accessory source variant is the already
+    rejected pre-start experiment and was left untouched rather than promoted
+    or rerun.
+- **Current blocker:** P02, P03, and P04 require one onsite session in which
+  the mWave is made guest-visible and its physical q key is held once. That
+  external physical event cannot be reproduced by remote software without
+  invalidating the acceptance test.
+- **Next action:** onsite, create the owned managed USB lease, run
+  `physical-remap-session prepare`, begin `observe`, hold physical q, retain
+  the three result artifacts, and destroy the lease.
+- **Loop check:** not looping. The source audit tested a distinct hot-attach
+  hypothesis and ruled it out without consuming another VM. Further remote
+  USB boot attempts would repeat a proven failure mode and are retired.

@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-25T16:30:00-07:00",
-  "currentTask": "Final onsite P02-P04 event is packaged and waiting for physical access",
-  "message": "All remote-safe automation blocks are proven. Commit 2e7caa66f packages the final onsite event: it admits the named guest-visible mWave, arms an independently ready q-to-w runtime, relaunches KeyPath, focuses a clean TextEdit oracle, and records P02 output, P03 pressed-overlay state, and P04 launch-to-output timing from one held physical q.",
+  "updatedAt": "2026-07-25T16:47:00-07:00",
+  "currentTask": "Remote P02-P04 routes exhausted; one onsite mWave event remains",
+  "message": "All remote-safe automation blocks are proven. A final source audit confirmed that Tart can hot-attach a device only to an already-present virtual USB controller; every tested macOS 15 clone with that controller stalls before guest networking, and Virtualization.framework does not allow adding the controller after startup. The packaged one-event onsite session is therefore the remaining valid path for P02, P03, and P04.",
   "complete": false,
   "workingBlocks": [],
   "executionTracks": [
@@ -65,7 +65,7 @@
         "P03",
         "P04"
       ],
-      "detail": "Remote isolation is complete. The remaining output proof needs a physical keypress at the mini."
+      "detail": "Remote isolation is complete, including the post-boot attach audit. The remaining output proof needs one physical mWave keypress at the mini."
     }
   ],
   "parallelReadyAfter": {
@@ -784,6 +784,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "16:47",
+      "block": "P02",
+      "tone": "waiting",
+      "title": "Post-boot USB attach route closed by source and live evidence",
+      "message": "The signed Tart fork does implement device hot-attach, but only through an XHCI controller present when the VM is created. Matched live trials already proved that macOS 15 stalls before networking whenever that controller is present, while Apple does not support adding a controller to a running VM. Repeating the boot variants would not create new evidence; one onsite mWave event remains."
+    },
     {
       "time": "16:30",
       "block": "P02",
