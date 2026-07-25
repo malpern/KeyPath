@@ -526,6 +526,37 @@ passwords, private keys, TCC databases, or other credentials in a scenario or
 artifact bundle. CrabBox does not redact collected files automatically; inspect
 every bundle before sharing or publishing it.
 
+## Nightly and weekly matrix plans
+
+Generate the unattended curated diagonal and the broader deterministic pairwise
+plan without creating a lease:
+
+```bash
+Scripts/lab/scenario-matrix --cadence nightly --output /tmp/keypath-nightly.json
+Scripts/lab/scenario-matrix --cadence weekly --output /tmp/keypath-weekly.json
+```
+
+The planner rejects a case whose predicted runtime exceeds the requested lease
+TTL, assigns work to waves within Tart and Parallels capacity, and serializes
+every job that uses the shared macOS 26 enrollment identity even if Parallels
+has spare compute capacity. Every VM job carries `destroy-owned-lease` as its
+mandatory finalizer. The generated JSON is deterministic apart from its
+timestamp and can be retained beside the consolidated scenario report.
+
+Operator-visible cancellation and physical-HID cases are excluded from
+unattended plans. They require separate explicit flags so a scheduled job can
+never silently treat a missing human observation or physical keypress as a
+pass:
+
+```bash
+Scripts/lab/scenario-matrix --cadence weekly --include-operator
+Scripts/lab/scenario-matrix --cadence weekly --include-physical
+```
+
+These flags change admission only; they do not bypass the operator or physical
+checkpoint. The executor must still stop at the named step and retain the same
+result, failure-ownership, artifact-sanitization, and owned-cleanup contracts.
+
 ### macOS 27 beta regression capture
 
 On every significant macOS 27 beta seed, run the non-destructive evidence

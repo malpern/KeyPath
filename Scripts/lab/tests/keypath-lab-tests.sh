@@ -246,6 +246,7 @@ grep -Fq 'Tart guest SSH did not recover after reboot' "$REMOTE"
 /bin/zsh -n "$LAB_DIR/nameplate-instrumentation"
 /bin/zsh -n "$LAB_DIR/scenarios/kanata-vhid-two-clients"
 /bin/zsh -n "$LAB_DIR/scenarios/installer-scenario"
+python3 "$LAB_DIR/tests/scenario-matrix-tests.py"
 if grep -Eq 'local[[:space:]]+status=' "$LAB_DIR/scenarios/installer-scenario"; then
   echo "installer scenario must not shadow zsh's read-only status parameter" >&2
   exit 1

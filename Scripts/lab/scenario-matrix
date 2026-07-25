@@ -1,0 +1,236 @@
+#!/usr/bin/env python3
+"""Build deterministic, capacity- and TTL-safe KeyPath lab matrix plans."""
+
+from __future__ import annotations
+
+import argparse
+import datetime
+import itertools
+import json
+import pathlib
+import sys
+from collections import defaultdict
+
+
+SCHEMA_VERSION = 1
+FACTOR_KEYS = ("platform", "lane", "family", "boundary", "evidence")
+
+
+class MatrixError(ValueError):
+    pass
+
+
+def load_catalog(path: pathlib.Path) -> dict:
+    try:
+        catalog = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise MatrixError(f"cannot read catalog: {error}") from error
+    if catalog.get("schemaVersion") != SCHEMA_VERSION:
+        raise MatrixError("catalog requires schemaVersion 1")
+    cases = catalog.get("cases")
+    if not isinstance(cases, list) or not cases:
+        raise MatrixError("catalog requires non-empty cases")
+    seen: set[str] = set()
+    for case in cases:
+        case_id = case.get("id")
+        if not isinstance(case_id, str) or not case_id or case_id in seen:
+            raise MatrixError("case ids must be unique non-empty strings")
+        seen.add(case_id)
+        if case.get("provider") not in ("tart", "parallels", "local"):
+            raise MatrixError(f"{case_id}: invalid provider")
+        if case.get("automation") not in ("unattended", "operator", "physical"):
+            raise MatrixError(f"{case_id}: invalid automation level")
+        estimate = case.get("estimatedMinutes")
+        if not isinstance(estimate, int) or estimate < 1:
+            raise MatrixError(f"{case_id}: estimatedMinutes must be positive")
+        factors = case.get("factors")
+        if not isinstance(factors, dict) or any(not factors.get(key) for key in FACTOR_KEYS):
+            raise MatrixError(f"{case_id}: all matrix factors are required")
+        steps = case.get("steps")
+        if not isinstance(steps, list) or not steps or not all(isinstance(step, str) and step for step in steps):
+            raise MatrixError(f"{case_id}: steps must be non-empty strings")
+        if case["provider"] != "local" and case.get("cleanup") != "destroy-owned-lease":
+            raise MatrixError(f"{case_id}: VM cases require destroy-owned-lease cleanup")
+        if case.get("identityScope") == "shared" and case["provider"] != "parallels":
+            raise MatrixError(f"{case_id}: shared identities are only valid on Parallels")
+    return catalog
+
+
+def factor_pairs(case: dict) -> set[tuple[str, str, str, str]]:
+    factors = case["factors"]
+    pairs = set()
+    for left, right in itertools.combinations(FACTOR_KEYS, 2):
+        pairs.add((left, str(factors[left]), right, str(factors[right])))
+    return pairs
+
+
+def weekly_pairwise(candidates: list[dict], required_ids: set[str]) -> list[dict]:
+    """Greedy deterministic set cover over all compatible pairs in the catalog."""
+    universe = set().union(*(factor_pairs(case) for case in candidates))
+    selected = [case for case in candidates if case["id"] in required_ids]
+    covered = set().union(*(factor_pairs(case) for case in selected)) if selected else set()
+    remaining = [case for case in candidates if case["id"] not in required_ids]
+    while covered != universe:
+        ranked = sorted(
+            remaining,
+            key=lambda case: (-len(factor_pairs(case) - covered), case["estimatedMinutes"], case["id"]),
+        )
+        if not ranked or not (factor_pairs(ranked[0]) - covered):
+            raise MatrixError("pairwise catalog contains pairs that cannot be covered")
+        chosen = ranked[0]
+        selected.append(chosen)
+        covered |= factor_pairs(chosen)
+        remaining.remove(chosen)
+    return selected
+
+
+def schedule(cases: list[dict], capacities: dict[str, int]) -> list[list[str]]:
+    """Create deterministic waves without exceeding provider or identity capacity."""
+    pending = list(cases)
+    waves: list[list[str]] = []
+    while pending:
+        used: dict[str, int] = defaultdict(int)
+        shared_identity = False
+        wave: list[dict] = []
+        for case in list(pending):
+            provider = case["provider"]
+            if provider == "local":
+                wave.append(case)
+                pending.remove(case)
+                continue
+            if used[provider] >= capacities[provider]:
+                continue
+            if case.get("identityScope") == "shared" and shared_identity:
+                continue
+            wave.append(case)
+            pending.remove(case)
+            used[provider] += 1
+            shared_identity = shared_identity or case.get("identityScope") == "shared"
+        if not wave:
+            raise MatrixError("capacity settings cannot schedule the remaining cases")
+        waves.append([case["id"] for case in wave])
+    return waves
+
+
+def build_plan(
+    catalog: dict,
+    cadence: str,
+    ttl_minutes: int,
+    capacities: dict[str, int],
+    include_operator: bool,
+    include_physical: bool,
+) -> dict:
+    eligible = [
+        case for case in catalog["cases"]
+        if case["automation"] == "unattended"
+        or (case["automation"] == "operator" and include_operator)
+        or (case["automation"] == "physical" and include_physical)
+    ]
+    nightly = [case for case in eligible if case.get("nightlyCore")]
+    if cadence == "nightly":
+        selected = nightly
+    else:
+        selected = weekly_pairwise(eligible, {case["id"] for case in nightly})
+    if not selected:
+        raise MatrixError("no eligible cases selected")
+
+    over_budget = [case for case in selected if case["estimatedMinutes"] > ttl_minutes]
+    if over_budget:
+        detail = ", ".join(f"{case['id']}={case['estimatedMinutes']}m" for case in over_budget)
+        raise MatrixError(f"lease TTL {ttl_minutes}m is too short: {detail}")
+    for provider in ("tart", "parallels"):
+        if capacities.get(provider, 0) < 1:
+            raise MatrixError(f"{provider} capacity must be at least 1")
+
+    covered = set().union(*(factor_pairs(case) for case in selected))
+    eligible_pairs = set().union(*(factor_pairs(case) for case in eligible))
+    exclusions = [case for case in catalog["cases"] if case not in eligible]
+    jobs = []
+    for case in selected:
+        jobs.append({
+            "id": case["id"],
+            "title": case["title"],
+            "provider": case["provider"],
+            "macOS": case.get("macOS"),
+            "lane": case.get("lane"),
+            "identityScope": case.get("identityScope", "none"),
+            "automation": case["automation"],
+            "estimatedMinutes": case["estimatedMinutes"],
+            "ttlMinutes": ttl_minutes if case["provider"] != "local" else None,
+            "steps": case["steps"],
+            "finalizer": case.get("cleanup"),
+            "factors": case["factors"],
+        })
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "cadence": cadence,
+        "generatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "policy": {
+            "ttlMinutes": ttl_minutes,
+            "capacity": capacities,
+            "operatorCasesIncluded": include_operator,
+            "physicalCasesIncluded": include_physical,
+            "cleanupRequired": True,
+        },
+        "summary": {
+            "jobs": len(jobs),
+            "waves": len(schedule(selected, capacities)),
+            "pairwisePairsCovered": len(covered),
+            "eligiblePairs": len(eligible_pairs),
+            "pairwiseComplete": covered == eligible_pairs if cadence == "weekly" else None,
+        },
+        "waves": schedule(selected, capacities),
+        "jobs": jobs,
+        "excluded": [
+            {"id": case["id"], "automation": case["automation"], "reason": "explicit opt-in required"}
+            for case in exclusions
+        ],
+    }
+
+
+def parse_capacity(values: list[str]) -> dict[str, int]:
+    capacity = {"tart": 1, "parallels": 1}
+    for value in values:
+        if "=" not in value:
+            raise MatrixError("capacity must use provider=count")
+        provider, raw_count = value.split("=", 1)
+        if provider not in capacity:
+            raise MatrixError(f"unsupported provider capacity: {provider}")
+        try:
+            capacity[provider] = int(raw_count)
+        except ValueError as error:
+            raise MatrixError(f"invalid capacity: {value}") from error
+    return capacity
+
+
+def main() -> None:
+    default_catalog = pathlib.Path(__file__).with_name("scenarios") / "matrix-catalog.json"
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--catalog", type=pathlib.Path, default=default_catalog)
+    parser.add_argument("--cadence", choices=("nightly", "weekly"), required=True)
+    parser.add_argument("--ttl-minutes", type=int, default=120)
+    parser.add_argument("--capacity", action="append", default=[])
+    parser.add_argument("--include-operator", action="store_true")
+    parser.add_argument("--include-physical", action="store_true")
+    parser.add_argument("--output", type=pathlib.Path)
+    args = parser.parse_args()
+    try:
+        if not 1 <= args.ttl_minutes <= 120:
+            raise MatrixError("ttl-minutes must be between 1 and 120")
+        plan = build_plan(
+            load_catalog(args.catalog), args.cadence, args.ttl_minutes,
+            parse_capacity(args.capacity), args.include_operator, args.include_physical,
+        )
+        payload = json.dumps(plan, indent=2) + "\n"
+        if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(payload)
+        else:
+            print(payload, end="")
+    except MatrixError as error:
+        print(f"scenario-matrix: {error}", file=sys.stderr)
+        raise SystemExit(2)
+
+
+if __name__ == "__main__":
+    main()
