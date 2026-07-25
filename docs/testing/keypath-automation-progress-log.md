@@ -319,3 +319,37 @@ next step.
 - **Loop check:** not looping. Automated protected-field input has already
   failed with direct visual evidence and will not be retried. Human entry is
   the materially different next step.
+
+## 2026-07-25 12:00 PDT — M04 trusted-input boundary isolated
+
+- **Outcome:** advanced
+- **Completed milestone:** M04 admitted an exact-build managed macOS 26
+  Parallels clone and isolated the remaining precondition failure to trusted
+  Input Monitoring consent rather than installer, helper, driver, or virtual
+  HID setup.
+- **Evidence:**
+  - Lease `cbx_cd38fd327f7c` is live on macOS 26.5.2 with commit `ce7441fd`
+    and the expected installer checksum.
+  - The helper is installed, fresh, and working; the Karabiner driver and
+    virtual HID device are healthy; KeyPath's Accessibility and Input
+    Monitoring checks are true.
+  - System Settings visually showed Kanata Engine and `kanata-launcher`
+    enabled after synthetic clicks, including after a guest reboot.
+  - Canonical runtime status still reports both Kanata permission checks
+    false, Kanata not running, and the TCP probe fails with connection
+    refused. The visual switch state is therefore not accepted as proof.
+  - RFB pointer delivery did not move the guest cursor, and combining a
+    synthetic focus click with a native Parallels Space key did not change
+    the canonical result.
+- **Current blocker:** the current Parallels automation path lacks a trusted
+  pointer or focus transport that commits macOS Input Monitoring consent.
+  M04 cannot validly test persistence until it begins from an independently
+  ready runtime.
+- **Next action:** preserve the evidence, stop repeating UI toggles and
+  reboots, and implement or prove a trusted Parallels consent-input adapter.
+  In parallel-safe work, author the remaining M04 assertion contract and the
+  M05/M06 lifecycle harness without claiming their final runtime proofs.
+- **Loop check:** not looping. Repeated visual-toggle approaches are now
+  explicitly retired because the canonical permission and TCP evidence did
+  not change. The next attempt must use a materially different trusted input
+  transport or a human console action.

@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-25T10:49:00-07:00",
-  "currentTask": "M04 remote reboot-persistence proof started",
-  "message": "M02 is safely paused at its human enrollment gate. A separate managed macOS 26 Parallels lease is admitting the exact fixed candidate for a fully remote install, reboot, and independent runtime-readiness proof.",
+  "updatedAt": "2026-07-25T12:00:00-07:00",
+  "currentTask": "M04 isolated a trusted Input Monitoring transport gap",
+  "message": "The managed macOS 26 clone proved the helper, driver, virtual HID, and KeyPath permissions, but Kanata remains non-operational. Visual switch changes did not produce real Input Monitoring consent, so reboot-persistence proof is paused while the lab adds a trusted Parallels input path.",
   "complete": false,
   "workingBlocks": [
     "M04"
@@ -22,14 +22,14 @@
       "id": "lifecycle",
       "label": "Lifecycle scenarios",
       "platform": "macOS 15 Tart \u00b7 macOS 26 Parallels",
-      "status": "active",
-      "badge": "REMOTE ACTIVE",
+      "status": "blocked",
+      "badge": "INPUT GATE",
       "blocks": [
         "M02",
         "M04",
         "M05"
       ],
-      "detail": "M02 is paused at Apple's protected macOS 15 enrollment sheet. M04 is using the independent managed macOS 26 Parallels lane, where host-controlled guest reboot and secure input remain available remotely."
+      "detail": "M02 is paused at Apple's protected macOS 15 enrollment sheet. M04 reached the independent macOS 26 runtime boundary, but current Parallels automation can change the visible Input Monitoring switch without committing trusted consent. UI retries have stopped."
     },
     {
       "id": "upgrade",
@@ -405,29 +405,29 @@
       ]
     },
     "M04": {
-      "progress": 20,
-      "health": "smooth",
-      "trend": "forward",
-      "phase": "Managed Parallels lease admission",
-      "detail": "A separate macOS 26 managed Parallels clone is being admitted with commit ce7441fd and the exact signed candidate. This lane can complete its real guest reboot without the blocked Tart secure-field path.",
+      "progress": 60,
+      "health": "blocked",
+      "trend": "paused",
+      "phase": "Trusted Input Monitoring event boundary",
+      "detail": "Lease cbx_cd38fd327f7c admitted the exact candidate and proved its helper, driver, virtual HID, and KeyPath permissions. Kanata Input Monitoring and Accessibility remain false, Kanata is stopped, and the TCP probe refuses connection even when System Settings visually shows enabled switches.",
       "attempt": 1,
-      "completedSteps": 1,
+      "completedSteps": 3,
       "totalSteps": 5,
       "nextTasks": [
         {
           "label": "Admit exact-build managed clone",
-          "status": "active",
-          "progress": 20
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Establish independently ready runtime",
-          "status": "queued",
-          "progress": 0
+          "status": "blocked",
+          "progress": 55
         },
         {
           "label": "Capture pre-reboot evidence",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Perform host-approved guest reboot",
@@ -440,7 +440,7 @@
           "progress": 0
         }
       ],
-      "blocker": "",
+      "blocker": "The current Parallels pointer path can alter the visible System Settings switch but cannot prove a trusted macOS Input Monitoring grant. Canonical service status still reports Kanata permissions false and the TCP probe fails, so reboot persistence cannot be tested from a valid ready baseline.",
       "coreCapability": false,
       "unlocks": []
     },
@@ -687,6 +687,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "12:00",
+      "block": "M04",
+      "tone": "blocked",
+      "title": "M04 stopped at trusted Input Monitoring boundary",
+      "message": "The exact managed clone proved helper, driver, virtual HID, and KeyPath permission health. Visual Kanata switch changes did not commit real consent: both Kanata permission checks remain false, the process is stopped, and TCP refuses connection. Synthetic UI and reboot retries are now stopped; the next step is a trusted Parallels input adapter or a human console action."
+    },
     {
       "time": "10:49",
       "block": "M04",
