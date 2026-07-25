@@ -9,7 +9,7 @@ enum KeyboardConceptCopy {
         "Your Leader key is the starting key for KeyPath layers and sequences. It is Space by default."
 
     static let hyperDefinition =
-        "Hyper combines Control, Option, Command, and Shift into one shortcut modifier. Caps Lock Remap provides it by default when you hold Caps Lock."
+        "Hyper combines Control, Option, Command, and Shift into one modifier. Apps rarely use all four together, so Hyper creates clean shortcuts that are unlikely to conflict. Caps Lock Remap provides Hyper by default when you hold Caps Lock."
 
     static let leaderCatalogSummary =
         "\(leaderDefinition) Choose Space, Caps Lock, Tab, or Backtick."

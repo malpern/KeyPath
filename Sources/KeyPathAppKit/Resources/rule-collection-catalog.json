@@ -3349,7 +3349,7 @@
       "targetLayer" : "launcher"
     },
     "name" : "Quick Launcher",
-    "summary" : "Hyper combines Control, Option, Command, and Shift into one shortcut modifier. Caps Lock Remap provides it by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.",
+    "summary" : "Hyper combines Control, Option, Command, and Shift into one modifier. Apps rarely use all four together, so Hyper creates clean shortcuts that are unlikely to conflict. Caps Lock Remap provides Hyper by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.",
     "tags" : [
       "launcher",
       "apps",

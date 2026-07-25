@@ -24,9 +24,10 @@ The Leader key is the single key you hold to enter the navigation layer. From th
 Think of it as the front door to all your keyboard shortcuts. Every layer pack that says "Hold Space →" is really saying "Hold your Leader key →."
 
 Leader is different from Hyper. Leader starts a KeyPath layer or sequence.
-Hyper combines Control, Option, Command, and Shift into one shortcut modifier,
-usually provided by holding Caps Lock. A rule may offer one or the other as its
-activation method.
+Hyper combines Control, Option, Command, and Shift into one modifier. Apps
+rarely use all four together, so Hyper creates clean shortcuts that are unlikely
+to conflict. Caps Lock Remap usually provides Hyper when you hold Caps Lock. A
+rule may offer Leader or Hyper as its activation method.
 
 ---
 

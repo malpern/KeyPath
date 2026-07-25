@@ -7,6 +7,7 @@ final class KeyboardConceptCopyTests: XCTestCase {
         XCTAssertTrue(KeyboardConceptCopy.leaderDefinition.contains("starting key"))
         XCTAssertTrue(KeyboardConceptCopy.leaderDefinition.contains("Space by default"))
         XCTAssertTrue(KeyboardConceptCopy.hyperDefinition.contains("Control, Option, Command, and Shift"))
+        XCTAssertTrue(KeyboardConceptCopy.hyperDefinition.contains("unlikely to conflict"))
         XCTAssertTrue(KeyboardConceptCopy.hyperDefinition.contains("Caps Lock Remap"))
         XCTAssertNotEqual(KeyboardConceptCopy.leaderDefinition, KeyboardConceptCopy.hyperDefinition)
     }

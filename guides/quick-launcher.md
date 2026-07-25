@@ -33,11 +33,12 @@ Default mappings ship ready to use: **S** = Safari, **T** = Terminal, **F** = Fi
 3. Find **Quick Launcher** in the Productivity section
 4. Toggle it **on**
 
-Hyper combines Control, Option, Command, and Shift into one shortcut modifier.
-**Caps Lock Remap** provides it by default when you hold Caps Lock. If you
-haven't set up a Hyper key yet, KeyPath can offer to enable Caps Lock Remap when
-you turn on Quick Launcher. You can accept that one-click fix or continue and
-choose a different Hyper key later.
+Hyper combines Control, Option, Command, and Shift into one modifier. Apps
+rarely use all four together, so Hyper creates clean shortcuts that are unlikely
+to conflict. **Caps Lock Remap** provides Hyper by default when you hold Caps
+Lock. If you haven't set up a Hyper key yet, KeyPath can offer to enable Caps
+Lock Remap when you turn on Quick Launcher. You can accept that one-click fix
+or continue and choose a different Hyper key later.
 
 Hyper is different from Leader: Hyper acts like a modifier you hold or tap,
 while your Leader key starts KeyPath layers and sequences. Quick Launcher can

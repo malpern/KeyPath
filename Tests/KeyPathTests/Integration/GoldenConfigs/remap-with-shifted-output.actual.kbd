@@ -80,7 +80,7 @@ PHYSICAL KEYBOARD LAYOUT - DEFSRC
 
   ;; === Collection: Quick Launcher (enabled) ===
   ;; UUID: <UUID>
-  ;; Description: Hyper combines Control, Option, Command, and Shift into one shortcut modifier. Caps Lock Remap provides it by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.
+  ;; Description: Hyper combines Control, Option, Command, and Shift into one modifier. Apps rarely use all four together, so Hyper creates clean shortcuts that are unlikely to conflict. Caps Lock Remap provides Hyper by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.
   ;; (no mappings)
 
   ;; === Collection: 1 → 2 (enabled) ===
@@ -197,7 +197,7 @@ LAYER DEFINITIONS
 
   ;; === Collection: Quick Launcher (enabled) ===
   ;; UUID: <UUID>
-  ;; Description: Hyper combines Control, Option, Command, and Shift into one shortcut modifier. Caps Lock Remap provides it by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.
+  ;; Description: Hyper combines Control, Option, Command, and Shift into one modifier. Apps rarely use all four together, so Hyper creates clean shortcuts that are unlikely to conflict. Caps Lock Remap provides Hyper by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.
   ;; (no mappings)
 
   ;; === Collection: 1 → 2 (enabled) ===
@@ -252,7 +252,7 @@ LAYER DEFINITIONS
 
   ;; === Collection: Quick Launcher (enabled) ===
   ;; UUID: <UUID>
-  ;; Description: Hyper combines Control, Option, Command, and Shift into one shortcut modifier. Caps Lock Remap provides it by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.
+  ;; Description: Hyper combines Control, Option, Command, and Shift into one modifier. Apps rarely use all four together, so Hyper creates clean shortcuts that are unlikely to conflict. Caps Lock Remap provides Hyper by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.
   ;; (no mappings)
 
   ;; === Collection: 1 → 2 (enabled) ===
@@ -307,7 +307,7 @@ LAYER DEFINITIONS
 
   ;; === Collection: Quick Launcher (enabled) ===
   ;; UUID: <UUID>
-  ;; Description: Hyper combines Control, Option, Command, and Shift into one shortcut modifier. Caps Lock Remap provides it by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.
+  ;; Description: Hyper combines Control, Option, Command, and Shift into one modifier. Apps rarely use all four together, so Hyper creates clean shortcuts that are unlikely to conflict. Caps Lock Remap provides Hyper by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.
   ;; (no mappings)
 
   ;; === Collection: 1 → 2 (enabled) ===
@@ -362,7 +362,7 @@ LAYER DEFINITIONS
 
   ;; === Collection: Quick Launcher (enabled) ===
   ;; UUID: <UUID>
-  ;; Description: Hyper combines Control, Option, Command, and Shift into one shortcut modifier. Caps Lock Remap provides it by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.
+  ;; Description: Hyper combines Control, Option, Command, and Shift into one modifier. Apps rarely use all four together, so Hyper creates clean shortcuts that are unlikely to conflict. Caps Lock Remap provides Hyper by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.
   ;; (no mappings)
 
   ;; === Collection: 1 → 2 (enabled) ===
