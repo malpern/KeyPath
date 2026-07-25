@@ -536,3 +536,28 @@ next step.
   through a newly exposed System Settings launch race and incorrect private
   token expectation, to a packaged live-passing scenario with retained
   evidence and owned cleanup.
+
+## 2026-07-25 16:30 PDT — final P02-P04 onsite event packaged
+
+- **Outcome:** advanced
+- **Completed milestone:** commit `2e7caa66f` converts the three remaining
+  physical blocks into one resumable onsite session with separate P02, P03,
+  and P04 machine-readable outcomes.
+- **Evidence:** the prepare stage refuses to arm unless the explicitly named
+  physical keyboard appears in the guest HID inventory, retains only selected
+  non-serial device fields, requires independently ready managed runtime, and
+  establishes the exact q-to-w rule plus an AX-visible overlay and clean
+  TextEdit oracle. The observe stage relaunches KeyPath, focuses TextEdit,
+  waits for one held physical q, verifies independent output w, captures
+  `keycap-code-12` as pressed or held, and records launch-to-output timing.
+  Contract tests prove the all-pass path, missing-HID block, and literal-q
+  product-failure path. The complete lab suite passes.
+- **Current blocker:** actual completion still requires onsite access to make
+  the mWave guest-visible and hold physical q once. No remote or synthesized
+  event can satisfy this proof.
+- **Next action:** create the owned managed USB lease onsite, run the prepare
+  stage, start observe, and hold mWave q until it completes. Retain artifacts,
+  destroy the lease, then mark P02-P04 proven only if their result files pass.
+- **Loop check:** not looping. This did not retry the rejected Tart VNC,
+  synthetic-event, ad-hoc HID entitlement, or USB-only boot routes; it reduced
+  the remaining physical work to one admitted event with explicit evidence.

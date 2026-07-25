@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-25T16:16:00-07:00",
-  "currentTask": "Remote-safe matrix work proven; onsite physical-output proof remains",
-  "message": "M12 now produces a capacity- and TTL-safe unattended nightly diagonal, and M13 produces a deterministic 81-of-81-pair operator-supervised weekly expansion. A fresh macOS 27 disposable lease passed the packaged selector scenario with pinned Python 3.12.13 and was destroyed after evidence capture. P02, P03, and P04 remain the physical onsite chain.",
+  "updatedAt": "2026-07-25T16:30:00-07:00",
+  "currentTask": "Final onsite P02-P04 event is packaged and waiting for physical access",
+  "message": "All remote-safe automation blocks are proven. Commit 2e7caa66f packages the final onsite event: it admits the named guest-visible mWave, arms an independently ready q-to-w runtime, relaunches KeyPath, focuses a clean TextEdit oracle, and records P02 output, P03 pressed-overlay state, and P04 launch-to-output timing from one held physical q.",
   "complete": false,
   "workingBlocks": [],
   "executionTracks": [
@@ -85,11 +85,11 @@
       "progress": 98,
       "health": "blocked",
       "trend": "forward",
-      "phase": "Remote USB boundary fully isolated",
-      "detail": "Matched non-USB macOS 15 clone passes. Three USB trials show: empty XHCI stalls before vm.start; removing the synthetic keyboard does not help; preconfiguring the mWave instead stalls in Accessory Access registration with no prompt. Tart capacity is clean and the known signed lab binary is restored.",
+      "phase": "One-event onsite proof packaged",
+      "detail": "Remote USB failure modes are isolated and the remaining onsite action is packaged. The watcher refuses to arm without the named guest-visible mWave, then uses one held physical q to verify TextEdit output w, overlay pressed state, and launch-to-output timing with separate machine-readable results.",
       "attempt": 4,
-      "completedSteps": 5,
-      "totalSteps": 6,
+      "completedSteps": 6,
+      "totalSteps": 7,
       "nextTasks": [
         {
           "label": "Non-USB managed control",
@@ -107,12 +107,17 @@
           "progress": 100
         },
         {
+          "label": "Package one-event P02-P04 evidence watcher",
+          "status": "done",
+          "progress": 100
+        },
+        {
           "label": "Physical mWave q-to-w proof onsite",
           "status": "blocked",
           "progress": 0
         }
       ],
-      "blocker": "The remaining acceptance test requires an onsite mWave keypress. macOS 27 beta Accessory Access also fails to complete registration remotely despite Tart being foreground and the console unlocked.",
+      "blocker": "The remaining acceptance test requires onsite access to establish the mWave as a guest-visible physical HID and hold its q key once while the watcher runs.",
       "coreCapability": true,
       "unlocks": [
         "End-to-end remap assertions",
@@ -224,13 +229,13 @@
       "unlocks": []
     },
     "P03": {
-      "progress": 50,
+      "progress": 75,
       "health": "blocked",
       "trend": "forward",
       "phase": "Managed runtime ready; waiting on P02 physical output",
       "detail": "Overlay controls and the managed runtime prerequisites are proven. The remaining overlay evidence must be paired with the same real mWave keypress and observable remapped output required by P02.",
       "attempt": 1,
-      "completedSteps": 2,
+      "completedSteps": 3,
       "totalSteps": 4,
       "nextTasks": [
         {
@@ -244,13 +249,13 @@
           "progress": 100
         },
         {
-          "label": "Generate verified remapped input",
-          "status": "queued",
-          "progress": 0
+          "label": "Package pressed-key AX and screenshot capture",
+          "status": "done",
+          "progress": 100
         },
         {
-          "label": "Capture overlay plus input evidence",
-          "status": "queued",
+          "label": "Capture overlay plus physical input evidence onsite",
+          "status": "blocked",
           "progress": 0
         }
       ],
@@ -289,13 +294,13 @@
       "unlocks": []
     },
     "P04": {
-      "progress": 50,
+      "progress": 75,
       "health": "blocked",
       "trend": "forward",
       "phase": "Waiting on the P02 first-remap proof",
       "detail": "DriverKit, raw-runtime permissions, Kanata convergence, and TCP readiness are proven. The remaining measurement starts with P02's physical mWave remap and records launch-to-observable-output timing.",
       "attempt": 1,
-      "completedSteps": 2,
+      "completedSteps": 3,
       "totalSteps": 4,
       "nextTasks": [
         {
@@ -304,18 +309,18 @@
           "progress": 100
         },
         {
-          "label": "Prove VirtualHID output (P02)",
-          "status": "blocked",
-          "progress": 0
-        },
-        {
           "label": "Converge runtime and TCP (R03/R04)",
           "status": "done",
           "progress": 100
         },
         {
-          "label": "Measure launch-to-confirmed-remap",
-          "status": "queued",
+          "label": "Package launch-to-output timer and result contract",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Measure launch-to-confirmed physical remap onsite",
+          "status": "blocked",
           "progress": 0
         }
       ],
@@ -779,6 +784,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "16:30",
+      "block": "P02",
+      "tone": "waiting",
+      "title": "Final P02-P04 onsite event packaged",
+      "message": "Commit 2e7caa66f adds a two-stage physical remap session. It admits the named guest HID, sanitizes retained inventory, proves runtime and q-to-w preparation, relaunches KeyPath, focuses TextEdit, and records P02 output, P03 physical-Q overlay state, and P04 launch-to-output timing from one held key. Three contract tests and the full lab suite pass."
+    },
     {
       "time": "16:16",
       "block": "M13",
