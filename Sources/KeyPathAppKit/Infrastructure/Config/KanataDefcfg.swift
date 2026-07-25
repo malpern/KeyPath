@@ -28,6 +28,8 @@ public struct KanataDefcfg: Sendable, Equatable {
     public var managedRepeatIntervalMs: Int?
     /// `tap-hold-require-prior-idle <ms>` — omitted when nil.
     public var tapHoldRequirePriorIdleMs: Int?
+    /// `sequence-timeout <ms>` — omitted when nil.
+    public var sequenceTimeoutMs: Int?
     /// Emits `concurrent-tap-hold yes` when true. Kanata requires this whenever a
     /// `defchordsv2` block is present, otherwise it rejects the config.
     public var concurrentTapHold: Bool
@@ -43,6 +45,7 @@ public struct KanataDefcfg: Sendable, Equatable {
         managedRepeatDelayMs: Int? = nil,
         managedRepeatIntervalMs: Int? = nil,
         tapHoldRequirePriorIdleMs: Int? = nil,
+        sequenceTimeoutMs: Int? = nil,
         concurrentTapHold: Bool = false,
         trailer: String = ""
     ) {
@@ -52,6 +55,7 @@ public struct KanataDefcfg: Sendable, Equatable {
         self.managedRepeatDelayMs = managedRepeatDelayMs
         self.managedRepeatIntervalMs = managedRepeatIntervalMs
         self.tapHoldRequirePriorIdleMs = tapHoldRequirePriorIdleMs
+        self.sequenceTimeoutMs = sequenceTimeoutMs
         self.concurrentTapHold = concurrentTapHold
         self.trailer = trailer
     }
@@ -86,6 +90,9 @@ public struct KanataDefcfg: Sendable, Equatable {
         if let tapHoldRequirePriorIdleMs {
             lines.append("  tap-hold-require-prior-idle \(tapHoldRequirePriorIdleMs)")
         }
+        if let sequenceTimeoutMs {
+            lines.append("  sequence-timeout \(sequenceTimeoutMs)")
+        }
         if concurrentTapHold {
             lines.append("  concurrent-tap-hold yes")
         }
@@ -102,6 +109,8 @@ public extension KanataDefcfg {
     ///     entry point (the `render()` assert backstops the internal `init`).
     ///   - requirePriorIdleMs: `tap-hold-require-prior-idle` value, or nil to omit.
     ///     The caller maps its "0 means disabled" sentinel to nil.
+    ///   - sequenceTimeoutMs: `sequence-timeout` value from an enabled Sequences
+    ///     collection, or nil to use Kanata's default.
     ///   - hasChords: emits `concurrent-tap-hold yes` (required by `defchordsv2`).
     ///   - deviceTargeting: verbatim macOS device-targeting trailer ("" when none).
     ///
@@ -110,6 +119,7 @@ public extension KanataDefcfg {
     static func standard(
         managedRepeatTiming: (delayMs: Int, intervalMs: Int)?,
         requirePriorIdleMs: Int?,
+        sequenceTimeoutMs: Int? = nil,
         hasChords: Bool,
         deviceTargeting: String
     ) -> KanataDefcfg {
@@ -120,6 +130,7 @@ public extension KanataDefcfg {
             managedRepeatDelayMs: managedRepeatTiming?.delayMs,
             managedRepeatIntervalMs: managedRepeatTiming?.intervalMs,
             tapHoldRequirePriorIdleMs: requirePriorIdleMs,
+            sequenceTimeoutMs: sequenceTimeoutMs,
             concurrentTapHold: hasChords,
             trailer: deviceTargeting
         )

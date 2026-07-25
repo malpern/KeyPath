@@ -306,6 +306,46 @@ final class PerRuleOptionCoverageTests: XCTestCase {
         assertContains(sequenceConfig, "window-leader (space w)", "preserved sequence")
     }
 
+    func testSequencePauseLimitEmitsSupportedValuesAndPreservesManualSequences() {
+        let preserved = KanataDefseqParser.parseSequences(
+            from: "(defseq window-leader (space w))"
+        )
+
+        for value in [
+            SequencesConfig.minimumPauseLimitMs,
+            SequencesConfig.defaultPauseLimitMs,
+            750,
+            SequencesConfig.maximumPauseLimitMs
+        ] {
+            let sequencesCollection = collection(
+                id: RuleCollectionIdentifier.sequences,
+                name: "Sequences",
+                configuration: .sequences(SequencesConfig(globalTimeout: value))
+            )
+
+            let config = KanataConfiguration.generateFromCollections(
+                [sequencesCollection],
+                sequences: preserved
+            )
+
+            assertContains(config, "sequence-timeout \(value)", "sequence pause limit \(value)")
+            assertContains(config, "window-leader (space w)", "preserved manual sequence")
+        }
+    }
+
+    func testDisabledSequenceCollectionOmitsPauseLimit() {
+        var sequencesCollection = collection(
+            id: RuleCollectionIdentifier.sequences,
+            name: "Sequences",
+            configuration: .sequences(SequencesConfig(globalTimeout: 750))
+        )
+        sequencesCollection.isEnabled = false
+
+        let config = KanataConfiguration.generateFromCollections([sequencesCollection])
+
+        XCTAssertFalse(config.contains("sequence-timeout"))
+    }
+
     private func catalogCollection(_ id: UUID) throws -> RuleCollection {
         try XCTUnwrap(
             RuleCollectionCatalog().defaultCollections().first { $0.id == id },

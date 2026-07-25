@@ -199,4 +199,36 @@ final class CLIExportImportTests: XCTestCase {
         XCTAssertEqual(restoredConfig.layerAssignments["f"], "nav")
         XCTAssertEqual(restoredConfig.timing.holdDelay, 260)
     }
+
+    func testExportImportRoundTripPreservesSequencePauseLimit() throws {
+        let sequence = SequenceDefinition(
+            name: "Window",
+            keys: ["space", "w"],
+            action: .activateLayer(.custom("window"))
+        )
+        let collection = RuleCollection(
+            name: "Round Trip Sequences",
+            summary: "Config-backed",
+            category: .productivity,
+            mappings: [],
+            configuration: .sequences(SequencesConfig(
+                sequences: [sequence],
+                activeSequenceID: sequence.id,
+                globalTimeout: 1750
+            ))
+        )
+
+        let exported = CLIExportedCollection(from: collection)
+        let data = try JSONEncoder().encode(exported)
+        let decoded = try JSONDecoder().decode(CLIExportedCollection.self, from: data)
+        let restored = decoded.toRuleCollection()
+
+        guard case let .sequences(restoredConfig) = restored.configuration else {
+            XCTFail("Expected Sequences configuration after round trip")
+            return
+        }
+        XCTAssertEqual(restoredConfig.sequences, [sequence])
+        XCTAssertEqual(restoredConfig.activeSequenceID, sequence.id)
+        XCTAssertEqual(restoredConfig.globalTimeout, 1750)
+    }
 }

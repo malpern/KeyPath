@@ -111,7 +111,9 @@ Run out of shortcut combinations? Type short mnemonics instead. Press a leader k
 
 Easy to remember, impossible to run out of.
 
-**How to set it up:** Create sequence rules in the **Custom Rules** tab.
+**How to set it up:** Turn on **Sequences** in the **Rules** tab, then click
+**Customize…**. See [Type Memorable Shortcut Paths]({{ '/guides/sequences/' |
+relative_url }}) for setup and timing guidance.
 
 ---
 

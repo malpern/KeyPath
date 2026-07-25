@@ -17,7 +17,11 @@ final class SequencesConfigTests: XCTestCase {
 
         XCTAssertEqual(config.sequences.count, 0, "Default config should have no sequences")
         XCTAssertNil(config.activeSequenceID, "Default config should have no active sequence")
-        XCTAssertEqual(config.globalTimeout, 500, "Default timeout should be 500ms")
+        XCTAssertEqual(
+            config.globalTimeout,
+            SequencesConfig.defaultPauseLimitMs,
+            "Default pause limit should use the shared model default"
+        )
     }
 
     func testPresets() {
@@ -128,6 +132,16 @@ final class SequencesConfigTests: XCTestCase {
     }
 
     // MARK: - Validation Tests
+
+    func testPauseLimitRangeIncludesSupportedBoundaries() {
+        XCTAssertEqual(SequencesConfig.minimumPauseLimitMs, 300)
+        XCTAssertEqual(SequencesConfig.maximumPauseLimitMs, 2000)
+        XCTAssertEqual(SequencesConfig.pauseLimitStepMs, 50)
+        XCTAssertTrue(SequencesConfig(globalTimeout: 300).isValidTimeout)
+        XCTAssertTrue(SequencesConfig(globalTimeout: 2000).isValidTimeout)
+        XCTAssertFalse(SequencesConfig(globalTimeout: 299).isValidTimeout)
+        XCTAssertFalse(SequencesConfig(globalTimeout: 2001).isValidTimeout)
+    }
 
     func testSequenceValidation_Valid() {
         let valid = SequenceDefinition(

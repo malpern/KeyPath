@@ -66,6 +66,24 @@ final class KanataDefcfgTests: XCTestCase {
         """)
     }
 
+    func testStandardWithSequencePauseLimit() {
+        let defcfg = KanataDefcfg.standard(
+            managedRepeatTiming: nil,
+            requirePriorIdleMs: nil,
+            sequenceTimeoutMs: 750,
+            hasChords: false,
+            deviceTargeting: ""
+        )
+        XCTAssertEqual(defcfg.render(), """
+        (defcfg
+          process-unmapped-keys yes
+          managed-repeat yes
+          managed-repeat-unlisted no
+          sequence-timeout 750
+        )
+        """)
+    }
+
     func testStandardAppendsDeviceTargetingTrailerVerbatim() {
         // The trailer carries its own leading newline/indentation and lands before the
         // closing paren — exactly how renderMacOSDeviceTargetingForDefcfg() is spliced.
