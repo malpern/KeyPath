@@ -111,3 +111,35 @@ next step.
   Recommendation: pause the recurring 20-minute loop now. Reuse a lighter
   milestone-triggered audit, or a 30-minute cadence only during long,
   failure-prone lab sessions, instead of keeping this heartbeat permanently.
+
+## 2026-07-25 05:28 PDT — M11 completion checkpoint
+
+- **Outcome:** advanced
+- **Completed milestone:** M11 now has a reusable macOS 27 Desktop Automation
+  Base proven from a brand-new CrabBox lease, rather than only from the VM used
+  to prepare the base.
+- **Evidence:**
+  - Automation commits `a9770d166` and `3662660c6` route macOS 27 desktop
+    leases to `keypath-macos-27-desktop` and verify that the inherited
+    `/dev/console` user is `keypathqa`.
+  - The reusable Parallels source is `KeyPath macOS 27 Desktop Base`, UUID
+    `a7beee48-6dae-4809-9f6f-6382c90b3c3f`.
+  - Fresh lease `cbx_45cd7ed5cd38` was created from that source on macOS 27
+    build `26A5378j`; its manifest records passed inherited-console and desktop
+    bootstrap checks.
+  - An independent RFB probe moved the fresh guest pointer from `(10,10)` to
+    `(640,360)`.
+  - The fresh clone passed the fail-closed macOS 27 selector driver for the
+    Accessibility surface and the signed `Peekaboo Lab Host`.
+  - Final evidence was collected under
+    `artifacts/cbx_45cd7ed5cd38/20260725T122639Z`.
+  - The full `Scripts/lab/tests/keypath-lab-tests.sh` suite passes.
+- **Current blocker:** none for M11. P02 remains separately blocked on the
+  onsite physical mWave USB proof.
+- **Next action:** Remove only the disposable validation lease, preserve the
+  reusable base, and select the next automation issue that can advance
+  remotely.
+- **Loop check:** not looping. Treating a formal Parallels template as a
+  CrabBox source failed once; registering the same backed-up base bundle as a
+  normal stopped source was a materially different correction, and the next
+  fresh clone passed end to end.

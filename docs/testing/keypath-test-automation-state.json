@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-25T04:42:00-07:00",
-  "currentTask": "M11 desktop automation proven; fresh-base clone validation next",
-  "message": "The macOS 27 candidate now has authenticated Remote Management input plus verified Screen Recording, Accessibility, and event synthesis for the signed Peekaboo Lab Host. Desktop bootstrap and a live macOS 27 selector capture pass. The remaining M11 step is to route desktop leases to a separate reusable base, checkpoint this candidate, and prove a brand-new clone.",
+  "updatedAt": "2026-07-25T05:28:00-07:00",
+  "currentTask": "M11 complete; select the next remote-capable automation issue",
+  "message": "The reusable macOS 27 Desktop Automation Base is proven from a brand-new CrabBox lease. The fresh clone inherited its console login and native privacy approvals, passed desktop bootstrap, accepted authenticated RFB input, and passed the fail-closed macOS 27 selector capture. P02 remains parked at its onsite physical-USB boundary.",
   "complete": false,
   "workingBlocks": [],
   "activeWork": {
@@ -390,13 +390,13 @@
       "unlocks": []
     },
     "M11": {
-      "progress": 98,
-      "health": "smooth",
+      "progress": 100,
+      "health": "proven",
       "trend": "forward",
-      "phase": "Desktop automation proven; reusable-base validation next",
-      "detail": "The supported UI now has Remote Management and VNC authentication enabled, and an independent RFB probe moved the guest cursor. The signed Peekaboo Lab Host reports Screen Recording, Accessibility, and event synthesis granted. Desktop bootstrap passes and the fail-closed macOS 27 selector driver captured the live Accessibility surface with the expected host row.",
-      "attempt": 7,
-      "completedSteps": 9,
+      "phase": "Reusable macOS 27 desktop base proven",
+      "detail": "CrabBox now routes macOS 27 desktop leases to the dedicated KeyPath macOS 27 Desktop Base. A brand-new lease inherited the keypathqa console session and signed Peekaboo Lab Host approvals, passed desktop bootstrap, accepted authenticated RFB pointer input, and passed the fail-closed semantic selector capture.",
+      "attempt": 8,
+      "completedSteps": 10,
       "totalSteps": 10,
       "nextTasks": [
         {
@@ -426,11 +426,11 @@
         },
         {
           "label": "Checkpoint and validate a brand-new automation-base clone",
-          "status": "active",
-          "progress": 35
+          "status": "done",
+          "progress": 100
         }
       ],
-      "blocker": "The controller still routes every macOS 27 lease to the pristine loginwindow source. It needs an explicit desktop-base source before checkpointing and fresh-clone validation can be trusted.",
+      "blocker": "",
       "coreCapability": true,
       "unlocks": [
         "macOS 27 agent-driven System Settings automation",
@@ -540,12 +540,19 @@
     "M08": "proven",
     "M09": "proven",
     "M10": "proven",
-    "M11": "active",
+    "M11": "proven",
     "D03": "proven",
     "D04": "proven",
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "05:28",
+      "block": "M11",
+      "tone": "success",
+      "title": "Reusable macOS 27 desktop base proven",
+      "message": "A brand-new CrabBox lease from KeyPath macOS 27 Desktop Base reached the inherited keypathqa console, passed desktop bootstrap, accepted authenticated RFB input, and passed the live macOS 27 selector capture. M11 is complete; the disposable validation lease can now be removed while the reusable base remains."
+    },
     {
       "time": "04:42",
       "block": "M11",
