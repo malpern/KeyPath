@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-24T21:22:00-07:00",
-  "currentTask": "M11 native permission owner proven; guest approvals gated by host lock",
-  "message": "A brand-new macOS 27 candidate from commit df51458b passed console login, clean-keychain, reboot, and pinned-tool setup. The native Peekaboo Lab Host launched through LaunchServices as the intended long-lived manual bridge. The mini's clawd console then returned to its login screen, so the guest's Screen Recording and Accessibility toggles cannot be completed until the host session is unlocked.",
+  "updatedAt": "2026-07-24T21:27:00-07:00",
+  "currentTask": "M11 native permission owner proven; Screen Sharing disconnect policy identified",
+  "message": "A brand-new macOS 27 candidate from commit df51458b passed console login, clean-keychain, reboot, and pinned-tool setup. The native Peekaboo Lab Host launched through LaunchServices as the intended long-lived manual bridge. Host logs show Screen Sharing explicitly re-locked clawd when its connection timed out; disabling RestoreMachineState needs one host administrator authentication after the current session is unlocked.",
   "complete": false,
   "workingBlocks": [
     "M11"
@@ -395,8 +395,8 @@
       "progress": 94,
       "health": "blocked",
       "trend": "forward",
-      "phase": "Native TCC owner proven in a fresh candidate; host console relocked",
-      "detail": "Commit df51458b replaced the ignored shell-script app with a signed native arm64 launcher. A fresh macOS 27 clone installed it, and LaunchServices started the expected Peekaboo manual bridge with the stable daemon socket and narrow com.keypath.lab.peekaboo-host identity. The remaining privacy approvals require the mini's visible console, which unexpectedly returned to the host login screen despite sleep and screensaver prevention.",
+      "phase": "Native TCC owner proven; Screen Sharing disconnect re-lock isolated",
+      "detail": "Commit df51458b replaced the ignored shell-script app with a signed native arm64 launcher. A fresh macOS 27 clone installed it, and LaunchServices started the expected Peekaboo manual bridge with the stable daemon socket and narrow com.keypath.lab.peekaboo-host identity. Host logs prove caffeinate remained effective; ScreensharingAgent intentionally restored the locked state after a connection timeout.",
       "attempt": 5,
       "completedSteps": 8,
       "totalSteps": 9,
@@ -427,7 +427,7 @@
           "progress": 10
         }
       ],
-      "blocker": "The mini's clawd console is at the host login screen. SSH, Tailscale, the VM, and the new app-owned bridge remain healthy, but the guest privacy UI cannot be operated until the host session is unlocked.",
+      "blocker": "The mini's clawd console is at the host login screen. After unlock, one administrator-authenticated RestoreMachineState=false change is needed so Screen Sharing disconnects stop re-locking it; then the guest privacy approvals can resume.",
       "coreCapability": true,
       "unlocks": [
         "macOS 27 agent-driven System Settings automation",
@@ -543,6 +543,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "21:27",
+      "block": "M11",
+      "tone": "waiting",
+      "title": "Host re-lock cause identified",
+      "message": "The mini did not sleep: caffeinate assertions remained active. ScreensharingAgent deliberately restored the lock screen after its connection timed out. The durable fix is known but requires one host administrator authentication after unlock."
+    },
     {
       "time": "21:22",
       "block": "M11",
