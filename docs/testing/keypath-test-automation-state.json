@@ -1,11 +1,9 @@
 {
-  "updatedAt": "2026-07-24T20:03:44-07:00",
-  "currentTask": "M11 exposed a missing macOS 27 automation base",
-  "message": "The core VM survived. The problem is base role separation: the only macOS 27 source is clean and carries stale Apple Account state, while UI automation needs a separately prepared, permissioned desktop base. Driver hardening continues while that base task is made explicit.",
+  "updatedAt": "2026-07-24T20:32:32-07:00",
+  "currentTask": "M11 candidate provisioned; privacy approvals next",
+  "message": "Pinned tool provisioning now works from the clean macOS 27 source. The active candidate is ready for one-time Screen Recording, Accessibility, and Remote Management approval.",
   "complete": false,
-  "workingBlocks": [
-    "M11"
-  ],
+  "workingBlocks": [],
   "activeWork": {
     "P02": {
       "progress": 98,
@@ -392,42 +390,42 @@
       "unlocks": []
     },
     "M11": {
-      "progress": 78,
-      "health": "retrying",
+      "progress": 88,
+      "health": "waiting",
       "trend": "forward",
-      "phase": "macOS 27 Desktop Automation Base gap isolated",
-      "detail": "A fresh clean-base clone provisions in 28 seconds, but selector work is blocked by missing user-local tools, Screen Recording/Accessibility approval, Remote Management control, and an inherited Apple Account alert. Tool installation is now scripted; the durable fix is a separate prepared desktop base, not per-clone repair.",
-      "attempt": 2,
-      "completedSteps": 5,
+      "phase": "Automation-base candidate ready for privacy approvals",
+      "detail": "A fresh macOS 27 candidate now provisions Python 3.12.13, Peekaboo 3.9.8, and mcporter 0.12.3 from pinned verified archives without Homebrew. The candidate is logged in and the tooling is proven. Screen Recording and Accessibility remain denied; changing those security-sensitive settings requires explicit action-time confirmation.",
+      "attempt": 3,
+      "completedSteps": 7,
       "totalSteps": 8,
       "nextTasks": [
         {
-          "label": "Restore CrabBox template/source mapping after host restart",
+          "label": "Publish fail-closed macOS 27 selector driver (PR #1206)",
           "status": "done",
           "progress": 100
         },
         {
-          "label": "Create fresh current-master macOS 27 clone",
+          "label": "Provision pinned desktop tools from a clean clone",
           "status": "done",
           "progress": 100
         },
         {
-          "label": "Add fail-closed macOS 27 selector driver",
-          "status": "active",
-          "progress": 70
-        },
-        {
-          "label": "Prepare dedicated macOS 27 Desktop Automation Base",
-          "status": "queued",
-          "progress": 15
-        },
-        {
-          "label": "Capture live selectors and compose approval driver",
+          "label": "Grant Screen Recording and Accessibility to signed Peekaboo tooling",
           "status": "blocked",
-          "progress": 20
+          "progress": 50
+        },
+        {
+          "label": "Remove inherited Apple Account state and enable Remote Management",
+          "status": "blocked",
+          "progress": 35
+        },
+        {
+          "label": "Checkpoint and validate a brand-new automation-base clone",
+          "status": "queued",
+          "progress": 10
         }
       ],
-      "blocker": "The clean macOS 27 base is intentionally not selector-ready. A one-time prepared desktop base must remove the inherited Apple Account and grant signed tool permissions before unattended selector capture is reliable.",
+      "blocker": "The candidate is at the one-time macOS privacy-approval boundary. Screen Recording, Accessibility, and Remote Management changes require explicit confirmation before I apply them.",
       "coreCapability": true,
       "unlocks": [
         "macOS 27 agent-driven System Settings automation",
@@ -537,12 +535,26 @@
     "M08": "proven",
     "M09": "proven",
     "M10": "proven",
-    "M11": "active",
+    "M11": "waiting",
     "D03": "proven",
     "D04": "proven",
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "20:32",
+      "block": "M11",
+      "tone": "waiting",
+      "title": "M11 candidate provisioned; privacy approvals next",
+      "message": "Pinned tool provisioning now works from the clean macOS 27 source. The active candidate is ready for one-time Screen Recording, Accessibility, and Remote Management approval."
+    },
+    {
+      "time": "20:17",
+      "block": "M11",
+      "tone": "working",
+      "title": "M11 selector driver published; automation-base work begins",
+      "message": "PR #1206 contains the fail-closed macOS 27 selector driver. Clone evidence is preserved, disposable capacity is clear, and M11 is now building the reusable Desktop Automation Base."
+    },
     {
       "time": "20:03",
       "block": "M11",
@@ -738,20 +750,6 @@
       "tone": "success",
       "title": "M14 consolidated report proven",
       "message": "PR #1184 merged after focused report tests, a mixed-result CLI proof, the 4,746-test local safe suite, required CI, and claude-review. Evidence links are artifact-relative and unsafe or malformed inputs fail closed."
-    },
-    {
-      "time": "16:20",
-      "block": "M11",
-      "tone": "problem",
-      "title": "M11 blocked before selector capture",
-      "message": "Fresh macOS 27 lease cbx_86986a1fbbd1 verified the encrypted QA credential but remained at loginwindow. Parallels RFB click/type reported success without changing the captured screen; artifacts were collected and the owned lease was destroyed."
-    },
-    {
-      "time": "15:45",
-      "block": "R01",
-      "tone": "working",
-      "title": "Non-MDM functional fallback identified",
-      "message": "MDM remains the supported unattended clean-clone path. A separate one-time manually approved base may unblock functional coverage, and Kanata Engine.app\u2014not the raw launcher\u2014is the correct stable manual TCC target for the next isolated proof."
     }
   ],
   "activity": [
