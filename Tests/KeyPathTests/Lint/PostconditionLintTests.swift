@@ -25,8 +25,7 @@ final class PostconditionLintTests: XCTestCase {
         try assertFunctions(
             [
                 "installRequiredRuntimeServices",
-                "repairVHIDDaemonServices",
-                "activateVirtualHIDManager"
+                "repairVHIDDaemonServices"
             ],
             contain: "enforceVHIDServicesPostcondition"
         )
@@ -44,7 +43,8 @@ final class PostconditionLintTests: XCTestCase {
     func testVHIDDriverInstallEnforcesDriverPostcondition() throws {
         try assertFunctions(
             [
-                "downloadAndInstallCorrectVHIDDriver"
+                "downloadAndInstallCorrectVHIDDriver",
+                "activateVirtualHIDManager"
             ],
             contain: "enforceVHIDDriverPostcondition"
         )

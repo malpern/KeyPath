@@ -305,7 +305,10 @@ public final class PrivilegedOperationsRouter {
         #else
             try await runActivateVirtualHIDManager()
         #endif
-        try await enforceVHIDServicesPostcondition(after: "activateVirtualHIDManager")
+        // Activation owns the DriverKit system extension. Runtime service
+        // installation happens in a later installer recipe, so requiring those
+        // services here makes a clean install fail before it can install them.
+        try await enforceVHIDDriverPostcondition(after: "activateVirtualHIDManager")
     }
 
     private func runActivateVirtualHIDManager() async throws {
