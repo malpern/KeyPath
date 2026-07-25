@@ -41,4 +41,12 @@ final class TimingCopyTests: XCTestCase {
         XCTAssertFalse(TimingCopy.showsHoldActivationDelay(for: .basic, isEditingTapDance: true))
         XCTAssertTrue(TimingCopy.showsHoldActivationDelay(for: .basic, isEditingTapDance: false))
     }
+
+    func testLeaderHoldDelayNamesTheKeyAndShortcutListOutcome() {
+        XCTAssertEqual(String(localized: TimingCopy.leaderHoldDelay), "Leader hold delay")
+        XCTAssertEqual(
+            String(localized: TimingCopy.leaderHoldDelayExplanation),
+            "How long to hold the Leader key before KeyPath shows the Shortcut List."
+        )
+    }
 }

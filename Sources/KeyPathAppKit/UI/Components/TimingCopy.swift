@@ -1,3 +1,5 @@
+import Foundation
+
 /// Shared, user-facing language for timing controls.
 ///
 /// Keep this focused on what a person experiences rather than the renderer's
@@ -43,6 +45,16 @@ enum TimingCopy {
 
     static let holdActivationDelay = "Hold activation delay"
     static let holdActivationDelayExplanation = "How long to hold this key before its hold action activates."
+    static let leaderHoldDelay = LocalizedStringResource(
+        "Leader hold delay",
+        bundle: #bundle,
+        comment: "Label for the setting that controls how long the Leader key must be held."
+    )
+    static let leaderHoldDelayExplanation = LocalizedStringResource(
+        "How long to hold the Leader key before KeyPath shows the Shortcut List.",
+        bundle: #bundle,
+        comment: "Explains that the Leader hold delay controls when the Shortcut List appears."
+    )
     static let multiTapWindow = "Multi-tap window"
     static let multiTapWindowExplanation = "After every tap, the window starts again. When it expires, KeyPath resolves the tap count."
     static let activateHoldOnOtherKeyPress = "Activate hold when another key is pressed"

@@ -85,18 +85,20 @@ struct ContextHUDSettingsSection: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         HStack(spacing: 4) {
-                            Text("Hold Delay")
+                            Text(TimingCopy.leaderHoldDelay)
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
-                            InfoTip("Default is Long. Medium matches previous behavior.")
+                            InfoTip(String(localized: TimingCopy.leaderHoldDelayExplanation))
                         }
 
                         Spacer()
 
-                        Picker("Hold Delay", selection: $holdDelayPreset) {
+                        Picker(selection: $holdDelayPreset) {
                             ForEach(ContextHUDHoldDelayPreset.allCases, id: \.self) { preset in
                                 Text(preset.displayName).tag(preset)
                             }
+                        } label: {
+                            Text(TimingCopy.leaderHoldDelay)
                         }
                         .pickerStyle(.menu)
                         .labelsHidden()
@@ -106,7 +108,7 @@ struct ContextHUDSettingsSection: View {
                             customHoldDelayMs = services.preferences.contextHUDHoldDelayCustomMs
                         }
                         .accessibilityIdentifier("settings-context-hud-hold-delay-preset")
-                        .accessibilityLabel("Shortcut List hold delay preset")
+                        .accessibilityLabel(Text(TimingCopy.leaderHoldDelay))
                     }
 
                     if holdDelayPreset == .custom {
@@ -129,7 +131,7 @@ struct ContextHUDSettingsSection: View {
                                 customHoldDelayMs = services.preferences.contextHUDHoldDelayCustomMs
                             }
                             .accessibilityIdentifier("settings-context-hud-hold-delay-custom")
-                            .accessibilityLabel("Custom Shortcut List hold delay in milliseconds")
+                            .accessibilityLabel("Custom Leader hold delay in milliseconds")
                         }
                     }
                 }

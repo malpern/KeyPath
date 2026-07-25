@@ -116,7 +116,7 @@ This is the "Caps Lock does everything" setup that many keyboard enthusiasts use
 
 ### Space feels laggy after enabling
 
-The tap/hold threshold (default 180ms) determines how long you must hold before it's a "hold" vs. a "tap." If typing feels sluggish:
+The **Leader hold delay** (default 180ms) determines how long you must hold before KeyPath treats the key as your Leader. If typing feels sluggish:
 - Practice releasing Space quickly between words
 - The threshold is tuned for most typists — give it a day before adjusting
 
@@ -130,5 +130,6 @@ Currently the four options (Space, Caps Lock, Tab, Backtick) are the supported l
 
 - **[Navigate Text Like a Keyboard Ninja]({{ '/guides/vim-navigation/' | relative_url }})** — The foundation layer that Leader activates
 - **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — Combine Leader layers with home row modifiers
+- **[One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }})** — A glossary of KeyPath timing controls
 - **[Keyboard Concepts]({{ '/guides/concepts/' | relative_url }})** — Background on layers and momentary activation
 - **[Back to Docs](https://malpern.github.io/KeyPath/docs)**

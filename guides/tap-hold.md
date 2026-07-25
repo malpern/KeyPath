@@ -196,6 +196,7 @@ The editors use the same names wherever the underlying clock and outcome match:
 
 - **Repeat-tap window**: after you press the key, another key can still change how it resolves during this period.
 - **Hold activation delay**: how long to hold the key before its hold action activates.
+- **Leader hold delay**: how long to hold the Leader key before KeyPath shows the Shortcut List. This controls the Leader shortcut reference, not the timing of your other tap-hold rules.
 - **Typing grace period**: the release-order variant's short buffer; another key released during it makes this key a hold. It does not use a separate hold delay.
 - **Multi-tap window**: tap-dance's window for another tap. The clock starts again after every tap; when it expires, KeyPath resolves the tap count.
 

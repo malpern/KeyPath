@@ -2146,6 +2146,22 @@
         }
       }
     },
+    "How long to hold the Leader key before KeyPath shows the Shortcut List.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPathがショートカットリストを表示するまでLeaderキーを押し続ける時間。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How long to hold the Leader key before KeyPath shows the Shortcut List."
+          }
+        }
+      }
+    },
     "How to Clean Up:": {
       "localizations": {
         "ja": {
@@ -2766,6 +2782,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Layer Changes"
+          }
+        }
+      }
+    },
+    "Leader hold delay": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leaderホールド遅延"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leader hold delay"
           }
         }
       }
