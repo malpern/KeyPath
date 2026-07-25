@@ -172,3 +172,34 @@ next step.
 - **Loop check:** not looping. The failed display-scale probe exposed an
   undeclared Peekaboo path dependency; it was replaced with an AppKit-only
   scale measurement, and the next protected-sheet attempt passed.
+
+## 2026-07-25 07:08 PDT — R03/R04 runtime completion and M01 defect checkpoint
+
+- **Outcome:** advanced
+- **Completed milestone:** R03 runtime convergence and R04 TCP readiness pass
+  independently on fresh lease `cbx_a6d8a327390c`.
+- **Evidence:**
+  - KeyPath CLI reports the helper as installed, version `1.1.0`, fresh, and
+    working.
+  - KeyPath and Kanata both report Accessibility and Input Monitoring granted.
+  - `systemextensionsctl` reports
+    `org.pqrs.Karabiner-DriverKit-VirtualHIDDevice` activated and enabled.
+  - The second state-aware installer pass completed
+    `start-karabiner-daemon` and `install-required-runtime-services`, with all
+    recipe postconditions satisfied.
+  - `Scripts/lab/scenarios/installer-scenario managed-capabilities
+    managed-functional` reports `managed_capabilities passed`, including the
+    independent `127.0.0.1:37001` TCP probe.
+  - Commit `2da2f8d80` adds fail-closed stdin-only protected input for System
+    Settings authorization sheets; the full lab shell test suite passes.
+- **Current blocker:** M01 exposed a product defect in clean-install ordering.
+  The first installer pass successfully installs components and activates the
+  DriverKit extension, then `activate-vhid-manager` fails because
+  `/Library/LaunchDaemons/com.keypath.karabiner-vhiddaemon.plist` is not
+  installed until the later `install-required-runtime-services` recipe.
+- **Next action:** fix the recipe ordering or narrow the premature
+  postcondition, then create a fresh managed clone and require one installer
+  pass plus the independent managed-capabilities scenario.
+- **Loop check:** not looping. The second installer invocation was based on a
+  materially changed state and dry-run plan; it proved convergence, while the
+  preserved first-pass failure identifies the exact single-pass defect.

@@ -1,10 +1,10 @@
 {
-  "updatedAt": "2026-07-25T06:39:00-07:00",
-  "currentTask": "R03: install and start the managed runtime stack on the proven macOS 15 fixture",
-  "message": "R01 is proven on a fresh randomized macOS 15 clone: enrollment, exact policy delivery, installer-policy matching, KeyPath Accessibility, and KeyPath Input Monitoring all pass independently. The exact signed app is installed. The active frontier is now the helper, DriverKit, Kanata, VirtualHID, and TCP startup path; P02 remains parked at its onsite physical-USB boundary.",
+  "updatedAt": "2026-07-25T07:08:00-07:00",
+  "currentTask": "M01: make the clean managed install converge in one supported installer pass",
+  "message": "R01, R03, and R04 now pass on the fresh randomized macOS 15 clone: all four runtime permissions, helper health, DriverKit activation, VirtualHID health, Kanata, both daemons, and TCP readiness are independently proven. The lab also found a real clean-install ordering defect: the first installer pass activates VirtualHID, then checks for a launch daemon that a later recipe has not installed yet. A second state-aware pass succeeds. M01 now owns the single-pass fix.",
   "complete": false,
   "workingBlocks": [
-    "R03"
+    "M01"
   ],
   "activeWork": {
     "P02": {
@@ -115,13 +115,13 @@
       "unlocks": []
     },
     "R03": {
-      "progress": 65,
-      "health": "working",
+      "progress": 100,
+      "health": "smooth",
       "trend": "forward",
-      "phase": "Fresh managed fixture ready; installing the system runtime stack",
-      "detail": "The fresh macOS 15 clone now proves KeyPath Accessibility and Input Monitoring for the exact signed build. The first managed-capabilities probe correctly finds the app permissions and bundled Kanata binary, while helper installation, DriverKit, VirtualHID, Kanata launch, and TCP readiness remain to be established.",
+      "phase": "Managed runtime converged and independently proven",
+      "detail": "The fresh clone reports a fresh working helper, KeyPath and Kanata Accessibility/Input Monitoring, activated DriverKit, healthy VirtualHID, running Kanata and Karabiner daemons, and no conflicts. The independent managed-capabilities scenario passes.",
       "attempt": 3,
-      "completedSteps": 5,
+      "completedSteps": 7,
       "totalSteps": 7,
       "nextTasks": [
         {
@@ -141,11 +141,11 @@
         },
         {
           "label": "Verify Kanata and TCP readiness",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         }
       ],
-      "blocker": "The signed app is present but its privileged helper, DriverKit extension, daemons, and VirtualHID runtime have not yet been installed and started on this fresh clone.",
+      "blocker": null,
       "coreCapability": false,
       "unlocks": []
     },
@@ -185,32 +185,32 @@
       "unlocks": []
     },
     "R04": {
-      "progress": 0,
-      "health": "waiting",
+      "progress": 100,
+      "health": "smooth",
       "trend": "forward",
-      "phase": "Waiting on P02/R03 runtime convergence",
-      "detail": "TCP readiness at 127.0.0.1:37001 can only be proven after the Apple-gated managed DriverKit and raw-runtime PPPC prerequisites allow Kanata to converge.",
-      "attempt": 1,
-      "completedSteps": 0,
-      "totalSteps": 0,
+      "phase": "Kanata TCP readiness independently proven",
+      "detail": "The managed-capabilities acceptance scenario received a valid response from Kanata at 127.0.0.1:37001 after the supported runtime installation completed.",
+      "attempt": 2,
+      "completedSteps": 3,
+      "totalSteps": 3,
       "nextTasks": [
         {
           "label": "Provision managed DriverKit and PPPC lane",
-          "status": "blocked",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Converge Kanata runtime",
-          "status": "blocked",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Probe TCP readiness independently",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         }
       ],
-      "blocker": "R03 must converge on the macOS 15 managed lane before TCP readiness can be asserted.",
+      "blocker": null,
       "coreCapability": false,
       "unlocks": []
     },
@@ -250,18 +250,46 @@
       "unlocks": []
     },
     "M01": {
-      "progress": 0,
-      "health": "waiting",
+      "progress": 60,
+      "health": "working",
       "trend": "forward",
-      "phase": "Waiting on Apple: managed clean-install lane",
-      "detail": "An unattended clean install must prove the fully functional managed runtime, including DriverKit and raw-runtime permissions.",
-      "attempt": 1,
-      "completedSteps": 0,
-      "totalSteps": 0,
-      "nextTasks": [],
-      "blocker": "Waiting on Apple Developer Support case 102940025673 for the managed-functional lane.",
-      "coreCapability": false,
-      "unlocks": []
+      "phase": "Clean install reaches green in two passes; fixing recipe ordering",
+      "detail": "The first supported installer pass installs components and activates the DriverKit extension, then fails activate-vhid-manager because it checks for com.keypath.karabiner-vhiddaemon.plist before install-required-runtime-services runs. A second state-aware installer pass installs the runtime services and the independent managed-capabilities scenario passes.",
+      "attempt": 2,
+      "completedSteps": 3,
+      "totalSteps": 5,
+      "nextTasks": [
+        {
+          "label": "Complete fresh managed admission and permissions",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Capture first-pass ordering failure",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Prove second-pass convergence independently",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Fix installer recipe ordering or postcondition scope",
+          "status": "active",
+          "progress": 25
+        },
+        {
+          "label": "Re-prove one-pass clean install on a fresh clone",
+          "status": "queued",
+          "progress": 0
+        }
+      ],
+      "blocker": "Product defect: activate-vhid-manager requires a runtime-service postcondition before the runtime-service installation recipe executes.",
+      "coreCapability": true,
+      "unlocks": [
+        "Repair, upgrade, reboot, uninstall, and reinstall scenarios"
+      ]
     },
     "M02": {
       "progress": 0,
@@ -522,8 +550,8 @@
   "statuses": {
     "R01": "proven",
     "R02": "proven",
-    "R03": "active",
-    "R04": "queued",
+    "R03": "proven",
+    "R04": "proven",
     "P01": "proven",
     "P02": "blocked",
     "M14": "proven",
@@ -531,7 +559,7 @@
     "P03": "queued",
     "P04": "queued",
     "D06": "proven",
-    "M01": "queued",
+    "M01": "active",
     "M02": "queued",
     "M03": "queued",
     "M04": "queued",
@@ -548,6 +576,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "07:08",
+      "block": "M01",
+      "tone": "working",
+      "title": "Runtime green; clean-install ordering defect isolated",
+      "message": "The independent managed-capabilities scenario now passes every runtime and TCP gate on the fresh macOS 15 clone. The first installer pass fails only because activate-vhid-manager checks for a launch daemon before the later runtime-service recipe installs it; a second state-aware pass succeeds. M01 is fixing and re-proving one-pass clean installation."
+    },
     {
       "time": "06:39",
       "block": "R01",
