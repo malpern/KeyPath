@@ -18,7 +18,7 @@ class PhysicalSessionTests(unittest.TestCase):
         self.bin.mkdir()
         self.output = self.root / "out"
         self.make("sw_vers", '#!/bin/sh\n[ "$1" = -productVersion ] && { echo 15.7.7; exit; }; echo 15.7.7\n')
-        self.make("ioreg", '#!/bin/sh\necho \'"Product" = "M-VAVE SMK-25"\'\necho \'"SerialNumber" = "do-not-retain"\'\n')
+        self.make("ioreg", '#!/bin/sh\necho \'"Product" = "mWave"\'\necho \'"Manufacturer" = "Kinesis Corporation"\'\necho \'"SerialNumber" = "do-not-retain"\'\n')
         self.make("ready", '#!/bin/sh\necho runtime_state=ready\n')
         self.make("keypath-cli", '#!/bin/sh\necho \'{"ok":true,"output":"w"}\'\n')
         self.make("open", '#!/bin/sh\nexit 0\n')
@@ -72,7 +72,7 @@ fi
         return subprocess.run([str(TOOL), *args], env=env or self.env(), text=True, capture_output=True)
 
     def test_one_physical_event_proves_output_overlay_and_timing(self):
-        prepared = self.call("prepare", "--output", str(self.output), "--device-match", "M-VAVE")
+        prepared = self.call("prepare", "--output", str(self.output), "--device-match", "mWave")
         self.assertEqual(prepared.returncode, 0, prepared.stderr)
         observed = self.call("observe", "--output", str(self.output), "--timeout-seconds", "1")
         self.assertEqual(observed.returncode, 0, observed.stderr)
@@ -84,13 +84,13 @@ fi
         self.assertIn("launchToOutputMilliseconds", timing)
 
     def test_missing_named_guest_hid_blocks_before_arming(self):
-        prepared = self.call("prepare", "--output", str(self.output), "--device-match", "Kinesis")
+        prepared = self.call("prepare", "--output", str(self.output), "--device-match", "Advantage360")
         self.assertEqual(prepared.returncode, 4)
         result = json.loads((self.output / "prepare" / "result.json").read_text())
         self.assertEqual(result["failure"]["step"], "physical-hid-admission")
 
     def test_literal_q_is_a_product_failure_and_cannot_prove_timing(self):
-        self.assertEqual(self.call("prepare", "--output", str(self.output), "--device-match", "M-VAVE").returncode, 0)
+        self.assertEqual(self.call("prepare", "--output", str(self.output), "--device-match", "mWave").returncode, 0)
         observed = self.call("observe", "--output", str(self.output), "--timeout-seconds", "1", env=self.env(TEXTEDIT_VALUE="q"))
         self.assertEqual(observed.returncode, 1)
         p02 = json.loads((self.output / "P02" / "result.json").read_text())

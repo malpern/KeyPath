@@ -213,7 +213,7 @@ first-confirmation timing come from the same physical event:
 ```bash
 Scripts/lab/keypath-lab run LEASE -- Scripts/lab/physical-remap-session prepare \
   --output .keypath-lab/scenario-output/physical-remap-session \
-  --device-match M-VAVE
+  --device-match mWave
 Scripts/lab/keypath-lab run LEASE -- Scripts/lab/physical-remap-session observe \
   --output .keypath-lab/scenario-output/physical-remap-session
 ```
