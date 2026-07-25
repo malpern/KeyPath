@@ -77,6 +77,11 @@ EOF
 cat > "$ROOT/bin/crabbox" <<EOF
 #!/bin/bash
 echo "crabbox \$*" >> "$CALLS"
+if [[ \$1 == desktop && \$2 == type && " \$* " != *" --text "* ]]; then
+  cat > "$TMP/crabbox-desktop-type-stdin"
+  [[ \${KEYPATH_LAB_TEST_CRABBOX_TYPE_FAIL:-0} == 1 ]] && exit 42
+  exit 0
+fi
 if [[ \$1 == warmup ]]; then
   if [[ " \$* " == *" --provider tart "* ]]; then
     echo 'leased cbx_stale instance=stale-resource'
@@ -122,6 +127,19 @@ EOF
 cat > "$ROOT/bin/guest-ssh" <<EOF
 #!/bin/bash
 printf '%s\n' "\$*" > "$TMP/guest-ssh-args"
+printf '%s\n' "\$*" >> "$TMP/guest-ssh-calls"
+if [[ " \$* " == *"field.focused"* ]]; then
+  printf focused
+  exit 0
+fi
+if [[ " \$* " == *"button.position"* ]]; then
+  printf '400,300'
+  exit 0
+fi
+if [[ " \$* " == *"AXSecureTextField"* ]]; then
+  printf closed
+  exit 0
+fi
 if [[ " \$* " == *" /bin/test -p /tmp/keypath-console-login-"* ]]; then
   cat >/dev/null
 else
@@ -191,7 +209,11 @@ chmod +x "$ROOT/bin/prlctl"
 echo test-private-key > "$TMP/id_ed25519"
 printf 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
 grep -Fq 'exec 3<> \"\$fifo\"; KEYPATH_GUEST_PASSWORD=; IFS= read -r -t $credential_timeout -u 3 KEYPATH_GUEST_PASSWORD || [[ -n \"\$KEYPATH_GUEST_PASSWORD\" ]]' "$REMOTE"
-grep -Fq 'IFS= read -r secret_value || [[ -n "$secret_value" ]]' "$REMOTE"
+grep -Fq '"$CRABBOX" desktop type --provider tart --target macos --id "$resource" < "$secret_file"' "$REMOTE"
+if grep -Fq 'events.keystroke(secret)' "$REMOTE"; then
+    echo "SecurityAgent secure input still uses synthetic Accessibility typing" >&2
+    exit 1
+fi
 grep -Fq 'managed_clone_enrollment\talready-enrolled' "$REMOTE"
 grep -Fq 'window.subrole() === "AXSystemDialog"' "$REMOTE"
 grep -Fq 'usb_prefix="$TART_USB_TOOL_ROOT/bin:"' "$REMOTE"
@@ -810,21 +832,20 @@ if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" 
 fi
 secure_agent_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent AXSecureTextField Allow 0)
 assert_contains "$secure_agent_result" $'secure_dialog_input\tpassed'
-grep -q 'keypath-secure-input' "$TMP/guest-ssh-args"
-grep -q 'button.*position.*size' "$TMP/guest-ssh-args"
-grep -q 'peekaboo.*click.*--coords.*button_coords.*--global-coords' "$TMP/guest-ssh-args"
-grep -q -- '--foreground.*--input-strategy.*synthOnly' "$TMP/guest-ssh-args"
-grep -q 'SecurityAgent.*closed' "$TMP/guest-ssh-args"
-if grep -q '/usr/bin/sudo\|pbcopy\|the\\ clipboard' "$TMP/guest-ssh-args"; then
+grep -q 'field.focused = true' "$TMP/guest-ssh-calls"
+grep -q 'button.position()' "$TMP/guest-ssh-calls"
+grep -q 'return open.*open.*closed' "$TMP/guest-ssh-calls"
+[[ $(grep -c 'crabbox desktop type --provider tart --target macos --id test-resource$' "$CALLS") -ge 2 ]]
+grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 800 --y 600' "$CALLS"
+cmp -s "$TMP/secure-input" "$TMP/crabbox-desktop-type-stdin"
+if grep -q -- '--text' "$CALLS" || grep -q '/usr/bin/sudo\|pbcopy\|the\\ clipboard\|events.keystroke' "$TMP/guest-ssh-calls"; then
     echo "SecurityAgent secure input used an unsafe password path" >&2
     exit 1
 fi
 secure_settings_result=$(run_remote secure-dialog-input cbx_desktop15 'System Settings' AXSecureTextField 'Modify Settings' 0)
 assert_contains "$secure_settings_result" $'secure_dialog_input\tpassed'
-grep -q 'processes.byName.*appName' "$TMP/guest-ssh-args"
-grep -q 'System.*Settings.*Modify.*Settings' "$TMP/guest-ssh-args"
-grep -q 'AXSecureTextField' "$TMP/guest-ssh-args"
-grep -q 'return.*open.*closed' "$TMP/guest-ssh-args"
+grep -q 'System.*Settings.*Modify.*Settings' "$TMP/guest-ssh-calls"
+grep -q 'AXSecureTextField' "$TMP/guest-ssh-calls"
 secure_focused_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent Password '' 1)
 assert_contains "$secure_focused_result" $'secure_dialog_input\tpassed'
 if grep -q 'peekaboo.*see\|peekaboo.*click' "$TMP/guest-ssh-args"; then

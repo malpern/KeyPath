@@ -856,6 +856,8 @@ run_command() {
 secure_dialog_input() {
   local lease=$1 app=$2 field_label=$3 submit_button=$4 already_focused=$5
   local manifest macos resource key ip secret_file guest_command exit_code
+  local focus_command focus_result button_geometry_command button_coords postcondition_command postcondition_result
+  local geometry_command geometry native_width native_height logical_width logical_height scale_x scale_y click_x click_y
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$macos" == "15" ]] || die "secure dialog input currently supports only the Tart macOS 15 lane"
@@ -878,20 +880,109 @@ secure_dialog_input() {
   if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
   ip=$($TART ip "$resource")
   [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
+  export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+  if [[ "$field_label" == "AXSecureTextField" ]]; then
+    [[ -n "$submit_button" ]] || die "AXSecureTextField requires a submit button for postcondition verification"
+    [[ "$already_focused" == "0" ]] || die "AXSecureTextField does not use --already-focused"
+
+    # SecurityAgent rejects synthetic Accessibility typing. Use Accessibility
+    # only to focus and inspect the protected sheet, then deliver the secret as
+    # real RFB key events over CrabBox stdin. The secret never enters argv,
+    # guest storage, or controller output.
+    focus_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) throw new Error("dialog process not found");\n  var field = descendants(matches[0].windows[0]).find(function (element) {\n    try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; }\n  });\n  if (!field) throw new Error("secure text field not found");\n  field.focused = true;\n  return field.focused() ? "focused" : "not-focused";\n}\' -- '$(printf %q "$app")
+    set +e
+    focus_result=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$focus_command")" </dev/null)
+    exit_code=$?
+    set -e
+    if (( exit_code != 0 )) || [[ "$focus_result" != "focused" ]]; then
+      record_command "$lease" "failed:41" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+      die "secure dialog input failed while focusing the field"
+    fi
+
+    # Clear any value left by a prior interrupted attempt. Backspace is a
+    # supported RFB keysym, and a fixed upper bound avoids learning or logging
+    # the protected field's current length.
+    set +e
+    printf '\b%.0s' {1..128} | "$CRABBOX" desktop type --provider tart --target macos --id "$resource" >/dev/null 2>&1
+    exit_code=$?
+    set -e
+    if (( exit_code != 0 )); then
+      record_command "$lease" "failed:42" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+      die "secure dialog input failed while clearing the protected field"
+    fi
+
+    set +e
+    "$CRABBOX" desktop type --provider tart --target macos --id "$resource" < "$secret_file" >/dev/null 2>&1
+    exit_code=$?
+    set -e
+    if (( exit_code != 0 )); then
+      record_command "$lease" "failed:42" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+      die "secure dialog input failed while streaming masked input"
+    fi
+
+    button_geometry_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var process = Application("System Events").processes.byName(argv[0]);\n  var button = descendants(process.windows[0]).find(function (element) {\n    try { return element.role() === "AXButton" && (element.name() === argv[1] || element.description() === argv[1]); } catch (_) { return false; }\n  });\n  if (!button) throw new Error("submit button not found");\n  var position = button.position();\n  var size = button.size();\n  return Math.round(position[0] + size[0] / 2) + "," + Math.round(position[1] + size[1] / 2);\n}\' -- '$(printf %q "$app")' '$(printf %q "$submit_button")
+    set +e
+    button_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$button_geometry_command")" </dev/null)
+    exit_code=$?
+    set -e
+    if (( exit_code != 0 )) || [[ ! "$button_coords" =~ '^[0-9]+,[0-9]+$' ]]; then
+      record_command "$lease" "failed:78" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+      die "secure dialog input could not resolve valid SecurityAgent button geometry"
+    fi
+    IFS=',' read -r click_x click_y <<< "$button_coords"
+
+    if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+      geometry=${KEYPATH_LAB_TEST_DISPLAY_GEOMETRY:-'2048 1536 1024 768'}
+    else
+      geometry_command='/usr/bin/osascript -l JavaScript -e '\''ObjC.import("AppKit"); var screen=$.NSScreen.mainScreen; var logical=screen.frame.size; var scale=Number(screen.backingScaleFactor); Math.round(logical.width*scale)+" "+Math.round(logical.height*scale)+" "+Math.round(logical.width)+" "+Math.round(logical.height)'\'''
+      geometry=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$geometry_command")")
+    fi
+    IFS=' ' read -r native_width native_height logical_width logical_height <<< "$geometry"
+    [[ "$native_width" == <-> && "$native_height" == <-> && "$logical_width" == <-> && "$logical_height" == <-> && "$logical_width" -gt 0 && "$logical_height" -gt 0 ]] || die "secure dialog input could not measure display geometry"
+    (( native_width % logical_width == 0 && native_height % logical_height == 0 )) || die "secure dialog input measured a non-integral display scale"
+    scale_x=$((native_width / logical_width))
+    scale_y=$((native_height / logical_height))
+    (( scale_x == scale_y && scale_x > 0 )) || die "secure dialog input measured inconsistent display scales"
+    click_x=$((click_x * scale_x))
+    click_y=$((click_y * scale_y))
+
+    set +e
+    "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$click_x" --y "$click_y" >/dev/null 2>&1
+    exit_code=$?
+    set -e
+    if (( exit_code != 0 )); then
+      record_command "$lease" "failed:43" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+      die "secure dialog input failed while submitting the dialog"
+    fi
+
+    postcondition_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "closed";\n  var open = descendants(matches[0].windows[0]).some(function (element) {\n    try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; }\n  });\n  return open ? "open" : "closed";\n}\' -- '$(printf %q "$app")
+    postcondition_result=open
+    for attempt in {1..150}; do
+      postcondition_result=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$postcondition_command")" </dev/null) || postcondition_result=open
+      [[ "$postcondition_result" == "closed" ]] && break
+      sleep 0.1
+    done
+    if [[ "$postcondition_result" != "closed" ]]; then
+      record_command "$lease" "failed:77" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+      die "secure dialog input was submitted but the SecurityAgent sheet did not close"
+    fi
+
+    if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" ]]; then
+      rm -f "$secret_file"
+      KEYPATH_LAB_SECURE_TEMP=
+    fi
+    record_command "$lease" passed secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+    print "secure_dialog_input\tpassed"
+    return 0
+  fi
 
   # Peekaboo's MCP type response contains the typed value. Suppress both output
   # streams for that command so the secret cannot enter controller logs.
   local refresh_command field_command click_command submit_command submit_label_quoted button_geometry_command postcondition_command
   local -a refresh_args focus_args click_args submit_args button_geometry_args postcondition_args
   guest_command='set -euo pipefail; command -v /opt/homebrew/bin/peekaboo >/dev/null; command -v /opt/homebrew/bin/mcporter >/dev/null; '
-  if [[ "$field_label" == "AXSecureTextField" ]]; then
-    [[ -n "$submit_button" ]] || die "AXSecureTextField requires a submit button for postcondition verification"
-    [[ "$already_focused" == "0" ]] || die "AXSecureTextField does not use --already-focused"
-    focus_args=(/usr/bin/osascript -l JavaScript -e 'function descendants(element) { var result = []; try { var children = element.uiElements(); for (var i = 0; i < children.length; i++) { result.push(children[i]); result = result.concat(descendants(children[i])); } } catch (_) {} return result; } function run(argv) { var appName = argv[1]; var secret = $.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js.replace(/\r?\n$/, ""); var process = Application("System Events").processes.byName(appName); var field = descendants(process.windows[0]).find(function (element) { try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; } }); if (!field) throw new Error("secure text field not found"); field.value = secret; }')
-    printf -v field_command '%q ' "${focus_args[@]}"
-    guest_command+='IFS= read -r secret_value || [[ -n "$secret_value" ]]; secret_path=$(/usr/bin/mktemp /tmp/keypath-secure-input.XXXXXX); /bin/chmod 600 "$secret_path"; trap '\''rm -f "$secret_path"'\'' EXIT; printf '\''%s'\'' "$secret_value" > "$secret_path"; unset secret_value; '
-    guest_command+="$field_command \"\$secret_path\" $(printf %q "$app") >/dev/null; rm -f \"\$secret_path\"; trap - EXIT"
-  elif [[ "$already_focused" == "0" ]]; then
+  if [[ "$already_focused" == "0" ]]; then
     refresh_args=(/opt/homebrew/bin/peekaboo see --app "$app" --json)
     printf -v refresh_command '%q ' "${refresh_args[@]}"
     guest_command+="$refresh_command >/dev/null || exit 40; "
@@ -903,26 +994,13 @@ secure_dialog_input() {
   elif [[ -n "$submit_button" ]]; then
     die "--already-focused cannot be combined with a submit button"
   fi
-  if [[ "$field_label" != "AXSecureTextField" ]]; then
-    guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1 || exit 42'
-  fi
+  guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1 || exit 42'
   if [[ -n "$submit_button" ]]; then
-    if [[ "$field_label" == "AXSecureTextField" ]]; then
-      button_geometry_args=(/usr/bin/osascript -l JavaScript -e 'function descendants(element) { var result = []; try { var children = element.uiElements(); for (var i = 0; i < children.length; i++) { result.push(children[i]); result = result.concat(descendants(children[i])); } } catch (_) {} return result; } function run(argv) { var process = Application("System Events").processes.byName(argv[0]); var label = argv[1]; var button = descendants(process.windows[0]).find(function (element) { try { return element.role() === "AXButton" && (element.name() === label || element.description() === label); } catch (_) { return false; } }); if (!button) throw new Error("submit button not found"); var position = button.position(); var size = button.size(); return Math.round(position[0] + size[0] / 2) + "," + Math.round(position[1] + size[1] / 2); }' "$app" "$submit_button")
-      printf -v button_geometry_command '%q ' "${button_geometry_args[@]}"
-      guest_command+="; button_coords=\$( $button_geometry_command ); [[ \"\$button_coords\" =~ '^-?[0-9]+,-?[0-9]+$' ]] || exit 78; /opt/homebrew/bin/peekaboo click --coords \"\$button_coords\" --global-coords --foreground --input-strategy synthOnly --json >/dev/null 2>&1 || true"
-    else
-      submit_args=(/opt/homebrew/bin/peekaboo click "$submit_button" --app "$app" --foreground --json)
-      printf -v submit_command '%q ' "${submit_args[@]}"
-      printf -v submit_label_quoted '%q' "$submit_button"
-      guest_command+="; $refresh_command >/tmp/keypath-secure-submit.json || exit 44; if ! $submit_command >/dev/null; then $refresh_command >/tmp/keypath-secure-submit.json || exit 43; /usr/bin/env python3 -c 'import json,sys; elements=json.load(open(sys.argv[1])).get(\"data\",{}).get(\"ui_elements\",[]); raise SystemExit(1 if any(e.get(\"label\")==sys.argv[2] for e in elements) else 0)' /tmp/keypath-secure-submit.json $submit_label_quoted || exit 43; fi"
-      guest_command+="; for attempt in {1..150}; do $refresh_command >/tmp/keypath-secure-postcondition.json || exit 44; /usr/bin/env python3 -c 'import json,sys; elements=json.load(open(sys.argv[1])).get(\"data\",{}).get(\"ui_elements\",[]); labels={e.get(\"label\") for e in elements}; raise SystemExit(0 if sys.argv[2] not in labels and sys.argv[3] not in labels else 1)' /tmp/keypath-secure-postcondition.json $(printf %q "$field_label") $submit_label_quoted && break; sleep 0.1; done; /usr/bin/env python3 -c 'import json,sys; elements=json.load(open(sys.argv[1])).get(\"data\",{}).get(\"ui_elements\",[]); labels={e.get(\"label\") for e in elements}; raise SystemExit(0 if sys.argv[2] not in labels and sys.argv[3] not in labels else 79)' /tmp/keypath-secure-postcondition.json $(printf %q "$field_label") $submit_label_quoted"
-    fi
-  fi
-  if [[ "$field_label" == "AXSecureTextField" ]]; then
-    postcondition_args=(/usr/bin/osascript -l JavaScript -e 'function descendants(element) { var result = []; try { var children = element.uiElements(); for (var i = 0; i < children.length; i++) { result.push(children[i]); result = result.concat(descendants(children[i])); } } catch (_) {} return result; } function run(argv) { var processes = Application("System Events").processes.whose({name: argv[0]})(); if (processes.length === 0 || processes[0].windows().length === 0) return "closed"; var open = descendants(processes[0].windows[0]).some(function (element) { try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; } }); return open ? "open" : "closed"; }' "$app")
-    printf -v postcondition_command '%q ' "${postcondition_args[@]}"
-    guest_command+="; for attempt in {1..150}; do [[ \$( $postcondition_command ) == closed ]] && exit 0; sleep 0.1; done; exit 77"
+    submit_args=(/opt/homebrew/bin/peekaboo click "$submit_button" --app "$app" --foreground --json)
+    printf -v submit_command '%q ' "${submit_args[@]}"
+    printf -v submit_label_quoted '%q' "$submit_button"
+    guest_command+="; $refresh_command >/tmp/keypath-secure-submit.json || exit 44; if ! $submit_command >/dev/null; then $refresh_command >/tmp/keypath-secure-submit.json || exit 43; /usr/bin/env python3 -c 'import json,sys; elements=json.load(open(sys.argv[1])).get(\"data\",{}).get(\"ui_elements\",[]); raise SystemExit(1 if any(e.get(\"label\")==sys.argv[2] for e in elements) else 0)' /tmp/keypath-secure-submit.json $submit_label_quoted || exit 43; fi"
+    guest_command+="; for attempt in {1..150}; do $refresh_command >/tmp/keypath-secure-postcondition.json || exit 44; /usr/bin/env python3 -c 'import json,sys; elements=json.load(open(sys.argv[1])).get(\"data\",{}).get(\"ui_elements\",[]); labels={e.get(\"label\") for e in elements}; raise SystemExit(0 if sys.argv[2] not in labels and sys.argv[3] not in labels else 1)' /tmp/keypath-secure-postcondition.json $(printf %q "$field_label") $submit_label_quoted && break; sleep 0.1; done; /usr/bin/env python3 -c 'import json,sys; elements=json.load(open(sys.argv[1])).get(\"data\",{}).get(\"ui_elements\",[]); labels={e.get(\"label\") for e in elements}; raise SystemExit(0 if sys.argv[2] not in labels and sys.argv[3] not in labels else 79)' /tmp/keypath-secure-postcondition.json $(printf %q "$field_label") $submit_label_quoted"
   fi
   set +e
   "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")" < "$secret_file"
