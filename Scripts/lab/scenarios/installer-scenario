@@ -38,10 +38,10 @@ assert_ready() {
 }
 
 record_scenario_result() {
-  local status=$1 summary=$2
+  local scenario_status=$1 summary=$2
   shift 2
   "$result_tool" record --output "$artifact_dir/result.json" --scenario "$name" \
-    --status "$status" --summary "$summary" "$@"
+    --status "$scenario_status" --summary "$summary" "$@"
 }
 
 capture_app_identity() {

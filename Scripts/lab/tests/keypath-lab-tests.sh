@@ -246,6 +246,10 @@ grep -Fq 'guest reboot currently requires a Parallels lease' "$REMOTE"
 /bin/zsh -n "$LAB_DIR/nameplate-instrumentation"
 /bin/zsh -n "$LAB_DIR/scenarios/kanata-vhid-two-clients"
 /bin/zsh -n "$LAB_DIR/scenarios/installer-scenario"
+if grep -Eq 'local[[:space:]]+status=' "$LAB_DIR/scenarios/installer-scenario"; then
+  echo "installer scenario must not shadow zsh's read-only status parameter" >&2
+  exit 1
+fi
 grep -Fq 'Reboot persistence requires an independently ready runtime baseline.' "$LAB_DIR/scenarios/installer-scenario"
 grep -Fq 'The boot marker did not change; no guest reboot was proven.' "$LAB_DIR/scenarios/installer-scenario"
 grep -Fq 'KeyPath app identity changed across the guest reboot.' "$LAB_DIR/scenarios/installer-scenario"
