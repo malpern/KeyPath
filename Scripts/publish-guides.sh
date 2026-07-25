@@ -12,9 +12,18 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 GHPAGES_WORKTREE="$REPO_ROOT/.worktrees/gh-pages"
 
-if ! git -C "$REPO_ROOT" diff --quiet -- guides docs.md images/help ||
-    ! git -C "$REPO_ROOT" diff --cached --quiet -- guides docs.md images/help ||
-    [ -n "$(git -C "$REPO_ROOT" ls-files --others --exclude-standard -- guides docs.md images/help)" ]; then
+PUBLISH_PATHS=(docs.md images/help)
+if [ $# -gt 0 ]; then
+    for guide in "$@"; do
+        PUBLISH_PATHS+=("guides/$guide")
+    done
+else
+    PUBLISH_PATHS+=(guides)
+fi
+
+if ! git -C "$REPO_ROOT" diff --quiet -- "${PUBLISH_PATHS[@]}" ||
+    ! git -C "$REPO_ROOT" diff --cached --quiet -- "${PUBLISH_PATHS[@]}" ||
+    [ -n "$(git -C "$REPO_ROOT" ls-files --others --exclude-standard -- "${PUBLISH_PATHS[@]}")" ]; then
     echo "❌ Refusing to publish uncommitted guide, navigation, or artwork changes"
     exit 1
 fi
