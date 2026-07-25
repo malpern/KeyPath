@@ -1,10 +1,10 @@
 {
-  "updatedAt": "2026-07-25T10:34:00-07:00",
-  "currentTask": "M02 repair fix awaits protected enrollment",
-  "message": "M03 upgrade is proven. M02 exposed a real SMAppService recovery defect, the fix and regression suite pass, and a fresh exact-build clone is waiting at the protected enrollment password sheet.",
+  "updatedAt": "2026-07-25T10:49:00-07:00",
+  "currentTask": "M04 remote reboot-persistence proof started",
+  "message": "M02 is safely paused at its human enrollment gate. A separate managed macOS 26 Parallels lease is admitting the exact fixed candidate for a fully remote install, reboot, and independent runtime-readiness proof.",
   "complete": false,
   "workingBlocks": [
-    "M02"
+    "M04"
   ],
   "executionTracks": [
     {
@@ -21,15 +21,15 @@
     {
       "id": "lifecycle",
       "label": "Lifecycle scenarios",
-      "platform": "Tart \u00b7 macOS 15",
+      "platform": "macOS 15 Tart \u00b7 macOS 26 Parallels",
       "status": "active",
-      "badge": "HUMAN GATE",
+      "badge": "REMOTE ACTIVE",
       "blocks": [
         "M02",
         "M04",
         "M05"
       ],
-      "detail": "M02 found and fixed a real stale-service recovery defect. Its fresh exact-build macOS 15 clone is paused at Apple's protected enrollment password sheet; M04 and M05 remain independent follow-ons."
+      "detail": "M02 is paused at Apple's protected macOS 15 enrollment sheet. M04 is using the independent managed macOS 26 Parallels lane, where host-controlled guest reboot and secure input remain available remotely."
     },
     {
       "id": "upgrade",
@@ -405,16 +405,42 @@
       ]
     },
     "M04": {
-      "progress": 0,
-      "health": "waiting",
+      "progress": 20,
+      "health": "smooth",
       "trend": "forward",
-      "phase": "Waiting on Apple: managed reboot baseline",
-      "detail": "Reboot persistence requires a runtime that has first converged with managed DriverKit and PPPC grants.",
+      "phase": "Managed Parallels lease admission",
+      "detail": "A separate macOS 26 managed Parallels clone is being admitted with commit ce7441fd and the exact signed candidate. This lane can complete its real guest reboot without the blocked Tart secure-field path.",
       "attempt": 1,
-      "completedSteps": 0,
-      "totalSteps": 0,
-      "nextTasks": [],
-      "blocker": "Waiting on Apple Developer Support case 102940025673 because R03/R04 need the managed-functional lane.",
+      "completedSteps": 1,
+      "totalSteps": 5,
+      "nextTasks": [
+        {
+          "label": "Admit exact-build managed clone",
+          "status": "active",
+          "progress": 20
+        },
+        {
+          "label": "Establish independently ready runtime",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Capture pre-reboot evidence",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Perform host-approved guest reboot",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Prove runtime and TCP readiness after reboot",
+          "status": "queued",
+          "progress": 0
+        }
+      ],
+      "blocker": "",
       "coreCapability": false,
       "unlocks": []
     },
@@ -645,9 +671,9 @@
     "P04": "queued",
     "D06": "proven",
     "M01": "proven",
-    "M02": "active",
+    "M02": "blocked",
     "M03": "proven",
-    "M04": "queued",
+    "M04": "active",
     "M05": "queued",
     "M06": "queued",
     "M07": "queued",
@@ -661,6 +687,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "10:49",
+      "block": "M04",
+      "tone": "working",
+      "title": "Remote reboot-persistence track started",
+      "message": "M02 remains preserved at its human gate while a separate managed macOS 26 Parallels lease admits the exact fixed candidate for install, real guest reboot, and independent runtime-readiness proof."
+    },
     {
       "time": "10:34",
       "block": "M02",
