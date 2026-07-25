@@ -1,9 +1,12 @@
 {
-  "updatedAt": "2026-07-25T13:53:00-07:00",
-  "currentTask": "M02 one-pass Kanata repair proven; M05 uninstall is next",
-  "message": "A fresh randomized macOS 15 clone passed managed admission, exact-candidate installation, real runtime damage, one repaired recovery attempt, and independent runtime plus TCP readiness. Evidence is preserved; lifecycle work can move to M05 while M04 remains separately gated on trusted Parallels consent.",
+  "updatedAt": "2026-07-25T14:02:00-07:00",
+  "currentTask": "M05 uninstall proof and M06 reinstall harness started",
+  "message": "M05 is defining a fail-closed uninstall postcondition for app, helper, KeyPath services, preserved configuration, and intentionally shared DriverKit state. M06 is being authored in parallel, but its live proof remains serial behind M05 on the same disposable lifecycle lease.",
   "complete": false,
-  "workingBlocks": [],
+  "workingBlocks": [
+    "M05",
+    "M06"
+  ],
   "executionTracks": [
     {
       "id": "baseline",
@@ -20,14 +23,14 @@
       "id": "lifecycle",
       "label": "Lifecycle scenarios",
       "platform": "macOS 15 Tart \u00b7 macOS 26 Parallels",
-      "status": "next",
-      "badge": "M02 PROVEN",
+      "status": "active",
+      "badge": "M05 ACTIVE",
       "blocks": [
         "M02",
         "M04",
         "M05"
       ],
-      "detail": "M02 passed its ready-to-damaged-to-one-repair-to-ready proof on a randomized macOS 15 clone. M05 uninstall is next. M04 remains separately paused because current Parallels automation cannot commit trusted Input Monitoring consent."
+      "detail": "M02 is proven. M05 now owns the live macOS 15 uninstall proof while the M06 reinstall contract is authored in parallel. M04 remains separately paused at the trusted Parallels consent boundary."
     },
     {
       "id": "upgrade",
@@ -44,15 +47,15 @@
       "id": "dependent",
       "label": "Dependent chain",
       "platform": "Scenario consumers",
-      "status": "gated",
-      "badge": "SERIAL / GATED",
+      "status": "active",
+      "badge": "M06 AUTHORING",
       "blocks": [
         "M06",
         "M07",
         "M12",
         "M13"
       ],
-      "detail": "Reinstall follows verified uninstall; nightly and weekly matrices wait for the underlying scenarios to be proven."
+      "detail": "M06 assertion authoring can proceed now, but its live mutation must follow M05's verified uninstall on the same lease. M07 and the nightly/weekly matrices remain downstream."
     },
     {
       "id": "physical",
@@ -443,30 +446,77 @@
       "unlocks": []
     },
     "M05": {
-      "progress": 0,
-      "health": "waiting",
+      "progress": 10,
+      "health": "smooth",
       "trend": "forward",
-      "phase": "Waiting on Apple: managed uninstall baseline",
-      "detail": "The full uninstall assertion needs a deterministically functional install as its starting state.",
+      "phase": "Defining independent uninstall postconditions",
+      "detail": "The live proof will require an independently ready randomized macOS 15 baseline, one supported uninstall, removal of the app, helper, and KeyPath-owned services, preservation of user configuration, and explicit classification of the shared VirtualHID driver.",
       "attempt": 1,
       "completedSteps": 0,
-      "totalSteps": 0,
-      "nextTasks": [],
-      "blocker": "Waiting on Apple Developer Support case 102940025673 for the managed-functional lane.",
+      "totalSteps": 5,
+      "nextTasks": [
+        {
+          "label": "Harden uninstall assertion contract",
+          "status": "active",
+          "progress": 25
+        },
+        {
+          "label": "Admit independently ready managed clone",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Run one supported uninstall",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Verify owned components removed and config preserved",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Preserve evidence for M06",
+          "status": "queued",
+          "progress": 0
+        }
+      ],
+      "blocker": null,
       "coreCapability": false,
       "unlocks": []
     },
     "M06": {
-      "progress": 0,
-      "health": "waiting",
+      "progress": 10,
+      "health": "smooth",
       "trend": "forward",
-      "phase": "Waiting on Apple: managed reinstall baseline",
-      "detail": "Reinstall requires the managed functional install and verified uninstall path first.",
+      "phase": "Authoring same-lease reinstall assertions",
+      "detail": "Harness work is parallel-safe now. The live scenario will require M05 evidence from the same lease, reinstall the exact candidate through host-controlled admission, run one supported convergence action, and independently prove runtime plus TCP readiness.",
       "attempt": 1,
       "completedSteps": 0,
-      "totalSteps": 0,
-      "nextTasks": [],
-      "blocker": "Waiting on Apple Developer Support case 102940025673 because M05 requires the managed-functional lane.",
+      "totalSteps": 4,
+      "nextTasks": [
+        {
+          "label": "Require same-lease M05 evidence",
+          "status": "active",
+          "progress": 25
+        },
+        {
+          "label": "Reinstall exact candidate through host controller",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Run one supported runtime convergence",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Prove ready runtime and TCP independently",
+          "status": "queued",
+          "progress": 0
+        }
+      ],
+      "blocker": null,
       "coreCapability": false,
       "unlocks": []
     },
@@ -672,8 +722,8 @@
     "M02": "proven",
     "M03": "proven",
     "M04": "active",
-    "M05": "queued",
-    "M06": "queued",
+    "M05": "active",
+    "M06": "active",
     "M07": "queued",
     "M13": "queued",
     "M08": "proven",
@@ -685,6 +735,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "14:02",
+      "block": "M05",
+      "tone": "working",
+      "title": "M05 live proof and M06 contract work started",
+      "message": "The uninstall track is defining independent owned-component and configuration-preservation postconditions before mutating a fresh managed clone. M06 is being authored in parallel, while its live reinstall remains correctly serialized behind M05."
+    },
     {
       "time": "13:53",
       "block": "M02",
