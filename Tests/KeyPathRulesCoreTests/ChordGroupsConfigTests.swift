@@ -285,6 +285,23 @@ final class ChordGroupsConfigTests: XCTestCase {
         XCTAssertEqual(ChordSpeed.deliberate.milliseconds, 600)
     }
 
+    func testChordSpeedDescriptionsMatchMillisecondsAndFallbackTradeoff() {
+        for speed in ChordSpeed.allCases {
+            XCTAssertTrue(
+                speed.description.contains("\(speed.milliseconds) ms"),
+                "\(speed.rawValue) should describe its actual millisecond value"
+            )
+            XCTAssertTrue(
+                speed.description.localizedCaseInsensitiveContains("fallback"),
+                "\(speed.rawValue) should describe the normal-action fallback tradeoff"
+            )
+        }
+
+        XCTAssertTrue(ChordSpeed.lightning.description.contains("most precise"))
+        XCTAssertTrue(ChordSpeed.deliberate.description.contains("Most forgiving"))
+        XCTAssertTrue(ChordSpeed.deliberate.description.contains("waits longest"))
+    }
+
     func testChordSpeedNearest() {
         XCTAssertEqual(ChordSpeed.nearest(to: 140), .lightning)
         XCTAssertEqual(ChordSpeed.nearest(to: 200), .lightning) // Tie, picks first (lightning)

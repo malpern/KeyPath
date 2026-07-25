@@ -196,7 +196,7 @@ struct ChordGroupsModalView: View {
                         get: { group.category },
                         set: { newCategory in
                             localConfig.groups[index].category = newCategory
-                            // Update timeout to category's suggested value
+                            // Update the chord press window to the category's suggested value.
                             localConfig.groups[index].timeout = newCategory.suggestedTimeout
                         }
                     )) {
@@ -212,13 +212,13 @@ struct ChordGroupsModalView: View {
                     .accessibilityIdentifier("chord-group-category-picker")
                 }
 
-                // Timeout slider
+                // Chord press window slider
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Timeout")
+                        Text(ChordPressWindowCopy.title)
                             .font(.headline)
                         Spacer()
-                        Text("\(group.timeout)ms")
+                        Text("\(group.timeout) ms")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         Text("(\(ChordSpeed.nearest(to: group.timeout).rawValue))")
@@ -234,8 +234,14 @@ struct ChordGroupsModalView: View {
                         in: 100 ... 800,
                         step: 50
                     )
-                    .accessibilityLabel("Chord timeout")
-                    .accessibilityValue("\(group.timeout) ms, \(ChordSpeed.nearest(to: group.timeout).rawValue)")
+                    .accessibilityIdentifier("chord-press-window-slider")
+                    .accessibilityLabel(Text(ChordPressWindowCopy.title))
+                    .accessibilityValue(Text(
+                        ChordPressWindowCopy.accessibilityValue(
+                            milliseconds: group.timeout,
+                            speed: ChordSpeed.nearest(to: group.timeout)
+                        )
+                    ))
 
                     // Speed preset buttons
                     HStack(spacing: 8) {
@@ -250,6 +256,14 @@ struct ChordGroupsModalView: View {
                     }
 
                     Text(ChordSpeed.nearest(to: group.timeout).description)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Text(ChordPressWindowCopy.explanation)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Text(ChordPressWindowCopy.tradeoff)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -433,7 +447,7 @@ private struct GroupRowView: View {
                         .fontWeight(isSelected ? .semibold : .regular)
                         .foregroundColor(isSelected ? .white : .primary)
 
-                    Text("\(group.chords.count) chords • \(group.timeout)ms")
+                    Text("\(group.chords.count) chords • \(ChordPressWindowCopy.compactSummary(milliseconds: group.timeout))")
                         .font(.caption)
                         .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
                 }
