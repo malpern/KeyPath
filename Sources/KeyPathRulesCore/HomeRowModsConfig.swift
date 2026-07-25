@@ -20,6 +20,17 @@ public enum OppositeHandMode: String, Codable, Sendable {
     public var isEnabled: Bool {
         self != .off
     }
+
+    /// Whether the rendered tap-hold behavior uses a separate tap timeout.
+    /// Opposite-hand variants use only their decision timeout.
+    public var usesTapWindow: Bool {
+        !isEnabled
+    }
+
+    /// The user-facing name for the timer that decides when the hold action starts.
+    public var decisionWindowLabel: String {
+        usesTapWindow ? "Hold activation delay" : "Opposite-hand decision window"
+    }
 }
 
 /// Timing UI complexity level for home row mods

@@ -23,6 +23,16 @@ final class HomeRowModsConfigTests: XCTestCase {
         XCTAssertEqual(timing.quickTapTermMs, 0)
     }
 
+    func testOppositeHandModesDescribeTheTimerTheyRender() {
+        XCTAssertTrue(OppositeHandMode.off.usesTapWindow)
+        XCTAssertEqual(OppositeHandMode.off.decisionWindowLabel, "Hold activation delay")
+
+        for mode in [OppositeHandMode.press, .release] {
+            XCTAssertFalse(mode.usesTapWindow)
+            XCTAssertEqual(mode.decisionWindowLabel, "Opposite-hand decision window")
+        }
+    }
+
     func testLegacyDecodingDefaultsNewFields() throws {
         let legacyJSON = """
         {
