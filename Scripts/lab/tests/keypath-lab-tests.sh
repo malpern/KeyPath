@@ -245,6 +245,11 @@ grep -Fq 'guest reboot currently requires a Parallels lease' "$REMOTE"
 /bin/zsh -n "$LAB_DIR/mdm/enroll-clone-ui"
 /bin/zsh -n "$LAB_DIR/nameplate-instrumentation"
 /bin/zsh -n "$LAB_DIR/scenarios/kanata-vhid-two-clients"
+/bin/zsh -n "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'Reboot persistence requires an independently ready runtime baseline.' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'The boot marker did not change; no guest reboot was proven.' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'KeyPath app identity changed across the guest reboot.' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'The independently ready KeyPath runtime did not recover after reboot.' "$LAB_DIR/scenarios/installer-scenario"
 grep -q 'macos-27-regression)' "$LAB_DIR/scenarios/installer-scenario"
 
 run_remote() {

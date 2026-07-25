@@ -37,6 +37,23 @@ assert_ready() {
   fi
 }
 
+record_scenario_result() {
+  local status=$1 summary=$2
+  shift 2
+  "$result_tool" record --output "$artifact_dir/result.json" --scenario "$name" \
+    --status "$status" --summary "$summary" "$@"
+}
+
+capture_app_identity() {
+  local output=$1 app=/Applications/KeyPath.app
+  {
+    /usr/bin/defaults read "$app/Contents/Info" CFBundleIdentifier
+    /usr/bin/defaults read "$app/Contents/Info" CFBundleShortVersionString
+    /usr/bin/codesign -dv --verbose=4 "$app" 2>&1 | \
+      /usr/bin/awk -F= '/^(Identifier|TeamIdentifier|CDHash)=/ { print }'
+  } > "$output"
+}
+
 case "$name" in
   clean-install)
     find "$installer_dir" -maxdepth 1 -type f -print > "$artifact_dir/installer-files.txt"
@@ -99,13 +116,64 @@ case "$name" in
     ;;
   reboot-persistence-before)
     require_installed_cli
+    if ! assert_ready | tee "$artifact_dir/ready.tsv"; then
+      record_scenario_result blocked \
+        "Reboot persistence requires an independently ready runtime baseline." \
+        --classification environment-precondition-failure --step pre-reboot-ready
+      exit 4
+    fi
+    "$installed_cli" service status --json > "$artifact_dir/service-status.json"
     "$installed_cli" system inspect --json > "$artifact_dir/before-reboot.json"
+    /usr/sbin/sysctl -n kern.boottime > "$artifact_dir/boot-time.txt"
+    /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
+    capture_app_identity "$artifact_dir/app-identity.txt"
+    record_scenario_result passed \
+      "Independent runtime, app identity, and boot marker captured before reboot." \
+      --evidence ready.tsv --evidence service-status.json \
+      --evidence before-reboot.json --evidence boot-time.txt \
+      --evidence app-identity.txt
     print "Run the host-approved guest reboot, then execute reboot-persistence-after on the same lease."
     ;;
   reboot-persistence-after)
     require_installed_cli
+    before_dir="$PWD/.keypath-lab/scenario-output/reboot-persistence-before"
+    if [[ ! -s "$before_dir/boot-time.txt" || ! -s "$before_dir/app-identity.txt" ]]; then
+      record_scenario_result blocked \
+        "The same lease must pass reboot-persistence-before before the post-reboot check." \
+        --classification environment-precondition-failure --step pre-reboot-evidence
+      exit 4
+    fi
+    /usr/sbin/sysctl -n kern.boottime > "$artifact_dir/boot-time.txt"
+    if /usr/bin/cmp -s "$before_dir/boot-time.txt" "$artifact_dir/boot-time.txt"; then
+      record_scenario_result blocked \
+        "The boot marker did not change; no guest reboot was proven." \
+        --classification environment-precondition-failure --step host-reboot
+      exit 4
+    fi
+    /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
+    capture_app_identity "$artifact_dir/app-identity.txt"
+    if ! /usr/bin/cmp -s "$before_dir/app-identity.txt" "$artifact_dir/app-identity.txt"; then
+      record_scenario_result failed \
+        "KeyPath app identity changed across the guest reboot." \
+        --classification keypath-product-failure --step app-identity-persistence \
+        --evidence app-identity.txt
+      exit 1
+    fi
+    if ! assert_ready | tee "$artifact_dir/ready.tsv"; then
+      record_scenario_result failed \
+        "The independently ready KeyPath runtime did not recover after reboot." \
+        --classification keypath-product-failure --step post-reboot-ready \
+        --evidence ready.tsv
+      exit 1
+    fi
+    "$installed_cli" service status --json > "$artifact_dir/service-status.json"
     "$installed_cli" system inspect --json | tee "$artifact_dir/after-reboot.json"
     Scripts/lab/probe-kanata-tcp 2> "$artifact_dir/tcp-readiness.stderr" | tee "$artifact_dir/tcp-readiness.json"
+    record_scenario_result passed \
+      "App identity and independently ready runtime persisted across a proven guest reboot." \
+      --evidence boot-time.txt --evidence app-identity.txt \
+      --evidence ready.tsv --evidence service-status.json \
+      --evidence after-reboot.json --evidence tcp-readiness.json
     ;;
   uninstall)
     require_installed_cli
