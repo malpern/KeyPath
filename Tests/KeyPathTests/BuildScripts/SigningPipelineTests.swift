@@ -218,7 +218,12 @@ final class SigningPipelineTests: XCTestCase {
     }
 
     func testPinnedNotarytoolSupportsExplicitNoWait() {
-        let result = runScript("xcrun notarytool submit --help")
+        let script = """
+        source Scripts/lib/xcode.sh
+        keypath_use_stable_xcode
+        xcrun notarytool submit --help
+        """
+        let result = runScript(script)
 
         XCTAssertEqual(result.code, 0, result.stderr)
         XCTAssertTrue(result.stdout.contains("--wait/--no-wait"))
@@ -233,6 +238,9 @@ final class SigningPipelineTests: XCTestCase {
         let directory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        addTeardownBlock {
+            try? FileManager.default.removeItem(at: directory)
+        }
 
         let archive = directory.appendingPathComponent("KeyPath.zip")
         try Data("signed KeyPath archive".utf8).write(to: archive)
