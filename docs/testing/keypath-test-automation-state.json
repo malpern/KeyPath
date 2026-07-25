@@ -1,11 +1,11 @@
 {
-  "updatedAt": "2026-07-25T14:59:00-07:00",
-  "currentTask": "Corrected M05 clone admitted; Apple notarization exceeded the bounded wait",
-  "message": "Replacement lease cbx_9e1c128d616f is randomized, enrolled, and has acknowledged all three exact-build profiles for commit bd3e81e08 and archive 579db98e. Apple submission 74c86813 remains In Progress after the 15-minute cutoff, so installation is intentionally held rather than weakening the release-realistic gate. Resume by checking that submission, then install, prove ready, rerun M05, and run M06 on the same lease.",
+  "updatedAt": "2026-07-25T15:41:00-07:00",
+  "currentTask": "M04 through M07 proven; starting scenario-matrix execution",
+  "message": "Lease cbx_9e1c128d616f now proves reboot persistence, corrected uninstall, same-lease reinstall, real user cancellation, deliberate degradation, and one-pass recovery. M12 nightly-diagonal and M13 weekly-pairwise orchestration are the active remote-safe frontier; release notarization remains a separate external release gate.",
   "complete": false,
   "workingBlocks": [
-    "M05",
-    "M06"
+    "M12",
+    "M13"
   ],
   "executionTracks": [
     {
@@ -23,14 +23,14 @@
       "id": "lifecycle",
       "label": "Lifecycle scenarios",
       "platform": "macOS 15 Tart \u00b7 macOS 26 Parallels",
-      "status": "active",
-      "badge": "DEFECT FOUND",
+      "status": "proven",
+      "badge": "PROVEN",
       "blocks": [
         "M02",
         "M04",
         "M05"
       ],
-      "detail": "M02 is proven. M05 reached a fully ready live baseline and caught an orphaned GUI process after CLI uninstall. The fix is committed and signed; the exact replacement is awaiting notarization for the rerun. M04 remains separately paused at the trusted Parallels consent boundary."
+      "detail": "M02, M04, and M05 are proven. The lifecycle lane caught and fixed the orphaned-GUI uninstall defect, then passed independent uninstall and reboot-persistence assertions on the randomized managed Tart lease."
     },
     {
       "id": "upgrade",
@@ -48,14 +48,14 @@
       "label": "Dependent chain",
       "platform": "Scenario consumers",
       "status": "active",
-      "badge": "M06 READY",
+      "badge": "MATRICES NEXT",
       "blocks": [
         "M06",
         "M07",
         "M12",
         "M13"
       ],
-      "detail": "The M06 same-lease reinstall contract and assertions are implemented and tested. Its live mutation must still follow a verified M05 uninstall. M07 and the nightly/weekly matrices remain downstream."
+      "detail": "M06 same-lease reinstall and M07 real cancellation plus one-pass recovery are proven. Nightly diagonal and weekly pairwise orchestration are now the remaining remote-safe consumers."
     },
     {
       "id": "physical",
@@ -406,13 +406,13 @@
       ]
     },
     "M04": {
-      "progress": 70,
-      "health": "blocked",
-      "trend": "paused",
-      "phase": "Trusted Input Monitoring event boundary",
-      "detail": "Lease cbx_cd38fd327f7c isolated the trusted-consent gap and was destroyed after artifact capture. Commit 26d1c11c4 hardens the M04 harness so it cannot pass without a ready baseline, a proven reboot, stable signed app identity, and independently ready runtime/TCP afterward.",
-      "attempt": 1,
-      "completedSteps": 3,
+      "progress": 100,
+      "health": "smooth",
+      "trend": "forward",
+      "phase": "Tart reboot persistence proven",
+      "detail": "Managed macOS 15 lease cbx_9e1c128d616f captured a ready baseline, completed an owned Tart guest reboot, proved the boot marker changed, retained the exact signed app identity, and returned to independent runtime plus TCP readiness.",
+      "attempt": 2,
+      "completedSteps": 5,
       "totalSteps": 5,
       "nextTasks": [
         {
@@ -422,8 +422,8 @@
         },
         {
           "label": "Establish independently ready runtime",
-          "status": "blocked",
-          "progress": 55
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Capture pre-reboot evidence",
@@ -432,27 +432,27 @@
         },
         {
           "label": "Perform host-approved guest reboot",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Prove runtime and TCP readiness after reboot",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         }
       ],
-      "blocker": "The current Parallels pointer path can alter the visible System Settings switch but cannot prove a trusted macOS Input Monitoring grant. Canonical service status still reports Kanata permissions false and the TCP probe fails, so reboot persistence cannot be tested from a valid ready baseline.",
+      "blocker": null,
       "coreCapability": false,
       "unlocks": []
     },
     "M05": {
-      "progress": 80,
+      "progress": 100,
       "health": "smooth",
       "trend": "forward",
-      "phase": "Corrected managed clone ready; notarization externally pending",
-      "detail": "The first randomized clone exposed an orphaned GUI after uninstall. Commit bd3e81e08 fixes the CLI boundary. Replacement lease cbx_9e1c128d616f is already enrolled and exact-policy admitted, but installation is held because Apple submission 74c86813 remains In Progress beyond the bounded wait.",
+      "phase": "Corrected uninstall proven",
+      "detail": "The first live run exposed an orphaned GUI. Commit bd3e81e08 closes the app before removal; lease cbx_9e1c128d616f then proved the app, helper, services, and transient owned state absent while configuration and the shared VirtualHID driver remained intact.",
       "attempt": 2,
-      "completedSteps": 3,
+      "completedSteps": 5,
       "totalSteps": 5,
       "nextTasks": [
         {
@@ -472,27 +472,27 @@
         },
         {
           "label": "Verify fixed candidate leaves no live app process",
-          "status": "active",
-          "progress": 50
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Preserve evidence for M06",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         }
       ],
-      "blocker": "Apple notarization submission 74c86813-2c51-42cd-9383-c53d5c1b3301 remains In Progress. The corrected exact-build clone is admitted and waiting at the pre-install gate.",
+      "blocker": null,
       "coreCapability": false,
       "unlocks": []
     },
     "M06": {
-      "progress": 50,
+      "progress": 100,
       "health": "smooth",
       "trend": "forward",
-      "phase": "Harness complete; waiting for passed M05 evidence",
-      "detail": "The same-lease gate, exact-candidate reinstall plan, preserved-configuration check, one-action convergence, and independent runtime/TCP assertions are implemented and tested. Live execution remains correctly blocked until M05 passes.",
+      "phase": "Same-lease reinstall proven",
+      "detail": "After M05 passed, the exact candidate reinstalled on the same lease, preserved the configuration sentinel, executed one checkpointed runtime convergence, and passed independent service and runtime readiness assertions.",
       "attempt": 1,
-      "completedSteps": 2,
+      "completedSteps": 4,
       "totalSteps": 4,
       "nextTasks": [
         {
@@ -507,52 +507,78 @@
         },
         {
           "label": "Run one supported runtime convergence",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Prove ready runtime and TCP independently",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         }
       ],
-      "blocker": "Live M06 execution requires a passed M05 result from the same corrected-candidate lease.",
+      "blocker": null,
       "coreCapability": false,
       "unlocks": []
     },
     "M07": {
-      "progress": 0,
-      "health": "waiting",
+      "progress": 100,
+      "health": "smooth",
       "trend": "forward",
-      "phase": "Waiting on Apple: managed cancellation recovery",
-      "detail": "Cancellation and recovery must converge back to a verified functional runtime, which requires the managed lane.",
+      "phase": "Real cancellation and one-pass recovery proven",
+      "detail": "The harness captured the genuine uninstall confirmation, cancelled it through lease-owned RFB, verified unchanged app identity, running GUI, configuration, and runtime, then booted out Kanata and recovered once to independent readiness plus a valid TCP response.",
       "attempt": 1,
-      "completedSteps": 0,
-      "totalSteps": 0,
-      "nextTasks": [],
-      "blocker": "Waiting on Apple Developer Support case 102940025673 for the managed-functional lane.",
+      "completedSteps": 5,
+      "totalSteps": 5,
+      "nextTasks": [
+        {
+          "label": "Capture independently ready baseline",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Open and capture real uninstall confirmation",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Cancel and prove unchanged product state",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Inject and observe non-destructive Kanata failure",
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Repair once and prove runtime plus TCP readiness",
+          "status": "done",
+          "progress": 100
+        }
+      ],
+      "blocker": null,
       "coreCapability": false,
       "unlocks": []
     },
     "M12": {
-      "progress": 0,
-      "health": "waiting",
+      "progress": 10,
+      "health": "smooth",
       "trend": "forward",
-      "phase": "Waiting on Apple: executable nightly diagonal",
-      "detail": "The nightly diagonal is a consumer of the functional scenario foundations; its full curated run cannot be valid until the managed lane enables P02 through M07.",
+      "phase": "Inventorying executable nightly-diagonal inputs",
+      "detail": "The managed functional foundations through M07 are proven. Work is now selecting the smallest high-value nightly set and binding it to capacity, TTL, result, and sanitized-evidence contracts; physical P02 remains a separately labelled onsite case.",
       "attempt": 1,
-      "completedSteps": 0,
-      "totalSteps": 0,
+      "completedSteps": 2,
+      "totalSteps": 4,
       "nextTasks": [
         {
           "label": "Enable managed-functional lane",
-          "status": "blocked",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Prove core functional scenarios",
-          "status": "blocked",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Schedule capacity- and TTL-aware nightly diagonal",
@@ -560,21 +586,37 @@
           "progress": 0
         }
       ],
-      "blocker": "Waiting on Apple Developer Support case 102940025673 because the nightly matrix requires managed functional scenarios.",
+      "blocker": null,
       "coreCapability": false,
       "unlocks": []
     },
     "M13": {
-      "progress": 0,
-      "health": "waiting",
+      "progress": 5,
+      "health": "smooth",
       "trend": "forward",
-      "phase": "Waiting on Apple: executable weekly pairwise",
-      "detail": "Weekly pairwise coverage consumes the same managed functional scenarios as the nightly diagonal, at broader combinations.",
+      "phase": "Defining weekly pairwise expansion",
+      "detail": "The broader weekly matrix can now build on proven lifecycle scenarios and isolated leases. Its combination model will follow the M12 execution contract without mixing physical-only cases into unattended pass criteria.",
       "attempt": 1,
       "completedSteps": 0,
-      "totalSteps": 0,
-      "nextTasks": [],
-      "blocker": "Waiting on Apple Developer Support case 102940025673 because M12 and its managed scenario foundations must be available first.",
+      "totalSteps": 3,
+      "nextTasks": [
+        {
+          "label": "Define pairwise factors and exclusions",
+          "status": "active",
+          "progress": 20
+        },
+        {
+          "label": "Reuse M12 capacity and evidence contract",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Prove deterministic matrix generation",
+          "status": "queued",
+          "progress": 0
+        }
+      ],
+      "blocker": null,
       "coreCapability": false,
       "unlocks": []
     },
@@ -721,10 +763,10 @@
     "M01": "proven",
     "M02": "proven",
     "M03": "proven",
-    "M04": "active",
-    "M05": "active",
-    "M06": "active",
-    "M07": "queued",
+    "M04": "proven",
+    "M05": "proven",
+    "M06": "proven",
+    "M07": "proven",
     "M13": "queued",
     "M08": "proven",
     "M09": "proven",
@@ -735,6 +777,20 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "15:41",
+      "block": "M07",
+      "tone": "success",
+      "title": "M07 real cancellation and recovery proven",
+      "message": "Lease cbx_9e1c128d616f captured the genuine KeyPath uninstall confirmation and cancelled it through lease-owned RFB. App identity, GUI, configuration, and runtime remained intact; Kanata was then deliberately booted out, independently observed degraded, repaired once, and returned to ready runtime with valid TCP output."
+    },
+    {
+      "time": "15:35",
+      "block": "M04",
+      "tone": "success",
+      "title": "M04, M05, and M06 lifecycle proofs passed",
+      "message": "The managed Tart lease proved a real reboot with stable signed identity and post-boot readiness, corrected CLI uninstall with no orphaned process, and exact-candidate same-lease reinstall with preserved configuration and one checkpointed convergence."
+    },
     {
       "time": "14:59",
       "block": "M05",

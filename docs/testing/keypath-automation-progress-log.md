@@ -463,3 +463,40 @@ next step.
 - **Loop check:** not looping. The replacement clone and test evidence are new
   progress; repeated notarization polling stopped at the time boundary, and no
   additional submission will be stacked.
+
+## 2026-07-25 15:41 PDT — M04–M07 lifecycle chain proven
+
+- **Outcome:** advanced
+- **Completed milestone:** randomized managed macOS 15 lease
+  `cbx_9e1c128d616f` passed reboot persistence, corrected uninstall,
+  same-lease reinstall, real cancellation, deliberate degradation, and
+  one-pass recovery. M04, M05, M06, and M07 are now proven.
+- **Evidence:**
+  - M04 captured an independently ready baseline, changed the guest boot
+    marker through an owned Tart reboot, retained the exact signed app
+    identity, and passed post-reboot runtime, system-inspection, and TCP
+    assertions.
+  - M05 reran the supported uninstall with commit `bd3e81e08`; the app bundle,
+    helper, services, transient user state, and running GUI were absent while
+    the configuration sentinel and shared VirtualHID driver remained.
+  - M06 installed the exact candidate on the same lease only after the passed
+    M05 result, preserved the configuration sentinel, executed one resumable
+    convergence step, and returned to independent readiness.
+  - M07 commit `4b42b7a71` adds explicit before/after checkpoints. The live
+    run captured the genuine uninstall confirmation, delivered Cancel through
+    the lease-owned RFB path, verified unchanged app identity, running GUI,
+    configuration, and ready runtime, then booted out Kanata, observed the
+    degraded state, repaired once, and received a valid TCP response.
+  - The complete lab harness test suite passed after the M07 implementation.
+- **Current blocker:** none for M04–M07. Apple notarization remains a separate
+  release-distribution gate and is not evidence for or against the already
+  proven managed functional lifecycle behavior. P02 remains an onsite physical
+  keypress case.
+- **Next action:** preserve final lease artifacts, then implement M12's
+  capacity- and TTL-aware nightly diagonal and M13's deterministic weekly
+  pairwise expansion without treating physical-only P02 as an unattended
+  pass requirement.
+- **Loop check:** not looping. The work crossed six distinct canonical
+  postconditions and replaced the obsolete Parallels trusted-input blocker
+  with a fully ready randomized Tart lane; no failed action was repeated
+  without changed evidence.
