@@ -224,7 +224,7 @@ final class PerOptionMatrixTests: XCTestCase {
     // MARK: - Auto Shift Symbols
 
     @MainActor
-    func testAutoShift_ProtectFastTyping_True_EmitsRequirePriorIdle() async throws {
+    func testAutoShift_ProtectFastTyping_True_EmitsPerActionRequirePriorIdle() async throws {
         let config = MatrixTestHelpers.enabledCollectionConfig(RuleCollectionIdentifier.autoShiftSymbols) { coll in
             if case var .autoShiftSymbols(cfg) = coll.configuration {
                 cfg.protectFastTyping = true
@@ -232,10 +232,9 @@ final class PerOptionMatrixTests: XCTestCase {
             }
         }
 
-        XCTAssertTrue(
-            config.contains("require-prior-idle"),
-            "Auto Shift with protectFastTyping=true should emit require-prior-idle"
-        )
+        XCTAssertTrue(config.contains("beh_base_dot (tap-hold") && config.contains("(require-prior-idle 180)"))
+        XCTAssertFalse(config.contains("tap-hold-require-prior-idle"),
+                       "Auto Shift must not change the global timing used by other tap-hold collections")
         try await assertKanataValid(config, "Auto Shift protectFastTyping=true")
     }
 
@@ -248,11 +247,9 @@ final class PerOptionMatrixTests: XCTestCase {
             }
         }
 
-        // Other rules may still emit require-prior-idle globally; the assertion
-        // is specifically that this family's contribution is gone.
         XCTAssertFalse(
-            config.contains("require-prior-idle \(AutoShiftSymbolsConfig.defaultTimeoutMs)"),
-            "Auto Shift with protectFastTyping=false should not contribute its idle term"
+            config.contains("(require-prior-idle \(AutoShiftSymbolsConfig.defaultFastTypingProtectionWindowMs))"),
+            "Auto Shift with protectFastTyping=false should not emit a per-action idle term"
         )
         try await assertKanataValid(config, "Auto Shift protectFastTyping=false")
     }

@@ -15,18 +15,30 @@ struct AutoShiftSymbolsConfigCodableTests {
         #expect(decoded == config)
     }
 
-    @Test("Round-trip encodes custom timeout and key set")
+    @Test("Round-trip encodes independent timing values and key set")
     func roundTripCustom() throws {
         let config = AutoShiftSymbolsConfig(
             timeoutMs: 250,
             protectFastTyping: false,
+            fastTypingProtectionWindowMs: 120,
             enabledKeys: Set(["grv", "min", "dot"])
         )
         let data = try JSONEncoder().encode(config)
         let decoded = try JSONDecoder().decode(AutoShiftSymbolsConfig.self, from: data)
         #expect(decoded.timeoutMs == 250)
         #expect(decoded.protectFastTyping == false)
+        #expect(decoded.fastTypingProtectionWindowMs == 120)
         #expect(decoded.enabledKeys == Set(["grv", "min", "dot"]))
+    }
+
+    @Test("Decoding a pre-window configuration preserves its protection behavior")
+    func decodingLegacyConfigurationUsesTimeoutAsProtectionWindow() throws {
+        let legacy = #"{"timeoutMs":250,"protectFastTyping":true,"enabledKeys":["dot"]}"#
+
+        let decoded = try JSONDecoder().decode(AutoShiftSymbolsConfig.self, from: Data(legacy.utf8))
+
+        #expect(decoded.timeoutMs == 250)
+        #expect(decoded.fastTypingProtectionWindowMs == 250)
     }
 
     @Test("Default config has all symbol keys enabled")
@@ -39,6 +51,7 @@ struct AutoShiftSymbolsConfigCodableTests {
     func defaultTimeout() {
         let config = AutoShiftSymbolsConfig()
         #expect(config.timeoutMs == 180)
+        #expect(config.fastTypingProtectionWindowMs == 180)
     }
 
     @Test("Default protectFastTyping is true")
@@ -110,6 +123,26 @@ struct AutoShiftMappingGenerationTests {
         #expect(behavior.activateHoldOnOtherKey == false)
         #expect(behavior.quickTap == false)
         #expect(behavior.useOppositeHand == false)
+        #expect(behavior.requirePriorIdleOverrideMs == 200)
+    }
+
+    @Test("Fast-typing protection can be disabled without changing hold delay")
+    func disablesProtectionOverride() {
+        let config = AutoShiftSymbolsConfig(
+            timeoutMs: 200,
+            protectFastTyping: false,
+            fastTypingProtectionWindowMs: 90,
+            enabledKeys: Set(["dot"])
+        )
+
+        let mappings = KanataConfiguration.generateAutoShiftSymbolsMappings(from: config)
+
+        guard case let .dualRole(behavior) = mappings.first?.behavior else {
+            Issue.record("Expected dualRole behavior")
+            return
+        }
+        #expect(behavior.tapTimeout == 200)
+        #expect(behavior.requirePriorIdleOverrideMs == nil)
     }
 
     @Test("Empty enabled keys produces no mappings")

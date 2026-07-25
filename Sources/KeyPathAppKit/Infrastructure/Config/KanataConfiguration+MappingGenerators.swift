@@ -172,7 +172,8 @@ extension KanataConfiguration {
                 holdTimeout: config.timeoutMs,
                 activateHoldOnOtherKey: false,
                 quickTap: false,
-                customTapKeys: []
+                customTapKeys: [],
+                requirePriorIdleOverrideMs: config.protectFastTyping ? config.fastTypingProtectionWindowMs : nil
             )
 
             let mapping = KeyMapping(
