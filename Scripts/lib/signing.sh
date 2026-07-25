@@ -120,10 +120,10 @@ kp_notarize_zip() {
     if [ "$KP_SIGN_DRY_RUN" = "1" ]; then
         if [ -n "${KP_NOTARY_KEYCHAIN:-}" ]; then
             echo "[DRY RUN] $KP_NOTARY_CMD submit $zip_path --keychain-profile $profile --keychain $KP_NOTARY_KEYCHAIN --no-wait --output-format json --no-progress $*"
-            echo "[DRY RUN] $KP_NOTARY_CMD wait <submission-id> --keychain-profile $profile --keychain $KP_NOTARY_KEYCHAIN --timeout $KP_NOTARY_WAIT_TIMEOUT"
+            echo "[DRY RUN] $KP_NOTARY_CMD wait <submission-id> --keychain-profile $profile --keychain $KP_NOTARY_KEYCHAIN --timeout $KP_NOTARY_WAIT_TIMEOUT --output-format json --no-progress"
         else
             echo "[DRY RUN] $KP_NOTARY_CMD submit $zip_path --keychain-profile $profile --no-wait --output-format json --no-progress $*"
-            echo "[DRY RUN] $KP_NOTARY_CMD wait <submission-id> --keychain-profile $profile --timeout $KP_NOTARY_WAIT_TIMEOUT"
+            echo "[DRY RUN] $KP_NOTARY_CMD wait <submission-id> --keychain-profile $profile --timeout $KP_NOTARY_WAIT_TIMEOUT --output-format json --no-progress"
         fi
         echo "[DRY RUN] persist submission evidence to $state_file"
         return 0
@@ -161,22 +161,29 @@ kp_notarize_zip() {
     echo "   Recovery state: $state_file"
     echo "⏳ Waiting up to $KP_NOTARY_WAIT_TIMEOUT for Apple notarization..."
 
+    local wait_output=""
     local wait_exit=0
     if [ -n "${KP_NOTARY_KEYCHAIN:-}" ]; then
-        $KP_NOTARY_CMD wait "$submission_id" --keychain-profile "$profile" --keychain "$KP_NOTARY_KEYCHAIN" --timeout "$KP_NOTARY_WAIT_TIMEOUT" || wait_exit=$?
+        wait_output=$($KP_NOTARY_CMD wait "$submission_id" --keychain-profile "$profile" --keychain "$KP_NOTARY_KEYCHAIN" --timeout "$KP_NOTARY_WAIT_TIMEOUT" --output-format json --no-progress) || wait_exit=$?
     else
-        $KP_NOTARY_CMD wait "$submission_id" --keychain-profile "$profile" --timeout "$KP_NOTARY_WAIT_TIMEOUT" || wait_exit=$?
-    fi
-
-    local info_output=""
-    if [ -n "${KP_NOTARY_KEYCHAIN:-}" ]; then
-        info_output=$($KP_NOTARY_CMD info "$submission_id" --keychain-profile "$profile" --keychain "$KP_NOTARY_KEYCHAIN" --output-format json 2>/dev/null) || true
-    else
-        info_output=$($KP_NOTARY_CMD info "$submission_id" --keychain-profile "$profile" --output-format json 2>/dev/null) || true
+        wait_output=$($KP_NOTARY_CMD wait "$submission_id" --keychain-profile "$profile" --timeout "$KP_NOTARY_WAIT_TIMEOUT" --output-format json --no-progress) || wait_exit=$?
     fi
 
     local final_status=""
-    final_status=$(printf '%s' "$info_output" | kp_notary_json_field status 2>/dev/null) || true
+    final_status=$(printf '%s' "$wait_output" | kp_notary_json_field status 2>/dev/null) || true
+    if [ "$wait_exit" -ne 0 ] || [ -z "$final_status" ]; then
+        local info_output=""
+        if [ -n "${KP_NOTARY_KEYCHAIN:-}" ]; then
+            info_output=$($KP_NOTARY_CMD info "$submission_id" --keychain-profile "$profile" --keychain "$KP_NOTARY_KEYCHAIN" --output-format json 2>/dev/null) || true
+        else
+            info_output=$($KP_NOTARY_CMD info "$submission_id" --keychain-profile "$profile" --output-format json 2>/dev/null) || true
+        fi
+        local info_status=""
+        info_status=$(printf '%s' "$info_output" | kp_notary_json_field status 2>/dev/null) || true
+        if [ -n "$info_status" ]; then
+            final_status=$info_status
+        fi
+    fi
     if [ "$final_status" = "Accepted" ]; then
         kp_write_notary_state "$state_file" "$submission_id" "$archive_path" "$archive_sha256" "$profile" "accepted"
         echo "✅ Apple notarization accepted submission $submission_id"

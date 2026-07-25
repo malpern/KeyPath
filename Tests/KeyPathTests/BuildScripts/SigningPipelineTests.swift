@@ -76,7 +76,7 @@ final class SigningPipelineTests: XCTestCase {
     }
 
     func testNotaryWrapperRecordsSubmissionBeforeBoundedWait() throws {
-        let fixture = try makeNotaryFixture(waitExit: 0, infoStatus: "Accepted")
+        let fixture = try makeNotaryFixture(waitExit: 0, waitStatus: "Accepted", infoStatus: nil)
         let script = """
         unset KP_SIGN_DRY_RUN
         source \(signingLibPath)
@@ -97,8 +97,9 @@ final class SigningPipelineTests: XCTestCase {
         XCTAssertFalse(invocations.contains("submit \(recordedArchivePath) --keychain-profile KeyPath-Profile --keychain /tmp/keypath-notary.keychain-db --wait"))
         XCTAssertTrue(invocations.contains("wait \(submissionID)"))
         XCTAssertTrue(invocations.contains("--timeout 15m"))
-        XCTAssertTrue(invocations.contains("info \(submissionID)"))
-        XCTAssertEqual(invocations.components(separatedBy: "--keychain /tmp/keypath-notary.keychain-db").count - 1, 3)
+        XCTAssertTrue(invocations.contains("--output-format json --no-progress"))
+        XCTAssertFalse(invocations.contains("info \(submissionID)"))
+        XCTAssertEqual(invocations.components(separatedBy: "--keychain /tmp/keypath-notary.keychain-db").count - 1, 2)
 
         XCTAssertEqual(state["submissionId"] as? String, submissionID)
         XCTAssertTrue(recordedArchivePath.hasSuffix("/KeyPath.zip"))
@@ -166,9 +167,17 @@ final class SigningPipelineTests: XCTestCase {
         XCTAssertTrue(result.stdout.contains("persist submission evidence to /tmp/KeyPath.notary-submission.json"))
     }
 
+    func testPinnedNotarytoolSupportsExplicitNoWait() {
+        let result = runScript("xcrun notarytool submit --help")
+
+        XCTAssertEqual(result.code, 0, result.stderr)
+        XCTAssertTrue(result.stdout.contains("--wait/--no-wait"))
+    }
+
     private func makeNotaryFixture(
         waitExit: Int32,
-        infoStatus: String
+        waitStatus: String? = nil,
+        infoStatus: String?
     ) throws -> (archive: URL, stub: URL, log: URL, state: URL) {
         let directory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -179,18 +188,29 @@ final class SigningPipelineTests: XCTestCase {
         let log = directory.appendingPathComponent("notary-invocations.log")
         let state = directory.appendingPathComponent("KeyPath.notary-submission.json")
         let stub = directory.appendingPathComponent("notarytool-stub")
+        let waitResponse = waitStatus.map {
+            "printf '%s\\n' '{\"id\":\"\(submissionID)\",\"status\":\"\($0)\"}'"
+        } ?? ":"
+        let infoResponse = infoStatus.map {
+            "printf '%s\\n' '{\"id\":\"\(submissionID)\",\"status\":\"\($0)\"}'"
+        } ?? "exit 69"
         let stubSource = """
         #!/bin/bash
         printf '%s\\n' "$*" >> "$KP_NOTARY_TEST_LOG"
         case "$1" in
             submit)
+                case " $* " in
+                    *" --no-wait "*) ;;
+                    *) exit 64 ;;
+                esac
                 printf '%s\\n' '{"id":"\(submissionID)","message":"Successfully uploaded file"}'
                 ;;
             wait)
+                \(waitResponse)
                 exit \(waitExit)
                 ;;
             info)
-                printf '%s\\n' '{"id":"\(submissionID)","status":"\(infoStatus)"}'
+                \(infoResponse)
                 ;;
             *)
                 exit 2
