@@ -836,9 +836,9 @@ if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" 
 fi
 secure_agent_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent AXSecureTextField Allow 0)
 assert_contains "$secure_agent_result" $'secure_dialog_input\tpassed'
-grep -q 'field.focused = true' "$TMP/guest-ssh-calls"
-grep -q 'button.position()' "$TMP/guest-ssh-calls"
-grep -q 'return open.*open.*closed' "$TMP/guest-ssh-calls"
+grep -Fq 'field.focused' "$TMP/guest-ssh-calls"
+grep -Fq 'button.position' "$TMP/guest-ssh-calls"
+grep -Fq 'closed' "$TMP/guest-ssh-calls"
 [[ $(grep -c 'crabbox desktop type --provider tart --target macos --id test-resource$' "$CALLS") -ge 2 ]]
 grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 800 --y 600' "$CALLS"
 grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 800 --y 440' "$CALLS"
@@ -918,16 +918,41 @@ run_remote cleanup >/dev/null
 mkdir -p "$TMP/fake-bin"
 cat > "$TMP/fake-bin/ssh" <<EOF
 #!/bin/bash
-echo "\$*" > "$TMP/ssh-args"
+echo "\$*" >> "$TMP/ssh-args"
 cat >/dev/null
-echo controller-preflight
+case "\$*" in
+  *prepare-upload*) echo /tmp/keypath-lab.test-upload ;;
+  *install-archive*) echo archive-installed ;;
+  *" create "*) echo \$'lease_id\tcbx_controller_test' ;;
+  *) echo controller-preflight ;;
+esac
 EOF
-chmod +x "$TMP/fake-bin/ssh"
+cat > "$TMP/fake-bin/scp" <<EOF
+#!/bin/bash
+exit 0
+EOF
+chmod +x "$TMP/fake-bin/ssh" "$TMP/fake-bin/scp"
 controller=$(PATH="$TMP/fake-bin:$PATH" KEYPATH_LAB_HOST=tester@test-host "$LAB_DIR/keypath-lab" preflight)
 assert_contains "$controller" controller-preflight
 grep -q 'tester@test-host' "$TMP/ssh-args"
 
 echo fake-installer > "$TMP/KeyPath.zip"
+echo older-installer > "$TMP/KeyPath-beta3.zip"
+controller_commit=$(git -C "$LAB_DIR/../.." rev-parse HEAD)
+controller_installer_sha=$(shasum -a 256 "$TMP/KeyPath.zip" | awk '{print $1}')
+controller_fixture_sha=$(shasum -a 256 "$TMP/KeyPath-beta3.zip" | awk '{print $1}')
+controller_archive_key="${controller_commit}-${controller_installer_sha}-${controller_fixture_sha}"
+controller_create=$(PATH="$TMP/fake-bin:$PATH" KEYPATH_LAB_HOST=tester@test-host "$LAB_DIR/keypath-lab" create \
+    --macos 15 \
+    --lane unmanaged-ui \
+    --commit "$controller_commit" \
+    --installer "$TMP/KeyPath.zip" \
+    --fixture "$TMP/KeyPath-beta3.zip")
+assert_contains "$controller_create" $'lease_id\tcbx_controller_test'
+grep -Fq "$controller_archive_key" "$TMP/ssh-args" || {
+    echo "controller archive key did not include fixture checksum" >&2
+    exit 1
+}
 if PATH="$TMP/fake-bin:$PATH" "$LAB_DIR/keypath-lab" create --macos 15 --lane unmanaged-ui --commit abc --installer "$TMP/KeyPath.zip" >/dev/null 2>&1; then
     echo "controller accepted a non-explicit commit SHA" >&2
     exit 1

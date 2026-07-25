@@ -116,6 +116,14 @@ case "$command" in
 
         installer_sha=$(shasum -a 256 "$installer" | awk '{print $1}')
         archive_key="${commit}-${installer_sha}"
+        fixture_name=
+        fixture_sha=
+        if [[ -n $fixture ]]; then
+            fixture_name=$(basename "$fixture")
+            [[ $fixture_name =~ ^[A-Za-z0-9._-]+$ ]] || die "fixture filename must contain only letters, numbers, dots, underscores, and dashes"
+            fixture_sha=$(shasum -a 256 "$fixture" | awk '{print $1}')
+            archive_key="${archive_key}-${fixture_sha}"
+        fi
         temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/keypath-lab.XXXXXX")
         trap 'rm -rf "$temp_dir"' EXIT
         mkdir -p "$temp_dir/repo/.keypath-lab/installer"
@@ -123,12 +131,7 @@ case "$command" in
         installer_name=$(basename "$installer")
         [[ $installer_name =~ ^[A-Za-z0-9._-]+$ ]] || die "installer filename must contain only letters, numbers, dots, underscores, and dashes"
         cp "$installer" "$temp_dir/repo/.keypath-lab/installer/$installer_name"
-        fixture_name=
-        fixture_sha=
         if [[ -n $fixture ]]; then
-            fixture_name=$(basename "$fixture")
-            [[ $fixture_name =~ ^[A-Za-z0-9._-]+$ ]] || die "fixture filename must contain only letters, numbers, dots, underscores, and dashes"
-            fixture_sha=$(shasum -a 256 "$fixture" | awk '{print $1}')
             mkdir -p "$temp_dir/repo/.keypath-lab/fixtures"
             cp "$fixture" "$temp_dir/repo/.keypath-lab/fixtures/$fixture_name"
         fi
