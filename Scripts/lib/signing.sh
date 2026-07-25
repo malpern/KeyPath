@@ -68,6 +68,65 @@ os.replace(temporary_file, state_file)
 PY
 }
 
+kp_write_notary_submit_failure_state() {
+    local state_file=$1
+    local submission_id=$2
+    local archive_path=$3
+    local archive_sha256=$4
+    local profile=$5
+    local submit_exit=$6
+    local submit_stdout=$7
+    local submit_stderr=$8
+    local candidates_json=$9
+
+    /usr/bin/python3 - "$state_file" "$submission_id" "$archive_path" "$archive_sha256" "$profile" "$submit_exit" "$submit_stdout" "$submit_stderr" "$candidates_json" <<'PY'
+import datetime
+import json
+import os
+import sys
+
+(
+    state_file,
+    submission_id,
+    archive_path,
+    archive_sha256,
+    profile,
+    submit_exit,
+    submit_stdout,
+    submit_stderr,
+    candidates_json,
+) = sys.argv[1:]
+directory = os.path.dirname(state_file)
+if directory:
+    os.makedirs(directory, exist_ok=True)
+
+payload = {
+    "schemaVersion": 1,
+    "submissionId": submission_id or None,
+    "archivePath": archive_path,
+    "archiveSHA256": archive_sha256,
+    "profile": profile,
+    "status": "submit-client-failed",
+    "submitExitCode": int(submit_exit),
+    "submitStdout": submit_stdout,
+    "submitStderr": submit_stderr,
+    "candidateSubmissions": [],
+    "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+}
+try:
+    candidate_submissions = json.loads(candidates_json)
+except (json.JSONDecodeError, TypeError, ValueError):
+    candidate_submissions = []
+if isinstance(candidate_submissions, list):
+    payload["candidateSubmissions"] = candidate_submissions
+temporary_file = f"{state_file}.tmp"
+with open(temporary_file, "w", encoding="utf-8") as handle:
+    json.dump(payload, handle, indent=2, sort_keys=True)
+    handle.write("\n")
+os.replace(temporary_file, state_file)
+PY
+}
+
 kp_notary_json_field() {
     local field=$1
     /usr/bin/python3 -c '
@@ -80,6 +139,96 @@ if value is None:
     raise SystemExit(1)
 print(value)
 ' "$field"
+}
+
+kp_notary_recent_history_candidates() {
+    local history_json=$1
+    local archive_name=$2
+    local started_epoch=$3
+    local window_seconds=${KP_NOTARY_HISTORY_WINDOW_SECONDS:-900}
+
+    printf '%s' "$history_json" | /usr/bin/python3 - "$archive_name" "$started_epoch" "$window_seconds" 3<&0 <<'PY'
+import datetime
+import json
+import os
+import sys
+
+archive_name, started_epoch, window_seconds = sys.argv[1:]
+try:
+    payload = json.load(os.fdopen(3))
+except (json.JSONDecodeError, TypeError, ValueError):
+    print("[]")
+    raise SystemExit(0)
+
+if not isinstance(payload, dict):
+    print("[]")
+    raise SystemExit(0)
+
+minimum_timestamp = float(started_epoch) - float(window_seconds)
+candidates = []
+for entry in payload.get("history", []):
+    if not isinstance(entry, dict):
+        continue
+    if entry.get("name") != archive_name:
+        continue
+    created_date = entry.get("createdDate")
+    if not isinstance(created_date, str):
+        continue
+    try:
+        timestamp = datetime.datetime.fromisoformat(created_date.replace("Z", "+00:00")).timestamp()
+    except (TypeError, ValueError):
+        continue
+    if timestamp >= minimum_timestamp:
+        candidates.append({
+            "id": entry.get("id"),
+            "createdDate": created_date,
+            "status": entry.get("status"),
+        })
+
+print(json.dumps(candidates, separators=(",", ":")))
+PY
+}
+
+kp_print_notary_submit_failure() {
+    local submit_exit=$1
+    local submit_stdout=$2
+    local submit_stderr=$3
+    local submission_id=$4
+    local candidates_json=$5
+    local state_file=$6
+
+    echo "❌ Notarization client exited $submit_exit before returning a parseable submission ID." >&2
+    if [ -n "$submit_stdout" ]; then
+        echo "   submit stdout: $submit_stdout" >&2
+    fi
+    if [ -n "$submit_stderr" ]; then
+        echo "   submit stderr: $submit_stderr" >&2
+    fi
+    echo "   Recovery state: $state_file" >&2
+
+    if [ -n "$submission_id" ]; then
+        echo "⚠️  Apple submission ID captured before the local client failed: $submission_id" >&2
+        echo "   Do not retry automatically. Check this submission ID before submitting again." >&2
+        return
+    fi
+
+    local candidate_count
+    candidate_count=$(printf '%s' "$candidates_json" | /usr/bin/python3 -c 'import json, sys; print(len(json.load(sys.stdin)))')
+    if [ "$candidate_count" -gt 0 ]; then
+        echo "⚠️  Apple may have received the archive despite the local client failure." >&2
+        echo "   Candidate submissions from the last ${KP_NOTARY_HISTORY_WINDOW_SECONDS:-900}s:" >&2
+        printf '%s' "$candidates_json" | /usr/bin/python3 -c '
+import json
+import sys
+for candidate in json.load(sys.stdin):
+    print("   {}  {}  {}".format(
+        candidate.get("id"),
+        candidate.get("status"),
+        candidate.get("createdDate"),
+    ))
+' >&2
+        echo "   Do not retry automatically. Check these candidate IDs before submitting again." >&2
+    fi
 }
 
 kp_print_notary_recovery() {
@@ -142,17 +291,38 @@ kp_notarize_zip() {
     local archive_sha256
     archive_sha256=$(/usr/bin/shasum -a 256 "$archive_path" | /usr/bin/awk '{print $1}')
 
-    local submit_output
+    local submit_started_epoch
+    submit_started_epoch=$(/bin/date -u +%s)
+    local submit_stderr_file
+    submit_stderr_file=$(/usr/bin/mktemp "${TMPDIR:-/tmp}/keypath-notary-submit.XXXXXX")
+
+    local submit_output=""
+    local submit_exit=0
     if [ -n "${KP_NOTARY_KEYCHAIN:-}" ]; then
-        if ! submit_output=$($KP_NOTARY_CMD submit "$archive_path" --keychain-profile "$profile" --keychain "$KP_NOTARY_KEYCHAIN" --no-wait --output-format json --no-progress "$@"); then
-            echo "❌ Notarization upload failed before a submission ID was recorded." >&2
-            return 1
-        fi
+        submit_output=$($KP_NOTARY_CMD submit "$archive_path" --keychain-profile "$profile" --keychain "$KP_NOTARY_KEYCHAIN" --no-wait --output-format json --no-progress "$@" 2>"$submit_stderr_file") || submit_exit=$?
     else
-        if ! submit_output=$($KP_NOTARY_CMD submit "$archive_path" --keychain-profile "$profile" --no-wait --output-format json --no-progress "$@"); then
-            echo "❌ Notarization upload failed before a submission ID was recorded." >&2
-            return 1
+        submit_output=$($KP_NOTARY_CMD submit "$archive_path" --keychain-profile "$profile" --no-wait --output-format json --no-progress "$@" 2>"$submit_stderr_file") || submit_exit=$?
+    fi
+    local submit_stderr
+    submit_stderr=$(<"$submit_stderr_file")
+    /bin/rm -f "$submit_stderr_file"
+
+    if [ "$submit_exit" -ne 0 ]; then
+        local submission_id
+        submission_id=$(printf '%s' "$submit_output" | kp_notary_json_field id 2>/dev/null) || true
+        local candidates_json="[]"
+        local history_output=""
+        if [ -z "$submission_id" ]; then
+            if [ -n "${KP_NOTARY_KEYCHAIN:-}" ]; then
+                history_output=$($KP_NOTARY_CMD history --keychain-profile "$profile" --keychain "$KP_NOTARY_KEYCHAIN" --output-format json 2>/dev/null) || true
+            else
+                history_output=$($KP_NOTARY_CMD history --keychain-profile "$profile" --output-format json 2>/dev/null) || true
+            fi
+            candidates_json=$(kp_notary_recent_history_candidates "$history_output" "$(basename "$archive_path")" "$submit_started_epoch") || candidates_json="[]"
         fi
+        kp_write_notary_submit_failure_state "$state_file" "$submission_id" "$archive_path" "$archive_sha256" "$profile" "$submit_exit" "$submit_output" "$submit_stderr" "$candidates_json"
+        kp_print_notary_submit_failure "$submit_exit" "$submit_output" "$submit_stderr" "$submission_id" "$candidates_json" "$state_file"
+        return "$submit_exit"
     fi
 
     local submission_id
