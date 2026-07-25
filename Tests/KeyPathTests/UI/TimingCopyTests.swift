@@ -46,7 +46,11 @@ final class TimingCopyTests: XCTestCase {
         XCTAssertEqual(String(localized: TimingCopy.leaderHoldDelay), "Leader hold delay")
         XCTAssertEqual(
             String(localized: TimingCopy.leaderHoldDelayExplanation),
-            "How long to hold the Leader key before KeyPath shows the Shortcut List."
+            "How long to hold the Leader key before KeyPath shows the Shortcut List. Default is Long (300 ms). Medium (200 ms) matches previous behavior."
+        )
+        XCTAssertEqual(
+            String(localized: TimingCopy.customLeaderHoldDelayAccessibilityLabel),
+            "Custom Leader hold delay in milliseconds"
         )
     }
 }

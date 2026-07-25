@@ -116,7 +116,7 @@ This is the "Caps Lock does everything" setup that many keyboard enthusiasts use
 
 ### Space feels laggy after enabling
 
-The **Leader hold delay** (default 180ms) determines how long you must hold before KeyPath treats the key as your Leader. If typing feels sluggish:
+The **Leader hold delay** (default: Long, 300 ms) determines how long you must hold before KeyPath treats the key as your Leader. The Medium preset (200 ms) matches previous behavior. If typing feels sluggish:
 - Practice releasing Space quickly between words
 - The threshold is tuned for most typists — give it a day before adjusting
 

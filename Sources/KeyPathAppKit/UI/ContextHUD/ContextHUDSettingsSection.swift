@@ -131,7 +131,7 @@ struct ContextHUDSettingsSection: View {
                                 customHoldDelayMs = services.preferences.contextHUDHoldDelayCustomMs
                             }
                             .accessibilityIdentifier("settings-context-hud-hold-delay-custom")
-                            .accessibilityLabel("Custom Leader hold delay in milliseconds")
+                            .accessibilityLabel(Text(TimingCopy.customLeaderHoldDelayAccessibilityLabel))
                         }
                     }
                 }
