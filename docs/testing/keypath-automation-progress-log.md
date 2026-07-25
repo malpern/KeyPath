@@ -377,3 +377,34 @@ next step.
   independently ready managed runtime.
 - **Loop check:** not looping. This was new durable harness work and did not
   repeat the failed consent UI approach.
+
+## 2026-07-25 13:53 PDT — M02 one-pass Kanata repair proven
+
+- **Outcome:** advanced
+- **Completed milestone:** M02 passed its complete damaged-service repair proof
+  on a fresh randomized managed macOS 15 clone using the exact fixed candidate
+  from commit `ce7441fd`.
+- **Evidence:**
+  - Lease `cbx_a9262dab5a98` completed unique-identity enrollment, acknowledged
+    all three exact-build profiles, passed managed-functional admission, and
+    installed the checksum-bound candidate.
+  - KeyPath independently reported the helper, DriverKit components,
+    VirtualHID device, Kanata permissions, Kanata process, and TCP channel
+    healthy before damage.
+  - The scenario booted out `system/com.keypath.kanata` and independently
+    recorded `runtime_state\tdegraded`.
+  - The checkpointed runner made exactly one repair attempt, recorded the step
+    as verified, and independently recorded `runtime_state\tready` afterward.
+  - Post-repair service status reports `isOperational=true`, a fresh running
+    Kanata service, healthy VirtualHID, no conflicts, and a valid response from
+    `127.0.0.1:37001`.
+  - Evidence is preserved under
+    `artifacts/cbx_a9262dab5a98/20260725T205235Z`, including the pre-damage,
+    damaged, runner-state, and post-repair files.
+- **Current blocker:** none for M02. M04's trusted Parallels consent boundary is
+  separate and unchanged.
+- **Next action:** retire the M02 disposable lease and begin M05's uninstall
+  contract from a separately admitted, independently ready runtime.
+- **Loop check:** not looping. Direct lease-owned RFB and the existing
+  secret-safe secure-dialog path replaced the failed Screen Sharing approach;
+  each step changed a canonical postcondition, and the final scenario passed.

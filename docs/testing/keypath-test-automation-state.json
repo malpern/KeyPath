@@ -1,11 +1,9 @@
 {
-  "updatedAt": "2026-07-25T12:05:00-07:00",
-  "currentTask": "M04 proof contract hardened; trusted consent remains gated",
-  "message": "The reboot scenario now requires a healthy baseline, a changed boot marker, stable signed app identity, and independently ready runtime/TCP after reboot. Its live proof remains paused until the lab can commit trusted Kanata Input Monitoring consent.",
+  "updatedAt": "2026-07-25T13:53:00-07:00",
+  "currentTask": "M02 one-pass Kanata repair proven; M05 uninstall is next",
+  "message": "A fresh randomized macOS 15 clone passed managed admission, exact-candidate installation, real runtime damage, one repaired recovery attempt, and independent runtime plus TCP readiness. Evidence is preserved; lifecycle work can move to M05 while M04 remains separately gated on trusted Parallels consent.",
   "complete": false,
-  "workingBlocks": [
-    "M04"
-  ],
+  "workingBlocks": [],
   "executionTracks": [
     {
       "id": "baseline",
@@ -22,14 +20,14 @@
       "id": "lifecycle",
       "label": "Lifecycle scenarios",
       "platform": "macOS 15 Tart \u00b7 macOS 26 Parallels",
-      "status": "blocked",
-      "badge": "INPUT GATE",
+      "status": "next",
+      "badge": "M02 PROVEN",
       "blocks": [
         "M02",
         "M04",
         "M05"
       ],
-      "detail": "M02 is paused at Apple's protected macOS 15 enrollment sheet. M04 reached the independent macOS 26 runtime boundary, but current Parallels automation can change the visible Input Monitoring switch without committing trusted consent. UI retries have stopped."
+      "detail": "M02 passed its ready-to-damaged-to-one-repair-to-ready proof on a randomized macOS 15 clone. M05 uninstall is next. M04 remains separately paused because current Parallels automation cannot commit trusted Input Monitoring consent."
     },
     {
       "id": "upgrade",
@@ -326,37 +324,37 @@
       "unlocks": []
     },
     "M02": {
-      "progress": 70,
-      "health": "blocked",
+      "progress": 100,
+      "health": "smooth",
       "trend": "forward",
-      "phase": "Fresh fix clone enrollment",
-      "detail": "The first proof clone reproduced a real repair failure: unregister succeeded, but a failed optional stale-job cleanup prevented re-registration. Commit ce7441fd fixes that control flow and its full lab and focused Swift regression suites pass. Fresh lease cbx_a9262dab5a98 is paused at Apple's protected Device Management password sheet.",
+      "phase": "One-pass Kanata repair proven",
+      "detail": "Randomized managed macOS 15 lease cbx_a9262dab5a98 installed exact commit ce7441fd, began independently ready, deliberately booted out system/com.keypath.kanata, proved the degraded state, repaired once, and returned to independent runtime plus TCP readiness.",
       "attempt": 2,
-      "completedSteps": 3,
+      "completedSteps": 5,
       "totalSteps": 5,
       "nextTasks": [
         {
           "label": "Enroll fresh exact-build clone",
-          "status": "blocked",
-          "progress": 70
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Install fixed candidate",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Prove ready → damaged → one repair",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Independent ready proof",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         }
       ],
-      "blocker": "Apple's protected enrollment sheet requires one human-entered guest password. Tart VNC and the secure automation bridge cannot populate this SecurityAgent field, so repeating automated input would loop.",
+      "blocker": null,
       "coreCapability": true,
       "unlocks": [
         "M04 reboot persistence and M05 uninstall"
@@ -671,7 +669,7 @@
     "P04": "queued",
     "D06": "proven",
     "M01": "proven",
-    "M02": "blocked",
+    "M02": "proven",
     "M03": "proven",
     "M04": "active",
     "M05": "queued",
@@ -687,6 +685,13 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "13:53",
+      "block": "M02",
+      "tone": "success",
+      "title": "M02 one-pass Kanata repair proven",
+      "message": "Fresh randomized macOS 15 lease cbx_a9262dab5a98 passed exact-build managed admission and began independently ready. The scenario booted Kanata out, proved the degraded state, ran commit ce7441fd's repair once, and independently verified a fresh running service plus a valid TCP response."
+    },
     {
       "time": "12:05",
       "block": "M04",
