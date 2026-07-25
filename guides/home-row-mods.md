@@ -88,8 +88,10 @@ Screenshot — Typing Feel slider in rule settings:
   └─────────────────────────────────────────────────────┘
 ```
 
-- Slide toward **"More Letters"** for a longer tap window (fewer accidental modifiers)
-- Slide toward **"More Modifiers"** for quicker modifier activation
+- With **Opposite-hand activation** off, slide toward **"More Letters"** for a longer tap window (fewer accidental modifiers), or toward **"More Modifiers"** for quicker modifier activation.
+- With **Opposite-hand activation** on, the same control changes the **Opposite-hand decision window** instead. That is the one timer Kanata uses in this mode: shorter feels more immediate; longer gives you more time before a cross-hand press becomes a modifier.
+
+The rule settings name the active timer so you can tell what you are adjusting: **Hold activation delay** for ordinary tap-hold behavior, or **Opposite-hand decision window** for opposite-hand behavior. Controls that do not affect the selected mode, including Quick tap, stay out of the way.
 
 ### Per-finger sensitivity
 
@@ -115,6 +117,8 @@ Screenshot — Per-finger sensitivity sliders:
 ### Quick tap
 
 When enabled, a quick tap-and-release always produces the letter, even if another key was pressed during the tap window. This is especially helpful for fast typists.
+
+Quick tap is available only when opposite-hand activation is off. Opposite-hand behavior has its own decision rule and does not use the tap window or Quick tap term.
 
 *Start with defaults, then adjust one parameter at a time.*
 
@@ -165,6 +169,8 @@ Screenshot — Fast typing protection in rule settings:
 ```
 
 This is enabled by default at 150ms. Adjust the slider to match your typing speed — faster typists may want a lower value (strict), while slower typists can use a higher value (forgiving).
+
+The same **Fast typing protection** is available for Home Row Layer Toggles. It keeps a key pressed shortly after normal typing as its letter, rather than unexpectedly activating its layer.
 
 ### Per-finger timing
 

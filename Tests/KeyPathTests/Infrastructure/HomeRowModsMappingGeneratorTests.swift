@@ -102,6 +102,30 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
         XCTAssertEqual(behavior.tapTimeout, 220) // 200 + 20
         XCTAssertEqual(behavior.holdTimeout, 160) // 150 + 10
         XCTAssertTrue(behavior.useOppositeHand)
+
+        let rendered = KanataBehaviorRenderer.render(mappings[0])
+        XCTAssertEqual(rendered, "(tap-hold-opposite-hand 160 a lsft)")
+        XCTAssertFalse(rendered.contains("220"), "Opposite-hand rendering uses its decision window, not the tap window")
+    }
+
+    func testOppositeHandReleaseUsesDecisionWindowInsteadOfTapOrQuickTapTiming() {
+        var timing = TimingConfig(tapWindow: 275, holdDelay: 145)
+        timing.tapOffsets = ["a": 40]
+        timing.holdOffsets = ["a": 15]
+        timing.quickTapEnabled = true
+        timing.quickTapTermMs = 60
+        let config = HomeRowModsConfig(
+            enabledKeys: ["a"],
+            modifierAssignments: ["a": "lsft"],
+            timing: timing,
+            oppositeHandMode: .release
+        )
+
+        let mappings = KanataConfiguration.generateHomeRowModsMappings(from: config)
+        let rendered = KanataBehaviorRenderer.render(mappings[0])
+
+        XCTAssertEqual(rendered, "(tap-hold-opposite-hand-release 160 a lsft)")
+        XCTAssertFalse(rendered.contains("375"), "Quick tap and tap offsets are not part of opposite-hand rendering")
     }
 
     func testOppositeHandActivation_LayerToggleMode() {
@@ -157,6 +181,24 @@ final class HomeRowModsMappingGeneratorTests: XCTestCase {
             XCTAssertTrue(behavior.useOppositeHand)
             XCTAssertTrue(behavior.customTapKeys.isEmpty)
         }
+    }
+
+    func testLayerToggleWithoutOppositeHandUsesTapAndHoldTimers() {
+        var timing = TimingConfig(tapWindow: 180, holdDelay: 140)
+        timing.quickTapEnabled = true
+        timing.quickTapTermMs = 40
+        let config = HomeRowLayerTogglesConfig(
+            enabledKeys: ["a"],
+            layerAssignments: ["a": "nav"],
+            timing: timing,
+            oppositeHandMode: .off
+        )
+
+        let mappings = KanataConfiguration.generateHomeRowLayerTogglesMappings(from: config)
+        XCTAssertEqual(
+            KanataBehaviorRenderer.render(mappings[0]),
+            "(tap-hold-press 220 140 a (layer-while-held nav))"
+        )
     }
 
     // MARK: - Full Round-Trip Tests

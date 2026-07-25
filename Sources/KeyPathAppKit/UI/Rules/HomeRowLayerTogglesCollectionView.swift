@@ -104,6 +104,30 @@ struct HomeRowLayerTogglesCollectionView: View {
                 Text(config.toggleMode.description)
                     .font(.caption)
                     .foregroundColor(.secondary)
+
+                HStack(spacing: 4) {
+                    Text("Opposite-hand activation")
+                    Spacer()
+                    Picker("Opposite-hand activation", selection: Binding(
+                        get: { config.oppositeHandMode },
+                        set: { newValue in
+                            config.oppositeHandMode = newValue
+                            updateConfig()
+                        }
+                    )) {
+                        Text(OppositeHandMode.off.displayName).tag(OppositeHandMode.off)
+                        Text(OppositeHandMode.press.displayName).tag(OppositeHandMode.press)
+                        Text(OppositeHandMode.release.displayName).tag(OppositeHandMode.release)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 240)
+                    .accessibilityIdentifier("home-row-layer-toggles-opposite-hand-picker")
+                    .accessibilityLabel("Opposite-hand activation mode")
+                }
+
+                Text(oppositeHandHelperText)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
 
             // Key selection
@@ -163,28 +187,30 @@ struct HomeRowLayerTogglesCollectionView: View {
                     .font(.body)
 
                 HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Tap window")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        HStack {
-                            automationIntegerField(
-                                placeholder: "",
-                                value: Binding(
-                                    get: { config.timing.tapWindow },
-                                    set: { config.timing.tapWindow = $0 }
-                                ),
-                                accessibilityIdentifier: "home-row-layer-toggles-tap-window-field",
-                                accessibilityLabel: "Tap window"
-                            )
-                            Text("ms")
+                    if usesTapWindow {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Tap window")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
+                            HStack {
+                                automationIntegerField(
+                                    placeholder: "",
+                                    value: Binding(
+                                        get: { config.timing.tapWindow },
+                                        set: { config.timing.tapWindow = $0 }
+                                    ),
+                                    accessibilityIdentifier: "home-row-layer-toggles-tap-window-field",
+                                    accessibilityLabel: "Tap window"
+                                )
+                                Text("ms")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Hold delay")
+                        Text(config.oppositeHandMode.decisionWindowLabel)
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         HStack {
@@ -195,7 +221,7 @@ struct HomeRowLayerTogglesCollectionView: View {
                                     set: { config.timing.holdDelay = $0 }
                                 ),
                                 accessibilityIdentifier: "home-row-layer-toggles-hold-delay-field",
-                                accessibilityLabel: "Hold delay"
+                                accessibilityLabel: config.oppositeHandMode.decisionWindowLabel
                             )
                             Text("ms")
                                 .font(.subheadline)
@@ -204,87 +230,109 @@ struct HomeRowLayerTogglesCollectionView: View {
                     }
                 }
 
-                Toggle("Favor tap when another key is pressed (quick tap)", isOn: Binding(
-                    get: { config.timing.quickTapEnabled },
-                    set: { newValue in
-                        config.timing.quickTapEnabled = newValue
-                        updateConfig()
-                    }
-                ))
-                .toggleStyle(.checkbox)
-                .accessibilityIdentifier("home-row-layer-toggles-quick-tap-toggle")
-                .accessibilityLabel("Favor tap when another key is pressed")
-
-                HStack {
-                    Text("Quick tap term")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    Slider(value: Binding(
-                        get: { Double(config.timing.quickTapTermMs) },
+                if usesTapWindow {
+                    Toggle("Favor tap when another key is pressed (quick tap)", isOn: Binding(
+                        get: { config.timing.quickTapEnabled },
                         set: { newValue in
-                            config.timing.quickTapTermMs = Int(newValue)
+                            config.timing.quickTapEnabled = newValue
                             updateConfig()
                         }
-                    ), in: 0 ... 80, step: 5)
-                        .accessibilityIdentifier("home-row-layer-toggles-quick-tap-term-slider")
-                        .accessibilityLabel("Quick tap term")
-                        .accessibilityValue("\(config.timing.quickTapTermMs) ms")
-                    Text(String(localized: "\(config.timing.quickTapTermMs) ms"))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .frame(width: 60, alignment: .trailing)
-                }
-                .disabled(!config.timing.quickTapEnabled)
+                    ))
+                    .toggleStyle(.checkbox)
+                    .accessibilityIdentifier("home-row-layer-toggles-quick-tap-toggle")
+                    .accessibilityLabel("Favor tap when another key is pressed")
 
-                Toggle("Show per-key tap offsets", isOn: Binding(
-                    get: { config.showAdvanced },
+                    if config.timing.quickTapEnabled {
+                        HStack {
+                            Text("Quick tap term")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Slider(value: Binding(
+                                get: { Double(config.timing.quickTapTermMs) },
+                                set: { newValue in
+                                    config.timing.quickTapTermMs = Int(newValue)
+                                    updateConfig()
+                                }
+                            ), in: 0 ... 80, step: 5)
+                                .accessibilityIdentifier("home-row-layer-toggles-quick-tap-term-slider")
+                                .accessibilityLabel("Quick tap term")
+                                .accessibilityValue("\(config.timing.quickTapTermMs) ms")
+                            Text(String(localized: "\(config.timing.quickTapTermMs) ms"))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .frame(width: 60, alignment: .trailing)
+                        }
+                    }
+                }
+
+                if usesTapWindow {
+                    Toggle("Show per-key tap offsets", isOn: Binding(
+                        get: { config.showAdvanced },
+                        set: { newValue in
+                            config.showAdvanced = newValue
+                            updateConfig()
+                        }
+                    ))
+                    .toggleStyle(.checkbox)
+                    .accessibilityIdentifier("home-row-layer-toggles-show-advanced-toggle")
+                    .accessibilityLabel("Show per-key tap offsets")
+
+                    if config.showAdvanced {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Per-key tap offsets (ms)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+
+                            ForEach(chunks(of: HomeRowLayerTogglesConfig.allKeys, size: 4), id: \.self) { row in
+                                HStack(spacing: 12) {
+                                    ForEach(row, id: \.self) { key in
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(displayLabel(forCanonicalKey: key))
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            automationIntegerField(
+                                                placeholder: "0",
+                                                value: Binding(
+                                                    get: { config.timing.tapOffsets[key] ?? 0 },
+                                                    set: { newValue in
+                                                        if newValue == 0 {
+                                                            config.timing.tapOffsets.removeValue(forKey: key)
+                                                        } else {
+                                                            config.timing.tapOffsets[key] = newValue
+                                                        }
+                                                    }
+                                                ),
+                                                accessibilityIdentifier: "home-row-layer-toggles-tap-offset-\(key)-field",
+                                                accessibilityLabel: "\(displayLabel(forCanonicalKey: key)) tap offset"
+                                            )
+                                        }
+                                    }
+                                    Spacer()
+                                }
+                            }
+                            Text("Positive values extend the tap window per key; leave 0 for default.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                }
+
+                Toggle("Fast typing protection", isOn: Binding(
+                    get: { config.timing.requirePriorIdleMs > 0 },
                     set: { newValue in
-                        config.showAdvanced = newValue
+                        config.timing.requirePriorIdleMs = newValue ? TimingConfig.defaultPriorIdleMs : 0
                         updateConfig()
                     }
                 ))
                 .toggleStyle(.checkbox)
-                .accessibilityIdentifier("home-row-layer-toggles-show-advanced-toggle")
-                .accessibilityLabel("Show per-key tap offsets")
+                .accessibilityIdentifier("home-row-layer-toggles-fast-typing-protection-toggle")
+                .accessibilityLabel("Fast typing protection")
 
-                if config.showAdvanced {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Per-key tap offsets (ms)")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-
-                        ForEach(chunks(of: HomeRowLayerTogglesConfig.allKeys, size: 4), id: \.self) { row in
-                            HStack(spacing: 12) {
-                                ForEach(row, id: \.self) { key in
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(displayLabel(forCanonicalKey: key))
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        automationIntegerField(
-                                            placeholder: "0",
-                                            value: Binding(
-                                                get: { config.timing.tapOffsets[key] ?? 0 },
-                                                set: { newValue in
-                                                    if newValue == 0 {
-                                                        config.timing.tapOffsets.removeValue(forKey: key)
-                                                    } else {
-                                                        config.timing.tapOffsets[key] = newValue
-                                                    }
-                                                }
-                                            ),
-                                            accessibilityIdentifier: "home-row-layer-toggles-tap-offset-\(key)-field",
-                                            accessibilityLabel: "\(displayLabel(forCanonicalKey: key)) tap offset"
-                                        )
-                                    }
-                                }
-                                Spacer()
-                            }
-                        }
-                        Text("Positive values extend the tap window per key; leave 0 for default.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                if config.timing.requirePriorIdleMs > 0 {
+                    Text("Keys pressed soon after typing stay letters instead of activating a layer.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
 
@@ -436,6 +484,16 @@ struct HomeRowLayerTogglesCollectionView: View {
 
     private func updateConfig() {
         onConfigChanged(config)
+    }
+
+    private var usesTapWindow: Bool {
+        config.oppositeHandMode.usesTapWindow
+    }
+
+    private var oppositeHandHelperText: String {
+        usesTapWindow
+            ? "Tap and hold use separate timers."
+            : "The decision window determines when another-hand input activates the layer."
     }
 
     private func displayLabel(forCanonicalKey key: String) -> String {
