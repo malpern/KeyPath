@@ -28,6 +28,15 @@ record_system() {
 installed_cli="/Applications/KeyPath.app/Contents/MacOS/keypath-cli"
 record_system
 
+assert_ready() {
+  if [[ "$lane" == "managed-functional" ]]; then
+    Scripts/lab/assert-runtime-state ready \
+      --managed-policy-manifest /Library/KeyPathLab/managed-policy/manifest.json
+  else
+    Scripts/lab/assert-runtime-state ready
+  fi
+}
+
 case "$name" in
   clean-install)
     find "$installer_dir" -maxdepth 1 -type f -print > "$artifact_dir/installer-files.txt"
@@ -70,7 +79,7 @@ case "$name" in
     result="$artifact_dir/result.json"
     plan="$PWD/Scripts/lab/scenarios/plans/repair-kanata-service.json"
     if [[ ! -f "$state" ]]; then
-      Scripts/lab/assert-runtime-state ready | tee "$artifact_dir/pre-damage-ready.tsv"
+      assert_ready | tee "$artifact_dir/pre-damage-ready.tsv"
       "$installed_cli" service status --json > "$artifact_dir/pre-damage-status.json"
       Scripts/lab/damage-kanata-service | tee "$artifact_dir/damage.tsv"
       "$installed_cli" service status --json > "$artifact_dir/damaged-status.json" || true
@@ -78,7 +87,7 @@ case "$name" in
     fi
     Scripts/lab/scenario-runner --plan "$plan" --state "$state" --result "$result"
     "$installed_cli" service status --json > "$artifact_dir/post-repair-status.json"
-    Scripts/lab/assert-runtime-state ready | tee "$artifact_dir/post-repair-ready.tsv"
+    assert_ready | tee "$artifact_dir/post-repair-ready.tsv"
     ;;
   upgrade-beta3-to-current)
     plan="$PWD/Scripts/lab/scenarios/plans/upgrade-beta3-to-current.json"

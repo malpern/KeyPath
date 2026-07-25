@@ -12,9 +12,19 @@ def run(command: list[str]) -> subprocess.CompletedProcess[str]:
 
 
 def main() -> int:
-    if len(sys.argv) != 2 or sys.argv[1] not in {"ready", "degraded"}:
-        print(f"Usage: {sys.argv[0]} ready|degraded", file=sys.stderr)
+    if len(sys.argv) not in {2, 4} or sys.argv[1] not in {"ready", "degraded"}:
+        print(
+            f"Usage: {sys.argv[0]} ready|degraded "
+            "[--managed-policy-manifest PATH]",
+            file=sys.stderr,
+        )
         return 2
+    managed_manifest = None
+    if len(sys.argv) == 4:
+        if sys.argv[2] != "--managed-policy-manifest":
+            print("runtime assertion: invalid managed-policy option", file=sys.stderr)
+            return 2
+        managed_manifest = sys.argv[3]
 
     expected = sys.argv[1]
     cli = os.environ.get(
@@ -65,13 +75,31 @@ def main() -> int:
         print("runtime_state\tdegraded")
         return 0
 
+    managed_accessibility_attested = False
+    if status.get("kanataAccessibility") is False and managed_manifest:
+        verify_lane = os.environ.get(
+            "KEYPATH_LAB_VERIFY_LANE",
+            os.path.join(os.path.dirname(__file__), "mdm", "verify-lane"),
+        )
+        managed_result = run(
+            [
+                verify_lane,
+                "managed-functional",
+                "--manifest",
+                managed_manifest,
+            ]
+        )
+        if managed_result.returncode != 0:
+            print(managed_result.stderr, file=sys.stderr, end="")
+            return managed_result.returncode
+        managed_accessibility_attested = True
+
     required = [
         "isOperational",
         "helperInstalled",
         "helperWorking",
         "keyPathAccessibility",
         "keyPathInputMonitoring",
-        "kanataAccessibility",
         "kanataInputMonitoring",
         "kanataBinaryInstalled",
         "karabinerDriverInstalled",
@@ -80,6 +108,8 @@ def main() -> int:
         "karabinerDaemonRunning",
         "vhidHealthy",
     ]
+    if not managed_accessibility_attested:
+        required.append("kanataAccessibility")
     failed = [key for key in required if status.get(key) is not True]
     if failed or not status.get("helperVersion") or not launchd_running:
         print(
@@ -94,6 +124,8 @@ def main() -> int:
     if tcp_result.returncode != 0:
         print(tcp_result.stderr, file=sys.stderr, end="")
         return tcp_result.returncode
+    if managed_accessibility_attested:
+        print("kanata_accessibility_evidence\tmanaged-policy-profile")
     print("runtime_state\tready")
     return 0
 

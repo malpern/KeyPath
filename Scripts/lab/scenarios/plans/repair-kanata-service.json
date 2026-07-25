@@ -12,7 +12,9 @@
       ],
       "verify": [
         "../../../../Scripts/lab/assert-runtime-state",
-        "ready"
+        "ready",
+        "--managed-policy-manifest",
+        "/Library/KeyPathLab/managed-policy/manifest.json"
       ]
     }
   ]

@@ -27,16 +27,43 @@ cat > "$tmp/bin/tcp-probe" <<'EOF'
 [[ ${KEYPATH_TEST_TCP_READY:-0} == 1 ]]
 EOF
 
+cat > "$tmp/bin/verify-lane" <<'EOF'
+#!/bin/zsh
+[[ ${KEYPATH_TEST_MANAGED_POLICY_VALID:-0} == 1 ]]
+EOF
+
 chmod +x "$tmp/bin/"*
 
 ready='{"apiVersion":1,"data":{"isOperational":true,"helperInstalled":true,"helperWorking":true,"helperVersion":"1.2.3","keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":true,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":true,"vhidDeviceHealthy":true,"kanataRunning":true,"karabinerDaemonRunning":true,"vhidHealthy":true}}'
 degraded='{"apiVersion":1,"data":{"isOperational":false,"helperInstalled":true,"helperWorking":true,"helperVersion":"1.2.3","keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":true,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":true,"vhidDeviceHealthy":true,"kanataRunning":false,"karabinerDaemonRunning":true,"vhidHealthy":true}}'
+managed_ready='{"apiVersion":1,"data":{"isOperational":true,"helperInstalled":true,"helperWorking":true,"helperVersion":"1.2.3","keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":false,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":true,"vhidDeviceHealthy":true,"kanataRunning":true,"karabinerDaemonRunning":true,"vhidHealthy":true}}'
 
 env KEYPATH_LAB_CLI="$tmp/bin/keypath-cli" \
   KEYPATH_LAB_LAUNCHCTL="$tmp/bin/launchctl" \
   KEYPATH_LAB_TCP_PROBE="$tmp/bin/tcp-probe" \
   KEYPATH_TEST_STATUS_JSON="$ready" KEYPATH_TEST_LAUNCHD_RUNNING=1 KEYPATH_TEST_TCP_READY=1 \
   "$repo/Scripts/lab/assert-runtime-state" ready
+
+env KEYPATH_LAB_CLI="$tmp/bin/keypath-cli" \
+  KEYPATH_LAB_LAUNCHCTL="$tmp/bin/launchctl" \
+  KEYPATH_LAB_TCP_PROBE="$tmp/bin/tcp-probe" \
+  KEYPATH_LAB_VERIFY_LANE="$tmp/bin/verify-lane" \
+  KEYPATH_TEST_STATUS_JSON="$managed_ready" KEYPATH_TEST_LAUNCHD_RUNNING=1 KEYPATH_TEST_TCP_READY=1 \
+  KEYPATH_TEST_MANAGED_POLICY_VALID=1 \
+  "$repo/Scripts/lab/assert-runtime-state" ready \
+    --managed-policy-manifest "$tmp/manifest.json"
+
+if env KEYPATH_LAB_CLI="$tmp/bin/keypath-cli" \
+  KEYPATH_LAB_LAUNCHCTL="$tmp/bin/launchctl" \
+  KEYPATH_LAB_TCP_PROBE="$tmp/bin/tcp-probe" \
+  KEYPATH_LAB_VERIFY_LANE="$tmp/bin/verify-lane" \
+  KEYPATH_TEST_STATUS_JSON="$managed_ready" KEYPATH_TEST_LAUNCHD_RUNNING=1 KEYPATH_TEST_TCP_READY=1 \
+  KEYPATH_TEST_MANAGED_POLICY_VALID=0 \
+  "$repo/Scripts/lab/assert-runtime-state" ready \
+    --managed-policy-manifest "$tmp/manifest.json" >/dev/null 2>&1; then
+  print -u2 "invalid managed policy incorrectly substituted for Accessibility evidence"
+  exit 1
+fi
 
 env KEYPATH_LAB_CLI="$tmp/bin/keypath-cli" \
   KEYPATH_LAB_LAUNCHCTL="$tmp/bin/launchctl" \
