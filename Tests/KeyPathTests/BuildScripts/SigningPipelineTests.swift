@@ -181,6 +181,24 @@ final class SigningPipelineTests: XCTestCase {
         XCTAssertEqual(state["status"] as? String, "accepted")
     }
 
+    func testNotaryWrapperRecordsPermanentInvalidStatus() throws {
+        let fixture = try makeNotaryFixture(waitExit: 0, waitStatus: "Invalid", infoStatus: nil)
+        let script = """
+        unset KP_SIGN_DRY_RUN
+        source \(signingLibPath)
+        KP_NOTARY_CMD="\(fixture.stub.path)"
+        KP_NOTARY_STATE_FILE="\(fixture.state.path)"
+        kp_notarize_zip "\(fixture.archive.path)" "KeyPath-Profile"
+        """
+        let result = runScript(script, env: ["KP_NOTARY_TEST_LOG": fixture.log.path])
+
+        XCTAssertEqual(result.code, 1)
+        let state = try notaryState(at: fixture.state)
+        XCTAssertEqual(state["status"] as? String, "invalid")
+        let invocations = try String(contentsOf: fixture.log, encoding: .utf8)
+        XCTAssertFalse(invocations.contains("info \(submissionID)"))
+    }
+
     func testNotaryWrapperDryRunShowsBoundedTwoPhaseFlow() {
         let script = """
         source \(signingLibPath)

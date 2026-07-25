@@ -80,7 +80,10 @@ inspection and retry commands. Check the existing submission first. Apple does
 not expose a cancel command, and the release scripts never create a duplicate
 submission automatically. If one explicit retry is justified, verify that the
 archive still has the recorded checksum and submit that exact archive once with
-`--no-wait`; do not stack additional submissions.
+`--no-wait`; do not stack additional submissions. The script returns exit 75
+when Apple still reports `In Progress`, reserving a distinct transient result
+for automation even though the current release entry points stop on any
+nonzero result. Permanent statuses such as `Invalid` return exit 1.
 
 Opt into slower work only when needed:
 
