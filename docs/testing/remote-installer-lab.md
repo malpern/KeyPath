@@ -248,8 +248,10 @@ seed; do not infer delivery from the visible toggle alone.
 
 For a console-ready candidate base, run `desktop-bootstrap --install-tools`
 once before capturing its checkpoint. It installs Python 3 as well as
-Peekaboo and mcporter, then records the console-user and Peekaboo evidence.
-This is base provisioning, not a per-scenario setup step.
+Peekaboo and mcporter into the console user's `~/.local` tree from pinned
+release archives with checked SHA-256 digests; the clean source does not need
+Homebrew. It then records the console-user and Peekaboo evidence. This is base
+provisioning, not a per-scenario setup step.
 
 ### Disposable desktop identity with Nameplate
 
