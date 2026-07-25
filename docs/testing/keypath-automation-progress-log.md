@@ -78,3 +78,36 @@ next step.
   produced transport-success messages without a changed RFB result; the
   materially different path is a tested single-batch press/release transport
   plus an independent RFB postcondition.
+
+## 2026-07-24 23:09 PDT — final trial checkpoint
+
+- **Outcome:** advanced
+- **Completed milestone:** The one-hour audit trial caught and stopped a real
+  credential-delivery loop, produced a tested transport correction, and
+  separated delivery from authentication proof.
+- **Evidence:**
+  - Automation commit `a58deadc9` replaces separate ambiguous key submissions
+    with one paced batch of explicit press/release events.
+  - `bash Scripts/lab/tests/keypath-lab-tests.sh` passes, including the
+    secret-leak, unsupported-character, and no-event-on-encode-failure checks.
+  - Dashboard commit `c516a288b` records Remote Management as enabled, clears
+    the stale host-lock blocker, and leaves M11 calmly waiting instead of
+    showing unproven activity.
+  - The live Remote Management detail sheet is open with the password field
+    targeted. No credential was entered by the agent.
+- **Current blocker:** Credential entry is a required user handoff. The live
+  RFB authentication postcondition has therefore not yet run against the
+  corrected transport.
+- **Next action:** The user runs the corrected secure helper with the current
+  field targeted and completes the dialog; then run exactly one RFB probe. On
+  success, continue to the native Peekaboo permission approvals. On failure,
+  inspect field length and RFB negotiation without another blind retry.
+- **Loop check:** the repeated approach remains stopped. No further credential
+  attempt occurred after the course correction.
+- **Trial assessment:** The audits were useful: they exposed three materially
+  identical attempts that had been mislabeled as success and forced a
+  postcondition-driven correction. The audit itself added roughly ten minutes
+  of evidence collection and dashboard/log maintenance during this hour.
+  Recommendation: pause the recurring 20-minute loop now. Reuse a lighter
+  milestone-triggered audit, or a 30-minute cadence only during long,
+  failure-prone lab sessions, instead of keeping this heartbeat permanently.
