@@ -834,6 +834,43 @@ install_app() {
   return "$exit_code"
 }
 
+install_fixture() {
+  local lease=$1 manifest macos lane repo fixture_name provider_resource guest_repo command exit_code admission_command
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  lane=$(field "$manifest" test_lane)
+  repo=$(field "$manifest" worktree)
+  provider_resource=$(field "$manifest" provider_resource)
+  prepare_worktree "$repo"
+  fixture_name=$(awk -F $'\t' '$1 == "fixture_name" {print $2}' "$repo/.keypath-lab/source.tsv")
+  [[ -n "$fixture_name" && "$fixture_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "lease does not contain a valid upgrade fixture"
+  [[ -f "$repo/.keypath-lab/fixtures/$fixture_name" ]] || die "upgrade fixture is missing from lease archive"
+  guest_repo="/Users/$([[ "$macos" == "15" ]] && print admin || print keypathqa)/crabbox/$lease/repo"
+  admission_command="cd '$guest_repo'; Scripts/lab/mdm/verify-lane '$lane'"
+  if [[ "$lane" == "managed-functional" ]]; then
+    admission_command+=" --manifest /Library/KeyPathLab/managed-policy/manifest.json"
+  fi
+  command="setopt errexit nounset pipefail; $admission_command; rm -rf /tmp/keypath-fixture-install; mkdir -p /tmp/keypath-fixture-install; ditto -x -k '$guest_repo/.keypath-lab/fixtures/$fixture_name' /tmp/keypath-fixture-install; cd '$guest_repo'; if [[ '$lane' == managed-functional ]]; then Scripts/lab/mdm/verify-artifact-policy --app /tmp/keypath-fixture-install/KeyPath.app --manifest /Library/KeyPathLab/managed-policy/manifest.json; fi; rm -rf /Applications/KeyPath.app; ditto /tmp/keypath-fixture-install/KeyPath.app /Applications/KeyPath.app"
+  set +e
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    print "admission $lane" >> "$LOGS/$lease/install-fixture.log"
+    print "install-fixture $macos $lease $provider_resource $fixture_name" >> "$LOGS/$lease/install-fixture.log"
+    exit_code=0
+  elif [[ "$macos" == "15" ]]; then
+    (cd "$repo" && "$(launcher_for "$macos")" run "$lease" -- /bin/zsh -lc "sudo -n /bin/zsh -lc $(printf %q "$command")") > "$LOGS/$lease/install-fixture.log" 2>&1
+    exit_code=$?
+  else
+    [[ "$provider_resource" =~ '^[A-Fa-f0-9-]+$' && "$provider_resource" != "unknown" ]] || die "invalid Parallels resource id"
+    "/Applications/Parallels Desktop.app/Contents/MacOS/prlctl" exec "$provider_resource" /bin/zsh -lc "$command" > "$LOGS/$lease/install-fixture.log" 2>&1
+    exit_code=$?
+  fi
+  set -e
+  set_field "$manifest" install_fixture_result "$exit_code"
+  set_field "$manifest" install_fixture_at "$(utc_now)"
+  cat "$LOGS/$lease/install-fixture.log"
+  return "$exit_code"
+}
+
 run_command() {
   local lease=$1; shift
   local manifest macos launcher repo log exit_code
@@ -1910,6 +1947,7 @@ case "$action" in
   install-archive) [[ $# -eq 5 ]] || die "install-archive requires ticket, key, commit, checksum, and name"; install_archive "$@" ;;
   create) [[ $# -eq 8 || $# -eq 9 ]] || die "create requires macOS, test lane, archive, commit, checksum, name, ttl, desktop, and optional Tart USB passthrough"; create_lease "$@" ;;
   install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
+  install-fixture) [[ $# -eq 1 ]] || die "install-fixture requires lease"; install_fixture "$1" ;;
   secure-dialog-input) [[ $# -eq 5 ]] || die "secure-dialog-input requires lease, app, field, optional submit value, and focus mode"; secure_dialog_input "$@" ;;
   resume-managed-policy) [[ $# -eq 1 ]] || die "resume-managed-policy requires a lease"; resume_managed_policy "$1" ;;
   protected-click) [[ $# -eq 7 || $# -eq 8 ]] || die "protected-click requires lease, app, before window, after window, coordinate space, x, y, and optional count"; protected_click "$@" ;;

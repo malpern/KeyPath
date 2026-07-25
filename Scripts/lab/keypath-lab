@@ -14,6 +14,7 @@ Commands:
   preflight
   create --macos 15|26|27 --lane managed-functional|unmanaged-ui --commit SHA --installer PATH [--fixture PATH] [--ttl 2h] [--desktop] [--tart-usb-passthrough]
   install-app LEASE_ID
+  install-fixture LEASE_ID
   console-login LEASE_ID
   verify-console-login LEASE_ID
   reset-guest-password LEASE_ID
@@ -162,6 +163,11 @@ EOF
         [[ $# -eq 1 ]] || usage
         require_lease_id "$1"
         remote install-app "$1"
+        ;;
+    install-fixture)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote install-fixture "$1"
         ;;
     console-login)
         [[ $# -eq 1 ]] || usage

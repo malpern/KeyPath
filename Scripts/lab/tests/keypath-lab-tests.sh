@@ -321,7 +321,7 @@ fi
 
 archive_key="$(printf 'a%.0s' {1..40})-$(printf 'b%.0s' {1..64})"
 repo="$ROOT/KeyPathInstallerLab/archives/$archive_key/repo"
-mkdir -p "$repo/.keypath-lab/installer" "$repo/Scripts/lab/scenarios" "$repo/Scripts/lab/mdm"
+mkdir -p "$repo/.keypath-lab/installer" "$repo/.keypath-lab/fixtures" "$repo/Scripts/lab/scenarios" "$repo/Scripts/lab/mdm"
 cp "$LAB_DIR/scenarios/installer-scenario" "$repo/Scripts/lab/scenarios/installer-scenario"
 cp "$LAB_DIR/nameplate-instrumentation" "$repo/Scripts/lab/nameplate-instrumentation"
 cat > "$repo/Scripts/lab/mdm/publish-managed-profiles" <<'EOF'
@@ -341,6 +341,8 @@ chmod +x "$repo/Scripts/lab/scenarios/installer-scenario"
 chmod +x "$repo/Scripts/lab/nameplate-instrumentation"
 chmod +x "$repo/Scripts/lab/mdm/publish-managed-profiles"
 echo installer > "$repo/.keypath-lab/installer/KeyPath.zip"
+echo older-installer > "$repo/.keypath-lab/fixtures/KeyPath-beta3.zip"
+printf 'fixture_name\tKeyPath-beta3.zip\n' > "$repo/.keypath-lab/source.tsv"
 mkdir -p "$ROOT/KeyPathInstallerLab/managed-identities"
 printf '%s\n' '15151515-1515-1515-1515-151515151515' \
     > "$ROOT/KeyPathInstallerLab/managed-identities/keypath-macos-15-managed.enrollment-id"
@@ -403,6 +405,8 @@ run_remote scenario cbx_test15 clean-install >/dev/null
 grep -q 'installer-scenario clean-install' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/commands.tsv"
 run_remote install-app cbx_test15 >/dev/null
 grep -q 'install-app 15 cbx_test15' "$ROOT/KeyPathInstallerLab/logs/cbx_test15/install-app.log"
+run_remote install-fixture cbx_test15 >/dev/null
+grep -q 'install-fixture 15 cbx_test15' "$ROOT/KeyPathInstallerLab/logs/cbx_test15/install-fixture.log"
 
 artifacts=$(run_remote artifacts cbx_test15)
 assert_contains "$artifacts" $'download_status\t0'
