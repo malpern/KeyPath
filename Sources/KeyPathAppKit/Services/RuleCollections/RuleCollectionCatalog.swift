@@ -65,6 +65,12 @@ struct RuleCollectionCatalog {
             }
         }
 
+        if existing.id == RuleCollectionIdentifier.launcher,
+           let config = merged.configuration.launcherGridConfig
+        {
+            merged.momentaryActivator = config.momentaryActivator(targetLayer: merged.targetLayer)
+        }
+
         if existing.id == RuleCollectionIdentifier.macFunctionKeys,
            let mode = existing.functionKeyMode
         {

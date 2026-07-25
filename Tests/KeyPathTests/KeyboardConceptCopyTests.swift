@@ -44,8 +44,9 @@ final class KeyboardConceptCopyTests: XCTestCase {
             hyperTriggerMode: .hold
         )
 
-        XCTAssertTrue(hyperDescription.hasPrefix(KeyboardConceptCopy.hyperDefinition))
+        XCTAssertTrue(hyperDescription.hasPrefix(KeyboardConceptCopy.hyperInlineDefinition))
         XCTAssertTrue(hyperDescription.hasSuffix("Hold your Hyper key, then press a shortcut key."))
+        XCTAssertLessThan(hyperDescription.count, 140)
         XCTAssertTrue(leaderDescription.hasPrefix(KeyboardConceptCopy.leaderMeaning))
         XCTAssertFalse(leaderDescription.contains("Space by default"))
         XCTAssertTrue(leaderDescription.hasSuffix("Press your Leader key, then L, then a shortcut key."))

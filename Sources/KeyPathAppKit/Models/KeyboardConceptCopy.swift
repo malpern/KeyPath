@@ -14,6 +14,9 @@ enum KeyboardConceptCopy {
     static let hyperDefinition =
         "Hyper combines Control, Option, Command, and Shift into one modifier. Apps rarely use all four together, so Hyper creates clean shortcuts that are unlikely to conflict. Caps Lock Remap provides Hyper by default when you hold Caps Lock."
 
+    static let hyperInlineDefinition =
+        "Hyper combines all four modifiers, creating clean shortcuts apps rarely use."
+
     static let leaderCatalogSummary =
         "\(leaderDefinition) Choose Space, Caps Lock, Tab, or Backtick."
 
@@ -35,9 +38,9 @@ enum KeyboardConceptCopy {
         case .holdHyper:
             switch hyperTriggerMode {
             case .hold:
-                "\(hyperDefinition) Hold your Hyper key, then press a shortcut key."
+                "\(hyperInlineDefinition) Hold your Hyper key, then press a shortcut key."
             case .tap:
-                "\(hyperDefinition) Tap your Hyper key to turn the launcher on or off, then press a shortcut key."
+                "\(hyperInlineDefinition) Tap your Hyper key to turn the launcher on or off, then press a shortcut key."
             }
         case .leaderSequence:
             "\(leaderMeaning) Press \(leaderKeyDisplay), then L, then a shortcut key."

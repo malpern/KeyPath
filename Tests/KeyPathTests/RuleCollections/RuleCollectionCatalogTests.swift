@@ -122,6 +122,27 @@ final class RuleCollectionCatalogTests: XCTestCase {
 
     // MARK: - Launcher Collection
 
+    func testUpgradedLauncherRepairsActivatorFromActivationMode() throws {
+        let catalog = RuleCollectionCatalog()
+        var launcher = try XCTUnwrap(
+            catalog.defaultCollections().first { $0.id == RuleCollectionIdentifier.launcher }
+        )
+        launcher.configuration = .launcherGrid(LauncherGridConfig(
+            activationMode: .leaderSequence,
+            mappings: []
+        ))
+        launcher.momentaryActivator = MomentaryActivator(
+            input: "hyper",
+            targetLayer: .custom("launcher")
+        )
+
+        let upgraded = catalog.upgradedCollection(from: launcher)
+
+        XCTAssertEqual(upgraded.momentaryActivator?.input, "l")
+        XCTAssertEqual(upgraded.momentaryActivator?.sourceLayer, .navigation)
+        XCTAssertEqual(upgraded.momentaryActivator?.targetLayer, .custom("launcher"))
+    }
+
     func testLauncherCollection_HasCorrectID() {
         let launcher = RuleCollectionCatalog().launcherCollection()
         XCTAssertEqual(launcher.id, RuleCollectionIdentifier.launcher)

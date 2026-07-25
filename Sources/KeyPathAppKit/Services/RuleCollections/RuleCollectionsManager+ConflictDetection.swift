@@ -20,7 +20,7 @@ extension RuleCollectionsManager {
     }
 
     func normalizedActivator(for collection: RuleCollection) -> (input: String, layer: RuleCollectionLayer)? {
-        guard let activator = collection.momentaryActivator else { return nil }
+        guard let activator = KanataConfiguration.effectiveMomentaryActivator(for: collection) else { return nil }
         return (KanataKeyConverter.convertToKanataKey(activator.input), activator.targetLayer)
     }
 
@@ -50,7 +50,7 @@ extension RuleCollectionsManager {
             // same physical key is rejected by config generation (e.g. Home Row Mods maps
             // `f` on base while Home Row Arrows holds `f` on base to activate its layer),
             // so detect it here where toggle-time auto-resolution can handle it (#953).
-            if let otherActivator = other.momentaryActivator,
+            if let otherActivator = KanataConfiguration.effectiveMomentaryActivator(for: other),
                candidate.targetLayer == otherActivator.sourceLayer
             {
                 let activatorKey = KanataKeyConverter.convertToKanataKey(otherActivator.input)
@@ -58,7 +58,7 @@ extension RuleCollectionsManager {
                     return RuleConflictInfo(source: .collection(other), keys: [activatorKey])
                 }
             }
-            if let candidateRawActivator = candidate.momentaryActivator,
+            if let candidateRawActivator = KanataConfiguration.effectiveMomentaryActivator(for: candidate),
                other.targetLayer == candidateRawActivator.sourceLayer
             {
                 let activatorKey = KanataKeyConverter.convertToKanataKey(candidateRawActivator.input)
