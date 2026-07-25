@@ -757,14 +757,24 @@ public struct AutoShiftSymbolsConfig: Codable, Equatable, Sendable {
     /// Timeout in milliseconds — hold longer than this to get shifted output
     public var timeoutMs: Int
 
-    /// When true, contributes to global require-prior-idle to prevent accidental shifts during fast typing
+    /// When true, symbol keys skip hold detection after recent typing.
     public var protectFastTyping: Bool
+
+    /// How recently another key may have been pressed before Auto Shift forces a tap.
+    ///
+    /// This is intentionally independent from ``timeoutMs``. It is rendered as a
+    /// per-action Kanata override so Auto Shift does not change timing for other
+    /// tap-hold collections.
+    public var fastTypingProtectionWindowMs: Int
 
     /// Which keys are enabled for auto-shift behavior
     public var enabledKeys: Set<String>
 
     /// Default timeout for auto-shift (milliseconds)
     public static let defaultTimeoutMs = 180
+
+    /// Default fast-typing protection window for newly created configurations.
+    public static let defaultFastTypingProtectionWindowMs = 180
 
     /// The full set of symbol keys eligible for auto-shift
     public static let allSymbolKeys: [String] = [
@@ -789,11 +799,40 @@ public struct AutoShiftSymbolsConfig: Codable, Equatable, Sendable {
     public init(
         timeoutMs: Int = AutoShiftSymbolsConfig.defaultTimeoutMs,
         protectFastTyping: Bool = true,
+        fastTypingProtectionWindowMs: Int? = nil,
         enabledKeys: Set<String>? = nil
     ) {
         self.timeoutMs = timeoutMs
         self.protectFastTyping = protectFastTyping
+        // Preserve the pre-#1210 behavior for existing call sites that only
+        // supplied a timeout: that timeout was also the protection window.
+        self.fastTypingProtectionWindowMs = fastTypingProtectionWindowMs ?? timeoutMs
         self.enabledKeys = enabledKeys ?? Set(AutoShiftSymbolsConfig.allSymbolKeys)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case timeoutMs
+        case protectFastTyping
+        case fastTypingProtectionWindowMs
+        case enabledKeys
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        timeoutMs = try container.decodeIfPresent(Int.self, forKey: .timeoutMs) ?? Self.defaultTimeoutMs
+        protectFastTyping = try container.decodeIfPresent(Bool.self, forKey: .protectFastTyping) ?? true
+        // Older saved configurations used timeoutMs as the global protection
+        // window. Retain that exact behavior when the new field is absent.
+        fastTypingProtectionWindowMs = try container.decodeIfPresent(Int.self, forKey: .fastTypingProtectionWindowMs) ?? timeoutMs
+        enabledKeys = try container.decodeIfPresent(Set<String>.self, forKey: .enabledKeys) ?? Set(Self.allSymbolKeys)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(timeoutMs, forKey: .timeoutMs)
+        try container.encode(protectFastTyping, forKey: .protectFastTyping)
+        try container.encode(fastTypingProtectionWindowMs, forKey: .fastTypingProtectionWindowMs)
+        try container.encode(enabledKeys, forKey: .enabledKeys)
     }
 }
 

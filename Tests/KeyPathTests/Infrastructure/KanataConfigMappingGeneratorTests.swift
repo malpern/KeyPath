@@ -215,6 +215,7 @@ final class KanataConfigMappingGeneratorTests: XCTestCase {
         var config = AutoShiftSymbolsConfig()
         config.enabledKeys = Set(["min", "eql"])
         config.timeoutMs = 180
+        config.fastTypingProtectionWindowMs = 120
 
         let mappings = KanataConfiguration.generateAutoShiftSymbolsMappings(from: config)
         XCTAssertEqual(mappings.count, 2)
@@ -225,6 +226,7 @@ final class KanataConfigMappingGeneratorTests: XCTestCase {
             XCTAssertEqual(dr.holdTimeout, 180)
             XCTAssertEqual(dr.tapAction, .keystroke(key: "min"))
             XCTAssertEqual(dr.holdAction, .keystroke(key: "S-min"))
+            XCTAssertEqual(dr.requirePriorIdleOverrideMs, 120)
         } else {
             XCTFail("Expected dualRole behavior for auto-shift")
         }
