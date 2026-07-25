@@ -196,6 +196,13 @@ struct KeyRepeatControlView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    Text(
+                        "Repeat start delay is how long you hold a key before it begins repeating. Repeat speed is how quickly it continues.",
+                        bundle: #bundle
+                    )
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                     allKeysSection
                     arrowSection
                     HStack(alignment: .top, spacing: 12) {
@@ -235,12 +242,23 @@ struct KeyRepeatControlView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text("\(globalDelayMs)ms delay · \(KeyRepeatControlConfig.keysPerSecond(fromIntervalMs: globalIntervalMs))")
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.tertiary)
+                KeyRepeatTimingSummary(
+                    delayMs: globalDelayMs,
+                    intervalMs: globalIntervalMs,
+                    speedScale: KeyRepeatControlConfig.globalSpeedScale
+                )
             }
-            cleanSlider(label: "Delay", value: $globalDelayMs, range: 50 ... 2000, snap: 10, id: "global-delay")
-            cleanSlider(label: "Speed", value: $globalIntervalMs, range: 5 ... 200, snap: 5, id: "global-speed")
+            RepeatStartDelaySliderRow(
+                delayMs: $globalDelayMs,
+                range: 50 ... 2000,
+                step: 10,
+                accessibilityID: "key-repeat-slider-global-delay"
+            )
+            RepeatSpeedSliderRow(
+                intervalMs: $globalIntervalMs,
+                scale: KeyRepeatControlConfig.globalSpeedScale,
+                accessibilityID: "key-repeat-slider-global-speed"
+            )
         }
     }
 
@@ -253,14 +271,25 @@ struct KeyRepeatControlView: View {
                     .accessibilityIdentifier("key-repeat-arrow-toggle")
                 Spacer()
                 if arrowEnabled {
-                    Text("\(arrowDelayMs)ms · \(KeyRepeatControlConfig.keysPerSecond(fromIntervalMs: arrowIntervalMs))")
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.tertiary)
+                    KeyRepeatTimingSummary(
+                        delayMs: arrowDelayMs,
+                        intervalMs: arrowIntervalMs,
+                        speedScale: KeyRepeatControlConfig.overrideSpeedScale
+                    )
                 }
             }
             if arrowEnabled {
-                cleanSlider(label: "Delay", value: $arrowDelayMs, range: 50 ... 1000, snap: 10, id: "arrow-delay")
-                cleanSlider(label: "Speed", value: $arrowIntervalMs, range: 5 ... 100, snap: 5, id: "arrow-speed")
+                RepeatStartDelaySliderRow(
+                    delayMs: $arrowDelayMs,
+                    range: 50 ... 1000,
+                    step: 10,
+                    accessibilityID: "key-repeat-slider-arrow-delay"
+                )
+                RepeatSpeedSliderRow(
+                    intervalMs: $arrowIntervalMs,
+                    scale: KeyRepeatControlConfig.overrideSpeedScale,
+                    accessibilityID: "key-repeat-slider-arrow-speed"
+                )
             }
         }
     }
@@ -272,8 +301,17 @@ struct KeyRepeatControlView: View {
                 .toggleStyle(.checkbox)
                 .accessibilityIdentifier("key-repeat-delete-toggle")
             if deleteEnabled {
-                cleanSlider(label: "Delay", value: $deleteDelayMs, range: 50 ... 1000, snap: 10, id: "delete-delay")
-                cleanSlider(label: "Speed", value: $deleteIntervalMs, range: 5 ... 100, snap: 5, id: "delete-speed")
+                RepeatStartDelaySliderRow(
+                    delayMs: $deleteDelayMs,
+                    range: 50 ... 1000,
+                    step: 10,
+                    accessibilityID: "key-repeat-slider-delete-delay"
+                )
+                RepeatSpeedSliderRow(
+                    intervalMs: $deleteIntervalMs,
+                    scale: KeyRepeatControlConfig.overrideSpeedScale,
+                    accessibilityID: "key-repeat-slider-delete-speed"
+                )
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -286,8 +324,17 @@ struct KeyRepeatControlView: View {
                 .toggleStyle(.checkbox)
                 .accessibilityIdentifier("key-repeat-fwd-delete-toggle")
             if fwdDeleteEnabled {
-                cleanSlider(label: "Delay", value: $fwdDeleteDelayMs, range: 50 ... 1000, snap: 10, id: "fwd-delete-delay")
-                cleanSlider(label: "Speed", value: $fwdDeleteIntervalMs, range: 5 ... 100, snap: 5, id: "fwd-delete-speed")
+                RepeatStartDelaySliderRow(
+                    delayMs: $fwdDeleteDelayMs,
+                    range: 50 ... 1000,
+                    step: 10,
+                    accessibilityID: "key-repeat-slider-fwd-delete-delay"
+                )
+                RepeatSpeedSliderRow(
+                    intervalMs: $fwdDeleteIntervalMs,
+                    scale: KeyRepeatControlConfig.overrideSpeedScale,
+                    accessibilityID: "key-repeat-slider-fwd-delete-speed"
+                )
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -306,14 +353,39 @@ struct KeyRepeatControlView: View {
                         .foregroundStyle(Color.accentColor)
 
                     VStack(spacing: 4) {
-                        cleanSlider(label: "Delay", value: Binding(
-                            get: { customOverrides.indices.contains(index) ? customOverrides[index].delayMs : entry.delayMs },
-                            set: { if customOverrides.indices.contains(index) { customOverrides[index].delayMs = $0 } }
-                        ), range: 50 ... 2000, snap: 10)
-                        cleanSlider(label: "Speed", value: Binding(
-                            get: { customOverrides.indices.contains(index) ? customOverrides[index].intervalMs : entry.intervalMs },
-                            set: { if customOverrides.indices.contains(index) { customOverrides[index].intervalMs = $0 } }
-                        ), range: 5 ... 200, snap: 5)
+                        RepeatStartDelaySliderRow(
+                            delayMs: Binding(
+                                get: {
+                                    customOverrides.indices.contains(index)
+                                        ? customOverrides[index].delayMs
+                                        : entry.delayMs
+                                },
+                                set: {
+                                    if customOverrides.indices.contains(index) {
+                                        customOverrides[index].delayMs = $0
+                                    }
+                                }
+                            ),
+                            range: 50 ... 2000,
+                            step: 10,
+                            accessibilityID: "key-repeat-slider-custom-\(entry.key)-delay"
+                        )
+                        RepeatSpeedSliderRow(
+                            intervalMs: Binding(
+                                get: {
+                                    customOverrides.indices.contains(index)
+                                        ? customOverrides[index].intervalMs
+                                        : entry.intervalMs
+                                },
+                                set: {
+                                    if customOverrides.indices.contains(index) {
+                                        customOverrides[index].intervalMs = $0
+                                    }
+                                }
+                            ),
+                            scale: KeyRepeatControlConfig.globalSpeedScale,
+                            accessibilityID: "key-repeat-slider-custom-\(entry.key)-speed"
+                        )
                     }
 
                     Button { customOverrides.remove(at: index) } label: {
@@ -377,28 +449,6 @@ struct KeyRepeatControlView: View {
         }
     }
 
-    // MARK: - Clean Slider
-
-    private func cleanSlider(label: String, value: Binding<Int>, range: ClosedRange<Int>, snap: Int, id: String = "") -> some View {
-        let unit = label == "Delay" ? "ms" : "keys/sec"
-        let displayValue = label == "Speed"
-            ? KeyRepeatControlConfig.keysPerSecond(fromIntervalMs: value.wrappedValue)
-            : "\(value.wrappedValue) \(unit)"
-        return HStack(spacing: 8) {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .frame(width: 36, alignment: .trailing)
-            Slider(value: Binding(
-                get: { Double(value.wrappedValue) },
-                set: { value.wrappedValue = Int(($0 / Double(snap)).rounded() * Double(snap)) }
-            ), in: Double(range.lowerBound) ... Double(range.upperBound))
-                .controlSize(.small)
-                .accessibilityIdentifier(id.isEmpty ? "key-repeat-slider-\(label.lowercased())" : "key-repeat-slider-\(id)")
-                .accessibilityValue(displayValue)
-        }
-    }
-
     // MARK: - State
 
     private func applyPreset(_ preset: KeyRepeatControlConfig.Preset) {
@@ -444,4 +494,167 @@ struct KeyRepeatControlView: View {
     private static func matchPreset(_ config: KeyRepeatControlConfig) -> KeyRepeatControlConfig.Preset? {
         KeyRepeatControlConfig.Preset.allCases.first { $0.config == config }
     }
+}
+
+private struct KeyRepeatTimingSummary: View {
+    let delayMs: Int
+    let intervalMs: Int
+    let speedScale: KeyRepeatSpeedScale
+
+    private var repeatsPerSecond: Double {
+        speedScale.repeatsPerSecond(forIntervalMs: intervalMs)
+    }
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 1) {
+            Text(
+                "\(repeatsPerSecond, format: repeatSpeedFormat(repeatsPerSecond)) repeats/sec",
+                bundle: #bundle,
+                comment: "Primary summary of a keyboard key's automatic repeat speed."
+            )
+            .font(.caption.monospaced().weight(.medium))
+
+            Text(
+                "\(delayMs) ms start · \(intervalMs) ms interval",
+                bundle: #bundle,
+                comment: "Secondary technical summary: repeat start delay followed by the interval between repeats."
+            )
+            .font(.caption2.monospaced())
+            .foregroundStyle(.tertiary)
+        }
+    }
+}
+
+private struct RepeatStartDelaySliderRow: View {
+    @Binding var delayMs: Int
+    let range: ClosedRange<Int>
+    let step: Int
+    let accessibilityID: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(
+                    "Repeat start delay",
+                    bundle: #bundle,
+                    comment: "Label for how long a key must be held before automatic repetition begins."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                Spacer()
+                Text(
+                    "\(delayMs) ms",
+                    bundle: #bundle,
+                    comment: "Current keyboard repeat start delay in milliseconds."
+                )
+                .font(.caption.monospaced().weight(.medium))
+            }
+
+            Slider(
+                value: $delayMs.snappedDouble(step: step),
+                in: Double(range.lowerBound) ... Double(range.upperBound)
+            )
+            .controlSize(.small)
+            .accessibilityIdentifier(accessibilityID)
+            .accessibilityLabel(Text("Repeat start delay", bundle: #bundle))
+            .accessibilityValue(Text("\(delayMs) milliseconds", bundle: #bundle))
+
+            HStack {
+                Text("Starts sooner", bundle: #bundle)
+                Spacer()
+                Text("Starts later", bundle: #bundle)
+            }
+            .font(.caption2)
+            .foregroundStyle(.tertiary)
+        }
+    }
+}
+
+private struct RepeatSpeedSliderRow: View {
+    @Binding var intervalMs: Int
+    let scale: KeyRepeatSpeedScale
+    let accessibilityID: String
+
+    private var repeatsPerSecond: Double {
+        scale.repeatsPerSecond(forIntervalMs: intervalMs)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(
+                    "Repeat speed",
+                    bundle: #bundle,
+                    comment: "Label for how quickly a held key repeats after its start delay."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(
+                        "\(repeatsPerSecond, format: repeatSpeedFormat(repeatsPerSecond)) repeats/sec",
+                        bundle: #bundle,
+                        comment: "Primary value for a keyboard key's automatic repeat speed."
+                    )
+                    .font(.caption.monospaced().weight(.medium))
+                    Text(
+                        "\(intervalMs) ms interval",
+                        bundle: #bundle,
+                        comment: "Secondary technical value for the interval between keyboard repeats."
+                    )
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.tertiary)
+                }
+            }
+
+            Slider(
+                value: $intervalMs.repeatsPerSecond(scale: scale),
+                in: scale.repeatsPerSecondRange
+            )
+            .controlSize(.small)
+            .accessibilityIdentifier(accessibilityID)
+            .accessibilityLabel(Text("Repeat speed", bundle: #bundle))
+            .accessibilityValue(
+                Text(
+                    "\(repeatsPerSecond, format: repeatSpeedFormat(repeatsPerSecond)) repeats per second",
+                    bundle: #bundle,
+                    comment: "Accessibility value for a keyboard key's automatic repeat speed."
+                )
+            )
+            .accessibilityHint(
+                Text(
+                    "The equivalent interval is \(intervalMs) milliseconds. Moving right repeats faster.",
+                    bundle: #bundle
+                )
+            )
+
+            HStack {
+                Text("Slower", bundle: #bundle)
+                Spacer()
+                Text("Faster", bundle: #bundle)
+            }
+            .font(.caption2)
+            .foregroundStyle(.tertiary)
+        }
+    }
+}
+
+private extension Binding where Value == Int {
+    func snappedDouble(step: Int) -> Binding<Double> {
+        Binding<Double>(
+            get: { Double(wrappedValue) },
+            set: { wrappedValue = Int(($0 / Double(step)).rounded()) * step }
+        )
+    }
+
+    func repeatsPerSecond(scale: KeyRepeatSpeedScale) -> Binding<Double> {
+        Binding<Double>(
+            get: { scale.repeatsPerSecond(forIntervalMs: wrappedValue) },
+            set: { wrappedValue = scale.intervalMs(forRepeatsPerSecond: $0) }
+        )
+    }
+}
+
+private func repeatSpeedFormat(_ repeatsPerSecond: Double) -> FloatingPointFormatStyle<Double> {
+    .number.precision(.fractionLength(repeatsPerSecond < 10 ? 1 : 0))
 }
