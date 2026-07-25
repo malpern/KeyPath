@@ -230,3 +230,35 @@ next step.
 - **Loop check:** not looping. A stuck splash was traced to the reusable base's
   orphan-cleanup alert intercepting first activation; relaunching after cleanup
   exposed the supported wizard. The installer itself was invoked only once.
+
+## 2026-07-25 09:13 PDT — M02 and M03 parallel admission started
+
+- **Outcome:** advanced
+- **Completed milestone:** the repair and upgrade proofs now have committed,
+  independently verified, resumable scenario contracts.
+- **Evidence:**
+  - Product/lab commit `d96bb464b` adds strict ready and degraded runtime
+    assertions, a real Kanata LaunchDaemon damage fixture, and a one-attempt
+    repair plan.
+  - The repair fixture requires a proven-ready runtime before damage, a
+    proven-degraded runtime before repair, and independent runtime plus TCP
+    readiness afterward.
+  - The official signed `v1.0.0-beta3` release fixture has checksum
+    `c03dabdb5bcab044d334d8d883d36a5676b9ca9d9974a2a20c2c72b91be1107c`;
+    it reports version `1.0.0-beta3`, build `3`, and the expected KeyPath team
+    and bundle identity.
+  - The exact candidate reports version `1.0.0`, build `4`, checksum
+    `4ac130b8dee382ae6f14532f4f5d137071619fa68a4b7a23ad9f63785d3882d7`,
+    and the same expected identity.
+  - The lab harness, scenario-runner, result contract, and new runtime-state
+    tests pass.
+  - Separate managed macOS 15 and macOS 26 lease creations are active; both
+    are still transferring their admitted archives before clone mutation.
+- **Current blocker:** none. Archive transfer and managed clone admission are
+  still in progress and have not yet produced lease IDs.
+- **Next action:** wait for both admissions, install their staged artifacts,
+  then execute M02's red-to-green repair proof and M03's beta3-to-current
+  transition independently.
+- **Loop check:** not looping. The work replaced two false-positive harness
+  gaps (healthy-state “repair” and no real upgrade fixture) with materially
+  stronger proofs before consuming VM capacity.

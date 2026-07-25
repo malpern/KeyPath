@@ -1,9 +1,12 @@
 {
-  "updatedAt": "2026-07-25T08:49:19-07:00",
-  "currentTask": "M01 one-pass clean install proven",
-  "message": "Fresh randomized macOS 15 lease cbx_ce33c403f2f2 completed the corrected installer exactly once. KeyPath reported ready=true with zero blocking issues; independent managed-capabilities passed; system inspect reports isOperational=true with no planned repairs; and the TCP probe returned a valid Kanata response. Lifecycle and upgrade tracks are now parallel-ready.",
+  "updatedAt": "2026-07-25T09:11:38-07:00",
+  "currentTask": "Two installer tracks are provisioning",
+  "message": "M02 repair and M03 upgrade are now active in separate provider lanes; neither test mutation starts until lane admission passes.",
   "complete": false,
-  "workingBlocks": [],
+  "workingBlocks": [
+    "M02",
+    "M03"
+  ],
   "executionTracks": [
     {
       "id": "baseline",
@@ -324,32 +327,88 @@
       "unlocks": []
     },
     "M02": {
-      "progress": 0,
-      "health": "waiting",
+      "progress": 40,
+      "health": "smooth",
       "trend": "forward",
-      "phase": "Waiting on Apple: managed repair lane",
-      "detail": "Repair scenarios require a healthy functional runtime as their before-and-after assertion baseline.",
+      "phase": "Lease admission",
+      "detail": "Randomized managed macOS 15 clone is being personalized and admitted before the repair fixture runs.",
       "attempt": 1,
-      "completedSteps": 0,
-      "totalSteps": 0,
-      "nextTasks": [],
+      "completedSteps": 2,
+      "totalSteps": 5,
+      "nextTasks": [
+        {
+          "label": "Managed clone admission",
+          "status": "active",
+          "progress": 40
+        },
+        {
+          "label": "Install proven candidate",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Damage Kanata service",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "One repair convergence",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Independent ready proof",
+          "status": "queued",
+          "progress": 0
+        }
+      ],
       "blocker": "Waiting on Apple Developer Support case 102940025673 for the managed-functional lane.",
-      "coreCapability": false,
-      "unlocks": []
+      "coreCapability": true,
+      "unlocks": [
+        "M04 reboot persistence and M05 uninstall"
+      ]
     },
     "M03": {
-      "progress": 0,
-      "health": "waiting",
+      "progress": 40,
+      "health": "smooth",
       "trend": "forward",
-      "phase": "Waiting on Apple: managed upgrade lane",
-      "detail": "Upgrade scenarios require deterministic permission, DriverKit, and runtime assertions across versions.",
+      "phase": "Lease admission",
+      "detail": "Protected managed macOS 26 clone is being admitted with both the signed beta3 fixture and exact current candidate staged.",
       "attempt": 1,
-      "completedSteps": 0,
-      "totalSteps": 0,
-      "nextTasks": [],
+      "completedSteps": 2,
+      "totalSteps": 5,
+      "nextTasks": [
+        {
+          "label": "Protected clone admission",
+          "status": "active",
+          "progress": 40
+        },
+        {
+          "label": "Install signed beta3",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Verify beta3 identity",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Upgrade to candidate",
+          "status": "queued",
+          "progress": 0
+        },
+        {
+          "label": "Verify current identity",
+          "status": "queued",
+          "progress": 0
+        }
+      ],
       "blocker": "Waiting on Apple Developer Support case 102940025673 for the managed-functional lane.",
-      "coreCapability": false,
-      "unlocks": []
+      "coreCapability": true,
+      "unlocks": [
+        "M12 pairwise scenario matrix"
+      ]
     },
     "M04": {
       "progress": 0,
@@ -592,8 +651,8 @@
     "P04": "queued",
     "D06": "proven",
     "M01": "proven",
-    "M02": "queued",
-    "M03": "queued",
+    "M02": "active",
+    "M03": "active",
     "M04": "queued",
     "M05": "queued",
     "M06": "queued",
@@ -608,6 +667,20 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "09:11",
+      "block": "M03",
+      "tone": "working",
+      "title": "Two installer tracks are provisioning",
+      "message": "M02 repair and M03 upgrade are now active in separate provider lanes; neither test mutation starts until lane admission passes."
+    },
+    {
+      "time": "09:11",
+      "block": "M02",
+      "tone": "working",
+      "title": "M02 and M03 started on isolated leases",
+      "message": "Repair is admitting a randomized managed macOS 15 clone while upgrade admits a separate protected managed macOS 26 clone."
+    },
     {
       "time": "08:49",
       "block": "M01",
@@ -803,20 +876,6 @@
       "tone": "problem",
       "title": "P02 runtime proven; Tart VNC is not a HID input oracle",
       "message": "The macOS 15 managed clone is operational and q-to-w simulation passes, but the real TextEdit test received q. Kanata captured zero devices, so the next lab issue is a guest-visible test HID input source\u2014not another permission retry."
-    },
-    {
-      "time": "17:56",
-      "block": "P02",
-      "tone": "working",
-      "title": "macOS 15 managed base staged for enrollment",
-      "message": "PR #1189 merged after CI and enforced review. A fresh Sequoia staging image is running with the private lab profile reviewed in the real System Settings flow and waiting at the security-sensitive Enroll confirmation."
-    },
-    {
-      "time": "17:38",
-      "block": "P02",
-      "tone": "problem",
-      "title": "P02 narrowed to the macOS 26 Accessibility boundary",
-      "message": "DriverKit, VirtualHID, helper, and genuine launcher Input Monitoring pass. macOS 26.2+ draws the legacy managed Accessibility switch on but creates no TCC grant; next build the missing macOS 15 managed base or add NanoMDM declarative app settings."
     }
   ],
   "activity": [
