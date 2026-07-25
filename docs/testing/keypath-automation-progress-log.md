@@ -500,3 +500,39 @@ next step.
   postconditions and replaced the obsolete Parallels trusted-input blocker
   with a fully ready randomized Tart lane; no failed action was repeated
   without changed evidence.
+
+## 2026-07-25 16:16 PDT — M12 and M13 matrix contracts proven
+
+- **Outcome:** advanced
+- **Completed milestone:** M12 now produces the bounded unattended nightly
+  diagonal, and M13 produces the deterministic operator-supervised weekly
+  pairwise expansion. The macOS 27 job is packaged as a single unattended
+  semantic-selector scenario rather than depending on prearranged UI state.
+- **Evidence:**
+  - Commit `2f0979739` gives every guest scenario command the pinned user-local
+    tool path. A live direct probe returned Python 3.12.13 and Peekaboo 3.9.8.
+  - Commits `3b13beacf` and `9c4487ba3` add the macOS 27 Accessibility-pane
+    preparation, bounded launch retry, semantic readiness check, and
+    fail-closed selector driver invocation.
+  - Disposable lease `cbx_b31f2d95334f` passed the packaged scenario on macOS
+    27.0 build `26A5378j`. Artifact set `20260725T231532Z` retains the readiness
+    snapshot, fresh AX snapshot, permission preflight, OS version, and selector
+    contract. The lease was then destroyed and cleanup is complete.
+  - The nightly plan contains two unattended jobs in one provider-safe wave:
+    local contracts and macOS 27 selectors. Every VM job has a bounded TTL and
+    `destroy-owned-lease` finalizer.
+  - The operator-supervised weekly plan contains ten jobs in six waves and
+    covers all 81 eligible factor pairs. Shared macOS 26 identity work is
+    serialized. The physical mWave case remains explicitly excluded.
+  - Seven planner tests, the selector-driver tests, the new packaged-scenario
+    test, and the complete lab harness suite pass.
+- **Current blocker:** none for M12 or M13. P02 remains the sole upstream
+  physical boundary; P03 and P04 now correctly show that their managed runtime
+  prerequisites are proven and only the onsite mWave output is missing.
+- **Next action:** execute the onsite P02 q-to-w proof when physical access is
+  available, then capture P03 overlay evidence and P04 launch-to-remap timing
+  in the same prepared session.
+- **Loop check:** not looping. The work moved from missing Python resolution,
+  through a newly exposed System Settings launch race and incorrect private
+  token expectation, to a packaged live-passing scenario with retained
+  evidence and owned cleanup.

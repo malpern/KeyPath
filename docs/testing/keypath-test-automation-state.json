@@ -1,12 +1,9 @@
 {
-  "updatedAt": "2026-07-25T15:41:00-07:00",
-  "currentTask": "M04 through M07 proven; starting scenario-matrix execution",
-  "message": "Lease cbx_9e1c128d616f now proves reboot persistence, corrected uninstall, same-lease reinstall, real user cancellation, deliberate degradation, and one-pass recovery. M12 nightly-diagonal and M13 weekly-pairwise orchestration are the active remote-safe frontier; release notarization remains a separate external release gate.",
+  "updatedAt": "2026-07-25T16:16:00-07:00",
+  "currentTask": "Remote-safe matrix work proven; onsite physical-output proof remains",
+  "message": "M12 now produces a capacity- and TTL-safe unattended nightly diagonal, and M13 produces a deterministic 81-of-81-pair operator-supervised weekly expansion. A fresh macOS 27 disposable lease passed the packaged selector scenario with pinned Python 3.12.13 and was destroyed after evidence capture. P02, P03, and P04 remain the physical onsite chain.",
   "complete": false,
-  "workingBlocks": [
-    "M12",
-    "M13"
-  ],
+  "workingBlocks": [],
   "executionTracks": [
     {
       "id": "baseline",
@@ -47,15 +44,15 @@
       "id": "dependent",
       "label": "Dependent chain",
       "platform": "Scenario consumers",
-      "status": "active",
-      "badge": "MATRICES NEXT",
+      "status": "proven",
+      "badge": "PROVEN",
       "blocks": [
         "M06",
         "M07",
         "M12",
         "M13"
       ],
-      "detail": "M06 same-lease reinstall and M07 real cancellation plus one-pass recovery are proven. Nightly diagonal and weekly pairwise orchestration are now the remaining remote-safe consumers."
+      "detail": "M06 and M07 are proven. M12 adds the unattended nightly diagonal and M13 adds the deterministic operator-supervised weekly pairwise expansion with explicit physical-case exclusion."
     },
     {
       "id": "physical",
@@ -227,14 +224,14 @@
       "unlocks": []
     },
     "P03": {
-      "progress": 30,
-      "health": "waiting",
+      "progress": 50,
+      "health": "blocked",
       "trend": "forward",
-      "phase": "Waiting on the P02 macOS 15 managed base",
-      "detail": "Useful overlay-plus-input evidence requires the Apple-gated managed runtime path: activated VirtualHID, raw-runtime permissions, Kanata, and TCP readiness.",
+      "phase": "Managed runtime ready; waiting on P02 physical output",
+      "detail": "Overlay controls and the managed runtime prerequisites are proven. The remaining overlay evidence must be paired with the same real mWave keypress and observable remapped output required by P02.",
       "attempt": 1,
-      "completedSteps": 0,
-      "totalSteps": 0,
+      "completedSteps": 2,
+      "totalSteps": 4,
       "nextTasks": [
         {
           "label": "Open and identify overlay controls",
@@ -243,8 +240,8 @@
         },
         {
           "label": "Provision managed runtime prerequisites",
-          "status": "blocked",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Generate verified remapped input",
@@ -257,7 +254,7 @@
           "progress": 0
         }
       ],
-      "blocker": "P02 must finish the macOS 15 managed-base enrollment and functional output proof before overlay evidence is meaningful.",
+      "blocker": "P02's onsite physical mWave q-to-w output proof must occur before the overlay-plus-input capture is meaningful.",
       "coreCapability": false,
       "unlocks": []
     },
@@ -292,19 +289,19 @@
       "unlocks": []
     },
     "P04": {
-      "progress": 0,
-      "health": "waiting",
+      "progress": 50,
+      "health": "blocked",
       "trend": "forward",
       "phase": "Waiting on the P02 first-remap proof",
-      "detail": "The first confirmed remap requires activated VirtualHID, managed raw-runtime permissions, Kanata convergence, and TCP readiness. All are gated by the managed-functional lane.",
+      "detail": "DriverKit, raw-runtime permissions, Kanata convergence, and TCP readiness are proven. The remaining measurement starts with P02's physical mWave remap and records launch-to-observable-output timing.",
       "attempt": 1,
-      "completedSteps": 0,
-      "totalSteps": 0,
+      "completedSteps": 2,
+      "totalSteps": 4,
       "nextTasks": [
         {
           "label": "Provision managed DriverKit and PPPC lane",
-          "status": "blocked",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Prove VirtualHID output (P02)",
@@ -313,8 +310,8 @@
         },
         {
           "label": "Converge runtime and TCP (R03/R04)",
-          "status": "blocked",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Measure launch-to-confirmed-remap",
@@ -322,7 +319,7 @@
           "progress": 0
         }
       ],
-      "blocker": "P02 and R03/R04 must pass on the macOS 15 managed lane before launch-to-remap timing is meaningful.",
+      "blocker": "P02's onsite physical mWave output proof must pass before launch-to-remap timing can be measured.",
       "coreCapability": false,
       "unlocks": []
     },
@@ -561,13 +558,13 @@
       "unlocks": []
     },
     "M12": {
-      "progress": 10,
-      "health": "smooth",
+      "progress": 100,
+      "health": "proven",
       "trend": "forward",
-      "phase": "Inventorying executable nightly-diagonal inputs",
-      "detail": "The managed functional foundations through M07 are proven. Work is now selecting the smallest high-value nightly set and binding it to capacity, TTL, result, and sanitized-evidence contracts; physical P02 remains a separately labelled onsite case.",
-      "attempt": 1,
-      "completedSteps": 2,
+      "phase": "Capacity-safe unattended nightly diagonal proven",
+      "detail": "The deterministic nightly plan selects local contract verification plus the macOS 27 semantic selector scenario in one capacity-safe wave. Every VM job carries a bounded TTL and mandatory owned-lease finalizer. The packaged macOS 27 job passed live on cbx_b31f2d95334f using pinned Python 3.12.13; its evidence was retained and the clone was destroyed.",
+      "attempt": 2,
+      "completedSteps": 4,
       "totalSteps": 4,
       "nextTasks": [
         {
@@ -582,8 +579,13 @@
         },
         {
           "label": "Schedule capacity- and TTL-aware nightly diagonal",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
+        },
+        {
+          "label": "Run packaged macOS 27 job and retain evidence",
+          "status": "done",
+          "progress": 100
         }
       ],
       "blocker": null,
@@ -591,29 +593,29 @@
       "unlocks": []
     },
     "M13": {
-      "progress": 5,
-      "health": "smooth",
+      "progress": 100,
+      "health": "proven",
       "trend": "forward",
-      "phase": "Defining weekly pairwise expansion",
-      "detail": "The broader weekly matrix can now build on proven lifecycle scenarios and isolated leases. Its combination model will follow the M12 execution contract without mixing physical-only cases into unattended pass criteria.",
-      "attempt": 1,
-      "completedSteps": 0,
+      "phase": "Deterministic weekly pairwise expansion proven",
+      "detail": "The operator-supervised weekly plan selects ten jobs across six provider-safe waves and covers all 81 eligible factor pairs. Shared macOS 26 identity work is serialized, every VM has an owned cleanup finalizer, and the physical mWave case remains explicitly excluded unless requested.",
+      "attempt": 2,
+      "completedSteps": 3,
       "totalSteps": 3,
       "nextTasks": [
         {
           "label": "Define pairwise factors and exclusions",
-          "status": "active",
-          "progress": 20
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Reuse M12 capacity and evidence contract",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Prove deterministic matrix generation",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         }
       ],
       "blocker": null,
@@ -756,9 +758,9 @@
     "P01": "proven",
     "P02": "blocked",
     "M14": "proven",
-    "M12": "queued",
-    "P03": "queued",
-    "P04": "queued",
+    "M12": "proven",
+    "P03": "blocked",
+    "P04": "blocked",
     "D06": "proven",
     "M01": "proven",
     "M02": "proven",
@@ -767,7 +769,7 @@
     "M05": "proven",
     "M06": "proven",
     "M07": "proven",
-    "M13": "queued",
+    "M13": "proven",
     "M08": "proven",
     "M09": "proven",
     "M10": "proven",
@@ -777,6 +779,20 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "16:16",
+      "block": "M13",
+      "tone": "success",
+      "title": "M13 weekly pairwise plan proven",
+      "message": "The operator-supervised weekly expansion deterministically selects ten jobs in six provider-safe waves and covers all 81 eligible factor pairs. Shared macOS 26 identity work is serialized; physical P02 remains opt-in and excluded from automated pass criteria."
+    },
+    {
+      "time": "16:15",
+      "block": "M12",
+      "tone": "success",
+      "title": "M12 unattended nightly diagonal proven",
+      "message": "The nightly plan selects local contract checks plus the packaged macOS 27 selector scenario in one safe wave. Lease cbx_b31f2d95334f passed with pinned Python 3.12.13, retained semantic selector evidence, and was destroyed by the owned cleanup path."
+    },
     {
       "time": "15:41",
       "block": "M07",
