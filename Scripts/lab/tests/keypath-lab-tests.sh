@@ -416,6 +416,7 @@ assert_contains "$capacity_output" $'active_lease\tcbx_test15'
 
 run_remote run cbx_test15 echo hello >/dev/null
 grep -q 'echo hello' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/commands.tsv"
+grep -q 'launcher15 run cbx_test15 -- /usr/bin/env PATH=/Users/admin/.local/bin:' "$CALLS"
 run_remote scenario cbx_test15 clean-install >/dev/null
 grep -q 'installer-scenario clean-install' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/commands.tsv"
 run_remote install-app cbx_test15 >/dev/null

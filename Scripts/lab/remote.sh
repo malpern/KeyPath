@@ -873,15 +873,17 @@ install_fixture() {
 
 run_command() {
   local lease=$1; shift
-  local manifest macos launcher repo log exit_code
+  local manifest macos launcher repo log exit_code guest_home guest_path
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   launcher=$(launcher_for "$macos")
   repo=$(field "$manifest" worktree)
+  guest_home="/Users/$([[ "$macos" == "15" ]] && print admin || print keypathqa)"
+  guest_path="$guest_home/.local/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
   prepare_worktree "$repo"
   log="$LOGS/$lease/run-$(date -u +%Y%m%dT%H%M%SZ).log"
   set +e
-  (cd "$repo" && "$launcher" run "$lease" -- "$@") 2>&1 | tee "$log"
+  (cd "$repo" && "$launcher" run "$lease" -- /usr/bin/env "PATH=$guest_path" "$@") 2>&1 | tee "$log"
   exit_code=${pipestatus[1]}
   set -e
   if (( exit_code == 0 )); then record_command "$lease" passed "$@"; else record_command "$lease" "failed:$exit_code" "$@"; fi

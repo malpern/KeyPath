@@ -34,7 +34,14 @@ require_output_path() {
   mkdir -p "$parent"
 }
 
-peekaboo_bin=${PEEKABOO_BIN:-$(command -v peekaboo || true)}
+peekaboo_bin=${PEEKABOO_BIN:-}
+if [[ -z "$peekaboo_bin" ]]; then
+  if [[ -x "$HOME/.local/bin/peekaboo" ]]; then
+    peekaboo_bin="$HOME/.local/bin/peekaboo"
+  else
+    peekaboo_bin=$(command -v peekaboo || true)
+  fi
+fi
 
 command=${1:-}
 [[ -n "$command" ]] || usage

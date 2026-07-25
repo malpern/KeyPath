@@ -29,7 +29,7 @@ class ScenarioMatrixTests(unittest.TestCase):
 
     def test_nightly_is_unattended_and_requires_cleanup(self):
         plan = self.run_plan("--cadence", "nightly")
-        self.assertGreaterEqual(plan["summary"]["jobs"], 3)
+        self.assertGreaterEqual(plan["summary"]["jobs"], 2)
         self.assertTrue(all(job["automation"] == "unattended" for job in plan["jobs"]))
         self.assertTrue(all(
             job["provider"] == "local" or job["finalizer"] == "destroy-owned-lease"
@@ -38,6 +38,7 @@ class ScenarioMatrixTests(unittest.TestCase):
         excluded = {entry["id"] for entry in plan["excluded"]}
         self.assertIn("macos15-clean-install", excluded)
         self.assertIn("macos15-repair", excluded)
+        self.assertIn("macos26-selectors", excluded)
         self.assertIn("macos15-cancellation-recovery", excluded)
         self.assertIn("macos15-physical-remap", excluded)
 
