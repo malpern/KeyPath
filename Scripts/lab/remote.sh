@@ -698,7 +698,7 @@ create_lease() {
   slug="keypath${macos}-$(print -r -- "$commit" | cut -c1-8)-$(date -u +%Y%m%d%H%M%S)-$$"
   operation="$OPERATIONS/$slug"
   mkdir -p "$operation"
-  git clone -q --local "$archive/repo" "$operation/repo"
+  git clone -q --local --no-hardlinks "$archive/repo" "$operation/repo"
   repo="$operation/repo"
   prepare_worktree "$repo"
   create_log="$operation/create.log"
