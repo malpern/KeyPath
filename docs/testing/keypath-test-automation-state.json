@@ -789,7 +789,7 @@
       "block": "P02",
       "tone": "waiting",
       "title": "Final P02-P04 onsite event packaged",
-      "message": "Commit 2e7caa66f adds a two-stage physical remap session. It admits the named guest HID, sanitizes retained inventory, proves runtime and q-to-w preparation, relaunches KeyPath, focuses TextEdit, and records P02 output, P03 physical-Q overlay state, and P04 launch-to-output timing from one held key. Three contract tests and the full lab suite pass."
+      "message": "Commits 2e7caa66f and d3e640ea9 add a two-stage physical remap session. The mini currently reports Product mWave from Kinesis Corporation, and that exact match is wired into the onsite command. The watcher sanitizes retained inventory and records P02 output, P03 physical-Q overlay state, and P04 launch-to-output timing from one held key."
     },
     {
       "time": "16:16",

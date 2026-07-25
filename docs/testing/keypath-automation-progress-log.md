@@ -551,7 +551,10 @@ next step.
   waits for one held physical q, verifies independent output w, captures
   `keycap-code-12` as pressed or held, and records launch-to-output timing.
   Contract tests prove the all-pass path, missing-HID block, and literal-q
-  product-failure path. The complete lab suite passes.
+  product-failure path. The complete lab suite passes. A final read-only host
+  inventory check found `Product = mWave` and `Manufacturer = Kinesis
+  Corporation`; commit `d3e640ea9` uses that exact non-secret match in the
+  documented onsite command.
 - **Current blocker:** actual completion still requires onsite access to make
   the mWave guest-visible and hold physical q once. No remote or synthesized
   event can satisfy this proof.
