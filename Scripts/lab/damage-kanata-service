@@ -2,12 +2,11 @@
 set -euo pipefail
 
 plist=/Library/LaunchDaemons/com.keypath.kanata.plist
-[[ -f "$plist" ]] || {
-  print -u2 "damage fixture: Kanata LaunchDaemon plist is absent"
-  exit 3
-}
-
-/usr/bin/sudo -n /bin/launchctl bootout system "$plist"
+if [[ -f "$plist" ]]; then
+  /usr/bin/sudo -n /bin/launchctl bootout system "$plist"
+else
+  /usr/bin/sudo -n /bin/launchctl bootout system/com.keypath.kanata
+fi
 
 for _ in {1..20}; do
   if ! /bin/launchctl print system/com.keypath.kanata >/dev/null 2>&1; then
