@@ -1,11 +1,10 @@
 {
-  "updatedAt": "2026-07-25T09:11:38-07:00",
-  "currentTask": "Two installer tracks are provisioning",
-  "message": "M02 repair and M03 upgrade are now active in separate provider lanes; neither test mutation starts until lane admission passes.",
+  "updatedAt": "2026-07-25T10:34:00-07:00",
+  "currentTask": "M02 repair fix awaits protected enrollment",
+  "message": "M03 upgrade is proven. M02 exposed a real SMAppService recovery defect, the fix and regression suite pass, and a fresh exact-build clone is waiting at the protected enrollment password sheet.",
   "complete": false,
   "workingBlocks": [
-    "M02",
-    "M03"
+    "M02"
   ],
   "executionTracks": [
     {
@@ -23,25 +22,25 @@
       "id": "lifecycle",
       "label": "Lifecycle scenarios",
       "platform": "Tart \u00b7 macOS 15",
-      "status": "next",
-      "badge": "PARALLEL READY",
+      "status": "active",
+      "badge": "HUMAN GATE",
       "blocks": [
         "M02",
         "M04",
         "M05"
       ],
-      "detail": "Repair, reboot persistence, and uninstall can use independent fresh clones. Start conservatively with one Tart job at a time while the lane stabilizes."
+      "detail": "M02 found and fixed a real stale-service recovery defect. Its fresh exact-build macOS 15 clone is paused at Apple's protected enrollment password sheet; M04 and M05 remain independent follow-ons."
     },
     {
       "id": "upgrade",
       "label": "Version transition",
       "platform": "Separate VM lease",
-      "status": "next",
-      "badge": "PARALLEL READY",
+      "status": "proven",
+      "badge": "PROVEN",
       "blocks": [
         "M03"
       ],
-      "detail": "The upgrade scenario is independent of repair and uninstall and can run beside the lifecycle track when it has a separate lease."
+      "detail": "The protected macOS 26 lease proved the signed beta3-to-1.0.0 transition, preserved the expected identity, and passed strict signature verification."
     },
     {
       "id": "dependent",
@@ -327,32 +326,27 @@
       "unlocks": []
     },
     "M02": {
-      "progress": 40,
-      "health": "smooth",
+      "progress": 70,
+      "health": "blocked",
       "trend": "forward",
-      "phase": "Lease admission",
-      "detail": "Randomized managed macOS 15 clone is being personalized and admitted before the repair fixture runs.",
-      "attempt": 1,
-      "completedSteps": 2,
+      "phase": "Fresh fix clone enrollment",
+      "detail": "The first proof clone reproduced a real repair failure: unregister succeeded, but a failed optional stale-job cleanup prevented re-registration. Commit ce7441fd fixes that control flow and its full lab and focused Swift regression suites pass. Fresh lease cbx_a9262dab5a98 is paused at Apple's protected Device Management password sheet.",
+      "attempt": 2,
+      "completedSteps": 3,
       "totalSteps": 5,
       "nextTasks": [
         {
-          "label": "Managed clone admission",
-          "status": "active",
-          "progress": 40
+          "label": "Enroll fresh exact-build clone",
+          "status": "blocked",
+          "progress": 70
         },
         {
-          "label": "Install proven candidate",
+          "label": "Install fixed candidate",
           "status": "queued",
           "progress": 0
         },
         {
-          "label": "Damage Kanata service",
-          "status": "queued",
-          "progress": 0
-        },
-        {
-          "label": "One repair convergence",
+          "label": "Prove ready → damaged → one repair",
           "status": "queued",
           "progress": 0
         },
@@ -362,49 +356,49 @@
           "progress": 0
         }
       ],
-      "blocker": "Waiting on Apple Developer Support case 102940025673 for the managed-functional lane.",
+      "blocker": "Apple's protected enrollment sheet requires one human-entered guest password. Tart VNC and the secure automation bridge cannot populate this SecurityAgent field, so repeating automated input would loop.",
       "coreCapability": true,
       "unlocks": [
         "M04 reboot persistence and M05 uninstall"
       ]
     },
     "M03": {
-      "progress": 40,
+      "progress": 100,
       "health": "smooth",
       "trend": "forward",
-      "phase": "Lease admission",
-      "detail": "Protected managed macOS 26 clone is being admitted with both the signed beta3 fixture and exact current candidate staged.",
+      "phase": "Upgrade proven",
+      "detail": "Protected managed macOS 26 lease cbx_f0e00e78cdd7 installed the exact signed beta3 fixture through host-controlled managed admission, upgraded to the exact 1.0.0 candidate, independently verified both versions, and passed strict deep signature verification.",
       "attempt": 1,
-      "completedSteps": 2,
+      "completedSteps": 5,
       "totalSteps": 5,
       "nextTasks": [
         {
           "label": "Protected clone admission",
-          "status": "active",
-          "progress": 40
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Install signed beta3",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Verify beta3 identity",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Upgrade to candidate",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         },
         {
           "label": "Verify current identity",
-          "status": "queued",
-          "progress": 0
+          "status": "done",
+          "progress": 100
         }
       ],
-      "blocker": "Waiting on Apple Developer Support case 102940025673 for the managed-functional lane.",
+      "blocker": "",
       "coreCapability": true,
       "unlocks": [
         "M12 pairwise scenario matrix"
@@ -652,7 +646,7 @@
     "D06": "proven",
     "M01": "proven",
     "M02": "active",
-    "M03": "active",
+    "M03": "proven",
     "M04": "queued",
     "M05": "queued",
     "M06": "queued",
@@ -667,6 +661,20 @@
     "D05": "proven"
   },
   "updates": [
+    {
+      "time": "10:34",
+      "block": "M02",
+      "tone": "working",
+      "title": "Repair defect fixed; fresh proof needs protected enrollment",
+      "message": "The first M02 clone reproduced a real SMAppService recovery bug. Commit ce7441fd fixes it and passes the full lab plus focused Swift suites. Fresh exact-build lease cbx_a9262dab5a98 is waiting for one human-entered guest password in Apple's protected Device Management sheet."
+    },
+    {
+      "time": "10:34",
+      "block": "M03",
+      "tone": "success",
+      "title": "M03 beta3-to-current upgrade proven",
+      "message": "Protected lease cbx_f0e00e78cdd7 installed signed 1.0.0-beta3, upgraded to exact 1.0.0, independently verified both versions and expected identity, and passed strict deep signature verification."
+    },
     {
       "time": "09:11",
       "block": "M03",

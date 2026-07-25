@@ -262,3 +262,60 @@ next step.
 - **Loop check:** not looping. The work replaced two false-positive harness
   gaps (healthy-state “repair” and no real upgrade fixture) with materially
   stronger proofs before consuming VM capacity.
+
+## 2026-07-25 10:34 PDT — M03 upgrade proven
+
+- **Outcome:** advanced
+- **Completed milestone:** M03 proves the signed `1.0.0-beta3` to exact
+  `1.0.0` transition on protected managed macOS 26 lease
+  `cbx_f0e00e78cdd7`.
+- **Evidence:**
+  - The archive identity includes the fixture checksum, preventing a stale or
+    substituted upgrade artifact from sharing an admitted archive key.
+  - Host-controlled fixture installation passed the managed lane and exact
+    artifact-policy checks without placing guest credentials in the scenario.
+  - Independent version reads reported `1.0.0-beta3` before upgrade and
+    `1.0.0` afterward.
+  - Strict deep code-signature verification passed on the resulting
+    `/Applications/KeyPath.app`.
+  - Evidence was collected under
+    `artifacts/cbx_f0e00e78cdd7/20260725T172501Z`, then the disposable lease
+    was destroyed.
+- **Current blocker:** none for M03.
+- **Next action:** keep M03 complete and use its result as a version-transition
+  prerequisite for the later pairwise scenario matrix.
+- **Loop check:** not looping. The initial guest-only install exposed the
+  expected privilege boundary; the replacement host-controlled fixture path
+  was a materially different, policy-checked route and completed the proof.
+
+## 2026-07-25 10:34 PDT — M02 product defect fixed; fresh proof human-gated
+
+- **Outcome:** advanced
+- **Completed milestone:** M02 reproduced a real repair failure, isolated its
+  cause, and produced a tested fix in commit `ce7441fd`.
+- **Evidence:**
+  - The original clone reached a proven managed runtime, was deliberately
+    degraded by booting out `system/com.keypath.kanata`, and failed its one
+    allowed repair attempt.
+  - Logs showed `SMAppService.unregister()` succeeded, but an optional legacy
+    `launchctl bootout` failed through the authorization boundary and aborted
+    the flow before re-registration.
+  - The fix treats that stale-job cleanup as best effort after successful
+    SMAppService unregister, while leaving registration and health checks
+    fail-closed.
+  - The complete lab shell suite, focused scenario suites, 21
+    `ServiceBootstrapperTests`, the production build, signing, and identity
+    contract pass.
+  - Fresh exact-build lease `cbx_a9262dab5a98` is live with commit
+    `ce7441fd` and candidate checksum
+    `f81587e5c8b15007c9b1a5f1e7dac13bfc087262b7631fa0e7c9a9b3c9b832d7`.
+- **Current blocker:** Apple's protected Device Management password sheet
+  requires a human-entered guest password. Tart VNC did not deliver input to
+  the SecurityAgent secure field.
+- **Next action:** have the remote operator type the guest password into the
+  already-open enrollment sheet and click **Enroll**; then finish managed
+  admission, install the exact fixed candidate, and require
+  ready → damaged → one repair → independently ready.
+- **Loop check:** not looping. Automated protected-field input has already
+  failed with direct visual evidence and will not be retried. Human entry is
+  the materially different next step.
