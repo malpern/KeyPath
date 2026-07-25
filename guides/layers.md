@@ -127,6 +127,19 @@ If you'd rather use a different key as your Leader, install the [Leader Key]({{ 
 
 ---
 
+## When layers depend on each other
+
+A key that opens the Function layer is useful only when something supplies
+Function-layer actions. KeyPath checks these relationships when you turn rules
+on, edit them, or turn them off. If a change would leave a layer key with
+nothing useful behind it, KeyPath identifies the affected keys and offers a
+safe choice.
+
+See **[Make Rules Work Together]({{ '/guides/conflict-resolution/' | relative_url }})**
+for each warning and what its buttons do.
+
+---
+
 ## Creating your own layer
 
 The layer packs cover the most common use cases, but you can create custom layers too.
