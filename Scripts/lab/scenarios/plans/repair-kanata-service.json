@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "scenario": "repair-kanata-service",
+  "steps": [
+    {
+      "id": "repair-kanata-service",
+      "action": [
+        "/Applications/KeyPath.app/Contents/MacOS/keypath-cli",
+        "system",
+        "repair",
+        "--json"
+      ],
+      "verify": [
+        "../../../../Scripts/lab/assert-runtime-state",
+        "ready"
+      ]
+    }
+  ]
+}

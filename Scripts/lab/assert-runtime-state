@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""Independently assert the installed KeyPath runtime is ready or degraded."""
+
+import json
+import os
+import subprocess
+import sys
+
+
+def run(command: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+def main() -> int:
+    if len(sys.argv) != 2 or sys.argv[1] not in {"ready", "degraded"}:
+        print(f"Usage: {sys.argv[0]} ready|degraded", file=sys.stderr)
+        return 2
+
+    expected = sys.argv[1]
+    cli = os.environ.get(
+        "KEYPATH_LAB_CLI",
+        "/Applications/KeyPath.app/Contents/MacOS/keypath-cli",
+    )
+    launchctl = os.environ.get("KEYPATH_LAB_LAUNCHCTL", "/bin/launchctl")
+    tcp_probe = os.environ.get(
+        "KEYPATH_LAB_TCP_PROBE",
+        os.path.join(os.path.dirname(__file__), "probe-kanata-tcp"),
+    )
+
+    status_result = run([cli, "service", "status", "--json"])
+    if status_result.returncode not in {0, 1}:
+        print(status_result.stderr, file=sys.stderr, end="")
+        return status_result.returncode
+    try:
+        payload = json.loads(status_result.stdout)
+    except json.JSONDecodeError as error:
+        print(f"runtime assertion: invalid service-status JSON: {error}", file=sys.stderr)
+        return 1
+    status = payload.get("data", payload)
+    if not isinstance(status, dict):
+        print("runtime assertion: service-status payload is not an object", file=sys.stderr)
+        return 1
+
+    launchd_result = run([launchctl, "print", "system/com.keypath.kanata"])
+    launchd_running = (
+        launchd_result.returncode == 0
+        and "state = running" in launchd_result.stdout
+    )
+
+    if expected == "degraded":
+        degraded = (
+            status.get("isOperational") is False
+            and status.get("kanataRunning") is False
+            and not launchd_running
+        )
+        if not degraded:
+            print(
+                "runtime assertion: expected a stopped Kanata service, "
+                f"got isOperational={status.get('isOperational')!r}, "
+                f"kanataRunning={status.get('kanataRunning')!r}, "
+                f"launchdRunning={launchd_running!r}",
+                file=sys.stderr,
+            )
+            return 1
+        print("runtime_state\tdegraded")
+        return 0
+
+    required = [
+        "isOperational",
+        "helperInstalled",
+        "helperWorking",
+        "keyPathAccessibility",
+        "keyPathInputMonitoring",
+        "kanataAccessibility",
+        "kanataInputMonitoring",
+        "kanataBinaryInstalled",
+        "karabinerDriverInstalled",
+        "vhidDeviceHealthy",
+        "kanataRunning",
+        "karabinerDaemonRunning",
+        "vhidHealthy",
+    ]
+    failed = [key for key in required if status.get(key) is not True]
+    if failed or not status.get("helperVersion") or not launchd_running:
+        print(
+            "runtime assertion: runtime is not ready; "
+            f"falseOrMissing={failed}, helperVersion={status.get('helperVersion')!r}, "
+            f"launchdRunning={launchd_running!r}",
+            file=sys.stderr,
+        )
+        return 1
+
+    tcp_result = run([tcp_probe])
+    if tcp_result.returncode != 0:
+        print(tcp_result.stderr, file=sys.stderr, end="")
+        return tcp_result.returncode
+    print("runtime_state\tready")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -64,6 +64,30 @@ case "$name" in
     "$installed_cli" system repair --json | tee "$artifact_dir/repair.json"
     "$installed_cli" system inspect --json | tee "$artifact_dir/post-repair.json"
     ;;
+  repair-kanata-service)
+    require_installed_cli
+    state="$artifact_dir/run-state.json"
+    result="$artifact_dir/result.json"
+    plan="$PWD/Scripts/lab/scenarios/plans/repair-kanata-service.json"
+    if [[ ! -f "$state" ]]; then
+      Scripts/lab/assert-runtime-state ready | tee "$artifact_dir/pre-damage-ready.tsv"
+      "$installed_cli" service status --json > "$artifact_dir/pre-damage-status.json"
+      Scripts/lab/damage-kanata-service | tee "$artifact_dir/damage.tsv"
+      "$installed_cli" service status --json > "$artifact_dir/damaged-status.json" || true
+      Scripts/lab/assert-runtime-state degraded | tee "$artifact_dir/damaged-state.tsv"
+    fi
+    Scripts/lab/scenario-runner --plan "$plan" --state "$state" --result "$result"
+    "$installed_cli" service status --json > "$artifact_dir/post-repair-status.json"
+    Scripts/lab/assert-runtime-state ready | tee "$artifact_dir/post-repair-ready.tsv"
+    ;;
+  upgrade-beta3-to-current)
+    plan="$PWD/Scripts/lab/scenarios/plans/upgrade-beta3-to-current.json"
+    state="$artifact_dir/run-state.json"
+    result="$artifact_dir/result.json"
+    Scripts/lab/scenario-runner --plan "$plan" --state "$state" --result "$result"
+    Scripts/lab/assert-app-version 1.0.0 | tee "$artifact_dir/final-version.tsv"
+    /usr/bin/codesign -dvvv /Applications/KeyPath.app > "$artifact_dir/final-signature.txt" 2>&1
+    ;;
   reboot-persistence-before)
     require_installed_cli
     "$installed_cli" system inspect --json > "$artifact_dir/before-reboot.json"
@@ -101,7 +125,7 @@ case "$name" in
     ;;
   *)
     print -u2 "Unknown scenario: $name"
-    print -u2 "Available: clean-install approvals helper-daemon-health managed-capabilities launch repair-reinstall reboot-persistence-before reboot-persistence-after uninstall cancellation-failure failure-ownership-self-test artifact-capture macos-27-regression"
+    print -u2 "Available: clean-install approvals helper-daemon-health managed-capabilities launch repair-reinstall repair-kanata-service upgrade-beta3-to-current reboot-persistence-before reboot-persistence-after uninstall cancellation-failure failure-ownership-self-test artifact-capture macos-27-regression"
     exit 2
     ;;
 esac

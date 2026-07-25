@@ -1,0 +1,36 @@
+#!/bin/zsh
+set -euo pipefail
+
+archive=${1:-}
+expected=${2:-}
+[[ -f "$archive" && ! -L "$archive" && -n "$expected" ]] || {
+  print -u2 "Usage: $0 ARCHIVE EXPECTED_VERSION"
+  exit 2
+}
+
+staging=$(mktemp -d /tmp/keypath-upgrade.XXXXXXXX)
+trap '/bin/rm -rf "$staging"' EXIT
+
+/usr/bin/ditto -x -k "$archive" "$staging"
+app="$staging/KeyPath.app"
+[[ -d "$app" ]] || {
+  print -u2 "artifact install: archive does not contain root KeyPath.app"
+  exit 3
+}
+
+/usr/bin/codesign --verify --deep --strict "$app"
+actual=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")
+[[ "$actual" == "$expected" ]] || {
+  print -u2 "artifact install: expected $expected, found $actual"
+  exit 3
+}
+
+manifest=/Library/KeyPathLab/managed-policy/manifest.json
+if [[ -f "$manifest" ]]; then
+  "$(dirname "$0")/mdm/verify-artifact-policy" --app "$app" --manifest "$manifest"
+fi
+
+/usr/bin/pkill -x KeyPath >/dev/null 2>&1 || true
+/usr/bin/sudo -n /bin/rm -rf /Applications/KeyPath.app
+/usr/bin/sudo -n /usr/bin/ditto "$app" /Applications/KeyPath.app
+"$(dirname "$0")/assert-app-version" "$expected"

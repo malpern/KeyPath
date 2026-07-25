@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "scenario": "upgrade-beta3-to-current",
+  "steps": [
+    {
+      "id": "install-beta3",
+      "action": [
+        "../../../../Scripts/lab/install-keypath-artifact",
+        "../../../../.keypath-lab/fixtures/KeyPath-1.0.0-beta3.zip",
+        "1.0.0-beta3"
+      ],
+      "verify": [
+        "../../../../Scripts/lab/assert-app-version",
+        "1.0.0-beta3"
+      ]
+    },
+    {
+      "id": "upgrade-current",
+      "action": [
+        "../../../../Scripts/lab/install-keypath-artifact",
+        "../../../../.keypath-lab/installer/KeyPath.zip",
+        "1.0.0"
+      ],
+      "verify": [
+        "../../../../Scripts/lab/assert-app-version",
+        "1.0.0"
+      ]
+    }
+  ]
+}

@@ -12,7 +12,7 @@ Usage: Scripts/lab/keypath-lab [--host HOST] <command> [options]
 
 Commands:
   preflight
-  create --macos 15|26|27 --lane managed-functional|unmanaged-ui --commit SHA --installer PATH [--ttl 2h] [--desktop] [--tart-usb-passthrough]
+  create --macos 15|26|27 --lane managed-functional|unmanaged-ui --commit SHA --installer PATH [--fixture PATH] [--ttl 2h] [--desktop] [--tart-usb-passthrough]
   install-app LEASE_ID
   console-login LEASE_ID
   verify-console-login LEASE_ID
@@ -87,6 +87,7 @@ case "$command" in
         lane=
         commit=
         installer=
+        fixture=
         ttl=2h
         desktop=0
         tart_usb_passthrough=0
@@ -96,6 +97,7 @@ case "$command" in
                 --lane) lane=${2:-}; shift 2 ;;
                 --commit) commit=${2:-}; shift 2 ;;
                 --installer) installer=${2:-}; shift 2 ;;
+                --fixture) fixture=${2:-}; shift 2 ;;
                 --ttl) ttl=${2:-}; shift 2 ;;
                 --desktop) desktop=1; shift ;;
                 --tart-usb-passthrough) tart_usb_passthrough=1; shift ;;
@@ -108,6 +110,7 @@ case "$command" in
         [[ $tart_usb_passthrough == "0" || $macos == "15" ]] || die "--tart-usb-passthrough requires --macos 15"
         [[ $commit =~ ^[0-9a-fA-F]{40}$ ]] || die "--commit must be a full 40-character SHA"
         [[ -f $installer ]] || die "installer not found: $installer"
+        [[ -z $fixture || -f $fixture ]] || die "fixture not found: $fixture"
         resolved=$(git -C "$REPO_ROOT" rev-parse --verify "$commit^{commit}")
         [[ $resolved == "$commit" ]] || die "commit does not resolve exactly: $commit"
 
@@ -120,6 +123,15 @@ case "$command" in
         installer_name=$(basename "$installer")
         [[ $installer_name =~ ^[A-Za-z0-9._-]+$ ]] || die "installer filename must contain only letters, numbers, dots, underscores, and dashes"
         cp "$installer" "$temp_dir/repo/.keypath-lab/installer/$installer_name"
+        fixture_name=
+        fixture_sha=
+        if [[ -n $fixture ]]; then
+            fixture_name=$(basename "$fixture")
+            [[ $fixture_name =~ ^[A-Za-z0-9._-]+$ ]] || die "fixture filename must contain only letters, numbers, dots, underscores, and dashes"
+            fixture_sha=$(shasum -a 256 "$fixture" | awk '{print $1}')
+            mkdir -p "$temp_dir/repo/.keypath-lab/fixtures"
+            cp "$fixture" "$temp_dir/repo/.keypath-lab/fixtures/$fixture_name"
+        fi
         if [[ $lane == "managed-functional" ]]; then
             mkdir -p "$temp_dir/installer-extract"
             /usr/bin/ditto -x -k "$installer" "$temp_dir/installer-extract"
@@ -132,6 +144,8 @@ case "$command" in
 keypath_commit	$commit
 installer_name	$installer_name
 installer_sha256	$installer_sha
+fixture_name	$fixture_name
+fixture_sha256	$fixture_sha
 EOF
         tar -czf "$temp_dir/archive.tgz" -C "$temp_dir" repo
 
