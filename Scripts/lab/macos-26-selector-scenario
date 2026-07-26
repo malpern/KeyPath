@@ -22,6 +22,15 @@ sleep_bin=${KEYPATH_SELECTOR_SLEEP:-/bin/sleep}
 url='x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
 readiness="$output/accessibility-readiness.json"
 
+contains_any() {
+  local file=$1 needle
+  shift
+  for needle in "$@"; do
+    /usr/bin/grep -Fq "$needle" "$file" && return 0
+  done
+  return 1
+}
+
 mkdir -p "$output"
 "$osascript_bin" -e 'tell application "System Settings" to quit' >/dev/null 2>&1 || true
 "$sleep_bin" 1
@@ -35,9 +44,9 @@ done
 ready=0
 for attempt in {1..15}; do
   if "$peekaboo" snapshot --app "System Settings" --output "$readiness" >/dev/null 2>&1 \
-      && /usr/bin/grep -Fq 'com.apple.settings.accessibility' "$readiness" \
       && /usr/bin/grep -Fq 'Allow the applications below to control your computer.' "$readiness" \
-      && /usr/bin/grep -Fq 'Peekaboo Lab Host' "$readiness"; then
+      && contains_any "$readiness" 'com.apple.settings.accessibility' 'com.apple.Accessibility-Settings.extension' \
+      && contains_any "$readiness" 'Peekaboo Lab Host' 'peekaboo_Title'; then
     ready=1
     break
   fi
@@ -47,6 +56,6 @@ done
 exec "$driver" \
   --output "$output" \
   --scenario macos-26-selector-probe \
-  --expect com.apple.settings.accessibility \
+  --expect-any 'com.apple.settings.accessibility|com.apple.Accessibility-Settings.extension' \
   --expect 'Allow the applications below to control your computer.' \
-  --expect 'Peekaboo Lab Host'
+  --expect-any 'Peekaboo Lab Host|peekaboo_Title'
