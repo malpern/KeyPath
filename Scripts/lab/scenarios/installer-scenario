@@ -338,7 +338,22 @@ case "$name" in
     "$installed_cli" system inspect --json > "$artifact_dir/system-inspect.json"
     /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
     capture_app_identity "$artifact_dir/app-identity.txt"
-    /usr/bin/pgrep -x KeyPath > "$artifact_dir/keypath-pid.txt"
+    /usr/bin/open -a KeyPath
+    gui_ready=0
+    for _ in {1..40}; do
+      if /usr/bin/pgrep -x KeyPath > "$artifact_dir/keypath-pid.txt"; then
+        gui_ready=1
+        break
+      fi
+      sleep 0.25
+    done
+    if (( gui_ready == 0 )); then
+      record_scenario_result failed \
+        "The installed KeyPath GUI did not launch for the cancellation checkpoint." \
+        --classification keypath-product-failure --step cancellation-gui-launch \
+        --evidence ready.tsv --evidence app-identity.txt
+      exit 1
+    fi
     config_sentinel="$HOME/.config/keypath/.keypath-lab-preserve"
     if [[ ! -f "$config_sentinel" ]]; then
       mkdir -p "${config_sentinel:h}"
