@@ -1413,7 +1413,7 @@ JXA
 }
 
 input_monitoring_rows() {
-  local lease=$1 manifest resource key ip guest_script guest_command
+  local lease=$1 manifest resource key ip guest_script guest_command open_command
   manifest=$(owned_manifest "$lease")
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
     print -r -- "${KEYPATH_LAB_TEST_INPUT_MONITORING_ROWS:-$'Kanata Engine\t0\t402\t247\nkanata-launcher\t0\t402\t289\nKeyPath\t0\t402\t331'}"
@@ -1444,16 +1444,9 @@ function descendants(element) {
   return result;
 }
 function run() {
-  var keyPath = Application("KeyPath");
-  if (keyPath.running()) keyPath.quit();
-  delay(0.5);
-  var current = Application.currentApplication();
-  current.includeStandardAdditions = true;
-  current.doShellScript("/usr/bin/open 'x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent'");
-  delay(1);
   Application("System Settings").activate();
-  delay(0.5);
   var process = Application("System Events").processes.byName("System Settings");
+  for (var attempt = 0; attempt < 20 && (!process.exists() || process.windows().length === 0); attempt++) delay(0.25);
   if (!process.exists() || process.windows().length === 0) throw new Error("System Settings is unavailable");
   var window = process.windows[0];
   if (window.name() !== "Input Monitoring") throw new Error("Input Monitoring page did not open");
@@ -1477,6 +1470,10 @@ function run() {
   }).join("\n");
 }
 JXA
+  guest_command="/usr/bin/killall -TERM KeyPath >/dev/null 2>&1 || true"
+  "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")"
+  open_command="/usr/bin/open 'x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent'"
+  "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$open_command")" >/dev/null
   guest_command="/usr/bin/osascript -l JavaScript -e $(printf %q "$guest_script")"
   "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")"
 }
