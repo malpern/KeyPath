@@ -275,6 +275,7 @@ grep -Fq 'Reboot persistence requires an independently ready runtime baseline.' 
 grep -Fq 'The boot marker did not change; no guest reboot was proven.' "$LAB_DIR/scenarios/installer-scenario"
 grep -Fq 'KeyPath app identity changed across the guest reboot.' "$LAB_DIR/scenarios/installer-scenario"
 grep -Fq 'KEYPATH_LAB_REBOOT_READY_TIMEOUT_SECONDS' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'run_bounded 10 /usr/bin/osascript' "$LAB_DIR/desktop-bootstrap"
 grep -Fq 'ready-attempts.tsv' "$LAB_DIR/scenarios/installer-scenario"
 grep -Fq 'did not converge after the bounded reboot recovery window.' "$LAB_DIR/scenarios/installer-scenario"
 grep -Fq 'Cancellation recovery requires an independently ready runtime baseline.' "$LAB_DIR/scenarios/installer-scenario"

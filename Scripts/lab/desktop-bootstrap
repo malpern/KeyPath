@@ -28,6 +28,27 @@ download_verified() {
   [[ "$actual" == "$expected" ]] || die "checksum mismatch for ${url:t}"
 }
 
+run_bounded() {
+  local timeout_seconds=$1
+  shift
+  local pid status=0 elapsed=0
+  [[ "$timeout_seconds" == <-> && "$timeout_seconds" -gt 0 ]] ||
+    die "invalid command timeout: $timeout_seconds"
+  "$@" &
+  pid=$!
+  while /bin/kill -0 "$pid" >/dev/null 2>&1; do
+    if (( elapsed >= timeout_seconds * 10 )); then
+      /bin/kill -TERM "$pid" >/dev/null 2>&1 || true
+      wait "$pid" >/dev/null 2>&1 || true
+      return 124
+    fi
+    sleep 0.1
+    (( elapsed += 1 ))
+  done
+  wait "$pid" || status=$?
+  return "$status"
+}
+
 install_desktop_tools() {
   local temp local_bin local_lib peekaboo_home host_app host_contents host_executable
   local host_launcher_source host_launcher_sha launch_agents host_launch_agent
@@ -177,7 +198,7 @@ sleep 2
 # The first capture can display macOS's private-picker bypass consent sheet.
 initial_capture_result=0
 "$peekaboo_bin" see --app "System Settings" --json > "$output/initial-desktop.json" || initial_capture_result=$?
-capture_prompt=$(/usr/bin/osascript -l JavaScript -e '
+capture_prompt=$(run_bounded 10 /usr/bin/osascript -l JavaScript -e '
 function run() {
   var systemEvents = Application("System Events");
   var full = systemEvents.processes.whose({name: "NotificationCenter"})();
