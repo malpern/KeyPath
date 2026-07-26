@@ -346,6 +346,8 @@ publish_checksum=$(shasum -a 256 "$LAB_DIR/scenarios/installer-scenario" | awk '
 publish_key="$publish_commit-$publish_checksum"
 mkdir -p "$TMP/upload/repo/.keypath-lab/installer"
 cp "$LAB_DIR/scenarios/installer-scenario" "$TMP/upload/repo/.keypath-lab/installer/installer.zip"
+printf 'keypath_commit\t%s\ninstaller_name\tinstaller.zip\ninstaller_sha256\t%s\n' \
+    "$publish_commit" "$publish_checksum" > "$TMP/upload/repo/.keypath-lab/source.tsv"
 printf '.keypath-lab/\n' > "$TMP/upload/repo/.gitignore"
 for pass in 1 2; do
     ticket=$(run_remote prepare-upload "$publish_key")
@@ -403,7 +405,8 @@ chmod +x "$repo/Scripts/lab/nameplate-instrumentation"
 chmod +x "$repo/Scripts/lab/mdm/publish-managed-profiles"
 echo installer > "$repo/.keypath-lab/installer/KeyPath.zip"
 echo older-installer > "$repo/.keypath-lab/fixtures/KeyPath-beta3.zip"
-printf 'fixture_name\tKeyPath-beta3.zip\n' > "$repo/.keypath-lab/source.tsv"
+fixture_checksum=$(shasum -a 256 "$repo/.keypath-lab/fixtures/KeyPath-beta3.zip" | awk '{print $1}')
+printf 'fixture_name\tKeyPath-beta3.zip\nfixture_sha256\t%s\n' "$fixture_checksum" > "$repo/.keypath-lab/source.tsv"
 mkdir -p "$ROOT/KeyPathInstallerLab/managed-identities"
 printf '%s\n' '15151515-1515-1515-1515-151515151515' \
     > "$ROOT/KeyPathInstallerLab/managed-identities/keypath-macos-15-managed.enrollment-id"
@@ -417,6 +420,19 @@ git -C "$repo" commit -qm fixture
 cat > "$ROOT/KeyPathInstallerLab/archives/$archive_key/ready.tsv" <<EOF
 owner	keypath-installer-lab-v1
 EOF
+
+fixture_archive=$(run_remote find-fixture-archive "$fixture_checksum" KeyPath-beta3.zip)
+assert_contains "$fixture_archive" $'fixture_archive\t'"$archive_key"
+fixture_derived_key="$derived_key-$fixture_checksum"
+for pass in 1 2; do
+    fixture_derived=$(run_remote derive-fixture-archive "$derived_key" "$archive_key" "$fixture_derived_key" "$publish_commit" "$publish_checksum" installer.zip "$harness_commit" "$fixture_checksum" KeyPath-beta3.zip)
+    if [[ $pass == 1 ]]; then assert_contains "$fixture_derived" $'archive\tfixture-derived'; else assert_contains "$fixture_derived" $'archive\treused'; fi
+done
+fixture_derived_root="$ROOT/KeyPathInstallerLab/archives/$fixture_derived_key"
+[[ $(shasum -a 256 "$fixture_derived_root/repo/.keypath-lab/fixtures/KeyPath-beta3.zip" | awk '{print $1}') == "$fixture_checksum" ]]
+grep -q $'^fixture_sha256\t'"$fixture_checksum" "$fixture_derived_root/ready.tsv"
+grep -q $'^fixture_derived_from\t'"$archive_key" "$fixture_derived_root/ready.tsv"
+git -C "$fixture_derived_root/repo" ls-files --error-unmatch .keypath-lab/fixtures/KeyPath-beta3.zip >/dev/null
 
 commit=$(printf 'a%.0s' {1..40})
 checksum=$(printf 'b%.0s' {1..64})

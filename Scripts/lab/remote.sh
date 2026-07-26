@@ -89,7 +89,8 @@ field() {
 }
 
 set_field() {
-  local manifest=$1 key=$2 value=$3 temp="${manifest}.tmp.$$"
+  local manifest=$1 key=$2 value=$3
+  local temp="${manifest}.tmp.$$"
   awk -F '\t' -v key="$key" -v value="$value" 'BEGIN {OFS="\t"} $1 == key {$0=key OFS value; found=1} {print} END {if (!found) print key, value}' "$manifest" > "$temp"
   mv "$temp" "$manifest"
 }
@@ -734,6 +735,102 @@ derive_archive() {
   mv "$staging" "$destination"
   rmdir "$lock"
   print "archive\tderived\t$key"
+}
+
+find_fixture_archive() {
+  local fixture_sha=$1 fixture_name=$2 candidate source key actual_sha
+  [[ "$fixture_sha" =~ '^[0-9a-f]{64}$' ]] || die "invalid fixture checksum"
+  [[ "$fixture_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid fixture name"
+  ensure_roots
+  for candidate in "$ARCHIVES"/*(/N); do
+    source="$candidate/repo/.keypath-lab/source.tsv"
+    [[ -f "$candidate/ready.tsv" && -f "$source" ]] || continue
+    [[ "$(field "$candidate/ready.tsv" owner)" == "$OWNER" ]] || continue
+    [[ "$(field "$source" fixture_name)" == "$fixture_name" ]] || continue
+    [[ "$(field "$source" fixture_sha256)" == "$fixture_sha" ]] || continue
+    [[ -f "$candidate/repo/.keypath-lab/fixtures/$fixture_name" && ! -L "$candidate/repo/.keypath-lab/fixtures/$fixture_name" ]] || continue
+    actual_sha=$(shasum -a 256 "$candidate/repo/.keypath-lab/fixtures/$fixture_name" | awk '{print $1}')
+    [[ "$actual_sha" == "$fixture_sha" ]] || continue
+    key=${candidate:t}
+    valid_archive_key "$key"
+    print "fixture_archive\t$key"
+    return 0
+  done
+  return 1
+}
+
+derive_fixture_archive() {
+  local source_key=$1 fixture_source_key=$2 key=$3 commit=$4 installer_sha=$5 installer_name=$6
+  local harness_commit=$7 fixture_sha=$8 fixture_name=$9
+  local source="$ARCHIVES/$source_key" fixture_source="$ARCHIVES/$fixture_source_key" destination="$ARCHIVES/$key"
+  local staging="$ARCHIVES/.staging-$key-$$" lock="$ARCHIVES/.lock-$key" attempt actual_sha fixture_path source_metadata
+  valid_archive_key "$source_key"
+  valid_archive_key "$fixture_source_key"
+  valid_archive_key "$key"
+  [[ "$commit" =~ '^[0-9a-f]{40}$' ]] || die "invalid commit SHA"
+  [[ "$installer_sha" =~ '^[0-9a-f]{64}$' ]] || die "invalid installer checksum"
+  [[ "$installer_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid installer name"
+  [[ "$harness_commit" =~ '^[0-9a-f]{40}$' ]] || die "invalid harness commit"
+  [[ "$fixture_sha" =~ '^[0-9a-f]{64}$' ]] || die "invalid fixture checksum"
+  [[ "$fixture_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid fixture name"
+  [[ "$key" == "$source_key-$fixture_sha" ]] || die "fixture-derived archive key does not match its source and checksum"
+  ensure_roots
+  [[ -f "$source/ready.tsv" && -d "$source/repo/.git" ]] || die "candidate archive is unavailable"
+  [[ "$(field "$source/ready.tsv" owner)" == "$OWNER" ]] || die "candidate archive ownership mismatch"
+  [[ "$(field "$source/ready.tsv" keypath_commit)" == "$commit" ]] || die "candidate archive commit mismatch"
+  [[ "$(field "$source/ready.tsv" installer_sha256)" == "$installer_sha" ]] || die "candidate archive installer mismatch"
+  [[ "$(field "$source/ready.tsv" harness_commit)" == "$harness_commit" ]] || die "candidate archive harness mismatch"
+  source_metadata="$fixture_source/repo/.keypath-lab/source.tsv"
+  fixture_path="$fixture_source/repo/.keypath-lab/fixtures/$fixture_name"
+  [[ -f "$fixture_source/ready.tsv" && "$(field "$fixture_source/ready.tsv" owner)" == "$OWNER" ]] || die "fixture archive ownership mismatch"
+  [[ -f "$source_metadata" && "$(field "$source_metadata" fixture_name)" == "$fixture_name" ]] || die "fixture archive name mismatch"
+  [[ "$(field "$source_metadata" fixture_sha256)" == "$fixture_sha" ]] || die "fixture archive metadata checksum mismatch"
+  [[ -f "$fixture_path" && ! -L "$fixture_path" ]] || die "fixture archive payload is unavailable"
+  actual_sha=$(shasum -a 256 "$fixture_path" | awk '{print $1}')
+  [[ "$actual_sha" == "$fixture_sha" ]] || die "fixture archive payload checksum mismatch"
+  if [[ -f "$destination/ready.tsv" ]]; then
+    [[ "$(field "$destination/ready.tsv" fixture_sha256)" == "$fixture_sha" ]] || die "fixture-derived archive checksum mismatch"
+    print "archive\treused\t$key"
+    return
+  fi
+  if ! mkdir "$lock" 2>/dev/null; then
+    for attempt in {1..100}; do
+      [[ -f "$destination/ready.tsv" ]] && { print "archive\treused\t$key"; return; }
+      sleep 0.1
+    done
+    die "timed out waiting for concurrent fixture-derived archive publish: $key"
+  fi
+  git clone -q --no-hardlinks "$source/repo" "$staging/repo"
+  mkdir -p "$staging/repo/.keypath-lab/fixtures"
+  cp "$fixture_path" "$staging/repo/.keypath-lab/fixtures/$fixture_name"
+  set_field "$staging/repo/.keypath-lab/source.tsv" fixture_name "$fixture_name"
+  set_field "$staging/repo/.keypath-lab/source.tsv" fixture_sha256 "$fixture_sha"
+  git -C "$staging/repo" config user.name "KeyPath Lab"
+  git -C "$staging/repo" config user.email "keypath-lab@localhost"
+  git -C "$staging/repo" add -f .keypath-lab
+  GIT_AUTHOR_DATE=2000-01-01T00:00:00Z GIT_COMMITTER_DATE=2000-01-01T00:00:00Z \
+    git -C "$staging/repo" commit -q -m "KeyPath lab fixture $fixture_sha"
+  [[ -z "$(git -C "$staging/repo" status --porcelain)" ]] || die "fixture-derived archive checkout is dirty"
+  {
+    print "owner\t$OWNER"
+    print "keypath_commit\t$commit"
+    print "harness_commit\t$harness_commit"
+    print "installer_sha256\t$installer_sha"
+    print "installer_name\t$installer_name"
+    print "fixture_sha256\t$fixture_sha"
+    print "fixture_name\t$fixture_name"
+    print "derived_from\t$source_key"
+    print "fixture_derived_from\t$fixture_source_key"
+    print "created_at\t$(utc_now)"
+  } > "$staging/ready.tsv"
+  if [[ -e "$destination" ]]; then
+    rm -rf "$staging"
+    rmdir "$lock"
+    die "fixture-derived archive destination exists without a ready marker: $key"
+  fi
+  mv "$staging" "$destination"
+  rmdir "$lock"
+  print "archive\tfixture-derived\t$key"
 }
 
 write_provisional_lease_manifest() {
@@ -2358,6 +2455,8 @@ case "$action" in
   prepare-upload) [[ $# -eq 1 ]] || die "prepare-upload requires archive key"; prepare_upload "$1" ;;
   install-archive) [[ $# -eq 5 ]] || die "install-archive requires ticket, key, commit, checksum, and name"; install_archive "$@" ;;
   derive-archive) [[ $# -eq 7 ]] || die "derive-archive requires ticket, source key, destination key, commit, checksum, name, and harness commit"; derive_archive "$@" ;;
+  find-fixture-archive) [[ $# -eq 2 ]] || die "find-fixture-archive requires fixture checksum and name"; find_fixture_archive "$@" ;;
+  derive-fixture-archive) [[ $# -eq 9 ]] || die "derive-fixture-archive requires source key, fixture source key, destination key, commit, installer checksum, installer name, harness commit, fixture checksum, and fixture name"; derive_fixture_archive "$@" ;;
   create) [[ $# -eq 8 || $# -eq 9 ]] || die "create requires macOS, test lane, archive, commit, checksum, name, ttl, desktop, and optional Tart USB passthrough"; create_lease "$@" ;;
   install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
   install-runtime) [[ $# -eq 1 ]] || die "install-runtime requires lease"; install_runtime "$1" ;;

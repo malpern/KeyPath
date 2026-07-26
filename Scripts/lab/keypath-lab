@@ -123,8 +123,10 @@ case "$command" in
         installer_sha=$(shasum -a 256 "$installer" | awk '{print $1}')
         installer_name=$(basename "$installer")
         [[ $installer_name =~ ^[A-Za-z0-9._-]+$ ]] || die "installer filename must contain only letters, numbers, dots, underscores, and dashes"
-        base_archive_key="${commit}-${installer_sha}"
-        archive_key="${base_archive_key}-h${harness_commit}"
+        base_product_archive_key="${commit}-${installer_sha}"
+        base_archive_key="$base_product_archive_key"
+        candidate_archive_key="${base_product_archive_key}-h${harness_commit}"
+        archive_key="$candidate_archive_key"
         fixture_name=
         fixture_sha=
         if [[ -n $fixture ]]; then
@@ -140,6 +142,34 @@ case "$command" in
         fi
         temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/keypath-lab.XXXXXX")
         trap 'rm -rf "$temp_dir"' EXIT
+        if [[ -n $fixture ]] && ! remote archive-status "$candidate_archive_key" "$commit" "$installer_sha" "$installer_name" >/dev/null \
+                && remote archive-status "$base_product_archive_key" "$commit" "$installer_sha" "$installer_name" >/dev/null; then
+            mkdir -p "$temp_dir/candidate-overlay"
+            git -C "$REPO_ROOT" archive "$harness_commit" Scripts/lab | tar -x -C "$temp_dir/candidate-overlay"
+            if [[ $lane == "managed-functional" ]]; then
+                mkdir -p "$temp_dir/candidate-installer-extract"
+                /usr/bin/ditto -x -k "$installer" "$temp_dir/candidate-installer-extract"
+                [[ -d $temp_dir/candidate-installer-extract/KeyPath.app ]] || die "managed installer must contain KeyPath.app at its root"
+                "$SCRIPT_DIR/mdm/generate-keypath-profiles" \
+                    --app "$temp_dir/candidate-installer-extract/KeyPath.app" \
+                    --output "$temp_dir/candidate-overlay/.keypath-lab/managed-policy" >/dev/null
+            fi
+            tar -czf "$temp_dir/candidate-overlay.tgz" -C "$temp_dir/candidate-overlay" .
+            upload_ticket=$(remote prepare-upload "$candidate_archive_key")
+            [[ $upload_ticket == /tmp/keypath-lab.* ]] || die "host returned an invalid upload ticket"
+            scp -q "$temp_dir/candidate-overlay.tgz" "$host:$upload_ticket"
+            remote derive-archive "$upload_ticket" "$base_product_archive_key" "$candidate_archive_key" "$commit" "$installer_sha" "$installer_name" "$harness_commit"
+        fi
+        if [[ -n $fixture ]] && remote archive-status "$candidate_archive_key" "$commit" "$installer_sha" "$installer_name" >/dev/null; then
+            fixture_archive_output=$(remote find-fixture-archive "$fixture_sha" "$fixture_name" || true)
+            fixture_source_key=$(printf '%s\n' "$fixture_archive_output" | awk -F '\t' '$1 == "fixture_archive" {print $2; exit}')
+            if [[ $fixture_source_key =~ ^[A-Za-z0-9._-]+$ ]]; then
+                remote derive-fixture-archive "$candidate_archive_key" "$fixture_source_key" "$archive_key" \
+                    "$commit" "$installer_sha" "$installer_name" "$harness_commit" "$fixture_sha" "$fixture_name"
+                remote create "$macos" "$lane" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$ttl" "$desktop" "$tart_usb_passthrough"
+                exit $?
+            fi
+        fi
         if remote archive-status "$base_archive_key" "$commit" "$installer_sha" "$installer_name"; then
             mkdir -p "$temp_dir/overlay"
             git -C "$REPO_ROOT" archive "$harness_commit" Scripts/lab | tar -x -C "$temp_dir/overlay"
