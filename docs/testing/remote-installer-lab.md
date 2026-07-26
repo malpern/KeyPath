@@ -80,6 +80,13 @@ immutable payload, and atomically initializes a clean synthetic archive on the
 external lab volume. The archive key includes both commits, so a harness change
 cannot silently reuse or mutate an older product-and-installer cache. Each lease
 receives its own clean checkout cloned from that archive.
+
+When the exact product-and-installer archive already exists, a harness-only
+change is derived on the mini: the controller uploads only the committed
+`Scripts/lab` overlay (and regenerated exact managed policy when needed), while
+the mini clones the verified product cache without hard links and publishes a
+new harness-qualified archive atomically. This avoids retransferring the signed
+product payload while keeping every resulting archive immutable and auditable.
 CrabBox's claim therefore binds one disposable lease to one stable repository
 root, and every run, download, and destructive stop executes from that exact
 claimed checkout. The interface refuses to sync if Git reports tracked or

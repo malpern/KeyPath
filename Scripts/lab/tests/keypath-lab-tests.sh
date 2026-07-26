@@ -347,6 +347,27 @@ if find "$ROOT/KeyPathInstallerLab/archives" -maxdepth 1 -name ".staging-$publis
     exit 1
 fi
 
+harness_commit=$(printf 'd%.0s' {1..40})
+derived_key="$publish_key-h$harness_commit"
+mkdir -p "$TMP/overlay/Scripts/lab" "$TMP/overlay/.keypath-lab/managed-policy"
+echo hardened > "$TMP/overlay/Scripts/lab/harness-version"
+echo managed > "$TMP/overlay/.keypath-lab/managed-policy/manifest.json"
+for pass in 1 2; do
+    ticket=$(run_remote prepare-upload "$derived_key")
+    tar -czf "$ticket" -C "$TMP/overlay" .
+    derived=$(run_remote derive-archive "$ticket" "$publish_key" "$derived_key" "$publish_commit" "$publish_checksum" installer.zip "$harness_commit")
+    if [[ $pass == 1 ]]; then assert_contains "$derived" $'archive\tderived'; else assert_contains "$derived" $'archive\treused'; fi
+done
+derived_root="$ROOT/KeyPathInstallerLab/archives/$derived_key"
+grep -q '^hardened$' "$derived_root/repo/Scripts/lab/harness-version"
+grep -q $'^harness_commit\t'"$harness_commit" "$derived_root/ready.tsv"
+grep -q $'^derived_from\t'"$publish_key" "$derived_root/ready.tsv"
+[[ $(shasum -a 256 "$derived_root/repo/.keypath-lab/installer/installer.zip" | awk '{print $1}') == "$publish_checksum" ]]
+if find "$ROOT/KeyPathInstallerLab/archives" -maxdepth 1 -name ".staging-$derived_key-*" | grep -q .; then
+    echo "derived archive publish left a staging directory" >&2
+    exit 1
+fi
+
 archive_key="$(printf 'a%.0s' {1..40})-$(printf 'b%.0s' {1..64})"
 repo="$ROOT/KeyPathInstallerLab/archives/$archive_key/repo"
 mkdir -p "$repo/.keypath-lab/installer" "$repo/.keypath-lab/fixtures" "$repo/Scripts/lab/scenarios" "$repo/Scripts/lab/mdm"

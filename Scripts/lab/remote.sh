@@ -44,6 +44,11 @@ valid_id() {
   [[ "$1" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid identifier: $1"
 }
 
+valid_archive_key() {
+  valid_id "$1"
+  [[ "$1" =~ '^[0-9a-f]{40}-[0-9a-f]{64}(-h[0-9a-f]{40})?(-[0-9a-f]{64})?$' ]] || die "invalid archive key"
+}
+
 launcher_for() {
   case "$1" in
     15) print -r -- "$LAUNCHER_15" ;;
@@ -577,14 +582,13 @@ preflight() {
 }
 
 prepare_upload() {
-  valid_id "$1"
-  [[ "$1" =~ '^[0-9a-f]{40}-[0-9a-f]{64}(-h[0-9a-f]{40})?(-[0-9a-f]{64})?$' ]] || die "invalid archive key"
+  valid_archive_key "$1"
   mktemp "/tmp/keypath-lab.XXXXXXXX"
 }
 
 archive_status() {
   local key=$1 commit=$2 installer_sha=$3 installer_name=$4 destination ready
-  valid_id "$key"
+  valid_archive_key "$key"
   [[ "$commit" =~ '^[0-9a-f]{40}$' ]] || die "invalid commit SHA"
   [[ "$installer_sha" =~ '^[0-9a-f]{64}$' ]] || die "invalid installer checksum"
   [[ "$installer_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid installer name"
@@ -602,7 +606,7 @@ install_archive() {
   local source=$1 key=$2 commit=$3 installer_sha=$4 installer_name=$5
   [[ "$source" =~ '^/tmp/keypath-lab\.[A-Za-z0-9]+$' ]] || die "invalid upload ticket"
   [[ -f "$source" && ! -L "$source" && -O "$source" ]] || die "upload ticket is not an owned regular file"
-  valid_id "$key"
+  valid_archive_key "$key"
   [[ "$commit" =~ '^[0-9a-f]{40}$' ]] || die "invalid commit SHA"
   [[ "$installer_sha" =~ '^[0-9a-f]{64}$' ]] || die "invalid installer checksum"
   [[ "$installer_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid installer name"
@@ -670,6 +674,68 @@ install_archive() {
   print "archive\tcreated\t$key"
 }
 
+derive_archive() {
+  local overlay=$1 source_key=$2 key=$3 commit=$4 installer_sha=$5 installer_name=$6 harness_commit=$7
+  [[ "$overlay" =~ '^/tmp/keypath-lab\.[A-Za-z0-9]+$' ]] || die "invalid upload ticket"
+  [[ -f "$overlay" && ! -L "$overlay" && -O "$overlay" ]] || die "upload ticket is not an owned regular file"
+  valid_archive_key "$source_key"
+  valid_archive_key "$key"
+  [[ "$commit" =~ '^[0-9a-f]{40}$' ]] || die "invalid commit SHA"
+  [[ "$installer_sha" =~ '^[0-9a-f]{64}$' ]] || die "invalid installer checksum"
+  [[ "$installer_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid installer name"
+  [[ "$harness_commit" =~ '^[0-9a-f]{40}$' ]] || die "invalid harness commit"
+  ensure_roots
+  local source="$ARCHIVES/$source_key" destination="$ARCHIVES/$key"
+  local staging="$ARCHIVES/.staging-$key-$$" lock="$ARCHIVES/.lock-$key" attempt actual_sha
+  [[ -f "$source/ready.tsv" && -d "$source/repo/.git" ]] || die "source archive is unavailable"
+  [[ "$(field "$source/ready.tsv" owner)" == "$OWNER" ]] || die "source archive ownership mismatch"
+  [[ "$(field "$source/ready.tsv" keypath_commit)" == "$commit" ]] || die "source archive commit mismatch"
+  [[ "$(field "$source/ready.tsv" installer_sha256)" == "$installer_sha" ]] || die "source archive installer mismatch"
+  if [[ -f "$destination/ready.tsv" ]]; then
+    rm -f "$overlay"
+    print "archive\treused\t$key"
+    return
+  fi
+  if ! mkdir "$lock" 2>/dev/null; then
+    rm -f "$overlay"
+    for attempt in {1..100}; do
+      [[ -f "$destination/ready.tsv" ]] && { print "archive\treused\t$key"; return; }
+      sleep 0.1
+    done
+    die "timed out waiting for concurrent derived archive publish: $key"
+  fi
+  git clone -q --no-hardlinks "$source/repo" "$staging/repo"
+  rm -rf "$staging/repo/Scripts/lab"
+  tar -xzf "$overlay" -C "$staging/repo"
+  rm -f "$overlay"
+  actual_sha=$(shasum -a 256 "$staging/repo/.keypath-lab/installer/$installer_name" | awk '{print $1}')
+  [[ "$actual_sha" == "$installer_sha" ]] || die "derived archive installer checksum mismatch"
+  git -C "$staging/repo" config user.name "KeyPath Lab"
+  git -C "$staging/repo" config user.email "keypath-lab@localhost"
+  git -C "$staging/repo" add -A
+  git -C "$staging/repo" add -f .keypath-lab
+  GIT_AUTHOR_DATE=2000-01-01T00:00:00Z GIT_COMMITTER_DATE=2000-01-01T00:00:00Z \
+    git -C "$staging/repo" commit -q -m "KeyPath lab harness $harness_commit"
+  [[ -z "$(git -C "$staging/repo" status --porcelain)" ]] || die "derived archive checkout is dirty"
+  {
+    print "owner\t$OWNER"
+    print "keypath_commit\t$commit"
+    print "harness_commit\t$harness_commit"
+    print "installer_sha256\t$installer_sha"
+    print "installer_name\t$installer_name"
+    print "derived_from\t$source_key"
+    print "created_at\t$(utc_now)"
+  } > "$staging/ready.tsv"
+  if [[ -e "$destination" ]]; then
+    rm -rf "$staging"
+    rmdir "$lock"
+    die "derived archive destination exists without a ready marker: $key"
+  fi
+  mv "$staging" "$destination"
+  rmdir "$lock"
+  print "archive\tderived\t$key"
+}
+
 write_provisional_lease_manifest() {
   local lease=$1 slug=$2 macos=$3 lane=$4 provider=$5 archive_key=$6 commit=$7 installer_sha=$8 installer_name=$9 repo=${10} created=${11} expires=${12} desktop=${13}
   local manifest identity_scope
@@ -729,7 +795,7 @@ create_lease() {
   if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" && "$macos" == "15" && "$lane" == "managed-functional" ]]; then
     desktop=1
   fi
-  valid_id "$archive_key"
+  valid_archive_key "$archive_key"
   archive="$ARCHIVES/$archive_key"
   [[ -f "$archive/ready.tsv" && -d "$archive/repo/.git" ]] || die "prepared archive not found: $archive_key"
   ttl_seconds=$(duration_seconds "$ttl")
@@ -2101,6 +2167,7 @@ case "$action" in
   archive-status) [[ $# -eq 4 ]] || die "archive-status requires key, commit, checksum, and name"; archive_status "$@" ;;
   prepare-upload) [[ $# -eq 1 ]] || die "prepare-upload requires archive key"; prepare_upload "$1" ;;
   install-archive) [[ $# -eq 5 ]] || die "install-archive requires ticket, key, commit, checksum, and name"; install_archive "$@" ;;
+  derive-archive) [[ $# -eq 7 ]] || die "derive-archive requires ticket, source key, destination key, commit, checksum, name, and harness commit"; derive_archive "$@" ;;
   create) [[ $# -eq 8 || $# -eq 9 ]] || die "create requires macOS, test lane, archive, commit, checksum, name, ttl, desktop, and optional Tart USB passthrough"; create_lease "$@" ;;
   install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
   install-runtime) [[ $# -eq 1 ]] || die "install-runtime requires lease"; install_runtime "$1" ;;

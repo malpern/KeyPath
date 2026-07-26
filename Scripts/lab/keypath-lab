@@ -121,13 +121,15 @@ case "$command" in
         installer_sha=$(shasum -a 256 "$installer" | awk '{print $1}')
         installer_name=$(basename "$installer")
         [[ $installer_name =~ ^[A-Za-z0-9._-]+$ ]] || die "installer filename must contain only letters, numbers, dots, underscores, and dashes"
-        archive_key="${commit}-${installer_sha}-h${harness_commit}"
+        base_archive_key="${commit}-${installer_sha}"
+        archive_key="${base_archive_key}-h${harness_commit}"
         fixture_name=
         fixture_sha=
         if [[ -n $fixture ]]; then
             fixture_name=$(basename "$fixture")
             [[ $fixture_name =~ ^[A-Za-z0-9._-]+$ ]] || die "fixture filename must contain only letters, numbers, dots, underscores, and dashes"
             fixture_sha=$(shasum -a 256 "$fixture" | awk '{print $1}')
+            base_archive_key="${base_archive_key}-${fixture_sha}"
             archive_key="${archive_key}-${fixture_sha}"
         fi
         if remote archive-status "$archive_key" "$commit" "$installer_sha" "$installer_name"; then
@@ -136,6 +138,25 @@ case "$command" in
         fi
         temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/keypath-lab.XXXXXX")
         trap 'rm -rf "$temp_dir"' EXIT
+        if remote archive-status "$base_archive_key" "$commit" "$installer_sha" "$installer_name"; then
+            mkdir -p "$temp_dir/overlay"
+            git -C "$REPO_ROOT" archive "$harness_commit" Scripts/lab | tar -x -C "$temp_dir/overlay"
+            if [[ $lane == "managed-functional" ]]; then
+                mkdir -p "$temp_dir/installer-extract"
+                /usr/bin/ditto -x -k "$installer" "$temp_dir/installer-extract"
+                [[ -d $temp_dir/installer-extract/KeyPath.app ]] || die "managed installer must contain KeyPath.app at its root"
+                "$SCRIPT_DIR/mdm/generate-keypath-profiles" \
+                    --app "$temp_dir/installer-extract/KeyPath.app" \
+                    --output "$temp_dir/overlay/.keypath-lab/managed-policy" >/dev/null
+            fi
+            tar -czf "$temp_dir/overlay.tgz" -C "$temp_dir/overlay" .
+            upload_ticket=$(remote prepare-upload "$archive_key")
+            [[ $upload_ticket == /tmp/keypath-lab.* ]] || die "host returned an invalid upload ticket"
+            scp -q "$temp_dir/overlay.tgz" "$host:$upload_ticket"
+            remote derive-archive "$upload_ticket" "$base_archive_key" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$harness_commit"
+            remote create "$macos" "$lane" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$ttl" "$desktop" "$tart_usb_passthrough"
+            exit $?
+        fi
         mkdir -p "$temp_dir/repo/.keypath-lab/installer"
         git -C "$REPO_ROOT" archive "$commit" | tar -x -C "$temp_dir/repo"
         # Product identity remains pinned to `commit`, while lab-only execution
