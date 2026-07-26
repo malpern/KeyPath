@@ -1,0 +1,236 @@
+#!/usr/bin/env python3
+"""Atomically maintain the live KeyPath matrix campaign state."""
+
+from __future__ import annotations
+
+import argparse
+import datetime
+import fcntl
+import itertools
+import json
+import os
+import pathlib
+import tempfile
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+SEED = ROOT / "docs/testing/keypath-matrix-state.json"
+STATUSES = ("idle", "queued", "running", "waiting", "passed", "failed", "blocked")
+FACTOR_KEYS = ("platform", "lane", "family", "boundary", "evidence")
+
+
+def timestamp() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).astimezone().isoformat(timespec="seconds")
+
+
+def clock() -> str:
+    return datetime.datetime.now().astimezone().strftime("%H:%M")
+
+
+def load(path: pathlib.Path) -> dict:
+    source = path if path.exists() else SEED
+    return json.loads(source.read_text())
+
+
+def write(path: pathlib.Path, state: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "w") as handle:
+            json.dump(state, handle, indent=2)
+            handle.write("\n")
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def factor_pairs(job: dict) -> set[tuple[str, str, str, str]]:
+    factors = job.get("factors", {})
+    if any(key not in factors for key in FACTOR_KEYS):
+        return set()
+    return {
+        (left, str(factors[left]), right, str(factors[right]))
+        for left, right in itertools.combinations(FACTOR_KEYS, 2)
+    }
+
+
+def recompute(state: dict) -> None:
+    jobs = state.get("jobs", [])
+    by_id = {job["id"]: job for job in jobs}
+    completed = [job for job in jobs if job.get("status") == "passed"]
+    campaign = state.setdefault("campaign", {})
+    campaign["completedJobs"] = len(completed)
+    campaign["totalJobs"] = len(jobs)
+    campaign["progress"] = round(sum(float(job.get("progress", 0)) for job in jobs) / len(jobs)) if jobs else 0
+    covered: set[tuple[str, str, str, str]] = set()
+    for job in completed:
+        covered |= factor_pairs(job)
+    campaign["pairsCovered"] = len(covered)
+    active_wave = 0
+    for wave in state.get("waves", []):
+        statuses = [by_id[job_id].get("status", "queued") for job_id in wave.get("jobs", []) if job_id in by_id]
+        if statuses and all(status == "passed" for status in statuses):
+            wave["status"] = "passed"
+        elif any(status in ("failed", "blocked") for status in statuses):
+            wave["status"] = "failed"
+        elif any(status == "waiting" for status in statuses):
+            wave["status"] = "waiting"
+            active_wave = active_wave or wave["number"]
+        elif any(status == "running" for status in statuses):
+            wave["status"] = "running"
+            active_wave = active_wave or wave["number"]
+        else:
+            wave["status"] = "queued"
+    campaign["currentWave"] = active_wave or sum(1 for wave in state.get("waves", []) if wave.get("status") == "passed")
+    if campaign.get("startedAt"):
+        start = datetime.datetime.fromisoformat(campaign["startedAt"])
+        campaign["elapsedSeconds"] = max(0, int((datetime.datetime.now(datetime.timezone.utc).astimezone() - start).total_seconds()))
+    state["updatedAt"] = timestamp()
+
+
+def initialize(state: dict, plan_path: pathlib.Path, campaign_id: str) -> dict:
+    plan = json.loads(plan_path.read_text())
+    if plan.get("schemaVersion") != 1 or not isinstance(plan.get("jobs"), list) or not isinstance(plan.get("waves"), list):
+        raise ValueError("matrix plan requires schemaVersion 1, jobs, and waves")
+    seed_jobs = {job["id"]: job for job in state.get("jobs", [])}
+    jobs = []
+    for planned in plan["jobs"]:
+        seed = seed_jobs.get(planned["id"], {})
+        steps = []
+        seed_steps = {step["id"]: step for step in seed.get("steps", [])}
+        duplicate_counts: dict[str, int] = {}
+        for step_id in planned.get("steps", []):
+            duplicate_counts[step_id] = duplicate_counts.get(step_id, 0) + 1
+            unique_id = step_id if duplicate_counts[step_id] == 1 else f"{step_id}-{duplicate_counts[step_id]}"
+            label = seed_steps.get(unique_id, seed_steps.get(step_id, {})).get("label", step_id.replace("-", " ").title())
+            steps.append({"id": unique_id, "commandStep": step_id, "label": label, "status": "queued"})
+        jobs.append({
+            "id": planned["id"],
+            "title": planned.get("title", seed.get("title", planned["id"])),
+            "provider": planned.get("provider"),
+            "platform": f"macOS {planned['macOS']}" if planned.get("macOS") else "Local",
+            "automation": planned.get("automation"),
+            "estimatedMinutes": planned.get("estimatedMinutes"),
+            "status": "queued",
+            "progress": 0,
+            "currentStep": "Waiting for its provider-safe wave",
+            "factors": planned.get("factors", {}),
+            "steps": steps,
+        })
+    state = {
+        "schemaVersion": 1,
+        "updatedAt": timestamp(),
+        "campaign": {
+            "id": campaign_id,
+            "cadence": plan.get("cadence", "weekly"),
+            "status": "idle",
+            "title": f"{str(plan.get('cadence', 'weekly')).title()} matrix",
+            "message": "Plan loaded. No matrix jobs have run yet.",
+            "progress": 0,
+            "completedJobs": 0,
+            "totalJobs": len(jobs),
+            "currentWave": 0,
+            "totalWaves": len(plan["waves"]),
+            "pairsCovered": 0,
+            "pairsPlanned": plan.get("summary", {}).get("eligiblePairs", 0),
+            "startedAt": None,
+            "elapsedSeconds": 0,
+            "nextAction": "Start wave 1 after the executor preflight passes.",
+        },
+        "waves": [
+            {"number": index + 1, "status": "queued", "jobs": job_ids}
+            for index, job_ids in enumerate(plan["waves"])
+        ],
+        "jobs": jobs,
+        "excluded": plan.get("excluded", []),
+        "events": [{
+            "time": clock(), "tone": "info", "title": "Matrix plan loaded",
+            "message": f"{len(jobs)} jobs arranged in {len(plan['waves'])} provider-safe waves; execution has not started.",
+        }],
+    }
+    recompute(state)
+    return state
+
+
+def add_event(state: dict, title: str | None, message: str | None, tone: str) -> None:
+    if not title and not message:
+        return
+    state.setdefault("events", []).insert(0, {
+        "time": clock(), "tone": tone, "title": title or "Matrix update", "message": message or "",
+    })
+    state["events"] = state["events"][:80]
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--state", type=pathlib.Path, default=pathlib.Path(os.environ.get("KEYPATH_MATRIX_STATE", "/tmp/keypath-matrix-state.json")))
+    commands = parser.add_subparsers(dest="command", required=True)
+    init = commands.add_parser("initialize")
+    init.add_argument("--plan", required=True, type=pathlib.Path)
+    init.add_argument("--campaign-id", required=True)
+    campaign = commands.add_parser("campaign")
+    campaign.add_argument("--status", choices=STATUSES)
+    campaign.add_argument("--message")
+    campaign.add_argument("--next-action")
+    campaign.add_argument("--event-title")
+    campaign.add_argument("--event-tone", default="info")
+    job = commands.add_parser("job")
+    job.add_argument("--id", required=True)
+    job.add_argument("--status", choices=STATUSES)
+    job.add_argument("--progress", type=int)
+    job.add_argument("--step")
+    job.add_argument("--step-status", choices=STATUSES)
+    job.add_argument("--lease-id")
+    job.add_argument("--message")
+    job.add_argument("--event-title")
+    job.add_argument("--event-tone", default="info")
+    args = parser.parse_args()
+    lock_path = args.state.with_suffix(args.state.suffix + ".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        state = load(args.state)
+        if args.command == "initialize":
+            state = initialize(state, args.plan, args.campaign_id)
+        elif args.command == "campaign":
+            data = state.setdefault("campaign", {})
+            if args.status:
+                data["status"] = args.status
+                if args.status == "running" and not data.get("startedAt"):
+                    data["startedAt"] = timestamp()
+            if args.message is not None:
+                data["message"] = args.message
+            if args.next_action is not None:
+                data["nextAction"] = args.next_action
+            add_event(state, args.event_title, args.message, args.event_tone)
+        else:
+            target = next((item for item in state.get("jobs", []) if item.get("id") == args.id), None)
+            if target is None:
+                raise SystemExit(f"unknown matrix job: {args.id}")
+            if args.status:
+                target["status"] = args.status
+            if args.progress is not None:
+                if not 0 <= args.progress <= 100:
+                    raise SystemExit("job progress must be between 0 and 100")
+                target["progress"] = args.progress
+            if args.step:
+                step = next((item for item in target.get("steps", []) if item.get("id") == args.step), None)
+                if step is None:
+                    raise SystemExit(f"unknown step for {args.id}: {args.step}")
+                target["currentStep"] = step.get("label", args.step)
+                if args.step_status:
+                    step["status"] = args.step_status
+            elif args.step_status:
+                raise SystemExit("--step-status requires --step")
+            if args.lease_id:
+                target["leaseId"] = args.lease_id
+            add_event(state, args.event_title, args.message, args.event_tone)
+        recompute(state)
+        write(args.state, state)
+        fcntl.flock(lock, fcntl.LOCK_UN)
+    print(args.state)
+
+
+if __name__ == "__main__":
+    main()

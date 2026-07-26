@@ -121,11 +121,13 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         *args,
         directory: str,
         automation_state: pathlib.Path,
+        matrix_state: pathlib.Path,
         issue_state: pathlib.Path,
         lab_state: pathlib.Path,
         **kwargs,
     ) -> None:
         self.automation_state = automation_state
+        self.matrix_state = matrix_state
         self.issue_state = issue_state
         self.lab_state = lab_state
         super().__init__(*args, directory=directory, **kwargs)
@@ -134,6 +136,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         path = urlparse(self.path).path
         states = {
             "/docs/testing/keypath-test-automation-state.json": self.automation_state,
+            "/docs/testing/keypath-matrix-state.json": self.matrix_state,
             "/docs/testing/keypath-github-issues-state.json": self.issue_state,
             "/docs/testing/keypath-lab-state.json": self.lab_state,
         }
@@ -160,6 +163,11 @@ def main() -> None:
     parser.add_argument("--state", type=pathlib.Path, required=True)
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument(
+        "--matrix-state",
+        type=pathlib.Path,
+        default=pathlib.Path("/tmp/keypath-matrix-state.json"),
+    )
+    parser.add_argument(
         "--issue-state",
         type=pathlib.Path,
         default=pathlib.Path("/tmp/keypath-github-issues-state.json"),
@@ -184,9 +192,13 @@ def main() -> None:
     args = parser.parse_args()
     root = args.root.resolve()
     state = args.state.resolve()
+    matrix_state = args.matrix_state.resolve()
     issue_state = args.issue_state.resolve()
     lab_state = args.lab_state.resolve()
     lab_seed = root / "docs/testing/keypath-lab-state.json"
+    matrix_seed = root / "docs/testing/keypath-matrix-state.json"
+    if not matrix_state.exists():
+        matrix_state.write_bytes(matrix_seed.read_bytes())
     issue_refresh = root / "Scripts/lab/update-issue-dashboard"
     lab_refresh = root / "Scripts/lab/keypath-lab"
     threading.Thread(
@@ -210,6 +222,7 @@ def main() -> None:
         *handler_args,
         directory=str(root),
         automation_state=state,
+        matrix_state=matrix_state,
         issue_state=issue_state,
         lab_state=lab_state,
         **handler_kwargs,
@@ -217,6 +230,7 @@ def main() -> None:
     server = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), handler)
     print(f"KeyPath progress dashboard: http://127.0.0.1:{args.port}/docs/testing/keypath-test-automation-progress.html")
     print(f"KeyPath issue dashboard: http://127.0.0.1:{args.port}/docs/testing/keypath-github-issues-dashboard.html")
+    print(f"KeyPath matrix dashboard: http://127.0.0.1:{args.port}/docs/testing/keypath-matrix-dashboard.html")
     print(f"KeyPath lab dashboard: http://127.0.0.1:{args.port}/docs/testing/keypath-lab-state-dashboard.html")
     server.serve_forever()
 

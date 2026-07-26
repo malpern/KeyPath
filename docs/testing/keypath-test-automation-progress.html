@@ -8,7 +8,7 @@
 <title>Keypath Test Automation Progress</title>
 <style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;max-width:1180px;height:calc(100vh - 2rem);margin:0 auto;border:0}.dashboard-tabs{display:flex;width:min(1180px,calc(100% - 2rem));margin:0 auto .65rem;gap:.15rem;padding:0 .45rem;border-bottom:1px solid light-dark(#d0d7de,#30363d);box-sizing:border-box}.dashboard-tabs a{position:relative;margin-bottom:-1px;padding:.58rem .85rem;border:1px solid transparent;border-radius:.45rem .45rem 0 0;color:light-dark(#57606a,#8b949e);font:600 13px -apple-system,system-ui,sans-serif;text-decoration:none}.dashboard-tabs a:hover{color:light-dark(#24292f,#f0f6fc);background:light-dark(#f6f8fa,#161b22)}.dashboard-tabs a[aria-current=page]{color:light-dark(#24292f,#f0f6fc);background:light-dark(#fff,#181818);border-color:light-dark(#d0d7de,#30363d);border-bottom-color:light-dark(#fff,#181818)}.dashboard-tabs a[aria-current=page]::before{content:'';position:absolute;top:-1px;left:.42rem;right:.42rem;height:2px;border-radius:2px 2px 0 0;background:#2da44e}body{padding-top:.65rem!important}iframe{height:calc(100vh - 4.5rem)!important}</style>
 </head>
-<body><nav class="dashboard-tabs" aria-label="KeyPath dashboards"><a href="keypath-test-automation-progress.html" aria-current="page">Automation lab</a><a href="keypath-github-issues-dashboard.html" aria-current="false">GitHub issues</a></nav>
+<body><nav class="dashboard-tabs" aria-label="KeyPath dashboards"><a href="keypath-test-automation-progress.html" aria-current="page">Automation lab</a><a href="keypath-matrix-dashboard.html" aria-current="false">Matrix runs</a><a href="keypath-github-issues-dashboard.html" aria-current="false">GitHub issues</a></nav>
 <iframe sandbox="allow-scripts allow-same-origin" referrerpolicy="no-referrer" title="Keypath Test Automation Progress" srcdoc="&lt;!doctype html&gt;
 &lt;html lang=&quot;en&quot;&gt;
 &lt;head&gt;
@@ -19,34 +19,84 @@
 &lt;title&gt;Keypath Test Automation Progress&lt;/title&gt;
 &lt;style&gt;:root {
   color-scheme: light dark;
-  background-color: var(--background) !important;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
 
   /* Agent-facing contract; keep in sync with SKILL.md. */
-  --background: light-dark(rgb(255 255 255), rgb(24 24 24));
-  --foreground: light-dark(rgb(26 28 31), rgb(255 255 255));
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
   --card: color-mix(in oklab, var(--foreground) 5%, transparent);
-  --card-foreground: var(--foreground);
-  --popover: light-dark(rgb(255 255 255), rgb(45 45 45));
-  --popover-foreground: var(--foreground);
-  --primary: light-dark(rgb(51 156 255), rgb(131 195 255));
-  --primary-foreground: light-dark(rgb(255 255 255), rgb(13 13 13));
-  --secondary: light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%));
-  --secondary-foreground: var(--foreground);
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
   --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
-  --muted-foreground: light-dark(
-    rgb(26 28 31 / 49.4%),
-    rgb(255 255 255 / 49.8%)
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
   );
-  --accent: light-dark(rgb(229 242 255), rgb(13 39 63));
-  --accent-foreground: var(--primary);
-  --destructive: light-dark(rgb(226 85 7), rgb(255 133 73));
-  --border: light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%));
-  --input: light-dark(
-    rgb(26 28 31 / 11.8%),
-    color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
   );
-  --ring: light-dark(rgb(51 156 255), rgb(131 195 255 / 76%));
-  --font-size-base: 14px;
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --red: light-dark(rgb(186 38 35), rgb(250 66 62));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
   --viz-series-1: var(--primary);
   --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
   --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
@@ -70,7 +120,7 @@
   --line-height-normal: calc(var(--font-size-normal) * 1.5);
   --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
   --line-height-small: calc(var(--font-size-small) + 4px);
-  --radius: 12.5px;
+  --radius: var(--border-radius-lg, 12.5px);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -90,9 +140,6 @@
   --viz-accent-bg: var(--accent);
   --viz-font-size: var(--font-size-base);
   --viz-warning: var(--destructive);
-  --color-background-primary: var(--background);
-  --color-text-primary: var(--foreground);
-  --color-border-secondary: var(--border);
 }
 
 :root[data-theme=&quot;light&quot;] {
@@ -108,6 +155,20 @@
 }
 
 html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
   margin: 0;
   padding: 5px;
   color: var(--foreground);
@@ -121,7 +182,7 @@ html &gt; body {
 a {
   color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
   cursor: pointer;
-  font-weight: var(--viz-font-weight-medium);
+  font-weight: var(--font-weight-medium, 500);
   text-decoration: none;
   text-underline-offset: 2px;
 }
@@ -183,6 +244,71 @@ code:not(pre code) {
   word-break: break-word;
 }
 
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
 #widget {
   display: flex;
   flex-direction: column;
@@ -221,7 +347,7 @@ code:not(pre code) {
   left: 0;
   width: max-content;
   max-width: min(
-    30rem,
+    20rem,
     var(--tooltip-available-width, calc(100vw - 10px)),
     calc(100vw - 10px)
   );
@@ -243,28 +369,6 @@ code:not(pre code) {
   pointer-events: none;
   user-select: none;
 }
-.tooltip-card { width:min(26rem,calc(100vw - 34px)); padding:8px 6px 6px; }
-.tooltip-kicker { color:var(--muted-foreground); font-size:9px; letter-spacing:.055em; text-transform:uppercase; }
-.tooltip-title-row { display:flex; gap:12px; align-items:baseline; justify-content:space-between; margin-top:2px; }
-.tooltip-title { font-size:13px; font-weight:600; letter-spacing:-.01em; }
-.tooltip-overall { color:var(--muted-foreground); font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
-.tooltip-summary { margin-top:4px; color:var(--muted-foreground); line-height:1.45; }
-.tooltip-health { margin-top:6px; color:var(--muted-foreground); font-size:10px; }
-.tooltip-health strong { color:var(--foreground); font-weight:600; }
-.tooltip-foundation { margin-top:9px; padding-left:8px; border-left:2px solid var(--viz-series-2); }
-.tooltip-foundation-label { color:var(--foreground); font-size:10px; font-weight:600; }
-.tooltip-foundation-copy { margin-top:2px; color:var(--muted-foreground); line-height:1.4; }
-.tooltip-unlocks { margin-top:5px; color:var(--muted-foreground); font-size:10px; line-height:1.4; }
-.tooltip-next { margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
-.tooltip-next-title { margin-bottom:2px; color:var(--foreground); font-size:10px; font-weight:600; }
-.tooltip-task { display:grid; grid-template-columns:9px minmax(0,1fr) auto; gap:7px; align-items:start; padding:5px 0; }
-.tooltip-task + .tooltip-task { border-top:1px solid color-mix(in srgb,var(--border) 58%,transparent); }
-.tooltip-task-dot { width:6px; height:6px; border-radius:50%; background:var(--muted-foreground); }
-.tooltip-task[data-status=&quot;active&quot;] .tooltip-task-dot { background:var(--viz-series-2); box-shadow:0 0 0 3px color-mix(in srgb,var(--viz-series-2) 18%,transparent); }
-.tooltip-task[data-status=&quot;done&quot;] .tooltip-task-dot { background:var(--viz-series-3); }
-.tooltip-task[data-status=&quot;blocked&quot;] .tooltip-task-dot { background:var(--destructive); }
-.tooltip-task-label { line-height:1.35; }
-.tooltip-task-value { color:var(--muted-foreground); text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
 
 .viz-grid {
   display: grid;
@@ -925,7 +1029,7 @@ html&gt;body{padding:0}&lt;/style&gt;
 
   &lt;header class=&quot;top&quot;&gt;
     &lt;div&gt;&lt;div class=&quot;eyebrow&quot;&gt;KeyPath automated QA&lt;/div&gt;&lt;h1&gt;Consolidating the test surface&lt;/h1&gt;&lt;div class=&quot;sub&quot;&gt;Each block is one concrete capability. Green areas are already reliable; the amber frontier is where work is actively converging.&lt;/div&gt;&lt;/div&gt;
-    &lt;div class=&quot;date&quot;&gt;Updated July 25, 2026&lt;/div&gt;
+    &lt;div class=&quot;date&quot;&gt;Updated July 23, 2026&lt;/div&gt;
   &lt;/header&gt;
 
   &lt;div class=&quot;legend&quot; aria-label=&quot;Status legend&quot;&gt;
@@ -973,7 +1077,7 @@ html&gt;body{padding:0}&lt;/style&gt;
           &lt;div&gt;&lt;div class=&quot;eyebrow&quot;&gt;Automation capability ledger&lt;/div&gt;&lt;h2 id=&quot;keypath-capability-ledger-title&quot;&gt;What the harness can prove—and what it still needs&lt;/h2&gt;&lt;div class=&quot;ledger-sub&quot;&gt;The map shows individual building blocks. This ledger groups them into the reusable capabilities that make installer testing dependable.&lt;/div&gt;&lt;/div&gt;
           &lt;div class=&quot;ledger-summary&quot; id=&quot;keypath-ledger-summary&quot;&gt;Loading capability state…&lt;/div&gt;
         &lt;/div&gt;
-        &lt;div class=&quot;apple-gate&quot;&gt;&lt;span class=&quot;apple-gate-mark&quot;&gt;Managed lane proven&lt;/span&gt;&lt;div&gt;&lt;strong&gt;Managed policy and runtime proof are complete; physical output is the current frontier.&lt;/strong&gt;&lt;span&gt;The vendor and APNs certificates, randomized managed-clone enrollment, exact-build policies, DriverKit, Kanata permissions, runtime convergence, and TCP readiness are proven. Next: perform the onsite mWave q-to-w output proof, then capture overlay evidence and launch-to-remap timing in the same prepared session.&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;apple-gate&quot;&gt;&lt;span class=&quot;apple-gate-mark&quot;&gt;Managed lane live&lt;/span&gt;&lt;div&gt;&lt;strong&gt;The Apple gate is cleared; managed policy proof is the current frontier.&lt;/strong&gt;&lt;span&gt;Case 102940025673 is approved, the vendor and APNs certificates are installed, and a disposable macOS 26 VM completed User Approved enrollment plus NanoMDM Authenticate and TokenUpdate. Next: publish and independently verify PPPC, DriverKit, and service-management policy while preserving the unmanaged lane for real approval-flow coverage.&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
         &lt;div class=&quot;ledger-wrap&quot;&gt;&lt;table class=&quot;ledger-table&quot;&gt;&lt;thead&gt;&lt;tr&gt;&lt;th scope=&quot;col&quot;&gt;Core capability&lt;/th&gt;&lt;th scope=&quot;col&quot;&gt;What it enables&lt;/th&gt;&lt;th scope=&quot;col&quot;&gt;Automation status&lt;/th&gt;&lt;th scope=&quot;col&quot;&gt;What is needed next&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody id=&quot;keypath-capability-ledger&quot;&gt;&lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;
       &lt;/section&gt;
     &lt;/main&gt;
@@ -1030,12 +1134,12 @@ html&gt;body{padding:0}&lt;/style&gt;
         [&#x27;P03&#x27;,&#x27;queued&#x27;,&#x27;Overlay observation&#x27;,&#x27;Capture overlay state and input-event evidence.&#x27;],
         [&#x27;P04&#x27;,&#x27;queued&#x27;,&#x27;First remap proof&#x27;,&#x27;Measure launch-to-confirmed-remap success.&#x27;],
         [&#x27;M01&#x27;,&#x27;queued&#x27;,&#x27;Clean install scenario&#x27;,&#x27;One unattended golden-path scenario.&#x27;],
-        [&#x27;M02&#x27;,&#x27;proven&#x27;,&#x27;Repair scenario&#x27;,&#x27;A real stopped Kanata service converges to independently verified readiness in one repair attempt.&#x27;],
+        [&#x27;M02&#x27;,&#x27;queued&#x27;,&#x27;Repair scenario&#x27;,&#x27;Real damaged states and strict convergence attempts.&#x27;],
         [&#x27;M03&#x27;,&#x27;queued&#x27;,&#x27;Upgrade scenario&#x27;,&#x27;Install an older release before upgrading.&#x27;],
-        [&#x27;M04&#x27;,&#x27;proven&#x27;,&#x27;Reboot persistence&#x27;,&#x27;A Tart guest reboot preserves signed app identity and independently ready runtime/TCP state.&#x27;],
-        [&#x27;M05&#x27;,&#x27;proven&#x27;,&#x27;Uninstall scenario&#x27;,&#x27;Supported uninstall removes KeyPath-owned runtime state while preserving configuration and the shared driver.&#x27;],
-        [&#x27;M06&#x27;,&#x27;proven&#x27;,&#x27;Reinstall scenario&#x27;,&#x27;The exact candidate reinstalls on the same lease and converges once to independent readiness.&#x27;],
-        [&#x27;M07&#x27;,&#x27;proven&#x27;,&#x27;Cancellation fixture&#x27;,&#x27;A real cancelled uninstall preserves state, followed by one proven failure-and-recovery cycle.&#x27;],
+        [&#x27;M04&#x27;,&#x27;queued&#x27;,&#x27;Reboot persistence&#x27;,&#x27;Verify services, permissions, and TCP after reboot.&#x27;],
+        [&#x27;M05&#x27;,&#x27;queued&#x27;,&#x27;Uninstall scenario&#x27;,&#x27;Remove app, services, helper, and owned state.&#x27;],
+        [&#x27;M06&#x27;,&#x27;queued&#x27;,&#x27;Reinstall scenario&#x27;,&#x27;Fresh behavior after verified uninstall.&#x27;],
+        [&#x27;M07&#x27;,&#x27;queued&#x27;,&#x27;Cancellation fixture&#x27;,&#x27;Exercise real user cancellation and recovery.&#x27;],
         [&#x27;M08&#x27;,&#x27;proven&#x27;,&#x27;Failure ownership&#x27;,&#x27;Product, selector, transport, provider, OS, environment.&#x27;],
         [&#x27;M09&#x27;,&#x27;proven&#x27;,&#x27;Resumable runner&#x27;,&#x27;Continue safely from the last verified checkpoint.&#x27;],
         [&#x27;M10&#x27;,&#x27;queued&#x27;,&#x27;macOS 26 selectors&#x27;,&#x27;Self-verifying System Settings driver.&#x27;],
@@ -1073,10 +1177,10 @@ html&gt;body{padding:0}&lt;/style&gt;
         { name:&#x27;Desktop interaction and secure approval delivery&#x27;, ids:[&#x27;G01&#x27;,&#x27;G02&#x27;,&#x27;G03&#x27;,&#x27;G04&#x27;,&#x27;G05&#x27;,&#x27;G06&#x27;,&#x27;G07&#x27;,&#x27;G08&#x27;,&#x27;P01&#x27;], enables:&#x27;Logged-in GUI automation, semantic selectors, native RFB fallback, screenshots, and secret-safe authorization.&#x27;, next:&#x27;Use this to preserve a small unmanaged UI lane for genuine macOS approval flows.&#x27; },
         { name:&#x27;Installer evidence and failure ownership&#x27;, ids:[&#x27;I01&#x27;,&#x27;I02&#x27;,&#x27;I03&#x27;,&#x27;I04&#x27;,&#x27;I05&#x27;,&#x27;I06&#x27;,&#x27;I07&#x27;,&#x27;I08&#x27;,&#x27;I09&#x27;,&#x27;M08&#x27;], enables:&#x27;Product claims, independent postconditions, artifacts, and failure classes stay distinguishable.&#x27;, next:&#x27;Apply the contract to each new installer scenario.&#x27; },
         { name:&#x27;Resumable scenario execution&#x27;, ids:[&#x27;M09&#x27;], enables:&#x27;Interrupted installer scenarios resume only from a verified checkpoint and never replay an uncertain mutation.&#x27;, next:&#x27;Adopt this runner for the future golden-path and repair scenarios.&#x27; },
-        { name:&#x27;Managed functional permission lane&#x27;, ids:[&#x27;D03&#x27;,&#x27;D04&#x27;,&#x27;D05&#x27;,&#x27;D06&#x27;], enables:&#x27;Deterministic PPPC, DriverKit, and service-management state in disposable managed VMs.&#x27;, next:&#x27;Keep the signed profiles, randomized enrollment, and managed-base admission under regression coverage.&#x27; },
-        { name:&#x27;Functional runtime and virtual-output proof&#x27;, ids:[&#x27;R01&#x27;,&#x27;R02&#x27;,&#x27;R03&#x27;,&#x27;R04&#x27;,&#x27;P02&#x27;,&#x27;P03&#x27;,&#x27;P04&#x27;], enables:&#x27;A true end-to-end assertion: captured input produces an observable remap while Kanata and TCP are healthy.&#x27;, next:&#x27;Perform the onsite mWave q-to-w proof, then capture overlay evidence and launch-to-remap timing in that prepared session.&#x27; },
-        { name:&#x27;Per-OS approval drivers&#x27;, ids:[&#x27;M10&#x27;,&#x27;M11&#x27;], enables:&#x27;Separate self-verifying System Settings selectors for macOS 26 and 27.&#x27;, next:&#x27;Rerun each semantic contract when Apple ships a new OS seed.&#x27; },
-        { name:&#x27;Scenario matrix and consolidated reporting&#x27;, ids:[&#x27;M12&#x27;,&#x27;M13&#x27;,&#x27;M14&#x27;], enables:&#x27;A pruned nightly diagonal, weekly pairwise coverage, and one machine-readable evidence report.&#x27;, next:&#x27;Run the nightly unattended diagonal and the operator-supervised weekly expansion against each candidate artifact.&#x27; }
+        { name:&#x27;Managed functional permission lane&#x27;, ids:[&#x27;D03&#x27;,&#x27;D04&#x27;,&#x27;D05&#x27;,&#x27;D06&#x27;], enables:&#x27;Deterministic PPPC, DriverKit, and service-management state in disposable managed VMs.&#x27;, next:&#x27;Publish and independently verify PPPC, system-extension, and service-management policy, then preserve a clean managed base.&#x27; },
+        { name:&#x27;Functional runtime and virtual-output proof&#x27;, ids:[&#x27;R01&#x27;,&#x27;R02&#x27;,&#x27;R03&#x27;,&#x27;R04&#x27;,&#x27;P02&#x27;,&#x27;P03&#x27;,&#x27;P04&#x27;], enables:&#x27;A true end-to-end assertion: captured input produces an observable remap while Kanata and TCP are healthy.&#x27;, next:&#x27;Consume the managed policy lane to verify Kanata permissions, DriverKit readiness, runtime convergence, and virtual output.&#x27; },
+        { name:&#x27;Per-OS approval drivers&#x27;, ids:[&#x27;M10&#x27;,&#x27;M11&#x27;], enables:&#x27;Separate self-verifying System Settings selectors for macOS 26 and 27.&#x27;, next:&#x27;Harden the selectors independently; do not reuse macOS 15 coordinates or hierarchy.&#x27; },
+        { name:&#x27;Scenario matrix and consolidated reporting&#x27;, ids:[&#x27;M12&#x27;,&#x27;M13&#x27;,&#x27;M14&#x27;], enables:&#x27;A pruned nightly diagonal, weekly pairwise coverage, and one machine-readable evidence report.&#x27;, next:&#x27;Build on D05 managed functional proof plus the reusable M08/M09 contracts.&#x27; }
       ];
       const buttons = new Map();
       items.forEach(([id,state,name,description]) =&gt; {
@@ -1299,46 +1403,6 @@ html&gt;body{padding:0}&lt;/style&gt;
     target?.nodeType != null &amp;&amp; trigger.contains(target);
   const getContent = (trigger) =&gt;
     trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
-  const getStructuredContent = (trigger) =&gt; {
-    try { return JSON.parse(trigger.getAttribute(&quot;data-tooltip-structured&quot;) || &quot;null&quot;); }
-    catch (_) { return null; }
-  };
-  const renderStructuredContent = (floating,content) =&gt; {
-    floating.replaceChildren();
-    const card = document.createElement(&quot;div&quot;); card.className = &quot;tooltip-card&quot;;
-    const kicker = document.createElement(&quot;div&quot;); kicker.className = &quot;tooltip-kicker&quot;; kicker.textContent = `${content.id} · ${content.status} · ${content.complete ? &quot;Complete&quot; : &quot;Not complete&quot;}`;
-    const titleRow = document.createElement(&quot;div&quot;); titleRow.className = &quot;tooltip-title-row&quot;;
-    const title = document.createElement(&quot;div&quot;); title.className = &quot;tooltip-title&quot;; title.textContent = content.name;
-    const overall = document.createElement(&quot;div&quot;); overall.className = &quot;tooltip-overall&quot;; overall.textContent = `${Math.max(0,Math.min(100,Number(content.progress) || 0))}% overall`;
-    titleRow.append(title,overall);
-    const summary = document.createElement(&quot;div&quot;); summary.className = &quot;tooltip-summary&quot;; summary.textContent = content.summary;
-    const healthLabels = {smooth:&quot;Going smoothly&quot;,retrying:&quot;Retrying another approach&quot;,blocked:&quot;Blocked&quot;};
-    const health = document.createElement(&quot;div&quot;); health.className = &quot;tooltip-health&quot;;
-    const healthLabel = document.createElement(&quot;strong&quot;); healthLabel.textContent = &quot;Health: &quot;;
-    health.append(healthLabel,document.createTextNode(healthLabels[content.health] || (content.complete ? &quot;Proven&quot; : &quot;Not started&quot;)));
-    let foundation = null;
-    if (content.blocker || content.coreCapability) {
-      foundation = document.createElement(&quot;div&quot;); foundation.className = &quot;tooltip-foundation&quot;;
-      const foundationLabel = document.createElement(&quot;div&quot;); foundationLabel.className = &quot;tooltip-foundation-label&quot;; foundationLabel.textContent = content.coreCapability ? &quot;Core capability blocker&quot; : &quot;Current blocker&quot;;
-      const foundationCopy = document.createElement(&quot;div&quot;); foundationCopy.className = &quot;tooltip-foundation-copy&quot;; foundationCopy.textContent = content.blocker || &quot;Reusable infrastructure required by downstream work.&quot;;
-      foundation.append(foundationLabel,foundationCopy);
-      if (content.unlocks?.length) {
-        const unlocks = document.createElement(&quot;div&quot;); unlocks.className = &quot;tooltip-unlocks&quot;; unlocks.textContent = `Unlocks: ${content.unlocks.join(&quot; · &quot;)}`; foundation.append(unlocks);
-      }
-    }
-    const next = document.createElement(&quot;div&quot;); next.className = &quot;tooltip-next&quot;;
-    const nextTitle = document.createElement(&quot;div&quot;); nextTitle.className = &quot;tooltip-next-title&quot;; nextTitle.textContent = &quot;What’s next&quot;; next.append(nextTitle);
-    (content.tasks || []).forEach(task =&gt; {
-      const row = document.createElement(&quot;div&quot;); row.className = &quot;tooltip-task&quot;; row.dataset.status = task.status || &quot;queued&quot;;
-      const dot = document.createElement(&quot;i&quot;); dot.className = &quot;tooltip-task-dot&quot;;
-      const label = document.createElement(&quot;span&quot;); label.className = &quot;tooltip-task-label&quot;; label.textContent = task.label;
-      const value = document.createElement(&quot;span&quot;); value.className = &quot;tooltip-task-value&quot;; value.textContent = `${Math.max(0,Math.min(100,Number(task.progress) || 0))}%`;
-      row.append(dot,label,value); next.append(row);
-    });
-    card.append(kicker,titleRow,summary,health);
-    if (foundation) card.append(foundation);
-    card.append(next); floating.append(card);
-  };
   const getPlacement = (trigger) =&gt; {
     const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
     return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
@@ -1440,9 +1504,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     }
     closeTooltip();
     const floating = getTooltip();
-    const structured = getStructuredContent(trigger);
-    if (structured) renderStructuredContent(floating,structured);
-    else floating.textContent = content;
+    floating.textContent = content;
     floating.style.visibility = &quot;hidden&quot;;
     floating.style.transform = &quot;translate(0, 0)&quot;;
     document.body.appendChild(floating);

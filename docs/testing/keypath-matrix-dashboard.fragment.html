@@ -1,0 +1,225 @@
+<div id="keypath-matrix">
+  <style>
+    #keypath-matrix { --matrix-fail:#813548; color:var(--foreground); font-family:system-ui,sans-serif; }
+    #keypath-matrix * { box-sizing:border-box; }
+    #keypath-matrix .top { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:16px; }
+    #keypath-matrix .eyebrow { color:var(--muted-foreground); font-size:10px; font-weight:650; letter-spacing:.1em; text-transform:uppercase; }
+    #keypath-matrix h1 { margin:4px 0 5px; font-size:28px; font-weight:500; letter-spacing:-.025em; }
+    #keypath-matrix .sub { max-width:720px; color:var(--muted-foreground); font-size:13px; line-height:1.45; }
+    #keypath-matrix .updated { color:var(--muted-foreground); font-size:11px; white-space:nowrap; }
+    #keypath-matrix .card { border:1px solid var(--border); border-radius:7px; background:var(--card); }
+    #keypath-matrix .livebar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; padding:11px 13px; }
+    #keypath-matrix .live-main { display:flex; align-items:center; gap:9px; min-width:0; }
+    #keypath-matrix .live-dot { width:9px; height:9px; border-radius:50%; background:var(--muted-foreground); flex:none; }
+    #keypath-matrix[data-campaign-status="running"] .live-dot { background:var(--viz-series-2); box-shadow:0 0 0 4px color-mix(in srgb,var(--viz-series-2) 15%,transparent); animation:matrix-breathe 1.4s ease-in-out infinite; }
+    #keypath-matrix[data-campaign-status="passed"] .live-dot { background:var(--viz-series-3); }
+    #keypath-matrix[data-campaign-status="failed"] .live-dot,
+    #keypath-matrix[data-campaign-status="blocked"] .live-dot { background:var(--matrix-fail); }
+    #keypath-matrix[data-campaign-status="waiting"] .live-dot { background:var(--viz-series-5); }
+    #keypath-matrix .live-copy { min-width:0; }
+    #keypath-matrix .live-copy strong { display:block; overflow:hidden; font-size:13px; font-weight:550; text-overflow:ellipsis; white-space:nowrap; }
+    #keypath-matrix .live-copy small { display:block; margin-top:2px; color:var(--muted-foreground); font-size:11px; }
+    #keypath-matrix .live-status { color:var(--muted-foreground); font-size:10px; font-weight:650; letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; }
+    #keypath-matrix .metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
+    #keypath-matrix .metric { min-width:0; padding:11px 12px; }
+    #keypath-matrix .metric-label { color:var(--muted-foreground); font-size:9px; font-weight:650; letter-spacing:.07em; text-transform:uppercase; }
+    #keypath-matrix .metric-value { display:block; margin-top:3px; font-size:20px; font-weight:520; font-variant-numeric:tabular-nums; letter-spacing:-.03em; }
+    #keypath-matrix .metric-detail { display:block; margin-top:2px; overflow:hidden; color:var(--muted-foreground); font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+    #keypath-matrix .matrix { padding:14px; }
+    #keypath-matrix .matrix-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:12px; }
+    #keypath-matrix .matrix-head strong { display:block; font-size:14px; font-weight:550; }
+    #keypath-matrix .matrix-head span { display:block; margin-top:2px; color:var(--muted-foreground); font-size:10px; }
+    #keypath-matrix .legend { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:10px; color:var(--muted-foreground); font-size:9px; }
+    #keypath-matrix .legend i { display:inline-block; width:9px; height:9px; margin-right:4px; border-radius:2px; vertical-align:-1px; }
+    #keypath-matrix .legend .passed { background:var(--viz-series-3); }
+    #keypath-matrix .legend .running { background:var(--viz-series-2); }
+    #keypath-matrix .legend .waiting { background:var(--viz-series-5); }
+    #keypath-matrix .legend .failed { background:var(--matrix-fail); }
+    #keypath-matrix .legend .queued { background:var(--muted); border:1px solid var(--border); }
+    #keypath-matrix .waves { display:grid; gap:6px; }
+    #keypath-matrix .wave { display:grid; grid-template-columns:74px minmax(0,1fr); gap:8px; align-items:stretch; }
+    #keypath-matrix .wave-label { display:flex; flex-direction:column; justify-content:center; padding:7px 8px; border:1px solid var(--border); border-radius:4px; background:color-mix(in srgb,var(--muted) 32%,transparent); }
+    #keypath-matrix .wave-label strong { font-size:10px; font-weight:650; }
+    #keypath-matrix .wave-label span { margin-top:2px; color:var(--muted-foreground); font-size:8px; letter-spacing:.04em; text-transform:uppercase; }
+    #keypath-matrix .wave[data-status="running"] .wave-label { border-color:var(--viz-series-2); background:color-mix(in srgb,var(--viz-series-2) 10%,var(--card)); }
+    #keypath-matrix .wave[data-status="passed"] .wave-label { border-color:color-mix(in srgb,var(--viz-series-3) 58%,var(--border)); }
+    #keypath-matrix .wave-jobs { display:grid; grid-template-columns:repeat(var(--job-count),minmax(0,1fr)); gap:5px; min-width:0; }
+    #keypath-matrix .job { appearance:none; position:relative; min-width:0; min-height:55px; overflow:hidden; padding:8px 9px 11px; border:1px solid var(--border); border-radius:4px; background:var(--muted); color:var(--muted-foreground); cursor:pointer; font:inherit; text-align:left; transition:transform 120ms ease,filter 120ms ease,border-color 160ms ease,background 160ms ease; }
+    #keypath-matrix .job:hover,#keypath-matrix .job:focus-visible { z-index:2; filter:brightness(1.07); transform:translateY(-1px); outline:2px solid var(--ring); outline-offset:1px; }
+    #keypath-matrix .job[data-status="running"] { border-color:var(--viz-series-2); background:color-mix(in srgb,var(--viz-series-2) 23%,var(--card)); color:var(--foreground); animation:matrix-active 1.35s ease-in-out infinite; }
+    #keypath-matrix .job[data-status="passed"] { border-color:color-mix(in srgb,var(--viz-series-3) 60%,var(--border)); background:color-mix(in srgb,var(--viz-series-3) 28%,var(--card)); color:var(--foreground); }
+    #keypath-matrix .job[data-status="waiting"] { border-color:color-mix(in srgb,var(--viz-series-5) 70%,var(--border)); background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--viz-series-5) 24%,var(--card)) 0 8px,color-mix(in srgb,var(--viz-series-5) 10%,var(--card)) 8px 13px); color:var(--foreground); }
+    #keypath-matrix .job[data-status="failed"],#keypath-matrix .job[data-status="blocked"] { border-color:var(--matrix-fail); background:color-mix(in srgb,var(--matrix-fail) 26%,var(--card)); color:var(--foreground); }
+    #keypath-matrix .job::after { content:""; position:absolute; left:0; bottom:0; width:var(--job-progress,0%); height:4px; background:var(--viz-series-2); transition:width 440ms ease; }
+    #keypath-matrix .job[data-status="passed"]::after { background:var(--viz-series-3); }
+    #keypath-matrix .job[data-status="failed"]::after,#keypath-matrix .job[data-status="blocked"]::after { background:var(--matrix-fail); }
+    #keypath-matrix .job-top { display:flex; align-items:center; justify-content:space-between; gap:5px; }
+    #keypath-matrix .job-provider { font-size:8px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
+    #keypath-matrix .job-platform { overflow:hidden; font-size:8px; opacity:.72; text-overflow:ellipsis; white-space:nowrap; }
+    #keypath-matrix .job-title { display:block; margin-top:5px; overflow:hidden; font-size:10px; font-weight:600; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; }
+    #keypath-matrix .job-step { display:block; margin-top:3px; overflow:hidden; font-size:8px; opacity:.8; text-overflow:ellipsis; white-space:nowrap; }
+    #keypath-matrix .readout { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr); gap:12px; margin-top:12px; }
+    #keypath-matrix .detail,#keypath-matrix .events { padding:13px; min-width:0; }
+    #keypath-matrix .detail-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+    #keypath-matrix .detail-title { font-size:14px; font-weight:550; }
+    #keypath-matrix .detail-meta { margin-top:3px; color:var(--muted-foreground); font-size:10px; }
+    #keypath-matrix .badge { padding:3px 6px; border-radius:999px; background:var(--muted); color:var(--muted-foreground); font-size:8px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; }
+    #keypath-matrix .steps { display:grid; gap:5px; margin-top:11px; }
+    #keypath-matrix .step { display:grid; grid-template-columns:8px minmax(0,1fr) auto; gap:7px; align-items:center; min-height:24px; padding:5px 7px; border-top:1px solid color-mix(in srgb,var(--border) 62%,transparent); font-size:10px; }
+    #keypath-matrix .step-dot { width:7px; height:7px; border-radius:50%; background:var(--muted-foreground); }
+    #keypath-matrix .step[data-status="running"] .step-dot { background:var(--viz-series-2); box-shadow:0 0 0 3px color-mix(in srgb,var(--viz-series-2) 16%,transparent); }
+    #keypath-matrix .step[data-status="passed"] .step-dot { background:var(--viz-series-3); }
+    #keypath-matrix .step[data-status="waiting"] .step-dot { background:var(--viz-series-5); }
+    #keypath-matrix .step[data-status="failed"] .step-dot,#keypath-matrix .step[data-status="blocked"] .step-dot { background:var(--matrix-fail); }
+    #keypath-matrix .step-state { color:var(--muted-foreground); font-size:8px; letter-spacing:.04em; text-transform:uppercase; }
+    #keypath-matrix .events h2 { margin:0 0 8px; font-size:12px; font-weight:550; }
+    #keypath-matrix .event-list { display:grid; gap:7px; max-height:216px; overflow:auto; }
+    #keypath-matrix .event { display:grid; grid-template-columns:36px minmax(0,1fr); gap:8px; padding-top:7px; border-top:1px solid color-mix(in srgb,var(--border) 62%,transparent); }
+    #keypath-matrix .event time { color:var(--muted-foreground); font-size:9px; font-variant-numeric:tabular-nums; }
+    #keypath-matrix .event strong { display:block; font-size:10px; font-weight:600; }
+    #keypath-matrix .event span { display:block; margin-top:2px; color:var(--muted-foreground); font-size:9px; line-height:1.38; }
+    #keypath-matrix .excluded { margin-top:12px; padding:10px 12px; border-left:4px solid var(--viz-series-5); color:var(--muted-foreground); font-size:10px; }
+    #keypath-matrix .excluded strong { color:var(--foreground); font-weight:600; }
+    @keyframes matrix-active { 0%,100% { filter:brightness(1); box-shadow:0 0 0 0 transparent; } 50% { filter:brightness(1.1); box-shadow:0 0 0 2px color-mix(in srgb,var(--viz-series-2) 55%,transparent); } }
+    @keyframes matrix-breathe { 0%,100% { transform:scale(1); } 50% { transform:scale(1.16); } }
+    @media (prefers-reduced-motion:reduce) { #keypath-matrix * { animation:none!important; transition:none!important; } }
+    @media (max-width:760px) {
+      #keypath-matrix .top { align-items:flex-start; flex-direction:column; }
+      #keypath-matrix .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      #keypath-matrix .wave { grid-template-columns:54px minmax(0,1fr); }
+      #keypath-matrix .wave-jobs { grid-template-columns:1fr; }
+      #keypath-matrix .readout { grid-template-columns:1fr; }
+      #keypath-matrix .matrix-head { flex-direction:column; }
+      #keypath-matrix .legend { justify-content:flex-start; }
+    }
+  </style>
+
+  <header class="top">
+    <div>
+      <div class="eyebrow">KeyPath automation lab · execution matrix</div>
+      <h1>Matrix runs</h1>
+      <div class="sub">A live view of the weekly pairwise campaign: what is queued, which VM is doing what, what passed, and where human attention is required.</div>
+    </div>
+    <div class="updated" id="matrix-updated">Updated —</div>
+  </header>
+
+  <section class="livebar card" aria-live="polite">
+    <div class="live-main"><i class="live-dot"></i><div class="live-copy"><strong id="matrix-live-title">Loading campaign state</strong><small id="matrix-live-message">Connecting to the local dashboard feed.</small></div></div>
+    <div class="live-status" id="matrix-live-status">Connecting</div>
+  </section>
+
+  <section class="metrics" aria-label="Campaign metrics">
+    <div class="metric card"><span class="metric-label">Jobs</span><strong class="metric-value" id="metric-jobs">0 / 0</strong><span class="metric-detail" id="metric-jobs-detail">No jobs started</span></div>
+    <div class="metric card"><span class="metric-label">Waves</span><strong class="metric-value" id="metric-waves">0 / 0</strong><span class="metric-detail" id="metric-waves-detail">Provider-safe sequencing</span></div>
+    <div class="metric card"><span class="metric-label">Pair coverage</span><strong class="metric-value" id="metric-pairs">0 / 0</strong><span class="metric-detail">Eligible factor pairs</span></div>
+    <div class="metric card"><span class="metric-label">Campaign</span><strong class="metric-value" id="metric-progress">0%</strong><span class="metric-detail" id="metric-time">Not started</span></div>
+  </section>
+
+  <main class="matrix card">
+    <div class="matrix-head">
+      <div><strong>Provider-safe waves</strong><span>Cells settle as evidence is verified. Only live work moves.</span></div>
+      <div class="legend" aria-label="Status legend"><span><i class="passed"></i>Passed</span><span><i class="running"></i>Running</span><span><i class="waiting"></i>Human wait</span><span><i class="failed"></i>Failed</span><span><i class="queued"></i>Queued</span></div>
+    </div>
+    <div class="waves" id="matrix-waves"></div>
+  </main>
+
+  <section class="readout">
+    <article class="detail card" aria-live="polite">
+      <div class="detail-head"><div><div class="detail-title" id="detail-title">Select a matrix job</div><div class="detail-meta" id="detail-meta">Its checkpoints and live lease will appear here.</div></div><span class="badge" id="detail-badge">Queued</span></div>
+      <div class="steps" id="detail-steps"></div>
+    </article>
+    <aside class="events card"><h2>Campaign log</h2><div class="event-list" id="matrix-events"></div></aside>
+  </section>
+
+  <aside class="excluded card" id="matrix-excluded"><strong>Physical supplement:</strong> The mWave q-to-w case remains outside unattended pass criteria and will be run onsite.</aside>
+
+  <script>
+    (() => {
+      const root=document.getElementById('keypath-matrix');
+      const el=id=>root.querySelector(`#${id}`);
+      const statusLabel={idle:'Ready',queued:'Queued',running:'Running',passed:'Passed',waiting:'Human wait',failed:'Failed',blocked:'Blocked'};
+      let selectedId=null;
+      let latest=null;
+      const fmtDuration=seconds=>{
+        const value=Math.max(0,Number(seconds)||0);
+        if(value<60)return `${Math.floor(value)}s elapsed`;
+        const minutes=Math.floor(value/60),hours=Math.floor(minutes/60);
+        return hours?`${hours}h ${minutes%60}m elapsed`:`${minutes}m elapsed`;
+      };
+      function renderDetail(job){
+        if(!job)return;
+        selectedId=job.id;
+        el('detail-title').textContent=job.title;
+        el('detail-meta').textContent=[job.platform,job.provider,job.automation,job.leaseId?`lease ${job.leaseId}`:null].filter(Boolean).join(' · ');
+        el('detail-badge').textContent=statusLabel[job.status]||job.status;
+        el('detail-steps').replaceChildren(...(job.steps||[]).map(step=>{
+          const row=document.createElement('div'); row.className='step'; row.dataset.status=step.status||'queued';
+          const dot=document.createElement('i'); dot.className='step-dot';
+          const label=document.createElement('span'); label.textContent=step.label||step.id;
+          const state=document.createElement('span'); state.className='step-state'; state.textContent=statusLabel[step.status]||step.status||'Queued';
+          row.append(dot,label,state); return row;
+        }));
+      }
+      function render(state){
+        latest=state;
+        const campaign=state.campaign||{};
+        root.dataset.campaignStatus=campaign.status||'idle';
+        el('matrix-updated').textContent=`Updated ${new Date(state.updatedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'})}`;
+        el('matrix-live-title').textContent=campaign.title||'Matrix campaign';
+        el('matrix-live-message').textContent=campaign.message||campaign.nextAction||'No current activity.';
+        el('matrix-live-status').textContent=statusLabel[campaign.status]||campaign.status||'Unknown';
+        el('metric-jobs').textContent=`${campaign.completedJobs||0} / ${campaign.totalJobs||0}`;
+        el('metric-jobs-detail').textContent=campaign.status==='idle'?'No jobs started':`${(state.jobs||[]).filter(job=>job.status==='running').length} active now`;
+        el('metric-waves').textContent=`${campaign.currentWave||0} / ${campaign.totalWaves||0}`;
+        el('metric-waves-detail').textContent=campaign.currentWave?`Currently wave ${campaign.currentWave}`:'Provider-safe sequencing';
+        el('metric-pairs').textContent=`${campaign.pairsCovered||0} / ${campaign.pairsPlanned||0}`;
+        el('metric-progress').textContent=`${Math.max(0,Math.min(100,Number(campaign.progress)||0))}%`;
+        el('metric-time').textContent=campaign.startedAt?fmtDuration(campaign.elapsedSeconds):'Not started';
+        const jobs=new Map((state.jobs||[]).map(job=>[job.id,job]));
+        el('matrix-waves').replaceChildren(...(state.waves||[]).map(wave=>{
+          const row=document.createElement('section'); row.className='wave'; row.dataset.status=wave.status||'queued';
+          const label=document.createElement('div'); label.className='wave-label';
+          const waveTitle=document.createElement('strong'); waveTitle.textContent=`Wave ${wave.number}`;
+          const waveState=document.createElement('span'); waveState.textContent=statusLabel[wave.status]||wave.status||'Queued';
+          label.append(waveTitle,waveState);
+          const cells=document.createElement('div'); cells.className='wave-jobs'; cells.style.setProperty('--job-count',Math.max(1,wave.jobs.length));
+          wave.jobs.forEach(id=>{
+            const job=jobs.get(id); if(!job)return;
+            const button=document.createElement('button'); button.type='button'; button.className='job'; button.dataset.status=job.status||'queued'; button.style.setProperty('--job-progress',`${Math.max(0,Math.min(100,Number(job.progress)||0))}%`);
+            button.setAttribute('aria-label',`${job.title}, ${statusLabel[job.status]||job.status}, ${job.progress||0}%`);
+            const top=document.createElement('span'); top.className='job-top';
+            const provider=document.createElement('span'); provider.className='job-provider'; provider.textContent=job.provider;
+            const platform=document.createElement('span'); platform.className='job-platform'; platform.textContent=job.platform;
+            const title=document.createElement('span'); title.className='job-title'; title.textContent=job.title;
+            const step=document.createElement('span'); step.className='job-step'; step.textContent=job.currentStep||statusLabel[job.status]||'Queued';
+            top.append(provider,platform); button.append(top,title,step); button.addEventListener('click',()=>renderDetail(job)); cells.append(button);
+          });
+          row.append(label,cells); return row;
+        }));
+        const selected=jobs.get(selectedId)||[...jobs.values()].find(job=>job.status==='running'||job.status==='waiting'||job.status==='failed'||job.status==='blocked')||jobs.values().next().value;
+        renderDetail(selected);
+        const events=(state.events||[]).slice(0,12);
+        el('matrix-events').replaceChildren(...events.map(event=>{
+          const row=document.createElement('div'); row.className='event'; row.dataset.tone=event.tone||'info';
+          const time=document.createElement('time'); time.textContent=event.time||'—';
+          const body=document.createElement('div'); const title=document.createElement('strong'); title.textContent=event.title||'Update'; const message=document.createElement('span'); message.textContent=event.message||''; body.append(title,message); row.append(time,body); return row;
+        }));
+        const excluded=(state.excluded||[])[0];
+        if(excluded){
+          const box=el('matrix-excluded'); const strong=document.createElement('strong'); strong.textContent='Physical supplement: ';
+          box.replaceChildren(strong,document.createTextNode(`${excluded.title}. ${excluded.reason}`));
+        }
+      }
+      async function refresh(){
+        try{
+          const response=await fetch(`keypath-matrix-state.json?t=${Date.now()}`,{cache:'no-store'});
+          if(!response.ok)throw new Error(`HTTP ${response.status}`);
+          render(await response.json());
+        }catch(error){
+          root.dataset.campaignStatus='blocked'; el('matrix-live-title').textContent='Matrix feed unavailable'; el('matrix-live-message').textContent='The dashboard will retry automatically.'; el('matrix-live-status').textContent='Offline';
+        }
+      }
+      refresh(); setInterval(refresh,1000);
+    })();
+  </script>
+</div>

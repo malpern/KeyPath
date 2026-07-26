@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-07-25T17:27:02-07:00",
+  "campaign": {
+    "id": null,
+    "cadence": "weekly",
+    "status": "idle",
+    "title": "Weekly pairwise matrix",
+    "message": "Ready to start. No matrix jobs have run yet.",
+    "progress": 0,
+    "completedJobs": 0,
+    "totalJobs": 10,
+    "currentWave": 0,
+    "totalWaves": 6,
+    "pairsCovered": 0,
+    "pairsPlanned": 81,
+    "startedAt": null,
+    "elapsedSeconds": 0,
+    "nextAction": "Build and verify the resumable matrix executor, then start wave 1."
+  },
+  "waves": [
+    {"number": 1, "status": "queued", "jobs": ["local-contracts", "macos15-clean-install", "macos26-upgrade"]},
+    {"number": 2, "status": "queued", "jobs": ["macos15-repair", "macos26-selectors"]},
+    {"number": 3, "status": "queued", "jobs": ["macos15-reboot", "macos27-selectors"]},
+    {"number": 4, "status": "queued", "jobs": ["macos15-uninstall-reinstall"]},
+    {"number": 5, "status": "queued", "jobs": ["macos15-cancellation-recovery"]},
+    {"number": 6, "status": "queued", "jobs": ["macos15-launch"]}
+  ],
+  "jobs": [
+    {
+      "id": "local-contracts", "title": "Harness contracts", "provider": "local", "platform": "Local", "automation": "unattended", "estimatedMinutes": 5,
+      "status": "queued", "progress": 0, "currentStep": "Waiting for wave 1",
+      "steps": [
+        {"id": "run-lab-contract-tests", "label": "Run lab contracts", "status": "queued"},
+        {"id": "run-failure-ownership-self-test", "label": "Verify failure ownership", "status": "queued"},
+        {"id": "generate-consolidated-report", "label": "Generate report", "status": "queued"}
+      ]
+    },
+    {
+      "id": "macos15-clean-install", "title": "Clean install", "provider": "tart", "platform": "macOS 15", "automation": "operator", "estimatedMinutes": 42,
+      "status": "queued", "progress": 0, "currentStep": "Waiting for wave 1",
+      "steps": [
+        {"id": "create-fresh-lease", "label": "Create managed clone", "status": "queued"},
+        {"id": "install-exact-artifact", "label": "Install exact artifact", "status": "queued"},
+        {"id": "managed-capabilities", "label": "Verify managed runtime", "status": "queued"},
+        {"id": "artifact-capture", "label": "Capture evidence", "status": "queued"}
+      ]
+    },
+    {
+      "id": "macos26-upgrade", "title": "Beta-to-current upgrade", "provider": "parallels", "platform": "macOS 26", "automation": "operator", "estimatedMinutes": 50,
+      "status": "queued", "progress": 0, "currentStep": "Waiting for wave 1",
+      "steps": [
+        {"id": "create-fresh-lease-with-fixture", "label": "Create clone with beta fixture", "status": "queued"},
+        {"id": "install-fixture", "label": "Install beta fixture", "status": "queued"},
+        {"id": "upgrade-beta3-to-current", "label": "Upgrade and verify identity", "status": "queued"},
+        {"id": "artifact-capture", "label": "Capture evidence", "status": "queued"}
+      ]
+    },
+    {
+      "id": "macos15-repair", "title": "One-pass repair", "provider": "tart", "platform": "macOS 15", "automation": "operator", "estimatedMinutes": 48,
+      "status": "queued", "progress": 0, "currentStep": "Waiting for wave 2",
+      "steps": [
+        {"id": "create-fresh-lease", "label": "Create managed clone", "status": "queued"},
+        {"id": "install-exact-artifact", "label": "Install exact artifact", "status": "queued"},
+        {"id": "repair-kanata-service", "label": "Damage and repair Kanata", "status": "queued"},
+        {"id": "artifact-capture", "label": "Capture evidence", "status": "queued"}
+      ]
+    },
+    {
+      "id": "macos26-selectors", "title": "Selector capture", "provider": "parallels", "platform": "macOS 26", "automation": "operator", "estimatedMinutes": 24,
+      "status": "queued", "progress": 0, "currentStep": "Waiting for wave 2",
+      "steps": [
+        {"id": "create-desktop-lease", "label": "Create desktop clone", "status": "queued"},
+        {"id": "desktop-bootstrap", "label": "Prepare desktop tools", "status": "queued"},
+        {"id": "macos-26-selector-driver", "label": "Capture semantic selectors", "status": "queued"},
+        {"id": "artifact-capture", "label": "Capture evidence", "status": "queued"}
+      ]
+    },
+    {
+      "id": "macos15-reboot", "title": "Reboot persistence", "provider": "tart", "platform": "macOS 15", "automation": "operator", "estimatedMinutes": 55,
+      "status": "queued", "progress": 0, "currentStep": "Waiting for wave 3",
+      "steps": [
+        {"id": "create-fresh-lease", "label": "Create managed clone", "status": "queued"},
+        {"id": "install-exact-artifact", "label": "Install exact artifact", "status": "queued"},
+        {"id": "reboot-persistence-before", "label": "Capture ready baseline", "status": "queued"},
+        {"id": "reboot-guest", "label": "Reboot guest", "status": "queued"},
+        {"id": "reboot-persistence-after", "label": "Verify recovery", "status": "queued"},
+        {"id": "artifact-capture", "label": "Capture evidence", "status": "queued"}
+      ]
+    },
+    {
+      "id": "macos27-selectors", "title": "Selector capture", "provider": "parallels", "platform": "macOS 27", "automation": "unattended", "estimatedMinutes": 26,
+      "status": "queued", "progress": 0, "currentStep": "Waiting for wave 3",
+      "steps": [
+        {"id": "create-desktop-lease", "label": "Create desktop clone", "status": "queued"},
+        {"id": "desktop-bootstrap", "label": "Prepare pinned tools", "status": "queued"},
+        {"id": "macos-27-selector-scenario", "label": "Capture semantic selectors", "status": "queued"},
+        {"id": "artifact-capture", "label": "Capture evidence", "status": "queued"}
+      ]
+    },
+    {
+      "id": "macos15-uninstall-reinstall", "title": "Uninstall and reinstall", "provider": "tart", "platform": "macOS 15", "automation": "operator", "estimatedMinutes": 58,
+      "status": "queued", "progress": 0, "currentStep": "Waiting for wave 4",
+      "steps": [
+        {"id": "create-fresh-lease", "label": "Create managed clone", "status": "queued"},
+        {"id": "install-exact-artifact", "label": "Install exact artifact", "status": "queued"},
+        {"id": "uninstall", "label": "Uninstall and verify", "status": "queued"},
+        {"id": "install-exact-artifact-2", "label": "Reinstall exact artifact", "status": "queued"},
+        {"id": "reinstall", "label": "Verify preserved state", "status": "queued"},
+        {"id": "artifact-capture", "label": "Capture evidence", "status": "queued"}
+      ]
+    },
+    {
+      "id": "macos15-cancellation-recovery", "title": "Cancellation recovery", "provider": "tart", "platform": "macOS 15", "automation": "operator", "estimatedMinutes": 55,
+      "status": "queued", "progress": 0, "currentStep": "Waiting for wave 5",
+      "steps": [
+        {"id": "create-fresh-lease", "label": "Create managed clone", "status": "queued"},
+        {"id": "install-exact-artifact", "label": "Install exact artifact", "status": "queued"},
+        {"id": "cancellation-recovery-before", "label": "Capture ready baseline", "status": "queued"},
+        {"id": "operator-cancel-visible-dialog", "label": "Observe and cancel real dialog", "status": "queued"},
+        {"id": "cancellation-recovery-after", "label": "Verify unchanged runtime", "status": "queued"},
+        {"id": "artifact-capture", "label": "Capture evidence", "status": "queued"}
+      ]
+    },
+    {
+      "id": "macos15-launch", "title": "Installed-app launch", "provider": "tart", "platform": "macOS 15", "automation": "operator", "estimatedMinutes": 38,
+      "status": "queued", "progress": 0, "currentStep": "Waiting for wave 6",
+      "steps": [
+        {"id": "create-fresh-lease", "label": "Create managed clone", "status": "queued"},
+        {"id": "install-exact-artifact", "label": "Install exact artifact", "status": "queued"},
+        {"id": "launch", "label": "Launch installed app", "status": "queued"},
+        {"id": "helper-daemon-health", "label": "Verify runtime health", "status": "queued"},
+        {"id": "artifact-capture", "label": "Capture evidence", "status": "queued"}
+      ]
+    }
+  ],
+  "excluded": [
+    {
+      "id": "macos15-physical-remap",
+      "title": "Physical q-to-w remap",
+      "reason": "Explicit onsite physical input is required; this case cannot count as an unattended matrix pass."
+    }
+  ],
+  "events": [
+    {
+      "time": "17:27",
+      "tone": "info",
+      "title": "Matrix visualization prepared",
+      "message": "The weekly plan contains ten remote-eligible jobs in six provider-safe waves. Execution has not started."
+    }
+  ]
+}

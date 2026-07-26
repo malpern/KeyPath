@@ -1,30 +1,44 @@
 {
   "repository": "malpern/KeyPath",
-  "updatedAt": "2026-07-24T19:56:25.481101+00:00",
+  "updatedAt": "2026-07-26T00:31:05.271441+00:00",
   "issueLimit": 200,
   "truncated": false,
   "counts": {
-    "next": 1,
+    "queued": 2,
     "human": 2,
-    "hold": 61,
-    "deferred": 1
+    "hold": 59,
+    "deferred": 2
   },
   "issues": [
     {
       "labels": [
-        "documentation",
-        "1.1 release",
+        "devux",
+        "post-release",
         "agent-ok",
-        "keypath",
-        "recommended-next"
+        "keypath"
       ],
-      "number": 1199,
-      "title": "Document how KeyPath resolves rule conflicts and prerequisites",
-      "updatedAt": "2026-07-24T19:56:02Z",
-      "url": "https://github.com/malpern/KeyPath/issues/1199",
-      "dashboardStatus": "next",
+      "number": 1227,
+      "title": "[UX] Rename community-derived rule displays without migration",
+      "updatedAt": "2026-07-25T22:20:55Z",
+      "url": "https://github.com/malpern/KeyPath/issues/1227",
+      "dashboardStatus": "queued",
       "dashboardType": "docs",
-      "descriptionExcerpt": "Goal Give people one clear, illustrated guide to what KeyPath means by a conflict, what happens when one rule needs another, and how to choose safely among the resolution actions. Part of the closeout for #865. Content - Start with the user problem: two rules\u2026"
+      "descriptionExcerpt": "Part of #888. Implements the naming decision in #1205. Goal Let newcomers choose community-derived rule families by their outcome, while keeping attribution visible and preserving every stable identifier. Scope - Change the pack display name Ben Vallack Nav\u2026"
+    },
+    {
+      "labels": [
+        "devux",
+        "post-release",
+        "agent-ok",
+        "keypath"
+      ],
+      "number": 1226,
+      "title": "[UX] Apply action-first activation hints to rule cards",
+      "updatedAt": "2026-07-25T22:20:53Z",
+      "url": "https://github.com/malpern/KeyPath/issues/1226",
+      "dashboardStatus": "queued",
+      "dashboardType": "docs",
+      "descriptionExcerpt": "Part of #888. Implements the decision in #1204. Goal Make every affected rule card answer What do I physically do to use this? with a consistent, accessible action-first hint. Scope - Introduce one shared presentation/accessibility model for activation hints\u2026"
     },
     {
       "labels": [
@@ -217,40 +231,6 @@
       "dashboardStatus": "hold",
       "dashboardType": "feature",
       "descriptionExcerpt": "Post-1.0. Not for the 1.0 launch. From the WWDC 2026 review \u2014 see docs/wwdc-2026-macos-27-opportunities.md (PR #911), opportunity #1 (highest reward). Why The biggest UX barrier to the AI repair feature is \"bring your own Anthropic API key\" (Keychain\u2026"
-    },
-    {
-      "labels": [
-        "devux",
-        "post-release",
-        "needs-decision",
-        "human-in-loop",
-        "on-hold",
-        "keypath"
-      ],
-      "number": 888,
-      "title": "[Design] Post-1.0 copy + terminology cleanup across rule editors",
-      "updatedAt": "2026-07-14T20:13:01Z",
-      "url": "https://github.com/malpern/KeyPath/issues/888",
-      "dashboardStatus": "hold",
-      "dashboardType": "docs",
-      "descriptionExcerpt": "Output of the Thu 1.0 design-review pass (gate 5 of the release plan). None of these block 1.0; they're queued as a single backlog so the next design sprint can pick them up together. Full context in the RELEASE-READINESS working doc. Theme 1 \u2014 Timing\u2026"
-    },
-    {
-      "labels": [
-        "enhancement",
-        "1.1 release",
-        "sprint-epic",
-        "tracking-only",
-        "on-hold",
-        "keypath"
-      ],
-      "number": 865,
-      "title": "[Sprint 1.1] Rule dependency awareness: bidirectional prerequisite detection",
-      "updatedAt": "2026-07-24T03:39:01Z",
-      "url": "https://github.com/malpern/KeyPath/issues/865",
-      "dashboardStatus": "hold",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Status Tracking-only epic for the KeyPath 1.1 configuration-coherence sequence. Implement through the focused child issues; never ship this epic as one PR. Core sequence: 1. [#870 \u2014 Dependency graph vocabulary and pure\u2026"
     },
     {
       "labels": [
@@ -1095,6 +1075,23 @@
     },
     {
       "labels": [
+        "devux",
+        "post-release",
+        "needs-decision",
+        "human-in-loop",
+        "tracking-only",
+        "keypath"
+      ],
+      "number": 888,
+      "title": "[Design tracker] Make rule timing and activation language predictable",
+      "updatedAt": "2026-07-25T05:40:48Z",
+      "url": "https://github.com/malpern/KeyPath/issues/888",
+      "dashboardStatus": "deferred",
+      "dashboardType": "docs",
+      "descriptionExcerpt": "User problem KeyPath's rule editors do not teach one transferable mental model. The same kinds of choices are described with different words, while some similar-sounding controls actually behave differently. Users cannot reliably predict what changing a\u2026"
+    },
+    {
+      "labels": [
         "testing",
         "post-release",
         "tracking-only",
@@ -1112,166 +1109,152 @@
   "recentlyClosed": [
     {
       "labels": [
-        "enhancement",
-        "tier-2",
-        "1.1 release",
-        "human-in-loop",
+        "devux",
+        "post-release",
+        "discussion",
         "keypath"
       ],
-      "number": 868,
-      "title": "[1.1] Reverse prerequisite dialog: disable user flow",
-      "updatedAt": "2026-07-24T18:54:51Z",
-      "url": "https://github.com/malpern/KeyPath/issues/868",
+      "number": 1205,
+      "title": "Decide descriptive names for community-derived rule families",
+      "updatedAt": "2026-07-25T22:20:38Z",
+      "url": "https://github.com/malpern/KeyPath/issues/1205",
       "dashboardStatus": "completed",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on #866. It can proceed alongside #869 after the detector lands. Goal Add the reverse prerequisite flow when disabling a rule would leave enabled rules without a required capability. User\u2026"
+      "dashboardType": "docs",
+      "descriptionExcerpt": "Part of #888. User problem Names such as Ben Vallack Nav and Chord Groups (Ben Vallack style) assume users know the source material. The names provide attribution, but they do not tell a newcomer what the rule family does or how it differs from neighboring\u2026"
     },
     {
       "labels": [
-        "enhancement",
-        "tier-1",
-        "1.1 release",
-        "agent-ok",
+        "devux",
+        "post-release",
         "keypath"
       ],
-      "number": 870,
-      "title": "[1.1] Define rule dependency graph data model and builder",
-      "updatedAt": "2026-07-24T17:37:48Z",
-      "url": "https://github.com/malpern/KeyPath/issues/870",
+      "number": 1204,
+      "title": "Choose and standardize the activation-hint format for rule families",
+      "updatedAt": "2026-07-25T22:20:34Z",
+      "url": "https://github.com/malpern/KeyPath/issues/1204",
       "dashboardStatus": "completed",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865) \u2014 the dependency-awareness epic. Start here; the other child issues depend on this vocabulary. Goal Define a pure-data RuleDependencyGraph value type that records typed capabilities, requirements\u2026"
-    },
-    {
-      "labels": [
-        "enhancement",
-        "tier-2",
-        "1.1 release",
-        "agent-ok",
-        "keypath"
-      ],
-      "number": 869,
-      "title": "[1.1] Forward prerequisite dialog: enable / config-edit user flow",
-      "updatedAt": "2026-07-24T17:37:46Z",
-      "url": "https://github.com/malpern/KeyPath/issues/869",
-      "dashboardStatus": "completed",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on #866. Goal Add the forward prerequisite flow for enabling a rule or saving a configuration edit. Explain the actual consequence and offer an atomic, one-click fix when provider\u2026"
-    },
-    {
-      "labels": [
-        "enhancement",
-        "tier-1",
-        "1.1 release",
-        "agent-ok",
-        "keypath"
-      ],
-      "number": 867,
-      "title": "[1.1] Encode per-family dependencies (HRL Toggles, Launcher, Leader-based, Custom)",
-      "updatedAt": "2026-07-24T17:37:44Z",
-      "url": "https://github.com/malpern/KeyPath/issues/867",
-      "dashboardStatus": "completed",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on the capability and graph model in #870. Goal Encode explicit per-family dependency contributions. This is product logic that inspects each RuleCollection and its current configuration\u2026"
-    },
-    {
-      "labels": [
-        "enhancement",
-        "tier-1",
-        "1.1 release",
-        "agent-ok",
-        "keypath"
-      ],
-      "number": 866,
-      "title": "[1.1] Implement Prerequisite detector: forward + reverse queries on RuleCollectionsManager",
-      "updatedAt": "2026-07-24T05:36:05Z",
-      "url": "https://github.com/malpern/KeyPath/issues/866",
-      "dashboardStatus": "completed",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on #870 and the concrete contribution extraction in #867. Goal Add RuleCollectionsManager+PrerequisiteDetection.swift beside the existing conflict detector. It performs two single-hop\u2026"
+      "dashboardType": "docs",
+      "descriptionExcerpt": "Part of #888. User problem Rule cards and editors use several incompatible ways to explain activation: - Instruction: Hold Hyper key - Path: Leader \u2192 f \u2192 function keys - Specification: 11 keys \u00b7 180ms hold - No activation hint at all A user scanning the\u2026"
     },
     {
       "labels": [
         "documentation",
-        "post-release",
-        "needs-decision",
-        "human-in-loop",
-        "on-hold",
-        "keypath"
-      ],
-      "number": 920,
-      "title": "[1.1 docs] Capture the 26 placeholder screenshots stripped for 1.0 ship",
-      "updatedAt": "2026-07-24T01:48:20Z",
-      "url": "https://github.com/malpern/KeyPath/issues/920",
-      "dashboardStatus": "completed",
-      "dashboardType": "docs",
-      "descriptionExcerpt": "Seven published guides reference placeholder-.png screenshots that were never captured. For the 1.0 public release these were stripped from the guide markdown (their ![...]() image lines removed) so they don't render as broken <img icons on the website \u2014 the\u2026"
-    },
-    {
-      "labels": [
-        "kanata",
-        "upstream",
-        "post-release",
-        "research",
-        "human-in-loop",
-        "on-hold"
-      ],
-      "number": 121,
-      "title": "Protocol: make TCP Hello framing deterministic (low priority)",
-      "updatedAt": "2026-07-24T01:48:19Z",
-      "url": "https://github.com/malpern/KeyPath/issues/121",
-      "dashboardStatus": "completed",
-      "dashboardType": "upstream",
-      "descriptionExcerpt": "Follow-up to the current client-only TCP handshake fix in KeyPath (Hello parsing now uses the initial response and only reads more lines if needed). Problem: Hello() can fail when broadcast lines (e.g., KeyInput) interleave with the HelloOk response, causing\u2026"
-    },
-    {
-      "labels": [
-        "testing",
-        "post-release",
-        "needs-decision",
-        "on-hold",
-        "keypath"
-      ],
-      "number": 365,
-      "title": "Gradually migrate XCTest tests to Swift Testing",
-      "updatedAt": "2026-07-24T01:48:18Z",
-      "url": "https://github.com/malpern/KeyPath/issues/365",
-      "dashboardStatus": "completed",
-      "dashboardType": "testing",
-      "descriptionExcerpt": "Summary We're currently running both XCTest (~1541 tests) and Swift Testing (~505 tests) frameworks. Swift Testing is the future \u2014 better diagnostics, parameterized tests, cleaner syntax. Approach - Write all new tests in Swift Testing (@Test, #expect)\u2026"
-    },
-    {
-      "labels": [
-        "enhancement",
-        "post-release",
-        "needs-decision",
-        "wwdc26",
-        "on-hold",
-        "keypath"
-      ],
-      "number": 915,
-      "title": "Adopt AppKit automatic @Observable tracking in draw/layout (back-deploys to macOS 15)",
-      "updatedAt": "2026-07-24T01:48:17Z",
-      "url": "https://github.com/malpern/KeyPath/issues/915",
-      "dashboardStatus": "completed",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Post-1.0. Not for the 1.0 launch. From the WWDC 2026 review \u2014 see docs/wwdc-2026-macos-27-opportunities.md (PR #911), opportunity #4. Why WWDC26: AppKit now automatically tracks @Observable property reads in draw, layout, updateConstraints, updateLayer (and\u2026"
-    },
-    {
-      "labels": [
-        "enhancement",
         "devux",
         "post-release",
-        "tracking-only",
+        "agent-ok",
         "keypath"
       ],
-      "number": 934,
-      "title": "Wizard polish batch: restart messaging, prompt wording, progress indicator, completion moment, error recovery, misc",
-      "updatedAt": "2026-07-14T20:25:27Z",
-      "url": "https://github.com/malpern/KeyPath/issues/934",
+      "number": 1214,
+      "title": "[Timing] Add a shared timing glossary and align Leader/docs/accessibility",
+      "updatedAt": "2026-07-25T22:09:41Z",
+      "url": "https://github.com/malpern/KeyPath/issues/1214",
       "dashboardStatus": "completed",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "This tracking batch was re-audited against current master on 2026-07-14. It should not remain open as a broad implementation target. Completed or no longer actionable - [x] Progress indicator, wizard-open flicker, cosmetic error severity, and validation-loop\u2026"
+      "dashboardType": "docs",
+      "descriptionExcerpt": "Part of #1203 and #888. Follow-up to the approved vocabulary in #1203 and the Leader/Hyper explanation shipped by #1207. User problem Even after editor-specific fixes, timing language can drift across visible labels, helper text, accessibility output, guides\u2026"
+    },
+    {
+      "labels": [
+        "bug",
+        "devux",
+        "typing-behavior",
+        "post-release",
+        "agent-ok",
+        "keypath"
+      ],
+      "number": 1210,
+      "title": "[Timing] Decouple Auto Shift protection from Shift hold delay",
+      "updatedAt": "2026-07-25T21:36:26Z",
+      "url": "https://github.com/malpern/KeyPath/issues/1210",
+      "dashboardStatus": "completed",
+      "dashboardType": "bug",
+      "descriptionExcerpt": "Part of #1203 and #888. User problem Auto Shift's \u201cProtect fast typing\u201d option reuses the Shift timeout as a global prior-idle value. That silently couples two different concepts and can change the behavior of other dual-role rules. Approved vocabulary\u2026"
+    },
+    {
+      "labels": [
+        "devux",
+        "post-release",
+        "agent-ok",
+        "keypath"
+      ],
+      "number": 1211,
+      "title": "[Timing] Unify Custom Rule and Mapper timing language",
+      "updatedAt": "2026-07-25T20:47:48Z",
+      "url": "https://github.com/malpern/KeyPath/issues/1211",
+      "dashboardStatus": "completed",
+      "dashboardType": "docs",
+      "descriptionExcerpt": "Part of #1203 and #888. User problem The Custom Rule editor and Mapper expose the same dual-role fields with different terms such as Tap, Tapping term, Tap timeout, Hold, Hold timeout, and Quick tap. Users cannot transfer what they learned between the two\u2026"
+    },
+    {
+      "labels": [
+        "bug",
+        "devux",
+        "post-release",
+        "agent-ok",
+        "keypath"
+      ],
+      "number": 1208,
+      "title": "[Timing] Make Home Row Mods and Layer Toggles mode-aware",
+      "updatedAt": "2026-07-25T18:44:01Z",
+      "url": "https://github.com/malpern/KeyPath/issues/1208",
+      "dashboardStatus": "completed",
+      "dashboardType": "bug",
+      "descriptionExcerpt": "Part of #1203 and #888. User problem Home Row Mods and Home Row Layer Toggles expose timing controls whose meaning changes\u2014or whose value is ignored\u2014when opposite-hand activation is selected. Users can adjust settings and reasonably believe they affect\u2026"
+    },
+    {
+      "labels": [],
+      "number": 1220,
+      "title": "[Release] Recover notarization IDs when notarytool crashes after upload",
+      "updatedAt": "2026-07-25T17:33:57Z",
+      "url": "https://github.com/malpern/KeyPath/issues/1220",
+      "dashboardStatus": "completed",
+      "dashboardType": "other",
+      "descriptionExcerpt": "Problem notarytool submit --no-wait --output-format json --no-progress can crash locally after Apple has already accepted the upload. The release script then reports \u201cupload failed before a submission ID was recorded,\u201d even though notarytool history contains\u2026"
+    },
+    {
+      "labels": [
+        "bug",
+        "devux",
+        "post-release",
+        "agent-ok",
+        "keypath"
+      ],
+      "number": 1213,
+      "title": "[Timing] Make Key Repeat speed direction and units predictable",
+      "updatedAt": "2026-07-25T16:08:30Z",
+      "url": "https://github.com/malpern/KeyPath/issues/1213",
+      "dashboardStatus": "completed",
+      "dashboardType": "bug",
+      "descriptionExcerpt": "Part of #1203 and #888. User problem The Key Repeat control is labeled Speed but edits the interval in milliseconds directly. Moving the slider toward a larger value makes repetition slower, so the control's direction contradicts its label. Approved\u2026"
+    },
+    {
+      "labels": [
+        "bug",
+        "tooling",
+        "agent-ok",
+        "keypath"
+      ],
+      "number": 1217,
+      "title": "[Release] Bound notarization waits and preserve resumable submission evidence",
+      "updatedAt": "2026-07-25T15:38:44Z",
+      "url": "https://github.com/malpern/KeyPath/issues/1217",
+      "dashboardStatus": "completed",
+      "dashboardType": "bug",
+      "descriptionExcerpt": "Problem build-and-sign.sh currently runs notarytool submit --wait without a timeout. A slow Apple queue can hold an agent for hours, and if the local notarytool process crashes after upload, the normal release flow loses a durable continuation path even\u2026"
+    },
+    {
+      "labels": [
+        "devux",
+        "post-release",
+        "agent-ok",
+        "keypath"
+      ],
+      "number": 1212,
+      "title": "[Timing] Explain the Chord press window and fallback tradeoff",
+      "updatedAt": "2026-07-25T12:11:43Z",
+      "url": "https://github.com/malpern/KeyPath/issues/1212",
+      "dashboardStatus": "completed",
+      "dashboardType": "docs",
+      "descriptionExcerpt": "Part of #1203 and #888. User problem Chord Groups labels their only timing control simply Timeout. That does not say when timing starts, what must happen before expiry, or what happens when it expires. Qualitative presets describe speed without teaching the\u2026"
     }
   ]
 }

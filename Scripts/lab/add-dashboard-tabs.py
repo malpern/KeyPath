@@ -6,13 +6,15 @@ import pathlib
 def main() -> None:
     parser = argparse.ArgumentParser(description="Add shared navigation to a rendered KeyPath dashboard")
     parser.add_argument("page", type=pathlib.Path)
-    parser.add_argument("--active", choices=("automation", "issues", "lab"), required=True)
+    parser.add_argument("--active", choices=("automation", "matrix", "issues", "lab"), required=True)
     args = parser.parse_args()
     document = args.page.read_text()
     tabs = (
         '<nav class="dashboard-tabs" aria-label="KeyPath dashboards">'
         '<a href="keypath-test-automation-progress.html" '
         f'aria-current="{"page" if args.active == "automation" else "false"}">Automation lab</a>'
+        '<a href="keypath-matrix-dashboard.html" '
+        f'aria-current="{"page" if args.active == "matrix" else "false"}">Matrix runs</a>'
         '<a href="keypath-github-issues-dashboard.html" '
         f'aria-current="{"page" if args.active == "issues" else "false"}">GitHub issues</a>'
         "</nav>"
