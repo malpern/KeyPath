@@ -906,9 +906,9 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-matrix .live-orbit::before { content:&quot;&quot;; position:absolute; inset:5px; border:1px dashed var(--faint); border-radius:50%; opacity:.45; }
     #keypath-matrix[data-campaign-status=&quot;running&quot;] .live-orbit { border-color:rgba(255,150,63,.55); box-shadow:0 0 28px rgba(255,150,63,.15); }
     #keypath-matrix[data-campaign-status=&quot;running&quot;] .live-orbit::before { border-color:var(--run); animation:matrix-orbit 3s linear infinite; }
-    #keypath-matrix[data-campaign-status=&quot;running&quot;] .live-dot { background:var(--run-2); box-shadow:0 0 12px var(--run); animation:matrix-heartbeat 1.5s ease-in-out infinite; }
+    #keypath-matrix[data-campaign-status=&quot;running&quot;] .live-dot { background:var(--run-2); box-shadow:0 0 12px var(--run); animation:matrix-heartbeat 1.5s cubic-bezier(.77,0,.175,1) infinite; }
     #keypath-matrix[data-campaign-status=&quot;passed&quot;] .live-dot { background:var(--pass); box-shadow:0 0 12px rgba(56,217,156,.55); }
-    #keypath-matrix[data-campaign-status=&quot;waiting&quot;] .live-dot { background:var(--wait); box-shadow:0 0 12px rgba(181,140,255,.55); animation:matrix-heartbeat 2.4s ease-in-out infinite; }
+    #keypath-matrix[data-campaign-status=&quot;waiting&quot;] .live-dot { background:var(--wait); box-shadow:0 0 12px rgba(181,140,255,.55); animation:matrix-heartbeat 2.4s cubic-bezier(.77,0,.175,1) infinite; }
     #keypath-matrix[data-campaign-status=&quot;failed&quot;] .live-dot,#keypath-matrix[data-campaign-status=&quot;blocked&quot;] .live-dot { background:var(--fail); }
     #keypath-matrix .live-copy { min-width:0; }
     #keypath-matrix .live-copy strong { display:block; overflow:hidden; color:var(--ink); font-family:system-ui,sans-serif; font-size:15px; font-weight:620; text-overflow:ellipsis; white-space:nowrap; }
@@ -930,7 +930,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-matrix .metric:nth-child(4) { --metric-accent:var(--pass); }
     #keypath-matrix .metric-label { color:var(--faint); font-size:8px; font-weight:750; letter-spacing:.12em; text-transform:uppercase; }
     #keypath-matrix .metric-value { display:block; margin-top:4px; color:var(--ink); font-family:system-ui,sans-serif; font-size:22px; font-weight:650; font-variant-numeric:tabular-nums; letter-spacing:-.04em; transform-origin:left center; }
-    #keypath-matrix .metric-value.is-changing { animation:matrix-tick .36s cubic-bezier(.22,1,.36,1); }
+    #keypath-matrix .metric-value.is-changing { animation:matrix-tick 240ms cubic-bezier(.23,1,.32,1); }
     #keypath-matrix .metric-detail { display:block; margin-top:2px; overflow:hidden; color:var(--faint); font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
 
     #keypath-matrix .matrix { position:relative; overflow:hidden; padding:16px; border-radius:12px; }
@@ -948,7 +948,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-matrix .wave[data-status=&quot;passed&quot;] { opacity:.9; }
     #keypath-matrix .wave-label { position:relative; display:flex; flex-direction:column; justify-content:center; padding:8px 9px 8px 13px; border-left:1px solid var(--line); }
     #keypath-matrix .wave-label::before { content:&quot;&quot;; position:absolute; left:-4px; top:50%; width:7px; height:7px; border:1px solid var(--faint); border-radius:50%; background:var(--void); transform:translateY(-50%); }
-    #keypath-matrix .wave[data-status=&quot;running&quot;] .wave-label::before { border-color:var(--run); background:var(--run); box-shadow:0 0 12px var(--run); animation:matrix-heartbeat 1.5s ease-in-out infinite; }
+    #keypath-matrix .wave[data-status=&quot;running&quot;] .wave-label::before { border-color:var(--run); background:var(--run); box-shadow:0 0 12px var(--run); animation:matrix-heartbeat 1.5s cubic-bezier(.77,0,.175,1) infinite; }
     #keypath-matrix .wave[data-status=&quot;passed&quot;] .wave-label::before { border-color:var(--pass); background:var(--pass); }
     #keypath-matrix .wave-label strong { color:var(--dim); font-size:9px; font-weight:750; letter-spacing:.04em; }
     #keypath-matrix .wave-label span { margin-top:3px; color:var(--faint); font-size:7px; letter-spacing:.08em; text-transform:uppercase; }
@@ -961,10 +961,10 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-matrix .job:focus-visible { z-index:2; border-color:var(--provider); outline:2px solid rgba(255,255,255,.18); outline-offset:2px; }
     #keypath-matrix .job:active { transform:scale(.97); transition:transform 140ms cubic-bezier(.23,1,.32,1); }
     #keypath-matrix .job[data-status=&quot;running&quot;] { border-color:var(--provider); background:color-mix(in srgb,var(--provider) 12%,#141821); color:var(--ink); box-shadow:0 0 28px color-mix(in srgb,var(--provider) 13%,transparent); }
-    #keypath-matrix .job[data-status=&quot;running&quot;]::before { content:&quot;&quot;; position:absolute; top:0; bottom:0; width:38%; background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--provider) 20%,transparent),transparent); transform:translateX(-140%); animation:matrix-scan 2.2s ease-in-out infinite; }
+    #keypath-matrix .job[data-status=&quot;running&quot;]::before { content:&quot;&quot;; position:absolute; top:0; bottom:0; width:38%; background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--provider) 20%,transparent),transparent); transform:translateX(-140%); animation:matrix-scan 2.2s cubic-bezier(.77,0,.175,1) infinite; }
     #keypath-matrix .job[data-status=&quot;passed&quot;] { border-color:rgba(56,217,156,.34); background:rgba(56,217,156,.075); color:var(--ink); }
     #keypath-matrix .job[data-status=&quot;waiting&quot;] { border-color:rgba(181,140,255,.55); background:repeating-linear-gradient(135deg,rgba(181,140,255,.12) 0 7px,rgba(181,140,255,.04) 7px 12px); color:var(--ink); }
-    #keypath-matrix .job[data-status=&quot;waiting&quot;]::before { content:&quot;&quot;; position:absolute; inset:0; border-radius:inherit; box-shadow:inset 0 0 22px rgba(181,140,255,.2); opacity:.2; animation:matrix-wait 2.8s ease-in-out infinite; }
+    #keypath-matrix .job[data-status=&quot;waiting&quot;]::before { content:&quot;&quot;; position:absolute; inset:0; border-radius:inherit; box-shadow:inset 0 0 22px rgba(181,140,255,.2); opacity:.2; animation:matrix-wait 2.8s cubic-bezier(.77,0,.175,1) infinite; }
     #keypath-matrix .job[data-status=&quot;failed&quot;],#keypath-matrix .job[data-status=&quot;blocked&quot;] { border-color:rgba(255,96,121,.62); background:rgba(255,96,121,.1); color:var(--ink); }
     #keypath-matrix .job::after { content:&quot;&quot;; position:absolute; left:0; bottom:0; width:var(--job-progress,0%); height:2px; background:var(--provider); box-shadow:0 0 9px var(--provider); transition:width .65s cubic-bezier(.22,1,.36,1); }
     #keypath-matrix .job[data-status=&quot;passed&quot;]::after { background:var(--pass); box-shadow:none; }
@@ -978,7 +978,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-matrix .job-blocks { position:relative; display:flex; gap:3px; margin-top:8px; }
     #keypath-matrix .job-block { height:5px; flex:1; border-radius:1px; background:var(--queued); transition:background .35s ease,box-shadow .35s ease,transform .35s ease; }
     #keypath-matrix .job-block[data-status=&quot;passed&quot;] { background:var(--pass); }
-    #keypath-matrix .job-block[data-status=&quot;running&quot;] { background:var(--provider); box-shadow:0 0 8px var(--provider); animation:matrix-block 1.2s ease-in-out infinite; }
+    #keypath-matrix .job-block[data-status=&quot;running&quot;] { background:var(--provider); box-shadow:0 0 8px var(--provider); animation:matrix-block 1.2s cubic-bezier(.77,0,.175,1) infinite; }
     #keypath-matrix .job-block[data-status=&quot;waiting&quot;] { background:var(--wait); }
     #keypath-matrix .job-block[data-status=&quot;failed&quot;],#keypath-matrix .job-block[data-status=&quot;blocked&quot;] { background:var(--fail); }
 
@@ -1062,7 +1062,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-matrix .wave[data-status=&quot;passed&quot;] .wave-label::before { background:var(--pass); }
     #keypath-matrix .wave-label strong { color:var(--dim); }
     #keypath-matrix .wave-jobs::before { background:linear-gradient(90deg,#dce1e8,transparent); }
-    #keypath-matrix .wave[data-status=&quot;running&quot;] .wave-jobs::after { content:&quot;&quot;; position:absolute; left:0; right:0; top:50%; z-index:-1; height:2px; background:linear-gradient(90deg,var(--run),rgba(238,113,56,.08)); transform:scaleX(0); transform-origin:left; animation:matrix-route 2.4s cubic-bezier(.77,0,.175,1) infinite; }
+    #keypath-matrix .wave[data-status=&quot;running&quot;] .wave-jobs::after { content:&quot;&quot;; position:absolute; left:0; right:0; top:50%; z-index:-1; height:2px; background:linear-gradient(90deg,var(--run),rgba(238,113,56,.08)); transform:scaleX(.02); transform-origin:left; animation:matrix-route 2.4s cubic-bezier(.77,0,.175,1) infinite; }
     #keypath-matrix .job { border-color:#dfe4eb; background:#fff; color:var(--dim); box-shadow:0 2px 8px rgba(35,45,58,.045); }
     #keypath-matrix .job[data-status=&quot;running&quot;] { border-color:var(--provider); background:color-mix(in srgb,var(--provider) 7%,#fff); color:var(--ink); box-shadow:0 10px 24px color-mix(in srgb,var(--provider) 13%,transparent); }
     #keypath-matrix .job[data-status=&quot;passed&quot;] { border-color:rgba(32,168,119,.28); background:#f5fcf9; color:var(--ink); }
@@ -1080,14 +1080,58 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-matrix .events h2 { color:var(--faint); font-family:ui-monospace,&quot;SFMono-Regular&quot;,Menlo,monospace; }
     #keypath-matrix .excluded strong { color:var(--dim); }
 
-    @keyframes matrix-route { 0% { transform:scaleX(0); opacity:0; } 18% { opacity:1; } 72%,100% { transform:scaleX(1); opacity:0; } }
+    /* Kinetic layer: the lab becomes visibly busy only while evidence is moving. */
+    #keypath-matrix .workstream { position:absolute; inset:0; overflow:hidden; pointer-events:none; opacity:0; transition:opacity 220ms cubic-bezier(.23,1,.32,1); }
+    #keypath-matrix[data-campaign-status=&quot;running&quot;] .workstream { opacity:1; }
+    #keypath-matrix .workstream i { --packet-color:var(--run); position:absolute; left:0; bottom:8px; width:7px; height:7px; border-radius:2px; background:var(--packet-color); box-shadow:0 0 12px color-mix(in srgb,var(--packet-color) 55%,transparent); opacity:0; transform:translate3d(-16px,0,0) rotate(0deg); animation:matrix-stream 3.2s linear infinite; will-change:transform,opacity; }
+    #keypath-matrix .workstream i:nth-child(2) { --packet-color:var(--local); bottom:14px; animation-delay:-.65s; animation-duration:3.7s; }
+    #keypath-matrix .workstream i:nth-child(3) { --packet-color:var(--parallels); bottom:6px; animation-delay:-1.35s; animation-duration:4.1s; }
+    #keypath-matrix .workstream i:nth-child(4) { --packet-color:var(--run-2); bottom:18px; animation-delay:-2.1s; animation-duration:3.4s; }
+    #keypath-matrix .workstream i:nth-child(5) { --packet-color:var(--pass); bottom:10px; animation-delay:-2.8s; animation-duration:4.4s; }
+    #keypath-matrix[data-campaign-status=&quot;running&quot;] .livebar { box-shadow:0 14px 38px rgba(238,113,56,.11),inset 0 1px rgba(255,255,255,.9); }
+    #keypath-matrix[data-campaign-status=&quot;running&quot;] .live-status { position:relative; overflow:hidden; }
+    #keypath-matrix[data-campaign-status=&quot;running&quot;] .live-status::after { content:&quot;&quot;; position:absolute; inset:-40% auto -40% 0; width:44%; background:linear-gradient(90deg,transparent,rgba(255,255,255,.9),transparent); transform:translate3d(-180%,0,0) skewX(-18deg); animation:matrix-status-sheen 2.5s linear infinite; }
+    #keypath-matrix[data-campaign-status=&quot;running&quot;] .dial-ring { position:relative; animation:matrix-dial-breathe 1.8s cubic-bezier(.77,0,.175,1) infinite; }
+    #keypath-matrix[data-campaign-status=&quot;running&quot;] .dial-ring::after { content:&quot;&quot;; position:absolute; inset:-5px; border:2px solid transparent; border-top-color:var(--run); border-right-color:color-mix(in srgb,var(--run) 35%,transparent); border-radius:50%; animation:matrix-orbit 1.1s linear infinite; }
+    #keypath-matrix[data-campaign-status=&quot;running&quot;] .matrix::after { content:&quot;&quot;; position:absolute; left:0; right:0; top:0; height:90px; pointer-events:none; background:linear-gradient(180deg,transparent,rgba(238,113,56,.035),transparent); opacity:0; transform:translate3d(0,-100%,0); animation:matrix-field-scan 4.8s linear infinite; will-change:transform,opacity; }
+    #keypath-matrix .wave[data-status=&quot;running&quot;] { animation:matrix-wave-breathe 2.4s cubic-bezier(.77,0,.175,1) infinite; }
+    #keypath-matrix .wave[data-status=&quot;running&quot;] .wave-label strong { color:#a9441b; }
+    #keypath-matrix .wave[data-status=&quot;running&quot;] .wave-label::after { content:&quot;&quot;; position:absolute; left:0; top:50%; width:8px; height:8px; border:1px solid var(--run); border-radius:50%; transform:translate3d(0,-50%,0) scale(.92); opacity:0; animation:matrix-radar 1.5s cubic-bezier(.23,1,.32,1) infinite; }
+    #keypath-matrix .job[data-status=&quot;running&quot;] { animation:matrix-working-card 1.8s cubic-bezier(.77,0,.175,1) infinite; }
+    #keypath-matrix .job-packets { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+    #keypath-matrix .job-packets i { position:absolute; left:7px; top:50%; width:5px; height:5px; border-radius:1px; background:var(--provider); box-shadow:0 0 9px var(--provider); opacity:0; transform:translate3d(0,-50%,0) rotate(0deg); animation:matrix-job-packet 1.85s linear infinite; will-change:transform,opacity; }
+    #keypath-matrix .job-packets i:nth-child(2) { animation-delay:-.62s; }
+    #keypath-matrix .job-packets i:nth-child(3) { animation-delay:-1.24s; }
+    #keypath-matrix .job.state-changed { animation:matrix-state-impact 280ms cubic-bezier(.23,1,.32,1) both; }
+    #keypath-matrix .job[data-status=&quot;passed&quot;].state-changed::before { content:&quot;&quot;; position:absolute; inset:50% auto auto 50%; width:8px; height:8px; border-radius:50%; border:2px solid var(--pass); transform:translate3d(-50%,-50%,0) scale(.95); opacity:0; animation:matrix-success-ring 700ms cubic-bezier(.23,1,.32,1) both; }
+    #keypath-matrix .job-block[data-status=&quot;running&quot;]:nth-child(2n) { animation-delay:-.3s; }
+    #keypath-matrix .job-block[data-status=&quot;running&quot;]:nth-child(3n) { animation-delay:-.6s; }
+    #keypath-matrix .step[data-status=&quot;running&quot;] { overflow:hidden; border-color:rgba(238,113,56,.28); background:#fff8f4; }
+    #keypath-matrix .step[data-status=&quot;running&quot;]::after { content:&quot;&quot;; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(238,113,56,.12),transparent); transform:translate3d(-120%,0,0); animation:matrix-step-scan 1.7s linear infinite; }
+
+    @keyframes matrix-route { 0% { transform:scaleX(.02); opacity:0; } 18% { opacity:1; } 72%,100% { transform:scaleX(1); opacity:0; } }
     @keyframes matrix-orbit { to { transform:rotate(360deg); } }
     @keyframes matrix-heartbeat { 0%,100% { transform:scale(1); opacity:.78; } 50% { transform:scale(1.3); opacity:1; } }
     @keyframes matrix-scan { 0% { transform:translateX(-140%); } 64%,100% { transform:translateX(360%); } }
     @keyframes matrix-wait { 0%,100% { opacity:.18; } 50% { opacity:1; } }
     @keyframes matrix-block { 0%,100% { transform:scaleY(.75); opacity:.72; } 50% { transform:scaleY(1.35); opacity:1; } }
     @keyframes matrix-tick { 0% { opacity:.45; transform:translateY(4px) scale(.98); } 100% { opacity:1; transform:none; } }
-    @media (prefers-reduced-motion:reduce) { #keypath-matrix *,#keypath-matrix *::before,#keypath-matrix *::after { animation:none!important; transition:none!important; } }
+    @keyframes matrix-stream { 0% { opacity:0; transform:translate3d(-16px,0,0) rotate(0deg); } 10%,78% { opacity:1; } 100% { opacity:0; transform:translate3d(72vw,0,0) rotate(270deg); } }
+    @keyframes matrix-status-sheen { 0%,45% { transform:translate3d(-180%,0,0) skewX(-18deg); opacity:0; } 58% { opacity:.9; } 74%,100% { transform:translate3d(360%,0,0) skewX(-18deg); opacity:0; } }
+    @keyframes matrix-dial-breathe { 0%,100% { transform:scale(1); } 50% { transform:scale(1.045); } }
+    @keyframes matrix-field-scan { 0% { opacity:0; transform:translate3d(0,-100%,0); } 12%,78% { opacity:1; } 100% { opacity:0; transform:translate3d(0,620px,0); } }
+    @keyframes matrix-wave-breathe { 0%,100% { transform:translate3d(0,0,0); } 50% { transform:translate3d(3px,0,0); } }
+    @keyframes matrix-radar { 0% { opacity:.75; transform:translate3d(0,-50%,0) scale(.92); } 100% { opacity:0; transform:translate3d(0,-50%,0) scale(3.6); } }
+    @keyframes matrix-working-card { 0%,100% { transform:translate3d(0,0,0); } 50% { transform:translate3d(0,-2px,0); } }
+    @keyframes matrix-job-packet { 0% { opacity:0; transform:translate3d(0,-50%,0) rotate(0deg); } 14%,72% { opacity:.95; } 100% { opacity:0; transform:translate3d(12rem,-50%,0) rotate(180deg); } }
+    @keyframes matrix-state-impact { 0% { transform:scale(.97); opacity:.72; } 56% { transform:scale(1.025); opacity:1; } 100% { transform:scale(1); opacity:1; } }
+    @keyframes matrix-success-ring { 0% { opacity:.9; transform:translate3d(-50%,-50%,0) scale(.95); } 100% { opacity:0; transform:translate3d(-50%,-50%,0) scale(18); } }
+    @keyframes matrix-step-scan { 0% { transform:translate3d(-120%,0,0); opacity:0; } 12%,68% { opacity:1; } 100% { transform:translate3d(220%,0,0); opacity:0; } }
+    @media (prefers-reduced-motion:reduce) {
+      #keypath-matrix *,#keypath-matrix *::before,#keypath-matrix *::after { animation:none!important; }
+      #keypath-matrix .job,#keypath-matrix .wave,#keypath-matrix .workstream,#keypath-matrix .metric-value { transform:none!important; transition:opacity 180ms cubic-bezier(.23,1,.32,1),background-color 180ms cubic-bezier(.23,1,.32,1),border-color 180ms cubic-bezier(.23,1,.32,1)!important; }
+      #keypath-matrix .workstream { opacity:0!important; }
+    }
     @media (prefers-reduced-transparency:reduce) { #keypath-matrix .card { background:var(--panel); } }
     @media (prefers-contrast:more) { #keypath-matrix { --dim:#c6cada; --faint:#9ba2b5; --line:#50586b; } }
     @media (hover:hover) and (pointer:fine) { #keypath-matrix .job:hover { z-index:2; border-color:var(--provider); transform:translateY(-2px); outline:2px solid rgba(255,255,255,.18); outline-offset:2px; } }
@@ -1106,12 +1150,13 @@ html&gt;body{padding:0}&lt;/style&gt;
   &lt;/style&gt;
 
   &lt;header class=&quot;top&quot;&gt;
-    &lt;div&gt;&lt;div class=&quot;eyebrow&quot;&gt;KeyPath lab · live campaign&lt;/div&gt;&lt;h1&gt;Matrix runs&lt;/h1&gt;&lt;div class=&quot;sub&quot;&gt;Follow each test specimen through provider-safe stages—from admission to verified evidence—with motion reserved for work that is actually changing.&lt;/div&gt;&lt;/div&gt;
+    &lt;div&gt;&lt;div class=&quot;eyebrow&quot;&gt;KeyPath lab · live campaign&lt;/div&gt;&lt;h1&gt;Matrix runs&lt;/h1&gt;&lt;div class=&quot;sub&quot;&gt;Watch work packets move through provider-safe stages—from admission to verified evidence. The lab accelerates while jobs run and settles when the machines do.&lt;/div&gt;&lt;/div&gt;
     &lt;div class=&quot;updated&quot; id=&quot;matrix-updated&quot;&gt;Updated —&lt;/div&gt;
   &lt;/header&gt;
 
   &lt;section class=&quot;command&quot; aria-label=&quot;Live campaign status&quot;&gt;
     &lt;div class=&quot;livebar card&quot; aria-live=&quot;polite&quot;&gt;
+      &lt;div class=&quot;workstream&quot; aria-hidden=&quot;true&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
       &lt;div class=&quot;live-main&quot;&gt;&lt;div class=&quot;live-orbit&quot; aria-hidden=&quot;true&quot;&gt;&lt;i class=&quot;live-dot&quot;&gt;&lt;/i&gt;&lt;/div&gt;&lt;div class=&quot;live-copy&quot;&gt;&lt;strong id=&quot;matrix-live-title&quot;&gt;Loading campaign state&lt;/strong&gt;&lt;small id=&quot;matrix-live-message&quot;&gt;Connecting to the local dashboard feed.&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
       &lt;div class=&quot;live-status&quot; id=&quot;matrix-live-status&quot;&gt;Connecting&lt;/div&gt;
     &lt;/div&gt;
@@ -1149,6 +1194,7 @@ html&gt;body{padding:0}&lt;/style&gt;
       const el=id=&gt;root.querySelector(`#${id}`);
       const statusLabel={idle:&#x27;Ready&#x27;,queued:&#x27;Queued&#x27;,running:&#x27;Running&#x27;,passed:&#x27;Passed&#x27;,waiting:&#x27;Human wait&#x27;,failed:&#x27;Failed&#x27;,blocked:&#x27;Blocked&#x27;};
       let selectedId=null;
+      const previousJobStatus=new Map();
       const fmtDuration=seconds=&gt;{const value=Math.max(0,Number(seconds)||0);if(value&lt;60)return `${Math.floor(value)}s`;const minutes=Math.floor(value/60),hours=Math.floor(minutes/60);return hours?`${hours}h ${minutes%60}m`:`${minutes}m`;};
       function setMetric(id,value){const node=el(id);if(node.textContent===value)return;node.textContent=value;node.classList.remove(&#x27;is-changing&#x27;);void node.offsetWidth;node.classList.add(&#x27;is-changing&#x27;);}
       function renderDetail(job){
@@ -1181,8 +1227,8 @@ html&gt;body{padding:0}&lt;/style&gt;
           const row=document.createElement(&#x27;section&#x27;);row.className=&#x27;wave&#x27;;row.dataset.status=wave.status||&#x27;queued&#x27;;
           const label=document.createElement(&#x27;div&#x27;);label.className=&#x27;wave-label&#x27;;const waveTitle=document.createElement(&#x27;strong&#x27;);waveTitle.textContent=`WAVE ${String(wave.number).padStart(2,&#x27;0&#x27;)}`;const waveState=document.createElement(&#x27;span&#x27;);waveState.textContent=statusLabel[wave.status]||wave.status||&#x27;Queued&#x27;;label.append(waveTitle,waveState);
           const cells=document.createElement(&#x27;div&#x27;);cells.className=&#x27;wave-jobs&#x27;;cells.style.setProperty(&#x27;--job-count&#x27;,Math.max(1,wave.jobs.length));
-          wave.jobs.forEach(id=&gt;{const job=jobs.get(id);if(!job)return;const button=document.createElement(&#x27;button&#x27;);button.type=&#x27;button&#x27;;button.className=&#x27;job&#x27;;button.dataset.status=job.status||&#x27;queued&#x27;;button.dataset.provider=job.provider||&#x27;local&#x27;;button.style.setProperty(&#x27;--job-progress&#x27;,`${Math.max(0,Math.min(100,Number(job.progress)||0))}%`);button.setAttribute(&#x27;aria-label&#x27;,`${job.title}, ${statusLabel[job.status]||job.status}, ${job.progress||0}%`);
-            const top=document.createElement(&#x27;span&#x27;);top.className=&#x27;job-top&#x27;;const provider=document.createElement(&#x27;span&#x27;);provider.className=&#x27;job-provider&#x27;;provider.textContent=job.provider;const platform=document.createElement(&#x27;span&#x27;);platform.className=&#x27;job-platform&#x27;;platform.textContent=job.platform;const title=document.createElement(&#x27;span&#x27;);title.className=&#x27;job-title&#x27;;title.textContent=job.title;const step=document.createElement(&#x27;span&#x27;);step.className=&#x27;job-step&#x27;;step.textContent=job.currentStep||statusLabel[job.status]||&#x27;Queued&#x27;;const blocks=document.createElement(&#x27;span&#x27;);blocks.className=&#x27;job-blocks&#x27;;blocks.setAttribute(&#x27;aria-hidden&#x27;,&#x27;true&#x27;);(job.steps||[]).forEach(item=&gt;{const block=document.createElement(&#x27;i&#x27;);block.className=&#x27;job-block&#x27;;block.dataset.status=item.status||&#x27;queued&#x27;;blocks.append(block);});top.append(provider,platform);button.append(top,title,step,blocks);button.addEventListener(&#x27;click&#x27;,()=&gt;renderDetail(job));cells.append(button);});row.append(label,cells);return row;
+          wave.jobs.forEach(id=&gt;{const job=jobs.get(id);if(!job)return;const button=document.createElement(&#x27;button&#x27;);button.type=&#x27;button&#x27;;button.className=&#x27;job&#x27;;button.dataset.status=job.status||&#x27;queued&#x27;;button.dataset.provider=job.provider||&#x27;local&#x27;;if(previousJobStatus.has(job.id)&amp;&amp;previousJobStatus.get(job.id)!==job.status)button.classList.add(&#x27;state-changed&#x27;);button.style.setProperty(&#x27;--job-progress&#x27;,`${Math.max(0,Math.min(100,Number(job.progress)||0))}%`);button.setAttribute(&#x27;aria-label&#x27;,`${job.title}, ${statusLabel[job.status]||job.status}, ${job.progress||0}%`);
+            const packets=document.createElement(&#x27;span&#x27;);packets.className=&#x27;job-packets&#x27;;packets.setAttribute(&#x27;aria-hidden&#x27;,&#x27;true&#x27;);if(job.status===&#x27;running&#x27;)packets.append(document.createElement(&#x27;i&#x27;),document.createElement(&#x27;i&#x27;),document.createElement(&#x27;i&#x27;));const top=document.createElement(&#x27;span&#x27;);top.className=&#x27;job-top&#x27;;const provider=document.createElement(&#x27;span&#x27;);provider.className=&#x27;job-provider&#x27;;provider.textContent=job.provider;const platform=document.createElement(&#x27;span&#x27;);platform.className=&#x27;job-platform&#x27;;platform.textContent=job.platform;const title=document.createElement(&#x27;span&#x27;);title.className=&#x27;job-title&#x27;;title.textContent=job.title;const step=document.createElement(&#x27;span&#x27;);step.className=&#x27;job-step&#x27;;step.textContent=job.currentStep||statusLabel[job.status]||&#x27;Queued&#x27;;const blocks=document.createElement(&#x27;span&#x27;);blocks.className=&#x27;job-blocks&#x27;;blocks.setAttribute(&#x27;aria-hidden&#x27;,&#x27;true&#x27;);(job.steps||[]).forEach(item=&gt;{const block=document.createElement(&#x27;i&#x27;);block.className=&#x27;job-block&#x27;;block.dataset.status=item.status||&#x27;queued&#x27;;blocks.append(block);});top.append(provider,platform);button.append(packets,top,title,step,blocks);button.addEventListener(&#x27;click&#x27;,()=&gt;renderDetail(job));cells.append(button);previousJobStatus.set(job.id,job.status);});row.append(label,cells);return row;
         }));
         const selected=jobs.get(selectedId)||[...jobs.values()].find(job=&gt;[&#x27;running&#x27;,&#x27;waiting&#x27;,&#x27;failed&#x27;,&#x27;blocked&#x27;].includes(job.status))||jobs.values().next().value;renderDetail(selected);
         el(&#x27;matrix-events&#x27;).replaceChildren(...(state.events||[]).slice(0,12).map(event=&gt;{const row=document.createElement(&#x27;div&#x27;);row.className=&#x27;event&#x27;;row.dataset.tone=event.tone||&#x27;info&#x27;;const time=document.createElement(&#x27;time&#x27;);time.textContent=event.time||&#x27;—&#x27;;const body=document.createElement(&#x27;div&#x27;);const title=document.createElement(&#x27;strong&#x27;);title.textContent=event.title||&#x27;Update&#x27;;const message=document.createElement(&#x27;span&#x27;);message.textContent=event.message||&#x27;&#x27;;body.append(title,message);row.append(time,body);return row;}));
