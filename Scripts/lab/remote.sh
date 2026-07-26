@@ -984,6 +984,22 @@ install_runtime() {
     return 0
   fi
 
+  if [[ "$runtime_status" == "uninstalled" ]]; then
+    # Preserve the first installation's durable evidence before creating a
+    # fresh output directory for the reinstall. Fail closed rather than
+    # overwriting either evidence set on an ambiguous retry.
+    run_command "$lease" /bin/zsh -lc \
+      'source=.keypath-lab/scenario-output/install-runtime; target=.keypath-lab/scenario-output/install-runtime-before-reinstall; test -d "$source"; test ! -e "$target"; mv "$source" "$target"' || \
+      die "could not preserve the first install-runtime evidence before reinstall"
+    install_app "$lease" || {
+      set_field "$manifest" install_runtime_status failed
+      set_field "$manifest" install_runtime_at "$(utc_now)"
+      return 1
+    }
+    set_field "$manifest" install_runtime_status staged
+    runtime_status=staged
+  fi
+
   if [[ -z "$runtime_status" ]]; then
     install_app "$lease" || {
       set_field "$manifest" install_runtime_status failed
@@ -1631,14 +1647,25 @@ collect_artifacts() {
 }
 
 scenario() {
-  local lease=$1 name=$2 manifest repo scenario_script lane
+  local lease=$1 name=$2 manifest repo scenario_script lane runtime_status exit_code
   manifest=$(owned_manifest "$lease")
   repo=$(field "$manifest" worktree)
   lane=$(field "$manifest" test_lane)
   prepare_worktree "$repo"
   scenario_script="Scripts/lab/scenarios/installer-scenario"
   [[ -x "$repo/$scenario_script" ]] || die "scenario runner missing from archived commit"
-  run_command "$lease" "/bin/zsh" "$scenario_script" "$name" "$lane"
+  set +e
+  (run_command "$lease" "/bin/zsh" "$scenario_script" "$name" "$lane")
+  exit_code=$?
+  set -e
+  if ((exit_code == 0)) && [[ "$name" == "uninstall" ]]; then
+    runtime_status=$(field "$manifest" install_runtime_status)
+    if [[ -n "$runtime_status" ]]; then
+      set_field "$manifest" install_runtime_status uninstalled
+      set_field "$manifest" uninstall_at "$(utc_now)"
+    fi
+  fi
+  return "$exit_code"
 }
 
 desktop_bootstrap() {

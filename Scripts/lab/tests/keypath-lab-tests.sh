@@ -494,6 +494,17 @@ set -e
 grep -q $'install_runtime_status\tawaiting-approval' "$manifest"
 awk -F '\t' 'BEGIN {OFS="\t"} $1 == "install_runtime_status" {$2="passed"} {print}' "$manifest" > "$manifest.tmp"
 mv "$manifest.tmp" "$manifest"
+run_remote scenario cbx_test15 uninstall >/dev/null
+grep -q $'install_runtime_status\tuninstalled' "$manifest"
+install_app_count_before=$(grep -c 'install-app 15 cbx_test15' "$ROOT/KeyPathInstallerLab/logs/cbx_test15/install-app.log")
+run_remote install-runtime cbx_test15 >/dev/null
+install_app_count_after=$(grep -c 'install-app 15 cbx_test15' "$ROOT/KeyPathInstallerLab/logs/cbx_test15/install-app.log")
+[[ $install_app_count_after -eq $((install_app_count_before + 1)) ]] || {
+    echo "reinstall did not stage the app after a successful uninstall" >&2
+    exit 1
+}
+grep -q 'install-runtime-before-reinstall' "$CALLS"
+grep -q $'install_runtime_status\tpassed' "$manifest"
 run_remote install-fixture cbx_test15 >/dev/null
 grep -q 'install-fixture 15 cbx_test15' "$ROOT/KeyPathInstallerLab/logs/cbx_test15/install-fixture.log"
 tart_reboot=$(KEYPATH_LAB_TART_REBOOT_SETTLE_SECONDS=0 KEYPATH_LAB_TART_REBOOT_POLL_SECONDS=0 run_remote reboot-guest cbx_test15)
