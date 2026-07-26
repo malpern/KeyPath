@@ -106,6 +106,20 @@ class MatrixDashboardTests(unittest.TestCase):
         self.assertIn("Date.now()-new Date(campaign.startedAt).getTime()", dashboard)
         self.assertNotIn("innerHTML", dashboard)
 
+    def test_visual_system_ties_motion_to_live_work(self) -> None:
+        source = MATRIX_PAGE.read_text()
+        srcdoc = re.search(r'srcdoc="(.*?)">\s*</iframe>', source, re.DOTALL)
+        self.assertIsNotNone(srcdoc)
+        decoded = html.unescape(srcdoc.group(1))
+        self.assertIn('class="waves" id="matrix-waves"', decoded)
+        self.assertIn('class="dial-ring"', decoded)
+        self.assertIn("job-blocks", decoded)
+        self.assertIn('[data-status="running"]::before', decoded)
+        self.assertIn("const visibleStatus=activeJob", decoded)
+        self.assertIn('@media (prefers-reduced-motion:reduce)', decoded)
+        self.assertIn('@media (prefers-reduced-transparency:reduce)', decoded)
+        self.assertNotIn('.job[data-status="queued"] { animation:', decoded)
+
     def test_server_exposes_matrix_runtime_state(self) -> None:
         server = (LAB_DIR / "progress-dashboard-server.py").read_text()
         self.assertIn('"/docs/testing/keypath-matrix-state.json"', server)
