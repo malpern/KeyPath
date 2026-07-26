@@ -74,7 +74,7 @@ base_for() {
   local macos=$1 lane=$2 desktop=${3:-0}
   if [[ "$macos" == "15" ]]; then
     [[ "$lane" == "managed-functional" ]] && print keypath-macos-15-managed || print ghcr.io/cirruslabs/macos-sequoia-base:latest
-  elif [[ ("$macos" == "26" || "$macos" == "27") && "$desktop" == "1" ]]; then
+  elif [[ ("$macos" == "26" || "$macos" == "27") && "$desktop" == "1" && "$lane" != "managed-functional" ]]; then
     print "keypath-macos-$macos-desktop"
   else
     [[ "$lane" == "managed-functional" ]] && print "keypath-macos-$macos-managed" || print "keypath-macos-$macos"

@@ -598,6 +598,14 @@ assert_contains "$managed_busy_output" $'managed_identity_busy\tactive_lease=cbx
 assert_contains "$managed_busy_output" $'scope=shared:26262626-2626-2626-2626-262626262626'
 run_remote destroy cbx_test26 >/dev/null
 
+managed_desktop_create=$(run_remote create 26 managed-functional "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
+assert_contains "$managed_desktop_create" $'lease_id\tcbx_desktop26'
+managed_desktop_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_desktop26/manifest.tsv"
+grep -q $'base_name\tkeypath-macos-26-managed' "$managed_desktop_manifest"
+grep -q $'desktop_enabled\ttrue' "$managed_desktop_manifest"
+grep -q -- '--parallels-template keypath-macos-26-managed' "$CALLS"
+run_remote destroy cbx_desktop26 >/dev/null
+
 set +e
 lock_output=$(KEYPATH_LAB_ADMISSION_WAIT_ATTEMPTS=1 run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
 lock_exit=$?
