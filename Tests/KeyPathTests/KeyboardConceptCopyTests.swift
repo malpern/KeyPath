@@ -3,6 +3,13 @@ import KeyPathRulesCore
 import XCTest
 
 final class KeyboardConceptCopyTests: XCTestCase {
+    func testActivationHintUsesActionFirstPrefix() {
+        XCTAssertEqual(
+            KeyboardConceptCopy.activationHint("Hold Hyper, then press a shortcut key"),
+            "Use: Hold Hyper, then press a shortcut key"
+        )
+    }
+
     func testDefinitionsDistinguishLeaderFromHyper() {
         XCTAssertTrue(KeyboardConceptCopy.leaderDefinition.contains("starting key"))
         XCTAssertTrue(KeyboardConceptCopy.leaderDefinition.contains("Space by default"))
