@@ -46,9 +46,15 @@ final class PacksFacadeTests: XCTestCase {
 
     // MARK: - resolvePack: by substring
 
-    func testResolvePack_SubstringUnique_ReturnsMatch() throws {
+    func testResolvePack_LegacyDisplayName_ReturnsMatch() throws {
         let facade = PacksFacade()
         let pack = try facade.resolvePack(nameOrId: "Vallack")
+        XCTAssertEqual(pack?.id, "com.keypath.pack.vallack-system")
+    }
+
+    func testResolvePack_CurrentDisplayNameSubstring_ReturnsMatch() throws {
+        let facade = PacksFacade()
+        let pack = try facade.resolvePack(nameOrId: "Home Row Navigation System")
         XCTAssertEqual(pack?.id, "com.keypath.pack.vallack-system")
     }
 

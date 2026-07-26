@@ -2,6 +2,13 @@ import Foundation
 import KeyPathCore
 
 public struct PacksFacade: Sendable {
+    /// Previous user-facing names that remain accepted by the CLI after a pack
+    /// receives a clearer display name. Pack IDs remain the durable identity.
+    private static let legacyNameAliases = [
+        "ben vallack nav": "com.keypath.pack.vallack-system",
+        "vallack": "com.keypath.pack.vallack-system"
+    ]
+
     /// Test seam: overrides the manager used by install/uninstall/configure so tests
     /// can inject temp-backed stores instead of the shared persistent ones (#953).
     private let managerFactory: (@Sendable @MainActor () async -> RuleCollectionsManager)?
@@ -215,6 +222,12 @@ public struct PacksFacade: Sendable {
         let allPacks = PackRegistry.starterKit
 
         if let pack = allPacks.first(where: { $0.id == nameOrId }) {
+            return pack
+        }
+
+        if let packID = Self.legacyNameAliases[nameOrId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()],
+           let pack = allPacks.first(where: { $0.id == packID })
+        {
             return pack
         }
 
