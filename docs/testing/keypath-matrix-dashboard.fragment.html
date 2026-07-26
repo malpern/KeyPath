@@ -248,6 +248,13 @@
     #keypath-matrix .lab-stage[data-stage-state="active"] { --stage-color:var(--run); z-index:2; border-color:rgba(238,113,56,.48); background:#fff7f2; opacity:1; transform:translate3d(0,-5px,18px) rotateX(1.5deg) scale(1.025); box-shadow:0 18px 34px rgba(238,113,56,.16); }
     #keypath-matrix .lab-stage[data-stage-state="active"]::before { opacity:1; transform:scale(1.18); }
     #keypath-matrix .lab-stage[data-stage-state="active"]:not(:last-child)::after { background:var(--stage-color); opacity:1; animation:lab-handoff-arrive 240ms cubic-bezier(.23,1,.32,1) both; }
+    #keypath-matrix .lab-stage:focus-visible { outline:2px solid color-mix(in srgb,var(--stage-color) 62%,#fff); outline-offset:2px; opacity:1; }
+    #keypath-matrix .lab-stage-inspector { display:grid; grid-template-columns:auto minmax(112px,.28fr) minmax(0,1fr); align-items:center; gap:9px; min-height:35px; margin-top:8px; padding:7px 10px; border:1px solid #e3e7ed; border-radius:8px; background:rgba(255,255,255,.74); color:var(--dim); opacity:.78; transform:translate3d(0,0,0); transition:opacity 180ms cubic-bezier(.23,1,.32,1),transform 180ms cubic-bezier(.23,1,.32,1),border-color 180ms cubic-bezier(.23,1,.32,1),background-color 180ms cubic-bezier(.23,1,.32,1); }
+    #keypath-matrix .lab-stage-inspector[data-inspector-mode="inspect"] { border-color:color-mix(in srgb,var(--inspector-color,#aeb7c3) 34%,#e3e7ed); background:color-mix(in srgb,var(--inspector-color,#aeb7c3) 5%,#fff); opacity:1; transform:translate3d(0,-1px,0); }
+    #keypath-matrix .lab-inspector-kicker { padding:3px 6px; border-radius:999px; background:#eef1f5; color:#707b88; font-family:ui-monospace,"SFMono-Regular",Menlo,monospace; font-size:7px; font-weight:750; letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; }
+    #keypath-matrix .lab-stage-inspector[data-live="true"] .lab-inspector-kicker { background:#fff0e7; color:#a9441b; }
+    #keypath-matrix .lab-inspector-title { overflow:hidden; color:var(--ink); font-size:10px; font-weight:650; text-overflow:ellipsis; white-space:nowrap; }
+    #keypath-matrix .lab-inspector-detail { overflow:hidden; color:var(--faint); font-size:9px; line-height:1.35; text-overflow:ellipsis; white-space:nowrap; }
     #keypath-matrix .lab-icon { position:relative; z-index:1; width:78px; height:70px; color:var(--stage-color); }
     #keypath-matrix .lab-stage[data-stage-state="active"] .lab-icon.scene-enter { animation:lab-scene-enter 520ms cubic-bezier(.23,1,.32,1) both; }
 
@@ -327,12 +334,13 @@
     @keyframes lab-handoff-arrive { 0% { transform:translate3d(-5px,0,0) scale(.7); opacity:0; } 62% { transform:translate3d(1px,0,0) scale(1.14); opacity:1; } 100% { transform:translate3d(0,0,0) scale(1); opacity:1; } }
     @media (prefers-reduced-motion:reduce) {
       #keypath-matrix *,#keypath-matrix *::before,#keypath-matrix *::after { animation:none!important; }
-      #keypath-matrix .job,#keypath-matrix .wave,#keypath-matrix .workstream,#keypath-matrix .metric-value,#keypath-matrix .lab-stage,#keypath-matrix .lab-icon,#keypath-matrix .lab-theater { transform:none!important; transition:opacity 180ms cubic-bezier(.23,1,.32,1),background-color 180ms cubic-bezier(.23,1,.32,1),border-color 180ms cubic-bezier(.23,1,.32,1)!important; }
+      #keypath-matrix .job,#keypath-matrix .wave,#keypath-matrix .workstream,#keypath-matrix .metric-value,#keypath-matrix .lab-stage,#keypath-matrix .lab-icon,#keypath-matrix .lab-theater,#keypath-matrix .lab-stage-inspector { transform:none!important; transition:opacity 180ms cubic-bezier(.23,1,.32,1),background-color 180ms cubic-bezier(.23,1,.32,1),border-color 180ms cubic-bezier(.23,1,.32,1)!important; }
       #keypath-matrix .workstream { opacity:0!important; }
     }
     @media (prefers-reduced-transparency:reduce) { #keypath-matrix .card { background:var(--panel); } }
     @media (prefers-contrast:more) { #keypath-matrix { --dim:#c6cada; --faint:#9ba2b5; --line:#50586b; } }
     @media (hover:hover) and (pointer:fine) { #keypath-matrix .job:hover { z-index:2; border-color:var(--provider); transform:translateY(-2px); outline:2px solid rgba(255,255,255,.18); outline-offset:2px; } }
+    @media (hover:hover) and (pointer:fine) { #keypath-matrix .lab-stage:not([data-stage-state="active"]):hover { z-index:3; border-color:color-mix(in srgb,var(--stage-color) 44%,#dfe4ea); background:#fff; opacity:.94; transform:translate3d(0,-2px,8px); } }
     @media (max-width:760px) {
       #keypath-matrix { padding:15px; border-radius:14px; }
       #keypath-matrix .top { flex-direction:column; }
@@ -346,6 +354,8 @@
       #keypath-matrix .steps { grid-template-columns:repeat(2,minmax(0,1fr)); }
       #keypath-matrix .lab-stages { grid-template-columns:repeat(2,minmax(0,1fr)); }
       #keypath-matrix .lab-stage:not(:last-child)::after { display:none; }
+      #keypath-matrix .lab-stage-inspector { grid-template-columns:auto 1fr; }
+      #keypath-matrix .lab-inspector-detail { grid-column:1/-1; white-space:normal; }
     }
   </style>
 
@@ -366,14 +376,15 @@
   <section class="lab-theater" aria-label="Animated lab process">
     <div class="lab-theater-head"><strong>Inside the lab</strong><span id="lab-phase-label">Waiting for work</span></div>
     <div class="lab-stages">
-      <div class="lab-stage" data-phase="transfer"><div class="lab-icon" aria-hidden="true"><i class="network-line"></i><i class="artifact-box"></i><i class="transfer-node"></i></div><span class="lab-stage-label">Artifact transfer</span></div>
-      <div class="lab-stage" data-phase="provision"><div class="lab-icon" aria-hidden="true"><i class="mini-slab"></i><i class="mini-slab"></i><i class="mini-slab"></i></div><span class="lab-stage-label">Mini provisioner</span></div>
-      <div class="lab-stage" data-phase="provision"><div class="lab-icon" aria-hidden="true"><i class="vm-window"></i><i class="vm-window"></i><i class="vm-window"></i></div><span class="lab-stage-label">VM clone bay</span></div>
-      <div class="lab-stage" data-phase="install"><div class="lab-icon" aria-hidden="true"><i class="install-window"></i><i class="install-arrow"></i><i class="install-disk"></i></div><span class="lab-stage-label">Guest installer</span></div>
-      <div class="lab-stage" data-phase="approval"><div class="lab-icon" aria-hidden="true"><i class="shield"></i><i class="shield-scan"></i></div><span class="lab-stage-label">macOS approval</span></div>
-      <div class="lab-stage" data-phase="verify"><div class="lab-icon lab-icon-probe" aria-hidden="true"><i class="probe-ring"></i><i class="probe-arm"></i></div><span class="lab-stage-label">Runtime probe</span></div>
-      <div class="lab-stage" data-phase="evidence"><div class="lab-icon" aria-hidden="true"><i class="evidence-page"></i><i class="evidence-page"></i><i class="evidence-page"></i></div><span class="lab-stage-label">Evidence vault</span></div>
+      <div class="lab-stage" data-phase="transfer" data-stage-key="transfer" tabindex="0" aria-describedby="matrix-stage-inspector"><div class="lab-icon" aria-hidden="true"><i class="network-line"></i><i class="artifact-box"></i><i class="transfer-node"></i></div><span class="lab-stage-label">Artifact transfer</span></div>
+      <div class="lab-stage" data-phase="provision" data-stage-key="mini" tabindex="0" aria-describedby="matrix-stage-inspector"><div class="lab-icon" aria-hidden="true"><i class="mini-slab"></i><i class="mini-slab"></i><i class="mini-slab"></i></div><span class="lab-stage-label">Mini provisioner</span></div>
+      <div class="lab-stage" data-phase="provision" data-stage-key="clone" tabindex="0" aria-describedby="matrix-stage-inspector"><div class="lab-icon" aria-hidden="true"><i class="vm-window"></i><i class="vm-window"></i><i class="vm-window"></i></div><span class="lab-stage-label">VM clone bay</span></div>
+      <div class="lab-stage" data-phase="install" data-stage-key="install" tabindex="0" aria-describedby="matrix-stage-inspector"><div class="lab-icon" aria-hidden="true"><i class="install-window"></i><i class="install-arrow"></i><i class="install-disk"></i></div><span class="lab-stage-label">Guest installer</span></div>
+      <div class="lab-stage" data-phase="approval" data-stage-key="approval" tabindex="0" aria-describedby="matrix-stage-inspector"><div class="lab-icon" aria-hidden="true"><i class="shield"></i><i class="shield-scan"></i></div><span class="lab-stage-label">macOS approval</span></div>
+      <div class="lab-stage" data-phase="verify" data-stage-key="verify" tabindex="0" aria-describedby="matrix-stage-inspector"><div class="lab-icon lab-icon-probe" aria-hidden="true"><i class="probe-ring"></i><i class="probe-arm"></i></div><span class="lab-stage-label">Runtime probe</span></div>
+      <div class="lab-stage" data-phase="evidence" data-stage-key="evidence" tabindex="0" aria-describedby="matrix-stage-inspector"><div class="lab-icon" aria-hidden="true"><i class="evidence-page"></i><i class="evidence-page"></i><i class="evidence-page"></i></div><span class="lab-stage-label">Evidence vault</span></div>
     </div>
+    <div class="lab-stage-inspector" id="matrix-stage-inspector" data-inspector-mode="rest" data-live="false"><span class="lab-inspector-kicker" id="lab-inspector-kicker">Inspect a stage</span><strong class="lab-inspector-title" id="lab-inspector-title">The lab is settled</strong><span class="lab-inspector-detail" id="lab-inspector-detail">Hover a stage—or focus it with the keyboard—to see what happens there.</span></div>
   </section>
 
   <section class="metrics" aria-label="Campaign metrics">
@@ -411,11 +422,16 @@
       let previousSceneIndex=-1;
       let eventSignature='';
       let excludedSignature='';
+      let inspectedStage=null;
+      let inspectorSignature='';
+      let labContext={job:null,phase:'idle'};
       const fmtDuration=seconds=>{const value=Math.max(0,Number(seconds)||0);if(value<60)return `${Math.floor(value)}s`;const minutes=Math.floor(value/60),hours=Math.floor(minutes/60);return hours?`${hours}h ${minutes%60}m`:`${minutes}m`;};
       const phaseLabel={transfer:'Artifact moving to mini',provision:'Mini cloning a fresh VM',install:'Installer entering the guest',approval:'macOS approval gate',verify:'Runtime probes executing',evidence:'Evidence being captured',idle:'Lab settled'};
+      const stageCopy={transfer:['Artifact transfer','Checks the signed archive and checksum, then stages the immutable payload on the lab mini.'],mini:['Mini provisioner','Admits provider capacity and selects the exact product and harness archives without mutating shared state.'],clone:['VM clone bay','Creates a randomized disposable macOS clone and binds it to an owned lease.'],install:['Guest installer','Bootstraps the guest, installs the exact candidate, and records product and harness lineage.'],approval:['macOS approval','Waits for or verifies managed permissions without treating a recommendation as success.'],verify:['Runtime probe','Tests KeyPath, Kanata, helper health, TCP response, and managed policy against independent postconditions.'],evidence:['Evidence vault','Captures sanitized logs, manifests, screenshots, and runtime proof before owned VM cleanup.']};
       function labPhase(job){if(!job)return'idle';if(job.status==='waiting')return'approval';const step=String(job.currentStep||'').toLowerCase();if(step.includes('create'))return Number(job.progress)<22?'transfer':'provision';if(step.includes('install'))return'install';if(step.includes('capture')||step.includes('artifact'))return'evidence';if(step.includes('approval'))return'approval';return job.status==='running'?'verify':'idle';}
       function sceneIndex(job,phase){if(phase==='idle')return-1;if(phase==='transfer')return 0;if(phase==='provision')return Number(job?.progress)<42?1:2;return {install:3,approval:4,verify:5,evidence:6}[phase]??-1;}
-      function updateLabScene(job,phase){const stages=[...root.querySelectorAll('.lab-stage')],index=sceneIndex(job,phase);stages.forEach((stage,stageIndex)=>{stage.dataset.stageState=index<0?'idle':stageIndex<index?'passed':stageIndex===index?'active':'queued';});if(index!==previousSceneIndex){const icon=stages[index]?.querySelector('.lab-icon');if(icon){icon.classList.remove('scene-enter');void icon.offsetWidth;icon.classList.add('scene-enter');setTimeout(()=>icon.classList.remove('scene-enter'),560);}previousSceneIndex=index;}}
+      function renderLabInspector(stage=inspectedStage){const job=labContext.job,isLive=stage?.dataset.stageState==='active'&&job&&['running','waiting'].includes(job.status);let kicker,title,detail,color;if(stage){const [stageTitle,stageDetail]=stageCopy[stage.dataset.stageKey]||['Pipeline stage','Inspect this stage.'];kicker=isLive?`${statusLabel[job.status]||job.status} now`:(stage.dataset.stageState==='passed'?'Completed stage':'Pipeline stage');title=isLive?job.title:stageTitle;detail=isLive?[job.currentStep,job.leaseId?`lease ${job.leaseId}`:null,`${Math.round(Number(job.progress)||0)}%`].filter(Boolean).join(' · '):stageDetail;color=getComputedStyle(stage).getPropertyValue('--stage-color').trim()||'#aeb7c3';}else{kicker=job&&['running','waiting'].includes(job.status)?'Live execution':'Inspect a stage';title=job&&['running','waiting'].includes(job.status)?job.title:'The lab is settled';detail=job&&['running','waiting'].includes(job.status)?[job.currentStep,job.leaseId?`lease ${job.leaseId}`:null,`${Math.round(Number(job.progress)||0)}%`].filter(Boolean).join(' · '):'Hover a stage—or focus it with the keyboard—to see what happens there.';color='#aeb7c3';}const signature=[kicker,title,detail,color,Boolean(isLive),Boolean(stage)].join('|');if(signature===inspectorSignature)return;inspectorSignature=signature;const inspector=el('matrix-stage-inspector');inspector.dataset.inspectorMode=stage?'inspect':'rest';inspector.dataset.live=String(Boolean(isLive));inspector.style.setProperty('--inspector-color',color);el('lab-inspector-kicker').textContent=kicker;el('lab-inspector-title').textContent=title;el('lab-inspector-detail').textContent=detail;}
+      function updateLabScene(job,phase){labContext={job,phase};const stages=[...root.querySelectorAll('.lab-stage')],index=sceneIndex(job,phase);stages.forEach((stage,stageIndex)=>{stage.dataset.stageState=index<0?'idle':stageIndex<index?'passed':stageIndex===index?'active':'queued';});if(index!==previousSceneIndex){const icon=stages[index]?.querySelector('.lab-icon');if(icon){icon.classList.remove('scene-enter');void icon.offsetWidth;icon.classList.add('scene-enter');setTimeout(()=>icon.classList.remove('scene-enter'),560);}previousSceneIndex=index;}renderLabInspector();}
       function setMetric(id,value,animate=true){const node=el(id);if(node.textContent===value)return;node.textContent=value;if(!animate)return;node.classList.remove('is-changing');void node.offsetWidth;node.classList.add('is-changing');}
       function renderEvents(events){const nextSignature=events.map(event=>[event.time,event.title,event.message,event.tone].join('|')).join('||');if(nextSignature===eventSignature)return;eventSignature=nextSignature;el('matrix-events').replaceChildren(...events.map(event=>{const row=document.createElement('div');row.className='event';row.dataset.tone=event.tone||'info';const time=document.createElement('time');time.textContent=event.time||'—';const body=document.createElement('div');const title=document.createElement('strong');title.textContent=event.title||'Update';const message=document.createElement('span');message.textContent=event.message||'';body.append(title,message);row.append(time,body);return row;}));}
       function renderExcluded(excluded){if(!excluded)return;const nextSignature=[excluded.id,excluded.title,excluded.reason].join('|');if(nextSignature===excludedSignature)return;excludedSignature=nextSignature;const box=el('matrix-excluded');const strong=document.createElement('strong');strong.textContent='Physical supplement: ';box.replaceChildren(strong,document.createTextNode(`${excluded.title||excluded.id||'Excluded case'}. ${excluded.reason||'Explicit opt-in required.'}`));}
@@ -457,6 +473,7 @@
         renderExcluded((state.excluded||[])[0]);
       }
       async function refresh(){try{const response=await fetch(`keypath-matrix-state.json?t=${Date.now()}`,{cache:'no-store'});if(!response.ok)throw new Error(`HTTP ${response.status}`);render(await response.json());}catch(error){root.dataset.feedError=String(error&&error.message||error);root.dataset.campaignStatus='blocked';el('matrix-live-title').textContent='Matrix feed unavailable';el('matrix-live-message').textContent='The dashboard will retry automatically.';el('matrix-live-status').textContent='Offline';}}
+      root.querySelectorAll('.lab-stage').forEach(stage=>{stage.addEventListener('pointerenter',()=>{inspectedStage=stage;renderLabInspector();});stage.addEventListener('pointerleave',()=>{if(stage.matches(':focus-visible'))return;inspectedStage=null;renderLabInspector();});stage.addEventListener('focus',()=>{inspectedStage=stage;renderLabInspector();});stage.addEventListener('blur',()=>{inspectedStage=null;renderLabInspector();});});
       refresh();setInterval(refresh,1000);
     })();
   </script>
