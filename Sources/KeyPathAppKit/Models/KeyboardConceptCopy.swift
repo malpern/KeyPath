@@ -5,6 +5,14 @@ import KeyPathRulesCore
 /// Keep first-use UI copy based on these definitions so Leader and Hyper do not
 /// acquire different meanings in the catalog, editors, and onboarding.
 enum KeyboardConceptCopy {
+    /// Formats the primary instruction shown on a rule card.
+    ///
+    /// Keep activation separate from counts, delays, and prerequisites: those
+    /// describe a rule, but do not tell someone what to physically do.
+    static func activationHint(_ instruction: String) -> String {
+        "Use: \(instruction)"
+    }
+
     static let leaderMeaning =
         "Your Leader key is the starting key for KeyPath layers and sequences."
 

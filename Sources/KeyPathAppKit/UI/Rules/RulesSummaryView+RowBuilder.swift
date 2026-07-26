@@ -44,6 +44,7 @@ extension RulesTabView {
             layerActivator: collection.momentaryActivator,
             leaderKeyDisplay: currentLeaderKeyDisplay,
             activationHint: dynamicActivationHint(for: collection),
+            activationDetail: dynamicActivationDetail(for: collection),
             managingPackName: collectionOwnershipMap[collection.id]?.packName,
             onManagedToggleTapped: collectionOwnershipMap[collection.id] != nil ? {
                 managedToggleCollection = collection
