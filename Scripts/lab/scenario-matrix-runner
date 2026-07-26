@@ -27,6 +27,7 @@ KNOWN_STEPS = {
     "create-fresh-lease", "create-fresh-lease-with-fixture", "create-desktop-lease", "create-usb-lease",
     "install-exact-artifact", "install-fixture", "desktop-bootstrap", "reboot-guest", "artifact-capture",
     "managed-capabilities", "repair-kanata-service", "upgrade-beta3-to-current",
+    "upgrade-beta3-before", "upgrade-beta3-after",
     "reboot-persistence-before", "reboot-persistence-after", "uninstall", "reinstall",
     "launch", "helper-daemon-health", "cancellation-recovery-before", "cancellation-recovery-after",
     "macos-26-selector-scenario", "macos-27-selector-scenario",
