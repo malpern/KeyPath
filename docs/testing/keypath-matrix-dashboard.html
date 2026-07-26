@@ -1011,7 +1011,7 @@ html&gt;body{padding:0}&lt;/style&gt;
       --ink:#17212b; --dim:#626d7a; --faint:#8a94a2; --line:#e1e5eb; --panel:#ffffff;
       --panel-2:#f7f8fa; --void:#f5f7fa; --queued:#dfe4ea; --run:#ee7138; --run-2:#ffae7e;
       --pass:#20a877; --wait:#775bd8; --fail:#d7435f; --local:#188eaf; --tart:#e66f37;
-      --parallels:#7057d2; color:var(--ink); font-family:system-ui,-apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,sans-serif;
+      --parallels:#7057d2; color-scheme:light dark; color:var(--ink); font-family:system-ui,-apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,sans-serif;
       min-height:760px; padding:22px; border:1px solid #e5e8ee; border-radius:16px;
       background:radial-gradient(circle at 86% 3%,rgba(112,87,210,.08),transparent 27%),
         radial-gradient(circle at 5% 28%,rgba(24,142,175,.075),transparent 25%),#f8f9fb;
@@ -1180,6 +1180,39 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-matrix .evidence-page:nth-child(1) { left:12px; top:11px; opacity:.32; transform:rotate(-8deg); } #keypath-matrix .evidence-page:nth-child(2) { left:22px; top:7px; opacity:.62; transform:rotate(3deg); } #keypath-matrix .evidence-page:nth-child(3) { left:29px; top:3px; }
     #keypath-matrix .lab-stage[data-stage-state=&quot;active&quot;] .evidence-page:nth-child(1) { animation:lab-page-stack 3s cubic-bezier(.23,1,.32,1) infinite; } #keypath-matrix .lab-stage[data-stage-state=&quot;active&quot;] .evidence-page:nth-child(2) { animation:lab-page-stack 3s -1s cubic-bezier(.23,1,.32,1) infinite; } #keypath-matrix .lab-stage[data-stage-state=&quot;active&quot;] .evidence-page:nth-child(3) { animation:lab-page-stack 3s -2s cubic-bezier(.23,1,.32,1) infinite; }
 
+    @media (prefers-color-scheme:dark) {
+      #keypath-matrix { --ink:#f3f5f8; --dim:#aeb6c2; --faint:#7f8998; --line:#303744; --panel:#151922; --panel-2:#1a1f29; --void:#0f1218; --queued:#39414f; --run:#ff8b52; --run-2:#ffb589; --pass:#43c994; --wait:#a58ae8; --fail:#f06b80; --local:#55b8d0; --tart:#ff8b52; --parallels:#9a84df; border-color:#2d3440; background:radial-gradient(circle at 86% 3%,rgba(154,132,223,.12),transparent 27%),radial-gradient(circle at 5% 28%,rgba(85,184,208,.09),transparent 25%),var(--void); box-shadow:0 18px 50px rgba(0,0,0,.24); }
+      #keypath-matrix::before { background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px); }
+      #keypath-matrix .card,#keypath-matrix .livebar,#keypath-matrix .dial,#keypath-matrix .readout .card,#keypath-matrix .excluded { border-color:var(--line); background:color-mix(in srgb,var(--panel) 92%,transparent); box-shadow:inset 0 1px rgba(255,255,255,.025); }
+      #keypath-matrix .live-orbit,#keypath-matrix .dial-ring::before { background:var(--panel); }
+      #keypath-matrix[data-campaign-status=&quot;running&quot;] .live-orbit { background:#211812; }
+      #keypath-matrix .live-status,#keypath-matrix .badge { border-color:var(--line); background:var(--panel-2); color:var(--dim); }
+      #keypath-matrix[data-campaign-status=&quot;running&quot;] .live-status { border-color:color-mix(in srgb,var(--run) 45%,var(--line)); background:color-mix(in srgb,var(--run) 11%,var(--panel)); color:var(--run-2); }
+      #keypath-matrix .metrics { border-color:var(--line); background:color-mix(in srgb,var(--panel) 84%,transparent); }
+      #keypath-matrix .metric + .metric { border-color:var(--line); }
+      #keypath-matrix .matrix { border-color:var(--line); background:linear-gradient(90deg,rgba(85,184,208,.035),transparent 28%,rgba(154,132,223,.04) 72%,transparent),color-mix(in srgb,var(--panel) 94%,transparent); box-shadow:0 10px 28px rgba(0,0,0,.18); }
+      #keypath-matrix .job { border-color:var(--line); background:var(--panel-2); color:var(--dim); box-shadow:0 2px 8px rgba(0,0,0,.12); }
+      #keypath-matrix .job[data-status=&quot;running&quot;] { background:color-mix(in srgb,var(--provider) 11%,var(--panel)); }
+      #keypath-matrix .job[data-status=&quot;passed&quot;] { background:color-mix(in srgb,var(--pass) 9%,var(--panel)); }
+      #keypath-matrix .job[data-status=&quot;waiting&quot;] { background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--wait) 13%,var(--panel)) 0 7px,color-mix(in srgb,var(--wait) 5%,var(--panel)) 7px 13px); }
+      #keypath-matrix .job[data-status=&quot;failed&quot;],#keypath-matrix .job[data-status=&quot;blocked&quot;] { background:color-mix(in srgb,var(--fail) 11%,var(--panel)); }
+      #keypath-matrix .step { border-color:var(--line); background:var(--void); }
+      #keypath-matrix .step[data-status=&quot;running&quot;] { background:color-mix(in srgb,var(--run) 8%,var(--panel)); }
+      #keypath-matrix .lab-theater { border-color:var(--line); background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 96%,transparent),color-mix(in srgb,var(--void) 94%,transparent)); box-shadow:0 9px 25px rgba(0,0,0,.16); }
+      #keypath-matrix .lab-stage { border-color:var(--line); background:color-mix(in srgb,var(--panel-2) 88%,transparent); }
+      #keypath-matrix .lab-stage[data-stage-state=&quot;passed&quot;] { background:color-mix(in srgb,var(--pass) 7%,var(--panel)); }
+      #keypath-matrix .lab-stage[data-stage-state=&quot;active&quot;] { background:color-mix(in srgb,var(--run) 10%,var(--panel)); }
+      #keypath-matrix .lab-stage[data-phase=&quot;approval&quot;][data-stage-state=&quot;active&quot;] { background:color-mix(in srgb,var(--wait) 11%,var(--panel)); }
+      #keypath-matrix .lab-stage-label { color:var(--dim); }
+      #keypath-matrix .lab-stage-inspector { border-color:var(--line); background:color-mix(in srgb,var(--panel-2) 82%,transparent); }
+      #keypath-matrix .lab-stage-inspector[data-inspector-mode=&quot;inspect&quot;] { border-color:color-mix(in srgb,var(--inspector-color,#8f99a7) 40%,var(--line)); background:color-mix(in srgb,var(--inspector-color,#8f99a7) 7%,var(--panel)); }
+      #keypath-matrix .lab-inspector-kicker { background:var(--panel-2); color:var(--dim); }
+      #keypath-matrix .lab-stage-inspector[data-live=&quot;true&quot;] .lab-inspector-kicker { background:color-mix(in srgb,var(--run) 13%,var(--panel)); color:var(--run-2); }
+      #keypath-matrix .artifact-box,#keypath-matrix .transfer-node,#keypath-matrix .mini-slab,#keypath-matrix .vm-window,#keypath-matrix .install-window,#keypath-matrix .install-disk,#keypath-matrix .evidence-page { background:var(--panel); }
+      #keypath-matrix .artifact-box::before,#keypath-matrix .vm-window::before,#keypath-matrix .install-window::before,#keypath-matrix .shield { background:color-mix(in srgb,currentColor 10%,var(--panel)); }
+      #keypath-matrix .lab-stage:not(:last-child)::after { box-shadow:0 0 0 2px var(--panel); }
+    }
+
     @keyframes matrix-route { 0% { transform:scaleX(.02); opacity:0; } 18% { opacity:1; } 72%,100% { transform:scaleX(1); opacity:0; } }
     @keyframes matrix-orbit { to { transform:rotate(360deg); } }
     @keyframes matrix-heartbeat { 0%,100% { transform:scale(1); opacity:.78; } 50% { transform:scale(1.3); opacity:1; } }
@@ -1216,7 +1249,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     @media (prefers-reduced-transparency:reduce) { #keypath-matrix .card { background:var(--panel); } }
     @media (prefers-contrast:more) { #keypath-matrix { --dim:#c6cada; --faint:#9ba2b5; --line:#50586b; } }
     @media (hover:hover) and (pointer:fine) { #keypath-matrix .job:hover { z-index:2; border-color:var(--provider); transform:translateY(-2px); outline:2px solid rgba(255,255,255,.18); outline-offset:2px; } }
-    @media (hover:hover) and (pointer:fine) { #keypath-matrix .lab-stage:not([data-stage-state=&quot;active&quot;]):hover { z-index:3; border-color:color-mix(in srgb,var(--stage-color) 44%,#dfe4ea); background:#fff; opacity:.94; transform:translate3d(0,-2px,8px); } }
+    @media (hover:hover) and (pointer:fine) { #keypath-matrix .lab-stage:not([data-stage-state=&quot;active&quot;]):hover { z-index:3; border-color:color-mix(in srgb,var(--stage-color) 44%,var(--line)); background:var(--panel); opacity:.94; transform:translate3d(0,-2px,8px); } }
     @media (max-width:760px) {
       #keypath-matrix { padding:15px; border-radius:14px; }
       #keypath-matrix .top { flex-direction:column; }
