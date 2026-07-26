@@ -1505,6 +1505,10 @@ desktop_bootstrap() {
     approval_output=$(approve_peekaboo_capture "$lease")
     print -r -- "$approval_output"
     print -r -- "$approval_output" | grep -Fq $'peekaboo_capture_approval\tpassed' || return "$exit_code"
+    # Installing tools re-signs the dedicated Peekaboo host. Do that once;
+    # re-signing on every consent retry creates a fresh Screen Recording
+    # request and prevents the bootstrap from ever reaching its postcondition.
+    command=(/bin/zsh Scripts/lab/desktop-bootstrap --output "$output")
   done
   ((exit_code == 0)) || return "$exit_code"
   set_field "$manifest" desktop_bootstrap_at "$(utc_now)"
