@@ -1,0 +1,32 @@
+menu "KeyPath HID fixture"
+
+    config KEYPATH_FIXTURE_BOARD_REVISION
+        int "Waveshare board hardware revision"
+        range 1 2
+        default 2
+        help
+            Select 2 for current boards. Revision 1 used GPIO33 for the buzzer;
+            revision 2 uses GPIO42. The LCD, touch, and native USB pins are shared.
+
+    config KEYPATH_FIXTURE_HTTP_PORT
+        int "Fixture HTTP port"
+        range 1024 65535
+        default 8080
+
+    config KEYPATH_FIXTURE_BRIGHTNESS
+        int "Display brightness percent"
+        range 10 100
+        default 85
+
+    config KEYPATH_FIXTURE_SOUND
+        bool "Enable state-change tones"
+        default y
+
+    config KEYPATH_FIXTURE_REDUCED_MOTION
+        bool "Reduce display motion"
+        default n
+        help
+            Keep state, color, and progress feedback while disabling orbital
+            movement, pulsing geometry, and the completion particle flourish.
+
+endmenu

@@ -1,19 +1,23 @@
-# KeyPath Pico 2 W physical HID fixture
+# KeyPath physical HID fixture
 
-This lab-only firmware turns an otherwise unmodified Raspberry Pi Pico 2 W into a deterministic
-USB keyboard controlled over Wi-Fi. The VM owns the Pico's USB device; the Mac mini uses the
-independent Wi-Fi control plane to load, arm, start, abort, and inspect locally timed HID scripts.
+This lab-only firmware turns a Wi-Fi microcontroller into a deterministic USB keyboard. The VM
+owns the fixture's USB device; the Mac mini uses the independent Wi-Fi control plane to load, arm,
+start, abort, and inspect locally timed HID scripts.
 
 The fixture is deliberately not part of any KeyPath product target.
 
-## Hardware
+## Hardware targets
 
-- Raspberry Pi Pico 2 W
-- One data-capable micro-USB cable to the Mac mini
+- **Primary:** Waveshare ESP32-S3-Touch-LCD-1.69 (240×280 display, capacitive touch, buzzer,
+  function button, 8 MB PSRAM, and 16 MB flash)
+- **Legacy:** Raspberry Pi Pico 2 W
+- One data-capable USB cable to the Mac mini
 - Lab Wi-Fi access
 
-No serial adapter, debugger, shield, speaker, external power supply, or second microcontroller is
-required. The onboard green LED reports fixture state.
+The Waveshare board needs no shield, speaker, external debugger, power supply, or second
+microcontroller. Its display presents the run state and timing pressure; touch or the physical
+button aborts an armed/running script, and its buzzer provides sparse transition cues. Pico 2 W
+uses its onboard green LED instead.
 
 ## Safety model
 
@@ -28,10 +32,13 @@ required. The onboard green LED reports fixture state.
 - HTTP endpoints require a bearer token. Credentials are build inputs and are never committed.
 - Control traffic is HTTP rather than TLS, so operate it only on the isolated, WPA2-protected lab
   Wi-Fi; the bearer token is defense in depth, not a substitute for network isolation.
-- The Pico schedules every report locally. Wi-Fi jitter can shift the start acknowledgement but
+- The fixture schedules every report locally. Wi-Fi jitter can shift the start acknowledgement but
   cannot alter inter-key timing after the script starts.
+- On ESP32-S3, the HID scheduler owns core 1 at high priority. USB service, network control, sound,
+  and display work remain on core 0. The motion governor drops the display from 30 to 20 to 4 FPS
+  before animation can compete with HID timing.
 
-## LED states
+## Pico LED states
 
 | State | Onboard LED |
 |---|---|
@@ -43,7 +50,34 @@ required. The onboard green LED reports fixture state.
 | Complete | repeating triple blink |
 | Error | rapid blink |
 
-## Build
+## Waveshare ESP32-S3 build
+
+ESP-IDF 5.5.5 and its Python tools are installed locally under
+`~/.cache/keypath-esp32/esp-idf`. The target uses Waveshare's official board component and LVGL.
+Build credentials are supplied only through the environment:
+
+```bash
+source ~/.cache/keypath-esp32/esp-idf/export.sh
+export KEYPATH_WIFI_SSID='lab-network'
+export KEYPATH_WIFI_PASSWORD='...'
+export KEYPATH_FIXTURE_TOKEN='at-least-16-random-characters'
+idf.py -C Scripts/lab/pico-hid-fixture/targets/waveshare-esp32-s3-touch-lcd-1.69 build
+```
+
+The board revision defaults to 2, whose buzzer is on GPIO42. Revision 1 used GPIO33; change
+`KeyPath fixture → Waveshare board revision` with `idf.py menuconfig` if the delivered board is an
+older revision. Flashing waits for the physical board:
+
+```bash
+idf.py -C Scripts/lab/pico-hid-fixture/targets/waveshare-esp32-s3-touch-lcd-1.69 -p PORT flash
+```
+
+The on-device scene is intentionally calm while idle and more expressive during state changes and
+runs: orbital particles, a live report-progress arc, animated key cells, color-coded state changes,
+and a completion flourish. A visible `HID PRIORITY` mode means detected timing pressure has reduced
+the animation rate to protect keyboard delivery.
+
+## Pico 2 W build
 
 Install CMake, an Arm embedded compiler, and the Raspberry Pi Pico SDK. Keep Wi-Fi credentials and
 the fixture token out of the repository:
@@ -126,9 +160,25 @@ requested load threshold before `start`.
 ```bash
 Scripts/lab/pico-hid-fixture/tests/run-tests.sh
 python3 Scripts/lab/tests/pico-hid-fixture-client-tests.py
+Scripts/lab/pico-hid-fixture/tests/run-esp32-qemu-smoke.sh
 ```
 
 These tests cover CRC and script admission, timing/repeat execution, trace ordering, lateness
 metrics, boot/abort/unmount releases, US-keyboard compilation, bearer authentication, endpoint
-selection, and NDJSON trace decoding. The firmware has also been cross-compiled against Pico SDK
-2.3.0 for `pico2_w`; a physical USB/VM run remains required before declaring it hardware-proven.
+selection, NDJSON trace decoding, and the adaptive UI model. The QEMU test boots an ESP32-S3 image
+and executes the real parser, scheduler, trace logic, and UI state model on the emulated Xtensa
+cores. QEMU does not emulate the Waveshare LCD/touch/buzzer or the ESP32-S3 native USB device
+controller, so the physical USB/VM, display, touch, sound, and timing acceptance checks still wait
+for the board.
+
+## First-board acceptance
+
+1. Flash revision 2, confirm the display, touch coordinates, function button, and transition tones;
+   retry revision 1 only if the buzzer is silent.
+2. Confirm macOS reports exactly one boot-keyboard HID interface and no serial or storage interface.
+3. Attach USB directly to a disposable VM and verify a baseline script's received text, report
+   count, submitted CRC32, transfer completions, and lateness trace.
+4. Repeat under sustained CPU, memory, disk, and UI load; `HID PRIORITY` should reduce animation
+   while the trace remains complete and correctly ordered.
+5. During an active run, test touch abort, button abort, Wi-Fi abort, and USB removal. Every path
+   must end with an all-keys-released report before the fixture can be called hardware-proven.

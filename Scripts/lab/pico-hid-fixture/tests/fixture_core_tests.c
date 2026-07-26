@@ -1,4 +1,5 @@
 #include "fixture_core.h"
+#include "fixture_ui_model.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -146,12 +147,81 @@ static void test_lateness_metrics(void) {
     assert(fixture.maximum_lateness_us == 3000);
 }
 
+static void test_ui_model_prioritizes_hid_and_tracks_progress(void) {
+    fixture_ui_model_t model;
+    fixture_ui_model_init(&model);
+    fixture_ui_input_t input = {
+        .state = FIXTURE_RUNNING,
+        .wifi_connected = true,
+        .usb_mounted = true,
+        .event_count = 10u,
+        .repeat_count = 10u,
+    };
+    fixture_ui_output_t output = fixture_ui_model_step(&model, &input, 1000u);
+    assert(output.scene == FIXTURE_UI_RUNNING);
+    assert(output.quality == FIXTURE_UI_ACTIVE);
+    assert(output.frame_interval_ms == 50u);
+
+    input.reports_submitted = 25u;
+    output = fixture_ui_model_step(&model, &input, 1010u);
+    assert(output.progress_per_mille == 250u);
+    assert(output.energy_per_mille > 900u);
+
+    input.late_reports = 1u;
+    input.maximum_lateness_us = 2000;
+    output = fixture_ui_model_step(&model, &input, 1020u);
+    assert(output.quality == FIXTURE_UI_PROTECTED);
+    assert(output.frame_interval_ms == 250u);
+    assert(output.pressure_warning);
+
+    output = fixture_ui_model_step(&model, &input, 2400u);
+    assert(output.quality == FIXTURE_UI_PROTECTED);
+    output = fixture_ui_model_step(&model, &input, 2600u);
+    assert(output.quality == FIXTURE_UI_ACTIVE);
+
+    input.state = FIXTURE_COMPLETE;
+    input.reports_submitted = 100u;
+    output = fixture_ui_model_step(&model, &input, 2610u);
+    assert(output.scene == FIXTURE_UI_COMPLETE);
+    assert(output.progress_per_mille == 1000u);
+    assert(output.completion_burst);
+    output = fixture_ui_model_step(&model, &input, 2620u);
+    assert(!output.completion_burst);
+}
+
+static void test_ui_model_connection_error_and_counter_reset(void) {
+    fixture_ui_model_t model;
+    fixture_ui_model_init(&model);
+    fixture_ui_input_t input = {.state = FIXTURE_BOOTING};
+    fixture_ui_output_t output = fixture_ui_model_step(&model, &input, 0u);
+    assert(output.scene == FIXTURE_UI_CONNECTING);
+
+    input.state = FIXTURE_ERROR;
+    output = fixture_ui_model_step(&model, &input, 10u);
+    assert(output.scene == FIXTURE_UI_ERROR);
+
+    input.state = FIXTURE_RUNNING;
+    input.wifi_connected = true;
+    input.event_count = 2u;
+    input.repeat_count = 2u;
+    input.reports_submitted = 10u;
+    output = fixture_ui_model_step(&model, &input, 20u);
+    assert(output.progress_per_mille == 1000u);
+
+    input.reports_submitted = 0u;
+    output = fixture_ui_model_step(&model, &input, 30u);
+    assert(output.progress_per_mille == 0u);
+    assert(output.energy_per_mille <= 1000u);
+}
+
 int main(void) {
     test_load_arm_run_and_repeat();
     test_rejects_corrupt_and_unsafe_scripts();
     test_failed_replacement_invalidates_previous_script();
     test_abort_and_unmount_force_release();
     test_lateness_metrics();
-    puts("pico fixture core tests passed");
+    test_ui_model_prioritizes_hid_and_tracks_progress();
+    test_ui_model_connection_error_and_counter_reset();
+    puts("physical HID fixture core tests passed");
     return 0;
 }
