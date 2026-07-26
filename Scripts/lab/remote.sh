@@ -888,12 +888,29 @@ install_app() {
 }
 
 install_runtime() {
-  local lease=$1 manifest lane runtime_status exit_code
+  local lease=$1 manifest lane runtime_status exit_code recovery_exit
   manifest=$(owned_manifest "$lease")
   lane=$(field "$manifest" test_lane)
   runtime_status=$(field "$manifest" install_runtime_status)
 
-  if [[ "$runtime_status" == "failed" || "$runtime_status" == "mutation-started" ]]; then
+  if [[ "$runtime_status" == "mutation-started" ]]; then
+    # A controller interruption can strand the manifest before the guest
+    # installer mutation begins. Recover only when durable guest evidence proves
+    # that no install report or mutation state was ever written.
+    set +e
+    (run_command "$lease" /bin/zsh -lc \
+      'out=.keypath-lab/scenario-output/install-runtime; test ! -e "$out/state.tsv" && test ! -e "$out/install-report.json" && test -e "$out/preflight-inspect.json"')
+    recovery_exit=$?
+    set -e
+    if ((recovery_exit == 0)); then
+      set_field "$manifest" install_runtime_status staged
+      runtime_status=staged
+      print "install_runtime_recovery\tpreflight-only"
+    else
+      die "install-runtime has an uncertain prior mutation; inspect artifacts before any retry"
+    fi
+  fi
+  if [[ "$runtime_status" == "failed" ]]; then
     die "install-runtime has an uncertain or failed prior mutation; inspect artifacts before any retry"
   fi
   if [[ "$runtime_status" == "passed" ]]; then
@@ -915,7 +932,7 @@ install_runtime() {
   fi
 
   set +e
-  run_command "$lease" /bin/zsh Scripts/lab/install-runtime "$lane"
+  (run_command "$lease" /bin/zsh Scripts/lab/install-runtime "$lane")
   exit_code=$?
   set -e
   case "$exit_code" in

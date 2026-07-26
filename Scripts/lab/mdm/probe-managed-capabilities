@@ -2,13 +2,19 @@
 set -euo pipefail
 
 usage() {
-    echo "Usage: $0 --output DIR" >&2
+    echo "Usage: $0 --output DIR [--managed-policy-manifest PATH]" >&2
     exit 2
 }
 
 output=
-[[ ${1:-} == --output && -n ${2:-} && $# -eq 2 ]] || usage
+managed_manifest=
+[[ ${1:-} == --output && -n ${2:-} && ($# -eq 2 || $# -eq 4) ]] || usage
 output=$2
+if [[ $# -eq 4 ]]; then
+    [[ $3 == --managed-policy-manifest && -n $4 ]] || usage
+    managed_manifest=$4
+    [[ -f $managed_manifest ]] || { echo "managed capability probe: managed-policy manifest missing" >&2; exit 3; }
+fi
 mkdir -p "$output"
 
 cli=${KEYPATH_LAB_CLI:-/Applications/KeyPath.app/Contents/MacOS/keypath-cli}
@@ -17,13 +23,14 @@ tcp_probe=${KEYPATH_LAB_TCP_PROBE:-$(cd "$(dirname "$0")/.." >/dev/null && pwd -
 systemextensionsctl=${KEYPATH_LAB_SYSTEMEXTENSIONSCTL:-/usr/bin/systemextensionsctl}
 sfltool=${KEYPATH_LAB_SFLTOOL:-/usr/bin/sfltool}
 launchctl=${KEYPATH_LAB_LAUNCHCTL:-/bin/launchctl}
+verify_lane=${KEYPATH_LAB_VERIFY_LANE:-$(dirname "$0")/verify-lane}
 [[ -x $cli ]] || { echo "managed capability probe: installed CLI missing" >&2; exit 3; }
 
 set +e
 "$cli" service status --json > "$output/service-status.json" 2> "$output/service-status.stderr"
 status_exit=$?
 set -e
-"$python" - "$output/service-status.json" <<'PY'
+"$python" - "$output/service-status.json" "$([[ -n $managed_manifest ]] && echo true || echo false)" <<'PY'
 import json
 import sys
 
@@ -37,7 +44,6 @@ required = [
     "helperWorking",
     "keyPathAccessibility",
     "keyPathInputMonitoring",
-    "kanataAccessibility",
     "kanataInputMonitoring",
     "kanataBinaryInstalled",
     "karabinerDriverInstalled",
@@ -46,6 +52,8 @@ required = [
     "karabinerDaemonRunning",
     "vhidHealthy",
 ]
+if sys.argv[2] != "true":
+    required.append("kanataAccessibility")
 failed = [key for key in required if status.get(key) is not True]
 if failed:
     raise SystemExit("managed capabilities missing: " + ", ".join(failed))
@@ -53,6 +61,11 @@ if not status.get("helperVersion"):
     raise SystemExit("managed capabilities missing: helperVersion")
 PY
 [[ $status_exit -eq 0 ]] || { echo "managed capability probe: CLI status exited $status_exit" >&2; exit "$status_exit"; }
+
+if [[ -n $managed_manifest ]]; then
+    "$verify_lane" managed-functional --manifest "$managed_manifest" \
+        > "$output/managed-policy-verification.tsv"
+fi
 
 "$tcp_probe" > "$output/tcp-readiness.json" 2> "$output/tcp-readiness.stderr"
 "$systemextensionsctl" list > "$output/system-extensions.txt" 2>&1

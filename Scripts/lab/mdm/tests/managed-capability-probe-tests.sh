@@ -26,7 +26,7 @@ run_probe() {
     KEYPATH_LAB_SYSTEMEXTENSIONSCTL="$TMP/systemextensionsctl" \
     KEYPATH_LAB_SFLTOOL="$TMP/sfltool" \
     KEYPATH_LAB_LAUNCHCTL="$TMP/launchctl" \
-        "$MDM_DIR/probe-managed-capabilities" --output "$1"
+        "$MDM_DIR/probe-managed-capabilities" --output "$@"
 }
 
 run_probe "$TMP/pass" >/dev/null
@@ -44,6 +44,12 @@ if run_probe "$TMP/missing-permission" >"$TMP/missing.stdout" 2>"$TMP/missing.st
     exit 1
 fi
 grep -Fq 'managed capabilities missing: kanataAccessibility' "$TMP/missing.stderr"
+
+write_tool verify-lane '[[ $1 == managed-functional && $2 == --manifest && -f $3 ]] || exit 1; echo "managed_policy_verification passed"'
+printf '{"schemaVersion":1}\n' > "$TMP/managed-manifest.json"
+KEYPATH_LAB_VERIFY_LANE="$TMP/verify-lane" \
+    run_probe "$TMP/managed-attestation" --managed-policy-manifest "$TMP/managed-manifest.json" >/dev/null
+grep -Fq 'managed_policy_verification passed' "$TMP/managed-attestation/managed-policy-verification.tsv"
 
 write_tool keypath-cli 'cat <<JSON
 {"isOperational":true,"helperInstalled":true,"helperWorking":true,"helperVersion":"1.2.3","keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":true,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":true,"vhidDeviceHealthy":true,"kanataRunning":true,"karabinerDaemonRunning":true,"vhidHealthy":true}

@@ -24,6 +24,11 @@ case "\$1" in
      echo $'nameplate_version\t0.2.5'
      echo $'nameplate_sha256\t96d1b6c58167b4a8f3713a61a7e216f8a24c2adad36c9027db974f852d543a3d'
      [[ " \$* " == *" hide "* ]] && echo $'nameplate_state\thidden' || echo $'nameplate_state\tvisible'
+   elif [[ "\$*" == *"preflight-inspect.json"* ]]; then
+     [[ \${KEYPATH_LAB_TEST_MUTATION_EVIDENCE:-0} == 1 ]] && exit 9
+     exit 0
+   elif [[ "\$*" == *"Scripts/lab/install-runtime"* ]]; then
+     exit "\${KEYPATH_LAB_TEST_INSTALL_RUNTIME_EXIT:-0}"
    elif [[ "\$*" == *"IOPlatformUUID"* ]]; then
      [[ "\$*" == *"cbx_test15b"* ]] && echo 15151515-1515-1515-1515-151515151517 || echo 15151515-1515-1515-1515-151515151516
    else
@@ -432,6 +437,30 @@ grep -q 'install-app 15 cbx_test15' "$ROOT/KeyPathInstallerLab/logs/cbx_test15/i
 run_remote install-runtime cbx_test15 >/dev/null
 grep -q 'Scripts/lab/install-runtime unmanaged-ui' "$CALLS"
 grep -q $'install_runtime_status\tpassed' "$manifest"
+awk -F '\t' 'BEGIN {OFS="\t"} $1 == "install_runtime_status" {$2="mutation-started"} {print}' "$manifest" > "$manifest.tmp"
+mv "$manifest.tmp" "$manifest"
+recovered_runtime=$(run_remote install-runtime cbx_test15)
+assert_contains "$recovered_runtime" $'install_runtime_recovery\tpreflight-only'
+grep -q $'install_runtime_status\tpassed' "$manifest"
+awk -F '\t' 'BEGIN {OFS="\t"} $1 == "install_runtime_status" {$2="mutation-started"} {print}' "$manifest" > "$manifest.tmp"
+mv "$manifest.tmp" "$manifest"
+set +e
+uncertain_runtime=$(KEYPATH_LAB_TEST_MUTATION_EVIDENCE=1 run_remote install-runtime cbx_test15 2>&1)
+uncertain_runtime_exit=$?
+set -e
+[[ $uncertain_runtime_exit -ne 0 ]] || { echo "uncertain prior runtime mutation unexpectedly retried" >&2; exit 1; }
+assert_contains "$uncertain_runtime" 'install-runtime has an uncertain prior mutation'
+grep -q $'install_runtime_status\tmutation-started' "$manifest"
+awk -F '\t' 'BEGIN {OFS="\t"} $1 == "install_runtime_status" {$2="staged"} {print}' "$manifest" > "$manifest.tmp"
+mv "$manifest.tmp" "$manifest"
+set +e
+waiting_runtime=$(KEYPATH_LAB_TEST_INSTALL_RUNTIME_EXIT=4 run_remote install-runtime cbx_test15 2>&1)
+waiting_runtime_exit=$?
+set -e
+[[ $waiting_runtime_exit -eq 4 ]] || { echo "approval wait returned $waiting_runtime_exit instead of 4" >&2; exit 1; }
+grep -q $'install_runtime_status\tawaiting-approval' "$manifest"
+awk -F '\t' 'BEGIN {OFS="\t"} $1 == "install_runtime_status" {$2="passed"} {print}' "$manifest" > "$manifest.tmp"
+mv "$manifest.tmp" "$manifest"
 run_remote install-fixture cbx_test15 >/dev/null
 grep -q 'install-fixture 15 cbx_test15' "$ROOT/KeyPathInstallerLab/logs/cbx_test15/install-fixture.log"
 tart_reboot=$(KEYPATH_LAB_TART_REBOOT_SETTLE_SECONDS=0 KEYPATH_LAB_TART_REBOOT_POLL_SECONDS=0 run_remote reboot-guest cbx_test15)

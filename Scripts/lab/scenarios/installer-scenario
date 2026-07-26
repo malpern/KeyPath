@@ -78,7 +78,8 @@ case "$name" in
       exit 4
     fi
     require_installed_cli
-    Scripts/lab/mdm/probe-managed-capabilities --output "$artifact_dir"
+    Scripts/lab/mdm/probe-managed-capabilities --output "$artifact_dir" \
+      --managed-policy-manifest /Library/KeyPathLab/managed-policy/manifest.json
     ;;
   launch)
     open -a KeyPath
