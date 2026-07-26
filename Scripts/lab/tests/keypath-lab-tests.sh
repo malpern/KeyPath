@@ -225,6 +225,9 @@ if grep -Fq 'events.keystroke(secret)' "$REMOTE"; then
 fi
 grep -Fq 'managed_clone_enrollment\talready-enrolled' "$REMOTE"
 grep -Fq 'window.subrole() === "AXSystemDialog"' "$REMOTE"
+grep -Fq 'occlusion_qualification_script' "$REMOTE"
+grep -Fq 'captureConsent' "$REMOTE"
+grep -Fq 'private window picker' "$REMOTE"
 grep -Fq 'usb_prefix="$TART_USB_TOOL_ROOT/bin:"' "$REMOTE"
 if grep -Fq 'peekaboo see --app "System Settings"' "$REMOTE"; then
     echo "capture prompt guard must not create a new capture request" >&2

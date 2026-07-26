@@ -1256,7 +1256,7 @@ secure_dialog_input() {
 protected_click() {
   local lease=$1 app=$2 expected_before=$3 expected_after=$4 coordinate_space=$5 x=$6 y=$7 count=${8:-1}
   local manifest macos resource key ip before after before_frontmost after_frontmost guest_command geometry_command geometry
-  local occlusion occlusion_command
+  local occlusion occlusion_command occlusion_qualification_script
   local native_width native_height logical_width logical_height scale_x scale_y
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
@@ -1312,6 +1312,57 @@ protected_click() {
   else
     occlusion_command=$'/usr/bin/osascript -l JavaScript -e \'\nObjC.import("AppKit");\nfunction contains(element, x, y) {\n  try {\n    var position = element.position();\n    var size = element.size();\n    return size[0] > 1 && size[1] > 1 && x >= position[0] && x <= position[0] + size[0] && y >= position[1] && y <= position[1] + size[1];\n  } catch (_) { return false; }\n}\nfunction bounds(element) {\n  var position = element.position();\n  var size = element.size();\n  return Math.round(position[0]) + "," + Math.round(position[1]) + "," + Math.round(size[0]) + "," + Math.round(size[1]);\n}\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var x = Number(argv[0]) / Number($.NSScreen.mainScreen.backingScaleFactor);\n  var y = Number(argv[1]) / Number($.NSScreen.mainScreen.backingScaleFactor);\n  var events = Application("System Events");\n  var processNames = ["NotificationCenter", "UserNotificationCenter"];\n  for (var p = 0; p < processNames.length; p++) {\n    var matches = events.processes.whose({name: processNames[p]})();\n    if (matches.length === 0) continue;\n    var windows = matches[0].windows();\n    for (var w = 0; w < windows.length; w++) {\n      try {\n        if (windows[w].subrole() === "AXSystemDialog" && contains(windows[w], x, y)) {\n          return processNames[p] + ":dialog:" + bounds(windows[w]);\n        }\n      } catch (_) {}\n      var elements = descendants(windows[w]);\n      for (var e = 0; e < elements.length; e++) {\n        try {\n          var role = elements[e].role();\n          if (["AXGroup", "AXButton", "AXStaticText", "AXImage"].indexOf(role) !== -1 && contains(elements[e], x, y)) {\n            return processNames[p] + ":" + role + ":" + bounds(elements[e]);\n          }\n        } catch (_) {}\n      }\n    }\n  }\n  return "";\n}\' -- '$(printf %q "$x")' '$(printf %q "$y")
     occlusion=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$occlusion_command")") || die "protected click could not verify notification occlusion"
+    if [[ "$occlusion" == *":dialog:"* ]]; then
+      read -r -d '' occlusion_qualification_script <<'JXA' || true
+ObjC.import("AppKit");
+function contains(element, x, y) {
+  try {
+    var position = element.position();
+    var size = element.size();
+    return size[0] > 1 && size[1] > 1 && x >= position[0] && x <= position[0] + size[0] && y >= position[1] && y <= position[1] + size[1];
+  } catch (_) { return false; }
+}
+function descendants(element) {
+  var result = [];
+  try {
+    var children = element.uiElements();
+    for (var i = 0; i < children.length; i++) {
+      result.push(children[i]);
+      result = result.concat(descendants(children[i]));
+    }
+  } catch (_) {}
+  return result;
+}
+function run(argv) {
+  var x = Number(argv[0]) / Number($.NSScreen.mainScreen.backingScaleFactor);
+  var y = Number(argv[1]) / Number($.NSScreen.mainScreen.backingScaleFactor);
+  var events = Application("System Events");
+  var processNames = ["NotificationCenter", "UserNotificationCenter"];
+  for (var p = 0; p < processNames.length; p++) {
+    var matches = events.processes.whose({name: processNames[p]})();
+    if (matches.length === 0) continue;
+    var windows = matches[0].windows();
+    for (var w = 0; w < windows.length; w++) {
+      try {
+        var dialogText = windows[w].staticTexts().map(function(item) { return item.value() || ""; }).join(" ").toLowerCase();
+        var captureConsent = dialogText.indexOf("screen") !== -1 && (dialogText.indexOf("record") !== -1 || dialogText.indexOf("capture") !== -1 || dialogText.indexOf("share") !== -1);
+        if (captureConsent || dialogText.indexOf("private window picker") !== -1) return processNames[p] + ":consent-dialog";
+      } catch (_) {}
+      var elements = descendants(windows[w]);
+      for (var e = 0; e < elements.length; e++) {
+        try {
+          var role = elements[e].role();
+          if (["AXGroup", "AXButton", "AXStaticText", "AXImage"].indexOf(role) !== -1 && contains(elements[e], x, y)) return processNames[p] + ":" + role;
+        } catch (_) {}
+      }
+    }
+  }
+  return "";
+}
+JXA
+      occlusion_command="/usr/bin/osascript -l JavaScript -e $(printf %q "$occlusion_qualification_script") -- $(printf %q "$x") $(printf %q "$y")"
+      occlusion=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$occlusion_command")") || die "protected click could not qualify notification occlusion"
+    fi
   fi
   [[ -z "$occlusion" ]] || {
     record_command "$lease" failed protected-click --app "$app" --window "$expected_before" --x "$x" --y "$y"
