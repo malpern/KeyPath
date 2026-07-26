@@ -302,7 +302,7 @@ struct ExpandableCollectionRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("rules-summary-expand-button-\(collectionId)")
             .accessibilityLabel(isExpanded ? "Collapse \(name)" : "Expand \(name)")
-            .accessibilityHint(activationAccessibilityHint)
+            .accessibilityHint(activationAccessibilityHint ?? "")
             .accessibilityValue(effectiveEnabled ? "on" : "off")
 
             // Help button (only for collections that provide one)
