@@ -235,6 +235,7 @@ if grep -Fq 'peekaboo see --app "System Settings"' "$REMOTE"; then
     exit 1
 fi
 grep -q 'resume-managed-policy)' "$LAB_DIR/keypath-lab"
+grep -q 'approve-input-monitoring)' "$LAB_DIR/keypath-lab"
 grep -Fq '/usr/bin/mktemp /etc/kcpassword.XXXXXXXX' "$REMOTE"
 grep -Fq "Automatic login user: keypathqa" "$REMOTE"
 
@@ -985,6 +986,14 @@ assert_contains "$protected_background" "is not frontmost"
 protected_ax_result=$(KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility ax 402 247)
 assert_contains "$protected_ax_result" $'display_scale\t2'
 grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 804 --y 494' "$CALLS"
+approval_result=$(KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote approve-input-monitoring cbx_desktop15)
+assert_contains "$approval_result" $'input_monitoring_row\tKanata Engine\tenabled'
+assert_contains "$approval_result" $'input_monitoring_row\tkanata-launcher\tenabled'
+assert_contains "$approval_result" $'input_monitoring_row\tKeyPath\tenabled'
+assert_contains "$approval_result" $'approve_input_monitoring\tpassed'
+grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 804 --y 494' "$CALLS"
+grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 804 --y 578' "$CALLS"
+grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 804 --y 662' "$CALLS"
 run_remote desktop-type cbx_desktop15 q >/dev/null
 grep -q 'crabbox desktop type --provider tart --target macos --id test-resource --text q' "$CALLS"
 run_remote destroy cbx_desktop15 >/dev/null

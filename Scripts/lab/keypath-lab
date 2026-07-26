@@ -27,6 +27,7 @@ Commands:
   desktop-bootstrap LEASE_ID [--install-tools]
   nameplate LEASE_ID enable|show|hide|status
   protected-click LEASE_ID --app APP --window TITLE (--x X --y Y | --ax-x X --ax-y Y) [--after-window TITLE] [--count 1|2]
+  approve-input-monitoring LEASE_ID
   desktop-type LEASE_ID --text TEXT
   secure-dialog-input LEASE_ID --app APP --field LABEL [--submit BUTTON] [--already-focused]
   resume-managed-policy LEASE_ID
@@ -316,6 +317,12 @@ EOF
         [[ -n $app && -n $window && $x =~ ^[0-9]+$ && $y =~ ^[0-9]+$ && $count =~ ^[12]$ ]] || usage
         [[ -n $after_window ]] || after_window=$window
         remote protected-click "$lease" "$app" "$window" "$after_window" "$coordinate_space" "$x" "$y" "$count"
+        ;;
+    approve-input-monitoring)
+        lease=${1:-}
+        [[ -n $lease && $# -eq 1 ]] || usage
+        require_lease_id "$lease"
+        remote approve-input-monitoring "$lease"
         ;;
     desktop-type)
         lease=${1:-}

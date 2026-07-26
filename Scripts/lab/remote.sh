@@ -1412,6 +1412,108 @@ JXA
   fi
 }
 
+input_monitoring_rows() {
+  local lease=$1 manifest resource key ip guest_script guest_command
+  manifest=$(owned_manifest "$lease")
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    print -r -- "${KEYPATH_LAB_TEST_INPUT_MONITORING_ROWS:-$'Kanata Engine\t0\t402\t247\nkanata-launcher\t0\t402\t289\nKeyPath\t0\t402\t331'}"
+    return
+  fi
+
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Za-z0-9._-]+$' && "$resource" != "unknown" ]] || die "invalid Tart resource id"
+  key="$HOME/Library/Application Support/crabbox/testboxes/$lease/id_ed25519"
+  [[ -f "$key" && ! -L "$key" && -O "$key" ]] || die "owned CrabBox SSH key not found for lease"
+  if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
+  export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  ip=$($TART ip "$resource")
+  [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
+
+  read -r -d '' guest_script <<'JXA' || true
+function safe(callback, fallback) {
+  try { return callback(); } catch (_) { return fallback; }
+}
+function descendants(element) {
+  var result = [];
+  safe(function() {
+    element.uiElements().forEach(function(child) {
+      result.push(child);
+      result = result.concat(descendants(child));
+    });
+  }, null);
+  return result;
+}
+function run() {
+  var keyPath = Application("KeyPath");
+  if (keyPath.running()) keyPath.quit();
+  delay(0.5);
+  Application("System Events").doShellScript("/usr/bin/open 'x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent'");
+  delay(1);
+  Application("System Settings").activate();
+  delay(0.5);
+  var process = Application("System Events").processes.byName("System Settings");
+  if (!process.exists() || process.windows().length === 0) throw new Error("System Settings is unavailable");
+  var window = process.windows[0];
+  if (window.name() !== "Input Monitoring") throw new Error("Input Monitoring page did not open");
+  window.position = [154, 330];
+  delay(0.5);
+  var targets = ["Kanata Engine", "kanata-launcher", "KeyPath"];
+  var checkboxes = descendants(window).filter(function(element) {
+    return safe(function() { return element.role() === "AXCheckBox"; }, false);
+  });
+  return targets.map(function(target) {
+    var matches = checkboxes.filter(function(element) {
+      return safe(function() { return element.name() === target; }, false);
+    });
+    if (matches.length !== 1) throw new Error("Expected one Input Monitoring row for " + target);
+    var checkbox = matches[0];
+    var position = checkbox.position();
+    var size = checkbox.size();
+    return target + "\t" + checkbox.value() + "\t" +
+      Math.round(position[0] + size[0] / 2) + "\t" +
+      Math.round(position[1] + size[1] / 2);
+  }).join("\n");
+}
+JXA
+  guest_command="/usr/bin/osascript -l JavaScript -e $(printf %q "$guest_script")"
+  "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")"
+}
+
+approve_input_monitoring() {
+  local lease=$1 manifest macos lane rows row target value x y verified
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  lane=$(field "$manifest" test_lane)
+  [[ "$macos" == "15" ]] || die "Input Monitoring approval currently supports only the Tart macOS 15 lane"
+  [[ "$lane" == "managed-functional" ]] || die "Input Monitoring approval requires managed-functional policy"
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "Input Monitoring approval requires a desktop-enabled lease"
+
+  rows=$(input_monitoring_rows "$lease") || die "could not inspect Input Monitoring rows"
+  for target in "Kanata Engine" "kanata-launcher" "KeyPath"; do
+    row=$(print -r -- "$rows" | awk -F '\t' -v target="$target" '$1 == target {print; exit}')
+    [[ -n "$row" ]] || die "Input Monitoring row is missing: $target"
+    IFS=$'\t' read -r _ value x y <<< "$row"
+    [[ "$value" == "0" || "$value" == "1" ]] || die "Input Monitoring row has an invalid state: $target"
+    [[ "$x" == <-> && "$y" == <-> ]] || die "Input Monitoring row has invalid geometry: $target"
+    if [[ "$value" == "1" ]]; then
+      print "input_monitoring_row\t$target\talready-enabled"
+      continue
+    fi
+
+    protected_click "$lease" "System Settings" "Input Monitoring" "Input Monitoring" ax "$x" "$y" 1 >/dev/null
+    if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+      verified=${KEYPATH_LAB_TEST_INPUT_MONITORING_VERIFY:-1}
+    else
+      rows=$(input_monitoring_rows "$lease") || die "could not refresh Input Monitoring rows"
+      verified=$(print -r -- "$rows" | awk -F '\t' -v target="$target" '$1 == target {print $2; exit}')
+    fi
+    [[ "$verified" == "1" ]] || die "Input Monitoring toggle did not remain enabled: $target"
+    print "input_monitoring_row\t$target\tenabled"
+  done
+  record_command "$lease" passed approve-input-monitoring
+  print "approve_input_monitoring\tpassed"
+}
+
 desktop_type() {
   local lease=$1 text=$2 manifest macos resource
   manifest=$(owned_manifest "$lease")
@@ -2233,6 +2335,7 @@ case "$action" in
   secure-dialog-input) [[ $# -eq 5 ]] || die "secure-dialog-input requires lease, app, field, optional submit value, and focus mode"; secure_dialog_input "$@" ;;
   resume-managed-policy) [[ $# -eq 1 ]] || die "resume-managed-policy requires a lease"; resume_managed_policy "$1" ;;
   protected-click) [[ $# -eq 7 || $# -eq 8 ]] || die "protected-click requires lease, app, before window, after window, coordinate space, x, y, and optional count"; protected_click "$@" ;;
+  approve-input-monitoring) [[ $# -eq 1 ]] || die "approve-input-monitoring requires lease"; approve_input_monitoring "$1" ;;
   desktop-type) [[ $# -eq 2 ]] || die "desktop-type requires lease and text"; desktop_type "$@" ;;
   run) [[ $# -ge 2 ]] || die "run requires lease and command"; run_command "$@" ;;
   status) [[ $# -eq 1 ]] || die "status requires lease"; print_status "$1" ;;

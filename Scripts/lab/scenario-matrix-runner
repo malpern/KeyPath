@@ -384,6 +384,26 @@ class MatrixRunner:
                             job, state, step, result.stdout + result.stderr,
                             required=result.returncode == 0,
                         )
+                    if (
+                        result.returncode == 4
+                        and "install_runtime\twaiting" in (result.stdout + result.stderr)
+                        and step["commandStep"] == "install-exact-artifact"
+                        and job.get("macOS") == 15
+                        and job.get("lane") == "managed-functional"
+                    ):
+                        self.update_job(
+                            state, status="running", step=step, step_status="running",
+                            message="Driving the genuine managed Input Monitoring approval and verifying each row.",
+                        )
+                        approval = self.execute(
+                            job_id, step["id"],
+                            self.lab_command("approve-input-monitoring", state["leaseId"]),
+                        )
+                        if approval.returncode == 0:
+                            result = self.execute(
+                                job_id, step["id"],
+                                self.lab_command("install-runtime", state["leaseId"]),
+                            )
                     if result.returncode == 4 and "install_runtime\twaiting" in (result.stdout + result.stderr):
                         state["waitingCheckpoint"] = checkpoint
                         preserve_lease = True
