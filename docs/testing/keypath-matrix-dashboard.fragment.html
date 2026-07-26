@@ -233,6 +233,64 @@
     #keypath-matrix .step[data-status="running"] { overflow:hidden; border-color:rgba(238,113,56,.28); background:#fff8f4; }
     #keypath-matrix .step[data-status="running"]::after { content:""; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(238,113,56,.12),transparent); transform:translate3d(-120%,0,0); animation:matrix-step-scan 1.7s linear infinite; }
 
+    /* Lab theater: a state-driven schematic, not a row of abstract KPIs. */
+    #keypath-matrix .lab-theater { position:relative; margin-bottom:12px; overflow:hidden; padding:14px 12px 11px; border:1px solid #dde2e9; border-radius:12px; background:linear-gradient(180deg,rgba(255,255,255,.97),rgba(246,248,251,.94)); box-shadow:0 9px 25px rgba(38,48,61,.055); }
+    #keypath-matrix .lab-theater-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:10px; }
+    #keypath-matrix .lab-theater-head strong { color:var(--ink); font-size:12px; font-weight:650; letter-spacing:-.01em; }
+    #keypath-matrix .lab-theater-head span { color:var(--faint); font-family:ui-monospace,"SFMono-Regular",Menlo,monospace; font-size:8px; letter-spacing:.08em; text-transform:uppercase; }
+    #keypath-matrix .lab-stages { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:7px; }
+    #keypath-matrix .lab-stage { --stage-color:#aeb7c3; position:relative; display:grid; grid-template-rows:82px auto; place-items:center; min-width:0; overflow:visible; padding:8px 6px 7px; border:1px solid #e2e6ec; border-radius:9px; background:rgba(255,255,255,.82); opacity:.52; transition:opacity 220ms cubic-bezier(.23,1,.32,1),transform 220ms cubic-bezier(.23,1,.32,1),border-color 220ms cubic-bezier(.23,1,.32,1),background-color 220ms cubic-bezier(.23,1,.32,1); }
+    #keypath-matrix .lab-stage:not(:last-child)::after { content:""; position:absolute; z-index:4; left:calc(100% + 1px); top:47px; width:13px; height:2px; background:linear-gradient(90deg,#cbd2db,#e5e8ed); }
+    #keypath-matrix .lab-stage-label { align-self:end; overflow:hidden; color:#737f8d; font-family:ui-monospace,"SFMono-Regular",Menlo,monospace; font-size:7px; font-weight:750; letter-spacing:.08em; text-align:center; text-overflow:ellipsis; text-transform:uppercase; white-space:nowrap; }
+    #keypath-matrix[data-lab-phase="transfer"] .lab-stage[data-phase="transfer"],#keypath-matrix[data-lab-phase="provision"] .lab-stage[data-phase="provision"],#keypath-matrix[data-lab-phase="install"] .lab-stage[data-phase="install"],#keypath-matrix[data-lab-phase="approval"] .lab-stage[data-phase="approval"],#keypath-matrix[data-lab-phase="verify"] .lab-stage[data-phase="verify"],#keypath-matrix[data-lab-phase="evidence"] .lab-stage[data-phase="evidence"] { --stage-color:var(--run); z-index:2; border-color:rgba(238,113,56,.48); background:#fff7f2; opacity:1; transform:translate3d(0,-4px,0) scale(1.025); box-shadow:0 12px 28px rgba(238,113,56,.14); }
+    #keypath-matrix .lab-icon { position:relative; width:78px; height:70px; color:var(--stage-color); }
+
+    #keypath-matrix .network-line { position:absolute; left:5px; right:5px; top:36px; height:3px; border-radius:999px; background:repeating-linear-gradient(90deg,currentColor 0 9px,transparent 9px 15px); opacity:.45; }
+    #keypath-matrix .artifact-box { position:absolute; left:7px; top:22px; width:28px; height:25px; border:2px solid currentColor; border-radius:4px; background:#fff; box-shadow:inset 0 -7px color-mix(in srgb,currentColor 10%,transparent); transform:rotate(-5deg); }
+    #keypath-matrix .artifact-box::before { content:""; position:absolute; left:9px; top:-2px; bottom:-2px; width:6px; border-inline:1px solid currentColor; background:color-mix(in srgb,currentColor 12%,#fff); }
+    #keypath-matrix .transfer-node { position:absolute; right:5px; top:20px; width:31px; height:30px; border:2px solid currentColor; border-radius:8px; background:#fff; }
+    #keypath-matrix .transfer-node::before,#keypath-matrix .transfer-node::after { content:""; position:absolute; left:6px; right:6px; height:2px; border-radius:2px; background:currentColor; }
+    #keypath-matrix .transfer-node::before { top:9px; } #keypath-matrix .transfer-node::after { top:16px; }
+    #keypath-matrix[data-lab-phase="transfer"] .artifact-box { animation:lab-package-transfer 1.6s cubic-bezier(.77,0,.175,1) infinite; }
+    #keypath-matrix[data-lab-phase="transfer"] .network-line { animation:lab-network-flow .72s linear infinite; }
+    #keypath-matrix[data-lab-phase="transfer"] .transfer-node { animation:lab-receive 1.6s cubic-bezier(.23,1,.32,1) infinite; }
+
+    #keypath-matrix .mini-slab { position:absolute; left:15px; width:49px; height:13px; border:2px solid currentColor; border-radius:5px; background:#fff; box-shadow:0 5px 0 color-mix(in srgb,currentColor 13%,#fff); }
+    #keypath-matrix .mini-slab:nth-child(1) { top:11px; } #keypath-matrix .mini-slab:nth-child(2) { top:29px; } #keypath-matrix .mini-slab:nth-child(3) { top:47px; }
+    #keypath-matrix .mini-slab::after { content:""; position:absolute; right:5px; top:3px; width:4px; height:4px; border-radius:50%; background:currentColor; }
+    #keypath-matrix[data-lab-phase="provision"] .mini-slab { animation:lab-mini-stack 1.2s cubic-bezier(.77,0,.175,1) infinite; }
+    #keypath-matrix[data-lab-phase="provision"] .mini-slab:nth-child(2) { animation-delay:-.4s; } #keypath-matrix[data-lab-phase="provision"] .mini-slab:nth-child(3) { animation-delay:-.8s; }
+
+    #keypath-matrix .vm-window { position:absolute; width:46px; height:34px; border:2px solid currentColor; border-radius:5px; background:#fff; box-shadow:0 5px 12px color-mix(in srgb,currentColor 13%,transparent); }
+    #keypath-matrix .vm-window::before { content:""; position:absolute; left:0; right:0; top:0; height:8px; border-bottom:1px solid currentColor; background:color-mix(in srgb,currentColor 10%,#fff); }
+    #keypath-matrix .vm-window::after { content:""; position:absolute; left:7px; right:7px; top:15px; height:7px; background:repeating-linear-gradient(90deg,currentColor 0 5px,transparent 5px 8px); opacity:.45; }
+    #keypath-matrix .vm-window:nth-child(1) { left:7px; top:23px; opacity:.35; transform:translate3d(0,0,0) scale(.88); } #keypath-matrix .vm-window:nth-child(2) { left:18px; top:16px; opacity:.62; transform:translate3d(0,0,0) scale(.94); } #keypath-matrix .vm-window:nth-child(3) { left:27px; top:8px; }
+    #keypath-matrix[data-lab-phase="provision"] .vm-window:nth-child(1) { animation:lab-vm-clone 1.5s cubic-bezier(.23,1,.32,1) infinite; } #keypath-matrix[data-lab-phase="provision"] .vm-window:nth-child(2) { animation:lab-vm-clone 1.5s -.5s cubic-bezier(.23,1,.32,1) infinite; } #keypath-matrix[data-lab-phase="provision"] .vm-window:nth-child(3) { animation:lab-vm-clone 1.5s -1s cubic-bezier(.23,1,.32,1) infinite; }
+
+    #keypath-matrix .install-window { position:absolute; left:12px; top:8px; width:54px; height:48px; border:2px solid currentColor; border-radius:7px; background:#fff; }
+    #keypath-matrix .install-window::before { content:""; position:absolute; left:0; right:0; top:0; height:9px; border-bottom:1px solid currentColor; background:color-mix(in srgb,currentColor 10%,#fff); }
+    #keypath-matrix .install-arrow { position:absolute; left:34px; top:16px; width:10px; height:25px; background:currentColor; clip-path:polygon(35% 0,65% 0,65% 55%,100% 55%,50% 100%,0 55%,35% 55%); }
+    #keypath-matrix .install-disk { position:absolute; left:22px; top:46px; width:34px; height:8px; border:2px solid currentColor; border-radius:50%; background:#fff; }
+    #keypath-matrix[data-lab-phase="install"] .install-arrow { animation:lab-install-drop 1.1s cubic-bezier(.77,0,.175,1) infinite; }
+    #keypath-matrix[data-lab-phase="install"] .install-disk { animation:lab-disk-impact 1.1s cubic-bezier(.23,1,.32,1) infinite; }
+
+    #keypath-matrix .shield { position:absolute; left:20px; top:4px; width:40px; height:52px; border:2px solid currentColor; background:color-mix(in srgb,currentColor 8%,#fff); clip-path:polygon(50% 0,95% 14%,86% 70%,50% 100%,14% 70%,5% 14%); }
+    #keypath-matrix .shield::before { content:""; position:absolute; left:9px; right:9px; top:22px; height:3px; border-radius:4px; background:currentColor; box-shadow:0 -8px currentColor,0 8px currentColor; opacity:.45; }
+    #keypath-matrix .shield-scan { position:absolute; left:18px; top:8px; width:44px; height:5px; border-radius:50%; background:var(--wait); box-shadow:0 0 12px var(--wait); opacity:0; }
+    #keypath-matrix[data-lab-phase="approval"] .lab-stage[data-phase="approval"] { --stage-color:var(--wait); border-color:rgba(119,91,216,.48); background:#f8f5ff; box-shadow:0 12px 28px rgba(119,91,216,.14); }
+    #keypath-matrix[data-lab-phase="approval"] .shield-scan { animation:lab-shield-scan 1.5s cubic-bezier(.77,0,.175,1) infinite; }
+
+    #keypath-matrix .probe-ring { position:absolute; left:16px; top:7px; width:47px; height:47px; border:2px solid currentColor; border-radius:50%; }
+    #keypath-matrix .probe-ring::before { content:""; position:absolute; left:50%; top:50%; width:7px; height:7px; border-radius:50%; background:currentColor; transform:translate3d(-50%,-50%,0); box-shadow:0 0 10px currentColor; }
+    #keypath-matrix .probe-arm { position:absolute; left:38px; top:10px; width:2px; height:21px; background:currentColor; transform-origin:50% 100%; }
+    #keypath-matrix[data-lab-phase="verify"] .probe-arm { animation:lab-probe-sweep 1.15s cubic-bezier(.77,0,.175,1) infinite; }
+    #keypath-matrix[data-lab-phase="verify"] .probe-ring { animation:lab-probe-pulse 1.15s cubic-bezier(.23,1,.32,1) infinite; }
+
+    #keypath-matrix .evidence-page { position:absolute; width:42px; height:51px; border:2px solid currentColor; border-radius:4px; background:#fff; }
+    #keypath-matrix .evidence-page::before { content:""; position:absolute; left:8px; right:8px; top:13px; height:3px; background:currentColor; box-shadow:0 8px currentColor,0 16px currentColor; opacity:.45; }
+    #keypath-matrix .evidence-page:nth-child(1) { left:12px; top:11px; opacity:.32; transform:rotate(-8deg); } #keypath-matrix .evidence-page:nth-child(2) { left:22px; top:7px; opacity:.62; transform:rotate(3deg); } #keypath-matrix .evidence-page:nth-child(3) { left:29px; top:3px; }
+    #keypath-matrix[data-lab-phase="evidence"] .evidence-page:nth-child(1) { animation:lab-page-stack 1.4s cubic-bezier(.23,1,.32,1) infinite; } #keypath-matrix[data-lab-phase="evidence"] .evidence-page:nth-child(2) { animation:lab-page-stack 1.4s -.45s cubic-bezier(.23,1,.32,1) infinite; } #keypath-matrix[data-lab-phase="evidence"] .evidence-page:nth-child(3) { animation:lab-page-stack 1.4s -.9s cubic-bezier(.23,1,.32,1) infinite; }
+
     @keyframes matrix-route { 0% { transform:scaleX(.02); opacity:0; } 18% { opacity:1; } 72%,100% { transform:scaleX(1); opacity:0; } }
     @keyframes matrix-orbit { to { transform:rotate(360deg); } }
     @keyframes matrix-heartbeat { 0%,100% { transform:scale(1); opacity:.78; } 50% { transform:scale(1.3); opacity:1; } }
@@ -251,9 +309,20 @@
     @keyframes matrix-state-impact { 0% { transform:scale(.97); opacity:.72; } 56% { transform:scale(1.025); opacity:1; } 100% { transform:scale(1); opacity:1; } }
     @keyframes matrix-success-ring { 0% { opacity:.9; transform:translate3d(-50%,-50%,0) scale(.95); } 100% { opacity:0; transform:translate3d(-50%,-50%,0) scale(18); } }
     @keyframes matrix-step-scan { 0% { transform:translate3d(-120%,0,0); opacity:0; } 12%,68% { opacity:1; } 100% { transform:translate3d(220%,0,0); opacity:0; } }
+    @keyframes lab-package-transfer { 0%,12% { transform:translate3d(0,0,0) rotate(-5deg); opacity:1; } 68% { transform:translate3d(33px,0,0) rotate(5deg); opacity:1; } 82%,100% { transform:translate3d(33px,0,0) rotate(5deg); opacity:0; } }
+    @keyframes lab-network-flow { to { transform:translate3d(15px,0,0); } }
+    @keyframes lab-receive { 0%,55%,100% { transform:scale(1); } 70% { transform:scale(1.08); } }
+    @keyframes lab-mini-stack { 0%,100% { transform:translate3d(0,0,0); opacity:.72; } 50% { transform:translate3d(4px,0,0); opacity:1; } }
+    @keyframes lab-vm-clone { 0% { transform:translate3d(-10px,8px,0) scale(.9); opacity:.15; } 45%,72% { transform:translate3d(0,0,0) scale(1); opacity:1; } 100% { transform:translate3d(5px,-4px,0) scale(1.03); opacity:0; } }
+    @keyframes lab-install-drop { 0%,12% { transform:translate3d(0,-7px,0); opacity:0; } 42%,72% { transform:translate3d(0,6px,0); opacity:1; } 100% { transform:translate3d(0,6px,0); opacity:0; } }
+    @keyframes lab-disk-impact { 0%,45%,100% { transform:scale(1); } 58% { transform:scale(1.16); } }
+    @keyframes lab-shield-scan { 0% { transform:translate3d(0,0,0) scaleX(.75); opacity:0; } 15%,72% { opacity:1; } 100% { transform:translate3d(0,43px,0) scaleX(1.1); opacity:0; } }
+    @keyframes lab-probe-sweep { 0% { transform:rotate(-70deg); } 50% { transform:rotate(70deg); } 100% { transform:rotate(-70deg); } }
+    @keyframes lab-probe-pulse { 0%,100% { transform:scale(.96); opacity:.65; } 50% { transform:scale(1.08); opacity:1; } }
+    @keyframes lab-page-stack { 0% { transform:translate3d(0,-9px,0) rotate(-4deg); opacity:0; } 38%,72% { transform:translate3d(0,0,0) rotate(0deg); opacity:1; } 100% { transform:translate3d(7px,3px,0) rotate(4deg); opacity:0; } }
     @media (prefers-reduced-motion:reduce) {
       #keypath-matrix *,#keypath-matrix *::before,#keypath-matrix *::after { animation:none!important; }
-      #keypath-matrix .job,#keypath-matrix .wave,#keypath-matrix .workstream,#keypath-matrix .metric-value { transform:none!important; transition:opacity 180ms cubic-bezier(.23,1,.32,1),background-color 180ms cubic-bezier(.23,1,.32,1),border-color 180ms cubic-bezier(.23,1,.32,1)!important; }
+      #keypath-matrix .job,#keypath-matrix .wave,#keypath-matrix .workstream,#keypath-matrix .metric-value,#keypath-matrix .lab-stage,#keypath-matrix .lab-icon { transform:none!important; transition:opacity 180ms cubic-bezier(.23,1,.32,1),background-color 180ms cubic-bezier(.23,1,.32,1),border-color 180ms cubic-bezier(.23,1,.32,1)!important; }
       #keypath-matrix .workstream { opacity:0!important; }
     }
     @media (prefers-reduced-transparency:reduce) { #keypath-matrix .card { background:var(--panel); } }
@@ -270,6 +339,8 @@
       #keypath-matrix .readout { grid-template-columns:1fr; }
       #keypath-matrix .matrix-head { flex-direction:column; }
       #keypath-matrix .steps { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      #keypath-matrix .lab-stages { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      #keypath-matrix .lab-stage:not(:last-child)::after { display:none; }
     }
   </style>
 
@@ -285,6 +356,19 @@
       <div class="live-status" id="matrix-live-status">Connecting</div>
     </div>
     <div class="dial card" id="campaign-dial" aria-label="Campaign progress"><div class="dial-ring"><strong class="dial-value" id="dial-value">0%</strong></div><div class="dial-label">verified</div></div>
+  </section>
+
+  <section class="lab-theater" aria-label="Animated lab process">
+    <div class="lab-theater-head"><strong>Inside the lab</strong><span id="lab-phase-label">Waiting for work</span></div>
+    <div class="lab-stages">
+      <div class="lab-stage" data-phase="transfer"><div class="lab-icon" aria-hidden="true"><i class="network-line"></i><i class="artifact-box"></i><i class="transfer-node"></i></div><span class="lab-stage-label">Artifact transfer</span></div>
+      <div class="lab-stage" data-phase="provision"><div class="lab-icon" aria-hidden="true"><i class="mini-slab"></i><i class="mini-slab"></i><i class="mini-slab"></i></div><span class="lab-stage-label">Mini provisioner</span></div>
+      <div class="lab-stage" data-phase="provision"><div class="lab-icon" aria-hidden="true"><i class="vm-window"></i><i class="vm-window"></i><i class="vm-window"></i></div><span class="lab-stage-label">VM clone bay</span></div>
+      <div class="lab-stage" data-phase="install"><div class="lab-icon" aria-hidden="true"><i class="install-window"></i><i class="install-arrow"></i><i class="install-disk"></i></div><span class="lab-stage-label">Guest installer</span></div>
+      <div class="lab-stage" data-phase="approval"><div class="lab-icon" aria-hidden="true"><i class="shield"></i><i class="shield-scan"></i></div><span class="lab-stage-label">macOS approval</span></div>
+      <div class="lab-stage" data-phase="verify"><div class="lab-icon lab-icon-probe" aria-hidden="true"><i class="probe-ring"></i><i class="probe-arm"></i></div><span class="lab-stage-label">Runtime probe</span></div>
+      <div class="lab-stage" data-phase="evidence"><div class="lab-icon" aria-hidden="true"><i class="evidence-page"></i><i class="evidence-page"></i><i class="evidence-page"></i></div><span class="lab-stage-label">Evidence vault</span></div>
+    </div>
   </section>
 
   <section class="metrics" aria-label="Campaign metrics">
@@ -320,6 +404,8 @@
       let selectedId=null;
       const previousJobStatus=new Map();
       const fmtDuration=seconds=>{const value=Math.max(0,Number(seconds)||0);if(value<60)return `${Math.floor(value)}s`;const minutes=Math.floor(value/60),hours=Math.floor(minutes/60);return hours?`${hours}h ${minutes%60}m`:`${minutes}m`;};
+      const phaseLabel={transfer:'Artifact moving to mini',provision:'Mini cloning a fresh VM',install:'Installer entering the guest',approval:'macOS approval gate',verify:'Runtime probes executing',evidence:'Evidence being captured',idle:'Lab settled'};
+      function labPhase(job){if(!job)return'idle';if(job.status==='waiting')return'approval';const step=String(job.currentStep||'').toLowerCase();if(step.includes('create'))return Number(job.progress)<22?'transfer':'provision';if(step.includes('install'))return'install';if(step.includes('capture')||step.includes('artifact'))return'evidence';if(step.includes('approval'))return'approval';return job.status==='running'?'verify':'idle';}
       function setMetric(id,value){const node=el(id);if(node.textContent===value)return;node.textContent=value;node.classList.remove('is-changing');void node.offsetWidth;node.classList.add('is-changing');}
       function renderDetail(job){
         if(!job)return; selectedId=job.id;
@@ -332,6 +418,7 @@
       function render(state){
         const campaign=state.campaign||{}; const allJobs=state.jobs||[]; const activeJob=allJobs.find(job=>['running','waiting','failed','blocked'].includes(job.status));
         const visibleStatus=activeJob&&['idle','queued'].includes(campaign.status||'idle')?activeJob.status:(campaign.status||'idle');
+        const phase=visibleStatus==='running'||visibleStatus==='waiting'?labPhase(activeJob):'idle';root.dataset.labPhase=phase;el('lab-phase-label').textContent=phaseLabel[phase];
         const progress=Math.max(0,Math.min(100,Number(campaign.progress)||0));
         delete root.dataset.feedError;
         root.dataset.campaignStatus=visibleStatus; root.style.setProperty('--campaign-progress',`${progress}%`);
