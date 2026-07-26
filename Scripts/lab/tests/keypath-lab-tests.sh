@@ -247,6 +247,8 @@ grep -Fq 'Tart guest SSH did not recover after reboot' "$REMOTE"
 /bin/zsh -n "$LAB_DIR/scenarios/kanata-vhid-two-clients"
 /bin/zsh -n "$LAB_DIR/scenarios/installer-scenario"
 python3 "$LAB_DIR/tests/scenario-matrix-tests.py"
+python3 "$LAB_DIR/tests/scenario-matrix-runner-tests.py"
+python3 "$LAB_DIR/tests/macos-26-selector-scenario-tests.py"
 python3 "$LAB_DIR/tests/macos-27-selector-scenario-tests.py"
 python3 "$LAB_DIR/tests/physical-remap-session-tests.py"
 if grep -Eq 'local[[:space:]]+status=' "$LAB_DIR/scenarios/installer-scenario"; then
@@ -951,11 +953,13 @@ case "\$*" in
   *prepare-upload*) echo /tmp/keypath-lab.test-upload ;;
   *install-archive*) echo archive-installed ;;
   *" create "*) echo \$'lease_id\tcbx_controller_test' ;;
+  *" artifacts "*) echo \$'artifact_dir\t/Volumes/KeyPath Lab/CrabBox/KeyPathInstallerLab/artifacts/cbx_controller_test/20260725T000000Z' ;;
   *) echo controller-preflight ;;
 esac
 EOF
 cat > "$TMP/fake-bin/scp" <<EOF
 #!/bin/bash
+echo "\$*" >> "$TMP/scp-args"
 exit 0
 EOF
 chmod +x "$TMP/fake-bin/ssh" "$TMP/fake-bin/scp"
@@ -980,6 +984,11 @@ grep -Fq "$controller_archive_key" "$TMP/ssh-args" || {
     echo "controller archive key did not include fixture checksum" >&2
     exit 1
 }
+controller_artifacts=$(PATH="$TMP/fake-bin:$PATH" KEYPATH_LAB_HOST=tester@test-host "$LAB_DIR/keypath-lab" artifacts \
+    cbx_controller_test --output "$TMP/controller-artifacts")
+assert_contains "$controller_artifacts" $'local_artifact_dir\t'
+[[ -d "$TMP/controller-artifacts" ]]
+grep -Fq 'tester@test-host:/Volumes/KeyPath Lab/CrabBox/KeyPathInstallerLab/artifacts/cbx_controller_test/20260725T000000Z/.' "$TMP/scp-args"
 if PATH="$TMP/fake-bin:$PATH" "$LAB_DIR/keypath-lab" create --macos 15 --lane unmanaged-ui --commit abc --installer "$TMP/KeyPath.zip" >/dev/null 2>&1; then
     echo "controller accepted a non-explicit commit SHA" >&2
     exit 1

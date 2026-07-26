@@ -557,6 +557,50 @@ These flags change admission only; they do not bypass the operator or physical
 checkpoint. The executor must still stop at the named step and retain the same
 result, failure-ownership, artifact-sanitization, and owned-cleanup contracts.
 
+Execute a retained plan with the exact candidate and commit. The runner writes
+an owner-only checkpoint after every transition, runs jobs in each provider-safe
+wave concurrently, streams those transitions to the dashboard, downloads the
+sanitized evidence before cleanup, and refuses to call a VM job passed until its
+owned lease has been destroyed successfully:
+
+```bash
+campaign=.keypath-lab/matrix/weekly-$(date +%Y%m%d-%H%M%S)
+mkdir -p "$campaign"
+Scripts/lab/scenario-matrix \
+  --cadence weekly \
+  --include-operator \
+  --output "$campaign/plan.json"
+Scripts/lab/scenario-matrix-runner \
+  --plan "$campaign/plan.json" \
+  --state "$campaign/state.json" \
+  --artifacts "$campaign/artifacts" \
+  --commit "$(git rev-parse HEAD)" \
+  --installer dist/KeyPath.zip \
+  --fixture /path/to/KeyPath-beta3.zip \
+  --dashboard-updater ../keypath-lab-state-dashboard/Scripts/lab/update-matrix-dashboard \
+  --dashboard-state /tmp/keypath-matrix-state.json
+```
+
+The beta-to-current case makes `--fixture` mandatory before any lease starts.
+If an explicit checkpoint pauses a job, complete the named visible action and
+resume the same state file with, for example:
+
+```bash
+Scripts/lab/scenario-matrix-runner ... \
+  --ack-checkpoint macos15-cancellation-recovery:operator-cancel-visible-dialog
+```
+
+An acknowledgement is accepted only for a checkpoint already recorded as
+waiting; it cannot pre-authorize or bypass a future interaction. A process
+interruption never blindly repeats an uncertain mutation. Lease creation can be
+recovered only when both the durable command log and the owned controller status
+identify the same ready lease; any other uncertain mutation blocks for evidence
+review. Failed jobs still collect available artifacts and destroy their owned
+leases, allowing independent later waves to continue. A waiting job retains its
+lease and pauses only subsequent work on that provider. `matrix-report.json`
+contains campaign/job outcomes and `scenario-report.json` consolidates validated
+scenario result files.
+
 ### macOS 27 beta regression capture
 
 On every significant macOS 27 beta seed, run the non-destructive evidence

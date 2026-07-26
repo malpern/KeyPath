@@ -1,0 +1,52 @@
+#!/bin/zsh
+set -euo pipefail
+
+die() { print -u2 "macos-26-selector-scenario: $*"; exit 1; }
+usage() { print -u2 "Usage: Scripts/lab/macos-26-selector-scenario --output DIRECTORY"; exit 2; }
+
+output=
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --output) [[ -n "${2:-}" ]] || usage; output=$2; shift 2 ;;
+    *) usage ;;
+  esac
+done
+[[ -n "$output" && "$output" != -* ]] || usage
+
+root=${0:A:h}
+driver=${KEYPATH_SELECTOR_DRIVER:-$root/macos-26-selector-driver}
+peekaboo=${KEYPATH_SELECTOR_PEEKABOO:-$root/peekaboo-ui}
+open_bin=${KEYPATH_SELECTOR_OPEN:-/usr/bin/open}
+osascript_bin=${KEYPATH_SELECTOR_OSASCRIPT:-/usr/bin/osascript}
+sleep_bin=${KEYPATH_SELECTOR_SLEEP:-/bin/sleep}
+url='x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
+readiness="$output/accessibility-readiness.json"
+
+mkdir -p "$output"
+"$osascript_bin" -e 'tell application "System Settings" to quit' >/dev/null 2>&1 || true
+"$sleep_bin" 1
+opened=0
+for attempt in {1..5}; do
+  if "$open_bin" "$url"; then opened=1; break; fi
+  "$sleep_bin" 1
+done
+(( opened )) || die "could not open the Accessibility privacy pane after five attempts"
+
+ready=0
+for attempt in {1..15}; do
+  if "$peekaboo" snapshot --app "System Settings" --output "$readiness" >/dev/null 2>&1 \
+      && /usr/bin/grep -Fq 'com.apple.settings.accessibility' "$readiness" \
+      && /usr/bin/grep -Fq 'Allow the applications below to control your computer.' "$readiness" \
+      && /usr/bin/grep -Fq 'Peekaboo Lab Host' "$readiness"; then
+    ready=1
+    break
+  fi
+  "$sleep_bin" 1
+done
+(( ready )) || print -u2 "macos-26-selector-scenario: pane readiness timed out; driver will record the fail-closed result"
+exec "$driver" \
+  --output "$output" \
+  --scenario macos-26-selector-probe \
+  --expect com.apple.settings.accessibility \
+  --expect 'Allow the applications below to control your computer.' \
+  --expect 'Peekaboo Lab Host'

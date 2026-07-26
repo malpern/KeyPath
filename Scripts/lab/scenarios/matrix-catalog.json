@@ -8,7 +8,7 @@
       "automation": "unattended",
       "estimatedMinutes": 5,
       "nightlyCore": true,
-      "steps": ["run-lab-contract-tests", "run-failure-ownership-self-test", "generate-consolidated-report"],
+      "steps": ["run-lab-contract-tests", "run-failure-ownership-self-test", "verify-report-contract"],
       "factors": {"platform": "local", "lane": "none", "family": "contracts", "boundary": "none", "evidence": "report"}
     },
     {
@@ -92,7 +92,7 @@
       "estimatedMinutes": 24,
       "nightlyCore": true,
       "cleanup": "destroy-owned-lease",
-      "steps": ["create-desktop-lease", "desktop-bootstrap", "macos-26-selector-driver", "artifact-capture"],
+      "steps": ["create-desktop-lease", "desktop-bootstrap", "macos-26-selector-scenario", "artifact-capture"],
       "factors": {"platform": "macos26", "lane": "unmanaged", "family": "selectors", "boundary": "approval-ui", "evidence": "semantic-ui"}
     },
     {

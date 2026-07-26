@@ -32,7 +32,7 @@ Commands:
   run LEASE_ID -- COMMAND [ARG...]
   status LEASE_ID
   list
-  artifacts LEASE_ID
+  artifacts LEASE_ID [--output DIRECTORY]
   scenario LEASE_ID NAME
   destroy LEASE_ID
   cleanup [--dry-run]
@@ -332,9 +332,22 @@ EOF
         remote list
         ;;
     artifacts)
-        [[ $# -eq 1 ]] || usage
+        [[ $# -eq 1 || ($# -eq 3 && $2 == "--output") ]] || usage
         require_lease_id "$1"
-        remote artifacts "$1"
+        lease=$1
+        output=
+        [[ $# -eq 3 ]] && output=$3
+        artifact_result=$(remote artifacts "$lease")
+        printf '%s\n' "$artifact_result"
+        if [[ -n $output ]]; then
+            artifact_dir=$(printf '%s\n' "$artifact_result" | awk -F '\t' '$1 == "artifact_dir" {print $2}' | tail -1)
+            [[ $artifact_dir =~ ^/[A-Za-z0-9._/[:space:]-]+$ && $artifact_dir != *..* ]] || die "host returned an invalid artifact directory"
+            [[ ! -L $output ]] || die "artifact output must not be a symlink"
+            mkdir -p "$output"
+            scp -q -o BatchMode=yes -r "$host:$artifact_dir/." "$output/"
+            local_output=$(cd "$output" >/dev/null && pwd -P)
+            printf 'local_artifact_dir\t%s\n' "$local_output"
+        fi
         ;;
     scenario)
         [[ $# -eq 2 ]] || usage
