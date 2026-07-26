@@ -1006,6 +1006,81 @@ html&gt;body{padding:0}&lt;/style&gt;
     #keypath-matrix .excluded { margin-top:12px; padding:11px 13px; border-radius:9px; border-left:3px solid var(--wait); color:var(--faint); font-family:system-ui,sans-serif; font-size:9px; }
     #keypath-matrix .excluded strong { color:var(--dim); font-weight:650; }
 
+    /* Light editorial journey: shared tab typography, with color reserved for state. */
+    #keypath-matrix {
+      --ink:#17212b; --dim:#626d7a; --faint:#8a94a2; --line:#e1e5eb; --panel:#ffffff;
+      --panel-2:#f7f8fa; --void:#f5f7fa; --queued:#dfe4ea; --run:#ee7138; --run-2:#ffae7e;
+      --pass:#20a877; --wait:#775bd8; --fail:#d7435f; --local:#188eaf; --tart:#e66f37;
+      --parallels:#7057d2; color:var(--ink); font-family:system-ui,-apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,sans-serif;
+      min-height:760px; padding:22px; border:1px solid #e5e8ee; border-radius:16px;
+      background:radial-gradient(circle at 86% 3%,rgba(112,87,210,.08),transparent 27%),
+        radial-gradient(circle at 5% 28%,rgba(24,142,175,.075),transparent 25%),#f8f9fb;
+      box-shadow:0 18px 50px rgba(35,43,55,.07);
+      font-optical-sizing:auto;
+    }
+    #keypath-matrix::before { opacity:.7; background-image:linear-gradient(rgba(42,52,66,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(42,52,66,.035) 1px,transparent 1px); mask-image:linear-gradient(to bottom,#000,transparent 68%); }
+    #keypath-matrix .eyebrow { color:#b95024; font-family:ui-monospace,&quot;SFMono-Regular&quot;,Menlo,monospace; }
+    #keypath-matrix h1 { color:var(--ink); font-size:34px; line-height:1.06; letter-spacing:-.035em; }
+    #keypath-matrix .sub { color:var(--dim); font-size:13px; line-height:1.55; }
+    #keypath-matrix .updated { color:var(--faint); font-family:ui-monospace,&quot;SFMono-Regular&quot;,Menlo,monospace; }
+    #keypath-matrix .card { border-color:var(--line); background:rgba(255,255,255,.9); box-shadow:0 1px 2px rgba(33,43,54,.035),inset 0 1px rgba(255,255,255,.8); }
+    #keypath-matrix .command { grid-template-columns:minmax(0,1fr) 128px; }
+    #keypath-matrix .livebar { background:rgba(255,255,255,.94); }
+    #keypath-matrix .livebar::after { box-shadow:none; }
+    #keypath-matrix .live-orbit { border-color:#dce1e8; background:#fff; }
+    #keypath-matrix .live-orbit::before { border-color:#aeb6c2; }
+    #keypath-matrix[data-campaign-status=&quot;running&quot;] .live-orbit { background:#fffaf7; box-shadow:0 8px 24px rgba(238,113,56,.12); }
+    #keypath-matrix .live-copy strong,#keypath-matrix .dial-value,#keypath-matrix .metric-value,#keypath-matrix .matrix-head strong,#keypath-matrix .detail-title { color:var(--ink); }
+    #keypath-matrix .live-copy small { color:var(--dim); }
+    #keypath-matrix .live-status { border-color:var(--line); background:#f7f8fa; color:var(--dim); }
+    #keypath-matrix[data-campaign-status=&quot;running&quot;] .live-status { border-color:rgba(238,113,56,.34); background:#fff5ef; color:#a9441b; }
+    #keypath-matrix .dial { background:rgba(255,255,255,.94); }
+    #keypath-matrix .dial-ring { background:conic-gradient(var(--run) var(--dial-progress),#e4e8ee 0); box-shadow:none; }
+    #keypath-matrix .dial-ring::before { background:#fff; }
+
+    #keypath-matrix .metrics { gap:0; overflow:hidden; padding:0 4px; border:1px solid var(--line); border-radius:10px; background:rgba(255,255,255,.86); }
+    #keypath-matrix .metric.card { border:0; border-radius:0; background:transparent; box-shadow:none; }
+    #keypath-matrix .metric + .metric { border-left:1px solid var(--line); }
+    #keypath-matrix .metric::before { top:12px; bottom:12px; height:auto; border-radius:4px; }
+    #keypath-matrix .metric-label { color:var(--faint); font-family:ui-monospace,&quot;SFMono-Regular&quot;,Menlo,monospace; }
+    #keypath-matrix .metric-value { font-size:21px; line-height:1.1; }
+    #keypath-matrix .metric-detail { color:var(--faint); font-family:ui-monospace,&quot;SFMono-Regular&quot;,Menlo,monospace; }
+
+    #keypath-matrix .matrix { border-color:#dde2e9; background:
+      linear-gradient(90deg,rgba(24,142,175,.025),transparent 28%,rgba(112,87,210,.025) 72%,transparent),
+      rgba(255,255,255,.94); box-shadow:0 10px 28px rgba(46,57,70,.055); }
+    #keypath-matrix .matrix-head span { color:var(--faint); }
+    #keypath-matrix .provider-key { color:var(--dim); font-family:ui-monospace,&quot;SFMono-Regular&quot;,Menlo,monospace; }
+    #keypath-matrix .waves { position:relative; gap:9px; padding:4px 0; }
+    #keypath-matrix .waves::before { content:&quot;&quot;; position:absolute; left:3px; top:18px; bottom:18px; width:1px; background:linear-gradient(var(--run),#cbd2dc 24%,#dfe4ea); }
+    #keypath-matrix .wave { position:relative; opacity:.78; }
+    #keypath-matrix .wave:nth-child(even) .wave-jobs { margin-left:2.5%; }
+    #keypath-matrix .wave:nth-child(3n) .wave-jobs { margin-right:3%; }
+    #keypath-matrix .wave-label { border-left:0; font-family:ui-monospace,&quot;SFMono-Regular&quot;,Menlo,monospace; }
+    #keypath-matrix .wave-label::before { left:0; width:8px; height:8px; border-color:#aeb6c2; background:#fff; }
+    #keypath-matrix .wave[data-status=&quot;running&quot;] .wave-label::before { border-color:var(--run); background:#fff; box-shadow:inset 0 0 0 2px #fff,0 0 0 3px rgba(238,113,56,.13); }
+    #keypath-matrix .wave[data-status=&quot;passed&quot;] .wave-label::before { background:var(--pass); }
+    #keypath-matrix .wave-label strong { color:var(--dim); }
+    #keypath-matrix .wave-jobs::before { background:linear-gradient(90deg,#dce1e8,transparent); }
+    #keypath-matrix .wave[data-status=&quot;running&quot;] .wave-jobs::after { content:&quot;&quot;; position:absolute; left:0; right:0; top:50%; z-index:-1; height:2px; background:linear-gradient(90deg,var(--run),rgba(238,113,56,.08)); transform:scaleX(0); transform-origin:left; animation:matrix-route 2.4s cubic-bezier(.77,0,.175,1) infinite; }
+    #keypath-matrix .job { border-color:#dfe4eb; background:#fff; color:var(--dim); box-shadow:0 2px 8px rgba(35,45,58,.045); }
+    #keypath-matrix .job[data-status=&quot;running&quot;] { border-color:var(--provider); background:color-mix(in srgb,var(--provider) 7%,#fff); color:var(--ink); box-shadow:0 10px 24px color-mix(in srgb,var(--provider) 13%,transparent); }
+    #keypath-matrix .job[data-status=&quot;passed&quot;] { border-color:rgba(32,168,119,.28); background:#f5fcf9; color:var(--ink); }
+    #keypath-matrix .job[data-status=&quot;waiting&quot;] { border-color:rgba(119,91,216,.42); background:repeating-linear-gradient(135deg,rgba(119,91,216,.075) 0 7px,rgba(255,255,255,.94) 7px 13px); color:var(--ink); }
+    #keypath-matrix .job[data-status=&quot;failed&quot;],#keypath-matrix .job[data-status=&quot;blocked&quot;] { border-color:rgba(215,67,95,.46); background:#fff6f7; color:var(--ink); }
+    #keypath-matrix .job-title { color:var(--ink); }
+    #keypath-matrix .job-platform,#keypath-matrix .job-step { color:var(--faint); }
+    #keypath-matrix .job-block { background:#e4e8ee; }
+    #keypath-matrix .readout .card,#keypath-matrix .excluded { background:rgba(255,255,255,.9); }
+    #keypath-matrix .detail-meta,#keypath-matrix .event time,#keypath-matrix .event span,#keypath-matrix .excluded { color:var(--faint); }
+    #keypath-matrix .badge { border-color:var(--line); background:#f7f8fa; color:var(--dim); }
+    #keypath-matrix .step { border-color:#e4e8ee; background:#fafbfc; }
+    #keypath-matrix .step-label,#keypath-matrix .event strong { color:var(--dim); }
+    #keypath-matrix .event { border-color:#e7eaf0; }
+    #keypath-matrix .events h2 { color:var(--faint); font-family:ui-monospace,&quot;SFMono-Regular&quot;,Menlo,monospace; }
+    #keypath-matrix .excluded strong { color:var(--dim); }
+
+    @keyframes matrix-route { 0% { transform:scaleX(0); opacity:0; } 18% { opacity:1; } 72%,100% { transform:scaleX(1); opacity:0; } }
     @keyframes matrix-orbit { to { transform:rotate(360deg); } }
     @keyframes matrix-heartbeat { 0%,100% { transform:scale(1); opacity:.78; } 50% { transform:scale(1.3); opacity:1; } }
     @keyframes matrix-scan { 0% { transform:translateX(-140%); } 64%,100% { transform:translateX(360%); } }
@@ -1031,7 +1106,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   &lt;/style&gt;
 
   &lt;header class=&quot;top&quot;&gt;
-    &lt;div&gt;&lt;div class=&quot;eyebrow&quot;&gt;KeyPath lab · campaign fabric&lt;/div&gt;&lt;h1&gt;Matrix runs&lt;/h1&gt;&lt;div class=&quot;sub&quot;&gt;Watch jobs move through provider-safe waves, settle into verified evidence, and surface the exact point where human attention is needed.&lt;/div&gt;&lt;/div&gt;
+    &lt;div&gt;&lt;div class=&quot;eyebrow&quot;&gt;KeyPath lab · live campaign&lt;/div&gt;&lt;h1&gt;Matrix runs&lt;/h1&gt;&lt;div class=&quot;sub&quot;&gt;Follow each test specimen through provider-safe stages—from admission to verified evidence—with motion reserved for work that is actually changing.&lt;/div&gt;&lt;/div&gt;
     &lt;div class=&quot;updated&quot; id=&quot;matrix-updated&quot;&gt;Updated —&lt;/div&gt;
   &lt;/header&gt;
 
@@ -1052,7 +1127,7 @@ html&gt;body{padding:0}&lt;/style&gt;
 
   &lt;main class=&quot;matrix card&quot;&gt;
     &lt;div class=&quot;matrix-head&quot;&gt;
-      &lt;div&gt;&lt;strong&gt;Execution fabric&lt;/strong&gt;&lt;span&gt;Checkpoint blocks light as evidence lands. Only active work moves.&lt;/span&gt;&lt;/div&gt;
+      &lt;div&gt;&lt;strong&gt;Campaign journey&lt;/strong&gt;&lt;span&gt;Each row is a gated stage. Checkpoint blocks settle as independent evidence lands.&lt;/span&gt;&lt;/div&gt;
       &lt;div class=&quot;provider-key&quot; aria-label=&quot;Provider colors&quot;&gt;&lt;span&gt;&lt;i class=&quot;local&quot;&gt;&lt;/i&gt;Local&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;tart&quot;&gt;&lt;/i&gt;Tart&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;parallels&quot;&gt;&lt;/i&gt;Parallels&lt;/span&gt;&lt;/div&gt;
     &lt;/div&gt;
     &lt;div class=&quot;waves&quot; id=&quot;matrix-waves&quot;&gt;&lt;/div&gt;
