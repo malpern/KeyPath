@@ -274,7 +274,9 @@ fi
 grep -Fq 'Reboot persistence requires an independently ready runtime baseline.' "$LAB_DIR/scenarios/installer-scenario"
 grep -Fq 'The boot marker did not change; no guest reboot was proven.' "$LAB_DIR/scenarios/installer-scenario"
 grep -Fq 'KeyPath app identity changed across the guest reboot.' "$LAB_DIR/scenarios/installer-scenario"
-grep -Fq 'The independently ready KeyPath runtime did not recover after reboot.' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'KEYPATH_LAB_REBOOT_READY_TIMEOUT_SECONDS' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'ready-attempts.tsv' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'did not converge after the bounded reboot recovery window.' "$LAB_DIR/scenarios/installer-scenario"
 grep -Fq 'Cancellation recovery requires an independently ready runtime baseline.' "$LAB_DIR/scenarios/installer-scenario"
 grep -Fq 'The same lease must pass cancellation-recovery-before before post-cancellation verification.' "$LAB_DIR/scenarios/installer-scenario"
 grep -Fq 'Scripts/lab/damage-kanata-service' "$LAB_DIR/scenarios/installer-scenario"
@@ -860,7 +862,7 @@ assert_contains "$invalid_resource_output" 'invalid Parallels resource id'
 [[ $(grep -c '^prlctl capture ' "$CALLS") -eq $prlctl_calls_before ]]
 run_remote destroy cbx_desktop26 >/dev/null
 
-desktop_create=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
+desktop_create=$(run_remote create 15 managed-functional "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
 assert_contains "$desktop_create" $'lease_id\tcbx_desktop15'
 grep -q $'status\tprovisioning' "$ROOT/KeyPathInstallerLab/leases/cbx_stale/manifest.tsv"
 run_remote destroy cbx_stale >/dev/null

@@ -1416,7 +1416,11 @@ input_monitoring_rows() {
   local lease=$1 manifest resource key ip guest_script guest_command open_command
   manifest=$(owned_manifest "$lease")
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
-    print -r -- "${KEYPATH_LAB_TEST_INPUT_MONITORING_ROWS:-$'Kanata Engine\t0\t402\t247\nkanata-launcher\t0\t402\t289\nKeyPath\t0\t402\t331'}"
+    if [[ -n "${KEYPATH_LAB_TEST_INPUT_MONITORING_ROWS:-}" ]]; then
+      print -r -- "$KEYPATH_LAB_TEST_INPUT_MONITORING_ROWS"
+    else
+      printf 'Kanata Engine\t0\t402\t247\nkanata-launcher\t0\t402\t289\nKeyPath\t0\t402\t331\n'
+    fi
     return
   fi
 

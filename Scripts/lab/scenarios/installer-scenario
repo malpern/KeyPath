@@ -37,6 +37,45 @@ assert_ready() {
   fi
 }
 
+wait_for_runtime_ready() {
+  local ready_output=$1 attempts_output=$2 diagnostics_output=$3
+  local timeout=${KEYPATH_LAB_REBOOT_READY_TIMEOUT_SECONDS:-60}
+  local interval=${KEYPATH_LAB_REBOOT_READY_INTERVAL_SECONDS:-2}
+  local started=$SECONDS attempt=0 elapsed=0 attempt_stderr
+  [[ "$timeout" == <-> && "$timeout" -gt 0 ]] || {
+    print -u2 "invalid reboot readiness timeout: $timeout"
+    return 2
+  }
+  [[ "$interval" == <-> && "$interval" -gt 0 ]] || {
+    print -u2 "invalid reboot readiness interval: $interval"
+    return 2
+  }
+  attempt_stderr="$artifact_dir/ready-attempt.stderr"
+  : > "$attempts_output"
+  : > "$diagnostics_output"
+  while true; do
+    (( attempt += 1 ))
+    if assert_ready > "$ready_output" 2> "$attempt_stderr"; then
+      elapsed=$(( SECONDS - started ))
+      print "attempt\t$attempt\telapsed_seconds\t$elapsed\tstatus\tpassed" >> "$attempts_output"
+      [[ ! -s "$attempt_stderr" ]] || cat "$attempt_stderr" >> "$diagnostics_output"
+      rm -f "$attempt_stderr"
+      return 0
+    fi
+    elapsed=$(( SECONDS - started ))
+    print "attempt\t$attempt\telapsed_seconds\t$elapsed\tstatus\twarming" >> "$attempts_output"
+    {
+      print "attempt=$attempt elapsed_seconds=$elapsed"
+      cat "$attempt_stderr"
+    } >> "$diagnostics_output"
+    if (( elapsed >= timeout )); then
+      rm -f "$attempt_stderr"
+      return 1
+    fi
+    sleep "$interval"
+  done
+}
+
 record_scenario_result() {
   local scenario_status=$1 summary=$2
   shift 2
@@ -160,11 +199,15 @@ case "$name" in
         --evidence app-identity.txt
       exit 1
     fi
-    if ! assert_ready | tee "$artifact_dir/ready.tsv"; then
+    if ! wait_for_runtime_ready \
+      "$artifact_dir/ready.tsv" \
+      "$artifact_dir/ready-attempts.tsv" \
+      "$artifact_dir/ready-attempts.log"; then
       record_scenario_result failed \
-        "The independently ready KeyPath runtime did not recover after reboot." \
+        "The independently ready KeyPath runtime did not converge after the bounded reboot recovery window." \
         --classification keypath-product-failure --step post-reboot-ready \
-        --evidence ready.tsv
+        --evidence ready.tsv --evidence ready-attempts.tsv \
+        --evidence ready-attempts.log
       exit 1
     fi
     "$installed_cli" service status --json > "$artifact_dir/service-status.json"
@@ -173,7 +216,8 @@ case "$name" in
     record_scenario_result passed \
       "App identity and independently ready runtime persisted across a proven guest reboot." \
       --evidence boot-time.txt --evidence app-identity.txt \
-      --evidence ready.tsv --evidence service-status.json \
+      --evidence ready.tsv --evidence ready-attempts.tsv \
+      --evidence ready-attempts.log --evidence service-status.json \
       --evidence after-reboot.json --evidence tcp-readiness.json
     ;;
   uninstall)
