@@ -21,7 +21,7 @@ This technique was popularized by [Ben Vallack](https://www.youtube.com/@BenVall
 1. Open KeyPath and click the gear icon to open the inspector panel
 2. Go to the **Rules** tab
 3. Find **Chord Groups** and toggle it **on**
-4. Choose **Load Ben Vallack Preset** for a ready-made starting point, or **Create Custom** to build your own
+4. Choose **Load Home-Row Chords (Ben Vallack preset)** for a ready-made starting point, or **Create Custom** to build your own
 
 The preset gives you:
 - `S + D` → Escape

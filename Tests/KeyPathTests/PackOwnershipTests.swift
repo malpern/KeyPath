@@ -98,10 +98,10 @@ final class PackOwnershipTests: XCTestCase {
             RuleCollectionIdentifier.homeRowArrows
         )
 
-        XCTAssertEqual(navOwner?.packName, "Ben Vallack Nav")
-        XCTAssertEqual(hrmOwner?.packName, "Ben Vallack Nav")
-        XCTAssertEqual(togglesOwner?.packName, "Ben Vallack Nav")
-        XCTAssertEqual(arrowsOwner?.packName, "Ben Vallack Nav")
+        XCTAssertEqual(navOwner?.packName, "Home Row Navigation System")
+        XCTAssertEqual(hrmOwner?.packName, "Home Row Navigation System")
+        XCTAssertEqual(togglesOwner?.packName, "Home Row Navigation System")
+        XCTAssertEqual(arrowsOwner?.packName, "Home Row Navigation System")
     }
 
     // MARK: - Self-managed badge filtering

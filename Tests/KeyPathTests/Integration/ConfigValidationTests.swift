@@ -183,7 +183,7 @@ final class ConfigValidationTests: XCTestCase {
             ("Auto Shift Symbols", RuleCollectionIdentifier.autoShiftSymbols),
             ("Fast Navigation", RuleCollectionIdentifier.keyRepeatControl),
             ("Home Row Arrows", RuleCollectionIdentifier.homeRowArrows),
-            ("Ben Vallack Nav", RuleCollectionIdentifier.vallackNavigation),
+            ("Home Row Navigation System", RuleCollectionIdentifier.vallackNavigation),
             ("Quick Launcher", RuleCollectionIdentifier.launcher)
         ]
 

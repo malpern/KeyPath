@@ -46,9 +46,21 @@ final class PacksFacadeTests: XCTestCase {
 
     // MARK: - resolvePack: by substring
 
-    func testResolvePack_SubstringUnique_ReturnsMatch() throws {
+    func testResolvePack_LegacyDisplayName_ReturnsMatch() throws {
         let facade = PacksFacade()
-        let pack = try facade.resolvePack(nameOrId: "Vallack")
+        let pack = try facade.resolvePack(nameOrId: "Ben Vallack")
+        XCTAssertEqual(pack?.id, "com.keypath.pack.vallack-system")
+    }
+
+    func testResolvePack_FullLegacyDisplayName_ReturnsMatch() throws {
+        let facade = PacksFacade()
+        let pack = try facade.resolvePack(nameOrId: "Ben Vallack Nav")
+        XCTAssertEqual(pack?.id, "com.keypath.pack.vallack-system")
+    }
+
+    func testResolvePack_CurrentDisplayNameSubstring_ReturnsMatch() throws {
+        let facade = PacksFacade()
+        let pack = try facade.resolvePack(nameOrId: "Home Row Navigation System")
         XCTAssertEqual(pack?.id, "com.keypath.pack.vallack-system")
     }
 
@@ -185,7 +197,7 @@ final class PacksFacadeTests: XCTestCase {
             query: "Nav",
             matches: [
                 .init(name: "Vim Navigation", id: "com.keypath.pack.vim-navigation"),
-                .init(name: "Ben Vallack Nav", id: "com.keypath.pack.vallack-system")
+                .init(name: "Home Row Navigation System", id: "com.keypath.pack.vallack-system")
             ]
         )
         XCTAssertTrue(err.description.contains("2 packs"))

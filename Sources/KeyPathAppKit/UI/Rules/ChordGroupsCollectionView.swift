@@ -81,7 +81,7 @@ struct ChordGroupsCollectionView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: showDetails)
-        .alert("Load Ben Vallack Preset?", isPresented: $showPresetConfirmation) {
+        .alert("Load Home-Row Chords (Ben Vallack preset)?", isPresented: $showPresetConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Load Preset") {
                 confirmLoadPreset()
@@ -123,7 +123,7 @@ struct ChordGroupsCollectionView: View {
             // Quick actions
             Menu {
                 Button(action: loadBenVallackPreset) {
-                    Label("Load Ben Vallack Preset", systemImage: "wand.and.stars")
+                    Label("Load Home-Row Chords (Ben Vallack preset)", systemImage: "wand.and.stars")
                 }
 
                 Button(action: addNewGroup) {
@@ -159,7 +159,7 @@ struct ChordGroupsCollectionView: View {
 
             HStack(spacing: 12) {
                 Button(action: loadBenVallackPreset) {
-                    Label("Load Ben Vallack Preset", systemImage: "wand.and.stars")
+                    Label("Load Home-Row Chords (Ben Vallack preset)", systemImage: "wand.and.stars")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("chord-groups-load-preset-button")
