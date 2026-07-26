@@ -30,7 +30,7 @@ class InstallRuntimeTests(unittest.TestCase):
             if [[ "$1 $2" == "system inspect" ]]; then
               operational=false
               [[ -f {str(self.approved)!r} ]] && operational=true
-              print '{{"planID":"{PLAN_ID}","snapshotID":"{SNAPSHOT_ID}","isOperational":'$operational'}}'
+              print '{{"apiVersion":1,"data":{{"planID":"{PLAN_ID}","snapshotID":"{SNAPSHOT_ID}","isOperational":'$operational'}}}}'
               exit 0
             fi
             if [[ "$1 $2" == "system install" ]]; then
@@ -38,10 +38,10 @@ class InstallRuntimeTests(unittest.TestCase):
               [[ -f {str(self.install_count)!r} ]] && count=$(cat {str(self.install_count)!r})
               print $((count + 1)) > {str(self.install_count)!r}
               if [[ "${{KEYPATH_TEST_INSTALL_MODE:-waiting}}" == "success" ]]; then
-                print '{{"runID":"{RUN_ID}","planID":"{INSTALL_PLAN_ID}","beforeSnapshotID":"{SNAPSHOT_ID}","afterSnapshotID":"{AFTER_ID}","completionState":"completed","userActionRequired":false,"success":true}}'
+                print '{{"apiVersion":1,"data":{{"runID":"{RUN_ID}","planID":"{INSTALL_PLAN_ID}","beforeSnapshotID":"{SNAPSHOT_ID}","afterSnapshotID":"{AFTER_ID}","completionState":"completed","userActionRequired":false,"success":true}}}}'
                 exit 0
               fi
-              print '{{"runID":"{RUN_ID}","planID":"{INSTALL_PLAN_ID}","beforeSnapshotID":"{SNAPSHOT_ID}","afterSnapshotID":"{AFTER_ID}","completionState":"awaitingApproval","userActionRequired":true,"success":false}}'
+              print '{{"apiVersion":1,"data":{{"runID":"{RUN_ID}","planID":"{INSTALL_PLAN_ID}","beforeSnapshotID":"{SNAPSHOT_ID}","afterSnapshotID":"{AFTER_ID}","completionState":"awaitingApproval","userActionRequired":true,"success":false}}}}'
               exit 1
             fi
             exit 2

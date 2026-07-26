@@ -19,7 +19,12 @@ mkdir -p "$output"
 }
 
 json_field() {
-  /usr/bin/plutil -extract "$2" raw -o - "$1" 2>/dev/null || true
+  local value
+  value=$(/usr/bin/plutil -extract "data.$2" raw -o - "$1" 2>/dev/null || true)
+  if [[ -z "$value" ]]; then
+    value=$(/usr/bin/plutil -extract "$2" raw -o - "$1" 2>/dev/null || true)
+  fi
+  print -r -- "$value"
 }
 
 state_field() {
