@@ -117,6 +117,8 @@ case "$command" in
         [[ $resolved == "$commit" ]] || die "commit does not resolve exactly: $commit"
 
         installer_sha=$(shasum -a 256 "$installer" | awk '{print $1}')
+        installer_name=$(basename "$installer")
+        [[ $installer_name =~ ^[A-Za-z0-9._-]+$ ]] || die "installer filename must contain only letters, numbers, dots, underscores, and dashes"
         archive_key="${commit}-${installer_sha}"
         fixture_name=
         fixture_sha=
@@ -126,12 +128,14 @@ case "$command" in
             fixture_sha=$(shasum -a 256 "$fixture" | awk '{print $1}')
             archive_key="${archive_key}-${fixture_sha}"
         fi
+        if remote archive-status "$archive_key" "$commit" "$installer_sha" "$installer_name"; then
+            remote create "$macos" "$lane" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$ttl" "$desktop" "$tart_usb_passthrough"
+            exit $?
+        fi
         temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/keypath-lab.XXXXXX")
         trap 'rm -rf "$temp_dir"' EXIT
         mkdir -p "$temp_dir/repo/.keypath-lab/installer"
         git -C "$REPO_ROOT" archive "$commit" | tar -x -C "$temp_dir/repo"
-        installer_name=$(basename "$installer")
-        [[ $installer_name =~ ^[A-Za-z0-9._-]+$ ]] || die "installer filename must contain only letters, numbers, dots, underscores, and dashes"
         cp "$installer" "$temp_dir/repo/.keypath-lab/installer/$installer_name"
         if [[ -n $fixture ]]; then
             mkdir -p "$temp_dir/repo/.keypath-lab/fixtures"

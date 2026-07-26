@@ -553,6 +553,22 @@ prepare_upload() {
   mktemp "/tmp/keypath-lab.XXXXXXXX"
 }
 
+archive_status() {
+  local key=$1 commit=$2 installer_sha=$3 installer_name=$4 destination ready
+  valid_id "$key"
+  [[ "$commit" =~ '^[0-9a-f]{40}$' ]] || die "invalid commit SHA"
+  [[ "$installer_sha" =~ '^[0-9a-f]{64}$' ]] || die "invalid installer checksum"
+  [[ "$installer_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid installer name"
+  destination="$ARCHIVES/$key"
+  ready="$destination/ready.tsv"
+  [[ -f "$ready" && -d "$destination/repo/.git" ]] || return 1
+  [[ "$(field "$ready" owner)" == "$OWNER" ]] || die "archive ownership mismatch"
+  [[ "$(field "$ready" keypath_commit)" == "$commit" ]] || die "archive commit mismatch"
+  [[ "$(field "$ready" installer_sha256)" == "$installer_sha" ]] || die "archive installer checksum mismatch"
+  [[ "$(field "$ready" installer_name)" == "$installer_name" ]] || die "archive installer name mismatch"
+  print "archive\tready\t$key"
+}
+
 install_archive() {
   local source=$1 key=$2 commit=$3 installer_sha=$4 installer_name=$5
   [[ "$source" =~ '^/tmp/keypath-lab\.[A-Za-z0-9]+$' ]] || die "invalid upload ticket"
@@ -2024,6 +2040,7 @@ action=${1:-}
 shift || true
 case "$action" in
   preflight) [[ $# -eq 0 ]] || die "preflight takes no arguments"; preflight ;;
+  archive-status) [[ $# -eq 4 ]] || die "archive-status requires key, commit, checksum, and name"; archive_status "$@" ;;
   prepare-upload) [[ $# -eq 1 ]] || die "prepare-upload requires archive key"; prepare_upload "$1" ;;
   install-archive) [[ $# -eq 5 ]] || die "install-archive requires ticket, key, commit, checksum, and name"; install_archive "$@" ;;
   create) [[ $# -eq 8 || $# -eq 9 ]] || die "create requires macOS, test lane, archive, commit, checksum, name, ttl, desktop, and optional Tart USB passthrough"; create_lease "$@" ;;
