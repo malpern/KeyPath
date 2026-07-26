@@ -103,6 +103,7 @@ class MatrixDashboardTests(unittest.TestCase):
         result = subprocess.run(["node", "-e", "new Function(process.argv[1])", dashboard], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("setInterval(refresh,1000)", dashboard)
+        self.assertIn("Date.now()-new Date(campaign.startedAt).getTime()", dashboard)
         self.assertNotIn("innerHTML", dashboard)
 
     def test_server_exposes_matrix_runtime_state(self) -> None:

@@ -1050,7 +1050,10 @@ html&gt;body{padding:0}&lt;/style&gt;
         el(&#x27;metric-waves-detail&#x27;).textContent=campaign.currentWave?`Currently wave ${campaign.currentWave}`:&#x27;Provider-safe sequencing&#x27;;
         el(&#x27;metric-pairs&#x27;).textContent=`${campaign.pairsCovered||0} / ${campaign.pairsPlanned||0}`;
         el(&#x27;metric-progress&#x27;).textContent=`${Math.max(0,Math.min(100,Number(campaign.progress)||0))}%`;
-        el(&#x27;metric-time&#x27;).textContent=campaign.startedAt?fmtDuration(campaign.elapsedSeconds):&#x27;Not started&#x27;;
+        const liveElapsed=campaign.startedAt&amp;&amp;[&#x27;running&#x27;,&#x27;waiting&#x27;].includes(campaign.status)
+          ?Math.max(Number(campaign.elapsedSeconds)||0,Math.floor((Date.now()-new Date(campaign.startedAt).getTime())/1000))
+          :Number(campaign.elapsedSeconds)||0;
+        el(&#x27;metric-time&#x27;).textContent=campaign.startedAt?fmtDuration(liveElapsed):&#x27;Not started&#x27;;
         const jobs=new Map((state.jobs||[]).map(job=&gt;[job.id,job]));
         el(&#x27;matrix-waves&#x27;).replaceChildren(...(state.waves||[]).map(wave=&gt;{
           const row=document.createElement(&#x27;section&#x27;); row.className=&#x27;wave&#x27;; row.dataset.status=wave.status||&#x27;queued&#x27;;

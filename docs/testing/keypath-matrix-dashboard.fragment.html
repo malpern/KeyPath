@@ -174,7 +174,10 @@
         el('metric-waves-detail').textContent=campaign.currentWave?`Currently wave ${campaign.currentWave}`:'Provider-safe sequencing';
         el('metric-pairs').textContent=`${campaign.pairsCovered||0} / ${campaign.pairsPlanned||0}`;
         el('metric-progress').textContent=`${Math.max(0,Math.min(100,Number(campaign.progress)||0))}%`;
-        el('metric-time').textContent=campaign.startedAt?fmtDuration(campaign.elapsedSeconds):'Not started';
+        const liveElapsed=campaign.startedAt&&['running','waiting'].includes(campaign.status)
+          ?Math.max(Number(campaign.elapsedSeconds)||0,Math.floor((Date.now()-new Date(campaign.startedAt).getTime())/1000))
+          :Number(campaign.elapsedSeconds)||0;
+        el('metric-time').textContent=campaign.startedAt?fmtDuration(liveElapsed):'Not started';
         const jobs=new Map((state.jobs||[]).map(job=>[job.id,job]));
         el('matrix-waves').replaceChildren(...(state.waves||[]).map(wave=>{
           const row=document.createElement('section'); row.className='wave'; row.dataset.status=wave.status||'queued';
