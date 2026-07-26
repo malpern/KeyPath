@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-25T16:47:00-07:00",
-  "currentTask": "Remote P02-P04 routes exhausted; one onsite mWave event remains",
-  "message": "All remote-safe automation blocks are proven. A final source audit confirmed that Tart can hot-attach a device only to an already-present virtual USB controller; every tested macOS 15 clone with that controller stalls before guest networking, and Virtualization.framework does not allow adding the controller after startup. The packaged one-event onsite session is therefore the remaining valid path for P02, P03, and P04.",
+  "updatedAt": "2026-07-26T07:26:50-07:00",
+  "currentTask": "R02 unattended approval and repair proven",
+  "message": "A fresh randomized macOS 15 Tart clone completed genuine Input Monitoring approval, runtime convergence, Kanata damage/repair, evidence capture, and cleanup without operator input.",
   "complete": false,
   "workingBlocks": [],
   "executionTracks": [
@@ -163,36 +163,6 @@
         "Runtime convergence"
       ]
     },
-    "R02": {
-      "progress": 100,
-      "health": "smooth",
-      "trend": "forward",
-      "phase": "Kanata Input Monitoring granted and independently observed",
-      "detail": "Real Parallels-console clicks enabled both managed launcher rows. KeyPath's log then read kTCCServiceListenEvent result 2 (granted) for the exact kanata-launcher path from the system TCC store.",
-      "attempt": 2,
-      "completedSteps": 3,
-      "totalSteps": 3,
-      "nextTasks": [
-        {
-          "label": "KeyPath Input Monitoring approval",
-          "status": "done",
-          "progress": 100
-        },
-        {
-          "label": "Enable launcher and engine through real macOS UI",
-          "status": "done",
-          "progress": 100
-        },
-        {
-          "label": "Verify Kanata permission independently",
-          "status": "done",
-          "progress": 100
-        }
-      ],
-      "blocker": null,
-      "coreCapability": false,
-      "unlocks": []
-    },
     "R03": {
       "progress": 100,
       "health": "smooth",
@@ -349,7 +319,7 @@
           "progress": 100
         },
         {
-          "label": "Prove ready → damaged → one repair",
+          "label": "Prove ready \u2192 damaged \u2192 one repair",
           "status": "done",
           "progress": 100
         },
@@ -785,6 +755,13 @@
   },
   "updates": [
     {
+      "time": "07:26",
+      "block": "R02",
+      "tone": "success",
+      "title": "R02 unattended approval and repair proven",
+      "message": "A fresh randomized macOS 15 Tart clone completed genuine Input Monitoring approval, runtime convergence, Kanata damage/repair, evidence capture, and cleanup without operator input."
+    },
+    {
       "time": "16:47",
       "block": "P02",
       "tone": "waiting",
@@ -986,118 +963,6 @@
       "tone": "working",
       "title": "M11 selector driver published; automation-base work begins",
       "message": "PR #1206 contains the fail-closed macOS 27 selector driver. Clone evidence is preserved, disposable capacity is clear, and M11 is now building the reusable Desktop Automation Base."
-    },
-    {
-      "time": "20:03",
-      "block": "M11",
-      "tone": "retry",
-      "title": "M11 exposed a missing macOS 27 automation base",
-      "message": "The core VM survived. The problem is base role separation: the only macOS 27 source is clean and carries stale Apple Account state, while UI automation needs a separately prepared, permissioned desktop base. Driver hardening continues while that base task is made explicit."
-    },
-    {
-      "time": "19:49",
-      "block": "M11",
-      "tone": "working",
-      "title": "M11 macOS 27 selector work resumed",
-      "message": "P02 is parked at its onsite boundary. The lab is now provisioning a fresh macOS 27 desktop clone so selector evidence is current rather than inherited from last week\u2019s stopped VM."
-    },
-    {
-      "time": "19:47",
-      "block": "P02",
-      "tone": "waiting",
-      "title": "P02 remote work complete; physical mWave proof remains",
-      "message": "Remote testing reached the safe boundary. The managed clone and network are healthy without USB; every USB-controller variant stops before guest networking, and Apple\u2019s pre-start API stalls before authorization completes. No leases or orphan VMs remain, the mWave is back on the host, and the known signed Tart app is restored."
-    },
-    {
-      "time": "19:38",
-      "block": "P02",
-      "tone": "working",
-      "title": "P02 empty-controller cause isolated; testing Apple\u2019s pre-start path",
-      "message": "Removing Tart\u2019s synthetic keyboard did not change the timeout. The next remote-safe experiment follows Apple\u2019s other supported route: authorize the mWave first and place it on the virtual controller before the VM starts."
-    },
-    {
-      "time": "19:30",
-      "block": "P02",
-      "tone": "working",
-      "title": "P02 mWave-only boot trial is running",
-      "message": "A third matched clone is starting with the passthrough controller enabled and Tart\u2019s synthetic USB keyboard removed. This isolates whether two virtual USB keyboard paths are preventing the macOS 15 guest from booting."
-    },
-    {
-      "time": "19:16",
-      "block": "P02",
-      "tone": "retry",
-      "title": "P02 USB startup failure isolated by matched control",
-      "message": "The non-USB clone passed boot, networking, MDM, and lane admission; the otherwise identical USB-enabled clone timed out before guest IP. No orphan or capacity leak remains. Investigation now moves USB registration after startup."
-    },
-    {
-      "time": "19:09",
-      "block": "P02",
-      "tone": "success",
-      "title": "P02 non-USB control passed end to end",
-      "message": "A fresh managed macOS 15 clone passed boot, networking, desktop bootstrap, MDM enrollment, all three profile acknowledgements, and lane verification. The matched mWave USB-enabled startup is next."
-    },
-    {
-      "time": "18:59",
-      "block": "P02",
-      "tone": "working",
-      "title": "P02 remote USB A/B proof started",
-      "message": "The signed USB Tart path is merged and the mWave is attached. Remote work is now preserving archive isolation, releasing the expired Tart slot, and comparing matched non-USB and USB-enabled boots before the final onsite keystroke."
-    },
-    {
-      "time": "10:55",
-      "block": "P02",
-      "tone": "working",
-      "title": "P02 Apple capability and signed deployment proven",
-      "message": "Apple confirmed Claim USB Accessory for the dedicated App ID. The generated profile contains com.apple.developer.accessory-access.usb, the signed Tart app validates on the mini, and PR #1196 is carrying the owned USB-enabled lease option through required review."
-    },
-    {
-      "time": "07:26",
-      "block": "P02",
-      "tone": "working",
-      "title": "P02 App ID created; managed entitlement request required",
-      "message": "The dedicated macOS App ID exists and the Tart signing package is ready. Apple's API and Xcode both reject automatic Accessory Access activation, confirming that the Account Holder must submit the managed-capability request in the web portal."
-    },
-    {
-      "time": "07:26",
-      "block": "D06",
-      "tone": "success",
-      "title": "D06 identity-scoped admission merged",
-      "message": "PR #1191 merged after the automated reviewer retry and all required checks passed. Randomized macOS 15 clones can coexist while shared macOS 26 identity protection remains serialized."
-    },
-    {
-      "time": "06:30",
-      "block": "P02",
-      "tone": "working",
-      "title": "P02 USB passthrough implementation ready for entitlement proof",
-      "message": "Tart builds with a new macOS 27 USB passthrough flag, and CrabBox now carries an explicit opt-in through YAML, environment, and CLI configuration. Provider/configuration tests pass; Apple signing entitlement and physical accessory selection remain."
-    },
-    {
-      "time": "06:20",
-      "block": "P02",
-      "tone": "working",
-      "title": "P02 supported USB passthrough route identified",
-      "message": "The macOS 27 mini exposes Apple's new physical USB passthrough API. Tart 2.32.1 lacks a flag and the host currently has no USB accessory attached; implementation can proceed without repeating the rejected VNC or USB-only experiments."
-    },
-    {
-      "time": "06:13",
-      "block": "P02",
-      "tone": "working",
-      "title": "P02 guest-visible HID input proof resumed",
-      "message": "With D06 concurrency proven, work returns to the remaining end-to-end boundary: deliver lease-scoped input through the focused Tart display as a real guest HID event and observe q-to-w output."
-    },
-    {
-      "time": "06:12",
-      "block": "D06",
-      "tone": "success",
-      "title": "D06 unique managed-clone identity proven",
-      "message": "Identity-scoped admission passed regression tests and live proof with two simultaneous randomized macOS 15 managed VMs, distinct MDM identities, and all three profile acknowledgements. macOS 26 shared-identity serialization remains enforced."
-    },
-    {
-      "time": "18:58",
-      "block": "P02",
-      "tone": "problem",
-      "title": "P02 runtime proven; Tart VNC is not a HID input oracle",
-      "message": "The macOS 15 managed clone is operational and q-to-w simulation passes, but the real TextEdit test received q. Kanata captured zero devices, so the next lab issue is a guest-visible test HID input source\u2014not another permission retry."
     }
   ],
   "activity": [
