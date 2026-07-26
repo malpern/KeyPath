@@ -164,6 +164,31 @@ class MatrixRunnerTests(unittest.TestCase):
         self.assertEqual(state["jobs"][0]["status"], "blocked")
         self.assertIn("refusing to repeat", state["jobs"][0]["blocker"])
 
+    def test_failed_create_adopts_controller_lease_and_cleans_it_up(self) -> None:
+        self.lab.write_text(textwrap.dedent(f"""\
+            #!/bin/zsh
+            print -r -- "$*" >> {str(self.log)!r}
+            case "$1" in
+              create)
+                print 'provisioning provider=tart lease=cbx_failed_create slug=test'
+                exit 1
+                ;;
+              status) print 'status\tmanaged-policy-failed' ;;
+              *) print 'ok\t'$1 ;;
+            esac
+        """))
+        self.lab.chmod(0o755)
+
+        result = self.run_runner(self.plan(["create-fresh-lease"]))
+        self.assertEqual(result.returncode, 1, result.stderr)
+        state = json.loads((self.directory / "state.json").read_text())
+        self.assertEqual(state["jobs"][0]["leaseId"], "cbx_failed_create")
+        self.assertEqual(state["jobs"][0]["status"], "failed")
+        self.assertEqual(state["jobs"][0]["cleanupStatus"], "passed")
+        lab_log = self.log.read_text()
+        self.assertIn("artifacts cbx_failed_create", lab_log)
+        self.assertIn("destroy cbx_failed_create", lab_log)
+
     def test_rejects_changed_installer_on_resume(self) -> None:
         plan = self.plan(["create-fresh-lease"])
         first = self.run_runner(plan)

@@ -21,6 +21,7 @@ from typing import Any
 TERMINAL = {"passed", "failed", "blocked"}
 CHECKPOINT_PREFIXES = ("operator-", "physical-")
 LEASE_PATTERN = re.compile(r"^lease_id\t([A-Za-z0-9._-]+)$", re.MULTILINE)
+LEASE_CANDIDATE_PATTERN = re.compile(r"\b(cbx_[A-Za-z0-9._-]+)\b")
 KNOWN_STEPS = {
     "run-lab-contract-tests", "run-failure-ownership-self-test", "verify-report-contract",
     "create-fresh-lease", "create-fresh-lease-with-fixture", "create-desktop-lease", "create-usb-lease",
@@ -199,6 +200,25 @@ class MatrixRunner:
             handle.write(result.stdout + result.stderr)
         return result
 
+    def adopt_create_lease(self, job: dict[str, Any], state: dict[str, Any],
+                           step: dict[str, str], output: str, *, required: bool) -> bool:
+        exact = LEASE_PATTERN.findall(output)
+        candidates = exact or LEASE_CANDIDATE_PATTERN.findall(output)
+        unique = list(dict.fromkeys(candidates))
+        if not unique:
+            if required:
+                raise CampaignError(f"{job['id']}: create succeeded without a lease_id")
+            return False
+        if len(unique) != 1:
+            raise CampaignError(f"{job['id']}: create output named multiple lease candidates")
+        lease = unique[0]
+        status = subprocess.run(self.lab_command("status", lease), text=True, capture_output=True)
+        if status.returncode != 0:
+            raise CampaignError(f"{job['id']}: controller did not verify ownership of {lease}")
+        state["leaseId"] = lease
+        self.save()
+        return True
+
     def create_command(self, job: dict[str, Any], step_name: str) -> list[str]:
         command = self.lab_command(
             "create", "--macos", str(job["macOS"]), "--lane", job["lane"],
@@ -359,6 +379,11 @@ class MatrixRunner:
                                 message=f"Running {step['commandStep']}.")
                 for command in self.command_for(job, state, step["commandStep"]):
                     result = self.execute(job_id, step["id"], command)
+                    if step["commandStep"].startswith("create-"):
+                        self.adopt_create_lease(
+                            job, state, step, result.stdout + result.stderr,
+                            required=result.returncode == 0,
+                        )
                     if result.returncode == 4 and "install_runtime\twaiting" in (result.stdout + result.stderr):
                         state["waitingCheckpoint"] = checkpoint
                         preserve_lease = True
@@ -374,11 +399,6 @@ class MatrixRunner:
                                         message=state["blocker"], event=f"{job['title']} failed", tone="danger")
                         self.emergency_artifacts(job, state)
                         return "failed"
-                    if step["commandStep"].startswith("create-"):
-                        match = LEASE_PATTERN.search(result.stdout + result.stderr)
-                        if not match:
-                            raise CampaignError(f"{job_id}: create succeeded without a lease_id")
-                        state["leaseId"] = match.group(1)
                 step["status"] = "passed"
                 self.update_job(state, status="running", step=step, step_status="passed",
                                 message=f"Verified {step['commandStep']}.")

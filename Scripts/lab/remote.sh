@@ -309,7 +309,7 @@ managed_enrollment_id_for() {
 }
 
 approve_peekaboo_capture() {
-  local lease=$1 manifest macos resource key ip prompt_command prompt_coords attempt
+  local lease=$1 manifest macos resource key ip prompt_command prompt_coords private_prompt_command private_prompt_coords attempt approved
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$macos" == "15" ]] || die "Peekaboo capture approval currently supports only the Tart macOS 15 lane"
@@ -323,6 +323,8 @@ approve_peekaboo_capture() {
   ip=$($TART ip "$resource")
   [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
   prompt_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run() {\n  var matches = Application("System Events").processes.whose({name: "NotificationCenter"})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  var window = matches[0].windows[0];\n  try {\n    var size = window.size();\n    if (window.subrole() === "AXSystemDialog" && size[0] === 1024 && size[1] === 768) return "512,399";\n  } catch (_) {}\n  return "";\n}\''
+  private_prompt_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run() {\n  var matches = Application("System Events").processes.whose({name: "UserNotificationCenter"})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  var window = matches[0].windows[0];\n  try {\n    var message = window.staticTexts().map(function(item) { return item.value() || ""; }).join(" ");\n    if (window.subrole() !== "AXSystemDialog" || message.indexOf("boo.peekaboo.peekaboo") === -1 || message.indexOf("private window picker") === -1) return "";\n    var buttons = window.buttons().filter(function(item) { return item.name() === "Allow"; });\n    if (buttons.length !== 1) return "";\n    var position = buttons[0].position();\n    var size = buttons[0].size();\n    return Math.round(position[0] + size[0] / 2) + "," + Math.round(position[1] + size[1] / 2);\n  } catch (_) {}\n  return "";\n}\''
+  approved=0
   prompt_coords=
   for attempt in {1..20}; do
     prompt_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" \
@@ -330,16 +332,43 @@ approve_peekaboo_capture() {
     [[ -n "$prompt_coords" ]] && break
     sleep "${KEYPATH_LAB_CAPTURE_APPROVAL_POLL_SECONDS:-0.2}"
   done
-  if [[ -z "$prompt_coords" ]]; then
-    print "peekaboo_capture_approval\talready-approved"
-    return 0
+  if [[ -n "$prompt_coords" ]]; then
+    [[ "$prompt_coords" =~ '^[0-9]+,[0-9]+$' ]] || die "Peekaboo capture approval prompt coordinates are invalid"
+    "$CRABBOX" desktop click --provider tart --target macos --id "$resource" \
+      --x "${prompt_coords%,*}" --y "${prompt_coords#*,}" >/dev/null
+    approved=1
+    sleep "${KEYPATH_LAB_CAPTURE_APPROVAL_SETTLE_SECONDS:-5}"
   fi
-  [[ "$prompt_coords" =~ '^[0-9]+,[0-9]+$' ]] || die "Peekaboo capture approval prompt coordinates are invalid"
-  "$CRABBOX" desktop click --provider tart --target macos --id "$resource" \
-    --x "${prompt_coords%,*}" --y "${prompt_coords#*,}" >/dev/null
-  sleep "${KEYPATH_LAB_CAPTURE_APPROVAL_SETTLE_SECONDS:-5}"
-  record_command "$lease" passed approve-peekaboo-capture
-  print "peekaboo_capture_approval\tpassed"
+
+  # macOS 15 can follow the full-screen ScreenCaptureKit prompt with a second,
+  # smaller dialog authorizing Peekaboo's private-window-picker bypass. Leaving
+  # that dialog on screen makes later RFB coordinates hit the obscured Settings
+  # sidebar. Match the exact Peekaboo request and derive the Allow button center
+  # from the live AX tree instead of storing another fixed coordinate.
+  private_prompt_coords=
+  for attempt in {1..20}; do
+    private_prompt_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" \
+      "/bin/zsh -lc $(printf %q "$private_prompt_command")")
+    [[ -n "$private_prompt_coords" ]] && break
+    sleep "${KEYPATH_LAB_CAPTURE_APPROVAL_POLL_SECONDS:-0.2}"
+  done
+  if [[ -n "$private_prompt_coords" ]]; then
+    [[ "$private_prompt_coords" =~ '^[0-9]+,[0-9]+$' ]] || die "Peekaboo private capture approval coordinates are invalid"
+    "$CRABBOX" desktop click --provider tart --target macos --id "$resource" \
+      --x "${private_prompt_coords%,*}" --y "${private_prompt_coords#*,}" >/dev/null
+    approved=1
+    sleep "${KEYPATH_LAB_CAPTURE_APPROVAL_SETTLE_SECONDS:-5}"
+    private_prompt_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" \
+      "/bin/zsh -lc $(printf %q "$private_prompt_command")")
+    [[ -z "$private_prompt_coords" ]] || die "Peekaboo private capture approval prompt remained visible"
+  fi
+
+  if ((approved)); then
+    record_command "$lease" passed approve-peekaboo-capture
+    print "peekaboo_capture_approval\tpassed"
+  else
+    print "peekaboo_capture_approval\talready-approved"
+  fi
 }
 
 rehydrate_managed_clone() {
@@ -443,7 +472,7 @@ resume_managed_policy() {
   [[ "$lane" == managed-functional ]] || die "managed policy resume requires a managed-functional lease"
 
   set +e
-  rehydrate_managed_clone "$lease" > "$LOGS/$lease/managed-policy.log" 2>&1
+  (rehydrate_managed_clone "$lease") > "$LOGS/$lease/managed-policy.log" 2>&1
   result=$?
   set -e
   set_field "$manifest" managed_policy_result "$result"
@@ -775,6 +804,10 @@ create_lease() {
     print "tart_usb_passthrough\t$([[ "$tart_usb_passthrough" == "1" ]] && print true || print false)"
     print "provider_resource\t${provider_resource:-unknown}"
   } > "$manifest"
+  # Emit the durable controller identity as soon as the owned manifest exists.
+  # Callers must be able to adopt and clean up a lease even when a later guest
+  # verification or managed-policy step fails.
+  print "lease_id\t$lease"
   if (( create_status != 0 )); then
     set_field "$manifest" status provisioning-failed
     set_field "$manifest" provision_result "$create_status"
@@ -796,7 +829,7 @@ create_lease() {
   set_field "$manifest" macos_build "${build:-unknown}"
   if [[ "$lane" == managed-functional ]]; then
     set +e
-    rehydrate_managed_clone "$lease" > "$LOGS/$lease/managed-policy.log" 2>&1
+    (rehydrate_managed_clone "$lease") > "$LOGS/$lease/managed-policy.log" 2>&1
     managed_policy_exit=$?
     set -e
     set_field "$manifest" managed_policy_result "$managed_policy_exit"
@@ -956,7 +989,7 @@ secure_dialog_input() {
   local lease=$1 app=$2 field_label=$3 submit_button=$4 already_focused=$5
   local manifest macos resource key ip secret_file guest_command exit_code
   local focus_command focus_result button_geometry_command button_coords postcondition_command postcondition_result
-  local geometry_command geometry native_width native_height logical_width logical_height scale_x scale_y click_x click_y focus_x focus_y
+  local click_x click_y focus_x focus_y
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$macos" == "15" ]] || die "secure dialog input currently supports only the Tart macOS 15 lane"
@@ -1000,20 +1033,10 @@ secure_dialog_input() {
     fi
     IFS=',' read -r _ focus_x focus_y <<< "$focus_result"
 
-    if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
-      geometry=${KEYPATH_LAB_TEST_DISPLAY_GEOMETRY:-'2048 1536 1024 768'}
-    else
-      geometry_command='/usr/bin/osascript -l JavaScript -e '\''ObjC.import("AppKit"); var screen=$.NSScreen.mainScreen; var logical=screen.frame.size; var scale=Number(screen.backingScaleFactor); Math.round(logical.width*scale)+" "+Math.round(logical.height*scale)+" "+Math.round(logical.width)+" "+Math.round(logical.height)'\'''
-      geometry=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$geometry_command")")
-    fi
-    IFS=' ' read -r native_width native_height logical_width logical_height <<< "$geometry"
-    [[ "$native_width" == <-> && "$native_height" == <-> && "$logical_width" == <-> && "$logical_height" == <-> && "$logical_width" -gt 0 && "$logical_height" -gt 0 ]] || die "secure dialog input could not measure display geometry"
-    (( native_width % logical_width == 0 && native_height % logical_height == 0 )) || die "secure dialog input measured a non-integral display scale"
-    scale_x=$((native_width / logical_width))
-    scale_y=$((native_height / logical_height))
-    (( scale_x == scale_y && scale_x > 0 )) || die "secure dialog input measured inconsistent display scales"
-    focus_x=$((focus_x * scale_x))
-    focus_y=$((focus_y * scale_y))
+    # Tart's 1024x768 RFB viewport uses the same coordinate space reported by
+    # Accessibility. The 2048x1536 backing store is a Retina implementation
+    # detail; scaling AX coordinates to backing pixels moves the native click
+    # outside the protected sheet.
 
     set +e
     "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$focus_x" --y "$focus_y" >/dev/null 2>&1
@@ -1024,30 +1047,17 @@ secure_dialog_input() {
       die "secure dialog input failed while giving the field native pointer focus"
     fi
 
-    if [[ "$app" == "System Settings" ]]; then
-      # System Settings authorization sheets accept local CGEvent synthesis but
-      # intentionally ignore remote VNC key events. Stream the secret directly
-      # into one guest osascript process; it never enters argv, logs, clipboard,
-      # or a guest file.
-      local system_settings_type_command
-      system_settings_type_command=$'/usr/bin/osascript -l JavaScript -e \'\nObjC.import("Foundation");\nfunction run() {\n  var data = $.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile;\n  var payload = $.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding).js;\n  if (!payload) throw new Error("secure input is empty");\n  var events = Application("System Events");\n  var process = events.processes.byName("System Settings");\n  var fields = process.windows[0].sheets[0].textFields.whose({subrole: "AXSecureTextField"})();\n  if (fields.length === 0) throw new Error("secure text field not found");\n  fields[0].focused = true;\n  for (var i = 0; i < 128; i++) events.keyCode(51);\n  events.keystroke(payload);\n}\''
-      set +e
-      "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$system_settings_type_command")" < "$secret_file" >/dev/null 2>&1
-      exit_code=$?
-      set -e
-    else
-      # Clear any value left by a prior interrupted attempt. Backspace is a
-      # supported RFB keysym, and a fixed upper bound avoids learning or
-      # logging the protected field's current length.
-      set +e
-      printf '\b%.0s' {1..128} | "$CRABBOX" desktop type --provider tart --target macos --id "$resource" >/dev/null 2>&1
-      exit_code=$?
-      if (( exit_code == 0 )); then
-        "$CRABBOX" desktop type --provider tart --target macos --id "$resource" < "$secret_file" >/dev/null 2>&1
-        exit_code=$?
-      fi
-      set -e
-    fi
+    # Secure authorization sheets ignore Tart's VNC key events. Stream the
+    # secret directly into one guest osascript process and synthesize local key
+    # events in the logged-in session. The value never enters argv, logs, the
+    # clipboard, or a guest file. The process returns only a filled/empty
+    # postcondition; it never prints the value or its length.
+    local secure_type_command
+    secure_type_command=$'/usr/bin/osascript -l JavaScript -e \'\nObjC.import("Foundation");\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var data = $.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile;\n  var payload = $.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding).js;\n  if (!payload) throw new Error("secure input is empty");\n  var events = Application("System Events");\n  var process = events.processes.byName(argv[0]);\n  if (process.windows().length === 0) throw new Error("secure dialog process not found");\n  var window = process.windows[0];\n  var sheets = window.sheets();\n  var root = sheets.length > 0 ? sheets[0] : window;\n  var fields = root.textFields.whose({subrole: "AXSecureTextField"})();\n  var field = fields.length > 0 ? fields[0] : descendants(root).find(function(element) {\n    try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; }\n  });\n  if (!field) throw new Error("secure text field not found");\n  field.focused = true;\n  for (var i = 0; i < 128; i++) events.keyCode(51);\n  events.keystroke(payload);\n  delay(0.2);\n  if (String(field.value()).length === 0) throw new Error("secure text field remained empty");\n  return "filled";\n}\' -- '$(printf %q "$app")
+    set +e
+    "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$secure_type_command")" < "$secret_file" >/dev/null 2>&1
+    exit_code=$?
+    set -e
     if (( exit_code != 0 )); then
       record_command "$lease" "failed:42" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
       die "secure dialog input failed while streaming masked input"
@@ -1063,21 +1073,6 @@ secure_dialog_input() {
       die "secure dialog input could not resolve valid SecurityAgent button geometry"
     fi
     IFS=',' read -r click_x click_y <<< "$button_coords"
-
-    if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
-      geometry=${KEYPATH_LAB_TEST_DISPLAY_GEOMETRY:-'2048 1536 1024 768'}
-    else
-      geometry_command='/usr/bin/osascript -l JavaScript -e '\''ObjC.import("AppKit"); var screen=$.NSScreen.mainScreen; var logical=screen.frame.size; var scale=Number(screen.backingScaleFactor); Math.round(logical.width*scale)+" "+Math.round(logical.height*scale)+" "+Math.round(logical.width)+" "+Math.round(logical.height)'\'''
-      geometry=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$geometry_command")")
-    fi
-    IFS=' ' read -r native_width native_height logical_width logical_height <<< "$geometry"
-    [[ "$native_width" == <-> && "$native_height" == <-> && "$logical_width" == <-> && "$logical_height" == <-> && "$logical_width" -gt 0 && "$logical_height" -gt 0 ]] || die "secure dialog input could not measure display geometry"
-    (( native_width % logical_width == 0 && native_height % logical_height == 0 )) || die "secure dialog input measured a non-integral display scale"
-    scale_x=$((native_width / logical_width))
-    scale_y=$((native_height / logical_height))
-    (( scale_x == scale_y && scale_x > 0 )) || die "secure dialog input measured inconsistent display scales"
-    click_x=$((click_x * scale_x))
-    click_y=$((click_y * scale_y))
 
     set +e
     "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$click_x" --y "$click_y" >/dev/null 2>&1
@@ -1380,7 +1375,7 @@ scenario() {
 }
 
 desktop_bootstrap() {
-  local lease=$1 install_tools=$2 manifest macos repo output guest_output command
+  local lease=$1 install_tools=$2 manifest macos repo output command retry_command exit_code approval_output
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "desktop bootstrap requires a desktop-enabled lease"
@@ -1389,7 +1384,27 @@ desktop_bootstrap() {
   output=".keypath-lab/scenario-output/bootstrap"
   command=(/bin/zsh Scripts/lab/desktop-bootstrap --output "$output")
   [[ "$install_tools" == "1" ]] && command+=(--install-tools)
-  run_command "$lease" "${command[@]}"
+  if [[ "$macos" == "15" ]]; then
+    # Clear a consent prompt left by an interrupted bootstrap before asking
+    # Peekaboo to capture again.
+    approve_peekaboo_capture "$lease"
+  fi
+  set +e
+  (run_command "$lease" "${command[@]}")
+  exit_code=$?
+  set -e
+  if ((exit_code != 0)) && [[ "$macos" == "15" ]]; then
+    approval_output=$(approve_peekaboo_capture "$lease")
+    print -r -- "$approval_output"
+    if print -r -- "$approval_output" | grep -Fq $'peekaboo_capture_approval\tpassed'; then
+      retry_command=(/bin/zsh Scripts/lab/desktop-bootstrap --output "$output")
+      run_command "$lease" "${retry_command[@]}"
+    else
+      return "$exit_code"
+    fi
+  elif ((exit_code != 0)); then
+    return "$exit_code"
+  fi
   set_field "$manifest" desktop_bootstrap_at "$(utc_now)"
   set_field "$manifest" desktop_bootstrap_status passed
 }

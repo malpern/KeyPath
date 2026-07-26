@@ -213,7 +213,7 @@ chmod +x "$ROOT/bin/prlctl"
 echo test-private-key > "$TMP/id_ed25519"
 printf 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
 grep -Fq 'exec 3<> \"\$fifo\"; KEYPATH_GUEST_PASSWORD=; IFS= read -r -t $credential_timeout -u 3 KEYPATH_GUEST_PASSWORD || [[ -n \"\$KEYPATH_GUEST_PASSWORD\" ]]' "$REMOTE"
-grep -Fq '"$CRABBOX" desktop type --provider tart --target macos --id "$resource" < "$secret_file"' "$REMOTE"
+grep -Fq 'fileHandleWithStandardInput.readDataToEndOfFile' "$REMOTE"
 if grep -Fq 'events.keystroke(secret)' "$REMOTE"; then
     echo "SecurityAgent secure input still uses synthetic Accessibility typing" >&2
     exit 1
@@ -875,11 +875,11 @@ assert_contains "$secure_agent_result" $'secure_dialog_input\tpassed'
 grep -Fq 'field.focused' "$TMP/guest-ssh-calls"
 grep -Fq 'button.position' "$TMP/guest-ssh-calls"
 grep -Fq 'closed' "$TMP/guest-ssh-calls"
-[[ $(grep -c 'crabbox desktop type --provider tart --target macos --id test-resource$' "$CALLS") -ge 2 ]]
-grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 800 --y 600' "$CALLS"
-grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 800 --y 440' "$CALLS"
-cmp -s "$TMP/secure-input" "$TMP/crabbox-desktop-type-stdin"
-if grep -q -- '--text' "$CALLS" || grep -q '/usr/bin/sudo\|pbcopy\|the\\ clipboard\|events.keystroke' "$TMP/guest-ssh-calls"; then
+grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 400 --y 300' "$CALLS"
+grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 400 --y 220' "$CALLS"
+grep -Fq 'fileHandleWithStandardInput' "$TMP/guest-ssh-calls"
+cmp -s "$TMP/secure-input" "$TMP/system-settings-secure-stdin"
+if grep -q -- '--text' "$CALLS" || grep -q '/usr/bin/sudo\|pbcopy\|the\\ clipboard' "$TMP/guest-ssh-calls"; then
     echo "SecurityAgent secure input used an unsafe password path" >&2
     exit 1
 fi

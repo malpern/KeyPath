@@ -175,28 +175,36 @@ mcporter_bin=$(command -v mcporter || true)
 open -a "System Settings"
 sleep 2
 # The first capture can display macOS's private-picker bypass consent sheet.
-"$peekaboo_bin" see --app "System Settings" --json > "$output/initial-desktop.json" || true
-"$peekaboo_bin" see --app UserNotificationCenter --json > "$output/user-notification-center.json" || true
-
-consent=$("$python_bin" - "$output/user-notification-center.json" <<'PY'
-import json, sys
-try:
-    data = json.load(open(sys.argv[1])).get("data", {})
-except Exception:
-    raise SystemExit(1)
-for element in data.get("ui_elements", []):
-    if element.get("is_actionable") and element.get("label") == "Allow":
-        print(data["snapshot_id"], element["id"], sep="\t")
-        break
-PY
-) || true
-
-if [[ -n "$consent" ]]; then
-  snapshot=${consent%%$'\t'*}
-  element=${consent#*$'\t'}
-  "$peekaboo_bin" click --on "$element" --snapshot "$snapshot" --no-auto-focus --json \
-    > "$output/peekaboo-consent-click.json"
+initial_capture_result=0
+"$peekaboo_bin" see --app "System Settings" --json > "$output/initial-desktop.json" || initial_capture_result=$?
+capture_prompt=$(/usr/bin/osascript -l JavaScript -e '
+function run() {
+  var systemEvents = Application("System Events");
+  var full = systemEvents.processes.whose({name: "NotificationCenter"})();
+  if (full.length && full[0].windows().length) {
+    var fullWindow = full[0].windows[0];
+    try {
+      var fullSize = fullWindow.size();
+      if (fullWindow.subrole() === "AXSystemDialog" && fullSize[0] === 1024 && fullSize[1] === 768) return "screen-capture";
+    } catch (_) {}
+  }
+  var privateCenter = systemEvents.processes.whose({name: "UserNotificationCenter"})();
+  if (privateCenter.length && privateCenter[0].windows().length) {
+    var privateWindow = privateCenter[0].windows[0];
+    try {
+      var message = privateWindow.staticTexts().map(function(item) { return item.value() || ""; }).join(" ");
+      if (privateWindow.subrole() === "AXSystemDialog" && message.indexOf("boo.peekaboo.peekaboo") !== -1 && message.indexOf("private window picker") !== -1) return "private-window-picker";
+    } catch (_) {}
+  }
+  return "";
+}
+' 2>/dev/null || true)
+if [[ -n "$capture_prompt" ]]; then
+  printf '{"status":"waiting","checkpoint":"%s"}\n' "$capture_prompt" > "$output/capture-consent-checkpoint.json"
+  print "desktop_bootstrap_checkpoint\t$capture_prompt"
+  exit 4
 fi
+(( initial_capture_result == 0 )) || die "initial Peekaboo capture failed without a visible consent prompt"
 
 "$peekaboo_bin" see --app "System Settings" --json > "$output/desktop-ready.json"
 "$peekaboo_bin" permissions status --json > "$output/peekaboo-permissions-after.json"
