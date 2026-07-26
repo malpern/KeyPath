@@ -224,20 +224,6 @@ public struct PacksFacade: Sendable {
             return pack
         }
 
-        let legacyNameMatches = allPacks.filter { pack in
-            Self.legacyNamesByPackID[pack.id, default: []].contains { legacyName in
-                legacyName.localizedCaseInsensitiveContains(nameOrId)
-            }
-        }
-        if legacyNameMatches.count == 1 { return legacyNameMatches[0] }
-        if legacyNameMatches.count > 1 {
-            throw AmbiguousPackMatch(
-                query: nameOrId,
-                matches: legacyNameMatches.map { .init(name: $0.name, id: $0.id) },
-                hint: "Multiple packs match this legacy name. Use the full ID to disambiguate."
-            )
-        }
-
         let prefix = "com.keypath.pack."
         let slugMatches = allPacks.filter { pack in
             guard pack.id.hasPrefix(prefix) else { return false }
@@ -265,8 +251,11 @@ public struct PacksFacade: Sendable {
             )
         }
 
-        let substringMatches = allPacks.filter {
-            $0.name.localizedCaseInsensitiveContains(nameOrId)
+        let substringMatches = allPacks.filter { pack in
+            pack.name.localizedCaseInsensitiveContains(nameOrId)
+                || Self.legacyNamesByPackID[pack.id, default: []].contains {
+                    $0.localizedCaseInsensitiveContains(nameOrId)
+                }
         }
         if substringMatches.count == 1 { return substringMatches[0] }
         if substringMatches.count > 1 {
