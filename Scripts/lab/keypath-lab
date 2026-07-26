@@ -73,7 +73,8 @@ remote() {
         printf -v quoted '%q' "$argument"
         remote_command="$remote_command $quoted"
     done
-    ssh -o BatchMode=yes "$host" "$remote_command" < "$REMOTE_SCRIPT"
+    ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+        "$host" "$remote_command" < "$REMOTE_SCRIPT"
 }
 
 require_lease_id() {

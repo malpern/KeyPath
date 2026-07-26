@@ -236,6 +236,8 @@ if grep -Fq 'peekaboo see --app "System Settings"' "$REMOTE"; then
 fi
 grep -q 'resume-managed-policy)' "$LAB_DIR/keypath-lab"
 grep -q 'approve-input-monitoring)' "$LAB_DIR/keypath-lab"
+grep -Fq 'ServerAliveInterval=15' "$LAB_DIR/keypath-lab"
+grep -Fq 'ServerAliveCountMax=4' "$LAB_DIR/keypath-lab"
 grep -Fq '/usr/bin/mktemp /etc/kcpassword.XXXXXXXX' "$REMOTE"
 grep -Fq "Automatic login user: keypathqa" "$REMOTE"
 

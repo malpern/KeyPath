@@ -179,6 +179,38 @@ class MatrixRunnerTests(unittest.TestCase):
         self.assertEqual(state["jobs"][0]["status"], "blocked")
         self.assertIn("refusing to repeat", state["jobs"][0]["blocker"])
 
+    def test_recovers_interrupted_install_at_durable_approval_boundary(self) -> None:
+        plan = self.plan(["create-fresh-lease", "install-exact-artifact"])
+        initial = self.run_runner(plan)
+        self.assertEqual(initial.returncode, 0, initial.stderr)
+
+        state_path = self.directory / "state.json"
+        state = json.loads(state_path.read_text())
+        state["status"] = "running"
+        state["jobs"][0]["status"] = "running"
+        state["jobs"][0]["cleanupStatus"] = "pending"
+        state["jobs"][0]["leaseId"] = "cbx_test_lease"
+        state["jobs"][0]["steps"][1]["status"] = "running"
+        state_path.write_text(json.dumps(state))
+        self.log.write_text("")
+        self.lab.write_text(textwrap.dedent(f"""\
+            #!/bin/zsh
+            print -r -- "$*" >> {str(self.log)!r}
+            case "$1" in
+              status) print 'status\tready'; print 'install_runtime_status\tawaiting-approval' ;;
+              *) print 'ok\t'$1 ;;
+            esac
+        """))
+        self.lab.chmod(0o755)
+
+        resumed = self.run_runner(plan)
+        self.assertEqual(resumed.returncode, 4, resumed.stderr)
+        state = json.loads(state_path.read_text())
+        self.assertEqual(state["status"], "waiting")
+        self.assertEqual(state["jobs"][0]["steps"][1]["status"], "waiting")
+        self.assertEqual(state["jobs"][0]["waitingCheckpoint"], "vm-job:install-exact-artifact")
+        self.assertNotIn("destroy", self.log.read_text())
+
     def test_failed_create_adopts_controller_lease_and_cleans_it_up(self) -> None:
         self.lab.write_text(textwrap.dedent(f"""\
             #!/bin/zsh

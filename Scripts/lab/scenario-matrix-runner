@@ -286,6 +286,21 @@ class MatrixRunner:
                     self.update_job(state, status="running", step=step, step_status="passed",
                                     message="Recovered the created lease from durable controller evidence.")
                     return True
+        if step["commandStep"] == "install-exact-artifact" and state.get("leaseId"):
+            status = subprocess.run(
+                self.lab_command("status", state["leaseId"]), text=True, capture_output=True,
+            )
+            if status.returncode == 0 and re.search(
+                r"^install_runtime_status\tawaiting-approval$", status.stdout, re.MULTILINE,
+            ):
+                checkpoint = f"{job['id']}:{step['commandStep']}"
+                state["waitingCheckpoint"] = checkpoint
+                self.update_job(
+                    state, status="waiting", step=step, step_status="waiting",
+                    message="Recovered the completed installer mutation at its durable macOS approval boundary.",
+                    event=f"{job['title']} needs approval", tone="warning",
+                )
+                return True
         state["blocker"] = f"Interrupted mutation at {step['id']} has no verified postcondition; refusing to repeat it."
         self.update_job(state, status="blocked", step=step, step_status="blocked",
                         message=state["blocker"], event=f"{job['title']} blocked", tone="danger")
@@ -363,6 +378,9 @@ class MatrixRunner:
                     return "waiting"
                 if step["status"] == "running" and not self.recover_inflight(job, state, step):
                     return "blocked"
+                if state["status"] == "waiting":
+                    preserve_lease = True
+                    return "waiting"
                 if step["status"] == "passed":
                     continue
                 if checkpoint in self.acknowledged:
