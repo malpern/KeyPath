@@ -1352,7 +1352,13 @@ function run(argv) {
       for (var e = 0; e < elements.length; e++) {
         try {
           var role = elements[e].role();
-          if (["AXGroup", "AXButton", "AXStaticText", "AXImage"].indexOf(role) !== -1 && contains(elements[e], x, y)) return processNames[p] + ":" + role;
+          var boundedVisibleRole = ["AXButton", "AXStaticText", "AXImage"].indexOf(role) !== -1;
+          if (role === "AXGroup") {
+            var elementSize = elements[e].size();
+            var windowSize = windows[w].size();
+            boundedVisibleRole = elementSize[0] * elementSize[1] < windowSize[0] * windowSize[1] * 0.5;
+          }
+          if (boundedVisibleRole && contains(elements[e], x, y)) return processNames[p] + ":" + role;
         } catch (_) {}
       }
     }

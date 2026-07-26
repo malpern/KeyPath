@@ -228,6 +228,7 @@ grep -Fq 'window.subrole() === "AXSystemDialog"' "$REMOTE"
 grep -Fq 'occlusion_qualification_script' "$REMOTE"
 grep -Fq 'captureConsent' "$REMOTE"
 grep -Fq 'private window picker' "$REMOTE"
+grep -Fq 'windowSize[0] * windowSize[1] * 0.5' "$REMOTE"
 grep -Fq 'usb_prefix="$TART_USB_TOOL_ROOT/bin:"' "$REMOTE"
 if grep -Fq 'peekaboo see --app "System Settings"' "$REMOTE"; then
     echo "capture prompt guard must not create a new capture request" >&2
