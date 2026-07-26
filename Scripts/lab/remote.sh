@@ -578,7 +578,7 @@ preflight() {
 
 prepare_upload() {
   valid_id "$1"
-  [[ "$1" =~ '^[0-9a-f]{40}-[0-9a-f]{64}(-[0-9a-f]{64})?$' ]] || die "invalid archive key"
+  [[ "$1" =~ '^[0-9a-f]{40}-[0-9a-f]{64}(-h[0-9a-f]{40})?(-[0-9a-f]{64})?$' ]] || die "invalid archive key"
   mktemp "/tmp/keypath-lab.XXXXXXXX"
 }
 
