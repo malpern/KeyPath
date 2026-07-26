@@ -1083,7 +1083,7 @@ html&gt;body{padding:0}&lt;/style&gt;
         const excluded=(state.excluded||[])[0];
         if(excluded){
           const box=el(&#x27;matrix-excluded&#x27;); const strong=document.createElement(&#x27;strong&#x27;); strong.textContent=&#x27;Physical supplement: &#x27;;
-          box.replaceChildren(strong,document.createTextNode(`${excluded.title}. ${excluded.reason}`));
+          box.replaceChildren(strong,document.createTextNode(`${excluded.title||excluded.id||&#x27;Excluded case&#x27;}. ${excluded.reason||&#x27;Explicit opt-in required.&#x27;}`));
         }
       }
       async function refresh(){

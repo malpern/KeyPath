@@ -207,7 +207,7 @@
         const excluded=(state.excluded||[])[0];
         if(excluded){
           const box=el('matrix-excluded'); const strong=document.createElement('strong'); strong.textContent='Physical supplement: ';
-          box.replaceChildren(strong,document.createTextNode(`${excluded.title}. ${excluded.reason}`));
+          box.replaceChildren(strong,document.createTextNode(`${excluded.title||excluded.id||'Excluded case'}. ${excluded.reason||'Explicit opt-in required.'}`));
         }
       }
       async function refresh(){
