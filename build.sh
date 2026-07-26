@@ -2,12 +2,13 @@
 set -euo pipefail
 
 # Canonical build entry point: delegates to Scripts/build-and-sign.sh
-# This builds, signs, notarizes (unless SKIP_NOTARIZE=1), deploys to ~/Applications, and restarts the app.
+# This builds, signs, notarizes (unless SKIP_NOTARIZE=1), deploys to /Applications, and restarts the app.
 #
 # Usage:
 #   ./build.sh                               # Full build with notarization
 #   SKIP_NOTARIZE=1 ./build.sh               # Skip notarization for faster local testing
 #   SKIP_NOTARIZE=1 SKIP_CODESIGN=1 ./build.sh  # Skip notarization + codesign for local dev
+#   SKIP_NOTARIZE=1 SKIP_DEPLOY=1 ./build.sh # Signed lab artifact without local deployment
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)
 

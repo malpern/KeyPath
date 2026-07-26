@@ -529,6 +529,11 @@ else
     create_sparkle_archive
 fi
 
+# A matrix build needs the exact signed artifact but must not replace or restart
+# the operator's installed app. Keep the normal release behavior as the default.
+if [ "${SKIP_DEPLOY:-0}" = "1" ]; then
+    echo "Skipping local deployment and restart (SKIP_DEPLOY=1)"
+else
 # Stop running KeyPath and kanata BEFORE replacing the app bundle.
 # Replacing binaries while the process is live causes macOS to detect
 # code page mismatches and kill the process with:
@@ -597,6 +602,8 @@ fi
 # ─────────────────────────────────────────────────────────────────────
 # Publish help content to website
 # ─────────────────────────────────────────────────────────────────────
+
+fi
 
 GHPAGES_DIR="$SCRIPT_DIR/../.worktrees/gh-pages"
 if [ -d "$GHPAGES_DIR" ] && [ "${SKIP_WEBSITE:-0}" != "1" ] && [ "${SKIP_NOTARIZE:-}" != "1" ]; then
