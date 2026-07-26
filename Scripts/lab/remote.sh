@@ -1447,7 +1447,9 @@ function run() {
   var keyPath = Application("KeyPath");
   if (keyPath.running()) keyPath.quit();
   delay(0.5);
-  Application("System Events").doShellScript("/usr/bin/open 'x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent'");
+  var current = Application.currentApplication();
+  current.includeStandardAdditions = true;
+  current.doShellScript("/usr/bin/open 'x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent'");
   delay(1);
   Application("System Settings").activate();
   delay(0.5);
