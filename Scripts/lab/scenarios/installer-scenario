@@ -167,12 +167,29 @@ case "$name" in
     Scripts/lab/assert-app-version 1.0.0 | tee "$artifact_dir/current-version.tsv"
     /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
     capture_app_identity "$artifact_dir/current-app-identity.txt"
-    assert_ready | tee "$artifact_dir/current-ready.tsv"
     "$installed_cli" system inspect --json > "$artifact_dir/current-inspect.json"
-    record_scenario_result passed \
-      "The exact current artifact upgraded beta-3 and converged to an independently ready runtime." \
-      --evidence current-version.tsv --evidence current-app-identity.txt \
-      --evidence current-ready.tsv --evidence current-inspect.json
+    install_state="$PWD/.keypath-lab/scenario-output/install-runtime/state.tsv"
+    install_boundary="$PWD/.keypath-lab/scenario-output/install-runtime/assert-state.json"
+    install_status=$(/usr/bin/awk -F '\t' '$1 == "status" {value=$2} END {print value}' "$install_state")
+    if [[ "$install_status" == "environment-limited-no-input-device" ]]; then
+      [[ -s "$install_boundary" ]] || {
+        record_scenario_result failed \
+          "The no-input upgrade boundary lacked its independent controller evidence." \
+          --classification harness-transport-failure --step no-input-boundary
+        exit 1
+      }
+      /bin/cp "$install_boundary" "$artifact_dir/install-boundary.json"
+      record_scenario_result passed \
+        "The exact current artifact upgraded beta-3 with preserved identity; runtime startup reached the independently proven Parallels no-input-device boundary." \
+        --evidence current-version.tsv --evidence current-app-identity.txt \
+        --evidence current-inspect.json --evidence install-boundary.json
+    else
+      assert_ready | tee "$artifact_dir/current-ready.tsv"
+      record_scenario_result passed \
+        "The exact current artifact upgraded beta-3 and converged to an independently ready runtime." \
+        --evidence current-version.tsv --evidence current-app-identity.txt \
+        --evidence current-ready.tsv --evidence current-inspect.json
+    fi
     ;;
   reboot-persistence-before)
     require_installed_cli

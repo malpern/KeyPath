@@ -59,7 +59,7 @@ class ScenarioMatrixTests(unittest.TestCase):
         upgrade = next(job for job in operator["jobs"] if job["id"] == "macos26-upgrade")
         self.assertEqual(upgrade["steps"], [
             "create-fresh-lease-with-fixture", "install-fixture", "upgrade-beta3-before",
-            "install-exact-artifact", "upgrade-beta3-after", "artifact-capture",
+            "install-upgrade-artifact", "upgrade-beta3-after", "artifact-capture",
         ])
 
         physical = self.run_plan("--cadence", "weekly", "--include-physical")

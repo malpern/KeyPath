@@ -25,7 +25,7 @@ LEASE_CANDIDATE_PATTERN = re.compile(r"\b(cbx_[A-Za-z0-9._-]+)\b")
 KNOWN_STEPS = {
     "run-lab-contract-tests", "run-failure-ownership-self-test", "verify-report-contract",
     "create-fresh-lease", "create-fresh-lease-with-fixture", "create-desktop-lease", "create-usb-lease",
-    "install-exact-artifact", "install-fixture", "desktop-bootstrap", "reboot-guest", "artifact-capture",
+    "install-exact-artifact", "install-upgrade-artifact", "install-fixture", "desktop-bootstrap", "reboot-guest", "artifact-capture",
     "managed-capabilities", "repair-kanata-service", "upgrade-beta3-to-current",
     "upgrade-beta3-before", "upgrade-beta3-after",
     "reboot-persistence-before", "reboot-persistence-after", "uninstall", "reinstall",
@@ -260,6 +260,8 @@ class MatrixRunner:
             raise CampaignError(f"{job['id']}: {step_name} requires a recorded lease")
         if step_name == "install-exact-artifact":
             return [self.lab_command("install-runtime", lease)]
+        if step_name == "install-upgrade-artifact":
+            return [self.lab_command("install-upgrade-runtime", lease)]
         if step_name == "install-fixture":
             return [self.lab_command("install-fixture", lease)]
         if step_name == "reboot-guest":
@@ -291,7 +293,7 @@ class MatrixRunner:
                     self.update_job(state, status="running", step=step, step_status="passed",
                                     message="Recovered the created lease from durable controller evidence.")
                     return True
-        if step["commandStep"] == "install-exact-artifact" and state.get("leaseId"):
+        if step["commandStep"] in {"install-exact-artifact", "install-upgrade-artifact"} and state.get("leaseId"):
             status = subprocess.run(
                 self.lab_command("status", state["leaseId"]), text=True, capture_output=True,
             )

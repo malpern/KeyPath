@@ -86,6 +86,18 @@ class MatrixRunnerTests(unittest.TestCase):
         self.assertIn("--status running", dashboard)
         self.assertIn("--status passed", dashboard)
 
+    def test_upgrade_boundary_uses_dedicated_controller_command(self) -> None:
+        fixture = self.directory / "KeyPath-beta3.zip"
+        fixture.write_bytes(b"fixture")
+        plan = self.plan(["create-fresh-lease-with-fixture", "install-upgrade-artifact"])
+
+        result = self.run_runner(plan, "--fixture", str(fixture))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        lab_log = self.log.read_text()
+        self.assertIn("--fixture", lab_log)
+        self.assertIn("install-upgrade-runtime cbx_test_lease", lab_log)
+
     def test_human_checkpoint_waits_without_cleanup_then_resumes(self) -> None:
         plan = self.plan(["create-fresh-lease", "operator-visible-action", "artifact-capture"])
         first = self.run_runner(plan)

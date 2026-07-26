@@ -15,6 +15,9 @@ app_open=${KEYPATH_INSTALL_RUNTIME_OPEN:-/usr/bin/open}
 app_quit=${KEYPATH_INSTALL_RUNTIME_QUIT:-/usr/bin/osascript}
 config_path=${KEYPATH_INSTALL_RUNTIME_CONFIG:-$HOME/.config/keypath/keypath.kbd}
 bootstrap_timeout=${KEYPATH_INSTALL_RUNTIME_BOOTSTRAP_TIMEOUT:-60}
+allow_no_input_device=${KEYPATH_INSTALL_RUNTIME_ALLOW_NO_INPUT_DEVICE:-0}
+kanata_binary=${KEYPATH_INSTALL_RUNTIME_KANATA_BINARY:-/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata}
+launchctl_binary=${KEYPATH_INSTALL_RUNTIME_LAUNCHCTL:-/bin/launchctl}
 mkdir -p "$output"
 
 [[ -x "$cli" ]] || {
@@ -133,6 +136,44 @@ EOF
   return 1
 }
 
+verify_no_input_device_boundary() {
+  [[ "$allow_no_input_device" == "1" ]] || return 1
+  [[ "$completion_state" == "verification-failed" && "$claimed_success" == "false" ]] || return 1
+
+  local failure_reason failed_postcondition
+  failure_reason=$(json_field "$output/install-report.json" failureReason)
+  failed_postcondition=$(json_field "$output/install-report.json" failedPostconditions.0)
+  [[ "$failure_reason" == *"Kanata did not become running + TCP responsive within readiness timeout"* ]] || return 1
+  [[ "$failed_postcondition" == "runtime-ready-or-approval-pending" ]] || return 1
+  [[ -x "$kanata_binary" && -x "$launchctl_binary" ]] || return 1
+
+  "$launchctl_binary" print system/com.keypath.kanata > "$output/no-input-launchd.txt" 2>&1 || return 1
+  "$kanata_binary" --list > "$output/no-input-device-list.txt" 2>&1 || return 1
+  /usr/bin/grep -Fq 'managed_by = com.apple.xpc.ServiceManagement' "$output/no-input-launchd.txt" || return 1
+  /usr/bin/grep -Fq 'last exit code = 1' "$output/no-input-launchd.txt" || return 1
+  /usr/bin/grep -Fq 'No devices found.' "$output/no-input-device-list.txt" || return 1
+
+  cat > "$output/assert-state.json" <<EOF
+{
+  "schemaVersion": 1,
+  "runtimeReady": {
+    "claimed": "not-ready",
+    "observed": "environment-limited-no-input-device",
+    "agreement": true
+  },
+  "boundary": {
+    "provider": "parallels-apple-virtualization",
+    "serviceRegistered": true,
+    "inputDevices": 0
+  }
+}
+EOF
+  write_state environment-limited-no-input-device
+  print "install_runtime\tenvironment-limited-no-input-device"
+  print "assert_state\t$output/assert-state.json"
+  return 0
+}
+
 if [[ "$(state_field status)" == "awaiting-approval" ]]; then
   if verify_postconditions; then
     exit 0
@@ -194,6 +235,9 @@ if [[ "$completion_state" == "awaiting-approval" || "$completion_state" == "awai
 fi
 
 if (( install_exit != 0 )) || [[ "$claimed_success" != "true" ]]; then
+  if verify_no_input_device_boundary; then
+    exit 0
+  fi
   write_state failed
   print -u2 "KeyPath's installer reported failure"
   exit 1

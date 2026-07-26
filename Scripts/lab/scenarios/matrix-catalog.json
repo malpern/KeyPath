@@ -78,7 +78,7 @@
       "estimatedMinutes": 50,
       "nightlyCore": true,
       "cleanup": "destroy-owned-lease",
-      "steps": ["create-fresh-lease-with-fixture", "install-fixture", "upgrade-beta3-before", "install-exact-artifact", "upgrade-beta3-after", "artifact-capture"],
+      "steps": ["create-fresh-lease-with-fixture", "install-fixture", "upgrade-beta3-before", "install-upgrade-artifact", "upgrade-beta3-after", "artifact-capture"],
       "factors": {"platform": "macos26", "lane": "managed", "family": "upgrade", "boundary": "version", "evidence": "signature"}
     },
     {

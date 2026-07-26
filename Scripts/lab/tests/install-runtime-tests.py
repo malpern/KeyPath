@@ -58,7 +58,7 @@ class InstallRuntimeTests(unittest.TestCase):
                 exit 0
               fi
               if [[ "${{KEYPATH_TEST_INSTALL_MODE:-waiting}}" == "verification-failed" ]]; then
-                print '{{"apiVersion":1,"data":{{"runID":"{RUN_ID}","planID":"{INSTALL_PLAN_ID}","beforeSnapshotID":"{SNAPSHOT_ID}","afterSnapshotID":"{AFTER_ID}","completionState":"verification-failed","userActionRequired":true,"success":false}}}}'
+                print '{{"apiVersion":1,"data":{{"runID":"{RUN_ID}","planID":"{INSTALL_PLAN_ID}","beforeSnapshotID":"{SNAPSHOT_ID}","afterSnapshotID":"{AFTER_ID}","completionState":"verification-failed","userActionRequired":true,"success":false,"failureReason":"Kanata did not become running + TCP responsive within readiness timeout","failedPostconditions":["runtime-ready-or-approval-pending"]}}}}'
                 exit 1
               fi
               if [[ "${{KEYPATH_TEST_INSTALL_MODE:-waiting}}" == "completed-waiting" ]]; then
@@ -78,11 +78,21 @@ class InstallRuntimeTests(unittest.TestCase):
             print 'runtime\tready'
         """))
         self.assert_runtime.chmod(0o755)
+        self.kanata = self.directory / "kanata"
+        self.kanata.write_text("#!/bin/zsh\nprint 'No devices found. Ensure a physical device is attached.'\n")
+        self.kanata.chmod(0o755)
+        self.launchctl = self.directory / "launchctl"
+        self.launchctl.write_text(textwrap.dedent("""\
+            #!/bin/zsh
+            print 'managed_by = com.apple.xpc.ServiceManagement'
+            print 'last exit code = 1'
+        """))
+        self.launchctl.chmod(0o755)
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
 
-    def invoke(self, *, mode: str = "waiting") -> subprocess.CompletedProcess[str]:
+    def invoke(self, *, mode: str = "waiting", allow_no_input: bool = False) -> subprocess.CompletedProcess[str]:
         env = {
             **os.environ,
             "KEYPATH_INSTALL_RUNTIME_CLI": str(self.cli),
@@ -91,6 +101,9 @@ class InstallRuntimeTests(unittest.TestCase):
             "KEYPATH_INSTALL_RUNTIME_QUIT": str(self.app_quit),
             "KEYPATH_INSTALL_RUNTIME_CONFIG": str(self.config),
             "KEYPATH_INSTALL_RUNTIME_BOOTSTRAP_TIMEOUT": "2",
+            "KEYPATH_INSTALL_RUNTIME_KANATA_BINARY": str(self.kanata),
+            "KEYPATH_INSTALL_RUNTIME_LAUNCHCTL": str(self.launchctl),
+            "KEYPATH_INSTALL_RUNTIME_ALLOW_NO_INPUT_DEVICE": "1" if allow_no_input else "0",
             "KEYPATH_TEST_INSTALL_MODE": mode,
         }
         return subprocess.run(
@@ -135,6 +148,21 @@ class InstallRuntimeTests(unittest.TestCase):
         self.assertNotIn("install_runtime\twaiting", result.stdout)
         state = (self.directory / ".keypath-lab/scenario-output/install-runtime/state.tsv").read_text()
         self.assertIn("status\tfailed", state)
+
+    def test_upgrade_can_record_exact_no_input_provider_boundary(self) -> None:
+        result = self.invoke(mode="verification-failed", allow_no_input=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("install_runtime\tenvironment-limited-no-input-device", result.stdout)
+        state = (self.directory / ".keypath-lab/scenario-output/install-runtime/state.tsv").read_text()
+        self.assertIn("status\tenvironment-limited-no-input-device", state)
+        evidence = json.loads((self.directory / ".keypath-lab/scenario-output/install-runtime/assert-state.json").read_text())
+        self.assertEqual(evidence["boundary"]["inputDevices"], 0)
+
+    def test_upgrade_boundary_fails_closed_without_zero_device_evidence(self) -> None:
+        self.kanata.write_text("#!/bin/zsh\nprint 'Available keyboard devices: physical keyboard'\n")
+        result = self.invoke(mode="verification-failed", allow_no_input=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("KeyPath's installer reported failure", result.stderr)
 
     def test_completed_install_requiring_permission_is_resumable(self) -> None:
         result = self.invoke(mode="completed-waiting")

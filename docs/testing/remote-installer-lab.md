@@ -617,8 +617,13 @@ waiting; it cannot pre-authorize or bypass a future interaction. A process
 interruption never blindly repeats an uncertain mutation. Lease creation can be
 recovered only when both the durable command log and the owned controller status
 identify the same ready lease; any other uncertain mutation blocks for evidence
-review. The `install-exact-artifact` matrix step routes through `install-runtime`;
-when it waits for macOS approval, acknowledgement means “verify now,” not “assume
+review. The `install-exact-artifact` matrix step routes through `install-runtime`.
+The macOS 26 upgrade uses `install-upgrade-runtime`: it retains the same strict
+installer lineage and signature checks, but can record the exact, independently
+proven Parallels Apple-virtualization boundary where the registered Kanata
+service has zero guest-visible input devices. No other installer failure is
+accepted by that boundary. When an installer step waits for macOS approval,
+acknowledgement means “verify now,” not “assume
 the installer passed.” Failed jobs still collect available artifacts and destroy their owned
 leases, allowing independent later waves to continue. A waiting job retains its
 lease and pauses only subsequent work on that provider. `matrix-report.json`
