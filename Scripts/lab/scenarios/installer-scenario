@@ -154,6 +154,26 @@ case "$name" in
     Scripts/lab/assert-app-version 1.0.0 | tee "$artifact_dir/final-version.tsv"
     /usr/bin/codesign -dvvv /Applications/KeyPath.app > "$artifact_dir/final-signature.txt" 2>&1
     ;;
+  upgrade-beta3-before)
+    Scripts/lab/assert-app-version 1.0.0-beta3 | tee "$artifact_dir/beta-version.tsv"
+    /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
+    capture_app_identity "$artifact_dir/beta-app-identity.txt"
+    record_scenario_result passed \
+      "The signed beta-3 fixture is installed before the controller-owned upgrade." \
+      --evidence beta-version.tsv --evidence beta-app-identity.txt
+    ;;
+  upgrade-beta3-after)
+    require_installed_cli
+    Scripts/lab/assert-app-version 1.0.0 | tee "$artifact_dir/current-version.tsv"
+    /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
+    capture_app_identity "$artifact_dir/current-app-identity.txt"
+    assert_ready | tee "$artifact_dir/current-ready.tsv"
+    "$installed_cli" system inspect --json > "$artifact_dir/current-inspect.json"
+    record_scenario_result passed \
+      "The exact current artifact upgraded beta-3 and converged to an independently ready runtime." \
+      --evidence current-version.tsv --evidence current-app-identity.txt \
+      --evidence current-ready.tsv --evidence current-inspect.json
+    ;;
   reboot-persistence-before)
     require_installed_cli
     if ! assert_ready | tee "$artifact_dir/ready.tsv"; then
@@ -386,7 +406,7 @@ case "$name" in
     ;;
   *)
     print -u2 "Unknown scenario: $name"
-    print -u2 "Available: clean-install approvals helper-daemon-health managed-capabilities launch repair-reinstall repair-kanata-service upgrade-beta3-to-current reboot-persistence-before reboot-persistence-after uninstall reinstall cancellation-recovery-before cancellation-recovery-after failure-ownership-self-test artifact-capture macos-26-selector-scenario macos-27-selector-scenario macos-27-regression"
+    print -u2 "Available: clean-install approvals helper-daemon-health managed-capabilities launch repair-reinstall repair-kanata-service upgrade-beta3-to-current upgrade-beta3-before upgrade-beta3-after reboot-persistence-before reboot-persistence-after uninstall reinstall cancellation-recovery-before cancellation-recovery-after failure-ownership-self-test artifact-capture macos-26-selector-scenario macos-27-selector-scenario macos-27-regression"
     exit 2
     ;;
 esac

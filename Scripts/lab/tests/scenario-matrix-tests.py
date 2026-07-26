@@ -56,6 +56,11 @@ class ScenarioMatrixTests(unittest.TestCase):
         operator_ids = {job["id"] for job in operator["jobs"]}
         self.assertIn("macos15-cancellation-recovery", operator_ids)
         self.assertNotIn("macos15-physical-remap", operator_ids)
+        upgrade = next(job for job in operator["jobs"] if job["id"] == "macos26-upgrade")
+        self.assertEqual(upgrade["steps"], [
+            "create-fresh-lease-with-fixture", "install-fixture", "upgrade-beta3-before",
+            "install-exact-artifact", "upgrade-beta3-after", "artifact-capture",
+        ])
 
         physical = self.run_plan("--cadence", "weekly", "--include-physical")
         physical_ids = {job["id"] for job in physical["jobs"]}
