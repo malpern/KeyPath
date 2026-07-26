@@ -1,0 +1,6 @@
+#ifndef KEYPATH_USB_DESCRIPTORS_H
+#define KEYPATH_USB_DESCRIPTORS_H
+
+enum { REPORT_ID_KEYBOARD = 1 };
+
+#endif

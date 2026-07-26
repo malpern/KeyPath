@@ -275,6 +275,8 @@ python3 "$LAB_DIR/tests/install-runtime-tests.py"
 python3 "$LAB_DIR/tests/macos-26-selector-scenario-tests.py"
 python3 "$LAB_DIR/tests/macos-27-selector-scenario-tests.py"
 python3 "$LAB_DIR/tests/physical-remap-session-tests.py"
+python3 "$LAB_DIR/tests/pico-hid-fixture-client-tests.py"
+"$LAB_DIR/pico-hid-fixture/tests/run-tests.sh"
 if grep -Eq 'local[[:space:]]+status=' "$LAB_DIR/scenarios/installer-scenario"; then
   echo "installer scenario must not shadow zsh's read-only status parameter" >&2
   exit 1
