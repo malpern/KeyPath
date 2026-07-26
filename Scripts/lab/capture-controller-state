@@ -1,0 +1,38 @@
+#!/bin/zsh
+set -euo pipefail
+
+output="$PWD/.keypath-lab/scenario-output/controller-capture"
+logs="$output/logs"
+service_logs="$output/service-logs"
+capture_home="${KEYPATH_CAPTURE_USER_HOME:-$HOME}"
+
+mkdir -p "$logs" "$service_logs"
+sw_vers > "$output/sw-vers.txt"
+date -u +%Y-%m-%dT%H:%M:%SZ > "$output/captured-at.txt"
+cp -R "$capture_home/Library/Logs/KeyPath/." "$logs/" 2>/dev/null || true
+
+/bin/launchctl print system/com.keypath.kanata > "$output/kanata-launchd.txt" 2>&1 || true
+/bin/ps -axo pid,ppid,user,state,lstart,command > "$output/processes.txt" 2>&1 || true
+/usr/bin/log show --last 10m --style compact \
+  --predicate 'process == "kanata" OR process == "kanata-launcher" OR eventMessage CONTAINS[c] "com.keypath.kanata"' \
+  > "$output/kanata-unified.log" 2>&1 || true
+
+for source in \
+  /var/log/com.keypath.kanata.stdout.log \
+  /var/log/com.keypath.kanata.stderr.log
+do
+  if [[ -r "$source" ]]; then
+    cp "$source" "$service_logs/${source:t}"
+  elif /usr/bin/sudo -n /usr/bin/test -r "$source" 2>/dev/null; then
+    /usr/bin/sudo -n /bin/cp "$source" "$service_logs/${source:t}" 2>/dev/null || true
+  fi
+done
+
+if [[ -x /Applications/KeyPath.app/Contents/MacOS/keypath-cli ]]; then
+  /Applications/KeyPath.app/Contents/MacOS/keypath-cli system inspect --json \
+    > "$output/system-inspect.json" 2>/dev/null || true
+fi
+
+if (( EUID == 0 )) && [[ -n "${KEYPATH_CAPTURE_OWNER:-}" ]]; then
+  /usr/sbin/chown -R "$KEYPATH_CAPTURE_OWNER":staff "$output" 2>/dev/null || true
+fi

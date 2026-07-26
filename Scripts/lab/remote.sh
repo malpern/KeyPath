@@ -1667,7 +1667,7 @@ list_leases() {
 }
 
 collect_artifacts() {
-  local lease=$1 manifest output exit_code macos repo archive provider_resource parallels_cli
+  local lease=$1 manifest output exit_code macos repo archive provider_resource parallels_cli guest_repo
   local parallels_resource_pattern='^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$'
   local nameplate_restore=0 nameplate_hide_status=not-needed nameplate_restore_status=not-needed
   manifest=$(owned_manifest "$lease")
@@ -1692,9 +1692,20 @@ collect_artifacts() {
     fi
   fi
   archive="$output/scenario-output.tar.gz"
+  if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" && "$macos" != "15" ]]; then
+    provider_resource=$(field "$manifest" provider_resource)
+    [[ "$provider_resource" =~ $parallels_resource_pattern ]] || die "invalid Parallels resource id"
+    parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+    [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+    guest_repo="/Users/keypathqa/crabbox/$lease/repo"
+    "$parallels_cli" exec "$provider_resource" /usr/bin/env \
+      KEYPATH_CAPTURE_USER_HOME=/Users/keypathqa KEYPATH_CAPTURE_OWNER=keypathqa \
+      /bin/zsh "$guest_repo/Scripts/lab/capture-controller-state" \
+      > "$output/privileged-controller-capture.log" 2>&1 || true
+  fi
   set +e
   (cd "$repo" && run_with_download "$macos" "$lease" ".keypath-lab/scenario-output.tar.gz" "$archive" \
-    /bin/zsh -lc 'set -e; out=.keypath-lab/scenario-output/controller-capture; mkdir -p "$out/logs"; sw_vers > "$out/sw-vers.txt"; date -u +%Y-%m-%dT%H:%M:%SZ > "$out/captured-at.txt"; cp -R "$HOME/Library/Logs/KeyPath/." "$out/logs/" 2>/dev/null || true; /Applications/KeyPath.app/Contents/MacOS/keypath-cli system inspect --json > "$out/system-inspect.json" 2>/dev/null || true; tar -czf .keypath-lab/scenario-output.tar.gz -C .keypath-lab scenario-output') > "$output/download.log" 2>&1
+    /bin/zsh -lc 'set -e; /bin/zsh Scripts/lab/capture-controller-state; tar -czf .keypath-lab/scenario-output.tar.gz -C .keypath-lab scenario-output') > "$output/download.log" 2>&1
   exit_code=$?
   set -e
   if (( exit_code == 0 )); then
