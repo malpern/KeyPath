@@ -238,19 +238,16 @@
     #keypath-matrix .lab-theater-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:10px; }
     #keypath-matrix .lab-theater-head strong { color:var(--ink); font-size:12px; font-weight:650; letter-spacing:-.01em; }
     #keypath-matrix .lab-theater-head span { color:var(--faint); font-family:ui-monospace,"SFMono-Regular",Menlo,monospace; font-size:8px; letter-spacing:.08em; text-transform:uppercase; }
-    #keypath-matrix .lab-stages { --phase-index:0; --phase-ratio:0; position:relative; display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:7px; perspective:900px; transform-style:preserve-3d; }
-    #keypath-matrix .lab-track { position:absolute; z-index:3; left:calc(100% / 14); right:calc(100% / 14); top:46px; height:2px; overflow:visible; border-radius:999px; background:#dce1e8; pointer-events:none; }
-    #keypath-matrix .lab-track-fill { position:absolute; inset:0; border-radius:inherit; background:linear-gradient(90deg,var(--run),var(--run-2)); transform:scaleX(var(--phase-ratio)); transform-origin:left center; transition:transform 420ms cubic-bezier(.23,1,.32,1); }
-    #keypath-matrix .lab-playhead { position:absolute; left:0; top:50%; width:calc(100% / 7); height:24px; transform:translate3d(calc(var(--phase-index) * 100%),-50%,0); transition:transform 420ms cubic-bezier(.32,.72,0,1); }
-    #keypath-matrix .lab-playhead::before { content:""; position:absolute; left:50%; top:50%; width:10px; height:10px; border:2px solid #fff; border-radius:50%; background:var(--run); box-shadow:0 0 0 1px rgba(238,113,56,.45),0 5px 16px rgba(238,113,56,.32); transform:translate3d(-50%,-50%,0); }
-    #keypath-matrix[data-lab-phase="idle"] .lab-track-fill,#keypath-matrix[data-lab-phase="idle"] .lab-playhead { opacity:0; }
+    #keypath-matrix .lab-stages { position:relative; display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:7px; perspective:900px; transform-style:preserve-3d; }
     #keypath-matrix .lab-stage { --stage-color:#aeb7c3; position:relative; isolation:isolate; display:grid; grid-template-rows:82px auto; place-items:center; min-width:0; overflow:visible; padding:8px 6px 7px; border:1px solid #e2e6ec; border-radius:9px; background:rgba(255,255,255,.82); opacity:.52; transform:translate3d(0,0,0); transition:opacity 220ms cubic-bezier(.23,1,.32,1),transform 320ms cubic-bezier(.23,1,.32,1),border-color 220ms cubic-bezier(.23,1,.32,1),background-color 220ms cubic-bezier(.23,1,.32,1); }
     #keypath-matrix .lab-stage::before { content:""; position:absolute; z-index:0; inset:12px 8px 20px; border-radius:50%; background:radial-gradient(circle,color-mix(in srgb,var(--stage-color) 22%,transparent),transparent 70%); opacity:0; transform:scale(.92); transition:opacity 260ms cubic-bezier(.23,1,.32,1),transform 320ms cubic-bezier(.23,1,.32,1); }
-    #keypath-matrix .lab-stage:not(:last-child)::after { content:""; position:absolute; z-index:4; left:calc(100% + 1px); top:47px; width:13px; height:2px; background:linear-gradient(90deg,#cbd2db,#e5e8ed); }
+    #keypath-matrix .lab-stage:not(:last-child)::after { content:""; position:absolute; z-index:4; left:calc(100% + 2px); top:44px; width:4px; height:4px; border-radius:50%; background:#ccd3dc; box-shadow:0 0 0 2px rgba(255,255,255,.92); opacity:.72; transform:translate3d(0,0,0) scale(.8); transition:background-color 220ms cubic-bezier(.23,1,.32,1),opacity 220ms cubic-bezier(.23,1,.32,1),transform 320ms cubic-bezier(.23,1,.32,1); }
     #keypath-matrix .lab-stage-label { position:relative; z-index:1; align-self:end; overflow:hidden; color:#737f8d; font-family:ui-monospace,"SFMono-Regular",Menlo,monospace; font-size:7px; font-weight:750; letter-spacing:.08em; text-align:center; text-overflow:ellipsis; text-transform:uppercase; white-space:nowrap; }
     #keypath-matrix .lab-stage[data-stage-state="passed"] { --stage-color:var(--pass); border-color:rgba(32,168,119,.25); background:#f8fcfa; opacity:.82; }
+    #keypath-matrix .lab-stage[data-stage-state="passed"]:not(:last-child)::after { background:var(--pass); opacity:.72; transform:translate3d(0,0,0) scale(1); }
     #keypath-matrix .lab-stage[data-stage-state="active"] { --stage-color:var(--run); z-index:2; border-color:rgba(238,113,56,.48); background:#fff7f2; opacity:1; transform:translate3d(0,-5px,18px) rotateX(1.5deg) scale(1.025); box-shadow:0 18px 34px rgba(238,113,56,.16); }
     #keypath-matrix .lab-stage[data-stage-state="active"]::before { opacity:1; transform:scale(1.18); }
+    #keypath-matrix .lab-stage[data-stage-state="active"]:not(:last-child)::after { background:var(--stage-color); opacity:1; animation:lab-handoff-arrive 240ms cubic-bezier(.23,1,.32,1) both; }
     #keypath-matrix .lab-icon { position:relative; z-index:1; width:78px; height:70px; color:var(--stage-color); }
     #keypath-matrix .lab-stage[data-stage-state="active"] .lab-icon.scene-enter { animation:lab-scene-enter 520ms cubic-bezier(.23,1,.32,1) both; }
 
@@ -327,9 +324,10 @@
     @keyframes lab-probe-pulse { 0%,12%,100% { transform:scale(.96); opacity:.65; } 44% { transform:scale(1.08); opacity:1; } 56%,88% { transform:scale(1); opacity:.82; } }
     @keyframes lab-page-stack { 0%,12% { transform:translate3d(0,-9px,0) rotate(-4deg); opacity:0; } 42%,76% { transform:translate3d(0,0,0) rotate(0deg); opacity:1; } 90%,100% { transform:translate3d(7px,3px,0) rotate(4deg); opacity:0; } }
     @keyframes lab-scene-enter { 0% { transform:translate3d(-8px,5px,0) scale(.94); opacity:.25; } 62% { transform:translate3d(2px,-2px,0) scale(1.025); opacity:1; } 100% { transform:translate3d(0,0,0) scale(1); opacity:1; } }
+    @keyframes lab-handoff-arrive { 0% { transform:translate3d(-5px,0,0) scale(.7); opacity:0; } 62% { transform:translate3d(1px,0,0) scale(1.14); opacity:1; } 100% { transform:translate3d(0,0,0) scale(1); opacity:1; } }
     @media (prefers-reduced-motion:reduce) {
       #keypath-matrix *,#keypath-matrix *::before,#keypath-matrix *::after { animation:none!important; }
-      #keypath-matrix .job,#keypath-matrix .wave,#keypath-matrix .workstream,#keypath-matrix .metric-value,#keypath-matrix .lab-stage,#keypath-matrix .lab-icon,#keypath-matrix .lab-theater,#keypath-matrix .lab-playhead,#keypath-matrix .lab-track-fill { transform:none!important; transition:opacity 180ms cubic-bezier(.23,1,.32,1),background-color 180ms cubic-bezier(.23,1,.32,1),border-color 180ms cubic-bezier(.23,1,.32,1)!important; }
+      #keypath-matrix .job,#keypath-matrix .wave,#keypath-matrix .workstream,#keypath-matrix .metric-value,#keypath-matrix .lab-stage,#keypath-matrix .lab-icon,#keypath-matrix .lab-theater { transform:none!important; transition:opacity 180ms cubic-bezier(.23,1,.32,1),background-color 180ms cubic-bezier(.23,1,.32,1),border-color 180ms cubic-bezier(.23,1,.32,1)!important; }
       #keypath-matrix .workstream { opacity:0!important; }
     }
     @media (prefers-reduced-transparency:reduce) { #keypath-matrix .card { background:var(--panel); } }
@@ -347,7 +345,6 @@
       #keypath-matrix .matrix-head { flex-direction:column; }
       #keypath-matrix .steps { grid-template-columns:repeat(2,minmax(0,1fr)); }
       #keypath-matrix .lab-stages { grid-template-columns:repeat(2,minmax(0,1fr)); }
-      #keypath-matrix .lab-track { display:none; }
       #keypath-matrix .lab-stage:not(:last-child)::after { display:none; }
     }
   </style>
@@ -369,7 +366,6 @@
   <section class="lab-theater" aria-label="Animated lab process">
     <div class="lab-theater-head"><strong>Inside the lab</strong><span id="lab-phase-label">Waiting for work</span></div>
     <div class="lab-stages">
-      <div class="lab-track" aria-hidden="true"><i class="lab-track-fill"></i><i class="lab-playhead"></i></div>
       <div class="lab-stage" data-phase="transfer"><div class="lab-icon" aria-hidden="true"><i class="network-line"></i><i class="artifact-box"></i><i class="transfer-node"></i></div><span class="lab-stage-label">Artifact transfer</span></div>
       <div class="lab-stage" data-phase="provision"><div class="lab-icon" aria-hidden="true"><i class="mini-slab"></i><i class="mini-slab"></i><i class="mini-slab"></i></div><span class="lab-stage-label">Mini provisioner</span></div>
       <div class="lab-stage" data-phase="provision"><div class="lab-icon" aria-hidden="true"><i class="vm-window"></i><i class="vm-window"></i><i class="vm-window"></i></div><span class="lab-stage-label">VM clone bay</span></div>
@@ -419,7 +415,7 @@
       const phaseLabel={transfer:'Artifact moving to mini',provision:'Mini cloning a fresh VM',install:'Installer entering the guest',approval:'macOS approval gate',verify:'Runtime probes executing',evidence:'Evidence being captured',idle:'Lab settled'};
       function labPhase(job){if(!job)return'idle';if(job.status==='waiting')return'approval';const step=String(job.currentStep||'').toLowerCase();if(step.includes('create'))return Number(job.progress)<22?'transfer':'provision';if(step.includes('install'))return'install';if(step.includes('capture')||step.includes('artifact'))return'evidence';if(step.includes('approval'))return'approval';return job.status==='running'?'verify':'idle';}
       function sceneIndex(job,phase){if(phase==='idle')return-1;if(phase==='transfer')return 0;if(phase==='provision')return Number(job?.progress)<42?1:2;return {install:3,approval:4,verify:5,evidence:6}[phase]??-1;}
-      function updateLabScene(job,phase){const stages=[...root.querySelectorAll('.lab-stage')],index=sceneIndex(job,phase),rail=root.querySelector('.lab-stages');rail.style.setProperty('--phase-index',Math.max(0,index));rail.style.setProperty('--phase-ratio',index<0?0:index/6);stages.forEach((stage,stageIndex)=>{stage.dataset.stageState=index<0?'idle':stageIndex<index?'passed':stageIndex===index?'active':'queued';});if(index!==previousSceneIndex){const icon=stages[index]?.querySelector('.lab-icon');if(icon){icon.classList.remove('scene-enter');void icon.offsetWidth;icon.classList.add('scene-enter');setTimeout(()=>icon.classList.remove('scene-enter'),560);}previousSceneIndex=index;}}
+      function updateLabScene(job,phase){const stages=[...root.querySelectorAll('.lab-stage')],index=sceneIndex(job,phase);stages.forEach((stage,stageIndex)=>{stage.dataset.stageState=index<0?'idle':stageIndex<index?'passed':stageIndex===index?'active':'queued';});if(index!==previousSceneIndex){const icon=stages[index]?.querySelector('.lab-icon');if(icon){icon.classList.remove('scene-enter');void icon.offsetWidth;icon.classList.add('scene-enter');setTimeout(()=>icon.classList.remove('scene-enter'),560);}previousSceneIndex=index;}}
       function setMetric(id,value,animate=true){const node=el(id);if(node.textContent===value)return;node.textContent=value;if(!animate)return;node.classList.remove('is-changing');void node.offsetWidth;node.classList.add('is-changing');}
       function renderEvents(events){const nextSignature=events.map(event=>[event.time,event.title,event.message,event.tone].join('|')).join('||');if(nextSignature===eventSignature)return;eventSignature=nextSignature;el('matrix-events').replaceChildren(...events.map(event=>{const row=document.createElement('div');row.className='event';row.dataset.tone=event.tone||'info';const time=document.createElement('time');time.textContent=event.time||'—';const body=document.createElement('div');const title=document.createElement('strong');title.textContent=event.title||'Update';const message=document.createElement('span');message.textContent=event.message||'';body.append(title,message);row.append(time,body);return row;}));}
       function renderExcluded(excluded){if(!excluded)return;const nextSignature=[excluded.id,excluded.title,excluded.reason].join('|');if(nextSignature===excludedSignature)return;excludedSignature=nextSignature;const box=el('matrix-excluded');const strong=document.createElement('strong');strong.textContent='Physical supplement: ';box.replaceChildren(strong,document.createTextNode(`${excluded.title||excluded.id||'Excluded case'}. ${excluded.reason||'Explicit opt-in required.'}`));}
