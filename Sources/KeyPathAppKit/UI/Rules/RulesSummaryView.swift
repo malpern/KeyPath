@@ -630,6 +630,7 @@ struct RulesTabView: View {
                 pendingDisablePack = nil
                 pendingDisableDependents = []
             }
+            .accessibilityIdentifier("rules-summary-cancel-disable-pack")
         } message: {
             let names = pendingDisableDependents.map(\.name).joined(separator: ", ")
             Text("Disabling \(pendingDisablePack?.name ?? "") will affect: \(names)")
@@ -658,6 +659,7 @@ struct RulesTabView: View {
             Button("Cancel", role: .cancel) {
                 managedToggleCollection = nil
             }
+            .accessibilityIdentifier("rules-summary-cancel-managed-pack-toggle")
         } message: {
             if let collection = managedToggleCollection,
                let owner = collectionOwnershipMap[collection.id]
