@@ -72,7 +72,7 @@
       "steps": [
         {"id": "create-desktop-lease", "label": "Create desktop clone", "status": "queued"},
         {"id": "desktop-bootstrap", "label": "Prepare desktop tools", "status": "queued"},
-        {"id": "macos-26-selector-driver", "label": "Capture semantic selectors", "status": "queued"},
+        {"id": "macos-26-selector-scenario", "label": "Capture semantic selectors", "status": "queued"},
         {"id": "artifact-capture", "label": "Capture evidence", "status": "queued"}
       ]
     },
