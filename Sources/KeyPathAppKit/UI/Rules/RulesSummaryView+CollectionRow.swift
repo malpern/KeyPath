@@ -282,7 +282,6 @@ struct ExpandableCollectionRow: View {
                             Label(hint, systemImage: "hand.point.up.left")
                                 .font(.caption)
                                 .foregroundColor(.accentColor)
-                                .accessibilityLabel(hint)
                             if let activationDetail {
                                 Text(activationDetail)
                                     .font(.caption)
@@ -303,6 +302,7 @@ struct ExpandableCollectionRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("rules-summary-expand-button-\(collectionId)")
             .accessibilityLabel(isExpanded ? "Collapse \(name)" : "Expand \(name)")
+            .accessibilityHint(activationAccessibilityHint)
             .accessibilityValue(effectiveEnabled ? "on" : "off")
 
             // Help button (only for collections that provide one)
@@ -357,6 +357,13 @@ struct ExpandableCollectionRow: View {
             }
         }
         .padding(12)
+    }
+
+    private var activationAccessibilityHint: String? {
+        let hint = [activationHint, activationDetail]
+            .compactMap { $0 }
+            .joined(separator: ". ")
+        return hint.isEmpty ? nil : hint
     }
 
     @ViewBuilder
