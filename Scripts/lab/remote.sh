@@ -74,8 +74,8 @@ base_for() {
   local macos=$1 lane=$2 desktop=${3:-0}
   if [[ "$macos" == "15" ]]; then
     [[ "$lane" == "managed-functional" ]] && print keypath-macos-15-managed || print ghcr.io/cirruslabs/macos-sequoia-base:latest
-  elif [[ "$macos" == "27" && "$desktop" == "1" ]]; then
-    print keypath-macos-27-desktop
+  elif [[ ("$macos" == "26" || "$macos" == "27") && "$desktop" == "1" ]]; then
+    print "keypath-macos-$macos-desktop"
   else
     [[ "$lane" == "managed-functional" ]] && print "keypath-macos-$macos-managed" || print "keypath-macos-$macos"
   fi
@@ -1708,7 +1708,7 @@ verify_console_login() {
   local lease=$1 manifest macos resource parallels_cli console_user
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
-  [[ "$macos" == "27" ]] || die "inherited console-login verification currently supports only the macOS 27 lane"
+  [[ "$macos" == "26" || "$macos" == "27" ]] || die "inherited console-login verification requires a macOS 26 or 27 lane"
   [[ "$(field "$manifest" provider)" == "parallels" ]] || die "inherited console-login verification requires a Parallels lease"
   [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "inherited console-login verification requires a desktop-enabled lease"
   resource=$(field "$manifest" provider_resource)

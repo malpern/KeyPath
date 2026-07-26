@@ -264,7 +264,11 @@ class MatrixRunner:
         if step_name == "reboot-guest":
             return [self.lab_command("reboot-guest", lease)]
         if step_name == "desktop-bootstrap":
-            return [self.lab_command("desktop-bootstrap", lease, "--install-tools")]
+            commands = []
+            if job["provider"] == "parallels":
+                commands.append(self.lab_command("verify-console-login", lease))
+            commands.append(self.lab_command("desktop-bootstrap", lease, "--install-tools"))
+            return commands
         if step_name == "artifact-capture":
             collected = self.args.artifacts / job["id"] / "collected"
             return [

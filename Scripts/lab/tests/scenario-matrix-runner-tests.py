@@ -133,6 +133,20 @@ class MatrixRunnerTests(unittest.TestCase):
         self.assertIn("approve-input-monitoring cbx_test_lease", self.log.read_text())
         self.assertIn("destroy cbx_test_lease", self.log.read_text())
 
+    def test_parallels_desktop_bootstrap_verifies_inherited_console_first(self) -> None:
+        plan = self.plan(["create-desktop-lease", "desktop-bootstrap"], job_id="macos26-selectors")
+        value = json.loads(plan.read_text())
+        value["jobs"][0].update({"provider": "parallels", "macOS": 26, "lane": "unmanaged-ui"})
+        plan.write_text(json.dumps(value))
+
+        result = self.run_runner(plan)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.log.read_text().splitlines()
+        verify_index = next(i for i, call in enumerate(calls) if call.startswith("verify-console-login "))
+        bootstrap_index = next(i for i, call in enumerate(calls) if call.startswith("desktop-bootstrap "))
+        self.assertLess(verify_index, bootstrap_index)
+
     def test_failed_automatic_input_monitoring_falls_back_to_retained_checkpoint(self) -> None:
         self.lab.write_text(textwrap.dedent(f"""\
             #!/bin/zsh

@@ -701,6 +701,15 @@ assert_contains "$artifacts26" $'download_status\t0'
 grep -q 'crabbox run --provider parallels --target macos --id cbx_test26 --stop-after never --download' "$CALLS"
 run_remote destroy cbx_test26 >/dev/null
 
+desktop26_create=$(run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
+assert_contains "$desktop26_create" $'lease_id\tcbx_desktop26'
+grep -q -- '--parallels-template keypath-macos-26-desktop' "$CALLS"
+grep -q $'base_name\tkeypath-macos-26-desktop' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop26/manifest.tsv"
+inherited_console26=$(run_remote verify-console-login cbx_desktop26)
+assert_contains "$inherited_console26" $'console_login\tpassed'
+assert_contains "$inherited_console26" $'console_login_method\tinherited-base'
+run_remote destroy cbx_desktop26 >/dev/null
+
 create27=$(run_remote create 27 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create27" $'lease_id\tcbx_test27'
 grep -q $'base_name\tkeypath-macos-27' "$ROOT/KeyPathInstallerLab/leases/cbx_test27/manifest.tsv"
