@@ -73,10 +73,13 @@ that host resources and provider inventory remain isolated.
 
 ## Lifecycle
 
-Creation never syncs the current worktree. It exports the explicit commit with
-`git archive`, adds the installer and source metadata, uploads that immutable
-payload, and atomically initializes a clean synthetic archive on the external
-lab volume. Each lease receives its own clean checkout cloned from that archive.
+Creation never syncs the current worktree. It exports the explicit product
+commit plus the committed `Scripts/lab` tree from a separately recorded harness
+commit with `git archive`, adds the installer and source metadata, uploads that
+immutable payload, and atomically initializes a clean synthetic archive on the
+external lab volume. The archive key includes both commits, so a harness change
+cannot silently reuse or mutate an older product-and-installer cache. Each lease
+receives its own clean checkout cloned from that archive.
 CrabBox's claim therefore binds one disposable lease to one stable repository
 root, and every run, download, and destructive stop executes from that exact
 claimed checkout. The interface refuses to sync if Git reports tracked or

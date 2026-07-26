@@ -1020,8 +1020,8 @@ echo older-installer > "$TMP/KeyPath-beta3.zip"
 controller_commit=$(git -C "$LAB_DIR/../.." rev-parse HEAD)
 controller_installer_sha=$(shasum -a 256 "$TMP/KeyPath.zip" | awk '{print $1}')
 controller_fixture_sha=$(shasum -a 256 "$TMP/KeyPath-beta3.zip" | awk '{print $1}')
-controller_archive_key="${controller_commit}-${controller_installer_sha}-${controller_fixture_sha}"
-controller_create=$(PATH="$TMP/fake-bin:$PATH" KEYPATH_LAB_HOST=tester@test-host "$LAB_DIR/keypath-lab" create \
+controller_archive_key="${controller_commit}-${controller_installer_sha}-h${controller_commit}-${controller_fixture_sha}"
+controller_create=$(PATH="$TMP/fake-bin:$PATH" KEYPATH_LAB_HOST=tester@test-host KEYPATH_LAB_ALLOW_DIRTY_HARNESS=1 "$LAB_DIR/keypath-lab" create \
     --macos 15 \
     --lane unmanaged-ui \
     --commit "$controller_commit" \
@@ -1029,7 +1029,7 @@ controller_create=$(PATH="$TMP/fake-bin:$PATH" KEYPATH_LAB_HOST=tester@test-host
     --fixture "$TMP/KeyPath-beta3.zip")
 assert_contains "$controller_create" $'lease_id\tcbx_controller_test'
 grep -Fq "$controller_archive_key" "$TMP/ssh-args" || {
-    echo "controller archive key did not include fixture checksum" >&2
+    echo "controller archive key did not include harness commit and fixture checksum" >&2
     exit 1
 }
 controller_artifacts=$(PATH="$TMP/fake-bin:$PATH" KEYPATH_LAB_HOST=tester@test-host "$LAB_DIR/keypath-lab" artifacts \

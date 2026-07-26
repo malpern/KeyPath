@@ -115,11 +115,13 @@ case "$command" in
         [[ -z $fixture || -f $fixture ]] || die "fixture not found: $fixture"
         resolved=$(git -C "$REPO_ROOT" rev-parse --verify "$commit^{commit}")
         [[ $resolved == "$commit" ]] || die "commit does not resolve exactly: $commit"
+        harness_commit=$(git -C "$REPO_ROOT" rev-parse --verify HEAD^{commit})
+        [[ ${KEYPATH_LAB_ALLOW_DIRTY_HARNESS:-0} == 1 || -z $(git -C "$REPO_ROOT" status --short --untracked-files=no) ]] || die "committed lab harness is required before creating an archive"
 
         installer_sha=$(shasum -a 256 "$installer" | awk '{print $1}')
         installer_name=$(basename "$installer")
         [[ $installer_name =~ ^[A-Za-z0-9._-]+$ ]] || die "installer filename must contain only letters, numbers, dots, underscores, and dashes"
-        archive_key="${commit}-${installer_sha}"
+        archive_key="${commit}-${installer_sha}-h${harness_commit}"
         fixture_name=
         fixture_sha=
         if [[ -n $fixture ]]; then
@@ -136,6 +138,11 @@ case "$command" in
         trap 'rm -rf "$temp_dir"' EXIT
         mkdir -p "$temp_dir/repo/.keypath-lab/installer"
         git -C "$REPO_ROOT" archive "$commit" | tar -x -C "$temp_dir/repo"
+        # Product identity remains pinned to `commit`, while lab-only execution
+        # comes from an independently recorded harness commit. Including both
+        # in the archive key makes the payload immutable without forcing a new
+        # signed product build for every harness correction.
+        git -C "$REPO_ROOT" archive "$harness_commit" Scripts/lab | tar -x -C "$temp_dir/repo"
         cp "$installer" "$temp_dir/repo/.keypath-lab/installer/$installer_name"
         if [[ -n $fixture ]]; then
             mkdir -p "$temp_dir/repo/.keypath-lab/fixtures"
@@ -151,6 +158,7 @@ case "$command" in
         fi
         cat > "$temp_dir/repo/.keypath-lab/source.tsv" <<EOF
 keypath_commit	$commit
+harness_commit	$harness_commit
 installer_name	$installer_name
 installer_sha256	$installer_sha
 fixture_name	$fixture_name
