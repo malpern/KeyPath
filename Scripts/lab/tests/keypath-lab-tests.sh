@@ -943,6 +943,18 @@ protected_wrong_page_exit=$?
 set -e
 [[ $protected_wrong_page_exit -ne 0 ]] || { echo "protected click accepted the wrong destination page" >&2; exit 1; }
 assert_contains "$protected_wrong_page" "protected click postcondition failed"
+set +e
+protected_occluded=$(KEYPATH_LAB_TEST_OCCLUSION='NotificationCenter:700,0,324,140' KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility native 804 120 2>&1)
+protected_occluded_exit=$?
+set -e
+[[ $protected_occluded_exit -ne 0 ]] || { echo "protected click accepted a notification-occluded target" >&2; exit 1; }
+assert_contains "$protected_occluded" "protected click target is occluded by a notification"
+set +e
+protected_background=$(KEYPATH_LAB_TEST_FRONTMOST_BEFORE=false KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility native 402 247 2>&1)
+protected_background_exit=$?
+set -e
+[[ $protected_background_exit -ne 0 ]] || { echo "protected click accepted a background application" >&2; exit 1; }
+assert_contains "$protected_background" "is not frontmost"
 protected_ax_result=$(KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility ax 402 247)
 assert_contains "$protected_ax_result" $'display_scale\t2'
 grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 804 --y 494' "$CALLS"

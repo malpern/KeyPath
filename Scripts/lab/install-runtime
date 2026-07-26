@@ -11,6 +11,10 @@ output="$PWD/.keypath-lab/scenario-output/install-runtime"
 state="$output/state.tsv"
 cli=${KEYPATH_INSTALL_RUNTIME_CLI:-/Applications/KeyPath.app/Contents/MacOS/keypath-cli}
 assert_runtime=${KEYPATH_INSTALL_RUNTIME_ASSERT:-Scripts/lab/assert-runtime-state}
+app_open=${KEYPATH_INSTALL_RUNTIME_OPEN:-/usr/bin/open}
+app_quit=${KEYPATH_INSTALL_RUNTIME_QUIT:-/usr/bin/osascript}
+config_path=${KEYPATH_INSTALL_RUNTIME_CONFIG:-$HOME/.config/keypath/keypath.kbd}
+bootstrap_timeout=${KEYPATH_INSTALL_RUNTIME_BOOTSTRAP_TIMEOUT:-60}
 mkdir -p "$output"
 
 [[ -x "$cli" ]] || {
@@ -34,6 +38,29 @@ state_field() {
 
 valid_id() {
   [[ "$1" =~ '^[A-Fa-f0-9-]{36}$' ]]
+}
+
+ensure_default_config() {
+  [[ -s "$config_path" ]] && return 0
+
+  "$app_open" -a KeyPath
+  local waited=0
+  while (( waited < bootstrap_timeout )); do
+    [[ -s "$config_path" ]] && break
+    sleep 1
+    (( waited += 1 ))
+  done
+
+  if [[ "$app_quit" == "/usr/bin/osascript" ]]; then
+    "$app_quit" -e 'tell application "KeyPath" to quit' >/dev/null 2>&1 || true
+  else
+    "$app_quit" >/dev/null 2>&1 || true
+  fi
+
+  [[ -s "$config_path" ]] || {
+    print -u2 "KeyPath first launch did not create its default user config"
+    return 1
+  }
 }
 
 write_state() {
@@ -128,6 +155,11 @@ valid_id "$preflight_snapshot_id" || {
   exit 3
 }
 
+ensure_default_config || {
+  write_state failed
+  exit 1
+}
+
 set +e
 "$cli" system install --json --quiet --timeout 600 \
   > "$output/install-report.json" 2> "$output/install-report.stderr"
@@ -153,7 +185,7 @@ done
   exit 3
 }
 
-if [[ "$completion_state" == "awaitingApproval" || "$user_action_required" == "true" ]]; then
+if [[ "$completion_state" == "awaiting-approval" || "$completion_state" == "awaitingApproval" ]]; then
   write_state awaiting-approval
   print "install_runtime\twaiting"
   print "user_action_required\tComplete the KeyPath approvals visible in the disposable guest, then resume this checkpoint."

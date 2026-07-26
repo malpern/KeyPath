@@ -1189,7 +1189,8 @@ secure_dialog_input() {
 
 protected_click() {
   local lease=$1 app=$2 expected_before=$3 expected_after=$4 coordinate_space=$5 x=$6 y=$7 count=${8:-1}
-  local manifest macos resource key ip before after guest_command geometry_command geometry
+  local manifest macos resource key ip before after before_frontmost after_frontmost guest_command geometry_command geometry
+  local occlusion occlusion_command
   local native_width native_height logical_width logical_height scale_x scale_y
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
@@ -1203,6 +1204,7 @@ protected_click() {
 
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
     before=${KEYPATH_LAB_TEST_WINDOW_BEFORE:-$expected_before}
+    before_frontmost=${KEYPATH_LAB_TEST_FRONTMOST_BEFORE:-true}
   else
     key="$HOME/Library/Application Support/crabbox/testboxes/$lease/id_ed25519"
     [[ -f "$key" && ! -L "$key" && -O "$key" ]] || die "owned CrabBox SSH key not found for lease"
@@ -1210,9 +1212,13 @@ protected_click() {
     export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     ip=$($TART ip "$resource")
     [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
-    guest_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  return matches[0].windows[0].name() || "__UNTITLED__";\n}\' -- '$(printf %q "$app")
-    before=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")
+    guest_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "false\\t";\n  var name = matches[0].windows[0].name() || "__UNTITLED__";\n  return String(matches[0].frontmost()) + "\\t" + name;\n}\' -- '$(printf %q "$app")
+    IFS=$'\t' read -r before_frontmost before <<< "$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")"
   fi
+  [[ "$before_frontmost" == "true" ]] || {
+    record_command "$lease" failed protected-click --app "$app" --window "$expected_before" --x "$x" --y "$y"
+    die "protected click precondition failed: '$app' is not frontmost"
+  }
   [[ "$expected_before" == "__ANY__" && -n "$before" ]] || [[ "$before" == "$expected_before" ]] || {
     record_command "$lease" failed protected-click --app "$app" --window "$expected_before" --x "$x" --y "$y"
     die "protected click precondition failed: expected window '$expected_before', found '${before:-unknown}'"
@@ -1235,6 +1241,17 @@ protected_click() {
     y=$((y * scale_y))
   fi
 
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    occlusion=${KEYPATH_LAB_TEST_OCCLUSION:-}
+  else
+    occlusion_command=$'/usr/bin/osascript -l JavaScript -e \'\nObjC.import("AppKit");\nfunction run(argv) {\n  var x = Number(argv[0]) / Number($.NSScreen.mainScreen.backingScaleFactor);\n  var y = Number(argv[1]) / Number($.NSScreen.mainScreen.backingScaleFactor);\n  var events = Application("System Events");\n  var processNames = ["NotificationCenter", "UserNotificationCenter"];\n  for (var p = 0; p < processNames.length; p++) {\n    var matches = events.processes.whose({name: processNames[p]})();\n    if (matches.length === 0) continue;\n    var windows = matches[0].windows();\n    for (var w = 0; w < windows.length; w++) {\n      try {\n        var position = windows[w].position();\n        var size = windows[w].size();\n        if (x >= position[0] && x <= position[0] + size[0] && y >= position[1] && y <= position[1] + size[1]) {\n          return processNames[p] + ":" + Math.round(position[0]) + "," + Math.round(position[1]) + "," + Math.round(size[0]) + "," + Math.round(size[1]);\n        }\n      } catch (_) {}\n    }\n  }\n  return "";\n}\' -- '$(printf %q "$x")' '$(printf %q "$y")
+    occlusion=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$occlusion_command")") || die "protected click could not verify notification occlusion"
+  fi
+  [[ -z "$occlusion" ]] || {
+    record_command "$lease" failed protected-click --app "$app" --window "$expected_before" --x "$x" --y "$y"
+    die "protected click target is occluded by a notification ($occlusion)"
+  }
+
   if [[ "$count" == "2" ]]; then
     "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$x" --y "$y" --count 2 >/dev/null
   else
@@ -1243,15 +1260,20 @@ protected_click() {
   sleep "${KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS:-1}"
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
     after=${KEYPATH_LAB_TEST_WINDOW_AFTER:-$expected_after}
+    after_frontmost=${KEYPATH_LAB_TEST_FRONTMOST_AFTER:-true}
   else
-    after=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")
+    IFS=$'\t' read -r after_frontmost after <<< "$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")"
   fi
   if [[ "$after" != "$expected_after" && "$expected_before" == "__ANY__" ]]; then
     sleep "${KEYPATH_LAB_INITIAL_SETTINGS_RETRY_SECONDS:-5}"
     "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$x" --y "$y" >/dev/null
     sleep "${KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS:-1}"
-    after=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")
+    IFS=$'\t' read -r after_frontmost after <<< "$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")"
   fi
+  [[ "$after_frontmost" == "true" ]] || {
+    record_command "$lease" failed protected-click --app "$app" --window "$expected_before" --after-window "$expected_after" --x "$x" --y "$y"
+    die "protected click postcondition failed: '$app' is no longer frontmost"
+  }
   [[ "$after" == "$expected_after" ]] || {
     record_command "$lease" failed protected-click --app "$app" --window "$expected_before" --after-window "$expected_after" --x "$x" --y "$y"
     die "protected click postcondition failed: expected window '$expected_after', found '${after:-unknown}'"

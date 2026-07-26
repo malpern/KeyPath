@@ -24,6 +24,21 @@ class InstallRuntimeTests(unittest.TestCase):
         self.directory = pathlib.Path(self.temporary.name)
         self.approved = self.directory / "approved"
         self.install_count = self.directory / "install-count"
+        self.open_count = self.directory / "open-count"
+        self.config = self.directory / "config/keypath.kbd"
+        self.app_open = self.directory / "open-keypath"
+        self.app_open.write_text(textwrap.dedent(f"""\
+            #!/bin/zsh
+            mkdir -p {str(self.config.parent)!r}
+            print '(defcfg)' > {str(self.config)!r}
+            count=0
+            [[ -f {str(self.open_count)!r} ]] && count=$(cat {str(self.open_count)!r})
+            print $((count + 1)) > {str(self.open_count)!r}
+        """))
+        self.app_open.chmod(0o755)
+        self.app_quit = self.directory / "quit-keypath"
+        self.app_quit.write_text("#!/bin/zsh\nexit 0\n")
+        self.app_quit.chmod(0o755)
         self.cli = self.directory / "keypath-cli"
         self.cli.write_text(textwrap.dedent(f"""\
             #!/bin/zsh
@@ -34,6 +49,7 @@ class InstallRuntimeTests(unittest.TestCase):
               exit 0
             fi
             if [[ "$1 $2" == "system install" ]]; then
+              [[ -s {str(self.config)!r} ]] || {{ print -u2 'config missing before install'; exit 9 }}
               count=0
               [[ -f {str(self.install_count)!r} ]] && count=$(cat {str(self.install_count)!r})
               print $((count + 1)) > {str(self.install_count)!r}
@@ -41,7 +57,11 @@ class InstallRuntimeTests(unittest.TestCase):
                 print '{{"apiVersion":1,"data":{{"runID":"{RUN_ID}","planID":"{INSTALL_PLAN_ID}","beforeSnapshotID":"{SNAPSHOT_ID}","afterSnapshotID":"{AFTER_ID}","completionState":"completed","userActionRequired":false,"success":true}}}}'
                 exit 0
               fi
-              print '{{"apiVersion":1,"data":{{"runID":"{RUN_ID}","planID":"{INSTALL_PLAN_ID}","beforeSnapshotID":"{SNAPSHOT_ID}","afterSnapshotID":"{AFTER_ID}","completionState":"awaitingApproval","userActionRequired":true,"success":false}}}}'
+              if [[ "${{KEYPATH_TEST_INSTALL_MODE:-waiting}}" == "verification-failed" ]]; then
+                print '{{"apiVersion":1,"data":{{"runID":"{RUN_ID}","planID":"{INSTALL_PLAN_ID}","beforeSnapshotID":"{SNAPSHOT_ID}","afterSnapshotID":"{AFTER_ID}","completionState":"verification-failed","userActionRequired":true,"success":false}}}}'
+                exit 1
+              fi
+              print '{{"apiVersion":1,"data":{{"runID":"{RUN_ID}","planID":"{INSTALL_PLAN_ID}","beforeSnapshotID":"{SNAPSHOT_ID}","afterSnapshotID":"{AFTER_ID}","completionState":"awaiting-approval","userActionRequired":true,"success":false}}}}'
               exit 1
             fi
             exit 2
@@ -63,6 +83,10 @@ class InstallRuntimeTests(unittest.TestCase):
             **os.environ,
             "KEYPATH_INSTALL_RUNTIME_CLI": str(self.cli),
             "KEYPATH_INSTALL_RUNTIME_ASSERT": str(self.assert_runtime),
+            "KEYPATH_INSTALL_RUNTIME_OPEN": str(self.app_open),
+            "KEYPATH_INSTALL_RUNTIME_QUIT": str(self.app_quit),
+            "KEYPATH_INSTALL_RUNTIME_CONFIG": str(self.config),
+            "KEYPATH_INSTALL_RUNTIME_BOOTSTRAP_TIMEOUT": "2",
             "KEYPATH_TEST_INSTALL_MODE": mode,
         }
         return subprocess.run(
@@ -75,11 +99,13 @@ class InstallRuntimeTests(unittest.TestCase):
         self.assertEqual(first.returncode, 4, first.stderr)
         self.assertIn("install_runtime\twaiting", first.stdout)
         self.assertEqual(self.install_count.read_text().strip(), "1")
+        self.assertEqual(self.open_count.read_text().strip(), "1")
 
         self.approved.touch()
         second = self.invoke()
         self.assertEqual(second.returncode, 0, second.stderr)
         self.assertEqual(self.install_count.read_text().strip(), "1")
+        self.assertEqual(self.open_count.read_text().strip(), "1")
         evidence = json.loads((self.directory / ".keypath-lab/scenario-output/install-runtime/assert-state.json").read_text())
         self.assertTrue(evidence["runtimeReady"]["agreement"])
         self.assertEqual(evidence["plan"]["runID"], RUN_ID)
@@ -90,6 +116,21 @@ class InstallRuntimeTests(unittest.TestCase):
         self.assertIn("independent runtime postconditions were absent", result.stderr)
         evidence = json.loads((self.directory / ".keypath-lab/scenario-output/install-runtime/assert-state.json").read_text())
         self.assertFalse(evidence["runtimeReady"]["agreement"])
+
+    def test_first_launch_creates_default_config_before_install(self) -> None:
+        result = self.invoke()
+        self.assertEqual(result.returncode, 4, result.stderr)
+        self.assertTrue(self.config.is_file())
+        self.assertEqual(self.open_count.read_text().strip(), "1")
+        self.assertEqual(self.install_count.read_text().strip(), "1")
+
+    def test_verification_failure_with_user_action_is_not_approval_wait(self) -> None:
+        result = self.invoke(mode="verification-failed")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("KeyPath's installer reported failure", result.stderr)
+        self.assertNotIn("install_runtime\twaiting", result.stdout)
+        state = (self.directory / ".keypath-lab/scenario-output/install-runtime/state.tsv").read_text()
+        self.assertIn("status\tfailed", state)
 
 
 if __name__ == "__main__":
