@@ -48,7 +48,13 @@ final class PacksFacadeTests: XCTestCase {
 
     func testResolvePack_LegacyDisplayName_ReturnsMatch() throws {
         let facade = PacksFacade()
-        let pack = try facade.resolvePack(nameOrId: "Vallack")
+        let pack = try facade.resolvePack(nameOrId: "Ben Vallack")
+        XCTAssertEqual(pack?.id, "com.keypath.pack.vallack-system")
+    }
+
+    func testResolvePack_FullLegacyDisplayName_ReturnsMatch() throws {
+        let facade = PacksFacade()
+        let pack = try facade.resolvePack(nameOrId: "Ben Vallack Nav")
         XCTAssertEqual(pack?.id, "com.keypath.pack.vallack-system")
     }
 

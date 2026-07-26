@@ -4,9 +4,8 @@ import KeyPathCore
 public struct PacksFacade: Sendable {
     /// Previous user-facing names that remain accepted by the CLI after a pack
     /// receives a clearer display name. Pack IDs remain the durable identity.
-    private static let legacyNameAliases = [
-        "ben vallack nav": "com.keypath.pack.vallack-system",
-        "vallack": "com.keypath.pack.vallack-system"
+    private static let legacyNamesByPackID = [
+        PackRegistry.vallackSystem.id: ["Ben Vallack Nav"]
     ]
 
     /// Test seam: overrides the manager used by install/uninstall/configure so tests
@@ -225,10 +224,18 @@ public struct PacksFacade: Sendable {
             return pack
         }
 
-        if let packID = Self.legacyNameAliases[nameOrId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()],
-           let pack = allPacks.first(where: { $0.id == packID })
-        {
-            return pack
+        let legacyNameMatches = allPacks.filter { pack in
+            Self.legacyNamesByPackID[pack.id, default: []].contains { legacyName in
+                legacyName.localizedCaseInsensitiveContains(nameOrId)
+            }
+        }
+        if legacyNameMatches.count == 1 { return legacyNameMatches[0] }
+        if legacyNameMatches.count > 1 {
+            throw AmbiguousPackMatch(
+                query: nameOrId,
+                matches: legacyNameMatches.map { .init(name: $0.name, id: $0.id) },
+                hint: "Multiple packs match this legacy name. Use the full ID to disambiguate."
+            )
         }
 
         let prefix = "com.keypath.pack."

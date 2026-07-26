@@ -127,9 +127,9 @@ When you install the Home Row Navigation System pack, KeyPath sets up three coor
 
 | Collection | What it does |
 |-----------|-------------|
-| **Navigation Layer** | The layer mappings — arrows, clipboard, tab switching, line navigation |
-| **Top-Row Modifiers** | Top-row modifiers (Q/W/E and U/I/O) instead of standard home row mods |
-| **Index-Finger Layer Toggles** | F and J as hold-to-activate triggers for the navigation layer |
+| **Home Row Navigation System** | The layer mappings — arrows, clipboard, tab switching, line navigation |
+| **Top Row Mods** | Top-row modifiers (Q/W/E and U/I/O) instead of standard home row mods |
+| **Home Row Layer Toggles** | F and J as hold-to-activate triggers for the navigation layer |
 
 These three are designed to work as a system. Installing the pack enables all three and configures them to the Vallack defaults. You can adjust individual settings in each collection if you want to customize.
 
