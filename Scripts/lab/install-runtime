@@ -185,7 +185,8 @@ done
   exit 3
 }
 
-if [[ "$completion_state" == "awaiting-approval" || "$completion_state" == "awaitingApproval" ]]; then
+if [[ "$completion_state" == "awaiting-approval" || "$completion_state" == "awaitingApproval" ||
+      ("$completion_state" == "completed" && "$user_action_required" == "true" && "$claimed_success" != "true") ]]; then
   write_state awaiting-approval
   print "install_runtime\twaiting"
   print "user_action_required\tComplete the KeyPath approvals visible in the disposable guest, then resume this checkpoint."

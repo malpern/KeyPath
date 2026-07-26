@@ -61,6 +61,10 @@ class InstallRuntimeTests(unittest.TestCase):
                 print '{{"apiVersion":1,"data":{{"runID":"{RUN_ID}","planID":"{INSTALL_PLAN_ID}","beforeSnapshotID":"{SNAPSHOT_ID}","afterSnapshotID":"{AFTER_ID}","completionState":"verification-failed","userActionRequired":true,"success":false}}}}'
                 exit 1
               fi
+              if [[ "${{KEYPATH_TEST_INSTALL_MODE:-waiting}}" == "completed-waiting" ]]; then
+                print '{{"apiVersion":1,"data":{{"runID":"{RUN_ID}","planID":"{INSTALL_PLAN_ID}","beforeSnapshotID":"{SNAPSHOT_ID}","afterSnapshotID":"{AFTER_ID}","completionState":"completed","userActionRequired":true,"success":false}}}}'
+                exit 1
+              fi
               print '{{"apiVersion":1,"data":{{"runID":"{RUN_ID}","planID":"{INSTALL_PLAN_ID}","beforeSnapshotID":"{SNAPSHOT_ID}","afterSnapshotID":"{AFTER_ID}","completionState":"awaiting-approval","userActionRequired":true,"success":false}}}}'
               exit 1
             fi
@@ -131,6 +135,13 @@ class InstallRuntimeTests(unittest.TestCase):
         self.assertNotIn("install_runtime\twaiting", result.stdout)
         state = (self.directory / ".keypath-lab/scenario-output/install-runtime/state.tsv").read_text()
         self.assertIn("status\tfailed", state)
+
+    def test_completed_install_requiring_permission_is_resumable(self) -> None:
+        result = self.invoke(mode="completed-waiting")
+        self.assertEqual(result.returncode, 4, result.stderr)
+        self.assertIn("install_runtime\twaiting", result.stdout)
+        state = (self.directory / ".keypath-lab/scenario-output/install-runtime/state.tsv").read_text()
+        self.assertIn("status\tawaiting-approval", state)
 
 
 if __name__ == "__main__":
