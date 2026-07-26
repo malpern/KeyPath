@@ -100,6 +100,7 @@ Scripts/lab/keypath-lab create \
 Scripts/lab/keypath-lab list
 Scripts/lab/keypath-lab status cbx_example
 Scripts/lab/keypath-lab install-app cbx_example
+Scripts/lab/keypath-lab install-runtime cbx_example
 Scripts/lab/keypath-lab nameplate cbx_example enable
 Scripts/lab/keypath-lab run cbx_example -- sw_vers
 Scripts/lab/keypath-lab secure-dialog-input cbx_example \
@@ -484,12 +485,23 @@ injection. The command proves delivery only; the scenario must separately
 observe its expected application or runtime postcondition. P01 used a captured
 key chip in KeyPath's Input Capture Experiment as that postcondition.
 
-`install-app` expands the staged ZIP into `/Applications` on the disposable
-guest. Tart uses the base image's noninteractive sudo contract. Parallels uses
-the same passwordless `prlctl exec` guest-control channel CrabBox already uses
-to prepare the disposable clone, scoped to the exact provider resource recorded
-in the owned lease manifest. Neither path changes the base image or stores a
-guest password.
+`install-app` only expands the staged ZIP into `/Applications` on the disposable
+guest; it does not prove KeyPath installation. Tart uses the base image's
+noninteractive sudo contract for that bundle-staging step. Parallels uses the
+same passwordless `prlctl exec` guest-control channel CrabBox already uses to
+prepare the disposable clone, scoped to the exact provider resource recorded in
+the owned lease manifest. Neither path changes the base image or stores a guest
+password.
+
+`install-runtime` is the reliability-test entry point. It stages the bundle once,
+captures `keypath-cli system inspect --json`, invokes the product-owned
+`keypath-cli system install --json` plan once, and records the preflight plan and
+snapshot IDs plus the install report's run, plan, and before/after snapshot IDs.
+It then compares KeyPath's claimed result with `assert-runtime-state` and a fresh
+product inspection. If macOS approval is required, it returns a waiting outcome
+and preserves the lease. Resuming after the visible approval verifies those
+postconditions without repeating the installer mutation. A controller
+interruption after mutation starts is fail-closed and requires artifact review.
 
 ## Installer scenarios
 
@@ -595,7 +607,9 @@ waiting; it cannot pre-authorize or bypass a future interaction. A process
 interruption never blindly repeats an uncertain mutation. Lease creation can be
 recovered only when both the durable command log and the owned controller status
 identify the same ready lease; any other uncertain mutation blocks for evidence
-review. Failed jobs still collect available artifacts and destroy their owned
+review. The `install-exact-artifact` matrix step routes through `install-runtime`;
+when it waits for macOS approval, acknowledgement means “verify now,” not “assume
+the installer passed.” Failed jobs still collect available artifacts and destroy their owned
 leases, allowing independent later waves to continue. A waiting job retains its
 lease and pauses only subsequent work on that provider. `matrix-report.json`
 contains campaign/job outcomes and `scenario-report.json` consolidates validated

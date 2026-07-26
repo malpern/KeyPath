@@ -238,7 +238,7 @@ class MatrixRunner:
         if not lease:
             raise CampaignError(f"{job['id']}: {step_name} requires a recorded lease")
         if step_name == "install-exact-artifact":
-            return [self.lab_command("install-app", lease)]
+            return [self.lab_command("install-runtime", lease)]
         if step_name == "install-fixture":
             return [self.lab_command("install-fixture", lease)]
         if step_name == "reboot-guest":
@@ -347,14 +347,27 @@ class MatrixRunner:
                     continue
                 if checkpoint in self.acknowledged:
                     state.pop("waitingCheckpoint", None)
-                    step["status"] = "passed"
-                    self.update_job(state, status="running", step=step, step_status="passed",
-                                    message="Operator checkpoint acknowledged; continuing from the next step.")
-                    continue
+                    if step["commandStep"].startswith(CHECKPOINT_PREFIXES):
+                        step["status"] = "passed"
+                        self.update_job(state, status="running", step=step, step_status="passed",
+                                        message="Operator checkpoint acknowledged; continuing from the next step.")
+                        continue
+                    step["status"] = "queued"
+                    self.update_job(state, status="running", step=step, step_status="queued",
+                                    message="Operator action acknowledged; verifying the product postconditions.")
                 self.update_job(state, status="running", step=step, step_status="running",
                                 message=f"Running {step['commandStep']}.")
                 for command in self.command_for(job, state, step["commandStep"]):
                     result = self.execute(job_id, step["id"], command)
+                    if result.returncode == 4 and "install_runtime\twaiting" in (result.stdout + result.stderr):
+                        state["waitingCheckpoint"] = checkpoint
+                        preserve_lease = True
+                        self.update_job(
+                            state, status="waiting", step=step, step_status="waiting",
+                            message="KeyPath is waiting for visible macOS approval; resume after completing it.",
+                            event=f"{job['title']} needs approval", tone="warning",
+                        )
+                        return "waiting"
                     if result.returncode != 0:
                         state["blocker"] = f"{step['commandStep']} exited {result.returncode}; see {job_id}/{step['id']}.log"
                         self.update_job(state, status="failed", step=step, step_status="failed",

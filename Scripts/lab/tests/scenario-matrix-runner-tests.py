@@ -77,7 +77,7 @@ class MatrixRunnerTests(unittest.TestCase):
         self.assertEqual(state["jobs"][0]["cleanupStatus"], "passed")
         lab_log = self.log.read_text()
         self.assertIn("create --macos 15", lab_log)
-        self.assertIn("install-app cbx_test_lease", lab_log)
+        self.assertIn("install-runtime cbx_test_lease", lab_log)
         self.assertIn("scenario cbx_test_lease artifact-capture", lab_log)
         self.assertIn("artifacts cbx_test_lease --output", lab_log)
         self.assertIn("destroy cbx_test_lease", lab_log)
@@ -99,6 +99,43 @@ class MatrixRunnerTests(unittest.TestCase):
         self.assertEqual(second.returncode, 0, second.stderr)
         state = json.loads((self.directory / "state.json").read_text())
         self.assertEqual(state["jobs"][0]["status"], "passed")
+        self.assertIn("destroy cbx_test_lease", self.log.read_text())
+
+    def test_installer_approval_wait_resumes_by_verifying_without_accepting_the_step(self) -> None:
+        marker = self.directory / "approval-requested"
+        self.lab.write_text(textwrap.dedent(f"""\
+            #!/bin/zsh
+            print -r -- "$*" >> {str(self.log)!r}
+            case "$1" in
+              create) print 'lease_id\tcbx_test_lease'; print 'manifest\t/tmp/manifest' ;;
+              status) print 'status\tready' ;;
+              install-runtime)
+                if [[ ! -f {str(marker)!r} ]]; then
+                  touch {str(marker)!r}
+                  print 'install_runtime\twaiting'
+                  print 'user_action_required\tApprove KeyPath'
+                  exit 4
+                fi
+                print 'install_runtime\tpassed'
+                ;;
+              *) print 'ok\t'$1 ;;
+            esac
+        """))
+        self.lab.chmod(0o755)
+        plan = self.plan(["create-fresh-lease", "install-exact-artifact", "artifact-capture"])
+
+        first = self.run_runner(plan)
+        self.assertEqual(first.returncode, 4, first.stderr)
+        state = json.loads((self.directory / "state.json").read_text())
+        self.assertEqual(state["jobs"][0]["status"], "waiting")
+        self.assertEqual(state["jobs"][0]["steps"][1]["status"], "waiting")
+        self.assertNotIn("destroy", self.log.read_text())
+
+        second = self.run_runner(plan, "--ack-checkpoint", "vm-job:install-exact-artifact")
+        self.assertEqual(second.returncode, 0, second.stderr)
+        state = json.loads((self.directory / "state.json").read_text())
+        self.assertEqual(state["jobs"][0]["steps"][1]["status"], "passed")
+        self.assertEqual(self.log.read_text().count("install-runtime cbx_test_lease"), 2)
         self.assertIn("destroy cbx_test_lease", self.log.read_text())
 
     def test_refuses_checkpoint_preapproval(self) -> None:

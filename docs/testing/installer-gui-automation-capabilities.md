@@ -157,6 +157,12 @@ Record the product's `runID`, `planID`, and before/after snapshot IDs in the lab
 timeline. These IDs join a failed lab action directly to product telemetry and
 must survive artifact collection.
 
+The executable path is `keypath-lab install-runtime LEASE_ID`. It records the
+inspection plan/snapshot identity before execution and the installer report's
+run/plan/before/after identity afterward. The matrix's
+`install-exact-artifact` checkpoint calls this command; `install-app` is only
+the internal bundle-staging primitive and is not installation evidence.
+
 ### Harness retries are not product retries
 
 The runner may retry a failed screenshot, stale semantic snapshot, or

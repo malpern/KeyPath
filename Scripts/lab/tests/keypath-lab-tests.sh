@@ -246,8 +246,10 @@ grep -Fq 'Tart guest SSH did not recover after reboot' "$REMOTE"
 /bin/zsh -n "$LAB_DIR/nameplate-instrumentation"
 /bin/zsh -n "$LAB_DIR/scenarios/kanata-vhid-two-clients"
 /bin/zsh -n "$LAB_DIR/scenarios/installer-scenario"
+/bin/zsh -n "$LAB_DIR/install-runtime"
 python3 "$LAB_DIR/tests/scenario-matrix-tests.py"
 python3 "$LAB_DIR/tests/scenario-matrix-runner-tests.py"
+python3 "$LAB_DIR/tests/install-runtime-tests.py"
 python3 "$LAB_DIR/tests/macos-26-selector-scenario-tests.py"
 python3 "$LAB_DIR/tests/macos-27-selector-scenario-tests.py"
 python3 "$LAB_DIR/tests/physical-remap-session-tests.py"
@@ -425,6 +427,9 @@ run_remote scenario cbx_test15 clean-install >/dev/null
 grep -q 'installer-scenario clean-install' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/commands.tsv"
 run_remote install-app cbx_test15 >/dev/null
 grep -q 'install-app 15 cbx_test15' "$ROOT/KeyPathInstallerLab/logs/cbx_test15/install-app.log"
+run_remote install-runtime cbx_test15 >/dev/null
+grep -q 'Scripts/lab/install-runtime unmanaged-ui' "$CALLS"
+grep -q $'install_runtime_status\tpassed' "$manifest"
 run_remote install-fixture cbx_test15 >/dev/null
 grep -q 'install-fixture 15 cbx_test15' "$ROOT/KeyPathInstallerLab/logs/cbx_test15/install-fixture.log"
 tart_reboot=$(KEYPATH_LAB_TART_REBOOT_SETTLE_SECONDS=0 KEYPATH_LAB_TART_REBOOT_POLL_SECONDS=0 run_remote reboot-guest cbx_test15)

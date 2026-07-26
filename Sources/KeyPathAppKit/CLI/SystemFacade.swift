@@ -225,6 +225,8 @@ public struct SystemFacade: Sendable {
         CLIRuntimeBootstrap.ensureConfigured()
         if let bundleIssue = Self.systemRepairBundleIssue() {
             return CLIInspectResult(
+                planID: nil,
+                snapshotID: nil,
                 macOSVersion: ProcessInfo.processInfo.operatingSystemVersionString,
                 driverCompatible: false,
                 planStatus: "blocked",
@@ -252,6 +254,8 @@ public struct SystemFacade: Sendable {
         }
 
         return CLIInspectResult(
+            planID: plan.id.uuidString,
+            snapshotID: context.snapshotID.uuidString,
             macOSVersion: context.system.macOSVersion,
             driverCompatible: context.system.driverCompatible,
             planStatus: planStatus,

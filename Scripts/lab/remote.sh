@@ -834,6 +834,46 @@ install_app() {
   return "$exit_code"
 }
 
+install_runtime() {
+  local lease=$1 manifest lane runtime_status exit_code
+  manifest=$(owned_manifest "$lease")
+  lane=$(field "$manifest" test_lane)
+  runtime_status=$(field "$manifest" install_runtime_status)
+
+  if [[ "$runtime_status" == "failed" || "$runtime_status" == "mutation-started" ]]; then
+    die "install-runtime has an uncertain or failed prior mutation; inspect artifacts before any retry"
+  fi
+  if [[ "$runtime_status" == "passed" ]]; then
+    print "install_runtime\tpassed"
+    return 0
+  fi
+
+  if [[ -z "$runtime_status" ]]; then
+    install_app "$lease" || {
+      set_field "$manifest" install_runtime_status failed
+      set_field "$manifest" install_runtime_at "$(utc_now)"
+      return 1
+    }
+    set_field "$manifest" install_runtime_status staged
+  fi
+
+  if [[ "$runtime_status" != "awaiting-approval" ]]; then
+    set_field "$manifest" install_runtime_status mutation-started
+  fi
+
+  set +e
+  run_command "$lease" /bin/zsh Scripts/lab/install-runtime "$lane"
+  exit_code=$?
+  set -e
+  case "$exit_code" in
+    0) set_field "$manifest" install_runtime_status passed ;;
+    4) set_field "$manifest" install_runtime_status awaiting-approval ;;
+    *) set_field "$manifest" install_runtime_status failed ;;
+  esac
+  set_field "$manifest" install_runtime_at "$(utc_now)"
+  return "$exit_code"
+}
+
 install_fixture() {
   local lease=$1 manifest macos lane repo fixture_name provider_resource guest_repo command exit_code admission_command
   manifest=$(owned_manifest "$lease")
@@ -1988,6 +2028,7 @@ case "$action" in
   install-archive) [[ $# -eq 5 ]] || die "install-archive requires ticket, key, commit, checksum, and name"; install_archive "$@" ;;
   create) [[ $# -eq 8 || $# -eq 9 ]] || die "create requires macOS, test lane, archive, commit, checksum, name, ttl, desktop, and optional Tart USB passthrough"; create_lease "$@" ;;
   install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
+  install-runtime) [[ $# -eq 1 ]] || die "install-runtime requires lease"; install_runtime "$1" ;;
   install-fixture) [[ $# -eq 1 ]] || die "install-fixture requires lease"; install_fixture "$1" ;;
   secure-dialog-input) [[ $# -eq 5 ]] || die "secure-dialog-input requires lease, app, field, optional submit value, and focus mode"; secure_dialog_input "$@" ;;
   resume-managed-policy) [[ $# -eq 1 ]] || die "resume-managed-policy requires a lease"; resume_managed_policy "$1" ;;
