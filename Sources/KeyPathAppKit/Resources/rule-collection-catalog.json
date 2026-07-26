@@ -1278,7 +1278,7 @@
 
     ],
     "name" : "Chord Groups",
-    "summary" : "Multi-key combinations (Ben Vallack style) for efficient navigation and editing",
+    "summary" : "Multi-key combinations for efficient navigation and editing, with an optional Ben Vallack-inspired preset",
     "tags" : [
       "chords",
       "defchords",
@@ -3188,7 +3188,7 @@
         "input" : ";"
       }
     ],
-    "name" : "Ben Vallack Nav",
+    "name" : "Home Row Navigation System",
     "summary" : "Hold F or J for arrows, clipboard, tab switching, and line navigation — fingers never leave the home row.",
     "tags" : [
       "vallack",

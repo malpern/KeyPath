@@ -27,7 +27,7 @@ final class PerRuleOptionCoverageTests: XCTestCase {
             RuleCollectionIdentifier.autoShiftSymbols: ("Auto Shift Symbols", .autoShiftSymbols),
             RuleCollectionIdentifier.keyRepeatControl: ("Fast Navigation", .keyRepeatControl),
             RuleCollectionIdentifier.homeRowArrows: ("Home Row Arrows", .layerPresetPicker),
-            RuleCollectionIdentifier.vallackNavigation: ("Ben Vallack Nav", .table),
+            RuleCollectionIdentifier.vallackNavigation: ("Home Row Navigation System", .table),
             RuleCollectionIdentifier.launcher: ("Quick Launcher", .launcherGrid)
         ]
 

@@ -185,7 +185,7 @@ final class PacksFacadeTests: XCTestCase {
             query: "Nav",
             matches: [
                 .init(name: "Vim Navigation", id: "com.keypath.pack.vim-navigation"),
-                .init(name: "Ben Vallack Nav", id: "com.keypath.pack.vallack-system")
+                .init(name: "Home Row Navigation System", id: "com.keypath.pack.vallack-system")
             ]
         )
         XCTAssertTrue(err.description.contains("2 packs"))
