@@ -42,7 +42,7 @@ struct ExpandableCollectionRow: View {
     /// Optional activation hint from collection (overrides default formatting)
     var activationHint: String?
     /// Supporting activation metadata, kept separate from the physical instruction.
-    var activationDetail: String? = nil
+    var activationDetail: String?
     var managingPackName: String?
     var onManagedToggleTapped: (() -> Void)?
     var defaultExpanded: Bool = false

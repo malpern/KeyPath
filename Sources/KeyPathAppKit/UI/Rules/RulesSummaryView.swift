@@ -70,11 +70,15 @@ struct RulesTabView: View {
         let catalog = RuleCollectionCatalog()
         return catalog.defaultCollections().compactMap { catalogCollection in
             // Hide pack-internal collections from the Rules tab
-            if catalogCollection.owningPackID != nil { return nil }
+            if catalogCollection.owningPackID != nil {
+                return nil
+            }
             // Find matching collection from kanataManager to preserve enabled state
             if var existing = kanataManager.ruleCollections.first(where: { $0.id == catalogCollection.id }) {
                 // Also hide if the persisted copy gained an owningPackID
-                if existing.owningPackID != nil { return nil }
+                if existing.owningPackID != nil {
+                    return nil
+                }
                 // Always use catalog category (user data may have stale values)
                 existing.category = catalogCollection.category
                 return existing
@@ -355,6 +359,7 @@ struct RulesTabView: View {
                                     NotificationCenter.default.post(name: .openOverlayWithMapper, object: nil)
                                 },
                                 description: isSearching ? "Filtered custom rules" : "Remap any key combination or sequence",
+                                activationDetail: nil,
                                 defaultExpanded: !hasAnyCustomRules,
                                 scrollID: "custom-rules",
                                 scrollProxy: scrollProxy
@@ -574,7 +579,11 @@ struct RulesTabView: View {
         // Dependency: config mismatch dialog (can't auto-resolve)
         .alert("Missing Configuration", isPresented: Binding(
             get: { pendingEnablePack != nil },
-            set: { if !$0 { pendingEnablePack = nil; pendingEnableUnmetDeps = [] } }
+            set: {
+                if !$0 {
+                    pendingEnablePack = nil; pendingEnableUnmetDeps = []
+                }
+            }
         )) {
             if let depPackID = pendingEnableUnmetDeps.first?.dependency.packID,
                let depPack = PackRegistry.pack(id: depPackID)
@@ -597,7 +606,11 @@ struct RulesTabView: View {
         // Dependency: disable warning dialog
         .alert("Other Rules Depend on This", isPresented: Binding(
             get: { pendingDisablePack != nil },
-            set: { if !$0 { pendingDisablePack = nil; pendingDisableDependents = [] } }
+            set: {
+                if !$0 {
+                    pendingDisablePack = nil; pendingDisableDependents = []
+                }
+            }
         )) {
             Button("Disable Anyway", role: .destructive) {
                 if let pack = pendingDisablePack,
@@ -623,7 +636,11 @@ struct RulesTabView: View {
         }
         .alert("Part of a Pack", isPresented: Binding(
             get: { managedToggleCollection != nil },
-            set: { if !$0 { managedToggleCollection = nil } }
+            set: {
+                if !$0 {
+                    managedToggleCollection = nil
+                }
+            }
         )) {
             if let collection = managedToggleCollection,
                let owner = collectionOwnershipMap[collection.id]
