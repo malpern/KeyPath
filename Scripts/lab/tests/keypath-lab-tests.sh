@@ -329,12 +329,14 @@ publish_checksum=$(shasum -a 256 "$LAB_DIR/scenarios/installer-scenario" | awk '
 publish_key="$publish_commit-$publish_checksum"
 mkdir -p "$TMP/upload/repo/.keypath-lab/installer"
 cp "$LAB_DIR/scenarios/installer-scenario" "$TMP/upload/repo/.keypath-lab/installer/installer.zip"
+printf '.keypath-lab/\n' > "$TMP/upload/repo/.gitignore"
 for pass in 1 2; do
     ticket=$(run_remote prepare-upload "$publish_key")
     tar -czf "$ticket" -C "$TMP/upload" repo
     published=$(run_remote install-archive "$ticket" "$publish_key" "$publish_commit" "$publish_checksum" installer.zip)
     if [[ $pass == 1 ]]; then assert_contains "$published" $'archive\tcreated'; else assert_contains "$published" $'archive\treused'; fi
 done
+git -C "$ROOT/KeyPathInstallerLab/archives/$publish_key/repo" ls-files --error-unmatch .keypath-lab/installer/installer.zip >/dev/null
 if find "$ROOT/KeyPathInstallerLab/archives" -maxdepth 1 -name ".staging-$publish_key-*" | grep -q .; then
     echo "archive publish left a staging directory" >&2
     exit 1

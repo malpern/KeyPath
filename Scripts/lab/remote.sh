@@ -598,6 +598,10 @@ install_archive() {
   git -C "$staging/repo" config user.name "KeyPath Lab"
   git -C "$staging/repo" config user.email "keypath-lab@localhost"
   git -C "$staging/repo" add -A
+  # The product checkout ignores local campaign state under .keypath-lab, but
+  # an immutable lab archive must retain its installer, policy, and fixture
+  # payload when it is cloned into a disposable operation worktree.
+  git -C "$staging/repo" add -f .keypath-lab
   GIT_AUTHOR_DATE=2000-01-01T00:00:00Z GIT_COMMITTER_DATE=2000-01-01T00:00:00Z git -C "$staging/repo" commit -q -m "KeyPath lab archive $commit"
   [[ -z "$(git -C "$staging/repo" status --porcelain)" ]] || die "archive checkout is dirty"
   {
