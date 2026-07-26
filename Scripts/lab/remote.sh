@@ -1480,7 +1480,7 @@ scenario() {
 }
 
 desktop_bootstrap() {
-  local lease=$1 install_tools=$2 manifest macos repo output command retry_command exit_code approval_output
+  local lease=$1 install_tools=$2 manifest macos repo output command exit_code approval_output attempt
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "desktop bootstrap requires a desktop-enabled lease"
@@ -1494,22 +1494,19 @@ desktop_bootstrap() {
     # Peekaboo to capture again.
     approve_peekaboo_capture "$lease"
   fi
-  set +e
-  (run_command "$lease" "${command[@]}")
-  exit_code=$?
-  set -e
-  if ((exit_code != 0)) && [[ "$macos" == "15" ]]; then
+  exit_code=1
+  for attempt in {1..3}; do
+    set +e
+    (run_command "$lease" "${command[@]}")
+    exit_code=$?
+    set -e
+    ((exit_code == 0)) && break
+    [[ "$macos" == "15" ]] || return "$exit_code"
     approval_output=$(approve_peekaboo_capture "$lease")
     print -r -- "$approval_output"
-    if print -r -- "$approval_output" | grep -Fq $'peekaboo_capture_approval\tpassed'; then
-      retry_command=(/bin/zsh Scripts/lab/desktop-bootstrap --output "$output")
-      run_command "$lease" "${retry_command[@]}"
-    else
-      return "$exit_code"
-    fi
-  elif ((exit_code != 0)); then
-    return "$exit_code"
-  fi
+    print -r -- "$approval_output" | grep -Fq $'peekaboo_capture_approval\tpassed' || return "$exit_code"
+  done
+  ((exit_code == 0)) || return "$exit_code"
   set_field "$manifest" desktop_bootstrap_at "$(utc_now)"
   set_field "$manifest" desktop_bootstrap_status passed
 }
