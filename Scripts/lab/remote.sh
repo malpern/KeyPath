@@ -1202,6 +1202,7 @@ secure_dialog_input() {
   local lease=$1 app=$2 field_label=$3 submit_button=$4 already_focused=$5
   local manifest macos resource key ip secret_file guest_command exit_code
   local focus_command focus_result button_geometry_command button_coords postcondition_command postcondition_result
+  local button_press_command button_press_result native_submit_exit focus_transport submit_transport
   local click_x click_y focus_x focus_y
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
@@ -1251,13 +1252,17 @@ secure_dialog_input() {
     # detail; scaling AX coordinates to backing pixels moves the native click
     # outside the protected sheet.
 
+    focus_transport=accessibility-and-native-pointer
     set +e
     "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$focus_x" --y "$focus_y" >/dev/null 2>&1
     exit_code=$?
     set -e
     if (( exit_code != 0 )); then
-      record_command "$lease" "failed:41" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
-      die "secure dialog input failed while giving the field native pointer focus"
+      # The Accessibility focus postcondition above is authoritative, and the
+      # secure typing step below independently proves that the field accepts
+      # input. Tart's RFB pointer transport may be unavailable even while the
+      # logged-in session remains fully controllable through System Events.
+      focus_transport=accessibility-only
     fi
 
     # Secure authorization sheets ignore Tart's VNC key events. Stream the
@@ -1287,22 +1292,39 @@ secure_dialog_input() {
     fi
     IFS=',' read -r click_x click_y <<< "$button_coords"
 
+    button_press_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var process = Application("System Events").processes.byName(argv[0]);\n  var window = process.windows[0];\n  var sheets = window.sheets();\n  var root = sheets.length > 0 ? sheets[0] : window;\n  var button = root.buttons().find(function (element) {\n    try { return element.role() === "AXButton" && (element.name() === argv[1] || element.description() === argv[1]); } catch (_) { return false; }\n  });\n  if (!button) button = descendants(root).find(function (element) {\n    try { return element.role() === "AXButton" && (element.name() === argv[1] || element.description() === argv[1]); } catch (_) { return false; }\n  });\n  if (!button) throw new Error("submit button not found");\n  var actions = button.actions.whose({name: "AXPress"})();\n  if (actions.length !== 1) throw new Error("submit button does not expose one AXPress action");\n  actions[0].perform();\n  return "pressed";\n}\' -- '$(printf %q "$app")' '$(printf %q "$submit_button")
+
+    submit_transport=native-pointer
     set +e
     "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$click_x" --y "$click_y" >/dev/null 2>&1
-    exit_code=$?
+    native_submit_exit=$?
     set -e
-    if (( exit_code != 0 )); then
-      record_command "$lease" "failed:43" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
-      die "secure dialog input failed while submitting the dialog"
-    fi
 
     postcondition_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "closed";\n  var window = matches[0].windows[0];\n  var sheets = window.sheets();\n  var root = sheets.length > 0 ? sheets[0] : window;\n  var open = root.textFields.whose({subrole: "AXSecureTextField"})().length > 0 || descendants(root).some(function (element) {\n    try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; }\n  });\n  return open ? "open" : "closed";\n}\' -- '$(printf %q "$app")
     postcondition_result=open
-    for attempt in {1..150}; do
-      postcondition_result=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$postcondition_command")" </dev/null) || postcondition_result=open
-      [[ "$postcondition_result" == "closed" ]] && break
-      sleep 0.1
-    done
+    if (( native_submit_exit == 0 )); then
+      for attempt in {1..150}; do
+        postcondition_result=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$postcondition_command")" </dev/null) || postcondition_result=open
+        [[ "$postcondition_result" == "closed" ]] && break
+        sleep 0.1
+      done
+    fi
+    if [[ "$postcondition_result" != "closed" ]]; then
+      set +e
+      button_press_result=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$button_press_command")" </dev/null)
+      exit_code=$?
+      set -e
+      if (( exit_code != 0 )) || [[ "$button_press_result" != "pressed" ]]; then
+        record_command "$lease" "failed:43" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+        die "secure dialog input could not invoke the verified submit action"
+      fi
+      submit_transport=accessibility-press-fallback
+      for attempt in {1..150}; do
+        postcondition_result=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$postcondition_command")" </dev/null) || postcondition_result=open
+        [[ "$postcondition_result" == "closed" ]] && break
+        sleep 0.1
+      done
+    fi
     if [[ "$postcondition_result" != "closed" ]]; then
       record_command "$lease" "failed:77" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
       die "secure dialog input was submitted but the SecurityAgent sheet did not close"
@@ -1314,6 +1336,8 @@ secure_dialog_input() {
     fi
     record_command "$lease" passed secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
     print "secure_dialog_input\tpassed"
+    print "secure_dialog_focus_transport\t$focus_transport"
+    print "secure_dialog_submit_transport\t$submit_transport"
     return 0
   fi
 

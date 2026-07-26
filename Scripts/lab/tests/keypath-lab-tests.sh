@@ -87,6 +87,9 @@ if [[ \$1 == desktop && \$2 == type && " \$* " != *" --text "* ]]; then
   [[ \${KEYPATH_LAB_TEST_CRABBOX_TYPE_FAIL:-0} == 1 ]] && exit 42
   exit 0
 fi
+if [[ \$1 == desktop && \$2 == click && \${KEYPATH_LAB_TEST_CRABBOX_CLICK_FAIL:-0} == 1 ]]; then
+  exit 43
+fi
 if [[ \$1 == warmup ]]; then
   if [[ " \$* " == *" --provider tart "* ]]; then
     echo 'leased cbx_stale instance=stale-resource'
@@ -143,6 +146,10 @@ if [[ " \$* " == *"field.focused"* ]]; then
 fi
 if [[ " \$* " == *"button.position"* ]]; then
   printf '400,300'
+  exit 0
+fi
+if [[ " \$* " == *"AXPress"* ]]; then
+  printf pressed
   exit 0
 fi
 if [[ " \$* " == *"AXSecureTextField"* ]]; then
@@ -982,6 +989,8 @@ if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" 
 fi
 secure_agent_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent AXSecureTextField Allow 0)
 assert_contains "$secure_agent_result" $'secure_dialog_input\tpassed'
+assert_contains "$secure_agent_result" $'secure_dialog_focus_transport\taccessibility-and-native-pointer'
+assert_contains "$secure_agent_result" $'secure_dialog_submit_transport\tnative-pointer'
 grep -Fq 'field.focused' "$TMP/guest-ssh-calls"
 grep -Fq 'button.position' "$TMP/guest-ssh-calls"
 grep -Fq 'closed' "$TMP/guest-ssh-calls"
@@ -993,6 +1002,11 @@ if grep -q -- '--text' "$CALLS" || grep -q '/usr/bin/sudo\|pbcopy\|the\\ clipboa
     echo "SecurityAgent secure input used an unsafe password path" >&2
     exit 1
 fi
+secure_agent_fallback=$(KEYPATH_LAB_TEST_CRABBOX_CLICK_FAIL=1 run_remote secure-dialog-input cbx_desktop15 SecurityAgent AXSecureTextField Enroll 0)
+assert_contains "$secure_agent_fallback" $'secure_dialog_input\tpassed'
+assert_contains "$secure_agent_fallback" $'secure_dialog_focus_transport\taccessibility-only'
+assert_contains "$secure_agent_fallback" $'secure_dialog_submit_transport\taccessibility-press-fallback'
+grep -Fq 'AXPress' "$TMP/guest-ssh-calls"
 secure_settings_result=$(run_remote secure-dialog-input cbx_desktop15 'System Settings' AXSecureTextField 'Modify Settings' 0)
 assert_contains "$secure_settings_result" $'secure_dialog_input\tpassed'
 grep -q 'System.*Settings.*Modify.*Settings' "$TMP/guest-ssh-calls"
