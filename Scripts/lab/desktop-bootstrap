@@ -185,7 +185,10 @@ function run() {
     var fullWindow = full[0].windows[0];
     try {
       var fullSize = fullWindow.size();
-      if (fullWindow.subrole() === "AXSystemDialog" && fullSize[0] === 1024 && fullSize[1] === 768) return "screen-capture";
+      var fullMessage = fullWindow.staticTexts().map(function(item) { return item.value() || ""; }).join(" ").toLowerCase();
+      var mentionsScreenCapture = fullMessage.indexOf("screen") !== -1 &&
+        (fullMessage.indexOf("record") !== -1 || fullMessage.indexOf("capture") !== -1 || fullMessage.indexOf("share") !== -1);
+      if (fullWindow.subrole() === "AXSystemDialog" && fullSize[0] === 1024 && fullSize[1] === 768 && mentionsScreenCapture) return "screen-capture";
     } catch (_) {}
   }
   var privateCenter = systemEvents.processes.whose({name: "UserNotificationCenter"})();
