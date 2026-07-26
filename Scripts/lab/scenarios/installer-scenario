@@ -107,6 +107,11 @@ case "$name" in
     require_installed_cli
     "$installed_cli" system inspect --json | tee "$artifact_dir/system-inspect.json"
     Scripts/lab/probe-kanata-tcp 2> "$artifact_dir/tcp-readiness.stderr" | tee "$artifact_dir/tcp-readiness.json"
+    assert_ready | tee "$artifact_dir/ready.tsv"
+    record_scenario_result passed \
+      "The installed helper, managed services, Kanata process, and TCP control plane are independently healthy." \
+      --evidence system-inspect.json --evidence tcp-readiness.json \
+      --evidence tcp-readiness.stderr --evidence ready.tsv
     ;;
   managed-capabilities)
     if [[ "$lane" != "managed-functional" ]]; then
@@ -124,6 +129,11 @@ case "$name" in
     open -a KeyPath
     sleep 3
     pgrep -fl '/Applications/KeyPath.app/Contents/MacOS/KeyPath' | tee "$artifact_dir/processes.txt"
+    /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
+    capture_app_identity "$artifact_dir/app-identity.txt"
+    record_scenario_result passed \
+      "The exact signed KeyPath application launched and remained running in the disposable guest." \
+      --evidence processes.txt --evidence app-identity.txt
     ;;
   repair-reinstall)
     require_installed_cli
