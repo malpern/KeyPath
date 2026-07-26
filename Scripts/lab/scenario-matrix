@@ -182,7 +182,10 @@ def build_plan(
         "waves": schedule(selected, capacities),
         "jobs": jobs,
         "excluded": [
-            {"id": case["id"], "automation": case["automation"], "reason": "explicit opt-in required"}
+            {
+                "id": case["id"], "title": case["title"],
+                "automation": case["automation"], "reason": "explicit opt-in required",
+            }
             for case in exclusions
         ],
     }

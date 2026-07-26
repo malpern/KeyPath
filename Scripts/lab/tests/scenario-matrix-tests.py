@@ -41,6 +41,8 @@ class ScenarioMatrixTests(unittest.TestCase):
         self.assertIn("macos26-selectors", excluded)
         self.assertIn("macos15-cancellation-recovery", excluded)
         self.assertIn("macos15-physical-remap", excluded)
+        physical = next(entry for entry in plan["excluded"] if entry["id"] == "macos15-physical-remap")
+        self.assertEqual(physical["title"], "macOS 15 physical q-to-w remap")
 
     def test_weekly_plan_covers_every_eligible_pair(self):
         plan = self.run_plan("--cadence", "weekly")
