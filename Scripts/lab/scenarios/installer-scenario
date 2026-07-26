@@ -164,7 +164,7 @@ case "$name" in
       "A deliberate Kanata service failure was detected and repaired once to an independently ready runtime." \
       --evidence pre-damage-ready.tsv --evidence pre-damage-status.json \
       --evidence damage.tsv --evidence damaged-status.json --evidence damaged-state.tsv \
-      --evidence run-state.json --evidence runner-result.json \
+      --evidence run-state.json \
       --evidence post-repair-status.json --evidence post-repair-ready.tsv
     ;;
   upgrade-beta3-to-current)
