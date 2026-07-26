@@ -28,6 +28,9 @@ class DriverTests(unittest.TestCase):
         result = self.call("--expect", "InputMonitoring", "--expect", "KeyPath")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads((self.output / "selector-contract.json").read_text())["macOSMajor"], 26)
+        outcome = json.loads((self.output / "result.json").read_text())
+        self.assertEqual(outcome["status"], "passed")
+        self.assertEqual(outcome["evidence"], ["system-settings-ax.json", "selector-contract.json"])
 
     def test_rejects_another_macos_version_without_snapshot(self):
         result = self.call("--expect", "KeyPath", version="15.7.7")

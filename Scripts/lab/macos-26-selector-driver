@@ -85,6 +85,12 @@ def main() -> int:
         "expectedAny": alternatives,
         "evidence": "system-settings-ax.json",
     }, indent=2) + "\n")
+    subprocess.run([
+        str(RESULT), "record", "--output", str(args.output / "result.json"),
+        "--scenario", args.scenario, "--status", "passed",
+        "--summary", "macOS 26 exposed every accepted fail-closed System Settings selector.",
+        "--evidence", "system-settings-ax.json", "--evidence", "selector-contract.json",
+    ], check=True)
     return 0
 
 

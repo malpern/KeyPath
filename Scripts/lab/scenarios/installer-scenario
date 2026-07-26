@@ -124,6 +124,11 @@ case "$name" in
     require_installed_cli
     Scripts/lab/mdm/probe-managed-capabilities --output "$artifact_dir" \
       --managed-policy-manifest /Library/KeyPathLab/managed-policy/manifest.json
+    record_scenario_result passed \
+      "The managed macOS runtime exposed every required KeyPath capability, policy assertion, system extension, launchd service, and TCP control-plane check." \
+      --evidence service-status.json --evidence managed-policy-verification.tsv \
+      --evidence system-extensions.txt --evidence kanata-launchd.txt \
+      --evidence tcp-readiness.json --evidence result.tsv
     ;;
   launch)
     open -a KeyPath
@@ -143,7 +148,7 @@ case "$name" in
   repair-kanata-service)
     require_installed_cli
     state="$artifact_dir/run-state.json"
-    result="$artifact_dir/result.json"
+    runner_result="$artifact_dir/runner-result.json"
     plan="$PWD/Scripts/lab/scenarios/plans/repair-kanata-service.json"
     if [[ ! -f "$state" ]]; then
       assert_ready | tee "$artifact_dir/pre-damage-ready.tsv"
@@ -152,9 +157,15 @@ case "$name" in
       "$installed_cli" service status --json > "$artifact_dir/damaged-status.json" || true
       Scripts/lab/assert-runtime-state degraded | tee "$artifact_dir/damaged-state.tsv"
     fi
-    Scripts/lab/scenario-runner --plan "$plan" --state "$state" --result "$result"
+    Scripts/lab/scenario-runner --plan "$plan" --state "$state" --result "$runner_result"
     "$installed_cli" service status --json > "$artifact_dir/post-repair-status.json"
     assert_ready | tee "$artifact_dir/post-repair-ready.tsv"
+    record_scenario_result passed \
+      "A deliberate Kanata service failure was detected and repaired once to an independently ready runtime." \
+      --evidence pre-damage-ready.tsv --evidence pre-damage-status.json \
+      --evidence damage.tsv --evidence damaged-status.json --evidence damaged-state.tsv \
+      --evidence run-state.json --evidence runner-result.json \
+      --evidence post-repair-status.json --evidence post-repair-ready.tsv
     ;;
   upgrade-beta3-to-current)
     plan="$PWD/Scripts/lab/scenarios/plans/upgrade-beta3-to-current.json"

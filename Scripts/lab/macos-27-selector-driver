@@ -133,6 +133,13 @@ def main() -> int:
         "evidence": snapshot.name,
         "preflightEvidence": preflight_path.name,
     }, indent=2) + "\n")
+    subprocess.run([
+        str(RESULT), "record", "--output", str(args.output / "result.json"),
+        "--scenario", args.scenario, "--status", "passed",
+        "--summary", "macOS 27 exposed every accepted fail-closed System Settings selector.",
+        "--evidence", snapshot.name, "--evidence", "selector-contract.json",
+        "--evidence", preflight_path.name,
+    ], check=True)
     return 0
 
 

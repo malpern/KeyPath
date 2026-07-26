@@ -284,6 +284,9 @@ grep -Fq 'The same lease must pass cancellation-recovery-before before post-canc
 grep -Fq 'Scripts/lab/damage-kanata-service' "$LAB_DIR/scenarios/installer-scenario"
 grep -Fq 'cancellation-recovery-before)' "$LAB_DIR/scenarios/installer-scenario"
 grep -Fq 'cancellation-recovery-after)' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'The managed macOS runtime exposed every required KeyPath capability' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'runner-result.json' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'A deliberate Kanata service failure was detected and repaired once' "$LAB_DIR/scenarios/installer-scenario"
 grep -q 'macos-27-regression)' "$LAB_DIR/scenarios/installer-scenario"
 
 run_remote() {

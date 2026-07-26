@@ -64,6 +64,11 @@ class DriverTests(unittest.TestCase):
         contract = json.loads((self.output / "selector-contract.json").read_text())
         self.assertEqual(contract["macOSMajor"], 27)
         self.assertEqual(contract["macOSBuild"], "26A5378j")
+        outcome = json.loads((self.output / "result.json").read_text())
+        self.assertEqual(outcome["status"], "passed")
+        self.assertEqual(outcome["evidence"], [
+            "system-settings-ax.json", "selector-contract.json", "peekaboo-preflight.json"
+        ])
 
     def test_requires_at_least_one_selector(self):
         result = self.call()
