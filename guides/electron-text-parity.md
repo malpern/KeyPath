@@ -20,6 +20,10 @@ upstream, not for people configuring KeyPath — if you just want KindaVim worki
 **Short version:** the failure is mostly Chromium's, not Apple's, and most of it is ordinary
 bug-fixing rather than missing API.
 
+It is also the reason KindaVim runs its degraded Keyboard strategy in apps like Slack instead of the
+full Accessibility strategy — the accessibility data it would need there isn't trustworthy. See
+[KindaVim]({{ '/guides/kindavim/' | relative_url }}) for what that costs you in practice.
+
 ---
 
 ## Five Things Have to Work
@@ -94,8 +98,9 @@ involvement, no performance trade-off, small diff.
 
 **E2 — `AXManualAccessibility` robustness.** The attribute was silently unsettable for roughly two
 years: handled internally but never advertised via `accessibilityAttributeNames`, so setting it
-returned `kAXErrorAttributeUnsupported`. Fixed in 2023 by an outside contributor. Still needs a
-regression test.
+returned `kAXErrorAttributeUnsupported`. Fixed by
+[electron#38102 ↗](https://github.com/electron/electron/pull/38102), merged April 2023 and
+backported to the 23/24/25 branches. Still needs a regression test.
 
 **E3 — Expose the granular mode.** `app.setAccessibilitySupportEnabled` is a boolean. Once C4
 exists it should take a level.
@@ -168,13 +173,15 @@ native path — so the JavaScript model updates correctly without anyone touchin
 
 ## Confidence
 
-- **Cited** — C1, C4, C5, E1–E4, and A1–A3 each rest on a primary source listed below.
-- **Inference** — Four items are reasoning rather than citation, and should be verified before
+- **Cited** — C1, C4, C5, E1–E4, and A1–A2 each rest on a primary source listed below.
+- **Inference** — Five items are reasoning rather than citation, and should be verified before
   anyone quotes them upstream. **C3** (write-path fidelity) argues from observed symptoms rather
   than from reading Blink. **C2**'s claim that WebKit linearizes rich editors better is domain
   judgement, not a measured comparison. **C6** (absence of conformance tests) is inferred from C1
-  persisting, not confirmed against Chromium's test suite. **A4** (no capability negotiation) is an
-  observation that no such API exists — easy to falsify if one does.
+  persisting, not confirmed against Chromium's test suite. **A3**'s claim that `NSAccessibility`
+  offers no replacement for custom attributes traces to a search-engine summary, not to anything in
+  the source list — electron#10305 itself does not discuss it. **A4** (no capability negotiation) is
+  an observation that no such API exists — easy to falsify if one does.
 - **Stale** — Most recent activity found is 2023–24. Nothing surfaced for 2025–26 on the
   text-range side, but that's absence of search results, not proof of inactivity. Check the
   Chromium tracker before filing against C1.
