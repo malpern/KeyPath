@@ -24,6 +24,7 @@ final class WizardWindowController {
     private var windowDelegate: WizardWindowDelegate?
     private var onDismiss: (() -> Void)?
     private var onboardingViewModel: KanataViewModel?
+    private var closeCompletion = WizardWindowCloseCompletion()
     private var sizeObserver: NSObjectProtocol?
     private var resizeDebounceWorkItem: DispatchWorkItem?
 
@@ -56,7 +57,7 @@ final class WizardWindowController {
         let wizardView = InstallationWizardView(
             initialPage: initialPage,
             onFirstSuccess: { [weak self] in
-                self?.showFirstSuccessOnboarding()
+                self?.scheduleFirstSuccessOnboarding()
             }
         )
 
@@ -135,15 +136,11 @@ final class WizardWindowController {
     /// Close the wizard window
     func closeWindow() {
         AppLogger.shared.log("🔮 [WizardWindow] Closing wizard window")
-        resizeDebounceWorkItem?.cancel()
-        resizeDebounceWorkItem = nil
-        if let observer = sizeObserver {
-            NotificationCenter.default.removeObserver(observer)
-            sizeObserver = nil
+        if let window {
+            window.close()
+        } else {
+            handleWindowClosed()
         }
-        window?.close()
-        handleWindowClosed()
-        windowDelegate = nil
     }
 
     /// Update window size to fit current content, keeping top edge fixed
@@ -208,6 +205,10 @@ final class WizardWindowController {
         AppLogger.shared.log("🎭 [WizardWindow] ========== WIZARD CLOSED ==========")
         resizeDebounceWorkItem?.cancel()
         resizeDebounceWorkItem = nil
+        if let observer = sizeObserver {
+            NotificationCenter.default.removeObserver(observer)
+            sizeObserver = nil
+        }
 
         // Reset overlay auto-hide guard
         LiveKeyboardOverlayController.shared.resetSettingsAutoHideGuard()
@@ -218,13 +219,16 @@ final class WizardWindowController {
         // Call dismiss handler
         onDismiss?()
         onDismiss = nil
+
+        hostingView = nil
+        window = nil
+        windowDelegate = nil
+        closeCompletion.runIfScheduled()
     }
 
-    private func showFirstSuccessOnboarding() {
-        // Let AppKit complete the wizard close before presenting a separate
-        // learning panel. This keeps the two moments spatially distinct.
+    private func scheduleFirstSuccessOnboarding() {
         let viewModel = onboardingViewModel ?? (NSApp.delegate as? AppDelegate)?.viewModel
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+        closeCompletion.schedule {
             FirstSuccessOnboardingWindowController.show(
                 kanataViewModel: viewModel
             )
@@ -238,6 +242,21 @@ final class WizardWindowController {
 }
 
 // MARK: - Window Delegate
+
+@MainActor
+struct WizardWindowCloseCompletion {
+    private var action: (@MainActor () -> Void)?
+
+    mutating func schedule(_ action: @escaping @MainActor () -> Void) {
+        self.action = action
+    }
+
+    mutating func runIfScheduled() {
+        let scheduledAction = action
+        action = nil
+        scheduledAction?()
+    }
+}
 
 private class WizardWindowDelegate: NSObject, NSWindowDelegate {
     private weak var controller: WizardWindowController?

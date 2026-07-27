@@ -140,7 +140,7 @@ public final class PackInstaller {
                     skipReload: skipFinalReload
                 )
             } catch {
-                AppLogger.shared.error(
+                AppLogger.shared.errorUnlessQuietTest(
                     "❌ [PackInstaller] Could not apply system-pack defaults for '\(pack.name)'; restoring previous state"
                 )
                 await restoreInstallRecord(
@@ -166,7 +166,7 @@ public final class PackInstaller {
             do {
                 try await installedPackTracker.upsert(record)
             } catch {
-                AppLogger.shared.error(
+                AppLogger.shared.errorUnlessQuietTest(
                     "❌ [PackInstaller] Could not persist system-pack record for '\(pack.name)'; restoring previous state"
                 )
                 await restoreInstallRecord(
@@ -221,7 +221,7 @@ public final class PackInstaller {
             do {
                 try await installedPackTracker.upsert(record)
             } catch {
-                AppLogger.shared.error(
+                AppLogger.shared.errorUnlessQuietTest(
                     "❌ [PackInstaller] Could not persist install record for '\(pack.name)'; restoring previous rule state"
                 )
                 await restoreInstallRecord(
@@ -639,7 +639,7 @@ public final class PackInstaller {
             // InstalledPackTracker mutates its in-memory dictionary before
             // writing, so the compensating call above is still required even
             // when its persistence attempt reports the same underlying error.
-            AppLogger.shared.error(
+            AppLogger.shared.errorUnlessQuietTest(
                 "❌ [PackInstaller] Could not persist tracker rollback for '\(packID)': \(error)"
             )
         }
@@ -658,9 +658,16 @@ public final class PackInstaller {
                     try FileManager.default.removeItem(at: snapshotURL)
                 }
             }
+            // Preserve the Vallack rollback contract from the original managed
+            // install path: a failed modern install supersedes and removes the
+            // legacy migration file. Any modern snapshot that predated this
+            // attempt has already been restored above.
+            if packID == PackRegistry.vallackSystem.id {
+                try PackCollectionSnapshot.removeLegacyVallackIfPresent()
+            }
             return true
         } catch {
-            AppLogger.shared.error(
+            AppLogger.shared.errorUnlessQuietTest(
                 "❌ [PackInstaller] Could not restore managed-collection snapshot for '\(packID)': \(error)"
             )
             return false

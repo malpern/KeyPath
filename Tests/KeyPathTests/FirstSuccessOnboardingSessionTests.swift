@@ -91,17 +91,98 @@ final class FirstSuccessOnboardingSessionTests: XCTestCase {
     }
 
     @MainActor
-    func testInterruptedApplyReturnsToARetryablePresentationState() {
+    func testApplyingSessionBlocksNavigationAndASecondBegin() {
         let session = FirstSuccessOnboardingSession()
 
-        session.begin(.capsLockEscape)
-        session.cancelApplyingAction()
+        XCTAssertTrue(session.begin(.capsLockEscape))
+        session.finish(.capsLockEscape, result: .applied)
+        XCTAssertTrue(session.moveForward())
+        XCTAssertEqual(session.step, .hyper)
 
-        XCTAssertEqual(session.step, .capsLock)
-        XCTAssertEqual(session.capsLockPhase, .explaining)
-        XCTAssertFalse(session.isApplying)
-        XCTAssertNil(session.failure)
-        XCTAssertNil(session.savedButNotActive)
+        XCTAssertTrue(session.begin(.hyper))
+
+        XCTAssertFalse(session.moveBack())
+        XCTAssertFalse(session.moveForward())
+        XCTAssertFalse(session.begin(.capsLockEscape))
+        XCTAssertEqual(session.step, .hyper)
+        XCTAssertEqual(session.hyperPhase, .applying)
+    }
+
+    @MainActor
+    func testSuspendedDurableActionDisablesButtonsAndRemainsSingleFlight() async {
+        let session = FirstSuccessOnboardingSession()
+        XCTAssertTrue(session.begin(.capsLockEscape))
+        session.finish(.capsLockEscape, result: .applied)
+        XCTAssertTrue(session.moveForward())
+
+        let coordinator = FirstSuccessOnboardingActionCoordinator(session: session)
+        let gate = FirstSuccessActionGate()
+        let mutationStarts = FirstSuccessActionCounter()
+
+        let firstStarted = coordinator.start(
+            .hyper,
+            initialPresentationDelay: .zero,
+            minimumPresentation: .zero
+        ) {
+            await mutationStarts.increment()
+            await gate.wait()
+            return .applied
+        }
+        XCTAssertTrue(firstStarted)
+
+        XCTAssertEqual(
+            coordinator.buttonState,
+            FirstSuccessOnboardingButtonState(
+                skipTourEnabled: false,
+                backEnabled: false,
+                primaryEnabled: false
+            )
+        )
+        XCTAssertFalse(coordinator.canDismiss)
+        XCTAssertFalse(coordinator.moveBack())
+
+        var dismissCount = 0
+        XCTAssertFalse(coordinator.requestDismiss { dismissCount += 1 })
+        XCTAssertEqual(dismissCount, 0)
+
+        let secondStarted = coordinator.start(
+            .capsLockEscape,
+            initialPresentationDelay: .zero,
+            minimumPresentation: .zero
+        ) {
+            await mutationStarts.increment()
+            return .applied
+        }
+        XCTAssertFalse(secondStarted)
+
+        for _ in 0 ..< 50 {
+            if await gate.waiterCount == 1 { break }
+            await Task.yield()
+        }
+        let suspendedWaiters = await gate.waiterCount
+        let startsWhileSuspended = await mutationStarts.value
+        XCTAssertEqual(suspendedWaiters, 1)
+        XCTAssertEqual(startsWhileSuspended, 1)
+        XCTAssertEqual(session.step, .hyper)
+
+        await gate.open()
+        for _ in 0 ..< 50 {
+            if !coordinator.isActionInFlight { break }
+            await Task.yield()
+        }
+
+        XCTAssertFalse(coordinator.isActionInFlight)
+        XCTAssertEqual(session.hyperPhase, .installed)
+        let completedMutationStarts = await mutationStarts.value
+        XCTAssertEqual(completedMutationStarts, 1)
+        XCTAssertEqual(
+            coordinator.buttonState,
+            FirstSuccessOnboardingButtonState(
+                skipTourEnabled: true,
+                backEnabled: true,
+                primaryEnabled: true
+            )
+        )
     }
 
     @MainActor
@@ -114,5 +195,35 @@ final class FirstSuccessOnboardingSessionTests: XCTestCase {
         session.finish(.capsLockEscape, result: .alreadyConfigured)
         session.markCapsLockPracticed()
         XCTAssertEqual(session.capsLockPhase, .practiced)
+    }
+}
+
+private actor FirstSuccessActionGate {
+    private var isOpen = false
+    private var continuations: [CheckedContinuation<Void, Never>] = []
+    private(set) var waiterCount = 0
+
+    func wait() async {
+        waiterCount += 1
+        guard !isOpen else { return }
+        await withCheckedContinuation { continuation in
+            continuations.append(continuation)
+        }
+    }
+
+    func open() {
+        guard !isOpen else { return }
+        isOpen = true
+        let pending = continuations
+        continuations.removeAll()
+        pending.forEach { $0.resume() }
+    }
+}
+
+private actor FirstSuccessActionCounter {
+    private(set) var value = 0
+
+    func increment() {
+        value += 1
     }
 }

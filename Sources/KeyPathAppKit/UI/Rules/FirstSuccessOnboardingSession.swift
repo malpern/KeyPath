@@ -151,27 +151,36 @@ final class FirstSuccessOnboardingSession {
         }
     }
 
-    func moveForward() {
-        guard let next = Step(rawValue: step.rawValue + 1) else { return }
+    @discardableResult
+    func moveForward() -> Bool {
+        guard !isApplying else { return false }
+        guard let next = Step(rawValue: step.rawValue + 1) else { return false }
         failure = nil
         savedButNotActive = nil
         step = next
+        return true
     }
 
-    func moveBack() {
-        guard let previous = Step(rawValue: step.rawValue - 1) else { return }
+    @discardableResult
+    func moveBack() -> Bool {
+        guard !isApplying else { return false }
+        guard let previous = Step(rawValue: step.rawValue - 1) else { return false }
         failure = nil
         savedButNotActive = nil
         step = previous
+        return true
     }
 
-    func begin(_ action: ActionKind) {
+    @discardableResult
+    func begin(_ action: ActionKind) -> Bool {
+        guard !isApplying else { return false }
         failure = nil
         savedButNotActive = nil
         switch action {
         case .capsLockEscape: capsLockPhase = .applying
         case .hyper: hyperPhase = .applying
         }
+        return true
     }
 
     func finish(_ action: ActionKind, result: ActionResult) {
@@ -207,23 +216,102 @@ final class FirstSuccessOnboardingSession {
         }
     }
 
-    /// Return presentation state to a safe retry point when the optional tour
-    /// is interrupted. The catalog operation remains authoritative if it has
-    /// already crossed its durable commit point; a later retry will resolve as
-    /// already configured.
-    func cancelApplyingAction() {
-        if capsLockPhase == .applying {
-            capsLockPhase = .explaining
-        }
-        if hyperPhase == .applying {
-            hyperPhase = .explaining
-        }
-        failure = nil
-        savedButNotActive = nil
-    }
-
     func markCapsLockPracticed() {
         guard capsLockPhase.isInstalled else { return }
         capsLockPhase = .practiced
+    }
+}
+
+struct FirstSuccessOnboardingButtonState: Equatable, Sendable {
+    var skipTourEnabled: Bool
+    var backEnabled: Bool
+    var primaryEnabled: Bool
+}
+
+/// Owns the single durable onboarding mutation independently of view lifetime.
+/// Navigation remains unavailable until the underlying install/reload action
+/// returns and its result has been reflected in the presentation session.
+@MainActor
+@Observable
+final class FirstSuccessOnboardingActionCoordinator {
+    let session: FirstSuccessOnboardingSession
+
+    private(set) var isActionInFlight = false {
+        didSet {
+            actionStateDidChange?(isActionInFlight)
+        }
+    }
+
+    @ObservationIgnored private var actionTask: Task<Void, Never>?
+    @ObservationIgnored var actionStateDidChange: ((Bool) -> Void)?
+
+    init(session: FirstSuccessOnboardingSession = FirstSuccessOnboardingSession()) {
+        self.session = session
+    }
+
+    var canDismiss: Bool {
+        !isActionInFlight && !session.isApplying
+    }
+
+    var buttonState: FirstSuccessOnboardingButtonState {
+        FirstSuccessOnboardingButtonState(
+            skipTourEnabled: canDismiss,
+            backEnabled: canDismiss && session.step != .capsLock,
+            primaryEnabled: canDismiss
+        )
+    }
+
+    @discardableResult
+    func start(
+        _ kind: FirstSuccessOnboardingSession.ActionKind,
+        initialPresentationDelay: Duration = .milliseconds(17),
+        minimumPresentation: Duration = .milliseconds(520),
+        action: @escaping @MainActor @Sendable () async -> FirstSuccessOnboardingSession.ActionResult
+    ) -> Bool {
+        guard actionTask == nil, !isActionInFlight, session.begin(kind) else {
+            return false
+        }
+
+        isActionInFlight = true
+        actionTask = Task { @MainActor in
+            defer {
+                actionTask = nil
+                isActionInFlight = false
+            }
+
+            if initialPresentationDelay > .zero {
+                try? await Task<Never, Never>.sleep(for: initialPresentationDelay)
+            }
+
+            let clock = ContinuousClock()
+            let startedAt = clock.now
+            let result = await action()
+            let elapsed = startedAt.duration(to: clock.now)
+            if elapsed < minimumPresentation {
+                try? await Task<Never, Never>.sleep(for: minimumPresentation - elapsed)
+            }
+
+            session.finish(kind, result: result)
+        }
+        return true
+    }
+
+    @discardableResult
+    func moveForward() -> Bool {
+        guard canDismiss else { return false }
+        return session.moveForward()
+    }
+
+    @discardableResult
+    func moveBack() -> Bool {
+        guard canDismiss else { return false }
+        return session.moveBack()
+    }
+
+    @discardableResult
+    func requestDismiss(perform dismiss: () -> Void) -> Bool {
+        guard canDismiss else { return false }
+        dismiss()
+        return true
     }
 }

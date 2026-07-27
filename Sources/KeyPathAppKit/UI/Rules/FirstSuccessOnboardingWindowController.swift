@@ -8,6 +8,7 @@ import SwiftUI
 @MainActor
 final class FirstSuccessOnboardingWindowController: NSWindowController {
     private static var currentController: FirstSuccessOnboardingWindowController?
+    private let actionCoordinator: FirstSuccessOnboardingActionCoordinator
 
     static func show(kanataViewModel: KanataViewModel?) {
         if let currentController {
@@ -24,7 +25,9 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
     }
 
     private init(kanataViewModel: KanataViewModel?) {
+        let actionCoordinator = FirstSuccessOnboardingActionCoordinator()
         let dialog = FirstSuccessOnboardingDialog(
+            actionCoordinator: actionCoordinator,
             makeCapsLockEscape: {
                 if Self.usesNonMutatingVisualPreviewActions() {
                     return await Self.previewActionResult()
@@ -79,9 +82,13 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
         window.contentMinSize = NSSize(width: 960, height: 650)
         window.center()
 
+        self.actionCoordinator = actionCoordinator
         super.init(window: window)
         window.contentViewController = NSHostingController(rootView: dialog)
         window.delegate = self
+        actionCoordinator.actionStateDidChange = { [weak window] isActionInFlight in
+            window?.standardWindowButton(.closeButton)?.isEnabled = !isActionInFlight
+        }
     }
 
     /// Debug-only seam for reviewing every visual state without replacing a
@@ -107,8 +114,13 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
     }
 
     static func dismiss() {
-        currentController?.close()
-        currentController = nil
+        guard let controller = currentController else { return }
+        guard controller.actionCoordinator.canDismiss else {
+            NSSound.beep()
+            return
+        }
+        controller.close()
+        Self.currentController = nil
     }
 
     private static func installCapsLockEscape(
@@ -405,6 +417,14 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
 }
 
 extension FirstSuccessOnboardingWindowController: NSWindowDelegate {
+    func windowShouldClose(_: NSWindow) -> Bool {
+        guard actionCoordinator.canDismiss else {
+            NSSound.beep()
+            return false
+        }
+        return true
+    }
+
     func windowWillClose(_: Notification) {
         LiveKeyboardOverlayController.shared.resetSettingsAutoHideGuard()
         Self.currentController = nil

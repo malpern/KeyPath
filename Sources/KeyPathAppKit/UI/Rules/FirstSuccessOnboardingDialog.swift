@@ -243,19 +243,22 @@ private final class FirstSuccessWindowBackgroundView: NSView {
 /// keyboard hero is fed by the same scene model in both SwiftUI and Metal.
 @MainActor
 struct FirstSuccessOnboardingDialog: View {
+    let actionCoordinator: FirstSuccessOnboardingActionCoordinator
     let makeCapsLockEscape: @MainActor @Sendable () async -> FirstSuccessOnboardingSession.ActionResult
     let addHyperHold: @MainActor @Sendable () async -> FirstSuccessOnboardingSession.ActionResult
     let openCapsLockControls: () -> Void
     let finishInRules: () -> Void
     let dismiss: () -> Void
 
-    @State private var session = FirstSuccessOnboardingSession()
     @State private var keyboardInput = FirstSuccessKeyboardInputCoordinator()
     @State private var keyboardEntrance = KeyboardStageEntranceController()
-    @State private var actionTask: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    private var session: FirstSuccessOnboardingSession {
+        actionCoordinator.session
+    }
 
     var body: some View {
         TimelineView(.animation(paused: !keyboardEntrance.presentation.isAnimating)) { _ in
@@ -315,8 +318,6 @@ struct FirstSuccessOnboardingDialog: View {
             keyboardInput.start()
         }
         .onDisappear {
-            actionTask?.cancel()
-            actionTask = nil
             keyboardInput.stop()
             keyboardEntrance.settle()
         }
@@ -350,6 +351,7 @@ struct FirstSuccessOnboardingDialog: View {
                         comment: "Button that dismisses the optional first-success tour."
                     ),
                     action: skipTour,
+                    isEnabled: actionCoordinator.buttonState.skipTourEnabled,
                     usesCancelShortcut: false
                 ),
                 secondary: .init(
@@ -359,13 +361,13 @@ struct FirstSuccessOnboardingDialog: View {
                         comment: "Button that returns to the previous first-success lesson."
                     ),
                     action: goBack,
-                    isEnabled: session.step != .capsLock
+                    isEnabled: actionCoordinator.buttonState.backEnabled
                 ),
                 primary: .init(
                     title: String(localized: primaryTitle),
                     action: performPrimaryAction,
-                    isEnabled: !session.isApplying && actionTask == nil,
-                    isLoading: session.isApplying
+                    isEnabled: actionCoordinator.buttonState.primaryEnabled,
+                    isLoading: actionCoordinator.isActionInFlight
                 ),
                 secondaryPlacement: .trailing
             )
@@ -414,6 +416,7 @@ struct FirstSuccessOnboardingDialog: View {
     }
 
     private func performPrimaryAction() {
+        guard actionCoordinator.buttonState.primaryEnabled else { return }
         switch session.step {
         case .capsLock:
             switch session.capsLockPhase {
@@ -448,47 +451,22 @@ struct FirstSuccessOnboardingDialog: View {
         _ kind: FirstSuccessOnboardingSession.ActionKind,
         action: @escaping @MainActor @Sendable () async -> FirstSuccessOnboardingSession.ActionResult
     ) {
-        guard actionTask == nil else { return }
-        session.begin(kind)
-        actionTask = Task { @MainActor in
-            defer { actionTask = nil }
-            // Give SwiftUI one display turn to present the causal pressed state
-            // before catalog installation begins doing MainActor work.
-            try? await Task<Never, Never>.sleep(for: .milliseconds(17))
-            guard !Task.isCancelled else { return }
-            let clock = ContinuousClock()
-            let startedAt = clock.now
-            let result = await action()
-            let minimumPresentation: Duration = .milliseconds(520)
-            let elapsed = startedAt.duration(to: clock.now)
-            if elapsed < minimumPresentation {
-                try? await Task<Never, Never>.sleep(for: minimumPresentation - elapsed)
-            }
-            guard !Task.isCancelled else { return }
-            session.finish(kind, result: result)
-        }
+        actionCoordinator.start(kind, action: action)
     }
 
     private func moveForward() {
         // The keyboard hero owns its critically damped transition. Applying a
         // broad SwiftUI animation here also cross-fades stable labels and action
         // bar controls, which can leave them briefly blank during page changes.
-        session.moveForward()
+        actionCoordinator.moveForward()
     }
 
     private func goBack() {
-        cancelActiveAction()
-        session.moveBack()
+        actionCoordinator.moveBack()
     }
 
     private func skipTour() {
-        cancelActiveAction()
-        dismiss()
-    }
-
-    private func cancelActiveAction() {
-        actionTask?.cancel()
-        session.cancelApplyingAction()
+        actionCoordinator.requestDismiss(perform: dismiss)
     }
 }
 
