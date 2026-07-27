@@ -1,4 +1,8 @@
-foreach(secret_name KEYPATH_WIFI_SSID KEYPATH_WIFI_PASSWORD KEYPATH_FIXTURE_TOKEN)
+foreach(secret_name
+        KEYPATH_WIFI_SSID_1 KEYPATH_WIFI_PASSWORD_1
+        KEYPATH_WIFI_SSID_2 KEYPATH_WIFI_PASSWORD_2
+        KEYPATH_WIFI_SSID_3 KEYPATH_WIFI_PASSWORD_3
+        KEYPATH_FIXTURE_TOKEN)
     if(NOT DEFINED ENV{${secret_name}} OR "$ENV{${secret_name}}" STREQUAL "")
         message(FATAL_ERROR "${secret_name} must be supplied in the build environment")
     endif()
@@ -14,6 +18,15 @@ if(fixture_token_length LESS 16)
 endif()
 
 get_filename_component(component_dir "${CMAKE_CURRENT_LIST_FILE}" DIRECTORY)
+execute_process(
+    COMMAND git -C "${component_dir}" rev-parse --short=12 HEAD
+    OUTPUT_VARIABLE KEYPATH_FIXTURE_BUILD_ID
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(KEYPATH_FIXTURE_BUILD_ID STREQUAL "")
+    set(KEYPATH_FIXTURE_BUILD_ID "unknown")
+endif()
 set(shared_source "${component_dir}/../../../src")
 set(generated_dir "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${generated_dir}")
@@ -30,6 +43,8 @@ idf_component_register(
         "${shared_source}/fixture_core.c"
         "${shared_source}/fixture_presentation.c"
         "${shared_source}/fixture_ui_model.c"
+        "${shared_source}/fixture_visual_model.c"
+        "${shared_source}/fixture_wifi_model.c"
     INCLUDE_DIRS
         "."
         "${shared_source}"

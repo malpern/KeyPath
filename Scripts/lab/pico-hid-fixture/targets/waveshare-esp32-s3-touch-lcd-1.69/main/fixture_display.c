@@ -8,6 +8,7 @@
 #include "esp_timer.h"
 #include "fixture_board.h"
 #include "fixture_runtime.h"
+#include "fixture_visual_model.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "lvgl.h"
@@ -42,95 +43,24 @@ typedef struct {
 
 static display_ui_t ui;
 
-static const char *scene_name(fixture_ui_scene_t scene) {
-    switch (scene) {
-        case FIXTURE_UI_BOOT: return "WAKING UP";
-        case FIXTURE_UI_CONNECTING: return "JOINING LAB";
-        case FIXTURE_UI_IDLE: return "READY";
-        case FIXTURE_UI_LOADED: return "SCRIPT LOADED";
-        case FIXTURE_UI_ARMED: return "ARMED";
-        case FIXTURE_UI_RUNNING: return "TYPING";
-        case FIXTURE_UI_COMPLETE: return "RUN COMPLETE";
-        case FIXTURE_UI_ABORTED: return "RUN STOPPED";
-        case FIXTURE_UI_ERROR: return "ATTENTION";
+static const char *symbol_for(fixture_visual_icon_t icon) {
+    switch (icon) {
+        case FIXTURE_ICON_POWER: return LV_SYMBOL_POWER;
+        case FIXTURE_ICON_WIFI: return LV_SYMBOL_WIFI;
+        case FIXTURE_ICON_KEYBOARD: return LV_SYMBOL_KEYBOARD;
+        case FIXTURE_ICON_DOWNLOAD: return LV_SYMBOL_DOWNLOAD;
+        case FIXTURE_ICON_WARNING: return LV_SYMBOL_WARNING;
+        case FIXTURE_ICON_PLAY: return LV_SYMBOL_PLAY;
+        case FIXTURE_ICON_OK: return LV_SYMBOL_OK;
+        case FIXTURE_ICON_STOP: return LV_SYMBOL_STOP;
+        case FIXTURE_ICON_CLOSE: return LV_SYMBOL_CLOSE;
+        case FIXTURE_ICON_REFRESH: return LV_SYMBOL_REFRESH;
+        case FIXTURE_ICON_BELL: return LV_SYMBOL_BELL;
+        case FIXTURE_ICON_EYE: return LV_SYMBOL_EYE_OPEN;
+        case FIXTURE_ICON_SETTINGS: return LV_SYMBOL_SETTINGS;
+        case FIXTURE_ICON_NEXT: return LV_SYMBOL_NEXT;
     }
-    return "UNKNOWN";
-}
-
-static lv_color_t accent_for(fixture_ui_scene_t scene) {
-    switch (scene) {
-        case FIXTURE_UI_RUNNING: return lv_color_hex(0x55c7ff);
-        case FIXTURE_UI_COMPLETE: return lv_color_hex(0x44d7a8);
-        case FIXTURE_UI_ARMED: return lv_color_hex(0xffb454);
-        case FIXTURE_UI_ABORTED: return lv_color_hex(0x9c7cff);
-        case FIXTURE_UI_ERROR: return lv_color_hex(0xff5c72);
-        default: return lv_color_hex(0x56ddb3);
-    }
-}
-
-static lv_color_t presentation_accent(const fixture_presentation_t *presentation,
-                                      fixture_ui_scene_t scene) {
-    if (presentation->result == FIXTURE_RESULT_PASS) return lv_color_hex(0x44d7a8);
-    if (presentation->result == FIXTURE_RESULT_FAIL) return lv_color_hex(0xff5c72);
-    if (presentation->result == FIXTURE_RESULT_INCONCLUSIVE) return lv_color_hex(0xffb454);
-    switch (presentation->phase) {
-        case FIXTURE_PRESENT_PREPARING: return lv_color_hex(0x9c7cff);
-        case FIXTURE_PRESENT_COUNTDOWN: return lv_color_hex(0xffb454);
-        case FIXTURE_PRESENT_TESTING: return lv_color_hex(0x55c7ff);
-        case FIXTURE_PRESENT_OBSERVING: return lv_color_hex(0xb58cff);
-        case FIXTURE_PRESENT_RESOLVING: return lv_color_hex(0x36d8d0);
-        case FIXTURE_PRESENT_NEXT: return lv_color_hex(0x55c7ff);
-        default: return accent_for(scene);
-    }
-}
-
-static int visual_stage(const fixture_presentation_t *presentation, fixture_ui_scene_t scene) {
-    if (presentation->result != FIXTURE_RESULT_NONE) return 32 + (int)presentation->result;
-    if (presentation->phase != FIXTURE_PRESENT_AUTO) return 16 + (int)presentation->phase;
-    return (int)scene;
-}
-
-static const char *symbol_for(int stage) {
-    if (stage == 33) return LV_SYMBOL_OK;
-    if (stage == 34) return LV_SYMBOL_CLOSE;
-    if (stage == 35) return LV_SYMBOL_WARNING;
-    switch (stage) {
-        case FIXTURE_UI_BOOT: return LV_SYMBOL_POWER;
-        case FIXTURE_UI_CONNECTING: return LV_SYMBOL_WIFI;
-        case FIXTURE_UI_IDLE: return LV_SYMBOL_KEYBOARD;
-        case FIXTURE_UI_LOADED: return LV_SYMBOL_DOWNLOAD;
-        case FIXTURE_UI_ARMED: return LV_SYMBOL_WARNING;
-        case FIXTURE_UI_RUNNING: return LV_SYMBOL_PLAY;
-        case FIXTURE_UI_COMPLETE: return LV_SYMBOL_OK;
-        case FIXTURE_UI_ABORTED: return LV_SYMBOL_STOP;
-        case FIXTURE_UI_ERROR: return LV_SYMBOL_CLOSE;
-        case 17: return LV_SYMBOL_REFRESH;
-        case 18: return LV_SYMBOL_BELL;
-        case 19: return LV_SYMBOL_KEYBOARD;
-        case 20: return LV_SYMBOL_EYE_OPEN;
-        case 21: return LV_SYMBOL_SETTINGS;
-        case 22: return LV_SYMBOL_OK;
-        case 23: return LV_SYMBOL_NEXT;
-        default: return LV_SYMBOL_POWER;
-    }
-}
-
-static const char *presentation_title(const fixture_presentation_t *presentation,
-                                      fixture_ui_scene_t scene) {
-    if (presentation->result == FIXTURE_RESULT_PASS) return "TEST PASSED";
-    if (presentation->result == FIXTURE_RESULT_FAIL) return "TEST FAILED";
-    if (presentation->result == FIXTURE_RESULT_INCONCLUSIVE) return "NEEDS REVIEW";
-    if (presentation->title[0]) return presentation->title;
-    switch (presentation->phase) {
-        case FIXTURE_PRESENT_PREPARING: return "PREPARING";
-        case FIXTURE_PRESENT_COUNTDOWN: return "STAND BY";
-        case FIXTURE_PRESENT_TESTING: return "SENDING KEYS";
-        case FIXTURE_PRESENT_OBSERVING: return "OBSERVING";
-        case FIXTURE_PRESENT_RESOLVING: return "RESOLVING";
-        case FIXTURE_PRESENT_RESULT: return "RESULT";
-        case FIXTURE_PRESENT_NEXT: return "UP NEXT";
-        default: return scene_name(scene);
-    }
+    return LV_SYMBOL_WARNING;
 }
 
 static lv_obj_t *make_circle(lv_obj_t *parent, int size, lv_color_t color, lv_opa_t opacity) {
@@ -287,17 +217,16 @@ static void announce_result(fixture_result_t result) {
 }
 
 static void render(const fixture_ui_output_t *output,
-                   const fixture_presentation_t *presentation, uint64_t now_ms) {
-    lv_color_t accent = presentation_accent(presentation, output->scene);
+                   const fixture_presentation_t *presentation,
+                   const char *automatic_detail, uint64_t now_ms) {
+    fixture_visual_output_t visual;
+    fixture_visual_resolve(output, presentation, &visual);
+    lv_color_t accent = lv_color_hex(visual.accent_rgb);
     int energy = output->energy_per_mille;
     uint64_t elapsed_ms = ui.previous_render_ms && now_ms > ui.previous_render_ms
                               ? now_ms - ui.previous_render_ms : output->frame_interval_ms;
     if (elapsed_ms > 250u) elapsed_ms = 250u;
-    float speed = output->scene == FIXTURE_UI_RUNNING ? 4.2f : 1.55f;
-    if (presentation->phase == FIXTURE_PRESENT_COUNTDOWN) speed = 2.6f;
-    if (presentation->phase == FIXTURE_PRESENT_TESTING) speed = 4.8f;
-    if (presentation->phase == FIXTURE_PRESENT_OBSERVING) speed = 1.1f;
-    if (output->quality == FIXTURE_UI_PROTECTED) speed = 0.48f;
+    float speed = (float)visual.angular_speed_milliradians / 1000.0f;
 #if CONFIG_KEYPATH_FIXTURE_REDUCED_MOTION
     speed = 0.0f;
 #endif
@@ -316,20 +245,20 @@ static void render(const fixture_ui_output_t *output,
     lv_obj_set_style_bg_color(ui.screen, output->scene == FIXTURE_UI_ERROR
                                              ? lv_color_hex(0x190b13)
                                              : lv_color_hex(0x071117), 0);
-    lv_label_set_text(ui.state, presentation_title(presentation, output->scene));
+    lv_label_set_text(ui.state, visual.title);
     lv_obj_set_style_text_color(ui.state, accent, 0);
     lv_obj_set_style_arc_color(ui.orbit, accent, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(ui.progress, accent, LV_PART_INDICATOR);
     lv_obj_set_style_border_color(ui.core, accent, 0);
-    uint16_t progress = presentation->phase == FIXTURE_PRESENT_AUTO
-                            ? output->progress_per_mille : presentation->progress_per_mille;
-    lv_arc_set_value(ui.progress, progress);
+    lv_arc_set_value(ui.progress, visual.progress_per_mille);
 
-    int stage = visual_stage(presentation, output->scene);
-    if (stage != ui.visual_stage) {
-        lv_label_set_text(ui.icon_back, symbol_for(ui.visual_stage));
-        lv_label_set_text(ui.icon_front, symbol_for(stage));
-        ui.visual_stage = stage;
+    if ((int)visual.icon != ui.visual_stage) {
+        fixture_visual_icon_t previous = ui.visual_stage < 0
+                                             ? FIXTURE_ICON_POWER
+                                             : (fixture_visual_icon_t)ui.visual_stage;
+        lv_label_set_text(ui.icon_back, symbol_for(previous));
+        lv_label_set_text(ui.icon_front, symbol_for(visual.icon));
+        ui.visual_stage = (int)visual.icon;
         ui.icon_transition_started_ms = now_ms;
     }
     uint64_t transition_elapsed = now_ms - ui.icon_transition_started_ms;
@@ -397,7 +326,7 @@ static void render(const fixture_ui_output_t *output,
     } else if (presentation->phase == FIXTURE_PRESENT_NEXT && presentation->next[0]) {
         lv_label_set_text(ui.detail, presentation->next);
     } else {
-        lv_label_set_text_static(ui.detail, "USB + Wi-Fi control");
+        lv_label_set_text(ui.detail, automatic_detail);
     }
 
     if (presentation->result != FIXTURE_RESULT_NONE && presentation->reports_expected > 0u) {
@@ -437,12 +366,22 @@ static void display_task(void *context) {
         fixture_runtime_snapshot(&snapshot);
         uint64_t now_ms = (uint64_t)(esp_timer_get_time() / 1000);
         fixture_ui_output_t output = fixture_ui_model_step(&model, &snapshot.ui, now_ms);
+        char automatic_detail[64];
+        if (snapshot.ui.state == FIXTURE_ERROR && snapshot.error[0]) {
+            snprintf(automatic_detail, sizeof(automatic_detail), "%.63s", snapshot.error);
+        } else if (!snapshot.ui.wifi_connected) {
+            snprintf(automatic_detail, sizeof(automatic_detail), "Trying %.32s", snapshot.network_name);
+        } else {
+            snprintf(automatic_detail, sizeof(automatic_detail), "%s  USB %s",
+                     snapshot.network_address,
+                     snapshot.ui.usb_mounted ? "READY" : "WAIT");
+        }
         if (output.completion_burst) ui.completion_started_ms = now_ms;
         announce_transition(&output);
         announce_result(snapshot.presentation.result);
         fixture_board_update(snapshot.ui.state == FIXTURE_ARMED || snapshot.ui.state == FIXTURE_RUNNING);
         if (bsp_display_lock(20u)) {
-            render(&output, &snapshot.presentation, now_ms);
+            render(&output, &snapshot.presentation, automatic_detail, now_ms);
             bsp_display_unlock();
         }
         vTaskDelay(pdMS_TO_TICKS(output.frame_interval_ms));

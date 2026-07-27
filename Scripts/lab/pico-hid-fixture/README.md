@@ -6,6 +6,32 @@ start, abort, and inspect locally timed HID scripts.
 
 The fixture is deliberately not part of any KeyPath product target.
 
+## First board: one-command install from a Mac
+
+The checked-in `pico-hid-fixture-tool` owns setup, tests, builds, flashing, and the first Wi-Fi
+health check. Before the board arrives, configure the three ordered Wi-Fi profiles and control
+token without putting their values in a shell history or chat:
+
+```bash
+Scripts/lab/pico-hid-fixture-tool configure
+Scripts/lab/pico-hid-fixture-tool doctor
+```
+
+`configure` opens Add Secret.app once for each missing value and stores it through sops. A doctor
+result of `wait  board not connected` is healthy before the hardware arrives. When the board is
+connected tomorrow, the complete path is:
+
+```bash
+Scripts/lab/pico-hid-fixture-tool install
+```
+
+That command validates the Mac and credentials, runs the host and QEMU suites, builds production
+firmware, detects an unambiguous serial port, flashes it, and waits for the authenticated Wi-Fi
+status endpoint. If no port appears, hold **BOOT**, tap **RESET**, then release **BOOT** and rerun;
+use `install --port /dev/cu...` only when more than one serial device is connected. The exact
+hands-on checklist and failure routing are in
+[`docs/testing/keypath-hid-fixture-first-board.md`](../../../docs/testing/keypath-hid-fixture-first-board.md).
+
 ## Hardware targets
 
 - **Primary:** Waveshare ESP32-S3-Touch-LCD-1.69 (240×280 display, capacitive touch, buzzer,
@@ -37,6 +63,9 @@ uses its onboard green LED instead.
 - On ESP32-S3, the HID scheduler owns core 1 at high priority. USB service, network control, sound,
   and display work remain on core 0. The motion governor drops the display from 30 to 20 to 8 FPS
   and removes expensive particle layers before animation can compete with HID timing.
+- Production exposes HID only—no USB serial console—so the VM observes the same device shape used
+  by the test. The screen reports Wi-Fi/IP/USB state, while authenticated `/v1/status` and
+  `/v1/trace` provide the deeper diagnostics and exact firmware build identifier.
 
 ## Pico LED states
 
@@ -50,7 +79,7 @@ uses its onboard green LED instead.
 | Complete | repeating triple blink |
 | Error | rapid blink |
 
-## Waveshare ESP32-S3 build
+## Waveshare ESP32-S3 manual build
 
 ESP-IDF 5.5.5 and its Python tools are installed locally under
 `~/.cache/keypath-esp32/esp-idf`. The target uses Waveshare's official board component and LVGL.
@@ -58,8 +87,12 @@ Build credentials are supplied only through the environment:
 
 ```bash
 source ~/.cache/keypath-esp32/esp-idf/export.sh
-export KEYPATH_WIFI_SSID='lab-network'
-export KEYPATH_WIFI_PASSWORD='...'
+export KEYPATH_WIFI_SSID_1='primary-network'
+export KEYPATH_WIFI_PASSWORD_1='...'
+export KEYPATH_WIFI_SSID_2='fallback-network-one'
+export KEYPATH_WIFI_PASSWORD_2='...'
+export KEYPATH_WIFI_SSID_3='fallback-network-two'
+export KEYPATH_WIFI_PASSWORD_3='...'
 export KEYPATH_FIXTURE_TOKEN='at-least-16-random-characters'
 idf.py -C Scripts/lab/pico-hid-fixture/targets/waveshare-esp32-s3-touch-lcd-1.69 build
 ```
@@ -71,6 +104,9 @@ older revision. Flashing waits for the physical board:
 ```bash
 idf.py -C Scripts/lab/pico-hid-fixture/targets/waveshare-esp32-s3-touch-lcd-1.69 -p PORT flash
 ```
+
+Prefer `pico-hid-fixture-tool install` for normal use. The manual commands remain documented for
+toolchain debugging and CI reproduction.
 
 The on-device scene is continuously alive: a breathing reactor, orbiting HID packets, a live
 progress arc, and time-based motion remain smooth even when the frame rate changes. Preparing,
@@ -178,7 +214,8 @@ Scripts/lab/pico-hid-fixture/tests/run-esp32-qemu-smoke.sh
 
 These tests cover CRC and script admission, timing/repeat execution, trace ordering, lateness
 metrics, boot/abort/unmount releases, US-keyboard compilation, bearer authentication, endpoint
-selection, NDJSON trace decoding, and the adaptive UI model. The QEMU test boots an ESP32-S3 image
+selection, secure installer behavior, presentation/result resolution, NDJSON trace decoding, and
+the adaptive UI model. The QEMU test boots an ESP32-S3 image
 and executes the real parser, scheduler, trace logic, and UI state model on the emulated Xtensa
 cores. QEMU does not emulate the Waveshare LCD/touch/buzzer or the ESP32-S3 native USB device
 controller, so the physical USB/VM, display, touch, sound, and timing acceptance checks still wait

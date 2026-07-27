@@ -1,0 +1,241 @@
+#!/bin/bash
+set -euo pipefail
+
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+fixture_root="$script_dir/pico-hid-fixture"
+target="$fixture_root/targets/waveshare-esp32-s3-touch-lcd-1.69"
+idf_path=${KEYPATH_FIXTURE_IDF_PATH:-"$HOME/.cache/keypath-esp32/esp-idf"}
+build_dir=${KEYPATH_FIXTURE_BUILD_DIR:-"$HOME/.cache/keypath-esp32/keypath-fixture-build"}
+sdkconfig=${KEYPATH_FIXTURE_SDKCONFIG:-"$HOME/.cache/keypath-esp32/keypath-fixture-sdkconfig"}
+secrets_file=${KEYPATH_FIXTURE_SECRETS_FILE:-"$HOME/dotfiles/secrets.env"}
+device_dir=${KEYPATH_FIXTURE_DEVICE_DIR:-/dev}
+add_secret_app=${KEYPATH_FIXTURE_ADD_SECRET_APP:-"/Applications/Add Secret.app"}
+
+required_secrets="KEYPATH_WIFI_SSID_1 KEYPATH_WIFI_PASSWORD_1 KEYPATH_WIFI_SSID_2 KEYPATH_WIFI_PASSWORD_2 KEYPATH_WIFI_SSID_3 KEYPATH_WIFI_PASSWORD_3 KEYPATH_FIXTURE_TOKEN"
+
+usage() {
+    printf '%s\n' \
+        "Usage: Scripts/lab/pico-hid-fixture-tool COMMAND [OPTIONS]" \
+        "" \
+        "Commands:" \
+        "  configure          Securely add any missing fixture credentials" \
+        "  doctor             Check toolchain, credentials, and connected board" \
+        "  test               Run host, campaign, and ESP32 QEMU tests" \
+        "  build              Build production firmware with real credentials" \
+        "  flash [--port DEV] Build and flash the connected Waveshare board" \
+        "  install [--port DEV] Run checks, tests, build, flash, and health check" \
+        "  status             Query the running fixture over Wi-Fi" \
+        "" \
+        "The fixture token is read from the environment or sops; never pass it on the command line."
+}
+
+fail() {
+    printf 'fixture-tool: %s\n' "$*" >&2
+    exit 1
+}
+
+have_secret() {
+    secret_name=$1
+    secret_value=$(printenv "$secret_name" 2>/dev/null || true)
+    [[ -n "$secret_value" ]]
+}
+
+load_credentials() {
+    missing=0
+    for secret_name in $required_secrets; do
+        if ! have_secret "$secret_name"; then
+            missing=1
+            break
+        fi
+    done
+    if [[ "$missing" -eq 0 ]]; then
+        return
+    fi
+    command -v sops >/dev/null 2>&1 || fail "sops is required to read $secrets_file"
+    [[ -f "$secrets_file" ]] || fail "encrypted secrets file is missing: $secrets_file"
+    while IFS='=' read -r secret_name secret_value; do
+        case "$secret_name" in
+            KEYPATH_WIFI_SSID_1|KEYPATH_WIFI_PASSWORD_1|KEYPATH_WIFI_SSID_2|KEYPATH_WIFI_PASSWORD_2|KEYPATH_WIFI_SSID_3|KEYPATH_WIFI_PASSWORD_3|KEYPATH_FIXTURE_TOKEN)
+                printf -v "$secret_name" '%s' "$secret_value"
+                export "$secret_name"
+                ;;
+        esac
+    done < <(sops -d "$secrets_file")
+}
+
+validate_credentials() {
+    load_credentials
+    for secret_name in $required_secrets; do
+        have_secret "$secret_name" || fail "$secret_name is not configured; run '$0 configure'"
+        secret_value=$(printenv "$secret_name")
+        case "$secret_value" in
+            *placeholder*|*PLACEHOLDER*) fail "$secret_name still contains a placeholder" ;;
+        esac
+    done
+    [[ ${#KEYPATH_FIXTURE_TOKEN} -ge 16 ]] || fail "KEYPATH_FIXTURE_TOKEN must contain at least 16 characters"
+}
+
+idf_activate() {
+    [[ -f "$idf_path/export.sh" ]] || fail "ESP-IDF is missing at $idf_path"
+    # shellcheck disable=SC1090
+    source "$idf_path/export.sh" >/dev/null
+}
+
+port_candidates() {
+    find "$device_dir" -maxdepth 1 -type c \( \
+        -name 'cu.usbmodem*' -o -name 'cu.wchusbserial*' -o -name 'cu.SLAB_USBtoUART*' \
+    \) -print 2>/dev/null | sort
+}
+
+detect_port() {
+    requested=${1:-}
+    if [[ -n "$requested" ]]; then
+        [[ -c "$requested" ]] || fail "serial device does not exist: $requested"
+        printf '%s\n' "$requested"
+        return
+    fi
+    candidates=$(port_candidates)
+    count=$(printf '%s\n' "$candidates" | awk 'NF { count++ } END { print count + 0 }')
+    if [[ "$count" -eq 0 ]]; then
+        fail "no ESP32 serial port found; connect the board, hold BOOT, tap RESET, release BOOT, then retry"
+    fi
+    if [[ "$count" -gt 1 ]]; then
+        printf 'fixture-tool: multiple serial devices found:\n%s\n' "$candidates" >&2
+        fail "retry with --port DEVICE"
+    fi
+    printf '%s\n' "$candidates"
+}
+
+configure_secret() {
+    secret_name=$1
+    [[ -d "$add_secret_app" ]] || fail "Add Secret.app is missing: $add_secret_app"
+    printf 'Add %s in the secure window, then press Enter.\n' "$secret_name"
+    open -W -n "$add_secret_app" --args --key "$secret_name"
+    result_file="$HOME/.config/add-secret/result.json"
+    [[ -f "$result_file" ]] || fail "Add Secret.app did not write a result"
+    python3 - "$result_file" "$secret_name" <<'PY'
+import json
+import pathlib
+import sys
+
+result = json.loads(pathlib.Path(sys.argv[1]).read_text())
+if result.get("status") != "success" or result.get("key") != sys.argv[2]:
+    raise SystemExit(f"Add Secret.app did not save {sys.argv[2]}: {result.get('status', 'unknown')}")
+PY
+}
+
+command_configure() {
+    for secret_name in $required_secrets; do
+        if grep -q "^${secret_name}=" "$secrets_file" 2>/dev/null; then
+            printf 'configured  %s\n' "$secret_name"
+        else
+            configure_secret "$secret_name"
+        fi
+    done
+    validate_credentials
+    printf 'credentials configured securely\n'
+}
+
+command_doctor() {
+    host_os=${KEYPATH_FIXTURE_HOST_OS:-$(uname -s)}
+    [[ "$host_os" == Darwin ]] || fail "flashing is supported from macOS"
+    [[ -d "$target" ]] || fail "firmware target is missing: $target"
+    [[ -f "$idf_path/export.sh" ]] || fail "ESP-IDF 5.5 toolchain is missing: $idf_path"
+    command -v cmake >/dev/null 2>&1 || fail "cmake is missing"
+    command -v ninja >/dev/null 2>&1 || fail "ninja is missing"
+    command -v python3 >/dev/null 2>&1 || fail "python3 is missing"
+    validate_credentials
+    printf 'ok  macOS host\n'
+    printf 'ok  ESP-IDF toolchain\n'
+    printf 'ok  production credentials (values hidden)\n'
+    candidates=$(port_candidates)
+    if [[ -n "$candidates" ]]; then
+        printf 'ok  serial device\n%s\n' "$candidates"
+    else
+        printf 'wait  board not connected (expected until hardware arrives)\n'
+    fi
+}
+
+command_test() {
+    "$fixture_root/tests/run-tests.sh"
+    python3 "$script_dir/tests/pico-hid-fixture-client-tests.py"
+    python3 "$script_dir/tests/pico-hid-fixture-tool-tests.py"
+    python3 "$script_dir/tests/scenario-matrix-runner-tests.py"
+    "$fixture_root/tests/run-esp32-qemu-smoke.sh"
+}
+
+command_build() {
+    validate_credentials
+    idf_activate
+    idf.py -C "$target" -B "$build_dir" -D "SDKCONFIG=$sdkconfig" build
+    [[ -f "$build_dir/keypath_esp32_s3_hid_fixture.bin" ]] || fail "build completed without a firmware binary"
+    printf 'firmware  %s\n' "$build_dir/keypath_esp32_s3_hid_fixture.bin"
+}
+
+parse_port() {
+    selected_port=
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --port)
+                [[ $# -ge 2 ]] || fail "--port requires a device"
+                selected_port=$2
+                shift 2
+                ;;
+            *) fail "unknown option: $1" ;;
+        esac
+    done
+}
+
+command_flash() {
+    parse_port "$@"
+    command_build
+    port=$(detect_port "$selected_port")
+    idf.py -C "$target" -B "$build_dir" -p "$port" flash
+    printf 'flashed  %s\n' "$port"
+    printf 'next  watch the display for JOINING LAB, then READY\n'
+}
+
+command_status() {
+    validate_credentials
+    "$script_dir/pico-hid-fixture-client" status
+}
+
+command_install() {
+    parse_port "$@"
+    command_doctor
+    command_test
+    if [[ -n "$selected_port" ]]; then
+        command_flash --port "$selected_port"
+    else
+        command_flash
+    fi
+    printf 'waiting for Wi-Fi health check'
+    attempt=0
+    while [[ "$attempt" -lt 30 ]]; do
+        if command_status >/dev/null 2>&1; then
+            printf '\ninstallation verified over Wi-Fi\n'
+            command_status
+            return
+        fi
+        printf '.'
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+    printf '\n' >&2
+    fail "firmware flashed but Wi-Fi health check failed; read the on-screen state and run '$0 status'"
+}
+
+command=${1:-}
+[[ -n "$command" ]] || { usage; exit 2; }
+shift
+case "$command" in
+    configure) [[ $# -eq 0 ]] || fail "configure takes no options"; command_configure ;;
+    doctor) [[ $# -eq 0 ]] || fail "doctor takes no options"; command_doctor ;;
+    test) [[ $# -eq 0 ]] || fail "test takes no options"; command_test ;;
+    build) [[ $# -eq 0 ]] || fail "build takes no options"; command_build ;;
+    flash) command_flash "$@" ;;
+    install) command_install "$@" ;;
+    status) [[ $# -eq 0 ]] || fail "status takes no options"; command_status ;;
+    help|-h|--help) usage ;;
+    *) usage >&2; fail "unknown command: $command" ;;
+esac

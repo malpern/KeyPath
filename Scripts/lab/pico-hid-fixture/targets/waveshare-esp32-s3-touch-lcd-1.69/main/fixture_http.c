@@ -14,6 +14,7 @@
 #include "esp_wifi.h"
 #include "fixture_config.h"
 #include "fixture_runtime.h"
+#include "fixture_wifi_model.h"
 #include "freertos/FreeRTOS.h"
 #include "mdns.h"
 #include "nvs_flash.h"
@@ -24,6 +25,18 @@
 static const char *TAG = "fixture_network";
 static char *script_buffer;
 static httpd_handle_t http_server;
+static fixture_wifi_model_t wifi_model;
+
+typedef struct {
+    const char *ssid;
+    const char *password;
+} wifi_profile_t;
+
+static const wifi_profile_t wifi_profiles[] = {
+    {KEYPATH_WIFI_SSID_1, KEYPATH_WIFI_PASSWORD_1},
+    {KEYPATH_WIFI_SSID_2, KEYPATH_WIFI_PASSWORD_2},
+    {KEYPATH_WIFI_SSID_3, KEYPATH_WIFI_PASSWORD_3},
+};
 
 static bool authorized(httpd_req_t *request) {
     char value[192];
@@ -50,29 +63,28 @@ static esp_err_t status_handler(httpd_req_t *request) {
     if (require_auth(request) != ESP_OK) return ESP_OK;
     fixture_runtime_snapshot_t snapshot;
     fixture_runtime_snapshot(&snapshot);
-    bool wifi_connected;
-    char address[48];
-    fixture_runtime_network_snapshot(&wifi_connected, address, sizeof(address));
     char body[1792];
     snprintf(body, sizeof(body),
-             "{\"ok\":true,\"firmware\":\"%s\",\"platform\":\"waveshare-esp32-s3-touch-lcd-1.69\","
+             "{\"ok\":true,\"firmware\":\"%s\",\"build\":\"%s\","
+             "\"platform\":\"waveshare-esp32-s3-touch-lcd-1.69\","
              "\"state\":\"%s\",\"runId\":\"%s\",\"scriptCRC32\":\"%08" PRIx32 "\","
              "\"eventCount\":%" PRIu32 ",\"repeatCount\":%" PRIu32 ",\"currentRepeat\":%" PRIu32 ","
              "\"reportsSubmitted\":%" PRIu64 ",\"transfersCompleted\":%" PRIu64 ","
              "\"lateReports\":%" PRIu64 ",\"maximumLatenessUs\":%" PRId64 ","
              "\"submittedCRC32\":\"%08" PRIx32 "\",\"usbMounted\":%s,"
-             "\"wifiConnected\":%s,\"address\":\"%s\",\"error\":\"%s\","
+             "\"wifiConnected\":%s,\"address\":\"%s\",\"network\":\"%s\",\"error\":\"%s\","
              "\"presentation\":{\"phase\":\"%s\",\"result\":\"%s\",\"progress\":%u,"
              "\"title\":\"%s\",\"detail\":\"%s\",\"next\":\"%s\","
              "\"reportsExpected\":%" PRIu32 ",\"reportsObserved\":%" PRIu32 ","
              "\"dropped\":%" PRIu32 ",\"duplicated\":%" PRIu32 ",\"repeated\":%" PRIu32 ","
              "\"latencyP95Us\":%" PRIu32 ",\"safeRelease\":%s}}\n",
-             KEYPATH_FIXTURE_FIRMWARE_VERSION, fixture_state_name(snapshot.ui.state), snapshot.run_id,
+             KEYPATH_FIXTURE_FIRMWARE_VERSION, KEYPATH_FIXTURE_BUILD_ID,
+             fixture_state_name(snapshot.ui.state), snapshot.run_id,
              snapshot.script_crc32, snapshot.ui.event_count, snapshot.ui.repeat_count,
              snapshot.ui.current_repeat, snapshot.ui.reports_submitted, snapshot.transfers_completed,
              snapshot.ui.late_reports, snapshot.ui.maximum_lateness_us, snapshot.submitted_crc32,
-             snapshot.ui.usb_mounted ? "true" : "false", wifi_connected ? "true" : "false",
-             address, snapshot.error,
+             snapshot.ui.usb_mounted ? "true" : "false", snapshot.ui.wifi_connected ? "true" : "false",
+             snapshot.network_address, snapshot.network_name, snapshot.error,
              fixture_presentation_phase_name(snapshot.presentation.phase),
              fixture_result_name(snapshot.presentation.result), snapshot.presentation.progress_per_mille,
              snapshot.presentation.title, snapshot.presentation.detail, snapshot.presentation.next,
@@ -285,18 +297,38 @@ static esp_err_t start_http_server(void) {
     return ESP_OK;
 }
 
+static esp_err_t select_wifi_profile(size_t index) {
+    wifi_model.profile_index = index % (sizeof(wifi_profiles) / sizeof(wifi_profiles[0]));
+    const wifi_profile_t *profile = &wifi_profiles[wifi_model.profile_index];
+    wifi_config_t wifi = {0};
+    snprintf((char *)wifi.sta.ssid, sizeof(wifi.sta.ssid), "%s", profile->ssid);
+    snprintf((char *)wifi.sta.password, sizeof(wifi.sta.password), "%s", profile->password);
+    wifi.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    wifi.sta.pmf_cfg.capable = true;
+    wifi.sta.pmf_cfg.required = false;
+    fixture_runtime_set_network_name(profile->ssid);
+    ESP_LOGI(TAG, "selecting Wi-Fi profile %u", (unsigned int)(wifi_model.profile_index + 1u));
+    return esp_wifi_set_config(WIFI_IF_STA, &wifi);
+}
+
 static void wifi_event(void *argument, esp_event_base_t base, int32_t id, void *data) {
     (void)argument;
     if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
         fixture_runtime_set_network(false, "unassigned");
+        if (fixture_wifi_model_note_disconnect(&wifi_model,
+                                               sizeof(wifi_profiles) / sizeof(wifi_profiles[0]),
+                                               2u)) {
+            ESP_ERROR_CHECK(select_wifi_profile(wifi_model.profile_index));
+        }
         esp_wifi_connect();
     } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = data;
         char address[16];
         snprintf(address, sizeof(address), IPSTR, IP2STR(&event->ip_info.ip));
         fixture_runtime_set_network(true, address);
+        fixture_wifi_model_note_connected(&wifi_model);
         start_http_server();
     }
 }
@@ -316,16 +348,11 @@ esp_err_t fixture_network_start(void) {
 
     wifi_init_config_t init = WIFI_INIT_CONFIG_DEFAULT();
     ESP_RETURN_ON_ERROR(esp_wifi_init(&init), TAG, "Wi-Fi initialization failed");
+    fixture_wifi_model_init(&wifi_model);
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifi_event, NULL));
-    wifi_config_t wifi = {0};
-    snprintf((char *)wifi.sta.ssid, sizeof(wifi.sta.ssid), "%s", KEYPATH_WIFI_SSID);
-    snprintf((char *)wifi.sta.password, sizeof(wifi.sta.password), "%s", KEYPATH_WIFI_PASSWORD);
-    wifi.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
-    wifi.sta.pmf_cfg.capable = true;
-    wifi.sta.pmf_cfg.required = false;
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi));
+    ESP_ERROR_CHECK(select_wifi_profile(0u));
 
     ESP_ERROR_CHECK(mdns_init());
     ESP_ERROR_CHECK(mdns_hostname_set("keypath-hid-fixture"));

@@ -14,6 +14,8 @@ typedef struct {
     fixture_ui_input_t ui;
     char run_id[FIXTURE_MAX_RUN_ID + 1u];
     char error[128];
+    char network_address[48];
+    char network_name[33];
     uint32_t script_crc32;
     uint32_t next_event;
     uint64_t transfers_completed;
@@ -25,8 +27,8 @@ void fixture_runtime_init(void);
 esp_err_t fixture_runtime_start_usb(void);
 void fixture_runtime_start_executor(void);
 void fixture_runtime_set_network(bool connected, const char *address);
+void fixture_runtime_set_network_name(const char *name);
 void fixture_runtime_snapshot(fixture_runtime_snapshot_t *snapshot);
-void fixture_runtime_network_snapshot(bool *connected, char *address, size_t capacity);
 bool fixture_runtime_load(const char *body, size_t length, char *error, size_t capacity);
 bool fixture_runtime_arm(const char *run_id, char *error, size_t capacity);
 bool fixture_runtime_start(const char *run_id, uint32_t delay_ms, char *error, size_t capacity);

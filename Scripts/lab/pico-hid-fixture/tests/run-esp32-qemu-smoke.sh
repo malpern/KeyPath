@@ -15,8 +15,12 @@ fi
 
 # shellcheck disable=SC1090
 source "$idf_path/export.sh" >/dev/null
-export KEYPATH_WIFI_SSID=fixture-qemu-placeholder
-export KEYPATH_WIFI_PASSWORD=fixture-qemu-placeholder
+export KEYPATH_WIFI_SSID_1=fixture-qemu-primary
+export KEYPATH_WIFI_PASSWORD_1=fixture-qemu-placeholder
+export KEYPATH_WIFI_SSID_2=fixture-qemu-fallback-one
+export KEYPATH_WIFI_PASSWORD_2=fixture-qemu-placeholder
+export KEYPATH_WIFI_SSID_3=fixture-qemu-fallback-two
+export KEYPATH_WIFI_PASSWORD_3=fixture-qemu-placeholder
 export KEYPATH_FIXTURE_TOKEN=fixture-qemu-token-placeholder
 export KEYPATH_QEMU_SMOKE=1
 

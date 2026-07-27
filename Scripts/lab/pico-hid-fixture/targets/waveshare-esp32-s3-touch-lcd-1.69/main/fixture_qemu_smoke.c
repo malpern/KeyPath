@@ -8,6 +8,7 @@
 #include "esp_rom_sys.h"
 #include "fixture_core.h"
 #include "fixture_ui_model.h"
+#include "fixture_visual_model.h"
 
 typedef struct {
     uint32_t count;
@@ -58,6 +59,13 @@ static bool run_core_smoke(void) {
         .reports_submitted = fixture.reports_submitted,
     };
     fixture_ui_output_t output = fixture_ui_model_step(&ui, &input, 250u);
+    fixture_presentation_t presentation;
+    fixture_presentation_init(&presentation);
+    presentation.phase = FIXTURE_PRESENT_RESULT;
+    presentation.result = FIXTURE_RESULT_PASS;
+    presentation.progress_per_mille = 1000u;
+    fixture_visual_output_t visual;
+    fixture_visual_resolve(&output, &presentation, &visual);
 
     return fixture.state == FIXTURE_COMPLETE &&
            fixture.reports_submitted == 4u &&
@@ -65,7 +73,9 @@ static bool run_core_smoke(void) {
            reports.count == 6u &&
            reports.final_key == 0u &&
            output.scene == FIXTURE_UI_COMPLETE &&
-           output.progress_per_mille == 1000u;
+           output.progress_per_mille == 1000u &&
+           visual.icon == FIXTURE_ICON_OK &&
+           visual.accent_rgb == 0x44d7a8u;
 }
 
 void fixture_qemu_smoke_run(void) {

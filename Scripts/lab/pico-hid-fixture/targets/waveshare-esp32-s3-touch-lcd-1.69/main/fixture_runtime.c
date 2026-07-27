@@ -22,6 +22,7 @@ static StaticSemaphore_t fixture_mutex_storage;
 static SemaphoreHandle_t fixture_mutex;
 static bool network_connected;
 static char network_address[48] = "unassigned";
+static char network_name[33] = "unassigned";
 static fixture_presentation_t presentation;
 
 static void runtime_lock(void) {
@@ -165,10 +166,9 @@ void fixture_runtime_set_network(bool connected, const char *address) {
     runtime_unlock();
 }
 
-void fixture_runtime_network_snapshot(bool *connected, char *address, size_t capacity) {
+void fixture_runtime_set_network_name(const char *name) {
     runtime_lock();
-    if (connected) *connected = network_connected;
-    if (address && capacity) snprintf(address, capacity, "%s", network_address);
+    snprintf(network_name, sizeof(network_name), "%s", name ? name : "unassigned");
     runtime_unlock();
 }
 
@@ -186,6 +186,8 @@ void fixture_runtime_snapshot(fixture_runtime_snapshot_t *snapshot) {
     snapshot->ui.maximum_lateness_us = fixture.maximum_lateness_us;
     snprintf(snapshot->run_id, sizeof(snapshot->run_id), "%s", fixture.run_id);
     snprintf(snapshot->error, sizeof(snapshot->error), "%s", fixture.error);
+    snprintf(snapshot->network_address, sizeof(snapshot->network_address), "%s", network_address);
+    snprintf(snapshot->network_name, sizeof(snapshot->network_name), "%s", network_name);
     snapshot->script_crc32 = fixture.script_crc32;
     snapshot->next_event = fixture.next_event;
     snapshot->transfers_completed = fixture.transfers_completed;

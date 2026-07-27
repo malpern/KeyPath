@@ -1,6 +1,8 @@
 #include "fixture_core.h"
 #include "fixture_presentation.h"
 #include "fixture_ui_model.h"
+#include "fixture_visual_model.h"
+#include "fixture_wifi_model.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -203,6 +205,43 @@ static void test_presentation_contract(void) {
     assert(!fixture_presentation_parse_phase("dancing", &presentation.phase));
 }
 
+static void test_visual_model_resolves_automatic_and_campaign_states(void) {
+    fixture_ui_output_t ui = {
+        .scene = FIXTURE_UI_IDLE,
+        .quality = FIXTURE_UI_SHOWCASE,
+        .progress_per_mille = 125u,
+    };
+    fixture_presentation_t presentation;
+    fixture_presentation_init(&presentation);
+    fixture_visual_output_t visual;
+    fixture_visual_resolve(&ui, &presentation, &visual);
+    assert(visual.icon == FIXTURE_ICON_KEYBOARD);
+    assert(visual.accent_rgb == 0x56ddb3u);
+    assert(visual.progress_per_mille == 125u);
+    assert(visual.angular_speed_milliradians == 1550u);
+    assert(strcmp(visual.title, "READY") == 0);
+
+    presentation.phase = FIXTURE_PRESENT_TESTING;
+    presentation.progress_per_mille = 640u;
+    snprintf(presentation.title, sizeof(presentation.title), "Swift stress");
+    fixture_visual_resolve(&ui, &presentation, &visual);
+    assert(visual.icon == FIXTURE_ICON_KEYBOARD);
+    assert(visual.accent_rgb == 0x55c7ffu);
+    assert(visual.progress_per_mille == 640u);
+    assert(visual.angular_speed_milliradians == 4800u);
+    assert(strcmp(visual.title, "Swift stress") == 0);
+
+    presentation.result = FIXTURE_RESULT_FAIL;
+    fixture_visual_resolve(&ui, &presentation, &visual);
+    assert(visual.icon == FIXTURE_ICON_CLOSE);
+    assert(visual.accent_rgb == 0xff5c72u);
+    assert(strcmp(visual.title, "TEST FAILED") == 0);
+
+    ui.quality = FIXTURE_UI_PROTECTED;
+    fixture_visual_resolve(&ui, &presentation, &visual);
+    assert(visual.angular_speed_milliradians == 480u);
+}
+
 static void test_ui_model_connection_error_and_counter_reset(void) {
     fixture_ui_model_t model;
     fixture_ui_model_init(&model);
@@ -228,6 +267,28 @@ static void test_ui_model_connection_error_and_counter_reset(void) {
     assert(output.energy_per_mille <= 1000u);
 }
 
+static void test_wifi_profiles_retry_in_priority_order_and_wrap(void) {
+    fixture_wifi_model_t model;
+    fixture_wifi_model_init(&model);
+    assert(model.profile_index == 0u); /* 529beach */
+
+    assert(!fixture_wifi_model_note_disconnect(&model, 3u, 2u));
+    assert(model.profile_index == 0u);
+    assert(fixture_wifi_model_note_disconnect(&model, 3u, 2u));
+    assert(model.profile_index == 1u); /* Alpern-Home */
+
+    assert(!fixture_wifi_model_note_disconnect(&model, 3u, 2u));
+    fixture_wifi_model_note_connected(&model);
+    assert(model.failed_attempts == 0u);
+    assert(!fixture_wifi_model_note_disconnect(&model, 3u, 2u));
+    assert(fixture_wifi_model_note_disconnect(&model, 3u, 2u));
+    assert(model.profile_index == 2u); /* iPhone */
+
+    assert(!fixture_wifi_model_note_disconnect(&model, 3u, 2u));
+    assert(fixture_wifi_model_note_disconnect(&model, 3u, 2u));
+    assert(model.profile_index == 0u); /* wrap back to 529beach */
+}
+
 int main(void) {
     test_load_arm_run_and_repeat();
     test_rejects_corrupt_and_unsafe_scripts();
@@ -237,6 +298,8 @@ int main(void) {
     test_ui_model_prioritizes_hid_and_tracks_progress();
     test_ui_model_connection_error_and_counter_reset();
     test_presentation_contract();
+    test_visual_model_resolves_automatic_and_campaign_states();
+    test_wifi_profiles_retry_in_priority_order_and_wrap();
     puts("physical HID fixture core tests passed");
     return 0;
 }
