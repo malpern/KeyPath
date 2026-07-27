@@ -20,6 +20,8 @@ enum SnapshotSize {
     static let drawer = CGSize(width: 450, height: 750)
     /// Layout picker grid
     static let grid = CGSize(width: 750, height: 1050)
+    /// First-success keyboard hero at its intended wide composition.
+    static let onboardingHero = CGSize(width: 900, height: 520)
 }
 
 /// Standard sizes for documentation screenshots. All include consistent

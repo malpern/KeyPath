@@ -17,12 +17,24 @@ public extension InstallationWizardView {
         dismissAndRefreshMainScreen()
     }
 
+    @MainActor
     func dismissAndRefreshMainScreen() {
         stopLoginItemsApprovalPolling()
 
-        Task { @MainActor in
-            NotificationCenter.default.post(name: .wizardStartupRevalidate, object: nil)
-            dismiss()
+        let shouldShowFirstSuccess = if onFirstSuccess == nil {
+            false
+        } else {
+            FirstSuccessOnboardingGate.isEligible(
+                didShowWelcomePage: didShowWelcomePage,
+                wizardState: stateMachine.wizardState,
+                issues: stateMachine.wizardIssues
+            )
+        }
+
+        NotificationCenter.default.post(name: .wizardStartupRevalidate, object: nil)
+        dismiss()
+        if shouldShowFirstSuccess {
+            onFirstSuccess?()
         }
     }
 

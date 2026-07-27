@@ -20,6 +20,14 @@ struct KanataKeyCodeMapTests {
         #expect(KanataKeyCodeMap.keyCode(for: "semicolon") == 41)
     }
 
+    @Test("maps Right Control to its macOS key code")
+    func mapsRightControlConsistently() {
+        #expect(KanataKeyCodeMap.keyCode(for: "rightctrl") == 62)
+        #expect(KanataKeyCodeMap.keyCode(for: "rctl") == 62)
+        #expect(KanataKeyCodeMap.overlayName(for: 62) == "rightctrl")
+        #expect(KanataKeyCodeMap.overlayName(for: 102) == "unknown-102")
+    }
+
     @Test("maps key codes to overlay names")
     func mapsKeyCodesToOverlayNames() {
         #expect(KanataKeyCodeMap.overlayName(for: 0) == "a")

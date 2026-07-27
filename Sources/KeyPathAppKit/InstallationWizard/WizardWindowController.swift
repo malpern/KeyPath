@@ -23,6 +23,7 @@ final class WizardWindowController {
     private var hostingView: NSView?
     private var windowDelegate: WizardWindowDelegate?
     private var onDismiss: (() -> Void)?
+    private var onboardingViewModel: KanataViewModel?
     private var sizeObserver: NSObjectProtocol?
     private var resizeDebounceWorkItem: DispatchWorkItem?
 
@@ -35,6 +36,9 @@ final class WizardWindowController {
         onDismiss: (() -> Void)? = nil
     ) {
         self.onDismiss = onDismiss
+        if let kanataViewModel {
+            onboardingViewModel = kanataViewModel
+        }
 
         // If window already exists and is visible, just bring it to front
         if let existingWindow = window, existingWindow.isVisible {
@@ -49,7 +53,12 @@ final class WizardWindowController {
 
         AppLogger.shared.log("🔮 [WizardWindow] Opening wizard window (initialPage: \(initialPage?.displayName ?? "nil"))")
 
-        let wizardView = InstallationWizardView(initialPage: initialPage)
+        let wizardView = InstallationWizardView(
+            initialPage: initialPage,
+            onFirstSuccess: { [weak self] in
+                self?.showFirstSuccessOnboarding()
+            }
+        )
 
         // Create hosting view - let SwiftUI determine ideal height
         let styledView = wizardView
@@ -209,6 +218,17 @@ final class WizardWindowController {
         // Call dismiss handler
         onDismiss?()
         onDismiss = nil
+    }
+
+    private func showFirstSuccessOnboarding() {
+        // Let AppKit complete the wizard close before presenting a separate
+        // learning panel. This keeps the two moments spatially distinct.
+        let viewModel = onboardingViewModel ?? (NSApp.delegate as? AppDelegate)?.viewModel
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            FirstSuccessOnboardingWindowController.show(
+                kanataViewModel: viewModel
+            )
+        }
     }
 
     /// Check if the wizard window is currently visible

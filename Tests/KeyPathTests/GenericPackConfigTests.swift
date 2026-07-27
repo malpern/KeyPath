@@ -94,6 +94,521 @@ final class GenericPackConfigTests: XCTestCase {
     }
 
     @MainActor
+    func testCapsLockPackInstallsTheSelectedCatalogConfiguration() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let (manager, tempDir) = try makeTestManager()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
+        var reloadCallbackCount = 0
+        manager.onRulesChanged = { reloadCallbackCount += 1 }
+
+        guard let catalogConfiguration = RuleCollectionCatalog().defaultCollections()
+            .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })?
+            .configuration,
+            let configuration = FirstSuccessOnboardingWindowController
+            .escapeOnlyCapsLockConfiguration(from: catalogConfiguration)
+        else {
+            return XCTFail("Caps Lock Remap must remain present in the catalog")
+        }
+
+        let catalogCapsLock = try XCTUnwrap(
+            manager.ruleCollections.first(where: {
+                $0.id == RuleCollectionIdentifier.capsLockRemap
+            })
+        )
+        XCTAssertTrue(catalogCapsLock.isEnabled)
+        XCTAssertFalse(
+            FirstSuccessOnboardingWindowController.capsLockRequiresRulesHandoff(
+                existing: catalogCapsLock,
+                catalogConfiguration: catalogConfiguration,
+                onboardingConfiguration: configuration
+            ),
+            "The enabled catalog default is untouched first-run state, not a user conflict"
+        )
+
+        let record = try await PackInstaller.shared.install(
+            PackRegistry.capsLockToEscape,
+            collectionConfiguration: configuration,
+            manager: manager,
+            skipFinalReload: true
+        )
+
+        XCTAssertEqual(record.packID, PackRegistry.capsLockToEscape.id)
+        let isInstalled = await PackInstaller.shared.isInstalled(packID: PackRegistry.capsLockToEscape.id)
+        XCTAssertTrue(isInstalled)
+
+        let capsLock = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.capsLockRemap }
+        XCTAssertTrue(capsLock?.isEnabled ?? false)
+        XCTAssertEqual(capsLock?.configuration, configuration)
+        XCTAssertEqual(capsLock?.configuration.tapHoldPickerConfig?.selectedHoldOutput, "caps")
+        XCTAssertEqual(reloadCallbackCount, 0)
+    }
+
+    @MainActor
+    func testFirstSuccessCapsLockConfigurationDoesNotInstallHyperEarly() throws {
+        let catalogConfiguration = try XCTUnwrap(
+            RuleCollectionCatalog().defaultCollections()
+                .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })?
+                .configuration
+        )
+
+        let configuration = try XCTUnwrap(
+            FirstSuccessOnboardingWindowController.escapeOnlyCapsLockConfiguration(
+                from: catalogConfiguration
+            )
+        )
+
+        XCTAssertEqual(configuration.tapHoldPickerConfig?.selectedTapOutput, "esc")
+        XCTAssertEqual(configuration.tapHoldPickerConfig?.selectedHoldOutput, "caps")
+        XCTAssertTrue(configuration.tapHoldPickerConfig?.holdOptions.contains {
+            $0.output == "caps"
+        } ?? false)
+    }
+
+    @MainActor
+    func testFirstSuccessPreservesCustomizedCapsLockConfiguration() throws {
+        let catalogCapsLock = try XCTUnwrap(
+            RuleCollectionCatalog().defaultCollections()
+                .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })
+        )
+        let onboardingConfiguration = try XCTUnwrap(
+            FirstSuccessOnboardingWindowController.escapeOnlyCapsLockConfiguration(
+                from: catalogCapsLock.configuration
+            )
+        )
+        var customizedCapsLock = catalogCapsLock
+        customizedCapsLock.configuration.updateSelectedTapOutput("bspc")
+
+        XCTAssertTrue(
+            FirstSuccessOnboardingWindowController.capsLockRequiresRulesHandoff(
+                existing: customizedCapsLock,
+                catalogConfiguration: catalogCapsLock.configuration,
+                onboardingConfiguration: onboardingConfiguration
+            )
+        )
+    }
+
+    @MainActor
+    func testOnboardingCapsInstallNeverSilentlyDisablesAConflictingRule() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let (manager, tempDir) = try makeTestManager()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
+
+        let catalogCapsLock = try XCTUnwrap(
+            manager.ruleCollections.first(where: {
+                $0.id == RuleCollectionIdentifier.capsLockRemap
+            })
+        )
+        let onboardingConfiguration = try XCTUnwrap(
+            FirstSuccessOnboardingWindowController.escapeOnlyCapsLockConfiguration(
+                from: catalogCapsLock.configuration
+            )
+        )
+        let existingRule = CustomRule(
+            input: "caps",
+            action: .keystroke(key: "tab"),
+            isEnabled: true
+        )
+        manager.customRules = [existingRule]
+
+        XCTAssertTrue(
+            FirstSuccessOnboardingWindowController.onboardingConfigurationConflicts(
+                manager: manager,
+                collectionID: RuleCollectionIdentifier.capsLockRemap,
+                configuration: onboardingConfiguration
+            )
+        )
+
+        var conflictPromptCount = 0
+        manager.onConflictResolution = { _ in
+            conflictPromptCount += 1
+            return .keepExisting
+        }
+        let tracker = InstalledPackTracker(
+            fileURL: tempDir.appendingPathComponent("installed-packs.json")
+        )
+
+        do {
+            _ = try await PackInstaller.shared.install(
+                PackRegistry.capsLockToEscape,
+                collectionConfiguration: onboardingConfiguration,
+                autoResolveCollectionConflicts: false,
+                manager: manager,
+                skipFinalReload: true,
+                installedPackTracker: tracker
+            )
+            XCTFail("Keeping the existing rule should cancel the onboarding install")
+        } catch {
+            // Expected: the explicit conflict choice preserves current behavior.
+        }
+
+        XCTAssertEqual(conflictPromptCount, 1)
+        XCTAssertTrue(manager.customRules.first(where: { $0.id == existingRule.id })?.isEnabled ?? false)
+        XCTAssertEqual(
+            manager.ruleCollections.first(where: {
+                $0.id == RuleCollectionIdentifier.capsLockRemap
+            }),
+            catalogCapsLock
+        )
+        let isInstalled = await tracker.isInstalled(packID: PackRegistry.capsLockToEscape.id)
+        XCTAssertFalse(isInstalled)
+    }
+
+    @MainActor
+    func testCollectionBackedInstallRestoresRuleStateWhenTrackerWriteFails() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let (manager, tempDir) = try makeTestManager()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        guard var capsLock = RuleCollectionCatalog().defaultCollections()
+            .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })
+        else {
+            return XCTFail("Caps Lock Remap must remain present in the catalog")
+        }
+        capsLock.isEnabled = false
+        manager.ruleCollections = [capsLock]
+        let originalCollections = manager.ruleCollections
+
+        var regenerationCount = 0
+        manager.onBeforeSave = { regenerationCount += 1 }
+
+        let unwritableTrackerURL = tempDir.appendingPathComponent("installed-packs-is-a-directory")
+        try FileManager.default.createDirectory(
+            at: unwritableTrackerURL,
+            withIntermediateDirectories: true
+        )
+        let failingTracker = InstalledPackTracker(fileURL: unwritableTrackerURL)
+
+        var configuration = capsLock.configuration
+        configuration.updateSelectedTapOutput("esc")
+
+        do {
+            _ = try await PackInstaller.shared.install(
+                PackRegistry.capsLockToEscape,
+                collectionConfiguration: configuration,
+                manager: manager,
+                installedPackTracker: failingTracker
+            )
+            XCTFail("Expected tracker persistence to fail")
+        } catch {
+            // Expected: the tracker target is a directory, not a writable file.
+        }
+
+        XCTAssertEqual(manager.ruleCollections, originalCollections)
+        XCTAssertEqual(regenerationCount, 2, "Install and rollback should each regenerate once")
+        let isInstalled = await failingTracker.isInstalled(packID: PackRegistry.capsLockToEscape.id)
+        XCTAssertFalse(isInstalled, "A failed install must not remain authoritative in memory")
+    }
+
+    @MainActor
+    func testSystemPackInstallRestoresPriorStateWhenTrackerWriteFails() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let (manager, tempDir) = try makeTestManager()
+        let originalManagedSnapshot = PackCollectionSnapshot.load(for: PackRegistry.launcher.id)
+        defer {
+            try? FileManager.default.removeItem(at: tempDir)
+            if let originalManagedSnapshot {
+                try? PackCollectionSnapshot.save(originalManagedSnapshot)
+            } else {
+                PackCollectionSnapshot.remove(for: PackRegistry.launcher.id)
+            }
+        }
+
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        guard var customCaps = catalog.first(where: {
+            $0.id == RuleCollectionIdentifier.capsLockRemap
+        }) else {
+            return XCTFail("Caps Lock Remap must remain present in the catalog")
+        }
+        customCaps.configuration = .tapHoldPicker(TapHoldPickerConfig(
+            inputKey: "caps",
+            tapOptions: customCaps.configuration.tapHoldPickerConfig?.tapOptions ?? [],
+            holdOptions: customCaps.configuration.tapHoldPickerConfig?.holdOptions ?? [],
+            selectedTapOutput: "bspc",
+            selectedHoldOutput: "lctl"
+        ))
+        customCaps.isEnabled = true
+        manager.ruleCollections = [customCaps]
+        let originalRuleState = manager.snapshotRuleState()
+
+        var regenerationCount = 0
+        manager.onBeforeSave = { regenerationCount += 1 }
+
+        let previousSnapshot = try PackCollectionSnapshot(
+            packID: PackRegistry.launcher.id,
+            snapshotDate: Date(timeIntervalSince1970: 42),
+            entries: [
+                PackCollectionSnapshot.Entry(
+                    collectionID: RuleCollectionIdentifier.capsLockRemap,
+                    wasEnabled: true,
+                    configurationJSON: JSONEncoder().encode(customCaps.configuration)
+                ),
+            ]
+        )
+        try PackCollectionSnapshot.save(previousSnapshot)
+
+        let trackerURL = tempDir.appendingPathComponent("system-installed-packs.json")
+        let failingTracker = InstalledPackTracker(fileURL: trackerURL)
+        let previousRecord = InstalledPackRecord(
+            packID: PackRegistry.launcher.id,
+            version: "0.9.0",
+            installedAt: Date(timeIntervalSince1970: 42),
+            quickSettingValues: [:]
+        )
+        try await failingTracker.upsert(previousRecord)
+        try FileManager.default.removeItem(at: trackerURL)
+        try FileManager.default.createDirectory(
+            at: trackerURL,
+            withIntermediateDirectories: true
+        )
+
+        do {
+            _ = try await PackInstaller.shared.install(
+                PackRegistry.launcher,
+                managedDefaultPolicy: .useRecommended,
+                manager: manager,
+                installedPackTracker: failingTracker
+            )
+            XCTFail("Expected tracker persistence to fail")
+        } catch {
+            // Expected: the tracker target became a directory after loading
+            // the prior record, so neither install nor rollback can write it.
+        }
+
+        XCTAssertEqual(manager.ruleCollections, originalRuleState.collections)
+        XCTAssertEqual(manager.customRules, originalRuleState.customRules)
+        XCTAssertEqual(regenerationCount, 2, "Install and rollback should each regenerate once")
+        let restoredRecord = await failingTracker.record(for: PackRegistry.launcher.id)
+        XCTAssertEqual(restoredRecord, previousRecord)
+
+        let restoredSnapshot = PackCollectionSnapshot.load(for: PackRegistry.launcher.id)
+        XCTAssertEqual(restoredSnapshot?.snapshotDate, previousSnapshot.snapshotDate)
+        XCTAssertEqual(restoredSnapshot?.entries.count, previousSnapshot.entries.count)
+        XCTAssertEqual(
+            restoredSnapshot?.entries.first?.configurationJSON,
+            previousSnapshot.entries.first?.configurationJSON
+        )
+    }
+
+    @MainActor
+    func testSystemPackInstallRestoresDurableStateWhenCollectionStoreWriteFails() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let (manager, tempDir) = try makeTestManager()
+        let originalManagedSnapshot = PackCollectionSnapshot.load(for: PackRegistry.launcher.id)
+        defer {
+            try? FileManager.default.removeItem(at: tempDir)
+            if let originalManagedSnapshot {
+                try? PackCollectionSnapshot.save(originalManagedSnapshot)
+            } else {
+                PackCollectionSnapshot.remove(for: PackRegistry.launcher.id)
+            }
+        }
+
+        manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
+        let originalRuleState = manager.snapshotRuleState()
+        let didGenerateOriginalConfig = await manager.regenerateConfigFromCollections(skipReload: true)
+        XCTAssertTrue(didGenerateOriginalConfig)
+
+        let configURL = URL(fileURLWithPath: manager.configurationService.configurationPath)
+        let collectionStoreURL = tempDir.appendingPathComponent("RuleCollections.json")
+        let customRulesStoreURL = tempDir.appendingPathComponent("CustomRules.json")
+        let originalConfigData = try Data(contentsOf: configURL)
+        let originalCollectionStoreData = try Data(contentsOf: collectionStoreURL)
+        let originalCustomRulesStoreData = try Data(contentsOf: customRulesStoreURL)
+
+        let previousSnapshot = try PackCollectionSnapshot(
+            packID: PackRegistry.launcher.id,
+            snapshotDate: Date(timeIntervalSince1970: 84),
+            entries: [
+                PackCollectionSnapshot.Entry(
+                    collectionID: RuleCollectionIdentifier.capsLockRemap,
+                    wasEnabled: true,
+                    configurationJSON: JSONEncoder().encode(
+                        originalRuleState.collections.first(where: {
+                            $0.id == RuleCollectionIdentifier.capsLockRemap
+                        })?.configuration ?? .list
+                    )
+                ),
+            ]
+        )
+        try PackCollectionSnapshot.save(previousSnapshot)
+
+        let tracker = InstalledPackTracker(
+            fileURL: tempDir.appendingPathComponent("system-installed-packs.json")
+        )
+        let previousRecord = InstalledPackRecord(
+            packID: PackRegistry.launcher.id,
+            version: "0.8.0",
+            installedAt: Date(timeIntervalSince1970: 84),
+            quickSettingValues: [:]
+        )
+        try await tracker.upsert(previousRecord)
+
+        try FileManager.default.removeItem(at: collectionStoreURL)
+        try FileManager.default.createDirectory(
+            at: collectionStoreURL,
+            withIntermediateDirectories: false
+        )
+        var shouldRemoveFailedStore = true
+        manager.onError = { _ in
+            // Make this a one-shot persistence failure so the compensating
+            // rollback can prove it rewrites every durable representation.
+            guard shouldRemoveFailedStore else { return }
+            shouldRemoveFailedStore = false
+            try? FileManager.default.removeItem(at: collectionStoreURL)
+        }
+
+        do {
+            _ = try await PackInstaller.shared.install(
+                PackRegistry.launcher,
+                managedDefaultPolicy: .useRecommended,
+                manager: manager,
+                skipFinalReload: true,
+                installedPackTracker: tracker
+            )
+            XCTFail("Expected the collection-store write to fail")
+        } catch {
+            // Expected: the first collection-store write targets a directory.
+        }
+
+        let restoredRuleState = manager.snapshotRuleState()
+        XCTAssertEqual(restoredRuleState.collections, originalRuleState.collections)
+        XCTAssertEqual(restoredRuleState.customRules, originalRuleState.customRules)
+        XCTAssertEqual(try Data(contentsOf: configURL), originalConfigData)
+        XCTAssertEqual(
+            try Data(contentsOf: collectionStoreURL),
+            originalCollectionStoreData
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: customRulesStoreURL),
+            originalCustomRulesStoreData
+        )
+        let restoredRecord = await tracker.record(for: PackRegistry.launcher.id)
+        XCTAssertEqual(restoredRecord, previousRecord)
+
+        let restoredSnapshot = PackCollectionSnapshot.load(for: PackRegistry.launcher.id)
+        XCTAssertEqual(restoredSnapshot?.snapshotDate, previousSnapshot.snapshotDate)
+        XCTAssertEqual(
+            restoredSnapshot?.entries.first?.configurationJSON,
+            previousSnapshot.entries.first?.configurationJSON
+        )
+    }
+
+    @MainActor
+    func testQuickLauncherBuildsOnTheCatalogCapsLockInstall() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let (manager, tempDir) = try makeTestManager()
+        defer {
+            try? FileManager.default.removeItem(at: tempDir)
+            PackCollectionSnapshot.remove(for: PackRegistry.launcher.id)
+        }
+        manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
+        var reloadCallbackCount = 0
+        manager.onRulesChanged = { reloadCallbackCount += 1 }
+
+        guard let catalogConfiguration = RuleCollectionCatalog().defaultCollections()
+            .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })?
+            .configuration,
+            let configuration = FirstSuccessOnboardingWindowController
+            .escapeOnlyCapsLockConfiguration(from: catalogConfiguration)
+        else {
+            return XCTFail("Caps Lock Remap must remain present in the catalog")
+        }
+
+        let launcherCatalogConfiguration = try XCTUnwrap(
+            RuleCollectionCatalog().defaultCollections()
+                .first(where: { $0.id == RuleCollectionIdentifier.launcher })?
+                .configuration
+        )
+        let emptyLauncherConfiguration = try XCTUnwrap(
+            FirstSuccessOnboardingWindowController.emptyQuickLauncherConfiguration(
+                from: launcherCatalogConfiguration
+            )
+        )
+
+        _ = try await PackInstaller.shared.install(
+            PackRegistry.capsLockToEscape,
+            collectionConfiguration: configuration,
+            manager: manager,
+            skipFinalReload: true
+        )
+        XCTAssertEqual(
+            manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.capsLockRemap }?
+                .configuration.tapHoldPickerConfig?.selectedHoldOutput,
+            "caps"
+        )
+        _ = try await PackInstaller.shared.install(
+            PackRegistry.launcher,
+            collectionConfiguration: emptyLauncherConfiguration,
+            managedDefaultPolicy: .useRecommended,
+            manager: manager,
+            skipFinalReload: true
+        )
+
+        let capsLock = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.capsLockRemap }
+        XCTAssertTrue(capsLock?.isEnabled ?? false)
+        XCTAssertEqual(capsLock?.configuration.tapHoldPickerConfig?.selectedTapOutput, "esc")
+        XCTAssertEqual(capsLock?.configuration.tapHoldPickerConfig?.selectedHoldOutput, "hyper")
+        let launcher = manager.ruleCollections.first {
+            $0.id == RuleCollectionIdentifier.launcher
+        }
+        XCTAssertTrue(launcher?.isEnabled ?? false)
+        XCTAssertEqual(launcher?.configuration, emptyLauncherConfiguration)
+        XCTAssertEqual(launcher?.configuration.launcherGridConfig?.mappings, [])
+
+        let installedCapsLock = await PackInstaller.shared.isInstalled(packID: PackRegistry.capsLockToEscape.id)
+        let installedLauncher = await PackInstaller.shared.isInstalled(packID: PackRegistry.launcher.id)
+        XCTAssertTrue(installedCapsLock)
+        XCTAssertTrue(installedLauncher)
+        XCTAssertEqual(reloadCallbackCount, 0)
+    }
+
+    @MainActor
+    func testFirstSuccessPreservesCustomizedQuickLauncherConfiguration() throws {
+        let launcherCatalog = try XCTUnwrap(
+            RuleCollectionCatalog().defaultCollections()
+                .first(where: { $0.id == RuleCollectionIdentifier.launcher })
+        )
+        let emptyLauncherConfiguration = try XCTUnwrap(
+            FirstSuccessOnboardingWindowController.emptyQuickLauncherConfiguration(
+                from: launcherCatalog.configuration
+            )
+        )
+        var customLauncher = launcherCatalog
+        var customGrid = try XCTUnwrap(customLauncher.configuration.launcherGridConfig)
+        customGrid.mappings = [
+            LauncherMapping(
+                key: "q",
+                action: .launchApp(name: "Notes", bundleId: "com.apple.Notes")
+            ),
+        ]
+        customLauncher.configuration = .launcherGrid(customGrid)
+
+        XCTAssertTrue(
+            FirstSuccessOnboardingWindowController.quickLauncherRequiresRulesHandoff(
+                existing: customLauncher,
+                catalogConfiguration: launcherCatalog.configuration,
+                onboardingConfiguration: emptyLauncherConfiguration
+            ),
+            "A customized launcher must route to Rules before PackInstaller is called"
+        )
+        XCTAssertEqual(customLauncher.configuration.launcherGridConfig?.mappings.count, 1)
+    }
+
+    @MainActor
     func testQuickLauncherInstallConfiguresCapsLockRemap() async throws {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
@@ -333,6 +848,50 @@ final class GenericPackConfigTests: XCTestCase {
             capsCollection?.configuration.tapHoldPickerConfig?.selectedHoldOutput, "meh",
             "Hold output should remain user's choice, not pack default"
         )
+    }
+
+    @MainActor
+    func testUseRecommendedManagedDefaultPolicyBypassesCustomizationPrompt() async throws {
+        TestEnvironment.forceTestMode = true
+        PackInstaller.testOverrideApplyDefault = false
+        defer {
+            TestEnvironment.forceTestMode = false
+            PackInstaller.testOverrideApplyDefault = nil
+        }
+
+        let (manager, tempDir) = try makeTestManager()
+        defer {
+            try? FileManager.default.removeItem(at: tempDir)
+            PackCollectionSnapshot.remove(for: PackRegistry.launcher.id)
+        }
+
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        guard var customCaps = catalog.first(where: {
+            $0.id == RuleCollectionIdentifier.capsLockRemap
+        }) else {
+            return XCTFail("Caps Lock Remap must remain present in the catalog")
+        }
+        customCaps.configuration = .tapHoldPicker(TapHoldPickerConfig(
+            inputKey: "caps",
+            tapOptions: customCaps.configuration.tapHoldPickerConfig?.tapOptions ?? [],
+            holdOptions: customCaps.configuration.tapHoldPickerConfig?.holdOptions ?? [],
+            selectedTapOutput: "bspc",
+            selectedHoldOutput: "lctl"
+        ))
+        customCaps.isEnabled = true
+        manager.ruleCollections.append(customCaps)
+
+        _ = try await PackInstaller.shared.install(
+            PackRegistry.launcher,
+            managedDefaultPolicy: .useRecommended,
+            manager: manager
+        )
+
+        let capsCollection = manager.ruleCollections.first {
+            $0.id == RuleCollectionIdentifier.capsLockRemap
+        }
+        XCTAssertEqual(capsCollection?.configuration.tapHoldPickerConfig?.selectedTapOutput, "esc")
+        XCTAssertEqual(capsCollection?.configuration.tapHoldPickerConfig?.selectedHoldOutput, "hyper")
     }
 
     // MARK: - Silent Apply When Collection Has Catalog Defaults

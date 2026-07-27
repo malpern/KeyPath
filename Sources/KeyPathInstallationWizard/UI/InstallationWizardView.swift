@@ -34,6 +34,11 @@ public struct InstallationWizardView: View {
 
     /// Optional initial page to navigate to
     public var initialPage: WizardPage?
+    /// Called once after a first-run wizard closes in a verified healthy state.
+    public var onFirstSuccess: (() -> Void)?
+    /// Test seam for the authoritative post-start state inspection. Production
+    /// uses `WizardStateMachine.detectCurrentState()` directly.
+    var postStartStateDetector: (@MainActor () async -> SystemStateResult)?
 
     // New architecture components
     @State public var stateMachine = WizardStateMachine()
@@ -64,6 +69,9 @@ public struct InstallationWizardView: View {
     @State public var loginItemsPollingTask: Task<Void, Never>? // Polls for Login Items approval
     @State public var statusBannerMessage: String?
     @State public var statusBannerTimestamp: Date?
+    /// Kept in-memory so existing users are never offered first-run education
+    /// merely because they revisit the setup wizard after an update.
+    @State public var didShowWelcomePage = false
 
     /// Focus management for reliable ESC key handling
     @FocusState private var hasKeyboardFocus: Bool
@@ -72,8 +80,22 @@ public struct InstallationWizardView: View {
     /// Used to suppress the global operation overlay to avoid duplicate progress treatments.
     @State private var hasInlineProgressIndicator: Bool = false
 
-    public init(initialPage: WizardPage? = nil) {
+    public init(initialPage: WizardPage? = nil, onFirstSuccess: (() -> Void)? = nil) {
         self.initialPage = initialPage
+        self.onFirstSuccess = onFirstSuccess
+        postStartStateDetector = nil
+    }
+
+    init(
+        initialPage: WizardPage? = nil,
+        onFirstSuccess: (() -> Void)? = nil,
+        didShowWelcomePage: Bool = false,
+        postStartStateDetector: @escaping @MainActor () async -> SystemStateResult
+    ) {
+        self.initialPage = initialPage
+        self.onFirstSuccess = onFirstSuccess
+        _didShowWelcomePage = State(initialValue: didShowWelcomePage)
+        self.postStartStateDetector = postStartStateDetector
     }
 
     public var currentFixDescriptionForUI: String? {

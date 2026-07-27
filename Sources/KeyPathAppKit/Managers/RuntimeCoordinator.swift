@@ -415,14 +415,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         // Wire up RuleCollectionsManager callbacks
         ruleCollectionsManager.onRulesChanged = { [weak self] in
             guard let self else { return }
-            _ = await triggerConfigReload()
-            await MainActor.run {
-                self.notifyStateChanged()
-            }
-            // Notify overlay to rebuild layer mapping
-            AppLogger.shared.debug("🔔 [RuntimeCoordinator] Posting kanataConfigChanged notification")
-
-            NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+            _ = await applyPersistedRuleChanges()
         }
         ruleCollectionsManager.onLayerChanged = { [weak self] layerName in
             self?.currentLayerName = layerName
@@ -1174,6 +1167,22 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     /// Main reload method using TCP protocol
     func triggerConfigReload() async -> ReloadResult {
         await configReloadCoordinator.triggerConfigReload()
+    }
+
+    /// Apply rule changes that have already been validated and persisted.
+    ///
+    /// Most rule saves reach this through `onRulesChanged`. Transactions that
+    /// deliberately suppress that callback so they can verify the live result
+    /// use this same path explicitly, keeping state and overlay notifications
+    /// consistent without issuing a duplicate reload.
+    func applyPersistedRuleChanges() async -> ReloadResult {
+        let result = await triggerConfigReload()
+        notifyStateChanged()
+        AppLogger.shared.debug(
+            "🔔 [RuntimeCoordinator] Posting kanataConfigChanged notification"
+        )
+        NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+        return result
     }
 
     /// TCP-based config reload (no authentication required - see ADR-013)

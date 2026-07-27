@@ -14,6 +14,11 @@ import KeyPathRulesCore
 public final class PackInstaller {
     public static let shared = PackInstaller()
 
+    enum ManagedDefaultInstallPolicy: Equatable, Sendable {
+        case promptWhenCustomized
+        case useRecommended
+    }
+
     #if DEBUG
         /// Test-only overrides for dialog responses. When set, bypasses NSAlert
         /// and returns this value instead.
@@ -61,20 +66,38 @@ public final class PackInstaller {
     /// - Parameter pack: the pack to install.
     /// - Parameter quickSettingValues: user-chosen values for the pack's
     ///   quick settings. Missing keys fall back to the pack's defaults.
+    /// - Parameter collectionConfiguration: An explicit configuration for the
+    ///   pack's associated collection. Collection-backed and system packs apply
+    ///   it atomically with enabling the collection.
+    /// - Parameter managedDefaultPolicy: Controls whether a system pack asks
+    ///   before replacing a customized managed collection. Onboarding can use
+    ///   `.useRecommended` after the user has explicitly approved the change.
+    /// - Parameter autoResolveCollectionConflicts: Whether a collection-backed
+    ///   pack may automatically disable conflicting rules while it is enabled.
     /// - Parameter manager: the app's RuleCollectionsManager. Required.
+    /// - Parameter skipFinalReload: Persist and validate the resulting config
+    ///   without notifying the runtime; the caller owns the live reload.
     /// - Returns: the install record persisted for this pack.
     @discardableResult
     func install(
         _ pack: Pack,
         quickSettingValues: [String: Int] = [:],
+        collectionConfiguration: RuleCollectionConfiguration? = nil,
+        managedDefaultPolicy: ManagedDefaultInstallPolicy = .promptWhenCustomized,
+        autoResolveCollectionConflicts: Bool = true,
         manager: RuleCollectionsManager,
-        skipFinalReload: Bool = false
+        skipFinalReload: Bool = false,
+        installedPackTracker: InstalledPackTracker = .shared
     ) async throws -> InstalledPackRecord {
         AppLogger.shared.log(
             "📦 [PackInstaller] Installing pack '\(pack.name)' (id=\(pack.id), v\(pack.version))"
         )
 
-        try await enforcePreInstallGates(for: pack, manager: manager)
+        try await enforcePreInstallGates(
+            for: pack,
+            manager: manager,
+            installedPackTracker: installedPackTracker
+        )
 
         // Resolve effective quick-setting values (user-provided ∪ defaults).
         let resolvedSettings = resolveQuickSettings(pack: pack, overrides: quickSettingValues)
@@ -90,7 +113,7 @@ public final class PackInstaller {
                 installedAt: Date(),
                 quickSettingValues: resolvedSettings
             )
-            try await InstalledPackTracker.shared.upsert(record)
+            try await installedPackTracker.upsert(record)
             AppLogger.shared.log(
                 "✅ [PackInstaller] Installed visual-only pack '\(pack.name)' (no kanata side effects)"
             )
@@ -99,6 +122,9 @@ public final class PackInstaller {
 
         // System packs batch all collection changes into a single config regen.
         if pack.isSystemPack {
+            let ruleStateSnapshot = manager.snapshotRuleState()
+            let previousInstallRecord = await installedPackTracker.record(for: pack.id)
+            let previousCollectionSnapshot = PackCollectionSnapshot.load(for: pack.id)
             let record = InstalledPackRecord(
                 packID: pack.id,
                 version: pack.version,
@@ -106,12 +132,63 @@ public final class PackInstaller {
                 quickSettingValues: resolvedSettings
             )
             do {
-                try await applyManagedDefaults(pack: pack, manager: manager)
+                try await applyManagedDefaults(
+                    pack: pack,
+                    manager: manager,
+                    policy: managedDefaultPolicy,
+                    associatedCollectionConfiguration: collectionConfiguration,
+                    skipReload: skipFinalReload
+                )
             } catch {
-                try? await InstalledPackTracker.shared.remove(packID: pack.id)
+                AppLogger.shared.error(
+                    "❌ [PackInstaller] Could not apply system-pack defaults for '\(pack.name)'; restoring previous state"
+                )
+                await restoreInstallRecord(
+                    previousInstallRecord,
+                    packID: pack.id,
+                    installedPackTracker: installedPackTracker
+                )
+                let collectionSnapshotRestored = restoreManagedCollectionSnapshot(
+                    previousCollectionSnapshot,
+                    packID: pack.id
+                )
+                let rollbackApplied = await manager.rollbackToSnapshot(
+                    ruleStateSnapshot,
+                    userMessage: "Could not apply this system pack. Your previous rule state was restored."
+                )
+                guard rollbackApplied, collectionSnapshotRestored else {
+                    throw InstallError.saveFailed(
+                        "system-pack defaults could not be applied and the previous state could not be fully restored"
+                    )
+                }
                 throw error
             }
-            try await InstalledPackTracker.shared.upsert(record)
+            do {
+                try await installedPackTracker.upsert(record)
+            } catch {
+                AppLogger.shared.error(
+                    "❌ [PackInstaller] Could not persist system-pack record for '\(pack.name)'; restoring previous state"
+                )
+                await restoreInstallRecord(
+                    previousInstallRecord,
+                    packID: pack.id,
+                    installedPackTracker: installedPackTracker
+                )
+                let collectionSnapshotRestored = restoreManagedCollectionSnapshot(
+                    previousCollectionSnapshot,
+                    packID: pack.id
+                )
+                let rollbackApplied = await manager.rollbackToSnapshot(
+                    ruleStateSnapshot,
+                    userMessage: "Could not record this system pack installation. Your previous rule state was restored."
+                )
+                guard rollbackApplied, collectionSnapshotRestored else {
+                    throw InstallError.saveFailed(
+                        "installed-pack record could not be saved and the previous system-pack state could not be fully restored"
+                    )
+                }
+                throw error
+            }
             AppLogger.shared.log(
                 "✅ [PackInstaller] Installed system pack '\(pack.name)'"
             )
@@ -121,7 +198,16 @@ public final class PackInstaller {
         // Collection-backed packs (e.g. Home Row Mods) don't generate custom
         // rules — they just toggle the built-in RuleCollection on.
         if let collectionID = pack.associatedCollectionID {
-            let ok = await manager.toggleCollection(id: collectionID, isEnabled: true, autoResolveConflicts: true, bypassOwnershipCheck: true)
+            let ruleStateSnapshot = manager.snapshotRuleState()
+            let previousInstallRecord = await installedPackTracker.record(for: pack.id)
+            let ok = await manager.toggleCollection(
+                id: collectionID,
+                isEnabled: true,
+                autoResolveConflicts: autoResolveCollectionConflicts,
+                bypassOwnershipCheck: true,
+                configurationOverride: collectionConfiguration,
+                skipReload: skipFinalReload
+            )
             if !ok {
                 throw InstallError.saveFailed("could not enable associated rule collection")
             }
@@ -132,7 +218,28 @@ public final class PackInstaller {
                 installedAt: Date(),
                 quickSettingValues: resolvedSettings
             )
-            try await InstalledPackTracker.shared.upsert(record)
+            do {
+                try await installedPackTracker.upsert(record)
+            } catch {
+                AppLogger.shared.error(
+                    "❌ [PackInstaller] Could not persist install record for '\(pack.name)'; restoring previous rule state"
+                )
+                await restoreInstallRecord(
+                    previousInstallRecord,
+                    packID: pack.id,
+                    installedPackTracker: installedPackTracker
+                )
+                let rollbackApplied = await manager.rollbackToSnapshot(
+                    ruleStateSnapshot,
+                    userMessage: "Could not record this pack installation. Your previous rule state was restored."
+                )
+                guard rollbackApplied else {
+                    throw InstallError.saveFailed(
+                        "installed-pack record could not be saved and the previous rule state could not be reapplied"
+                    )
+                }
+                throw error
+            }
             AppLogger.shared.log(
                 "✅ [PackInstaller] Installed pack '\(pack.name)' via collection toggle (id=\(collectionID))"
             )
@@ -169,7 +276,7 @@ public final class PackInstaller {
             installedAt: Date(),
             quickSettingValues: resolvedSettings
         )
-        try await InstalledPackTracker.shared.upsert(record)
+        try await installedPackTracker.upsert(record)
 
         AppLogger.shared.log(
             "✅ [PackInstaller] Installed pack '\(pack.name)': \(rules.count) binding(s)"
@@ -473,12 +580,13 @@ public final class PackInstaller {
     /// to own the h/j/k/l story) and requires kindaVim.app to be present.
     private func enforcePreInstallGates(
         for pack: Pack,
-        manager: RuleCollectionsManager
+        manager: RuleCollectionsManager,
+        installedPackTracker: InstalledPackTracker
     ) async throws {
         if pack.id == PackRegistry.kindaVim.id {
             // Mutex: refuse if any conflicting pack is installed.
             var conflicts: [(id: String, name: String)] = []
-            if await InstalledPackTracker.shared.isInstalled(packID: "com.keypath.pack.vim-navigation"),
+            if await installedPackTracker.isInstalled(packID: "com.keypath.pack.vim-navigation"),
                let conflict = PackRegistry.pack(id: "com.keypath.pack.vim-navigation")
             {
                 conflicts.append((id: conflict.id, name: conflict.name))
@@ -507,13 +615,57 @@ public final class PackInstaller {
         }
 
         if pack.id == "com.keypath.pack.vim-navigation",
-           await InstalledPackTracker.shared.isInstalled(packID: PackRegistry.kindaVim.id)
+           await installedPackTracker.isInstalled(packID: PackRegistry.kindaVim.id)
         {
             throw InstallError.mutuallyExclusive(conflicts: [(id: PackRegistry.kindaVim.id, name: PackRegistry.kindaVim.name)])
         }
     }
 
     // MARK: - Helpers
+
+    private func restoreInstallRecord(
+        _ previousRecord: InstalledPackRecord?,
+        packID: String,
+        installedPackTracker: InstalledPackTracker
+    ) async {
+        do {
+            if let previousRecord {
+                try await installedPackTracker.upsert(previousRecord)
+            } else {
+                try await installedPackTracker.remove(packID: packID)
+            }
+        } catch {
+            // A failed atomic write leaves the prior on-disk record intact.
+            // InstalledPackTracker mutates its in-memory dictionary before
+            // writing, so the compensating call above is still required even
+            // when its persistence attempt reports the same underlying error.
+            AppLogger.shared.error(
+                "❌ [PackInstaller] Could not persist tracker rollback for '\(packID)': \(error)"
+            )
+        }
+    }
+
+    private func restoreManagedCollectionSnapshot(
+        _ previousSnapshot: PackCollectionSnapshot?,
+        packID: String
+    ) -> Bool {
+        do {
+            if let previousSnapshot {
+                try PackCollectionSnapshot.save(previousSnapshot)
+            } else {
+                let snapshotURL = PackCollectionSnapshot.snapshotURL(for: packID)
+                if FileManager.default.fileExists(atPath: snapshotURL.path) {
+                    try FileManager.default.removeItem(at: snapshotURL)
+                }
+            }
+            return true
+        } catch {
+            AppLogger.shared.error(
+                "❌ [PackInstaller] Could not restore managed-collection snapshot for '\(packID)': \(error)"
+            )
+            return false
+        }
+    }
 
     private func resolveQuickSettings(
         pack: Pack,
@@ -564,17 +716,21 @@ public final class PackInstaller {
 
     private func applyManagedDefaults(
         pack: Pack,
-        manager: RuleCollectionsManager
+        manager: RuleCollectionsManager,
+        policy: ManagedDefaultInstallPolicy,
+        associatedCollectionConfiguration: RuleCollectionConfiguration?,
+        skipReload: Bool
     ) async throws {
         let snapshot = snapshotManagedCollections(pack: pack, manager: manager)
-        let originalCollections = manager.ruleCollections
-
         let catalog = RuleCollectionCatalog().defaultCollections()
 
         // Ensure the pack's own associated collection exists too
         if let associated = pack.associatedCollectionID {
             ensureCollectionExists(id: associated, catalog: catalog, manager: manager)
             if let i = manager.ruleCollections.firstIndex(where: { $0.id == associated }) {
+                if let associatedCollectionConfiguration {
+                    manager.ruleCollections[i].configuration = associatedCollectionConfiguration
+                }
                 manager.ruleCollections[i].isEnabled = true
             }
         }
@@ -590,7 +746,8 @@ public final class PackInstaller {
                 let shouldApply = await shouldApplyManagedDefault(
                     managed: managed,
                     existingCollection: manager.ruleCollections[i],
-                    packName: pack.name
+                    packName: pack.name,
+                    policy: policy
                 )
                 if shouldApply {
                     manager.ruleCollections[i].configuration = defaultConfig
@@ -606,13 +763,8 @@ public final class PackInstaller {
 
         try PackCollectionSnapshot.save(snapshot)
 
-        let applied = await manager.regenerateConfigFromCollections()
+        let applied = await manager.regenerateConfigFromCollections(skipReload: skipReload)
         guard applied else {
-            manager.ruleCollections = originalCollections
-            PackCollectionSnapshot.remove(for: pack.id)
-            if pack.id == "com.keypath.pack.vallack-system" {
-                PackCollectionSnapshot.removeLegacyVallack()
-            }
             throw InstallError.saveFailed("could not apply managed collection defaults")
         }
         AppLogger.shared.log("📦 [PackInstaller] Applied managed defaults for '\(pack.name)'")
@@ -621,7 +773,8 @@ public final class PackInstaller {
     private func shouldApplyManagedDefault(
         managed: ManagedCollectionDefault,
         existingCollection: RuleCollection,
-        packName: String
+        packName: String,
+        policy: ManagedDefaultInstallPolicy
     ) async -> Bool {
         guard existingCollection.isEnabled,
               let defaultConfig = managed.defaultConfiguration,
@@ -635,6 +788,10 @@ public final class PackInstaller {
         let catalogDefault = RuleCollectionCatalog().defaultCollections()
             .first { $0.id == managed.collectionID }
         if let catalogDefault, existingCollection.configuration == catalogDefault.configuration {
+            return true
+        }
+
+        if policy == .useRecommended {
             return true
         }
 
