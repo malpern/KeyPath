@@ -187,7 +187,7 @@ native path — so the JavaScript model updates correctly without anyone touchin
 - [electron#37465 ↗](https://github.com/electron/electron/issues/37465) — attribute unsettable
 - [electron#10305 ↗](https://github.com/electron/electron/pull/10305) — `AXManualAccessibility` added
 - [vimac#78 ↗](https://github.com/nchudleigh/vimac/issues/78) — activation side effects
-- [kindaVim#70 ↗](https://github.com/godbout/kindaVim.docs/issues/70) — Firefox false positive
+- [kindaVim#70 ↗](https://github.com/godbout/kindaVim.blahblah/issues/70) — Firefox false positive
 - [kindaVim: reaching inputs ↗](https://github.com/godbout/kindaVim.blahblah/discussions/43) — author's diagnosis
 - [Espanso backends ↗](https://espanso.org/docs/matches/basics/) — inject vs clipboard
 - [Chromium accessibility overview ↗](https://chromium.googlesource.com/chromium/src/+/lkgr/docs/accessibility/overview.md) — AXMode bundles
