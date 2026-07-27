@@ -42,6 +42,53 @@ final class VHIDSafetyInvariantTests: KeyPathTestCase {
         XCTAssertFalse(healthy, "Should NOT trigger emergency stop when kanata is not running (VHID healthy)")
     }
 
+    func test_unknownVHIDObservationPreservesButDoesNotAdvanceConfirmation() {
+        let count = VHIDSafetyCheck.confirmedFailureCount(
+            after: .unknown,
+            previousCount: VHIDSafetyCheck.requiredConfirmedFailures - 1
+        )
+
+        XCTAssertEqual(count, 1)
+        XCTAssertFalse(
+            VHIDSafetyCheck.shouldEmergencyStop(
+                kanataRunning: true,
+                confirmedFailureCount: count
+            )
+        )
+    }
+
+    func test_emergencyStopRequiresTwoConfirmedFailures() {
+        let first = VHIDSafetyCheck.confirmedFailureCount(
+            after: .confirmedUnhealthy,
+            previousCount: 0
+        )
+        XCTAssertFalse(
+            VHIDSafetyCheck.shouldEmergencyStop(
+                kanataRunning: true,
+                confirmedFailureCount: first
+            )
+        )
+
+        let second = VHIDSafetyCheck.confirmedFailureCount(
+            after: .confirmedUnhealthy,
+            previousCount: first
+        )
+        XCTAssertTrue(
+            VHIDSafetyCheck.shouldEmergencyStop(
+                kanataRunning: true,
+                confirmedFailureCount: second
+            )
+        )
+    }
+
+    func test_healthyObservationResetsConfirmedFailureSequence() {
+        let count = VHIDSafetyCheck.confirmedFailureCount(
+            after: .healthy,
+            previousCount: 1
+        )
+        XCTAssertEqual(count, 0)
+    }
+
     // MARK: - Start Gate Decision
 
     func test_startKanata_refusesWhenVHIDUnhealthy() {
