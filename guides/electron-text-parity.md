@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "Why Text Tools Break in Electron Apps"
-description: "Research note on the accessibility gaps that stop vim modes and text automation from working in Slack, Discord, and VS Code — and who can fix each one"
+description: "Why vim modes and text automation break in Slack, Discord, and VS Code — the accessibility gaps, and who can fix each one"
 theme: parchment
 permalink: /guides/electron-text-parity/
 ---
