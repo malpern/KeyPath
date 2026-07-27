@@ -62,6 +62,7 @@ class MainAppStateController {
     @ObservationIgnored private weak var serviceLifecycle: ServiceLifecycleCoordinator?
     @ObservationIgnored private var onSystemHealthy: (() -> Void)?
     @ObservationIgnored private var hasRunInitialValidation = false
+    @ObservationIgnored private var vhidConfirmedFailureCount = 0
 
     /// Returns true if configure() has been called.
     /// Use this to assert initialization order invariants.
@@ -299,17 +300,23 @@ class MainAppStateController {
                 // W3 safety exception: this background mutation only stops remapping
                 // to prevent unsafe keyboard capture; it must not perform repair.
                 if isHealthy {
-                    let vhidHealthy = await ServiceHealthChecker.shared.isServiceHealthy(
-                        serviceID: ServiceHealthChecker.vhidDaemonServiceID
+                    let vhidStatus = await ServiceHealthChecker.shared.vhidSafetyStatus()
+                    vhidConfirmedFailureCount = VHIDSafetyCheck.confirmedFailureCount(
+                        after: vhidStatus,
+                        previousCount: vhidConfirmedFailureCount
                     )
                     if VHIDSafetyCheck.shouldEmergencyStop(
-                        kanataRunning: true, vhidDaemonHealthy: vhidHealthy
+                        kanataRunning: true,
+                        confirmedFailureCount: vhidConfirmedFailureCount
                     ) {
                         AppLogger.shared.error(
-                            "🚨 [MainAppStateController] SAFETY: Kanata running without VirtualHID daemon — emergency stop"
+                            "🚨 [MainAppStateController] SAFETY: Kanata running after repeated confirmed VirtualHID failures — emergency stop"
                         )
                         await serviceLifecycle.stopKanata(reason: "Emergency: VirtualHID not running")
+                        vhidConfirmedFailureCount = 0
                     }
+                } else {
+                    vhidConfirmedFailureCount = 0
                 }
 
                 try? await Task.sleep(for: .seconds(2))
