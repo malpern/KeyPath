@@ -1,4 +1,5 @@
 #include "fixture_core.h"
+#include "fixture_presentation.h"
 #include "fixture_ui_model.h"
 
 #include <assert.h>
@@ -171,7 +172,7 @@ static void test_ui_model_prioritizes_hid_and_tracks_progress(void) {
     input.maximum_lateness_us = 2000;
     output = fixture_ui_model_step(&model, &input, 1020u);
     assert(output.quality == FIXTURE_UI_PROTECTED);
-    assert(output.frame_interval_ms == 250u);
+    assert(output.frame_interval_ms == 125u);
     assert(output.pressure_warning);
 
     output = fixture_ui_model_step(&model, &input, 2400u);
@@ -187,6 +188,19 @@ static void test_ui_model_prioritizes_hid_and_tracks_progress(void) {
     assert(output.completion_burst);
     output = fixture_ui_model_step(&model, &input, 2620u);
     assert(!output.completion_burst);
+}
+
+static void test_presentation_contract(void) {
+    fixture_presentation_t presentation;
+    fixture_presentation_init(&presentation);
+    assert(presentation.phase == FIXTURE_PRESENT_AUTO);
+    assert(fixture_presentation_parse_phase("observing", &presentation.phase));
+    assert(presentation.phase == FIXTURE_PRESENT_OBSERVING);
+    assert(fixture_presentation_parse_result("inconclusive", &presentation.result));
+    assert(presentation.result == FIXTURE_RESULT_INCONCLUSIVE);
+    assert(fixture_presentation_text_valid("Swift stress / pass 2", 32u));
+    assert(!fixture_presentation_text_valid("unsafe \"label\"", 32u));
+    assert(!fixture_presentation_parse_phase("dancing", &presentation.phase));
 }
 
 static void test_ui_model_connection_error_and_counter_reset(void) {
@@ -222,6 +236,7 @@ int main(void) {
     test_lateness_metrics();
     test_ui_model_prioritizes_hid_and_tracks_progress();
     test_ui_model_connection_error_and_counter_reset();
+    test_presentation_contract();
     puts("physical HID fixture core tests passed");
     return 0;
 }

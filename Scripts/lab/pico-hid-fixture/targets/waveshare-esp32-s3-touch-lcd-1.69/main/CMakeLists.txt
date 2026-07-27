@@ -28,6 +28,7 @@ idf_component_register(
         "fixture_qemu_smoke.c"
         "fixture_runtime.c"
         "${shared_source}/fixture_core.c"
+        "${shared_source}/fixture_presentation.c"
         "${shared_source}/fixture_ui_model.c"
     INCLUDE_DIRS
         "."
@@ -39,6 +40,7 @@ idf_component_register(
         esp_netif
         esp_timer
         esp_wifi
+        json
         mdns
         nvs_flash
 )

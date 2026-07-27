@@ -63,11 +63,14 @@ class FixtureClient:
     def __init__(self, host: str, token: str, port: int = 8080, timeout: float = 10.0):
         if not token:
             raise ValueError("fixture bearer token is empty")
+        if timeout <= 0:
+            raise ValueError("fixture timeout must be positive")
         self.base_url = f"http://{host}:{port}"
         self.token = token
         self.timeout = timeout
 
-    def request(self, method: str, path: str, body: bytes | None = None) -> str:
+    def request(self, method: str, path: str, body: bytes | None = None,
+                content_type: str = "text/plain; charset=us-ascii") -> str:
         request = urllib.request.Request(
             self.base_url + path,
             data=body,
@@ -75,7 +78,7 @@ class FixtureClient:
             headers={"Authorization": f"Bearer {self.token}"},
         )
         if body is not None:
-            request.add_header("Content-Type", "text/plain; charset=us-ascii")
+            request.add_header("Content-Type", content_type)
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 return response.read().decode("utf-8")
@@ -98,6 +101,10 @@ class FixtureClient:
     def abort(self) -> dict[str, object]:
         return json.loads(self.request("POST", "/v1/abort", b""))
 
+    def present(self, presentation: dict[str, object]) -> dict[str, object]:
+        body = json.dumps(presentation, separators=(",", ":")).encode("ascii")
+        return json.loads(self.request("POST", "/v1/presentation", body, "application/json"))
+
     def trace(self, start: int = 0, limit: int = 8) -> list[dict[str, object]]:
         lines = self.request("GET", f"/v1/trace?from={start}&limit={limit}").splitlines()
         return [json.loads(line) for line in lines]
@@ -114,6 +121,7 @@ def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description=__doc__)
     root.add_argument("--host", default=os.environ.get("KEYPATH_FIXTURE_HOST", "keypath-hid-fixture.local"))
     root.add_argument("--port", type=int, default=8080)
+    root.add_argument("--timeout", type=float, default=10.0)
     commands = root.add_subparsers(dest="command", required=True)
     commands.add_parser("status")
     compile_command = commands.add_parser("compile-text")
@@ -135,6 +143,22 @@ def parser() -> argparse.ArgumentParser:
     trace_command = commands.add_parser("trace")
     trace_command.add_argument("--from", dest="start", type=int, default=0)
     trace_command.add_argument("--limit", type=int, default=8)
+    present_command = commands.add_parser("present", help="drive the fixture's animated test narrative")
+    present_command.add_argument("--phase", required=True,
+                                 choices=("auto", "preparing", "countdown", "testing", "observing",
+                                          "resolving", "result", "next"))
+    present_command.add_argument("--result", choices=("none", "pass", "fail", "inconclusive"), default="none")
+    present_command.add_argument("--progress", type=int, choices=range(0, 1001), default=0, metavar="0..1000")
+    present_command.add_argument("--title", default="")
+    present_command.add_argument("--detail", default="")
+    present_command.add_argument("--next", default="")
+    present_command.add_argument("--reports-expected", type=int, default=0)
+    present_command.add_argument("--reports-observed", type=int, default=0)
+    present_command.add_argument("--dropped", type=int, default=0)
+    present_command.add_argument("--duplicated", type=int, default=0)
+    present_command.add_argument("--repeated", type=int, default=0)
+    present_command.add_argument("--latency-p95-us", type=int, default=0)
+    present_command.add_argument("--safe-release", action="store_true")
     run_command = commands.add_parser("run-text")
     run_command.add_argument("--run-id", required=True)
     run_command.add_argument("--text", required=True, type=pathlib.Path)
@@ -162,13 +186,22 @@ def main() -> int:
             sys.stdout.write(script)
         return 0
 
-    client = FixtureClient(arguments.host, token_from_environment(), arguments.port)
+    client = FixtureClient(arguments.host, token_from_environment(), arguments.port, arguments.timeout)
     if arguments.command == "status": print_json(client.status())
     elif arguments.command == "load-script": print_json(client.load_script(arguments.script.read_text()))
     elif arguments.command == "arm": print_json(client.arm(arguments.run_id))
     elif arguments.command == "start": print_json(client.start(arguments.run_id, arguments.delay_ms))
     elif arguments.command == "abort": print_json(client.abort())
     elif arguments.command == "trace": print_json(client.trace(arguments.start, arguments.limit))
+    elif arguments.command == "present":
+        print_json(client.present({
+            "phase": arguments.phase, "result": arguments.result, "progress": arguments.progress,
+            "title": arguments.title, "detail": arguments.detail, "next": arguments.next,
+            "reportsExpected": arguments.reports_expected, "reportsObserved": arguments.reports_observed,
+            "dropped": arguments.dropped, "duplicated": arguments.duplicated,
+            "repeated": arguments.repeated, "latencyP95Us": arguments.latency_p95_us,
+            "safeRelease": arguments.safe_release,
+        }))
     elif arguments.command == "run-text":
         script = compile_text(arguments.run_id, arguments.text.read_text(), arguments.interval_ms,
                               arguments.hold_ms, arguments.repeat, arguments.cycle_gap_ms)

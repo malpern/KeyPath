@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "cJSON.h"
 #include "esp_event.h"
 #include "esp_check.h"
 #include "esp_heap_caps.h"
@@ -52,7 +53,7 @@ static esp_err_t status_handler(httpd_req_t *request) {
     bool wifi_connected;
     char address[48];
     fixture_runtime_network_snapshot(&wifi_connected, address, sizeof(address));
-    char body[1280];
+    char body[1792];
     snprintf(body, sizeof(body),
              "{\"ok\":true,\"firmware\":\"%s\",\"platform\":\"waveshare-esp32-s3-touch-lcd-1.69\","
              "\"state\":\"%s\",\"runId\":\"%s\",\"scriptCRC32\":\"%08" PRIx32 "\","
@@ -60,13 +61,24 @@ static esp_err_t status_handler(httpd_req_t *request) {
              "\"reportsSubmitted\":%" PRIu64 ",\"transfersCompleted\":%" PRIu64 ","
              "\"lateReports\":%" PRIu64 ",\"maximumLatenessUs\":%" PRId64 ","
              "\"submittedCRC32\":\"%08" PRIx32 "\",\"usbMounted\":%s,"
-             "\"wifiConnected\":%s,\"address\":\"%s\",\"error\":\"%s\"}\n",
+             "\"wifiConnected\":%s,\"address\":\"%s\",\"error\":\"%s\","
+             "\"presentation\":{\"phase\":\"%s\",\"result\":\"%s\",\"progress\":%u,"
+             "\"title\":\"%s\",\"detail\":\"%s\",\"next\":\"%s\","
+             "\"reportsExpected\":%" PRIu32 ",\"reportsObserved\":%" PRIu32 ","
+             "\"dropped\":%" PRIu32 ",\"duplicated\":%" PRIu32 ",\"repeated\":%" PRIu32 ","
+             "\"latencyP95Us\":%" PRIu32 ",\"safeRelease\":%s}}\n",
              KEYPATH_FIXTURE_FIRMWARE_VERSION, fixture_state_name(snapshot.ui.state), snapshot.run_id,
              snapshot.script_crc32, snapshot.ui.event_count, snapshot.ui.repeat_count,
              snapshot.ui.current_repeat, snapshot.ui.reports_submitted, snapshot.transfers_completed,
              snapshot.ui.late_reports, snapshot.ui.maximum_lateness_us, snapshot.submitted_crc32,
              snapshot.ui.usb_mounted ? "true" : "false", wifi_connected ? "true" : "false",
-             address, snapshot.error);
+             address, snapshot.error,
+             fixture_presentation_phase_name(snapshot.presentation.phase),
+             fixture_result_name(snapshot.presentation.result), snapshot.presentation.progress_per_mille,
+             snapshot.presentation.title, snapshot.presentation.detail, snapshot.presentation.next,
+             snapshot.presentation.reports_expected, snapshot.presentation.reports_observed,
+             snapshot.presentation.dropped, snapshot.presentation.duplicated, snapshot.presentation.repeated,
+             snapshot.presentation.latency_p95_us, snapshot.presentation.safe_release ? "true" : "false");
     return send_json(request, "200 OK", body);
 }
 
@@ -154,6 +166,64 @@ static esp_err_t abort_handler(httpd_req_t *request) {
                      "{\"ok\":true,\"message\":\"aborted; all-keys-released report queued\"}\n");
 }
 
+static bool json_u32(cJSON *root, const char *name, uint32_t maximum, uint32_t *output) {
+    cJSON *item = cJSON_GetObjectItemCaseSensitive(root, name);
+    if (!item) return true;
+    if (!cJSON_IsNumber(item) || item->valuedouble < 0.0 || item->valuedouble > maximum ||
+        item->valuedouble != (double)(uint32_t)item->valuedouble) return false;
+    *output = (uint32_t)item->valuedouble;
+    return true;
+}
+
+static bool json_text(cJSON *root, const char *name, char *output, size_t capacity) {
+    cJSON *item = cJSON_GetObjectItemCaseSensitive(root, name);
+    if (!item) return true;
+    if (!cJSON_IsString(item) || !fixture_presentation_text_valid(item->valuestring, capacity - 1u)) return false;
+    snprintf(output, capacity, "%s", item->valuestring);
+    return true;
+}
+
+static esp_err_t presentation_handler(httpd_req_t *request) {
+    if (require_auth(request) != ESP_OK) return ESP_OK;
+    size_t length;
+    if (receive_body(request, 1023u, &length) != ESP_OK) {
+        return send_json(request, "400 Bad Request", "{\"ok\":false,\"message\":\"invalid presentation body\"}\n");
+    }
+    cJSON *root = cJSON_ParseWithLength(script_buffer, length);
+    fixture_presentation_t presentation;
+    fixture_presentation_init(&presentation);
+    cJSON *phase = root ? cJSON_GetObjectItemCaseSensitive(root, "phase") : NULL;
+    cJSON *result = root ? cJSON_GetObjectItemCaseSensitive(root, "result") : NULL;
+    uint32_t progress = 0u;
+    cJSON *safe_release = root ? cJSON_GetObjectItemCaseSensitive(root, "safeRelease") : NULL;
+    bool valid = root && cJSON_IsObject(root) && cJSON_IsString(phase) &&
+                 fixture_presentation_parse_phase(phase->valuestring, &presentation.phase) &&
+                 (!result || (cJSON_IsString(result) &&
+                              fixture_presentation_parse_result(result->valuestring, &presentation.result))) &&
+                 json_u32(root, "progress", 1000u, &progress) &&
+                 json_u32(root, "reportsExpected", UINT32_MAX, &presentation.reports_expected) &&
+                 json_u32(root, "reportsObserved", UINT32_MAX, &presentation.reports_observed) &&
+                 json_u32(root, "dropped", UINT32_MAX, &presentation.dropped) &&
+                 json_u32(root, "duplicated", UINT32_MAX, &presentation.duplicated) &&
+                 json_u32(root, "repeated", UINT32_MAX, &presentation.repeated) &&
+                 json_u32(root, "latencyP95Us", UINT32_MAX, &presentation.latency_p95_us) &&
+                 json_text(root, "title", presentation.title, sizeof(presentation.title)) &&
+                 json_text(root, "detail", presentation.detail, sizeof(presentation.detail)) &&
+                 json_text(root, "next", presentation.next, sizeof(presentation.next)) &&
+                 (!safe_release || cJSON_IsBool(safe_release));
+    if (valid) {
+        presentation.progress_per_mille = (uint16_t)progress;
+        presentation.safe_release = safe_release && cJSON_IsTrue(safe_release);
+        fixture_runtime_set_presentation(&presentation);
+    }
+    cJSON_Delete(root);
+    if (!valid) {
+        return send_json(request, "400 Bad Request",
+                         "{\"ok\":false,\"message\":\"invalid phase, result, metric, or display text\"}\n");
+    }
+    return send_json(request, "200 OK", "{\"ok\":true,\"message\":\"presentation updated\"}\n");
+}
+
 static unsigned int query_number(httpd_req_t *request, const char *name, unsigned int fallback) {
     char query[96], value[24];
     if (httpd_req_get_url_query_str(request, query, sizeof(query)) != ESP_OK) return fallback;
@@ -194,7 +264,7 @@ static esp_err_t start_http_server(void) {
     if (http_server) return ESP_OK;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = CONFIG_KEYPATH_FIXTURE_HTTP_PORT;
-    config.max_uri_handlers = 6;
+    config.max_uri_handlers = 7;
     config.stack_size = 8192;
     config.core_id = 0;
     config.task_priority = 4;
@@ -206,6 +276,7 @@ static esp_err_t start_http_server(void) {
         {.uri = "/v1/start", .method = HTTP_POST, .handler = start_handler},
         {.uri = "/v1/abort", .method = HTTP_POST, .handler = abort_handler},
         {.uri = "/v1/trace", .method = HTTP_GET, .handler = trace_handler},
+        {.uri = "/v1/presentation", .method = HTTP_POST, .handler = presentation_handler},
     };
     for (size_t index = 0; index < sizeof(handlers) / sizeof(handlers[0]); ++index) {
         ESP_RETURN_ON_ERROR(httpd_register_uri_handler(http_server, &handlers[index]), TAG,

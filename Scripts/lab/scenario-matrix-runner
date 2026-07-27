@@ -140,6 +140,7 @@ class MatrixRunner:
         self.job_states = {job["id"]: job for job in state["jobs"]}
         self.acknowledged = set(args.ack_checkpoint)
         self.selected = set(args.only_job) if args.only_job else set(self.jobs)
+        self.presentation_enabled = args.hid_presentation
 
     def save(self) -> None:
         with self.lock:
@@ -157,6 +158,26 @@ class MatrixRunner:
             result = subprocess.run(command, text=True, capture_output=True)
         if result.returncode:
             raise CampaignError(f"dashboard update failed: {result.stderr.strip() or result.stdout.strip()}")
+
+    def present(self, phase: str, *, result: str = "none", progress: int = 0,
+                title: str = "", detail: str = "", reports_expected: int = 0,
+                reports_observed: int = 0) -> None:
+        """Update the optional physical display without making it a campaign dependency."""
+        if not self.presentation_enabled:
+            return
+        command = [str(self.args.hid_fixture_client), "--host", self.args.hid_fixture_host,
+                   "--timeout", "2.0", "present",
+                   "--phase", phase, "--result", result, "--progress", str(max(0, min(progress, 1000))),
+                   "--title", title[:32], "--detail", detail[:48],
+                   "--reports-expected", str(reports_expected),
+                   "--reports-observed", str(reports_observed)]
+        with self.lock:
+            response = subprocess.run(command, cwd=self.args.repo, text=True, capture_output=True)
+            if response.returncode:
+                log = self.args.artifacts / "hid-fixture-presentation.log"
+                log.parent.mkdir(parents=True, exist_ok=True)
+                with log.open("a") as handle:
+                    handle.write(f"{now()} {response.stderr.strip() or response.stdout.strip()}\n")
 
     def update_job(self, job_state: dict[str, Any], *, status: str | None = None,
                    step: dict[str, str] | None = None, step_status: str | None = None,
@@ -185,6 +206,19 @@ class MatrixRunner:
         if event:
             arguments += ["--event-title", event, "--event-tone", tone]
         self.dashboard(*arguments)
+        if status in ("failed", "blocked"):
+            self.present("result", result="fail" if status == "failed" else "inconclusive",
+                         progress=progress * 10, title=job_state["id"], detail=message or "Evidence incomplete")
+        elif status == "waiting":
+            self.present("next", progress=progress * 10, title=job_state["id"], detail=message or "Action needed")
+        elif status == "passed":
+            self.present("resolving", progress=1000, title=job_state["id"], detail="Scenario evidence verified")
+        elif step_status == "running":
+            self.present("testing", progress=progress * 10, title=job_state["id"],
+                         detail=(step or {}).get("commandStep", "Running scenario"))
+        elif step_status == "passed":
+            self.present("observing", progress=progress * 10, title=job_state["id"],
+                         detail=(step or {}).get("commandStep", "Evidence captured"))
 
     def lab_command(self, *parts: str) -> list[str]:
         command = [str(self.args.lab)]
@@ -472,6 +506,7 @@ class MatrixRunner:
         self.dashboard("campaign", "--status", "running", "--message", "Campaign executor preflight passed; wave execution started.",
                        "--next-action", "Watch the active wave and intervene only if a checkpoint requests attention.",
                        "--event-title", "Matrix campaign started")
+        self.present("preparing", title="MATRIX CAMPAIGN", detail="Admitting provider-safe waves")
         waiting_providers: set[str] = set()
         saw_failure = False
         last_wave = 0
@@ -500,6 +535,8 @@ class MatrixRunner:
                            "--message", f"Wave {last_wave} reached an explicit checkpoint; independent providers ran as far as capacity allowed.",
                            "--next-action", "Complete the visible checkpoint, acknowledge it, and resume the same campaign state file.",
                            "--event-title", "Matrix campaign needs attention", "--event-tone", "warning")
+            self.present("next", result="inconclusive", title="ACTION NEEDED",
+                         detail="A visible checkpoint is waiting")
             return 4
         if saw_failure:
             self.state["status"] = "blocked"
@@ -509,6 +546,8 @@ class MatrixRunner:
                            "--message", "All runnable waves completed, but one or more jobs have classified failures.",
                            "--next-action", "Review failed evidence and repair the owning layer before a new campaign.",
                            "--event-title", "Matrix campaign found failures", "--event-tone", "danger")
+            self.present("result", result="fail", progress=1000, title="MATRIX FAILED",
+                         detail="Review classified failure evidence")
             return 1
         selected_states = [self.job_states[job_id]["status"] for job_id in self.selected]
         complete = all(status == "passed" for status in selected_states)
@@ -521,6 +560,15 @@ class MatrixRunner:
                        "--next-action", "Run the remaining queued jobs." if partial else ("Review the consolidated evidence report." if complete else "Review blocked jobs before resuming."),
                        "--event-title", "Selected matrix jobs passed" if partial else ("Matrix campaign passed" if complete else "Matrix campaign incomplete"),
                        "--event-tone", "success" if complete else "danger")
+        if complete and not partial:
+            self.present("result", result="pass", progress=1000, title="MATRIX PASSED",
+                         detail="Every selected scenario verified", reports_expected=len(selected_states),
+                         reports_observed=len(selected_states))
+        elif complete:
+            self.present("next", progress=1000, title="WAVE PASSED", detail="More matrix jobs remain")
+        else:
+            self.present("result", result="inconclusive", progress=1000,
+                         title="MATRIX INCOMPLETE", detail="Evidence remains unresolved")
         return 0 if complete else 1
 
 
@@ -551,12 +599,17 @@ def main() -> None:
     parser.add_argument("--repo", type=pathlib.Path)
     parser.add_argument("--dashboard-updater", type=pathlib.Path)
     parser.add_argument("--dashboard-state", type=pathlib.Path, default=pathlib.Path("/tmp/keypath-matrix-state.json"))
+    parser.add_argument("--hid-fixture-client", type=pathlib.Path)
+    parser.add_argument("--hid-fixture-host", default=os.environ.get("KEYPATH_FIXTURE_HOST", "keypath-hid-fixture.local"))
+    parser.add_argument("--hid-presentation", action="store_true",
+                        help="mirror campaign phases and results to the physical HID fixture display")
     parser.add_argument("--ack-checkpoint", action="append", default=[])
     parser.add_argument("--only-job", action="append", default=[])
     args = parser.parse_args()
     root = pathlib.Path(__file__).resolve().parents[2]
     args.repo = (args.repo or root).resolve()
     args.lab = (args.lab or root / "Scripts/lab/keypath-lab").resolve()
+    args.hid_fixture_client = (args.hid_fixture_client or root / "Scripts/lab/pico-hid-fixture-client").resolve()
     try:
         plan = validate_plan(json.loads(args.plan.read_text()))
         if not re.fullmatch(r"[0-9a-fA-F]{40}", args.commit):
@@ -575,6 +628,11 @@ def main() -> None:
             raise CampaignError("unknown --only-job: " + ", ".join(sorted(unknown)))
         if args.dashboard_updater and not args.dashboard_updater.is_file():
             raise CampaignError("dashboard updater does not exist")
+        if args.hid_presentation:
+            if not os.environ.get("KEYPATH_FIXTURE_TOKEN"):
+                raise CampaignError("--hid-presentation requires KEYPATH_FIXTURE_TOKEN")
+            if not args.hid_fixture_client.is_file():
+                raise CampaignError("HID fixture client does not exist")
         state = load_or_create_state(args, plan)
         waiting = {job.get("waitingCheckpoint") for job in state["jobs"] if job.get("waitingCheckpoint")}
         invalid_acknowledgements = set(args.ack_checkpoint) - waiting

@@ -59,14 +59,15 @@ class MatrixRunnerTests(unittest.TestCase):
         }))
         return path
 
-    def run_runner(self, plan: pathlib.Path, *extra: str) -> subprocess.CompletedProcess[str]:
+    def run_runner(self, plan: pathlib.Path, *extra: str,
+                   environment=None) -> subprocess.CompletedProcess[str]:
         return subprocess.run([
             str(RUNNER), "--plan", str(plan), "--state", str(self.directory / "state.json"),
             "--artifacts", str(self.directory / "artifacts"), "--commit", "a" * 40,
             "--installer", str(self.installer), "--lab", str(self.lab), "--repo", str(ROOT),
             "--dashboard-updater", str(self.dashboard), "--dashboard-state", str(self.directory / "dashboard-state.json"),
             *extra,
-        ], text=True, capture_output=True)
+        ], text=True, capture_output=True, env=environment)
 
     def test_executes_steps_updates_dashboard_and_destroys_owned_lease(self) -> None:
         result = self.run_runner(self.plan(["create-fresh-lease", "install-exact-artifact", "artifact-capture"]))
@@ -85,6 +86,30 @@ class MatrixRunnerTests(unittest.TestCase):
         self.assertIn("initialize --plan", dashboard)
         self.assertIn("--status running", dashboard)
         self.assertIn("--status passed", dashboard)
+
+    def test_optional_hid_presentation_tracks_campaign_without_exposing_token(self) -> None:
+        presentation_log = self.directory / "presentation.log"
+        presenter = self.directory / "fixture-client"
+        presenter.write_text(textwrap.dedent(f"""\
+            #!/bin/zsh
+            print -r -- "$*" >> {str(presentation_log)!r}
+            print '{{"ok":true}}'
+        """))
+        presenter.chmod(0o755)
+        environment = os.environ.copy()
+        environment["KEYPATH_FIXTURE_TOKEN"] = "fixture-test-secret"
+
+        result = self.run_runner(self.plan(["create-fresh-lease", "artifact-capture"]),
+                                 "--hid-presentation", "--hid-fixture-client", str(presenter),
+                                 environment=environment)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = presentation_log.read_text()
+        self.assertIn("--timeout 2.0 present --phase preparing", calls)
+        self.assertIn("--timeout 2.0 present --phase testing", calls)
+        self.assertIn("--timeout 2.0 present --phase observing", calls)
+        self.assertIn("--result pass", calls)
+        self.assertNotIn("fixture-test-secret", calls)
 
     def test_upgrade_boundary_uses_dedicated_controller_command(self) -> None:
         fixture = self.directory / "KeyPath-beta3.zip"

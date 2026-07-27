@@ -83,6 +83,8 @@ class ClientTests(unittest.TestCase):
             CLIENT.compile_text("run", "🙂", 80, 30, 1, 0)
         with self.assertRaisesRegex(ValueError, "hold duration"):
             CLIENT.compile_text("run", "a", 20, 20, 1, 0)
+        with self.assertRaisesRegex(ValueError, "timeout"):
+            CLIENT.FixtureClient("fixture", "token", timeout=0)
 
     def test_client_authenticates_and_uses_expected_endpoints(self):
         self.assertEqual(self.client.status()["state"], "idle")
@@ -98,6 +100,16 @@ class ClientTests(unittest.TestCase):
         trace = self.client.trace(0, 8)
         self.assertEqual(trace[0]["available"], 1)
         self.assertEqual(trace[1]["sequence"], 1)
+
+    def test_presentation_uses_bounded_json_channel(self):
+        self.client.present({"phase": "result", "result": "pass", "progress": 1000,
+                             "title": "Swift stress", "reportsExpected": 40,
+                             "reportsObserved": 40, "safeRelease": True})
+        method, path, auth, body = RecordingHandler.requests[-1]
+        self.assertEqual((method, path, auth), ("POST", "/v1/presentation", "Bearer test-token"))
+        payload = json.loads(body)
+        self.assertEqual(payload["result"], "pass")
+        self.assertEqual(payload["reportsObserved"], 40)
 
 
 if __name__ == "__main__":

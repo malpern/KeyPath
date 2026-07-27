@@ -54,7 +54,7 @@ fixture_ui_output_t fixture_ui_model_step(fixture_ui_model_t *model,
 
     if (output.pressure_warning) {
         output.quality = FIXTURE_UI_PROTECTED;
-        output.frame_interval_ms = 250u;
+        output.frame_interval_ms = 125u;
     } else if (input->state == FIXTURE_RUNNING) {
         output.quality = FIXTURE_UI_ACTIVE;
         output.frame_interval_ms = 50u;

@@ -7,6 +7,7 @@
 
 #include "esp_err.h"
 #include "fixture_core.h"
+#include "fixture_presentation.h"
 #include "fixture_ui_model.h"
 
 typedef struct {
@@ -17,6 +18,7 @@ typedef struct {
     uint32_t next_event;
     uint64_t transfers_completed;
     uint32_t submitted_crc32;
+    fixture_presentation_t presentation;
 } fixture_runtime_snapshot_t;
 
 void fixture_runtime_init(void);
@@ -29,6 +31,7 @@ bool fixture_runtime_load(const char *body, size_t length, char *error, size_t c
 bool fixture_runtime_arm(const char *run_id, char *error, size_t capacity);
 bool fixture_runtime_start(const char *run_id, uint32_t delay_ms, char *error, size_t capacity);
 void fixture_runtime_abort(const char *reason);
+void fixture_runtime_set_presentation(const fixture_presentation_t *presentation);
 uint32_t fixture_runtime_trace_count(void);
 bool fixture_runtime_trace_at(uint32_t index, fixture_trace_t *trace);
 

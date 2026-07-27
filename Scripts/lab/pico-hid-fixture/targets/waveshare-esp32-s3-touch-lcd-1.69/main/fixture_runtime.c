@@ -22,6 +22,7 @@ static StaticSemaphore_t fixture_mutex_storage;
 static SemaphoreHandle_t fixture_mutex;
 static bool network_connected;
 static char network_address[48] = "unassigned";
+static fixture_presentation_t presentation;
 
 static void runtime_lock(void) {
     configASSERT(xSemaphoreTake(fixture_mutex, portMAX_DELAY) == pdTRUE);
@@ -130,6 +131,7 @@ void fixture_runtime_init(void) {
     fixture_mutex = xSemaphoreCreateMutexStatic(&fixture_mutex_storage);
     configASSERT(fixture_mutex);
     fixture_init(&fixture);
+    fixture_presentation_init(&presentation);
 }
 
 esp_err_t fixture_runtime_start_usb(void) {
@@ -188,6 +190,7 @@ void fixture_runtime_snapshot(fixture_runtime_snapshot_t *snapshot) {
     snapshot->next_event = fixture.next_event;
     snapshot->transfers_completed = fixture.transfers_completed;
     snapshot->submitted_crc32 = fixture.submitted_crc32;
+    snapshot->presentation = presentation;
     runtime_unlock();
 }
 
@@ -215,6 +218,12 @@ bool fixture_runtime_start(const char *run_id, uint32_t delay_ms, char *error, s
 void fixture_runtime_abort(const char *reason) {
     runtime_lock();
     fixture_abort(&fixture, reason);
+    runtime_unlock();
+}
+
+void fixture_runtime_set_presentation(const fixture_presentation_t *value) {
+    runtime_lock();
+    presentation = *value;
     runtime_unlock();
 }
 

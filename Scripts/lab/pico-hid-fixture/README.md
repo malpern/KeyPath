@@ -35,8 +35,8 @@ uses its onboard green LED instead.
 - The fixture schedules every report locally. Wi-Fi jitter can shift the start acknowledgement but
   cannot alter inter-key timing after the script starts.
 - On ESP32-S3, the HID scheduler owns core 1 at high priority. USB service, network control, sound,
-  and display work remain on core 0. The motion governor drops the display from 30 to 20 to 4 FPS
-  before animation can compete with HID timing.
+  and display work remain on core 0. The motion governor drops the display from 30 to 20 to 8 FPS
+  and removes expensive particle layers before animation can compete with HID timing.
 
 ## Pico LED states
 
@@ -72,10 +72,12 @@ older revision. Flashing waits for the physical board:
 idf.py -C Scripts/lab/pico-hid-fixture/targets/waveshare-esp32-s3-touch-lcd-1.69 -p PORT flash
 ```
 
-The on-device scene is intentionally calm while idle and more expressive during state changes and
-runs: orbital particles, a live report-progress arc, animated key cells, color-coded state changes,
-and a completion flourish. A visible `HID PRIORITY` mode means detected timing pressure has reduced
-the animation rate to protect keyboard delivery.
+The on-device scene is continuously alive: a breathing reactor, orbiting HID packets, a live
+progress arc, and time-based motion remain smooth even when the frame rate changes. Preparing,
+countdown, typing, observation, resolution, pass, fail, and inconclusive phases morph through
+colored icons instead of hard cuts. A visible `HID PRIORITY` mode keeps a restrained orbit at 8 FPS
+while shedding most particles, so the display still communicates life without competing with
+keyboard delivery.
 
 ## Pico 2 W build
 
@@ -129,6 +131,7 @@ The fixture advertises `keypath-hid-fixture.local` over mDNS on port 8080. Every
 | POST | `/v1/start` | `RUN_ID DELAY_MS` |
 | POST | `/v1/abort` | Empty |
 | GET | `/v1/trace?from=N&limit=8` | — |
+| POST | `/v1/presentation` | Bounded JSON phase, result, progress, labels, and metrics |
 
 Commands are state-checked. A script cannot start unless the same run ID was loaded and armed.
 The start delay must be 100–60000 ms, giving the guest observer time to become ready.
@@ -149,11 +152,21 @@ Scripts/lab/pico-hid-fixture-client load-script /tmp/swift-load.kphid
 Scripts/lab/pico-hid-fixture-client arm swift-load-001
 Scripts/lab/pico-hid-fixture-client start swift-load-001 --delay-ms 2000
 Scripts/lab/pico-hid-fixture-client trace
+Scripts/lab/pico-hid-fixture-client present --phase observing --progress 850 \
+  --title 'Swift stress' --detail 'Comparing received text'
+Scripts/lab/pico-hid-fixture-client present --phase result --result pass --progress 1000 \
+  --title 'Swift stress' --detail 'No repeated keys' \
+  --reports-expected 400 --reports-observed 400 --latency-p95-us 620 --safe-release
 ```
 
 `run-text` combines compile, load, arm, and start. Production scenarios should still perform each
 stage explicitly so the VM can prove USB admission, arm its independent observers, and verify the
 requested load threshold before `start`.
+
+The matrix campaign executor mirrors live phases and its final classified result to the display
+when invoked with `--hid-presentation`. This path is intentionally presentation-only: display
+delivery failures are logged to `hid-fixture-presentation.log` and never change test evidence or
+campaign classification. The fixture token remains environment-only.
 
 ## Verification without hardware
 
