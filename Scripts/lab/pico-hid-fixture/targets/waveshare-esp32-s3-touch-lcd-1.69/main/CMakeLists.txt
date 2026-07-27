@@ -42,6 +42,7 @@ idf_component_register(
         "fixture_runtime.c"
         "${shared_source}/fixture_core.c"
         "${shared_source}/fixture_presentation.c"
+        "${shared_source}/fixture_splash_model.c"
         "${shared_source}/fixture_ui_model.c"
         "${shared_source}/fixture_visual_model.c"
         "${shared_source}/fixture_wifi_model.c"

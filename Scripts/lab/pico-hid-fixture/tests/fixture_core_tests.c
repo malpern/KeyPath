@@ -1,5 +1,6 @@
 #include "fixture_core.h"
 #include "fixture_presentation.h"
+#include "fixture_splash_model.h"
 #include "fixture_ui_model.h"
 #include "fixture_visual_model.h"
 #include "fixture_wifi_model.h"
@@ -289,6 +290,38 @@ static void test_wifi_profiles_retry_in_priority_order_and_wrap(void) {
     assert(model.profile_index == 0u); /* wrap back to 529beach */
 }
 
+static void test_splash_reveals_holds_and_fades_without_blocking_boot(void) {
+    fixture_splash_output_t splash = fixture_splash_step(0u);
+    assert(splash.foreground_opacity == 0u);
+    assert(splash.background_opacity == 255u);
+    assert(splash.wordmark_opacity == 0u);
+    assert(splash.logo_scale == 228u);
+    assert(!splash.complete);
+
+    splash = fixture_splash_step(FIXTURE_SPLASH_FADE_IN_MS);
+    assert(splash.foreground_opacity == 255u);
+    assert(splash.logo_scale == 256u);
+
+    splash = fixture_splash_step(500u);
+    assert(splash.foreground_opacity == 255u);
+    assert(splash.wordmark_opacity == 255u);
+
+    splash = fixture_splash_step(FIXTURE_SPLASH_HOLD_END_MS);
+    assert(splash.foreground_opacity == 255u);
+    assert(splash.background_opacity == 255u);
+
+    splash = fixture_splash_step(1450u);
+    assert(splash.foreground_opacity < 128u);
+    assert(splash.background_opacity == splash.foreground_opacity);
+    assert(splash.logo_scale > 256u);
+    assert(!splash.complete);
+
+    splash = fixture_splash_step(FIXTURE_SPLASH_TOTAL_MS);
+    assert(splash.foreground_opacity == 0u);
+    assert(splash.background_opacity == 0u);
+    assert(splash.complete);
+}
+
 int main(void) {
     test_load_arm_run_and_repeat();
     test_rejects_corrupt_and_unsafe_scripts();
@@ -300,6 +333,7 @@ int main(void) {
     test_presentation_contract();
     test_visual_model_resolves_automatic_and_campaign_states();
     test_wifi_profiles_retry_in_priority_order_and_wrap();
+    test_splash_reveals_holds_and_fades_without_blocking_boot();
     puts("physical HID fixture core tests passed");
     return 0;
 }

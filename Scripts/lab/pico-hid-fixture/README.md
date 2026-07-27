@@ -45,6 +45,10 @@ microcontroller. Its display presents the run state and timing pressure; touch o
 button aborts an armed/running script, and its buzzer provides sparse transition cues. Pico 2 W
 uses its onboard green LED instead.
 
+On a cold boot, the display briefly presents the official Hacker Dojo torii mark before dissolving
+into the live KeyPath startup scene. The mark is rendered from lightweight LVGL vector primitives,
+so the splash needs no image decoder and does not delay USB, Wi-Fi, or the HID executor.
+
 ## Safety model
 
 - USB exposes only a standard boot-keyboard HID interface. There is no USB serial control path for

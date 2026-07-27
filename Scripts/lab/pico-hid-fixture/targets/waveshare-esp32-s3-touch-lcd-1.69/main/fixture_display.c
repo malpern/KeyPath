@@ -8,6 +8,7 @@
 #include "esp_timer.h"
 #include "fixture_board.h"
 #include "fixture_runtime.h"
+#include "fixture_splash_model.h"
 #include "fixture_visual_model.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -16,6 +17,7 @@
 
 #define PARTICLE_COUNT 12u
 #define KEY_COUNT 6u
+#define DOJO_BAR_COUNT 4u
 
 typedef struct {
     lv_obj_t *screen;
@@ -41,7 +43,18 @@ typedef struct {
     uint64_t completion_started_ms;
 } display_ui_t;
 
+typedef struct {
+    lv_obj_t *root;
+    lv_obj_t *glow;
+    lv_obj_t *ring;
+    lv_obj_t *logo;
+    lv_obj_t *bars[DOJO_BAR_COUNT];
+    lv_obj_t *wordmark;
+    lv_obj_t *location;
+} display_splash_t;
+
 static display_ui_t ui;
+static display_splash_t splash;
 
 static const char *symbol_for(fixture_visual_icon_t icon) {
     switch (icon) {
@@ -70,6 +83,19 @@ static lv_obj_t *make_circle(lv_obj_t *parent, int size, lv_color_t color, lv_op
     lv_obj_set_style_radius(object, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(object, color, 0);
     lv_obj_set_style_bg_opa(object, opacity, 0);
+    lv_obj_clear_flag(object, LV_OBJ_FLAG_CLICKABLE);
+    return object;
+}
+
+static lv_obj_t *make_rect(lv_obj_t *parent, int x, int y, int width, int height,
+                           lv_color_t color) {
+    lv_obj_t *object = lv_obj_create(parent);
+    lv_obj_remove_style_all(object);
+    lv_obj_set_pos(object, x, y);
+    lv_obj_set_size(object, width, height);
+    lv_obj_set_style_radius(object, 2, 0);
+    lv_obj_set_style_bg_color(object, color, 0);
+    lv_obj_set_style_bg_opa(object, LV_OPA_COVER, 0);
     lv_obj_clear_flag(object, LV_OBJ_FLAG_CLICKABLE);
     return object;
 }
@@ -185,6 +211,112 @@ static void build_ui(void) {
     lv_obj_align(ui.quality, LV_ALIGN_TOP_RIGHT, -10, 38);
     ui.previous_scene = FIXTURE_UI_BOOT;
     ui.visual_stage = -1;
+}
+
+static void build_splash(void) {
+    lv_color_t dojo_red = lv_color_hex(0xe13838);
+    lv_color_t white = lv_color_hex(0xffffff);
+
+    splash.root = lv_obj_create(ui.screen);
+    lv_obj_remove_style_all(splash.root);
+    lv_obj_set_size(splash.root, LV_PCT(100), LV_PCT(100));
+    lv_obj_align(splash.root, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_bg_color(splash.root, lv_color_hex(0x080c10), 0);
+    lv_obj_set_style_bg_opa(splash.root, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(splash.root, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+
+    splash.glow = make_circle(splash.root, 154, dojo_red, LV_OPA_TRANSP);
+    lv_obj_align(splash.glow, LV_ALIGN_CENTER, 0, -27);
+
+    splash.ring = make_circle(splash.root, 118, dojo_red, LV_OPA_TRANSP);
+    lv_obj_set_style_border_width(splash.ring, 2, 0);
+    lv_obj_set_style_border_color(splash.ring, dojo_red, 0);
+    lv_obj_set_style_border_opa(splash.ring, LV_OPA_TRANSP, 0);
+    lv_obj_align(splash.ring, LV_ALIGN_CENTER, 0, -27);
+
+    splash.logo = lv_obj_create(splash.root);
+    lv_obj_remove_style_all(splash.logo);
+    lv_obj_set_size(splash.logo, 92, 92);
+    lv_obj_set_style_radius(splash.logo, 24, 0);
+    lv_obj_set_style_bg_color(splash.logo, dojo_red, 0);
+    lv_obj_set_style_bg_opa(splash.logo, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_shadow_color(splash.logo, dojo_red, 0);
+    lv_obj_set_style_shadow_width(splash.logo, 26, 0);
+    lv_obj_set_style_shadow_opa(splash.logo, LV_OPA_TRANSP, 0);
+    lv_obj_align(splash.logo, LV_ALIGN_CENTER, 0, -27);
+
+    /* Faithful, display-native reconstruction of hackerdojo.org/static/images/logo.png. */
+    splash.bars[0] = make_rect(splash.logo, 20, 29, 52, 5, white);
+    splash.bars[1] = make_rect(splash.logo, 16, 40, 60, 5, white);
+    splash.bars[2] = make_rect(splash.logo, 31, 26, 5, 41, white);
+    splash.bars[3] = make_rect(splash.logo, 56, 26, 5, 41, white);
+
+    splash.wordmark = lv_label_create(splash.root);
+    lv_label_set_text_static(splash.wordmark, "HACKER DOJO");
+    lv_obj_set_style_text_font(splash.wordmark, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(splash.wordmark, white, 0);
+    lv_obj_set_style_text_letter_space(splash.wordmark, 3, 0);
+    lv_obj_set_style_text_opa(splash.wordmark, LV_OPA_TRANSP, 0);
+    lv_obj_align(splash.wordmark, LV_ALIGN_CENTER, 0, 48);
+
+    splash.location = lv_label_create(splash.root);
+    lv_label_set_text_static(splash.location, "MOUNTAIN VIEW  /  SINCE 2009");
+    lv_obj_set_style_text_color(splash.location, lv_color_hex(0x9aa7ad), 0);
+    lv_obj_set_style_text_letter_space(splash.location, 1, 0);
+    lv_obj_set_style_text_opa(splash.location, LV_OPA_TRANSP, 0);
+    lv_obj_align(splash.location, LV_ALIGN_CENTER, 0, 74);
+}
+
+static void render_splash(const fixture_splash_output_t *output, uint64_t elapsed_ms) {
+    lv_opa_t foreground = (lv_opa_t)output->foreground_opacity;
+    lv_obj_set_style_bg_opa(splash.root, (lv_opa_t)output->background_opacity, 0);
+    lv_obj_set_style_bg_opa(splash.logo, foreground, 0);
+    lv_obj_set_style_shadow_opa(splash.logo, (lv_opa_t)(output->foreground_opacity * 42u / 255u), 0);
+    lv_obj_set_style_transform_scale(splash.logo, output->logo_scale, 0);
+    for (size_t index = 0; index < DOJO_BAR_COUNT; ++index) {
+        lv_obj_set_style_bg_opa(splash.bars[index], foreground, 0);
+    }
+
+    lv_obj_set_style_text_opa(splash.wordmark, (lv_opa_t)output->wordmark_opacity, 0);
+    lv_obj_set_style_text_opa(splash.location,
+                              (lv_opa_t)(output->wordmark_opacity * 3u / 4u), 0);
+    int wordmark_offset = 5 - (int)(output->wordmark_opacity * 5u / 255u);
+    lv_obj_set_style_translate_y(splash.wordmark, wordmark_offset, 0);
+    lv_obj_set_style_translate_y(splash.location, wordmark_offset, 0);
+
+    uint16_t ring_phase = (uint16_t)(elapsed_ms % 800u);
+    uint16_t ring_scale = (uint16_t)(256u + ring_phase * 54u / 800u);
+    uint16_t ring_fade = (uint16_t)(255u - ring_phase * 255u / 800u);
+    lv_obj_set_style_transform_scale(splash.ring, ring_scale, 0);
+    lv_obj_set_style_border_opa(
+        splash.ring,
+        (lv_opa_t)(output->foreground_opacity * ring_fade * 44u / (255u * 255u)), 0);
+
+    int glow_pulse = (int)(sinf((float)elapsed_ms / 230.0f) * 4.0f);
+    lv_obj_set_style_transform_scale(splash.glow, 250 + glow_pulse, 0);
+    lv_obj_set_style_bg_opa(splash.glow,
+                            (lv_opa_t)(output->foreground_opacity * 24u / 255u), 0);
+}
+
+static void play_splash(void) {
+    uint64_t started_ms = (uint64_t)(esp_timer_get_time() / 1000);
+    while (true) {
+        uint64_t now_ms = (uint64_t)(esp_timer_get_time() / 1000);
+        uint64_t elapsed_ms = now_ms >= started_ms ? now_ms - started_ms : 0u;
+        fixture_splash_output_t output = fixture_splash_step(elapsed_ms);
+        bool finished = false;
+        if (bsp_display_lock(20u)) {
+            render_splash(&output, elapsed_ms);
+            if (output.complete) {
+                lv_obj_delete(splash.root);
+                splash.root = NULL;
+                finished = true;
+            }
+            bsp_display_unlock();
+        }
+        if (finished) return;
+        vTaskDelay(pdMS_TO_TICKS(16u));
+    }
 }
 
 static void announce_transition(const fixture_ui_output_t *output) {
@@ -357,7 +489,9 @@ static void display_task(void *context) {
     ESP_ERROR_CHECK(bsp_display_brightness_set(CONFIG_KEYPATH_FIXTURE_BRIGHTNESS));
     configASSERT(bsp_display_lock(0u));
     build_ui();
+    build_splash();
     bsp_display_unlock();
+    play_splash();
 
     fixture_ui_model_t model;
     fixture_ui_model_init(&model);
