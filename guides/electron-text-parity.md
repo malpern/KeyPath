@@ -129,7 +129,7 @@ why E1 can only ever be a convention Electron chooses to honor, not a contract t
 
 ---
 
-## Five Tools Hit This Independently
+## Four Tools Hit This Independently
 
 None of them fixed it. They all routed around it — and that convergence is the strongest evidence
 for where the gaps actually are.
@@ -140,11 +140,15 @@ for where the gaps actually are.
 | Vimac | `AXEnhancedUserInterface` broke third-party window managers; filed with Apple, Chromium, and Firefox | Manual attribute, frontmost only |
 | Espanso | Keystroke injection fails in VS Code, Slack, and Discord | `force_mode: clipboard` |
 | Shortcat | "Effectiveness varies depending on the application's accessibility implementation" | Documented caveat |
-| Electron #36337 | Reproducible Swift test case for the offset bug | Closed as not planned |
 
 Every project reached the same three conclusions without coordinating: force-enable the tree, don't
 trust the reads, and mutate through the clipboard or synthesized keys rather than through
 accessibility writes.
+
+The contrast with the one serious attempt to fix it upstream is the real finding. Electron
+[#36337 ↗](https://github.com/electron/electron/issues/36337) reported the offset bug with a
+reproducible Swift test case and was closed as not planned. Working around the gap succeeds;
+fixing it does not get traction.
 
 ---
 
@@ -164,8 +168,13 @@ native path — so the JavaScript model updates correctly without anyone touchin
 
 ## Confidence
 
-- **High** — C1, C4, C5, E1–E4, and A1–A3 are each grounded in a cited source below.
-- **Inference** — C3's specifics are reasoning from symptoms, not from reading Blink.
+- **Cited** — C1, C4, C5, E1–E4, and A1–A3 each rest on a primary source listed below.
+- **Inference** — Four items are reasoning rather than citation, and should be verified before
+  anyone quotes them upstream. **C3** (write-path fidelity) argues from observed symptoms rather
+  than from reading Blink. **C2**'s claim that WebKit linearizes rich editors better is domain
+  judgement, not a measured comparison. **C6** (absence of conformance tests) is inferred from C1
+  persisting, not confirmed against Chromium's test suite. **A4** (no capability negotiation) is an
+  observation that no such API exists — easy to falsify if one does.
 - **Stale** — Most recent activity found is 2023–24. Nothing surfaced for 2025–26 on the
   text-range side, but that's absence of search results, not proof of inactivity. Check the
   Chromium tracker before filing against C1.
