@@ -31,6 +31,9 @@ status endpoint. If no port appears, hold **BOOT**, tap **RESET**, then release 
 use `install --port /dev/cu...` only when more than one serial device is connected. The exact
 hands-on checklist and failure routing are in
 [`docs/testing/keypath-hid-fixture-first-board.md`](../../../docs/testing/keypath-hid-fixture-first-board.md).
+The operator-facing states, dual-core allocation, UX acceptance criteria, and deferred refinements
+are in
+[`docs/testing/keypath-hid-fixture-readiness.md`](../../../docs/testing/keypath-hid-fixture-readiness.md).
 
 ## Hardware targets
 

@@ -33,7 +33,8 @@ arguments. Before hardware is attached, `doctor` should pass everything and repo
 
 3. If the Mac sees no serial device, hold **BOOT**, tap **RESET**, release **BOOT**, and rerun the
    same command.
-4. Wait for the display to progress from `WAKING UP` to `JOINING LAB` to `READY`.
+4. Confirm the brief Hacker Dojo splash is upright and clean, then wait for the display to progress
+   from `WAKING UP` to `JOINING LAB` to `READY`.
 5. Confirm `READY` shows an IP address and `USB READY` or `USB WAIT`. `USB WAIT` is expected until
    the board is attached to a guest or host that has enumerated its HID interface.
 6. Recheck at any time with:
@@ -43,6 +44,10 @@ arguments. Before hardware is attached, `doctor` should pass everything and repo
    ```
 
 The returned `firmware` and `build` fields identify exactly what is running.
+
+The complete screen language, core allocation, UX sign-off list, and explicitly deferred cleanup
+are documented in
+[`keypath-hid-fixture-readiness.md`](keypath-hid-fixture-readiness.md).
 
 ## Failure routing
 
