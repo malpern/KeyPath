@@ -123,9 +123,13 @@ The complete host, core, client, and QEMU suite passes.
 
 The diagnostic compiler now independently varies Shift lead and release lag around a fixed key hold.
 The combined runner persists the firmware's exact report trace alongside Jig focus, event, output,
-release, and timing evidence. A three-cell smoke attempt was excluded before HID execution: the first
-attempt could not acquire Jig focus after reopening the app, and the second was rejected by elevated
-macOS memory pressure. These are fail-closed harness admissions, not KeyPath test outcomes.
+release, and timing evidence. Three three-cell smoke attempts were excluded before HID execution:
+the first could not acquire Jig focus after reopening the app, the second was rejected by elevated
+macOS memory pressure, and the third timed out at the 0.9x-per-core competing-load ceiling while the
+operator was on a video call. The third artifact is
+`~/.local/state/keypath-hid-capture-jig/modifier-matrix/shift-smoke-20260728T140721Z/summary.json`;
+it records zero completed cases and zero submitted reports. These are fail-closed harness admissions,
+not KeyPath test outcomes.
 
 Focus orchestration now preserves an existing healthy Jig, waits for resources without activating it,
 and requests focus only immediately before arm. Physical runs require exclusive use of the active
