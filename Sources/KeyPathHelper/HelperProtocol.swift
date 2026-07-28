@@ -37,6 +37,14 @@ import Foundation
     /// - Parameter reply: Completion handler with (success, errorMessage)
     func installRequiredRuntimeServices(reply: @escaping (Bool, String?) -> Void)
 
+    /// Start the fixed KeyPath Kanata LaunchDaemon.
+    /// - Parameter reply: Completion handler with (success, errorMessage)
+    func startKanataService(reply: @escaping (Bool, String?) -> Void)
+
+    /// Stop the fixed KeyPath Kanata LaunchDaemon.
+    /// - Parameter reply: Completion handler with (success, errorMessage)
+    func stopKanataService(reply: @escaping (Bool, String?) -> Void)
+
     // MARK: - VirtualHID Operations
 
     /// Activate the VirtualHID Manager service

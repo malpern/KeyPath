@@ -28,20 +28,9 @@ final class CLIServiceTests: XCTestCase {
 
     // MARK: - service lifecycle
 
-    func testStopServiceReturnsFalseWhenLaunchctlExitsNonZero() async {
-        let fakeRunner = SubprocessRunnerFake.shared
-        await fakeRunner.reset()
-        await fakeRunner.configureLaunchctlResult { _, _ in
-            ProcessResult(
-                exitCode: 112,
-                stdout: "",
-                stderr: "Not privileged to signal service.",
-                duration: 0.1
-            )
-        }
-
+    func testStopServiceReturnsFalseWhenPrivilegedHelperFails() async {
         let facade = SystemFacade(
-            subprocessRunner: fakeRunner,
+            stopServiceOperation: { throw ServiceOperationError.failed },
             runtimeSnapshotProvider: { Self.runtimeSnapshot(running: true, responding: true) },
             runtimeTransitionTimeoutSeconds: 0.05,
             pollDelayNanoseconds: 0
@@ -52,40 +41,33 @@ final class CLIServiceTests: XCTestCase {
         XCTAssertFalse(stopped)
     }
 
-    func testStopServiceWaitsForStoppedRuntimeAfterLaunchctlSuccess() async {
-        let fakeRunner = SubprocessRunnerFake.shared
-        await fakeRunner.reset()
+    func testStopServiceWaitsForStoppedRuntimeAfterHelperSuccess() async {
         let snapshots = RuntimeSnapshotSequence([
             Self.runtimeSnapshot(running: true, responding: true),
             Self.runtimeSnapshot(running: false, responding: false)
         ])
+        let operations = ServiceOperationRecorder()
 
         let facade = SystemFacade(
-            subprocessRunner: fakeRunner,
+            stopServiceOperation: { await operations.recordStop() },
             runtimeSnapshotProvider: { await snapshots.next() },
             runtimeTransitionTimeoutSeconds: 0.05,
             pollDelayNanoseconds: 0
         )
 
         let stopped = await facade.stopService()
+        let stopCount = await operations.stopCount
 
         XCTAssertTrue(stopped)
+        XCTAssertEqual(stopCount, 1)
     }
 
     func testRestartServiceDoesNotReportSuccessWhenStopFails() async {
-        let fakeRunner = SubprocessRunnerFake.shared
-        await fakeRunner.reset()
-        await fakeRunner.configureLaunchctlResult { subcommand, _ in
-            ProcessResult(
-                exitCode: subcommand == "kill" ? 112 : 0,
-                stdout: "",
-                stderr: subcommand == "kill" ? "Not privileged to signal service." : "",
-                duration: 0.1
-            )
-        }
+        let operations = ServiceOperationRecorder()
 
         let facade = SystemFacade(
-            subprocessRunner: fakeRunner,
+            startServiceOperation: { await operations.recordStart() },
+            stopServiceOperation: { throw ServiceOperationError.failed },
             runtimeSnapshotProvider: { Self.runtimeSnapshot(running: true, responding: true) },
             runtimeTransitionTimeoutSeconds: 0.05,
             pollDelayNanoseconds: 0,
@@ -93,18 +75,15 @@ final class CLIServiceTests: XCTestCase {
         )
 
         let restarted = await facade.restartService()
-        let commands = await fakeRunner.executedCommands
+        let startCount = await operations.startCount
 
         XCTAssertFalse(restarted)
-        XCTAssertEqual(commands.compactMap(\.args.first), ["kill"])
+        XCTAssertEqual(startCount, 0)
     }
 
     func testStartServiceReturnsFalseWhenRuntimeNeverBecomesHealthy() async {
-        let fakeRunner = SubprocessRunnerFake.shared
-        await fakeRunner.reset()
-
         let facade = SystemFacade(
-            subprocessRunner: fakeRunner,
+            startServiceOperation: {},
             runtimeSnapshotProvider: { Self.runtimeSnapshot(running: true, responding: false) },
             runtimeTransitionTimeoutSeconds: 0.05,
             pollDelayNanoseconds: 0
@@ -113,6 +92,51 @@ final class CLIServiceTests: XCTestCase {
         let started = await facade.startService()
 
         XCTAssertFalse(started)
+    }
+
+    func testStartServiceWaitsForHealthyRuntimeAfterHelperSuccess() async {
+        let snapshots = RuntimeSnapshotSequence([
+            Self.runtimeSnapshot(running: false, responding: false),
+            Self.runtimeSnapshot(running: true, responding: true)
+        ])
+        let operations = ServiceOperationRecorder()
+        let facade = SystemFacade(
+            startServiceOperation: { await operations.recordStart() },
+            runtimeSnapshotProvider: { await snapshots.next() },
+            runtimeTransitionTimeoutSeconds: 0.05,
+            pollDelayNanoseconds: 0
+        )
+
+        let started = await facade.startService()
+        let startCount = await operations.startCount
+
+        XCTAssertTrue(started)
+        XCTAssertEqual(startCount, 1)
+    }
+
+    func testServiceOperationsInvalidateRuntimeHealthCacheBeforePolling() async {
+        let invalidations = SynchronousCallRecorder()
+        let stoppedFacade = SystemFacade(
+            stopServiceOperation: {},
+            runtimeCacheInvalidator: { invalidations.record() },
+            runtimeSnapshotProvider: { Self.runtimeSnapshot(running: false, responding: false) },
+            runtimeTransitionTimeoutSeconds: 0.05,
+            pollDelayNanoseconds: 0
+        )
+        let startedFacade = SystemFacade(
+            startServiceOperation: {},
+            runtimeCacheInvalidator: { invalidations.record() },
+            runtimeSnapshotProvider: { Self.runtimeSnapshot(running: true, responding: true) },
+            runtimeTransitionTimeoutSeconds: 0.05,
+            pollDelayNanoseconds: 0
+        )
+
+        let stopped = await stoppedFacade.stopService()
+        let started = await startedFacade.startService()
+
+        XCTAssertTrue(stopped)
+        XCTAssertTrue(started)
+        XCTAssertEqual(invalidations.count, 2)
     }
 
     private nonisolated static func runtimeSnapshot(
@@ -129,6 +153,36 @@ final class CLIServiceTests: XCTestCase {
             staleEnabledRegistration: false,
             recentlyRestarted: false
         )
+    }
+}
+
+private enum ServiceOperationError: Error {
+    case failed
+}
+
+private actor ServiceOperationRecorder {
+    private(set) var startCount = 0
+    private(set) var stopCount = 0
+
+    func recordStart() {
+        startCount += 1
+    }
+
+    func recordStop() {
+        stopCount += 1
+    }
+}
+
+private final class SynchronousCallRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var recordedCount = 0
+
+    var count: Int {
+        lock.withLock { recordedCount }
+    }
+
+    func record() {
+        lock.withLock { recordedCount += 1 }
     }
 }
 

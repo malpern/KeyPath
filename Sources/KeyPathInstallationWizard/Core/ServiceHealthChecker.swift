@@ -620,6 +620,18 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         return await checkKanataServiceRuntimeSnapshotUncached(tcpPort: tcpPort, timeoutMs: timeoutMs)
     }
 
+    /// Fresh runtime evidence for lifecycle transition postconditions.
+    ///
+    /// Tight start/stop polling must not reuse the normal two-second snapshot
+    /// cache: a cached pre-transition result can otherwise make a successful
+    /// launchd mutation look like a failure.
+    public nonisolated func checkKanataServiceRuntimeSnapshotFresh(
+        tcpPort: Int = KeyPathConstants.Networking.defaultTCPPort,
+        timeoutMs: Int = 300
+    ) async -> KanataServiceRuntimeSnapshot {
+        await checkKanataServiceRuntimeSnapshotUncached(tcpPort: tcpPort, timeoutMs: timeoutMs)
+    }
+
     private nonisolated func checkKanataServiceRuntimeSnapshotUncached(
         tcpPort: Int,
         timeoutMs: Int
