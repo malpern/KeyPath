@@ -253,6 +253,7 @@ struct KeyboardStageKey: Identifiable, Equatable, Sendable {
     var opacity: Float
     var pressure: Float
     var glow: Float
+    var interactionLevel: Float
     var scale: Float
     var translation: KeyboardStagePoint
     var accessibilityRole: KeyboardStageAccessibilityRole?
@@ -272,6 +273,7 @@ struct KeyboardStageKey: Identifiable, Equatable, Sendable {
         var copy = self
         copy.opacity = 0
         copy.glow = 0
+        copy.interactionLevel = 0
         return copy
     }
 
@@ -290,6 +292,11 @@ struct KeyboardStageKey: Identifiable, Equatable, Sendable {
             opacity: interpolate(start.opacity, end.opacity, progress),
             pressure: interpolate(start.pressure, end.pressure, progress),
             glow: interpolate(start.glow, end.glow, progress),
+            interactionLevel: interpolate(
+                start.interactionLevel,
+                end.interactionLevel,
+                progress
+            ),
             scale: interpolate(start.scale, end.scale, progress),
             translation: .interpolated(
                 from: start.translation,

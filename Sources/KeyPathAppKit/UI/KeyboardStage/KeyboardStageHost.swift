@@ -281,6 +281,7 @@ private struct KeyboardStageRenderedContent: View {
 
             KeyboardStageSemanticOverlay(
                 frame: frame,
+                rendersKeyLegends: policy.backend == .swiftUI,
                 onPointerPressChange: onPointerPressChange
             )
         }

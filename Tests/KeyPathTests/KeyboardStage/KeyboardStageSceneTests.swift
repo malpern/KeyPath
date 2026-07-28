@@ -101,6 +101,86 @@ final class KeyboardStageSceneTests: XCTestCase {
         XCTAssertEqual(scene.revealTarget, .launcherChoice)
     }
 
+    func testLauncherSelectionConnectsOnlyTheChosenKeyToItsApplication() throws {
+        let application = KeyboardStageSceneBuilder.Application(
+            name: "ChatGPT",
+            bundleIdentifier: "com.openai.chat"
+        )
+        let scene = KeyboardStageSceneBuilder.make(
+            layout: testLayout,
+            keymap: .qwertyUS,
+            moment: .launcher,
+            launcherSelection: KeyboardStageSceneBuilder.LauncherSelection(
+                keyCode: 1,
+                displayedLetter: "S",
+                application: application
+            ),
+            displayMode: .standard
+        )
+        let selectedKey = try XCTUnwrap(scene.keys.first { $0.keyCode == 1 })
+        let caps = try capsKey(in: scene)
+
+        XCTAssertEqual(selectedKey.role, .installed)
+        XCTAssertEqual(selectedKey.legend.primary, "S")
+        XCTAssertEqual(
+            selectedKey.accessibilityRole,
+            .launcherKey(letter: "S", application: application.target)
+        )
+        XCTAssertEqual(caps.role, .hyper)
+        XCTAssertEqual(caps.accessibilityRole, .capsToHyper)
+        XCTAssertTrue(
+            scene.keys
+                .filter { $0.id != selectedKey.id && $0.id != caps.id }
+                .allSatisfy { $0.role == .dimmed && $0.glow == 0 }
+        )
+        XCTAssertFalse(scene.keys.contains { $0.role == .launcher })
+        XCTAssertEqual(
+            scene.decorations.filter { $0.kind == .applicationTarget(application.target) }.count,
+            1
+        )
+        XCTAssertFalse(scene.decorations.contains { $0.kind == .launcherChoiceTarget })
+        XCTAssertEqual(
+            scene.revealTarget,
+            .application(keyID: selectedKey.id, application: application.target)
+        )
+    }
+
+    func testReducedMotionLauncherSelectionKeepsSemanticFeedbackWithoutMovement() throws {
+        var displayMode = KeyboardStageDisplayMode.standard
+        displayMode.reduceMotion = true
+        let application = KeyboardStageSceneBuilder.Application(
+            name: "Notes",
+            bundleIdentifier: "com.apple.Notes"
+        )
+        let scene = KeyboardStageSceneBuilder.make(
+            layout: testLayout,
+            keymap: .qwertyUS,
+            moment: .launcher,
+            launcherSelection: KeyboardStageSceneBuilder.LauncherSelection(
+                keyCode: 0,
+                displayedLetter: "A",
+                application: application
+            ),
+            displayMode: displayMode
+        )
+        let selectedKey = try XCTUnwrap(scene.keys.first { $0.keyCode == 0 })
+        let applicationTarget = try XCTUnwrap(scene.decorations.first {
+            $0.kind == .applicationTarget(application.target)
+        })
+
+        XCTAssertEqual(selectedKey.role, .installed)
+        XCTAssertEqual(selectedKey.pressure, 0)
+        XCTAssertEqual(selectedKey.scale, 1)
+        XCTAssertEqual(selectedKey.translation, .zero)
+        XCTAssertGreaterThan(selectedKey.glow, 0)
+        XCTAssertEqual(applicationTarget.pressure, 0)
+        XCTAssertEqual(applicationTarget.scale, 1)
+        XCTAssertEqual(
+            scene.revealTarget,
+            .application(keyID: selectedKey.id, application: application.target)
+        )
+    }
+
     func testLauncherCameraKeepsHyperAndAvailableLettersInOneStory() throws {
         let scene = KeyboardStageSceneBuilder.make(
             layout: .macBookUS,
@@ -358,7 +438,30 @@ final class KeyboardStageSceneTests: XCTestCase {
         XCTAssertGreaterThan(caps.pressure, try capsKey(in: scene).pressure)
         XCTAssertLessThan(caps.scale, 1)
         XCTAssertGreaterThanOrEqual(caps.glow, try capsKey(in: scene).glow)
+        XCTAssertEqual(caps.interactionLevel, 1)
         XCTAssertEqual(otherKey, originalOtherKey)
+    }
+
+    func testLivePressRespondsOnANeutralNonCapsKey() throws {
+        let scene = makeScene(moment: .capsInstalled)
+        let neutral = try XCTUnwrap(scene.keys.first { key in
+            key.keyCode != 57 && [.standard, .modifier, .dimmed].contains(key.role)
+        })
+        let responsiveScene = scene.applyingInteraction(
+            KeyboardStageInteractionLevels(
+                state: KeyboardStageInteractionState(
+                    pressedKeyCodes: [neutral.keyCode],
+                    heldKeyCodes: [],
+                    phase: .press,
+                    revision: 1
+                )
+            )
+        )
+        let responsive = try XCTUnwrap(responsiveScene.keys.first { $0.id == neutral.id })
+
+        XCTAssertEqual(responsive.interactionLevel, 1)
+        XCTAssertGreaterThan(responsive.pressure, neutral.pressure)
+        XCTAssertGreaterThan(responsive.glow, neutral.glow)
     }
 
     func testReducedMotionLivePressKeepsColorFeedbackWithoutMovement() throws {
@@ -384,7 +487,75 @@ final class KeyboardStageSceneTests: XCTestCase {
 
         XCTAssertEqual(caps.pressure, 0)
         XCTAssertEqual(caps.scale, 1)
+        XCTAssertEqual(caps.interactionLevel, 1)
         XCTAssertGreaterThan(caps.glow, try capsKey(in: scene).glow)
+    }
+
+    func testLivePressUsesAnAccentFaceAndReadableLegendThroughoutRelease() {
+        let roles: [KeyboardStageKeyRole] = [
+            .standard, .modifier, .dimmed, .recommended, .escape,
+            .hyper, .launcher, .installed,
+        ]
+        let levels = stride(from: Float(0.005), through: 1, by: 0.005)
+        for appearance in [KeyboardStageDisplayMode.Appearance.light, .dark] {
+            for increaseContrast in [false, true] {
+                var mode = KeyboardStageDisplayMode.standard
+                mode.appearance = appearance
+                mode.increaseContrast = increaseContrast
+                let palette = KeyboardStagePalette(displayMode: mode)
+
+                for role in roles {
+                    let idle = palette.style(for: role)
+                    let pressed = palette.style(for: role, interactionLevel: 1)
+                    XCTAssertNotEqual(pressed.fill, idle.fill)
+                    XCTAssertGreaterThanOrEqual(pressed.borderStrength, 0.78)
+
+                    for level in levels {
+                        let style = palette.style(for: role, interactionLevel: level)
+                        XCTAssertGreaterThanOrEqual(
+                            style.fill.contrastRatio(with: style.legend),
+                            4.55,
+                            "\(appearance) \(role) level \(level)"
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    func testReduceTransparencyKeepsPressedFaceButSuppressesEntranceGlow() {
+        var displayMode = KeyboardStageDisplayMode.standard
+        displayMode.reduceTransparency = true
+        let palette = KeyboardStagePalette(displayMode: displayMode)
+        let idle = palette.style(for: .standard)
+        let pressed = palette.style(for: .standard, interactionLevel: 1)
+        let scene = KeyboardStageSceneBuilder.make(
+            layout: testLayout,
+            keymap: .qwertyUS,
+            moment: .capsMotivation,
+            displayMode: displayMode
+        )
+        let lighting = KeyboardStageLightingResolver(
+            scene: scene,
+            entrance: KeyboardStageEntranceFrame(progress: 0, reduceMotion: false)
+        )
+        let key = scene.keys[0]
+
+        XCTAssertNotEqual(pressed.fill, idle.fill)
+        XCTAssertEqual(lighting.lighting(for: key).transientGlow, 0)
+        XCTAssertEqual(lighting.lighting(for: key).legendGlow, 0)
+    }
+
+    func testDifferentiateWithoutColorStrengthensThePressedOutline() {
+        var displayMode = KeyboardStageDisplayMode.standard
+        displayMode.differentiateWithoutColor = true
+
+        let pressed = KeyboardStagePalette(displayMode: displayMode).style(
+            for: .standard,
+            interactionLevel: 1
+        )
+
+        XCTAssertEqual(pressed.borderStrength, 1)
     }
 
     private var allMoments: [KeyboardStageMoment] {

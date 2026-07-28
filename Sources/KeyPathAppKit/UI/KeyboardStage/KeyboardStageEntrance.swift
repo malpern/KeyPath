@@ -23,20 +23,51 @@ struct KeyboardStageEntranceFrame: Equatable, Sendable {
 }
 
 struct KeyboardStageCinematicLighting: Equatable, Sendable {
-    /// The light enters from the keyboard/right edge. Each surface still uses
-    /// a critically damped response; only its start time changes across x.
-    static let maximumDirectionalDelay: Float = 0.62
+    static let frontStart: Float = 1.08
+    static let frontEnd: Float = -0.46
+    static let feather: Float = 0.40
+    static let verticalSkew: Float = 0.06
+
+    struct Parameters: Equatable, Sendable {
+        var frontX: Float
+        var feather: Float
+        var verticalSkew: Float
+
+        var gpuVector: SIMD4<Float> {
+            SIMD4(frontX, feather, verticalSkew, 0)
+        }
+    }
+
+    static func parameters(for entrance: KeyboardStageEntranceFrame) -> Parameters {
+        Parameters(
+            frontX: frontX(for: entrance),
+            feather: feather,
+            verticalSkew: verticalSkew
+        )
+    }
+
+    static func frontX(for entrance: KeyboardStageEntranceFrame) -> Float {
+        frontStart + (frontEnd - frontStart) * entrance.progress
+    }
 
     static func exposure(
         for entrance: KeyboardStageEntranceFrame,
-        normalizedX: Float
+        normalizedX: Float,
+        normalizedY: Float = 0.5
     ) -> Float {
         guard !entrance.reduceMotion else { return entrance.easedProgress }
+        guard entrance.progress > 0 else { return 0 }
+        guard entrance.progress < 1 else { return 1 }
+
         let x = min(1, max(0, normalizedX))
-        let delay = (1 - x) * maximumDirectionalDelay
-        let availableDuration = max(0.001, 1 - delay)
-        let localProgress = (entrance.progress - delay) / availableDuration
-        return KeyboardStageTransition.criticallyDampedProgress(localProgress)
+        let y = min(1, max(0, normalizedY))
+        let parameters = parameters(for: entrance)
+        let coordinate = x + (0.5 - y) * parameters.verticalSkew
+        let linear = min(
+            1,
+            max(0, (coordinate - parameters.frontX) / parameters.feather)
+        )
+        return linear * linear * (3 - 2 * linear)
     }
 
     static func normalizedX(
@@ -45,6 +76,14 @@ struct KeyboardStageCinematicLighting: Equatable, Sendable {
     ) -> Float {
         guard bounds.size.width > 0 else { return 0.5 }
         return min(1, max(0, (point.x - bounds.minX) / bounds.size.width))
+    }
+
+    static func normalizedY(
+        for point: KeyboardStagePoint,
+        in bounds: KeyboardStageRect
+    ) -> Float {
+        guard bounds.size.height > 0 else { return 0.5 }
+        return min(1, max(0, (point.y - bounds.minY) / bounds.size.height))
     }
 }
 
@@ -71,7 +110,7 @@ struct KeyboardStageSurfaceLighting: Equatable, Sendable {
     )
 
     func legendColor(settledColor: KeyboardStageRGBA) -> KeyboardStageRGBA {
-        KeyboardStageRGBA(0.86, 0.93, 1)
+        KeyboardStageRGBA(0.82, 0.84, 0.88)
             .interpolated(to: settledColor, progress: legendTransitionProgress)
     }
 }
@@ -85,14 +124,26 @@ struct KeyboardStageLightingResolver: Equatable, Sendable {
 
     private let scene: KeyboardStageScene
     private let entrance: KeyboardStageEntranceFrame
+    private let projection: KeyboardStageProjection?
+    private let windowX: SIMD2<Float>
 
-    init(scene: KeyboardStageScene, entrance: KeyboardStageEntranceFrame) {
+    init(
+        scene: KeyboardStageScene,
+        entrance: KeyboardStageEntranceFrame,
+        projection: KeyboardStageProjection? = nil,
+        windowX: SIMD2<Float> = SIMD2(0, 1)
+    ) {
         self.scene = scene
         self.entrance = entrance
+        self.projection = projection
+        self.windowX = windowX
     }
 
     func lighting(for key: KeyboardStageKey) -> KeyboardStageSurfaceLighting {
-        resolve(at: key.frame.center, kind: .key)
+        var lighting = resolve(at: key.frame.center, kind: .key)
+        let emphasis = min(1, max(0, key.glow))
+        lighting.legendGlow *= 0.14 + emphasis * 0.86
+        return lighting
     }
 
     func lighting(for decoration: KeyboardStageDecoration) -> KeyboardStageSurfaceLighting {
@@ -108,26 +159,26 @@ struct KeyboardStageLightingResolver: Equatable, Sendable {
     ) -> KeyboardStageSurfaceLighting {
         guard entrance.progress < 1 else { return .settled }
 
-        let exposure: Float = if kind == .deck, !entrance.reduceMotion {
+        let exposure: Float
+        if kind == .deck, !entrance.reduceMotion {
             // The deck is one large render surface, so use the average light
             // reaching its left, middle, and right regions. This keeps it
             // subordinate to the individually lit keycaps without leaving the
             // first illuminated keys floating over a completely black base.
-            [Float(0.24), 0.52, 0.80]
+            exposure = [Float(0.24), 0.52, 0.80]
                 .map {
                     KeyboardStageCinematicLighting.exposure(
                         for: entrance,
-                        normalizedX: $0
+                        normalizedX: windowX.x + $0 * windowX.y
                     )
                 }
                 .reduce(0, +) / 3
         } else {
-            KeyboardStageCinematicLighting.exposure(
+            let normalizedPoint = normalizedPoint(for: point)
+            exposure = KeyboardStageCinematicLighting.exposure(
                 for: entrance,
-                normalizedX: KeyboardStageCinematicLighting.normalizedX(
-                    for: point,
-                    in: scene.layoutBounds
-                )
+                normalizedX: windowX.x + normalizedPoint.x * windowX.y,
+                normalizedY: normalizedPoint.y
             )
         }
         let initialIllumination: Float = switch kind {
@@ -141,7 +192,7 @@ struct KeyboardStageLightingResolver: Equatable, Sendable {
         } else if kind == .deck {
             0
         } else {
-            entrance.reduceMotion ? 0.34 : 0.44
+            entrance.reduceMotion ? 0.48 : 0.82
         }
 
         return KeyboardStageSurfaceLighting(
@@ -158,12 +209,33 @@ struct KeyboardStageLightingResolver: Equatable, Sendable {
             legendTransitionProgress: exposure,
             legendGlow: scene.displayMode.reduceTransparency
                 ? 0
-                : 0.38 * (1 - exposure)
+                : 0.92 * (1 - exposure)
         )
     }
 
     private static func interpolate(_ start: Float, _ end: Float, _ progress: Float) -> Float {
         start + (end - start) * progress
+    }
+
+    private func normalizedPoint(for point: KeyboardStagePoint) -> KeyboardStagePoint {
+        guard let projection else {
+            return KeyboardStagePoint(
+                x: KeyboardStageCinematicLighting.normalizedX(
+                    for: point,
+                    in: scene.layoutBounds
+                ),
+                y: KeyboardStageCinematicLighting.normalizedY(
+                    for: point,
+                    in: scene.layoutBounds
+                )
+            )
+        }
+
+        let projected = projection.project(point)
+        return KeyboardStagePoint(
+            x: min(1, max(0, Float(projected.x) / projection.destinationSize.width)),
+            y: min(1, max(0, Float(projected.y) / projection.destinationSize.height))
+        )
     }
 }
 
@@ -273,7 +345,10 @@ struct KeyboardStageEntrancePresentation: Equatable, Sendable {
     }
 
     mutating func settle() {
-        guard phase != .settled else { return }
+        // SwiftUI/AppKit hosting can transiently disappear before the window's
+        // first drawable is visible. Do not let that teardown consume the
+        // one-shot entrance before `beginIfNeeded` receives its visible frame.
+        guard phase != .pending, phase != .settled else { return }
         phase = .settled
         revision &+= 1
     }

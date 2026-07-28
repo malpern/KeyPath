@@ -74,6 +74,7 @@ final class KeyboardStageTransitionTests: XCTestCase {
                     opacity: 1,
                     pressure: 0,
                     glow: 0,
+                    interactionLevel: 0,
                     scale: 1,
                     translation: .zero,
                     accessibilityRole: nil

@@ -593,25 +593,50 @@ extension RuleCollectionsManager {
     /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
     @discardableResult
     func updateLauncherConfig(id: UUID, config: LauncherGridConfig) async -> Bool {
-        guard var candidate = ruleCollections.first(where: { $0.id == id })
+        guard let candidate = ruleCollections.first(where: { $0.id == id })
             ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id })
         else {
             return false
         }
 
         let wasNewlyEnabled = !candidate.isEnabled
+        let applied = await applyLauncherConfig(id: id, config: config)
+        return applied && wasNewlyEnabled
+    }
+
+    /// Applies and persists launcher configuration, optionally leaving the
+    /// runtime reload to a typed caller.
+    /// - Returns: `true` only when the proposed configuration was saved.
+    @discardableResult
+    func applyLauncherConfig(
+        id: UUID,
+        config: LauncherGridConfig,
+        skipReload: Bool = false
+    ) async -> Bool {
+        guard var candidate = ruleCollections.first(where: { $0.id == id })
+            ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id })
+        else {
+            return false
+        }
+        guard case .launcherGrid = candidate.configuration else {
+            return false
+        }
+
         candidate.configuration.updateLauncherGridConfig(config)
         candidate.isEnabled = true
 
         let appliedProviderIDs = await applyProposedCollectionWithPrerequisites(
             candidate,
             rollbackMessage:
-            "Could not save Launcher. Your previous rule state was restored."
+            "Could not save Launcher. Your previous rule state was restored.",
+            skipReload: skipReload
         )
-        if appliedProviderIDs != nil {
-            await warmLauncherIconCache(for: config)
+        guard appliedProviderIDs != nil else {
+            return false
         }
-        return appliedProviderIDs != nil && wasNewlyEnabled
+
+        await warmLauncherIconCache(for: config)
+        return true
     }
 
     /// Update auto shift symbols configuration

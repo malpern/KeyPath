@@ -6119,6 +6119,456 @@
           }
         }
       }
+    },
+    "Browse for another app…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browse for another app…"
+          }
+        }
+      }
+    },
+    "Change": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change"
+          }
+        }
+      }
+    },
+    "Choose %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose %@"
+          }
+        }
+      }
+    },
+    "Choose a letter and favorite app here": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a letter and favorite app here"
+          }
+        }
+      }
+    },
+    "Choose an App": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an App"
+          }
+        }
+      }
+    },
+    "Choose an app and a letter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an app and a letter."
+          }
+        }
+      }
+    },
+    "Choose an app and letter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an app and letter"
+          }
+        }
+      }
+    },
+    "Choose an app to launch": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an app to launch"
+          }
+        }
+      }
+    },
+    "Choose an app to launch.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an app to launch."
+          }
+        }
+      }
+    },
+    "Choose App": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose App"
+          }
+        }
+      }
+    },
+    "Choose one app and one letter you will remember. KeyPath will save the real shortcut here.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose one app and one letter you will remember. KeyPath will save the real shortcut here."
+          }
+        }
+      }
+    },
+    "Choose one letter for the shortcut.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose one letter for the shortcut."
+          }
+        }
+      }
+    },
+    "Choose the app this shortcut should open.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose the app this shortcut should open."
+          }
+        }
+      }
+    },
+    "Enter one letter to press while holding Caps Lock.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter one letter to press while holding Caps Lock."
+          }
+        }
+      }
+    },
+    "Explore Rules": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Explore Rules"
+          }
+        }
+      }
+    },
+    "Favorite app": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorite app"
+          }
+        }
+      }
+    },
+    "Hold Caps Lock and press %@ to open %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold Caps Lock and press %1$@ to open %2$@."
+          }
+        }
+      }
+    },
+    "Hold Caps Lock, then press": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hold Caps Lock, then press"
+          }
+        }
+      }
+    },
+    "Hyper +": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hyper +"
+          }
+        }
+      }
+    },
+    "Keep my current setup": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep my current setup"
+          }
+        }
+      }
+    },
+    "KeyPath could not save that change. Nothing new was applied; try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPath could not save that change. Nothing new was applied; try again."
+          }
+        }
+      }
+    },
+    "KeyPath did not replace your existing Caps Lock or Hyper behavior. You can keep exploring without changing it.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPath did not replace your existing Caps Lock or Hyper behavior. You can keep exploring without changing it."
+          }
+        }
+      }
+    },
+    "KeyPath left your existing keyboard behavior untouched while showing how tap, hold, and shortcut layers fit together.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyPath left your existing keyboard behavior untouched while showing how tap, hold, and shortcut layers fit together."
+          }
+        }
+      }
+    },
+    "No user-facing apps are running.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No user-facing apps are running."
+          }
+        }
+      }
+    },
+    "Q": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Q"
+          }
+        }
+      }
+    },
+    "Rules is the catalog for discovering, changing, or disabling every remap—whenever you want more.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rules is the catalog for discovering, changing, or disabling every remap—whenever you want more."
+          }
+        }
+      }
+    },
+    "Save Hyper + %@ for %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Hyper + %1$@ for %2$@"
+          }
+        }
+      }
+    },
+    "See what else is possible": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See what else is possible"
+          }
+        }
+      }
+    },
+    "Shortcut letter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shortcut letter"
+          }
+        }
+      }
+    },
+    "Tap Caps Lock for Escape, hold it for Hyper, and press %@ for %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Caps Lock for Escape, hold it for Hyper, and press %1$@ for %2$@."
+          }
+        }
+      }
+    },
+    "That letter already has a shortcut. Choose another.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That letter already has a shortcut. Choose another."
+          }
+        }
+      }
+    },
+    "That letter is already in use, so KeyPath left your launcher untouched. Choose another letter and try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That letter is already in use, so KeyPath left your launcher untouched. Choose another letter and try again."
+          }
+        }
+      }
+    },
+    "The guided shortcuts are ready. The next action opens Rules to discover more keyboard changes.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The guided shortcuts are ready. The next action opens Rules to discover more keyboard changes."
+          }
+        }
+      }
+    },
+    "The pattern still works": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The pattern still works"
+          }
+        }
+      }
+    },
+    "Three wins, already working": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Three wins, already working"
+          }
+        }
+      }
+    },
+    "Use a single letter.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use a single letter."
+          }
+        }
+      }
+    },
+    "Uses this app for the new launcher shortcut.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uses this app for the new launcher shortcut."
+          }
+        }
+      }
+    },
+    "When you are ready, a clean prefix plus one memorable letter can launch any app.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When you are ready, a clean prefix plus one memorable letter can launch any app."
+          }
+        }
+      }
+    },
+    "You have the pattern: tap, hold, then combine. Rules is where you can discover what else KeyPath can make yours.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have the pattern: tap, hold, then combine. Rules is where you can discover what else KeyPath can make yours."
+          }
+        }
+      }
+    },
+    "Your choice was saved, but KeyPath could not make it active yet. Try again when KeyPath is ready.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your choice was saved, but KeyPath could not make it active yet. Try again when KeyPath is ready."
+          }
+        }
+      }
+    },
+    "Your choices are preserved": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your choices are preserved"
+          }
+        }
+      }
+    },
+    "Your current Caps Lock or shortcut setup is already customized, so KeyPath left it untouched.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your current Caps Lock or shortcut setup is already customized, so KeyPath left it untouched."
+          }
+        }
+      }
+    },
+    "Your keyboard has room to grow": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your keyboard has room to grow"
+          }
+        }
+      }
+    },
+    "Your setup stays yours": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your setup stays yours"
+          }
+        }
+      }
+    },
+    "Your shortcut is live": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your shortcut is live"
+          }
+        }
+      }
     }
   }
 }

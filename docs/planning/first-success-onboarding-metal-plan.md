@@ -26,12 +26,15 @@ The recommended path is:
 
 1. **Reclaim a nearby key.** Explain that Escape dismisses small UI such as menus, popovers, and search; it is useful often but far away. Explain that Caps Lock is nearby and often unused. Offer an explicit skip to people who use Caps Lock for capitalization.
 2. **Create a clean shortcut prefix.** Keep tap-for-Escape, then explain why holding the same key is useful before introducing “Hyper” as Control + Option + Shift + Command. Existing apps rarely reserve the full combination, so it is a clean prefix for shortcuts the person chooses.
-3. **Put a favorite app on a letter.** Teach the gesture—hold Caps Lock and press a chosen letter—without inventing an app or key on the person’s behalf. Then open the actual Quick Launcher controls where they make both choices.
-4. **Continue in Rules.** Keep Quick Launcher focused for the handoff, then let Rules and the catalog provide further discovery and remapping. Do not send a new user to an undifferentiated store grid.
+3. **Put a favorite app on a letter.** Teach the gesture—hold Caps Lock and press a chosen letter—without inventing an app or key on the person’s behalf. Let them choose both the app and letter, then save, verify, and try the real shortcut without leaving onboarding.
+4. **Continue in Rules.** Only after all three wins are complete, hand off to Rules with Quick Launcher focused so the person can manage what they made and discover further remapping. Do not send a new user to an undifferentiated store grid.
 
 Every guided feature follows the same interaction contract:
 
-`motivation → preview → explicit choice → apply and verify → try it → show where it lives → continue or stop`
+`motivation → preview → explicit choice → apply and verify → try it → keep the result visible → continue or stop`
+
+After the third win, one final handoff shows where the completed configuration
+lives and opens the broader discovery surface.
 
 ## Final visual bar
 
@@ -45,7 +48,7 @@ The keyboard stage occupies the visual center of each learning moment. Copy sits
 2. The motivation describes a familiar escape problem. A small representative menu/popover appears in the same spatial world, reinforcing what Escape does without asking the person to read a manual.
 3. On explicit approval, Caps Lock responds instantly as a real key: it compresses, its material catches light, and its virtual legend resolves from its old role into `esc`. A short positional echo makes the new role legible without a literal arrow or particle effect.
 4. The key releases into a calm installed state. When the person presses their physical Caps Lock key during practice, the virtual key responds in synchrony whenever safe observation is available.
-5. Choosing “show me where this lives” causes that same key and its accent to lead the eye into the matching catalog/Rules configuration. This is one continuous spatial reveal, not a new page appearing beside an unrelated screenshot.
+5. The installed Escape state remains visible as the person continues. Its matching Rules configuration is revealed only in the final discovery/management handoff, after all three wins are complete.
 
 ### Hold Caps Lock for Hyper
 
@@ -55,8 +58,8 @@ The keyboard stage occupies the visual center of each learning moment. Copy sits
 ### Hyper plus a chosen letter
 
 1. Hyper remains visibly anchored to held Caps Lock while a restrained group of letter keys becomes available; the onboarding never pretends that an unchosen letter or app is already configured.
-2. The keyboard leads into the real Quick Launcher controls. After the person chooses there, the selected app, letter, and editable mapping are visible in the same Rules surface they will use later.
-3. Rules provides the catalog horizon from that point: nearby remaps feel like possibilities connected to the keyboard journey, not a store taking over the flow.
+2. Inline Quick Launcher controls let the person choose an actual app and letter. Saving applies and verifies that exact mapping before the stage presents it as complete; cancelled selection or reload failure remains in onboarding with a clear recovery path.
+3. After the person tries the shortcut, the final handoff opens Rules with Quick Launcher focused. The selected app, letter, and editable mapping are visible there, while nearby remaps feel like possibilities connected to the keyboard journey rather than a store taking over the flow.
 
 Motion is tightly choreographed: immediate response at pointer/key down; roughly 0.35–0.55 seconds for a meaningful key transformation; no more than one major visual event for each user decision. It is interruptible at every point, uses the same object and path when reversing, and reduces to color/opacity feedback for Reduce Motion. Sound, confetti, and perpetual ambient movement are explicitly out of scope.
 
@@ -69,6 +72,33 @@ directional but never a hard UI wipe; Metal gives individual key surfaces a
 small spatial response while native SwiftUI owns the matching window palette.
 Reduce Motion keeps the same hold and a short uniform color resolve without the
 traveling light front.
+
+The entrance is a bounded proof gate for Metal, not an open-ended visual-effects
+project. The forced-Metal installed-app capture must demonstrate all of the
+following in the 1.5-second dark hold and one approximately 0.55-second
+directional reveal:
+
+- convincing dark graphite key materials with neutral, MacBook-like emitted
+  legends rather than blue gaming-keyboard glow;
+- one continuous, broad light front shared by the Metal keyboard and native
+  window palette, visibly crossing individual key surfaces without becoming a
+  hard wipe;
+- per-pixel bevel, contact-shadow, diffuse, and restrained specular response
+  that gives the keycaps physical depth as the front passes; and
+- a clean, reference-light settled frame with no residual bloom, muddy overlay,
+  foreground flash, or mismatch between the Metal and SwiftUI portions of the
+  dialog.
+
+Implement only the smallest rendering work needed to prove that bar: a shared
+window-space light-front model, analytic keycap surface response in the fragment
+shader, and a cached legend mask/atlas for real backlight emission while the
+native semantic overlay continues to own accessibility and interaction. Keep
+the renderer demand-driven and stop drawing after the entrance settles. Review
+dark-hold and 25/50/75/100-percent reveal frames from the deployed, reopened app,
+not previews or build output. If that installed capture does not materially beat
+the SwiftUI baseline in physical depth, illumination, and cinematic coherence,
+Metal has failed the proof: SwiftUI remains the default and further Metal work
+stops.
 
 ## Pass 1 — Functional SwiftUI-first onboarding
 
@@ -106,7 +136,7 @@ Add a narrow routing policy that receives the current rule collections and insta
 
 - skip Caps Lock when it is already meaningfully configured or the user declines it;
 - avoid suggesting a feature that conflicts with an installed pack;
-- recognize Quick Launcher conflicts and route to the existing Rules configuration;
+- recognize Quick Launcher conflicts and resolve or safely skip them within onboarding rather than opening Rules mid-flow;
 - produce a safe alternate path rather than stopping the experience;
 - focus the catalog handoff on the same Quick Launcher collection, so the final screen and Rules cannot drift apart.
 
@@ -120,7 +150,7 @@ Compose the dialog from small, separate SwiftUI view types with narrow inputs:
 - a benefit-led lesson copy column that explains the why before the action;
 - one persistent keyboard hero shared across every moment;
 - a Caps Lock practice control that tests the real Escape behavior;
-- a contextual continuation into the real Caps Lock or Quick Launcher controls when existing configuration must be preserved.
+- inline app and letter controls that save the real Quick Launcher mapping while preserving or clearly resolving existing configuration.
 
 Use standard KeyPath/macOS controls and the existing action-bar treatment. Every interactive control needs an accessibility identifier. The window remains normally closable and keyboard-operable; the person can stop at any point without having to reverse a change first.
 
@@ -134,7 +164,7 @@ Build a `PracticeCoordinator` with three supported outcomes:
 
 - **Observed success:** reuse an existing, privacy-safe KeyPath/Kanata input signal when one can prove that the expected input or action happened.
 - **Self-confirmed success:** if KeyPath cannot observe that interaction reliably in the current focus context, invite the person to try it and let them continue without a false error or an unbounded wait.
-- **Needs help:** if apply/reload failed, show a concise error and a direct retry or Rules path. Do not present the feature as installed.
+- **Needs help:** if apply/reload failed, show a concise error and a direct retry, keep-current, or skip-this-win path within onboarding. Do not present the feature as installed or open Rules before the final handoff.
 
 The coordinator never installs a global event monitor just to make onboarding look smart. It does not capture or store arbitrary keystrokes. Its success state is independent from visual motion: the configuration must save and reload successfully before the visual stage settles into the installed state.
 
@@ -146,8 +176,8 @@ Use a small set of named motion roles rather than unrelated duration literals:
 
 - **Press:** immediate key compression and active tint on pointer-down; short, critically damped return.
 - **Transformation:** a source keycap relabels and changes role along a single spatial path; the output key never looks like an arrow.
-- **Reveal:** the same key’s accent and geometry lead into the matching Rules/Pack Detail control.
-- **Handoff:** Hyper and the available letters remain spatially connected while Quick Launcher becomes the next real control surface.
+- **Reveal:** the same key’s accent and geometry lead into the matching inline choice or practice control.
+- **Handoff:** after all three wins, the selected key and app remain spatially connected as Rules becomes the final management and discovery surface.
 - **Completion:** one restrained confirmation pulse after durable apply; no confetti, loop, or sound effect.
 
 Default motion is critically damped (approximately 0.3–0.4 seconds) with no ornamental overshoot. Motion begins at the object that caused it, can be interrupted by Back, Skip, or Close, and never locks out controls while it completes. Reduce Motion substitutes short opacity and color transitions; reduced transparency and increased contrast receive separate visual treatment.
@@ -156,7 +186,7 @@ The SwiftUI keyboard stage initially reuses KeyPath’s existing keycap roles, g
 
 ### 6. Make state, safety, and recovery visible
 
-Before a change, explain its tradeoff in ordinary language. After a change, make the installed feature visible in the catalog and show where it can be changed. Add a single, obvious undo affordance where it is safe to restore the exact previous configuration.
+Before a change, explain its tradeoff in ordinary language. After each change, keep the installed result visible in onboarding. At the final handoff, make every installed feature visible in Rules and show where it can be changed. Add a single, obvious undo affordance where it is safe to restore the exact previous configuration.
 
 Handle these states intentionally:
 
@@ -177,7 +207,7 @@ Add focused tests before the Metal work begins:
 - catalog-backed install records are written for each onboarding-installed feature;
 - selected Caps Lock and launcher settings reach the same durable configuration as catalog installation;
 - installation is atomic across tracker/config failure paths;
-- routing policy preserves existing Caps Lock and Quick Launcher configurations and opens the correct Rules controls;
+- routing policy preserves existing Caps Lock and Quick Launcher configurations, keeps all three wins inline, and opens the correct Rules controls only at the final handoff;
 - onboarding eligibility, defer/resume, and close behavior;
 - apply errors never advance the learning moment;
 - reduce-motion and accessibility labels/identifiers;
@@ -210,11 +240,11 @@ The first renderer draws:
 - instanced rounded keycaps with consistent continuous corners, material depth, and soft shadows;
 - active, pressed, installed, and recommended color roles;
 - the Caps Lock-to-Escape spatial transform, with a subtle positional echo and a destination glow;
-- an anchored Rules reveal path and a restrained catalog-horizon transition.
+- a restrained Rules/catalog-horizon transition reserved for the final handoff.
 
 Use instanced quads plus a rounded-rectangle signed-distance-field fragment treatment for the keycap surfaces. This gives crisp scalable edges, consistent corner treatment, and inexpensive per-key depth/highlight changes without generating individual textures or views for every keycap.
 
-Keep text semantic and accessible. The first implementation may place native SwiftUI/AppKit text and accessibility elements above the Metal keycap substrate, keyed from the same geometry. If profiling or visual quality later requires a glyph atlas, add it only after the layout, baseline, localization, and accessibility constraints are proven. Do not bury keyboard labels inside an inaccessible shader as a shortcut.
+Keep text semantic and accessible. For the photorealistic entrance proof, render visual key legends from a cached mask/atlas so Metal can produce convincing backlight emission, while transparent native SwiftUI/AppKit elements keyed from the same geometry remain the authority for accessibility and interaction. Do not make shader-rendered labels the sole semantic representation.
 
 ### 10. Make the renderer demand-driven and respectful
 
@@ -251,7 +281,7 @@ For each learning moment, compare side by side:
 - light/dark, increased-contrast, and reduced-transparency states;
 - narrow and large-text window sizes.
 
-Switch the onboarding default to the Metal stage once it is visually consistent with KeyPath’s existing keycap vocabulary, motion remains causal and interruptible, and the fallback path has been exercised. The visual review bar is not merely “works on GPU”: the stage must feel materially more elegant, alive, and coherent than the temporary SwiftUI baseline.
+Switch the onboarding default to the Metal stage only after the deployed, reopened app passes the bounded entrance proof, is visually consistent with KeyPath’s existing keycap vocabulary, keeps motion causal and interruptible, and exercises the fallback path. The visual review bar is not merely “works on GPU”: the installed capture must feel materially more physical, elegant, and coherent than the SwiftUI baseline. If it does not, keep SwiftUI as the default and stop further Metal investment.
 
 ### 13. Reuse in the live keyboard overlay as a separate follow-up
 
@@ -274,7 +304,7 @@ This sequencing creates a shared visual engine without coupling two products bef
 2. **Functional experience.** Replace the fixed step wizard with the invitation, motivation, choice, practice, reveal, and catalog handoff. Use the temporary SwiftUI stage and ship all behavior/accessibility tests.
 3. **Functional review.** Deploy the installed app, exercise clean and existing-user paths, and revise copy/interaction from real use. This stabilizes the story that Metal will animate; it is not final visual approval.
 4. **Metal spike.** Prove package integration, scene model, fallback selection, and deterministic scene test harness behind a flag.
-5. **Metal onboarding stage.** Implement the full hero-stage composition and the Caps Lock, Hyper/launcher, next-win, and catalog-horizon sequences. Perform side-by-side design QA, accessibility QA, and performance profiling, then enable it as the default final experience.
+5. **Metal onboarding stage.** First pass the bounded photorealistic entrance proof in an installed-app capture. Only then implement the full hero-stage composition and the Caps Lock, Hyper/launcher, next-win, and final catalog-horizon sequences; perform side-by-side design QA, accessibility QA, and performance profiling before enabling Metal as the default. Otherwise retain SwiftUI as the default and stop.
 6. **Overlay adoption.** Separate feature/PR after onboarding is stable; reuse the renderer core but validate overlay-specific behavior independently.
 
 ## Completion criteria

@@ -1,5 +1,6 @@
 import AppKit
 import KeyPathInstallationWizard
+import KeyPathRulesCore
 import SwiftUI
 
 struct FirstSuccessOnboardingColor: Equatable, Sendable {
@@ -57,13 +58,13 @@ struct FirstSuccessOnboardingPalette: Equatable, Sendable {
     var accent: FirstSuccessOnboardingColor
 
     var nativeColorScheme: ColorScheme {
-        ambientLight < 0.98 ? .dark : .light
+        ambientLight < 0.50 ? .dark : .light
     }
 
     static let dark = FirstSuccessOnboardingPalette(
         ambientLight: 0,
-        backgroundLeading: FirstSuccessOnboardingColor(8, 11, 17),
-        backgroundTrailing: FirstSuccessOnboardingColor(15, 19, 28),
+        backgroundLeading: FirstSuccessOnboardingColor(6, 8, 11),
+        backgroundTrailing: FirstSuccessOnboardingColor(26, 23, 22),
         primaryText: FirstSuccessOnboardingColor(239, 243, 250),
         summaryText: FirstSuccessOnboardingColor(187, 196, 210),
         detailText: FirstSuccessOnboardingColor(174, 184, 200),
@@ -90,10 +91,10 @@ struct FirstSuccessOnboardingPalette: Equatable, Sendable {
 
     static func resolve(ambientLight: Float, increaseContrast: Bool) -> Self {
         let progress = min(1, max(0, ambientLight))
-        // Foregrounds do not travel through middle gray alongside the room.
-        // They retain their dark-room contrast until the feathered exposure
-        // has passed the copy column, then resolve directly to reference-light.
-        let foregroundProgress: Float = progress < 0.98 ? 0 : 1
+        // Choose the higher-contrast foreground endpoint as the area light
+        // crosses the copy. Interpolating white through gray to black while
+        // the background is also gray makes the lesson briefly unreadable.
+        let foregroundProgress: Float = progress < 0.50 ? 0 : 1
         var palette = Self(
             ambientLight: progress,
             backgroundLeading: dark.backgroundLeading.interpolated(
@@ -185,8 +186,11 @@ private struct FirstSuccessCinematicLightWash: View {
     let progress: Float
 
     var body: some View {
-        let amount = Double(min(1, max(0, progress)))
-        let front = 1.36 - amount * 1.72
+        let entrance = KeyboardStageEntranceFrame(progress: progress, reduceMotion: false)
+        let parameters = KeyboardStageCinematicLighting.parameters(for: entrance)
+        let front = Double(parameters.frontX)
+        let feather = Double(parameters.feather)
+        let halfSkew = Double(parameters.verticalSkew) / 2
 
         LinearGradient(
             colors: [
@@ -198,9 +202,15 @@ private struct FirstSuccessCinematicLightWash: View {
         )
         .mask {
             LinearGradient(
-                colors: [.clear, .white],
-                startPoint: UnitPoint(x: front - 0.28, y: 0.5),
-                endPoint: UnitPoint(x: front + 0.28, y: 0.5)
+                stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: .white.opacity(0.156), location: 0.25),
+                    .init(color: .white.opacity(0.5), location: 0.5),
+                    .init(color: .white.opacity(0.844), location: 0.75),
+                    .init(color: .white, location: 1),
+                ],
+                startPoint: UnitPoint(x: front, y: 0.5 - halfSkew),
+                endPoint: UnitPoint(x: front + feather, y: 0.5 + halfSkew)
             )
         }
         .allowsHitTesting(false)
@@ -246,15 +256,34 @@ struct FirstSuccessOnboardingDialog: View {
     let actionCoordinator: FirstSuccessOnboardingActionCoordinator
     let makeCapsLockEscape: @MainActor @Sendable () async -> FirstSuccessOnboardingSession.ActionResult
     let addHyperHold: @MainActor @Sendable () async -> FirstSuccessOnboardingSession.ActionResult
-    let openCapsLockControls: () -> Void
+    let saveLauncherShortcut: @MainActor @Sendable (LauncherMapping) async -> FirstSuccessOnboardingSession.ActionResult
     let finishInRules: () -> Void
     let dismiss: () -> Void
 
     @State private var keyboardInput = FirstSuccessKeyboardInputCoordinator()
     @State private var keyboardEntrance = KeyboardStageEntranceController()
+    @State private var launcherChoice = FirstSuccessLauncherChoiceModel()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    init(
+        actionCoordinator: FirstSuccessOnboardingActionCoordinator,
+        makeCapsLockEscape: @escaping @MainActor @Sendable () async -> FirstSuccessOnboardingSession.ActionResult,
+        addHyperHold: @escaping @MainActor @Sendable () async -> FirstSuccessOnboardingSession.ActionResult,
+        saveLauncherShortcut: @escaping @MainActor @Sendable (LauncherMapping) async -> FirstSuccessOnboardingSession.ActionResult,
+        finishInRules: @escaping () -> Void,
+        dismiss: @escaping () -> Void,
+        launcherChoice: FirstSuccessLauncherChoiceModel = FirstSuccessLauncherChoiceModel()
+    ) {
+        self.actionCoordinator = actionCoordinator
+        self.makeCapsLockEscape = makeCapsLockEscape
+        self.addHyperHold = addHyperHold
+        self.saveLauncherShortcut = saveLauncherShortcut
+        self.finishInRules = finishInRules
+        self.dismiss = dismiss
+        _launcherChoice = State(initialValue: launcherChoice)
+    }
 
     private var session: FirstSuccessOnboardingSession {
         actionCoordinator.session
@@ -268,7 +297,13 @@ struct FirstSuccessOnboardingDialog: View {
             )
             let ambientLight = KeyboardStageCinematicLighting.exposure(
                 for: entranceFrame,
-                normalizedX: 0.18
+                normalizedX: 0.18,
+                normalizedY: 0.5
+            )
+            let leftEdgeLight = KeyboardStageCinematicLighting.exposure(
+                for: entranceFrame,
+                normalizedX: 0,
+                normalizedY: 0.5
             )
             let palette = FirstSuccessOnboardingPalette.resolve(
                 ambientLight: ambientLight,
@@ -303,7 +338,13 @@ struct FirstSuccessOnboardingDialog: View {
                     .ignoresSafeArea()
                     .background {
                         FirstSuccessWindowBackgroundBridge(
-                            backgroundColor: basePalette.backgroundLeading.nsColor
+                            backgroundColor: FirstSuccessOnboardingPalette.dark
+                                .backgroundLeading
+                                .interpolated(
+                                    to: FirstSuccessOnboardingPalette.light.backgroundLeading,
+                                    progress: leftEdgeLight
+                                )
+                                .nsColor
                         )
                     }
                 }
@@ -330,6 +371,7 @@ struct FirstSuccessOnboardingDialog: View {
 
             FirstSuccessJourneyContent(
                 session: session,
+                launcherChoice: launcherChoice,
                 keyboardInput: keyboardInput,
                 keyboardEntrance: keyboardEntrance,
                 displayMode: displayMode
@@ -337,9 +379,7 @@ struct FirstSuccessOnboardingDialog: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             FirstSuccessStatusRegion(
-                session: session,
-                openCapsLockControls: openCapsLockControls,
-                openLauncherControls: finishInRules
+                session: session
             )
 
             FirstSuccessSeparator(horizontalInset: 14)
@@ -364,9 +404,9 @@ struct FirstSuccessOnboardingDialog: View {
                     isEnabled: actionCoordinator.buttonState.backEnabled
                 ),
                 primary: .init(
-                    title: String(localized: primaryTitle),
+                    title: primaryTitle,
                     action: performPrimaryAction,
-                    isEnabled: actionCoordinator.buttonState.primaryEnabled,
+                    isEnabled: primaryEnabled,
                     isLoading: actionCoordinator.isActionInFlight
                 ),
                 secondaryPlacement: .trailing
@@ -384,35 +424,65 @@ struct FirstSuccessOnboardingDialog: View {
         )
     }
 
-    private var primaryTitle: LocalizedStringResource {
+    private var primaryTitle: String {
         switch session.step {
         case .capsLock:
-            switch session.capsLockPhase {
+            return switch session.capsLockPhase {
             case .installed, .practiced:
-                LocalizedStringResource("Continue", bundle: #bundle)
+                String(localized: "Continue", bundle: #bundle)
             case .blocked:
-                LocalizedStringResource("Open Caps Lock controls", bundle: #bundle)
+                String(localized: "Keep my current setup", bundle: #bundle)
             case .explaining where session.failure == .capsLockEscape:
-                LocalizedStringResource("Try again", bundle: #bundle)
+                String(localized: "Try again", bundle: #bundle)
             case .explaining, .applying:
-                LocalizedStringResource("Use Caps Lock for Escape", bundle: #bundle)
+                String(localized: "Use Caps Lock for Escape", bundle: #bundle)
             }
         case .hyper:
-            switch session.hyperPhase {
+            return switch session.hyperPhase {
             case .installed, .practiced:
-                LocalizedStringResource("Continue", bundle: #bundle)
+                String(localized: "Continue", bundle: #bundle)
             case .blocked:
-                LocalizedStringResource("Open Quick Launcher controls", bundle: #bundle)
+                String(localized: "Keep my current setup", bundle: #bundle)
             case .explaining where session.failure == .hyper:
-                LocalizedStringResource("Try again", bundle: #bundle)
+                String(localized: "Try again", bundle: #bundle)
             case .explaining, .applying:
-                LocalizedStringResource("Add Hyper on hold", bundle: #bundle)
+                String(localized: "Add Hyper on hold", bundle: #bundle)
             }
         case .launcher:
-            LocalizedStringResource("Continue", bundle: #bundle)
+            guard session.hyperPhase.isInstalled else {
+                return String(localized: "Continue", bundle: #bundle)
+            }
+            switch session.launcherPhase {
+            case .installed, .practiced:
+                return String(localized: "Continue", bundle: #bundle)
+            case .explaining where session.failure == .launcherShortcut:
+                return String(localized: "Try again", bundle: #bundle)
+            case .explaining, .blocked, .applying:
+                if let app = launcherChoice.selectedApp,
+                   !launcherChoice.canonicalKey.isEmpty
+                {
+                    return String(
+                        localized: "Save Hyper + \(launcherChoice.displayedKey.uppercased()) for \(app.name)",
+                        bundle: #bundle,
+                        comment: "Button that saves the selected Quick Launcher app and key during onboarding."
+                    )
+                }
+                return String(localized: "Choose an app and letter", bundle: #bundle)
+            }
         case .rules:
-            LocalizedStringResource("Choose an app and key", bundle: #bundle)
+            return String(localized: "Explore Rules", bundle: #bundle)
         }
+    }
+
+    private var primaryEnabled: Bool {
+        guard actionCoordinator.buttonState.primaryEnabled else { return false }
+        guard session.step == .launcher,
+              session.hyperPhase.isInstalled,
+              !session.launcherPhase.isInstalled
+        else {
+            return true
+        }
+        return launcherChoice.canApply
     }
 
     private func performPrimaryAction() {
@@ -423,7 +493,7 @@ struct FirstSuccessOnboardingDialog: View {
             case .installed, .practiced:
                 moveForward()
             case .blocked:
-                openCapsLockControls()
+                moveForward()
             case .explaining:
                 run(.capsLockEscape, action: makeCapsLockEscape)
             case .applying:
@@ -434,14 +504,28 @@ struct FirstSuccessOnboardingDialog: View {
             case .installed, .practiced:
                 moveForward()
             case .blocked:
-                finishInRules()
+                moveForward()
             case .explaining:
                 run(.hyper, action: addHyperHold)
             case .applying:
                 break
             }
         case .launcher:
-            moveForward()
+            guard session.hyperPhase.isInstalled else {
+                moveForward()
+                return
+            }
+            switch session.launcherPhase {
+            case .installed, .practiced:
+                moveForward()
+            case .explaining, .blocked:
+                guard let mapping = launcherChoice.mapping else { return }
+                run(.launcherShortcut) {
+                    await saveLauncherShortcut(mapping)
+                }
+            case .applying:
+                break
+            }
         case .rules:
             finishInRules()
         }
@@ -526,6 +610,7 @@ private struct FirstSuccessProgressHeader: View {
 
 private struct FirstSuccessJourneyContent: View {
     let session: FirstSuccessOnboardingSession
+    let launcherChoice: FirstSuccessLauncherChoiceModel
     let keyboardInput: FirstSuccessKeyboardInputCoordinator
     let keyboardEntrance: KeyboardStageEntranceController
     let displayMode: KeyboardStageDisplayMode
@@ -542,6 +627,7 @@ private struct FirstSuccessJourneyContent: View {
                         HStack(alignment: .center, spacing: 26) {
                             FirstSuccessLessonCopy(
                                 session: session,
+                                launcherChoice: launcherChoice,
                                 capsTapRevision: keyboardInput.capsTapRevision
                             )
                             .frame(
@@ -551,6 +637,7 @@ private struct FirstSuccessJourneyContent: View {
 
                             FirstSuccessKeyboardHero(
                                 session: session,
+                                launcherChoice: launcherChoice,
                                 interaction: keyboardInput.interaction,
                                 entrance: keyboardEntrance,
                                 displayMode: displayMode
@@ -575,10 +662,12 @@ private struct FirstSuccessJourneyContent: View {
             VStack(alignment: .leading, spacing: 28) {
                 FirstSuccessLessonCopy(
                     session: session,
+                    launcherChoice: launcherChoice,
                     capsTapRevision: keyboardInput.capsTapRevision
                 )
                 FirstSuccessKeyboardHero(
                     session: session,
+                    launcherChoice: launcherChoice,
                     interaction: keyboardInput.interaction,
                     entrance: keyboardEntrance,
                     displayMode: displayMode
@@ -592,6 +681,7 @@ private struct FirstSuccessJourneyContent: View {
 
 private struct FirstSuccessLessonCopy: View {
     let session: FirstSuccessOnboardingSession
+    let launcherChoice: FirstSuccessLauncherChoiceModel
     let capsTapRevision: UInt64
     @Environment(\.firstSuccessOnboardingPalette) private var palette
 
@@ -619,6 +709,7 @@ private struct FirstSuccessLessonCopy: View {
 
                 FirstSuccessBenefits(
                     session: session,
+                    launcherChoice: launcherChoice,
                     capsTapRevision: capsTapRevision
                 )
                 .padding(.top, 24)
@@ -634,6 +725,7 @@ private struct FirstSuccessLessonCopy: View {
 
 private struct FirstSuccessBenefits: View {
     let session: FirstSuccessOnboardingSession
+    let launcherChoice: FirstSuccessLauncherChoiceModel
     let capsTapRevision: UInt64
     @Environment(\.firstSuccessOnboardingPalette) private var palette
 
@@ -687,40 +779,75 @@ private struct FirstSuccessBenefits: View {
                 )
 
             case .launcher:
-                FirstSuccessBenefitRow(
-                    icon: "arrow.up.forward.app",
-                    title: "Your app, your key",
-                    detail: "Choose a letter you will remember and assign the app or website you actually use.",
-                    tone: palette.accent.color
-                )
-                FirstSuccessBenefitRow(
-                    icon: "keyboard",
-                    title: "One simple gesture",
-                    detail: "Hold Caps Lock, press your chosen letter, then release. No Dock or mouse needed.",
-                    tone: palette.accent.color
-                )
-                FirstSuccessBenefitRow(
-                    icon: "slider.horizontal.3",
-                    title: "Nothing is locked in",
-                    detail: "Quick Launcher keeps every assignment visible and editable in Rules.",
-                    tone: palette.mutedText.color
-                )
+                if session.hyperPhase.isInstalled {
+                    FirstSuccessBenefitRow(
+                        icon: "arrow.up.forward.app",
+                        title: "Your app, your key",
+                        detail: "Choose one app and one letter you will remember. KeyPath will save the real shortcut here.",
+                        tone: palette.accent.color
+                    )
+
+                    FirstSuccessLauncherChoiceView(
+                        model: launcherChoice,
+                        isEnabled: session.isLauncherChoiceEditable
+                    )
+
+                    FirstSuccessBenefitRow(
+                        icon: session.launcherPhase.isInstalled ? "checkmark.circle.fill" : "keyboard",
+                        title: session.launcherPhase.isInstalled ? "Your shortcut is live" : "One simple gesture",
+                        detail: launcherDetail,
+                        tone: palette.accent.color
+                    )
+                } else {
+                    FirstSuccessBenefitRow(
+                        icon: "shield",
+                        title: "Your setup stays yours",
+                        detail: "KeyPath did not replace your existing Caps Lock or Hyper behavior. You can keep exploring without changing it.",
+                        tone: palette.accent.color
+                    )
+                    FirstSuccessBenefitRow(
+                        icon: "arrow.up.forward.app",
+                        title: "The pattern still works",
+                        detail: "When you are ready, a clean prefix plus one memorable letter can launch any app.",
+                        tone: palette.mutedText.color
+                    )
+                }
 
             case .rules:
                 FirstSuccessBenefitRow(
-                    icon: "cursorarrow.click.2",
-                    title: "Choose in the real controls",
-                    detail: "KeyPath will open Quick Launcher, where you select a key and the app or website it should open.",
+                    icon: session.launcherPhase.isInstalled ? "checkmark.circle.fill" : "shield.checkered",
+                    title: session.launcherPhase.isInstalled ? "Three wins, already working" : "Your choices are preserved",
+                    detail: rulesSummary,
                     tone: palette.accent.color
                 )
                 FirstSuccessBenefitRow(
                     icon: "square.grid.2x2",
-                    title: "Keep exploring from there",
-                    detail: "The Rules sidebar is also where you can discover, change, or disable every remap.",
+                    title: "See what else is possible",
+                    detail: "Rules is the catalog for discovering, changing, or disabling every remap—whenever you want more.",
                     tone: palette.mutedText.color
                 )
             }
         }
+    }
+
+    private var launcherDetail: LocalizedStringKey {
+        if session.launcherPhase.isInstalled,
+           let app = launcherChoice.selectedApp,
+           !launcherChoice.canonicalKey.isEmpty
+        {
+            return "Hold Caps Lock and press \(launcherChoice.displayedKey.uppercased()) to open \(app.name)."
+        }
+        return "Hold Caps Lock, press your chosen letter, then release. No Dock or mouse needed."
+    }
+
+    private var rulesSummary: LocalizedStringKey {
+        if session.launcherPhase.isInstalled,
+           let app = launcherChoice.selectedApp,
+           !launcherChoice.canonicalKey.isEmpty
+        {
+            return "Tap Caps Lock for Escape, hold it for Hyper, and press \(launcherChoice.displayedKey.uppercased()) for \(app.name)."
+        }
+        return "KeyPath left your existing keyboard behavior untouched while showing how tap, hold, and shortcut layers fit together."
     }
 }
 
@@ -854,8 +981,6 @@ private struct CapsLockPracticeControl: View {
 
 private struct FirstSuccessStatusRegion: View {
     let session: FirstSuccessOnboardingSession
-    let openCapsLockControls: () -> Void
-    let openLauncherControls: () -> Void
     @Environment(\.firstSuccessOnboardingPalette) private var palette
 
     var body: some View {
@@ -878,19 +1003,6 @@ private struct FirstSuccessStatusRegion: View {
                 Text(failureMessage(for: failure))
                     .font(.subheadline)
                     .foregroundStyle(palette.detailText.color)
-
-                if session.currentPhase == .blocked {
-                    Button {
-                        switch failure {
-                        case .capsLockEscape: openCapsLockControls()
-                        case .hyper: openLauncherControls()
-                        }
-                    } label: {
-                        Text("Open Rules", bundle: #bundle)
-                    }
-                    .buttonStyle(.link)
-                    .accessibilityIdentifier("first-success-open-rules-after-conflict")
-                }
             }
 
             Spacer()
@@ -914,23 +1026,29 @@ private struct FirstSuccessStatusRegion: View {
                 )
             case .hyper:
                 LocalizedStringResource(
-                    "Quick Launcher already has custom settings, so KeyPath left them untouched.",
+                    "Your current Caps Lock or shortcut setup is already customized, so KeyPath left it untouched.",
                     bundle: #bundle,
-                    comment: "Safe conflict message when onboarding will not overwrite Quick Launcher."
+                    comment: "Safe conflict message when onboarding will not overwrite the current Caps Lock or shortcut setup."
+                )
+            case .launcherShortcut:
+                LocalizedStringResource(
+                    "That letter is already in use, so KeyPath left your launcher untouched. Choose another letter and try again.",
+                    bundle: #bundle,
+                    comment: "Safe conflict message when an onboarding launcher shortcut cannot be added."
                 )
             }
         }
 
         if session.savedButNotActive == failure {
             return LocalizedStringResource(
-                "Your choice was saved, but KeyPath could not make it active yet. Try again or continue in Rules.",
+                "Your choice was saved, but KeyPath could not make it active yet. Try again when KeyPath is ready.",
                 bundle: #bundle,
                 comment: "Recoverable error shown when an onboarding choice is durable but its live reload is not active."
             )
         }
 
         return LocalizedStringResource(
-            "KeyPath could not save that change. Nothing new was applied; try again or continue in Rules.",
+            "KeyPath could not save that change. Nothing new was applied; try again.",
             bundle: #bundle,
             comment: "Recoverable error shown when an onboarding catalog install fails."
         )
@@ -939,6 +1057,7 @@ private struct FirstSuccessStatusRegion: View {
 
 private struct FirstSuccessKeyboardHero: View {
     let session: FirstSuccessOnboardingSession
+    let launcherChoice: FirstSuccessLauncherChoiceModel
     let interaction: KeyboardStageInteractionState
     let entrance: KeyboardStageEntranceController
     let displayMode: KeyboardStageDisplayMode
@@ -953,6 +1072,7 @@ private struct FirstSuccessKeyboardHero: View {
             layout: layout,
             keymap: keymap,
             moment: moment,
+            launcherSelection: launcherSelection(layout: layout, keymap: keymap),
             displayMode: displayMode
         )
 
@@ -992,6 +1112,35 @@ private struct FirstSuccessKeyboardHero: View {
         }
     }
 
+    private func launcherSelection(
+        layout: PhysicalLayout,
+        keymap: LogicalKeymap
+    ) -> KeyboardStageSceneBuilder.LauncherSelection? {
+        guard session.step == .launcher,
+              let mapping = launcherChoice.mapping,
+              case let .launchApp(name, bundleIdentifier) = mapping.action,
+              let key = layout.keys.first(where: {
+                  OverlayKeyboardView.keyCodeToKanataName($0.keyCode).lowercased()
+                      == LauncherGridConfig.normalizeKey(mapping.key)
+              })
+        else {
+            return nil
+        }
+
+        let display = LauncherKeymapTranslator(
+            keymap: keymap,
+            includePunctuation: true
+        ).displayLabel(for: mapping.key)
+        return KeyboardStageSceneBuilder.LauncherSelection(
+            keyCode: key.keyCode,
+            displayedLetter: display,
+            application: KeyboardStageSceneBuilder.Application(
+                name: name,
+                bundleIdentifier: bundleIdentifier
+            )
+        )
+    }
+
     private var accessibilityLabel: Text {
         switch moment {
         case .welcome:
@@ -1013,9 +1162,18 @@ private struct FirstSuccessKeyboardHero: View {
         case .hyperInstalled:
             Text("Caps Lock now types Escape when tapped and Hyper when held.", bundle: #bundle)
         case .launcher:
-            Text("Held Caps Lock prepares Hyper, and the highlighted letters are available shortcut keys you can choose.", bundle: #bundle)
+            if let app = launcherChoice.selectedApp,
+               !launcherChoice.canonicalKey.isEmpty
+            {
+                Text(
+                    "Hold Caps Lock and press \(launcherChoice.displayedKey.uppercased()) to open \(app.name).",
+                    bundle: #bundle
+                )
+            } else {
+                Text("Held Caps Lock prepares Hyper, and the highlighted letters are available shortcut keys you can choose.", bundle: #bundle)
+            }
         case .handoff:
-            Text("The keyboard is ready. The next action opens Quick Launcher, where you will choose an app and key.", bundle: #bundle)
+            Text("The guided shortcuts are ready. The next action opens Rules to discover more keyboard changes.", bundle: #bundle)
         }
     }
 }

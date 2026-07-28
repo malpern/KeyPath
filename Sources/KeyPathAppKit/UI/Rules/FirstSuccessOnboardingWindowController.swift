@@ -26,6 +26,19 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
 
     private init(kanataViewModel: KanataViewModel?) {
         let actionCoordinator = FirstSuccessOnboardingActionCoordinator()
+        let existingLauncher = kanataViewModel?.underlyingManager.rulesManager
+            .ruleCollections.first(where: {
+                $0.id == RuleCollectionIdentifier.launcher
+            })
+        let catalogLauncherConfiguration = RuleCollectionCatalog().defaultCollections()
+            .first(where: { $0.id == RuleCollectionIdentifier.launcher })?
+            .configuration
+        let launcherChoice = FirstSuccessLauncherChoiceModel(
+            occupiedCanonicalKeys: Self.occupiedLauncherKeys(
+                existing: existingLauncher,
+                catalogConfiguration: catalogLauncherConfiguration
+            )
+        )
         let dialog = FirstSuccessOnboardingDialog(
             actionCoordinator: actionCoordinator,
             makeCapsLockEscape: {
@@ -42,14 +55,14 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
                 guard let kanataViewModel else { return .failed }
                 return await Self.installQuickLauncher(using: kanataViewModel)
             },
-            openCapsLockControls: {
-                FirstSuccessOnboardingWindowController.dismiss()
-                openPreferencesTab(
-                    .openSettingsRules,
-                    userInfo: [
-                        SettingsNavigationUserInfo.ruleCollectionTarget:
-                            RuleCollectionIdentifier.capsLockRemap.uuidString,
-                    ]
+            saveLauncherShortcut: { mapping in
+                if Self.usesNonMutatingVisualPreviewActions() {
+                    return await Self.previewActionResult()
+                }
+                guard let kanataViewModel else { return .failed }
+                return await Self.saveLauncherShortcut(
+                    mapping,
+                    using: kanataViewModel
                 )
             },
             finishInRules: {
@@ -64,7 +77,8 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
             },
             dismiss: {
                 FirstSuccessOnboardingWindowController.dismiss()
-            }
+            },
+            launcherChoice: launcherChoice
         )
 
         let window = NSWindow(
@@ -144,6 +158,19 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
         if let existing = manager.ruleCollections.first(where: {
             $0.id == RuleCollectionIdentifier.capsLockRemap
         }) {
+            let quickLauncherInstalled = await PackInstaller.shared.isInstalled(
+                packID: PackRegistry.launcher.id
+            )
+            if capsLockAlreadyProvidesFirstWin(
+                existing: existing,
+                quickLauncherInstalled: quickLauncherInstalled
+            ) {
+                return await verifyLiveRuleApplication(
+                    using: viewModel,
+                    alreadyConfigured: true
+                )
+            }
+
             if existing.isEnabled,
                existing.configuration == configuration,
                await PackInstaller.shared.isInstalled(packID: PackRegistry.capsLockToEscape.id)
@@ -212,6 +239,32 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
             && existing.configuration != onboardingConfiguration
     }
 
+    static func capsLockRequiresHyperRulesHandoff(
+        existing: RuleCollection,
+        catalogConfiguration: RuleCollectionConfiguration,
+        escapeConfiguration: RuleCollectionConfiguration,
+        hyperConfiguration: RuleCollectionConfiguration
+    ) -> Bool {
+        existing.configuration != catalogConfiguration
+            && existing.configuration != escapeConfiguration
+            && existing.configuration != hyperConfiguration
+    }
+
+    static func capsLockAlreadyProvidesFirstWin(
+        existing: RuleCollection,
+        quickLauncherInstalled: Bool
+    ) -> Bool {
+        guard quickLauncherInstalled,
+              existing.isEnabled,
+              let tapHold = existing.configuration.tapHoldPickerConfig
+        else {
+            return false
+        }
+
+        return tapHold.selectedTapOutput == "esc"
+            && tapHold.selectedHoldOutput == "hyper"
+    }
+
     static func escapeOnlyCapsLockConfiguration(
         from configuration: RuleCollectionConfiguration
     ) -> RuleCollectionConfiguration? {
@@ -241,14 +294,6 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
     ) async -> FirstSuccessOnboardingSession.ActionResult {
         let manager = viewModel.underlyingManager.rulesManager
 
-        if await PackInstaller.shared.isInstalled(packID: PackRegistry.launcher.id) {
-            guard await quickLauncherIsReady(using: viewModel) else { return .needsRules }
-            return await verifyLiveRuleApplication(
-                using: viewModel,
-                alreadyConfigured: true
-            )
-        }
-
         guard let catalogConfiguration = RuleCollectionCatalog().defaultCollections()
             .first(where: { $0.id == RuleCollectionIdentifier.launcher })?
             .configuration,
@@ -262,34 +307,72 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
             return .failed
         }
 
-        if let launcher = manager.ruleCollections.first(where: {
+        let existingLauncher = manager.ruleCollections.first(where: {
             $0.id == RuleCollectionIdentifier.launcher
-        }), quickLauncherRequiresRulesHandoff(
-            existing: launcher,
-            catalogConfiguration: catalogConfiguration,
-            onboardingConfiguration: emptyConfiguration
-        ) {
+        })
+        // An untouched catalog collection can already be enabled and contain
+        // example mappings. Onboarding starts that managed state empty so the
+        // first shortcut is genuinely the person's choice. A customized
+        // launcher remains byte-for-byte intact only when it already uses the
+        // Hyper-hold gesture this lesson teaches.
+        let shouldPreserveExistingLauncher = existingLauncher.map {
+            shouldPreserveLauncherConfiguration(
+                existing: $0,
+                catalogConfiguration: catalogConfiguration
+            )
+        } ?? false
+        let customizedLauncherBlocksTaughtGesture = existingLauncher.map {
+            customizedLauncherBlocksTaughtHyperGesture(
+                existing: $0,
+                catalogConfiguration: catalogConfiguration
+            )
+        } ?? false
+
+        if customizedLauncherBlocksTaughtGesture {
             AppLogger.shared.log(
-                "🛡️ [FirstSuccessOnboarding] Existing Quick Launcher settings left untouched"
+                "🛡️ [FirstSuccessOnboarding] Existing Quick Launcher activation left untouched"
             )
             return .needsRules
         }
 
-        if let capsLock = manager.ruleCollections.first(where: {
-            $0.id == RuleCollectionIdentifier.capsLockRemap
-        }), capsLock.isEnabled {
-            guard let tapHold = capsLock.configuration.tapHoldPickerConfig,
-                  tapHold.selectedTapOutput == "esc",
-                  tapHold.selectedHoldOutput == "caps" || tapHold.selectedHoldOutput == "hyper"
-            else {
-                AppLogger.shared.log(
-                    "🛡️ [FirstSuccessOnboarding] Existing Caps Lock hold behavior left untouched"
-                )
-                return .needsRules
-            }
-        }
+        if await PackInstaller.shared.isInstalled(packID: PackRegistry.launcher.id) {
+            guard await quickLauncherIsReady(using: viewModel) else { return .needsRules }
 
-        guard let hyperConfiguration = PackRegistry.launcher.managedDefaults
+            if shouldPreserveExistingLauncher {
+                return await verifyLiveRuleApplication(
+                    using: viewModel,
+                    alreadyConfigured: true
+                )
+            }
+
+            guard let freshLauncher = emptyConfiguration.launcherGridConfig else {
+                return .failed
+            }
+            let saved = await manager.applyLauncherConfig(
+                id: RuleCollectionIdentifier.launcher,
+                config: freshLauncher,
+                skipReload: true
+            )
+            guard saved,
+                  manager.ruleCollections.first(where: {
+                      $0.id == RuleCollectionIdentifier.launcher
+                  })?.configuration.launcherGridConfig == freshLauncher
+            else {
+                return .failed
+            }
+            return await verifyLiveRuleApplication(using: viewModel)
+        }
+        let launcherConfiguration = shouldPreserveExistingLauncher
+            ? existingLauncher?.configuration ?? emptyConfiguration
+            : emptyConfiguration
+
+        guard let capsCatalogConfiguration = RuleCollectionCatalog().defaultCollections()
+            .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })?
+            .configuration,
+            let escapeConfiguration = escapeOnlyCapsLockConfiguration(
+                from: capsCatalogConfiguration
+            ),
+            let hyperConfiguration = PackRegistry.launcher.managedDefaults
             .first(where: { $0.collectionID == RuleCollectionIdentifier.capsLockRemap })?
             .defaultConfiguration
         else {
@@ -299,6 +382,22 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
             return .failed
         }
 
+        if let capsLock = manager.ruleCollections.first(where: {
+            $0.id == RuleCollectionIdentifier.capsLockRemap
+        }) {
+            if capsLockRequiresHyperRulesHandoff(
+                existing: capsLock,
+                catalogConfiguration: capsCatalogConfiguration,
+                escapeConfiguration: escapeConfiguration,
+                hyperConfiguration: hyperConfiguration
+            ) {
+                AppLogger.shared.log(
+                    "🛡️ [FirstSuccessOnboarding] Existing Caps Lock hold behavior left untouched"
+                )
+                return .needsRules
+            }
+        }
+
         if onboardingConfigurationConflicts(
             manager: manager,
             collectionID: RuleCollectionIdentifier.capsLockRemap,
@@ -306,7 +405,7 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
         ) || onboardingConfigurationConflicts(
             manager: manager,
             collectionID: RuleCollectionIdentifier.launcher,
-            configuration: emptyConfiguration
+            configuration: launcherConfiguration
         ) {
             AppLogger.shared.log(
                 "🛡️ [FirstSuccessOnboarding] Quick Launcher conflicts with an existing rule; leaving it untouched"
@@ -317,7 +416,7 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
         do {
             _ = try await PackInstaller.shared.install(
                 PackRegistry.launcher,
-                collectionConfiguration: emptyConfiguration,
+                collectionConfiguration: launcherConfiguration,
                 managedDefaultPolicy: .useRecommended,
                 manager: manager,
                 skipFinalReload: true
@@ -330,28 +429,162 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
         guard await quickLauncherIsReady(using: viewModel),
               manager.ruleCollections.first(where: {
                   $0.id == RuleCollectionIdentifier.launcher
-              })?.configuration == emptyConfiguration
+              })?.configuration == launcherConfiguration
         else {
             return .failed
         }
         return await verifyLiveRuleApplication(using: viewModel)
     }
 
-    static func quickLauncherRequiresRulesHandoff(
-        existing: RuleCollection,
-        catalogConfiguration: RuleCollectionConfiguration,
-        onboardingConfiguration: RuleCollectionConfiguration
-    ) -> Bool {
-        existing.configuration != catalogConfiguration
-            && existing.configuration != onboardingConfiguration
-    }
-
     static func emptyQuickLauncherConfiguration(
         from configuration: RuleCollectionConfiguration
     ) -> RuleCollectionConfiguration? {
         guard var launcher = configuration.launcherGridConfig else { return nil }
+        launcher.activationMode = .holdHyper
+        launcher.hyperTriggerMode = .hold
         launcher.mappings = []
         return .launcherGrid(launcher)
+    }
+
+    static func shouldPreserveLauncherConfiguration(
+        existing: RuleCollection,
+        catalogConfiguration: RuleCollectionConfiguration
+    ) -> Bool {
+        existing.configuration != catalogConfiguration
+    }
+
+    static func occupiedLauncherKeys(
+        existing: RuleCollection?,
+        catalogConfiguration: RuleCollectionConfiguration?
+    ) -> Set<String> {
+        guard let existing else { return [] }
+        let shouldPreserve = catalogConfiguration.map {
+            shouldPreserveLauncherConfiguration(
+                existing: existing,
+                catalogConfiguration: $0
+            )
+        } ?? true
+        guard shouldPreserve else { return [] }
+        return Set(existing.configuration.launcherGridConfig?.mappings.map(\.key) ?? [])
+    }
+
+    static func launcherUsesTaughtHyperGesture(
+        _ configuration: RuleCollectionConfiguration
+    ) -> Bool {
+        guard let launcher = configuration.launcherGridConfig else { return false }
+        return launcher.activationMode == .holdHyper
+            && launcher.hyperTriggerMode == .hold
+    }
+
+    static func customizedLauncherBlocksTaughtHyperGesture(
+        existing: RuleCollection,
+        catalogConfiguration: RuleCollectionConfiguration
+    ) -> Bool {
+        shouldPreserveLauncherConfiguration(
+            existing: existing,
+            catalogConfiguration: catalogConfiguration
+        ) && !launcherUsesTaughtHyperGesture(existing.configuration)
+    }
+
+    static func launcherConfiguration(
+        appending mapping: LauncherMapping,
+        to configuration: RuleCollectionConfiguration
+    ) -> LauncherGridConfig? {
+        guard var launcher = configuration.launcherGridConfig else { return nil }
+        let normalizedKey = LauncherGridConfig.normalizeKey(mapping.key)
+        guard LauncherGridConfig.isValidKey(normalizedKey),
+              !launcher.mappings.contains(where: {
+                  $0.id != mapping.id
+                      && LauncherGridConfig.normalizeKey($0.key) == normalizedKey
+              })
+        else {
+            return nil
+        }
+
+        var normalizedMapping = mapping
+        normalizedMapping.key = normalizedKey
+        if let existingIndex = launcher.mappings.firstIndex(where: { $0.id == mapping.id }) {
+            launcher.mappings[existingIndex] = normalizedMapping
+        } else {
+            launcher.mappings.append(normalizedMapping)
+        }
+        launcher.hasSeenWelcome = true
+        return launcher
+    }
+
+    private static func saveLauncherShortcut(
+        _ mapping: LauncherMapping,
+        using viewModel: KanataViewModel
+    ) async -> FirstSuccessOnboardingSession.ActionResult {
+        let manager = viewModel.underlyingManager.rulesManager
+        guard await quickLauncherIsReady(using: viewModel),
+              let launcherIndex = manager.ruleCollections.firstIndex(where: {
+                  $0.id == RuleCollectionIdentifier.launcher
+              })
+        else {
+            return .failed
+        }
+
+        let currentCollection = manager.ruleCollections[launcherIndex]
+        let normalizedKey = LauncherGridConfig.normalizeKey(mapping.key)
+        let existingMappings = currentCollection.configuration.launcherGridConfig?.mappings ?? []
+        if let existingMapping = existingMappings.first(where: { $0.id == mapping.id }),
+           LauncherGridConfig.normalizeKey(existingMapping.key) == normalizedKey,
+           existingMapping.action == mapping.action,
+           existingMapping.isEnabled
+        {
+            return await verifyLiveRuleApplication(
+                using: viewModel,
+                alreadyConfigured: true
+            )
+        }
+
+        if let existingMapping = existingMappings.first(where: {
+            $0.id != mapping.id
+                && LauncherGridConfig.normalizeKey($0.key) == normalizedKey
+        }) {
+            guard existingMapping.action == mapping.action,
+                  existingMapping.isEnabled
+            else {
+                return .needsRules
+            }
+            return await verifyLiveRuleApplication(
+                using: viewModel,
+                alreadyConfigured: true
+            )
+        }
+
+        guard let desiredConfiguration = launcherConfiguration(
+            appending: mapping,
+            to: currentCollection.configuration
+        ) else {
+            return .failed
+        }
+
+        var candidate = currentCollection
+        candidate.configuration = .launcherGrid(desiredConfiguration)
+        candidate.isEnabled = true
+        if manager.conflictInfo(for: candidate) != nil {
+            AppLogger.shared.log(
+                "🛡️ [FirstSuccessOnboarding] Selected launcher key conflicts with an existing rule"
+            )
+            return .needsRules
+        }
+
+        let saved = await manager.applyLauncherConfig(
+            id: RuleCollectionIdentifier.launcher,
+            config: desiredConfiguration,
+            skipReload: true
+        )
+        guard saved,
+              manager.ruleCollections.first(where: {
+                  $0.id == RuleCollectionIdentifier.launcher
+              })?.configuration.launcherGridConfig == desiredConfiguration
+        else {
+            return .failed
+        }
+
+        return await verifyLiveRuleApplication(using: viewModel)
     }
 
     static func onboardingConfigurationConflicts(
@@ -408,6 +641,7 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
             && capsLock.configuration.tapHoldPickerConfig?.selectedTapOutput == "esc"
             && capsLock.configuration.tapHoldPickerConfig?.selectedHoldOutput == "hyper"
             && launcher.isEnabled
+            && launcherUsesTaughtHyperGesture(launcher.configuration)
     }
 
     @available(*, unavailable)

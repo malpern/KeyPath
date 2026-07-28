@@ -166,6 +166,143 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
         )
     }
 
+    func testApplyLauncherConfigPersistsWithoutRuntimeReload() async throws {
+        let manager = try makeManager()
+        defer { TestEnvironment.forceTestMode = false }
+        manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
+
+        let config = LauncherGridConfig(
+            activationMode: .holdHyper,
+            hyperTriggerMode: .tap,
+            mappings: [],
+            hasSeenWelcome: true
+        )
+        var regenerationCount = 0
+        var reloadCount = 0
+        manager.onBeforeSave = { regenerationCount += 1 }
+        manager.onRulesChanged = { reloadCount += 1 }
+
+        let applied = await manager.applyLauncherConfig(
+            id: RuleCollectionIdentifier.launcher,
+            config: config,
+            skipReload: true
+        )
+
+        XCTAssertTrue(applied)
+        XCTAssertEqual(regenerationCount, 1)
+        XCTAssertEqual(reloadCount, 0)
+        XCTAssertTrue(
+            manager.ruleCollections[id: RuleCollectionIdentifier.launcher]?.isEnabled == true
+        )
+        XCTAssertEqual(
+            manager.ruleCollections[id: RuleCollectionIdentifier.launcher]?
+                .configuration.launcherGridConfig,
+            config
+        )
+
+        let persistedCollections = await manager.ruleCollectionStore.loadCollections()
+        XCTAssertEqual(
+            persistedCollections[id: RuleCollectionIdentifier.launcher]?
+                .configuration.launcherGridConfig,
+            config
+        )
+    }
+
+    func testApplyLauncherConfigRejectsNonLauncherCollection() async throws {
+        let manager = try makeManager()
+        defer { TestEnvironment.forceTestMode = false }
+        let capsLock = try XCTUnwrap(
+            RuleCollectionCatalog().defaultCollections().first(where: {
+                $0.id == RuleCollectionIdentifier.capsLockRemap
+            })
+        )
+        manager.ruleCollections = [capsLock]
+
+        var regenerationCount = 0
+        var reloadCount = 0
+        manager.onBeforeSave = { regenerationCount += 1 }
+        manager.onRulesChanged = { reloadCount += 1 }
+
+        let applied = await manager.applyLauncherConfig(
+            id: capsLock.id,
+            config: LauncherGridConfig(mappings: []),
+            skipReload: true
+        )
+
+        XCTAssertFalse(applied)
+        XCTAssertEqual(regenerationCount, 0)
+        XCTAssertEqual(reloadCount, 0)
+        XCTAssertEqual(manager.ruleCollections, [capsLock])
+    }
+
+    func testApplyLauncherConfigFailureRestoresPersistedState() async throws {
+        let manager = try makeManager()
+        defer { TestEnvironment.forceTestMode = false }
+        manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
+        let didPersistOriginalState = await manager.regenerateConfigFromCollections(
+            skipReload: true
+        )
+        XCTAssertTrue(didPersistOriginalState)
+
+        let originalState = manager.snapshotRuleState()
+        let configURL = URL(fileURLWithPath: manager.configurationService.configurationPath)
+        let collectionStoreURL = await manager.ruleCollectionStore.debugFileURL
+        let customRulesStoreURL = collectionStoreURL.deletingLastPathComponent()
+            .appendingPathComponent("CustomRules.json")
+        let originalConfigData = try Data(contentsOf: configURL)
+        let originalCollectionStoreData = try Data(contentsOf: collectionStoreURL)
+        let originalCustomRulesStoreData = try Data(contentsOf: customRulesStoreURL)
+
+        try FileManager.default.removeItem(at: collectionStoreURL)
+        try FileManager.default.createDirectory(
+            at: collectionStoreURL,
+            withIntermediateDirectories: false
+        )
+        var shouldRemoveFailedStore = true
+        manager.onError = { _ in
+            guard shouldRemoveFailedStore else { return }
+            shouldRemoveFailedStore = false
+            try? FileManager.default.removeItem(at: collectionStoreURL)
+        }
+
+        var regenerationCount = 0
+        var reloadCount = 0
+        manager.onBeforeSave = { regenerationCount += 1 }
+        manager.onRulesChanged = { reloadCount += 1 }
+
+        var proposed = try XCTUnwrap(
+            originalState.collections[id: RuleCollectionIdentifier.launcher]?
+                .configuration.launcherGridConfig
+        )
+        proposed.mappings = []
+        proposed.hasSeenWelcome = true
+
+        let applied = await manager.applyLauncherConfig(
+            id: RuleCollectionIdentifier.launcher,
+            config: proposed,
+            skipReload: true
+        )
+
+        XCTAssertFalse(applied)
+        XCTAssertEqual(regenerationCount, 2)
+        XCTAssertEqual(
+            reloadCount,
+            1,
+            "The failed caller-owned save should reload only the restored state"
+        )
+        XCTAssertEqual(manager.ruleCollections, originalState.collections)
+        XCTAssertEqual(manager.customRules, originalState.customRules)
+        XCTAssertEqual(try Data(contentsOf: configURL), originalConfigData)
+        XCTAssertEqual(
+            try Data(contentsOf: collectionStoreURL),
+            originalCollectionStoreData
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: customRulesStoreURL),
+            originalCustomRulesStoreData
+        )
+    }
+
     func testConfigurationEditAnalyzesProposedStateBeforeMutation() async throws {
         let manager = try makeManager()
         defer { TestEnvironment.forceTestMode = false }

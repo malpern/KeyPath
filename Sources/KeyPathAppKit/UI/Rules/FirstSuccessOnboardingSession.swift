@@ -70,9 +70,9 @@ final class FirstSuccessOnboardingSession {
                 )
             case .rules:
                 LocalizedStringResource(
-                    "Choose the shortcut you will actually use",
+                    "Your keyboard has room to grow",
                     bundle: #bundle,
-                    comment: "Title of the handoff to the real Quick Launcher controls."
+                    comment: "Title of the Rules discovery handoff at the end of onboarding."
                 )
             }
         }
@@ -99,9 +99,9 @@ final class FirstSuccessOnboardingSession {
                 )
             case .rules:
                 LocalizedStringResource(
-                    "Quick Launcher is ready. Pick a real app and key in the controls you will use later.",
+                    "You have the pattern: tap, hold, then combine. Rules is where you can discover what else KeyPath can make yours.",
                     bundle: #bundle,
-                    comment: "Explanation of the handoff into the Quick Launcher controls."
+                    comment: "Explanation of the Rules discovery handoff after the guided wins are complete."
                 )
             }
         }
@@ -122,6 +122,7 @@ final class FirstSuccessOnboardingSession {
     enum ActionKind: Equatable, Sendable {
         case capsLockEscape
         case hyper
+        case launcherShortcut
     }
 
     enum ActionResult: Equatable, Sendable {
@@ -135,19 +136,26 @@ final class FirstSuccessOnboardingSession {
     var step: Step = .capsLock
     var capsLockPhase: LessonPhase = .explaining
     var hyperPhase: LessonPhase = .explaining
+    var launcherPhase: LessonPhase = .explaining
     var isCapsPracticeMenuPresented = false
     var failure: ActionKind?
     var savedButNotActive: ActionKind?
 
     var isApplying: Bool {
-        capsLockPhase == .applying || hyperPhase == .applying
+        capsLockPhase == .applying || hyperPhase == .applying || launcherPhase == .applying
+    }
+
+    var isLauncherChoiceEditable: Bool {
+        guard savedButNotActive != .launcherShortcut else { return false }
+        return launcherPhase == .explaining || launcherPhase == .blocked
     }
 
     var currentPhase: LessonPhase {
         switch step {
         case .capsLock: capsLockPhase
         case .hyper: hyperPhase
-        case .launcher, .rules: .installed
+        case .launcher: launcherPhase
+        case .rules: .installed
         }
     }
 
@@ -179,6 +187,7 @@ final class FirstSuccessOnboardingSession {
         switch action {
         case .capsLockEscape: capsLockPhase = .applying
         case .hyper: hyperPhase = .applying
+        case .launcherShortcut: launcherPhase = .applying
         }
         return true
     }
@@ -191,6 +200,7 @@ final class FirstSuccessOnboardingSession {
             switch action {
             case .capsLockEscape: capsLockPhase = .installed
             case .hyper: hyperPhase = .installed
+            case .launcherShortcut: launcherPhase = .installed
             }
         case .savedButNotActive:
             failure = action
@@ -198,6 +208,7 @@ final class FirstSuccessOnboardingSession {
             switch action {
             case .capsLockEscape: capsLockPhase = .explaining
             case .hyper: hyperPhase = .explaining
+            case .launcherShortcut: launcherPhase = .explaining
             }
         case .needsRules:
             failure = action
@@ -205,6 +216,7 @@ final class FirstSuccessOnboardingSession {
             switch action {
             case .capsLockEscape: capsLockPhase = .blocked
             case .hyper: hyperPhase = .blocked
+            case .launcherShortcut: launcherPhase = .blocked
             }
         case .failed:
             failure = action
@@ -212,6 +224,7 @@ final class FirstSuccessOnboardingSession {
             switch action {
             case .capsLockEscape: capsLockPhase = .explaining
             case .hyper: hyperPhase = .explaining
+            case .launcherShortcut: launcherPhase = .explaining
             }
         }
     }

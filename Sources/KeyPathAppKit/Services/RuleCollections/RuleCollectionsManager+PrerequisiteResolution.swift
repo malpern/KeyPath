@@ -116,7 +116,8 @@ extension RuleCollectionsManager {
     func applyProposedCollectionWithPrerequisites(
         _ candidate: RuleCollection,
         rollbackMessage: String,
-        nonInteractiveChoice: RulePrerequisiteResolutionChoice = .applyWithoutProviders
+        nonInteractiveChoice: RulePrerequisiteResolutionChoice = .applyWithoutProviders,
+        skipReload: Bool = false
     ) async -> [UUID]? {
         let snapshot = snapshotRuleState()
         guard let providerIDs = await confirmedPrerequisiteProviderIDs(
@@ -132,7 +133,7 @@ extension RuleCollectionsManager {
             providerIDs: providerIDs
         )
 
-        guard await regenerateConfigFromCollections() else {
+        guard await regenerateConfigFromCollections(skipReload: skipReload) else {
             AppLogger.shared.log(
                 "↩️ [RuleCollections] Prerequisite-aware save failed; rolling back"
             )

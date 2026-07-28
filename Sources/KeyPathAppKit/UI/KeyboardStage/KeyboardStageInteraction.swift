@@ -160,6 +160,7 @@ extension KeyboardStageScene {
 
             var responsiveKey = key
             responsiveKey.opacity = max(responsiveKey.opacity, 0.98)
+            responsiveKey.interactionLevel = level
             responsiveKey.glow = max(
                 responsiveKey.glow,
                 0.72 * pressLevel + 0.22 * holdLevel

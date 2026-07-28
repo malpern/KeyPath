@@ -18,12 +18,15 @@ final class MetalShaderPackagingTests: XCTestCase {
         }
 
         let library = try KeyboardStageMetalLibrary.loadLibrary(device: device)
-        XCTAssertNotNil(
-            library.makeFunction(name: KeyboardStageMetalLibrary.vertexFunctionName)
-        )
-        XCTAssertNotNil(
-            library.makeFunction(name: KeyboardStageMetalLibrary.fragmentFunctionName)
-        )
+        for functionName in KeyboardStageMetalLibrary.requiredFunctionNames {
+            XCTAssertNotNil(
+                library.makeFunction(name: functionName),
+                "Missing packaged Metal function: \(functionName)"
+            )
+        }
+        XCTAssertEqual(KeyboardStageMetalLibrary.intermediatePixelFormat, .rgba16Float)
+        XCTAssertEqual(KeyboardStageMetalLibrary.drawablePixelFormat, .bgra8Unorm_srgb)
         XCTAssertNoThrow(try KeyboardStageMetalLibrary.makePipeline(device: device))
+        XCTAssertNoThrow(try KeyboardStageMetalLibrary.makePipelines(device: device))
     }
 }

@@ -91,6 +91,60 @@ final class FirstSuccessOnboardingSessionTests: XCTestCase {
     }
 
     @MainActor
+    func testLauncherShortcutMustApplyBeforeTheThirdWinCompletes() {
+        let session = FirstSuccessOnboardingSession()
+        session.step = .launcher
+
+        XCTAssertTrue(session.isLauncherChoiceEditable)
+        XCTAssertTrue(session.begin(.launcherShortcut))
+        XCTAssertEqual(session.launcherPhase, .applying)
+        XCTAssertFalse(session.isLauncherChoiceEditable)
+        XCTAssertFalse(session.moveForward())
+
+        session.finish(.launcherShortcut, result: .failed)
+        XCTAssertEqual(session.step, .launcher)
+        XCTAssertEqual(session.launcherPhase, .explaining)
+        XCTAssertEqual(session.failure, .launcherShortcut)
+        XCTAssertTrue(session.isLauncherChoiceEditable)
+
+        XCTAssertTrue(session.begin(.launcherShortcut))
+        session.finish(.launcherShortcut, result: .applied)
+        XCTAssertEqual(session.launcherPhase, .installed)
+        XCTAssertFalse(session.isLauncherChoiceEditable)
+        XCTAssertTrue(session.moveForward())
+        XCTAssertEqual(session.step, .rules)
+    }
+
+    @MainActor
+    func testBlockedLauncherChoiceCanBeCorrected() {
+        let session = FirstSuccessOnboardingSession()
+
+        session.begin(.launcherShortcut)
+        session.finish(.launcherShortcut, result: .needsRules)
+
+        XCTAssertEqual(session.launcherPhase, .blocked)
+        XCTAssertTrue(session.isLauncherChoiceEditable)
+    }
+
+    @MainActor
+    func testSavedLauncherChoiceStaysLockedWhileActivationRetries() {
+        let session = FirstSuccessOnboardingSession()
+
+        session.begin(.launcherShortcut)
+        session.finish(.launcherShortcut, result: .savedButNotActive)
+
+        XCTAssertEqual(session.launcherPhase, .explaining)
+        XCTAssertEqual(session.savedButNotActive, .launcherShortcut)
+        XCTAssertFalse(session.isLauncherChoiceEditable)
+
+        XCTAssertTrue(session.begin(.launcherShortcut))
+        session.finish(.launcherShortcut, result: .applied)
+
+        XCTAssertEqual(session.launcherPhase, .installed)
+        XCTAssertNil(session.savedButNotActive)
+    }
+
+    @MainActor
     func testApplyingSessionBlocksNavigationAndASecondBegin() {
         let session = FirstSuccessOnboardingSession()
 

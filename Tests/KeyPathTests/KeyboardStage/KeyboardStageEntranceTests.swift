@@ -53,6 +53,24 @@ final class KeyboardStageEntranceTests: XCTestCase {
         )
     }
 
+    func testPrePresentationTeardownCannotConsumeTheEntrance() {
+        var presentation = KeyboardStageEntrancePresentation()
+
+        presentation.settle()
+
+        XCTAssertTrue(presentation.isPending)
+        XCTAssertEqual(presentation.revision, 0)
+
+        presentation.beginIfNeeded(at: 10, reduceMotion: false)
+
+        XCTAssertEqual(presentation.startedAt, 10)
+        XCTAssertEqual(
+            presentation.frame(at: 11.49, pendingReduceMotion: false).progress,
+            0
+        )
+        XCTAssertEqual(presentation.remainingDuration(at: 10), 1.5, accuracy: 0.001)
+    }
+
     func testRegularEntranceUsesDirectionalGraphiteSurfacesAndBacklitLegends() throws {
         let scene = makeScene()
         let initial = KeyboardStageLightingResolver(
@@ -70,6 +88,8 @@ final class KeyboardStageEntranceTests: XCTestCase {
         let caps = try XCTUnwrap(scene.keys.first(where: { $0.keyCode == 57 }))
         let farKey = try XCTUnwrap(scene.keys.first(where: { $0.keyCode == 18 }))
         let deck = try XCTUnwrap(scene.decorations.first)
+        var emphasizedCaps = caps
+        emphasizedCaps.glow = 0.72
 
         XCTAssertEqual(initial.lighting(for: caps).illumination, 0.018, accuracy: 0.001)
         XCTAssertEqual(
@@ -83,6 +103,10 @@ final class KeyboardStageEntranceTests: XCTestCase {
         XCTAssertEqual(initial.lighting(for: caps).legendTransitionProgress, 0, accuracy: 0.001)
         XCTAssertGreaterThan(initial.lighting(for: caps).legendGlow, 0)
         XCTAssertGreaterThan(
+            initial.lighting(for: emphasizedCaps).legendGlow,
+            initial.lighting(for: caps).legendGlow * 4
+        )
+        XCTAssertGreaterThan(
             middle.lighting(for: farKey).illumination,
             middle.lighting(for: caps).illumination
         )
@@ -94,8 +118,13 @@ final class KeyboardStageEntranceTests: XCTestCase {
         XCTAssertGreaterThan(middle.lighting(for: caps).transientGlow, 0)
         XCTAssertEqual(middle.lighting(for: caps).legendTransitionProgress, 0)
         XCTAssertGreaterThan(middle.lighting(for: farKey).legendTransitionProgress, 0)
-        XCTAssertLessThan(middle.lighting(for: farKey).legendTransitionProgress, 1)
+        XCTAssertEqual(
+            middle.lighting(for: farKey).legendTransitionProgress,
+            1,
+            accuracy: 0.001
+        )
         XCTAssertEqual(settled.lighting(for: caps), .settled)
+        XCTAssertEqual(settled.lighting(for: emphasizedCaps), .settled)
         XCTAssertEqual(settled.lighting(for: farKey), .settled)
         XCTAssertEqual(settled.lighting(for: deck), .settled)
     }
@@ -125,6 +154,91 @@ final class KeyboardStageEntranceTests: XCTestCase {
                 normalizedX: 0
             ),
             1
+        )
+
+        let nearlySettled = KeyboardStageEntranceFrame(
+            progress: 0.99,
+            reduceMotion: false
+        )
+        XCTAssertEqual(
+            KeyboardStageCinematicLighting.exposure(
+                for: nearlySettled,
+                normalizedX: 0
+            ),
+            1,
+            accuracy: 0.001
+        )
+
+        let crossing = KeyboardStageEntranceFrame(progress: 0.5, reduceMotion: false)
+        XCTAssertGreaterThan(
+            KeyboardStageCinematicLighting.exposure(
+                for: crossing,
+                normalizedX: 0.5,
+                normalizedY: 0
+            ),
+            KeyboardStageCinematicLighting.exposure(
+                for: crossing,
+                normalizedX: 0.5,
+                normalizedY: 1
+            )
+        )
+    }
+
+    func testCinematicLightingParametersAreTheSharedGPUContract() {
+        let start = KeyboardStageCinematicLighting.parameters(
+            for: KeyboardStageEntranceFrame(progress: 0, reduceMotion: false)
+        )
+        let middle = KeyboardStageCinematicLighting.parameters(
+            for: KeyboardStageEntranceFrame(progress: 0.5, reduceMotion: false)
+        )
+        let end = KeyboardStageCinematicLighting.parameters(for: .settled)
+
+        XCTAssertEqual(start.frontX, 1.08, accuracy: 0.001)
+        XCTAssertEqual(middle.frontX, 0.31, accuracy: 0.001)
+        XCTAssertEqual(end.frontX, -0.46, accuracy: 0.001)
+        XCTAssertEqual(end.feather, 0.40, accuracy: 0.001)
+        XCTAssertEqual(end.verticalSkew, 0.06, accuracy: 0.001)
+        XCTAssertEqual(end.gpuVector.x, -0.46, accuracy: 0.001)
+        XCTAssertEqual(end.gpuVector.y, 0.40, accuracy: 0.001)
+        XCTAssertEqual(end.gpuVector.z, 0.06, accuracy: 0.001)
+        XCTAssertEqual(end.gpuVector.w, 0, accuracy: 0.001)
+    }
+
+    func testNativeFallbackMapsTheHeroIntoWindowSpaceLikeMetal() throws {
+        let scene = makeScene()
+        let projection = KeyboardStageProjection(
+            scene: scene,
+            size: CGSize(width: 600, height: 420)
+        )
+        let entrance = KeyboardStageEntranceFrame(progress: 0.5, reduceMotion: false)
+        let windowX = SIMD2<Float>(0.42, 0.56)
+        let resolver = KeyboardStageLightingResolver(
+            scene: scene,
+            entrance: entrance,
+            projection: projection,
+            windowX: windowX
+        )
+        let caps = try XCTUnwrap(scene.keys.first(where: { $0.keyCode == 57 }))
+        let projectedCenter = projection.project(caps.frame.center)
+        let localX = min(
+            1,
+            max(0, Float(projectedCenter.x) / projection.destinationSize.width)
+        )
+        let localY = min(
+            1,
+            max(0, Float(projectedCenter.y) / projection.destinationSize.height)
+        )
+        let expectedExposure = KeyboardStageCinematicLighting.exposure(
+            for: entrance,
+            normalizedX: windowX.x + localX * windowX.y,
+            normalizedY: localY
+        )
+        let expectedIllumination = 0.018 + (1 - 0.018) * expectedExposure
+
+        XCTAssertEqual(
+            resolver.lighting(for: caps).illumination,
+            expectedIllumination,
+            accuracy: 0.001
         )
     }
 
@@ -204,12 +318,28 @@ final class KeyboardStageEntranceTests: XCTestCase {
             ambientLight: 0,
             increaseContrast: false
         )
+        let beforeContrastPivot = FirstSuccessOnboardingPalette.resolve(
+            ambientLight: 0.49,
+            increaseContrast: false
+        )
+        let afterContrastPivot = FirstSuccessOnboardingPalette.resolve(
+            ambientLight: 0.50,
+            increaseContrast: false
+        )
         let light = FirstSuccessOnboardingPalette.resolve(
             ambientLight: 1,
             increaseContrast: false
         )
 
         XCTAssertEqual(dark, .dark)
+        XCTAssertEqual(
+            beforeContrastPivot.primaryText,
+            FirstSuccessOnboardingPalette.dark.primaryText
+        )
+        XCTAssertEqual(
+            afterContrastPivot.primaryText,
+            FirstSuccessOnboardingPalette.light.primaryText
+        )
         XCTAssertEqual(light, .light)
         XCTAssertEqual(light.backgroundLeading, FirstSuccessOnboardingColor(244, 243, 243))
         XCTAssertEqual(light.backgroundTrailing, FirstSuccessOnboardingColor(247, 246, 246))
@@ -295,6 +425,7 @@ final class KeyboardStageEntranceTests: XCTestCase {
             opacity: 1,
             pressure: 0,
             glow: 0,
+            interactionLevel: 0,
             scale: 1,
             translation: .zero,
             accessibilityRole: nil

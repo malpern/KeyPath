@@ -92,6 +92,9 @@ struct KeyboardStageMetalView: NSViewRepresentable {
             )
             context.coordinator.renderer = renderer
             view.delegate = renderer
+            view.windowMappingDidChange = { [weak renderer] windowX in
+                renderer?.update(windowX: windowX)
+            }
             view.requestDraw()
         } catch {
             context.coordinator.report(error)
@@ -104,8 +107,12 @@ struct KeyboardStageMetalView: NSViewRepresentable {
             onFirstFramePresented: onFirstFramePresented,
             onFailure: onFailure
         )
-        guard context.coordinator.shouldDraw(frame) else { return }
-        context.coordinator.renderer?.update(frame: frame)
+        let shouldDraw = context.coordinator.shouldDraw(frame)
+        context.coordinator.renderer?.update(
+            frame: frame,
+            windowX: view.currentWindowXMapping()
+        )
+        guard shouldDraw else { return }
         view.requestDraw()
     }
 
@@ -114,6 +121,7 @@ struct KeyboardStageMetalView: NSViewRepresentable {
         view.delegate = nil
         coordinator.renderer = nil
         coordinator.invalidateRenderer()
+        view.windowMappingDidChange = nil
         view.cancelPendingDraw()
         view.stopObservingWindow()
     }
@@ -171,9 +179,12 @@ struct KeyboardStageMetalView: NSViewRepresentable {
 }
 
 final class KeyboardStageMTKView: MTKView {
+    var windowMappingDidChange: (@MainActor @Sendable (SIMD2<Float>) -> Void)?
+
     private weak var observedWindow: NSWindow?
     private var drawRecovery = KeyboardStageDrawRecovery()
     private var retryTask: Task<Void, Never>?
+    private var reportedWindowX = SIMD2<Float>(0, 1)
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
@@ -217,7 +228,27 @@ final class KeyboardStageMTKView: MTKView {
             name: NSWindow.didChangeOcclusionStateNotification,
             object: window
         )
+        refreshWindowXMapping()
         requestDraw()
+    }
+
+    override func layout() {
+        super.layout()
+        refreshWindowXMapping()
+    }
+
+    func currentWindowXMapping() -> SIMD2<Float> {
+        guard let contentView = window?.contentView,
+              contentView.bounds.width > 0
+        else {
+            return SIMD2(0, 1)
+        }
+
+        let frame = convert(bounds, to: contentView)
+        return SIMD2(
+            Float(frame.minX / contentView.bounds.width),
+            Float(frame.width / contentView.bounds.width)
+        )
     }
 
     func requestDraw() {
@@ -280,8 +311,9 @@ final class KeyboardStageMTKView: MTKView {
         setNeedsDisplay(bounds)
     }
 
-    /// A visible, non-key onboarding window must still accept a requested draw.
-    /// Otherwise the native labels advance while the Metal surfaces freeze.
+    /// The entrance clock must not start behind another app. A fresh request is
+    /// retained while inactive and retried by the key/occlusion observers when
+    /// the onboarding window is actually in front of the user.
     private var isDrawableActive: Bool {
         !isHiddenOrHasHiddenAncestor
             && bounds.width > 0
@@ -289,10 +321,20 @@ final class KeyboardStageMTKView: MTKView {
             && window?.isVisible == true
             && window?.isMiniaturized == false
             && window?.screen != nil
+            && window?.occlusionState.contains(.visible) == true
+            && window?.isKeyWindow == true
     }
 
     private func cancelRetryTask() {
         retryTask?.cancel()
         retryTask = nil
+    }
+
+    private func refreshWindowXMapping() {
+        let mapping = currentWindowXMapping()
+        guard mapping != reportedWindowX else { return }
+        reportedWindowX = mapping
+        windowMappingDidChange?(mapping)
+        requestDraw()
     }
 }

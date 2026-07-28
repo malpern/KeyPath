@@ -32,6 +32,25 @@ struct KeyboardStageRGBA: Equatable, Sendable {
             alpha + (destination.alpha - alpha) * amount
         )
     }
+
+    var relativeLuminance: Float {
+        func linearized(_ component: Float) -> Float {
+            if component <= 0.04045 {
+                return component / 12.92
+            }
+            return pow((component + 0.055) / 1.055, 2.4)
+        }
+
+        return 0.2126 * linearized(red)
+            + 0.7152 * linearized(green)
+            + 0.0722 * linearized(blue)
+    }
+
+    func contrastRatio(with other: Self) -> Float {
+        let lighter = max(relativeLuminance, other.relativeLuminance)
+        let darker = min(relativeLuminance, other.relativeLuminance)
+        return (lighter + 0.05) / (darker + 0.05)
+    }
 }
 
 struct KeyboardStageSurfaceStyle: Equatable, Sendable {
@@ -92,6 +111,62 @@ struct KeyboardStagePalette: Equatable, Sendable {
             ? KeyboardStageRGBA(0.06, 0.065, 0.075)
             : KeyboardStageRGBA(1, 1, 1)
         return contrasted
+    }
+
+    /// Resolves a physical press without changing the key's instructional role.
+    /// Neutral keys use KeyPath blue, while lesson keys keep their existing
+    /// role hue. The Metal renderer reveals this lit face with the cinematic
+    /// exposure; the native fallback consumes the same settled style directly.
+    func style(
+        for role: KeyboardStageKeyRole,
+        interactionLevel: Float
+    ) -> KeyboardStageSurfaceStyle {
+        let level = min(1, max(0, interactionLevel))
+        var resolved = style(for: role)
+        guard level > 0 else { return resolved }
+
+        let pressColor: KeyboardStageRGBA = switch role {
+        case .standard, .modifier, .dimmed, .deck:
+            KeyboardStageRGBA(0.145, 0.498, 0.996)
+        case .recommended, .escape, .hyper, .launcher, .installed:
+            resolved.glow
+        }
+
+        // Presses should read as light entering a physical keycap, not as a
+        // translucent pale wash. Darkening the face lets a white legend remain
+        // crisp at the settled endpoint while the glow retains the role hue.
+        let pressedFace = pressColor.interpolated(
+            to: KeyboardStageRGBA(0.012, 0.075, 0.19),
+            progress: 0.42
+        )
+
+        resolved.fill = resolved.fill.interpolated(
+            to: pressedFace,
+            progress: level
+        )
+        resolved.accent = resolved.accent.interpolated(
+            to: pressColor,
+            progress: level
+        )
+        resolved.glow = resolved.glow.interpolated(
+            to: pressColor,
+            progress: level
+        )
+        // Interpolating dark text to white while the key also changes color
+        // creates a low-contrast valley during release. Pick the accessible
+        // aperture color for the resolved face at every sampled frame.
+        let darkLegend = KeyboardStageRGBA(0.005, 0.007, 0.012)
+        let lightLegend = KeyboardStageRGBA(1, 1, 1)
+        resolved.legend = resolved.fill.contrastRatio(with: lightLegend)
+            >= resolved.fill.contrastRatio(with: darkLegend)
+            ? lightLegend
+            : darkLegend
+        let minimumPressedBorder: Float = displayMode.differentiateWithoutColor ? 1 : 0.78
+        resolved.borderStrength = max(
+            resolved.borderStrength,
+            minimumPressedBorder * level
+        )
+        return resolved
     }
 
     private func lightStyle(for role: KeyboardStageKeyRole) -> KeyboardStageSurfaceStyle {

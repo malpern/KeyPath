@@ -107,13 +107,31 @@ public final class PackInstaller {
         // so other parts of the app (overlay, mode monitor) can react to
         // "this pack is active". No collection toggle, no reload.
         if pack.visualOnly {
+            let previousInstallRecord = await installedPackTracker.record(for: pack.id)
             let record = InstalledPackRecord(
                 packID: pack.id,
                 version: pack.version,
                 installedAt: Date(),
                 quickSettingValues: resolvedSettings
             )
-            try await installedPackTracker.upsert(record)
+            do {
+                try await installedPackTracker.upsert(record)
+            } catch {
+                AppLogger.shared.errorUnlessQuietTest(
+                    "❌ [PackInstaller] Could not persist visual-only install record for '\(pack.name)'; restoring previous state"
+                )
+                let installRecordRestored = await restoreInstallRecord(
+                    previousInstallRecord,
+                    packID: pack.id,
+                    installedPackTracker: installedPackTracker
+                )
+                guard installRecordRestored else {
+                    throw InstallError.saveFailed(
+                        "visual-only installed-pack record could not be saved and the previous state could not be fully restored"
+                    )
+                }
+                throw error
+            }
             AppLogger.shared.log(
                 "✅ [PackInstaller] Installed visual-only pack '\(pack.name)' (no kanata side effects)"
             )
@@ -143,7 +161,7 @@ public final class PackInstaller {
                 AppLogger.shared.errorUnlessQuietTest(
                     "❌ [PackInstaller] Could not apply system-pack defaults for '\(pack.name)'; restoring previous state"
                 )
-                await restoreInstallRecord(
+                let installRecordRestored = await restoreInstallRecord(
                     previousInstallRecord,
                     packID: pack.id,
                     installedPackTracker: installedPackTracker
@@ -156,7 +174,7 @@ public final class PackInstaller {
                     ruleStateSnapshot,
                     userMessage: "Could not apply this system pack. Your previous rule state was restored."
                 )
-                guard rollbackApplied, collectionSnapshotRestored else {
+                guard rollbackApplied, collectionSnapshotRestored, installRecordRestored else {
                     throw InstallError.saveFailed(
                         "system-pack defaults could not be applied and the previous state could not be fully restored"
                     )
@@ -169,7 +187,7 @@ public final class PackInstaller {
                 AppLogger.shared.errorUnlessQuietTest(
                     "❌ [PackInstaller] Could not persist system-pack record for '\(pack.name)'; restoring previous state"
                 )
-                await restoreInstallRecord(
+                let installRecordRestored = await restoreInstallRecord(
                     previousInstallRecord,
                     packID: pack.id,
                     installedPackTracker: installedPackTracker
@@ -182,7 +200,7 @@ public final class PackInstaller {
                     ruleStateSnapshot,
                     userMessage: "Could not record this system pack installation. Your previous rule state was restored."
                 )
-                guard rollbackApplied, collectionSnapshotRestored else {
+                guard rollbackApplied, collectionSnapshotRestored, installRecordRestored else {
                     throw InstallError.saveFailed(
                         "installed-pack record could not be saved and the previous system-pack state could not be fully restored"
                     )
@@ -224,7 +242,7 @@ public final class PackInstaller {
                 AppLogger.shared.errorUnlessQuietTest(
                     "❌ [PackInstaller] Could not persist install record for '\(pack.name)'; restoring previous rule state"
                 )
-                await restoreInstallRecord(
+                let installRecordRestored = await restoreInstallRecord(
                     previousInstallRecord,
                     packID: pack.id,
                     installedPackTracker: installedPackTracker
@@ -233,9 +251,9 @@ public final class PackInstaller {
                     ruleStateSnapshot,
                     userMessage: "Could not record this pack installation. Your previous rule state was restored."
                 )
-                guard rollbackApplied else {
+                guard rollbackApplied, installRecordRestored else {
                     throw InstallError.saveFailed(
-                        "installed-pack record could not be saved and the previous rule state could not be reapplied"
+                        "installed-pack record could not be saved and the previous state could not be fully restored"
                     )
                 }
                 throw error
@@ -247,6 +265,8 @@ public final class PackInstaller {
         }
 
         // Build CustomRule entries from templates.
+        let ruleStateSnapshot = manager.snapshotRuleState()
+        let previousInstallRecord = await installedPackTracker.record(for: pack.id)
         let rules = renderBindings(for: pack, quickSettings: resolvedSettings)
 
         // Append rules in one batch: use skipReload=true for all but the
@@ -276,7 +296,28 @@ public final class PackInstaller {
             installedAt: Date(),
             quickSettingValues: resolvedSettings
         )
-        try await installedPackTracker.upsert(record)
+        do {
+            try await installedPackTracker.upsert(record)
+        } catch {
+            AppLogger.shared.errorUnlessQuietTest(
+                "❌ [PackInstaller] Could not persist install record for '\(pack.name)'; restoring previous state"
+            )
+            let installRecordRestored = await restoreInstallRecord(
+                previousInstallRecord,
+                packID: pack.id,
+                installedPackTracker: installedPackTracker
+            )
+            let rollbackApplied = await manager.rollbackToSnapshot(
+                ruleStateSnapshot,
+                userMessage: "Could not record this pack installation. Your previous rule state was restored."
+            )
+            guard rollbackApplied, installRecordRestored else {
+                throw InstallError.saveFailed(
+                    "installed-pack record could not be saved and the previous state could not be fully restored"
+                )
+            }
+            throw error
+        }
 
         AppLogger.shared.log(
             "✅ [PackInstaller] Installed pack '\(pack.name)': \(rules.count) binding(s)"
@@ -627,13 +668,14 @@ public final class PackInstaller {
         _ previousRecord: InstalledPackRecord?,
         packID: String,
         installedPackTracker: InstalledPackTracker
-    ) async {
+    ) async -> Bool {
         do {
             if let previousRecord {
                 try await installedPackTracker.upsert(previousRecord)
             } else {
                 try await installedPackTracker.remove(packID: packID)
             }
+            return true
         } catch {
             // A failed atomic write leaves the prior on-disk record intact.
             // InstalledPackTracker mutates its in-memory dictionary before
@@ -642,6 +684,7 @@ public final class PackInstaller {
             AppLogger.shared.errorUnlessQuietTest(
                 "❌ [PackInstaller] Could not persist tracker rollback for '\(packID)': \(error)"
             )
+            return false
         }
     }
 

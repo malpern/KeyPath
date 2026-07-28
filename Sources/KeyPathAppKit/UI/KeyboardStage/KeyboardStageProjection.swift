@@ -52,6 +52,15 @@ struct KeyboardStageProjection: Equatable, Sendable {
         )
     }
 
+    func project(_ point: KeyboardStagePoint) -> CGPoint {
+        let scaleX = destinationSize.width / sourceRect.size.width
+        let scaleY = destinationSize.height / sourceRect.size.height
+        return CGPoint(
+            x: CGFloat((point.x - sourceRect.origin.x) * scaleX),
+            y: CGFloat((point.y - sourceRect.origin.y) * scaleY)
+        )
+    }
+
     func projectKey(_ key: KeyboardStageKey, inset: Float = 0.045) -> CGRect {
         project(key.transformedFrame.insetBy(dx: inset, dy: inset))
     }

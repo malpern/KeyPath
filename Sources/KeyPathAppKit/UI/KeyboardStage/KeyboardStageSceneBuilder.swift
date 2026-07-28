@@ -38,11 +38,28 @@ enum KeyboardStageSceneBuilder {
         }
     }
 
+    struct LauncherSelection: Equatable, Sendable {
+        var keyCode: UInt16
+        var displayedLetter: String
+        var application: Application
+
+        init(
+            keyCode: UInt16,
+            displayedLetter: String,
+            application: Application
+        ) {
+            self.keyCode = keyCode
+            self.displayedLetter = displayedLetter
+            self.application = application
+        }
+    }
+
     typealias Moment = KeyboardStageMoment
 
     static func make(
         layout: PhysicalLayout,
         moment: Moment,
+        launcherSelection: LauncherSelection? = nil,
         displayMode: KeyboardStageDisplayMode = .standard
     ) -> KeyboardStageScene {
         make(
@@ -50,6 +67,7 @@ enum KeyboardStageSceneBuilder {
             keymap: .qwertyUS,
             includePunctuation: true,
             moment: moment,
+            launcherSelection: launcherSelection,
             displayMode: displayMode
         )
     }
@@ -59,6 +77,7 @@ enum KeyboardStageSceneBuilder {
         keymap: LogicalKeymap,
         includePunctuation: Bool = true,
         moment: Moment,
+        launcherSelection: LauncherSelection? = nil,
         displayMode: KeyboardStageDisplayMode = .standard
     ) -> KeyboardStageScene {
         var keys = baseKeys(
@@ -189,28 +208,85 @@ enum KeyboardStageSceneBuilder {
             }
 
         case .launcher:
-            let candidateKeyCodes = Set(keymap.coreLabels.compactMap { entry -> UInt16? in
-                let (keyCode, label) = entry
-                guard label.count == 1, label.first?.isLetter == true else { return nil }
-                return keyCode
-            })
-            let candidateIndices = keys.indices.filter { candidateKeyCodes.contains(keys[$0].keyCode) }
-            var emphasizedKeyIDs = Set(candidateIndices.map { keys[$0].id })
-            if let capsIndex {
-                emphasizedKeyIDs.insert(keys[capsIndex].id)
+            let selectedIndex = launcherSelection.flatMap { selection in
+                keys.firstIndex {
+                    $0.keyCode == selection.keyCode && $0.keyCode != KeyCode.capsLock
+                }
             }
-            dim(keys: &keys, except: emphasizedKeyIDs, opacity: 0.80)
 
-            for index in candidateIndices {
-                keys[index].role = .launcher
-                keys[index].glow = 0.22
-                keys[index].opacity = 0.88
+            if let launcherSelection, let selectedIndex {
+                for index in keys.indices {
+                    keys[index].role = .dimmed
+                    keys[index].opacity = min(keys[index].opacity, 0.68)
+                    keys[index].glow = 0
+                }
+
+                let application = launcherSelection.application.target
+                let selectedKeyID = keys[selectedIndex].id
+                keys[selectedIndex].role = .installed
+                keys[selectedIndex].glow = 0.82
+                keys[selectedIndex].opacity = 1
+                keys[selectedIndex].legend = KeyboardStageLegend(
+                    primary: launcherSelection.displayedLetter.uppercased()
+                )
+                keys[selectedIndex].accessibilityRole = .launcherKey(
+                    letter: launcherSelection.displayedLetter,
+                    application: application
+                )
+
+                if displayMode.differentiateWithoutColor {
+                    decorations.append(contentsOf: launcherCandidateMarkers(
+                        keys: [keys[selectedIndex]]
+                    ))
+                }
+
+                let target = journeyTarget(
+                    kind: .applicationTarget(application),
+                    keys: keys,
+                    bounds: layoutBounds,
+                    role: .installed
+                )
+                decorations.append(target)
+                stageBounds = stageBounds.union(target.frame.insetBy(dx: -0.12, dy: -0.12))
+                revealTarget = .application(
+                    keyID: selectedKeyID,
+                    application: application
+                )
+            } else {
+                let candidateKeyCodes = Set(keymap.coreLabels.compactMap { entry -> UInt16? in
+                    let (keyCode, label) = entry
+                    guard label.count == 1, label.first?.isLetter == true else { return nil }
+                    return keyCode
+                })
+                let candidateIndices = keys.indices.filter { candidateKeyCodes.contains(keys[$0].keyCode) }
+                var emphasizedKeyIDs = Set(candidateIndices.map { keys[$0].id })
+                if let capsIndex {
+                    emphasizedKeyIDs.insert(keys[capsIndex].id)
+                }
+                dim(keys: &keys, except: emphasizedKeyIDs, opacity: 0.80)
+
+                for index in candidateIndices {
+                    keys[index].role = .launcher
+                    keys[index].glow = 0.22
+                    keys[index].opacity = 0.88
+                }
+                if displayMode.differentiateWithoutColor {
+                    decorations.append(contentsOf: launcherCandidateMarkers(
+                        keys: candidateIndices.map { keys[$0] }
+                    ))
+                }
+
+                let target = journeyTarget(
+                    kind: .launcherChoiceTarget,
+                    keys: keys,
+                    bounds: layoutBounds,
+                    role: .launcher
+                )
+                decorations.append(target)
+                stageBounds = stageBounds.union(target.frame.insetBy(dx: -0.12, dy: -0.12))
+                revealTarget = .launcherChoice
             }
-            if displayMode.differentiateWithoutColor {
-                decorations.append(contentsOf: launcherCandidateMarkers(
-                    keys: candidateIndices.map { keys[$0] }
-                ))
-            }
+
             if let capsIndex {
                 keys[capsIndex].role = .hyper
                 keys[capsIndex].pressure = 0.42
@@ -222,17 +298,6 @@ enum KeyboardStageSceneBuilder {
                 )
                 keys[capsIndex].accessibilityRole = .capsToHyper
             }
-
-            let target = journeyTarget(
-                kind: .launcherChoiceTarget,
-                keys: keys,
-                bounds: layoutBounds,
-                role: .launcher
-            )
-            decorations.append(target)
-            stageBounds = stageBounds.union(target.frame.insetBy(dx: -0.12, dy: -0.12))
-
-            revealTarget = .launcherChoice
             if let capsIndex {
                 viewport = capsViewport(
                     capsFrame: keys[capsIndex].frame,
@@ -319,6 +384,7 @@ enum KeyboardStageSceneBuilder {
                 opacity: key.keyCode == PhysicalKey.unmappedKeyCode ? 0.5 : 0.9,
                 pressure: 0,
                 glow: 0,
+                interactionLevel: 0,
                 scale: 1,
                 translation: .zero,
                 accessibilityRole: nil

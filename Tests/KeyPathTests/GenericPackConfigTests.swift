@@ -168,6 +168,37 @@ final class GenericPackConfigTests: XCTestCase {
     }
 
     @MainActor
+    func testFirstSuccessCapsStepPreservesLauncherOwnedHyper() throws {
+        var launcherOwnedCapsLock = try XCTUnwrap(
+            RuleCollectionCatalog().defaultCollections()
+                .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })
+        )
+        let catalogConfiguration = try XCTUnwrap(
+            launcherOwnedCapsLock.configuration.tapHoldPickerConfig
+        )
+        launcherOwnedCapsLock.configuration = .tapHoldPicker(TapHoldPickerConfig(
+            inputKey: catalogConfiguration.inputKey,
+            tapOptions: catalogConfiguration.tapOptions,
+            holdOptions: catalogConfiguration.holdOptions,
+            selectedTapOutput: "esc",
+            selectedHoldOutput: "hyper"
+        ))
+
+        XCTAssertTrue(
+            FirstSuccessOnboardingWindowController.capsLockAlreadyProvidesFirstWin(
+                existing: launcherOwnedCapsLock,
+                quickLauncherInstalled: true
+            )
+        )
+        XCTAssertFalse(
+            FirstSuccessOnboardingWindowController.capsLockAlreadyProvidesFirstWin(
+                existing: launcherOwnedCapsLock,
+                quickLauncherInstalled: false
+            )
+        )
+    }
+
+    @MainActor
     func testFirstSuccessPreservesCustomizedCapsLockConfiguration() throws {
         let catalogCapsLock = try XCTUnwrap(
             RuleCollectionCatalog().defaultCollections()
@@ -186,6 +217,36 @@ final class GenericPackConfigTests: XCTestCase {
                 existing: customizedCapsLock,
                 catalogConfiguration: catalogCapsLock.configuration,
                 onboardingConfiguration: onboardingConfiguration
+            )
+        )
+    }
+
+    @MainActor
+    func testHyperStepPreservesDisabledCustomizedCapsLockConfiguration() throws {
+        let catalogCapsLock = try XCTUnwrap(
+            RuleCollectionCatalog().defaultCollections()
+                .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })
+        )
+        let escapeConfiguration = try XCTUnwrap(
+            FirstSuccessOnboardingWindowController.escapeOnlyCapsLockConfiguration(
+                from: catalogCapsLock.configuration
+            )
+        )
+        let hyperConfiguration = try XCTUnwrap(
+            PackRegistry.launcher.managedDefaults
+                .first(where: { $0.collectionID == RuleCollectionIdentifier.capsLockRemap })?
+                .defaultConfiguration
+        )
+        var customizedCapsLock = catalogCapsLock
+        customizedCapsLock.isEnabled = false
+        customizedCapsLock.configuration.updateSelectedTapOutput("bspc")
+
+        XCTAssertTrue(
+            FirstSuccessOnboardingWindowController.capsLockRequiresHyperRulesHandoff(
+                existing: customizedCapsLock,
+                catalogConfiguration: catalogCapsLock.configuration,
+                escapeConfiguration: escapeConfiguration,
+                hyperConfiguration: hyperConfiguration
             )
         )
     }
@@ -260,6 +321,148 @@ final class GenericPackConfigTests: XCTestCase {
     }
 
     @MainActor
+    func testVisualOnlyInstallRestoresPriorTrackerStateWhenTrackerWriteFails() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let (manager, tempDir) = try makeTestManager()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let trackerURL = tempDir.appendingPathComponent("visual-installed-packs.json")
+        let failingTracker = InstalledPackTracker(fileURL: trackerURL)
+        let previousRecord = InstalledPackRecord(
+            packID: PackRegistry.keystrokeHistory.id,
+            version: "0.9.0",
+            installedAt: Date(timeIntervalSince1970: 21),
+            quickSettingValues: [:]
+        )
+        try await failingTracker.upsert(previousRecord)
+        try FileManager.default.removeItem(at: trackerURL)
+        try FileManager.default.createDirectory(
+            at: trackerURL,
+            withIntermediateDirectories: true
+        )
+
+        do {
+            _ = try await PackInstaller.shared.install(
+                PackRegistry.keystrokeHistory,
+                manager: manager,
+                installedPackTracker: failingTracker
+            )
+            XCTFail("Expected tracker persistence to fail")
+        } catch let error as PackInstaller.InstallError {
+            guard case let .saveFailed(reason) = error else {
+                return XCTFail("Expected saveFailed, got \(error)")
+            }
+            XCTAssertEqual(
+                reason,
+                "visual-only installed-pack record could not be saved and the previous state could not be fully restored"
+            )
+        } catch {
+            XCTFail("Expected full-restore saveFailed, got \(error)")
+        }
+
+        let restoredRecord = await failingTracker.record(
+            for: PackRegistry.keystrokeHistory.id
+        )
+        XCTAssertEqual(restoredRecord, previousRecord)
+    }
+
+    @MainActor
+    func testPlainPackInstallRestoresRuleAndTrackerStateWhenTrackerWriteFails() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let (manager, tempDir) = try makeTestManager()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let existingRule = CustomRule(
+            input: "f20",
+            action: .keystroke(key: "f19")
+        )
+        manager.customRules = [existingRule]
+        let originalRuleState = manager.snapshotRuleState()
+        let didGenerateOriginalConfig = await manager.regenerateConfigFromCollections(
+            skipReload: true
+        )
+        XCTAssertTrue(didGenerateOriginalConfig)
+
+        let configURL = URL(fileURLWithPath: manager.configurationService.configurationPath)
+        let collectionStoreURL = tempDir.appendingPathComponent("RuleCollections.json")
+        let customRulesStoreURL = tempDir.appendingPathComponent("CustomRules.json")
+        let originalConfigData = try Data(contentsOf: configURL)
+        let originalCollectionStoreData = try Data(contentsOf: collectionStoreURL)
+        let originalCustomRulesStoreData = try Data(contentsOf: customRulesStoreURL)
+
+        let pack = Pack(
+            id: "com.keypath.test.plain-pack-rollback",
+            version: "1.0.0",
+            name: "Plain Pack Rollback",
+            tagline: "Exercises tracker rollback",
+            shortDescription: "Test-only pack",
+            longDescription: "",
+            category: "Test",
+            iconSymbol: "testtube.2",
+            bindings: [
+                PackBindingTemplate(
+                    input: "f13",
+                    output: "f14",
+                    title: "F13 → F14"
+                ),
+            ]
+        )
+
+        let trackerURL = tempDir.appendingPathComponent("plain-installed-packs.json")
+        let failingTracker = InstalledPackTracker(fileURL: trackerURL)
+        let previousRecord = InstalledPackRecord(
+            packID: pack.id,
+            version: "0.9.0",
+            installedAt: Date(timeIntervalSince1970: 42),
+            quickSettingValues: [:]
+        )
+        try await failingTracker.upsert(previousRecord)
+        try FileManager.default.removeItem(at: trackerURL)
+        try FileManager.default.createDirectory(
+            at: trackerURL,
+            withIntermediateDirectories: true
+        )
+
+        do {
+            _ = try await PackInstaller.shared.install(
+                pack,
+                manager: manager,
+                skipFinalReload: true,
+                installedPackTracker: failingTracker
+            )
+            XCTFail("Expected tracker persistence to fail")
+        } catch let error as PackInstaller.InstallError {
+            guard case let .saveFailed(reason) = error else {
+                return XCTFail("Expected saveFailed, got \(error)")
+            }
+            XCTAssertEqual(
+                reason,
+                "installed-pack record could not be saved and the previous state could not be fully restored"
+            )
+        } catch {
+            XCTFail("Expected full-restore saveFailed, got \(error)")
+        }
+
+        XCTAssertEqual(manager.snapshotRuleState().collections, originalRuleState.collections)
+        XCTAssertEqual(manager.snapshotRuleState().customRules, originalRuleState.customRules)
+        XCTAssertEqual(try Data(contentsOf: configURL), originalConfigData)
+        XCTAssertEqual(
+            try Data(contentsOf: collectionStoreURL),
+            originalCollectionStoreData
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: customRulesStoreURL),
+            originalCustomRulesStoreData
+        )
+        let restoredRecord = await failingTracker.record(for: pack.id)
+        XCTAssertEqual(restoredRecord, previousRecord)
+    }
+
+    @MainActor
     func testCollectionBackedInstallRestoresRuleStateWhenTrackerWriteFails() async throws {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
@@ -297,8 +500,16 @@ final class GenericPackConfigTests: XCTestCase {
                 installedPackTracker: failingTracker
             )
             XCTFail("Expected tracker persistence to fail")
+        } catch let error as PackInstaller.InstallError {
+            guard case let .saveFailed(reason) = error else {
+                return XCTFail("Expected saveFailed, got \(error)")
+            }
+            XCTAssertEqual(
+                reason,
+                "installed-pack record could not be saved and the previous state could not be fully restored"
+            )
         } catch {
-            // Expected: the tracker target is a directory, not a writable file.
+            XCTFail("Expected full-restore saveFailed, got \(error)")
         }
 
         XCTAssertEqual(manager.ruleCollections, originalCollections)
@@ -379,9 +590,16 @@ final class GenericPackConfigTests: XCTestCase {
                 installedPackTracker: failingTracker
             )
             XCTFail("Expected tracker persistence to fail")
+        } catch let error as PackInstaller.InstallError {
+            guard case let .saveFailed(reason) = error else {
+                return XCTFail("Expected saveFailed, got \(error)")
+            }
+            XCTAssertEqual(
+                reason,
+                "installed-pack record could not be saved and the previous system-pack state could not be fully restored"
+            )
         } catch {
-            // Expected: the tracker target became a directory after loading
-            // the prior record, so neither install nor rollback can write it.
+            XCTFail("Expected full-restore saveFailed, got \(error)")
         }
 
         XCTAssertEqual(manager.ruleCollections, originalRuleState.collections)
@@ -577,35 +795,178 @@ final class GenericPackConfigTests: XCTestCase {
     }
 
     @MainActor
-    func testFirstSuccessPreservesCustomizedQuickLauncherConfiguration() throws {
+    func testFirstSuccessAppendsToCustomizedQuickLauncherConfiguration() throws {
         let launcherCatalog = try XCTUnwrap(
             RuleCollectionCatalog().defaultCollections()
                 .first(where: { $0.id == RuleCollectionIdentifier.launcher })
         )
-        let emptyLauncherConfiguration = try XCTUnwrap(
-            FirstSuccessOnboardingWindowController.emptyQuickLauncherConfiguration(
-                from: launcherCatalog.configuration
-            )
-        )
-        var customLauncher = launcherCatalog
-        var customGrid = try XCTUnwrap(customLauncher.configuration.launcherGridConfig)
+        var customGrid = try XCTUnwrap(launcherCatalog.configuration.launcherGridConfig)
+        customGrid.activationMode = .leaderSequence
+        customGrid.hyperTriggerMode = .tap
         customGrid.mappings = [
             LauncherMapping(
                 key: "q",
                 action: .launchApp(name: "Notes", bundleId: "com.apple.Notes")
             ),
         ]
-        customLauncher.configuration = .launcherGrid(customGrid)
+        let added = LauncherMapping(
+            key: "s",
+            action: .launchApp(name: "Safari", bundleId: "com.apple.Safari")
+        )
+
+        let result = try XCTUnwrap(
+            FirstSuccessOnboardingWindowController.launcherConfiguration(
+                appending: added,
+                to: .launcherGrid(customGrid)
+            )
+        )
+
+        XCTAssertEqual(result.activationMode, .leaderSequence)
+        XCTAssertEqual(result.hyperTriggerMode, .tap)
+        XCTAssertEqual(result.mappings.first, customGrid.mappings.first)
+        XCTAssertEqual(result.mappings.last?.key, "s")
+        XCTAssertEqual(result.mappings.last?.action, added.action)
+        XCTAssertTrue(result.hasSeenWelcome)
+    }
+
+    @MainActor
+    func testEnabledCatalogLauncherStartsFirstSuccessWithoutSampleMappings() throws {
+        let catalogLauncher = try XCTUnwrap(
+            RuleCollectionCatalog().defaultCollections()
+                .first(where: { $0.id == RuleCollectionIdentifier.launcher })
+        )
+        XCTAssertTrue(catalogLauncher.isEnabled)
+        XCTAssertFalse(
+            FirstSuccessOnboardingWindowController.shouldPreserveLauncherConfiguration(
+                existing: catalogLauncher,
+                catalogConfiguration: catalogLauncher.configuration
+            )
+        )
+        XCTAssertEqual(
+            FirstSuccessOnboardingWindowController.occupiedLauncherKeys(
+                existing: catalogLauncher,
+                catalogConfiguration: catalogLauncher.configuration
+            ),
+            []
+        )
+
+        let onboardingConfiguration = try XCTUnwrap(
+            FirstSuccessOnboardingWindowController.emptyQuickLauncherConfiguration(
+                from: catalogLauncher.configuration
+            )?.launcherGridConfig
+        )
+        XCTAssertEqual(onboardingConfiguration.mappings, [])
+        XCTAssertEqual(onboardingConfiguration.activationMode, .holdHyper)
+        XCTAssertEqual(onboardingConfiguration.hyperTriggerMode, .hold)
+    }
+
+    @MainActor
+    func testCustomizedLauncherWithDifferentGestureCannotClaimHyperReadiness() throws {
+        let catalogLauncher = try XCTUnwrap(
+            RuleCollectionCatalog().defaultCollections()
+                .first(where: { $0.id == RuleCollectionIdentifier.launcher })
+        )
+        var customizedLauncher = catalogLauncher
+        var customizedConfiguration = try XCTUnwrap(
+            customizedLauncher.configuration.launcherGridConfig
+        )
+        customizedConfiguration.activationMode = .leaderSequence
+        customizedConfiguration.hyperTriggerMode = .tap
+        customizedLauncher.configuration = .launcherGrid(customizedConfiguration)
 
         XCTAssertTrue(
-            FirstSuccessOnboardingWindowController.quickLauncherRequiresRulesHandoff(
-                existing: customLauncher,
-                catalogConfiguration: launcherCatalog.configuration,
-                onboardingConfiguration: emptyLauncherConfiguration
-            ),
-            "A customized launcher must route to Rules before PackInstaller is called"
+            FirstSuccessOnboardingWindowController.shouldPreserveLauncherConfiguration(
+                existing: customizedLauncher,
+                catalogConfiguration: catalogLauncher.configuration
+            )
         )
-        XCTAssertEqual(customLauncher.configuration.launcherGridConfig?.mappings.count, 1)
+        XCTAssertFalse(
+            FirstSuccessOnboardingWindowController.launcherUsesTaughtHyperGesture(
+                customizedLauncher.configuration
+            )
+        )
+        XCTAssertTrue(
+            FirstSuccessOnboardingWindowController.customizedLauncherBlocksTaughtHyperGesture(
+                existing: customizedLauncher,
+                catalogConfiguration: catalogLauncher.configuration
+            )
+        )
+    }
+
+    @MainActor
+    func testFirstSuccessDoesNotReplaceAnOccupiedLauncherKey() {
+        var launcher = LauncherGridConfig(
+            mappings: [
+                LauncherMapping(
+                    key: "q",
+                    action: .launchApp(name: "Notes", bundleId: "com.apple.Notes")
+                ),
+            ]
+        )
+        launcher.hasSeenWelcome = true
+
+        XCTAssertNil(
+            FirstSuccessOnboardingWindowController.launcherConfiguration(
+                appending: LauncherMapping(
+                    key: "Q",
+                    action: .launchApp(name: "Safari", bundleId: "com.apple.Safari")
+                ),
+                to: .launcherGrid(launcher)
+            )
+        )
+    }
+
+    @MainActor
+    func testFirstSuccessRetriesByReplacingItsSavedLauncherMapping() throws {
+        let mappingID = UUID()
+        let savedMapping = LauncherMapping(
+            id: mappingID,
+            key: "q",
+            action: .launchApp(name: "Safari", bundleId: "com.apple.Safari")
+        )
+        let replacement = LauncherMapping(
+            id: mappingID,
+            key: "s",
+            action: .launchApp(name: "Safari", bundleId: "com.apple.Safari")
+        )
+        let launcher = LauncherGridConfig(mappings: [savedMapping])
+
+        let result = try XCTUnwrap(
+            FirstSuccessOnboardingWindowController.launcherConfiguration(
+                appending: replacement,
+                to: .launcherGrid(launcher)
+            )
+        )
+
+        XCTAssertEqual(result.mappings.count, 1)
+        XCTAssertEqual(result.mappings.first?.id, mappingID)
+        XCTAssertEqual(result.mappings.first?.key, "s")
+        XCTAssertEqual(result.mappings.first?.action, replacement.action)
+    }
+
+    @MainActor
+    func testFirstSuccessRetryCanChangeTheAppWithoutCollidingWithItsOwnKey() throws {
+        let mappingID = UUID()
+        let savedMapping = LauncherMapping(
+            id: mappingID,
+            key: "q",
+            action: .launchApp(name: "Safari", bundleId: "com.apple.Safari")
+        )
+        let replacement = LauncherMapping(
+            id: mappingID,
+            key: "q",
+            action: .launchApp(name: "Notes", bundleId: "com.apple.Notes")
+        )
+
+        let result = try XCTUnwrap(
+            FirstSuccessOnboardingWindowController.launcherConfiguration(
+                appending: replacement,
+                to: .launcherGrid(LauncherGridConfig(mappings: [savedMapping]))
+            )
+        )
+
+        XCTAssertEqual(result.mappings.count, 1)
+        XCTAssertEqual(result.mappings.first, replacement)
     }
 
     @MainActor

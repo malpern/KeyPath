@@ -3,6 +3,7 @@ import SwiftUI
 
 struct KeyboardStageSemanticOverlay: View {
     let frame: KeyboardStagePresentedFrame
+    var rendersKeyLegends = true
     let onPointerPressChange: @MainActor @Sendable (UInt16, Bool) -> Void
 
     var body: some View {
@@ -20,8 +21,12 @@ struct KeyboardStageSemanticOverlay: View {
                     KeyboardStageKeyLegendOverlay(
                         key: key,
                         frame: keyFrame,
-                        style: palette.style(for: key.role),
+                        style: palette.style(
+                            for: key.role,
+                            interactionLevel: key.interactionLevel
+                        ),
                         lighting: lighting.lighting(for: key),
+                        rendersVisualLegend: rendersKeyLegends,
                         visibility: keyLegendVisibility(
                             frame: keyFrame,
                             projection: projection
@@ -136,6 +141,7 @@ private struct KeyboardStageKeyLegendOverlay: View {
     let frame: CGRect
     let style: KeyboardStageSurfaceStyle
     let lighting: KeyboardStageSurfaceLighting
+    let rendersVisualLegend: Bool
     let visibility: Double
 
     var body: some View {
@@ -171,15 +177,32 @@ private struct KeyboardStageKeyLegendOverlay: View {
         }
         .foregroundStyle(legendColor)
         .shadow(
-            color: Color(red: 0.58, green: 0.76, blue: 1)
-                .opacity(Double(lighting.legendGlow)),
-            radius: 4
+            color: Color.white.opacity(Double(lighting.legendGlow) * 0.52),
+            radius: 0.7
+        )
+        .shadow(
+            color: Color(red: 0.68, green: 0.82, blue: 1)
+                .opacity(Double(lighting.legendGlow) * 0.28),
+            radius: 2.4
+        )
+        .shadow(
+            color: Color(red: 0.40, green: 0.62, blue: 1)
+                .opacity(Double(lighting.legendGlow) * 0.06),
+            radius: 6.5
         )
         .padding(.horizontal, max(2, frame.width * 0.08))
         .frame(width: frame.width, height: frame.height)
         .rotationEffect(.radians(Double(key.rotationRadians)))
         .position(x: frame.midX, y: frame.midY)
-        .opacity(Double(key.opacity * lighting.legendOpacity) * visibility)
+        // Metal renders the visible glyph mask so its emissive light can take
+        // part in the same linear-light pipeline as the keycap. The native
+        // text remains present at zero visual opacity as the accessibility
+        // authority and the SwiftUI fallback continues to render it normally.
+        .opacity(
+            Double(key.opacity * lighting.legendOpacity)
+                * visibility
+                * (rendersVisualLegend ? 1 : 0)
+        )
         .accessibilityElement(children: .ignore)
         .accessibilityHidden(key.accessibilityRole == nil)
         .accessibilityLabel(accessibilityLabel)
@@ -265,7 +288,7 @@ private struct KeyboardStageDecorationLegendOverlay: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(
                     Text(
-                        "Choose a letter and favorite app in Quick Launcher",
+                        "Choose a letter and favorite app here",
                         bundle: #bundle
                     )
                 )
@@ -295,9 +318,13 @@ private struct KeyboardStageDecorationLegendOverlay: View {
         .position(x: frame.midX, y: frame.midY)
         .opacity(Double(decoration.opacity * lighting.legendOpacity))
         .shadow(
+            color: Color.white.opacity(Double(lighting.legendGlow) * 0.66),
+            radius: 0.8
+        )
+        .shadow(
             color: Color(red: 0.58, green: 0.76, blue: 1)
-                .opacity(Double(lighting.legendGlow)),
-            radius: 4
+                .opacity(Double(lighting.legendGlow) * 0.46),
+            radius: 3.5
         )
         .allowsHitTesting(false)
     }

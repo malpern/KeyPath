@@ -110,7 +110,9 @@ final class KeyboardStageVisibilityProbeView: NSView {
               bounds.height > 0,
               window?.isVisible == true,
               window?.isMiniaturized == false,
-              window?.screen != nil
+              window?.screen != nil,
+              window?.occlusionState.contains(.visible) == true,
+              window?.isKeyWindow == true
         else {
             return
         }

@@ -1,7 +1,9 @@
+import AppKit
 import SwiftUI
 
 struct SwiftUIKeyboardStageView: View {
     let frame: KeyboardStagePresentedFrame
+    @State private var windowX = SIMD2<Float>(0, 1)
 
     var body: some View {
         GeometryReader { geometry in
@@ -10,17 +12,24 @@ struct SwiftUIKeyboardStageView: View {
             let palette = KeyboardStagePalette(displayMode: scene.displayMode)
             let lighting = KeyboardStageLightingResolver(
                 scene: scene,
-                entrance: frame.entrance
+                entrance: frame.entrance,
+                projection: projection,
+                windowX: windowX
             )
             ZStack(alignment: .topLeading) {
                 ForEach(scene.keys) { key in
                     KeyboardStageSwiftUIKeySurface(
                         frame: projection.projectKey(key),
                         rotationRadians: key.rotationRadians,
-                        style: palette.style(for: key.role),
+                        style: palette.style(
+                            for: key.role,
+                            interactionLevel: key.interactionLevel
+                        ),
                         opacity: key.opacity,
                         pressure: key.pressure,
                         glow: key.glow,
+                        interactionLevel: key.interactionLevel,
+                        reduceTransparency: scene.displayMode.reduceTransparency,
                         lighting: lighting.lighting(for: key)
                     )
                     .zIndex(0)
@@ -35,6 +44,9 @@ struct SwiftUIKeyboardStageView: View {
                     )
                     .zIndex(zIndex(for: decoration.kind))
                 }
+            }
+            .background {
+                KeyboardStageWindowMappingProbe(windowX: $windowX)
             }
         }
         .accessibilityHidden(true)
@@ -57,6 +69,71 @@ struct SwiftUIKeyboardStageView: View {
     }
 }
 
+private struct KeyboardStageWindowMappingProbe: NSViewRepresentable {
+    @Binding var windowX: SIMD2<Float>
+
+    func makeNSView(context _: Context) -> KeyboardStageWindowMappingProbeView {
+        KeyboardStageWindowMappingProbeView { mapping in
+            windowX = mapping
+        }
+    }
+
+    func updateNSView(_ view: KeyboardStageWindowMappingProbeView, context _: Context) {
+        view.onMappingChange = { mapping in
+            windowX = mapping
+        }
+        view.reportMappingOnNextDisplayTurn()
+    }
+}
+
+@MainActor
+private final class KeyboardStageWindowMappingProbeView: NSView {
+    var onMappingChange: @MainActor (SIMD2<Float>) -> Void
+    private var lastMapping = SIMD2<Float>(0, 1)
+    private var mappingTask: Task<Void, Never>?
+
+    init(onMappingChange: @escaping @MainActor (SIMD2<Float>) -> Void) {
+        self.onMappingChange = onMappingChange
+        super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        reportMappingOnNextDisplayTurn()
+    }
+
+    override func layout() {
+        super.layout()
+        reportMappingOnNextDisplayTurn()
+    }
+
+    func reportMappingOnNextDisplayTurn() {
+        mappingTask?.cancel()
+        mappingTask = Task { @MainActor [weak self] in
+            await Task.yield()
+            guard !Task.isCancelled, let self,
+                  let contentView = window?.contentView,
+                  contentView.bounds.width > 0
+            else {
+                return
+            }
+            let projectedFrame = convert(bounds, to: contentView)
+            let mapping = SIMD2<Float>(
+                Float(projectedFrame.minX / contentView.bounds.width),
+                Float(projectedFrame.width / contentView.bounds.width)
+            )
+            guard mapping != lastMapping else { return }
+            lastMapping = mapping
+            onMappingChange(mapping)
+        }
+    }
+}
+
 private struct KeyboardStageSwiftUIKeySurface: View {
     let frame: CGRect
     let rotationRadians: Float
@@ -64,6 +141,8 @@ private struct KeyboardStageSwiftUIKeySurface: View {
     let opacity: Float
     let pressure: Float
     let glow: Float
+    let interactionLevel: Float
+    let reduceTransparency: Bool
     let lighting: KeyboardStageSurfaceLighting
 
     var body: some View {
@@ -87,9 +166,23 @@ private struct KeyboardStageSwiftUIKeySurface: View {
                         lineWidth: 0.8 + CGFloat(style.borderStrength)
                     )
             }
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(
+                        Color.white.opacity(Double(interactionLevel) * 0.34),
+                        lineWidth: 0.7 + CGFloat(interactionLevel) * 0.8
+                    )
+                    .padding(1.2)
+            }
             .shadow(
                 color: style.glow.color.opacity(
-                    min(1, Double(glow) * 0.48 + Double(lighting.transientGlow) * 0.42)
+                    reduceTransparency
+                        ? 0
+                        : min(
+                            1,
+                            Double(glow) * 0.48
+                                + Double(lighting.transientGlow) * 0.42
+                        )
                 ),
                 radius: 6 + CGFloat(max(glow, lighting.transientGlow)) * 8
             )
