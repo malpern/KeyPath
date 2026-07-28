@@ -127,7 +127,7 @@ public final class CaptureSession {
         reset()
         guard !runID.isEmpty, runID.count <= 80, !expected.isEmpty,
               timeoutMs >= 250, timeoutMs <= 300_000,
-              settleMs >= 50, settleMs <= 5_000,
+              settleMs >= 50, settleMs <= 5000,
               focused
         else {
             self.runID = runID
@@ -175,22 +175,32 @@ public final class CaptureSession {
             isRepeat: isRepeat,
             timestampNs: nowNs
         ))
-        if firstEventAtNs == nil { firstEventAtNs = nowNs }
+        if firstEventAtNs == nil {
+            firstEventAtNs = nowNs
+        }
         lastEventAtNs = nowNs
         activeModifiers = modifiers
 
         switch phase {
         case .down:
-            if !pressedKeyCodes.insert(keyCode).inserted { duplicateDownEvents += 1 }
-            if isRepeat { repeatEvents += 1 }
+            if !pressedKeyCodes.insert(keyCode).inserted {
+                duplicateDownEvents += 1
+            }
+            if isRepeat {
+                repeatEvents += 1
+            }
             received.append(normalized)
         case .up:
-            if pressedKeyCodes.remove(keyCode) == nil { unmatchedUpEvents += 1 }
+            if pressedKeyCodes.remove(keyCode) == nil {
+                unmatchedUpEvents += 1
+            }
         case .flagsChanged:
             break
         }
 
-        if state != .failed { state = .capturing }
+        if state != .failed {
+            state = .capturing
+        }
         evaluate(nowNs: nowNs)
     }
 
@@ -232,14 +242,15 @@ public final class CaptureSession {
             return
         }
         if focusLost || repeatEvents > 0 || duplicateDownEvents > 0 || unmatchedUpEvents > 0 ||
-            mismatchIndex() != nil || received.count > expected.count {
+            mismatchIndex() != nil || received.count > expected.count
+        {
             terminalFailure = true
             state = .failed
             return
         }
         let timedOut = deadlineAtNs.map { nowNs >= $0 } ?? false
         if timedOut || finalized {
-            if received == expected && pressedKeyCodes.isEmpty && activeModifiers == 0 {
+            if received == expected, pressedKeyCodes.isEmpty, activeModifiers == 0 {
                 state = .passed
             } else {
                 terminalFailure = true
@@ -249,24 +260,45 @@ public final class CaptureSession {
         }
         if received == expected, pressedKeyCodes.isEmpty, activeModifiers == 0,
            let lastEventAtNs, nowNs >= lastEventAtNs,
-           nowNs - lastEventAtNs >= settleNs {
+           nowNs - lastEventAtNs >= settleNs
+        {
             state = .passed
         }
     }
 
     private func issues(nowNs: UInt64) -> [String] {
         var result: [String] = []
-        if focusLost { result.append("capture focus was lost") }
-        if repeatEvents > 0 { result.append("received \(repeatEvents) repeated key-down event(s)") }
-        if duplicateDownEvents > 0 { result.append("received \(duplicateDownEvents) key-down event(s) before release") }
-        if unmatchedUpEvents > 0 { result.append("received \(unmatchedUpEvents) key-up event(s) without a matching key-down") }
-        if let index = mismatchIndex() { result.append("received output differs from expected output at character \(index)") }
-        if received.count > expected.count { result.append("received \(received.count - expected.count) extra character(s)") }
+        if focusLost {
+            result.append("capture focus was lost")
+        }
+        if repeatEvents > 0 {
+            result.append("received \(repeatEvents) repeated key-down event(s)")
+        }
+        if duplicateDownEvents > 0 {
+            result.append("received \(duplicateDownEvents) key-down event(s) before release")
+        }
+        if unmatchedUpEvents > 0 {
+            result.append("received \(unmatchedUpEvents) key-up event(s) without a matching key-down")
+        }
+        if let index = mismatchIndex() {
+            result.append("received output differs from expected output at character \(index)")
+        }
+        if received.count > expected.count {
+            result.append("received \(received.count - expected.count) extra character(s)")
+        }
         let terminal = finalized || (deadlineAtNs.map { nowNs >= $0 } ?? false)
-        if terminal, !focused, firstEventAtNs == nil { result.append("capture was not focused before input arrived") }
-        if terminal, received.count < expected.count { result.append("missing \(expected.count - received.count) expected character(s)") }
-        if terminal, !pressedKeyCodes.isEmpty { result.append("unreleased key code(s): \(pressedKeyCodes.sorted())") }
-        if terminal, activeModifiers != 0 { result.append("unreleased modifier flags: \(activeModifiers)") }
+        if terminal, !focused, firstEventAtNs == nil {
+            result.append("capture was not focused before input arrived")
+        }
+        if terminal, received.count < expected.count {
+            result.append("missing \(expected.count - received.count) expected character(s)")
+        }
+        if terminal, !pressedKeyCodes.isEmpty {
+            result.append("unreleased key code(s): \(pressedKeyCodes.sorted())")
+        }
+        if terminal, activeModifiers != 0 {
+            result.append("unreleased modifier flags: \(activeModifiers)")
+        }
         return result
     }
 

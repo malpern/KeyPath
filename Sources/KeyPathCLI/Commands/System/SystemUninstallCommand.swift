@@ -1,5 +1,5 @@
-import ArgumentParser
 import AppKit
+import ArgumentParser
 import Foundation
 import KeyPathAppKit
 import KeyPathCLISupport
@@ -63,7 +63,7 @@ struct SystemUninstall: AsyncParsableCommand {
             _ = application.terminate()
         }
 
-        for _ in 0..<30 where applications.contains(where: { !$0.isTerminated }) {
+        for _ in 0 ..< 30 where applications.contains(where: { !$0.isTerminated }) {
             try? await Task.sleep(for: .milliseconds(100))
         }
 
@@ -71,7 +71,7 @@ struct SystemUninstall: AsyncParsableCommand {
             _ = application.forceTerminate()
         }
 
-        for _ in 0..<20 where applications.contains(where: { !$0.isTerminated }) {
+        for _ in 0 ..< 20 where applications.contains(where: { !$0.isTerminated }) {
             try? await Task.sleep(for: .milliseconds(100))
         }
 

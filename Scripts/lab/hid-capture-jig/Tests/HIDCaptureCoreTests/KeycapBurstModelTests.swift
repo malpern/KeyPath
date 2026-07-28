@@ -18,7 +18,7 @@ final class KeycapBurstModelTests: XCTestCase {
     }
 
     func testDenseBurstIsCappedAndRaisesIntensity() {
-        let events = (1...30).map { index in
+        let events = (1 ... 30).map { index in
             event(index, .down, "x", at: 1_000_000_000 + UInt64(index) * 4_000_000)
         }
 
@@ -31,14 +31,14 @@ final class KeycapBurstModelTests: XCTestCase {
         )
 
         XCTAssertEqual(output.items.count, 10)
-        XCTAssertEqual(output.items.map(\.sequence), Array(21...30))
+        XCTAssertEqual(output.items.map(\.sequence), Array(21 ... 30))
         XCTAssertGreaterThanOrEqual(output.intensity, 0.85)
         XCTAssertEqual(output.presentedPresses, 30)
         XCTAssertTrue(output.isAnimating)
     }
 
     func testFasterThanDisplayInputIsPresentedInOrderAtReadableCadence() {
-        let events = (1...5).map { index in
+        let events = (1 ... 5).map { index in
             event(index, .down, String(index), at: 1_000_000_000 + UInt64(index))
         }
 

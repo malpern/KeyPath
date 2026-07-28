@@ -63,7 +63,9 @@ public enum KeycapBurstModel {
         let recentPresses = max(recentRealPresses, recentPresentedPresses)
         let intensity = min(1, Double(recentPresses) / 8)
         let presentedPresses = presented.reduce(into: 0) { count, item in
-            if nowNs >= item.timestampNs { count += 1 }
+            if nowNs >= item.timestampNs {
+                count += 1
+            }
         }
         let isAnimating = lastPresentationNs > 0 &&
             (nowNs < lastPresentationNs || nowNs - lastPresentationNs <= visibleLifetimeNs)

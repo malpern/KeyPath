@@ -7,7 +7,7 @@ final class CaptureBrandMotionTests: XCTestCase {
     func testCompletionAndMotionStayBounded() {
         let session = CaptureSession()
         XCTAssertTrue(session.arm(
-            runID: "brand", expected: "abcd", timeoutMs: 2_000,
+            runID: "brand", expected: "abcd", timeoutMs: 2000,
             settleMs: 100, focused: true, nowNs: start
         ))
         session.record(
@@ -28,7 +28,7 @@ final class CaptureBrandMotionTests: XCTestCase {
     func testEventPulseDecaysWithoutInventingProgress() {
         let session = CaptureSession()
         XCTAssertTrue(session.arm(
-            runID: "pulse", expected: "ab", timeoutMs: 2_000,
+            runID: "pulse", expected: "ab", timeoutMs: 2000,
             settleMs: 100, focused: true, nowNs: start
         ))
         session.record(
@@ -51,7 +51,7 @@ final class CaptureBrandMotionTests: XCTestCase {
     func testReduceMotionProducesStableEvidenceDrivenState() {
         let session = CaptureSession()
         XCTAssertTrue(session.arm(
-            runID: "reduced", expected: "ab", timeoutMs: 2_000,
+            runID: "reduced", expected: "ab", timeoutMs: 2000,
             settleMs: 100, focused: true, nowNs: start
         ))
         let snapshot = session.snapshot(nowNs: start)

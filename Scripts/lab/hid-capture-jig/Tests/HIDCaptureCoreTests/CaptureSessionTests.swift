@@ -7,7 +7,7 @@ final class CaptureSessionTests: XCTestCase {
     func testExactSequencePassesOnlyAfterReleaseAndSettle() {
         let session = CaptureSession()
         XCTAssertTrue(session.arm(
-            runID: "exact", expected: "qw", timeoutMs: 2_000,
+            runID: "exact", expected: "qw", timeoutMs: 2000,
             settleMs: 100, focused: true, nowNs: start
         ))
         session.record(phase: .down, keyCode: 12, characters: "q", modifiers: 0, isRepeat: false, nowNs: start + 10)
@@ -26,7 +26,7 @@ final class CaptureSessionTests: XCTestCase {
     func testDuplicateAndRepeatFailWithExactEvidence() {
         let session = CaptureSession()
         XCTAssertTrue(session.arm(
-            runID: "repeat", expected: "aa", timeoutMs: 2_000,
+            runID: "repeat", expected: "aa", timeoutMs: 2000,
             settleMs: 100, focused: true, nowNs: start
         ))
         session.record(phase: .down, keyCode: 0, characters: "a", modifiers: 0, isRepeat: false, nowNs: start + 10)
@@ -41,7 +41,7 @@ final class CaptureSessionTests: XCTestCase {
     func testWrongOrderFailsAtFirstMismatchedCharacter() {
         let session = CaptureSession()
         XCTAssertTrue(session.arm(
-            runID: "order", expected: "abc", timeoutMs: 2_000,
+            runID: "order", expected: "abc", timeoutMs: 2000,
             settleMs: 100, focused: true, nowNs: start
         ))
         session.record(phase: .down, keyCode: 0, characters: "a", modifiers: 0, isRepeat: false, nowNs: start + 10)
@@ -82,7 +82,7 @@ final class CaptureSessionTests: XCTestCase {
     func testFocusLossFailsClosed() {
         let session = CaptureSession()
         XCTAssertTrue(session.arm(
-            runID: "focus", expected: "a", timeoutMs: 2_000,
+            runID: "focus", expected: "a", timeoutMs: 2000,
             settleMs: 100, focused: true, nowNs: start
         ))
         session.record(phase: .down, keyCode: 0, characters: "a", modifiers: 0, isRepeat: false, nowNs: start + 5)
@@ -95,7 +95,7 @@ final class CaptureSessionTests: XCTestCase {
     func testArmedSessionCanRecoverFocusBeforeFirstInput() {
         let session = CaptureSession()
         XCTAssertTrue(session.arm(
-            runID: "focus-recovery", expected: "a", timeoutMs: 2_000,
+            runID: "focus-recovery", expected: "a", timeoutMs: 2000,
             settleMs: 100, focused: true, nowNs: start
         ))
         session.noteFocus(false, nowNs: start + 10)
@@ -109,12 +109,12 @@ final class CaptureSessionTests: XCTestCase {
     func testArmRejectsMissingFocusAndUnsafeBounds() {
         let session = CaptureSession()
         XCTAssertFalse(session.arm(
-            runID: "not-focused", expected: "a", timeoutMs: 2_000,
+            runID: "not-focused", expected: "a", timeoutMs: 2000,
             settleMs: 100, focused: false, nowNs: start
         ))
         XCTAssertEqual(session.snapshot(nowNs: start).state, .failed)
         XCTAssertFalse(session.arm(
-            runID: "empty", expected: "", timeoutMs: 2_000,
+            runID: "empty", expected: "", timeoutMs: 2000,
             settleMs: 100, focused: true, nowNs: start
         ))
     }
@@ -123,7 +123,7 @@ final class CaptureSessionTests: XCTestCase {
         let session = CaptureSession()
         let shift: UInt = 1 << 17
         XCTAssertTrue(session.arm(
-            runID: "modifier-release", expected: "A", timeoutMs: 2_000,
+            runID: "modifier-release", expected: "A", timeoutMs: 2000,
             settleMs: 100, focused: true, nowNs: start
         ))
         session.record(phase: .flagsChanged, keyCode: 56, characters: "", modifiers: shift,

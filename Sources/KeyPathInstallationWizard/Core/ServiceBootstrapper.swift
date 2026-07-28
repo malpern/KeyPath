@@ -914,7 +914,9 @@ public final class ServiceBootstrapper {
             ServiceHealthChecker.shared.invalidateHealthCache()
             daemonLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
             managerLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidManagerServiceID)
-            if daemonLoaded, managerLoaded { break }
+            if daemonLoaded, managerLoaded {
+                break
+            }
             _ = await WizardSleep.ms(500)
         }
         let configured = ServiceHealthChecker.shared.isVHIDDaemonConfiguredCorrectly()

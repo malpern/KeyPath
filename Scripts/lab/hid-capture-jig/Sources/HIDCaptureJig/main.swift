@@ -38,7 +38,9 @@ private final class SystemResourceMonitor {
         }
         lastSampleNs = nowNs
         samples.append(capture(nowNs: nowNs))
-        if samples.count > 12 { samples.removeFirst(samples.count - 12) }
+        if samples.count > 12 {
+            samples.removeFirst(samples.count - 12)
+        }
         assessment = SystemReadinessModel.resolve(samples: samples)
         return true
     }
@@ -150,12 +152,17 @@ private final class CaptureCanvas: NSView {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var acceptsFirstResponder: Bool { true }
-    override var isOpaque: Bool { true }
+    override var acceptsFirstResponder: Bool {
+        true
+    }
+
+    override var isOpaque: Bool {
+        true
+    }
 
     override func becomeFirstResponder() -> Bool {
         onFocusChange?(true)
@@ -205,7 +212,7 @@ private final class CaptureCanvas: NSView {
         needsDisplay = true
     }
 
-    override func mouseDown(with event: NSEvent) {
+    override func mouseDown(with _: NSEvent) {
         window?.makeFirstResponder(self)
     }
 
@@ -289,13 +296,12 @@ private final class CaptureCanvas: NSView {
 
         var cursor = header.minY - (layout.mode == .tiny ? 5 : 12)
         let stateHeight: CGFloat = layout.mode == .tiny ? 28 : 48
-        let visibleState: String
-        if snapshot.state == .idle, systemReadiness.state == .waiting {
-            visibleState = layout.mode == .tiny ? "MAC BUSY" : "PAUSED · MAC BUSY"
+        let visibleState: String = if snapshot.state == .idle, systemReadiness.state == .waiting {
+            layout.mode == .tiny ? "MAC BUSY" : "PAUSED · MAC BUSY"
         } else if snapshot.state == .idle, systemReadiness.state == .calibrating {
-            visibleState = layout.mode == .tiny ? "CHECKING" : "CHECKING THE MAC"
+            layout.mode == .tiny ? "CHECKING" : "CHECKING THE MAC"
         } else {
-            visibleState = snapshot.state.rawValue.uppercased()
+            snapshot.state.rawValue.uppercased()
         }
         drawText(
             visibleState,
@@ -344,15 +350,14 @@ private final class CaptureCanvas: NSView {
         )
         cursor -= fieldBlockHeight
 
-        let issueText: String
-        if !snapshot.issues.isEmpty {
-            issueText = snapshot.issues.joined(separator: "  •  ")
+        let issueText: String = if !snapshot.issues.isEmpty {
+            snapshot.issues.joined(separator: "  •  ")
         } else if snapshot.state == .idle, systemReadiness.state != .ready {
-            issueText = ([systemReadiness.detail] + systemReadiness.suggestions).joined(separator: "  •  ")
+            ([systemReadiness.detail] + systemReadiness.suggestions).joined(separator: "  •  ")
         } else if snapshot.state == .idle {
-            issueText = "System resources are stable · ready to arm"
+            "System resources are stable · ready to arm"
         } else {
-            issueText = "No anomalies detected"
+            "No anomalies detected"
         }
         let resourceBlocked = snapshot.state == .idle && systemReadiness.state == .waiting
         let issueHeight: CGFloat = resourceBlocked
@@ -472,15 +477,14 @@ private final class CaptureCanvas: NSView {
             font: font(size: mode == .tiny ? 8 : 11, weight: .semibold, monospaced: true),
             color: NSColor.tertiaryLabelColor
         )
-        let evidence: String
-        if output.totalPresses == 0 {
-            evidence = "WAITING FOR KEY-DOWN"
+        let evidence = if output.totalPresses == 0 {
+            "WAITING FOR KEY-DOWN"
         } else if output.presentedPresses < output.totalPresses {
-            evidence = "PLAYING \(output.presentedPresses)/\(output.totalPresses)  ·  BURST \(output.recentPresses)"
+            "PLAYING \(output.presentedPresses)/\(output.totalPresses)  ·  BURST \(output.recentPresses)"
         } else if output.recentPresses > 0 {
-            evidence = "\(output.recentPresses) NOW  ·  \(output.totalPresses) TOTAL"
+            "\(output.recentPresses) NOW  ·  \(output.totalPresses) TOTAL"
         } else {
-            evidence = "\(output.totalPresses) PRESSES CAPTURED"
+            "\(output.totalPresses) PRESSES CAPTURED"
         }
         drawText(
             evidence,
@@ -523,7 +527,7 @@ private final class CaptureCanvas: NSView {
     private func drawEmptyKeycapStack(in frame: NSRect, mode: CaptureLayoutMode) {
         let capWidth = min(mode == .tiny ? 54 : 82, frame.width * 0.28)
         let capHeight = capWidth * 0.64
-        for index in 0..<3 {
+        for index in 0 ..< 3 {
             let cap = NSRect(
                 x: frame.midX - capWidth / 2 + CGFloat(index - 1) * 3,
                 y: frame.midY - capHeight / 2 + CGFloat(index) * 3,
@@ -647,7 +651,9 @@ private final class CaptureCanvas: NSView {
         size: CGFloat, weight: NSFont.Weight, monospaced: Bool = false
     ) -> NSFont {
         let key = "\(monospaced ? "mono" : "system"):\(size):\(weight.rawValue)"
-        if let cached = fontCache[key] { return cached }
+        if let cached = fontCache[key] {
+            return cached
+        }
         let value = monospaced
             ? NSFont.monospacedSystemFont(ofSize: size, weight: weight)
             : NSFont.systemFont(ofSize: size, weight: weight)
@@ -657,11 +663,11 @@ private final class CaptureCanvas: NSView {
 
     private func color(for state: CaptureRunState) -> NSColor {
         switch state {
-        case .idle: return brandAmber
-        case .armed: return brandOrange
-        case .capturing: return brandAmber
-        case .passed: return NSColor.systemGreen
-        case .failed: return NSColor.systemRed
+        case .idle: brandAmber
+        case .armed: brandOrange
+        case .capturing: brandAmber
+        case .passed: NSColor.systemGreen
+        case .failed: NSColor.systemRed
         }
     }
 
@@ -758,7 +764,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             .appendingPathComponent(".local/state/keypath-hid-capture-jig", isDirectory: true)
     }()
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(_: Notification) {
         NSApp.setActivationPolicy(.regular)
         buildWindow()
         resourceMonitor.sampleIfNeeded(nowNs: monotonicNow(), force: true)
@@ -774,15 +780,17 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         window.makeFirstResponder(canvas)
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
+        true
+    }
 
-    func windowDidBecomeKey(_ notification: Notification) {
+    func windowDidBecomeKey(_: Notification) {
         window.makeFirstResponder(canvas)
         session.noteFocus(true, nowNs: monotonicNow())
         canvas.needsDisplay = true
     }
 
-    func windowDidResignKey(_ notification: Notification) {
+    func windowDidResignKey(_: Notification) {
         session.noteFocus(false, nowNs: monotonicNow())
         canvas.needsDisplay = true
     }
@@ -844,7 +852,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         if !runActive {
             ambientFrame = (ambientFrame + 1) % 2
             if burstAnimating ||
-                (!NSWorkspace.shared.accessibilityDisplayShouldReduceMotion && ambientFrame == 0) {
+                (!NSWorkspace.shared.accessibilityDisplayShouldReduceMotion && ambientFrame == 0)
+            {
                 canvas.needsDisplay = true
             }
             lastRenderedState = snapshot.state
@@ -856,7 +865,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             window.makeFirstResponder(canvas)
         }
         if snapshot.state == .armed || snapshot.state == .capturing ||
-            snapshot.state != lastRenderedState {
+            snapshot.state != lastRenderedState
+        {
             canvas.needsDisplay = true
         }
         lastRenderedState = snapshot.state
@@ -936,7 +946,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         let ok = session.arm(
             runID: command.runID ?? "",
             expected: command.expected ?? "",
-            timeoutMs: command.timeoutMs ?? 10_000,
+            timeoutMs: command.timeoutMs ?? 10000,
             settleMs: command.settleMs ?? 250,
             focused: focused,
             nowNs: monotonicNow()

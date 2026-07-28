@@ -41,7 +41,8 @@ func color(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat, _ alpha: CGFloat =
 }
 
 func roundedRect(_ rect: NSRect, radius: CGFloat, fill: NSColor, stroke: NSColor? = nil,
-                 lineWidth: CGFloat = 1) {
+                 lineWidth: CGFloat = 1)
+{
     let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
     fill.setFill()
     path.fill()
@@ -175,7 +176,8 @@ func render(size: CGFloat) -> NSImage {
 func writePNG(_ image: NSImage, to url: URL) throws {
     guard let tiff = image.tiffRepresentation,
           let bitmap = NSBitmapImageRep(data: tiff),
-          let data = bitmap.representation(using: .png, properties: [:]) else {
+          let data = bitmap.representation(using: .png, properties: [:])
+    else {
         throw NSError(
             domain: "KeyPathJigIcon",
             code: 1,

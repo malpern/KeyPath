@@ -66,7 +66,7 @@ public enum SystemReadinessModel {
     public static let requiredStableSamples = 3
     private static let maximumCPUUtilization = 0.80
     private static let maximumLoadPerCore = 0.90
-    private static let minimumAvailableMemoryBytes: UInt64 = 2 * 1_024 * 1_024 * 1_024
+    private static let minimumAvailableMemoryBytes: UInt64 = 2 * 1024 * 1024 * 1024
     private static let maximumThreadsPerCore = 900
 
     public static func resolve(

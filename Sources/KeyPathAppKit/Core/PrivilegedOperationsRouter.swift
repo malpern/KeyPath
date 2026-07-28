@@ -907,7 +907,9 @@ public final class PrivilegedOperationsRouter {
         let deadline = Date().addingTimeInterval(Self.kanataStopVerifyTimeoutSeconds)
         repeat {
             let pids = await SystemStateProvider.shared.processIDs(matching: "kanata.*--cfg")
-            if pids.isEmpty { return true }
+            if pids.isEmpty {
+                return true
+            }
             do { try await Task.sleep(for: Self.postconditionPollInterval) }
             catch { return false }
         } while Date() < deadline
@@ -935,13 +937,17 @@ public final class PrivilegedOperationsRouter {
         } else {
             false
         }
-        if staleOnEntry { return .staleRegistration }
+        if staleOnEntry {
+            return .staleRegistration
+        }
 
         let deadline = Date().addingTimeInterval(Self.kanataReadinessTimeout)
         var launchctlNotFoundSamples: [Bool] = []
 
         while Date() < deadline {
-            if Task.isCancelled { return .timedOut }
+            if Task.isCancelled {
+                return .timedOut
+            }
 
             let remaining = deadline.timeIntervalSince(Date())
             let timeoutMs = max(50, min(300, Int(remaining * 1000)))
@@ -982,7 +988,9 @@ public final class PrivilegedOperationsRouter {
             }
         }
 
-        if await detectKanataTCPPortConflict() { return .tcpPortInUse }
+        if await detectKanataTCPPortConflict() {
+            return .tcpPortInUse
+        }
         return .timedOut
     }
 
@@ -1026,7 +1034,9 @@ public final class PrivilegedOperationsRouter {
         let vhidManager = VHIDDeviceManager()
         let start = Date()
         while Date().timeIntervalSince(start) < Self.vhidVerifyTimeoutSeconds {
-            if await vhidManager.detectRunning() { return true }
+            if await vhidManager.detectRunning() {
+                return true
+            }
             try await Task.sleep(for: Self.postconditionPollInterval)
         }
 
@@ -1078,7 +1088,9 @@ public final class PrivilegedOperationsRouter {
         let vhidManager = VHIDDeviceManager()
         let startTime = Date()
         while Date().timeIntervalSince(startTime) < Self.vhidVerifyTimeoutSeconds {
-            if await vhidManager.detectRunning() { return true }
+            if await vhidManager.detectRunning() {
+                return true
+            }
             try await Task.sleep(for: Self.postconditionPollInterval)
         }
 
@@ -1089,7 +1101,9 @@ public final class PrivilegedOperationsRouter {
         let now = Date()
         if let last = lastSMAppApprovalNotice,
            now.timeIntervalSince(last) < smAppApprovalNoticeThrottle
-        { return }
+        {
+            return
+        }
         lastSMAppApprovalNotice = now
         NotificationCenter.default.post(name: .smAppServiceApprovalRequired, object: nil)
     }

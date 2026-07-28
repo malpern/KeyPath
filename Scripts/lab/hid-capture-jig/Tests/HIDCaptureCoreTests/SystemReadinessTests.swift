@@ -9,14 +9,14 @@ final class SystemReadinessTests: XCTestCase {
         availableGB: UInt64 = 8,
         pressure: Int = 1,
         thermal: String = "nominal",
-        threads: Int = 3_000
+        threads: Int = 3000
     ) -> SystemResourceSample {
         SystemResourceSample(
             timestampNs: timestamp,
             cpuUtilization: cpu,
             loadAveragePerCore: load,
-            availableMemoryBytes: availableGB * 1_024 * 1_024 * 1_024,
-            physicalMemoryBytes: 32 * 1_024 * 1_024 * 1_024,
+            availableMemoryBytes: availableGB * 1024 * 1024 * 1024,
+            physicalMemoryBytes: 32 * 1024 * 1024 * 1024,
             threadCount: threads,
             logicalProcessorCount: 10,
             memoryPressureLevel: pressure,
@@ -50,7 +50,7 @@ final class SystemReadinessTests: XCTestCase {
 
     func testMemoryThermalAndThreadPressureFailClosed() {
         let assessment = SystemReadinessModel.resolve(samples: [sample(
-            at: 1, availableGB: 1, pressure: 2, thermal: "serious", threads: 9_100
+            at: 1, availableGB: 1, pressure: 2, thermal: "serious", threads: 9100
         )])
         XCTAssertFalse(assessment.canProceed)
         XCTAssertTrue(assessment.issues.contains { $0.contains("memory") && $0.contains("available") })
