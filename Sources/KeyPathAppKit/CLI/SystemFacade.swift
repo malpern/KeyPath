@@ -98,11 +98,27 @@ public struct SystemFacade: Sendable {
     }
 
     public func restartService() async -> Bool {
-        guard await stopService() else { return false }
-        if restartDelayNanoseconds > 0 {
-            try? await Task.sleep(nanoseconds: restartDelayNanoseconds)
+        await MainActor.run {
+            CLIRuntimeBootstrap.ensureConfigured()
         }
-        return await startService()
+        do {
+            try await stopServiceOperation()
+            await runtimeCacheInvalidator()
+            if restartDelayNanoseconds > 0 {
+                try? await Task.sleep(nanoseconds: restartDelayNanoseconds)
+            }
+            try await startServiceOperation()
+            await runtimeCacheInvalidator()
+
+            // The SMAppService job is KeepAlive. launchd may relaunch it before
+            // polling can observe a stopped snapshot, so restart success is the
+            // final healthy runtime—not a transient stopped state.
+            return await waitForRuntime(timeoutSeconds: runtimeTransitionTimeoutSeconds) { snapshot in
+                snapshot.isRunning && snapshot.isResponding
+            }
+        } catch {
+            return false
+        }
     }
 
     private func waitForRuntime(

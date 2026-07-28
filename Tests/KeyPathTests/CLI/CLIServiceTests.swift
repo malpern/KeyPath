@@ -81,6 +81,29 @@ final class CLIServiceTests: XCTestCase {
         XCTAssertEqual(startCount, 0)
     }
 
+    func testRestartServiceAcceptsKeepAliveRelaunchBeforeStoppedSnapshot() async {
+        let operations = ServiceOperationRecorder()
+        let invalidations = SynchronousCallRecorder()
+        let facade = SystemFacade(
+            startServiceOperation: { await operations.recordStart() },
+            stopServiceOperation: { await operations.recordStop() },
+            runtimeCacheInvalidator: { invalidations.record() },
+            runtimeSnapshotProvider: { Self.runtimeSnapshot(running: true, responding: true) },
+            runtimeTransitionTimeoutSeconds: 0.05,
+            pollDelayNanoseconds: 0,
+            restartDelayNanoseconds: 0
+        )
+
+        let restarted = await facade.restartService()
+        let startCount = await operations.startCount
+        let stopCount = await operations.stopCount
+
+        XCTAssertTrue(restarted)
+        XCTAssertEqual(stopCount, 1)
+        XCTAssertEqual(startCount, 1)
+        XCTAssertEqual(invalidations.count, 2)
+    }
+
     func testStartServiceReturnsFalseWhenRuntimeNeverBecomesHealthy() async {
         let facade = SystemFacade(
             startServiceOperation: {},
