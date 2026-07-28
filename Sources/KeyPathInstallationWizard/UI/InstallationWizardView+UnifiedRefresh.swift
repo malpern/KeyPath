@@ -234,7 +234,7 @@ public extension InstallationWizardView {
                     if success {
                         AppLogger.shared.log("✅ [Wizard] KeyPath Runtime started successfully")
                         toastManager.showSuccess("KeyPath Runtime started")
-                        dismissAndRefreshMainScreen()
+                        verifyPostStartStateAndDismiss()
                     } else {
                         AppLogger.shared.log("❌ [Wizard] Failed to start KeyPath Runtime")
                         let failureMessage =
@@ -253,5 +253,26 @@ public extension InstallationWizardView {
                 dismissAndRefreshMainScreen()
             }
         }
+    }
+
+    /// Refresh the wizard's authoritative system state after a successful
+    /// runtime start before deciding whether first-success education is safe.
+    /// `startKanata` verifies the runtime itself, but it does not update the
+    /// wizard state machine that owns onboarding eligibility.
+    func verifyPostStartStateAndDismiss() {
+        Task { @MainActor in
+            await refreshPostStartStateAndDismiss()
+        }
+    }
+
+    @MainActor
+    func refreshPostStartStateAndDismiss() async {
+        let result = if let postStartStateDetector {
+            await postStartStateDetector()
+        } else {
+            await stateMachine.detectCurrentState()
+        }
+        stateMachine.updateWizardState(from: result)
+        dismissAndRefreshMainScreen()
     }
 }

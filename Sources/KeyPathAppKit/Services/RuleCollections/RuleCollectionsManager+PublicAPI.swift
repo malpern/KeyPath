@@ -27,10 +27,25 @@ extension RuleCollectionsManager {
         }
     }
 
-    /// Toggle a rule collection on/off
+    /// Toggle a rule collection on/off.
+    ///
+    /// `configurationOverride` lets a catalog surface apply an explicit
+    /// user selection in the same save/reload transaction as enabling the
+    /// collection. It is intentionally optional so existing callers retain
+    /// their current configuration.
+    /// `skipReload` lets a higher-level transaction validate the resulting
+    /// live reload itself without triggering a duplicate cooldown-blocked
+    /// attempt. The configuration is still validated and persisted.
     /// - Returns: `true` if the toggle was applied successfully, `false` if validation failed and state was rolled back
     @discardableResult
-    func toggleCollection(id: UUID, isEnabled: Bool, autoResolveConflicts: Bool = false, bypassOwnershipCheck: Bool = false) async -> Bool {
+    func toggleCollection(
+        id: UUID,
+        isEnabled: Bool,
+        autoResolveConflicts: Bool = false,
+        bypassOwnershipCheck: Bool = false,
+        configurationOverride: RuleCollectionConfiguration? = nil,
+        skipReload: Bool = false
+    ) async -> Bool {
         AppLogger.shared.log("🔀 [RuleCollections] toggleCollection called: id=\(id), isEnabled=\(isEnabled)")
 
         if !bypassOwnershipCheck {
@@ -51,6 +66,9 @@ extension RuleCollectionsManager {
             return false
         }
         candidate.isEnabled = isEnabled
+        if let configurationOverride {
+            candidate.configuration = configurationOverride
+        }
 
         if !isEnabled {
             guard await confirmedDisableOfProvider(
@@ -130,7 +148,7 @@ extension RuleCollectionsManager {
         }
 
         AppLogger.shared.log("🔀 [RuleCollections] Calling regenerateConfigFromCollections...")
-        let applied = await regenerateConfigFromCollections()
+        let applied = await regenerateConfigFromCollections(skipReload: skipReload)
         guard applied else {
             if id == RuleCollectionIdentifier.leaderKey {
                 PreferencesService.shared.leaderKeyPreference = leaderPreferenceSnapshot
@@ -575,25 +593,50 @@ extension RuleCollectionsManager {
     /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
     @discardableResult
     func updateLauncherConfig(id: UUID, config: LauncherGridConfig) async -> Bool {
-        guard var candidate = ruleCollections.first(where: { $0.id == id })
+        guard let candidate = ruleCollections.first(where: { $0.id == id })
             ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id })
         else {
             return false
         }
 
         let wasNewlyEnabled = !candidate.isEnabled
+        let applied = await applyLauncherConfig(id: id, config: config)
+        return applied && wasNewlyEnabled
+    }
+
+    /// Applies and persists launcher configuration, optionally leaving the
+    /// runtime reload to a typed caller.
+    /// - Returns: `true` only when the proposed configuration was saved.
+    @discardableResult
+    func applyLauncherConfig(
+        id: UUID,
+        config: LauncherGridConfig,
+        skipReload: Bool = false
+    ) async -> Bool {
+        guard var candidate = ruleCollections.first(where: { $0.id == id })
+            ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id })
+        else {
+            return false
+        }
+        guard case .launcherGrid = candidate.configuration else {
+            return false
+        }
+
         candidate.configuration.updateLauncherGridConfig(config)
         candidate.isEnabled = true
 
         let appliedProviderIDs = await applyProposedCollectionWithPrerequisites(
             candidate,
             rollbackMessage:
-            "Could not save Launcher. Your previous rule state was restored."
+            "Could not save Launcher. Your previous rule state was restored.",
+            skipReload: skipReload
         )
-        if appliedProviderIDs != nil {
-            await warmLauncherIconCache(for: config)
+        guard appliedProviderIDs != nil else {
+            return false
         }
-        return appliedProviderIDs != nil && wasNewlyEnabled
+
+        await warmLauncherIconCache(for: config)
+        return true
     }
 
     /// Update auto shift symbols configuration

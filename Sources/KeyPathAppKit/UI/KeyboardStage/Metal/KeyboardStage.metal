@@ -1,0 +1,763 @@
+#include <metal_stdlib>
+using namespace metal;
+
+struct KeyboardStageInstance {
+    float4 geometry;      // center.xy and size.zw in normalized device coordinates
+    float4 fillColor;
+    float4 accentColor;
+    float4 glowColor;
+    float4 parameters;    // pressure, glow, opacity, border strength
+    float4 treatment;     // rotation, corner ratio, shadow margin in pixels, reserved
+    float4 lighting;      // illumination, transient glow, shadow strength, interaction level
+};
+
+struct KeyboardStageUniforms {
+    float2 viewportSize;
+    float2 entrance;      // raw entrance progress, Reduce Motion flag
+    float2 windowX;       // stage origin and width in normalized window coordinates
+    float4 cinematicLighting; // current front, feather, vertical skew, reserved
+};
+
+struct KeyboardStageLegendInstance {
+    float4 geometry;      // center.xy and size.zw in normalized device coordinates
+    float4 uvRect;        // atlas origin.xy and size.zw in normalized texture coordinates
+    float4 settledColor;  // linear-sRGB legend color and alpha
+    float4 parameters;    // opacity, entrance emission, role emission, reserved
+};
+
+struct KeyboardStagePostUniforms {
+    float4 sourceAndBloomSize;   // source width/height, bloom width/height
+    float4 entranceAndDirection; // progress, Reduce Motion flag, light direction.xy
+};
+
+struct KeyboardStageVertexOut {
+    float4 position [[position]];
+    float2 localPixels;
+    float2 halfSizePixels;
+    float4 fillColor;
+    float4 accentColor;
+    float4 glowColor;
+    float4 parameters;
+    float4 lighting;
+    float cornerRadiusPixels;
+    float2 stageUV;
+    float materialKind;
+};
+
+struct KeyboardStageLegendVertexOut {
+    float4 position [[position]];
+    float2 atlasUV;
+    float2 stageUV;
+    float4 settledColor;
+    float4 parameters;
+};
+
+struct KeyboardStageFullscreenOut {
+    float4 position [[position]];
+    float2 uv;
+};
+
+vertex KeyboardStageVertexOut keypath_keyboard_stage_vertex(
+    uint vertexID [[vertex_id]],
+    uint instanceID [[instance_id]],
+    constant KeyboardStageInstance *instances [[buffer(0)]],
+    constant KeyboardStageUniforms &uniforms [[buffer(1)]]
+) {
+    constexpr float2 corners[6] = {
+        float2(-1.0, -1.0),
+        float2( 1.0, -1.0),
+        float2(-1.0,  1.0),
+        float2(-1.0,  1.0),
+        float2( 1.0, -1.0),
+        float2( 1.0,  1.0),
+    };
+
+    KeyboardStageInstance instance = instances[instanceID];
+    float2 halfSizePixels = instance.geometry.zw * uniforms.viewportSize * 0.25;
+    float margin = instance.treatment.z;
+    float2 localPixels = corners[vertexID] * (halfSizePixels + margin);
+
+    float angle = instance.treatment.x;
+    float sine = sin(angle);
+    float cosine = cos(angle);
+    float2 rotatedPixels = float2(
+        localPixels.x * cosine - localPixels.y * sine,
+        localPixels.x * sine + localPixels.y * cosine
+    );
+    float2 ndcOffset = float2(
+        rotatedPixels.x * 2.0 / uniforms.viewportSize.x,
+        -rotatedPixels.y * 2.0 / uniforms.viewportSize.y
+    );
+
+    KeyboardStageVertexOut output;
+    output.position = float4(instance.geometry.xy + ndcOffset, 0.0, 1.0);
+    output.localPixels = localPixels;
+    output.halfSizePixels = halfSizePixels;
+    output.fillColor = instance.fillColor;
+    output.accentColor = instance.accentColor;
+    output.glowColor = instance.glowColor;
+    output.parameters = instance.parameters;
+    output.lighting = instance.lighting;
+    output.cornerRadiusPixels = min(halfSizePixels.x, halfSizePixels.y) * instance.treatment.y;
+    float localX = output.position.x * 0.5 + 0.5;
+    output.stageUV = float2(
+        uniforms.windowX.x + localX * uniforms.windowX.y,
+        0.5 - output.position.y * 0.5
+    );
+    output.materialKind = instance.treatment.w;
+    return output;
+}
+
+vertex KeyboardStageLegendVertexOut keypath_keyboard_legend_vertex(
+    uint vertexID [[vertex_id]],
+    uint instanceID [[instance_id]],
+    constant KeyboardStageLegendInstance *instances [[buffer(0)]],
+    constant KeyboardStageUniforms &uniforms [[buffer(1)]]
+) {
+    constexpr float2 corners[6] = {
+        float2(-1.0, -1.0),
+        float2( 1.0, -1.0),
+        float2(-1.0,  1.0),
+        float2(-1.0,  1.0),
+        float2( 1.0, -1.0),
+        float2( 1.0,  1.0),
+    };
+
+    KeyboardStageLegendInstance instance = instances[instanceID];
+    float2 corner = corners[vertexID];
+    float2 position = instance.geometry.xy + corner * instance.geometry.zw * 0.5;
+    float2 unitUV = float2(corner.x * 0.5 + 0.5, 0.5 - corner.y * 0.5);
+
+    KeyboardStageLegendVertexOut output;
+    output.position = float4(position, 0.0, 1.0);
+    output.atlasUV = instance.uvRect.xy + unitUV * instance.uvRect.zw;
+    float localX = position.x * 0.5 + 0.5;
+    output.stageUV = float2(
+        uniforms.windowX.x + localX * uniforms.windowX.y,
+        0.5 - position.y * 0.5
+    );
+    output.settledColor = instance.settledColor;
+    output.parameters = instance.parameters;
+    return output;
+}
+
+vertex KeyboardStageFullscreenOut keypath_fullscreen_vertex(
+    uint vertexID [[vertex_id]]
+) {
+    constexpr float2 coordinates[3] = {
+        float2(0.0, 0.0),
+        float2(2.0, 0.0),
+        float2(0.0, 2.0),
+    };
+
+    KeyboardStageFullscreenOut output;
+    output.uv = coordinates[vertexID];
+    output.position = float4(
+        output.uv.x * 2.0 - 1.0,
+        1.0 - output.uv.y * 2.0,
+        0.0,
+        1.0
+    );
+    return output;
+}
+
+static float keypath_rounded_rect_distance(
+    float2 point,
+    float2 halfSize,
+    float radius
+) {
+    float2 offset = abs(point) - halfSize + radius;
+    return length(max(offset, float2(0.0)))
+        + min(max(offset.x, offset.y), 0.0)
+        - radius;
+}
+
+static float keypath_critically_damped_progress(float rawProgress) {
+    float progress = saturate(rawProgress);
+    if (progress <= 0.0 || progress >= 1.0) {
+        return progress;
+    }
+
+    constexpr float response = 8.0;
+    float value = 1.0 - (1.0 + response * progress) * exp(-response * progress);
+    float settledValue = 1.0 - (1.0 + response) * exp(-response);
+    return saturate(value / settledValue);
+}
+
+static float keypath_cinematic_exposure(
+    float rawProgress,
+    float2 normalizedPosition,
+    bool reduceMotion,
+    float4 cinematicLighting
+) {
+    if (reduceMotion) {
+        return keypath_critically_damped_progress(rawProgress);
+    }
+    if (rawProgress <= 0.0) {
+        return 0.0;
+    }
+    if (rawProgress >= 1.0) {
+        return 1.0;
+    }
+
+    float2 position = saturate(normalizedPosition);
+    float coordinate = position.x
+        + (0.5 - position.y) * cinematicLighting.z;
+    return smoothstep(
+        cinematicLighting.x,
+        cinematicLighting.x + cinematicLighting.y,
+        coordinate
+    );
+}
+
+static float keypath_hash(float2 point) {
+    return fract(sin(dot(point, float2(12.9898, 78.233))) * 43758.5453);
+}
+
+static float2 keypath_rounded_rect_gradient(
+    float2 point,
+    float2 halfSize,
+    float radius
+) {
+    constexpr float epsilon = 0.75;
+    float horizontal = keypath_rounded_rect_distance(
+        point + float2(epsilon, 0.0),
+        halfSize,
+        radius
+    ) - keypath_rounded_rect_distance(
+        point - float2(epsilon, 0.0),
+        halfSize,
+        radius
+    );
+    float vertical = keypath_rounded_rect_distance(
+        point + float2(0.0, epsilon),
+        halfSize,
+        radius
+    ) - keypath_rounded_rect_distance(
+        point - float2(0.0, epsilon),
+        halfSize,
+        radius
+    );
+    return normalize(float2(horizontal, vertical) + float2(0.0001));
+}
+
+fragment float4 keypath_keyboard_stage_fragment(
+    KeyboardStageVertexOut input [[stage_in]],
+    constant KeyboardStageUniforms &uniforms [[buffer(1)]]
+) {
+    float pressure = saturate(input.parameters.x);
+    float glow = saturate(input.parameters.y);
+    float opacity = saturate(input.parameters.z);
+    float borderStrength = saturate(input.parameters.w);
+    bool isDeck = input.materialKind < 0.5;
+    bool isKey = input.materialKind >= 0.5 && input.materialKind < 1.5;
+    float keyPress = isKey ? saturate(input.lighting.w) : 0.0;
+    bool reduceMotion = uniforms.entrance.y > 0.5;
+    float pixelExposure = keypath_cinematic_exposure(
+        uniforms.entrance.x,
+        input.stageUV,
+        reduceMotion,
+        uniforms.cinematicLighting
+    );
+    // The opening frame is a genuinely dark room. Mixing even a few percent
+    // of the final near-white palette into linear light lifts the deck into a
+    // gray card, so the spatial area-light exposure is the illumination.
+    float illumination = pixelExposure;
+    float transientGlow = saturate(input.lighting.y);
+    float shadowStrength = max(1.0, input.lighting.z);
+
+    float distance = keypath_rounded_rect_distance(
+        input.localPixels,
+        input.halfSizePixels,
+        input.cornerRadiusPixels
+    );
+    float antialiasWidth = max(0.75, fwidth(distance));
+    float surfaceAlpha = 1.0 - smoothstep(-antialiasWidth, antialiasWidth, distance);
+
+    // The dark ring immediately around a key is its recessed well. It keeps the
+    // backlight attached to the hardware instead of reading as a neon outline.
+    float outsideDistance = max(distance, 0.0);
+    float wellCore = exp(-outsideDistance * 0.58);
+    float wellTail = exp(-outsideDistance * 0.18);
+    float wellAlpha = isKey
+        ? mix(0.90, 0.38, illumination)
+            * (wellCore * 0.72 + wellTail * 0.28)
+        : 0.0;
+    float skirtDistance = keypath_rounded_rect_distance(
+        input.localPixels - float2(
+            mix(0.45, 0.10, pressure),
+            mix(2.45, 0.55, pressure)
+        ),
+        input.halfSizePixels + float2(isKey ? 2.15 : 0.0),
+        input.cornerRadiusPixels + (isKey ? 1.05 : 0.0)
+    );
+    float skirtAlpha = isKey
+        ? (1.0 - smoothstep(-0.35, 2.1, skirtDistance)) * (1.0 - surfaceAlpha)
+        : 0.0;
+
+    float contactShadowDistance = keypath_rounded_rect_distance(
+        input.localPixels - float2(
+            mix(0.60, 0.14, pressure),
+            mix(3.20, 0.85, pressure)
+        ),
+        input.halfSizePixels,
+        input.cornerRadiusPixels
+    );
+    float contactShadowAlpha = (1.0 - smoothstep(-0.25, 4.8, contactShadowDistance))
+        * mix(isDeck ? 0.13 : 0.42, 0.09, pressure);
+    float softShadowDistance = keypath_rounded_rect_distance(
+        input.localPixels - float2(
+            mix(isDeck ? 1.4 : 1.0, 0.2, pressure),
+            mix(isDeck ? 9.5 : 7.2, 1.8, pressure)
+        ),
+        input.halfSizePixels,
+        input.cornerRadiusPixels
+    );
+    float softShadowAlpha = (1.0 - smoothstep(-1.0, isDeck ? 22.0 : 15.0, softShadowDistance))
+        * mix(isDeck ? 0.27 : 0.34, 0.11, pressure);
+    contactShadowAlpha *= mix(1.42, 1.0, illumination);
+    softShadowAlpha *= mix(1.20, 1.0, illumination);
+    float shadowAlpha = contactShadowAlpha
+        + softShadowAlpha * (1.0 - contactShadowAlpha);
+    shadowAlpha = saturate(shadowAlpha * shadowStrength);
+
+    // Inactive keys retain only a restrained neutral spill. Scene-role glow
+    // carries the cool emphasis for Caps Lock and other active lesson keys.
+    float backlightStrength = isKey
+        ? mix(0.18, 0.0, illumination) * (0.72 + transientGlow * 0.28)
+        : 0.0;
+    float tightBacklight = exp(-outsideDistance * 0.38) * backlightStrength * 0.28;
+    float broadBacklight = exp(-outsideDistance * 0.095) * backlightStrength * 0.10;
+    float roleGlowAlpha = exp(-outsideDistance * 0.24) * glow * 0.22;
+    roleGlowAlpha *= 1.0 - surfaceAlpha;
+    float pressGlowAlpha = exp(-outsideDistance * 0.31)
+        * keyPress
+        * mix(0.28, 0.10, illumination)
+        * step(0.001, glow)
+        * (1.0 - surfaceAlpha);
+    roleGlowAlpha = roleGlowAlpha
+        + pressGlowAlpha * (1.0 - roleGlowAlpha);
+    float entranceGlowAlpha = tightBacklight + broadBacklight;
+    entranceGlowAlpha *= 1.0 - surfaceAlpha;
+    float glowAlpha = roleGlowAlpha
+        + entranceGlowAlpha * (1.0 - roleGlowAlpha);
+
+    float bevelWidth = isDeck
+        ? min(8.0, min(input.halfSizePixels.x, input.halfSizePixels.y) * 0.10)
+        : min(6.0, min(input.halfSizePixels.x, input.halfSizePixels.y) * 0.20);
+    float bevel = smoothstep(-bevelWidth, -0.20, distance) * surfaceAlpha;
+    float2 distanceGradient = keypath_rounded_rect_gradient(
+        input.localPixels,
+        input.halfSizePixels,
+        input.cornerRadiusPixels
+    );
+    float bevelDepth = isDeck ? 0.22 : 0.72;
+    float2 faceCoordinate = clamp(
+        input.localPixels / max(input.halfSizePixels, float2(1.0)),
+        float2(-1.0),
+        float2(1.0)
+    );
+    float faceMask = isKey ? (1.0 - bevel) * surfaceAlpha : 0.0;
+    float2 crownNormal = faceCoordinate * float2(0.055, 0.075) * faceMask;
+    float3 normal = normalize(float3(
+        distanceGradient.x * bevel * bevelDepth + crownNormal.x,
+        distanceGradient.y * bevel * bevelDepth + crownNormal.y,
+        1.0
+    ));
+
+    // A broad source moves right-to-left. Its specular front catches each
+    // bevel before the diffuse exposure arrives, like a product-film area light.
+    float lightFront = uniforms.cinematicLighting.x;
+    float lightCoordinate = input.stageUV.x
+        + (0.5 - input.stageUV.y) * uniforms.cinematicLighting.z;
+    float grazingBand = reduceMotion
+        ? 0.0
+        : exp(-pow((lightCoordinate - lightFront) / 0.18, 2.0))
+            * sin(saturate(uniforms.entrance.x) * 3.14159265);
+    float3 lightDirection = normalize(float3(0.62, -0.28, 0.74));
+    float diffuse = saturate(dot(normal, lightDirection));
+    float3 halfVector = normalize(lightDirection + float3(0.0, 0.0, 1.0));
+    float specularPower = isDeck ? 88.0 : (isKey ? 42.0 : 34.0);
+    float specular = pow(saturate(dot(normal, halfVector)), specularPower);
+    float bevelSpecular = pow(
+        saturate(dot(normal, halfVector)),
+        isDeck ? 112.0 : 64.0
+    ) * bevel;
+    float fresnel = pow(1.0 - saturate(normal.z), 3.0);
+
+    float3 darkMaterial = isDeck
+        ? float3(0.010, 0.012, 0.016)
+        : float3(0.0018, 0.0023, 0.0032);
+    float3 litMaterial = input.fillColor.rgb;
+    float3 surfaceColor = mix(darkMaterial, litMaterial, illumination);
+    float verticalPosition = saturate(
+        input.localPixels.y / max(1.0, input.halfSizePixels.y) * 0.5 + 0.5
+    );
+    surfaceColor *= mix(1.025, 0.94, verticalPosition * (isDeck ? 0.28 : 1.0));
+    surfaceColor *= mix(1.0, 0.91, pressure);
+    // A physical press remains legible at both cinematic endpoints. In the
+    // dark room it appears as light leaking through the cap material; once the
+    // area light arrives, the settled accent-filled face carries the state.
+    surfaceColor = mix(
+        surfaceColor,
+        input.glowColor.rgb,
+        keyPress * mix(0.12, 0.055, illumination)
+    );
+
+    // Stable, sub-pixel material variation prevents the aluminum deck and
+    // graphite caps from reading as flat vector fills.
+    float materialNoise = keypath_hash(floor(input.stageUV * uniforms.viewportSize * 0.72)) - 0.5;
+    surfaceColor += materialNoise * (isDeck ? 0.010 : 0.004) * mix(0.30, 1.0, illumination);
+
+    float3 neutralLight = mix(float3(0.62, 0.72, 0.86), float3(1.0), illumination);
+    surfaceColor *= mix(0.58, 1.04, illumination) + diffuse * illumination * 0.12;
+    float broadSpecularStrength = isDeck ? 0.026 : (isKey ? 0.012 : 0.026);
+    surfaceColor += neutralLight * (
+        specular * (broadSpecularStrength + illumination * 0.13)
+        + bevelSpecular * (0.085 + illumination * 0.14)
+    );
+    surfaceColor += float3(1.0, 0.82, 0.64) * grazingBand
+        * (specular * 0.32 + fresnel * 0.08 + bevel * 0.04);
+
+    // Before the moving source arrives, a low warm area light grazes the
+    // keyboard from the right. It is strongest on the deck, catches key
+    // bevels lightly, and vanishes exactly at the settled light endpoint.
+    float entranceDarkness = 1.0 - pixelExposure;
+    float rightGraze = smoothstep(0.60, 1.03, lightCoordinate)
+        * entranceDarkness
+        * (1.0 - pixelExposure * 0.75);
+    float3 warmLightDirection = normalize(float3(0.86, -0.18, 0.48));
+    float warmDiffuse = saturate(dot(normal, warmLightDirection));
+    float3 warmHalfVector = normalize(warmLightDirection + float3(0.0, 0.0, 1.0));
+    float warmSpecular = pow(
+        saturate(dot(normal, warmHalfVector)),
+        isDeck ? 78.0 : 52.0
+    );
+    float warmMaterialResponse = isDeck
+        ? 0.072 + warmDiffuse * 0.048
+        : (isKey ? 0.017 + warmDiffuse * 0.032 : 0.0);
+    float warmBevelResponse = isDeck
+        ? bevel * 0.020 + warmSpecular * bevel * 0.032
+        : (isKey ? bevel * 0.030 + warmSpecular * bevel * 0.064 : 0.0);
+    surfaceColor += float3(0.62, 0.43, 0.31)
+        * rightGraze
+        * (warmMaterialResponse + warmBevelResponse);
+
+    float edge = smoothstep(-2.2, -0.15, distance) * surfaceAlpha;
+    float edgeIllumination = mix(0.10, 0.72, illumination) + grazingBand * 0.56;
+    surfaceColor = mix(
+        surfaceColor,
+        input.accentColor.rgb,
+        edge * borderStrength * 0.48 * edgeIllumination
+    );
+    surfaceColor += input.glowColor.rgb
+        * edge
+        * glow
+        * 0.32
+        * (1.0 - pixelExposure * 0.55);
+    surfaceColor += input.glowColor.rgb
+        * edge
+        * keyPress
+        * mix(0.54, 0.24, illumination);
+
+    // A narrow internal rim makes the translucent legend light feel seated in
+    // a real cap even though semantic glyphs remain native and accessible.
+    float innerRim = exp(-abs(distance + 1.2) * 1.35) * surfaceAlpha;
+    float3 innerRimColor = mix(float3(0.22, 0.23, 0.25), input.glowColor.rgb, glow);
+    surfaceColor += innerRimColor
+        * innerRim
+        * (backlightStrength * 0.075 + keyPress * mix(0.52, 0.20, illumination));
+
+    float nonGlowAlpha = 1.0
+        - (1.0 - shadowAlpha)
+            * (1.0 - wellAlpha)
+            * (1.0 - skirtAlpha);
+    float underAlpha = 1.0 - (1.0 - nonGlowAlpha) * (1.0 - glowAlpha);
+    float3 shadowColor = mix(
+        float3(0.0015, 0.0020, 0.0030),
+        float3(0.035, 0.031, 0.028),
+        illumination
+    );
+    float3 skirtColor = mix(
+        float3(0.006, 0.008, 0.012),
+        input.fillColor.rgb * 0.18,
+        illumination
+    );
+    float3 entranceGlowColor = mix(
+        float3(0.18, 0.20, 0.24),
+        float3(0.82, 0.89, 1.0),
+        illumination
+    );
+    float glowWeight = roleGlowAlpha + entranceGlowAlpha;
+    float3 resolvedGlowColor = (
+        input.glowColor.rgb * roleGlowAlpha
+        + entranceGlowColor * entranceGlowAlpha
+    ) / max(0.001, glowWeight);
+    float3 nonGlowColor = mix(
+        shadowColor,
+        skirtColor,
+        skirtAlpha / max(0.001, nonGlowAlpha)
+    );
+    float3 underColor = mix(
+        nonGlowColor,
+        resolvedGlowColor,
+        glowAlpha / max(0.001, nonGlowAlpha + glowAlpha)
+    );
+    float finalAlpha = surfaceAlpha + underAlpha * (1.0 - surfaceAlpha);
+    float3 finalColor = (
+        surfaceColor * surfaceAlpha
+        + underColor * underAlpha * (1.0 - surfaceAlpha)
+    ) / max(0.001, finalAlpha);
+
+    return float4(finalColor, finalAlpha * opacity);
+}
+
+fragment float4 keypath_keyboard_legend_fragment(
+    KeyboardStageLegendVertexOut input [[stage_in]],
+    constant KeyboardStageUniforms &uniforms [[buffer(1)]],
+    texture2d<float, access::sample> legendAtlas [[texture(0)]]
+) {
+    constexpr sampler atlasSampler(
+        coord::normalized,
+        address::clamp_to_edge,
+        filter::linear
+    );
+
+    float coverage = saturate(legendAtlas.sample(atlasSampler, input.atlasUV).r);
+    float opacity = saturate(input.parameters.x);
+    float alpha = coverage * opacity * saturate(input.settledColor.a);
+    if (alpha <= 0.0) {
+        return float4(0.0);
+    }
+
+    bool reduceMotion = uniforms.entrance.y > 0.5;
+    float pixelExposure = keypath_cinematic_exposure(
+        uniforms.entrance.x,
+        input.stageUV,
+        reduceMotion,
+        uniforms.cinematicLighting
+    );
+    float entranceDarkness = 1.0 - pixelExposure;
+
+    // These are the linear-sRGB equivalents of the neutral 0.82/0.84/0.88
+    // legend used during the dark hold. Keeping the aperture itself in the HDR
+    // pass lets the bloom derive from real excess radiance instead of a second
+    // screen-space text shadow.
+    constexpr float3 darkLegendColor = float3(0.7484, 0.7484, 0.7100);
+    float3 legendColor = mix(
+        darkLegendColor,
+        max(input.settledColor.rgb, float3(0.0)),
+        pixelExposure
+    );
+    float entranceEmission = saturate(input.parameters.y);
+    float roleEmission = saturate(input.parameters.z);
+    float allowsBloom = saturate(input.parameters.w);
+    float emission = entranceDarkness
+        * (0.95 + entranceEmission * 0.65 + roleEmission * 0.35)
+        * allowsBloom;
+    float3 radiance = legendColor * (1.0 + emission);
+
+    return float4(radiance, alpha);
+}
+
+static float3 keypath_bright_excess(float4 source) {
+    if (source.a <= 0.00001) {
+        return float3(0.0);
+    }
+
+    float3 radiance = max(source.rgb / source.a, float3(0.0));
+    float3 excess = max(radiance - float3(1.0), float3(0.0)) * source.a;
+    float peak = max(excess.r, max(excess.g, excess.b));
+    return excess / (1.0 + peak * 0.35);
+}
+
+fragment float4 keypath_keyboard_bright_pass_fragment(
+    KeyboardStageFullscreenOut input [[stage_in]],
+    constant KeyboardStagePostUniforms &uniforms [[buffer(0)]],
+    texture2d<float, access::sample> sourceTexture [[texture(0)]]
+) {
+    constexpr sampler sourceSampler(
+        coord::normalized,
+        address::clamp_to_edge,
+        filter::linear
+    );
+
+    float2 sourceSize = max(uniforms.sourceAndBloomSize.xy, float2(1.0));
+    float2 bloomSize = max(uniforms.sourceAndBloomSize.zw, float2(1.0));
+    float2 sourceTexel = 1.0 / sourceSize;
+    float2 footprint = max(sourceSize / bloomSize, float2(1.0))
+        * sourceTexel * 0.25;
+    float3 bright = float3(0.0);
+    bright += keypath_bright_excess(sourceTexture.sample(
+        sourceSampler,
+        input.uv + float2(-footprint.x, -footprint.y)
+    ));
+    bright += keypath_bright_excess(sourceTexture.sample(
+        sourceSampler,
+        input.uv + float2( footprint.x, -footprint.y)
+    ));
+    bright += keypath_bright_excess(sourceTexture.sample(
+        sourceSampler,
+        input.uv + float2(-footprint.x,  footprint.y)
+    ));
+    bright += keypath_bright_excess(sourceTexture.sample(
+        sourceSampler,
+        input.uv + float2( footprint.x,  footprint.y)
+    ));
+    return float4(bright * 0.25, 0.0);
+}
+
+static float3 keypath_gaussian_blur(
+    texture2d<float, access::sample> sourceTexture,
+    float2 uv,
+    float2 axis,
+    float2 textureSize
+) {
+    constexpr sampler blurSampler(
+        coord::normalized,
+        address::clamp_to_edge,
+        filter::linear
+    );
+    float2 texel = axis / max(textureSize, float2(1.0));
+    float3 color = sourceTexture.sample(blurSampler, uv).rgb * 0.227027;
+    color += sourceTexture.sample(blurSampler, uv + texel * 1.384615).rgb * 0.316216;
+    color += sourceTexture.sample(blurSampler, uv - texel * 1.384615).rgb * 0.316216;
+    color += sourceTexture.sample(blurSampler, uv + texel * 3.230769).rgb * 0.070270;
+    color += sourceTexture.sample(blurSampler, uv - texel * 3.230769).rgb * 0.070270;
+    return color;
+}
+
+fragment float4 keypath_keyboard_blur_horizontal_fragment(
+    KeyboardStageFullscreenOut input [[stage_in]],
+    constant KeyboardStagePostUniforms &uniforms [[buffer(0)]],
+    texture2d<float, access::sample> sourceTexture [[texture(0)]]
+) {
+    float3 color = keypath_gaussian_blur(
+        sourceTexture,
+        input.uv,
+        float2(1.0, 0.0),
+        uniforms.sourceAndBloomSize.zw
+    );
+    return float4(color, 0.0);
+}
+
+fragment float4 keypath_keyboard_blur_vertical_fragment(
+    KeyboardStageFullscreenOut input [[stage_in]],
+    constant KeyboardStagePostUniforms &uniforms [[buffer(0)]],
+    texture2d<float, access::sample> sourceTexture [[texture(0)]]
+) {
+    float3 color = keypath_gaussian_blur(
+        sourceTexture,
+        input.uv,
+        float2(0.0, 1.0),
+        uniforms.sourceAndBloomSize.zw
+    );
+    return float4(color, 0.0);
+}
+
+static float3 keypath_highlight_shoulder(float3 radiance) {
+    constexpr float knee = 0.72;
+    constexpr float range = 1.0 - knee;
+    float3 positive = max(radiance, float3(0.0));
+    float3 shoulder = knee + range
+        * (1.0 - exp(-max(positive - knee, float3(0.0)) / range));
+    return mix(positive, shoulder, step(float3(knee), positive));
+}
+
+fragment float4 keypath_keyboard_composite_fragment(
+    KeyboardStageFullscreenOut input [[stage_in]],
+    constant KeyboardStagePostUniforms &uniforms [[buffer(0)]],
+    texture2d<float, access::sample> sourceTexture [[texture(0)]],
+    texture2d<float, access::sample> bloomTexture [[texture(1)]]
+) {
+    constexpr sampler compositeSampler(
+        coord::normalized,
+        address::clamp_to_edge,
+        filter::linear
+    );
+
+    float4 source = sourceTexture.sample(compositeSampler, input.uv);
+    float progress = saturate(uniforms.entranceAndDirection.x);
+    bool reduceMotion = uniforms.entranceAndDirection.y > 0.5;
+    float easedProgress = keypath_critically_damped_progress(progress);
+    float2 direction = uniforms.entranceAndDirection.zw;
+    float directionLength = length(direction);
+    direction = directionLength > 0.0001
+        ? direction / directionLength
+        : float2(1.0, 0.0);
+
+    float3 bloom = float3(0.0);
+    float3 tightBloom = float3(0.0);
+    bool hasBloom = uniforms.sourceAndBloomSize.z > 0.0
+        && uniforms.sourceAndBloomSize.w > 0.0;
+    if (hasBloom) {
+        float2 bloomTexel = 1.0 / max(
+            uniforms.sourceAndBloomSize.zw,
+            float2(1.0)
+        );
+        float directionalOffset = reduceMotion ? 0.0 : (1.0 - easedProgress) * 0.65;
+        bloom = bloomTexture.sample(
+            compositeSampler,
+            input.uv - direction * bloomTexel * directionalOffset
+        ).rgb;
+
+        float2 sourceTexel = 1.0 / max(
+            uniforms.sourceAndBloomSize.xy,
+            float2(1.0)
+        );
+        float2 tightOffset = sourceTexel * 1.25;
+        tightBloom += keypath_bright_excess(sourceTexture.sample(
+            compositeSampler,
+            input.uv + float2(tightOffset.x, 0.0)
+        ));
+        tightBloom += keypath_bright_excess(sourceTexture.sample(
+            compositeSampler,
+            input.uv - float2(tightOffset.x, 0.0)
+        ));
+        tightBloom += keypath_bright_excess(sourceTexture.sample(
+            compositeSampler,
+            input.uv + float2(0.0, tightOffset.y)
+        ));
+        tightBloom += keypath_bright_excess(sourceTexture.sample(
+            compositeSampler,
+            input.uv - float2(0.0, tightOffset.y)
+        ));
+        tightBloom *= 0.25;
+    }
+
+    // Bloom is deliberately an entrance material effect. It vanishes at the
+    // settled endpoint, and the >1 bright-pass threshold keeps ordinary white
+    // key surfaces and native light UI from producing a gray haze.
+    float bloomEnvelope = 1.0 - smoothstep(0.82, 1.0, progress);
+    if (reduceMotion) {
+        bloomEnvelope *= 0.72;
+    }
+    float3 bloomContribution = (
+        tightBloom * 0.22
+        + bloom * 0.09
+    ) * bloomEnvelope;
+    float bloomPeak = max(
+        bloomContribution.r,
+        max(bloomContribution.g, bloomContribution.b)
+    );
+    float bloomAlpha = saturate(bloomPeak * 0.45);
+    float finalAlpha = source.a + bloomAlpha * (1.0 - source.a);
+    if (finalAlpha <= 0.00001) {
+        return float4(0.0);
+    }
+
+    float3 premultipliedRadiance = source.rgb + bloomContribution;
+    float3 straightRadiance = premultipliedRadiance / finalAlpha;
+    float3 mappedColor = keypath_highlight_shoulder(straightRadiance);
+
+    // Static sub-LSB noise prevents banding in the dark-to-light shoulder. It
+    // fades out before progress reaches one so the final light frame is clean.
+    float2 sourceSize = max(uniforms.sourceAndBloomSize.xy, float2(1.0));
+    float ditherEnvelope = 1.0 - smoothstep(0.92, 1.0, progress);
+    float dither = (keypath_hash(floor(input.uv * sourceSize)) - 0.5)
+        * (1.0 / 2048.0)
+        * ditherEnvelope;
+    mappedColor = saturate(mappedColor + dither);
+
+    return float4(mappedColor * finalAlpha, finalAlpha);
+}

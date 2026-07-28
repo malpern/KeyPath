@@ -774,7 +774,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        let initialPage = targetPage ?? resolveWizardInitialPage()
+        // The one-time welcome gate has a QA override. Use an explicit welcome
+        // target so the wizard's health-summary routing cannot bypass it.
+        let initialPage = UserDefaults.standard.bool(forKey: WizardWelcomeGate.forceWelcomeKey)
+            ? .welcome
+            : targetPage ?? resolveWizardInitialPage()
         WizardWindowController.shared.showWindow(
             initialPage: initialPage,
             kanataViewModel: vm,

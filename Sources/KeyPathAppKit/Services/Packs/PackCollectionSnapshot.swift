@@ -104,6 +104,15 @@ public struct PackCollectionSnapshot: Codable {
     }
 
     static func removeLegacyVallack() {
-        try? FileManager.default.removeItem(at: legacyVallackURL)
+        try? removeLegacyVallackIfPresent()
+    }
+
+    /// Throwing variant used by transactional rollback so cleanup failures are
+    /// surfaced instead of being reported as a complete restoration.
+    static func removeLegacyVallackIfPresent() throws {
+        guard FileManager.default.fileExists(atPath: legacyVallackURL.path) else {
+            return
+        }
+        try FileManager.default.removeItem(at: legacyVallackURL)
     }
 }

@@ -185,7 +185,9 @@ let package = Package(
             ],
             path: "Sources/KeyPathAppKit",
             exclude: [
-                "InstallationWizard/README.md"
+                "InstallationWizard/README.md",
+                // Compiled into default.metallib by CompileKeyboardStageMetal.
+                "UI/KeyboardStage/Metal/KeyboardStage.metal"
             ],
             resources: [
                 .process("Resources")
@@ -194,7 +196,12 @@ let package = Package(
                 .swiftLanguageMode(.v6)
             ],
             linkerSettings: [
-                .linkedFramework("IOKit")
+                .linkedFramework("IOKit"),
+                .linkedFramework("Metal"),
+                .linkedFramework("MetalKit")
+            ],
+            plugins: [
+                .plugin(name: "CompileKeyboardStageMetal")
             ]
         ),
         // Main executable entry point
@@ -318,6 +325,11 @@ let package = Package(
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
+        ),
+        .plugin(
+            name: "CompileKeyboardStageMetal",
+            capability: .buildTool(),
+            path: "Plugins/CompileKeyboardStageMetal"
         ),
         // Tests
         .testTarget(

@@ -83,6 +83,38 @@ The wizard starts the Kanata remapping engine. Once it's running, your keyboard 
 
 ---
 
+## Your first three keyboard wins
+
+Once setup is healthy, KeyPath offers a short optional tour. It teaches three useful keyboard changes, explains why each one helps, and shows where to adjust it later. Choose **Skip tour** at any point; setup is already complete, and the tour never blocks KeyPath.
+
+```
+  tap caps            Escape within easy reach
+  hold caps           A clean Hyper shortcut prefix
+  hyper + your key    Launch a favorite app
+
+  then: choose and explore in Rules
+```
+
+### 1. Tap Caps Lock for Escape
+
+Caps Lock is close to the home row but rarely used by many people. Escape is useful for dismissing menus, leaving search, and cancelling an action. KeyPath can make a quick tap on Caps Lock send Escape instead.
+
+After enabling it, open a menu or search field and tap Caps Lock to try the new Escape action. If it does not feel right, open **Rules**, select **Caps Lock Remap**, and turn it off.
+
+### 2. Hold Caps Lock for Hyper
+
+The same key can do a second job: tap it for Escape, but hold it for **Hyper**. Hyper means Control + Option + Shift + Command together. Mac apps rarely reserve that full combination, which makes it a clean prefix for your own shortcuts without stepping on the ones you already use.
+
+### 3. Launch a favorite app
+
+The tour enables **Quick Launcher**, then takes you to its real controls in **Rules**. Click an available letter on the keyboard — or choose **Add Mapping** — select **App** or **Website**, pick what you want to open, and choose **Save**. To use it, hold Caps Lock and press the letter you chose.
+
+### Continue in Rules
+
+The handoff opens **Rules** with **Quick Launcher** in view, so the app and key choice happens in the same controls you will use later. From there, browse other Rules to discover another remap, turn a behavior off, or change any choice from the tour.
+
+---
+
 ## If something goes wrong
 
 The wizard is designed to handle problems gracefully:

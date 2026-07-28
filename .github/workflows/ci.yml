@@ -52,6 +52,9 @@ jobs:
     - name: Verify runner disk reserve
       run: ./Scripts/lab/host-disk-reserve
 
+    - name: Ensure Metal toolchain
+      run: ./Scripts/ensure-metal-toolchain.sh
+
     - name: Add Homebrew and Cargo to PATH
       run: |
         echo "/opt/homebrew/bin" >> $GITHUB_PATH
