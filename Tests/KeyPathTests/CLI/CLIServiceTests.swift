@@ -104,6 +104,24 @@ final class CLIServiceTests: XCTestCase {
         XCTAssertEqual(invalidations.count, 2)
     }
 
+    func testRestartServiceDoesNotReportSuccessWhenStartFails() async {
+        let operations = ServiceOperationRecorder()
+        let facade = SystemFacade(
+            startServiceOperation: { throw ServiceOperationError.failed },
+            stopServiceOperation: { await operations.recordStop() },
+            runtimeSnapshotProvider: { Self.runtimeSnapshot(running: true, responding: true) },
+            runtimeTransitionTimeoutSeconds: 0.05,
+            pollDelayNanoseconds: 0,
+            restartDelayNanoseconds: 0
+        )
+
+        let restarted = await facade.restartService()
+        let stopCount = await operations.stopCount
+
+        XCTAssertFalse(restarted)
+        XCTAssertEqual(stopCount, 1)
+    }
+
     func testStartServiceReturnsFalseWhenRuntimeNeverBecomesHealthy() async {
         let facade = SystemFacade(
             startServiceOperation: {},
