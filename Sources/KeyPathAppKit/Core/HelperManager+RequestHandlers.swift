@@ -252,6 +252,18 @@ extension HelperManager {
         }
     }
 
+    func startKanataService() async throws {
+        try await executeXPCCall("startKanataService") { proxy, reply in
+            proxy.startKanataService(reply: reply)
+        }
+    }
+
+    func stopKanataService() async throws {
+        try await executeXPCCall("stopKanataService") { proxy, reply in
+            proxy.stopKanataService(reply: reply)
+        }
+    }
+
     // MARK: - VirtualHID Operations
 
     func activateVirtualHIDManager() async throws {
