@@ -10,7 +10,9 @@ import KeyPathWizardCore
 public struct SystemFacade: Sendable {
     typealias RuntimeSnapshot = ServiceHealthChecker.KanataServiceRuntimeSnapshot
 
-    private let subprocessRunner: any SubprocessRunning
+    private let startServiceOperation: @Sendable () async throws -> Void
+    private let stopServiceOperation: @Sendable () async throws -> Void
+    private let runtimeCacheInvalidator: @Sendable () async -> Void
     private let runtimeSnapshotProvider: @Sendable () async -> RuntimeSnapshot
     private let runtimeTransitionTimeoutSeconds: TimeInterval
     private let pollDelayNanoseconds: UInt64
@@ -18,21 +20,45 @@ public struct SystemFacade: Sendable {
 
     public init() {
         self.init(
-            subprocessRunner: SubprocessRunner.shared,
+            startServiceOperation: {
+                try await HelperManager.shared.startKanataService()
+            },
+            stopServiceOperation: {
+                try await HelperManager.shared.stopKanataService()
+            },
+            runtimeCacheInvalidator: {
+                await MainActor.run {
+                    ServiceHealthChecker.shared.invalidateHealthCache()
+                }
+            },
             runtimeSnapshotProvider: {
-                await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot()
+                await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshotFresh()
             }
         )
     }
 
     init(
-        subprocessRunner: any SubprocessRunning,
+        startServiceOperation: @escaping @Sendable () async throws -> Void = {
+            try await HelperManager.shared.startKanataService()
+        },
+        stopServiceOperation: @escaping @Sendable () async throws -> Void = {
+            try await HelperManager.shared.stopKanataService()
+        },
+        runtimeCacheInvalidator: @escaping @Sendable () async -> Void = {
+            await MainActor.run {
+                ServiceHealthChecker.shared.invalidateHealthCache()
+            }
+        },
         runtimeSnapshotProvider: @escaping @Sendable () async -> RuntimeSnapshot,
-        runtimeTransitionTimeoutSeconds: TimeInterval = 5,
+        // The Kanata LaunchDaemon has a 10-second ThrottleInterval. A restart
+        // can legitimately remain stopped for that long before launchd starts it.
+        runtimeTransitionTimeoutSeconds: TimeInterval = 20,
         pollDelayNanoseconds: UInt64 = 200_000_000,
         restartDelayNanoseconds: UInt64 = 500_000_000
     ) {
-        self.subprocessRunner = subprocessRunner
+        self.startServiceOperation = startServiceOperation
+        self.stopServiceOperation = stopServiceOperation
+        self.runtimeCacheInvalidator = runtimeCacheInvalidator
         self.runtimeSnapshotProvider = runtimeSnapshotProvider
         self.runtimeTransitionTimeoutSeconds = runtimeTransitionTimeoutSeconds
         self.pollDelayNanoseconds = pollDelayNanoseconds
@@ -42,9 +68,12 @@ public struct SystemFacade: Sendable {
     // MARK: - Service Lifecycle
 
     public func startService() async -> Bool {
+        await MainActor.run {
+            CLIRuntimeBootstrap.ensureConfigured()
+        }
         do {
-            let result = try await subprocessRunner.launchctl("kickstart", ["system/com.keypath.kanata"])
-            guard result.exitCode == 0 else { return false }
+            try await startServiceOperation()
+            await runtimeCacheInvalidator()
             return await waitForRuntime(timeoutSeconds: runtimeTransitionTimeoutSeconds) { snapshot in
                 snapshot.isRunning && snapshot.isResponding
             }
@@ -54,9 +83,12 @@ public struct SystemFacade: Sendable {
     }
 
     public func stopService() async -> Bool {
+        await MainActor.run {
+            CLIRuntimeBootstrap.ensureConfigured()
+        }
         do {
-            let result = try await subprocessRunner.launchctl("kill", ["SIGTERM", "system/com.keypath.kanata"])
-            guard result.exitCode == 0 else { return false }
+            try await stopServiceOperation()
+            await runtimeCacheInvalidator()
             return await waitForRuntime(timeoutSeconds: runtimeTransitionTimeoutSeconds) { snapshot in
                 !snapshot.isRunning && !snapshot.isResponding
             }

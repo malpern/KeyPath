@@ -13,6 +13,7 @@ class HelperService: NSObject, HelperProtocol {
 
     /// Helper version shared with the app and wizard for compatibility checks.
     private static let version = KeyPathHelperContract.version
+    private static let kanataServiceTarget = "system/com.keypath.kanata"
     private static let vhidRootOnlyDirectory = "/Library/Application Support/org.pqrs/tmp/rootonly"
     private let logger = Logger(subsystem: "com.keypath.helper", category: "service")
 
@@ -130,6 +131,46 @@ class HelperService: NSObject, HelperProtocol {
             operation: {
                 NSLog("[KeyPathHelper] Kanata is SMAppService-managed by KeyPath.app; repairing VHID services only")
                 try Self.installOrRepairVHIDServices()
+            },
+            reply: reply
+        )
+    }
+
+    func startKanataService(reply: @escaping (Bool, String?) -> Void) {
+        NSLog("[KeyPathHelper] startKanataService requested")
+        executePrivilegedOperation(
+            name: "startKanataService",
+            operation: {
+                let result = Self.run(
+                    "/bin/launchctl",
+                    ["kickstart", Self.kanataServiceTarget],
+                    timeout: 15
+                )
+                guard result.status == 0 else {
+                    throw HelperError.operationFailed(
+                        "Failed to start KeyPath Kanata service: \(result.out)"
+                    )
+                }
+            },
+            reply: reply
+        )
+    }
+
+    func stopKanataService(reply: @escaping (Bool, String?) -> Void) {
+        NSLog("[KeyPathHelper] stopKanataService requested")
+        executePrivilegedOperation(
+            name: "stopKanataService",
+            operation: {
+                let result = Self.run(
+                    "/bin/launchctl",
+                    ["kill", "SIGTERM", Self.kanataServiceTarget],
+                    timeout: 15
+                )
+                guard result.status == 0 else {
+                    throw HelperError.operationFailed(
+                        "Failed to stop KeyPath Kanata service: \(result.out)"
+                    )
+                }
             },
             reply: reply
         )
