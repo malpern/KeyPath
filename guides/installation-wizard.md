@@ -107,11 +107,15 @@ The same key can do a second job: tap it for Escape, but hold it for **Hyper**. 
 
 ### 3. Launch a favorite app
 
-The tour enables **Quick Launcher**, then takes you to its real controls in **Rules**. Click an available letter on the keyboard — or choose **Add Mapping** — select **App** or **Website**, pick what you want to open, and choose **Save**. To use it, hold Caps Lock and press the letter you chose.
+Choose a real app and a memorable letter inside the tour. KeyPath saves that
+Quick Launcher shortcut before presenting it as complete. To use it, hold Caps
+Lock and press the letter you chose.
 
 ### Continue in Rules
 
-The handoff opens **Rules** with **Quick Launcher** in view, so the app and key choice happens in the same controls you will use later. From there, browse other Rules to discover another remap, turn a behavior off, or change any choice from the tour.
+The handoff opens **Rules** with **Quick Launcher** in view, where the saved app
+and letter remain visible and editable. From there, browse other Rules to discover
+another remap, turn a behavior off, or change any choice from the tour.
 
 ---
 
@@ -127,12 +131,18 @@ The wizard is designed to handle problems gracefully:
 
 **Service won't start:** The wizard runs diagnostics and shows what's blocking the service. Common causes: permissions not granted, driver not installed, or a conflicting process.
 
-### Running the wizard again
+### Replaying the first-success tour
+
+To revisit the optional keyboard tour, choose **Help > Replay KeyPath Tour…**.
+KeyPath opens the tour directly at the first keyboard win. It does not re-run setup,
+permission checks, or the installation wizard.
+
+### Running setup again
 
 If you need to re-run the wizard (e.g., after a macOS update that reset permissions):
 
 1. Open KeyPath
-2. Go to **File > Installation Wizard**
+2. Go to **File > Install wizard…**
 
 Or from the menu bar icon: click the KeyPath icon → **Setup Wizard**.
 

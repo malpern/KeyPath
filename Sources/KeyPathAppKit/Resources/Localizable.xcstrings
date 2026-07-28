@@ -5920,6 +5920,16 @@
         }
       }
     },
+    "Replay KeyPath Tour…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replay KeyPath Tour…"
+          }
+        }
+      }
+    },
     "SECOND WIN": {
       "localizations": {
         "en": {
