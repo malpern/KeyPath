@@ -87,21 +87,21 @@ final class FirstSuccessLauncherChoiceModel {
         if selectedApp == nil, canonicalKey.isEmpty {
             return LocalizedStringResource(
                 "Choose an app and a letter.",
-                bundle: #bundle,
+                bundle: KeyPathAppKitResources.bundle,
                 comment: "Validation shown before an onboarding launcher app and shortcut letter are selected."
             )
         }
         if selectedApp == nil {
             return LocalizedStringResource(
                 "Choose an app to launch.",
-                bundle: #bundle,
+                bundle: KeyPathAppKitResources.bundle,
                 comment: "Validation shown when an onboarding launcher letter is selected without an app."
             )
         }
         if canonicalKey.isEmpty {
             return LocalizedStringResource(
                 "Choose one letter for the shortcut.",
-                bundle: #bundle,
+                bundle: KeyPathAppKitResources.bundle,
                 comment: "Validation shown when an onboarding launcher app is selected without a shortcut letter."
             )
         }
@@ -110,14 +110,14 @@ final class FirstSuccessLauncherChoiceModel {
         else {
             return LocalizedStringResource(
                 "Use a single letter.",
-                bundle: #bundle,
+                bundle: KeyPathAppKitResources.bundle,
                 comment: "Validation shown when the onboarding launcher shortcut is not one supported key."
             )
         }
         if occupiedCanonicalKeys.contains(canonicalKey) {
             return LocalizedStringResource(
                 "That letter already has a shortcut. Choose another.",
-                bundle: #bundle,
+                bundle: KeyPathAppKitResources.bundle,
                 comment: "Validation shown when the onboarding launcher shortcut letter is already assigned."
             )
         }
@@ -210,7 +210,7 @@ private struct FirstSuccessChosenAppRow: View {
             } label: {
                 Text(
                     selectedApp == nil ? "Choose App" : "Change",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Button that opens the onboarding application picker."
                 )
             }
@@ -219,7 +219,7 @@ private struct FirstSuccessChosenAppRow: View {
             .accessibilityLabel(
                 Text(
                     "Choose an app to launch",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Accessibility label for the onboarding application picker button."
                 )
             )
@@ -249,7 +249,7 @@ private struct FirstSuccessChosenAppIdentity: View {
                     .accessibilityHidden(true)
                 Text(
                     "Favorite app",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Placeholder shown before an onboarding launcher app is selected."
                 )
                 .font(.subheadline.weight(.medium))
@@ -273,13 +273,13 @@ private struct FirstSuccessLauncherShortcutField: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(
                     "Shortcut letter",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Label for the onboarding Quick Launcher shortcut letter field."
                 )
                 .font(.subheadline.weight(.medium))
                 Text(
                     "Hold Caps Lock, then press",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Gesture reminder beside the onboarding Quick Launcher shortcut letter field."
                 )
                 .font(.caption)
@@ -288,7 +288,7 @@ private struct FirstSuccessLauncherShortcutField: View {
 
             Spacer(minLength: 8)
 
-            Text("Hyper +", bundle: #bundle)
+            Text("Hyper +", bundle: KeyPathAppKitResources.bundle)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
             TextField(
@@ -296,7 +296,7 @@ private struct FirstSuccessLauncherShortcutField: View {
                 text: $displayKey,
                 prompt: Text(
                     "Q",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Example letter in the onboarding Quick Launcher shortcut field."
                 )
             )
@@ -308,14 +308,14 @@ private struct FirstSuccessLauncherShortcutField: View {
             .accessibilityLabel(
                 Text(
                     "Shortcut letter",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Accessibility label for the onboarding Quick Launcher shortcut field."
                 )
             )
             .accessibilityHint(
                 Text(
                     "Enter one letter to press while holding Caps Lock.",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Accessibility hint for the onboarding Quick Launcher shortcut field."
                 )
             )
@@ -393,7 +393,7 @@ private struct FirstSuccessRunningAppPicker: View {
                     if runningApps.isEmpty {
                         Text(
                             "No user-facing apps are running.",
-                            bundle: #bundle,
+                            bundle: KeyPathAppKitResources.bundle,
                             comment: "Empty state in the onboarding running-app picker."
                         )
                         .font(.subheadline)
@@ -418,7 +418,7 @@ private struct FirstSuccessRunningAppPicker: View {
                 Label {
                     Text(
                         "Browse for another app…",
-                        bundle: #bundle,
+                        bundle: KeyPathAppKitResources.bundle,
                         comment: "Button that opens a file picker from the onboarding running-app sheet."
                     )
                 } icon: {
@@ -446,7 +446,7 @@ private struct FirstSuccessRunningAppPickerHeader: View {
         HStack {
             Text(
                 "Choose an App",
-                bundle: #bundle,
+                bundle: KeyPathAppKitResources.bundle,
                 comment: "Title of the onboarding running-app picker."
             )
             .font(.headline)
@@ -454,7 +454,7 @@ private struct FirstSuccessRunningAppPickerHeader: View {
             Button(action: cancel) {
                 Text(
                     "Cancel",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Button that closes the onboarding running-app picker."
                 )
             }
@@ -492,14 +492,14 @@ private struct FirstSuccessRunningAppRow: View {
         .accessibilityLabel(
             Text(
                 "Choose \(choice.app.name)",
-                bundle: #bundle,
+                bundle: KeyPathAppKitResources.bundle,
                 comment: "Running-app picker row. The variable is the application name."
             )
         )
         .accessibilityHint(
             Text(
                 "Uses this app for the new launcher shortcut.",
-                bundle: #bundle,
+                bundle: KeyPathAppKitResources.bundle,
                 comment: "Accessibility hint for an onboarding running-app picker row."
             )
         )
@@ -567,12 +567,12 @@ private enum FirstSuccessApplicationBrowser {
         panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
         panel.message = String(
             localized: "Choose the app this shortcut should open.",
-            bundle: #bundle,
+            bundle: KeyPathAppKitResources.bundle,
             comment: "Message in the onboarding application file picker."
         )
         panel.prompt = String(
             localized: "Choose App",
-            bundle: #bundle,
+            bundle: KeyPathAppKitResources.bundle,
             comment: "Confirmation button in the onboarding application file picker."
         )
 

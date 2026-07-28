@@ -217,16 +217,16 @@ private struct KeyboardStageKeyLegendOverlay: View {
     private var accessibilityLabel: Text {
         switch key.accessibilityRole {
         case .capsToEscape:
-            Text("Caps Lock changes to Escape", bundle: #bundle)
+            Text("Caps Lock changes to Escape", bundle: KeyPathAppKitResources.bundle)
         case .capsToHyper:
             Text(
                 "Holding Caps Lock produces Hyper: Control, Option, Shift, and Command",
-                bundle: #bundle
+                bundle: KeyPathAppKitResources.bundle
             )
         case let .launcherKey(letter, application):
             Text(
                 "Hyper plus \(letter) launches \(application.name)",
-                bundle: #bundle
+                bundle: KeyPathAppKitResources.bundle
             )
         case nil:
             Text(verbatim: "")
@@ -279,7 +279,7 @@ private struct KeyboardStageDecorationLegendOverlay: View {
             case .launcherChoiceTarget:
                 HStack(spacing: 7) {
                     Image(systemName: "app.fill")
-                    Text("Choose a letter + app", bundle: #bundle)
+                    Text("Choose a letter + app", bundle: KeyPathAppKitResources.bundle)
                         .lineLimit(1)
                         .minimumScaleFactor(0.72)
                 }
@@ -289,7 +289,7 @@ private struct KeyboardStageDecorationLegendOverlay: View {
                 .accessibilityLabel(
                     Text(
                         "Choose a letter and favorite app here",
-                        bundle: #bundle
+                        bundle: KeyPathAppKitResources.bundle
                     )
                 )
                 .accessibilityIdentifier("keyboard-stage-launcher-choice")
@@ -297,7 +297,7 @@ private struct KeyboardStageDecorationLegendOverlay: View {
             case .handoffTarget:
                 HStack(spacing: 7) {
                     Image(systemName: "square.grid.2x2.fill")
-                    Text("Rules", bundle: #bundle)
+                    Text("Rules", bundle: KeyPathAppKitResources.bundle)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                 }
@@ -307,7 +307,7 @@ private struct KeyboardStageDecorationLegendOverlay: View {
                 .accessibilityLabel(
                     Text(
                         "Continue in Rules to discover more keyboard changes",
-                        bundle: #bundle
+                        bundle: KeyPathAppKitResources.bundle
                     )
                 )
                 .accessibilityIdentifier("keyboard-stage-rules-handoff")

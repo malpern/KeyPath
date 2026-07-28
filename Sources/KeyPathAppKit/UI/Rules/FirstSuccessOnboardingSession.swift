@@ -24,25 +24,25 @@ final class FirstSuccessOnboardingSession {
             case .capsLock:
                 LocalizedStringResource(
                     "FIRST SUCCESS",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Eyebrow above the first onboarding lesson."
                 )
             case .hyper:
                 LocalizedStringResource(
                     "SECOND WIN",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Eyebrow above the Hyper onboarding lesson."
                 )
             case .launcher:
                 LocalizedStringResource(
                     "THIRD WIN",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Eyebrow above the Quick Launcher onboarding lesson."
                 )
             case .rules:
                 LocalizedStringResource(
                     "MAKE IT YOURS",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Eyebrow above the Rules handoff at the end of onboarding."
                 )
             }
@@ -53,25 +53,25 @@ final class FirstSuccessOnboardingSession {
             case .capsLock:
                 LocalizedStringResource(
                     "Make a useful key yours",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Title of the Caps Lock to Escape onboarding lesson."
                 )
             case .hyper:
                 LocalizedStringResource(
                     "Make shortcuts that stay yours",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Title of the Hyper onboarding lesson."
                 )
             case .launcher:
                 LocalizedStringResource(
                     "Put a favorite app on a letter",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Title of the Quick Launcher onboarding lesson."
                 )
             case .rules:
                 LocalizedStringResource(
                     "Your keyboard has room to grow",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Title of the Rules discovery handoff at the end of onboarding."
                 )
             }
@@ -82,25 +82,25 @@ final class FirstSuccessOnboardingSession {
             case .capsLock:
                 LocalizedStringResource(
                     "Reclaim a rarely used key for Escape. A small change. A big upgrade.",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Short motivation for moving Escape to Caps Lock."
                 )
             case .hyper:
                 LocalizedStringResource(
                     "Hold Caps Lock to prepare a clean shortcut prefix that other apps are unlikely to own.",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Short motivation for assigning Hyper to held Caps Lock."
                 )
             case .launcher:
                 LocalizedStringResource(
                     "Hold Caps Lock, press a letter you choose, and your app opens.",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Short explanation of the Quick Launcher interaction."
                 )
             case .rules:
                 LocalizedStringResource(
                     "You have the pattern: tap, hold, then combine. Rules is where you can discover what else KeyPath can make yours.",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Explanation of the Rules discovery handoff after the guided wins are complete."
                 )
             }
