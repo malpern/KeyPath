@@ -29,4 +29,12 @@ menu "KeyPath HID fixture"
             Keep state, color, and progress feedback while disabling orbital
             movement, pulsing geometry, and the completion particle flourish.
 
+    config KEYPATH_FIXTURE_BOOT_SPLASH
+        bool "Enable the Hacker Dojo boot splash"
+        default y
+        help
+            Show the short display-native identity splash before the live
+            fixture state. The splash renderer uses bounded redraw regions,
+            and OTA validation requires its display heartbeat to complete.
+
 endmenu

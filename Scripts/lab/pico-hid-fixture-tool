@@ -6,12 +6,13 @@ fixture_root="$script_dir/pico-hid-fixture"
 target="$fixture_root/targets/waveshare-esp32-s3-touch-lcd-1.69"
 idf_path=${KEYPATH_FIXTURE_IDF_PATH:-"$HOME/.cache/keypath-esp32/esp-idf"}
 build_dir=${KEYPATH_FIXTURE_BUILD_DIR:-"$HOME/.cache/keypath-esp32/keypath-fixture-build"}
-sdkconfig=${KEYPATH_FIXTURE_SDKCONFIG:-"$HOME/.cache/keypath-esp32/keypath-fixture-sdkconfig"}
+sdkconfig=${KEYPATH_FIXTURE_SDKCONFIG:-"$HOME/.cache/keypath-esp32/keypath-fixture-sdkconfig-ota-v2"}
 secrets_file=${KEYPATH_FIXTURE_SECRETS_FILE:-"$HOME/dotfiles/secrets.env"}
 device_dir=${KEYPATH_FIXTURE_DEVICE_DIR:-/dev}
 add_secret_app=${KEYPATH_FIXTURE_ADD_SECRET_APP:-"/Applications/Add Secret.app"}
+fixture_client=${KEYPATH_FIXTURE_CLIENT:-"$script_dir/pico-hid-fixture-client"}
 
-required_secrets="KEYPATH_WIFI_SSID_1 KEYPATH_WIFI_PASSWORD_1 KEYPATH_WIFI_SSID_2 KEYPATH_WIFI_PASSWORD_2 KEYPATH_WIFI_SSID_3 KEYPATH_WIFI_PASSWORD_3 KEYPATH_FIXTURE_TOKEN"
+required_secrets="KEYPATH_WIFI_SSID_1 KEYPATH_WIFI_PASSWORD_1 KEYPATH_WIFI_SSID_2 KEYPATH_WIFI_PASSWORD_2 KEYPATH_WIFI_SSID_3 KEYPATH_WIFI_PASSWORD_3 KEYPATH_WIFI_SSID_4 KEYPATH_WIFI_PASSWORD_4 KEYPATH_FIXTURE_TOKEN"
 
 usage() {
     printf '%s\n' \
@@ -24,6 +25,7 @@ usage() {
         "  build              Build production firmware with real credentials" \
         "  flash [--port DEV] Build and flash the connected Waveshare board" \
         "  install [--port DEV] Run checks, tests, build, flash, and health check" \
+        "  update             Build, install, and verify firmware over authenticated Wi-Fi OTA" \
         "  status             Query the running fixture over Wi-Fi" \
         "" \
         "The fixture token is read from the environment or sops; never pass it on the command line."
@@ -55,7 +57,7 @@ load_credentials() {
     [[ -f "$secrets_file" ]] || fail "encrypted secrets file is missing: $secrets_file"
     while IFS='=' read -r secret_name secret_value; do
         case "$secret_name" in
-            KEYPATH_WIFI_SSID_1|KEYPATH_WIFI_PASSWORD_1|KEYPATH_WIFI_SSID_2|KEYPATH_WIFI_PASSWORD_2|KEYPATH_WIFI_SSID_3|KEYPATH_WIFI_PASSWORD_3|KEYPATH_FIXTURE_TOKEN)
+            KEYPATH_WIFI_SSID_1|KEYPATH_WIFI_PASSWORD_1|KEYPATH_WIFI_SSID_2|KEYPATH_WIFI_PASSWORD_2|KEYPATH_WIFI_SSID_3|KEYPATH_WIFI_PASSWORD_3|KEYPATH_WIFI_SSID_4|KEYPATH_WIFI_PASSWORD_4|KEYPATH_FIXTURE_TOKEN)
                 printf -v "$secret_name" '%s' "$secret_value"
                 export "$secret_name"
                 ;;
@@ -77,6 +79,15 @@ validate_credentials() {
 
 idf_activate() {
     [[ -f "$idf_path/export.sh" ]] || fail "ESP-IDF is missing at $idf_path"
+    if [[ -z "${IDF_PYTHON_ENV_PATH:-}" ]]; then
+        for candidate in "$HOME"/.espressif/python_env/idf5.5_py*_env; do
+            if [[ -x "$candidate/bin/python" ]]; then
+                IDF_PYTHON_ENV_PATH=$candidate
+                export IDF_PYTHON_ENV_PATH
+                break
+            fi
+        done
+    fi
     # shellcheck disable=SC1090
     source "$idf_path/export.sh" >/dev/null
 }
@@ -161,6 +172,8 @@ command_test() {
     python3 "$script_dir/tests/pico-hid-fixture-client-tests.py"
     python3 "$script_dir/tests/pico-hid-fixture-tool-tests.py"
     python3 "$script_dir/tests/scenario-matrix-runner-tests.py"
+    python3 "$script_dir/tests/physical-hid-capture-run-tests.py"
+    python3 "$script_dir/tests/physical-hid-shift-matrix-tests.py"
     "$fixture_root/tests/run-esp32-qemu-smoke.sh"
 }
 
@@ -197,7 +210,39 @@ command_flash() {
 
 command_status() {
     validate_credentials
-    "$script_dir/pico-hid-fixture-client" status
+    "$fixture_client" status
+}
+
+firmware_build_id() {
+    generated_config="$build_dir/esp-idf/main/generated/fixture_config.h"
+    [[ -f "$generated_config" ]] || fail "generated build identity is missing: $generated_config"
+    build_id=$(sed -n 's/^#define KEYPATH_FIXTURE_BUILD_ID "\([[:alnum:]]*\)"$/\1/p' "$generated_config")
+    [[ -n "$build_id" ]] || fail "could not read the expected build identity"
+    printf '%s\n' "$build_id"
+}
+
+command_update() {
+    command_build
+    expected_build=$(firmware_build_id)
+    firmware="$build_dir/keypath_esp32_s3_hid_fixture.bin"
+    current_status=$(command_status) || fail "fixture is not reachable; use USB flash recovery"
+    python3 - "$current_status" <<'PY' || fail "fixture is not safely idle; abort or finish the current test before updating"
+import json
+import sys
+
+status = json.loads(sys.argv[1])
+if not status.get("updateReady"):
+    raise SystemExit(1)
+if not str(status.get("otaSlot", "")).startswith("ota_"):
+    raise SystemExit(1)
+PY
+    printf 'updating  build %s over authenticated Wi-Fi\n' "$expected_build"
+    # A production image is about 1.3 MB. The ESP32 writes and hashes it while
+    # receiving, so the generic 10-second control request timeout can close the
+    # socket mid-image on a healthy but busy board.
+    "$fixture_client" --timeout 120 update-firmware "$firmware" \
+        --expected-build "$expected_build" --wait-seconds 90
+    printf 'verified  OTA build %s is healthy over Wi-Fi\n' "$expected_build"
 }
 
 command_install() {
@@ -209,12 +254,22 @@ command_install() {
     else
         command_flash
     fi
+    expected_build=$(firmware_build_id)
     printf 'waiting for Wi-Fi health check'
     attempt=0
     while [[ "$attempt" -lt 30 ]]; do
-        if command_status >/dev/null 2>&1; then
+        if installed_status=$(command_status 2>/dev/null) &&
+           python3 - "$installed_status" "$expected_build" <<'PY'
+import json
+import sys
+
+status = json.loads(sys.argv[1])
+raise SystemExit(0 if status.get("build") == sys.argv[2] and
+                 str(status.get("otaSlot", "")).startswith("ota_") else 1)
+PY
+        then
             printf '\ninstallation verified over Wi-Fi\n'
-            command_status
+            printf '%s\n' "$installed_status"
             return
         fi
         printf '.'
@@ -235,6 +290,7 @@ case "$command" in
     build) [[ $# -eq 0 ]] || fail "build takes no options"; command_build ;;
     flash) command_flash "$@" ;;
     install) command_install "$@" ;;
+    update) [[ $# -eq 0 ]] || fail "update takes no options"; command_update ;;
     status) [[ $# -eq 0 ]] || fail "status takes no options"; command_status ;;
     help|-h|--help) usage ;;
     *) usage >&2; fail "unknown command: $command" ;;

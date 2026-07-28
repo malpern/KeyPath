@@ -1,0 +1,79 @@
+#!/bin/bash
+set -euo pipefail
+
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+package_dir="$script_dir/hid-capture-jig"
+client="$script_dir/hid-capture-jig-client"
+app_path=${KEYPATH_CAPTURE_JIG_APP:-"$HOME/.cache/keypath-hid-capture-jig/KeyPath HID Capture Jig.app"}
+
+usage() {
+    printf '%s\n' \
+        "Usage: Scripts/lab/hid-capture-jig-tool COMMAND" \
+        "" \
+        "Commands:" \
+        "  build   Build and ad-hoc sign the isolated capture app" \
+        "  test    Run capture-core and control-client tests" \
+        "  open    Build, open, focus, and verify the capture app" \
+        "  status  Query the running capture app" \
+        "  close   Ask the capture app to quit"
+}
+
+case ${1:-} in
+    build)
+        [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+        "$package_dir/build-app.sh"
+        ;;
+    test)
+        [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+        swift test --package-path "$package_dir" --jobs "${KEYPATH_CAPTURE_JIG_BUILD_JOBS:-4}"
+        python3 "$script_dir/tests/hid-capture-jig-client-tests.py"
+        ;;
+    open)
+        [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+        if pgrep -x HIDCaptureJig >/dev/null; then
+            "$client" quit >/dev/null 2>&1 || true
+            for _ in {1..50}; do
+                pgrep -x HIDCaptureJig >/dev/null || break
+                sleep 0.1
+            done
+            if pgrep -x HIDCaptureJig >/dev/null; then
+                printf '%s\n' "hid-capture-jig-tool: existing capture app did not quit" >&2
+                exit 1
+            fi
+        fi
+        "$package_dir/build-app.sh"
+        open "$app_path"
+        result=$(mktemp -t keypath-hid-capture-jig-status.XXXXXX)
+        trap 'rm -f "$result"' EXIT
+        for _ in {1..50}; do
+            if KEYPATH_CAPTURE_JIG_COMMAND_TIMEOUT=0.2 "$client" status >"$result" 2>/dev/null; then
+                cat "$result"
+                exit 0
+            fi
+            sleep 0.1
+        done
+        printf '%s\n' "hid-capture-jig-tool: app opened but did not become controllable" >&2
+        exit 1
+        ;;
+    status)
+        [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+        "$client" status
+        ;;
+    close)
+        [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+        "$client" quit
+        for _ in {1..50}; do
+            pgrep -x HIDCaptureJig >/dev/null || exit 0
+            sleep 0.1
+        done
+        printf '%s\n' "hid-capture-jig-tool: capture app did not quit" >&2
+        exit 1
+        ;;
+    help|-h|--help)
+        usage
+        ;;
+    *)
+        usage >&2
+        exit 2
+        ;;
+esac

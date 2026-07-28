@@ -7,6 +7,7 @@ trap 'rm -f "$test_binary"' EXIT HUP INT TERM
 
 cc -std=c11 -Wall -Wextra -Werror -pedantic \
   -I"$fixture_root/src" \
+  "$fixture_root/src/fixture_button_feedback.c" \
   "$fixture_root/src/fixture_core.c" \
   "$fixture_root/src/fixture_presentation.c" \
   "$fixture_root/src/fixture_splash_model.c" \

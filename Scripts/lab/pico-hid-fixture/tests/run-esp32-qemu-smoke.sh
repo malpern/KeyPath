@@ -13,6 +13,16 @@ if [[ ! -f "$idf_path/export.sh" ]]; then
     exit 1
 fi
 
+if [[ -z "${IDF_PYTHON_ENV_PATH:-}" ]]; then
+  for candidate in "$HOME"/.espressif/python_env/idf5.5_py*_env; do
+    if [[ -x "$candidate/bin/python" ]]; then
+      IDF_PYTHON_ENV_PATH=$candidate
+      export IDF_PYTHON_ENV_PATH
+      break
+    fi
+  done
+fi
+
 # shellcheck disable=SC1090
 source "$idf_path/export.sh" >/dev/null
 export KEYPATH_WIFI_SSID_1=fixture-qemu-primary
@@ -21,6 +31,8 @@ export KEYPATH_WIFI_SSID_2=fixture-qemu-fallback-one
 export KEYPATH_WIFI_PASSWORD_2=fixture-qemu-placeholder
 export KEYPATH_WIFI_SSID_3=fixture-qemu-fallback-two
 export KEYPATH_WIFI_PASSWORD_3=fixture-qemu-placeholder
+export KEYPATH_WIFI_SSID_4=fixture-qemu-current-location
+export KEYPATH_WIFI_PASSWORD_4=fixture-qemu-placeholder
 export KEYPATH_FIXTURE_TOKEN=fixture-qemu-token-placeholder
 export KEYPATH_QEMU_SMOKE=1
 

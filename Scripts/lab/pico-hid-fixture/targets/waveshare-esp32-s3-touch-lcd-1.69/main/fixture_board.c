@@ -10,7 +10,8 @@
 #include "freertos/task.h"
 #include "sdkconfig.h"
 
-#define FIXTURE_BUTTON GPIO_NUM_0
+#define FIXTURE_BOOT_BUTTON GPIO_NUM_0
+#define FIXTURE_POWER_BUTTON GPIO_NUM_40
 #if CONFIG_KEYPATH_FIXTURE_BOARD_REVISION == 1
 #define FIXTURE_BUZZER GPIO_NUM_33
 #else
@@ -24,10 +25,27 @@ typedef struct {
 
 static QueueHandle_t tone_queue;
 static volatile bool button_enabled;
+static portMUX_TYPE feedback_lock = portMUX_INITIALIZER_UNLOCKED;
+static fixture_board_feedback_t latest_feedback;
+
+static void publish_feedback(fixture_button_event_t event) {
+    taskENTER_CRITICAL(&feedback_lock);
+    latest_feedback.event = event;
+    latest_feedback.sequence++;
+    taskEXIT_CRITICAL(&feedback_lock);
+}
+
+static void publish_boot_state(bool held, bool download_hint) {
+    taskENTER_CRITICAL(&feedback_lock);
+    latest_feedback.boot_held = held;
+    if (held) latest_feedback.download_hint = download_hint;
+    taskEXIT_CRITICAL(&feedback_lock);
+}
 
 static void board_task(void *context) {
     (void)context;
-    bool previous_pressed = false;
+    bool previous_boot_pressed = false;
+    bool previous_power_pressed = false;
     while (true) {
         tone_request_t tone;
         if (xQueueReceive(tone_queue, &tone, pdMS_TO_TICKS(10)) == pdTRUE) {
@@ -39,18 +57,32 @@ static void board_task(void *context) {
             ledc_stop(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, 0u);
 #endif
         }
-        bool pressed = gpio_get_level(FIXTURE_BUTTON) == 0;
-        if (button_enabled && pressed && !previous_pressed) {
-            fixture_runtime_abort("physical button abort");
-            fixture_board_tone(220u, 90u);
+        bool boot_pressed = gpio_get_level(FIXTURE_BOOT_BUTTON) == 0;
+        bool power_pressed = gpio_get_level(FIXTURE_POWER_BUTTON) == 0;
+        if (boot_pressed != previous_boot_pressed) {
+            publish_boot_state(boot_pressed, !button_enabled);
         }
-        previous_pressed = pressed;
+        if (boot_pressed && !previous_boot_pressed) {
+            publish_feedback(FIXTURE_BUTTON_BOOT);
+            if (button_enabled) {
+                fixture_runtime_abort("physical button abort");
+                fixture_board_tone(220u, 90u);
+            } else {
+                fixture_board_tone(760u, 55u);
+            }
+        }
+        if (power_pressed && !previous_power_pressed) {
+            publish_feedback(FIXTURE_BUTTON_POWER);
+            fixture_board_tone(520u, 55u);
+        }
+        previous_boot_pressed = boot_pressed;
+        previous_power_pressed = power_pressed;
     }
 }
 
 void fixture_board_init(void) {
     gpio_config_t button = {
-        .pin_bit_mask = 1ULL << FIXTURE_BUTTON,
+        .pin_bit_mask = (1ULL << FIXTURE_BOOT_BUTTON) | (1ULL << FIXTURE_POWER_BUTTON),
         .mode = GPIO_MODE_INPUT,
         .pull_up_en = GPIO_PULLUP_ENABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -79,6 +111,8 @@ void fixture_board_init(void) {
 #endif
     tone_queue = xQueueCreate(4u, sizeof(tone_request_t));
     configASSERT(tone_queue);
+    /* CHIP_PU reset cannot draw before the CPU stops, so acknowledge it after every restart. */
+    publish_feedback(FIXTURE_BUTTON_RESET);
     configASSERT(xTaskCreatePinnedToCore(board_task, "fixture_board", 3072, NULL, 5, NULL, 0) == pdPASS);
 }
 
@@ -90,4 +124,11 @@ void fixture_board_tone(unsigned int frequency_hz, unsigned int duration_ms) {
 
 void fixture_board_update(bool armed_or_running) {
     button_enabled = armed_or_running;
+}
+
+void fixture_board_feedback_snapshot(fixture_board_feedback_t *feedback) {
+    if (!feedback) return;
+    taskENTER_CRITICAL(&feedback_lock);
+    *feedback = latest_feedback;
+    taskEXIT_CRITICAL(&feedback_lock);
 }

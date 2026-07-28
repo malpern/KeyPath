@@ -1,3 +1,4 @@
+#include "fixture_button_feedback.h"
 #include "fixture_core.h"
 #include "fixture_presentation.h"
 #include "fixture_splash_model.h"
@@ -134,6 +135,24 @@ static void test_abort_and_unmount_force_release(void) {
     assert(reports.keys[reports.count - 1u][0] == 0u);
 }
 
+static void test_control_plane_disconnect_aborts_only_active_runs(void) {
+    fixture_t fixture;
+    fixture_init(&fixture);
+    assert(!fixture_abort_if_active(&fixture, "Wi-Fi disconnected"));
+    assert(fixture.state == FIXTURE_IDLE);
+
+    const char *events = "0 0 4 0 0 0 0 0\n50000 0 0 0 0 0 0 0\n";
+    char script[512], error[128];
+    make_script(script, sizeof(script), "network", 1u, events, 2u, 100000u);
+    assert(fixture_load_script(&fixture, script, strlen(script), error, sizeof(error)));
+    assert(!fixture_abort_if_active(&fixture, "Wi-Fi disconnected"));
+    assert(fixture_arm(&fixture, "network", error, sizeof(error)));
+    assert(fixture_abort_if_active(&fixture, "Wi-Fi disconnected"));
+    assert(fixture.state == FIXTURE_ABORTED);
+    assert(fixture.pending_release);
+    assert(strstr(fixture.error, "Wi-Fi"));
+}
+
 static void test_lateness_metrics(void) {
     fixture_t fixture;
     reports_t reports = {0};
@@ -149,6 +168,30 @@ static void test_lateness_metrics(void) {
     fixture_poll(&fixture, 103000u, true, true, capture_report, &reports);
     assert(fixture.late_reports == 1u);
     assert(fixture.maximum_lateness_us == 3000);
+}
+
+static void test_next_action_deadline_supports_cooperative_waiting(void) {
+    fixture_t fixture;
+    reports_t reports = {0};
+    fixture_init(&fixture);
+    assert(fixture_time_until_next_action_us(&fixture, 0u) == 0u);
+    drain_initial_release(&fixture, &reports);
+    assert(fixture_time_until_next_action_us(&fixture, 0u) == UINT32_MAX);
+
+    const char *events = "0 0 4 0 0 0 0 0\n50000 0 0 0 0 0 0 0\n";
+    char script[512], error[128];
+    make_script(script, sizeof(script), "cooperative", 1u, events, 2u, 100000u);
+    assert(fixture_load_script(&fixture, script, strlen(script), error, sizeof(error)));
+    assert(fixture_arm(&fixture, "cooperative", error, sizeof(error)));
+    assert(fixture_time_until_next_action_us(&fixture, 0u) == 0u);
+    fixture_poll(&fixture, 1u, true, true, capture_report, &reports);
+
+    assert(fixture_start(&fixture, "cooperative", 100u, 1000000u, error, sizeof(error)));
+    assert(fixture_time_until_next_action_us(&fixture, 1000000u) == 100000u);
+    assert(fixture_time_until_next_action_us(&fixture, 1099000u) == 1000u);
+    assert(fixture_time_until_next_action_us(&fixture, 1100000u) == 0u);
+    fixture_poll(&fixture, 1100000u, true, true, capture_report, &reports);
+    assert(fixture_time_until_next_action_us(&fixture, 1100000u) == 50000u);
 }
 
 static void test_ui_model_prioritizes_hid_and_tracks_progress(void) {
@@ -231,6 +274,19 @@ static void test_visual_model_resolves_automatic_and_campaign_states(void) {
     assert(visual.progress_per_mille == 640u);
     assert(visual.angular_speed_milliradians == 4800u);
     assert(strcmp(visual.title, "Swift stress") == 0);
+
+    fixture_presentation_init(&presentation);
+    presentation.phase = FIXTURE_PRESENT_PREPARING;
+    presentation.branded_firmware_update = true;
+    presentation.progress_per_mille = 420u;
+    snprintf(presentation.title, sizeof(presentation.title), "FIRMWARE UPDATE");
+    fixture_visual_resolve(&ui, &presentation, &visual);
+    assert(visual.variant == FIXTURE_VISUAL_KEYPATH_UPDATE);
+    assert(visual.icon == FIXTURE_ICON_DOWNLOAD);
+    assert(visual.accent_rgb == 0xf3a128u);
+    assert(visual.progress_per_mille == 420u);
+    assert(visual.angular_speed_milliradians == 2500u);
+    assert(strcmp(visual.title, "FIRMWARE UPDATE") == 0);
 
     presentation.result = FIXTURE_RESULT_FAIL;
     fixture_visual_resolve(&ui, &presentation, &visual);
@@ -322,18 +378,61 @@ static void test_splash_reveals_holds_and_fades_without_blocking_boot(void) {
     assert(splash.complete);
 }
 
+static void test_button_feedback_identifies_physical_positions_and_expires(void) {
+    fixture_button_feedback_output_t feedback =
+        fixture_button_feedback_resolve(FIXTURE_BUTTON_POWER, false, false, 0u);
+    assert(feedback.active);
+    assert(strcmp(feedback.title, "POWER BUTTON") == 0);
+    assert(strcmp(feedback.detail, "TOP button detected") == 0);
+    assert(feedback.accent_rgb == 0xffb454u);
+
+    feedback = fixture_button_feedback_resolve(FIXTURE_BUTTON_BOOT, true, true, 180u);
+    assert(feedback.active);
+    assert(strcmp(feedback.title, "BOOT HELD") == 0);
+    assert(strstr(feedback.detail, "TAP BOTTOM RESET"));
+    assert(feedback.pulse_per_mille == 1000u);
+
+    feedback = fixture_button_feedback_resolve(
+        FIXTURE_BUTTON_BOOT, true, true, FIXTURE_BUTTON_FEEDBACK_DURATION_MS * 4u);
+    assert(feedback.active);
+    assert(strcmp(feedback.title, "BOOT HELD") == 0);
+
+    feedback = fixture_button_feedback_resolve(FIXTURE_BUTTON_BOOT, false, true, 200u);
+    assert(feedback.active);
+    assert(strcmp(feedback.title, "BOOT RELEASED") == 0);
+    assert(strstr(feedback.detail, "while tapping RESET"));
+
+    feedback = fixture_button_feedback_resolve(FIXTURE_BUTTON_BOOT, true, false, 200u);
+    assert(feedback.active);
+    assert(strcmp(feedback.detail, "Test abort requested") == 0);
+
+    feedback = fixture_button_feedback_resolve(FIXTURE_BUTTON_RESET, false, false, 600u);
+    assert(feedback.active);
+    assert(strcmp(feedback.title, "RESET / START") == 0);
+    assert(strstr(feedback.detail, "BOTTOM RST"));
+
+    feedback = fixture_button_feedback_resolve(
+        FIXTURE_BUTTON_BOOT, false, true, FIXTURE_BUTTON_FEEDBACK_DURATION_MS);
+    assert(!feedback.active);
+    feedback = fixture_button_feedback_resolve(FIXTURE_BUTTON_NONE, false, false, 0u);
+    assert(!feedback.active);
+}
+
 int main(void) {
     test_load_arm_run_and_repeat();
     test_rejects_corrupt_and_unsafe_scripts();
     test_failed_replacement_invalidates_previous_script();
     test_abort_and_unmount_force_release();
+    test_control_plane_disconnect_aborts_only_active_runs();
     test_lateness_metrics();
+    test_next_action_deadline_supports_cooperative_waiting();
     test_ui_model_prioritizes_hid_and_tracks_progress();
     test_ui_model_connection_error_and_counter_reset();
     test_presentation_contract();
     test_visual_model_resolves_automatic_and_campaign_states();
     test_wifi_profiles_retry_in_priority_order_and_wrap();
     test_splash_reveals_holds_and_fades_without_blocking_boot();
+    test_button_feedback_identifies_physical_positions_and_expires();
     puts("physical HID fixture core tests passed");
     return 0;
 }

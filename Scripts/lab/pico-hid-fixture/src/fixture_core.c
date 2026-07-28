@@ -252,8 +252,31 @@ void fixture_abort(fixture_t *fixture, const char *reason) {
     snprintf(fixture->error, sizeof(fixture->error), "%s", reason ? reason : "aborted");
 }
 
+bool fixture_abort_if_active(fixture_t *fixture, const char *reason) {
+    if (!fixture || (fixture->state != FIXTURE_ARMED && fixture->state != FIXTURE_RUNNING)) {
+        return false;
+    }
+    fixture_abort(fixture, reason);
+    return true;
+}
+
 void fixture_note_transfer_complete(fixture_t *fixture) {
     if (fixture) fixture->transfers_completed++;
+}
+
+uint32_t fixture_time_until_next_action_us(const fixture_t *fixture, uint64_t now_us) {
+    if (!fixture || fixture->pending_release) return 0u;
+    if (fixture->state != FIXTURE_RUNNING || fixture->event_count == 0u ||
+        fixture->next_event >= fixture->event_count) {
+        return UINT32_MAX;
+    }
+
+    uint64_t scheduled = fixture->start_at_us +
+                         (uint64_t)fixture->current_repeat * fixture->cycle_us +
+                         fixture->events[fixture->next_event].at_us;
+    if (now_us >= scheduled) return 0u;
+    uint64_t remaining = scheduled - now_us;
+    return remaining > UINT32_MAX ? UINT32_MAX : (uint32_t)remaining;
 }
 
 static void trace_report(fixture_t *fixture, uint64_t scheduled, uint64_t submitted,

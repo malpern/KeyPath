@@ -26,6 +26,7 @@ typedef enum {
 typedef struct {
     fixture_presentation_phase_t phase;
     fixture_result_t result;
+    bool branded_firmware_update;
     uint16_t progress_per_mille;
     uint32_t reports_expected;
     uint32_t reports_observed;

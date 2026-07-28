@@ -20,6 +20,8 @@ typedef struct {
     uint32_t next_event;
     uint64_t transfers_completed;
     uint32_t submitted_crc32;
+    bool pending_release;
+    bool firmware_update_in_progress;
     fixture_presentation_t presentation;
 } fixture_runtime_snapshot_t;
 
@@ -34,6 +36,9 @@ bool fixture_runtime_arm(const char *run_id, char *error, size_t capacity);
 bool fixture_runtime_start(const char *run_id, uint32_t delay_ms, char *error, size_t capacity);
 void fixture_runtime_abort(const char *reason);
 void fixture_runtime_set_presentation(const fixture_presentation_t *presentation);
+bool fixture_runtime_begin_firmware_update(char *error, size_t capacity);
+void fixture_runtime_set_firmware_update_progress(uint16_t progress_per_mille, const char *detail);
+void fixture_runtime_end_firmware_update(bool success, const char *detail);
 uint32_t fixture_runtime_trace_count(void);
 bool fixture_runtime_trace_at(uint32_t index, fixture_trace_t *trace);
 

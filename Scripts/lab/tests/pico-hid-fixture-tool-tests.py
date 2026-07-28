@@ -32,6 +32,7 @@ class FixtureToolTests(unittest.TestCase):
             "KEYPATH_FIXTURE_BUILD_DIR": str(self.build),
             "KEYPATH_FIXTURE_SDKCONFIG": str(self.sdkconfig),
             "KEYPATH_FIXTURE_DEVICE_DIR": str(self.device_dir),
+            "KEYPATH_FIXTURE_CLIENT": str(self.directory / "fixture-client"),
             "KEYPATH_FIXTURE_SECRETS_FILE": str(self.directory / "missing-secrets.env"),
             "KEYPATH_WIFI_SSID_1": "fixture-primary",
             "KEYPATH_WIFI_PASSWORD_1": "fixture-password-one",
@@ -39,6 +40,8 @@ class FixtureToolTests(unittest.TestCase):
             "KEYPATH_WIFI_PASSWORD_2": "fixture-password-two",
             "KEYPATH_WIFI_SSID_3": "fixture-fallback-two",
             "KEYPATH_WIFI_PASSWORD_3": "fixture-password-three",
+            "KEYPATH_WIFI_SSID_4": "fixture-current-location",
+            "KEYPATH_WIFI_PASSWORD_4": "fixture-password-four",
             "KEYPATH_FIXTURE_TOKEN": "fixture-test-token-value",
         })
 
@@ -100,6 +103,46 @@ class FixtureToolTests(unittest.TestCase):
         self.assertIn(str(self.build), invocation)
         self.assertIn(f"SDKCONFIG={self.sdkconfig}", invocation)
         self.assertNotIn(self.environment["KEYPATH_FIXTURE_TOKEN"], invocation)
+
+    def test_update_builds_authenticates_and_verifies_without_exposing_token(self) -> None:
+        idf_log = self.directory / "idf.log"
+        fake_idf = self.fake_bin / "idf.py"
+        fake_idf.write_text(textwrap.dedent(f"""\
+            #!/bin/bash
+            set -eu
+            printf '%s\\n' "$*" >> {str(idf_log)!r}
+            build_dir=
+            while [[ $# -gt 0 ]]; do
+                if [[ "$1" == -B ]]; then build_dir=$2; shift 2; else shift; fi
+            done
+            mkdir -p "$build_dir/esp-idf/main/generated"
+            : > "$build_dir/keypath_esp32_s3_hid_fixture.bin"
+            printf '%s\\n' '#define KEYPATH_FIXTURE_BUILD_ID "a1b2c3d4e5f6"' \\
+                > "$build_dir/esp-idf/main/generated/fixture_config.h"
+        """))
+        fake_idf.chmod(0o755)
+        client_log = self.directory / "client.log"
+        fake_client = pathlib.Path(self.environment["KEYPATH_FIXTURE_CLIENT"])
+        fake_client.write_text(textwrap.dedent(f"""\
+            #!/bin/bash
+            set -eu
+            printf '%s\\n' "$*" >> {str(client_log)!r}
+            if [[ "$1" == status ]]; then
+                printf '%s\\n' '{{"ok":true,"updateReady":true,"otaSlot":"ota_0"}}'
+            else
+                printf '%s\\n' '{{"ok":true,"verifiedBuild":"a1b2c3d4e5f6"}}'
+            fi
+        """))
+        fake_client.chmod(0o755)
+
+        result = self.run_tool("update")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        invocation = client_log.read_text()
+        self.assertIn("update-firmware", invocation)
+        self.assertIn("--timeout 120", invocation)
+        self.assertIn("--expected-build a1b2c3d4e5f6", invocation)
+        self.assertNotIn(self.environment["KEYPATH_FIXTURE_TOKEN"], result.stdout + result.stderr + invocation)
 
 
 if __name__ == "__main__":

@@ -23,8 +23,14 @@ typedef enum {
     FIXTURE_ICON_NEXT,
 } fixture_visual_icon_t;
 
+typedef enum {
+    FIXTURE_VISUAL_STANDARD = 0,
+    FIXTURE_VISUAL_KEYPATH_UPDATE,
+} fixture_visual_variant_t;
+
 typedef struct {
     fixture_visual_icon_t icon;
+    fixture_visual_variant_t variant;
     uint32_t accent_rgb;
     uint16_t progress_per_mille;
     uint16_t angular_speed_milliradians;

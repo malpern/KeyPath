@@ -1,0 +1,556 @@
+#!/usr/bin/env python3
+"""Run one ESP32 HID script against the native macOS capture oracle."""
+
+from __future__ import annotations
+
+import argparse
+import ipaddress
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+from typing import Any
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+FIXTURE_CLIENT = pathlib.Path(os.environ.get(
+    "KEYPATH_FIXTURE_CLIENT", ROOT / "Scripts/lab/pico-hid-fixture-client"
+))
+CAPTURE_CLIENT = pathlib.Path(os.environ.get(
+    "KEYPATH_CAPTURE_JIG_CLIENT", ROOT / "Scripts/lab/hid-capture-jig-client"
+))
+
+
+def load_fixture_token() -> str:
+    if token := os.environ.get("KEYPATH_FIXTURE_TOKEN"):
+        return token
+    secrets = pathlib.Path(os.environ.get(
+        "KEYPATH_FIXTURE_SECRETS_FILE", pathlib.Path.home() / "dotfiles/secrets.env"
+    ))
+    try:
+        decrypted = subprocess.run(
+            ["sops", "-d", str(secrets)], text=True, capture_output=True, check=True
+        ).stdout
+    except (FileNotFoundError, subprocess.CalledProcessError) as error:
+        raise RuntimeError("could not load KEYPATH_FIXTURE_TOKEN from encrypted secrets") from error
+    for line in decrypted.splitlines():
+        name, separator, value = line.partition("=")
+        if separator and name == "KEYPATH_FIXTURE_TOKEN" and value:
+            return value
+    raise RuntimeError("KEYPATH_FIXTURE_TOKEN is not configured")
+
+
+def run_json(
+    command: list[str], environment: dict[str, str], allowed_returncodes: tuple[int, ...] = (0,)
+) -> dict[str, Any]:
+    result = subprocess.run(command, text=True, capture_output=True, env=environment)
+    if result.returncode not in allowed_returncodes:
+        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
+        raise RuntimeError(f"{' '.join(command[:3])} failed: {detail}")
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"{' '.join(command[:3])} returned invalid JSON") from error
+
+
+def run_checked(command: list[str], environment: dict[str, str]) -> None:
+    result = subprocess.run(command, text=True, capture_output=True, env=environment)
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
+        raise RuntimeError(f"{' '.join(command[:3])} failed: {detail}")
+
+
+def fixture_command(host: str, action: str, *arguments: str) -> list[str]:
+    return [str(FIXTURE_CLIENT), "--host", host, action, *arguments]
+
+
+def capture_command(action: str, *arguments: str) -> list[str]:
+    return [str(CAPTURE_CLIENT), action, *arguments]
+
+
+def resolve_fixture_host(initial_host: str, environment: dict[str, str]) -> tuple[str, dict[str, Any]]:
+    status = run_json(fixture_command(initial_host, "status"), environment)
+    address = str(status.get("address", ""))
+    try:
+        ipaddress.ip_address(address)
+    except ValueError:
+        return initial_host, status
+    return address, status
+
+
+def safe_run_id(value: str) -> str:
+    return "".join(character if character.isalnum() or character in "-_." else "_" for character in value)
+
+
+def wait_for_fixture_terminal(
+    host: str, environment: dict[str, str], timeout_seconds: float
+) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        status = run_json(fixture_command(host, "status"), environment)
+        if status.get("state") not in {"armed", "running"}:
+            return status
+        if time.monotonic() >= deadline:
+            return status
+        time.sleep(0.05)
+
+
+def wait_for_capture_settle(
+    environment: dict[str, str], settle_ms: int, timeout_seconds: float
+) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        response = run_json(capture_command("status"), environment)
+        snapshot = response.get("snapshot", {})
+        settled_for_ms = snapshot.get("settledForMs")
+        if settled_for_ms is None or (
+            settled_for_ms >= settle_ms and
+            not snapshot.get("pressedKeyCodes") and
+            snapshot.get("activeModifiers", 0) == 0
+        ):
+            return response
+        if time.monotonic() >= deadline:
+            return response
+        time.sleep(0.05)
+
+
+def fetch_fixture_trace(host: str, environment: dict[str, str]) -> list[dict[str, Any]]:
+    """Fetch the fixture's bounded trace in chronological order after a run."""
+    traces: list[dict[str, Any]] = []
+    start = 0
+    available: int | None = None
+    while available is None or start < available:
+        response = run_json(fixture_command(host, "trace", "--from", str(start), "--limit", "8"), environment)
+        if not isinstance(response, list) or not response or not isinstance(response[0], dict):
+            raise RuntimeError("fixture trace returned an invalid batch")
+        header = response[0]
+        available = int(header.get("available", 0))
+        batch = [entry for entry in response[1:] if isinstance(entry, dict)]
+        traces.extend(batch)
+        if not batch:
+            break
+        start += len(batch)
+    return traces
+
+
+class ControlledCPULoad:
+    """Bounded synthetic CPU pressure with samples suitable for test artifacts."""
+
+    def __init__(self, workers: int, sample_ms: int):
+        self.workers = workers
+        self.sample_seconds = sample_ms / 1000
+        self.logical_cpus = max(1, os.cpu_count() or 1)
+        self.processes: list[subprocess.Popen] = []
+        self.samples: list[dict[str, float]] = []
+        self.stop_event = threading.Event()
+        self.sampler: threading.Thread | None = None
+        self.started_at = 0.0
+
+    def start(self) -> None:
+        self.started_at = time.time()
+        self.processes = [
+            subprocess.Popen(
+                ["/usr/bin/yes"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+            for _ in range(self.workers)
+        ]
+        self.sampler = threading.Thread(target=self._sample_loop, daemon=True)
+        self.sampler.start()
+
+    def stop(self) -> dict[str, Any]:
+        self.stop_event.set()
+        for process in self.processes:
+            process.terminate()
+        for process in self.processes:
+            try:
+                process.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=1)
+        if self.sampler is not None:
+            self.sampler.join(timeout=2)
+        cpu_values = [sample["cpuPercent"] for sample in self.samples]
+        return {
+            "workers": self.workers,
+            "logicalCPUs": self.logical_cpus,
+            "sampleIntervalMs": round(self.sample_seconds * 1000),
+            "startedAtEpoch": self.started_at,
+            "averageCPUPercent": round(sum(cpu_values) / len(cpu_values), 1) if cpu_values else None,
+            "maximumCPUPercent": round(max(cpu_values), 1) if cpu_values else None,
+            "samples": self.samples,
+        }
+
+    def _sample_loop(self) -> None:
+        while not self.stop_event.is_set():
+            try:
+                result = subprocess.run(
+                    ["/bin/ps", "-A", "-o", "%cpu="],
+                    text=True, capture_output=True, check=True, timeout=2,
+                )
+                process_cpu = sum(float(value) for value in result.stdout.split())
+                cpu_percent = min(100.0, process_cpu / self.logical_cpus)
+                load_1m, load_5m, load_15m = os.getloadavg()
+                self.samples.append({
+                    "elapsedMs": round((time.time() - self.started_at) * 1000),
+                    "cpuPercent": round(cpu_percent, 1),
+                    "load1m": round(load_1m, 2),
+                    "load5m": round(load_5m, 2),
+                    "load15m": round(load_15m, 2),
+                })
+            except (OSError, ValueError, subprocess.SubprocessError):
+                pass
+            self.stop_event.wait(self.sample_seconds)
+
+
+def parser() -> argparse.ArgumentParser:
+    root = argparse.ArgumentParser(description=__doc__)
+    root.add_argument("--run-id", required=True)
+    root.add_argument("--text", required=True, type=pathlib.Path)
+    root.add_argument("--fixture-host", default=os.environ.get("KEYPATH_FIXTURE_HOST", "keypath-hid-fixture.local"))
+    root.add_argument("--interval-ms", type=int, default=50)
+    root.add_argument("--hold-ms", type=int, default=12)
+    root.add_argument("--shift-lead-ms", type=int, default=0)
+    root.add_argument("--shift-release-lag-ms", type=int, default=0)
+    root.add_argument("--repeat", type=int, default=1)
+    root.add_argument("--cycle-gap-ms", type=int, default=500)
+    root.add_argument("--delay-ms", type=int, default=1200)
+    root.add_argument("--settle-ms", type=int, default=300)
+    root.add_argument("--timeout-ms", type=int)
+    root.add_argument("--max-late-reports", type=int, default=0)
+    root.add_argument("--max-lateness-us", type=int, default=0)
+    root.add_argument(
+        "--cpu-load-workers", type=int,
+        help="start this many bounded CPU workers after capture preflight and record CPU samples",
+    )
+    root.add_argument("--cpu-sample-ms", type=int, default=250)
+    interruption = root.add_mutually_exclusive_group()
+    interruption.add_argument(
+        "--abort-after-ms", type=int,
+        help="abort after start returns and verify a safe, released prefix instead of full output",
+    )
+    interruption.add_argument(
+        "--expect-external-abort-ms", type=int,
+        help="wait for a physical button or touch abort for this many milliseconds",
+    )
+    interruption.add_argument(
+        "--expect-usb-cycle-ms", type=int,
+        help="wait for physical USB removal and reconnection for this many milliseconds",
+    )
+    root.add_argument("--output", type=pathlib.Path)
+    return root
+
+
+def main() -> int:
+    arguments = parser().parse_args()
+    if not arguments.text.is_file():
+        print(f"physical-hid-capture-run: text file does not exist: {arguments.text}", file=sys.stderr)
+        return 2
+    environment = os.environ.copy()
+    fixture_host = ""
+    fixture_mutated = False
+    capture_armed = False
+    cpu_load: ControlledCPULoad | None = None
+    cpu_load_result: dict[str, Any] | None = None
+    try:
+        if arguments.abort_after_ms is not None and arguments.abort_after_ms < 1:
+            raise RuntimeError("--abort-after-ms must be positive")
+        if arguments.expect_external_abort_ms is not None and arguments.expect_external_abort_ms < 1:
+            raise RuntimeError("--expect-external-abort-ms must be positive")
+        if arguments.expect_usb_cycle_ms is not None and arguments.expect_usb_cycle_ms < 1:
+            raise RuntimeError("--expect-usb-cycle-ms must be positive")
+        if arguments.max_late_reports < 0 or arguments.max_lateness_us < 0:
+            raise RuntimeError("lateness budgets cannot be negative")
+        if arguments.max_late_reports > 0 and arguments.max_lateness_us == 0:
+            raise RuntimeError("--max-lateness-us is required when late reports are allowed")
+        logical_cpus = max(1, os.cpu_count() or 1)
+        if arguments.cpu_load_workers is not None and not 0 <= arguments.cpu_load_workers <= logical_cpus:
+            raise RuntimeError(f"--cpu-load-workers must be between 0 and {logical_cpus}")
+        if not 100 <= arguments.cpu_sample_ms <= 5_000:
+            raise RuntimeError("--cpu-sample-ms must be between 100 and 5000")
+        environment["KEYPATH_FIXTURE_TOKEN"] = load_fixture_token()
+        host, initial_status = resolve_fixture_host(arguments.fixture_host, environment)
+        fixture_host = host
+        capture_preflight = run_json(capture_command("status"), environment)
+        readiness = capture_preflight.get("systemReadiness")
+        if not isinstance(readiness, dict):
+            raise RuntimeError(
+                "capture Jig does not report system readiness; rebuild and reopen it before testing"
+            )
+        if not readiness.get("canProceed"):
+            detail = str(readiness.get("detail", "the Mac is not inside the capture resource envelope"))
+            suggestions = readiness.get("suggestions", [])
+            help_text = " ".join(str(value) for value in suggestions if value)
+            raise RuntimeError(f"capture Jig paused the run: {detail}. {help_text}".strip())
+        text = arguments.text.read_text()
+        expected = text * arguments.repeat
+        estimated_ms = arguments.delay_ms + arguments.repeat * (
+            len(text) * arguments.interval_ms + arguments.cycle_gap_ms
+        )
+        # WindowServer can queue valid HID events while the capture app is starved by a
+        # concurrent compile. Preserve enough wall-clock margin to drain that queue before
+        # the fail-closed capture timeout freezes the evidence snapshot.
+        timeout_margin_ms = max(10_000, estimated_ms // 2)
+        timeout_ms = arguments.timeout_ms or max(15_000, estimated_ms + timeout_margin_ms)
+
+        with tempfile.TemporaryDirectory(prefix="keypath-hid-capture-") as temporary:
+            script = pathlib.Path(temporary) / "fixture-script.txt"
+            expected_path = pathlib.Path(temporary) / "expected.txt"
+            expected_path.write_text(expected)
+            run_checked([
+                str(FIXTURE_CLIENT), "compile-text", "--run-id", arguments.run_id,
+                "--text", str(arguments.text), "--interval-ms", str(arguments.interval_ms),
+                "--hold-ms", str(arguments.hold_ms), "--repeat", str(arguments.repeat),
+                "--cycle-gap-ms", str(arguments.cycle_gap_ms),
+                "--shift-lead-ms", str(arguments.shift_lead_ms),
+                "--shift-release-lag-ms", str(arguments.shift_release_lag_ms),
+                "--output", str(script),
+            ], environment)
+            header = script.read_text().splitlines()[0].split()
+            expected_reports = int(header[2]) * int(header[3])
+
+            load = run_json(fixture_command(host, "load-script", str(script)), environment)
+            fixture_mutated = True
+            fixture_arm = run_json(fixture_command(host, "arm", arguments.run_id), environment)
+            presentation_testing = run_json(fixture_command(
+                host, "present", "--phase", "testing", "--result", "none",
+                "--progress", "0", "--title", arguments.run_id[:32],
+                "--detail", "CAPTURE JIG ARMED", "--next", "VERIFY OUTPUT",
+                "--reports-expected", str(expected_reports), "--reports-observed", "0",
+            ), environment)
+            # Acquire focus at the last possible moment. Keeping the Jig focused while
+            # readiness checks or compilation run would steal the user's own typing.
+            capture_focus = run_json(capture_command("focus"), environment)
+            capture_arm = run_json(capture_command(
+                "arm", "--run-id", arguments.run_id, "--expected", str(expected_path),
+                "--timeout-ms", str(timeout_ms), "--settle-ms", str(arguments.settle_ms),
+            ), environment)
+            capture_armed = True
+            if arguments.cpu_load_workers is not None:
+                cpu_load = ControlledCPULoad(
+                    workers=arguments.cpu_load_workers, sample_ms=arguments.cpu_sample_ms
+                )
+                cpu_load.start()
+            start = run_json(fixture_command(
+                host, "start", arguments.run_id, "--delay-ms", str(arguments.delay_ms)
+            ), environment)
+            abort_response = None
+            saw_usb_unmounted = False
+            interruption_mode = (
+                "remote-abort" if arguments.abort_after_ms is not None else
+                "external-abort" if arguments.expect_external_abort_ms is not None else
+                "usb-cycle" if arguments.expect_usb_cycle_ms is not None else
+                "completion"
+            )
+            if interruption_mode == "completion":
+                capture_initial_terminal = run_json(capture_command(
+                    "wait", "--timeout-seconds", f"{timeout_ms / 1000 + 2:g}", "--poll-ms", "100"
+                ), environment, (0, 1))
+                fixture_status = wait_for_fixture_terminal(
+                    host, environment, timeout_seconds=timeout_ms / 1000 + 2
+                )
+                capture_response = wait_for_capture_settle(
+                    environment, settle_ms=arguments.settle_ms,
+                    timeout_seconds=timeout_margin_ms / 1000,
+                )
+            elif interruption_mode == "remote-abort":
+                capture_initial_terminal = None
+                time.sleep(arguments.abort_after_ms / 1000)
+                abort_response = run_json(fixture_command(host, "abort"), environment)
+                release_deadline = time.monotonic() + 2
+                while True:
+                    fixture_status = run_json(fixture_command(host, "status"), environment)
+                    submitted = int(fixture_status.get("reportsSubmitted", 0))
+                    completed = int(fixture_status.get("transfersCompleted", 0))
+                    if fixture_status.get("state") == "aborted" and completed >= submitted + 1:
+                        break
+                    if time.monotonic() >= release_deadline:
+                        break
+                    time.sleep(0.025)
+                capture_response = run_json(capture_command("finalize"), environment, (0, 1))
+            elif interruption_mode == "external-abort":
+                capture_initial_terminal = None
+                external_deadline = time.monotonic() + arguments.expect_external_abort_ms / 1000
+                while True:
+                    fixture_status = run_json(fixture_command(host, "status"), environment)
+                    if fixture_status.get("state") == "aborted":
+                        break
+                    if time.monotonic() >= external_deadline:
+                        break
+                    time.sleep(0.05)
+                abort_response = fixture_status
+                release_deadline = time.monotonic() + 2
+                while fixture_status.get("state") == "aborted":
+                    submitted = int(fixture_status.get("reportsSubmitted", 0))
+                    completed = int(fixture_status.get("transfersCompleted", 0))
+                    if completed >= submitted + 1:
+                        break
+                    if time.monotonic() >= release_deadline:
+                        break
+                    time.sleep(0.025)
+                    fixture_status = run_json(fixture_command(host, "status"), environment)
+                capture_response = run_json(capture_command("finalize"), environment, (0, 1))
+            else:
+                capture_initial_terminal = None
+                usb_deadline = time.monotonic() + arguments.expect_usb_cycle_ms / 1000
+                while True:
+                    fixture_status = run_json(fixture_command(host, "status"), environment)
+                    if fixture_status.get("state") == "error" and not fixture_status.get("usbMounted", True):
+                        saw_usb_unmounted = True
+                    if saw_usb_unmounted and fixture_status.get("usbMounted"):
+                        submitted = int(fixture_status.get("reportsSubmitted", 0))
+                        completed = int(fixture_status.get("transfersCompleted", 0))
+                        if completed >= submitted + 1:
+                            break
+                    if time.monotonic() >= usb_deadline:
+                        break
+                    time.sleep(0.05)
+                capture_response = run_json(capture_command("finalize"), environment, (0, 1))
+
+        if cpu_load is not None:
+            cpu_load_result = cpu_load.stop()
+            cpu_load = None
+        fixture_trace = fetch_fixture_trace(host, environment)
+        capture = capture_response["snapshot"]
+        late_reports = int(fixture_status.get("lateReports", 0))
+        maximum_lateness_us = int(fixture_status.get("maximumLatenessUs", 0))
+        lateness_within_budget = (
+            late_reports <= arguments.max_late_reports and
+            (late_reports == 0 or maximum_lateness_us <= arguments.max_lateness_us)
+        )
+        if interruption_mode == "completion":
+            checks = {
+                "capturePassed": capture.get("state") == "passed",
+                "exactOutput": capture.get("received") == expected,
+                "allKeysReleased": not capture.get("pressedKeyCodes"),
+                "allModifiersReleased": capture.get("activeModifiers", 0) == 0,
+                "noCaptureIssues": not capture.get("issues"),
+                "fixtureCompleted": fixture_status.get("state") == "complete",
+                "allReportsSubmitted": fixture_status.get("reportsSubmitted") == expected_reports,
+                "latenessWithinBudget": lateness_within_budget,
+            }
+        elif interruption_mode in {"remote-abort", "external-abort"}:
+            received = str(capture.get("received", ""))
+            submitted = int(fixture_status.get("reportsSubmitted", 0))
+            completed = int(fixture_status.get("transfersCompleted", 0))
+            checks = {
+                "fixtureAborted": fixture_status.get("state") == "aborted",
+                "reportsStoppedEarly": 0 < submitted < expected_reports,
+                "receivedSafePrefix": bool(received) and expected.startswith(received),
+                "allKeysReleased": not capture.get("pressedKeyCodes"),
+                "allModifiersReleased": capture.get("activeModifiers", 0) == 0,
+                "releaseTransferCompleted": completed >= submitted + 1,
+                "noDuplicateDownEvents": capture.get("duplicateDownEvents", 0) == 0,
+                "noRepeatEvents": capture.get("repeatEvents", 0) == 0,
+                "noUnmatchedUpEvents": capture.get("unmatchedUpEvents", 0) == 0,
+            }
+        else:
+            received = str(capture.get("received", ""))
+            submitted = int(fixture_status.get("reportsSubmitted", 0))
+            completed = int(fixture_status.get("transfersCompleted", 0))
+            checks = {
+                "fixtureErroredOnUnmount": fixture_status.get("state") == "error",
+                "usbUnmountObserved": saw_usb_unmounted,
+                "usbRemounted": fixture_status.get("usbMounted") is True,
+                "reportsStoppedEarly": 0 < submitted < expected_reports,
+                "receivedSafePrefix": bool(received) and expected.startswith(received),
+                "allKeysReleased": not capture.get("pressedKeyCodes"),
+                "allModifiersReleased": capture.get("activeModifiers", 0) == 0,
+                "releaseTransferCompleted": completed >= submitted + 1,
+                "noDuplicateDownEvents": capture.get("duplicateDownEvents", 0) == 0,
+                "noRepeatEvents": capture.get("repeatEvents", 0) == 0,
+                "noUnmatchedUpEvents": capture.get("unmatchedUpEvents", 0) == 0,
+            }
+        passed = all(checks.values())
+        presentation_result = run_json(fixture_command(
+            host, "present", "--phase", "result", "--result", "pass" if passed else "fail",
+            "--progress", "1000", "--title", arguments.run_id[:32],
+            "--detail", f"{len(capture.get('received', ''))} / {len(expected)} CHARS",
+            "--next", "NEXT MATRIX CASE", "--reports-expected", str(expected_reports),
+            "--reports-observed", str(fixture_status.get("reportsSubmitted", 0)),
+            "--latency-p95-us", str(fixture_status.get("maximumLatenessUs", 0)),
+            "--safe-release",
+        ), environment)
+        artifact = {
+            "schemaVersion": 1,
+            "runID": arguments.run_id,
+            "status": "passed" if passed else "failed",
+            "fixtureHost": host,
+            "expectedReports": expected_reports,
+            "interruptionMode": interruption_mode,
+            "timingBudget": {
+                "maxLateReports": arguments.max_late_reports,
+                "maxLatenessUs": arguments.max_lateness_us,
+            },
+            "modifierTiming": {
+                "shiftLeadMs": arguments.shift_lead_ms,
+                "keyHoldMs": arguments.hold_ms,
+                "shiftReleaseLagMs": arguments.shift_release_lag_ms,
+            },
+            "checks": checks,
+            "control": {
+                "initialFixtureStatus": initial_status,
+                "capturePreflight": capture_preflight,
+                "load": load,
+                "fixtureArm": fixture_arm,
+                "captureFocus": capture_focus,
+                "captureArm": capture_arm,
+                "captureInitialTerminal": capture_initial_terminal,
+                "presentationTesting": presentation_testing,
+                "presentationResult": presentation_result,
+                "start": start,
+                "abort": abort_response,
+            },
+            "fixture": fixture_status,
+            "fixtureTrace": fixture_trace,
+            "capture": capture,
+            "cpuLoad": cpu_load_result,
+        }
+        output = arguments.output or (
+            pathlib.Path.home() / ".local/state/keypath-hid-capture-jig/combined" /
+            f"{safe_run_id(arguments.run_id)}.json"
+        )
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(artifact, indent=2, sort_keys=True) + "\n")
+        output.chmod(0o600)
+        summary = {
+            "runID": arguments.run_id,
+            "status": artifact["status"],
+            "artifact": str(output),
+            "fixtureHost": host,
+            "expectedReports": expected_reports,
+            "submittedReports": fixture_status.get("reportsSubmitted"),
+            "capturedEvents": len(capture.get("events", [])),
+            "fixtureTraceReports": len(fixture_trace),
+            "receivedCharacters": len(capture.get("received", "")),
+            "checks": checks,
+        }
+        print(json.dumps(summary, indent=2, sort_keys=True))
+        return 0 if passed else 1
+    except (OSError, ValueError, RuntimeError, KeyError) as error:
+        cleanup: list[str] = []
+        if fixture_mutated and fixture_host:
+            try:
+                run_json(fixture_command(fixture_host, "abort"), environment)
+                cleanup.append("fixture aborted with all-keys-released queued")
+            except (OSError, ValueError, RuntimeError, KeyError) as cleanup_error:
+                cleanup.append(f"fixture abort failed: {cleanup_error}")
+        if capture_armed:
+            try:
+                run_json(capture_command("finalize"), environment, (0, 1))
+                cleanup.append("capture finalized")
+            except (OSError, ValueError, RuntimeError, KeyError) as cleanup_error:
+                cleanup.append(f"capture finalize failed: {cleanup_error}")
+        suffix = f"; cleanup: {'; '.join(cleanup)}" if cleanup else ""
+        print(f"physical-hid-capture-run: {error}{suffix}", file=sys.stderr)
+        return 2
+    finally:
+        if cpu_load is not None:
+            cpu_load.stop()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

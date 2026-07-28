@@ -18,6 +18,8 @@
 #define PARTICLE_COUNT 12u
 #define KEY_COUNT 6u
 #define DOJO_BAR_COUNT 4u
+#define SPLASH_FRAME_INTERVAL_MS 33u
+#define DISPLAY_HEARTBEAT_MAX_AGE_MS 2000u
 
 typedef struct {
     lv_obj_t *screen;
@@ -26,6 +28,12 @@ typedef struct {
     lv_obj_t *orbit;
     lv_obj_t *progress;
     lv_obj_t *core;
+    lv_obj_t *brand_keycap;
+    lv_obj_t *brand_light;
+    lv_obj_t *brand_fill;
+    lv_obj_t *brand_lid;
+    lv_obj_t *brand_glint_horizontal;
+    lv_obj_t *brand_glint_vertical;
     lv_obj_t *icon_front;
     lv_obj_t *icon_back;
     lv_obj_t *keys[KEY_COUNT];
@@ -41,6 +49,9 @@ typedef struct {
     uint64_t previous_render_ms;
     uint64_t icon_transition_started_ms;
     uint64_t completion_started_ms;
+    uint64_t button_feedback_started_ms;
+    uint32_t button_feedback_sequence;
+    fixture_button_event_t button_feedback_event;
 } display_ui_t;
 
 typedef struct {
@@ -55,6 +66,29 @@ typedef struct {
 
 static display_ui_t ui;
 static display_splash_t splash;
+static portMUX_TYPE display_health_lock = portMUX_INITIALIZER_UNLOCKED;
+static fixture_display_health_t display_health;
+
+static void note_display_frame(uint64_t now_ms) {
+    taskENTER_CRITICAL(&display_health_lock);
+    display_health.frame_sequence++;
+    display_health.last_frame_ms = now_ms;
+    taskEXIT_CRITICAL(&display_health_lock);
+}
+
+static void note_display_initialized(bool splash_enabled, bool splash_complete) {
+    taskENTER_CRITICAL(&display_health_lock);
+    display_health.initialized = true;
+    display_health.splash_enabled = splash_enabled;
+    display_health.splash_complete = splash_complete;
+    taskEXIT_CRITICAL(&display_health_lock);
+}
+
+static void note_splash_complete(void) {
+    taskENTER_CRITICAL(&display_health_lock);
+    display_health.splash_complete = true;
+    taskEXIT_CRITICAL(&display_health_lock);
+}
 
 static const char *symbol_for(fixture_visual_icon_t icon) {
     switch (icon) {
@@ -100,6 +134,14 @@ static lv_obj_t *make_rect(lv_obj_t *parent, int x, int y, int width, int height
     return object;
 }
 
+static void set_hidden(lv_obj_t *object, bool hidden) {
+    if (hidden) {
+        lv_obj_add_flag(object, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_clear_flag(object, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
 static void touch_event(lv_event_t *event) {
     if (lv_event_get_code(event) != LV_EVENT_PRESSED) return;
     fixture_runtime_snapshot_t snapshot;
@@ -121,6 +163,7 @@ static void build_ui(void) {
 
     ui.eyebrow = lv_label_create(ui.screen);
     lv_label_set_text_static(ui.eyebrow, "KEYPATH  /  HID ORACLE");
+    lv_obj_set_style_text_font(ui.eyebrow, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(ui.eyebrow, lv_color_hex(0x71909d), 0);
     lv_obj_set_style_text_letter_space(ui.eyebrow, 2, 0);
     lv_obj_align(ui.eyebrow, LV_ALIGN_TOP_MID, 0, 15);
@@ -182,6 +225,62 @@ static void build_ui(void) {
         lv_obj_set_pos(ui.keys[index], 8 + column * 21, 17 + row * 19);
     }
 
+    /* Display-native reconstruction of KeyPath's opened, illuminated keycap. */
+    ui.brand_keycap = lv_obj_create(ui.screen);
+    lv_obj_remove_style_all(ui.brand_keycap);
+    lv_obj_set_size(ui.brand_keycap, 78, 62);
+    lv_obj_set_style_radius(ui.brand_keycap, 17, 0);
+    lv_obj_set_style_bg_color(ui.brand_keycap, lv_color_hex(0xd95b18), 0);
+    lv_obj_set_style_bg_opa(ui.brand_keycap, LV_OPA_COVER, 0);
+    lv_obj_set_style_shadow_color(ui.brand_keycap, lv_color_hex(0xf3a128), 0);
+    lv_obj_set_style_shadow_width(ui.brand_keycap, 18, 0);
+    lv_obj_set_style_shadow_opa(ui.brand_keycap, LV_OPA_20, 0);
+    lv_obj_align(ui.brand_keycap, LV_ALIGN_CENTER, 0, 5);
+    lv_obj_clear_flag(ui.brand_keycap, LV_OBJ_FLAG_CLICKABLE);
+
+    ui.brand_light = lv_obj_create(ui.screen);
+    lv_obj_remove_style_all(ui.brand_light);
+    lv_obj_set_size(ui.brand_light, 54, 38);
+    lv_obj_set_style_radius(ui.brand_light, 12, 0);
+    lv_obj_set_style_bg_color(ui.brand_light, lv_color_hex(0xfff2c9), 0);
+    lv_obj_set_style_bg_opa(ui.brand_light, LV_OPA_COVER, 0);
+    lv_obj_align(ui.brand_light, LV_ALIGN_CENTER, 0, 2);
+    lv_obj_clear_flag(ui.brand_light, LV_OBJ_FLAG_CLICKABLE);
+
+    ui.brand_fill = lv_obj_create(ui.brand_light);
+    lv_obj_remove_style_all(ui.brand_fill);
+    lv_obj_set_size(ui.brand_fill, 54, 1);
+    lv_obj_set_style_radius(ui.brand_fill, 10, 0);
+    lv_obj_set_style_bg_color(ui.brand_fill, lv_color_hex(0xf3a128), 0);
+    lv_obj_set_style_bg_opa(ui.brand_fill, LV_OPA_60, 0);
+    lv_obj_align(ui.brand_fill, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_clear_flag(ui.brand_fill, LV_OBJ_FLAG_CLICKABLE);
+
+    ui.brand_lid = lv_obj_create(ui.screen);
+    lv_obj_remove_style_all(ui.brand_lid);
+    lv_obj_set_size(ui.brand_lid, 68, 27);
+    lv_obj_set_style_radius(ui.brand_lid, 10, 0);
+    lv_obj_set_style_bg_color(ui.brand_lid, lv_color_hex(0xf3a128), 0);
+    lv_obj_set_style_bg_opa(ui.brand_lid, LV_OPA_COVER, 0);
+    lv_obj_set_style_shadow_color(ui.brand_lid, lv_color_hex(0xffd36a), 0);
+    lv_obj_set_style_shadow_width(ui.brand_lid, 12, 0);
+    lv_obj_set_style_shadow_opa(ui.brand_lid, LV_OPA_20, 0);
+    lv_obj_align(ui.brand_lid, LV_ALIGN_CENTER, 0, -29);
+    lv_obj_clear_flag(ui.brand_lid, LV_OBJ_FLAG_CLICKABLE);
+
+    ui.brand_glint_horizontal = make_rect(
+        ui.screen, 0, 0, 12, 2, lv_color_hex(0xfff7df));
+    ui.brand_glint_vertical = make_rect(
+        ui.screen, 0, 0, 2, 12, lv_color_hex(0xfff7df));
+    lv_obj_set_style_radius(ui.brand_glint_horizontal, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_radius(ui.brand_glint_vertical, LV_RADIUS_CIRCLE, 0);
+
+    set_hidden(ui.brand_keycap, true);
+    set_hidden(ui.brand_light, true);
+    set_hidden(ui.brand_lid, true);
+    set_hidden(ui.brand_glint_horizontal, true);
+    set_hidden(ui.brand_glint_vertical, true);
+
     for (size_t index = 0; index < PARTICLE_COUNT; ++index) {
         ui.particles[index] = make_circle(ui.screen, index % 3u == 0u ? 6 : 4,
                                           lv_color_hex(0x56ddb3), LV_OPA_50);
@@ -189,7 +288,7 @@ static void build_ui(void) {
 
     ui.state = lv_label_create(ui.screen);
     lv_label_set_text_static(ui.state, "WAKING UP");
-    lv_obj_set_style_text_font(ui.state, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_font(ui.state, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(ui.state, lv_color_hex(0xe9f7f4), 0);
     lv_obj_set_width(ui.state, 220);
     lv_label_set_long_mode(ui.state, LV_LABEL_LONG_DOT);
@@ -198,6 +297,7 @@ static void build_ui(void) {
 
     ui.detail = lv_label_create(ui.screen);
     lv_label_set_text_static(ui.detail, "USB + Wi-Fi control");
+    lv_obj_set_style_text_font(ui.detail, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(ui.detail, lv_color_hex(0x78909a), 0);
     lv_obj_set_width(ui.detail, 220);
     lv_label_set_long_mode(ui.detail, LV_LABEL_LONG_DOT);
@@ -206,6 +306,7 @@ static void build_ui(void) {
 
     ui.quality = lv_label_create(ui.screen);
     lv_label_set_text_static(ui.quality, "CINEMATIC");
+    lv_obj_set_style_text_font(ui.quality, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(ui.quality, lv_color_hex(0x52727e), 0);
     lv_obj_set_style_text_letter_space(ui.quality, 1, 0);
     lv_obj_align(ui.quality, LV_ALIGN_TOP_RIGHT, -10, 38);
@@ -225,7 +326,12 @@ static void build_splash(void) {
     lv_obj_set_style_bg_opa(splash.root, LV_OPA_COVER, 0);
     lv_obj_clear_flag(splash.root, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
 
-    splash.glow = make_circle(splash.root, 154, dojo_red, LV_OPA_TRANSP);
+    /*
+     * Keep the glow inside a bounded redraw region. Transforming the previous
+     * 154 px object at 60 FPS invalidated most of the 240 x 280 display and
+     * could starve the LVGL flush task on the physical SPI panel.
+     */
+    splash.glow = make_circle(splash.root, 132, dojo_red, LV_OPA_TRANSP);
     lv_obj_align(splash.glow, LV_ALIGN_CENTER, 0, -27);
 
     splash.ring = make_circle(splash.root, 118, dojo_red, LV_OPA_TRANSP);
@@ -240,9 +346,6 @@ static void build_splash(void) {
     lv_obj_set_style_radius(splash.logo, 24, 0);
     lv_obj_set_style_bg_color(splash.logo, dojo_red, 0);
     lv_obj_set_style_bg_opa(splash.logo, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_shadow_color(splash.logo, dojo_red, 0);
-    lv_obj_set_style_shadow_width(splash.logo, 26, 0);
-    lv_obj_set_style_shadow_opa(splash.logo, LV_OPA_TRANSP, 0);
     lv_obj_align(splash.logo, LV_ALIGN_CENTER, 0, -27);
 
     /* Faithful, display-native reconstruction of hackerdojo.org/static/images/logo.png. */
@@ -253,7 +356,7 @@ static void build_splash(void) {
 
     splash.wordmark = lv_label_create(splash.root);
     lv_label_set_text_static(splash.wordmark, "HACKER DOJO");
-    lv_obj_set_style_text_font(splash.wordmark, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_font(splash.wordmark, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(splash.wordmark, white, 0);
     lv_obj_set_style_text_letter_space(splash.wordmark, 3, 0);
     lv_obj_set_style_text_opa(splash.wordmark, LV_OPA_TRANSP, 0);
@@ -261,6 +364,7 @@ static void build_splash(void) {
 
     splash.location = lv_label_create(splash.root);
     lv_label_set_text_static(splash.location, "MOUNTAIN VIEW  /  SINCE 2009");
+    lv_obj_set_style_text_font(splash.location, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(splash.location, lv_color_hex(0x9aa7ad), 0);
     lv_obj_set_style_text_letter_space(splash.location, 1, 0);
     lv_obj_set_style_text_opa(splash.location, LV_OPA_TRANSP, 0);
@@ -269,10 +373,13 @@ static void build_splash(void) {
 
 static void render_splash(const fixture_splash_output_t *output, uint64_t elapsed_ms) {
     lv_opa_t foreground = (lv_opa_t)output->foreground_opacity;
-    lv_obj_set_style_bg_opa(splash.root, (lv_opa_t)output->background_opacity, 0);
+    /*
+     * Do not animate opacity on the full-screen root. The logo and wordmark
+     * still fade out before the root is deleted, but every frame now redraws
+     * only the splash artwork rather than the entire panel.
+     */
+    lv_obj_set_style_bg_opa(splash.root, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_opa(splash.logo, foreground, 0);
-    lv_obj_set_style_shadow_opa(splash.logo, (lv_opa_t)(output->foreground_opacity * 42u / 255u), 0);
-    lv_obj_set_style_transform_scale(splash.logo, output->logo_scale, 0);
     for (size_t index = 0; index < DOJO_BAR_COUNT; ++index) {
         lv_obj_set_style_bg_opa(splash.bars[index], foreground, 0);
     }
@@ -285,17 +392,15 @@ static void render_splash(const fixture_splash_output_t *output, uint64_t elapse
     lv_obj_set_style_translate_y(splash.location, wordmark_offset, 0);
 
     uint16_t ring_phase = (uint16_t)(elapsed_ms % 800u);
-    uint16_t ring_scale = (uint16_t)(256u + ring_phase * 54u / 800u);
     uint16_t ring_fade = (uint16_t)(255u - ring_phase * 255u / 800u);
-    lv_obj_set_style_transform_scale(splash.ring, ring_scale, 0);
     lv_obj_set_style_border_opa(
         splash.ring,
         (lv_opa_t)(output->foreground_opacity * ring_fade * 44u / (255u * 255u)), 0);
 
     int glow_pulse = (int)(sinf((float)elapsed_ms / 230.0f) * 4.0f);
-    lv_obj_set_style_transform_scale(splash.glow, 250 + glow_pulse, 0);
     lv_obj_set_style_bg_opa(splash.glow,
-                            (lv_opa_t)(output->foreground_opacity * 24u / 255u), 0);
+                            (lv_opa_t)(output->foreground_opacity *
+                                       (uint32_t)(22 + glow_pulse) / 255u), 0);
 }
 
 static void play_splash(void) {
@@ -307,15 +412,17 @@ static void play_splash(void) {
         bool finished = false;
         if (bsp_display_lock(20u)) {
             render_splash(&output, elapsed_ms);
+            note_display_frame(now_ms);
             if (output.complete) {
                 lv_obj_delete(splash.root);
                 splash.root = NULL;
+                note_splash_complete();
                 finished = true;
             }
             bsp_display_unlock();
         }
         if (finished) return;
-        vTaskDelay(pdMS_TO_TICKS(16u));
+        vTaskDelay(pdMS_TO_TICKS(SPLASH_FRAME_INTERVAL_MS));
     }
 }
 
@@ -348,6 +455,41 @@ static void announce_result(fixture_result_t result) {
     ui.previous_result = result;
 }
 
+static void render_button_feedback(uint64_t now_ms) {
+    fixture_board_feedback_t feedback;
+    fixture_board_feedback_snapshot(&feedback);
+    if (feedback.sequence != ui.button_feedback_sequence) {
+        ui.button_feedback_sequence = feedback.sequence;
+        ui.button_feedback_event = feedback.event;
+        ui.button_feedback_started_ms = now_ms;
+    }
+
+    uint64_t elapsed_ms = now_ms >= ui.button_feedback_started_ms
+                              ? now_ms - ui.button_feedback_started_ms : 0u;
+    fixture_button_feedback_output_t output =
+        fixture_button_feedback_resolve(ui.button_feedback_event, feedback.boot_held,
+                                        feedback.download_hint, elapsed_ms);
+    if (!output.active) return;
+
+    lv_color_t accent = lv_color_hex(output.accent_rgb);
+    lv_label_set_text(ui.state, output.title);
+    lv_label_set_text(ui.detail, output.detail);
+    lv_label_set_text_static(ui.quality, "BUTTON INPUT");
+    lv_obj_set_style_text_color(ui.state, accent, 0);
+    lv_obj_set_style_text_color(ui.quality, accent, 0);
+    lv_obj_set_style_arc_color(ui.orbit, accent, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(ui.progress, accent, LV_PART_INDICATOR);
+    lv_obj_set_style_border_color(ui.core, accent, 0);
+    lv_obj_set_style_bg_color(ui.halo_inner, accent, 0);
+    lv_obj_set_style_bg_color(ui.halo_outer, accent, 0);
+    lv_obj_set_style_bg_opa(ui.halo_inner,
+                            (lv_opa_t)(24u + output.pulse_per_mille * 40u / 1000u), 0);
+    lv_obj_set_style_bg_opa(ui.halo_outer,
+                            (lv_opa_t)(12u + output.pulse_per_mille * 24u / 1000u), 0);
+    lv_obj_set_style_transform_scale(ui.state,
+                                     256 + (int)(output.pulse_per_mille * 10u / 1000u), 0);
+}
+
 static void render(const fixture_ui_output_t *output,
                    const fixture_presentation_t *presentation,
                    const char *automatic_detail, uint64_t now_ms) {
@@ -377,12 +519,55 @@ static void render(const fixture_ui_output_t *output,
     lv_obj_set_style_bg_color(ui.screen, output->scene == FIXTURE_UI_ERROR
                                              ? lv_color_hex(0x190b13)
                                              : lv_color_hex(0x071117), 0);
+    lv_obj_set_style_transform_scale(ui.state, 256, 0);
     lv_label_set_text(ui.state, visual.title);
     lv_obj_set_style_text_color(ui.state, accent, 0);
     lv_obj_set_style_arc_color(ui.orbit, accent, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(ui.progress, accent, LV_PART_INDICATOR);
     lv_obj_set_style_border_color(ui.core, accent, 0);
     lv_arc_set_value(ui.progress, visual.progress_per_mille);
+
+    bool branded_update = visual.variant == FIXTURE_VISUAL_KEYPATH_UPDATE;
+    lv_label_set_text_static(
+        ui.eyebrow, branded_update ? "KEYPATH  /  SECURE UPDATE" : "KEYPATH  /  HID ORACLE");
+    set_hidden(ui.core, branded_update);
+    set_hidden(ui.icon_front, branded_update);
+    set_hidden(ui.icon_back, branded_update);
+    set_hidden(ui.brand_keycap, !branded_update);
+    set_hidden(ui.brand_light, !branded_update);
+    set_hidden(ui.brand_lid, !branded_update);
+    set_hidden(ui.brand_glint_horizontal, !branded_update);
+    set_hidden(ui.brand_glint_vertical, !branded_update);
+
+    if (branded_update) {
+        int fill_height = 2 + (int)(visual.progress_per_mille * 34u / 1000u);
+        lv_obj_set_height(ui.brand_fill, fill_height);
+        lv_obj_align(ui.brand_fill, LV_ALIGN_BOTTOM_MID, 0, 0);
+        lv_obj_set_style_bg_color(ui.brand_fill, accent, 0);
+
+        int key_light = (int)((sinf(ui.phase * 1.45f) + 1.0f) * 18.0f);
+        int lid_lift = 2 + (int)((sinf(ui.phase * 1.45f) + 1.0f) * 2.0f);
+#if CONFIG_KEYPATH_FIXTURE_REDUCED_MOTION
+        key_light = 18;
+        lid_lift = 3;
+#endif
+        lv_obj_set_style_bg_opa(ui.brand_light, (lv_opa_t)(205 + key_light), 0);
+        lv_obj_set_style_shadow_opa(ui.brand_keycap, (lv_opa_t)(18 + key_light / 2), 0);
+        lv_obj_set_style_translate_y(ui.brand_lid, -lid_lift, 0);
+
+        float glint_angle = ui.phase;
+#if CONFIG_KEYPATH_FIXTURE_REDUCED_MOTION
+        glint_angle = (float)visual.progress_per_mille / 1000.0f * 6.2831853f;
+#endif
+        int glint_x = (int)(cosf(glint_angle) * 67.0f);
+        int glint_y = (int)(sinf(glint_angle) * 67.0f) - 2;
+        lv_obj_align(ui.brand_glint_horizontal, LV_ALIGN_CENTER, glint_x, glint_y);
+        lv_obj_align(ui.brand_glint_vertical, LV_ALIGN_CENTER, glint_x, glint_y);
+        lv_obj_set_style_bg_color(ui.brand_glint_horizontal, lv_color_hex(0xfff7df), 0);
+        lv_obj_set_style_bg_color(ui.brand_glint_vertical, lv_color_hex(0xfff7df), 0);
+        lv_obj_set_style_bg_opa(ui.brand_glint_horizontal, LV_OPA_80, 0);
+        lv_obj_set_style_bg_opa(ui.brand_glint_vertical, LV_OPA_80, 0);
+    }
 
     if ((int)visual.icon != ui.visual_stage) {
         fixture_visual_icon_t previous = ui.visual_stage < 0
@@ -470,7 +655,10 @@ static void render(const fixture_ui_output_t *output,
         lv_obj_set_style_text_color(ui.quality, accent, 0);
     } else
 
-    if (output->quality == FIXTURE_UI_PROTECTED) {
+    if (branded_update) {
+        lv_label_set_text_static(ui.quality, "SECURE OTA");
+        lv_obj_set_style_text_color(ui.quality, accent, 0);
+    } else if (output->quality == FIXTURE_UI_PROTECTED) {
         lv_label_set_text_static(ui.quality, "HID PRIORITY");
         lv_obj_set_style_text_color(ui.quality, lv_color_hex(0xffb454), 0);
     } else if (output->quality == FIXTURE_UI_ACTIVE) {
@@ -480,6 +668,7 @@ static void render(const fixture_ui_output_t *output,
         lv_label_set_text_static(ui.quality, "CINEMATIC");
         lv_obj_set_style_text_color(ui.quality, lv_color_hex(0x52727e), 0);
     }
+    render_button_feedback(now_ms);
 }
 
 static void display_task(void *context) {
@@ -488,10 +677,25 @@ static void display_task(void *context) {
     configASSERT(display);
     ESP_ERROR_CHECK(bsp_display_brightness_set(CONFIG_KEYPATH_FIXTURE_BRIGHTNESS));
     configASSERT(bsp_display_lock(0u));
-    build_ui();
+#if CONFIG_KEYPATH_FIXTURE_BOOT_SPLASH
+    ui.screen = lv_screen_active();
+    lv_obj_remove_style_all(ui.screen);
+    lv_obj_set_style_bg_color(ui.screen, lv_color_hex(0x080c10), 0);
+    lv_obj_set_style_bg_opa(ui.screen, LV_OPA_COVER, 0);
     build_splash();
+#else
+    build_ui();
+#endif
     bsp_display_unlock();
+#if CONFIG_KEYPATH_FIXTURE_BOOT_SPLASH
+    note_display_initialized(true, false);
     play_splash();
+    configASSERT(bsp_display_lock(100u));
+    build_ui();
+    bsp_display_unlock();
+#else
+    note_display_initialized(false, true);
+#endif
 
     fixture_ui_model_t model;
     fixture_ui_model_init(&model);
@@ -516,6 +720,7 @@ static void display_task(void *context) {
         fixture_board_update(snapshot.ui.state == FIXTURE_ARMED || snapshot.ui.state == FIXTURE_RUNNING);
         if (bsp_display_lock(20u)) {
             render(&output, &snapshot.presentation, automatic_detail, now_ms);
+            note_display_frame(now_ms);
             bsp_display_unlock();
         }
         vTaskDelay(pdMS_TO_TICKS(output.frame_interval_ms));
@@ -524,4 +729,20 @@ static void display_task(void *context) {
 
 void fixture_display_start(void) {
     configASSERT(xTaskCreatePinnedToCore(display_task, "fixture_display", 8192, NULL, 6, NULL, 0) == pdPASS);
+}
+
+void fixture_display_health_snapshot(fixture_display_health_t *health) {
+    if (!health) return;
+    taskENTER_CRITICAL(&display_health_lock);
+    *health = display_health;
+    taskEXIT_CRITICAL(&display_health_lock);
+}
+
+bool fixture_display_is_healthy(void) {
+    fixture_display_health_t health;
+    fixture_display_health_snapshot(&health);
+    uint64_t now_ms = (uint64_t)(esp_timer_get_time() / 1000);
+    uint64_t age_ms = now_ms >= health.last_frame_ms ? now_ms - health.last_frame_ms : UINT64_MAX;
+    return health.initialized && health.splash_complete && health.frame_sequence > 0u &&
+           age_ms <= DISPLAY_HEARTBEAT_MAX_AGE_MS;
 }

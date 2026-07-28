@@ -75,7 +75,9 @@ bool fixture_arm(fixture_t *fixture, const char *run_id, char *error, size_t err
 bool fixture_start(fixture_t *fixture, const char *run_id, uint32_t delay_ms, uint64_t now_us,
                    char *error, size_t error_capacity);
 void fixture_abort(fixture_t *fixture, const char *reason);
+bool fixture_abort_if_active(fixture_t *fixture, const char *reason);
 void fixture_note_transfer_complete(fixture_t *fixture);
+uint32_t fixture_time_until_next_action_us(const fixture_t *fixture, uint64_t now_us);
 void fixture_poll(fixture_t *fixture, uint64_t now_us, bool usb_mounted, bool usb_ready,
                   fixture_send_report_fn send_report, void *send_context);
 

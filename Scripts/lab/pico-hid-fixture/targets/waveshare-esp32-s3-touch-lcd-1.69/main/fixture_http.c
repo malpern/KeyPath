@@ -11,21 +11,30 @@
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_netif.h"
+#include "esp_ota_ops.h"
+#include "esp_system.h"
 #include "esp_wifi.h"
 #include "fixture_config.h"
+#include "fixture_display.h"
 #include "fixture_runtime.h"
 #include "fixture_wifi_model.h"
 #include "freertos/FreeRTOS.h"
 #include "mdns.h"
+#include "mbedtls/md.h"
+#include "mbedtls/sha256.h"
 #include "nvs_flash.h"
 #include "sdkconfig.h"
 
 #define SCRIPT_CAPACITY (96u * 1024u)
+#define OTA_CHUNK_SIZE 4096u
+#define SHA256_SIZE 32u
+#define SHA256_HEX_SIZE 64u
 
 static const char *TAG = "fixture_network";
 static char *script_buffer;
 static httpd_handle_t http_server;
 static fixture_wifi_model_t wifi_model;
+static volatile bool control_plane_ready;
 
 typedef struct {
     const char *ssid;
@@ -33,9 +42,10 @@ typedef struct {
 } wifi_profile_t;
 
 static const wifi_profile_t wifi_profiles[] = {
+    {KEYPATH_WIFI_SSID_4, KEYPATH_WIFI_PASSWORD_4},
     {KEYPATH_WIFI_SSID_1, KEYPATH_WIFI_PASSWORD_1},
-    {KEYPATH_WIFI_SSID_2, KEYPATH_WIFI_PASSWORD_2},
     {KEYPATH_WIFI_SSID_3, KEYPATH_WIFI_PASSWORD_3},
+    {KEYPATH_WIFI_SSID_2, KEYPATH_WIFI_PASSWORD_2},
 };
 
 static bool authorized(httpd_req_t *request) {
@@ -59,11 +69,185 @@ static esp_err_t require_auth(httpd_req_t *request) {
     return ESP_FAIL;
 }
 
+static bool decode_hex(const char *hex, uint8_t *bytes, size_t byte_count) {
+    if (!hex || strlen(hex) != byte_count * 2u) return false;
+    for (size_t index = 0u; index < byte_count; ++index) {
+        uint8_t value = 0u;
+        for (size_t nibble = 0u; nibble < 2u; ++nibble) {
+            char character = hex[index * 2u + nibble];
+            uint8_t digit;
+            if (character >= '0' && character <= '9') digit = (uint8_t)(character - '0');
+            else if (character >= 'a' && character <= 'f') digit = (uint8_t)(character - 'a' + 10);
+            else if (character >= 'A' && character <= 'F') digit = (uint8_t)(character - 'A' + 10);
+            else return false;
+            value = (uint8_t)((value << 4u) | digit);
+        }
+        bytes[index] = value;
+    }
+    return true;
+}
+
+static bool constant_time_equal(const uint8_t *left, const uint8_t *right, size_t length) {
+    uint8_t difference = 0u;
+    for (size_t index = 0u; index < length; ++index) difference |= left[index] ^ right[index];
+    return difference == 0u;
+}
+
+static const char *ota_state_name(esp_ota_img_states_t state) {
+    switch (state) {
+        case ESP_OTA_IMG_NEW: return "new";
+        case ESP_OTA_IMG_PENDING_VERIFY: return "pending-verify";
+        case ESP_OTA_IMG_VALID: return "valid";
+        case ESP_OTA_IMG_INVALID: return "invalid";
+        case ESP_OTA_IMG_ABORTED: return "aborted";
+        case ESP_OTA_IMG_UNDEFINED: return "undefined";
+        default: return "unknown";
+    }
+}
+
+static esp_err_t firmware_update_failure(httpd_req_t *request, const char *status,
+                                         const char *message) {
+    fixture_runtime_end_firmware_update(false, message);
+    char body[224];
+    snprintf(body, sizeof(body), "{\"ok\":false,\"message\":\"%s\"}\n", message);
+    return send_json(request, status, body);
+}
+
+static esp_err_t firmware_handler(httpd_req_t *request) {
+    if (require_auth(request) != ESP_OK) return ESP_OK;
+
+    char error[128];
+    if (!fixture_runtime_begin_firmware_update(error, sizeof(error))) {
+        char body[192];
+        snprintf(body, sizeof(body), "{\"ok\":false,\"message\":\"%s\"}\n", error);
+        return send_json(request, "409 Conflict", body);
+    }
+
+    const esp_partition_t *partition = esp_ota_get_next_update_partition(NULL);
+    if (!partition || request->content_len <= 0 || (size_t)request->content_len > partition->size) {
+        return firmware_update_failure(request, "413 Payload Too Large",
+                                       "image does not fit the inactive application slot");
+    }
+
+    char sha_hex[SHA256_HEX_SIZE + 1u];
+    char hmac_hex[SHA256_HEX_SIZE + 1u];
+    uint8_t expected_sha[SHA256_SIZE];
+    uint8_t expected_hmac[SHA256_SIZE];
+    if (httpd_req_get_hdr_value_str(request, "X-KeyPath-SHA256", sha_hex, sizeof(sha_hex)) != ESP_OK ||
+        httpd_req_get_hdr_value_str(request, "X-KeyPath-HMAC-SHA256", hmac_hex, sizeof(hmac_hex)) != ESP_OK ||
+        !decode_hex(sha_hex, expected_sha, sizeof(expected_sha)) ||
+        !decode_hex(hmac_hex, expected_hmac, sizeof(expected_hmac))) {
+        return firmware_update_failure(request, "400 Bad Request",
+                                       "valid SHA-256 and HMAC-SHA256 headers are required");
+    }
+
+    uint8_t *chunk = heap_caps_malloc(OTA_CHUNK_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (!chunk) return firmware_update_failure(request, "503 Service Unavailable",
+                                                "not enough internal memory for update buffer");
+
+    mbedtls_sha256_context sha;
+    mbedtls_md_context_t hmac;
+    mbedtls_sha256_init(&sha);
+    mbedtls_md_init(&hmac);
+    const mbedtls_md_info_t *sha256 = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+    esp_ota_handle_t ota_handle = 0u;
+    bool ota_started = false;
+    esp_err_t ota_result = ESP_OK;
+    if (!sha256 || mbedtls_sha256_starts(&sha, 0) != 0 ||
+        mbedtls_md_setup(&hmac, sha256, 1) != 0 ||
+        mbedtls_md_hmac_starts(&hmac, (const unsigned char *)KEYPATH_FIXTURE_TOKEN,
+                               strlen(KEYPATH_FIXTURE_TOKEN)) != 0) {
+        ota_result = ESP_FAIL;
+    } else {
+        ota_result = esp_ota_begin(partition, (size_t)request->content_len, &ota_handle);
+        ota_started = ota_result == ESP_OK;
+    }
+
+    size_t received = 0u;
+    uint16_t last_progress = 0u;
+    while (ota_result == ESP_OK && received < (size_t)request->content_len) {
+        size_t remaining = (size_t)request->content_len - received;
+        size_t wanted = remaining < OTA_CHUNK_SIZE ? remaining : OTA_CHUNK_SIZE;
+        int count = httpd_req_recv(request, (char *)chunk, wanted);
+        if (count == HTTPD_SOCK_ERR_TIMEOUT) continue;
+        if (count <= 0) {
+            ota_result = ESP_ERR_INVALID_RESPONSE;
+            break;
+        }
+        if (mbedtls_sha256_update(&sha, chunk, (size_t)count) != 0 ||
+            mbedtls_md_hmac_update(&hmac, chunk, (size_t)count) != 0) {
+            ota_result = ESP_FAIL;
+            break;
+        }
+        ota_result = esp_ota_write(ota_handle, chunk, (size_t)count);
+        received += (size_t)count;
+        uint16_t progress = (uint16_t)((received * 900u) / (size_t)request->content_len);
+        if (progress >= last_progress + 10u || received == (size_t)request->content_len) {
+            char detail[49];
+            snprintf(detail, sizeof(detail), "RECEIVING IMAGE %u%%", progress / 10u);
+            fixture_runtime_set_firmware_update_progress(progress, detail);
+            last_progress = progress;
+        }
+    }
+
+    uint8_t actual_sha[SHA256_SIZE] = {0};
+    uint8_t actual_hmac[SHA256_SIZE] = {0};
+    if (ota_result == ESP_OK &&
+        (mbedtls_sha256_finish(&sha, actual_sha) != 0 ||
+         mbedtls_md_hmac_finish(&hmac, actual_hmac) != 0)) {
+        ota_result = ESP_FAIL;
+    }
+    mbedtls_sha256_free(&sha);
+    mbedtls_md_free(&hmac);
+    free(chunk);
+
+    if (ota_result != ESP_OK || received != (size_t)request->content_len ||
+        !constant_time_equal(actual_sha, expected_sha, sizeof(actual_sha)) ||
+        !constant_time_equal(actual_hmac, expected_hmac, sizeof(actual_hmac))) {
+        if (ota_started) esp_ota_abort(ota_handle);
+        return firmware_update_failure(request, "400 Bad Request",
+                                       "image transfer or cryptographic verification failed");
+    }
+
+    fixture_runtime_set_firmware_update_progress(950u, "VALIDATING APPLICATION");
+    ota_result = esp_ota_end(ota_handle);
+    ota_started = false;
+    if (ota_result != ESP_OK) {
+        return firmware_update_failure(request, "400 Bad Request",
+                                       "ESP-IDF rejected the application image");
+    }
+    ota_result = esp_ota_set_boot_partition(partition);
+    if (ota_result != ESP_OK) {
+        return firmware_update_failure(request, "500 Internal Server Error",
+                                       "could not select the verified application slot");
+    }
+
+    fixture_runtime_end_firmware_update(true, "RESTARTING");
+    httpd_resp_set_hdr(request, "Connection", "close");
+    char response_body[192];
+    snprintf(response_body, sizeof(response_body),
+             "{\"ok\":true,\"message\":\"image verified; restarting\","
+             "\"rebooting\":true,\"targetSlot\":\"%s\"}\n", partition->label);
+    esp_err_t response = send_json(request, "202 Accepted", response_body);
+    vTaskDelay(pdMS_TO_TICKS(300));
+    esp_restart();
+    return response;
+}
+
 static esp_err_t status_handler(httpd_req_t *request) {
     if (require_auth(request) != ESP_OK) return ESP_OK;
     fixture_runtime_snapshot_t snapshot;
     fixture_runtime_snapshot(&snapshot);
-    char body[1792];
+    fixture_display_health_t display_health;
+    fixture_display_health_snapshot(&display_health);
+    const esp_partition_t *running_partition = esp_ota_get_running_partition();
+    esp_ota_img_states_t ota_state = ESP_OTA_IMG_UNDEFINED;
+    const char *ota_state_value = esp_ota_get_state_partition(running_partition, &ota_state) == ESP_OK
+                                      ? ota_state_name(ota_state) : "unavailable";
+    bool update_ready = !snapshot.pending_release && !snapshot.firmware_update_in_progress &&
+                        (snapshot.ui.state == FIXTURE_IDLE || snapshot.ui.state == FIXTURE_COMPLETE ||
+                         snapshot.ui.state == FIXTURE_ABORTED || snapshot.ui.state == FIXTURE_ERROR);
+    char body[2048];
     snprintf(body, sizeof(body),
              "{\"ok\":true,\"firmware\":\"%s\",\"build\":\"%s\","
              "\"platform\":\"waveshare-esp32-s3-touch-lcd-1.69\","
@@ -72,6 +256,9 @@ static esp_err_t status_handler(httpd_req_t *request) {
              "\"reportsSubmitted\":%" PRIu64 ",\"transfersCompleted\":%" PRIu64 ","
              "\"lateReports\":%" PRIu64 ",\"maximumLatenessUs\":%" PRId64 ","
              "\"submittedCRC32\":\"%08" PRIx32 "\",\"usbMounted\":%s,"
+             "\"displayHealthy\":%s,\"displayFrame\":%" PRIu64 ","
+             "\"displayLastFrameMs\":%" PRIu64 ",\"splashEnabled\":%s,\"splashComplete\":%s,"
+             "\"updateReady\":%s,\"updateInProgress\":%s,\"otaSlot\":\"%s\",\"otaState\":\"%s\","
              "\"wifiConnected\":%s,\"address\":\"%s\",\"network\":\"%s\",\"error\":\"%s\","
              "\"presentation\":{\"phase\":\"%s\",\"result\":\"%s\",\"progress\":%u,"
              "\"title\":\"%s\",\"detail\":\"%s\",\"next\":\"%s\","
@@ -83,7 +270,12 @@ static esp_err_t status_handler(httpd_req_t *request) {
              snapshot.script_crc32, snapshot.ui.event_count, snapshot.ui.repeat_count,
              snapshot.ui.current_repeat, snapshot.ui.reports_submitted, snapshot.transfers_completed,
              snapshot.ui.late_reports, snapshot.ui.maximum_lateness_us, snapshot.submitted_crc32,
-             snapshot.ui.usb_mounted ? "true" : "false", snapshot.ui.wifi_connected ? "true" : "false",
+             snapshot.ui.usb_mounted ? "true" : "false",
+             fixture_display_is_healthy() ? "true" : "false", display_health.frame_sequence,
+             display_health.last_frame_ms, display_health.splash_enabled ? "true" : "false",
+             display_health.splash_complete ? "true" : "false", update_ready ? "true" : "false",
+             snapshot.firmware_update_in_progress ? "true" : "false", running_partition->label,
+             ota_state_value, snapshot.ui.wifi_connected ? "true" : "false",
              snapshot.network_address, snapshot.network_name, snapshot.error,
              fixture_presentation_phase_name(snapshot.presentation.phase),
              fixture_result_name(snapshot.presentation.result), snapshot.presentation.progress_per_mille,
@@ -276,7 +468,7 @@ static esp_err_t start_http_server(void) {
     if (http_server) return ESP_OK;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = CONFIG_KEYPATH_FIXTURE_HTTP_PORT;
-    config.max_uri_handlers = 7;
+    config.max_uri_handlers = 8;
     config.stack_size = 8192;
     config.core_id = 0;
     config.task_priority = 4;
@@ -289,12 +481,18 @@ static esp_err_t start_http_server(void) {
         {.uri = "/v1/abort", .method = HTTP_POST, .handler = abort_handler},
         {.uri = "/v1/trace", .method = HTTP_GET, .handler = trace_handler},
         {.uri = "/v1/presentation", .method = HTTP_POST, .handler = presentation_handler},
+        {.uri = "/v1/firmware", .method = HTTP_POST, .handler = firmware_handler},
     };
     for (size_t index = 0; index < sizeof(handlers) / sizeof(handlers[0]); ++index) {
         ESP_RETURN_ON_ERROR(httpd_register_uri_handler(http_server, &handlers[index]), TAG,
                             "URI registration failed");
     }
+    control_plane_ready = true;
     return ESP_OK;
+}
+
+bool fixture_network_control_ready(void) {
+    return control_plane_ready;
 }
 
 static esp_err_t select_wifi_profile(size_t index) {

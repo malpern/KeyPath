@@ -1,0 +1,272 @@
+#!/usr/bin/env python3
+"""Run a focused physical-HID Shift lead/hold/release timing matrix."""
+
+from __future__ import annotations
+
+import argparse
+import datetime
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import time
+from typing import Any
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+RUNNER = pathlib.Path(os.environ.get(
+    "KEYPATH_PHYSICAL_HID_RUNNER", ROOT / "Scripts/lab/physical-hid-capture-run"
+))
+JIG_TOOL = pathlib.Path(os.environ.get(
+    "KEYPATH_CAPTURE_JIG_TOOL", ROOT / "Scripts/lab/hid-capture-jig-tool"
+))
+DEFAULT_TEXT = ROOT / "Scripts/lab/pico-hid-fixture/tests/fixtures/burst.txt"
+SHIFT_DEMOTIONS = {
+    **{shifted: plain for shifted, plain in zip("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")},
+    **dict(zip("!@#$%^&*()_+{}|:\"~<>?", "1234567890-=[]\\;'`,./")),
+}
+
+
+def integer_list(value: str) -> list[int]:
+    try:
+        values = [int(part) for part in value.split(",")]
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("timing values must be comma-separated integers") from error
+    if not values or any(item < 0 for item in values) or len(set(values)) != len(values):
+        raise argparse.ArgumentTypeError("timing values must be unique non-negative integers")
+    return values
+
+
+def safe_name(value: str) -> str:
+    return "".join(character if character.isalnum() or character in "-_." else "_" for character in value)
+
+
+def analyze_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
+    capture = artifact.get("capture", {})
+    expected = str(capture.get("expected", ""))
+    received = str(capture.get("received", ""))
+    paired_mismatches = [
+        {"offset": index, "expected": wanted, "received": actual}
+        for index, (wanted, actual) in enumerate(zip(expected, received))
+        if wanted != actual
+    ]
+    shift_demotions = sum(
+        1 for mismatch in paired_mismatches
+        if SHIFT_DEMOTIONS.get(mismatch["expected"]) == mismatch["received"]
+    )
+    wrong_characters = len(paired_mismatches) + abs(len(expected) - len(received))
+    fixture = artifact.get("fixture", {})
+    return {
+        "runID": artifact.get("runID"),
+        "runnerStatus": artifact.get("status"),
+        "shiftLeadMs": artifact.get("modifierTiming", {}).get("shiftLeadMs"),
+        "keyHoldMs": artifact.get("modifierTiming", {}).get("keyHoldMs"),
+        "shiftReleaseLagMs": artifact.get("modifierTiming", {}).get("shiftReleaseLagMs"),
+        "expectedCharacters": len(expected),
+        "receivedCharacters": len(received),
+        "wrongCharacters": wrong_characters,
+        "shiftDemotions": shift_demotions,
+        "focusValid": bool(capture.get("focused")),
+        "allKeysReleased": not capture.get("pressedKeyCodes"),
+        "allModifiersReleased": capture.get("activeModifiers", 0) == 0,
+        "lateReports": fixture.get("lateReports"),
+        "maximumLatenessUs": fixture.get("maximumLatenessUs"),
+        "fixtureTraceReports": len(artifact.get("fixtureTrace", [])),
+        "firstMismatches": paired_mismatches[:12],
+    }
+
+
+def classify(cases: list[dict[str, Any]]) -> str:
+    valid = [case for case in cases if case["focusValid"] and case["allKeysReleased"] and
+             case["allModifiersReleased"]]
+    if not valid:
+        return "harness-invalid"
+    baseline = next((case for case in valid if case["shiftLeadMs"] == 0 and
+                     case["shiftReleaseLagMs"] == 0), None)
+    exact = [case for case in valid if case["wrongCharacters"] == 0]
+    if exact and baseline and baseline["wrongCharacters"] > 0:
+        return "modifier-timing-sensitive"
+    if exact:
+        return "exact-output-observed"
+    if any(case["shiftDemotions"] for case in valid):
+        return "shift-demotion-persists"
+    return "output-corruption-persists"
+
+
+def ensure_jig_running() -> tuple[bool, str]:
+    """Preserve a responsive Jig process without stealing keyboard focus."""
+    status = subprocess.run([str(JIG_TOOL), "status"], text=True, capture_output=True)
+    if status.returncode == 0:
+        detail = status.stderr.strip() or status.stdout.strip() or "capture Jig is responsive"
+        return True, detail
+    result = subprocess.run([str(JIG_TOOL), "open"], text=True, capture_output=True)
+    detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
+    return result.returncode == 0, detail
+
+
+def wait_for_jig_readiness(timeout_seconds: float) -> tuple[bool, str]:
+    """Wait for a stable resource window without activating the Jig."""
+    deadline = time.monotonic() + timeout_seconds
+    detail = "capture Jig readiness is unavailable"
+    while True:
+        result = subprocess.run([str(JIG_TOOL), "status"], text=True, capture_output=True)
+        if result.returncode != 0:
+            detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
+        else:
+            try:
+                response = json.loads(result.stdout)
+                readiness = response.get("systemReadiness", {})
+                detail = str(readiness.get("detail", "resource readiness is unavailable"))
+                if readiness.get("canProceed"):
+                    return True, detail
+            except (json.JSONDecodeError, AttributeError):
+                detail = "capture Jig returned invalid readiness JSON"
+        if time.monotonic() >= deadline:
+            return False, detail
+        time.sleep(1)
+
+
+def parser() -> argparse.ArgumentParser:
+    result = argparse.ArgumentParser(description=__doc__)
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    result.add_argument("--run-id-prefix", default=f"shift-timing-{stamp}")
+    result.add_argument("--text", type=pathlib.Path, default=DEFAULT_TEXT)
+    result.add_argument("--lead-values", type=integer_list, default=integer_list("0,2,4,8,12"))
+    result.add_argument("--release-values", type=integer_list, default=integer_list("0,2,4,8,12"))
+    result.add_argument("--interval-ms", type=int, default=50)
+    result.add_argument("--hold-ms", type=int, default=8)
+    result.add_argument("--repeat", type=int, default=5)
+    result.add_argument("--cycle-gap-ms", type=int, default=250)
+    result.add_argument("--delay-ms", type=int, default=1000)
+    result.add_argument("--readiness-timeout-seconds", type=float, default=60)
+    result.add_argument("--fixture-host", default=os.environ.get(
+        "KEYPATH_FIXTURE_HOST", "keypath-hid-fixture.local"))
+    result.add_argument("--output-directory", type=pathlib.Path)
+    result.add_argument("--continue-after-infrastructure-error", action="store_true")
+    return result
+
+
+def main() -> int:
+    arguments = parser().parse_args()
+    if not arguments.text.is_file():
+        print(f"physical-hid-shift-matrix: text file does not exist: {arguments.text}", file=sys.stderr)
+        return 2
+    maximum_timing = max(arguments.lead_values) + arguments.hold_ms + max(arguments.release_values)
+    if maximum_timing >= arguments.interval_ms:
+        print("physical-hid-shift-matrix: lead + hold + release must fit inside the interval", file=sys.stderr)
+        return 2
+    if arguments.readiness_timeout_seconds < 0:
+        print("physical-hid-shift-matrix: readiness timeout cannot be negative", file=sys.stderr)
+        return 2
+
+    output_directory = arguments.output_directory or (
+        pathlib.Path.home() / ".local/state/keypath-hid-capture-jig/modifier-matrix" /
+        safe_name(arguments.run_id_prefix)
+    )
+    output_directory.mkdir(parents=True, exist_ok=True)
+    output_directory.chmod(0o700)
+    plan = {
+        "schemaVersion": 1,
+        "runIDPrefix": arguments.run_id_prefix,
+        "text": str(arguments.text),
+        "intervalMs": arguments.interval_ms,
+        "holdMs": arguments.hold_ms,
+        "repeat": arguments.repeat,
+        "leadValuesMs": arguments.lead_values,
+        "releaseValuesMs": arguments.release_values,
+        "caseCount": len(arguments.lead_values) * len(arguments.release_values),
+    }
+    (output_directory / "plan.json").write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
+    (output_directory / "plan.json").chmod(0o600)
+
+    jig_ready, detail = ensure_jig_running()
+    if not jig_ready:
+        print(f"physical-hid-shift-matrix: could not open capture Jig: {detail}", file=sys.stderr)
+        return 2
+
+    cases: list[dict[str, Any]] = []
+    infrastructure_errors: list[dict[str, Any]] = []
+    for lead_ms in arguments.lead_values:
+        for release_ms in arguments.release_values:
+            run_id = safe_name(f"{arguments.run_id_prefix}-l{lead_ms}-r{release_ms}")[:48]
+            artifact_path = output_directory / f"{run_id}.json"
+            jig_ready, detail = ensure_jig_running()
+            if not jig_ready:
+                infrastructure_errors.append({
+                    "runID": run_id, "shiftLeadMs": lead_ms,
+                    "shiftReleaseLagMs": release_ms, "returnCode": 2,
+                    "detail": f"capture Jig focus failed: {detail}",
+                })
+                if not arguments.continue_after_infrastructure_error:
+                    break
+                continue
+            resource_ready, detail = wait_for_jig_readiness(arguments.readiness_timeout_seconds)
+            if not resource_ready:
+                infrastructure_errors.append({
+                    "runID": run_id, "shiftLeadMs": lead_ms,
+                    "shiftReleaseLagMs": release_ms, "returnCode": 2,
+                    "detail": f"capture Jig resource gate timed out: {detail}",
+                })
+                if not arguments.continue_after_infrastructure_error:
+                    break
+                continue
+            command = [
+                str(RUNNER), "--run-id", run_id, "--text", str(arguments.text),
+                "--fixture-host", arguments.fixture_host,
+                "--interval-ms", str(arguments.interval_ms), "--hold-ms", str(arguments.hold_ms),
+                "--shift-lead-ms", str(lead_ms), "--shift-release-lag-ms", str(release_ms),
+                "--repeat", str(arguments.repeat), "--cycle-gap-ms", str(arguments.cycle_gap_ms),
+                "--delay-ms", str(arguments.delay_ms), "--output", str(artifact_path),
+            ]
+            result = subprocess.run(command, text=True, capture_output=True)
+            if result.returncode == 2 or not artifact_path.is_file():
+                error = {
+                    "runID": run_id, "shiftLeadMs": lead_ms, "shiftReleaseLagMs": release_ms,
+                    "returnCode": result.returncode,
+                    "detail": result.stderr.strip() or result.stdout.strip() or "artifact missing",
+                }
+                infrastructure_errors.append(error)
+                if not arguments.continue_after_infrastructure_error:
+                    break
+                continue
+            artifact = json.loads(artifact_path.read_text())
+            case = analyze_artifact(artifact)
+            case["artifact"] = str(artifact_path)
+            cases.append(case)
+            print(json.dumps({key: case[key] for key in (
+                "runID", "shiftLeadMs", "shiftReleaseLagMs", "wrongCharacters",
+                "shiftDemotions", "focusValid", "lateReports"
+            )}, sort_keys=True), flush=True)
+        if infrastructure_errors and not arguments.continue_after_infrastructure_error:
+            break
+
+    ranked = sorted(
+        (case for case in cases if case["focusValid"] and case["allKeysReleased"] and
+         case["allModifiersReleased"]),
+        key=lambda case: (case["wrongCharacters"], case["shiftDemotions"],
+                          case["shiftLeadMs"] + case["shiftReleaseLagMs"]),
+    )
+    summary = {
+        "schemaVersion": 1,
+        "status": "blocked" if infrastructure_errors else "completed",
+        "classification": classify(cases),
+        "plan": plan,
+        "completedCases": len(cases),
+        "infrastructureErrors": infrastructure_errors,
+        "bestCases": ranked[:5],
+        "cases": cases,
+    }
+    summary_path = output_directory / "summary.json"
+    summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
+    summary_path.chmod(0o600)
+    print(json.dumps({
+        "status": summary["status"], "classification": summary["classification"],
+        "completedCases": len(cases), "plannedCases": plan["caseCount"],
+        "summary": str(summary_path), "bestCases": ranked[:3],
+    }, indent=2, sort_keys=True))
+    return 2 if infrastructure_errors else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

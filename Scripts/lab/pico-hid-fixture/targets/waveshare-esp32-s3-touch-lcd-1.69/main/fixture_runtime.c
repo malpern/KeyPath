@@ -24,6 +24,7 @@ static bool network_connected;
 static char network_address[48] = "unassigned";
 static char network_name[33] = "unassigned";
 static fixture_presentation_t presentation;
+static bool firmware_update_in_progress;
 
 static void runtime_lock(void) {
     configASSERT(xSemaphoreTake(fixture_mutex, portMAX_DELAY) == pdTRUE);
@@ -114,16 +115,28 @@ static void executor_task(void *context) {
     (void)context;
     while (true) {
         bool running;
+        uint32_t wait_us;
         runtime_lock();
-        fixture_poll(&fixture, (uint64_t)esp_timer_get_time(), tud_mounted(), tud_hid_ready(),
+        uint64_t now_us = (uint64_t)esp_timer_get_time();
+        fixture_poll(&fixture, now_us, tud_mounted(), tud_hid_ready(),
                      send_keyboard_report, NULL);
         running = fixture.state == FIXTURE_RUNNING;
+        wait_us = fixture_time_until_next_action_us(&fixture, now_us);
         runtime_unlock();
 
-        if (running) {
-            esp_rom_delay_us(25u);
+        if (!running) {
+            /* USB mount and safety-release state do not need a 1 kHz idle poll. */
+            vTaskDelay(pdMS_TO_TICKS(5));
+        } else if (wait_us > 1500u) {
+            /*
+             * Leave at least 1 ms for the precision spin, but yield frequently enough
+             * that touch, HTTP abort, and status snapshots can acquire the state lock.
+             */
+            uint32_t sleep_ms = (wait_us - 1000u) / 1000u;
+            if (sleep_ms > 10u) sleep_ms = 10u;
+            vTaskDelay(pdMS_TO_TICKS(sleep_ms));
         } else {
-            vTaskDelay(pdMS_TO_TICKS(1));
+            esp_rom_delay_us(25u);
         }
     }
 }
@@ -161,6 +174,9 @@ void fixture_runtime_start_executor(void) {
 
 void fixture_runtime_set_network(bool connected, const char *address) {
     runtime_lock();
+    if (network_connected && !connected) {
+        fixture_abort_if_active(&fixture, "Wi-Fi disconnected during active run");
+    }
     network_connected = connected;
     snprintf(network_address, sizeof(network_address), "%s", address ? address : "unassigned");
     runtime_unlock();
@@ -192,27 +208,44 @@ void fixture_runtime_snapshot(fixture_runtime_snapshot_t *snapshot) {
     snapshot->next_event = fixture.next_event;
     snapshot->transfers_completed = fixture.transfers_completed;
     snapshot->submitted_crc32 = fixture.submitted_crc32;
+    snapshot->pending_release = fixture.pending_release;
+    snapshot->firmware_update_in_progress = firmware_update_in_progress;
     snapshot->presentation = presentation;
     runtime_unlock();
 }
 
 bool fixture_runtime_load(const char *body, size_t length, char *error, size_t capacity) {
     runtime_lock();
-    bool ok = fixture_load_script(&fixture, body, length, error, capacity);
+    bool ok = false;
+    if (firmware_update_in_progress) {
+        snprintf(error, capacity, "firmware update in progress");
+    } else {
+        ok = fixture_load_script(&fixture, body, length, error, capacity);
+    }
     runtime_unlock();
     return ok;
 }
 
 bool fixture_runtime_arm(const char *run_id, char *error, size_t capacity) {
     runtime_lock();
-    bool ok = fixture_arm(&fixture, run_id, error, capacity);
+    bool ok = false;
+    if (firmware_update_in_progress) {
+        snprintf(error, capacity, "firmware update in progress");
+    } else {
+        ok = fixture_arm(&fixture, run_id, error, capacity);
+    }
     runtime_unlock();
     return ok;
 }
 
 bool fixture_runtime_start(const char *run_id, uint32_t delay_ms, char *error, size_t capacity) {
     runtime_lock();
-    bool ok = fixture_start(&fixture, run_id, delay_ms, (uint64_t)esp_timer_get_time(), error, capacity);
+    bool ok = false;
+    if (firmware_update_in_progress) {
+        snprintf(error, capacity, "firmware update in progress");
+    } else {
+        ok = fixture_start(&fixture, run_id, delay_ms, (uint64_t)esp_timer_get_time(), error, capacity);
+    }
     runtime_unlock();
     return ok;
 }
@@ -226,6 +259,59 @@ void fixture_runtime_abort(const char *reason) {
 void fixture_runtime_set_presentation(const fixture_presentation_t *value) {
     runtime_lock();
     presentation = *value;
+    runtime_unlock();
+}
+
+bool fixture_runtime_begin_firmware_update(char *error, size_t capacity) {
+    runtime_lock();
+    bool terminal = fixture.state == FIXTURE_IDLE || fixture.state == FIXTURE_COMPLETE ||
+                    fixture.state == FIXTURE_ABORTED || fixture.state == FIXTURE_ERROR;
+    bool safe = terminal && !fixture.pending_release && !firmware_update_in_progress;
+    if (!safe) {
+        if (firmware_update_in_progress) {
+            snprintf(error, capacity, "firmware update already in progress");
+        } else if (fixture.pending_release) {
+            snprintf(error, capacity, "waiting for the all-keys-released safety report");
+        } else {
+            snprintf(error, capacity, "fixture must be idle or in a terminal state before updating");
+        }
+    } else {
+        firmware_update_in_progress = true;
+        fixture_presentation_init(&presentation);
+        presentation.branded_firmware_update = true;
+        presentation.phase = FIXTURE_PRESENT_PREPARING;
+        snprintf(presentation.title, sizeof(presentation.title), "FIRMWARE UPDATE");
+        snprintf(presentation.detail, sizeof(presentation.detail), "AUTHENTICATING IMAGE");
+        snprintf(presentation.next, sizeof(presentation.next), "KEEP POWER CONNECTED");
+    }
+    runtime_unlock();
+    return safe;
+}
+
+void fixture_runtime_set_firmware_update_progress(uint16_t progress_per_mille, const char *detail) {
+    runtime_lock();
+    if (firmware_update_in_progress) {
+        presentation.phase = FIXTURE_PRESENT_PREPARING;
+        presentation.progress_per_mille = progress_per_mille > 1000u ? 1000u : progress_per_mille;
+        snprintf(presentation.detail, sizeof(presentation.detail), "%s", detail ? detail : "UPDATING");
+    }
+    runtime_unlock();
+}
+
+void fixture_runtime_end_firmware_update(bool success, const char *detail) {
+    runtime_lock();
+    if (firmware_update_in_progress) {
+        presentation.phase = FIXTURE_PRESENT_RESULT;
+        presentation.result = success ? FIXTURE_RESULT_PASS : FIXTURE_RESULT_FAIL;
+        presentation.progress_per_mille = success ? 1000u : presentation.progress_per_mille;
+        snprintf(presentation.title, sizeof(presentation.title), "%s",
+                 success ? "UPDATE VERIFIED" : "UPDATE REJECTED");
+        snprintf(presentation.detail, sizeof(presentation.detail), "%s",
+                 detail ? detail : (success ? "RESTARTING" : "IMAGE NOT INSTALLED"));
+        snprintf(presentation.next, sizeof(presentation.next), "%s",
+                 success ? "RESTARTING SAFELY" : "CURRENT FIRMWARE SAFE");
+        firmware_update_in_progress = false;
+    }
     runtime_unlock();
 }
 
