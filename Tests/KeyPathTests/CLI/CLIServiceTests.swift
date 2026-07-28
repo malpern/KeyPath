@@ -62,64 +62,46 @@ final class CLIServiceTests: XCTestCase {
         XCTAssertEqual(stopCount, 1)
     }
 
-    func testRestartServiceDoesNotReportSuccessWhenStopFails() async {
+    func testRestartServiceDoesNotReportSuccessWhenPrivilegedHelperFails() async {
         let operations = ServiceOperationRecorder()
-
         let facade = SystemFacade(
-            startServiceOperation: { await operations.recordStart() },
-            stopServiceOperation: { throw ServiceOperationError.failed },
+            restartServiceOperation: {
+                await operations.recordRestart()
+                throw ServiceOperationError.failed
+            },
             runtimeSnapshotProvider: { Self.runtimeSnapshot(running: true, responding: true) },
             runtimeTransitionTimeoutSeconds: 0.05,
-            pollDelayNanoseconds: 0,
-            restartDelayNanoseconds: 0
+            pollDelayNanoseconds: 0
         )
 
         let restarted = await facade.restartService()
-        let startCount = await operations.startCount
+        let restartCount = await operations.restartCount
 
         XCTAssertFalse(restarted)
-        XCTAssertEqual(startCount, 0)
+        XCTAssertEqual(restartCount, 1)
     }
 
-    func testRestartServiceAcceptsKeepAliveRelaunchBeforeStoppedSnapshot() async {
+    func testRestartServiceWaitsForHealthyRuntimeAfterHelperSuccess() async {
+        let snapshots = RuntimeSnapshotSequence([
+            Self.runtimeSnapshot(running: false, responding: false),
+            Self.runtimeSnapshot(running: true, responding: true)
+        ])
         let operations = ServiceOperationRecorder()
         let invalidations = SynchronousCallRecorder()
         let facade = SystemFacade(
-            startServiceOperation: { await operations.recordStart() },
-            stopServiceOperation: { await operations.recordStop() },
+            restartServiceOperation: { await operations.recordRestart() },
             runtimeCacheInvalidator: { invalidations.record() },
-            runtimeSnapshotProvider: { Self.runtimeSnapshot(running: true, responding: true) },
+            runtimeSnapshotProvider: { await snapshots.next() },
             runtimeTransitionTimeoutSeconds: 0.05,
-            pollDelayNanoseconds: 0,
-            restartDelayNanoseconds: 0
+            pollDelayNanoseconds: 0
         )
 
         let restarted = await facade.restartService()
-        let startCount = await operations.startCount
-        let stopCount = await operations.stopCount
+        let restartCount = await operations.restartCount
 
         XCTAssertTrue(restarted)
-        XCTAssertEqual(stopCount, 1)
-        XCTAssertEqual(startCount, 1)
-        XCTAssertEqual(invalidations.count, 2)
-    }
-
-    func testRestartServiceDoesNotReportSuccessWhenStartFails() async {
-        let operations = ServiceOperationRecorder()
-        let facade = SystemFacade(
-            startServiceOperation: { throw ServiceOperationError.failed },
-            stopServiceOperation: { await operations.recordStop() },
-            runtimeSnapshotProvider: { Self.runtimeSnapshot(running: true, responding: true) },
-            runtimeTransitionTimeoutSeconds: 0.05,
-            pollDelayNanoseconds: 0,
-            restartDelayNanoseconds: 0
-        )
-
-        let restarted = await facade.restartService()
-        let stopCount = await operations.stopCount
-
-        XCTAssertFalse(restarted)
-        XCTAssertEqual(stopCount, 1)
+        XCTAssertEqual(restartCount, 1)
+        XCTAssertEqual(invalidations.count, 1)
     }
 
     func testStartServiceReturnsFalseWhenRuntimeNeverBecomesHealthy() async {
@@ -204,6 +186,7 @@ private enum ServiceOperationError: Error {
 private actor ServiceOperationRecorder {
     private(set) var startCount = 0
     private(set) var stopCount = 0
+    private(set) var restartCount = 0
 
     func recordStart() {
         startCount += 1
@@ -211,6 +194,10 @@ private actor ServiceOperationRecorder {
 
     func recordStop() {
         stopCount += 1
+    }
+
+    func recordRestart() {
+        restartCount += 1
     }
 }
 

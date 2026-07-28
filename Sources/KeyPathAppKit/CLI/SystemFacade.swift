@@ -12,11 +12,11 @@ public struct SystemFacade: Sendable {
 
     private let startServiceOperation: @Sendable () async throws -> Void
     private let stopServiceOperation: @Sendable () async throws -> Void
+    private let restartServiceOperation: @Sendable () async throws -> Void
     private let runtimeCacheInvalidator: @Sendable () async -> Void
     private let runtimeSnapshotProvider: @Sendable () async -> RuntimeSnapshot
     private let runtimeTransitionTimeoutSeconds: TimeInterval
     private let pollDelayNanoseconds: UInt64
-    private let restartDelayNanoseconds: UInt64
 
     public init() {
         self.init(
@@ -25,6 +25,9 @@ public struct SystemFacade: Sendable {
             },
             stopServiceOperation: {
                 try await HelperManager.shared.stopKanataService()
+            },
+            restartServiceOperation: {
+                try await HelperManager.shared.restartKanataService()
             },
             runtimeCacheInvalidator: {
                 await MainActor.run {
@@ -44,6 +47,9 @@ public struct SystemFacade: Sendable {
         stopServiceOperation: @escaping @Sendable () async throws -> Void = {
             try await HelperManager.shared.stopKanataService()
         },
+        restartServiceOperation: @escaping @Sendable () async throws -> Void = {
+            try await HelperManager.shared.restartKanataService()
+        },
         runtimeCacheInvalidator: @escaping @Sendable () async -> Void = {
             await MainActor.run {
                 ServiceHealthChecker.shared.invalidateHealthCache()
@@ -53,16 +59,15 @@ public struct SystemFacade: Sendable {
         // The Kanata LaunchDaemon has a 10-second ThrottleInterval. A restart
         // can legitimately remain stopped for that long before launchd starts it.
         runtimeTransitionTimeoutSeconds: TimeInterval = 20,
-        pollDelayNanoseconds: UInt64 = 200_000_000,
-        restartDelayNanoseconds: UInt64 = 500_000_000
+        pollDelayNanoseconds: UInt64 = 200_000_000
     ) {
         self.startServiceOperation = startServiceOperation
         self.stopServiceOperation = stopServiceOperation
+        self.restartServiceOperation = restartServiceOperation
         self.runtimeCacheInvalidator = runtimeCacheInvalidator
         self.runtimeSnapshotProvider = runtimeSnapshotProvider
         self.runtimeTransitionTimeoutSeconds = runtimeTransitionTimeoutSeconds
         self.pollDelayNanoseconds = pollDelayNanoseconds
-        self.restartDelayNanoseconds = restartDelayNanoseconds
     }
 
     // MARK: - Service Lifecycle
@@ -102,17 +107,11 @@ public struct SystemFacade: Sendable {
             CLIRuntimeBootstrap.ensureConfigured()
         }
         do {
-            try await stopServiceOperation()
-            await runtimeCacheInvalidator()
-            if restartDelayNanoseconds > 0 {
-                try? await Task.sleep(nanoseconds: restartDelayNanoseconds)
-            }
-            try await startServiceOperation()
+            try await restartServiceOperation()
             await runtimeCacheInvalidator()
 
-            // The SMAppService job is KeepAlive. launchd may relaunch it before
-            // polling can observe a stopped snapshot, so restart success is the
-            // final healthy runtime—not a transient stopped state.
+            // The helper performs one launchctl kickstart -k against the fixed
+            // launchd job. Verify the final healthy runtime, not a transient gap.
             return await waitForRuntime(timeoutSeconds: runtimeTransitionTimeoutSeconds) { snapshot in
                 snapshot.isRunning && snapshot.isResponding
             }
