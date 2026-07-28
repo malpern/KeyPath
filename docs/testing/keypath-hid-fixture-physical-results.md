@@ -114,12 +114,12 @@ Kanata. It does establish that the prior corruptions came through the working Ka
 delivery path. KeyPath was relaunched afterward, and a recovery baseline passed 34 / 34 characters
 and 68 / 68 reports with all keys and modifiers released.
 
-## 2026-07-28 Shift-matrix readiness
+## 2026-07-28 Shift-matrix readiness and smoke result
 
-The fixture and harness are ready for the next dedicated physical window, but no new KeyPath result
-is claimed yet. Firmware build `4d1cb1cb54c4` is running from a valid OTA slot on `beachFi`;
-authenticated status reports mounted USB, healthy live display frames, and a completed boot splash.
-The complete host, core, client, and QEMU suite passes.
+Firmware build `4d1cb1cb54c4` is running from a valid OTA slot and rotated successfully from its stale
+`192.168.4.21` address to `529beach` at `10.0.0.47`. Authenticated status reports mounted USB,
+healthy live display frames, and a completed boot splash. The complete host, core, client, and QEMU
+suite passes.
 
 The diagnostic compiler now independently varies Shift lead and release lag around a fixed key hold.
 The combined runner persists the firmware's exact report trace alongside Jig focus, event, output,
@@ -133,6 +133,19 @@ not KeyPath test outcomes.
 
 Focus orchestration now preserves an existing healthy Jig, waits for resources without activating it,
 and requests focus only immediately before arm. Physical runs require exclusive use of the active
-desktop because real USB keyboard input cannot target a background application. Reserve about 10
-minutes for the three-cell smoke matrix; after it is valid, reserve another 20-30 minutes for the full
-5x5 Shift lead/release matrix.
+desktop because real USB keyboard input cannot target a background application.
+
+The admitted smoke run `shift-smoke-20260728T222037Z` completed all three cells:
+
+| Shift lead | Release lag | Output | Firmware trace | Timing |
+|---:|---:|---:|---:|---:|
+| 0 ms | 0 ms | 24 / 24 exact | 48 reports | 0 late; 34 us maximum |
+| 4 ms | 0 ms | 24 / 24 exact | 58 reports | 0 late; 35 us maximum |
+| 8 ms | 0 ms | 24 / 24 exact | 58 reports | 0 late; 34 us maximum |
+
+Every cell retained Jig focus and ended with no pressed keys or active modifiers. The combined
+summary is
+`~/.local/state/keypath-hid-capture-jig/modifier-matrix/shift-smoke-20260728T222037Z/summary.json`.
+This proves the harness can execute and correlate the timing variants, but 24 characters per cell
+are too few to supersede the earlier 240-character calm failure. Reserve 20-30 minutes for the full
+5x5 Shift lead/release matrix before deciding whether the defect persists or is timing-sensitive.
