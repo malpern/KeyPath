@@ -145,11 +145,18 @@ private struct KeyboardStageKeyLegendOverlay: View {
     let visibility: Double
 
     var body: some View {
-        let primarySize = max(8, min(22, frame.height * 0.34))
-        let secondarySize = max(6, min(12, frame.height * 0.17))
+        let usesNumberRowStack = key.legend.primary.count == 1
+            && key.legend.secondary?.count == 1
+        let primarySize = max(
+            8,
+            min(22, frame.height * (usesNumberRowStack ? 0.30 : 0.34))
+        )
+        let secondarySize = usesNumberRowStack
+            ? primarySize
+            : max(6, min(14, frame.height * 0.20))
         let primaryWeight: Font.Weight = switch key.role {
-        case .standard, .modifier, .dimmed: .regular
-        case .deck, .recommended, .escape, .hyper, .launcher, .installed: .medium
+        case .standard, .modifier, .recommended, .escape, .dimmed: .light
+        case .deck, .hyper, .launcher, .installed: .medium
         }
         VStack(spacing: max(1, frame.height * 0.025)) {
             ZStack {
@@ -169,7 +176,11 @@ private struct KeyboardStageKeyLegendOverlay: View {
 
             if let secondary = key.legend.secondary {
                 Text(verbatim: secondary)
-                    .font(.system(size: secondarySize, weight: .medium, design: .default))
+                    .font(.system(
+                        size: secondarySize,
+                        weight: usesNumberRowStack ? .regular : .medium,
+                        design: .default
+                    ))
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
                     .opacity(0.86)

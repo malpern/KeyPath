@@ -105,7 +105,7 @@ enum KeyboardStageSceneBuilder {
                 keys[capsIndex].role = .recommended
                 keys[capsIndex].glow = 0.28
                 keys[capsIndex].legend = KeyboardStageLegend(primary: "caps lock")
-                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 1)
+                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 1.18)
             }
 
         case .capsMotivation:
@@ -116,7 +116,7 @@ enum KeyboardStageSceneBuilder {
                 keys[capsIndex].legend = KeyboardStageLegend(primary: "caps lock")
                 keys[capsIndex].accessibilityRole = .capsToEscape
                 revealTarget = .capsToEscape(keyID: capsKeyID)
-                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 1)
+                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 1.18)
             }
 
         case .capsApplying:
@@ -136,7 +136,7 @@ enum KeyboardStageSceneBuilder {
                 keys[capsIndex].accessibilityRole = .capsToEscape
                 decorations.append(contentsOf: capsEchoes(frame: keys[capsIndex].frame))
                 revealTarget = .capsToEscape(keyID: capsKeyID)
-                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 1)
+                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 1.18)
             }
 
         case .capsInstalled:
@@ -147,7 +147,7 @@ enum KeyboardStageSceneBuilder {
                 keys[capsIndex].legend = KeyboardStageLegend(primary: "esc")
                 keys[capsIndex].accessibilityRole = .capsToEscape
                 revealTarget = .capsToEscape(keyID: capsKeyID)
-                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 1)
+                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 1.18)
             }
 
         case .hyperMotivation:
@@ -414,7 +414,7 @@ enum KeyboardStageSceneBuilder {
         case KeyCode.capsLock:
             return KeyboardStageLegend(primary: "caps lock")
         case KeyCode.tab:
-            return KeyboardStageLegend(primary: "Tab")
+            return KeyboardStageLegend(primary: "tab")
         case KeyCode.function:
             return KeyboardStageLegend(primary: "fn")
         case KeyCode.leftControl, KeyCode.rightControl:
@@ -427,6 +427,15 @@ enum KeyboardStageSceneBuilder {
             return KeyboardStageLegend(primary: "⌘", secondary: "command")
         default:
             let label = keymap.displayLabel(for: key, includeExtraKeys: includePunctuation)
+            if KeyCode.numberRow.contains(key.keyCode),
+               let shiftedLabel = keymap.shiftLabels[key.keyCode],
+               shiftedLabel != label
+            {
+                return KeyboardStageLegend(
+                    primary: shiftedLabel,
+                    secondary: label
+                )
+            }
             return KeyboardStageLegend(
                 primary: label.count == 1 ? label.uppercased() : label.capitalized
             )
@@ -667,15 +676,30 @@ enum KeyboardStageSceneBuilder {
     ) -> KeyboardStageViewport {
         KeyboardStageViewport(
             focus: KeyboardStagePoint(
-                x: min(bounds.maxX, capsFrame.midX + bounds.size.width * 0.17),
+                x: min(bounds.maxX, capsFrame.midX + bounds.size.width * 0.12),
                 y: min(bounds.maxY, capsFrame.midY + bounds.size.height * 0.04)
             ),
             zoom: zoom,
-            verticalBias: 0.08
+            verticalBias: -0.055
         )
     }
 
     private enum KeyCode {
+        static let numberRow: Set<UInt16> = [
+            50, // `
+            18, // 1
+            19, // 2
+            20, // 3
+            21, // 4
+            23, // 5
+            22, // 6
+            26, // 7
+            28, // 8
+            25, // 9
+            29, // 0
+            27, // -
+            24, // =
+        ]
         static let tab: UInt16 = 48
         static let space: UInt16 = 49
         static let leftCommand: UInt16 = 55

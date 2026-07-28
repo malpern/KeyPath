@@ -214,6 +214,65 @@ static float keypath_hash(float2 point) {
     return fract(sin(dot(point, float2(12.9898, 78.233))) * 43758.5453);
 }
 
+static float keypath_value_noise(float2 point) {
+    float2 cell = floor(point);
+    float2 fraction = fract(point);
+    float2 eased = fraction * fraction * (3.0 - 2.0 * fraction);
+    float lowerLeft = keypath_hash(cell);
+    float lowerRight = keypath_hash(cell + float2(1.0, 0.0));
+    float upperLeft = keypath_hash(cell + float2(0.0, 1.0));
+    float upperRight = keypath_hash(cell + float2(1.0, 1.0));
+    return mix(
+        mix(lowerLeft, lowerRight, eased.x),
+        mix(upperLeft, upperRight, eased.x),
+        eased.y
+    );
+}
+
+static float keypath_area_shadow(
+    float2 point,
+    float2 halfSize,
+    float radius,
+    float2 castOffset,
+    float softness
+) {
+    float2 perpendicular = normalize(float2(-castOffset.y, castOffset.x));
+    float sampleSpread = max(0.75, softness * 0.34);
+    constexpr float sampleWeights[5] = { 0.10, 0.23, 0.34, 0.23, 0.10 };
+    constexpr float samplePositions[5] = { -1.0, -0.48, 0.0, 0.48, 1.0 };
+    float shadow = 0.0;
+    for (uint index = 0; index < 5; ++index) {
+        float2 sampleOffset = castOffset
+            + perpendicular * samplePositions[index] * sampleSpread;
+        float distance = keypath_rounded_rect_distance(
+            point - sampleOffset,
+            halfSize,
+            radius
+        );
+        shadow += (1.0 - smoothstep(-0.40, softness, distance))
+            * sampleWeights[index];
+    }
+    return saturate(shadow);
+}
+
+static float keypath_ggx_distribution(float normalDotHalf, float roughness) {
+    float alpha = max(0.04, roughness * roughness);
+    float alphaSquared = alpha * alpha;
+    float denominator = normalDotHalf * normalDotHalf * (alphaSquared - 1.0) + 1.0;
+    return alphaSquared / max(0.0001, 3.14159265 * denominator * denominator);
+}
+
+static float keypath_smith_visibility(float normalDotView, float normalDotLight, float roughness) {
+    float k = pow(roughness + 1.0, 2.0) * 0.125;
+    float view = normalDotView / max(0.0001, normalDotView * (1.0 - k) + k);
+    float light = normalDotLight / max(0.0001, normalDotLight * (1.0 - k) + k);
+    return view * light;
+}
+
+static float3 keypath_fresnel_schlick(float cosine, float3 reflectance) {
+    return reflectance + (1.0 - reflectance) * pow(1.0 - saturate(cosine), 5.0);
+}
+
 static float2 keypath_rounded_rect_gradient(
     float2 point,
     float2 halfSize,
@@ -274,15 +333,29 @@ fragment float4 keypath_keyboard_stage_fragment(
     float antialiasWidth = max(0.75, fwidth(distance));
     float surfaceAlpha = 1.0 - smoothstep(-antialiasWidth, antialiasWidth, distance);
 
-    // The dark ring immediately around a key is its recessed well. It keeps the
-    // backlight attached to the hardware instead of reading as a neon outline.
+    // The keycap floats above a recessed well. These masks are deliberately
+    // separate: a dark cavity, a tight contact occlusion ring, and the exposed
+    // strip of the backlight diffuser. Collapsing them into one blur makes the
+    // keyboard read like flat rounded rectangles instead of physical hardware.
     float outsideDistance = max(distance, 0.0);
-    float wellCore = exp(-outsideDistance * 0.58);
-    float wellTail = exp(-outsideDistance * 0.18);
-    float wellAlpha = isKey
-        ? mix(0.90, 0.38, illumination)
-            * (wellCore * 0.72 + wellTail * 0.28)
+    float wellDistance = keypath_rounded_rect_distance(
+        input.localPixels,
+        input.halfSizePixels + float2(isKey ? 3.6 : 0.0),
+        input.cornerRadiusPixels + (isKey ? 2.2 : 0.0)
+    );
+    float wellMask = isKey
+        ? (1.0 - smoothstep(-0.25, 1.20, wellDistance)) * (1.0 - surfaceAlpha)
         : 0.0;
+    float contactOcclusion = isKey
+        ? exp(-outsideDistance * 0.92) * wellMask
+        : 0.0;
+    float cavityOcclusion = isKey
+        ? exp(-outsideDistance * 0.24) * wellMask
+        : 0.0;
+    float wellAlpha = saturate(
+        contactOcclusion * mix(0.96, 0.38, illumination)
+            + cavityOcclusion * mix(0.52, 0.08, illumination)
+    );
     float skirtDistance = keypath_rounded_rect_distance(
         input.localPixels - float2(
             mix(0.45, 0.10, pressure),
@@ -294,50 +367,81 @@ fragment float4 keypath_keyboard_stage_fragment(
     float skirtAlpha = isKey
         ? (1.0 - smoothstep(-0.35, 2.1, skirtDistance)) * (1.0 - surfaceAlpha)
         : 0.0;
+    skirtAlpha *= mix(0.92, 0.52, illumination);
 
-    float contactShadowDistance = keypath_rounded_rect_distance(
-        input.localPixels - float2(
-            mix(0.60, 0.14, pressure),
-            mix(3.20, 0.85, pressure)
+    float contactShadowAlpha = keypath_area_shadow(
+        input.localPixels,
+        input.halfSizePixels + float2(isKey ? 0.55 : 0.0),
+        input.cornerRadiusPixels + (isKey ? 0.35 : 0.0),
+        float2(
+            mix(isDeck ? -0.3 : -0.65, -0.08, pressure),
+            mix(isDeck ? 2.8 : 2.45, 0.58, pressure)
         ),
+        isDeck ? 5.6 : 2.65
+    ) * (1.0 - surfaceAlpha) * mix(isDeck ? 0.16 : 0.63, 0.10, pressure);
+    float castShadowAlpha = keypath_area_shadow(
+        input.localPixels,
         input.halfSizePixels,
-        input.cornerRadiusPixels
-    );
-    float contactShadowAlpha = (1.0 - smoothstep(-0.25, 4.8, contactShadowDistance))
-        * mix(isDeck ? 0.13 : 0.42, 0.09, pressure);
-    float softShadowDistance = keypath_rounded_rect_distance(
-        input.localPixels - float2(
-            mix(isDeck ? 1.4 : 1.0, 0.2, pressure),
-            mix(isDeck ? 9.5 : 7.2, 1.8, pressure)
+        input.cornerRadiusPixels,
+        float2(
+            mix(isDeck ? -2.0 : -2.35, -0.35, pressure),
+            mix(isDeck ? 10.5 : 8.6, 2.0, pressure)
         ),
-        input.halfSizePixels,
-        input.cornerRadiusPixels
-    );
-    float softShadowAlpha = (1.0 - smoothstep(-1.0, isDeck ? 22.0 : 15.0, softShadowDistance))
-        * mix(isDeck ? 0.27 : 0.34, 0.11, pressure);
-    contactShadowAlpha *= mix(1.42, 1.0, illumination);
-    softShadowAlpha *= mix(1.20, 1.0, illumination);
+        isDeck ? 18.0 : 10.5
+    ) * (1.0 - surfaceAlpha) * mix(isDeck ? 0.26 : 0.34, 0.09, pressure);
+    contactShadowAlpha *= mix(1.36, 0.48, illumination);
+    castShadowAlpha *= mix(1.18, 0.72, illumination);
     float shadowAlpha = contactShadowAlpha
-        + softShadowAlpha * (1.0 - contactShadowAlpha);
+        + castShadowAlpha * (1.0 - contactShadowAlpha);
     shadowAlpha = saturate(shadowAlpha * shadowStrength);
 
-    // Inactive keys retain only a restrained neutral spill. Scene-role glow
-    // carries the cool emphasis for Caps Lock and other active lesson keys.
+    // Backlight is an emissive plane under the cap, visible only where the
+    // raised cap does not occlude its well. It escapes more strongly opposite
+    // the area light and near corners, avoiding an even neon ring.
+    float2 normalizedCapPosition = input.localPixels
+        / max(input.halfSizePixels, float2(1.0));
+    float2 radialDirection = normalize(normalizedCapPosition + float2(0.0001));
+    float2 incomingLight = normalize(float2(0.88, -0.48));
+    float edgeEscape = saturate(0.34 - dot(radialDirection, incomingLight) * 0.66);
+    float cornerEscape = pow(saturate(max(abs(normalizedCapPosition.x), abs(normalizedCapPosition.y))), 3.0);
+    float diffuserExposure = wellMask
+        * saturate(0.010 + edgeEscape * 0.42 + cornerEscape * 0.08);
     float backlightStrength = isKey
-        ? mix(0.18, 0.0, illumination) * (0.72 + transientGlow * 0.28)
+        ? mix(0.10, 0.0, illumination) * (0.76 + transientGlow * 0.24)
         : 0.0;
-    float tightBacklight = exp(-outsideDistance * 0.38) * backlightStrength * 0.28;
-    float broadBacklight = exp(-outsideDistance * 0.095) * backlightStrength * 0.10;
-    float roleGlowAlpha = exp(-outsideDistance * 0.24) * glow * 0.22;
-    roleGlowAlpha *= 1.0 - surfaceAlpha;
-    float pressGlowAlpha = exp(-outsideDistance * 0.31)
+    float diffuserBacklight = diffuserExposure * backlightStrength * 0.58;
+    float tightBacklight = exp(-outsideDistance * 0.62)
+        * diffuserExposure
+        * backlightStrength
+        * 0.22;
+    float broadBacklight = exp(-outsideDistance * 0.14)
+        * diffuserExposure
+        * backlightStrength
+        * 0.045;
+    float instructionalEmphasis = max(
+        glow,
+        saturate((borderStrength - 0.60) * 5.0)
+    );
+    float roleGlowAlpha = exp(-outsideDistance * 0.34)
+        * diffuserExposure
+        * instructionalEmphasis
+        * 0.31;
+    float roleHaloAlpha = exp(-outsideDistance * 0.12)
+        * edgeEscape
+        * instructionalEmphasis
+        * mix(0.095, 0.024, illumination)
+        * (1.0 - surfaceAlpha);
+    roleGlowAlpha = roleGlowAlpha
+        + roleHaloAlpha * (1.0 - roleGlowAlpha);
+    float pressGlowAlpha = exp(-outsideDistance * 0.46)
+        * diffuserExposure
         * keyPress
-        * mix(0.28, 0.10, illumination)
+        * mix(0.24, 0.08, illumination)
         * step(0.001, glow)
         * (1.0 - surfaceAlpha);
     roleGlowAlpha = roleGlowAlpha
         + pressGlowAlpha * (1.0 - roleGlowAlpha);
-    float entranceGlowAlpha = tightBacklight + broadBacklight;
+    float entranceGlowAlpha = diffuserBacklight + tightBacklight + broadBacklight;
     entranceGlowAlpha *= 1.0 - surfaceAlpha;
     float glowAlpha = roleGlowAlpha
         + entranceGlowAlpha * (1.0 - roleGlowAlpha);
@@ -365,6 +469,26 @@ fragment float4 keypath_keyboard_stage_fragment(
         1.0
     ));
 
+    // Two octaves of low-amplitude height noise supply molded-plastic grain
+    // and brushed aluminum microfacets. Deriving the normal in the shader keeps
+    // the detail scale stable and avoids a visibly tiled photographic texture.
+    float2 materialPixels = input.stageUV * uniforms.viewportSize;
+    float microScale = isDeck ? 0.085 : 0.16;
+    float2 microCoordinate = materialPixels * microScale;
+    float microCenter = keypath_value_noise(microCoordinate);
+    float microX = keypath_value_noise(microCoordinate + float2(0.55, 0.0)) - microCenter;
+    float microY = keypath_value_noise(microCoordinate + float2(0.0, 0.55)) - microCenter;
+    float brushedRidge = isDeck
+        ? sin(materialPixels.y * 1.82 + keypath_value_noise(materialPixels * 0.012) * 4.0)
+            * 0.0038
+        : 0.0;
+    float microNormalStrength = isDeck ? 0.026 : 0.014;
+    normal = normalize(normal + float3(
+        microX * microNormalStrength,
+        microY * microNormalStrength + brushedRidge,
+        0.0
+    ));
+
     // A broad source moves right-to-left. Its specular front catches each
     // bevel before the diffuse exposure arrives, like a product-film area light.
     float lightFront = uniforms.cinematicLighting.x;
@@ -376,7 +500,31 @@ fragment float4 keypath_keyboard_stage_fragment(
             * sin(saturate(uniforms.entrance.x) * 3.14159265);
     float3 lightDirection = normalize(float3(0.62, -0.28, 0.74));
     float diffuse = saturate(dot(normal, lightDirection));
+    float normalDotView = saturate(normal.z);
+    float normalDotLight = max(0.001, diffuse);
     float3 halfVector = normalize(lightDirection + float3(0.0, 0.0, 1.0));
+    float normalDotHalf = saturate(dot(normal, halfVector));
+    float viewDotHalf = saturate(halfVector.z);
+    float roughnessVariation = keypath_value_noise(materialPixels * (isDeck ? 0.032 : 0.058)) - 0.5;
+    float roughness = clamp(
+        (isDeck ? 0.31 : 0.47) + roughnessVariation * (isDeck ? 0.055 : 0.035),
+        0.12,
+        0.82
+    );
+    float3 baseReflectance = isDeck
+        ? float3(0.30, 0.27, 0.25)
+        : float3(0.032, 0.034, 0.038);
+    float3 microfacetFresnel = keypath_fresnel_schlick(viewDotHalf, baseReflectance);
+    float microfacetDistribution = keypath_ggx_distribution(normalDotHalf, roughness);
+    float microfacetVisibility = keypath_smith_visibility(
+        normalDotView,
+        normalDotLight,
+        roughness
+    );
+    float3 microfacetSpecular = microfacetFresnel
+        * microfacetDistribution
+        * microfacetVisibility
+        / max(0.04, 4.0 * normalDotView * normalDotLight);
     float specularPower = isDeck ? 88.0 : (isKey ? 42.0 : 34.0);
     float specular = pow(saturate(dot(normal, halfVector)), specularPower);
     float bevelSpecular = pow(
@@ -395,6 +543,12 @@ fragment float4 keypath_keyboard_stage_fragment(
     );
     surfaceColor *= mix(1.025, 0.94, verticalPosition * (isDeck ? 0.28 : 1.0));
     surfaceColor *= mix(1.0, 0.91, pressure);
+    float crownHighlight = isKey
+        ? pow(saturate(1.0 - length(faceCoordinate) * 0.52), 2.2) * faceMask
+        : 0.0;
+    float lowerBevelCatch = isKey
+        ? bevel * smoothstep(0.05, 0.82, distanceGradient.y)
+        : 0.0;
     // A physical press remains legible at both cinematic endpoints. In the
     // dark room it appears as light leaking through the cap material; once the
     // area light arrives, the settled accent-filled face carries the state.
@@ -405,16 +559,34 @@ fragment float4 keypath_keyboard_stage_fragment(
     );
 
     // Stable, sub-pixel material variation prevents the aluminum deck and
-    // graphite caps from reading as flat vector fills.
+    // graphite caps from reading as flat vector fills. The deck receives an
+    // anisotropic brushed component while the caps retain much finer grain.
     float materialNoise = keypath_hash(floor(input.stageUV * uniforms.viewportSize * 0.72)) - 0.5;
-    surfaceColor += materialNoise * (isDeck ? 0.010 : 0.004) * mix(0.30, 1.0, illumination);
+    float brushedNoise = keypath_hash(float2(
+        floor(input.stageUV.y * uniforms.viewportSize.y * 1.65),
+        floor(input.stageUV.x * 37.0)
+    )) - 0.5;
+    surfaceColor += (
+        materialNoise * (isDeck ? 0.015 : 0.0050)
+        + brushedNoise * (isDeck ? 0.009 : 0.0)
+    ) * mix(0.38, 1.0, illumination);
 
     float3 neutralLight = mix(float3(0.62, 0.72, 0.86), float3(1.0), illumination);
     surfaceColor *= mix(0.58, 1.04, illumination) + diffuse * illumination * 0.12;
+    surfaceColor += microfacetSpecular
+        * neutralLight
+        * normalDotLight
+        * mix(isDeck ? 0.032 : 0.018, isDeck ? 0.22 : 0.11, illumination);
+    surfaceColor += neutralLight
+        * crownHighlight
+        * mix(0.0045, 0.018, illumination);
+    surfaceColor += neutralLight
+        * lowerBevelCatch
+        * mix(0.018, 0.050, illumination);
     float broadSpecularStrength = isDeck ? 0.026 : (isKey ? 0.012 : 0.026);
     surfaceColor += neutralLight * (
         specular * (broadSpecularStrength + illumination * 0.13)
-        + bevelSpecular * (0.085 + illumination * 0.14)
+        + bevelSpecular * (0.035 + illumination * 0.16)
     );
     surfaceColor += float3(1.0, 0.82, 0.64) * grazingBand
         * (specular * 0.32 + fresnel * 0.08 + bevel * 0.04);
@@ -434,11 +606,11 @@ fragment float4 keypath_keyboard_stage_fragment(
         isDeck ? 78.0 : 52.0
     );
     float warmMaterialResponse = isDeck
-        ? 0.072 + warmDiffuse * 0.048
-        : (isKey ? 0.017 + warmDiffuse * 0.032 : 0.0);
+        ? 0.105 + warmDiffuse * 0.065
+        : (isKey ? 0.026 + warmDiffuse * 0.044 : 0.0);
     float warmBevelResponse = isDeck
-        ? bevel * 0.020 + warmSpecular * bevel * 0.032
-        : (isKey ? bevel * 0.030 + warmSpecular * bevel * 0.064 : 0.0);
+        ? bevel * 0.028 + warmSpecular * bevel * 0.046
+        : (isKey ? bevel * 0.040 + warmSpecular * bevel * 0.082 : 0.0);
     surfaceColor += float3(0.62, 0.43, 0.31)
         * rightGraze
         * (warmMaterialResponse + warmBevelResponse);
@@ -459,6 +631,21 @@ fragment float4 keypath_keyboard_stage_fragment(
         * edge
         * keyPress
         * mix(0.54, 0.24, illumination);
+    float illuminatedBevel = isKey
+        ? bevel * max(
+            smoothstep(0.08, 0.78, distanceGradient.y),
+            smoothstep(0.12, 0.82, -distanceGradient.x) * 0.72
+        )
+        : 0.0;
+    float3 illuminatedBevelColor = mix(
+        input.glowColor.rgb,
+        float3(0.82, 0.90, 1.0),
+        0.72
+    );
+    surfaceColor += illuminatedBevelColor
+        * illuminatedBevel
+        * instructionalEmphasis
+        * mix(0.24, 0.065, illumination);
 
     // A narrow internal rim makes the translucent legend light feel seated in
     // a real cap even though semantic glyphs remain native and accessible.
@@ -553,7 +740,7 @@ fragment float4 keypath_keyboard_legend_fragment(
     float roleEmission = saturate(input.parameters.z);
     float allowsBloom = saturate(input.parameters.w);
     float emission = entranceDarkness
-        * (0.95 + entranceEmission * 0.65 + roleEmission * 0.35)
+        * (1.08 + entranceEmission * 0.78 + roleEmission * 0.42)
         * allowsBloom;
     float3 radiance = legendColor * (1.0 + emission);
 
@@ -733,8 +920,8 @@ fragment float4 keypath_keyboard_composite_fragment(
         bloomEnvelope *= 0.72;
     }
     float3 bloomContribution = (
-        tightBloom * 0.22
-        + bloom * 0.09
+        tightBloom * 0.30
+        + bloom * 0.12
     ) * bloomEnvelope;
     float bloomPeak = max(
         bloomContribution.r,

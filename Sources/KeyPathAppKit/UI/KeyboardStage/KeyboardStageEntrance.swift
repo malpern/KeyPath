@@ -248,7 +248,7 @@ struct KeyboardStageEntrancePresentation: Equatable, Sendable {
     }
 
     static let holdDuration: TimeInterval = 1.50
-    static let transitionDuration: TimeInterval = 0.55
+    static let transitionDuration: TimeInterval = 0.75
     static let reducedMotionTransitionDuration: TimeInterval = 0.25
 
     private(set) var phase = Phase.pending

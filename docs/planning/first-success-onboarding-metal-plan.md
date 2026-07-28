@@ -75,7 +75,7 @@ traveling light front.
 
 The entrance is a bounded proof gate for Metal, not an open-ended visual-effects
 project. The forced-Metal installed-app capture must demonstrate all of the
-following in the 1.5-second dark hold and one approximately 0.55-second
+following in the 1.5-second dark hold and one approximately 0.75-second
 directional reveal:
 
 - convincing dark graphite key materials with neutral, MacBook-like emitted

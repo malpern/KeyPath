@@ -34,14 +34,14 @@ final class KeyboardStageEntranceTests: XCTestCase {
         XCTAssertTrue(presentation.isAnimating)
         XCTAssertEqual(presentation.startedAt, 11.5)
         XCTAssertEqual(
-            presentation.frame(at: 11.775, pendingReduceMotion: false).progress,
+            presentation.frame(at: 11.875, pendingReduceMotion: false).progress,
             0.5,
             accuracy: 0.001
         )
 
         presentation.advance(at: 12.0)
         XCTAssertTrue(presentation.isAnimating)
-        presentation.advance(at: 12.051)
+        presentation.advance(at: 12.251)
 
         presentation.beginIfNeeded(at: 20, reduceMotion: false)
 
@@ -288,13 +288,13 @@ final class KeyboardStageEntranceTests: XCTestCase {
         XCTAssertEqual(presentation.startedAt, 11.5)
         XCTAssertEqual(
             presentation.frame(at: 11.75, pendingReduceMotion: false).progress,
-            Float(0.25 / 0.55),
+            Float(0.25 / 0.75),
             accuracy: 0.001
         )
 
         var veryLatePresentation = KeyboardStageEntrancePresentation()
         veryLatePresentation.beginIfNeeded(at: 10, reduceMotion: false)
-        veryLatePresentation.advance(at: 12.1)
+        veryLatePresentation.advance(at: 12.3)
         XCTAssertTrue(veryLatePresentation.isSettled)
     }
 

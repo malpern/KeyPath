@@ -508,7 +508,7 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
         items.reserveCapacity(scene.keys.count * 2)
 
         for key in scene.keys {
-            let keyFrame = projection.projectKey(key)
+            let keyFrame = materialKeyFrame(projection.projectKey(key))
             let visibility = legendVisibility(
                 keyFrame: keyFrame,
                 scene: scene,
@@ -599,9 +599,9 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
     ) -> SIMD4<Float> {
         let width = max(1, Float(drawableSize.width))
         let height = max(1, Float(drawableSize.height))
-        // The native baseline used 34% of the cap height. A slightly smaller
-        // 28% optical size is closer to a real MacBook aperture and leaves the
-        // bloom room to breathe without making every legend look bold.
+        // The atlas includes its own vertical padding. This resolves regular
+        // legends to roughly 28% of the cap height, matching the proportions
+        // of the MacBook legends in the onboarding reference.
         let legendHeight = max(1, Float(keyFrame.height) * 0.84)
         let legendWidth = legendHeight * 2
         return SIMD4(
@@ -616,9 +616,9 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
         for role: KeyboardStageKeyRole
     ) -> KeyboardStageLegendAtlasDescriptor.Weight {
         switch role {
-        case .standard, .modifier, .dimmed:
-            .regular
-        case .deck, .recommended, .escape, .hyper, .launcher, .installed:
+        case .standard, .modifier, .recommended, .escape, .dimmed:
+            .light
+        case .deck, .hyper, .launcher, .installed:
             .medium
         }
     }
@@ -686,7 +686,7 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
         instances.append(contentsOf: scene.keys.map { key in
             let visibleGlow = scene.displayMode.reduceTransparency ? 0 : key.glow
             return makeInstance(
-                frame: projection.projectKey(key),
+                frame: materialKeyFrame(projection.projectKey(key)),
                 rotationRadians: key.rotationRadians,
                 style: palette.style(
                     for: key.role,
@@ -716,6 +716,12 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
             return nil
         })
         return instances
+    }
+
+    private func materialKeyFrame(_ frame: CGRect) -> CGRect {
+        let horizontalInset = min(3.2, frame.width * 0.045)
+        let verticalInset = min(3.0, frame.height * 0.045)
+        return frame.insetBy(dx: horizontalInset, dy: verticalInset)
     }
 
     private func makeDecorationInstance(

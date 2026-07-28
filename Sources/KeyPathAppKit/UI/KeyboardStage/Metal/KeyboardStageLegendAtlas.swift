@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import CoreText
 import Foundation
@@ -5,6 +6,7 @@ import Metal
 
 struct KeyboardStageLegendAtlasDescriptor: Hashable, Sendable {
     enum Weight: Int, Hashable, Sendable {
+        case light
         case regular
         case medium
     }
@@ -228,7 +230,8 @@ final class KeyboardStageLegendAtlasCache: @unchecked Sendable {
 
 enum KeyboardStageLegendAtlasRasterizer {
     private static let primaryFontSize = CGFloat(KeyboardStageLegendAtlasLayout.cellHeight) * 0.33
-    private static let secondaryFontSize = CGFloat(KeyboardStageLegendAtlasLayout.cellHeight) * 0.16
+    private static let secondaryFontSize = CGFloat(KeyboardStageLegendAtlasLayout.cellHeight) * 0.22
+    private static let numberRowFontSize = CGFloat(KeyboardStageLegendAtlasLayout.cellHeight) * 0.30
     private static let color = CGColor(gray: 1, alpha: 1)
 
     static func rasterize(
@@ -295,16 +298,29 @@ enum KeyboardStageLegendAtlasRasterizer {
         )
 
         if let secondary = descriptor.secondary, !secondary.isEmpty {
+            let usesNumberRowStack = descriptor.primary.count == 1 && secondary.count == 1
             drawLine(
                 descriptor.primary,
-                font: font(size: primaryFontSize, weight: descriptor.weight),
-                center: CGPoint(x: cell.midX, y: cell.minY + cell.height * 0.62),
+                font: font(
+                    size: usesNumberRowStack ? numberRowFontSize : primaryFontSize,
+                    weight: descriptor.weight
+                ),
+                center: CGPoint(
+                    x: cell.midX,
+                    y: cell.minY + cell.height * (usesNumberRowStack ? 0.68 : 0.62)
+                ),
                 in: context
             )
             drawLine(
                 secondary,
-                font: font(size: secondaryFontSize, weight: descriptor.weight),
-                center: CGPoint(x: cell.midX, y: cell.minY + cell.height * 0.27),
+                font: font(
+                    size: usesNumberRowStack ? numberRowFontSize : secondaryFontSize,
+                    weight: descriptor.weight
+                ),
+                center: CGPoint(
+                    x: cell.midX,
+                    y: cell.minY + cell.height * (usesNumberRowStack ? 0.32 : 0.27)
+                ),
                 in: context
             )
         } else {
@@ -342,20 +358,12 @@ enum KeyboardStageLegendAtlasRasterizer {
         size: CGFloat,
         weight: KeyboardStageLegendAtlasDescriptor.Weight
     ) -> CTFont {
-        let baseFont = CTFontCreateUIFontForLanguage(.system, size, nil)
-            ?? CTFontCreateWithName("Helvetica" as CFString, size, nil)
-        guard weight == .medium else { return baseFont }
-
-        let traits: [CFString: Any] = [
-            kCTFontWeightTrait: 0.23
-        ]
-        let attributes: [CFString: Any] = [
-            kCTFontTraitsAttribute: traits
-        ]
-        let descriptor = CTFontDescriptorCreateCopyWithAttributes(
-            CTFontCopyFontDescriptor(baseFont),
-            attributes as CFDictionary
-        )
-        return CTFontCreateWithFontDescriptor(descriptor, size, nil)
+        let appKitWeight: NSFont.Weight = switch weight {
+        case .light: .light
+        case .regular: .regular
+        case .medium: .medium
+        }
+        let systemFont = NSFont.systemFont(ofSize: size, weight: appKitWeight)
+        return CTFontCreateWithName(systemFont.fontName as CFString, size, nil)
     }
 }

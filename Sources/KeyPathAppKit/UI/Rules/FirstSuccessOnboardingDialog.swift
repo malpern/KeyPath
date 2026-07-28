@@ -218,6 +218,26 @@ private struct FirstSuccessCinematicLightWash: View {
     }
 }
 
+private struct FirstSuccessCinematicWarmGraze: View {
+    let progress: Float
+
+    var body: some View {
+        LinearGradient(
+            stops: [
+                .init(color: .clear, location: 0.48),
+                .init(color: Color(red: 0.34, green: 0.22, blue: 0.15).opacity(0.08), location: 0.72),
+                .init(color: Color(red: 0.52, green: 0.34, blue: 0.23).opacity(0.18), location: 1),
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+        .opacity(Double(1 - min(1, max(0, progress))))
+        .blendMode(.screen)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 @MainActor
 private final class FirstSuccessWindowBackgroundView: NSView {
     var backgroundColor: NSColor {
@@ -330,6 +350,9 @@ struct FirstSuccessOnboardingDialog: View {
                         )
 
                         if !entranceFrame.reduceMotion {
+                            FirstSuccessCinematicWarmGraze(
+                                progress: entranceFrame.progress
+                            )
                             FirstSuccessCinematicLightWash(
                                 progress: entranceFrame.progress
                             )
@@ -383,7 +406,7 @@ struct FirstSuccessOnboardingDialog: View {
             )
 
             FirstSuccessSeparator(horizontalInset: 14)
-            WizardButtonBar(
+            FirstSuccessActionBar(
                 cancel: .init(
                     title: String(
                         localized: "Skip tour",
@@ -551,6 +574,26 @@ struct FirstSuccessOnboardingDialog: View {
 
     private func skipTour() {
         actionCoordinator.requestDismiss(perform: dismiss)
+    }
+}
+
+private struct FirstSuccessActionBar: View {
+    let cancel: WizardButtonBar.CancelButton?
+    let secondary: WizardButtonBar.SecondaryButton?
+    let primary: WizardButtonBar.PrimaryButton
+    let secondaryPlacement: WizardButtonBar.SecondaryPlacement
+
+    @Environment(\.firstSuccessOnboardingPalette) private var palette
+
+    var body: some View {
+        WizardButtonBar(
+            cancel: cancel,
+            secondary: secondary,
+            primary: primary,
+            secondaryPlacement: secondaryPlacement,
+            secondaryTint: palette.mutedText.color,
+            secondaryMinimumWidth: 72
+        )
     }
 }
 
