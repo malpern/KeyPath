@@ -49,9 +49,13 @@ extension RuleCollectionsManager {
     func confirmedPrerequisiteProviderIDs(
         for candidate: RuleCollection,
         operation: RulePrerequisiteOperation,
+        disablingCollectionIDs: Set<UUID> = [],
         nonInteractiveChoice: RulePrerequisiteResolutionChoice = .applyWithoutProviders
     ) async -> [UUID]? {
-        let missing = prerequisites(for: candidate)
+        let missing = prerequisites(
+            for: candidate,
+            disablingCollectionIDs: disablingCollectionIDs
+        )
         guard !missing.isEmpty else { return [] }
 
         let context = prerequisiteResolutionContext(
@@ -75,7 +79,7 @@ extension RuleCollectionsManager {
         case .enableRequiredProvidersAndApply:
             guard let providerIDs = context.recommendedProviderIDs else {
                 AppLogger.shared.log(
-                    "⚠️ [RuleCollections] Automatic prerequisite resolution aborted because a requirement has multiple providers"
+                    "⚠️ [RuleCollections] Automatic prerequisite resolution aborted because a requirement has no unambiguous supporting rule"
                 )
                 return nil
             }

@@ -91,6 +91,32 @@ final class FirstSuccessOnboardingSessionTests: XCTestCase {
     }
 
     @MainActor
+    func testReplayCanDescribePreservedHyperWithoutSkippingItsLesson() {
+        let session = FirstSuccessOnboardingSession()
+
+        session.begin(.capsLockEscape)
+        session.recordCapsLockHold(isHyper: true)
+        session.finish(.capsLockEscape, result: .alreadyConfigured)
+
+        XCTAssertTrue(session.capsLockHoldIsHyper)
+        XCTAssertEqual(session.capsLockPhase, .installed)
+        XCTAssertEqual(session.hyperPhase, .explaining)
+    }
+
+    @MainActor
+    func testReturningToCapsDescribesHyperAddedByTheSecondLesson() {
+        let session = FirstSuccessOnboardingSession()
+
+        session.finish(.capsLockEscape, result: .applied)
+        session.moveForward()
+        session.finish(.hyper, result: .applied)
+        session.moveBack()
+
+        XCTAssertEqual(session.step, .capsLock)
+        XCTAssertTrue(session.capsLockHasHyperHold)
+    }
+
+    @MainActor
     func testLauncherShortcutMustApplyBeforeTheThirdWinCompletes() {
         let session = FirstSuccessOnboardingSession()
         session.step = .launcher

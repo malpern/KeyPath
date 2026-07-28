@@ -74,6 +74,8 @@ public final class PackInstaller {
     ///   `.useRecommended` after the user has explicitly approved the change.
     /// - Parameter autoResolveCollectionConflicts: Whether a collection-backed
     ///   pack may automatically disable conflicting rules while it is enabled.
+    /// - Parameter additionalCollectionIDsToDisable: Related catalog
+    ///   collections to turn off in the same collection-backed transaction.
     /// - Parameter manager: the app's RuleCollectionsManager. Required.
     /// - Parameter skipFinalReload: Persist and validate the resulting config
     ///   without notifying the runtime; the caller owns the live reload.
@@ -85,6 +87,7 @@ public final class PackInstaller {
         collectionConfiguration: RuleCollectionConfiguration? = nil,
         managedDefaultPolicy: ManagedDefaultInstallPolicy = .promptWhenCustomized,
         autoResolveCollectionConflicts: Bool = true,
+        additionalCollectionIDsToDisable: Set<UUID> = [],
         manager: RuleCollectionsManager,
         skipFinalReload: Bool = false,
         installedPackTracker: InstalledPackTracker = .shared
@@ -224,6 +227,7 @@ public final class PackInstaller {
                 autoResolveConflicts: autoResolveCollectionConflicts,
                 bypassOwnershipCheck: true,
                 configurationOverride: collectionConfiguration,
+                additionalCollectionIDsToDisable: additionalCollectionIDsToDisable,
                 skipReload: skipFinalReload
             )
             if !ok {

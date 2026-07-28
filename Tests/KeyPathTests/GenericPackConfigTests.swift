@@ -168,6 +168,203 @@ final class GenericPackConfigTests: XCTestCase {
     }
 
     @MainActor
+    func testFirstSuccessCapsLockConfigurationPreservesExistingHyperHold() throws {
+        let catalogConfiguration = try XCTUnwrap(
+            RuleCollectionCatalog().defaultCollections()
+                .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })?
+                .configuration
+        )
+
+        let configuration = try XCTUnwrap(
+            FirstSuccessOnboardingWindowController.escapeOnlyCapsLockConfiguration(
+                from: catalogConfiguration,
+                preservingHoldFrom: catalogConfiguration
+            )
+        )
+
+        XCTAssertEqual(configuration.tapHoldPickerConfig?.selectedTapOutput, "esc")
+        XCTAssertEqual(configuration.tapHoldPickerConfig?.selectedHoldOutput, "hyper")
+    }
+
+    @MainActor
+    func testFirstSuccessCapsLockConfigurationRejectsUnknownExistingHold() throws {
+        let catalogConfiguration = try XCTUnwrap(
+            RuleCollectionCatalog().defaultCollections()
+                .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })?
+                .configuration
+        )
+        var unsupportedConfiguration = catalogConfiguration
+        unsupportedConfiguration.updateSelectedHoldOutput("unsupported-hold")
+
+        let configuration = try XCTUnwrap(
+            FirstSuccessOnboardingWindowController.escapeOnlyCapsLockConfiguration(
+                from: catalogConfiguration,
+                preservingHoldFrom: unsupportedConfiguration
+            )
+        )
+
+        XCTAssertEqual(configuration.tapHoldPickerConfig?.selectedTapOutput, "esc")
+        XCTAssertEqual(configuration.tapHoldPickerConfig?.selectedHoldOutput, "caps")
+    }
+
+    @MainActor
+    func testFirstSuccessCapsInstallStagesFreshLauncherOffWithoutPrerequisitePrompt() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let (manager, tempDir) = try makeTestManager()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
+
+        let catalogCapsLock = try XCTUnwrap(
+            manager.ruleCollections.first {
+                $0.id == RuleCollectionIdentifier.capsLockRemap
+            }
+        )
+        let catalogLauncher = try XCTUnwrap(
+            manager.ruleCollections.first {
+                $0.id == RuleCollectionIdentifier.launcher
+            }
+        )
+        let configuration = try XCTUnwrap(
+            FirstSuccessOnboardingWindowController.escapeOnlyCapsLockConfiguration(
+                from: catalogCapsLock.configuration
+            )
+        )
+        let launcherPreparation = FirstSuccessOnboardingWindowController
+            .capsStepLauncherPreparation(
+                existing: catalogLauncher,
+                catalogConfiguration: catalogLauncher.configuration,
+                quickLauncherInstalled: false
+            )
+        var prerequisitePromptCount = 0
+        manager.onPrerequisiteResolution = { _ in
+            prerequisitePromptCount += 1
+            return .applyWithoutProviders
+        }
+
+        _ = try await PackInstaller.shared.install(
+            PackRegistry.capsLockToEscape,
+            collectionConfiguration: configuration,
+            autoResolveCollectionConflicts: false,
+            additionalCollectionIDsToDisable: [RuleCollectionIdentifier.launcher],
+            manager: manager,
+            skipFinalReload: true
+        )
+
+        let capsLock = manager.ruleCollections.first {
+            $0.id == RuleCollectionIdentifier.capsLockRemap
+        }
+        XCTAssertEqual(prerequisitePromptCount, 0)
+        XCTAssertEqual(launcherPreparation, .disableCatalogDefault)
+        XCTAssertEqual(capsLock?.configuration.tapHoldPickerConfig?.selectedTapOutput, "esc")
+        XCTAssertEqual(capsLock?.configuration.tapHoldPickerConfig?.selectedHoldOutput, "caps")
+        XCTAssertFalse(manager.ruleCollections.first {
+            $0.id == RuleCollectionIdentifier.launcher
+        }?.isEnabled ?? true)
+    }
+
+    @MainActor
+    func testFirstSuccessCapsStepPreservesHyperOnlyForInstalledLauncher() throws {
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        let capsLock = try XCTUnwrap(catalog.first {
+            $0.id == RuleCollectionIdentifier.capsLockRemap
+        })
+        let launcher = try XCTUnwrap(catalog.first {
+            $0.id == RuleCollectionIdentifier.launcher
+        })
+
+        XCTAssertEqual(
+            FirstSuccessOnboardingWindowController.capsStepLauncherPreparation(
+                existing: launcher,
+                catalogConfiguration: launcher.configuration,
+                quickLauncherInstalled: false,
+                source: .firstRun
+            ),
+            .disableCatalogDefault
+        )
+        XCTAssertEqual(
+            FirstSuccessOnboardingWindowController.capsStepLauncherPreparation(
+                existing: launcher,
+                catalogConfiguration: launcher.configuration,
+                quickLauncherInstalled: false,
+                source: .replay
+            ),
+            .leaveAsIs
+        )
+        XCTAssertEqual(
+            FirstSuccessOnboardingWindowController.capsStepLauncherPreparation(
+                existing: launcher,
+                catalogConfiguration: launcher.configuration,
+                quickLauncherInstalled: true
+            ),
+            .leaveAsIs
+        )
+        var customizedLauncher = launcher
+        var customizedConfiguration = try XCTUnwrap(
+            customizedLauncher.configuration.launcherGridConfig
+        )
+        customizedConfiguration.hasSeenWelcome = true
+        customizedLauncher.configuration = .launcherGrid(customizedConfiguration)
+        XCTAssertEqual(
+            FirstSuccessOnboardingWindowController.capsStepLauncherPreparation(
+                existing: customizedLauncher,
+                catalogConfiguration: launcher.configuration,
+                quickLauncherInstalled: false
+            ),
+            .requiresRules
+        )
+
+        let replayConfiguration = try XCTUnwrap(
+            FirstSuccessOnboardingWindowController.escapeOnlyCapsLockConfiguration(
+                from: capsLock.configuration,
+                preservingHoldFrom: capsLock.configuration
+            )
+        )
+        XCTAssertEqual(replayConfiguration.tapHoldPickerConfig?.selectedTapOutput, "esc")
+        XCTAssertEqual(replayConfiguration.tapHoldPickerConfig?.selectedHoldOutput, "hyper")
+    }
+
+    @MainActor
+    func testFirstSuccessReplayPreservesCapsHoldWithLauncherOff() throws {
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        let capsLock = try XCTUnwrap(catalog.first {
+            $0.id == RuleCollectionIdentifier.capsLockRemap
+        })
+        var launcher = try XCTUnwrap(catalog.first {
+            $0.id == RuleCollectionIdentifier.launcher
+        })
+        launcher.isEnabled = false
+
+        XCTAssertEqual(
+            FirstSuccessOnboardingWindowController.capsStepLauncherPreparation(
+                existing: launcher,
+                catalogConfiguration: launcher.configuration,
+                quickLauncherInstalled: false,
+                source: .replay
+            ),
+            .leaveAsIs
+        )
+        let preserved = FirstSuccessOnboardingWindowController
+            .capsHoldConfigurationToPreserve(
+                existing: capsLock,
+                quickLauncherInstalled: false,
+                source: .replay
+            )
+        XCTAssertEqual(
+            preserved?.tapHoldPickerConfig?.selectedHoldOutput,
+            "hyper"
+        )
+        XCTAssertNil(
+            FirstSuccessOnboardingWindowController.capsHoldConfigurationToPreserve(
+                existing: capsLock,
+                quickLauncherInstalled: false,
+                source: .firstRun
+            )
+        )
+    }
+
+    @MainActor
     func testFirstSuccessCapsStepPreservesLauncherOwnedHyper() throws {
         var launcherOwnedCapsLock = try XCTUnwrap(
             RuleCollectionCatalog().defaultCollections()

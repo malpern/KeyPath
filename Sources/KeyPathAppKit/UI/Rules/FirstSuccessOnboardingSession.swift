@@ -137,12 +137,17 @@ final class FirstSuccessOnboardingSession {
     var capsLockPhase: LessonPhase = .explaining
     var hyperPhase: LessonPhase = .explaining
     var launcherPhase: LessonPhase = .explaining
+    private(set) var capsLockHoldIsHyper = false
     var isCapsPracticeMenuPresented = false
     var failure: ActionKind?
     var savedButNotActive: ActionKind?
 
     var isApplying: Bool {
         capsLockPhase == .applying || hyperPhase == .applying || launcherPhase == .applying
+    }
+
+    var capsLockHasHyperHold: Bool {
+        capsLockHoldIsHyper || hyperPhase.isInstalled
     }
 
     var isLauncherChoiceEditable: Bool {
@@ -227,6 +232,10 @@ final class FirstSuccessOnboardingSession {
             case .launcherShortcut: launcherPhase = .explaining
             }
         }
+    }
+
+    func recordCapsLockHold(isHyper: Bool) {
+        capsLockHoldIsHyper = isHyper
     }
 
     func markCapsLockPracticed() {

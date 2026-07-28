@@ -26,9 +26,11 @@ extension RuleCollectionsManager {
     ///
     /// An existing collection is replaced in place so its display order remains
     /// stable. A new collection is appended. The proposal is always analyzed as
-    /// enabled because this query runs before the enable/save mutation.
+    /// enabled because this query runs before the enable/save mutation. A caller
+    /// may also stage collection disables that belong to the same transaction.
     func prerequisites(
-        for proposedCollection: RuleCollection
+        for proposedCollection: RuleCollection,
+        disablingCollectionIDs: Set<UUID> = []
     ) -> [RulePrerequisite] {
         let adapter = RuleCollectionDependencyGraphAdapter()
         let currentGraph = adapter.build(
@@ -38,12 +40,18 @@ extension RuleCollectionsManager {
 
         var candidate = proposedCollection
         candidate.isEnabled = true
+        let stagedDisableIDs = disablingCollectionIDs.subtracting([candidate.id])
 
         var proposedCollections = ruleCollections
         if let index = proposedCollections.firstIndex(where: { $0.id == candidate.id }) {
             proposedCollections[index] = candidate
         } else {
             proposedCollections.append(candidate)
+        }
+        for index in proposedCollections.indices where
+            stagedDisableIDs.contains(proposedCollections[index].id)
+        {
+            proposedCollections[index].isEnabled = false
         }
 
         let proposedGraph = adapter.build(
@@ -69,6 +77,7 @@ extension RuleCollectionsManager {
                 }
 
                 let providers = proposedGraph.knownProviders(for: requirement.capability)
+                    .filter { !stagedDisableIDs.contains($0) }
                 return RulePrerequisite(
                     consumerCollectionID: consumerID,
                     missingCapability: requirement.capability,
