@@ -230,7 +230,8 @@ final class WizardWindowController {
         let viewModel = onboardingViewModel ?? (NSApp.delegate as? AppDelegate)?.viewModel
         closeCompletion.schedule {
             FirstSuccessOnboardingWindowController.show(
-                kanataViewModel: viewModel
+                kanataViewModel: viewModel,
+                source: .firstRun
             )
         }
     }

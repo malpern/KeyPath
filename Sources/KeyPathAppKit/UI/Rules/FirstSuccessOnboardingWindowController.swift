@@ -4,27 +4,47 @@ import KeyPathInstallationWizard
 import KeyPathRulesCore
 import SwiftUI
 
+enum FirstSuccessCapsStepLauncherPreparation: Equatable, Sendable {
+    case leaveAsIs
+    case disableCatalogDefault
+    case requiresRules
+}
+
+enum FirstSuccessOnboardingPresentationSource: Equatable, Sendable {
+    case firstRun
+    case replay
+}
+
 /// Presents the first-success learning path after a healthy first setup.
 @MainActor
 final class FirstSuccessOnboardingWindowController: NSWindowController {
     private static var currentController: FirstSuccessOnboardingWindowController?
     private let actionCoordinator: FirstSuccessOnboardingActionCoordinator
 
-    static func show(kanataViewModel: KanataViewModel?) {
+    static func show(
+        kanataViewModel: KanataViewModel?,
+        source: FirstSuccessOnboardingPresentationSource
+    ) {
         if let currentController {
             currentController.showWindow(nil)
             currentController.window?.makeKeyAndOrderFront(nil)
             return
         }
 
-        let controller = FirstSuccessOnboardingWindowController(kanataViewModel: kanataViewModel)
+        let controller = FirstSuccessOnboardingWindowController(
+            kanataViewModel: kanataViewModel,
+            source: source
+        )
         currentController = controller
         LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
         controller.showWindow(nil)
         FirstSuccessOnboardingGate.markPresented()
     }
 
-    private init(kanataViewModel: KanataViewModel?) {
+    private init(
+        kanataViewModel: KanataViewModel?,
+        source: FirstSuccessOnboardingPresentationSource
+    ) {
         let actionCoordinator = FirstSuccessOnboardingActionCoordinator()
         let existingLauncher = kanataViewModel?.underlyingManager.rulesManager
             .ruleCollections.first(where: {
@@ -46,7 +66,21 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
                     return await Self.previewActionResult()
                 }
                 guard let kanataViewModel else { return .failed }
-                return await Self.installCapsLockEscape(using: kanataViewModel)
+                let result = await Self.installCapsLockEscape(
+                    using: kanataViewModel,
+                    source: source
+                )
+                switch result {
+                case .applied, .alreadyConfigured:
+                    actionCoordinator.session.recordCapsLockHold(
+                        isHyper: Self.capsLockHoldIsHyper(
+                            in: kanataViewModel.underlyingManager.rulesManager.ruleCollections
+                        )
+                    )
+                case .savedButNotActive, .needsRules, .failed:
+                    break
+                }
+                return result
             },
             addHyperHold: {
                 if Self.usesNonMutatingVisualPreviewActions() {
@@ -138,29 +172,58 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
     }
 
     private static func installCapsLockEscape(
-        using viewModel: KanataViewModel
+        using viewModel: KanataViewModel,
+        source: FirstSuccessOnboardingPresentationSource
     ) async -> FirstSuccessOnboardingSession.ActionResult {
         let manager = viewModel.underlyingManager.rulesManager
 
-        guard let catalogConfiguration = RuleCollectionCatalog().defaultCollections()
+        let catalogCollections = RuleCollectionCatalog().defaultCollections()
+        guard let catalogConfiguration = catalogCollections
             .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })?
+            .configuration,
+            let catalogLauncherConfiguration = catalogCollections
+            .first(where: { $0.id == RuleCollectionIdentifier.launcher })?
             .configuration
         else {
-            AppLogger.shared.error("❌ [FirstSuccessOnboarding] Caps Lock catalog collection is unavailable")
+            AppLogger.shared.error("❌ [FirstSuccessOnboarding] Required catalog collections are unavailable")
             return .failed
         }
 
-        guard let configuration = escapeOnlyCapsLockConfiguration(from: catalogConfiguration) else {
+        let existingCapsLock = manager.ruleCollections.first(where: {
+            $0.id == RuleCollectionIdentifier.capsLockRemap
+        })
+        let existingLauncher = manager.ruleCollections.first(where: {
+            $0.id == RuleCollectionIdentifier.launcher
+        })
+        let quickLauncherInstalled = await PackInstaller.shared.isInstalled(
+            packID: PackRegistry.launcher.id
+        )
+        let launcherPreparation = capsStepLauncherPreparation(
+            existing: existingLauncher,
+            catalogConfiguration: catalogLauncherConfiguration,
+            quickLauncherInstalled: quickLauncherInstalled,
+            source: source
+        )
+        guard launcherPreparation != .requiresRules else {
+            AppLogger.shared.log(
+                "🛡️ [FirstSuccessOnboarding] Existing Quick Launcher behavior left untouched"
+            )
+            return .needsRules
+        }
+
+        guard let configuration = escapeOnlyCapsLockConfiguration(
+            from: catalogConfiguration,
+            preservingHoldFrom: capsHoldConfigurationToPreserve(
+                existing: existingCapsLock,
+                quickLauncherInstalled: quickLauncherInstalled,
+                source: source
+            )
+        ) else {
             AppLogger.shared.error("❌ [FirstSuccessOnboarding] Caps Lock catalog configuration is invalid")
             return .failed
         }
 
-        if let existing = manager.ruleCollections.first(where: {
-            $0.id == RuleCollectionIdentifier.capsLockRemap
-        }) {
-            let quickLauncherInstalled = await PackInstaller.shared.isInstalled(
-                packID: PackRegistry.launcher.id
-            )
+        if let existing = existingCapsLock {
             if capsLockAlreadyProvidesFirstWin(
                 existing: existing,
                 quickLauncherInstalled: quickLauncherInstalled
@@ -173,6 +236,7 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
 
             if existing.isEnabled,
                existing.configuration == configuration,
+               launcherPreparation != .disableCatalogDefault,
                await PackInstaller.shared.isInstalled(packID: PackRegistry.capsLockToEscape.id)
             {
                 return await verifyLiveRuleApplication(
@@ -209,6 +273,9 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
                 PackRegistry.capsLockToEscape,
                 collectionConfiguration: configuration,
                 autoResolveCollectionConflicts: false,
+                additionalCollectionIDsToDisable: launcherPreparation == .disableCatalogDefault
+                    ? [RuleCollectionIdentifier.launcher]
+                    : [],
                 manager: manager,
                 skipFinalReload: true
             )
@@ -223,9 +290,13 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
             return .failed
         }
 
+        let launcherPrepared = launcherPreparation != .disableCatalogDefault
+            || manager.ruleCollections.first(where: {
+                $0.id == RuleCollectionIdentifier.launcher
+            })?.isEnabled == false
         let installed = capsLock.isEnabled
-            && capsLock.configuration.tapHoldPickerConfig?.selectedTapOutput == "esc"
-            && capsLock.configuration.tapHoldPickerConfig?.selectedHoldOutput == "caps"
+            && capsLock.configuration == configuration
+            && launcherPrepared
         guard installed else { return .failed }
         return await verifyLiveRuleApplication(using: viewModel)
     }
@@ -237,6 +308,28 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
     ) -> Bool {
         existing.configuration != catalogConfiguration
             && existing.configuration != onboardingConfiguration
+    }
+
+    static func capsStepLauncherPreparation(
+        existing: RuleCollection?,
+        catalogConfiguration: RuleCollectionConfiguration,
+        quickLauncherInstalled: Bool,
+        source: FirstSuccessOnboardingPresentationSource = .firstRun
+    ) -> FirstSuccessCapsStepLauncherPreparation {
+        guard !quickLauncherInstalled,
+              let existing,
+              existing.isEnabled
+        else {
+            return .leaveAsIs
+        }
+
+        if source == .replay {
+            return .leaveAsIs
+        }
+
+        return existing.configuration == catalogConfiguration
+            ? .disableCatalogDefault
+            : .requiresRules
     }
 
     static func capsLockRequiresHyperRulesHandoff(
@@ -265,8 +358,24 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
             && tapHold.selectedHoldOutput == "hyper"
     }
 
+    static func capsLockHoldIsHyper(in collections: [RuleCollection]) -> Bool {
+        collections.first(where: {
+            $0.id == RuleCollectionIdentifier.capsLockRemap
+        })?.configuration.tapHoldPickerConfig?.selectedHoldOutput == "hyper"
+    }
+
+    static func capsHoldConfigurationToPreserve(
+        existing: RuleCollection?,
+        quickLauncherInstalled: Bool,
+        source: FirstSuccessOnboardingPresentationSource
+    ) -> RuleCollectionConfiguration? {
+        guard quickLauncherInstalled || source == .replay else { return nil }
+        return existing?.configuration
+    }
+
     static func escapeOnlyCapsLockConfiguration(
-        from configuration: RuleCollectionConfiguration
+        from configuration: RuleCollectionConfiguration,
+        preservingHoldFrom existingConfiguration: RuleCollectionConfiguration? = nil
     ) -> RuleCollectionConfiguration? {
         guard let tapHold = configuration.tapHoldPickerConfig else { return nil }
 
@@ -280,12 +389,22 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
             ))
         }
 
+        let existingHoldOutput = existingConfiguration?
+            .tapHoldPickerConfig?
+            .selectedHoldOutput
+        // Step 1 owns only the tap action. Keep any supported hold action the
+        // person already has (notably Hyper for Quick Launcher) so replaying
+        // the tour cannot break an existing shortcut layer.
+        let selectedHoldOutput = existingHoldOutput.flatMap { output in
+            holdOptions.contains(where: { $0.output == output }) ? output : nil
+        } ?? "caps"
+
         return .tapHoldPicker(TapHoldPickerConfig(
             inputKey: tapHold.inputKey,
             tapOptions: tapHold.tapOptions,
             holdOptions: holdOptions,
             selectedTapOutput: "esc",
-            selectedHoldOutput: "caps"
+            selectedHoldOutput: selectedHoldOutput
         ))
     }
 

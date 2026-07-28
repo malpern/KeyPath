@@ -4,14 +4,47 @@ import SwiftUI
 struct RulePrerequisiteDialogRowID: Hashable, Sendable {
     let consumerID: UUID
     let capability: RuleCapability
+
+    var accessibilityIdentifier: String {
+        let capabilityComponent = switch capability {
+        case let .layerContent(layer): "layer-content-\(layer.rawValue)"
+        case let .layerActivation(layer): "layer-activation-\(layer.rawValue)"
+        case let .keyAlias(alias): "key-alias-\(alias.rawValue)"
+        }
+        return "rule-prerequisite-requirement-\(consumerID.uuidString)-\(capabilityComponent)"
+    }
+}
+
+enum RulePrerequisiteProviderState: Equatable, Sendable {
+    case unavailable
+    case automatic(providerName: String)
+    case choices(providerNames: [String])
+}
+
+enum RulePrerequisiteDialogResolution: Equatable, Sendable {
+    case automatic
+    case unavailable
+    case ambiguous
+    case unavailableAndAmbiguous
 }
 
 struct RulePrerequisiteDialogRow: Equatable, Identifiable, Sendable {
     let id: RulePrerequisiteDialogRowID
     let consumerName: String
     let capabilityName: String
-    let providerSummary: String
+    let providerState: RulePrerequisiteProviderState
     let evidence: [String]
+
+    var providerSummary: String {
+        switch providerState {
+        case .unavailable:
+            "No available rule provides this."
+        case let .automatic(providerName):
+            "KeyPath will turn on \(providerName)."
+        case let .choices(providerNames):
+            "Turn on one first: \(RulePrerequisiteDialogModel.joinedAlternatives(providerNames))."
+        }
+    }
 }
 
 /// A prepared, presentation-only snapshot for the prerequisite dialog.
@@ -23,7 +56,7 @@ struct RulePrerequisiteDialogModel: Equatable, Sendable {
     let candidateName: String
     let rows: [RulePrerequisiteDialogRow]
     let recommendedProviderNames: [String]
-    let canEnableAll: Bool
+    let resolution: RulePrerequisiteDialogResolution
 
     init(context: RulePrerequisiteResolutionContext) {
         operation = context.operation
@@ -39,8 +72,8 @@ struct RulePrerequisiteDialogModel: Equatable, Sendable {
         )
 
         rows = context.prerequisites.map { prerequisite in
-            let providerNames = prerequisite.availableProviderCollectionIDs.compactMap {
-                providersByID[$0]?.name
+            let providerNames = prerequisite.availableProviderCollectionIDs.map {
+                providersByID[$0]?.name ?? "Another rule"
             }
             return RulePrerequisiteDialogRow(
                 id: RulePrerequisiteDialogRowID(
@@ -50,44 +83,113 @@ struct RulePrerequisiteDialogModel: Equatable, Sendable {
                 consumerName: consumersByID[prerequisite.consumerCollectionID]?.name
                     ?? context.candidate.name,
                 capabilityName: Self.capabilityName(prerequisite.missingCapability),
-                providerSummary: Self.providerSummary(providerNames),
+                providerState: Self.providerState(providerNames),
                 evidence: Self.evidenceDescriptions(prerequisite.requirement.sortedEvidence)
             )
         }
 
+        let hasUnavailable = rows.contains { $0.providerState == .unavailable }
+        let hasAmbiguous = rows.contains {
+            if case .choices = $0.providerState { return true }
+            return false
+        }
+        switch (hasUnavailable, hasAmbiguous) {
+        case (false, false):
+            resolution = .automatic
+        case (true, false):
+            resolution = .unavailable
+        case (false, true):
+            resolution = .ambiguous
+        case (true, true):
+            resolution = .unavailableAndAmbiguous
+        }
+
         if let providerIDs = context.recommendedProviderIDs {
-            canEnableAll = true
             recommendedProviderNames = providerIDs.compactMap { providersByID[$0]?.name }
         } else {
-            canEnableAll = false
             recommendedProviderNames = []
+        }
+    }
+
+    var canEnableAll: Bool {
+        resolution == .automatic
+    }
+
+    var title: String {
+        switch resolution {
+        case .automatic:
+            "Turn on supporting rules?"
+        case .unavailable:
+            if rows.count == 1, let row = rows.first {
+                "\(row.consumerName) would lose \(row.capabilityName)"
+            } else {
+                "Some rules would lose behavior they need"
+            }
+        case .ambiguous:
+            "Choose a supporting rule first"
+        case .unavailableAndAmbiguous:
+            "This change needs attention first"
         }
     }
 
     var primaryActionTitle: String {
         switch operation {
         case .enable:
-            "Enable Required Rules & Turn On"
+            "Turn On Required Rules"
         case .save:
-            "Enable Required Rules & Save"
+            "Save & Turn On Required Rules"
         }
     }
 
     var secondaryActionTitle: String {
         switch operation {
         case .enable:
-            "Turn On Without Them"
+            "Turn On Anyway"
         case .save:
-            "Save Without Them"
+            "Save Anyway"
+        }
+    }
+
+    var cancelActionTitle: String {
+        switch operation {
+        case .enable:
+            "Keep Off"
+        case .save:
+            "Keep Editing"
         }
     }
 
     var consequenceSummary: String {
-        switch operation {
-        case .enable:
-            "Turning on \(candidateName) introduces requirements that are not active."
-        case .save:
-            "Saving \(candidateName) introduces requirements that are not active."
+        let action = switch operation {
+        case .enable: "Turning on \(candidateName)"
+        case .save: "Saving changes to \(candidateName)"
+        }
+
+        switch resolution {
+        case .automatic:
+            return "\(action) also requires the supporting rules below."
+        case .unavailable:
+            if rows.count == 1, let row = rows.first {
+                return "\(action) would remove behavior that \(row.consumerName) needs."
+            }
+            return "\(action) would remove behavior that other enabled rules need."
+        case .ambiguous:
+            return "\(action) would leave enabled rules without behavior they use, and more than one supporting rule could replace it."
+        case .unavailableAndAmbiguous:
+            return "\(action) would leave enabled rules without behavior they use. Some missing behavior has no automatic fix, while other behavior has more than one choice."
+        }
+    }
+
+    var guidanceSummary: String {
+        switch resolution {
+        case .automatic:
+            "KeyPath can turn on every required rule in the same change."
+        case .unavailable:
+            "Keep your current setup, or continue knowing the affected shortcuts may not work."
+        case .ambiguous:
+            "Turn on one of the listed rules first, or continue knowing the affected shortcuts may not work."
+        case .unavailableAndAmbiguous:
+            "Resolve the items below first, or continue knowing the affected shortcuts may not work."
         }
     }
 
@@ -105,37 +207,34 @@ struct RulePrerequisiteDialogModel: Equatable, Sendable {
         }
     }
 
-    private static func providerSummary(_ providerNames: [String]) -> String {
+    private static func providerState(
+        _ providerNames: [String]
+    ) -> RulePrerequisiteProviderState {
         switch providerNames.count {
         case 0:
-            "No matching rule is currently available."
+            .unavailable
         case 1:
-            "Provided by \(providerNames[0])."
+            .automatic(providerName: providerNames[0])
         default:
-            "Available from \(joinedList(providerNames))."
+            .choices(providerNames: providerNames)
         }
     }
 
     static func evidenceDescriptions(
         _ evidence: [RuleDependencyEvidence]
     ) -> [String] {
-        evidence.map { item in
+        evidence.compactMap { item in
             switch item {
             case let .keys(keys):
                 let noun = keys.count == 1 ? "key" : "keys"
                 return "\(keys.count) affected \(noun): \(joinedList(keys.map(displayName)))"
-            case let .mappingIDs(ids):
-                let noun = ids.count == 1 ? "mapping" : "mappings"
-                return "\(ids.count) affected \(noun)"
-            case let .layerPath(source, target):
-                return "Layer path: \(displayName(source.rawValue)) to \(displayName(target.rawValue))"
-            case let .configuration(field, value):
-                return "\(displayName(field)): \(displayName(value))"
+            case .mappingIDs, .layerPath, .configuration:
+                return nil
             }
         }
     }
 
-    private static func joinedList(_ values: [String]) -> String {
+    fileprivate static func joinedList(_ values: [String]) -> String {
         switch values.count {
         case 0:
             ""
@@ -145,6 +244,19 @@ struct RulePrerequisiteDialogModel: Equatable, Sendable {
             "\(values[0]) and \(values[1])"
         default:
             "\(values.dropLast().joined(separator: ", ")), and \(values.last ?? "")"
+        }
+    }
+
+    fileprivate static func joinedAlternatives(_ values: [String]) -> String {
+        switch values.count {
+        case 0:
+            ""
+        case 1:
+            values[0]
+        case 2:
+            "\(values[0]) or \(values[1])"
+        default:
+            "\(values.dropLast().joined(separator: ", ")), or \(values.last ?? "")"
         }
     }
 
@@ -164,63 +276,73 @@ struct RulePrerequisiteResolutionDialog: View {
     let onCancel: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            RulePrerequisiteDialogHeader(
-                consequenceSummary: model.consequenceSummary,
-                onCancel: onCancel
-            )
-
-            Divider()
+        VStack(alignment: .leading, spacing: 20) {
+            RulePrerequisiteDialogHeader(model: model)
 
             RulePrerequisiteRequirementsSection(rows: model.rows)
+
+            Text(model.guidanceSummary)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             Divider()
 
             RulePrerequisiteActionsSection(
                 model: model,
-                onChoice: onChoice
+                onChoice: onChoice,
+                onCancel: onCancel
             )
         }
-        .frame(width: 500)
+        .padding(24)
+        .frame(width: 540)
         .background(Color(NSColor.windowBackgroundColor))
+        .accessibilityIdentifier("rule-prerequisite-resolution-dialog")
+        .onExitCommand(perform: onCancel)
     }
 }
 
 private struct RulePrerequisiteDialogHeader: View {
-    let consequenceSummary: String
-    let onCancel: () -> Void
+    let model: RulePrerequisiteDialogModel
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            VStack(spacing: 8) {
-                Text("Enable the rules this change needs?")
-                    .font(.title2.weight(.semibold))
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: headerIcon)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(headerColor)
+                .frame(width: 36, height: 36)
+                .background(
+                    Circle()
+                        .fill(headerColor.opacity(0.12))
+                )
+                .accessibilityHidden(true)
 
-                Text(consequenceSummary)
+            VStack(alignment: .leading, spacing: 7) {
+                Text(model.title)
+                    .font(.title2.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader)
+
+                Text(model.consequenceSummary)
                     .font(.body)
                     .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
-
-                Text("Without them, the affected keys or actions may do nothing.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 24)
-
-            Button(action: onCancel) {
-                Image(systemName: "xmark")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 22, height: 22)
-                    .background(Circle().fill(Color.secondary.opacity(0.16)))
-            }
-            .buttonStyle(.plain)
-            .keyboardShortcut(.cancelAction)
-            .accessibilityIdentifier("rule-prerequisite-close-button")
-            .accessibilityLabel("Cancel")
         }
-        .padding(20)
+    }
+
+    private var headerIcon: String {
+        switch model.resolution {
+        case .automatic: "link.badge.plus"
+        case .unavailable, .unavailableAndAmbiguous: "exclamationmark.triangle.fill"
+        case .ambiguous: "arrow.triangle.branch"
+        }
+    }
+
+    private var headerColor: Color {
+        switch model.resolution {
+        case .automatic: .accentColor
+        case .unavailable, .ambiguous, .unavailableAndAmbiguous: .orange
+        }
     }
 }
 
@@ -228,12 +350,14 @@ private struct RulePrerequisiteRequirementsSection: View {
     let rows: [RulePrerequisiteDialogRow]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ForEach(rows) { row in
-                RulePrerequisiteRequirementRow(row: row)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 10) {
+                ForEach(rows) { row in
+                    RulePrerequisiteRequirementRow(row: row)
+                }
             }
         }
-        .padding(20)
+        .frame(maxHeight: 280)
     }
 }
 
@@ -242,16 +366,22 @@ private struct RulePrerequisiteRequirementRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "link")
-                .foregroundStyle(.secondary)
-                .frame(width: 20)
+            Image(systemName: statusIcon)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(statusColor)
+                .frame(width: 20, height: 22)
+                .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(row.consumerName) needs \(row.capabilityName).")
-                    .font(.body.weight(.medium))
+            VStack(alignment: .leading, spacing: 5) {
+                Text(row.consumerName)
+                    .font(.body.weight(.semibold))
+
+                Text("Needs \(row.capabilityName)")
+                    .foregroundStyle(.secondary)
 
                 Text(row.providerSummary)
-                    .foregroundStyle(.secondary)
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(statusColor)
 
                 ForEach(row.evidence, id: \.self) { evidence in
                     Text(evidence)
@@ -261,44 +391,66 @@ private struct RulePrerequisiteRequirementRow: View {
             }
             .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(NSColor.controlBackgroundColor))
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.08))
+        }
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(row.id.accessibilityIdentifier)
+    }
+
+    private var statusIcon: String {
+        switch row.providerState {
+        case .unavailable: "exclamationmark.circle.fill"
+        case .automatic: "checkmark.circle.fill"
+        case .choices: "arrow.triangle.branch"
+        }
+    }
+
+    private var statusColor: Color {
+        switch row.providerState {
+        case .unavailable, .choices: .orange
+        case .automatic: .accentColor
+        }
     }
 }
 
 private struct RulePrerequisiteActionsSection: View {
     let model: RulePrerequisiteDialogModel
     let onChoice: (RulePrerequisiteResolutionChoice) -> Void
+    let onCancel: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if !model.canEnableAll {
-                Text("KeyPath found more than one possible provider for at least one requirement. Choose one manually later, or continue without it.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                Spacer(minLength: 0)
+                actionButtons
             }
 
-            ViewThatFits {
-                HStack(spacing: 12) {
-                    actionButtons
-                }
-
-                VStack(spacing: 10) {
-                    actionButtons
-                }
+            VStack(alignment: .trailing, spacing: 10) {
+                actionButtons
             }
         }
-        .padding(20)
     }
 
     @ViewBuilder
     private var actionButtons: some View {
-        Button {
+        if model.canEnableAll {
+            Button(model.cancelActionTitle, action: onCancel)
+                .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("rule-prerequisite-cancel-button")
+        }
+
+        Button(role: .destructive) {
             onChoice(.applyWithoutProviders)
         } label: {
             Text(model.secondaryActionTitle)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("rule-prerequisite-apply-without-button")
@@ -308,12 +460,15 @@ private struct RulePrerequisiteActionsSection: View {
                 onChoice(.enableRequiredProvidersAndApply)
             } label: {
                 Text(model.primaryActionTitle)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
             }
             .buttonStyle(.borderedProminent)
             .keyboardShortcut(.defaultAction)
             .accessibilityIdentifier("rule-prerequisite-enable-required-button")
+        } else {
+            Button(model.cancelActionTitle, action: onCancel)
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("rule-prerequisite-cancel-button")
         }
     }
 }

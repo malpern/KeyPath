@@ -45,13 +45,15 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
             RulePrerequisiteDialogModel.init(context:)
         ))
         XCTAssertTrue(dialogModel.canEnableAll)
+        XCTAssertEqual(dialogModel.resolution, .automatic)
         XCTAssertEqual(dialogModel.candidateName, "Home Row Layer Toggles")
         XCTAssertEqual(dialogModel.recommendedProviderNames, ["Function"])
         XCTAssertEqual(
             dialogModel.primaryActionTitle,
-            "Enable Required Rules & Turn On"
+            "Turn On Required Rules"
         )
-        XCTAssertEqual(dialogModel.secondaryActionTitle, "Turn On Without Them")
+        XCTAssertEqual(dialogModel.secondaryActionTitle, "Turn On Anyway")
+        XCTAssertEqual(dialogModel.cancelActionTitle, "Keep Off")
         XCTAssertEqual(dialogModel.rows.map(\.consumerName), [
             "Home Row Layer Toggles",
         ])
@@ -59,7 +61,7 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
             "Fun layer content",
         ])
         XCTAssertEqual(dialogModel.rows.map(\.providerSummary), [
-            "Provided by Function.",
+            "KeyPath will turn on Function.",
         ])
         XCTAssertEqual(dialogModel.rows.flatMap(\.evidence), [
             "1 affected key: A",
@@ -457,11 +459,135 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
         let context = try XCTUnwrap(receivedContext)
         let dialogModel = RulePrerequisiteDialogModel(context: context)
         XCTAssertFalse(dialogModel.canEnableAll)
+        XCTAssertEqual(dialogModel.resolution, .ambiguous)
+        XCTAssertEqual(dialogModel.title, "Choose a supporting rule first")
         XCTAssertEqual(dialogModel.rows.map(\.providerSummary), [
-            "Available from First Function and Second Function.",
+            "Turn on one first: First Function or Second Function.",
         ])
         XCTAssertTrue(manager.ruleCollections[id: first.id]?.isEnabled == false)
         XCTAssertTrue(manager.ruleCollections[id: second.id]?.isEnabled == false)
+    }
+
+    func testUnavailableProviderHasTruthfulCopyAndHidesConfigurationEvidence() {
+        let capsLock = RuleCollection(
+            id: RuleCollectionIdentifier.capsLockRemap,
+            name: "Caps Lock Remap",
+            summary: "Test",
+            category: .custom,
+            mappings: [],
+            isEnabled: true
+        )
+        let launcher = RuleCollection(
+            id: RuleCollectionIdentifier.launcher,
+            name: "Quick Launcher",
+            summary: "Test",
+            category: .custom,
+            mappings: [],
+            isEnabled: true
+        )
+        let requirement = RuleRequirement(
+            capability: .keyAlias(.hyper),
+            evidence: [
+                .configuration(field: "activationMode", value: "holdHyper"),
+                .configuration(field: "hyperTriggerMode", value: "hold"),
+            ]
+        )
+        let context = RulePrerequisiteResolutionContext(
+            operation: .enable,
+            candidate: capsLock,
+            prerequisites: [
+                RulePrerequisite(
+                    consumerCollectionID: launcher.id,
+                    missingCapability: .keyAlias(.hyper),
+                    requirement: requirement,
+                    availableProviderCollectionIDs: [],
+                    recommendedProviderCollectionID: nil
+                ),
+            ],
+            affectedConsumers: [launcher],
+            availableProviders: []
+        )
+
+        let dialogModel = RulePrerequisiteDialogModel(context: context)
+
+        XCTAssertEqual(dialogModel.resolution, .unavailable)
+        XCTAssertFalse(dialogModel.canEnableAll)
+        XCTAssertEqual(dialogModel.title, "Quick Launcher would lose the Hyper key")
+        XCTAssertEqual(
+            dialogModel.consequenceSummary,
+            "Turning on Caps Lock Remap would remove behavior that Quick Launcher needs."
+        )
+        XCTAssertEqual(dialogModel.rows.map(\.providerSummary), [
+            "No available rule provides this.",
+        ])
+        XCTAssertEqual(dialogModel.rows.flatMap(\.evidence), [])
+        XCTAssertFalse(dialogModel.guidanceSummary.contains("more than one"))
+    }
+
+    func testUnavailableAndAmbiguousProvidersRemainDistinct() {
+        let candidate = homeRowToggles(
+            id: uuid(46),
+            enabled: false,
+            assignments: [:]
+        )
+        let unavailableConsumer = RuleCollection(
+            id: uuid(47),
+            name: "Quick Launcher",
+            summary: "Test",
+            category: .custom,
+            mappings: [],
+            isEnabled: true
+        )
+        let ambiguousConsumer = homeRowToggles(
+            id: uuid(48),
+            enabled: true,
+            assignments: ["a": "fun"]
+        )
+        let firstProvider = layerContentProvider(
+            id: uuid(49),
+            name: "First Function",
+            enabled: false
+        )
+        let secondProvider = layerContentProvider(
+            id: uuid(50),
+            name: "Second Function",
+            enabled: false
+        )
+        let context = RulePrerequisiteResolutionContext(
+            operation: .save,
+            candidate: candidate,
+            prerequisites: [
+                RulePrerequisite(
+                    consumerCollectionID: unavailableConsumer.id,
+                    missingCapability: .keyAlias(.hyper),
+                    requirement: RuleRequirement(capability: .keyAlias(.hyper)),
+                    availableProviderCollectionIDs: [],
+                    recommendedProviderCollectionID: nil
+                ),
+                RulePrerequisite(
+                    consumerCollectionID: ambiguousConsumer.id,
+                    missingCapability: .layerContent(.init("fun")),
+                    requirement: RuleRequirement(
+                        capability: .layerContent(.init("fun"))
+                    ),
+                    availableProviderCollectionIDs: [firstProvider.id, secondProvider.id],
+                    recommendedProviderCollectionID: nil
+                ),
+            ],
+            affectedConsumers: [unavailableConsumer, ambiguousConsumer],
+            availableProviders: [firstProvider, secondProvider]
+        )
+
+        let dialogModel = RulePrerequisiteDialogModel(context: context)
+
+        XCTAssertEqual(dialogModel.resolution, .unavailableAndAmbiguous)
+        XCTAssertFalse(dialogModel.canEnableAll)
+        XCTAssertEqual(dialogModel.cancelActionTitle, "Keep Editing")
+        XCTAssertEqual(dialogModel.secondaryActionTitle, "Save Anyway")
+        XCTAssertEqual(dialogModel.rows.map(\.providerState), [
+            .unavailable,
+            .choices(providerNames: ["First Function", "Second Function"]),
+        ])
     }
 
     func testNonInteractiveAutomaticFixAbortsWhenProvidersAreAmbiguous() async throws {
@@ -498,6 +624,100 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
         XCTAssertTrue(manager.ruleCollections[id: candidate.id]?.isEnabled == false)
         XCTAssertTrue(manager.ruleCollections[id: first.id]?.isEnabled == false)
         XCTAssertTrue(manager.ruleCollections[id: second.id]?.isEnabled == false)
+    }
+
+    func testStagedProviderDisableCannotBeAutomaticallyUndone() async throws {
+        let manager = try makeManager()
+        defer { TestEnvironment.forceTestMode = false }
+        let provider = layerContentProvider(
+            id: uuid(60),
+            name: "Function",
+            enabled: true
+        )
+        let dependent = homeRowToggles(
+            id: uuid(61),
+            enabled: true,
+            assignments: ["a": "fun"]
+        )
+        let candidate = RuleCollection(
+            id: uuid(62),
+            name: "Replacement",
+            summary: "Test",
+            category: .custom,
+            mappings: [],
+            isEnabled: false
+        )
+        manager.ruleCollections = [provider, dependent, candidate]
+
+        var receivedContext: RulePrerequisiteResolutionContext?
+        manager.onPrerequisiteResolution = { context in
+            receivedContext = context
+            return .enableRequiredProvidersAndApply
+        }
+        var regenerationCount = 0
+        manager.onBeforeSave = { regenerationCount += 1 }
+
+        let applied = await manager.toggleCollection(
+            id: candidate.id,
+            isEnabled: true,
+            bypassOwnershipCheck: true,
+            additionalCollectionIDsToDisable: [provider.id]
+        )
+
+        XCTAssertFalse(applied)
+        XCTAssertEqual(receivedContext?.recommendedProviderIDs, nil)
+        XCTAssertEqual(
+            receivedContext?.prerequisites.first?.availableProviderCollectionIDs,
+            []
+        )
+        XCTAssertEqual(regenerationCount, 0)
+        XCTAssertTrue(manager.ruleCollections[id: candidate.id]?.isEnabled == false)
+        XCTAssertTrue(manager.ruleCollections[id: provider.id]?.isEnabled == true)
+        XCTAssertTrue(manager.ruleCollections[id: dependent.id]?.isEnabled == true)
+    }
+
+    func testStagedDisableIsIgnoredDuringConflictAnalysis() async throws {
+        let manager = try makeManager()
+        defer { TestEnvironment.forceTestMode = false }
+        let stagedOff = RuleCollection(
+            id: uuid(63),
+            name: "Old Mapping",
+            summary: "Test",
+            category: .custom,
+            mappings: [
+                KeyMapping(input: "x", action: .keystroke(key: "a")),
+            ],
+            isEnabled: true
+        )
+        let candidate = RuleCollection(
+            id: uuid(64),
+            name: "New Mapping",
+            summary: "Test",
+            category: .custom,
+            mappings: [
+                KeyMapping(input: "x", action: .keystroke(key: "b")),
+            ],
+            isEnabled: false
+        )
+        manager.ruleCollections = [stagedOff, candidate]
+        manager.onConflictResolution = { _ in
+            XCTFail("A collection staged off in the same transaction is not a conflict")
+            return nil
+        }
+        var regenerationCount = 0
+        manager.onBeforeSave = { regenerationCount += 1 }
+
+        let applied = await manager.toggleCollection(
+            id: candidate.id,
+            isEnabled: true,
+            bypassOwnershipCheck: true,
+            additionalCollectionIDsToDisable: [stagedOff.id]
+        )
+
+        XCTAssertTrue(applied)
+        XCTAssertEqual(regenerationCount, 1)
+        XCTAssertTrue(manager.ruleCollections[id: candidate.id]?.isEnabled == true)
+        XCTAssertTrue(manager.ruleCollections[id: stagedOff.id]?.isEnabled == false)
     }
 
     func testFailedAtomicSaveRestoresCandidateAndProvider() async throws {

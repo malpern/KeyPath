@@ -24,7 +24,10 @@ extension RuleCollectionsManager {
         return (KanataKeyConverter.convertToKanataKey(activator.input), activator.targetLayer)
     }
 
-    func conflictInfo(for candidate: RuleCollection) -> RuleConflictInfo? {
+    func conflictInfo(
+        for candidate: RuleCollection,
+        ignoringCollectionIDs: Set<UUID> = []
+    ) -> RuleConflictInfo? {
         // Neovim Terminal is app-scoped educational content; it intentionally coexists
         // with other navigation collections without forcing toggle conflicts.
         if isNeovimAppScopedReference(candidate) {
@@ -34,7 +37,11 @@ extension RuleCollectionsManager {
         let candidateKeys = normalizedKeys(for: candidate)
         let candidateActivator = normalizedActivator(for: candidate)
 
-        for other in ruleCollections where other.isEnabled && other.id != candidate.id {
+        for other in ruleCollections where
+            other.isEnabled
+            && other.id != candidate.id
+            && !ignoringCollectionIDs.contains(other.id)
+        {
             if isNeovimAppScopedReference(other) {
                 continue
             }

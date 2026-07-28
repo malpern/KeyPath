@@ -33,6 +33,9 @@ extension RuleCollectionsManager {
     /// user selection in the same save/reload transaction as enabling the
     /// collection. It is intentionally optional so existing callers retain
     /// their current configuration.
+    /// `additionalCollectionIDsToDisable` stages related catalog collections
+    /// in the same transaction. It is used when activating one managed pack
+    /// replaces an untouched, not-yet-installed catalog experience.
     /// `skipReload` lets a higher-level transaction validate the resulting
     /// live reload itself without triggering a duplicate cooldown-blocked
     /// attempt. The configuration is still validated and persisted.
@@ -44,6 +47,7 @@ extension RuleCollectionsManager {
         autoResolveConflicts: Bool = false,
         bypassOwnershipCheck: Bool = false,
         configurationOverride: RuleCollectionConfiguration? = nil,
+        additionalCollectionIDsToDisable: Set<UUID> = [],
         skipReload: Bool = false
     ) async -> Bool {
         AppLogger.shared.log("🔀 [RuleCollections] toggleCollection called: id=\(id), isEnabled=\(isEnabled)")
@@ -92,13 +96,17 @@ extension RuleCollectionsManager {
         if isEnabled {
             guard let confirmedProviderIDs = await confirmedPrerequisiteProviderIDs(
                 for: candidate,
-                operation: .enable
+                operation: .enable,
+                disablingCollectionIDs: additionalCollectionIDsToDisable
             ) else {
                 return false
             }
             prerequisiteProviderIDs = confirmedProviderIDs
 
-            if let conflict = conflictInfo(for: candidate) {
+            if let conflict = conflictInfo(
+                for: candidate,
+                ignoringCollectionIDs: additionalCollectionIDsToDisable
+            ) {
                 if autoResolveConflicts {
                     AppLogger.shared.log(
                         "🔄 [RuleCollections] Auto-resolving conflict: \(candidate.name) wins over \(conflict.displayName) on \(conflict.keys)"
@@ -127,6 +135,13 @@ extension RuleCollectionsManager {
                     }
                 }
             }
+        }
+
+        for index in ruleCollections.indices where
+            additionalCollectionIDsToDisable.contains(ruleCollections[index].id)
+            && ruleCollections[index].id != candidate.id
+        {
+            ruleCollections[index].isEnabled = false
         }
 
         applyPrerequisiteChangeInMemory(

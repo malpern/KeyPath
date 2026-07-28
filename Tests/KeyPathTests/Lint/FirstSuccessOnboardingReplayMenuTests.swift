@@ -35,7 +35,7 @@ final class FirstSuccessOnboardingReplayMenuTests: XCTestCase {
 
         XCTAssertTrue(
             replaySource.contains(
-                "FirstSuccessOnboardingWindowController.show(kanataViewModel: viewModel)"
+                "source: .replay"
             )
         )
         for forbiddenDependency in [
