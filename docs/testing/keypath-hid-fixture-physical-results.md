@@ -147,5 +147,45 @@ Every cell retained Jig focus and ended with no pressed keys or active modifiers
 summary is
 `~/.local/state/keypath-hid-capture-jig/modifier-matrix/shift-smoke-20260728T222037Z/summary.json`.
 This proves the harness can execute and correlate the timing variants, but 24 characters per cell
-are too few to supersede the earlier 240-character calm failure. Reserve 20-30 minutes for the full
-5x5 Shift lead/release matrix before deciding whether the defect persists or is timing-sensitive.
+are too few to supersede the earlier 240-character calm failure.
+
+### Full 5x5 Shift lead/release matrix
+
+The full matrix completed all 25 timing cells with a 60-character shifted corpus per cell, a fixed
+8 ms key hold, and a 50 ms character interval. It covered Shift lead and release-lag values of 0,
+2, 4, 8, and 12 ms. Across 1,500 received characters and 4,000 firmware trace reports, every cell
+retained Jig focus, every key and modifier was released, and the fixture recorded zero late reports;
+maximum firmware lateness was 175 us.
+
+| Shift lead | Exact cells | Wrong characters | Shift demotions | Result |
+|---:|---:|---:|---:|---|
+| 0 ms | 1 / 5 | 10 / 300 | 10 | Defect reproduced in 4 / 5 release-lag variants |
+| 2 ms | 5 / 5 | 0 / 300 | 0 | Exact |
+| 4 ms | 5 / 5 | 0 / 300 | 0 | Exact |
+| 8 ms | 5 / 5 | 0 / 300 | 0 | Exact |
+| 12 ms | 5 / 5 | 0 / 300 | 0 | Exact |
+
+Every mismatch was a Shift demotion: `_→-`, `?→/`, `Z→z`, or `!→1`. Release lag did not show a
+monotonic relationship with corruption: the 0 ms-lead / 4 ms-release cell was exact, while the
+other four zero-lead cells produced between one and five demotions. All 20 cells with a 2 ms or
+greater Shift lead were exact (1,200 / 1,200 characters).
+
+This isolates the observed defect to modifier assertion timing in the working
+fixture → Kanata → VirtualHID → application path. CPU load is not required, firmware deadline
+misses are not implicated, and adding a single 2 ms lead before the shifted key removed every
+observed corruption in this matrix. The result identifies a reliable reproduction boundary; it
+does not yet prove whether the product-side fault is in Kanata's physical-input handling or the
+VirtualHID delivery boundary.
+
+The result is combined from these fail-closed artifacts:
+
+- `shift-full-20260728T222602Z`: 10 valid cells (0 and 2 ms lead rows). The next cell was not
+  executed after the fixture's Wi-Fi control service timed out.
+- `shift-full-resume-20260728T223504Z`: 14 valid cells (4 and 8 ms rows plus four 12 ms cells). The
+  final cell was not executed because the Jig's macOS memory-pressure admission timed out.
+- `shift-full-final-20260728T224119Z`: the single missing 12 / 12 ms cell, retried only after three
+  consecutive healthy resource samples.
+
+The Wi-Fi timeout and memory-pressure rejection are harness-infrastructure events, not product test
+outcomes. Neither submitted HID reports for its blocked cell, and only the completed, independently
+validated cells are included in the 25-cell result.
