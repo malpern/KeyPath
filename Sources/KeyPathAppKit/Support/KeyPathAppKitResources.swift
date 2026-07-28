@@ -2,10 +2,17 @@ import Foundation
 
 private final class KeyPathAppKitBundleSentinel {}
 
+/// Resolves this target's SwiftPM resources without using `Bundle.module`.
+/// KeyPath wraps a SwiftPM command-line executable in a signed macOS `.app`, so
+/// target bundles live in `Contents/Resources` rather than beside the app root
+/// where SwiftPM's generated accessor searches.
 enum KeyPathAppKitResources {
-    static let bundle: Bundle = {
-        let mainBundle = Bundle.main
-        let codeBundle = Bundle(for: KeyPathAppKitBundleSentinel.self)
+    static let bundle = resolveBundle(
+        mainBundle: .main,
+        codeBundle: Bundle(for: KeyPathAppKitBundleSentinel.self)
+    )
+
+    static func resolveBundle(mainBundle: Bundle, codeBundle: Bundle) -> Bundle {
         let candidates = [
             mainBundle.resourceURL?.appendingPathComponent("KeyPath_KeyPathAppKit.bundle"),
             codeBundle.resourceURL?.appendingPathComponent("KeyPath_KeyPathAppKit.bundle"),
@@ -22,7 +29,7 @@ enum KeyPathAppKitResources {
         }
 
         return mainBundle
-    }()
+    }
 
     static var resourceURL: URL? {
         bundle.resourceURL ?? Bundle.main.resourceURL

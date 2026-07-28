@@ -387,7 +387,7 @@ struct FirstSuccessOnboardingDialog: View {
                 cancel: .init(
                     title: String(
                         localized: "Skip tour",
-                        bundle: #bundle,
+                        bundle: KeyPathAppKitResources.bundle,
                         comment: "Button that dismisses the optional first-success tour."
                     ),
                     action: skipTour,
@@ -397,7 +397,7 @@ struct FirstSuccessOnboardingDialog: View {
                 secondary: .init(
                     title: String(
                         localized: "Back",
-                        bundle: #bundle,
+                        bundle: KeyPathAppKitResources.bundle,
                         comment: "Button that returns to the previous first-success lesson."
                     ),
                     action: goBack,
@@ -429,48 +429,48 @@ struct FirstSuccessOnboardingDialog: View {
         case .capsLock:
             return switch session.capsLockPhase {
             case .installed, .practiced:
-                String(localized: "Continue", bundle: #bundle)
+                String(localized: "Continue", bundle: KeyPathAppKitResources.bundle)
             case .blocked:
-                String(localized: "Keep my current setup", bundle: #bundle)
+                String(localized: "Keep my current setup", bundle: KeyPathAppKitResources.bundle)
             case .explaining where session.failure == .capsLockEscape:
-                String(localized: "Try again", bundle: #bundle)
+                String(localized: "Try again", bundle: KeyPathAppKitResources.bundle)
             case .explaining, .applying:
-                String(localized: "Use Caps Lock for Escape", bundle: #bundle)
+                String(localized: "Use Caps Lock for Escape", bundle: KeyPathAppKitResources.bundle)
             }
         case .hyper:
             return switch session.hyperPhase {
             case .installed, .practiced:
-                String(localized: "Continue", bundle: #bundle)
+                String(localized: "Continue", bundle: KeyPathAppKitResources.bundle)
             case .blocked:
-                String(localized: "Keep my current setup", bundle: #bundle)
+                String(localized: "Keep my current setup", bundle: KeyPathAppKitResources.bundle)
             case .explaining where session.failure == .hyper:
-                String(localized: "Try again", bundle: #bundle)
+                String(localized: "Try again", bundle: KeyPathAppKitResources.bundle)
             case .explaining, .applying:
-                String(localized: "Add Hyper on hold", bundle: #bundle)
+                String(localized: "Add Hyper on hold", bundle: KeyPathAppKitResources.bundle)
             }
         case .launcher:
             guard session.hyperPhase.isInstalled else {
-                return String(localized: "Continue", bundle: #bundle)
+                return String(localized: "Continue", bundle: KeyPathAppKitResources.bundle)
             }
             switch session.launcherPhase {
             case .installed, .practiced:
-                return String(localized: "Continue", bundle: #bundle)
+                return String(localized: "Continue", bundle: KeyPathAppKitResources.bundle)
             case .explaining where session.failure == .launcherShortcut:
-                return String(localized: "Try again", bundle: #bundle)
+                return String(localized: "Try again", bundle: KeyPathAppKitResources.bundle)
             case .explaining, .blocked, .applying:
                 if let app = launcherChoice.selectedApp,
                    !launcherChoice.canonicalKey.isEmpty
                 {
                     return String(
                         localized: "Save Hyper + \(launcherChoice.displayedKey.uppercased()) for \(app.name)",
-                        bundle: #bundle,
+                        bundle: KeyPathAppKitResources.bundle,
                         comment: "Button that saves the selected Quick Launcher app and key during onboarding."
                     )
                 }
-                return String(localized: "Choose an app and letter", bundle: #bundle)
+                return String(localized: "Choose an app and letter", bundle: KeyPathAppKitResources.bundle)
             }
         case .rules:
-            return String(localized: "Explore Rules", bundle: #bundle)
+            return String(localized: "Explore Rules", bundle: KeyPathAppKitResources.bundle)
         }
     }
 
@@ -587,7 +587,7 @@ private struct FirstSuccessProgressHeader: View {
             }
             .accessibilityHidden(true)
 
-            Text("\(step.ordinal) of \(FirstSuccessOnboardingSession.Step.allCases.count)", bundle: #bundle)
+            Text("\(step.ordinal) of \(FirstSuccessOnboardingSession.Step.allCases.count)", bundle: KeyPathAppKitResources.bundle)
                 .font(.caption)
                 .foregroundStyle(palette.mutedText.color)
                 .padding(.leading, 28)
@@ -601,7 +601,7 @@ private struct FirstSuccessProgressHeader: View {
         .accessibilityLabel(
             Text(
                 "Onboarding step \(step.ordinal) of \(FirstSuccessOnboardingSession.Step.allCases.count)",
-                bundle: #bundle
+                bundle: KeyPathAppKitResources.bundle
             )
         )
         .accessibilityIdentifier("first-success-onboarding-progress")
@@ -874,10 +874,10 @@ private struct FirstSuccessBenefitRow: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(title, bundle: #bundle)
+                Text(title, bundle: KeyPathAppKitResources.bundle)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(palette.primaryText.color)
-                Text(detail, bundle: #bundle)
+                Text(detail, bundle: KeyPathAppKitResources.bundle)
                     .font(.callout)
                     .foregroundStyle(palette.detailText.color)
                     .lineSpacing(3)
@@ -890,7 +890,7 @@ private struct FirstSuccessBenefitRow: View {
     @ViewBuilder
     private var iconContent: some View {
         if icon == "keypath.esc" {
-            Text("esc", bundle: #bundle)
+            Text("esc", bundle: KeyPathAppKitResources.bundle)
                 .font(.system(size: 16, weight: .semibold))
         } else {
             Image(systemName: icon)
@@ -927,9 +927,9 @@ private struct CapsLockPracticeControl: View {
             .buttonStyle(.plain)
             .popover(isPresented: $session.isCapsPracticeMenuPresented, arrowEdge: .trailing) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("A tiny practice menu", bundle: #bundle)
+                    Text("A tiny practice menu", bundle: KeyPathAppKitResources.bundle)
                         .font(.headline)
-                    Text("Tap Caps Lock. It should dismiss this menu just like Escape.", bundle: #bundle)
+                    Text("Tap Caps Lock. It should dismiss this menu just like Escape.", bundle: KeyPathAppKitResources.bundle)
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -988,7 +988,7 @@ private struct FirstSuccessStatusRegion: View {
             if session.isApplying {
                 ProgressView()
                     .controlSize(.small)
-                Text("Saving and reloading your keyboard…", bundle: #bundle)
+                Text("Saving and reloading your keyboard…", bundle: KeyPathAppKitResources.bundle)
                     .font(.callout)
                     .foregroundStyle(palette.detailText.color)
             } else if let failure = session.failure {
@@ -1021,19 +1021,19 @@ private struct FirstSuccessStatusRegion: View {
             case .capsLockEscape:
                 LocalizedStringResource(
                     "Caps Lock already has a custom job, so KeyPath left it untouched.",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Safe conflict message when onboarding will not overwrite Caps Lock."
                 )
             case .hyper:
                 LocalizedStringResource(
                     "Your current Caps Lock or shortcut setup is already customized, so KeyPath left it untouched.",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Safe conflict message when onboarding will not overwrite the current Caps Lock or shortcut setup."
                 )
             case .launcherShortcut:
                 LocalizedStringResource(
                     "That letter is already in use, so KeyPath left your launcher untouched. Choose another letter and try again.",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Safe conflict message when an onboarding launcher shortcut cannot be added."
                 )
             }
@@ -1042,14 +1042,14 @@ private struct FirstSuccessStatusRegion: View {
         if session.savedButNotActive == failure {
             return LocalizedStringResource(
                 "Your choice was saved, but KeyPath could not make it active yet. Try again when KeyPath is ready.",
-                bundle: #bundle,
+                bundle: KeyPathAppKitResources.bundle,
                 comment: "Recoverable error shown when an onboarding choice is durable but its live reload is not active."
             )
         }
 
         return LocalizedStringResource(
             "KeyPath could not save that change. Nothing new was applied; try again.",
-            bundle: #bundle,
+            bundle: KeyPathAppKitResources.bundle,
             comment: "Recoverable error shown when an onboarding catalog install fails."
         )
     }
@@ -1144,36 +1144,36 @@ private struct FirstSuccessKeyboardHero: View {
     private var accessibilityLabel: Text {
         switch moment {
         case .welcome:
-            Text("A keyboard ready for three guided changes.", bundle: #bundle)
+            Text("A keyboard ready for three guided changes.", bundle: KeyPathAppKitResources.bundle)
         case .capsMotivation:
-            Text("Caps Lock is highlighted. It still types Caps Lock; the proposed tap action is Escape.", bundle: #bundle)
+            Text("Caps Lock is highlighted. It still types Caps Lock; the proposed tap action is Escape.", bundle: KeyPathAppKitResources.bundle)
         case .capsApplying:
-            Text("Caps Lock is being changed to type Escape when tapped.", bundle: #bundle)
+            Text("Caps Lock is being changed to type Escape when tapped.", bundle: KeyPathAppKitResources.bundle)
         case .capsInstalled:
             if session.hyperPhase.isInstalled {
-                Text("Caps Lock types Escape when tapped and prepares Hyper when held.", bundle: #bundle)
+                Text("Caps Lock types Escape when tapped and prepares Hyper when held.", bundle: KeyPathAppKitResources.bundle)
             } else {
-                Text("Caps Lock now types Escape when tapped. Its hold action remains available and unchanged.", bundle: #bundle)
+                Text("Caps Lock now types Escape when tapped. Its hold action remains available and unchanged.", bundle: KeyPathAppKitResources.bundle)
             }
         case .hyperMotivation:
-            Text("Caps Lock types Escape when tapped. The proposed hold action is Hyper.", bundle: #bundle)
+            Text("Caps Lock types Escape when tapped. The proposed hold action is Hyper.", bundle: KeyPathAppKitResources.bundle)
         case .hyperApplying:
-            Text("Held Caps Lock is being changed to Hyper: Control, Option, Shift, and Command.", bundle: #bundle)
+            Text("Held Caps Lock is being changed to Hyper: Control, Option, Shift, and Command.", bundle: KeyPathAppKitResources.bundle)
         case .hyperInstalled:
-            Text("Caps Lock now types Escape when tapped and Hyper when held.", bundle: #bundle)
+            Text("Caps Lock now types Escape when tapped and Hyper when held.", bundle: KeyPathAppKitResources.bundle)
         case .launcher:
             if let app = launcherChoice.selectedApp,
                !launcherChoice.canonicalKey.isEmpty
             {
                 Text(
                     "Hold Caps Lock and press \(launcherChoice.displayedKey.uppercased()) to open \(app.name).",
-                    bundle: #bundle
+                    bundle: KeyPathAppKitResources.bundle
                 )
             } else {
-                Text("Held Caps Lock prepares Hyper, and the highlighted letters are available shortcut keys you can choose.", bundle: #bundle)
+                Text("Held Caps Lock prepares Hyper, and the highlighted letters are available shortcut keys you can choose.", bundle: KeyPathAppKitResources.bundle)
             }
         case .handoff:
-            Text("The guided shortcuts are ready. The next action opens Rules to discover more keyboard changes.", bundle: #bundle)
+            Text("The guided shortcuts are ready. The next action opens Rules to discover more keyboard changes.", bundle: KeyPathAppKitResources.bundle)
         }
     }
 }

@@ -27,6 +27,21 @@ if [[ ! -d "$APP_PATH" ]]; then
     exit 1
 fi
 
+for resource_bundle in \
+    KeyPath_KeyPath.bundle \
+    KeyPath_KeyPathAppKit.bundle \
+    KeyPath_KeyPathInstallationWizard.bundle; do
+    packaged_bundle="$APP_PATH/Contents/Resources/$resource_bundle"
+    if [[ ! -d "$packaged_bundle" ]]; then
+        echo "❌ Packaged SwiftPM resource bundle is missing: $packaged_bundle" >&2
+        exit 1
+    fi
+done
+if [[ ! -f "$APP_PATH/Contents/Resources/KeyPath_KeyPathAppKit.bundle/default.metallib" ]]; then
+    echo "❌ Packaged Metal library is missing from the KeyPathAppKit resource bundle" >&2
+    exit 1
+fi
+
 CLI_PATH="$APP_PATH/Contents/MacOS/keypath-cli"
 if [[ ! -x "$CLI_PATH" ]]; then
     echo "❌ Bundled CLI is missing or not executable: $CLI_PATH" >&2
