@@ -29,11 +29,24 @@ public final class AdvancedBehaviorManager {
             case .basic:
                 "Hold activates after timeout"
             case .triggerEarly:
-                "Hold activates when another key is pressed (home-row mods)"
+                "The hold action activates when another key is pressed."
             case .quickTap:
-                "Fast taps always register as tap"
+                "The hold action activates after another key is released."
             case .customKeys:
                 "Only specific keys trigger early tap"
+            }
+        }
+
+        public var displayName: String {
+            switch self {
+            case .basic:
+                "Basic"
+            case .triggerEarly:
+                TimingCopy.activateHoldOnOtherKeyPress
+            case .quickTap:
+                TimingCopy.activateHoldOnOtherKeyRelease
+            case .customKeys:
+                "Custom keys"
             }
         }
     }

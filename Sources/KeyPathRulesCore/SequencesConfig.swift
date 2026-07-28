@@ -11,20 +11,22 @@ import KeyPathCore
 
 /// Configuration for key sequences (defseq)
 public struct SequencesConfig: Codable, Equatable, Sendable {
+    public static let minimumPauseLimitMs = 300
+    public static let maximumPauseLimitMs = 2000
+    public static let defaultPauseLimitMs = 500
+    public static let pauseLimitStepMs = 50
+
     public var sequences: [SequenceDefinition]
     public var activeSequenceID: UUID?
 
-    /// Global timeout in milliseconds for all sequences.
-    /// Valid range: 300-2000ms (enforced by UI slider).
-    /// - 300ms: Fast (experienced users)
-    /// - 500ms: Moderate (default, recommended)
-    /// - 1000ms: Relaxed (learning mode)
+    /// Maximum pause in milliseconds after the most recent sequence key.
+    /// The persisted name is retained for configuration compatibility.
     public var globalTimeout: Int
 
     public init(
         sequences: [SequenceDefinition] = [],
         activeSequenceID: UUID? = nil,
-        globalTimeout: Int = 500
+        globalTimeout: Int = Self.defaultPauseLimitMs
     ) {
         self.sequences = sequences
         self.activeSequenceID = activeSequenceID
@@ -33,10 +35,15 @@ public struct SequencesConfig: Codable, Equatable, Sendable {
 
     // MARK: - Validation
 
-    /// Validates whether the global timeout is within acceptable bounds.
-    /// Recommended range: 300-2000ms
+    /// Validates whether the sequence pause limit is within the supported range.
     public var isValidTimeout: Bool {
-        globalTimeout >= 300 && globalTimeout <= 2000
+        globalTimeout >= Self.minimumPauseLimitMs
+            && globalTimeout <= Self.maximumPauseLimitMs
+    }
+
+    /// Safe value for runtime generation when persisted or imported data predates validation.
+    public var clampedPauseLimitMs: Int {
+        min(max(globalTimeout, Self.minimumPauseLimitMs), Self.maximumPauseLimitMs)
     }
 
     // MARK: - Preset Factory
@@ -49,7 +56,7 @@ public struct SequencesConfig: Codable, Equatable, Sendable {
                 .appLauncherPreset,
                 .navigationPreset
             ],
-            globalTimeout: 500
+            globalTimeout: defaultPauseLimitMs
         )
     }
 
@@ -200,33 +207,6 @@ public struct SequenceConflict: Identifiable {
             "'\(sequence1.name)' and '\(sequence2.name)' use the same keys: \(sequence1.prettyKeys)"
         case .prefixOverlap:
             "'\(sequence1.name)' overlaps with '\(sequence2.name)' - may cause timing issues"
-        }
-    }
-}
-
-// MARK: - SequenceTimeout
-
-/// Timeout presets for sequence completion
-public enum SequenceTimeout: Int, CaseIterable, Codable, Sendable {
-    case fast = 300 // Experienced users
-    case moderate = 500 // Default
-    case relaxed = 1000 // Learning mode
-
-    /// Display name (e.g., "Fast (300ms)")
-    public var displayName: String {
-        switch self {
-        case .fast: "Fast (300ms)"
-        case .moderate: "Moderate (500ms)"
-        case .relaxed: "Relaxed (1000ms)"
-        }
-    }
-
-    /// Description of timeout behavior
-    public var description: String {
-        switch self {
-        case .fast: "For experienced users - requires quick key presses"
-        case .moderate: "Balanced timeout - works for most users"
-        case .relaxed: "Longer timeout - ideal for learning sequences"
         }
     }
 }

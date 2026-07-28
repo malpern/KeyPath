@@ -141,6 +141,40 @@ final class ServiceHealthCheckerTests: XCTestCase {
         try data.write(to: url)
     }
 
+    private func makeVHIDSafetyChecker(
+        extensionStatus: ServiceHealthChecker.VHIDDriverExtensionStatus = .enabled,
+        exitCode: Int32?,
+        stdout: String = "",
+        stderr: String = ""
+    ) async -> ServiceHealthChecker {
+        #if DEBUG
+            ServiceHealthChecker.vhidDriverExtensionStatusOverride = { extensionStatus }
+        #endif
+
+        let probes = SystemProbeClient(
+            processIDs: { _ in [] },
+            processMatches: { _ in [] },
+            launchctlPrint: { target in
+                LaunchctlPrintEvidence(
+                    target: target,
+                    exitCode: exitCode,
+                    stdout: stdout,
+                    stderr: stderr
+                )
+            },
+            processIDsSynchronously: { _ in [] },
+            isProcessAlive: { _ in false },
+            probeTCPPort: { _, _ in false }
+        )
+        let provider = SystemStateProvider(probes: probes)
+        return await MainActor.run {
+            ServiceHealthChecker(
+                subprocessRunner: SubprocessRunnerFake.shared,
+                systemStateProvider: provider
+            )
+        }
+    }
+
     func testServiceIdentifiers() {
         XCTAssertEqual(ServiceHealthChecker.kanataServiceID, "com.keypath.kanata")
         XCTAssertEqual(ServiceHealthChecker.vhidDaemonServiceID, "com.keypath.karabiner-vhiddaemon")
@@ -255,6 +289,120 @@ final class ServiceHealthCheckerTests: XCTestCase {
     func testIsServiceHealthyReturnsFalseForInvalidServiceID() async {
         let healthy = await checker.isServiceHealthy(serviceID: "com.keypath.invalid-service")
         XCTAssertFalse(healthy)
+    }
+
+    func testVHIDSafetyStatusClassifiesRunningLaunchdEvidenceAsHealthy() async {
+        let checker = await makeVHIDSafetyChecker(
+            exitCode: 0,
+            stdout: "state = running\npid = 4242"
+        )
+
+        let status = await checker.vhidSafetyStatus()
+        XCTAssertEqual(status, .healthy)
+    }
+
+    func testVHIDSafetyStatusClassifiesMissingLaunchdJobAsConfirmedUnhealthy() async {
+        let checker = await makeVHIDSafetyChecker(
+            exitCode: 113,
+            stderr: "Could not find service"
+        )
+
+        let status = await checker.vhidSafetyStatus()
+        XCTAssertEqual(status, .confirmedUnhealthy)
+    }
+
+    func testVHIDSafetyStatusPreservesProbeFailureAsUnknown() async {
+        let checker = await makeVHIDSafetyChecker(
+            exitCode: nil,
+            stderr: "timed out"
+        )
+
+        let status = await checker.vhidSafetyStatus()
+        XCTAssertEqual(status, .unknown)
+    }
+
+    func testVHIDSafetyStatusPreservesUnrecognizedLaunchdStateAsUnknown() async {
+        let checker = await makeVHIDSafetyChecker(
+            exitCode: 0,
+            stdout: "state = future-transitional-state"
+        )
+
+        let status = await checker.vhidSafetyStatus()
+        XCTAssertEqual(status, .unknown)
+    }
+
+    func testVHIDSafetyStatusClassifiesExitedLaunchdJobAsConfirmedUnhealthy() async {
+        let checker = await makeVHIDSafetyChecker(
+            exitCode: 0,
+            stdout: "state = exited\nlast exit status = 1"
+        )
+
+        let status = await checker.vhidSafetyStatus()
+        XCTAssertEqual(status, .confirmedUnhealthy)
+    }
+
+    func testVHIDSafetyStatusClassifiesMultiwordNotRunningStateAsConfirmedUnhealthy() async {
+        let checker = await makeVHIDSafetyChecker(
+            exitCode: 0,
+            stdout: "state = not running"
+        )
+
+        let status = await checker.vhidSafetyStatus()
+        XCTAssertEqual(status, .confirmedUnhealthy)
+    }
+
+    func testVHIDSafetyStatusClassifiesMissingDriverExtensionAsConfirmedUnhealthy() async {
+        let checker = await makeVHIDSafetyChecker(
+            extensionStatus: .missing,
+            exitCode: 0,
+            stdout: "state = running\npid = 4242"
+        )
+
+        let status = await checker.vhidSafetyStatus()
+        XCTAssertEqual(status, .confirmedUnhealthy)
+    }
+
+    func testVHIDSafetyStatusClassifiesDisabledDriverExtensionAsConfirmedUnhealthy() async {
+        let checker = await makeVHIDSafetyChecker(
+            extensionStatus: .installedButNotEnabled,
+            exitCode: 0,
+            stdout: "state = running\npid = 4242"
+        )
+
+        let status = await checker.vhidSafetyStatus()
+        XCTAssertEqual(status, .confirmedUnhealthy)
+    }
+
+    func testVHIDSafetyStatusPreservesUnknownDriverExtensionAsUnknown() async {
+        let checker = await makeVHIDSafetyChecker(
+            extensionStatus: .unknown,
+            exitCode: 0,
+            stdout: "state = running\npid = 4242"
+        )
+
+        let status = await checker.vhidSafetyStatus()
+        XCTAssertEqual(status, .unknown)
+    }
+
+    func testVHIDSafetyStatusStillDetectsMissingLaunchdJobWhenDriverProbeIsUnknown() async {
+        let checker = await makeVHIDSafetyChecker(
+            extensionStatus: .unknown,
+            exitCode: 113,
+            stderr: "Could not find service"
+        )
+
+        let status = await checker.vhidSafetyStatus()
+        XCTAssertEqual(status, .confirmedUnhealthy)
+    }
+
+    func testVHIDSafetyStatusPreservesInconclusiveLaunchctlExitAsUnknown() async {
+        let checker = await makeVHIDSafetyChecker(
+            exitCode: 5,
+            stderr: "I/O error"
+        )
+
+        let status = await checker.vhidSafetyStatus()
+        XCTAssertEqual(status, .unknown)
     }
 
     func testCheckKanataServiceHealthDoesNotProbeSystemInTestMode() async {

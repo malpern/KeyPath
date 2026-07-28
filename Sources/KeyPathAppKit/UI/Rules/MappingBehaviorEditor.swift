@@ -153,7 +153,7 @@ struct MappingBehaviorEditor: View {
             GroupBox("Timing") {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Tapping term")
+                        Text(dualRoleTimingVariant.primaryWindowLabel)
                             .foregroundColor(.secondary)
                         Spacer()
                         Stepper(
@@ -163,32 +163,42 @@ struct MappingBehaviorEditor: View {
                             step: 10
                         )
                         .accessibilityIdentifier("mapping-behavior-tap-timeout-stepper")
+                        .accessibilityLabel(dualRoleTimingVariant.primaryWindowLabel)
                         .accessibilityValue("\(tapTimeout) ms")
                         .onChange(of: tapTimeout) { _, _ in syncBehaviorFromState() }
                     }
+                    Text(dualRoleTimingVariant.primaryWindowExplanation)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
 
-                    DisclosureGroup("Per-state overrides", isExpanded: $showTimingOverrides) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text("Hold timeout")
-                                    .font(.caption)
+                    if dualRoleTimingVariant.usesHoldActivationDelay {
+                        DisclosureGroup("Separate timing", isExpanded: $showTimingOverrides) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text(TimingCopy.holdActivationDelay)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Stepper(
+                                        "\(holdTimeout) ms",
+                                        value: $holdTimeout,
+                                        in: 50 ... 500,
+                                        step: 10
+                                    )
+                                    .controlSize(.small)
+                                    .accessibilityIdentifier("mapping-behavior-hold-timeout-stepper")
+                                    .accessibilityLabel(TimingCopy.holdActivationDelay)
+                                    .accessibilityValue("\(holdTimeout) ms")
+                                    .onChange(of: holdTimeout) { _, _ in syncBehaviorFromState() }
+                                }
+                                Text(TimingCopy.holdActivationDelayExplanation)
+                                    .font(.caption2)
                                     .foregroundColor(.secondary)
-                                Spacer()
-                                Stepper(
-                                    "\(holdTimeout) ms",
-                                    value: $holdTimeout,
-                                    in: 50 ... 500,
-                                    step: 10
-                                )
-                                .controlSize(.small)
-                                .accessibilityIdentifier("mapping-behavior-hold-timeout-stepper")
-                                .accessibilityValue("\(holdTimeout) ms")
-                                .onChange(of: holdTimeout) { _, _ in syncBehaviorFromState() }
                             }
+                            .padding(.top, 4)
                         }
-                        .padding(.top, 4)
+                        .font(.caption)
                     }
-                    .font(.caption)
                 }
                 .padding(.vertical, 4)
             }
@@ -197,19 +207,19 @@ struct MappingBehaviorEditor: View {
             GroupBox("Options") {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 4) {
-                        Toggle("Activate hold on other key", isOn: $activateHoldOnOtherKey)
+                        Toggle(TimingCopy.activateHoldOnOtherKeyPress, isOn: $activateHoldOnOtherKey)
                             .onChange(of: activateHoldOnOtherKey) { _, _ in syncBehaviorFromState() }
                             .accessibilityIdentifier("mapping-behavior-activate-hold-toggle")
-                            .accessibilityLabel("Activate hold on other key")
-                        InfoTip("Hold triggers when you press another key")
+                            .accessibilityLabel(TimingCopy.activateHoldOnOtherKeyPress)
+                        InfoTip("Pressing another key activates the hold action.")
                     }
 
                     HStack(spacing: 4) {
-                        Toggle("Quick tap", isOn: $quickTap)
+                        Toggle(TimingCopy.activateHoldOnOtherKeyRelease, isOn: $quickTap)
                             .accessibilityIdentifier("mapping-behavior-quick-tap-toggle")
-                            .accessibilityLabel("Quick tap")
+                            .accessibilityLabel(TimingCopy.activateHoldOnOtherKeyRelease)
                             .onChange(of: quickTap) { _, _ in syncBehaviorFromState() }
-                        InfoTip("Fast taps always register as tap")
+                        InfoTip("Releasing another key activates the hold action.")
                     }
 
                     HStack(spacing: 4) {
@@ -232,20 +242,24 @@ struct MappingBehaviorEditor: View {
 
     private var tapDanceEditor: some View {
         VStack(alignment: .leading, spacing: 12) {
-            GroupBox("Pattern Window") {
-                HStack {
-                    Text("Time to register taps")
+            GroupBox(TimingCopy.multiTapWindow) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Spacer()
+                        Stepper(
+                            "\(tapDanceWindow) ms",
+                            value: $tapDanceWindow,
+                            in: 100 ... 500,
+                            step: 10
+                        )
+                        .accessibilityIdentifier("mapping-behavior-tap-dance-window-stepper")
+                        .accessibilityLabel(TimingCopy.multiTapWindow)
+                        .accessibilityValue("\(tapDanceWindow) ms")
+                        .onChange(of: tapDanceWindow) { _, _ in syncBehaviorFromState() }
+                    }
+                    Text(TimingCopy.multiTapWindowExplanation)
+                        .font(.caption)
                         .foregroundColor(.secondary)
-                    Spacer()
-                    Stepper(
-                        "\(tapDanceWindow) ms",
-                        value: $tapDanceWindow,
-                        in: 100 ... 500,
-                        step: 10
-                    )
-                    .accessibilityIdentifier("mapping-behavior-tap-dance-window-stepper")
-                    .accessibilityValue("\(tapDanceWindow) ms")
-                    .onChange(of: tapDanceWindow) { _, _ in syncBehaviorFromState() }
                 }
                 .padding(.vertical, 4)
             }
@@ -331,6 +345,14 @@ struct MappingBehaviorEditor: View {
     }
 
     // MARK: - State Sync
+
+    private var dualRoleTimingVariant: TimingCopy.DualRoleVariant {
+        TimingCopy.dualRoleVariant(
+            activateHoldOnOtherKey: activateHoldOnOtherKey,
+            quickTap: quickTap,
+            useReleaseOrder: useReleaseOrder
+        )
+    }
 
     private func initializeFromBehavior() {
         guard let behavior else {

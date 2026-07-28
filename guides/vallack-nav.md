@@ -1,13 +1,13 @@
 ---
 layout: default
-title: "Ben Vallack Navigation"
+title: "Home Row Navigation System"
 description: "A complete home row navigation system inspired by keyboard minimalist Ben Vallack"
 theme: parchment
 header_image: header-vallack-nav.png
 permalink: /guides/vallack-nav/
 ---
 
-# Ben Vallack Navigation
+# Home Row Navigation System
 
 This pack is a complete home row navigation system inspired by [Ben Vallack](https://www.youtube.com/@BenVallacksKeyboards), a keyboard designer and YouTuber known for pushing the limits of what a keyboard can do. His channel explores minimal keyboard layouts, custom firmware, and the idea that your fingers should never leave the home row — for anything.
 
@@ -123,13 +123,13 @@ This frees the entire home row for navigation and typing. No conflicts — modif
 
 ## Three collections working together
 
-When you install the Ben Vallack Nav pack, KeyPath sets up three coordinated collections:
+When you install the Home Row Navigation System pack, KeyPath sets up three coordinated collections. It is inspired by Ben Vallack's home-row layout:
 
 | Collection | What it does |
 |-----------|-------------|
-| **Vallack Navigation** | The layer mappings — arrows, clipboard, tab switching, line navigation |
-| **Ben's Modifiers** | Top-row modifiers (Q/W/E and U/I/O) instead of standard home row mods |
-| **Vallack Layer Toggles** | F and J as hold-to-activate triggers for the navigation layer |
+| **Home Row Navigation System** | The layer mappings — arrows, clipboard, tab switching, line navigation |
+| **Top Row Mods** | Top-row modifiers (Q/W/E and U/I/O) instead of standard home row mods |
+| **Home Row Layer Toggles** | F and J as hold-to-activate triggers for the navigation layer |
 
 These three are designed to work as a system. Installing the pack enables all three and configures them to the Vallack defaults. You can adjust individual settings in each collection if you want to customize.
 
@@ -153,7 +153,7 @@ These three are designed to work as a system. Installing the pack enables all th
 ## Installing
 
 1. Open the **Pack Gallery**
-2. Find **Ben Vallack Nav** and click **Install**
+2. Find **Home Row Navigation System** and click **Install**
 3. KeyPath will ask about conflicts if you have Home Row Mods or Vim Navigation enabled — the Vallack system replaces both
 
 Or from the command line:

@@ -456,6 +456,118 @@ final class VallackSystemPackTests: XCTestCase {
     }
 
     @MainActor
+    func testVallackFailedInstallRestoresModernSnapshotAndRemovesLegacySnapshot() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let packID = PackRegistry.vallackSystem.id
+        let modernSnapshotURL = PackCollectionSnapshot.snapshotURL(for: packID)
+        let legacySnapshotURL = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".config/keypath/vallack-system-snapshot.json")
+        let originalModernSnapshotData = try? Data(contentsOf: modernSnapshotURL)
+        let originalLegacySnapshotData = try? Data(contentsOf: legacySnapshotURL)
+        defer {
+            try? FileManager.default.removeItem(at: modernSnapshotURL)
+            if let originalModernSnapshotData {
+                try? FileManager.default.createDirectory(
+                    at: modernSnapshotURL.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try? originalModernSnapshotData.write(to: modernSnapshotURL, options: .atomic)
+            }
+
+            try? FileManager.default.removeItem(at: legacySnapshotURL)
+            if let originalLegacySnapshotData {
+                try? FileManager.default.createDirectory(
+                    at: legacySnapshotURL.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try? originalLegacySnapshotData.write(to: legacySnapshotURL, options: .atomic)
+            }
+        }
+
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        let previousCollection = try XCTUnwrap(
+            catalog.first(where: { $0.id == RuleCollectionIdentifier.homeRowMods })
+        )
+        let previousSnapshot = try PackCollectionSnapshot(
+            packID: packID,
+            snapshotDate: Date(timeIntervalSince1970: 126),
+            entries: [
+                PackCollectionSnapshot.Entry(
+                    collectionID: previousCollection.id,
+                    wasEnabled: previousCollection.isEnabled,
+                    configurationJSON: JSONEncoder().encode(previousCollection.configuration)
+                ),
+            ]
+        )
+        try PackCollectionSnapshot.save(previousSnapshot)
+
+        try FileManager.default.createDirectory(
+            at: legacySnapshotURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        let legacySnapshotData = try JSONSerialization.data(withJSONObject: [
+            "homeRowModsEnabled": true,
+            "homeRowLayerTogglesEnabled": false,
+        ])
+        try legacySnapshotData.write(to: legacySnapshotURL, options: .atomic)
+
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("vallack-legacy-rollback-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let blockedConfigDirectory = tempDir.appendingPathComponent("not-a-directory")
+        try "file blocks config directory".write(
+            to: blockedConfigDirectory,
+            atomically: true,
+            encoding: .utf8
+        )
+        let manager = RuleCollectionsManager(
+            ruleCollectionStore: RuleCollectionStore(
+                fileURL: tempDir.appendingPathComponent("RuleCollections.json")
+            ),
+            customRulesStore: CustomRulesStore(
+                fileURL: tempDir.appendingPathComponent("CustomRules.json")
+            ),
+            configurationService: ConfigurationService(configDirectory: blockedConfigDirectory.path),
+            eventListener: KanataEventListener()
+        )
+        manager.ruleCollections = catalog
+        let originalRuleState = manager.snapshotRuleState()
+        let tracker = InstalledPackTracker(
+            fileURL: tempDir.appendingPathComponent("installed-packs.json")
+        )
+
+        do {
+            _ = try await PackInstaller.shared.install(
+                PackRegistry.vallackSystem,
+                manager: manager,
+                installedPackTracker: tracker
+            )
+            XCTFail("Install should fail when managed defaults cannot be applied")
+        } catch {
+            // Expected: the config directory is deliberately blocked.
+        }
+
+        XCTAssertEqual(manager.ruleCollections, originalRuleState.collections)
+        XCTAssertEqual(manager.customRules, originalRuleState.customRules)
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: legacySnapshotURL.path),
+            "The legacy Vallack migration snapshot should retain its historical rollback cleanup"
+        )
+
+        let restoredSnapshot = try XCTUnwrap(PackCollectionSnapshot.load(for: packID))
+        XCTAssertEqual(restoredSnapshot.snapshotDate, previousSnapshot.snapshotDate)
+        XCTAssertEqual(restoredSnapshot.entries.count, previousSnapshot.entries.count)
+        XCTAssertEqual(
+            restoredSnapshot.entries.first?.configurationJSON,
+            previousSnapshot.entries.first?.configurationJSON
+        )
+    }
+
+    @MainActor
     func testVallackUninstallWithoutSnapshotDoesNotCrash() async throws {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }

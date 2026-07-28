@@ -21,6 +21,7 @@ struct AutoShiftCollectionView: View {
     @State private var enabledKeys: Set<String>
     @State private var timeoutMs: Int
     @State private var protectFastTyping: Bool
+    @State private var fastTypingProtectionWindowMs: Int
     @State private var hoveredKey: String?
     @State private var flashedKey: String?
     @State private var eventMonitor: Any?
@@ -54,6 +55,7 @@ struct AutoShiftCollectionView: View {
         _enabledKeys = State(initialValue: config.enabledKeys)
         _timeoutMs = State(initialValue: config.timeoutMs)
         _protectFastTyping = State(initialValue: config.protectFastTyping)
+        _fastTypingProtectionWindowMs = State(initialValue: config.fastTypingProtectionWindowMs)
     }
 
     // MARK: - Body
@@ -70,6 +72,7 @@ struct AutoShiftCollectionView: View {
         .onChange(of: enabledKeys) { _, _ in emitConfig() }
         .onChange(of: timeoutMs) { _, _ in emitConfig() }
         .onChange(of: protectFastTyping) { _, _ in emitConfig() }
+        .onChange(of: fastTypingProtectionWindowMs) { _, _ in emitConfig() }
     }
 
     // MARK: - Experimental Badge
@@ -266,7 +269,7 @@ struct AutoShiftCollectionView: View {
     private var timeoutSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Timeout")
+                Text("Shift hold delay")
                     .font(.subheadline.weight(.medium))
                     .foregroundColor(.primary)
 
@@ -277,6 +280,10 @@ struct AutoShiftCollectionView: View {
                     .foregroundColor(.secondary)
             }
 
+            Text("Hold a symbol key this long to type its shifted character.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
             Slider(
                 value: Binding(
                     get: { Double(timeoutMs) },
@@ -286,7 +293,7 @@ struct AutoShiftCollectionView: View {
                 step: 10
             )
             .accessibilityIdentifier("autoshift-timeout-slider")
-            .accessibilityLabel("Auto shift timeout")
+            .accessibilityLabel("Shift hold delay")
             .accessibilityValue("\(timeoutMs) milliseconds")
         }
         .padding(12)
@@ -303,18 +310,60 @@ struct AutoShiftCollectionView: View {
     // MARK: - Fast Typing Toggle
 
     private var fastTypingToggle: some View {
-        Toggle(isOn: $protectFastTyping) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Protect fast typing")
-                    .font(.subheadline.weight(.medium))
-                Text("Ignore holds when another key was pressed recently")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: 10) {
+            Toggle(isOn: $protectFastTyping) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Fast-typing protection")
+                        .font(.subheadline.weight(.medium))
+                    Text("Force the unshifted symbol when you pressed another key recently.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .toggleStyle(.checkbox)
+            .accessibilityIdentifier("autoshift-protect-fast-typing")
+            .accessibilityLabel("Fast-typing protection")
+
+            if protectFastTyping {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Fast-typing protection window")
+                            .font(.subheadline.weight(.medium))
+
+                        Spacer()
+
+                        Text("\(fastTypingProtectionWindowMs) ms")
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundColor(.secondary)
+                    }
+
+                    Text("Look backward from this symbol key press by this amount of time.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Slider(
+                        value: Binding(
+                            get: { Double(fastTypingProtectionWindowMs) },
+                            set: { fastTypingProtectionWindowMs = Int($0) }
+                        ),
+                        in: 50 ... 400,
+                        step: 10
+                    )
+                    .accessibilityIdentifier("autoshift-fast-typing-window-slider")
+                    .accessibilityLabel("Fast-typing protection window")
+                    .accessibilityValue("\(fastTypingProtectionWindowMs) milliseconds")
+                }
             }
         }
-        .toggleStyle(.checkbox)
-        .accessibilityIdentifier("autoshift-protect-fast-typing")
-        .accessibilityLabel("Protect fast typing")
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(NSColor.controlBackgroundColor).opacity(0.35))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
     }
 
     // MARK: - Actions
@@ -332,6 +381,7 @@ struct AutoShiftCollectionView: View {
         updated.enabledKeys = enabledKeys
         updated.timeoutMs = timeoutMs
         updated.protectFastTyping = protectFastTyping
+        updated.fastTypingProtectionWindowMs = fastTypingProtectionWindowMs
         onConfigChanged(updated)
     }
 

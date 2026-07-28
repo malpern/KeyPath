@@ -768,8 +768,11 @@ private struct DriverExtensionApprovalGuide: View {
 
     private var screenshot: NSImage? {
         let resourceName = "karabiner-driver-extension-switch"
-        if let moduleURL = Bundle.module.url(forResource: resourceName, withExtension: "png"),
-           let image = NSImage(contentsOf: moduleURL)
+        if let moduleURL = KeyPathInstallationWizardResources.bundle.url(
+            forResource: resourceName,
+            withExtension: "png"
+        ),
+            let image = NSImage(contentsOf: moduleURL)
         {
             return image
         }

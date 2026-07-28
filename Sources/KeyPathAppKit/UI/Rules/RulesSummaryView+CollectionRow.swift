@@ -41,6 +41,8 @@ struct ExpandableCollectionRow: View {
     var leaderKeyDisplay: String = "␣ Space"
     /// Optional activation hint from collection (overrides default formatting)
     var activationHint: String?
+    /// Supporting activation metadata, kept separate from the physical instruction.
+    var activationDetail: String?
     var managingPackName: String?
     var onManagedToggleTapped: (() -> Void)?
     var defaultExpanded: Bool = false
@@ -280,6 +282,11 @@ struct ExpandableCollectionRow: View {
                             Label(hint, systemImage: "hand.point.up.left")
                                 .font(.caption)
                                 .foregroundColor(.accentColor)
+                            if let activationDetail {
+                                Text(activationDetail)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         } else if layerActivator != nil {
                             Label("Hold \(leaderKeyDisplay)", systemImage: "hand.point.up.left")
                                 .font(.caption)
@@ -295,6 +302,7 @@ struct ExpandableCollectionRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("rules-summary-expand-button-\(collectionId)")
             .accessibilityLabel(isExpanded ? "Collapse \(name)" : "Expand \(name)")
+            .accessibilityHint(activationAccessibilityHint ?? "")
             .accessibilityValue(effectiveEnabled ? "on" : "off")
 
             // Help button (only for collections that provide one)
@@ -349,6 +357,13 @@ struct ExpandableCollectionRow: View {
             }
         }
         .padding(12)
+    }
+
+    private var activationAccessibilityHint: String? {
+        let hint = [activationHint, activationDetail]
+            .compactMap { $0 }
+            .joined(separator: ". ")
+        return hint.isEmpty ? nil : hint
     }
 
     @ViewBuilder

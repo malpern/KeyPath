@@ -106,6 +106,18 @@ final class DeploymentScriptContractTests: XCTestCase {
         )
     }
 
+    func testInstalledAppVerifierRequiresPackagedSwiftPMResources() throws {
+        let verifier = try contents(
+            of: repositoryRoot().appendingPathComponent("Scripts/verify-installed-app.sh")
+        )
+
+        XCTAssertTrue(verifier.contains("KeyPath_KeyPath.bundle"))
+        XCTAssertTrue(verifier.contains("KeyPath_KeyPathAppKit.bundle"))
+        XCTAssertTrue(verifier.contains("KeyPath_KeyPathInstallationWizard.bundle"))
+        XCTAssertTrue(verifier.contains("Contents/Resources/$resource_bundle"))
+        XCTAssertTrue(verifier.contains("default.metallib"))
+    }
+
     func testQuickDeployPreservesBuildFailureDiagnostics() throws {
         let root = repositoryRoot()
         let quickDeploy = try contents(of: root.appendingPathComponent("Scripts/quick-deploy.sh"))

@@ -172,10 +172,10 @@ struct HomeRowTimingSection: View {
                     // Hold duration
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 4) {
-                            Text("Hold duration")
+                            Text(config.oppositeHandMode.decisionWindowLabel)
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
-                            InfoTip("How long you hold a key before the modifier activates.")
+                            InfoTip("How long KeyPath waits before activating the hold action in this mode.")
                         }
                         if config.showExpertTiming {
                             HStack(spacing: 16) {
@@ -198,7 +198,7 @@ struct HomeRowTimingSection: View {
                                     }
                                 }
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Hold delay").font(.caption).foregroundColor(.secondary)
+                                    Text(config.oppositeHandMode.decisionWindowLabel).font(.caption).foregroundColor(.secondary)
                                     HStack(spacing: 4) {
                                         automationIntegerField(
                                             placeholder: "",
@@ -208,7 +208,7 @@ struct HomeRowTimingSection: View {
                                             ),
                                             range: 80 ... 350,
                                             accessibilityIdentifier: "home-row-mods-hold-delay-field",
-                                            accessibilityLabel: "Hold delay"
+                                            accessibilityLabel: config.oppositeHandMode.decisionWindowLabel
                                         )
                                         Text("ms").font(.caption).foregroundColor(.secondary)
                                     }
@@ -321,59 +321,61 @@ struct HomeRowTimingSection: View {
 
             // MARK: - Quick Tap
 
-            Toggle("Favor tap when another key is pressed (quick tap)", isOn: Binding(
-                get: { config.timing.quickTapEnabled },
-                set: { newValue in
-                    config.timing.quickTapEnabled = newValue
-                    updateConfig()
-                }
-            ))
-            .toggleStyle(.checkbox)
-            .accessibilityIdentifier("home-row-mods-quick-tap-toggle")
-            .accessibilityLabel("Favor tap when another key is pressed (quick tap)")
-            .accessibilityValue(config.timing.quickTapEnabled ? "on" : "off")
+            if usesTimedTapWindow {
+                Toggle("Favor tap when another key is pressed (quick tap)", isOn: Binding(
+                    get: { config.timing.quickTapEnabled },
+                    set: { newValue in
+                        config.timing.quickTapEnabled = newValue
+                        updateConfig()
+                    }
+                ))
+                .toggleStyle(.checkbox)
+                .accessibilityIdentifier("home-row-mods-quick-tap-toggle")
+                .accessibilityLabel("Favor tap when another key is pressed (quick tap)")
+                .accessibilityValue(config.timing.quickTapEnabled ? "on" : "off")
 
-            if config.timing.quickTapEnabled {
-                HStack(spacing: 8) {
-                    Text("Faster modifiers")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 90, alignment: .trailing)
+                if config.timing.quickTapEnabled {
+                    HStack(spacing: 8) {
+                        Text("Faster modifiers")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 90, alignment: .trailing)
 
-                    if config.showExpertTiming {
-                        automationIntegerField(
-                            placeholder: "",
-                            value: Binding(
-                                get: { config.timing.quickTapTermMs },
-                                set: { config.timing.quickTapTermMs = $0 }
-                            ),
-                            range: 0 ... 120,
-                            accessibilityIdentifier: "home-row-mods-quick-tap-term-field",
-                            accessibilityLabel: "Quick tap extra time"
-                        )
-                    } else {
-                        Slider(value: Binding(
-                            get: { Double(config.timing.quickTapTermMs) },
-                            set: { newValue in
-                                config.timing.quickTapTermMs = Int(newValue)
-                                debouncedUpdateConfig()
-                            }
-                        ), in: 0 ... 80, step: 5)
-                            .accessibilityIdentifier("home-row-mods-quick-tap-term-slider")
-                            .accessibilityLabel("Quick tap extra time")
-                            .accessibilityValue("\(config.timing.quickTapTermMs) ms")
+                        if config.showExpertTiming {
+                            automationIntegerField(
+                                placeholder: "",
+                                value: Binding(
+                                    get: { config.timing.quickTapTermMs },
+                                    set: { config.timing.quickTapTermMs = $0 }
+                                ),
+                                range: 0 ... 120,
+                                accessibilityIdentifier: "home-row-mods-quick-tap-term-field",
+                                accessibilityLabel: "Quick tap extra time"
+                            )
+                        } else {
+                            Slider(value: Binding(
+                                get: { Double(config.timing.quickTapTermMs) },
+                                set: { newValue in
+                                    config.timing.quickTapTermMs = Int(newValue)
+                                    debouncedUpdateConfig()
+                                }
+                            ), in: 0 ... 80, step: 5)
+                                .accessibilityIdentifier("home-row-mods-quick-tap-term-slider")
+                                .accessibilityLabel("Quick tap extra time")
+                                .accessibilityValue("\(config.timing.quickTapTermMs) ms")
+                        }
+
+                        Text("Fewer misfires")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 90, alignment: .leading)
                     }
 
-                    Text("Fewer misfires")
-                        .font(.caption2)
+                    Text(quickTapHelperText)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                        .frame(width: 90, alignment: .leading)
+                        .padding(.leading, 88)
                 }
-
-                Text(quickTapHelperText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 88)
             }
 
             // MARK: - Per-Finger Sensitivity
@@ -385,7 +387,7 @@ struct HomeRowTimingSection: View {
                 Text("Per-finger sensitivity")
                     .font(.body)
 
-                InfoTip("Add extra delay for slower fingers to prevent accidental holds.")
+                InfoTip("Add extra delay for slower fingers to the \(config.oppositeHandMode.decisionWindowLabel.lowercased()).")
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -489,42 +491,44 @@ struct HomeRowTimingSection: View {
 
     private var perKeyOffsetFields: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Per-key tap offsets (ms)")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+            if usesTimedTapWindow {
+                Text("Per-key tap offsets (ms)")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
 
-            ForEach(chunks(of: HomeRowModsConfig.allKeys, size: 4), id: \.self) { row in
-                HStack(spacing: 12) {
-                    ForEach(row, id: \.self) { key in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(key.uppercased())
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            automationIntegerField(
-                                placeholder: "0",
-                                value: Binding(
-                                    get: { config.timing.tapOffsets[key] ?? 0 },
-                                    set: { newValue in
-                                        if newValue == 0 {
-                                            config.timing.tapOffsets.removeValue(forKey: key)
-                                        } else {
-                                            config.timing.tapOffsets[key] = newValue
+                ForEach(chunks(of: HomeRowModsConfig.allKeys, size: 4), id: \.self) { row in
+                    HStack(spacing: 12) {
+                        ForEach(row, id: \.self) { key in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(key.uppercased())
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                automationIntegerField(
+                                    placeholder: "0",
+                                    value: Binding(
+                                        get: { config.timing.tapOffsets[key] ?? 0 },
+                                        set: { newValue in
+                                            if newValue == 0 {
+                                                config.timing.tapOffsets.removeValue(forKey: key)
+                                            } else {
+                                                config.timing.tapOffsets[key] = newValue
+                                            }
                                         }
-                                    }
-                                ),
-                                range: -100 ... 200,
-                                accessibilityIdentifier: "home-row-mods-tap-offset-\(key)-field",
-                                accessibilityLabel: "\(key.uppercased()) tap offset"
-                            )
+                                    ),
+                                    range: -100 ... 200,
+                                    accessibilityIdentifier: "home-row-mods-tap-offset-\(key)-field",
+                                    accessibilityLabel: "\(key.uppercased()) tap offset"
+                                )
+                            }
                         }
+                        Spacer()
                     }
-                    Spacer()
                 }
+
+                Divider()
             }
 
-            Divider()
-
-            Text("Per-key hold offsets (ms)")
+            Text("Per-key \(config.oppositeHandMode.decisionWindowLabel.lowercased()) offsets (ms)")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
 
@@ -549,7 +553,7 @@ struct HomeRowTimingSection: View {
                                 ),
                                 range: -100 ... 200,
                                 accessibilityIdentifier: "home-row-mods-hold-offset-\(key)-field",
-                                accessibilityLabel: "\(key.uppercased()) hold offset"
+                                accessibilityLabel: "\(key.uppercased()) \(config.oppositeHandMode.decisionWindowLabel.lowercased()) offset"
                             )
                         }
                     }
@@ -767,7 +771,7 @@ struct HomeRowTimingSection: View {
     }
 
     private var usesTimedTapWindow: Bool {
-        !config.oppositeHandMode.isEnabled
+        config.oppositeHandMode.usesTapWindow
     }
 
     private var timingSliderAccessibilityValue: String {

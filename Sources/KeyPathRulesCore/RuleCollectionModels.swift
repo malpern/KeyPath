@@ -25,7 +25,12 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
     // MARK: - Core Behavior
 
     public var mappings: [KeyMapping]
-    public var targetLayer: RuleCollectionLayer
+    public var targetLayer: RuleCollectionLayer {
+        didSet {
+            synchronizeLauncherActivator()
+        }
+    }
+
     public var momentaryActivator: MomentaryActivator?
 
     // MARK: - Display Style Configuration
@@ -49,7 +54,11 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
     ///     // Access config.presets, config.selectedPresetId
     /// }
     /// ```
-    public var configuration: RuleCollectionConfiguration
+    public var configuration: RuleCollectionConfiguration {
+        didSet {
+            synchronizeLauncherActivator()
+        }
+    }
 
     // MARK: - Style-Specific Options (not part of configuration)
 
@@ -107,6 +116,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         self.windowKeyConvention = windowKeyConvention
         self.windowSnappingActivationMode = windowSnappingActivationMode
         self.functionKeyMode = functionKeyMode
+        synchronizeLauncherActivator()
     }
 
     // MARK: - Codable
@@ -204,6 +214,7 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
                 configuration = .keyRepeatControl(KeyRepeatControlConfig())
             }
         }
+        synchronizeLauncherActivator()
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -226,6 +237,13 @@ public struct RuleCollection: Identifiable, Codable, Equatable, Sendable {
         try container.encodeIfPresent(windowKeyConvention, forKey: .windowKeyConvention)
         try container.encodeIfPresent(windowSnappingActivationMode, forKey: .windowSnappingActivationMode)
         try container.encodeIfPresent(functionKeyMode, forKey: .functionKeyMode)
+    }
+
+    /// Launcher activation is configured by `LauncherGridConfig`; keep the legacy
+    /// persisted activator field synchronized so every consumer sees the same value.
+    private mutating func synchronizeLauncherActivator() {
+        guard let launcherConfig = configuration.launcherGridConfig else { return }
+        momentaryActivator = launcherConfig.momentaryActivator(targetLayer: targetLayer)
     }
 }
 

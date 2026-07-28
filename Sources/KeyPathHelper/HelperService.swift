@@ -166,9 +166,37 @@ class HelperService: NSObject, HelperProtocol {
                     ["kill", "SIGTERM", Self.kanataServiceTarget],
                     timeout: 15
                 )
+                if result.status != 0,
+                   result.out.localizedCaseInsensitiveContains("No process to signal"),
+                   !Self.isServiceHealthy(Self.kanataServiceID)
+                {
+                    // The registered KeepAlive job is already stopped or waiting
+                    // for launchd's throttle window. Stop is idempotently complete.
+                    return
+                }
                 guard result.status == 0 else {
                     throw HelperError.operationFailed(
                         "Failed to stop KeyPath Kanata service: \(result.out)"
+                    )
+                }
+            },
+            reply: reply
+        )
+    }
+
+    func restartKanataService(reply: @escaping (Bool, String?) -> Void) {
+        NSLog("[KeyPathHelper] restartKanataService requested")
+        executePrivilegedOperation(
+            name: "restartKanataService",
+            operation: {
+                let result = Self.run(
+                    "/bin/launchctl",
+                    ["kickstart", "-k", Self.kanataServiceTarget],
+                    timeout: 15
+                )
+                guard result.status == 0 else {
+                    throw HelperError.operationFailed(
+                        "Failed to restart KeyPath Kanata service: \(result.out)"
                     )
                 }
             },

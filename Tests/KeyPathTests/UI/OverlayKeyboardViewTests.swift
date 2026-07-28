@@ -123,7 +123,8 @@ final class OverlayKeyboardViewTests: XCTestCase {
     }
 
     func testKeyCodeToKanataName_rightControl() {
-        XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(102), "rightctrl")
+        XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(62), "rightctrl")
+        XCTAssertEqual(OverlayKeyboardView.keyCodeToKanataName(102), "unknown-102")
     }
 
     func testKeyCodeToKanataName_unknownKeyCode() {

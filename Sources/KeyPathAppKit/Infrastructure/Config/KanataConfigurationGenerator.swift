@@ -62,11 +62,12 @@ public struct KanataConfiguration: Sendable {
 
         AppLogger.shared.log("📚 [KanataConfig] Enabled collections: \(enabledCollections.map { "\($0.name) (enabled: \($0.isEnabled))" }.joined(separator: ", "))")
 
-        // Extract max tap-hold-require-prior-idle value from enabled collections (defcfg-level option).
-        // This is a GLOBAL kanata setting — the highest value from any enabled collection wins.
-        // When active, ALL tap-hold actions (HRM, auto-shift, leader keys, etc.) require the
-        // specified idle gap before hold detection activates. Leader/nav keys get per-action
-        // (require-prior-idle 0) overrides so they still activate immediately during fast typing.
+        // Extract max tap-hold-require-prior-idle value from the collections that intentionally
+        // use a shared defcfg-level setting. When active, ALL un-overridden tap-hold actions
+        // require the specified idle gap. Auto Shift is deliberately excluded: it renders a
+        // per-action override so its fast-typing protection cannot affect other collections.
+        // Leader/nav keys get per-action (require-prior-idle 0) overrides so they still
+        // activate immediately during fast typing.
         // Computed before buildCollectionBlocks so leader key can use per-action override when active.
         let requirePriorIdleMs = enabledCollections.compactMap { collection -> Int? in
             switch collection.configuration {
@@ -74,8 +75,6 @@ public struct KanataConfiguration: Sendable {
                 config.timing.requirePriorIdleMs
             case let .homeRowLayerToggles(config):
                 config.timing.requirePriorIdleMs
-            case let .autoShiftSymbols(config):
-                config.protectFastTyping ? config.timeoutMs : nil
             default:
                 nil
             }
@@ -100,6 +99,11 @@ public struct KanataConfiguration: Sendable {
         let keyRepeatConfig = enabledCollections
             .compactMap(\.configuration.keyRepeatControlConfig)
             .first
+        let sequencesConfig = enabledCollections
+            .compactMap(\.configuration.sequencesConfig)
+            .first
+        let hasSequences = !sequences.isEmpty || !(sequencesConfig?.sequences.isEmpty ?? true)
+        let sequencePauseLimitMs = hasSequences ? sequencesConfig?.clampedPauseLimitMs : nil
 
         // All defcfg header construction flows through KanataDefcfg (single source of truth).
         // `concurrent-tap-hold` is required by kanata whenever defchordsv2 is emitted, which
@@ -111,6 +115,7 @@ public struct KanataConfiguration: Sendable {
         let defcfg = KanataDefcfg.standard(
             managedRepeatTiming: repeatTiming,
             requirePriorIdleMs: requirePriorIdleMs > 0 ? requirePriorIdleMs : nil,
+            sequenceTimeoutMs: sequencePauseLimitMs,
             hasChords: !chordMappings.isEmpty,
             deviceTargeting: macosDeviceTargeting
         )

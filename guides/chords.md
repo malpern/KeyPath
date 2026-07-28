@@ -21,7 +21,7 @@ This technique was popularized by [Ben Vallack](https://www.youtube.com/@BenVall
 1. Open KeyPath and click the gear icon to open the inspector panel
 2. Go to the **Rules** tab
 3. Find **Chord Groups** and toggle it **on**
-4. Choose **Load Ben Vallack Preset** for a ready-made starting point, or **Create Custom** to build your own
+4. Choose **Load Home-Row Chords (Ben Vallack preset)** for a ready-made starting point, or **Create Custom** to build your own
 
 The preset gives you:
 - `S + D` → Escape
@@ -37,15 +37,15 @@ The preset gives you:
 
 ## How Chords Work
 
-A chord detects when you press two (or more) keys within a short time window — the **timeout**. If both keys land within that window, the chord fires. If only one key lands, it types normally.
+The **Chord press window** starts when you press the first participating key. Press the last required key before that window expires and the chord fires. If the window expires first, those keys use their normal layer actions.
 
 ```
   Press S alone → types "s"
   Press D alone → types "d"
-  Press S + D together (within 250ms) → fires Escape
+  Press S + D together (within 250 ms) → fires Escape
 ```
 
-Order doesn't matter — pressing S then D, or D then S, both trigger the same chord as long as they're within the timeout window.
+Order doesn't matter — pressing S then D, or D then S, both trigger the same chord as long as the last key arrives before the Chord press window closes.
 
 ---
 
@@ -58,19 +58,19 @@ Click **Open Full Editor** to configure your chords in detail:
 **Right panel** — The selected group's settings:
 - **Group name** — identifier (letters, numbers, hyphens only)
 - **Category** — Navigation, Editing, Symbols, Modifiers, or Custom
-- **Timeout** — how quickly both keys must be pressed
+- **Chord press window** — the maximum time from the first chord key to the last required key
 - **Chord list** — each chord showing its keys, output, and an ergonomic score
 
 ### Speed presets
 
-| Preset | Timeout | Best for |
-|--------|---------|----------|
-| Lightning | 150ms | Experts with precise timing |
-| Fast | 250ms | Most users (Ben Vallack's preference) |
-| Moderate | 400ms | Learning chords |
-| Deliberate | 600ms | Easiest to trigger reliably |
+| Preset | Chord press window | Felt effect |
+|--------|--------------------|-------------|
+| Lightning Fast | 150 ms | Fastest normal-action fallback; requires the most precise press |
+| Fast | 250 ms | Quick fallback with a tight, practiced press |
+| Moderate | 400 ms | More time to finish the chord; fallback waits longer |
+| Deliberate | 600 ms | Most forgiving press; normal-action fallback waits longest |
 
-Start with **Fast** (250ms) and adjust once you develop muscle memory.
+Start with **Fast** (250 ms) and adjust once you develop muscle memory.
 
 ---
 
@@ -90,12 +90,12 @@ Stick to adjacent home row pairs for your most-used chords.
 
 ## Organizing with Groups
 
-Chord groups let you organize chords by purpose and set different timeouts per group:
+Chord groups let you organize chords by purpose and set a different Chord press window for each group:
 
-- **Navigation** (250ms) — arrows, page up/down, home/end
-- **Editing** (400ms) — backspace, delete, cut, undo
-- **Symbols** (150ms) — quick symbol access
-- **Modifiers** (600ms) — deliberate modifier combos
+- **Navigation** (250 ms) — arrows, page up/down, home/end
+- **Editing** (400 ms) — backspace, delete, cut, undo
+- **Symbols** (150 ms) — quick symbol access
+- **Modifiers** (600 ms) — deliberate modifier combos
 
 Each group generates its own detection window, so navigation chords can be fast while editing chords give you more time.
 
@@ -125,15 +125,15 @@ Orange warning indicators appear in the editor when conflicts are detected.
 
 ### Chord fires when I'm just typing fast
 
-Lower the timeout (try 150ms), or choose key pairs that aren't common bigrams in English.
+Lower the Chord press window (try 150 ms), or choose key pairs that aren't common bigrams in English.
 
 ### Chord doesn't fire reliably
 
-Increase the timeout (try 400ms), or practice pressing both keys more simultaneously.
+Increase the Chord press window (try 400 ms), or practice pressing both keys more simultaneously.
 
 ### Individual keys feel delayed
 
-This is the tradeoff: the engine waits the timeout duration to see if a second key arrives. Shorter timeouts reduce the delay but require more precise timing. 250ms is the sweet spot for most users.
+This is the tradeoff: after the first chord key, KeyPath waits through the Chord press window for the remaining keys. A lower value returns to normal actions sooner but requires a more precise chord. A higher value makes chords easier but delays normal-action fallback. Start at 250 ms and adjust for how you type.
 
 ---
 

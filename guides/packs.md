@@ -87,11 +87,11 @@ Even if you've never used Vim, the arrow key layout is worth learning. Your fing
 
 [Full guide &rarr;]({{ '/guides/vim-navigation/' | relative_url }})
 
-### Ben Vallack Nav
+### Home Row Navigation System
 
 A complete navigation system inspired by keyboard minimalist [Ben Vallack](https://www.youtube.com/@BenVallacksKeyboards). Hold an index finger key to transform your keyboard into a navigation surface, with modifiers on the top row so nothing competes for space.
 
-Installs three coordinated collections: Vallack Navigation, Ben's Modifiers, and Vallack Layer Toggles. This is an opinionated alternative to the default Vim Navigation — use one or the other, not both.
+Installs three coordinated collections: Navigation Layer, Top-Row Modifiers, and Index-Finger Layer Toggles. This is an opinionated alternative to the default Vim Navigation — use one or the other, not both.
 
 [Full guide &rarr;]({{ '/guides/vallack-nav/' | relative_url }})
 

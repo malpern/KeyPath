@@ -52,24 +52,24 @@ The configuration panel shows all 11 keys as toggleable chips — click any to d
 
 ---
 
-## Timing
+## Shift Hold Delay
 
-The **timeout** controls how long you hold before the shifted version fires:
+The **Shift hold delay** controls how long you hold before the shifted version fires:
 
 - **Default: 180ms** — fast enough that normal typing isn't affected, long enough that deliberate holds register
 - **Range: 100–400ms** — use the slider to adjust
 
 **Finding your sweet spot:**
-- If you accidentally get shifted symbols while typing fast → increase the timeout
-- If you have to hold too long to trigger shifts → decrease the timeout
+- If you accidentally get shifted symbols while deliberately holding a key → increase the shift hold delay
+- If you have to hold too long to trigger shifts → decrease the Shift hold delay
 
 ---
 
 ## Protect Fast Typing
 
-When enabled (default: ON), this prevents accidental shifts during fast typing. If you just pressed another key recently, the hold won't trigger — only deliberate pauses followed by a hold fire the shifted output.
+When enabled (default: ON), this prevents accidental shifts during fast typing. The **Fast-typing protection window** looks backward from the moment you press a symbol key. If another key was pressed within that window, Auto Shift forces the unshifted symbol instead of treating the key as a hold.
 
-This uses Kanata's `tap-hold-require-prior-idle` setting under the hood.
+This setting is separate from Shift hold delay: one controls how long you hold, while the other decides whether a recent keystroke should suppress hold detection.
 
 ---
 
@@ -83,11 +83,11 @@ This uses Kanata's `tap-hold-require-prior-idle` setting under the hood.
 
 ## Interaction with Home Row Mods
 
-Auto-Shift and [home row mods]({{ '/guides/home-row-mods/' | relative_url }}) both use tap-hold behavior. They coexist well because they apply to different keys (HRM applies to letters, Auto-Shift to symbols). The "Protect Fast Typing" setting is shared — whichever feature sets a higher idle threshold wins.
+Auto-Shift and [home row mods]({{ '/guides/home-row-mods/' | relative_url }}) both use tap-hold behavior. They coexist well because they apply to different keys (HRM applies to letters, Auto-Shift to symbols). Auto Shift's Fast-typing protection window applies only to Auto Shift symbol keys; it does not change the timing you configured for Home Row Mods or Home Row Layer Toggles.
 
 If you notice interactions between the two, try:
-1. Increasing the auto-shift timeout slightly (200–250ms)
-2. Keeping "Protect Fast Typing" on
+1. Increasing the Fast-typing protection window slightly (200–250ms)
+2. Keeping Fast-typing protection on
 
 ---
 
@@ -95,13 +95,13 @@ If you notice interactions between the two, try:
 
 ### I get shifted symbols when I don't want them
 
-- Increase the timeout (try 250ms)
-- Enable "Protect Fast Typing" if it's off
+- Increase the Fast-typing protection window (try 250ms)
+- Enable Fast-typing protection if it's off
 - Disable specific keys that misfire for you (click their chips to toggle off)
 
 ### The shifted symbol takes too long to appear
 
-- Decrease the timeout (try 150ms)
+- Decrease the Shift hold delay (try 150ms)
 - Note: there's inherent latency because the engine waits to see if you'll hold long enough
 
 ### Semicolons/commas feel laggy

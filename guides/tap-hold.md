@@ -78,13 +78,13 @@ Screenshot — Rule editor with hold behavior options:
   │  │  On Hold:   [ left_control   ▾ ]               │ │
   │  │                                                │ │
   │  │  Hold Behavior:                                │ │
-  │  │  ┌──────────┐ ┌──────────┐ ┌──────────┐       │ │
-  │  │  │  Basic   │ │ Trigger  │ │  Quick   │       │ │
-  │  │  │          │ │  early   │ │   tap    │       │ │
-  │  │  └──────────┘ └──────────┘ └──────────┘       │ │
+  │  │  ┌──────────┐ ┌──────────┐ ┌───────────────┐  │ │
+  │  │  │  Basic   │ │ Activate │ │ Activate hold │  │ │
+  │  │  │          │ │ on press │ │ after release │  │ │
+  │  │  └──────────┘ └──────────┘ └───────────────┘  │ │
   │  │                                                │ │
-  │  │  Tap timeout:   [ 200 ms ]                     │ │
-  │  │  Hold timeout:  [ 200 ms ]                     │ │
+  │  │  Repeat-tap window:     [ 200 ms ]             │ │
+  │  │  Hold activation delay: [ 200 ms ]             │ │
   │  └────────────────────────────────────────────────┘ │
   │                                                     │
   │                              [ Cancel ]  [ Save ]   │
@@ -111,8 +111,8 @@ Screenshot — Rule editor with hold behavior options:
 | Option | Description |
 |--------|-------------|
 | Basic | Hold activates after timeout |
-| Trigger early | Hold activates when another key is pressed |
-| Quick tap | Fast taps always register as tap |
+| Activate hold when another key is pressed | Pressing another key activates the hold action. |
+| Activate hold after another key is released | Releasing another key activates the hold action. |
 | Custom keys | Only specific keys trigger early tap |
 
 ---
@@ -131,9 +131,9 @@ f → f (tap) / Left Command (hold)
 ```
 
 **Settings:**
-- Hold behavior: **Trigger early**
-- Tap timeout: 200ms
-- Hold timeout: 200ms
+- Hold behavior: **Activate hold when another key is pressed**
+- Repeat-tap window: 200ms
+- Hold activation delay: 200ms
 
 This allows you to press `a` + `j` quickly and it triggers `Ctrl+J` instead of `aj`.
 
@@ -147,7 +147,7 @@ caps → esc (tap) / lctl (hold)
 
 **Settings:**
 - Hold behavior: **Basic**
-- Tap timeout: 200ms
+- Repeat-tap window: 200ms
 
 ### Space Cadet Shift
 
@@ -158,8 +158,8 @@ spc → spc (tap) / lsft (hold)
 ```
 
 **Settings:**
-- Hold behavior: **Quick tap**
-- Tap timeout: 200ms
+- Hold behavior: **Activate hold after another key is released**
+- Repeat-tap window: 200ms
 
 ---
 
@@ -186,16 +186,21 @@ f1 → f1 (single tap) / layer-toggle function (double tap)
 KeyPath generates the appropriate Kanata variant based on your settings:
 
 1. **`tap-hold-press`**: Hold triggers on other key press (`activateHoldOnOtherKey = true`)
-2. **`tap-hold-release`**: Quick-tap / permissive-hold (`quickTap = true`)
+2. **`tap-hold-release`**: Hold activates after another key is released (`quickTap = true` internally)
 3. **`tap-hold-release-keys`**: Early tap on specific keys (`customTapKeys` non-empty)
 4. **`tap-hold`**: Basic timeout-based (default)
 
-### Timeout Configuration
+### Timing controls
 
-- **Tap timeout**: Time (ms) before hold activates
-- **Hold timeout**: Time (ms) for hold to fully activate
+The editors use the same names wherever the underlying clock and outcome match:
 
-Default is 200ms for both, which works well for most users. Adjust based on your typing speed and preferences.
+- **Repeat-tap window**: after you press the key, another key can still change how it resolves during this period.
+- **Hold activation delay**: how long to hold the key before its hold action activates.
+- **Leader hold delay**: how long to hold the Leader key before KeyPath shows the Shortcut List. This controls the Leader shortcut reference, not the timing of your other tap-hold rules.
+- **Typing grace period**: the release-order variant's short buffer; another key released during it makes this key a hold. It does not use a separate hold delay.
+- **Multi-tap window**: tap-dance's window for another tap. The clock starts again after every tap; when it expires, KeyPath resolves the tap count.
+
+The value is always milliseconds. A longer window gives you more time to perform the required action, while a shorter one resolves sooner. Default dual-role timing is 200ms; adjust it to suit your typing speed.
 
 ---
 
@@ -220,7 +225,7 @@ This is great for keys you rarely use in their original form. Pack multiple func
 3. Enable **Hold, Double Tap, etc.**
 4. Set actions for single tap, double tap, and optionally triple tap
 
-The timing window between taps is configurable. A shorter window means you need to tap faster; a longer window gives you more time but adds a slight delay before the single-tap action fires (KeyPath has to wait to see if you'll tap again).
+The **Multi-tap window** starts again after every tap. A shorter window means you need to tap faster; a longer window gives you more time but adds a slight delay before the single-tap action fires (KeyPath has to wait to see if you'll tap again).
 
 ---
 

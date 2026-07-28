@@ -174,6 +174,16 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         case unknown
     }
 
+    /// Evidence used by the runtime's emergency-stop invariant.
+    /// `unknown` is deliberately distinct from confirmed failure: inability to
+    /// inspect macOS system-extension or launchd state must fail safe without
+    /// turning a transient probe failure into a runtime shutdown.
+    public enum VHIDSafetyStatus: Sendable, Equatable {
+        case healthy
+        case confirmedUnhealthy
+        case unknown
+    }
+
     /// Unified diagnosis from a single read of the kanata daemon stderr log.
     /// Replaces the separate `checkDaemonStderrForPermissionFailure()` and
     /// `checkKanataInputCaptureStatus()` parsers that read the same file
@@ -697,6 +707,57 @@ public final class ServiceHealthChecker: @unchecked Sendable {
 
     public nonisolated func isVHIDDriverExtensionEnabled() async -> Bool {
         await vhidDriverExtensionStatus() == .enabled
+    }
+
+    /// Captures the two pieces of evidence required by the runtime safety path:
+    /// an enabled DriverKit extension and a live VirtualHID launch daemon.
+    /// Probe failures remain `.unknown` rather than being collapsed to `false`.
+    public nonisolated func vhidSafetyStatus() async -> VHIDSafetyStatus {
+        let driverStatus = await vhidDriverExtensionStatus()
+        switch driverStatus {
+        case .installedButNotEnabled, .missing:
+            return .confirmedUnhealthy
+        case .enabled, .unknown:
+            break
+        }
+
+        let evidence = await systemStateProvider.launchctlPrint(
+            target: "system/\(Self.vhidDaemonServiceID)"
+        )
+        guard let exitCode = evidence.exitCode else {
+            AppLogger.shared.log(
+                "⚠️ [ServiceHealthChecker] Unable to confirm VHID launchd health: \(evidence.stderr)"
+            )
+            return .unknown
+        }
+        if exitCode == Self.launchctlNotFoundExitCode {
+            return .confirmedUnhealthy
+        }
+        guard exitCode == 0 else {
+            AppLogger.shared.log(
+                "⚠️ [ServiceHealthChecker] Inconclusive VHID launchd probe (exit \(exitCode)): \(evidence.stderr)"
+            )
+            return .unknown
+        }
+
+        let state = evidence.stdout
+            .firstMatchString(pattern: #"(?m)^\s*state\s*=\s*([^\r\n]+)"#)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let pid = evidence.stdout.firstMatchInt(pattern: #"\bpid\s*=\s*([0-9]+)"#)
+        if state == "running" || state == "launching" || pid != nil {
+            return driverStatus == .enabled ? .healthy : .unknown
+        }
+
+        switch state {
+        case "exited", "not running", "stopped", "waiting":
+            return .confirmedUnhealthy
+        default:
+            AppLogger.shared.log(
+                "⚠️ [ServiceHealthChecker] Unrecognized VHID launchd state; preserving unknown: \(state ?? "missing")"
+            )
+            return .unknown
+        }
     }
 
     public nonisolated func vhidDriverExtensionStatus() async -> VHIDDriverExtensionStatus {

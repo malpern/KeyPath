@@ -626,6 +626,16 @@ public struct LauncherGridConfig: Codable, Equatable, Sendable {
         LauncherGridConfig(activationMode: .holdHyper, hyperTriggerMode: .hold, mappings: defaultMappings, hasSeenWelcome: false)
     }
 
+    /// Resolves the runtime layer activator from the selected launcher mode.
+    public func momentaryActivator(targetLayer: RuleCollectionLayer) -> MomentaryActivator {
+        switch activationMode {
+        case .holdHyper:
+            MomentaryActivator(input: "hyper", targetLayer: targetLayer)
+        case .leaderSequence:
+            MomentaryActivator(input: "l", targetLayer: targetLayer, sourceLayer: .navigation)
+        }
+    }
+
     /// Custom decoding to handle missing hyperTriggerMode in existing configs
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -747,14 +757,24 @@ public struct AutoShiftSymbolsConfig: Codable, Equatable, Sendable {
     /// Timeout in milliseconds — hold longer than this to get shifted output
     public var timeoutMs: Int
 
-    /// When true, contributes to global require-prior-idle to prevent accidental shifts during fast typing
+    /// When true, symbol keys skip hold detection after recent typing.
     public var protectFastTyping: Bool
+
+    /// How recently another key may have been pressed before Auto Shift forces a tap.
+    ///
+    /// This is intentionally independent from ``timeoutMs``. It is rendered as a
+    /// per-action Kanata override so Auto Shift does not change timing for other
+    /// tap-hold collections.
+    public var fastTypingProtectionWindowMs: Int
 
     /// Which keys are enabled for auto-shift behavior
     public var enabledKeys: Set<String>
 
     /// Default timeout for auto-shift (milliseconds)
     public static let defaultTimeoutMs = 180
+
+    /// Default fast-typing protection window for newly created configurations.
+    public static let defaultFastTypingProtectionWindowMs = 180
 
     /// The full set of symbol keys eligible for auto-shift
     public static let allSymbolKeys: [String] = [
@@ -779,15 +799,89 @@ public struct AutoShiftSymbolsConfig: Codable, Equatable, Sendable {
     public init(
         timeoutMs: Int = AutoShiftSymbolsConfig.defaultTimeoutMs,
         protectFastTyping: Bool = true,
+        fastTypingProtectionWindowMs: Int? = nil,
         enabledKeys: Set<String>? = nil
     ) {
         self.timeoutMs = timeoutMs
         self.protectFastTyping = protectFastTyping
+        // Preserve the pre-#1210 behavior for existing call sites that only
+        // supplied a timeout: that timeout was also the protection window.
+        self.fastTypingProtectionWindowMs = fastTypingProtectionWindowMs ?? timeoutMs
         self.enabledKeys = enabledKeys ?? Set(AutoShiftSymbolsConfig.allSymbolKeys)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case timeoutMs
+        case protectFastTyping
+        case fastTypingProtectionWindowMs
+        case enabledKeys
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        timeoutMs = try container.decodeIfPresent(Int.self, forKey: .timeoutMs) ?? Self.defaultTimeoutMs
+        protectFastTyping = try container.decodeIfPresent(Bool.self, forKey: .protectFastTyping) ?? true
+        // Older saved configurations used timeoutMs as the global protection
+        // window. Retain that exact behavior when the new field is absent.
+        fastTypingProtectionWindowMs = try container.decodeIfPresent(Int.self, forKey: .fastTypingProtectionWindowMs) ?? timeoutMs
+        enabledKeys = try container.decodeIfPresent(Set<String>.self, forKey: .enabledKeys) ?? Set(Self.allSymbolKeys)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(timeoutMs, forKey: .timeoutMs)
+        try container.encode(protectFastTyping, forKey: .protectFastTyping)
+        try container.encode(fastTypingProtectionWindowMs, forKey: .fastTypingProtectionWindowMs)
+        try container.encode(enabledKeys, forKey: .enabledKeys)
     }
 }
 
 // MARK: - Key Repeat Control Configuration
+
+/// Converts between KeyPath's user-facing repeat speed and Kanata's interval.
+///
+/// Kanata persists milliseconds between repeats, where smaller values are
+/// faster. The UI presents repeats per second, where larger values are faster.
+public struct KeyRepeatSpeedScale: Equatable, Sendable {
+    public let intervalRange: ClosedRange<Int>
+    public let intervalStep: Int
+
+    public init(intervalRange: ClosedRange<Int>, intervalStep: Int) {
+        precondition(intervalStep > 0, "Key repeat interval step must be positive")
+        self.intervalRange = intervalRange
+        self.intervalStep = intervalStep
+    }
+
+    public var repeatsPerSecondRange: ClosedRange<Double> {
+        repeatsPerSecond(forIntervalMs: intervalRange.upperBound) ... repeatsPerSecond(forIntervalMs: intervalRange.lowerBound)
+    }
+
+    public func repeatsPerSecond(forIntervalMs intervalMs: Int) -> Double {
+        let clampedInterval = min(max(intervalMs, intervalRange.lowerBound), intervalRange.upperBound)
+        return 1000.0 / Double(clampedInterval)
+    }
+
+    /// Converts a user-facing speed to the nearest supported interval.
+    ///
+    /// Supported values are multiples of `intervalStep` within
+    /// `intervalRange`. Midpoints round away from zero before clamping.
+    public func intervalMs(forRepeatsPerSecond repeatsPerSecond: Double) -> Int {
+        if repeatsPerSecond.isNaN || repeatsPerSecond <= 0 {
+            return intervalRange.upperBound
+        }
+        if repeatsPerSecond == .infinity {
+            return intervalRange.lowerBound
+        }
+
+        let clampedSpeed = min(
+            max(repeatsPerSecond, repeatsPerSecondRange.lowerBound),
+            repeatsPerSecondRange.upperBound
+        )
+        let rawInterval = 1000.0 / clampedSpeed
+        let snappedInterval = Int((rawInterval / Double(intervalStep)).rounded()) * intervalStep
+        return min(max(snappedInterval, intervalRange.lowerBound), intervalRange.upperBound)
+    }
+}
 
 /// A per-key repeat rate override within the managed-repeat system.
 public struct KeyRepeatOverride: Codable, Equatable, Sendable, Identifiable {
@@ -833,6 +927,8 @@ public struct KeyRepeatControlConfig: Codable, Equatable, Sendable {
 
     public static let defaultGlobalDelayMs = 500
     public static let defaultGlobalIntervalMs = 30
+    public static let globalSpeedScale = KeyRepeatSpeedScale(intervalRange: 5 ... 200, intervalStep: 5)
+    public static let overrideSpeedScale = KeyRepeatSpeedScale(intervalRange: 5 ... 100, intervalStep: 5)
 
     public static let defaultPerKeyOverrides: [KeyRepeatOverride] = [
         KeyRepeatOverride(key: "left", delayMs: 150, intervalMs: 20),
@@ -853,14 +949,6 @@ public struct KeyRepeatControlConfig: Codable, Equatable, Sendable {
         self.globalDelayMs = globalDelayMs
         self.globalIntervalMs = globalIntervalMs
         self.perKeyOverrides = perKeyOverrides
-    }
-
-    /// Human-readable repeat speed (keys per second) from interval in ms
-    public static func keysPerSecond(fromIntervalMs ms: Int) -> String {
-        guard ms > 0 else { return "—" }
-        let kps = 1000.0 / Double(ms)
-        if kps >= 10 { return "\(Int(kps))/sec" }
-        return String(format: "%.1f/sec", kps)
     }
 
     /// Named presets for common configurations

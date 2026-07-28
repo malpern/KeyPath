@@ -47,7 +47,7 @@ extension RulesTabView {
         let tapLabel = config.tapOptions.first { $0.output == tapOutput }?.label ?? tapOutput
         let holdLabel = config.holdOptions.first { $0.output == holdOutput }?.label ?? holdOutput
 
-        return "Tap: \(tapLabel), Hold: \(holdLabel)"
+        return KeyboardConceptCopy.activationHint("Tap for \(tapLabel), or hold for \(holdLabel)")
     }
 
     /// Generate a dynamic description for launcher collections
@@ -58,33 +58,36 @@ extension RulesTabView {
 
         switch config.activationMode {
         case .holdHyper:
-            switch config.hyperTriggerMode {
-            case .hold:
-                return "Hold Hyper to quickly launch apps and websites with keyboard shortcuts."
-            case .tap:
-                return "Tap Hyper to toggle the launcher on/off. Then press a shortcut key."
-            }
+            return KeyboardConceptCopy.launcherActivationDescription(
+                mode: config.activationMode,
+                hyperTriggerMode: config.hyperTriggerMode
+            )
         case .leaderSequence:
-            return "Press \(currentLeaderKeyDisplay) → L to activate the launcher layer."
+            return KeyboardConceptCopy.launcherActivationDescription(
+                mode: config.activationMode,
+                hyperTriggerMode: config.hyperTriggerMode,
+                leaderKeyDisplay: currentLeaderKeyDisplay
+            )
         }
     }
 
     /// Generate a dynamic activation hint for launcher collections
     func dynamicLauncherActivationHint(for collection: RuleCollection) -> String {
         guard case let .launcherGrid(config) = collection.configuration else {
-            return collection.activationHint ?? "Hold Hyper key"
+            return collection.activationHint.map(KeyboardConceptCopy.activationHint)
+                ?? KeyboardConceptCopy.activationHint("Hold Hyper, then press a shortcut key")
         }
 
         switch config.activationMode {
         case .holdHyper:
             switch config.hyperTriggerMode {
             case .hold:
-                return "Hold Hyper key"
+                return KeyboardConceptCopy.activationHint("Hold Hyper, then press a shortcut key")
             case .tap:
-                return "Tap Hyper key"
+                return KeyboardConceptCopy.activationHint("Tap Hyper to turn the launcher on or off, then press a shortcut key")
             }
         case .leaderSequence:
-            return "\(currentLeaderKeyDisplay) → L"
+            return KeyboardConceptCopy.activationHint("Hold \(currentLeaderKeyDisplay), then press L, then a shortcut key")
         }
     }
 
@@ -96,16 +99,27 @@ extension RulesTabView {
         if case .tapHoldPicker = collection.configuration {
             return dynamicTapHoldActivationHint(for: collection)
         }
-        if case let .autoShiftSymbols(config) = collection.configuration {
-            return "\(config.enabledKeys.count) keys \u{00B7} \(config.timeoutMs)ms hold"
+        if case .autoShiftSymbols = collection.configuration {
+            return KeyboardConceptCopy.activationHint("Hold a supported key to type its shifted symbol")
         }
         if let wsMode = collection.windowSnappingActivationMode {
             switch wsMode {
-            case .leader: return "\(currentLeaderKeyDisplay) → w → action key"
-            case .quickLauncher: return "Hyper + w → action key"
+            case .leader:
+                return KeyboardConceptCopy.activationHint("Hold \(currentLeaderKeyDisplay), then press W, then an action key")
+            case .quickLauncher:
+                return KeyboardConceptCopy.activationHint("Hold Hyper, then press W, then an action key")
             }
         }
-        return collection.activationHint
+        return collection.activationHint.map(KeyboardConceptCopy.activationHint)
+    }
+
+    /// Returns tunable activation metadata without competing with the action-first hint.
+    func dynamicActivationDetail(for collection: RuleCollection) -> String? {
+        guard case let .autoShiftSymbols(config) = collection.configuration else {
+            return nil
+        }
+
+        return "\(config.enabledKeys.count) supported keys · Hold delay \(config.timeoutMs) ms"
     }
 
     /// Generate a dynamic name for picker-style collections

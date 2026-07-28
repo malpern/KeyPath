@@ -178,7 +178,7 @@
 
     ],
     "name" : "Leader Key",
-    "summary" : "Change the key that activates all layer shortcuts (Vim, Delete, etc.)",
+    "summary" : "Your Leader key is the starting key for KeyPath layers and sequences. It is Space by default. Choose Space, Caps Lock, Tab, or Backtick.",
     "tags" : [
       "leader",
       "layer",
@@ -1278,7 +1278,7 @@
 
     ],
     "name" : "Chord Groups",
-    "summary" : "Multi-key combinations (Ben Vallack style) for efficient navigation and editing",
+    "summary" : "Multi-key combinations for efficient navigation and editing, with an optional Ben Vallack-inspired preset",
     "tags" : [
       "chords",
       "defchords",
@@ -3188,7 +3188,7 @@
         "input" : ";"
       }
     ],
-    "name" : "Ben Vallack Nav",
+    "name" : "Home Row Navigation System",
     "summary" : "Hold F or J for arrows, clipboard, tab switching, and line navigation — fingers never leave the home row.",
     "tags" : [
       "vallack",
@@ -3349,7 +3349,7 @@
       "targetLayer" : "launcher"
     },
     "name" : "Quick Launcher",
-    "summary" : "Hold Hyper to quickly launch apps and websites with keyboard shortcuts.",
+    "summary" : "Hyper combines Control, Option, Command, and Shift into one modifier. Apps rarely use all four together, so Hyper creates clean shortcuts that are unlikely to conflict. Caps Lock Remap provides Hyper by default when you hold Caps Lock. Use it with a shortcut key to launch an app or website.",
     "tags" : [
       "launcher",
       "apps",

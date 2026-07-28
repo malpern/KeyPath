@@ -3,16 +3,31 @@ import SwiftUI
 /// Standard wizard button bar following macOS HIG guidelines
 /// Button order: Cancel (left) | Secondary (middle) | Primary (right)
 public struct WizardButtonBar: View {
+    public enum SecondaryPlacement: Equatable {
+        /// Keep the secondary action beside Cancel for existing wizard screens.
+        case leading
+        /// Group Back with the primary action at the trailing edge.
+        case trailing
+    }
+
     /// Cancel button configuration (leftmost)
     public struct CancelButton {
         public let title: String
         public let action: () -> Void
         public let isEnabled: Bool
+        /// Whether Escape activates this button. Disable when Escape is part of the interaction being taught.
+        public let usesCancelShortcut: Bool
 
-        public init(title: String = "Cancel", action: @escaping () -> Void, isEnabled: Bool = true) {
+        public init(
+            title: String = "Cancel",
+            action: @escaping () -> Void,
+            isEnabled: Bool = true,
+            usesCancelShortcut: Bool = true
+        ) {
             self.title = title
             self.action = action
             self.isEnabled = isEnabled
+            self.usesCancelShortcut = usesCancelShortcut
         }
     }
 
@@ -57,15 +72,18 @@ public struct WizardButtonBar: View {
     public let cancelButton: CancelButton?
     public let secondaryButton: SecondaryButton?
     public let primaryButton: PrimaryButton?
+    public let secondaryPlacement: SecondaryPlacement
 
     public init(
         cancel: CancelButton? = nil,
         secondary: SecondaryButton? = nil,
-        primary: PrimaryButton
+        primary: PrimaryButton,
+        secondaryPlacement: SecondaryPlacement = .leading
     ) {
         cancelButton = cancel
         secondaryButton = secondary
         primaryButton = primary
+        self.secondaryPlacement = secondaryPlacement
     }
 
     public var body: some View {
@@ -76,13 +94,13 @@ public struct WizardButtonBar: View {
                     cancelButton.action()
                 }
                 .buttonStyle(WizardDesign.Component.SecondaryButton())
-                .keyboardShortcut(.cancelAction) // Escape key
+                .keyboardShortcut(cancelButton.usesCancelShortcut ? .cancelAction : nil)
                 .disabled(!cancelButton.isEnabled)
                 .accessibilityIdentifier("wizard-cancel-button")
             }
 
             // Secondary button (middle)
-            if let secondaryButton {
+            if let secondaryButton, secondaryPlacement == .leading {
                 Button(secondaryButton.title) {
                     secondaryButton.action()
                 }
@@ -92,6 +110,15 @@ public struct WizardButtonBar: View {
             }
 
             Spacer()
+
+            if let secondaryButton, secondaryPlacement == .trailing {
+                Button(secondaryButton.title) {
+                    secondaryButton.action()
+                }
+                .buttonStyle(WizardDesign.Component.SecondaryButton())
+                .disabled(!secondaryButton.isEnabled)
+                .accessibilityIdentifier("wizard-secondary-button")
+            }
 
             // Primary button (rightmost, default action)
             if let primaryButton {

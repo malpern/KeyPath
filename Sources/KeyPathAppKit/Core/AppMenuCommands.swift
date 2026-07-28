@@ -225,6 +225,22 @@ struct AppMenuCommands: Commands {
                 HelpWindowController.shared.showBrowser()
             }
             .keyboardShortcut("?", modifiers: .command)
+
+            Divider()
+
+            Button(
+                action: {
+                    replayFirstSuccessTour()
+                },
+                label: {
+                    Text(
+                        "Replay KeyPath Tour…",
+                        bundle: KeyPathAppKitResources.bundle,
+                        comment: "Help menu command that reopens KeyPath's optional keyboard onboarding tour."
+                    )
+                }
+            )
+            .accessibilityIdentifier("menu-replay-keypath-tour")
         }
     }
 
@@ -248,6 +264,12 @@ struct AppMenuCommands: Commands {
                 NSApplication.AboutPanelOptionKey.version: "Build \(info.build)"
             ]
         )
+    }
+
+    @MainActor
+    private func replayFirstSuccessTour() {
+        AppLogger.shared.log("🎓 [Menu] Replaying first-success tour")
+        FirstSuccessOnboardingWindowController.show(kanataViewModel: viewModel)
     }
 
     private func installCommandLineTool() {

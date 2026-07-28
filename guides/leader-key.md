@@ -10,7 +10,10 @@ permalink: /guides/leader-key/
 
 # Choose Your Leader Key
 
-Every layer in KeyPath — navigation, numpad, symbols, function keys, window snapping — activates through one key: your Leader. By default it's Space. But if Space doesn't feel right, you can switch to Caps Lock, Tab, or Backtick. One change here updates every layer at once.
+Your Leader key is the starting key for KeyPath layers and sequences. It is
+Space by default. If Space doesn't feel right, you can switch to Caps Lock, Tab,
+or Backtick. One change here updates navigation, numpad, symbols, function keys,
+window snapping, and every other Leader-based layer at once.
 
 ---
 
@@ -19,6 +22,12 @@ Every layer in KeyPath — navigation, numpad, symbols, function keys, window sn
 The Leader key is the single key you hold to enter the navigation layer. From there, you either use navigation directly (H/J/K/L for arrows) or press a second key to reach a deeper layer (S for symbols, F for function keys, ; for numpad).
 
 Think of it as the front door to all your keyboard shortcuts. Every layer pack that says "Hold Space →" is really saying "Hold your Leader key →."
+
+Leader is different from Hyper. Leader starts a KeyPath layer or sequence.
+Hyper combines Control, Option, Command, and Shift into one modifier. Apps
+rarely use all four together, so Hyper creates clean shortcuts that are unlikely
+to conflict. Caps Lock Remap usually provides Hyper when you hold Caps Lock. A
+rule may offer Leader or Hyper as its activation method.
 
 ---
 
@@ -107,7 +116,7 @@ This is the "Caps Lock does everything" setup that many keyboard enthusiasts use
 
 ### Space feels laggy after enabling
 
-The tap/hold threshold (default 180ms) determines how long you must hold before it's a "hold" vs. a "tap." If typing feels sluggish:
+The **Leader hold delay** (default: Long, 300 ms) determines how long you must hold before KeyPath treats the key as your Leader. The Medium preset (200 ms) matches previous behavior. If typing feels sluggish:
 - Practice releasing Space quickly between words
 - The threshold is tuned for most typists — give it a day before adjusting
 
@@ -121,5 +130,6 @@ Currently the four options (Space, Caps Lock, Tab, Backtick) are the supported l
 
 - **[Navigate Text Like a Keyboard Ninja]({{ '/guides/vim-navigation/' | relative_url }})** — The foundation layer that Leader activates
 - **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — Combine Leader layers with home row modifiers
+- **[One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }})** — A glossary of KeyPath timing controls
 - **[Keyboard Concepts]({{ '/guides/concepts/' | relative_url }})** — Background on layers and momentary activation
 - **[Back to Docs](https://malpern.github.io/KeyPath/docs)**

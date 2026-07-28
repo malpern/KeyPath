@@ -33,6 +33,34 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
         )
     }
 
+    func testConvertedRepeatSpeedEmitsRoundedKanataInterval() throws {
+        let scale = KeyRepeatControlConfig.globalSpeedScale
+        let intervalMs = scale.intervalMs(forRepeatsPerSecond: 58)
+        let repeatConfig = KeyRepeatControlConfig(
+            globalDelayMs: 450,
+            globalIntervalMs: intervalMs,
+            perKeyOverrides: [
+                KeyRepeatOverride(key: "left", delayMs: 120, intervalMs: intervalMs),
+            ]
+        )
+        let repeatCollection = try makeCollection(
+            id: XCTUnwrap(UUID(uuidString: "44444444-4444-4444-4444-444444444444")),
+            name: "Key Repeat Control",
+            summary: "Repeat",
+            category: .custom,
+            mappings: [],
+            targetLayer: .base,
+            momentaryActivator: nil,
+            configuration: .keyRepeatControl(repeatConfig)
+        )
+
+        let config = KanataConfiguration.generateFromCollections([repeatCollection])
+
+        XCTAssertEqual(intervalMs, 15)
+        assertContains(config, "managed-repeat-interval 15")
+        assertContains(config, "(left  120 15)")
+    }
+
     func testNavigationActivatorUsesOneShotAndWrapsMappings() throws {
         let navCollection = try makeCollection(
             id: XCTUnwrap(UUID(uuidString: "11111111-1111-1111-1111-111111111111")),
@@ -188,6 +216,44 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
             "(multi (push-msg \"launch:com.apple.calculator\") (push-msg \"layer:base\"))"
         )
         assertContains(output, "(multi XX (push-msg \"layer:base\"))")
+    }
+
+    func testLauncherLeaderSequenceGeneratesNavigationLayerActivator() throws {
+        let navCollection = try makeCollection(
+            id: XCTUnwrap(UUID(uuidString: "22222222-2222-2222-2222-222222222222")),
+            name: "Navigation",
+            summary: "Nav layer",
+            category: .navigation,
+            mappings: [KeyMapping(input: "h", action: .keystroke(key: "left"))],
+            targetLayer: .navigation,
+            momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
+        )
+        let config = LauncherGridConfig(
+            activationMode: .leaderSequence,
+            mappings: []
+        )
+        let launcherCollection = makeCollection(
+            id: RuleCollectionIdentifier.launcher,
+            name: "Launcher",
+            summary: "Launcher grid",
+            category: .productivity,
+            mappings: [],
+            targetLayer: .custom("launcher"),
+            momentaryActivator: MomentaryActivator(
+                input: "hyper",
+                targetLayer: .custom("launcher")
+            ),
+            configuration: .launcherGrid(config)
+        )
+
+        let activator = launcherCollection.momentaryActivator
+        XCTAssertEqual(activator?.input, "l")
+        XCTAssertEqual(activator?.sourceLayer, .navigation)
+        XCTAssertEqual(activator?.targetLayer, .custom("launcher"))
+
+        let output = KanataConfiguration.generateFromCollections([navCollection, launcherCollection])
+        assertContains(output, "layer_launcher_l")
+        assertContains(output, "@layer_launcher_l")
     }
 
     private func makeCollection(

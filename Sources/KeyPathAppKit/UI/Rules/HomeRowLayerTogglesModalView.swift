@@ -176,7 +176,7 @@ struct HomeRowLayerTogglesModalView: View {
                             }
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Hold delay")
+                                Text(localConfig.oppositeHandMode.decisionWindowLabel)
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                                 HStack {
@@ -187,7 +187,7 @@ struct HomeRowLayerTogglesModalView: View {
                                             set: { localConfig.timing.holdDelay = $0 }
                                         ),
                                         accessibilityIdentifier: "home-row-layer-toggles-modal-hold-delay-field",
-                                        accessibilityLabel: "Hold delay"
+                                        accessibilityLabel: localConfig.oppositeHandMode.decisionWindowLabel
                                     )
                                     Text("ms")
                                         .font(.subheadline)
@@ -271,7 +271,7 @@ struct HomeRowLayerTogglesModalView: View {
 
                                 Divider().padding(.vertical, 4)
 
-                                Text("Per-Key Hold Offsets")
+                                Text("Per-key \(localConfig.oppositeHandMode.decisionWindowLabel.lowercased()) offsets")
                                     .font(.subheadline)
                                     .fontWeight(.bold)
 
@@ -295,14 +295,14 @@ struct HomeRowLayerTogglesModalView: View {
                                                         }
                                                     ),
                                                     accessibilityIdentifier: "home-row-layer-toggles-modal-hold-offset-\(key)-field",
-                                                    accessibilityLabel: "\(displayLabel(forCanonicalKey: key)) hold offset"
+                                                    accessibilityLabel: "\(displayLabel(forCanonicalKey: key)) \(localConfig.oppositeHandMode.decisionWindowLabel.lowercased()) offset"
                                                 )
                                             }
                                         }
                                         Spacer()
                                     }
                                 }
-                                Text("Extends hold delay for a key (e.g., `50` makes it easier to hold). Leave blank or `0` for default.")
+                                Text("Extends the \(localConfig.oppositeHandMode.decisionWindowLabel.lowercased()) for a key (e.g., `50` makes it easier to hold). Leave blank or `0` for default.")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }

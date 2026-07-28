@@ -520,9 +520,8 @@ public enum PackRegistry {
         id: "com.keypath.pack.quick-launcher",
         version: "1.0.0",
         name: "Quick Launcher",
-        tagline: "Hold Hyper, press a key to launch an app or website",
-        shortDescription:
-        "Launch any app or open any URL with a single key. Hold Hyper, press the key. Drag apps onto keys to assign them.",
+        tagline: "Turn one key into an app and website launcher",
+        shortDescription: KeyboardConceptCopy.launcherPackDescription,
         longDescription: "",
         category: "Productivity",
         iconSymbol: "arrow.up.forward.app",
@@ -618,9 +617,8 @@ public enum PackRegistry {
         id: "com.keypath.pack.leader-key",
         version: "1.0.0",
         name: "Leader Key",
-        tagline: "Pick which key activates the navigation layer",
-        shortDescription:
-        "Choose which key activates all your layers — Space, Caps Lock, Tab, or Backtick. Applies to Vim Nav, Window Snapping, and every other layer pack.",
+        tagline: "Choose the key that starts your layer shortcuts",
+        shortDescription: KeyboardConceptCopy.leaderPackDescription,
         longDescription: "",
         category: "Productivity",
         iconSymbol: "hand.point.up.left",
@@ -659,7 +657,7 @@ public enum PackRegistry {
     public static let vallackSystem = Pack(
         id: "com.keypath.pack.vallack-system",
         version: "1.0.0",
-        name: "Ben Vallack Nav",
+        name: "Home Row Navigation System",
         tagline: "Your fingers stay put, the keyboard changes",
         shortDescription:
         "Navigate, copy, paste, and switch tabs without your fingers leaving the home row. Inspired by [Ben Vallack](https://www.youtube.com/@BenVallacksKeyboards) — hold an index finger to transform your keyboard into a navigation surface, with modifiers on the top row so nothing competes for space.",
@@ -672,12 +670,12 @@ public enum PackRegistry {
         managedDefaults: [
             ManagedCollectionDefault(
                 collectionID: RuleCollectionIdentifier.vallackNavigation,
-                displayName: "Vallack Navigation"
+                displayName: "Navigation Layer"
             ),
             ManagedCollectionDefault(
                 collectionID: RuleCollectionIdentifier.homeRowMods,
                 defaultConfiguration: .homeRowMods(HomeRowModsConfig.vallackDefault),
-                displayName: "Ben's Modifiers"
+                displayName: "Top-Row Modifiers"
             ),
             ManagedCollectionDefault(
                 collectionID: RuleCollectionIdentifier.homeRowLayerToggles,
@@ -688,7 +686,7 @@ public enum PackRegistry {
                     toggleMode: .whileHeld,
                     oppositeHandMode: .press
                 )),
-                displayName: "Vallack Layer Toggles"
+                displayName: "Index-Finger Layer Toggles"
             ),
             ManagedCollectionDefault(
                 collectionID: RuleCollectionIdentifier.homeRowArrows,

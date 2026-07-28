@@ -137,12 +137,10 @@ struct LauncherCollectionView: View {
     }
 
     private var activationDescription: String {
-        switch config.activationMode {
-        case .holdHyper:
-            localHyperTriggerMode.description + " Then press a shortcut key."
-        case .leaderSequence:
-            "Press Leader, then L, then press a shortcut key."
-        }
+        KeyboardConceptCopy.launcherActivationDescription(
+            mode: config.activationMode,
+            hyperTriggerMode: localHyperTriggerMode
+        )
     }
 
     // MARK: - Actions

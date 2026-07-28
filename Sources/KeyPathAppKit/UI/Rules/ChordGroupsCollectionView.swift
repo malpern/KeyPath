@@ -81,7 +81,7 @@ struct ChordGroupsCollectionView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: showDetails)
-        .alert("Load Ben Vallack Preset?", isPresented: $showPresetConfirmation) {
+        .alert("Load Home-Row Chords (Ben Vallack preset)?", isPresented: $showPresetConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Load Preset") {
                 confirmLoadPreset()
@@ -90,8 +90,8 @@ struct ChordGroupsCollectionView: View {
             Text("""
             This will load 2 chord groups with 7 total chords:
 
-            • Navigation (250ms): s+d → Esc, d+f → Enter, j+k → Up, k+l → Down
-            • Editing (400ms): a+s → Backspace, s+d+f → Cut, e+r → Undo
+            • Navigation (250 ms): s+d → Esc, d+f → Enter, j+k → Up, k+l → Down
+            • Editing (400 ms): a+s → Backspace, s+d+f → Cut, e+r → Undo
 
             These are Ben Vallack's home row chord combinations for fast navigation and editing.
             """)
@@ -112,7 +112,7 @@ struct ChordGroupsCollectionView: View {
                     .fontWeight(.medium)
 
                 if let group = selectedGroup {
-                    Text("\(group.name): \(group.chords.count) chords @ \(group.timeout)ms")
+                    Text("\(group.name): \(group.chords.count) chords • \(ChordPressWindowCopy.compactSummary(milliseconds: group.timeout))")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -123,7 +123,7 @@ struct ChordGroupsCollectionView: View {
             // Quick actions
             Menu {
                 Button(action: loadBenVallackPreset) {
-                    Label("Load Ben Vallack Preset", systemImage: "wand.and.stars")
+                    Label("Load Home-Row Chords (Ben Vallack preset)", systemImage: "wand.and.stars")
                 }
 
                 Button(action: addNewGroup) {
@@ -159,7 +159,7 @@ struct ChordGroupsCollectionView: View {
 
             HStack(spacing: 12) {
                 Button(action: loadBenVallackPreset) {
-                    Label("Load Ben Vallack Preset", systemImage: "wand.and.stars")
+                    Label("Load Home-Row Chords (Ben Vallack preset)", systemImage: "wand.and.stars")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("chord-groups-load-preset-button")
@@ -243,7 +243,7 @@ struct ChordGroupsCollectionView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(group.name)
                         .font(.headline)
-                    Text("\(group.category.displayName) • \(group.timeout)ms timeout")
+                    Text("\(group.category.displayName) • \(ChordPressWindowCopy.summary(milliseconds: group.timeout))")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

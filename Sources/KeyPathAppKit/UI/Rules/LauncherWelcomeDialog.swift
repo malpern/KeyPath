@@ -93,8 +93,8 @@ struct LauncherWelcomeDialog: View {
             VStack(alignment: .leading, spacing: 16) {
                 howItWorksRow(
                     icon: "hand.point.up.left.fill",
-                    title: "Hold Hyper",
-                    description: "Press and hold your Hyper key (Caps Lock when held)"
+                    title: "Hold your Hyper key",
+                    description: KeyboardConceptCopy.hyperDefinition
                 )
                 howItWorksRow(
                     icon: "keyboard.fill",
