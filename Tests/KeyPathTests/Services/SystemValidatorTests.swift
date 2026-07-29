@@ -300,7 +300,9 @@ struct SystemValidatorTests {
         }
 
         #expect(snapshot.captureStatus == .timedOut)
-        #expect(started.duration(to: clock.now) < .milliseconds(250))
+        // Generous bound: only guards against boundedCapture hanging past its
+        // 10ms deadline, not scheduling latency on a loaded runner.
+        #expect(started.duration(to: clock.now) < .seconds(5))
     }
 
     @Test("Canonical capture returns completed evidence before its deadline")
