@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+"""Capture and validate macOS 27 System Settings selector evidence."""
+
+import argparse
+import json
+import os
+import pathlib
+import subprocess
+
+
+ROOT = pathlib.Path(__file__).resolve().parent
+PEEKABOO = pathlib.Path(os.environ.get("KEYPATH_SELECTOR_PEEKABOO", ROOT / "peekaboo-ui"))
+RESULT = pathlib.Path(os.environ.get("KEYPATH_SELECTOR_RESULT", ROOT / "scenario-result"))
+
+
+def run(command, output=None):
+    if output is None:
+        return subprocess.run(command, check=False, capture_output=True, text=True)
+    with output.open("w") as handle:
+        return subprocess.run(command, check=False, stdout=handle, stderr=subprocess.STDOUT, text=True)
+
+
+def macos_version() -> tuple[str, str]:
+    version = run(["sw_vers", "-productVersion"])
+    build = run(["sw_vers", "-buildVersion"])
+    if version.returncode != 0 or build.returncode != 0:
+        raise RuntimeError("could not read macOS version")
+    return version.stdout.strip(), build.stdout.strip()
+
+
+def contains(value, expected: str) -> bool:
+    needle = expected.casefold()
+    if isinstance(value, str):
+        return needle in value.casefold()
+    if isinstance(value, dict):
+        return any(contains(item, expected) for item in value.values())
+    if isinstance(value, list):
+        return any(contains(item, expected) for item in value)
+    return False
+
+
+def record(output: pathlib.Path, scenario: str, status: str, summary: str,
+           classification: str, step: str, *extra: str) -> None:
+    subprocess.run([
+        str(RESULT), "record", "--output", str(output / "result.json"),
+        "--scenario", scenario, "--status", status, "--summary", summary,
+        "--classification", classification, "--step", step, *extra,
+    ], check=True)
+
+
+def required_permissions(preflight: object) -> list[str]:
+    if not isinstance(preflight, dict):
+        return ["unknown"]
+    data = preflight.get("data", {})
+    permissions = data.get("permissions", []) if isinstance(data, dict) else []
+    if not isinstance(permissions, list):
+        return ["unknown"]
+    return [
+        str(item.get("name", "unknown"))
+        for item in permissions
+        if isinstance(item, dict) and item.get("isRequired") is True and item.get("isGranted") is not True
+    ]
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", required=True, type=pathlib.Path)
+    parser.add_argument("--expect", action="append", required=True,
+                        help="required text in fresh System Settings AX evidence")
+    parser.add_argument("--scenario", default="macos-27-selector-probe")
+    args = parser.parse_args()
+    args.output.mkdir(parents=True, exist_ok=True)
+    version, build = macos_version()
+    if version.split(".")[0] != "27":
+        record(args.output, args.scenario, "blocked",
+               "macOS 27 selector driver requires a macOS 27 guest.",
+               "unsupported-os-selector", "os-admission")
+        return 4
+    run(["sw_vers"], args.output / "sw-vers.txt")
+    preflight_path = args.output / "peekaboo-preflight.json"
+    preflight_result = run([str(PEEKABOO), "preflight"], preflight_path)
+    if preflight_result.returncode != 0:
+        record(args.output, args.scenario, "failed",
+               "Peekaboo preflight could not verify the macOS 27 desktop session.",
+               "environment-precondition-failure", "peekaboo-preflight",
+               "--evidence", preflight_path.name)
+        return preflight_result.returncode
+    try:
+        preflight = json.loads(preflight_path.read_text())
+    except json.JSONDecodeError:
+        record(args.output, args.scenario, "failed",
+               "Peekaboo preflight evidence was not valid JSON.",
+               "harness-transport-failure", "peekaboo-preflight",
+               "--evidence", preflight_path.name)
+        return 1
+    missing_permissions = required_permissions(preflight)
+    if missing_permissions:
+        record(args.output, args.scenario, "blocked",
+               "Peekaboo lacks required macOS 27 desktop permissions.",
+               "environment-precondition-failure", "peekaboo-permissions",
+               "--message", "Missing permissions: " + ", ".join(missing_permissions),
+               "--evidence", preflight_path.name)
+        return 4
+
+    snapshot = args.output / "system-settings-ax.json"
+    capture = run([str(PEEKABOO), "snapshot", "--app", "System Settings", "--output", str(snapshot)])
+    if capture.returncode != 0:
+        record(args.output, args.scenario, "failed",
+               "Could not capture current System Settings selector evidence.",
+               "harness-transport-failure", "ax-snapshot")
+        return capture.returncode
+    try:
+        evidence = json.loads(snapshot.read_text())
+    except json.JSONDecodeError:
+        record(args.output, args.scenario, "failed",
+               "System Settings selector evidence was not valid JSON.",
+               "harness-transport-failure", "ax-snapshot")
+        return 1
+    missing = [selector for selector in args.expect if not contains(evidence, selector)]
+    if missing:
+        record(args.output, args.scenario, "blocked",
+               "macOS 27 System Settings surface did not expose the required selector evidence.",
+               "unsupported-os-selector", "selector-admission",
+               "--message", "Missing selectors: " + ", ".join(missing),
+               "--evidence", snapshot.name)
+        return 4
+    (args.output / "selector-contract.json").write_text(json.dumps({
+        "schemaVersion": 1,
+        "macOSMajor": 27,
+        "macOSVersion": version,
+        "macOSBuild": build,
+        "expected": args.expect,
+        "evidence": snapshot.name,
+        "preflightEvidence": preflight_path.name,
+    }, indent=2) + "\n")
+    subprocess.run([
+        str(RESULT), "record", "--output", str(args.output / "result.json"),
+        "--scenario", args.scenario, "--status", "passed",
+        "--summary", "macOS 27 exposed every accepted fail-closed System Settings selector.",
+        "--evidence", snapshot.name, "--evidence", "selector-contract.json",
+        "--evidence", preflight_path.name,
+    ], check=True)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

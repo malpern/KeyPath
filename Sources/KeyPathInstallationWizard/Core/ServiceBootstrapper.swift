@@ -720,8 +720,15 @@ public final class ServiceBootstrapper {
                 try await daemonManager.unregister()
                 let bootedOut = await bootOutStaleKanataSMAppServiceJob(attempt: attempt)
                 if !bootedOut {
-                    AppLogger.shared.log("❌ Attempt \(attempt) failed: stale launchd job could not be booted out")
-                    continue
+                    // SMAppService.unregister() is authoritative. The explicit
+                    // launchctl cleanup is only a best-effort workaround for
+                    // stale jobs and may be unavailable to noninteractive CLI
+                    // repair. Continue with registration; if a stale job truly
+                    // remains, register() or the health postcondition will fail
+                    // and the normal retry path will handle it.
+                    AppLogger.shared.log(
+                        "⚠️ Attempt \(attempt): stale launchd cleanup was unavailable; continuing after successful SMAppService unregister"
+                    )
                 }
                 ServiceHealthChecker.shared.invalidateHealthCache()
                 for _ in 0 ..< 10 { // ~1s
@@ -907,7 +914,9 @@ public final class ServiceBootstrapper {
             ServiceHealthChecker.shared.invalidateHealthCache()
             daemonLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
             managerLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidManagerServiceID)
-            if daemonLoaded, managerLoaded { break }
+            if daemonLoaded, managerLoaded {
+                break
+            }
             _ = await WizardSleep.ms(500)
         }
         let configured = ServiceHealthChecker.shared.isVHIDDaemonConfiguredCorrectly()

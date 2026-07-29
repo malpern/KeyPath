@@ -1,0 +1,186 @@
+#!/usr/bin/env python3
+"""Measure the ESP fixture control plane without sending any HID reports."""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import importlib.machinery
+import importlib.util
+import json
+import os
+import pathlib
+import socket
+import statistics
+import sys
+import time
+import urllib.error
+
+
+SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
+CLIENT_PATH = SCRIPT_DIR / "pico-hid-fixture-client"
+
+
+def load_client_module():
+    loader = importlib.machinery.SourceFileLoader("keypath_fixture_client", str(CLIENT_PATH))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    if spec is None:
+        raise RuntimeError("could not load fixture client")
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def utc_now() -> str:
+    return dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def atomic_write(path: pathlib.Path, value: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
+    temporary.chmod(0o600)
+    os.replace(temporary, path)
+
+
+def percentile(values: list[float], fraction: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    index = min(len(ordered) - 1, int((len(ordered) - 1) * fraction))
+    return ordered[index]
+
+
+def parser() -> argparse.ArgumentParser:
+    root = argparse.ArgumentParser(description=__doc__)
+    root.add_argument("--host", default=os.environ.get("KEYPATH_FIXTURE_HOST", "keypath-hid-fixture.local"))
+    root.add_argument("--port", type=int, default=8080)
+    root.add_argument("--requests", type=int, default=120)
+    root.add_argument("--interval-ms", type=int, default=100)
+    root.add_argument("--timeout", type=float, default=1.5)
+    root.add_argument("--max-p95-ms", type=float, default=750.0)
+    root.add_argument("--max-consecutive-failures", type=int, default=3)
+    root.add_argument("--output", type=pathlib.Path)
+    return root
+
+
+def main() -> int:
+    arguments = parser().parse_args()
+    if not 1 <= arguments.requests <= 10_000:
+        raise SystemExit("--requests must be between 1 and 10000")
+    if (arguments.interval_ms < 0 or arguments.timeout <= 0 or arguments.max_p95_ms <= 0 or
+            arguments.max_consecutive_failures < 1):
+        raise SystemExit("interval and timeout must not be negative")
+    token = os.environ.get("KEYPATH_FIXTURE_TOKEN", "")
+    if not token:
+        raise SystemExit("KEYPATH_FIXTURE_TOKEN is required")
+
+    output = arguments.output
+    if output is None:
+        stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        output = (pathlib.Path.home() / ".local/state/keypath-hid-fixture/control" /
+                  f"control-soak-{stamp}.json")
+    client_module = load_client_module()
+    started_at = utc_now()
+    discovery_started = time.monotonic()
+    resolution_error = ""
+    try:
+        resolved_host = socket.getaddrinfo(
+            arguments.host, arguments.port, socket.AF_INET, socket.SOCK_STREAM
+        )[0][4][0]
+    except OSError as error:
+        resolved_host = ""
+        resolution_error = str(error)[:240]
+    discovery_ms = (time.monotonic() - discovery_started) * 1000.0
+    client = (client_module.FixtureClient(resolved_host, token, arguments.port, arguments.timeout)
+              if resolved_host else None)
+    latencies_ms: list[float] = []
+    failures: list[dict[str, object]] = []
+    first_status: dict[str, object] | None = None
+    last_status: dict[str, object] | None = None
+    consecutive_failures = 0
+    if resolution_error:
+        failures.append({"request": 0, "error": f"host resolution failed: {resolution_error}"})
+    for index in range(arguments.requests if client else 0):
+        started = time.monotonic()
+        try:
+            status = client.status()
+            latency_ms = (time.monotonic() - started) * 1000.0
+            latencies_ms.append(latency_ms)
+            if first_status is None:
+                first_status = status
+            last_status = status
+            consecutive_failures = 0
+        except (OSError, RuntimeError, ValueError, json.JSONDecodeError,
+                urllib.error.URLError) as error:
+            failures.append({"request": index + 1, "error": str(error)[:240]})
+            consecutive_failures += 1
+            if consecutive_failures >= arguments.max_consecutive_failures:
+                break
+        if index + 1 < arguments.requests and arguments.interval_ms:
+            time.sleep(arguments.interval_ms / 1000.0)
+
+    resets_observed = bool(first_status and last_status and
+                           last_status.get("diagnostics", {}).get("uptimeMs", 0) <
+                           first_status.get("diagnostics", {}).get("uptimeMs", 0))
+    build_changed = bool(first_status and last_status and
+                         first_status.get("build") != last_status.get("build"))
+    p95_ms = percentile(latencies_ms, 0.95) if latencies_ms else 0.0
+    reasons: list[str] = []
+    if failures:
+        reasons.append("request failures")
+    if len(latencies_ms) != arguments.requests:
+        reasons.append("request count incomplete")
+    if p95_ms > arguments.max_p95_ms:
+        reasons.append("p95 latency exceeded budget")
+    if resets_observed:
+        reasons.append("fixture reset observed")
+    if build_changed:
+        reasons.append("firmware build changed")
+    status = "pass" if not reasons else "fail"
+    artifact: dict[str, object] = {
+        "schemaVersion": 1,
+        "kind": "keypath-fixture-control-soak",
+        "status": status,
+        "startedAt": started_at,
+        "endedAt": utc_now(),
+        "target": {
+            "requestedHost": arguments.host,
+            "resolvedHost": resolved_host or None,
+            "port": arguments.port,
+            "discoveryMs": round(discovery_ms, 3),
+        },
+        "requests": {
+            "attempted": arguments.requests,
+            "succeeded": len(latencies_ms),
+            "failed": len(failures),
+            "intervalMs": arguments.interval_ms,
+            "timeoutSeconds": arguments.timeout,
+            "maxConsecutiveFailures": arguments.max_consecutive_failures,
+        },
+        "latencyMs": {
+            "minimum": round(min(latencies_ms), 3) if latencies_ms else None,
+            "median": round(statistics.median(latencies_ms), 3) if latencies_ms else None,
+            "p95": round(p95_ms, 3) if latencies_ms else None,
+            "maximum": round(max(latencies_ms), 3) if latencies_ms else None,
+            "p95Budget": arguments.max_p95_ms,
+        },
+        "failureReasons": reasons,
+        "continuity": {"resetObserved": resets_observed, "buildChanged": build_changed},
+        "firstDiagnostics": first_status.get("diagnostics") if first_status else None,
+        "lastDiagnostics": last_status.get("diagnostics") if last_status else None,
+        "failures": failures,
+    }
+    atomic_write(output, artifact)
+    print(json.dumps({
+        "status": status,
+        "requests": arguments.requests,
+        "failures": len(failures),
+        "p95Ms": artifact["latencyMs"]["p95"],
+        "artifact": str(output),
+    }, indent=2, sort_keys=True))
+    return 0 if status == "pass" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,263 @@
+#!/bin/zsh
+set -euo pipefail
+
+lane=${1:-}
+[[ "$lane" == "managed-functional" || "$lane" == "unmanaged-ui" ]] || {
+  print -u2 "usage: install-runtime managed-functional|unmanaged-ui"
+  exit 2
+}
+
+output="$PWD/.keypath-lab/scenario-output/install-runtime"
+state="$output/state.tsv"
+cli=${KEYPATH_INSTALL_RUNTIME_CLI:-/Applications/KeyPath.app/Contents/MacOS/keypath-cli}
+assert_runtime=${KEYPATH_INSTALL_RUNTIME_ASSERT:-Scripts/lab/assert-runtime-state}
+app_open=${KEYPATH_INSTALL_RUNTIME_OPEN:-/usr/bin/open}
+app_quit=${KEYPATH_INSTALL_RUNTIME_QUIT:-/usr/bin/osascript}
+config_path=${KEYPATH_INSTALL_RUNTIME_CONFIG:-$HOME/.config/keypath/keypath.kbd}
+bootstrap_timeout=${KEYPATH_INSTALL_RUNTIME_BOOTSTRAP_TIMEOUT:-60}
+allow_no_input_device=${KEYPATH_INSTALL_RUNTIME_ALLOW_NO_INPUT_DEVICE:-0}
+kanata_binary=${KEYPATH_INSTALL_RUNTIME_KANATA_BINARY:-/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata}
+launchctl_binary=${KEYPATH_INSTALL_RUNTIME_LAUNCHCTL:-/bin/launchctl}
+mkdir -p "$output"
+
+[[ -x "$cli" ]] || {
+  print -u2 "installed KeyPath CLI is unavailable"
+  exit 3
+}
+
+json_field() {
+  local value
+  value=$(/usr/bin/plutil -extract "data.$2" raw -o - "$1" 2>/dev/null || true)
+  if [[ -z "$value" ]]; then
+    value=$(/usr/bin/plutil -extract "$2" raw -o - "$1" 2>/dev/null || true)
+  fi
+  print -r -- "$value"
+}
+
+state_field() {
+  [[ -f "$state" ]] || return 0
+  /usr/bin/awk -F '\t' -v key="$1" '$1 == key { value=$2 } END { print value }' "$state"
+}
+
+valid_id() {
+  [[ "$1" =~ '^[A-Fa-f0-9-]{36}$' ]]
+}
+
+ensure_default_config() {
+  [[ -s "$config_path" ]] && return 0
+
+  "$app_open" -a KeyPath
+  local waited=0
+  while (( waited < bootstrap_timeout )); do
+    [[ -s "$config_path" ]] && break
+    sleep 1
+    (( waited += 1 ))
+  done
+
+  if [[ "$app_quit" == "/usr/bin/osascript" ]]; then
+    "$app_quit" -e 'tell application "KeyPath" to quit' >/dev/null 2>&1 || true
+  else
+    "$app_quit" >/dev/null 2>&1 || true
+  fi
+
+  [[ -s "$config_path" ]] || {
+    print -u2 "KeyPath first launch did not create its default user config"
+    return 1
+  }
+}
+
+write_state() {
+  local runtime_status=$1
+  local previous_preflight_plan_id previous_preflight_snapshot_id previous_run_id previous_plan_id
+  local previous_before_snapshot_id previous_after_snapshot_id
+  previous_preflight_plan_id=$(state_field preflight_plan_id)
+  previous_preflight_snapshot_id=$(state_field preflight_snapshot_id)
+  previous_run_id=$(state_field run_id)
+  previous_plan_id=$(state_field plan_id)
+  previous_before_snapshot_id=$(state_field before_snapshot_id)
+  previous_after_snapshot_id=$(state_field after_snapshot_id)
+  {
+    print "status\t$runtime_status"
+    print "preflight_plan_id\t${preflight_plan_id:-$previous_preflight_plan_id}"
+    print "preflight_snapshot_id\t${preflight_snapshot_id:-$previous_preflight_snapshot_id}"
+    print "run_id\t${run_id:-$previous_run_id}"
+    print "plan_id\t${plan_id:-$previous_plan_id}"
+    print "before_snapshot_id\t${before_snapshot_id:-$previous_before_snapshot_id}"
+    print "after_snapshot_id\t${after_snapshot_id:-$previous_after_snapshot_id}"
+    print "updated_at\t$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } > "$state"
+}
+
+verify_postconditions() {
+  set +e
+  "$cli" system inspect --json --quiet --timeout 180 > "$output/post-inspect.json" 2> "$output/post-inspect.stderr"
+  local inspect_exit=$?
+  set -e
+  local operational
+  operational=$(json_field "$output/post-inspect.json" isOperational)
+
+  set +e
+  if [[ "$lane" == "managed-functional" ]]; then
+    "$assert_runtime" ready \
+      --managed-policy-manifest /Library/KeyPathLab/managed-policy/manifest.json \
+      > "$output/observed-ready.tsv" 2> "$output/observed-ready.stderr"
+  else
+    "$assert_runtime" ready \
+      > "$output/observed-ready.tsv" 2> "$output/observed-ready.stderr"
+  fi
+  local observed_exit=$?
+  set -e
+
+  if (( inspect_exit == 0 && observed_exit == 0 )) && [[ "$operational" == "true" ]]; then
+    cat > "$output/assert-state.json" <<EOF
+{
+  "schemaVersion": 1,
+  "plan": {
+    "preflightPlanID": "$(state_field preflight_plan_id)",
+    "preflightSnapshotID": "$(state_field preflight_snapshot_id)",
+    "runID": "$(state_field run_id)",
+    "planID": "$(state_field plan_id)",
+    "beforeSnapshotID": "$(state_field before_snapshot_id)",
+    "afterSnapshotID": "$(state_field after_snapshot_id)"
+  },
+  "runtimeReady": {
+    "claimed": "ready",
+    "observed": "ready",
+    "agreement": true
+  }
+}
+EOF
+    write_state passed
+    print "install_runtime\tpassed"
+    print "assert_state\t$output/assert-state.json"
+    return 0
+  fi
+
+  return 1
+}
+
+verify_no_input_device_boundary() {
+  [[ "$allow_no_input_device" == "1" ]] || return 1
+  [[ "$completion_state" == "verification-failed" && "$claimed_success" == "false" ]] || return 1
+
+  local failure_reason failed_postcondition
+  failure_reason=$(json_field "$output/install-report.json" failureReason)
+  failed_postcondition=$(json_field "$output/install-report.json" failedPostconditions.0)
+  [[ "$failure_reason" == *"Kanata did not become running + TCP responsive within readiness timeout"* ]] || return 1
+  [[ "$failed_postcondition" == "runtime-ready-or-approval-pending" ]] || return 1
+  [[ -x "$kanata_binary" && -x "$launchctl_binary" ]] || return 1
+
+  "$launchctl_binary" print system/com.keypath.kanata > "$output/no-input-launchd.txt" 2>&1 || return 1
+  "$kanata_binary" --list > "$output/no-input-device-list.txt" 2>&1 || return 1
+  /usr/bin/grep -Fq 'managed_by = com.apple.xpc.ServiceManagement' "$output/no-input-launchd.txt" || return 1
+  /usr/bin/grep -Fq 'last exit code = 1' "$output/no-input-launchd.txt" || return 1
+  /usr/bin/grep -Fq 'No devices found.' "$output/no-input-device-list.txt" || return 1
+
+  cat > "$output/assert-state.json" <<EOF
+{
+  "schemaVersion": 1,
+  "runtimeReady": {
+    "claimed": "not-ready",
+    "observed": "environment-limited-no-input-device",
+    "agreement": true
+  },
+  "boundary": {
+    "provider": "parallels-apple-virtualization",
+    "serviceRegistered": true,
+    "inputDevices": 0
+  }
+}
+EOF
+  write_state environment-limited-no-input-device
+  print "install_runtime\tenvironment-limited-no-input-device"
+  print "assert_state\t$output/assert-state.json"
+  return 0
+}
+
+if [[ "$(state_field status)" == "awaiting-approval" ]]; then
+  if verify_postconditions; then
+    exit 0
+  fi
+  print "install_runtime\twaiting"
+  print "user_action_required\tComplete the KeyPath approvals visible in the disposable guest, then resume this checkpoint."
+  exit 4
+fi
+
+"$cli" system inspect --json --quiet --timeout 180 \
+  > "$output/preflight-inspect.json" 2> "$output/preflight-inspect.stderr"
+preflight_plan_id=$(json_field "$output/preflight-inspect.json" planID)
+preflight_snapshot_id=$(json_field "$output/preflight-inspect.json" snapshotID)
+valid_id "$preflight_plan_id" || {
+  print -u2 "system inspect omitted a valid planID"
+  exit 3
+}
+valid_id "$preflight_snapshot_id" || {
+  print -u2 "system inspect omitted a valid snapshotID"
+  exit 3
+}
+
+ensure_default_config || {
+  write_state failed
+  exit 1
+}
+
+set +e
+"$cli" system install --json --quiet --timeout 600 \
+  > "$output/install-report.json" 2> "$output/install-report.stderr"
+install_exit=$?
+set -e
+
+run_id=$(json_field "$output/install-report.json" runID)
+plan_id=$(json_field "$output/install-report.json" planID)
+before_snapshot_id=$(json_field "$output/install-report.json" beforeSnapshotID)
+after_snapshot_id=$(json_field "$output/install-report.json" afterSnapshotID)
+completion_state=$(json_field "$output/install-report.json" completionState)
+user_action_required=$(json_field "$output/install-report.json" userActionRequired)
+claimed_success=$(json_field "$output/install-report.json" success)
+
+for identifier in "$run_id" "$plan_id" "$before_snapshot_id"; do
+  valid_id "$identifier" || {
+    print -u2 "installer report omitted required plan lineage"
+    exit 3
+  }
+done
+[[ -z "$after_snapshot_id" ]] || valid_id "$after_snapshot_id" || {
+  print -u2 "installer report contained an invalid afterSnapshotID"
+  exit 3
+}
+
+if [[ "$completion_state" == "awaiting-approval" || "$completion_state" == "awaitingApproval" ||
+      ("$completion_state" == "completed" && "$user_action_required" == "true" && "$claimed_success" != "true") ]]; then
+  write_state awaiting-approval
+  print "install_runtime\twaiting"
+  print "user_action_required\tComplete the KeyPath approvals visible in the disposable guest, then resume this checkpoint."
+  exit 4
+fi
+
+if (( install_exit != 0 )) || [[ "$claimed_success" != "true" ]]; then
+  if verify_no_input_device_boundary; then
+    exit 0
+  fi
+  write_state failed
+  print -u2 "KeyPath's installer reported failure"
+  exit 1
+fi
+
+write_state verifying
+if verify_postconditions; then
+  exit 0
+fi
+
+cat > "$output/assert-state.json" <<EOF
+{
+  "schemaVersion": 1,
+  "runtimeReady": {
+    "claimed": "ready",
+    "observed": "not-ready",
+    "agreement": false
+  }
+}
+EOF
+write_state failed
+print -u2 "KeyPath reported installation success but independent runtime postconditions were absent"
+exit 1

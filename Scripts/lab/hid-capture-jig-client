@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""Control the KeyPath HID Capture Jig through its local file-RPC channel."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import pathlib
+import sys
+import time
+import uuid
+
+
+def state_directory() -> pathlib.Path:
+    override = os.environ.get("KEYPATH_CAPTURE_JIG_STATE_DIR")
+    if override:
+        return pathlib.Path(override)
+    return pathlib.Path.home() / ".local/state/keypath-hid-capture-jig"
+
+
+def atomic_json_write(path: pathlib.Path, value: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
+    temporary.chmod(0o600)
+    os.replace(temporary, path)
+
+
+def send(action: str, **fields: object) -> dict[str, object]:
+    directory = state_directory()
+    request_id = str(uuid.uuid4())
+    command = {"id": request_id, "action": action}
+    command.update({key: value for key, value in fields.items() if value is not None})
+    atomic_json_write(directory / "command.json", command)
+
+    timeout = float(os.environ.get("KEYPATH_CAPTURE_JIG_COMMAND_TIMEOUT", "5"))
+    deadline = time.monotonic() + timeout
+    response_path = directory / "response.json"
+    while time.monotonic() < deadline:
+        try:
+            response = json.loads(response_path.read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            time.sleep(0.025)
+            continue
+        if response.get("id") == request_id:
+            return response
+        time.sleep(0.025)
+    raise RuntimeError(
+        f"HID Capture Jig did not answer within {timeout:g}s; launch it with "
+        "Scripts/lab/hid-capture-jig-tool open"
+    )
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("status")
+    commands.add_parser("focus")
+    commands.add_parser("reset")
+    commands.add_parser("finalize")
+    commands.add_parser("quit")
+
+    arm = commands.add_parser("arm")
+    arm.add_argument("--run-id", required=True)
+    arm.add_argument("--expected", required=True, type=pathlib.Path)
+    arm.add_argument("--timeout-ms", type=int, default=10_000)
+    arm.add_argument("--settle-ms", type=int, default=250)
+    arm.add_argument("--instruction")
+    arm.add_argument(
+        "--demo-mode", action="store_true",
+        help="bypass host-resource admission for a non-acceptance demo",
+    )
+
+    wait = commands.add_parser("wait")
+    wait.add_argument("--timeout-seconds", type=float, default=15.0)
+    wait.add_argument("--poll-ms", type=int, default=100)
+    return parser
+
+
+def print_response(response: dict[str, object]) -> None:
+    print(json.dumps(response, indent=2, sort_keys=True))
+
+
+def main() -> int:
+    arguments = build_parser().parse_args()
+    try:
+        if arguments.command == "arm":
+            if not arguments.expected.is_file():
+                raise RuntimeError(f"expected-output file does not exist: {arguments.expected}")
+            response = send(
+                "arm",
+                runID=arguments.run_id,
+                expected=arguments.expected.read_text(),
+                timeoutMs=arguments.timeout_ms,
+                settleMs=arguments.settle_ms,
+                instruction=arguments.instruction,
+                demoMode=arguments.demo_mode,
+            )
+        elif arguments.command == "wait":
+            deadline = time.monotonic() + arguments.timeout_seconds
+            response = send("status")
+            while time.monotonic() < deadline:
+                state = response.get("snapshot", {}).get("state")
+                if state in {"passed", "failed"}:
+                    print_response(response)
+                    return 0 if state == "passed" else 1
+                time.sleep(arguments.poll_ms / 1000)
+                response = send("status")
+            response = send("finalize")
+        else:
+            response = send(arguments.command)
+    except (OSError, ValueError, RuntimeError) as error:
+        print(f"hid-capture-jig-client: {error}", file=sys.stderr)
+        return 2
+
+    print_response(response)
+    return 0 if response.get("ok") else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

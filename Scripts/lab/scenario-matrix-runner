@@ -1,0 +1,656 @@
+#!/usr/bin/env python3
+"""Execute a KeyPath scenario-matrix plan with resumable, fail-closed checkpoints."""
+
+from __future__ import annotations
+
+import argparse
+import concurrent.futures
+import datetime
+import hashlib
+import json
+import os
+import pathlib
+import re
+import subprocess
+import sys
+import tempfile
+import threading
+from typing import Any
+
+
+TERMINAL = {"passed", "failed", "blocked"}
+CHECKPOINT_PREFIXES = ("operator-", "physical-")
+LEASE_PATTERN = re.compile(r"^lease_id\t([A-Za-z0-9._-]+)$", re.MULTILINE)
+LEASE_CANDIDATE_PATTERN = re.compile(r"\b(cbx_[A-Za-z0-9._-]+)\b")
+KNOWN_STEPS = {
+    "run-lab-contract-tests", "run-failure-ownership-self-test", "verify-report-contract",
+    "create-fresh-lease", "create-fresh-lease-with-fixture", "create-desktop-lease", "create-usb-lease",
+    "install-exact-artifact", "install-upgrade-artifact", "install-fixture", "desktop-bootstrap", "reboot-guest", "artifact-capture",
+    "managed-capabilities", "repair-kanata-service", "upgrade-beta3-to-current",
+    "upgrade-beta3-before", "upgrade-beta3-after",
+    "reboot-persistence-before", "reboot-persistence-after", "uninstall", "reinstall",
+    "launch", "helper-daemon-health", "cancellation-recovery-before", "cancellation-recovery-after",
+    "macos-26-selector-scenario", "macos-27-selector-scenario",
+    "physical-remap-session-prepare", "physical-remap-session-observe",
+}
+
+
+class CampaignError(ValueError):
+    pass
+
+
+def now() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+
+def digest_json(value: dict[str, Any]) -> str:
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def sha256(path: pathlib.Path) -> str:
+    result = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            result.update(chunk)
+    return result.hexdigest()
+
+
+def atomic_json(path: pathlib.Path, value: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "w") as handle:
+            json.dump(value, handle, indent=2)
+            handle.write("\n")
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def validate_plan(plan: Any) -> dict[str, Any]:
+    if not isinstance(plan, dict) or plan.get("schemaVersion") != 1:
+        raise CampaignError("plan requires schemaVersion 1")
+    jobs = plan.get("jobs")
+    waves = plan.get("waves")
+    if not isinstance(jobs, list) or not jobs or not isinstance(waves, list) or not waves:
+        raise CampaignError("plan requires non-empty jobs and waves")
+    ids = [job.get("id") for job in jobs]
+    if any(not isinstance(job_id, str) or not job_id for job_id in ids) or len(ids) != len(set(ids)):
+        raise CampaignError("job ids must be unique non-empty strings")
+    scheduled = [job_id for wave in waves for job_id in wave]
+    if sorted(scheduled) != sorted(ids) or len(scheduled) != len(set(scheduled)):
+        raise CampaignError("waves must schedule every job exactly once")
+    for job in jobs:
+        if job.get("provider") not in ("local", "tart", "parallels"):
+            raise CampaignError(f"{job['id']}: unsupported provider")
+        if not isinstance(job.get("steps"), list) or not job["steps"]:
+            raise CampaignError(f"{job['id']}: steps are required")
+        unknown_steps = [
+            step for step in job["steps"]
+            if step not in KNOWN_STEPS and not step.startswith(CHECKPOINT_PREFIXES)
+        ]
+        if unknown_steps:
+            raise CampaignError(f"{job['id']}: unsupported steps: {', '.join(unknown_steps)}")
+        if job["provider"] != "local" and job.get("finalizer") != "destroy-owned-lease":
+            raise CampaignError(f"{job['id']}: owned lease cleanup is required")
+    return plan
+
+
+def unique_steps(steps: list[str]) -> list[dict[str, str]]:
+    counts: dict[str, int] = {}
+    result = []
+    for command_step in steps:
+        counts[command_step] = counts.get(command_step, 0) + 1
+        suffix = "" if counts[command_step] == 1 else f"-{counts[command_step]}"
+        result.append({"id": command_step + suffix, "commandStep": command_step, "status": "queued"})
+    return result
+
+
+def initial_state(plan: dict[str, Any], plan_digest: str, commit: str, installer: pathlib.Path) -> dict[str, Any]:
+    return {
+        "schemaVersion": 1,
+        "campaignId": f"{plan.get('cadence', 'matrix')}-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}",
+        "planDigest": plan_digest,
+        "commit": commit,
+        "installer": str(installer.resolve()),
+        "installerSHA256": sha256(installer),
+        "dashboardInitialized": False,
+        "status": "queued",
+        "createdAt": now(),
+        "updatedAt": now(),
+        "jobs": [
+            {
+                "id": job["id"], "status": "queued", "leaseId": None,
+                "steps": unique_steps(job["steps"]), "cleanupStatus": "not-required" if job["provider"] == "local" else "pending",
+            }
+            for job in plan["jobs"]
+        ],
+    }
+
+
+class MatrixRunner:
+    def __init__(self, args: argparse.Namespace, plan: dict[str, Any], state: dict[str, Any]) -> None:
+        self.args = args
+        self.plan = plan
+        self.state = state
+        self.lock = threading.RLock()
+        self.jobs = {job["id"]: job for job in plan["jobs"]}
+        self.job_states = {job["id"]: job for job in state["jobs"]}
+        self.acknowledged = set(args.ack_checkpoint)
+        self.selected = set(args.only_job) if args.only_job else set(self.jobs)
+        self.presentation_enabled = args.hid_presentation
+
+    def save(self) -> None:
+        with self.lock:
+            self.state["updatedAt"] = now()
+            atomic_json(self.args.state, self.state)
+
+    def dashboard(self, *arguments: str) -> None:
+        if not self.args.dashboard_updater:
+            return
+        command = [str(self.args.dashboard_updater)]
+        if self.args.dashboard_state:
+            command += ["--state", str(self.args.dashboard_state)]
+        command += list(arguments)
+        with self.lock:
+            result = subprocess.run(command, text=True, capture_output=True)
+        if result.returncode:
+            raise CampaignError(f"dashboard update failed: {result.stderr.strip() or result.stdout.strip()}")
+
+    def present(self, phase: str, *, result: str = "none", progress: int = 0,
+                title: str = "", detail: str = "", reports_expected: int = 0,
+                reports_observed: int = 0) -> None:
+        """Update the optional physical display without making it a campaign dependency."""
+        if not self.presentation_enabled:
+            return
+        command = [str(self.args.hid_fixture_client), "--host", self.args.hid_fixture_host,
+                   "--timeout", "2.0", "present",
+                   "--phase", phase, "--result", result, "--progress", str(max(0, min(progress, 1000))),
+                   "--title", title[:32], "--detail", detail[:48],
+                   "--reports-expected", str(reports_expected),
+                   "--reports-observed", str(reports_observed)]
+        with self.lock:
+            response = subprocess.run(command, cwd=self.args.repo, text=True, capture_output=True)
+            if response.returncode:
+                log = self.args.artifacts / "hid-fixture-presentation.log"
+                log.parent.mkdir(parents=True, exist_ok=True)
+                with log.open("a") as handle:
+                    handle.write(f"{now()} {response.stderr.strip() or response.stdout.strip()}\n")
+
+    def update_job(self, job_state: dict[str, Any], *, status: str | None = None,
+                   step: dict[str, str] | None = None, step_status: str | None = None,
+                   message: str | None = None, event: str | None = None, tone: str = "info") -> None:
+        with self.lock:
+            if status:
+                job_state["status"] = status
+            if step:
+                job_state["currentStep"] = step["id"]
+                if step_status:
+                    step["status"] = step_status
+            completed = sum(item["status"] == "passed" for item in job_state["steps"])
+            progress = round(100 * completed / len(job_state["steps"]))
+            self.save()
+        arguments = ["job", "--id", job_state["id"], "--progress", str(progress)]
+        if status:
+            arguments += ["--status", status]
+        if step:
+            arguments += ["--step", step["id"]]
+            if step_status:
+                arguments += ["--step-status", step_status]
+        if job_state.get("leaseId"):
+            arguments += ["--lease-id", job_state["leaseId"]]
+        if message:
+            arguments += ["--message", message]
+        if event:
+            arguments += ["--event-title", event, "--event-tone", tone]
+        self.dashboard(*arguments)
+        if status in ("failed", "blocked"):
+            self.present("result", result="fail" if status == "failed" else "inconclusive",
+                         progress=progress * 10, title=job_state["id"], detail=message or "Evidence incomplete")
+        elif status == "waiting":
+            self.present("next", progress=progress * 10, title=job_state["id"], detail=message or "Action needed")
+        elif status == "passed":
+            self.present("resolving", progress=1000, title=job_state["id"], detail="Scenario evidence verified")
+        elif step_status == "running":
+            self.present("testing", progress=progress * 10, title=job_state["id"],
+                         detail=(step or {}).get("commandStep", "Running scenario"))
+        elif step_status == "passed":
+            self.present("observing", progress=progress * 10, title=job_state["id"],
+                         detail=(step or {}).get("commandStep", "Evidence captured"))
+
+    def lab_command(self, *parts: str) -> list[str]:
+        command = [str(self.args.lab)]
+        if self.args.host:
+            command += ["--host", self.args.host]
+        return command + list(parts)
+
+    def execute(self, job_id: str, step_id: str, command: list[str]) -> subprocess.CompletedProcess[str]:
+        log = self.args.artifacts / job_id / f"{step_id}.log"
+        log.parent.mkdir(parents=True, exist_ok=True)
+        result = subprocess.run(command, cwd=self.args.repo, text=True, capture_output=True)
+        with log.open("a") as handle:
+            handle.write(f"$ {' '.join(command)}\n")
+            handle.write(result.stdout + result.stderr)
+        return result
+
+    def adopt_create_lease(self, job: dict[str, Any], state: dict[str, Any],
+                           step: dict[str, str], output: str, *, required: bool) -> bool:
+        exact = LEASE_PATTERN.findall(output)
+        candidates = exact or LEASE_CANDIDATE_PATTERN.findall(output)
+        unique = list(dict.fromkeys(candidates))
+        if not unique:
+            if required:
+                raise CampaignError(f"{job['id']}: create succeeded without a lease_id")
+            return False
+        if len(unique) != 1:
+            raise CampaignError(f"{job['id']}: create output named multiple lease candidates")
+        lease = unique[0]
+        status = subprocess.run(self.lab_command("status", lease), text=True, capture_output=True)
+        if status.returncode != 0:
+            raise CampaignError(f"{job['id']}: controller did not verify ownership of {lease}")
+        state["leaseId"] = lease
+        self.save()
+        return True
+
+    def create_command(self, job: dict[str, Any], step_name: str) -> list[str]:
+        command = self.lab_command(
+            "create", "--macos", str(job["macOS"]), "--lane", job["lane"],
+            "--commit", self.args.commit, "--installer", str(self.args.installer),
+            "--ttl", f"{job.get('ttlMinutes', 120)}m",
+        )
+        if step_name == "create-fresh-lease-with-fixture":
+            if not self.args.fixture:
+                raise CampaignError(f"{job['id']}: --fixture is required")
+            command += ["--fixture", str(self.args.fixture)]
+        if step_name == "create-desktop-lease":
+            command += ["--desktop"]
+        if step_name == "create-usb-lease":
+            command += ["--tart-usb-passthrough"]
+        return command
+
+    def command_for(self, job: dict[str, Any], state: dict[str, Any], step_name: str) -> list[list[str]]:
+        lease = state.get("leaseId")
+        if step_name.startswith("create-"):
+            return [self.create_command(job, step_name)]
+        if job["provider"] == "local":
+            if step_name == "run-lab-contract-tests":
+                return [[str(self.args.repo / "Scripts/lab/tests/keypath-lab-tests.sh")]]
+            if step_name == "run-failure-ownership-self-test":
+                output = self.args.artifacts / job["id"] / "failure-ownership-self-test.json"
+                verify = (
+                    "import json,sys; value=json.load(open(sys.argv[1])); "
+                    "raise SystemExit(0 if value.get('status') == 'failed' and "
+                    "value.get('failure', {}).get('classification') == 'harness-selector-failure' else 1)"
+                )
+                return [
+                    [str(self.args.repo / "Scripts/lab/scenario-result"), "selector-self-test", "--output", str(output)],
+                    [sys.executable, "-c", verify, str(output)],
+                ]
+            if step_name == "verify-report-contract":
+                return [[sys.executable, str(self.args.repo / "Scripts/lab/tests/scenario-report-tests.py")]]
+        if not lease:
+            raise CampaignError(f"{job['id']}: {step_name} requires a recorded lease")
+        if step_name == "install-exact-artifact":
+            return [self.lab_command("install-runtime", lease)]
+        if step_name == "install-upgrade-artifact":
+            return [self.lab_command("install-upgrade-runtime", lease)]
+        if step_name == "install-fixture":
+            return [self.lab_command("install-fixture", lease)]
+        if step_name == "reboot-guest":
+            return [self.lab_command("reboot-guest", lease)]
+        if step_name == "desktop-bootstrap":
+            commands = []
+            if job["provider"] == "parallels":
+                commands.append(self.lab_command("verify-console-login", lease))
+            commands.append(self.lab_command("desktop-bootstrap", lease, "--install-tools"))
+            return commands
+        if step_name == "artifact-capture":
+            collected = self.args.artifacts / job["id"] / "collected"
+            return [
+                self.lab_command("scenario", lease, "artifact-capture"),
+                self.lab_command("artifacts", lease, "--output", str(collected)),
+            ]
+        return [self.lab_command("scenario", lease, step_name)]
+
+    def recover_inflight(self, job: dict[str, Any], state: dict[str, Any], step: dict[str, str]) -> bool:
+        log = self.args.artifacts / job["id"] / f"{step['id']}.log"
+        if step["commandStep"].startswith("create-") and log.exists():
+            match = LEASE_PATTERN.search(log.read_text())
+            if match:
+                lease = match.group(1)
+                status = subprocess.run(self.lab_command("status", lease), text=True, capture_output=True)
+                if status.returncode == 0:
+                    state["leaseId"] = lease
+                    step["status"] = "passed"
+                    self.update_job(state, status="running", step=step, step_status="passed",
+                                    message="Recovered the created lease from durable controller evidence.")
+                    return True
+        if step["commandStep"] in {"install-exact-artifact", "install-upgrade-artifact"} and state.get("leaseId"):
+            status = subprocess.run(
+                self.lab_command("status", state["leaseId"]), text=True, capture_output=True,
+            )
+            if status.returncode == 0 and re.search(
+                r"^install_runtime_status\tawaiting-approval$", status.stdout, re.MULTILINE,
+            ):
+                checkpoint = f"{job['id']}:{step['commandStep']}"
+                state["waitingCheckpoint"] = checkpoint
+                self.update_job(
+                    state, status="waiting", step=step, step_status="waiting",
+                    message="Recovered the completed installer mutation at its durable macOS approval boundary.",
+                    event=f"{job['title']} needs approval", tone="warning",
+                )
+                return True
+        state["blocker"] = f"Interrupted mutation at {step['id']} has no verified postcondition; refusing to repeat it."
+        self.update_job(state, status="blocked", step=step, step_status="blocked",
+                        message=state["blocker"], event=f"{job['title']} blocked", tone="danger")
+        return False
+
+    def finalizer(self, job: dict[str, Any], state: dict[str, Any]) -> bool:
+        lease = state.get("leaseId")
+        if job["provider"] == "local" or not lease:
+            return True
+        result = self.execute(job["id"], "destroy-owned-lease", self.lab_command("destroy", lease))
+        state["cleanupStatus"] = "passed" if result.returncode == 0 else "failed"
+        self.save()
+        return result.returncode == 0
+
+    def emergency_artifacts(self, job: dict[str, Any], state: dict[str, Any]) -> None:
+        lease = state.get("leaseId")
+        if not lease:
+            return
+        collected = self.args.artifacts / job["id"] / "collected"
+        result = self.execute(
+            job["id"], "failure-artifact-capture",
+            self.lab_command("artifacts", lease, "--output", str(collected)),
+        )
+        state["failureArtifactStatus"] = "passed" if result.returncode == 0 else "failed"
+        self.save()
+
+    def write_reports(self) -> None:
+        self.args.artifacts.mkdir(parents=True, exist_ok=True)
+        scenario_report = self.args.artifacts / "scenario-report.json"
+        result = subprocess.run(
+            [str(self.args.repo / "Scripts/lab/scenario-report"), "--input", str(self.args.artifacts),
+             "--output", str(scenario_report)], text=True, capture_output=True,
+        )
+        if result.returncode != 0:
+            (self.args.artifacts / "scenario-report-error.log").write_text(result.stdout + result.stderr)
+        matrix_report = {
+            "schemaVersion": 1,
+            "campaignId": self.state["campaignId"],
+            "generatedAt": now(),
+            "planDigest": self.state["planDigest"],
+            "commit": self.state["commit"],
+            "installerSHA256": self.state["installerSHA256"],
+            "status": self.state["status"],
+            "jobs": [
+                {
+                    "id": job["id"], "status": job["status"], "leaseId": job.get("leaseId"),
+                    "cleanupStatus": job.get("cleanupStatus"), "blocker": job.get("blocker"),
+                    "artifactDirectory": job["id"],
+                }
+                for job in self.state["jobs"]
+            ],
+            "scenarioReport": "scenario-report.json" if result.returncode == 0 else None,
+        }
+        atomic_json(self.args.artifacts / "matrix-report.json", matrix_report)
+
+    def run_job(self, job_id: str) -> str:
+        job = self.jobs[job_id]
+        state = self.job_states[job_id]
+        if state["status"] in TERMINAL:
+            return state["status"]
+        self.update_job(state, status="running", message="Job admitted to its provider-safe wave.",
+                        event=f"{job['title']} started")
+        preserve_lease = False
+        try:
+            for step in state["steps"]:
+                if step["status"] == "passed":
+                    continue
+                checkpoint = f"{job_id}:{step['commandStep']}"
+                if step["commandStep"].startswith(CHECKPOINT_PREFIXES) and checkpoint not in self.acknowledged:
+                    state["waitingCheckpoint"] = checkpoint
+                    preserve_lease = True
+                    self.update_job(state, status="waiting", step=step, step_status="waiting",
+                                    message=f"Waiting for explicit completion of {step['commandStep']}.",
+                                    event=f"{job['title']} needs attention", tone="warning")
+                    return "waiting"
+                if step["status"] == "running" and not self.recover_inflight(job, state, step):
+                    return "blocked"
+                if state["status"] == "waiting":
+                    preserve_lease = True
+                    return "waiting"
+                if step["status"] == "passed":
+                    continue
+                if checkpoint in self.acknowledged:
+                    state.pop("waitingCheckpoint", None)
+                    if step["commandStep"].startswith(CHECKPOINT_PREFIXES):
+                        step["status"] = "passed"
+                        self.update_job(state, status="running", step=step, step_status="passed",
+                                        message="Operator checkpoint acknowledged; continuing from the next step.")
+                        continue
+                    step["status"] = "queued"
+                    self.update_job(state, status="running", step=step, step_status="queued",
+                                    message="Operator action acknowledged; verifying the product postconditions.")
+                self.update_job(state, status="running", step=step, step_status="running",
+                                message=f"Running {step['commandStep']}.")
+                for command in self.command_for(job, state, step["commandStep"]):
+                    result = self.execute(job_id, step["id"], command)
+                    if step["commandStep"].startswith("create-"):
+                        self.adopt_create_lease(
+                            job, state, step, result.stdout + result.stderr,
+                            required=result.returncode == 0,
+                        )
+                    if (
+                        result.returncode == 4
+                        and "install_runtime\twaiting" in (result.stdout + result.stderr)
+                        and step["commandStep"] == "install-exact-artifact"
+                        and job.get("macOS") == 15
+                        and job.get("lane") == "managed-functional"
+                    ):
+                        self.update_job(
+                            state, status="running", step=step, step_status="running",
+                            message="Driving the genuine managed Input Monitoring approval and verifying each row.",
+                        )
+                        approval = self.execute(
+                            job_id, step["id"],
+                            self.lab_command("approve-input-monitoring", state["leaseId"]),
+                        )
+                        if approval.returncode == 0:
+                            result = self.execute(
+                                job_id, step["id"],
+                                self.lab_command("install-runtime", state["leaseId"]),
+                            )
+                    if result.returncode == 4 and "install_runtime\twaiting" in (result.stdout + result.stderr):
+                        state["waitingCheckpoint"] = checkpoint
+                        preserve_lease = True
+                        self.update_job(
+                            state, status="waiting", step=step, step_status="waiting",
+                            message="KeyPath is waiting for visible macOS approval; resume after completing it.",
+                            event=f"{job['title']} needs approval", tone="warning",
+                        )
+                        return "waiting"
+                    if result.returncode != 0:
+                        state["blocker"] = f"{step['commandStep']} exited {result.returncode}; see {job_id}/{step['id']}.log"
+                        self.update_job(state, status="failed", step=step, step_status="failed",
+                                        message=state["blocker"], event=f"{job['title']} failed", tone="danger")
+                        self.emergency_artifacts(job, state)
+                        return "failed"
+                step["status"] = "passed"
+                self.update_job(state, status="running", step=step, step_status="passed",
+                                message=f"Verified {step['commandStep']}.")
+            if state.get("leaseId") and not self.finalizer(job, state):
+                state["blocker"] = "Owned lease cleanup failed; manual reconciliation is required."
+                self.update_job(state, status="blocked", message=state["blocker"],
+                                event=f"{job['title']} cleanup failed", tone="danger")
+                return "blocked"
+            self.update_job(state, status="passed", message="All scenario checkpoints and owned cleanup passed.",
+                            event=f"{job['title']} passed", tone="success")
+            return "passed"
+        except CampaignError as error:
+            state["blocker"] = str(error)
+            self.update_job(state, status="blocked", message=str(error), event=f"{job['title']} blocked", tone="danger")
+            return "blocked"
+        finally:
+            if not preserve_lease and state.get("leaseId") and state.get("cleanupStatus") == "pending":
+                if not self.finalizer(job, state):
+                    state["blocker"] = "Owned lease cleanup failed; manual reconciliation is required."
+                    self.update_job(state, status="blocked", message=state["blocker"],
+                                    event=f"{job['title']} cleanup failed", tone="danger")
+
+    def run(self) -> int:
+        self.state["status"] = "running"
+        self.save()
+        self.dashboard("campaign", "--status", "running", "--message", "Campaign executor preflight passed; wave execution started.",
+                       "--next-action", "Watch the active wave and intervene only if a checkpoint requests attention.",
+                       "--event-title", "Matrix campaign started")
+        self.present("preparing", title="MATRIX CAMPAIGN", detail="Admitting provider-safe waves")
+        waiting_providers: set[str] = set()
+        saw_failure = False
+        last_wave = 0
+        for wave_number, wave in enumerate(self.plan["waves"], 1):
+            eligible = [
+                job_id for job_id in wave
+                if job_id in self.selected
+                and self.job_states[job_id]["status"] not in TERMINAL
+                and self.jobs[job_id]["provider"] not in waiting_providers
+            ]
+            if not eligible:
+                continue
+            last_wave = wave_number
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(eligible)) as pool:
+                outcomes = list(pool.map(self.run_job, eligible))
+            saw_failure = saw_failure or any(outcome in ("failed", "blocked") for outcome in outcomes)
+            for job_id, outcome in zip(eligible, outcomes):
+                if outcome == "waiting":
+                    waiting_providers.add(self.jobs[job_id]["provider"])
+            self.write_reports()
+        if waiting_providers:
+            self.state["status"] = "waiting"
+            self.save()
+            self.write_reports()
+            self.dashboard("campaign", "--status", "waiting",
+                           "--message", f"Wave {last_wave} reached an explicit checkpoint; independent providers ran as far as capacity allowed.",
+                           "--next-action", "Complete the visible checkpoint, acknowledge it, and resume the same campaign state file.",
+                           "--event-title", "Matrix campaign needs attention", "--event-tone", "warning")
+            self.present("next", result="inconclusive", title="ACTION NEEDED",
+                         detail="A visible checkpoint is waiting")
+            return 4
+        if saw_failure:
+            self.state["status"] = "blocked"
+            self.save()
+            self.write_reports()
+            self.dashboard("campaign", "--status", "blocked",
+                           "--message", "All runnable waves completed, but one or more jobs have classified failures.",
+                           "--next-action", "Review failed evidence and repair the owning layer before a new campaign.",
+                           "--event-title", "Matrix campaign found failures", "--event-tone", "danger")
+            self.present("result", result="fail", progress=1000, title="MATRIX FAILED",
+                         detail="Review classified failure evidence")
+            return 1
+        selected_states = [self.job_states[job_id]["status"] for job_id in self.selected]
+        complete = all(status == "passed" for status in selected_states)
+        partial = self.selected != set(self.jobs)
+        self.state["status"] = "queued" if complete and partial else ("passed" if complete else "blocked")
+        self.save()
+        self.write_reports()
+        self.dashboard("campaign", "--status", self.state["status"],
+                       "--message", "Selected jobs passed; remaining matrix jobs are still queued." if partial else ("All matrix jobs passed with owned cleanup verified." if complete else "Campaign ended without complete evidence."),
+                       "--next-action", "Run the remaining queued jobs." if partial else ("Review the consolidated evidence report." if complete else "Review blocked jobs before resuming."),
+                       "--event-title", "Selected matrix jobs passed" if partial else ("Matrix campaign passed" if complete else "Matrix campaign incomplete"),
+                       "--event-tone", "success" if complete else "danger")
+        if complete and not partial:
+            self.present("result", result="pass", progress=1000, title="MATRIX PASSED",
+                         detail="Every selected scenario verified", reports_expected=len(selected_states),
+                         reports_observed=len(selected_states))
+        elif complete:
+            self.present("next", progress=1000, title="WAVE PASSED", detail="More matrix jobs remain")
+        else:
+            self.present("result", result="inconclusive", progress=1000,
+                         title="MATRIX INCOMPLETE", detail="Evidence remains unresolved")
+        return 0 if complete else 1
+
+
+def load_or_create_state(args: argparse.Namespace, plan: dict[str, Any]) -> dict[str, Any]:
+    plan_digest = digest_json(plan)
+    if args.state.exists():
+        state = json.loads(args.state.read_text())
+        if state.get("schemaVersion") != 1 or state.get("planDigest") != plan_digest:
+            raise CampaignError("state does not belong to this exact matrix plan")
+        if state.get("commit") != args.commit or state.get("installerSHA256") != sha256(args.installer):
+            raise CampaignError("commit or installer changed after campaign checkpoints were recorded")
+        return state
+    state = initial_state(plan, plan_digest, args.commit, args.installer)
+    atomic_json(args.state, state)
+    return state
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--plan", required=True, type=pathlib.Path)
+    parser.add_argument("--state", required=True, type=pathlib.Path)
+    parser.add_argument("--artifacts", required=True, type=pathlib.Path)
+    parser.add_argument("--commit", required=True)
+    parser.add_argument("--installer", required=True, type=pathlib.Path)
+    parser.add_argument("--fixture", type=pathlib.Path)
+    parser.add_argument("--host")
+    parser.add_argument("--lab", type=pathlib.Path)
+    parser.add_argument("--repo", type=pathlib.Path)
+    parser.add_argument("--dashboard-updater", type=pathlib.Path)
+    parser.add_argument("--dashboard-state", type=pathlib.Path, default=pathlib.Path("/tmp/keypath-matrix-state.json"))
+    parser.add_argument("--hid-fixture-client", type=pathlib.Path)
+    parser.add_argument("--hid-fixture-host", default=os.environ.get("KEYPATH_FIXTURE_HOST", "keypath-hid-fixture.local"))
+    parser.add_argument("--hid-presentation", action="store_true",
+                        help="mirror campaign phases and results to the physical HID fixture display")
+    parser.add_argument("--ack-checkpoint", action="append", default=[])
+    parser.add_argument("--only-job", action="append", default=[])
+    args = parser.parse_args()
+    root = pathlib.Path(__file__).resolve().parents[2]
+    args.repo = (args.repo or root).resolve()
+    args.lab = (args.lab or root / "Scripts/lab/keypath-lab").resolve()
+    args.hid_fixture_client = (args.hid_fixture_client or root / "Scripts/lab/pico-hid-fixture-client").resolve()
+    try:
+        plan = validate_plan(json.loads(args.plan.read_text()))
+        if not re.fullmatch(r"[0-9a-fA-F]{40}", args.commit):
+            raise CampaignError("--commit must be a full 40-character SHA")
+        if not args.installer.is_file():
+            raise CampaignError("installer does not exist")
+        selected_ids = set(args.only_job) if args.only_job else {job["id"] for job in plan["jobs"]}
+        if any(
+            job["id"] in selected_ids and "create-fresh-lease-with-fixture" in job["steps"]
+            for job in plan["jobs"]
+        ):
+            if not args.fixture or not args.fixture.is_file():
+                raise CampaignError("this plan requires an existing --fixture archive")
+        unknown = set(args.only_job) - {job["id"] for job in plan["jobs"]}
+        if unknown:
+            raise CampaignError("unknown --only-job: " + ", ".join(sorted(unknown)))
+        if args.dashboard_updater and not args.dashboard_updater.is_file():
+            raise CampaignError("dashboard updater does not exist")
+        if args.hid_presentation:
+            if not os.environ.get("KEYPATH_FIXTURE_TOKEN"):
+                raise CampaignError("--hid-presentation requires KEYPATH_FIXTURE_TOKEN")
+            if not args.hid_fixture_client.is_file():
+                raise CampaignError("HID fixture client does not exist")
+        state = load_or_create_state(args, plan)
+        waiting = {job.get("waitingCheckpoint") for job in state["jobs"] if job.get("waitingCheckpoint")}
+        invalid_acknowledgements = set(args.ack_checkpoint) - waiting
+        if invalid_acknowledgements:
+            raise CampaignError(
+                "checkpoint acknowledgement is not currently waiting: "
+                + ", ".join(sorted(invalid_acknowledgements))
+            )
+        runner = MatrixRunner(args, plan, state)
+        if args.dashboard_updater and not state.get("dashboardInitialized"):
+            runner.dashboard("initialize", "--plan", str(args.plan), "--campaign-id", state["campaignId"])
+            state["dashboardInitialized"] = True
+            runner.save()
+        raise SystemExit(runner.run())
+    except (OSError, json.JSONDecodeError, CampaignError) as error:
+        print(f"scenario-matrix-runner: {error}", file=sys.stderr)
+        raise SystemExit(2)
+
+
+if __name__ == "__main__":
+    main()

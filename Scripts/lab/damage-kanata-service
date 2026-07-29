@@ -1,0 +1,20 @@
+#!/bin/zsh
+set -euo pipefail
+
+plist=/Library/LaunchDaemons/com.keypath.kanata.plist
+if [[ -f "$plist" ]]; then
+  /usr/bin/sudo -n /bin/launchctl bootout system "$plist"
+else
+  /usr/bin/sudo -n /bin/launchctl bootout system/com.keypath.kanata
+fi
+
+for _ in {1..20}; do
+  if ! /bin/launchctl print system/com.keypath.kanata >/dev/null 2>&1; then
+    print "damage_fixture\tkanata-service-booted-out"
+    exit 0
+  fi
+  sleep 0.25
+done
+
+print -u2 "damage fixture: Kanata service remained registered"
+exit 1

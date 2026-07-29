@@ -1,3 +1,4 @@
+import AppKit
 import ArgumentParser
 import Foundation
 import KeyPathAppKit
@@ -22,6 +23,10 @@ struct SystemUninstall: AsyncParsableCommand {
             CLIOutput.progress("Starting uninstall (configuration will be preserved)...", context: ctx)
         }
 
+        guard await terminateRunningKeyPathApplication(context: ctx) else {
+            throw ValidationError("The running KeyPath application could not be closed.")
+        }
+
         let facade = SystemFacade()
         let shouldDeleteConfig = deleteConfig
         let timeoutSeconds = globals.timeout
@@ -42,5 +47,34 @@ struct SystemUninstall: AsyncParsableCommand {
         if !report.success {
             throw ExitCode.failure
         }
+    }
+
+    @MainActor
+    private func terminateRunningKeyPathApplication(context: OutputContext) async -> Bool {
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        let applications = NSRunningApplication.runningApplications(
+            withBundleIdentifier: "com.keypath.KeyPath"
+        ).filter { $0.processIdentifier != currentPID && !$0.isTerminated }
+
+        guard !applications.isEmpty else { return true }
+
+        CLIOutput.progress("Closing the running KeyPath application...", context: context)
+        for application in applications {
+            _ = application.terminate()
+        }
+
+        for _ in 0 ..< 30 where applications.contains(where: { !$0.isTerminated }) {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+
+        for application in applications where !application.isTerminated {
+            _ = application.forceTerminate()
+        }
+
+        for _ in 0 ..< 20 where applications.contains(where: { !$0.isTerminated }) {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+
+        return applications.allSatisfy(\.isTerminated)
     }
 }

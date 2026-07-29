@@ -554,7 +554,7 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
         #endif
     }
 
-    func testActivateVirtualHIDManagerFailsWhenPostconditionFails() async throws {
+    func testActivateVirtualHIDManagerDoesNotRequireRuntimeServices() async throws {
         #if DEBUG
             PrivilegedOperationsRouter.resetTestingState()
             var activationCalls = 0
@@ -562,6 +562,27 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
                 activationCalls += 1
             }
             PrivilegedOperationsRouter.vhidServicesPostconditionOverride = { _ in false }
+            PrivilegedOperationsRouter.vhidDriverPostconditionOverride = { _ in true }
+        #else
+            throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
+        #endif
+
+        let coordinator = PrivilegedOperationsRouter.shared
+        try await coordinator.activateVirtualHIDManager()
+
+        #if DEBUG
+            XCTAssertEqual(activationCalls, 1)
+        #endif
+    }
+
+    func testActivateVirtualHIDManagerFailsWhenDriverPostconditionFails() async throws {
+        #if DEBUG
+            PrivilegedOperationsRouter.resetTestingState()
+            var activationCalls = 0
+            PrivilegedOperationsRouter.activateVirtualHIDManagerOverride = {
+                activationCalls += 1
+            }
+            PrivilegedOperationsRouter.vhidDriverPostconditionOverride = { _ in false }
         #else
             throw XCTSkip("Uses DEBUG-only PrivilegedOperationsRouter test overrides")
         #endif
@@ -571,7 +592,7 @@ final class PrivilegedOperationsRouterTests: XCTestCase {
             try await coordinator.activateVirtualHIDManager()
             XCTFail("Expected activateVirtualHIDManager to fail when postcondition fails")
         } catch let PrivilegedOperationError.operationFailed(message) {
-            XCTAssertTrue(message.contains("VHID services postcondition failed"))
+            XCTAssertTrue(message.contains("VHID driver postcondition failed"))
         } catch {
             XCTFail("Unexpected error type: \(error)")
         }

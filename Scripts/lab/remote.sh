@@ -44,6 +44,11 @@ valid_id() {
   [[ "$1" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid identifier: $1"
 }
 
+valid_archive_key() {
+  valid_id "$1"
+  [[ "$1" =~ '^[0-9a-f]{40}-[0-9a-f]{64}(-h[0-9a-f]{40})?(-[0-9a-f]{64})?$' ]] || die "invalid archive key"
+}
+
 launcher_for() {
   case "$1" in
     15) print -r -- "$LAUNCHER_15" ;;
@@ -66,9 +71,11 @@ configure_tart_path() {
 }
 
 base_for() {
-  local macos=$1 lane=$2
+  local macos=$1 lane=$2 desktop=${3:-0}
   if [[ "$macos" == "15" ]]; then
     [[ "$lane" == "managed-functional" ]] && print keypath-macos-15-managed || print ghcr.io/cirruslabs/macos-sequoia-base:latest
+  elif [[ ("$macos" == "26" || "$macos" == "27") && "$desktop" == "1" && "$lane" != "managed-functional" ]]; then
+    print "keypath-macos-$macos-desktop"
   else
     [[ "$lane" == "managed-functional" ]] && print "keypath-macos-$macos-managed" || print "keypath-macos-$macos"
   fi
@@ -82,7 +89,8 @@ field() {
 }
 
 set_field() {
-  local manifest=$1 key=$2 value=$3 temp="${manifest}.tmp.$$"
+  local manifest=$1 key=$2 value=$3
+  local temp="${manifest}.tmp.$$"
   awk -F '\t' -v key="$key" -v value="$value" 'BEGIN {OFS="\t"} $1 == key {$0=key OFS value; found=1} {print} END {if (!found) print key, value}' "$manifest" > "$temp"
   mv "$temp" "$manifest"
 }
@@ -307,7 +315,7 @@ managed_enrollment_id_for() {
 }
 
 approve_peekaboo_capture() {
-  local lease=$1 manifest macos resource key ip prompt_command prompt_coords attempt
+  local lease=$1 manifest macos resource key ip prompt_command prompt_coords private_prompt_command private_prompt_coords attempt approved
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$macos" == "15" ]] || die "Peekaboo capture approval currently supports only the Tart macOS 15 lane"
@@ -321,6 +329,8 @@ approve_peekaboo_capture() {
   ip=$($TART ip "$resource")
   [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
   prompt_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run() {\n  var matches = Application("System Events").processes.whose({name: "NotificationCenter"})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  var window = matches[0].windows[0];\n  try {\n    var size = window.size();\n    if (window.subrole() === "AXSystemDialog" && size[0] === 1024 && size[1] === 768) return "512,399";\n  } catch (_) {}\n  return "";\n}\''
+  private_prompt_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run() {\n  var matches = Application("System Events").processes.whose({name: "UserNotificationCenter"})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  var window = matches[0].windows[0];\n  try {\n    var message = window.staticTexts().map(function(item) { return item.value() || ""; }).join(" ");\n    if (window.subrole() !== "AXSystemDialog" || message.indexOf("boo.peekaboo.peekaboo") === -1 || message.indexOf("private window picker") === -1) return "";\n    var buttons = window.buttons().filter(function(item) { return item.name() === "Allow"; });\n    if (buttons.length !== 1) return "";\n    var position = buttons[0].position();\n    var size = buttons[0].size();\n    return Math.round(position[0] + size[0] / 2) + "," + Math.round(position[1] + size[1] / 2);\n  } catch (_) {}\n  return "";\n}\''
+  approved=0
   prompt_coords=
   for attempt in {1..20}; do
     prompt_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" \
@@ -328,16 +338,43 @@ approve_peekaboo_capture() {
     [[ -n "$prompt_coords" ]] && break
     sleep "${KEYPATH_LAB_CAPTURE_APPROVAL_POLL_SECONDS:-0.2}"
   done
-  if [[ -z "$prompt_coords" ]]; then
-    print "peekaboo_capture_approval\talready-approved"
-    return 0
+  if [[ -n "$prompt_coords" ]]; then
+    [[ "$prompt_coords" =~ '^[0-9]+,[0-9]+$' ]] || die "Peekaboo capture approval prompt coordinates are invalid"
+    "$CRABBOX" desktop click --provider tart --target macos --id "$resource" \
+      --x "${prompt_coords%,*}" --y "${prompt_coords#*,}" >/dev/null
+    approved=1
+    sleep "${KEYPATH_LAB_CAPTURE_APPROVAL_SETTLE_SECONDS:-5}"
   fi
-  [[ "$prompt_coords" =~ '^[0-9]+,[0-9]+$' ]] || die "Peekaboo capture approval prompt coordinates are invalid"
-  "$CRABBOX" desktop click --provider tart --target macos --id "$resource" \
-    --x "${prompt_coords%,*}" --y "${prompt_coords#*,}" >/dev/null
-  sleep "${KEYPATH_LAB_CAPTURE_APPROVAL_SETTLE_SECONDS:-5}"
-  record_command "$lease" passed approve-peekaboo-capture
-  print "peekaboo_capture_approval\tpassed"
+
+  # macOS 15 can follow the full-screen ScreenCaptureKit prompt with a second,
+  # smaller dialog authorizing Peekaboo's private-window-picker bypass. Leaving
+  # that dialog on screen makes later RFB coordinates hit the obscured Settings
+  # sidebar. Match the exact Peekaboo request and derive the Allow button center
+  # from the live AX tree instead of storing another fixed coordinate.
+  private_prompt_coords=
+  for attempt in {1..20}; do
+    private_prompt_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" \
+      "/bin/zsh -lc $(printf %q "$private_prompt_command")")
+    [[ -n "$private_prompt_coords" ]] && break
+    sleep "${KEYPATH_LAB_CAPTURE_APPROVAL_POLL_SECONDS:-0.2}"
+  done
+  if [[ -n "$private_prompt_coords" ]]; then
+    [[ "$private_prompt_coords" =~ '^[0-9]+,[0-9]+$' ]] || die "Peekaboo private capture approval coordinates are invalid"
+    "$CRABBOX" desktop click --provider tart --target macos --id "$resource" \
+      --x "${private_prompt_coords%,*}" --y "${private_prompt_coords#*,}" >/dev/null
+    approved=1
+    sleep "${KEYPATH_LAB_CAPTURE_APPROVAL_SETTLE_SECONDS:-5}"
+    private_prompt_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" \
+      "/bin/zsh -lc $(printf %q "$private_prompt_command")")
+    [[ -z "$private_prompt_coords" ]] || die "Peekaboo private capture approval prompt remained visible"
+  fi
+
+  if ((approved)); then
+    record_command "$lease" passed approve-peekaboo-capture
+    print "peekaboo_capture_approval\tpassed"
+  else
+    print "peekaboo_capture_approval\talready-approved"
+  fi
 }
 
 rehydrate_managed_clone() {
@@ -441,7 +478,7 @@ resume_managed_policy() {
   [[ "$lane" == managed-functional ]] || die "managed policy resume requires a managed-functional lease"
 
   set +e
-  rehydrate_managed_clone "$lease" > "$LOGS/$lease/managed-policy.log" 2>&1
+  (rehydrate_managed_clone "$lease") > "$LOGS/$lease/managed-policy.log" 2>&1
   result=$?
   set -e
   set_field "$manifest" managed_policy_result "$result"
@@ -478,18 +515,23 @@ run_with_download() {
 warmup_desktop() {
   local macos=$1 lane=$2 slug=$3
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
-    "$CRABBOX" warmup --provider "$(provider_for "$macos")" --target macos --desktop --slug "$slug" --ttl 2h
+    if [[ "$(provider_for "$macos")" == "parallels" ]]; then
+      "$CRABBOX" warmup --provider parallels --target macos --desktop \
+        --parallels-template "$(base_for "$macos" "$lane" 1)" --slug "$slug" --ttl 2h
+    else
+      "$CRABBOX" warmup --provider tart --target macos --desktop --slug "$slug" --ttl 2h
+    fi
   elif [[ "$macos" == "15" ]]; then
     if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
     configure_tart_path
     "$CRABBOX" warmup --provider tart --target macos --desktop \
-      --tart-image "$(base_for "$macos" "$lane")" \
+      --tart-image "$(base_for "$macos" "$lane" 1)" \
       --tart-user admin --tart-cpu 4 --tart-memory 8192 --tart-random-serial --ssh-port 22 \
       --slug "$slug" --ttl 2h
   else
     export PATH="$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     "$CRABBOX" warmup --provider parallels --target macos --desktop \
-      --parallels-template "$(base_for "$macos" "$lane")" --parallels-user keypathqa \
+      --parallels-template "$(base_for "$macos" "$lane" 1)" --parallels-user keypathqa \
       --parallels-work-root /Users/keypathqa/crabbox --ssh-port 22 \
       --slug "$slug" --ttl 2h
   fi
@@ -541,16 +583,31 @@ preflight() {
 }
 
 prepare_upload() {
-  valid_id "$1"
-  [[ "$1" =~ '^[0-9a-f]{40}-[0-9a-f]{64}$' ]] || die "invalid archive key"
+  valid_archive_key "$1"
   mktemp "/tmp/keypath-lab.XXXXXXXX"
+}
+
+archive_status() {
+  local key=$1 commit=$2 installer_sha=$3 installer_name=$4 destination ready
+  valid_archive_key "$key"
+  [[ "$commit" =~ '^[0-9a-f]{40}$' ]] || die "invalid commit SHA"
+  [[ "$installer_sha" =~ '^[0-9a-f]{64}$' ]] || die "invalid installer checksum"
+  [[ "$installer_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid installer name"
+  destination="$ARCHIVES/$key"
+  ready="$destination/ready.tsv"
+  [[ -f "$ready" && -d "$destination/repo/.git" ]] || return 1
+  [[ "$(field "$ready" owner)" == "$OWNER" ]] || die "archive ownership mismatch"
+  [[ "$(field "$ready" keypath_commit)" == "$commit" ]] || die "archive commit mismatch"
+  [[ "$(field "$ready" installer_sha256)" == "$installer_sha" ]] || die "archive installer checksum mismatch"
+  [[ "$(field "$ready" installer_name)" == "$installer_name" ]] || die "archive installer name mismatch"
+  print "archive\tready\t$key"
 }
 
 install_archive() {
   local source=$1 key=$2 commit=$3 installer_sha=$4 installer_name=$5
   [[ "$source" =~ '^/tmp/keypath-lab\.[A-Za-z0-9]+$' ]] || die "invalid upload ticket"
   [[ -f "$source" && ! -L "$source" && -O "$source" ]] || die "upload ticket is not an owned regular file"
-  valid_id "$key"
+  valid_archive_key "$key"
   [[ "$commit" =~ '^[0-9a-f]{40}$' ]] || die "invalid commit SHA"
   [[ "$installer_sha" =~ '^[0-9a-f]{64}$' ]] || die "invalid installer checksum"
   [[ "$installer_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid installer name"
@@ -575,6 +632,10 @@ install_archive() {
   git -C "$staging/repo" config user.name "KeyPath Lab"
   git -C "$staging/repo" config user.email "keypath-lab@localhost"
   git -C "$staging/repo" add -A
+  # The product checkout ignores local campaign state under .keypath-lab, but
+  # an immutable lab archive must retain its installer, policy, and fixture
+  # payload when it is cloned into a disposable operation worktree.
+  git -C "$staging/repo" add -f .keypath-lab
   GIT_AUTHOR_DATE=2000-01-01T00:00:00Z GIT_COMMITTER_DATE=2000-01-01T00:00:00Z git -C "$staging/repo" commit -q -m "KeyPath lab archive $commit"
   [[ -z "$(git -C "$staging/repo" status --porcelain)" ]] || die "archive checkout is dirty"
   {
@@ -614,6 +675,164 @@ install_archive() {
   print "archive\tcreated\t$key"
 }
 
+derive_archive() {
+  local overlay=$1 source_key=$2 key=$3 commit=$4 installer_sha=$5 installer_name=$6 harness_commit=$7
+  [[ "$overlay" =~ '^/tmp/keypath-lab\.[A-Za-z0-9]+$' ]] || die "invalid upload ticket"
+  [[ -f "$overlay" && ! -L "$overlay" && -O "$overlay" ]] || die "upload ticket is not an owned regular file"
+  valid_archive_key "$source_key"
+  valid_archive_key "$key"
+  [[ "$commit" =~ '^[0-9a-f]{40}$' ]] || die "invalid commit SHA"
+  [[ "$installer_sha" =~ '^[0-9a-f]{64}$' ]] || die "invalid installer checksum"
+  [[ "$installer_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid installer name"
+  [[ "$harness_commit" =~ '^[0-9a-f]{40}$' ]] || die "invalid harness commit"
+  ensure_roots
+  local source="$ARCHIVES/$source_key" destination="$ARCHIVES/$key"
+  local staging="$ARCHIVES/.staging-$key-$$" lock="$ARCHIVES/.lock-$key" attempt actual_sha
+  [[ -f "$source/ready.tsv" && -d "$source/repo/.git" ]] || die "source archive is unavailable"
+  [[ "$(field "$source/ready.tsv" owner)" == "$OWNER" ]] || die "source archive ownership mismatch"
+  [[ "$(field "$source/ready.tsv" keypath_commit)" == "$commit" ]] || die "source archive commit mismatch"
+  [[ "$(field "$source/ready.tsv" installer_sha256)" == "$installer_sha" ]] || die "source archive installer mismatch"
+  if [[ -f "$destination/ready.tsv" ]]; then
+    rm -f "$overlay"
+    print "archive\treused\t$key"
+    return
+  fi
+  if ! mkdir "$lock" 2>/dev/null; then
+    rm -f "$overlay"
+    for attempt in {1..100}; do
+      [[ -f "$destination/ready.tsv" ]] && { print "archive\treused\t$key"; return; }
+      sleep 0.1
+    done
+    die "timed out waiting for concurrent derived archive publish: $key"
+  fi
+  git clone -q --no-hardlinks "$source/repo" "$staging/repo"
+  rm -rf "$staging/repo/Scripts/lab"
+  tar -xzf "$overlay" -C "$staging/repo"
+  rm -f "$overlay"
+  actual_sha=$(shasum -a 256 "$staging/repo/.keypath-lab/installer/$installer_name" | awk '{print $1}')
+  [[ "$actual_sha" == "$installer_sha" ]] || die "derived archive installer checksum mismatch"
+  git -C "$staging/repo" config user.name "KeyPath Lab"
+  git -C "$staging/repo" config user.email "keypath-lab@localhost"
+  git -C "$staging/repo" add -A
+  git -C "$staging/repo" add -f .keypath-lab
+  GIT_AUTHOR_DATE=2000-01-01T00:00:00Z GIT_COMMITTER_DATE=2000-01-01T00:00:00Z \
+    git -C "$staging/repo" commit -q -m "KeyPath lab harness $harness_commit"
+  [[ -z "$(git -C "$staging/repo" status --porcelain)" ]] || die "derived archive checkout is dirty"
+  {
+    print "owner\t$OWNER"
+    print "keypath_commit\t$commit"
+    print "harness_commit\t$harness_commit"
+    print "installer_sha256\t$installer_sha"
+    print "installer_name\t$installer_name"
+    print "derived_from\t$source_key"
+    print "created_at\t$(utc_now)"
+  } > "$staging/ready.tsv"
+  if [[ -e "$destination" ]]; then
+    rm -rf "$staging"
+    rmdir "$lock"
+    die "derived archive destination exists without a ready marker: $key"
+  fi
+  mv "$staging" "$destination"
+  rmdir "$lock"
+  print "archive\tderived\t$key"
+}
+
+find_fixture_archive() {
+  local fixture_sha=$1 fixture_name=$2 candidate source key actual_sha
+  [[ "$fixture_sha" =~ '^[0-9a-f]{64}$' ]] || die "invalid fixture checksum"
+  [[ "$fixture_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid fixture name"
+  ensure_roots
+  for candidate in "$ARCHIVES"/*(/N); do
+    source="$candidate/repo/.keypath-lab/source.tsv"
+    [[ -f "$candidate/ready.tsv" && -f "$source" ]] || continue
+    [[ "$(field "$candidate/ready.tsv" owner)" == "$OWNER" ]] || continue
+    [[ "$(field "$source" fixture_name)" == "$fixture_name" ]] || continue
+    [[ "$(field "$source" fixture_sha256)" == "$fixture_sha" ]] || continue
+    [[ -f "$candidate/repo/.keypath-lab/fixtures/$fixture_name" && ! -L "$candidate/repo/.keypath-lab/fixtures/$fixture_name" ]] || continue
+    actual_sha=$(shasum -a 256 "$candidate/repo/.keypath-lab/fixtures/$fixture_name" | awk '{print $1}')
+    [[ "$actual_sha" == "$fixture_sha" ]] || continue
+    key=${candidate:t}
+    valid_archive_key "$key"
+    print "fixture_archive\t$key"
+    return 0
+  done
+  return 1
+}
+
+derive_fixture_archive() {
+  local source_key=$1 fixture_source_key=$2 key=$3 commit=$4 installer_sha=$5 installer_name=$6
+  local harness_commit=$7 fixture_sha=$8 fixture_name=$9
+  local source="$ARCHIVES/$source_key" fixture_source="$ARCHIVES/$fixture_source_key" destination="$ARCHIVES/$key"
+  local staging="$ARCHIVES/.staging-$key-$$" lock="$ARCHIVES/.lock-$key" attempt actual_sha fixture_path source_metadata
+  valid_archive_key "$source_key"
+  valid_archive_key "$fixture_source_key"
+  valid_archive_key "$key"
+  [[ "$commit" =~ '^[0-9a-f]{40}$' ]] || die "invalid commit SHA"
+  [[ "$installer_sha" =~ '^[0-9a-f]{64}$' ]] || die "invalid installer checksum"
+  [[ "$installer_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid installer name"
+  [[ "$harness_commit" =~ '^[0-9a-f]{40}$' ]] || die "invalid harness commit"
+  [[ "$fixture_sha" =~ '^[0-9a-f]{64}$' ]] || die "invalid fixture checksum"
+  [[ "$fixture_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "invalid fixture name"
+  [[ "$key" == "$source_key-$fixture_sha" ]] || die "fixture-derived archive key does not match its source and checksum"
+  ensure_roots
+  [[ -f "$source/ready.tsv" && -d "$source/repo/.git" ]] || die "candidate archive is unavailable"
+  [[ "$(field "$source/ready.tsv" owner)" == "$OWNER" ]] || die "candidate archive ownership mismatch"
+  [[ "$(field "$source/ready.tsv" keypath_commit)" == "$commit" ]] || die "candidate archive commit mismatch"
+  [[ "$(field "$source/ready.tsv" installer_sha256)" == "$installer_sha" ]] || die "candidate archive installer mismatch"
+  [[ "$(field "$source/ready.tsv" harness_commit)" == "$harness_commit" ]] || die "candidate archive harness mismatch"
+  source_metadata="$fixture_source/repo/.keypath-lab/source.tsv"
+  fixture_path="$fixture_source/repo/.keypath-lab/fixtures/$fixture_name"
+  [[ -f "$fixture_source/ready.tsv" && "$(field "$fixture_source/ready.tsv" owner)" == "$OWNER" ]] || die "fixture archive ownership mismatch"
+  [[ -f "$source_metadata" && "$(field "$source_metadata" fixture_name)" == "$fixture_name" ]] || die "fixture archive name mismatch"
+  [[ "$(field "$source_metadata" fixture_sha256)" == "$fixture_sha" ]] || die "fixture archive metadata checksum mismatch"
+  [[ -f "$fixture_path" && ! -L "$fixture_path" ]] || die "fixture archive payload is unavailable"
+  actual_sha=$(shasum -a 256 "$fixture_path" | awk '{print $1}')
+  [[ "$actual_sha" == "$fixture_sha" ]] || die "fixture archive payload checksum mismatch"
+  if [[ -f "$destination/ready.tsv" ]]; then
+    [[ "$(field "$destination/ready.tsv" fixture_sha256)" == "$fixture_sha" ]] || die "fixture-derived archive checksum mismatch"
+    print "archive\treused\t$key"
+    return
+  fi
+  if ! mkdir "$lock" 2>/dev/null; then
+    for attempt in {1..100}; do
+      [[ -f "$destination/ready.tsv" ]] && { print "archive\treused\t$key"; return; }
+      sleep 0.1
+    done
+    die "timed out waiting for concurrent fixture-derived archive publish: $key"
+  fi
+  git clone -q --no-hardlinks "$source/repo" "$staging/repo"
+  mkdir -p "$staging/repo/.keypath-lab/fixtures"
+  cp "$fixture_path" "$staging/repo/.keypath-lab/fixtures/$fixture_name"
+  set_field "$staging/repo/.keypath-lab/source.tsv" fixture_name "$fixture_name"
+  set_field "$staging/repo/.keypath-lab/source.tsv" fixture_sha256 "$fixture_sha"
+  git -C "$staging/repo" config user.name "KeyPath Lab"
+  git -C "$staging/repo" config user.email "keypath-lab@localhost"
+  git -C "$staging/repo" add -f .keypath-lab
+  GIT_AUTHOR_DATE=2000-01-01T00:00:00Z GIT_COMMITTER_DATE=2000-01-01T00:00:00Z \
+    git -C "$staging/repo" commit -q -m "KeyPath lab fixture $fixture_sha"
+  [[ -z "$(git -C "$staging/repo" status --porcelain)" ]] || die "fixture-derived archive checkout is dirty"
+  {
+    print "owner\t$OWNER"
+    print "keypath_commit\t$commit"
+    print "harness_commit\t$harness_commit"
+    print "installer_sha256\t$installer_sha"
+    print "installer_name\t$installer_name"
+    print "fixture_sha256\t$fixture_sha"
+    print "fixture_name\t$fixture_name"
+    print "derived_from\t$source_key"
+    print "fixture_derived_from\t$fixture_source_key"
+    print "created_at\t$(utc_now)"
+  } > "$staging/ready.tsv"
+  if [[ -e "$destination" ]]; then
+    rm -rf "$staging"
+    rmdir "$lock"
+    die "fixture-derived archive destination exists without a ready marker: $key"
+  fi
+  mv "$staging" "$destination"
+  rmdir "$lock"
+  print "archive\tfixture-derived\t$key"
+}
+
 write_provisional_lease_manifest() {
   local lease=$1 slug=$2 macos=$3 lane=$4 provider=$5 archive_key=$6 commit=$7 installer_sha=$8 installer_name=$9 repo=${10} created=${11} expires=${12} desktop=${13}
   local manifest identity_scope
@@ -628,7 +847,7 @@ write_provisional_lease_manifest() {
     print "slug\t$slug"
     print "macos\t$macos"
     print "test_lane\t$lane"
-    print "base_name\t$(base_for "$macos" "$lane")"
+    print "base_name\t$(base_for "$macos" "$lane" "$desktop")"
     print "managed_identity_scope\t$identity_scope"
     print "provider\t$provider"
     print "archive_key\t$archive_key"
@@ -673,7 +892,7 @@ create_lease() {
   if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" && "$macos" == "15" && "$lane" == "managed-functional" ]]; then
     desktop=1
   fi
-  valid_id "$archive_key"
+  valid_archive_key "$archive_key"
   archive="$ARCHIVES/$archive_key"
   [[ -f "$archive/ready.tsv" && -d "$archive/repo/.git" ]] || die "prepared archive not found: $archive_key"
   ttl_seconds=$(duration_seconds "$ttl")
@@ -731,7 +950,7 @@ create_lease() {
     print "slug\t$slug"
     print "macos\t$macos"
     print "test_lane\t$lane"
-    print "base_name\t$(base_for "$macos" "$lane")"
+    print "base_name\t$(base_for "$macos" "$lane" "$desktop")"
     print "managed_identity_scope\t$identity_scope"
     print "provider\t$provider"
     print "archive_key\t$archive_key"
@@ -748,6 +967,10 @@ create_lease() {
     print "tart_usb_passthrough\t$([[ "$tart_usb_passthrough" == "1" ]] && print true || print false)"
     print "provider_resource\t${provider_resource:-unknown}"
   } > "$manifest"
+  # Emit the durable controller identity as soon as the owned manifest exists.
+  # Callers must be able to adopt and clean up a lease even when a later guest
+  # verification or managed-policy step fails.
+  print "lease_id\t$lease"
   if (( create_status != 0 )); then
     set_field "$manifest" status provisioning-failed
     set_field "$manifest" provision_result "$create_status"
@@ -769,7 +992,7 @@ create_lease() {
   set_field "$manifest" macos_build "${build:-unknown}"
   if [[ "$lane" == managed-functional ]]; then
     set +e
-    rehydrate_managed_clone "$lease" > "$LOGS/$lease/managed-policy.log" 2>&1
+    (rehydrate_managed_clone "$lease") > "$LOGS/$lease/managed-policy.log" 2>&1
     managed_policy_exit=$?
     set -e
     set_field "$manifest" managed_policy_result "$managed_policy_exit"
@@ -827,17 +1050,146 @@ install_app() {
   return "$exit_code"
 }
 
+install_runtime() {
+  local lease=$1 mode=${2:-strict} manifest lane runtime_status exit_code recovery_exit
+  manifest=$(owned_manifest "$lease")
+  lane=$(field "$manifest" test_lane)
+  runtime_status=$(field "$manifest" install_runtime_status)
+
+  if [[ "$runtime_status" == "mutation-started" ]]; then
+    # A controller interruption can strand the manifest before the guest
+    # installer mutation begins. Recover only when durable guest evidence proves
+    # that no install report or mutation state was ever written.
+    set +e
+    (run_command "$lease" /bin/zsh -lc \
+      'out=.keypath-lab/scenario-output/install-runtime; test ! -e "$out/state.tsv" && test ! -e "$out/install-report.json" && test -e "$out/preflight-inspect.json"')
+    recovery_exit=$?
+    set -e
+    if ((recovery_exit == 0)); then
+      set_field "$manifest" install_runtime_status staged
+      runtime_status=staged
+      print "install_runtime_recovery\tpreflight-only"
+    else
+      die "install-runtime has an uncertain prior mutation; inspect artifacts before any retry"
+    fi
+  fi
+  if [[ "$runtime_status" == "failed" ]]; then
+    die "install-runtime has an uncertain or failed prior mutation; inspect artifacts before any retry"
+  fi
+  if [[ "$runtime_status" == "passed" ]]; then
+    print "install_runtime\tpassed"
+    return 0
+  fi
+
+  if [[ "$runtime_status" == "uninstalled" ]]; then
+    # Preserve the first installation's durable evidence before creating a
+    # fresh output directory for the reinstall. Fail closed rather than
+    # overwriting either evidence set on an ambiguous retry.
+    run_command "$lease" /bin/zsh -lc \
+      'source=.keypath-lab/scenario-output/install-runtime; target=.keypath-lab/scenario-output/install-runtime-before-reinstall; test -d "$source"; test ! -e "$target"; mv "$source" "$target"' || \
+      die "could not preserve the first install-runtime evidence before reinstall"
+    install_app "$lease" || {
+      set_field "$manifest" install_runtime_status failed
+      set_field "$manifest" install_runtime_at "$(utc_now)"
+      return 1
+    }
+    set_field "$manifest" install_runtime_status staged
+    runtime_status=staged
+  fi
+
+  if [[ -z "$runtime_status" ]]; then
+    install_app "$lease" || {
+      set_field "$manifest" install_runtime_status failed
+      set_field "$manifest" install_runtime_at "$(utc_now)"
+      return 1
+    }
+    set_field "$manifest" install_runtime_status staged
+  fi
+
+  if [[ "$runtime_status" != "awaiting-approval" ]]; then
+    set_field "$manifest" install_runtime_status mutation-started
+  fi
+
+  set +e
+  if [[ "$mode" == "allow-no-input-device" ]]; then
+    (run_command "$lease" /usr/bin/env KEYPATH_INSTALL_RUNTIME_ALLOW_NO_INPUT_DEVICE=1 \
+      /bin/zsh Scripts/lab/install-runtime "$lane")
+  else
+    (run_command "$lease" /bin/zsh Scripts/lab/install-runtime "$lane")
+  fi
+  exit_code=$?
+  set -e
+  case "$exit_code" in
+    0) set_field "$manifest" install_runtime_status passed ;;
+    4) set_field "$manifest" install_runtime_status awaiting-approval ;;
+    *) set_field "$manifest" install_runtime_status failed ;;
+  esac
+  set_field "$manifest" install_runtime_at "$(utc_now)"
+  return "$exit_code"
+}
+
+install_upgrade_runtime() {
+  local lease=$1 manifest macos repo fixture_name
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$macos" == "26" ]] || die "upgrade runtime boundary currently requires macOS 26"
+  [[ "$(field "$manifest" test_lane)" == "managed-functional" ]] || die "upgrade runtime boundary requires a managed-functional lease"
+  repo=$(field "$manifest" worktree)
+  fixture_name=$(awk -F $'\t' '$1 == "fixture_name" {print $2}' "$repo/.keypath-lab/source.tsv")
+  [[ -n "$fixture_name" ]] || die "upgrade runtime boundary requires an admitted fixture archive"
+  install_runtime "$lease" allow-no-input-device
+}
+
+install_fixture() {
+  local lease=$1 manifest macos lane repo fixture_name provider_resource guest_repo command exit_code admission_command
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  lane=$(field "$manifest" test_lane)
+  repo=$(field "$manifest" worktree)
+  provider_resource=$(field "$manifest" provider_resource)
+  prepare_worktree "$repo"
+  fixture_name=$(awk -F $'\t' '$1 == "fixture_name" {print $2}' "$repo/.keypath-lab/source.tsv")
+  [[ -n "$fixture_name" && "$fixture_name" =~ '^[A-Za-z0-9._-]+$' ]] || die "lease does not contain a valid upgrade fixture"
+  [[ -f "$repo/.keypath-lab/fixtures/$fixture_name" ]] || die "upgrade fixture is missing from lease archive"
+  guest_repo="/Users/$([[ "$macos" == "15" ]] && print admin || print keypathqa)/crabbox/$lease/repo"
+  admission_command="cd '$guest_repo'; Scripts/lab/mdm/verify-lane '$lane'"
+  if [[ "$lane" == "managed-functional" ]]; then
+    admission_command+=" --manifest /Library/KeyPathLab/managed-policy/manifest.json"
+  fi
+  command="setopt errexit nounset pipefail; $admission_command; rm -rf /tmp/keypath-fixture-install; mkdir -p /tmp/keypath-fixture-install; ditto -x -k '$guest_repo/.keypath-lab/fixtures/$fixture_name' /tmp/keypath-fixture-install; cd '$guest_repo'; if [[ '$lane' == managed-functional ]]; then Scripts/lab/mdm/verify-artifact-policy --app /tmp/keypath-fixture-install/KeyPath.app --manifest /Library/KeyPathLab/managed-policy/manifest.json; fi; rm -rf /Applications/KeyPath.app; ditto /tmp/keypath-fixture-install/KeyPath.app /Applications/KeyPath.app"
+  set +e
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    print "admission $lane" >> "$LOGS/$lease/install-fixture.log"
+    print "install-fixture $macos $lease $provider_resource $fixture_name" >> "$LOGS/$lease/install-fixture.log"
+    exit_code=0
+  elif [[ "$macos" == "15" ]]; then
+    (cd "$repo" && "$(launcher_for "$macos")" run "$lease" -- /bin/zsh -lc "sudo -n /bin/zsh -lc $(printf %q "$command")") > "$LOGS/$lease/install-fixture.log" 2>&1
+    exit_code=$?
+  else
+    [[ "$provider_resource" =~ '^[A-Fa-f0-9-]+$' && "$provider_resource" != "unknown" ]] || die "invalid Parallels resource id"
+    "/Applications/Parallels Desktop.app/Contents/MacOS/prlctl" exec "$provider_resource" /bin/zsh -lc "$command" > "$LOGS/$lease/install-fixture.log" 2>&1
+    exit_code=$?
+  fi
+  set -e
+  set_field "$manifest" install_fixture_result "$exit_code"
+  set_field "$manifest" install_fixture_at "$(utc_now)"
+  cat "$LOGS/$lease/install-fixture.log"
+  return "$exit_code"
+}
+
 run_command() {
   local lease=$1; shift
-  local manifest macos launcher repo log exit_code
+  local manifest macos launcher repo log exit_code guest_home guest_path
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   launcher=$(launcher_for "$macos")
   repo=$(field "$manifest" worktree)
+  guest_home="/Users/$([[ "$macos" == "15" ]] && print admin || print keypathqa)"
+  guest_path="$guest_home/.local/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
   prepare_worktree "$repo"
   log="$LOGS/$lease/run-$(date -u +%Y%m%dT%H%M%SZ).log"
   set +e
-  (cd "$repo" && "$launcher" run "$lease" -- "$@") 2>&1 | tee "$log"
+  (cd "$repo" && "$launcher" run "$lease" -- /usr/bin/env "PATH=$guest_path" "$@") 2>&1 | tee "$log"
   exit_code=${pipestatus[1]}
   set -e
   if (( exit_code == 0 )); then record_command "$lease" passed "$@"; else record_command "$lease" "failed:$exit_code" "$@"; fi
@@ -849,6 +1201,9 @@ run_command() {
 secure_dialog_input() {
   local lease=$1 app=$2 field_label=$3 submit_button=$4 already_focused=$5
   local manifest macos resource key ip secret_file guest_command exit_code
+  local focus_command focus_result button_geometry_command button_coords postcondition_command postcondition_result
+  local button_press_command button_press_result native_submit_exit focus_transport submit_transport
+  local click_x click_y focus_x focus_y
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$macos" == "15" ]] || die "secure dialog input currently supports only the Tart macOS 15 lane"
@@ -871,20 +1226,127 @@ secure_dialog_input() {
   if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
   ip=$($TART ip "$resource")
   [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
+  export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+  if [[ "$field_label" == "AXSecureTextField" ]]; then
+    [[ -n "$submit_button" ]] || die "AXSecureTextField requires a submit button for postcondition verification"
+    [[ "$already_focused" == "0" ]] || die "AXSecureTextField does not use --already-focused"
+
+    # SecurityAgent rejects synthetic Accessibility typing. Use Accessibility
+    # only to focus and inspect the protected sheet, then deliver the secret as
+    # real RFB key events over CrabBox stdin. The secret never enters argv,
+    # guest storage, or controller output.
+    focus_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) throw new Error("dialog process not found");\n  var window = matches[0].windows[0];\n  var sheets = window.sheets();\n  var root = sheets.length > 0 ? sheets[0] : window;\n  var fields = root.textFields.whose({subrole: "AXSecureTextField"})();\n  var field = fields.length > 0 ? fields[0] : descendants(root).find(function (element) {\n    try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; }\n  });\n  if (!field) throw new Error("secure text field not found");\n  field.focused = true;\n  var position = field.position();\n  var size = field.size();\n  return (field.focused() ? "focused" : "not-focused") + "," + Math.round(position[0] + size[0] / 2) + "," + Math.round(position[1] + size[1] / 2);\n}\' -- '$(printf %q "$app")
+    set +e
+    focus_result=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$focus_command")" </dev/null)
+    exit_code=$?
+    set -e
+    if (( exit_code != 0 )) || [[ ! "$focus_result" =~ '^focused,[0-9]+,[0-9]+$' ]]; then
+      record_command "$lease" "failed:41" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+      die "secure dialog input failed while focusing the field"
+    fi
+    IFS=',' read -r _ focus_x focus_y <<< "$focus_result"
+
+    # Tart's 1024x768 RFB viewport uses the same coordinate space reported by
+    # Accessibility. The 2048x1536 backing store is a Retina implementation
+    # detail; scaling AX coordinates to backing pixels moves the native click
+    # outside the protected sheet.
+
+    focus_transport=accessibility-and-native-pointer
+    set +e
+    "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$focus_x" --y "$focus_y" >/dev/null 2>&1
+    exit_code=$?
+    set -e
+    if (( exit_code != 0 )); then
+      # The Accessibility focus postcondition above is authoritative, and the
+      # secure typing step below independently proves that the field accepts
+      # input. Tart's RFB pointer transport may be unavailable even while the
+      # logged-in session remains fully controllable through System Events.
+      focus_transport=accessibility-only
+    fi
+
+    # Secure authorization sheets ignore Tart's VNC key events. Stream the
+    # secret directly into one guest osascript process and synthesize local key
+    # events in the logged-in session. The value never enters argv, logs, the
+    # clipboard, or a guest file. The process returns only a filled/empty
+    # postcondition; it never prints the value or its length.
+    local secure_type_command
+    secure_type_command=$'/usr/bin/osascript -l JavaScript -e \'\nObjC.import("Foundation");\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var data = $.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile;\n  var payload = $.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding).js;\n  if (!payload) throw new Error("secure input is empty");\n  var events = Application("System Events");\n  var process = events.processes.byName(argv[0]);\n  if (process.windows().length === 0) throw new Error("secure dialog process not found");\n  var window = process.windows[0];\n  var sheets = window.sheets();\n  var root = sheets.length > 0 ? sheets[0] : window;\n  var fields = root.textFields.whose({subrole: "AXSecureTextField"})();\n  var field = fields.length > 0 ? fields[0] : descendants(root).find(function(element) {\n    try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; }\n  });\n  if (!field) throw new Error("secure text field not found");\n  field.focused = true;\n  for (var i = 0; i < 128; i++) events.keyCode(51);\n  events.keystroke(payload);\n  delay(0.2);\n  if (String(field.value()).length === 0) throw new Error("secure text field remained empty");\n  return "filled";\n}\' -- '$(printf %q "$app")
+    set +e
+    "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$secure_type_command")" < "$secret_file" >/dev/null 2>&1
+    exit_code=$?
+    set -e
+    if (( exit_code != 0 )); then
+      record_command "$lease" "failed:42" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+      die "secure dialog input failed while streaming masked input"
+    fi
+
+    button_geometry_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var process = Application("System Events").processes.byName(argv[0]);\n  var window = process.windows[0];\n  var sheets = window.sheets();\n  var root = sheets.length > 0 ? sheets[0] : window;\n  var button = root.buttons().find(function (element) {\n    try { return element.role() === "AXButton" && (element.name() === argv[1] || element.description() === argv[1]); } catch (_) { return false; }\n  });\n  if (!button) button = descendants(root).find(function (element) {\n    try { return element.role() === "AXButton" && (element.name() === argv[1] || element.description() === argv[1]); } catch (_) { return false; }\n  });\n  if (!button) throw new Error("submit button not found");\n  var position = button.position();\n  var size = button.size();\n  return Math.round(position[0] + size[0] / 2) + "," + Math.round(position[1] + size[1] / 2);\n}\' -- '$(printf %q "$app")' '$(printf %q "$submit_button")
+    set +e
+    button_coords=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$button_geometry_command")" </dev/null)
+    exit_code=$?
+    set -e
+    if (( exit_code != 0 )) || [[ ! "$button_coords" =~ '^[0-9]+,[0-9]+$' ]]; then
+      record_command "$lease" "failed:78" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+      die "secure dialog input could not resolve valid SecurityAgent button geometry"
+    fi
+    IFS=',' read -r click_x click_y <<< "$button_coords"
+
+    button_press_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var process = Application("System Events").processes.byName(argv[0]);\n  var window = process.windows[0];\n  var sheets = window.sheets();\n  var root = sheets.length > 0 ? sheets[0] : window;\n  var button = root.buttons().find(function (element) {\n    try { return element.role() === "AXButton" && (element.name() === argv[1] || element.description() === argv[1]); } catch (_) { return false; }\n  });\n  if (!button) button = descendants(root).find(function (element) {\n    try { return element.role() === "AXButton" && (element.name() === argv[1] || element.description() === argv[1]); } catch (_) { return false; }\n  });\n  if (!button) throw new Error("submit button not found");\n  var actions = button.actions.whose({name: "AXPress"})();\n  if (actions.length !== 1) throw new Error("submit button does not expose one AXPress action");\n  actions[0].perform();\n  return "pressed";\n}\' -- '$(printf %q "$app")' '$(printf %q "$submit_button")
+
+    submit_transport=native-pointer
+    set +e
+    "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$click_x" --y "$click_y" >/dev/null 2>&1
+    native_submit_exit=$?
+    set -e
+
+    postcondition_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "closed";\n  var window = matches[0].windows[0];\n  var sheets = window.sheets();\n  var root = sheets.length > 0 ? sheets[0] : window;\n  var open = root.textFields.whose({subrole: "AXSecureTextField"})().length > 0 || descendants(root).some(function (element) {\n    try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; }\n  });\n  return open ? "open" : "closed";\n}\' -- '$(printf %q "$app")
+    postcondition_result=open
+    if (( native_submit_exit == 0 )); then
+      for attempt in {1..150}; do
+        postcondition_result=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$postcondition_command")" </dev/null) || postcondition_result=open
+        [[ "$postcondition_result" == "closed" ]] && break
+        sleep 0.1
+      done
+    fi
+    if [[ "$postcondition_result" != "closed" ]]; then
+      set +e
+      button_press_result=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$button_press_command")" </dev/null)
+      exit_code=$?
+      set -e
+      if (( exit_code != 0 )) || [[ "$button_press_result" != "pressed" ]]; then
+        record_command "$lease" "failed:43" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+        die "secure dialog input could not invoke the verified submit action"
+      fi
+      submit_transport=accessibility-press-fallback
+      for attempt in {1..150}; do
+        postcondition_result=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$postcondition_command")" </dev/null) || postcondition_result=open
+        [[ "$postcondition_result" == "closed" ]] && break
+        sleep 0.1
+      done
+    fi
+    if [[ "$postcondition_result" != "closed" ]]; then
+      record_command "$lease" "failed:77" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+      die "secure dialog input was submitted but the SecurityAgent sheet did not close"
+    fi
+
+    if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" ]]; then
+      rm -f "$secret_file"
+      KEYPATH_LAB_SECURE_TEMP=
+    fi
+    record_command "$lease" passed secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+    print "secure_dialog_input\tpassed"
+    print "secure_dialog_focus_transport\t$focus_transport"
+    print "secure_dialog_submit_transport\t$submit_transport"
+    return 0
+  fi
 
   # Peekaboo's MCP type response contains the typed value. Suppress both output
   # streams for that command so the secret cannot enter controller logs.
   local refresh_command field_command click_command submit_command submit_label_quoted button_geometry_command postcondition_command
   local -a refresh_args focus_args click_args submit_args button_geometry_args postcondition_args
   guest_command='set -euo pipefail; command -v /opt/homebrew/bin/peekaboo >/dev/null; command -v /opt/homebrew/bin/mcporter >/dev/null; '
-  if [[ "$field_label" == "AXSecureTextField" ]]; then
-    [[ -n "$submit_button" ]] || die "AXSecureTextField requires a submit button for postcondition verification"
-    [[ "$already_focused" == "0" ]] || die "AXSecureTextField does not use --already-focused"
-    focus_args=(/usr/bin/osascript -l JavaScript -e 'function descendants(element) { var result = []; try { var children = element.uiElements(); for (var i = 0; i < children.length; i++) { result.push(children[i]); result = result.concat(descendants(children[i])); } } catch (_) {} return result; } function run(argv) { var appName = argv[1]; var secret = $.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js.replace(/\r?\n$/, ""); var process = Application("System Events").processes.byName(appName); var field = descendants(process.windows[0]).find(function (element) { try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; } }); if (!field) throw new Error("secure text field not found"); field.value = secret; }')
-    printf -v field_command '%q ' "${focus_args[@]}"
-    guest_command+='IFS= read -r secret_value || [[ -n "$secret_value" ]]; secret_path=$(/usr/bin/mktemp /tmp/keypath-secure-input.XXXXXX); /bin/chmod 600 "$secret_path"; trap '\''rm -f "$secret_path"'\'' EXIT; printf '\''%s'\'' "$secret_value" > "$secret_path"; unset secret_value; '
-    guest_command+="$field_command \"\$secret_path\" $(printf %q "$app") >/dev/null; rm -f \"\$secret_path\"; trap - EXIT"
-  elif [[ "$already_focused" == "0" ]]; then
+  if [[ "$already_focused" == "0" ]]; then
     refresh_args=(/opt/homebrew/bin/peekaboo see --app "$app" --json)
     printf -v refresh_command '%q ' "${refresh_args[@]}"
     guest_command+="$refresh_command >/dev/null || exit 40; "
@@ -896,26 +1358,13 @@ secure_dialog_input() {
   elif [[ -n "$submit_button" ]]; then
     die "--already-focused cannot be combined with a submit button"
   fi
-  if [[ "$field_label" != "AXSecureTextField" ]]; then
-    guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1 || exit 42'
-  fi
+  guest_command+='PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true /opt/homebrew/bin/mcporter call --stdio '\''peekaboo mcp serve --bridge-socket "$HOME/Library/Application Support/Peekaboo/daemon.sock"'\'' --env PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true type text=@/dev/stdin clear=true --output json --timeout 20000 >/dev/null 2>&1 || exit 42'
   if [[ -n "$submit_button" ]]; then
-    if [[ "$field_label" == "AXSecureTextField" ]]; then
-      button_geometry_args=(/usr/bin/osascript -l JavaScript -e 'function descendants(element) { var result = []; try { var children = element.uiElements(); for (var i = 0; i < children.length; i++) { result.push(children[i]); result = result.concat(descendants(children[i])); } } catch (_) {} return result; } function run(argv) { var process = Application("System Events").processes.byName(argv[0]); var label = argv[1]; var button = descendants(process.windows[0]).find(function (element) { try { return element.role() === "AXButton" && (element.name() === label || element.description() === label); } catch (_) { return false; } }); if (!button) throw new Error("submit button not found"); var position = button.position(); var size = button.size(); return Math.round(position[0] + size[0] / 2) + "," + Math.round(position[1] + size[1] / 2); }' "$app" "$submit_button")
-      printf -v button_geometry_command '%q ' "${button_geometry_args[@]}"
-      guest_command+="; button_coords=\$( $button_geometry_command ); [[ \"\$button_coords\" =~ '^-?[0-9]+,-?[0-9]+$' ]] || exit 78; /opt/homebrew/bin/peekaboo click --coords \"\$button_coords\" --global-coords --foreground --input-strategy synthOnly --json >/dev/null 2>&1 || true"
-    else
-      submit_args=(/opt/homebrew/bin/peekaboo click "$submit_button" --app "$app" --foreground --json)
-      printf -v submit_command '%q ' "${submit_args[@]}"
-      printf -v submit_label_quoted '%q' "$submit_button"
-      guest_command+="; $refresh_command >/tmp/keypath-secure-submit.json || exit 44; if ! $submit_command >/dev/null; then $refresh_command >/tmp/keypath-secure-submit.json || exit 43; /usr/bin/env python3 -c 'import json,sys; elements=json.load(open(sys.argv[1])).get(\"data\",{}).get(\"ui_elements\",[]); raise SystemExit(1 if any(e.get(\"label\")==sys.argv[2] for e in elements) else 0)' /tmp/keypath-secure-submit.json $submit_label_quoted || exit 43; fi"
-      guest_command+="; for attempt in {1..150}; do $refresh_command >/tmp/keypath-secure-postcondition.json || exit 44; /usr/bin/env python3 -c 'import json,sys; elements=json.load(open(sys.argv[1])).get(\"data\",{}).get(\"ui_elements\",[]); labels={e.get(\"label\") for e in elements}; raise SystemExit(0 if sys.argv[2] not in labels and sys.argv[3] not in labels else 1)' /tmp/keypath-secure-postcondition.json $(printf %q "$field_label") $submit_label_quoted && break; sleep 0.1; done; /usr/bin/env python3 -c 'import json,sys; elements=json.load(open(sys.argv[1])).get(\"data\",{}).get(\"ui_elements\",[]); labels={e.get(\"label\") for e in elements}; raise SystemExit(0 if sys.argv[2] not in labels and sys.argv[3] not in labels else 79)' /tmp/keypath-secure-postcondition.json $(printf %q "$field_label") $submit_label_quoted"
-    fi
-  fi
-  if [[ "$field_label" == "AXSecureTextField" ]]; then
-    postcondition_args=(/usr/bin/osascript -l JavaScript -e 'function descendants(element) { var result = []; try { var children = element.uiElements(); for (var i = 0; i < children.length; i++) { result.push(children[i]); result = result.concat(descendants(children[i])); } } catch (_) {} return result; } function run(argv) { var processes = Application("System Events").processes.whose({name: argv[0]})(); if (processes.length === 0 || processes[0].windows().length === 0) return "closed"; var open = descendants(processes[0].windows[0]).some(function (element) { try { return element.subrole() === "AXSecureTextField"; } catch (_) { return false; } }); return open ? "open" : "closed"; }' "$app")
-    printf -v postcondition_command '%q ' "${postcondition_args[@]}"
-    guest_command+="; for attempt in {1..150}; do [[ \$( $postcondition_command ) == closed ]] && exit 0; sleep 0.1; done; exit 77"
+    submit_args=(/opt/homebrew/bin/peekaboo click "$submit_button" --app "$app" --foreground --json)
+    printf -v submit_command '%q ' "${submit_args[@]}"
+    printf -v submit_label_quoted '%q' "$submit_button"
+    guest_command+="; $refresh_command >/tmp/keypath-secure-submit.json || exit 44; if ! $submit_command >/dev/null; then $refresh_command >/tmp/keypath-secure-submit.json || exit 43; /usr/bin/env python3 -c 'import json,sys; elements=json.load(open(sys.argv[1])).get(\"data\",{}).get(\"ui_elements\",[]); raise SystemExit(1 if any(e.get(\"label\")==sys.argv[2] for e in elements) else 0)' /tmp/keypath-secure-submit.json $submit_label_quoted || exit 43; fi"
+    guest_command+="; for attempt in {1..150}; do $refresh_command >/tmp/keypath-secure-postcondition.json || exit 44; /usr/bin/env python3 -c 'import json,sys; elements=json.load(open(sys.argv[1])).get(\"data\",{}).get(\"ui_elements\",[]); labels={e.get(\"label\") for e in elements}; raise SystemExit(0 if sys.argv[2] not in labels and sys.argv[3] not in labels else 1)' /tmp/keypath-secure-postcondition.json $(printf %q "$field_label") $submit_label_quoted && break; sleep 0.1; done; /usr/bin/env python3 -c 'import json,sys; elements=json.load(open(sys.argv[1])).get(\"data\",{}).get(\"ui_elements\",[]); labels={e.get(\"label\") for e in elements}; raise SystemExit(0 if sys.argv[2] not in labels and sys.argv[3] not in labels else 79)' /tmp/keypath-secure-postcondition.json $(printf %q "$field_label") $submit_label_quoted"
   fi
   set +e
   "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")" < "$secret_file"
@@ -960,7 +1409,8 @@ secure_dialog_input() {
 
 protected_click() {
   local lease=$1 app=$2 expected_before=$3 expected_after=$4 coordinate_space=$5 x=$6 y=$7 count=${8:-1}
-  local manifest macos resource key ip before after guest_command geometry_command geometry
+  local manifest macos resource key ip before after before_frontmost after_frontmost guest_command geometry_command geometry
+  local occlusion occlusion_command occlusion_qualification_script
   local native_width native_height logical_width logical_height scale_x scale_y
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
@@ -974,6 +1424,7 @@ protected_click() {
 
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
     before=${KEYPATH_LAB_TEST_WINDOW_BEFORE:-$expected_before}
+    before_frontmost=${KEYPATH_LAB_TEST_FRONTMOST_BEFORE:-true}
   else
     key="$HOME/Library/Application Support/crabbox/testboxes/$lease/id_ed25519"
     [[ -f "$key" && ! -L "$key" && -O "$key" ]] || die "owned CrabBox SSH key not found for lease"
@@ -981,9 +1432,13 @@ protected_click() {
     export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     ip=$($TART ip "$resource")
     [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
-    guest_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "";\n  return matches[0].windows[0].name() || "__UNTITLED__";\n}\' -- '$(printf %q "$app")
-    before=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")
+    guest_command=$'/usr/bin/osascript -l JavaScript -e \'\nfunction run(argv) {\n  var matches = Application("System Events").processes.whose({name: argv[0]})();\n  if (matches.length === 0 || matches[0].windows().length === 0) return "false\\t";\n  var name = matches[0].windows[0].name() || "__UNTITLED__";\n  return String(matches[0].frontmost()) + "\\t" + name;\n}\' -- '$(printf %q "$app")
+    IFS=$'\t' read -r before_frontmost before <<< "$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")"
   fi
+  [[ "$before_frontmost" == "true" ]] || {
+    record_command "$lease" failed protected-click --app "$app" --window "$expected_before" --x "$x" --y "$y"
+    die "protected click precondition failed: '$app' is not frontmost"
+  }
   [[ "$expected_before" == "__ANY__" && -n "$before" ]] || [[ "$before" == "$expected_before" ]] || {
     record_command "$lease" failed protected-click --app "$app" --window "$expected_before" --x "$x" --y "$y"
     die "protected click precondition failed: expected window '$expected_before', found '${before:-unknown}'"
@@ -993,7 +1448,7 @@ protected_click() {
     if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
       geometry=${KEYPATH_LAB_TEST_DISPLAY_GEOMETRY:-'2048 1536 1024 768'}
     else
-      geometry_command='/opt/homebrew/bin/peekaboo list windows --app '$(printf %q "$app")' --json | /usr/bin/env python3 -c '\''import json,re,sys; data=json.load(sys.stdin).get("data",{}); windows=data.get("windows",data if isinstance(data,list) else []); names=[w.get("screenName","") for w in windows if isinstance(w,dict)]; m=next((re.search(r"([0-9]+)×([0-9]+)",n) for n in names if re.search(r"([0-9]+)×([0-9]+)",n)),None); print(f"{m.group(1)} {m.group(2)}" if m else "",end="")'\''; printf " "; /usr/bin/osascript -l JavaScript -e '\''ObjC.import("AppKit"); var s=$.NSScreen.mainScreen.frame.size; s.width+" "+s.height'\'''
+      geometry_command='/usr/bin/osascript -l JavaScript -e '\''ObjC.import("AppKit"); var screen=$.NSScreen.mainScreen; var logical=screen.frame.size; var scale=Number(screen.backingScaleFactor); Math.round(logical.width*scale)+" "+Math.round(logical.height*scale)+" "+Math.round(logical.width)+" "+Math.round(logical.height)'\'''
       geometry=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$geometry_command")")
     fi
     IFS=' ' read -r native_width native_height logical_width logical_height <<< "$geometry"
@@ -1006,6 +1461,74 @@ protected_click() {
     y=$((y * scale_y))
   fi
 
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    occlusion=${KEYPATH_LAB_TEST_OCCLUSION:-}
+  else
+    occlusion_command=$'/usr/bin/osascript -l JavaScript -e \'\nObjC.import("AppKit");\nfunction contains(element, x, y) {\n  try {\n    var position = element.position();\n    var size = element.size();\n    return size[0] > 1 && size[1] > 1 && x >= position[0] && x <= position[0] + size[0] && y >= position[1] && y <= position[1] + size[1];\n  } catch (_) { return false; }\n}\nfunction bounds(element) {\n  var position = element.position();\n  var size = element.size();\n  return Math.round(position[0]) + "," + Math.round(position[1]) + "," + Math.round(size[0]) + "," + Math.round(size[1]);\n}\nfunction descendants(element) {\n  var result = [];\n  try {\n    var children = element.uiElements();\n    for (var i = 0; i < children.length; i++) {\n      result.push(children[i]);\n      result = result.concat(descendants(children[i]));\n    }\n  } catch (_) {}\n  return result;\n}\nfunction run(argv) {\n  var x = Number(argv[0]) / Number($.NSScreen.mainScreen.backingScaleFactor);\n  var y = Number(argv[1]) / Number($.NSScreen.mainScreen.backingScaleFactor);\n  var events = Application("System Events");\n  var processNames = ["NotificationCenter", "UserNotificationCenter"];\n  for (var p = 0; p < processNames.length; p++) {\n    var matches = events.processes.whose({name: processNames[p]})();\n    if (matches.length === 0) continue;\n    var windows = matches[0].windows();\n    for (var w = 0; w < windows.length; w++) {\n      try {\n        if (windows[w].subrole() === "AXSystemDialog" && contains(windows[w], x, y)) {\n          return processNames[p] + ":dialog:" + bounds(windows[w]);\n        }\n      } catch (_) {}\n      var elements = descendants(windows[w]);\n      for (var e = 0; e < elements.length; e++) {\n        try {\n          var role = elements[e].role();\n          if (["AXGroup", "AXButton", "AXStaticText", "AXImage"].indexOf(role) !== -1 && contains(elements[e], x, y)) {\n            return processNames[p] + ":" + role + ":" + bounds(elements[e]);\n          }\n        } catch (_) {}\n      }\n    }\n  }\n  return "";\n}\' -- '$(printf %q "$x")' '$(printf %q "$y")
+    occlusion=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$occlusion_command")") || die "protected click could not verify notification occlusion"
+    if [[ "$occlusion" == *":dialog:"* ]]; then
+      read -r -d '' occlusion_qualification_script <<'JXA' || true
+ObjC.import("AppKit");
+function contains(element, x, y) {
+  try {
+    var position = element.position();
+    var size = element.size();
+    return size[0] > 1 && size[1] > 1 && x >= position[0] && x <= position[0] + size[0] && y >= position[1] && y <= position[1] + size[1];
+  } catch (_) { return false; }
+}
+function descendants(element) {
+  var result = [];
+  try {
+    var children = element.uiElements();
+    for (var i = 0; i < children.length; i++) {
+      result.push(children[i]);
+      result = result.concat(descendants(children[i]));
+    }
+  } catch (_) {}
+  return result;
+}
+function run(argv) {
+  var x = Number(argv[0]) / Number($.NSScreen.mainScreen.backingScaleFactor);
+  var y = Number(argv[1]) / Number($.NSScreen.mainScreen.backingScaleFactor);
+  var events = Application("System Events");
+  var processNames = ["NotificationCenter", "UserNotificationCenter"];
+  for (var p = 0; p < processNames.length; p++) {
+    var matches = events.processes.whose({name: processNames[p]})();
+    if (matches.length === 0) continue;
+    var windows = matches[0].windows();
+    for (var w = 0; w < windows.length; w++) {
+      try {
+        var dialogText = windows[w].staticTexts().map(function(item) { return item.value() || ""; }).join(" ").toLowerCase();
+        var captureConsent = dialogText.indexOf("screen") !== -1 && (dialogText.indexOf("record") !== -1 || dialogText.indexOf("capture") !== -1 || dialogText.indexOf("share") !== -1);
+        if (captureConsent || dialogText.indexOf("private window picker") !== -1) return processNames[p] + ":consent-dialog";
+      } catch (_) {}
+      var elements = descendants(windows[w]);
+      for (var e = 0; e < elements.length; e++) {
+        try {
+          var role = elements[e].role();
+          var boundedVisibleRole = ["AXButton", "AXStaticText", "AXImage"].indexOf(role) !== -1;
+          if (role === "AXGroup") {
+            var elementSize = elements[e].size();
+            var windowSize = windows[w].size();
+            boundedVisibleRole = elementSize[0] * elementSize[1] < windowSize[0] * windowSize[1] * 0.5;
+          }
+          if (boundedVisibleRole && contains(elements[e], x, y)) return processNames[p] + ":" + role;
+        } catch (_) {}
+      }
+    }
+  }
+  return "";
+}
+JXA
+      occlusion_command="/usr/bin/osascript -l JavaScript -e $(printf %q "$occlusion_qualification_script") -- $(printf %q "$x") $(printf %q "$y")"
+      occlusion=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$occlusion_command")") || die "protected click could not qualify notification occlusion"
+    fi
+  fi
+  [[ -z "$occlusion" ]] || {
+    record_command "$lease" failed protected-click --app "$app" --window "$expected_before" --x "$x" --y "$y"
+    die "protected click target is occluded by a notification ($occlusion)"
+  }
+
   if [[ "$count" == "2" ]]; then
     "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$x" --y "$y" --count 2 >/dev/null
   else
@@ -1014,15 +1537,20 @@ protected_click() {
   sleep "${KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS:-1}"
   if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
     after=${KEYPATH_LAB_TEST_WINDOW_AFTER:-$expected_after}
+    after_frontmost=${KEYPATH_LAB_TEST_FRONTMOST_AFTER:-true}
   else
-    after=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")
+    IFS=$'\t' read -r after_frontmost after <<< "$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")"
   fi
   if [[ "$after" != "$expected_after" && "$expected_before" == "__ANY__" ]]; then
     sleep "${KEYPATH_LAB_INITIAL_SETTINGS_RETRY_SECONDS:-5}"
     "$CRABBOX" desktop click --provider tart --target macos --id "$resource" --x "$x" --y "$y" >/dev/null
     sleep "${KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS:-1}"
-    after=$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")
+    IFS=$'\t' read -r after_frontmost after <<< "$("$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")")"
   fi
+  [[ "$after_frontmost" == "true" ]] || {
+    record_command "$lease" failed protected-click --app "$app" --window "$expected_before" --after-window "$expected_after" --x "$x" --y "$y"
+    die "protected click postcondition failed: '$app' is no longer frontmost"
+  }
   [[ "$after" == "$expected_after" ]] || {
     record_command "$lease" failed protected-click --app "$app" --window "$expected_before" --after-window "$expected_after" --x "$x" --y "$y"
     die "protected click postcondition failed: expected window '$expected_after', found '${after:-unknown}'"
@@ -1036,6 +1564,111 @@ protected_click() {
   if [[ "$coordinate_space" == "ax" ]]; then
     print "display_scale\t$scale_x"
   fi
+}
+
+input_monitoring_rows() {
+  local lease=$1 manifest resource key ip guest_script guest_command open_command
+  manifest=$(owned_manifest "$lease")
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    if [[ -n "${KEYPATH_LAB_TEST_INPUT_MONITORING_ROWS:-}" ]]; then
+      print -r -- "$KEYPATH_LAB_TEST_INPUT_MONITORING_ROWS"
+    else
+      printf 'Kanata Engine\t0\t402\t247\nkanata-launcher\t0\t402\t289\nKeyPath\t0\t402\t331\n'
+    fi
+    return
+  fi
+
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Za-z0-9._-]+$' && "$resource" != "unknown" ]] || die "invalid Tart resource id"
+  key="$HOME/Library/Application Support/crabbox/testboxes/$lease/id_ed25519"
+  [[ -f "$key" && ! -L "$key" && -O "$key" ]] || die "owned CrabBox SSH key not found for lease"
+  if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
+  export PATH="$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  ip=$($TART ip "$resource")
+  [[ "$ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Tart returned an invalid guest address"
+
+  read -r -d '' guest_script <<'JXA' || true
+function safe(callback, fallback) {
+  try { return callback(); } catch (_) { return fallback; }
+}
+function descendants(element) {
+  var result = [];
+  safe(function() {
+    element.uiElements().forEach(function(child) {
+      result.push(child);
+      result = result.concat(descendants(child));
+    });
+  }, null);
+  return result;
+}
+function run() {
+  Application("System Settings").activate();
+  var process = Application("System Events").processes.byName("System Settings");
+  for (var attempt = 0; attempt < 20 && (!process.exists() || process.windows().length === 0); attempt++) delay(0.25);
+  if (!process.exists() || process.windows().length === 0) throw new Error("System Settings is unavailable");
+  var window = process.windows[0];
+  if (window.name() !== "Input Monitoring") throw new Error("Input Monitoring page did not open");
+  window.position = [154, 330];
+  delay(0.5);
+  var targets = ["Kanata Engine", "kanata-launcher", "KeyPath"];
+  var checkboxes = descendants(window).filter(function(element) {
+    return safe(function() { return element.role() === "AXCheckBox"; }, false);
+  });
+  return targets.map(function(target) {
+    var matches = checkboxes.filter(function(element) {
+      return safe(function() { return element.name() === target; }, false);
+    });
+    if (matches.length !== 1) throw new Error("Expected one Input Monitoring row for " + target);
+    var checkbox = matches[0];
+    var position = checkbox.position();
+    var size = checkbox.size();
+    return target + "\t" + checkbox.value() + "\t" +
+      Math.round(position[0] + size[0] / 2) + "\t" +
+      Math.round(position[1] + size[1] / 2);
+  }).join("\n");
+}
+JXA
+  guest_command="/usr/bin/killall -TERM KeyPath >/dev/null 2>&1 || true"
+  "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")"
+  open_command="/usr/bin/open 'x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent'"
+  "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$open_command")" >/dev/null
+  guest_command="/usr/bin/osascript -l JavaScript -e $(printf %q "$guest_script")"
+  "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i "$key" "admin@$ip" "/bin/zsh -lc $(printf %q "$guest_command")"
+}
+
+approve_input_monitoring() {
+  local lease=$1 manifest macos lane rows row target value x y verified
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  lane=$(field "$manifest" test_lane)
+  [[ "$macos" == "15" ]] || die "Input Monitoring approval currently supports only the Tart macOS 15 lane"
+  [[ "$lane" == "managed-functional" ]] || die "Input Monitoring approval requires managed-functional policy"
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "Input Monitoring approval requires a desktop-enabled lease"
+
+  rows=$(input_monitoring_rows "$lease") || die "could not inspect Input Monitoring rows"
+  for target in "Kanata Engine" "kanata-launcher" "KeyPath"; do
+    row=$(print -r -- "$rows" | awk -F '\t' -v target="$target" '$1 == target {print; exit}')
+    [[ -n "$row" ]] || die "Input Monitoring row is missing: $target"
+    IFS=$'\t' read -r _ value x y <<< "$row"
+    [[ "$value" == "0" || "$value" == "1" ]] || die "Input Monitoring row has an invalid state: $target"
+    [[ "$x" == <-> && "$y" == <-> ]] || die "Input Monitoring row has invalid geometry: $target"
+    if [[ "$value" == "1" ]]; then
+      print "input_monitoring_row\t$target\talready-enabled"
+      continue
+    fi
+
+    protected_click "$lease" "System Settings" "Input Monitoring" "Input Monitoring" ax "$x" "$y" 1 >/dev/null
+    if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+      verified=${KEYPATH_LAB_TEST_INPUT_MONITORING_VERIFY:-1}
+    else
+      rows=$(input_monitoring_rows "$lease") || die "could not refresh Input Monitoring rows"
+      verified=$(print -r -- "$rows" | awk -F '\t' -v target="$target" '$1 == target {print $2; exit}')
+    fi
+    [[ "$verified" == "1" ]] || die "Input Monitoring toggle did not remain enabled: $target"
+    print "input_monitoring_row\t$target\tenabled"
+  done
+  record_command "$lease" passed approve-input-monitoring
+  print "approve_input_monitoring\tpassed"
 }
 
 desktop_type() {
@@ -1075,7 +1708,7 @@ list_leases() {
 }
 
 collect_artifacts() {
-  local lease=$1 manifest output exit_code macos repo archive provider_resource parallels_cli
+  local lease=$1 manifest output exit_code macos repo archive provider_resource parallels_cli guest_repo
   local parallels_resource_pattern='^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$'
   local nameplate_restore=0 nameplate_hide_status=not-needed nameplate_restore_status=not-needed
   manifest=$(owned_manifest "$lease")
@@ -1100,9 +1733,20 @@ collect_artifacts() {
     fi
   fi
   archive="$output/scenario-output.tar.gz"
+  if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" && "$macos" != "15" ]]; then
+    provider_resource=$(field "$manifest" provider_resource)
+    [[ "$provider_resource" =~ $parallels_resource_pattern ]] || die "invalid Parallels resource id"
+    parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+    [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+    guest_repo="/Users/keypathqa/crabbox/$lease/repo"
+    "$parallels_cli" exec "$provider_resource" /usr/bin/env \
+      KEYPATH_CAPTURE_USER_HOME=/Users/keypathqa KEYPATH_CAPTURE_OWNER=keypathqa \
+      /bin/zsh "$guest_repo/Scripts/lab/capture-controller-state" \
+      > "$output/privileged-controller-capture.log" 2>&1 || true
+  fi
   set +e
   (cd "$repo" && run_with_download "$macos" "$lease" ".keypath-lab/scenario-output.tar.gz" "$archive" \
-    /bin/zsh -lc 'set -e; out=.keypath-lab/scenario-output/controller-capture; mkdir -p "$out/logs"; sw_vers > "$out/sw-vers.txt"; date -u +%Y-%m-%dT%H:%M:%SZ > "$out/captured-at.txt"; cp -R "$HOME/Library/Logs/KeyPath/." "$out/logs/" 2>/dev/null || true; /Applications/KeyPath.app/Contents/MacOS/keypath-cli system inspect --json > "$out/system-inspect.json" 2>/dev/null || true; tar -czf .keypath-lab/scenario-output.tar.gz -C .keypath-lab scenario-output') > "$output/download.log" 2>&1
+    /bin/zsh -lc 'set -e; /bin/zsh Scripts/lab/capture-controller-state; tar -czf .keypath-lab/scenario-output.tar.gz -C .keypath-lab scenario-output') > "$output/download.log" 2>&1
   exit_code=$?
   set -e
   if (( exit_code == 0 )); then
@@ -1152,18 +1796,29 @@ collect_artifacts() {
 }
 
 scenario() {
-  local lease=$1 name=$2 manifest repo scenario_script lane
+  local lease=$1 name=$2 manifest repo scenario_script lane runtime_status exit_code
   manifest=$(owned_manifest "$lease")
   repo=$(field "$manifest" worktree)
   lane=$(field "$manifest" test_lane)
   prepare_worktree "$repo"
   scenario_script="Scripts/lab/scenarios/installer-scenario"
   [[ -x "$repo/$scenario_script" ]] || die "scenario runner missing from archived commit"
-  run_command "$lease" "/bin/zsh" "$scenario_script" "$name" "$lane"
+  set +e
+  (run_command "$lease" "/bin/zsh" "$scenario_script" "$name" "$lane")
+  exit_code=$?
+  set -e
+  if ((exit_code == 0)) && [[ "$name" == "uninstall" ]]; then
+    runtime_status=$(field "$manifest" install_runtime_status)
+    if [[ -n "$runtime_status" ]]; then
+      set_field "$manifest" install_runtime_status uninstalled
+      set_field "$manifest" uninstall_at "$(utc_now)"
+    fi
+  fi
+  return "$exit_code"
 }
 
 desktop_bootstrap() {
-  local lease=$1 install_tools=$2 manifest macos repo output guest_output command
+  local lease=$1 install_tools=$2 manifest macos repo output command exit_code approval_output attempt
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "desktop bootstrap requires a desktop-enabled lease"
@@ -1172,9 +1827,57 @@ desktop_bootstrap() {
   output=".keypath-lab/scenario-output/bootstrap"
   command=(/bin/zsh Scripts/lab/desktop-bootstrap --output "$output")
   [[ "$install_tools" == "1" ]] && command+=(--install-tools)
-  run_command "$lease" "${command[@]}"
+  if [[ "$macos" == "15" ]]; then
+    # Clear a consent prompt left by an interrupted bootstrap before asking
+    # Peekaboo to capture again.
+    approve_peekaboo_capture "$lease"
+  fi
+  exit_code=1
+  for attempt in {1..3}; do
+    set +e
+    (run_command "$lease" "${command[@]}")
+    exit_code=$?
+    set -e
+    ((exit_code == 0)) && break
+    [[ "$macos" == "15" ]] || return "$exit_code"
+    approval_output=$(approve_peekaboo_capture "$lease")
+    print -r -- "$approval_output"
+    print -r -- "$approval_output" | grep -Fq $'peekaboo_capture_approval\tpassed' || return "$exit_code"
+    # Installing tools re-signs the dedicated Peekaboo host. Do that once;
+    # re-signing on every consent retry creates a fresh Screen Recording
+    # request and prevents the bootstrap from ever reaching its postcondition.
+    command=(/bin/zsh Scripts/lab/desktop-bootstrap --output "$output")
+  done
+  ((exit_code == 0)) || return "$exit_code"
   set_field "$manifest" desktop_bootstrap_at "$(utc_now)"
   set_field "$manifest" desktop_bootstrap_status passed
+}
+
+verify_console_login() {
+  local lease=$1 manifest macos resource parallels_cli console_user
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$macos" == "26" || "$macos" == "27" ]] || die "inherited console-login verification requires a macOS 26 or 27 lane"
+  [[ "$(field "$manifest" provider)" == "parallels" ]] || die "inherited console-login verification requires a Parallels lease"
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "inherited console-login verification requires a desktop-enabled lease"
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$' ]] || die "invalid Parallels resource id"
+  parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+  [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+  console_user=$("$parallels_cli" exec "$resource" /usr/bin/stat -f %Su /dev/console 2>/dev/null || true)
+  if [[ "$console_user" != "keypathqa" ]]; then
+    set_field "$manifest" console_login_status postcondition-failed
+    set_field "$manifest" console_login_method inherited-base
+    record_command "$lease" failed verify-console-login
+    die "fresh desktop-base clone did not inherit the keypathqa console session"
+  fi
+  set_field "$manifest" console_login_status passed
+  set_field "$manifest" console_login_method inherited-base
+  set_field "$manifest" console_login_at "$(utc_now)"
+  record_command "$lease" passed verify-console-login
+  print "console_login\tpassed"
+  print "console_login_method\tinherited-base"
+  print "console_user\t$console_user"
 }
 
 console_login() {
@@ -1341,7 +2044,7 @@ console_login() {
 }
 
 secure_console_submit() {
-  local lease=$1 manifest macos resource parallels_cli secret_file
+  local lease=$1 manifest macos resource parallels_cli secret_file key_events key_event
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
   [[ "$macos" == "26" || "$macos" == "27" ]] || die "secure console submit requires a macOS 26 or 27 Parallels lane"
@@ -1363,19 +2066,38 @@ secure_console_submit() {
   fi
   [[ -s "$secret_file" ]] || die "secure console secret is empty"
 
-  # Convert the credential to Parallels key codes in a pipe. The plaintext is
+  # Convert the credential to explicit, paced Parallels event pairs. The
+  # plaintext is
   # read only from the owner-only temp file and never enters argv, logs, the
-  # guest pasteboard, or an artifact. Keep the accepted alphabet deliberately
-  # narrow; expanding it requires an explicit key-map review.
-  python3 -c 'import json,sys
+  # guest pasteboard, or an artifact. One short-lived prlctl process per
+  # explicit press/release pair prevents macOS from dropping a large burst
+  # without relying on Parallels' ambiguous default key event.
+  # Keep the accepted alphabet deliberately narrow; expanding it requires an
+  # explicit key-map review.
+  key_events=$(python3 -c 'import json,sys
 codes={"a":38,"b":56,"c":54,"d":40,"e":26,"f":41,"g":42,"h":43,"i":31,"j":44,"k":45,"l":46,"m":58,"n":57,"o":32,"p":33,"q":24,"r":27,"s":39,"t":28,"u":30,"v":55,"w":25,"x":53,"y":29,"z":52,"1":10,"2":11,"3":12,"4":13,"5":14,"6":15,"7":16,"8":17,"9":18,"0":19,"-":20}
 value=open(sys.argv[1],"r",encoding="utf-8").read()
 if not value or any(ch not in codes for ch in value): raise SystemExit(64)
-for ch in value: print(json.dumps([{"key":codes[ch]}],separators=(",",":")))' "$secret_file" 3<&- | \
-    while IFS= read -r key_event <&3; do
-      printf '%s\n' "$key_event" | "$parallels_cli" send-key-event "$resource" --json >/dev/null || exit 1
-      sleep "${KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS:-0.2}"
-  done 3<&0 || die "failed to deliver the guest credential through Parallels key events"
+delay=max(0,round(float(sys.argv[2])*1000))
+replace_events=[
+    {"key":115,"event":"press","delay":delay},
+    {"key":38,"event":"press","delay":delay},
+    {"key":38,"event":"release","delay":delay},
+    {"key":115,"event":"release","delay":delay},
+    {"key":22,"event":"press","delay":delay},
+    {"key":22,"event":"release","delay":delay},
+]
+print(json.dumps(replace_events,separators=(",",":")))
+for ch in value:
+    print(json.dumps(({"key":codes[ch],"event":"press","delay":delay},{"key":codes[ch],"event":"release","delay":delay}),separators=(",",":")))' "$secret_file" "${KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS:-0.2}" 3<&-) || \
+    die "failed to encode the guest credential as Parallels key events"
+  [[ -n "$key_events" ]] || die "failed to encode the guest credential as Parallels key events"
+  while IFS= read -r key_event; do
+    printf '%s\n' "$key_event" | "$parallels_cli" send-key-event "$resource" --json >/dev/null || \
+      die "failed to deliver the guest credential through Parallels key events"
+    sleep "${KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS:-0.2}"
+  done <<< "$key_events"
+  key_events=
   sleep "${KEYPATH_LAB_SECURE_CONSOLE_SETTLE_SECONDS:-0.25}"
   if [[ "$macos" == "26" ]]; then
     # SecurityAgent accepts password text from the Parallels console but
@@ -1391,9 +2113,37 @@ for ch in value: print(json.dumps([{"key":codes[ch]}],separators=(",",":")))' "$
     KEYPATH_LAB_SECURE_TEMP=
     trap - EXIT
   fi
-  record_command "$lease" passed secure-console-submit
-  print "secure_console_submit\tpassed"
-  print "credential_transport\tparallels-key-events"
+  record_command "$lease" delivered secure-console-submit
+  print "secure_console_submit\tdelivered"
+  print "credential_field\treplaced-focused-value"
+  print "credential_transport\tparallels-explicit-pairs-paced"
+  print "credential_postcondition\tunverified"
+}
+
+console_key() {
+  local lease=$1 key_code=$2 modifier_code=${3:-0} manifest macos resource parallels_cli
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$macos" == "26" || "$macos" == "27" ]] || die "console key requires a macOS 26 or 27 Parallels lane"
+  [[ "$(field "$manifest" provider)" == "parallels" ]] || die "console key requires a Parallels lease"
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "console key requires a desktop-enabled lease"
+  [[ "$key_code" == <-> && "$key_code" -ge 1 && "$key_code" -le 255 ]] || die "invalid Parallels key code"
+  [[ "$modifier_code" == <-> && "$modifier_code" -ge 0 && "$modifier_code" -le 255 ]] || die "invalid Parallels modifier key code"
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$' ]] || die "invalid Parallels resource id"
+  parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+  [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+  if (( modifier_code > 0 )); then
+    "$parallels_cli" send-key-event "$resource" --key "$modifier_code" --event press >/dev/null
+  fi
+  "$parallels_cli" send-key-event "$resource" --key "$key_code" >/dev/null
+  if (( modifier_code > 0 )); then
+    "$parallels_cli" send-key-event "$resource" --key "$modifier_code" --event release >/dev/null
+  fi
+  record_command "$lease" passed console-key --key "$key_code" --modifier "$modifier_code"
+  print "console_key\tpassed"
+  print "parallels_key_code\t$key_code"
+  print "parallels_modifier_code\t$modifier_code"
 }
 
 reset_guest_password() {
@@ -1462,6 +2212,144 @@ reset_guest_password() {
   print "guest_password_reset\tpassed"
   print "credential_verification\tpassed"
   print "enrollment_account\t$enrollment_account"
+}
+
+reset_desktop_keychain() {
+  local lease=$1 manifest macos resource parallels_cli secret_file key known_hosts known_hosts_option guest_ip
+  local fifo marker guest_command reset_pid fifo_ready attempt stream_exit reset_exit backup
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$macos" == "27" ]] || die "desktop keychain reset requires the macOS 27 lane"
+  [[ "$(field "$manifest" provider)" == "parallels" ]] || die "desktop keychain reset requires a Parallels lease"
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "desktop keychain reset requires a desktop-enabled lease"
+  [[ "$(field "$manifest" console_login_status)" == "passed" ]] || die "desktop keychain reset requires a verified console login"
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$' ]] || die "invalid Parallels resource id"
+  parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+  [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+
+  key="$HOME/Library/Application Support/crabbox/testboxes/$lease/id_ed25519"
+  [[ -f "$key" && ! -L "$key" && -O "$key" ]] || die "owned CrabBox SSH key not found for lease"
+  known_hosts="$HOME/Library/Application Support/crabbox/testboxes/$lease/known_hosts"
+  [[ -f "$known_hosts" && ! -L "$known_hosts" && -O "$known_hosts" ]] || die "owned CrabBox known-hosts file not found for lease"
+  known_hosts_option=${known_hosts// /\\ }
+  guest_ip=$("$parallels_cli" list -i -f -j "$resource" | python3 -c 'import json,sys; rows=json.load(sys.stdin); addresses=rows[0].get("Network",{}).get("ipAddresses",[]) if rows else []; print(next((item.get("ip","") for item in addresses if item.get("type")=="ipv4"),""),end="")')
+  [[ "$guest_ip" =~ '^[0-9A-Fa-f:.]+$' ]] || die "Parallels returned an invalid guest address"
+
+  secret_file=$(mktemp "$STATE_ROOT/.desktop-keychain-reset.XXXXXXXX")
+  chmod 600 "$secret_file"
+  typeset -g KEYPATH_LAB_SECURE_TEMP="$secret_file"
+  trap '[[ -z ${KEYPATH_LAB_SECURE_TEMP:-} ]] || rm -f "$KEYPATH_LAB_SECURE_TEMP"' EXIT
+  /opt/homebrew/bin/sops -d "$HOME/dotfiles/secrets.env" | awk -F= '$1 == "KEYPATH_LAB_GUEST_PASSWORD" {sub(/^[^=]*=/, ""); printf "%s", $0; found=1} END {if (!found) exit 1}' > "$secret_file" || die "KEYPATH_LAB_GUEST_PASSWORD is unavailable"
+  [[ -s "$secret_file" ]] || die "desktop keychain reset secret is empty"
+
+  fifo="/tmp/keypath-keychain-reset-$lease-$$.fifo"
+  marker="/tmp/keypath-keychain-reset-$lease-$$.marker"
+  guest_command="set -euo pipefail; fifo=$(printf %q "$fifo"); marker=$(printf %q "$marker"); home=/Users/keypathqa; keychain=\"\$home/Library/Keychains/login.keychain-db\"; rm -f \"\$fifo\" \"\$marker\"; /usr/bin/mkfifo \"\$fifo\"; /usr/sbin/chown keypathqa:staff \"\$fifo\"; /bin/chmod 600 \"\$fifo\"; trap 'rm -f \"\$fifo\"' EXIT; password=; IFS= read -r password < \"\$fifo\"; backup=none; if [[ -e \"\$keychain\" ]]; then backup=\"\${keychain}.before-desktop-base-$(date -u +%Y%m%dT%H%M%SZ)\"; /bin/mv \"\$keychain\" \"\$backup\"; fi; /usr/sbin/chown -R keypathqa:staff \"\$home/Library/Keychains\"; /usr/bin/sudo -u keypathqa /usr/bin/env HOME=\"\$home\" /usr/bin/security create-keychain -p \"\$password\" \"\$keychain\"; /usr/bin/sudo -u keypathqa /usr/bin/env HOME=\"\$home\" /usr/bin/security list-keychains -d user -s \"\$keychain\"; /usr/bin/sudo -u keypathqa /usr/bin/env HOME=\"\$home\" /usr/bin/security default-keychain -d user -s \"\$keychain\"; /usr/bin/sudo -u keypathqa /usr/bin/env HOME=\"\$home\" /usr/bin/security unlock-keychain -p \"\$password\" \"\$keychain\"; /usr/bin/sudo -u keypathqa /usr/bin/env HOME=\"\$home\" /usr/bin/security set-keychain-settings -lut 21600 \"\$keychain\"; printf '%s\n' \"\$backup\" > \"\$marker\"; /bin/chmod 600 \"\$marker\"; unset password"
+  set +e
+  "$parallels_cli" exec "$resource" /bin/zsh -lc "$(printf %q "$guest_command")" >/dev/null 2>&1 &
+  reset_pid=$!
+  fifo_ready=0
+  for attempt in {1..300}; do
+    if "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_option" -i "$key" "keypathqa@$guest_ip" \
+      "/bin/test -p $(printf %q "$fifo")" </dev/null >/dev/null 2>&1; then
+      fifo_ready=1
+      break
+    fi
+    sleep 0.1
+  done
+  if (( fifo_ready == 1 )); then
+    { /bin/cat "$secret_file"; printf '\n'; } | \
+      "$GUEST_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_option" -i "$key" "keypathqa@$guest_ip" \
+        "/bin/zsh -c $(printf %q "/bin/cat > $(printf %q "$fifo")")" >/dev/null 2>&1
+    stream_exit=$?
+  else
+    stream_exit=76
+    kill "$reset_pid" 2>/dev/null || true
+  fi
+  wait "$reset_pid"
+  reset_exit=$?
+  set -e
+  "$parallels_cli" exec "$resource" /bin/rm -f "$fifo" >/dev/null 2>&1 || true
+  backup=$("$parallels_cli" exec "$resource" /bin/cat "$marker" 2>/dev/null | tail -1 || true)
+  "$parallels_cli" exec "$resource" /bin/rm -f "$marker" >/dev/null 2>&1 || true
+  rm -f "$secret_file"
+  KEYPATH_LAB_SECURE_TEMP=
+  trap - EXIT
+  (( stream_exit == 0 && reset_exit == 0 )) || die "failed to establish a fresh disposable desktop keychain"
+  [[ "$backup" == none || "$backup" == /Users/keypathqa/Library/Keychains/login.keychain-db.before-desktop-base-* ]] ||
+    die "desktop keychain reset returned an invalid backup path"
+
+  set_field "$manifest" desktop_keychain_status passed
+  set_field "$manifest" desktop_keychain_at "$(utc_now)"
+  record_command "$lease" passed reset-desktop-keychain
+  print "desktop_keychain_reset\tpassed"
+  print "previous_keychain\t$backup"
+}
+
+reboot_guest() {
+  local lease=$1 manifest provider macos repo launcher resource parallels_cli state attempt ready=0 request_exit=0 poll_exit=0
+  manifest=$(owned_manifest "$lease")
+  provider=$(field "$manifest" provider)
+  case "$provider" in
+    parallels)
+      resource=$(field "$manifest" provider_resource)
+      [[ "$resource" =~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$' ]] || die "invalid Parallels resource id"
+      parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+      [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+      "$parallels_cli" restart "$resource" >/dev/null
+      sleep 3
+      for attempt in {1..600}; do
+        state=$("$parallels_cli" list -i -f -j "$resource" 2>/dev/null |
+          python3 -c 'import json,sys; rows=json.load(sys.stdin); print(rows[0].get("State","") if rows else "",end="")' 2>/dev/null || true)
+        if [[ "$state" == "running" ]] &&
+          "$parallels_cli" exec "$resource" /usr/bin/true >/dev/null 2>&1; then
+          ready=1
+          break
+        fi
+        sleep 0.1
+      done
+      (( ready == 1 )) || die "Parallels guest control did not recover after reboot"
+      ;;
+    tart)
+      macos=$(field "$manifest" macos)
+      [[ "$macos" == "15" ]] || die "unexpected Tart macOS lane: $macos"
+      repo=$(field "$manifest" worktree)
+      prepare_worktree "$repo"
+      launcher=$(launcher_for "$macos")
+      set +e
+      (cd "$repo" && "$launcher" run "$lease" -- /bin/zsh -lc 'sudo -n /sbin/shutdown -r now') \
+        > "$LOGS/$lease/reboot-request.log" 2>&1
+      request_exit=$?
+      set -e
+      if (( request_exit != 0 )) && /usr/bin/grep -Eqi 'sudo:|not permitted|permission denied' "$LOGS/$lease/reboot-request.log"; then
+        cat "$LOGS/$lease/reboot-request.log"
+        die "Tart guest rejected the reboot request"
+      fi
+      sleep "${KEYPATH_LAB_TART_REBOOT_SETTLE_SECONDS:-3}"
+      for attempt in {1..120}; do
+        set +e
+        (cd "$repo" && "$launcher" run "$lease" -- /usr/bin/true) \
+          > "$LOGS/$lease/reboot-readiness.log" 2>&1
+        poll_exit=$?
+        set -e
+        if (( poll_exit == 0 )); then
+          ready=1
+          break
+        fi
+        sleep "${KEYPATH_LAB_TART_REBOOT_POLL_SECONDS:-1}"
+      done
+      if (( ready != 1 )); then
+        cat "$LOGS/$lease/reboot-readiness.log"
+        die "Tart guest SSH did not recover after reboot"
+      fi
+      ;;
+    *) die "unsupported reboot provider: $provider" ;;
+  esac
+  set_field "$manifest" guest_reboot_at "$(utc_now)"
+  record_command "$lease" passed reboot-guest
+  print "guest_reboot\tpassed"
+  print "provider\t$provider"
 }
 
 rfb_pointer_probe() {
@@ -1615,13 +2503,21 @@ action=${1:-}
 shift || true
 case "$action" in
   preflight) [[ $# -eq 0 ]] || die "preflight takes no arguments"; preflight ;;
+  archive-status) [[ $# -eq 4 ]] || die "archive-status requires key, commit, checksum, and name"; archive_status "$@" ;;
   prepare-upload) [[ $# -eq 1 ]] || die "prepare-upload requires archive key"; prepare_upload "$1" ;;
   install-archive) [[ $# -eq 5 ]] || die "install-archive requires ticket, key, commit, checksum, and name"; install_archive "$@" ;;
+  derive-archive) [[ $# -eq 7 ]] || die "derive-archive requires ticket, source key, destination key, commit, checksum, name, and harness commit"; derive_archive "$@" ;;
+  find-fixture-archive) [[ $# -eq 2 ]] || die "find-fixture-archive requires fixture checksum and name"; find_fixture_archive "$@" ;;
+  derive-fixture-archive) [[ $# -eq 9 ]] || die "derive-fixture-archive requires source key, fixture source key, destination key, commit, installer checksum, installer name, harness commit, fixture checksum, and fixture name"; derive_fixture_archive "$@" ;;
   create) [[ $# -eq 8 || $# -eq 9 ]] || die "create requires macOS, test lane, archive, commit, checksum, name, ttl, desktop, and optional Tart USB passthrough"; create_lease "$@" ;;
   install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
+  install-runtime) [[ $# -eq 1 ]] || die "install-runtime requires lease"; install_runtime "$1" ;;
+  install-upgrade-runtime) [[ $# -eq 1 ]] || die "install-upgrade-runtime requires lease"; install_upgrade_runtime "$1" ;;
+  install-fixture) [[ $# -eq 1 ]] || die "install-fixture requires lease"; install_fixture "$1" ;;
   secure-dialog-input) [[ $# -eq 5 ]] || die "secure-dialog-input requires lease, app, field, optional submit value, and focus mode"; secure_dialog_input "$@" ;;
   resume-managed-policy) [[ $# -eq 1 ]] || die "resume-managed-policy requires a lease"; resume_managed_policy "$1" ;;
   protected-click) [[ $# -eq 7 || $# -eq 8 ]] || die "protected-click requires lease, app, before window, after window, coordinate space, x, y, and optional count"; protected_click "$@" ;;
+  approve-input-monitoring) [[ $# -eq 1 ]] || die "approve-input-monitoring requires lease"; approve_input_monitoring "$1" ;;
   desktop-type) [[ $# -eq 2 ]] || die "desktop-type requires lease and text"; desktop_type "$@" ;;
   run) [[ $# -ge 2 ]] || die "run requires lease and command"; run_command "$@" ;;
   status) [[ $# -eq 1 ]] || die "status requires lease"; print_status "$1" ;;
@@ -1630,8 +2526,12 @@ case "$action" in
   scenario) [[ $# -eq 2 ]] || die "scenario requires lease and name"; scenario "$1" "$2" ;;
   desktop-bootstrap) [[ $# -eq 2 ]] || die "desktop-bootstrap requires lease and install-tools flag"; desktop_bootstrap "$@" ;;
   console-login) [[ $# -eq 1 ]] || die "console-login requires lease"; console_login "$1" ;;
+  verify-console-login) [[ $# -eq 1 ]] || die "verify-console-login requires lease"; verify_console_login "$1" ;;
   reset-guest-password) [[ $# -eq 1 ]] || die "reset-guest-password requires lease"; reset_guest_password "$1" ;;
+  reset-desktop-keychain) [[ $# -eq 1 ]] || die "reset-desktop-keychain requires lease"; reset_desktop_keychain "$1" ;;
+  reboot-guest) [[ $# -eq 1 ]] || die "reboot-guest requires lease"; reboot_guest "$1" ;;
   secure-console-submit) [[ $# -eq 1 ]] || die "secure-console-submit requires lease"; secure_console_submit "$1" ;;
+  console-key) [[ $# -eq 3 ]] || die "console-key requires lease, Parallels key code, and modifier code"; console_key "$1" "$2" "$3" ;;
   rfb-pointer-probe) [[ $# -eq 3 ]] || die "rfb-pointer-probe requires lease, x, and y"; rfb_pointer_probe "$@" ;;
   nameplate) [[ $# -eq 2 ]] || die "nameplate requires lease and action"; nameplate_control "$@" ;;
   destroy) [[ $# -eq 1 ]] || die "destroy requires lease"; destroy_lease "$1" ;;

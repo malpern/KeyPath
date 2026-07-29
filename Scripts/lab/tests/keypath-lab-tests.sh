@@ -24,6 +24,11 @@ case "\$1" in
      echo $'nameplate_version\t0.2.5'
      echo $'nameplate_sha256\t96d1b6c58167b4a8f3713a61a7e216f8a24c2adad36c9027db974f852d543a3d'
      [[ " \$* " == *" hide "* ]] && echo $'nameplate_state\thidden' || echo $'nameplate_state\tvisible'
+   elif [[ "\$*" == *"preflight-inspect.json"* ]]; then
+     [[ \${KEYPATH_LAB_TEST_MUTATION_EVIDENCE:-0} == 1 ]] && exit 9
+     exit 0
+   elif [[ "\$*" == *"Scripts/lab/install-runtime"* ]]; then
+     exit "\${KEYPATH_LAB_TEST_INSTALL_RUNTIME_EXIT:-0}"
    elif [[ "\$*" == *"IOPlatformUUID"* ]]; then
      [[ "\$*" == *"cbx_test15b"* ]] && echo 15151515-1515-1515-1515-151515151517 || echo 15151515-1515-1515-1515-151515151516
    else
@@ -77,6 +82,14 @@ EOF
 cat > "$ROOT/bin/crabbox" <<EOF
 #!/bin/bash
 echo "crabbox \$*" >> "$CALLS"
+if [[ \$1 == desktop && \$2 == type && " \$* " != *" --text "* ]]; then
+  cat > "$TMP/crabbox-desktop-type-stdin"
+  [[ \${KEYPATH_LAB_TEST_CRABBOX_TYPE_FAIL:-0} == 1 ]] && exit 42
+  exit 0
+fi
+if [[ \$1 == desktop && \$2 == click && \${KEYPATH_LAB_TEST_CRABBOX_CLICK_FAIL:-0} == 1 ]]; then
+  exit 43
+fi
 if [[ \$1 == warmup ]]; then
   if [[ " \$* " == *" --provider tart "* ]]; then
     echo 'leased cbx_stale instance=stale-resource'
@@ -122,6 +135,27 @@ EOF
 cat > "$ROOT/bin/guest-ssh" <<EOF
 #!/bin/bash
 printf '%s\n' "\$*" > "$TMP/guest-ssh-args"
+printf '%s\n' "\$*" >> "$TMP/guest-ssh-calls"
+if [[ " \$* " == *"fileHandleWithStandardInput"* ]]; then
+  cat > "$TMP/system-settings-secure-stdin"
+  exit 0
+fi
+if [[ " \$* " == *"field.focused"* ]]; then
+  printf 'focused,400,220'
+  exit 0
+fi
+if [[ " \$* " == *"button.position"* ]]; then
+  printf '400,300'
+  exit 0
+fi
+if [[ " \$* " == *"AXPress"* ]]; then
+  printf pressed
+  exit 0
+fi
+if [[ " \$* " == *"AXSecureTextField"* ]]; then
+  printf closed
+  exit 0
+fi
 if [[ " \$* " == *" /bin/test -p /tmp/keypath-console-login-"* ]]; then
   cat >/dev/null
 else
@@ -191,23 +225,78 @@ chmod +x "$ROOT/bin/prlctl"
 echo test-private-key > "$TMP/id_ed25519"
 printf 'fixture-password-that-must-not-leak' > "$TMP/secure-input"
 grep -Fq 'exec 3<> \"\$fifo\"; KEYPATH_GUEST_PASSWORD=; IFS= read -r -t $credential_timeout -u 3 KEYPATH_GUEST_PASSWORD || [[ -n \"\$KEYPATH_GUEST_PASSWORD\" ]]' "$REMOTE"
-grep -Fq 'IFS= read -r secret_value || [[ -n "$secret_value" ]]' "$REMOTE"
+grep -Fq 'fileHandleWithStandardInput.readDataToEndOfFile' "$REMOTE"
+if grep -Fq 'events.keystroke(secret)' "$REMOTE"; then
+    echo "SecurityAgent secure input still uses synthetic Accessibility typing" >&2
+    exit 1
+fi
 grep -Fq 'managed_clone_enrollment\talready-enrolled' "$REMOTE"
 grep -Fq 'window.subrole() === "AXSystemDialog"' "$REMOTE"
+grep -Fq 'occlusion_qualification_script' "$REMOTE"
+grep -Fq 'captureConsent' "$REMOTE"
+grep -Fq 'private window picker' "$REMOTE"
+grep -Fq 'windowSize[0] * windowSize[1] * 0.5' "$REMOTE"
 grep -Fq 'usb_prefix="$TART_USB_TOOL_ROOT/bin:"' "$REMOTE"
 if grep -Fq 'peekaboo see --app "System Settings"' "$REMOTE"; then
     echo "capture prompt guard must not create a new capture request" >&2
     exit 1
 fi
 grep -q 'resume-managed-policy)' "$LAB_DIR/keypath-lab"
+grep -q 'approve-input-monitoring)' "$LAB_DIR/keypath-lab"
+grep -Fq 'ServerAliveInterval=15' "$LAB_DIR/keypath-lab"
+grep -Fq 'ServerAliveCountMax=4' "$LAB_DIR/keypath-lab"
 grep -Fq '/usr/bin/mktemp /etc/kcpassword.XXXXXXXX' "$REMOTE"
 grep -Fq "Automatic login user: keypathqa" "$REMOTE"
 
 /bin/bash -n "$LAB_DIR/../qa-macos-27-regression.sh"
 /bin/zsh -n "$LAB_DIR/desktop-bootstrap"
+grep -Fq 'com.keypath.lab.peekaboo-host' "$LAB_DIR/desktop-bootstrap"
+grep -Fq 'Peekaboo Lab Host.app' "$LAB_DIR/desktop-bootstrap"
+grep -Fq 'peekaboo-lab-host-arm64' "$LAB_DIR/desktop-bootstrap"
+grep -Fq '"--mode"' "$LAB_DIR/assets/peekaboo-lab-host.c"
+grep -Fq '"manual"' "$LAB_DIR/assets/peekaboo-lab-host.c"
+grep -Fq 'NSScreenCaptureUsageDescription' "$LAB_DIR/desktop-bootstrap"
+grep -Fq 'NSAccessibilityUsageDescription' "$LAB_DIR/desktop-bootstrap"
+grep -Fq 'fullMessage.indexOf("screen")' "$LAB_DIR/desktop-bootstrap"
+grep -Fq 'mentionsScreenCapture' "$LAB_DIR/desktop-bootstrap"
+grep -Fq 'reset-desktop-keychain)' "$LAB_DIR/keypath-lab"
+grep -Fq 'reboot-guest)' "$LAB_DIR/keypath-lab"
+grep -Fq 'desktop keychain reset requires a verified console login' "$REMOTE"
+grep -Fq 'Tart guest SSH did not recover after reboot' "$REMOTE"
 /bin/zsh -n "$LAB_DIR/mdm/enroll-clone-ui"
 /bin/zsh -n "$LAB_DIR/nameplate-instrumentation"
 /bin/zsh -n "$LAB_DIR/scenarios/kanata-vhid-two-clients"
+/bin/zsh -n "$LAB_DIR/scenarios/installer-scenario"
+/bin/zsh -n "$LAB_DIR/install-runtime"
+/bin/zsh -n "$LAB_DIR/capture-controller-state"
+python3 "$LAB_DIR/tests/scenario-matrix-tests.py"
+python3 "$LAB_DIR/tests/scenario-matrix-runner-tests.py"
+python3 "$LAB_DIR/tests/install-runtime-tests.py"
+python3 "$LAB_DIR/tests/macos-26-selector-scenario-tests.py"
+python3 "$LAB_DIR/tests/macos-27-selector-scenario-tests.py"
+python3 "$LAB_DIR/tests/physical-remap-session-tests.py"
+python3 "$LAB_DIR/tests/pico-hid-fixture-client-tests.py"
+python3 "$LAB_DIR/tests/pico-hid-fixture-tool-tests.py"
+"$LAB_DIR/pico-hid-fixture/tests/run-tests.sh"
+if grep -Eq 'local[[:space:]]+status=' "$LAB_DIR/scenarios/installer-scenario"; then
+  echo "installer scenario must not shadow zsh's read-only status parameter" >&2
+  exit 1
+fi
+grep -Fq 'Reboot persistence requires an independently ready runtime baseline.' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'The boot marker did not change; no guest reboot was proven.' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'KeyPath app identity changed across the guest reboot.' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'KEYPATH_LAB_REBOOT_READY_TIMEOUT_SECONDS' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'run_bounded 10 /usr/bin/osascript' "$LAB_DIR/desktop-bootstrap"
+grep -Fq 'ready-attempts.tsv' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'did not converge after the bounded reboot recovery window.' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'Cancellation recovery requires an independently ready runtime baseline.' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'The same lease must pass cancellation-recovery-before before post-cancellation verification.' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'Scripts/lab/damage-kanata-service' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'cancellation-recovery-before)' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'cancellation-recovery-after)' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'The managed macOS runtime exposed every required KeyPath capability' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'runner-result.json' "$LAB_DIR/scenarios/installer-scenario"
+grep -Fq 'A deliberate Kanata service failure was detected and repaired once' "$LAB_DIR/scenarios/installer-scenario"
 grep -q 'macos-27-regression)' "$LAB_DIR/scenarios/installer-scenario"
 
 run_remote() {
@@ -271,20 +360,45 @@ publish_checksum=$(shasum -a 256 "$LAB_DIR/scenarios/installer-scenario" | awk '
 publish_key="$publish_commit-$publish_checksum"
 mkdir -p "$TMP/upload/repo/.keypath-lab/installer"
 cp "$LAB_DIR/scenarios/installer-scenario" "$TMP/upload/repo/.keypath-lab/installer/installer.zip"
+printf 'keypath_commit\t%s\ninstaller_name\tinstaller.zip\ninstaller_sha256\t%s\n' \
+    "$publish_commit" "$publish_checksum" > "$TMP/upload/repo/.keypath-lab/source.tsv"
+printf '.keypath-lab/\n' > "$TMP/upload/repo/.gitignore"
 for pass in 1 2; do
     ticket=$(run_remote prepare-upload "$publish_key")
     tar -czf "$ticket" -C "$TMP/upload" repo
     published=$(run_remote install-archive "$ticket" "$publish_key" "$publish_commit" "$publish_checksum" installer.zip)
     if [[ $pass == 1 ]]; then assert_contains "$published" $'archive\tcreated'; else assert_contains "$published" $'archive\treused'; fi
 done
+git -C "$ROOT/KeyPathInstallerLab/archives/$publish_key/repo" ls-files --error-unmatch .keypath-lab/installer/installer.zip >/dev/null
 if find "$ROOT/KeyPathInstallerLab/archives" -maxdepth 1 -name ".staging-$publish_key-*" | grep -q .; then
     echo "archive publish left a staging directory" >&2
     exit 1
 fi
 
+harness_commit=$(printf 'd%.0s' {1..40})
+derived_key="$publish_key-h$harness_commit"
+mkdir -p "$TMP/overlay/Scripts/lab" "$TMP/overlay/.keypath-lab/managed-policy"
+echo hardened > "$TMP/overlay/Scripts/lab/harness-version"
+echo managed > "$TMP/overlay/.keypath-lab/managed-policy/manifest.json"
+for pass in 1 2; do
+    ticket=$(run_remote prepare-upload "$derived_key")
+    tar -czf "$ticket" -C "$TMP/overlay" .
+    derived=$(run_remote derive-archive "$ticket" "$publish_key" "$derived_key" "$publish_commit" "$publish_checksum" installer.zip "$harness_commit")
+    if [[ $pass == 1 ]]; then assert_contains "$derived" $'archive\tderived'; else assert_contains "$derived" $'archive\treused'; fi
+done
+derived_root="$ROOT/KeyPathInstallerLab/archives/$derived_key"
+grep -q '^hardened$' "$derived_root/repo/Scripts/lab/harness-version"
+grep -q $'^harness_commit\t'"$harness_commit" "$derived_root/ready.tsv"
+grep -q $'^derived_from\t'"$publish_key" "$derived_root/ready.tsv"
+[[ $(shasum -a 256 "$derived_root/repo/.keypath-lab/installer/installer.zip" | awk '{print $1}') == "$publish_checksum" ]]
+if find "$ROOT/KeyPathInstallerLab/archives" -maxdepth 1 -name ".staging-$derived_key-*" | grep -q .; then
+    echo "derived archive publish left a staging directory" >&2
+    exit 1
+fi
+
 archive_key="$(printf 'a%.0s' {1..40})-$(printf 'b%.0s' {1..64})"
 repo="$ROOT/KeyPathInstallerLab/archives/$archive_key/repo"
-mkdir -p "$repo/.keypath-lab/installer" "$repo/Scripts/lab/scenarios" "$repo/Scripts/lab/mdm"
+mkdir -p "$repo/.keypath-lab/installer" "$repo/.keypath-lab/fixtures" "$repo/Scripts/lab/scenarios" "$repo/Scripts/lab/mdm"
 cp "$LAB_DIR/scenarios/installer-scenario" "$repo/Scripts/lab/scenarios/installer-scenario"
 cp "$LAB_DIR/nameplate-instrumentation" "$repo/Scripts/lab/nameplate-instrumentation"
 cat > "$repo/Scripts/lab/mdm/publish-managed-profiles" <<'EOF'
@@ -304,6 +418,9 @@ chmod +x "$repo/Scripts/lab/scenarios/installer-scenario"
 chmod +x "$repo/Scripts/lab/nameplate-instrumentation"
 chmod +x "$repo/Scripts/lab/mdm/publish-managed-profiles"
 echo installer > "$repo/.keypath-lab/installer/KeyPath.zip"
+echo older-installer > "$repo/.keypath-lab/fixtures/KeyPath-beta3.zip"
+fixture_checksum=$(shasum -a 256 "$repo/.keypath-lab/fixtures/KeyPath-beta3.zip" | awk '{print $1}')
+printf 'fixture_name\tKeyPath-beta3.zip\nfixture_sha256\t%s\n' "$fixture_checksum" > "$repo/.keypath-lab/source.tsv"
 mkdir -p "$ROOT/KeyPathInstallerLab/managed-identities"
 printf '%s\n' '15151515-1515-1515-1515-151515151515' \
     > "$ROOT/KeyPathInstallerLab/managed-identities/keypath-macos-15-managed.enrollment-id"
@@ -317,6 +434,19 @@ git -C "$repo" commit -qm fixture
 cat > "$ROOT/KeyPathInstallerLab/archives/$archive_key/ready.tsv" <<EOF
 owner	keypath-installer-lab-v1
 EOF
+
+fixture_archive=$(run_remote find-fixture-archive "$fixture_checksum" KeyPath-beta3.zip)
+assert_contains "$fixture_archive" $'fixture_archive\t'"$archive_key"
+fixture_derived_key="$derived_key-$fixture_checksum"
+for pass in 1 2; do
+    fixture_derived=$(run_remote derive-fixture-archive "$derived_key" "$archive_key" "$fixture_derived_key" "$publish_commit" "$publish_checksum" installer.zip "$harness_commit" "$fixture_checksum" KeyPath-beta3.zip)
+    if [[ $pass == 1 ]]; then assert_contains "$fixture_derived" $'archive\tfixture-derived'; else assert_contains "$fixture_derived" $'archive\treused'; fi
+done
+fixture_derived_root="$ROOT/KeyPathInstallerLab/archives/$fixture_derived_key"
+[[ $(shasum -a 256 "$fixture_derived_root/repo/.keypath-lab/fixtures/KeyPath-beta3.zip" | awk '{print $1}') == "$fixture_checksum" ]]
+grep -q $'^fixture_sha256\t'"$fixture_checksum" "$fixture_derived_root/ready.tsv"
+grep -q $'^fixture_derived_from\t'"$archive_key" "$fixture_derived_root/ready.tsv"
+git -C "$fixture_derived_root/repo" ls-files --error-unmatch .keypath-lab/fixtures/KeyPath-beta3.zip >/dev/null
 
 commit=$(printf 'a%.0s' {1..40})
 checksum=$(printf 'b%.0s' {1..64})
@@ -362,10 +492,56 @@ assert_contains "$capacity_output" $'active_lease\tcbx_test15'
 
 run_remote run cbx_test15 echo hello >/dev/null
 grep -q 'echo hello' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/commands.tsv"
+grep -q 'launcher15 run cbx_test15 -- /usr/bin/env PATH=/Users/admin/.local/bin:' "$CALLS"
 run_remote scenario cbx_test15 clean-install >/dev/null
 grep -q 'installer-scenario clean-install' "$ROOT/KeyPathInstallerLab/leases/cbx_test15/commands.tsv"
 run_remote install-app cbx_test15 >/dev/null
 grep -q 'install-app 15 cbx_test15' "$ROOT/KeyPathInstallerLab/logs/cbx_test15/install-app.log"
+run_remote install-runtime cbx_test15 >/dev/null
+grep -q 'Scripts/lab/install-runtime unmanaged-ui' "$CALLS"
+grep -q $'install_runtime_status\tpassed' "$manifest"
+awk -F '\t' 'BEGIN {OFS="\t"} $1 == "install_runtime_status" {$2="mutation-started"} {print}' "$manifest" > "$manifest.tmp"
+mv "$manifest.tmp" "$manifest"
+recovered_runtime=$(run_remote install-runtime cbx_test15)
+assert_contains "$recovered_runtime" $'install_runtime_recovery\tpreflight-only'
+grep -q $'install_runtime_status\tpassed' "$manifest"
+awk -F '\t' 'BEGIN {OFS="\t"} $1 == "install_runtime_status" {$2="mutation-started"} {print}' "$manifest" > "$manifest.tmp"
+mv "$manifest.tmp" "$manifest"
+set +e
+uncertain_runtime=$(KEYPATH_LAB_TEST_MUTATION_EVIDENCE=1 run_remote install-runtime cbx_test15 2>&1)
+uncertain_runtime_exit=$?
+set -e
+[[ $uncertain_runtime_exit -ne 0 ]] || { echo "uncertain prior runtime mutation unexpectedly retried" >&2; exit 1; }
+assert_contains "$uncertain_runtime" 'install-runtime has an uncertain prior mutation'
+grep -q $'install_runtime_status\tmutation-started' "$manifest"
+awk -F '\t' 'BEGIN {OFS="\t"} $1 == "install_runtime_status" {$2="staged"} {print}' "$manifest" > "$manifest.tmp"
+mv "$manifest.tmp" "$manifest"
+set +e
+waiting_runtime=$(KEYPATH_LAB_TEST_INSTALL_RUNTIME_EXIT=4 run_remote install-runtime cbx_test15 2>&1)
+waiting_runtime_exit=$?
+set -e
+[[ $waiting_runtime_exit -eq 4 ]] || { echo "approval wait returned $waiting_runtime_exit instead of 4" >&2; exit 1; }
+grep -q $'install_runtime_status\tawaiting-approval' "$manifest"
+awk -F '\t' 'BEGIN {OFS="\t"} $1 == "install_runtime_status" {$2="passed"} {print}' "$manifest" > "$manifest.tmp"
+mv "$manifest.tmp" "$manifest"
+run_remote scenario cbx_test15 uninstall >/dev/null
+grep -q $'install_runtime_status\tuninstalled' "$manifest"
+install_app_count_before=$(grep -c 'install-app 15 cbx_test15' "$ROOT/KeyPathInstallerLab/logs/cbx_test15/install-app.log")
+run_remote install-runtime cbx_test15 >/dev/null
+install_app_count_after=$(grep -c 'install-app 15 cbx_test15' "$ROOT/KeyPathInstallerLab/logs/cbx_test15/install-app.log")
+[[ $install_app_count_after -eq $((install_app_count_before + 1)) ]] || {
+    echo "reinstall did not stage the app after a successful uninstall" >&2
+    exit 1
+}
+grep -q 'install-runtime-before-reinstall' "$CALLS"
+grep -q $'install_runtime_status\tpassed' "$manifest"
+run_remote install-fixture cbx_test15 >/dev/null
+grep -q 'install-fixture 15 cbx_test15' "$ROOT/KeyPathInstallerLab/logs/cbx_test15/install-fixture.log"
+tart_reboot=$(KEYPATH_LAB_TART_REBOOT_SETTLE_SECONDS=0 KEYPATH_LAB_TART_REBOOT_POLL_SECONDS=0 run_remote reboot-guest cbx_test15)
+assert_contains "$tart_reboot" $'guest_reboot\tpassed'
+assert_contains "$tart_reboot" $'provider\ttart'
+grep -q 'launcher15 run cbx_test15 -- /bin/zsh -lc sudo -n /sbin/shutdown -r now' "$CALLS"
+grep -q $'guest_reboot_at\t' "$manifest"
 
 artifacts=$(run_remote artifacts cbx_test15)
 assert_contains "$artifacts" $'download_status\t0'
@@ -434,6 +610,14 @@ set -e
 assert_contains "$managed_busy_output" $'managed_identity_busy\tactive_lease=cbx_test26'
 assert_contains "$managed_busy_output" $'scope=shared:26262626-2626-2626-2626-262626262626'
 run_remote destroy cbx_test26 >/dev/null
+
+managed_desktop_create=$(run_remote create 26 managed-functional "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
+assert_contains "$managed_desktop_create" $'lease_id\tcbx_desktop26'
+managed_desktop_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_desktop26/manifest.tsv"
+grep -q $'base_name\tkeypath-macos-26-managed' "$managed_desktop_manifest"
+grep -q $'desktop_enabled\ttrue' "$managed_desktop_manifest"
+grep -q -- '--parallels-template keypath-macos-26-managed' "$CALLS"
+run_remote destroy cbx_desktop26 >/dev/null
 
 set +e
 lock_output=$(KEYPATH_LAB_ADMISSION_WAIT_ATTEMPTS=1 run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
@@ -555,8 +739,18 @@ assert_contains "$artifacts26" $'download_status\t0'
 grep -q 'crabbox run --provider parallels --target macos --id cbx_test26 --stop-after never --download' "$CALLS"
 run_remote destroy cbx_test26 >/dev/null
 
+desktop26_create=$(run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
+assert_contains "$desktop26_create" $'lease_id\tcbx_desktop26'
+grep -q -- '--parallels-template keypath-macos-26-desktop' "$CALLS"
+grep -q $'base_name\tkeypath-macos-26-desktop' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop26/manifest.tsv"
+inherited_console26=$(run_remote verify-console-login cbx_desktop26)
+assert_contains "$inherited_console26" $'console_login\tpassed'
+assert_contains "$inherited_console26" $'console_login_method\tinherited-base'
+run_remote destroy cbx_desktop26 >/dev/null
+
 create27=$(run_remote create 27 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)
 assert_contains "$create27" $'lease_id\tcbx_test27'
+grep -q $'base_name\tkeypath-macos-27' "$ROOT/KeyPathInstallerLab/leases/cbx_test27/manifest.tsv"
 artifacts27=$(run_remote artifacts cbx_test27)
 assert_contains "$artifacts27" $'download_status\t0'
 grep -q 'crabbox run --provider parallels --target macos --id cbx_test27 --stop-after never --download' "$CALLS"
@@ -565,6 +759,20 @@ grep -q 'stop-27 cbx_test27' "$CALLS"
 
 desktop27_create=$(run_remote create 27 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
 assert_contains "$desktop27_create" $'lease_id\tcbx_desktop27'
+grep -q -- '--parallels-template keypath-macos-27-desktop' "$CALLS"
+grep -q $'base_name\tkeypath-macos-27-desktop' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
+set +e
+inherited_console_failure=$(KEYPATH_LAB_TEST_CONSOLE_USER_FAIL=1 run_remote verify-console-login cbx_desktop27 2>&1)
+inherited_console_failure_status=$?
+set -e
+[[ $inherited_console_failure_status -ne 0 ]]
+assert_contains "$inherited_console_failure" 'fresh desktop-base clone did not inherit the keypathqa console session'
+grep -q $'console_login_status\tpostcondition-failed' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
+inherited_console=$(run_remote verify-console-login cbx_desktop27)
+assert_contains "$inherited_console" $'console_login\tpassed'
+assert_contains "$inherited_console" $'console_login_method\tinherited-base'
+assert_contains "$inherited_console" $'console_user\tkeypathqa'
+grep -q $'console_login_method\tinherited-base' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
 test_known_hosts="$TMP/known hosts/known_hosts"
 mkdir -p "$(dirname "$test_known_hosts")"
 touch "$test_known_hosts"
@@ -576,15 +784,35 @@ assert_contains "$console_login" $'console_user\tkeypathqa'
 escaped_test_known_hosts=${test_known_hosts// /\\ }
 grep -Fq "UserKnownHostsFile=$escaped_test_known_hosts" "$TMP/guest-ssh-args"
 secure_console_submit=$(KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS=0 KEYPATH_LAB_SECURE_CONSOLE_SETTLE_SECONDS=0 run_remote secure-console-submit cbx_desktop27)
-assert_contains "$secure_console_submit" $'secure_console_submit\tpassed'
-assert_contains "$secure_console_submit" $'credential_transport\tparallels-key-events'
+assert_contains "$secure_console_submit" $'secure_console_submit\tdelivered'
+assert_contains "$secure_console_submit" $'credential_field\treplaced-focused-value'
+assert_contains "$secure_console_submit" $'credential_transport\tparallels-explicit-pairs-paced'
+assert_contains "$secure_console_submit" $'credential_postcondition\tunverified'
 python3 -c 'import json,sys
 codes={"a":38,"b":56,"c":54,"d":40,"e":26,"f":41,"g":42,"h":43,"i":31,"j":44,"k":45,"l":46,"m":58,"n":57,"o":32,"p":33,"q":24,"r":27,"s":39,"t":28,"u":30,"v":55,"w":25,"x":53,"y":29,"z":52,"1":10,"2":11,"3":12,"4":13,"5":14,"6":15,"7":16,"8":17,"9":18,"0":19,"-":20}
 events=[json.loads(line) for line in open(sys.argv[1]) if line.strip()]
-expected=[[{"key":codes[ch]}] for ch in open(sys.argv[2]).read()]
+expected=[
+    [
+        {"key":115,"event":"press","delay":0},
+        {"key":38,"event":"press","delay":0},
+        {"key":38,"event":"release","delay":0},
+        {"key":115,"event":"release","delay":0},
+        {"key":22,"event":"press","delay":0},
+        {"key":22,"event":"release","delay":0},
+    ]
+]
+for ch in open(sys.argv[2]).read():
+    expected.append([{"key":codes[ch],"event":"press","delay":0},{"key":codes[ch],"event":"release","delay":0}])
 assert events == expected' "$TMP/secure-console-key-events.jsonl" "$TMP/secure-input"
 ! grep -Fq 'fixture-password-that-must-not-leak' "$TMP/secure-console-key-events.jsonl"
 grep -q 'prlctl send-key-event 11111111-1111-1111-1111-111111111111 --key 36' "$CALLS"
+console_key=$(run_remote console-key cbx_desktop27 73 37)
+assert_contains "$console_key" $'console_key\tpassed'
+assert_contains "$console_key" $'parallels_key_code\t73'
+assert_contains "$console_key" $'parallels_modifier_code\t37'
+grep -q 'prlctl send-key-event 11111111-1111-1111-1111-111111111111 --key 37 --event press' "$CALLS"
+grep -q 'prlctl send-key-event 11111111-1111-1111-1111-111111111111 --key 73' "$CALLS"
+grep -q 'prlctl send-key-event 11111111-1111-1111-1111-111111111111 --key 37 --event release' "$CALLS"
 if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" "$CALLS" "$TMP/guest-ssh-args"; then
     echo "secure console submit leaked its secret into controller logs or arguments" >&2
     exit 1
@@ -598,7 +826,7 @@ secure_console_rejected_status=$?
 set -e
 mv "$TMP/secure-input.valid" "$TMP/secure-input"
 [[ $secure_console_rejected_status -ne 0 ]] || { echo "unsupported secure console credential unexpectedly passed" >&2; exit 1; }
-assert_contains "$secure_console_rejected" 'failed to deliver the guest credential through Parallels key events'
+assert_contains "$secure_console_rejected" 'failed to encode the guest credential as Parallels key events'
 if tail -n "+$((secure_console_calls_before + 1))" "$CALLS" | grep -q 'send-key-event'; then
     echo "unsupported secure console credential sent a key event" >&2
     exit 1
@@ -693,7 +921,7 @@ assert_contains "$invalid_resource_output" 'invalid Parallels resource id'
 [[ $(grep -c '^prlctl capture ' "$CALLS") -eq $prlctl_calls_before ]]
 run_remote destroy cbx_desktop26 >/dev/null
 
-desktop_create=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
+desktop_create=$(run_remote create 15 managed-functional "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
 assert_contains "$desktop_create" $'lease_id\tcbx_desktop15'
 grep -q $'status\tprovisioning' "$ROOT/KeyPathInstallerLab/leases/cbx_stale/manifest.tsv"
 run_remote destroy cbx_stale >/dev/null
@@ -764,21 +992,34 @@ if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" 
 fi
 secure_agent_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent AXSecureTextField Allow 0)
 assert_contains "$secure_agent_result" $'secure_dialog_input\tpassed'
-grep -q 'keypath-secure-input' "$TMP/guest-ssh-args"
-grep -q 'button.*position.*size' "$TMP/guest-ssh-args"
-grep -q 'peekaboo.*click.*--coords.*button_coords.*--global-coords' "$TMP/guest-ssh-args"
-grep -q -- '--foreground.*--input-strategy.*synthOnly' "$TMP/guest-ssh-args"
-grep -q 'SecurityAgent.*closed' "$TMP/guest-ssh-args"
-if grep -q '/usr/bin/sudo\|pbcopy\|the\\ clipboard' "$TMP/guest-ssh-args"; then
+assert_contains "$secure_agent_result" $'secure_dialog_focus_transport\taccessibility-and-native-pointer'
+assert_contains "$secure_agent_result" $'secure_dialog_submit_transport\tnative-pointer'
+grep -Fq 'field.focused' "$TMP/guest-ssh-calls"
+grep -Fq 'button.position' "$TMP/guest-ssh-calls"
+grep -Fq 'closed' "$TMP/guest-ssh-calls"
+grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 400 --y 300' "$CALLS"
+grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 400 --y 220' "$CALLS"
+grep -Fq 'fileHandleWithStandardInput' "$TMP/guest-ssh-calls"
+cmp -s "$TMP/secure-input" "$TMP/system-settings-secure-stdin"
+if grep -q -- '--text' "$CALLS" || grep -q '/usr/bin/sudo\|pbcopy\|the\\ clipboard' "$TMP/guest-ssh-calls"; then
     echo "SecurityAgent secure input used an unsafe password path" >&2
     exit 1
 fi
+secure_agent_fallback=$(KEYPATH_LAB_TEST_CRABBOX_CLICK_FAIL=1 run_remote secure-dialog-input cbx_desktop15 SecurityAgent AXSecureTextField Enroll 0)
+assert_contains "$secure_agent_fallback" $'secure_dialog_input\tpassed'
+assert_contains "$secure_agent_fallback" $'secure_dialog_focus_transport\taccessibility-only'
+assert_contains "$secure_agent_fallback" $'secure_dialog_submit_transport\taccessibility-press-fallback'
+grep -Fq 'AXPress' "$TMP/guest-ssh-calls"
 secure_settings_result=$(run_remote secure-dialog-input cbx_desktop15 'System Settings' AXSecureTextField 'Modify Settings' 0)
 assert_contains "$secure_settings_result" $'secure_dialog_input\tpassed'
-grep -q 'processes.byName.*appName' "$TMP/guest-ssh-args"
-grep -q 'System.*Settings.*Modify.*Settings' "$TMP/guest-ssh-args"
-grep -q 'AXSecureTextField' "$TMP/guest-ssh-args"
-grep -q 'return.*open.*closed' "$TMP/guest-ssh-args"
+grep -q 'System.*Settings.*Modify.*Settings' "$TMP/guest-ssh-calls"
+grep -q 'AXSecureTextField' "$TMP/guest-ssh-calls"
+grep -q 'fileHandleWithStandardInput' "$TMP/guest-ssh-calls"
+cmp -s "$TMP/secure-input" "$TMP/system-settings-secure-stdin"
+if grep -Fq 'fixture-password-that-must-not-leak' "$TMP/guest-ssh-calls"; then
+    echo "System Settings secure input leaked its secret into guest arguments" >&2
+    exit 1
+fi
 secure_focused_result=$(run_remote secure-dialog-input cbx_desktop15 SecurityAgent Password '' 1)
 assert_contains "$secure_focused_result" $'secure_dialog_input\tpassed'
 if grep -q 'peekaboo.*see\|peekaboo.*click' "$TMP/guest-ssh-args"; then
@@ -800,9 +1041,29 @@ protected_wrong_page_exit=$?
 set -e
 [[ $protected_wrong_page_exit -ne 0 ]] || { echo "protected click accepted the wrong destination page" >&2; exit 1; }
 assert_contains "$protected_wrong_page" "protected click postcondition failed"
+set +e
+protected_occluded=$(KEYPATH_LAB_TEST_OCCLUSION='NotificationCenter:700,0,324,140' KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility native 804 120 2>&1)
+protected_occluded_exit=$?
+set -e
+[[ $protected_occluded_exit -ne 0 ]] || { echo "protected click accepted a notification-occluded target" >&2; exit 1; }
+assert_contains "$protected_occluded" "protected click target is occluded by a notification"
+set +e
+protected_background=$(KEYPATH_LAB_TEST_FRONTMOST_BEFORE=false KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility native 402 247 2>&1)
+protected_background_exit=$?
+set -e
+[[ $protected_background_exit -ne 0 ]] || { echo "protected click accepted a background application" >&2; exit 1; }
+assert_contains "$protected_background" "is not frontmost"
 protected_ax_result=$(KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote protected-click cbx_desktop15 'System Settings' Accessibility Accessibility ax 402 247)
 assert_contains "$protected_ax_result" $'display_scale\t2'
 grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 804 --y 494' "$CALLS"
+approval_result=$(KEYPATH_LAB_PROTECTED_CLICK_SETTLE_SECONDS=0 run_remote approve-input-monitoring cbx_desktop15)
+assert_contains "$approval_result" $'input_monitoring_row\tKanata Engine\tenabled'
+assert_contains "$approval_result" $'input_monitoring_row\tkanata-launcher\tenabled'
+assert_contains "$approval_result" $'input_monitoring_row\tKeyPath\tenabled'
+assert_contains "$approval_result" $'approve_input_monitoring\tpassed'
+grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 804 --y 494' "$CALLS"
+grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 804 --y 578' "$CALLS"
+grep -q 'crabbox desktop click --provider tart --target macos --id test-resource --x 804 --y 662' "$CALLS"
 run_remote desktop-type cbx_desktop15 q >/dev/null
 grep -q 'crabbox desktop type --provider tart --target macos --id test-resource --text q' "$CALLS"
 run_remote destroy cbx_desktop15 >/dev/null
@@ -840,16 +1101,48 @@ run_remote cleanup >/dev/null
 mkdir -p "$TMP/fake-bin"
 cat > "$TMP/fake-bin/ssh" <<EOF
 #!/bin/bash
-echo "\$*" > "$TMP/ssh-args"
+echo "\$*" >> "$TMP/ssh-args"
 cat >/dev/null
-echo controller-preflight
+case "\$*" in
+  *prepare-upload*) echo /tmp/keypath-lab.test-upload ;;
+  *install-archive*) echo archive-installed ;;
+  *" create "*) echo \$'lease_id\tcbx_controller_test' ;;
+  *" artifacts "*) echo \$'artifact_dir\t/Volumes/KeyPath Lab/CrabBox/KeyPathInstallerLab/artifacts/cbx_controller_test/20260725T000000Z' ;;
+  *) echo controller-preflight ;;
+esac
 EOF
-chmod +x "$TMP/fake-bin/ssh"
+cat > "$TMP/fake-bin/scp" <<EOF
+#!/bin/bash
+echo "\$*" >> "$TMP/scp-args"
+exit 0
+EOF
+chmod +x "$TMP/fake-bin/ssh" "$TMP/fake-bin/scp"
 controller=$(PATH="$TMP/fake-bin:$PATH" KEYPATH_LAB_HOST=tester@test-host "$LAB_DIR/keypath-lab" preflight)
 assert_contains "$controller" controller-preflight
 grep -q 'tester@test-host' "$TMP/ssh-args"
 
 echo fake-installer > "$TMP/KeyPath.zip"
+echo older-installer > "$TMP/KeyPath-beta3.zip"
+controller_commit=$(git -C "$LAB_DIR/../.." rev-parse HEAD)
+controller_installer_sha=$(shasum -a 256 "$TMP/KeyPath.zip" | awk '{print $1}')
+controller_fixture_sha=$(shasum -a 256 "$TMP/KeyPath-beta3.zip" | awk '{print $1}')
+controller_archive_key="${controller_commit}-${controller_installer_sha}-h${controller_commit}-${controller_fixture_sha}"
+controller_create=$(PATH="$TMP/fake-bin:$PATH" KEYPATH_LAB_HOST=tester@test-host KEYPATH_LAB_ALLOW_DIRTY_HARNESS=1 "$LAB_DIR/keypath-lab" create \
+    --macos 15 \
+    --lane unmanaged-ui \
+    --commit "$controller_commit" \
+    --installer "$TMP/KeyPath.zip" \
+    --fixture "$TMP/KeyPath-beta3.zip")
+assert_contains "$controller_create" $'lease_id\tcbx_controller_test'
+grep -Fq "$controller_archive_key" "$TMP/ssh-args" || {
+    echo "controller archive key did not include harness commit and fixture checksum" >&2
+    exit 1
+}
+controller_artifacts=$(PATH="$TMP/fake-bin:$PATH" KEYPATH_LAB_HOST=tester@test-host "$LAB_DIR/keypath-lab" artifacts \
+    cbx_controller_test --output "$TMP/controller-artifacts")
+assert_contains "$controller_artifacts" $'local_artifact_dir\t'
+[[ -d "$TMP/controller-artifacts" ]]
+grep -Fq 'tester@test-host:/Volumes/KeyPath Lab/CrabBox/KeyPathInstallerLab/artifacts/cbx_controller_test/20260725T000000Z/.' "$TMP/scp-args"
 if PATH="$TMP/fake-bin:$PATH" "$LAB_DIR/keypath-lab" create --macos 15 --lane unmanaged-ui --commit abc --installer "$TMP/KeyPath.zip" >/dev/null 2>&1; then
     echo "controller accepted a non-explicit commit SHA" >&2
     exit 1

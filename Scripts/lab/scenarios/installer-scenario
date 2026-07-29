@@ -28,6 +28,71 @@ record_system() {
 installed_cli="/Applications/KeyPath.app/Contents/MacOS/keypath-cli"
 record_system
 
+assert_ready() {
+  if [[ "$lane" == "managed-functional" ]]; then
+    Scripts/lab/assert-runtime-state ready \
+      --managed-policy-manifest /Library/KeyPathLab/managed-policy/manifest.json
+  else
+    Scripts/lab/assert-runtime-state ready
+  fi
+}
+
+wait_for_runtime_ready() {
+  local ready_output=$1 attempts_output=$2 diagnostics_output=$3
+  local timeout=${KEYPATH_LAB_REBOOT_READY_TIMEOUT_SECONDS:-60}
+  local interval=${KEYPATH_LAB_REBOOT_READY_INTERVAL_SECONDS:-2}
+  local started=$SECONDS attempt=0 elapsed=0 attempt_stderr
+  [[ "$timeout" == <-> && "$timeout" -gt 0 ]] || {
+    print -u2 "invalid reboot readiness timeout: $timeout"
+    return 2
+  }
+  [[ "$interval" == <-> && "$interval" -gt 0 ]] || {
+    print -u2 "invalid reboot readiness interval: $interval"
+    return 2
+  }
+  attempt_stderr="$artifact_dir/ready-attempt.stderr"
+  : > "$attempts_output"
+  : > "$diagnostics_output"
+  while true; do
+    (( attempt += 1 ))
+    if assert_ready > "$ready_output" 2> "$attempt_stderr"; then
+      elapsed=$(( SECONDS - started ))
+      print "attempt\t$attempt\telapsed_seconds\t$elapsed\tstatus\tpassed" >> "$attempts_output"
+      [[ ! -s "$attempt_stderr" ]] || cat "$attempt_stderr" >> "$diagnostics_output"
+      rm -f "$attempt_stderr"
+      return 0
+    fi
+    elapsed=$(( SECONDS - started ))
+    print "attempt\t$attempt\telapsed_seconds\t$elapsed\tstatus\twarming" >> "$attempts_output"
+    {
+      print "attempt=$attempt elapsed_seconds=$elapsed"
+      cat "$attempt_stderr"
+    } >> "$diagnostics_output"
+    if (( elapsed >= timeout )); then
+      rm -f "$attempt_stderr"
+      return 1
+    fi
+    sleep "$interval"
+  done
+}
+
+record_scenario_result() {
+  local scenario_status=$1 summary=$2
+  shift 2
+  "$result_tool" record --output "$artifact_dir/result.json" --scenario "$name" \
+    --status "$scenario_status" --summary "$summary" "$@"
+}
+
+capture_app_identity() {
+  local output=$1 app=/Applications/KeyPath.app
+  {
+    /usr/bin/defaults read "$app/Contents/Info" CFBundleIdentifier
+    /usr/bin/defaults read "$app/Contents/Info" CFBundleShortVersionString
+    /usr/bin/codesign -dv --verbose=4 "$app" 2>&1 | \
+      /usr/bin/awk -F= '/^(Identifier|TeamIdentifier|CDHash)=/ { print }'
+  } > "$output"
+}
+
 case "$name" in
   clean-install)
     find "$installer_dir" -maxdepth 1 -type f -print > "$artifact_dir/installer-files.txt"
@@ -42,6 +107,11 @@ case "$name" in
     require_installed_cli
     "$installed_cli" system inspect --json | tee "$artifact_dir/system-inspect.json"
     Scripts/lab/probe-kanata-tcp 2> "$artifact_dir/tcp-readiness.stderr" | tee "$artifact_dir/tcp-readiness.json"
+    assert_ready | tee "$artifact_dir/ready.tsv"
+    record_scenario_result passed \
+      "The installed helper, managed services, Kanata process, and TCP control plane are independently healthy." \
+      --evidence system-inspect.json --evidence tcp-readiness.json \
+      --evidence tcp-readiness.stderr --evidence ready.tsv
     ;;
   managed-capabilities)
     if [[ "$lane" != "managed-functional" ]]; then
@@ -52,36 +122,318 @@ case "$name" in
       exit 4
     fi
     require_installed_cli
-    Scripts/lab/mdm/probe-managed-capabilities --output "$artifact_dir"
+    Scripts/lab/mdm/probe-managed-capabilities --output "$artifact_dir" \
+      --managed-policy-manifest /Library/KeyPathLab/managed-policy/manifest.json
+    record_scenario_result passed \
+      "The managed macOS runtime exposed every required KeyPath capability, policy assertion, system extension, launchd service, and TCP control-plane check." \
+      --evidence service-status.json --evidence managed-policy-verification.tsv \
+      --evidence system-extensions.txt --evidence kanata-launchd.txt \
+      --evidence tcp-readiness.json --evidence result.tsv
     ;;
   launch)
     open -a KeyPath
     sleep 3
     pgrep -fl '/Applications/KeyPath.app/Contents/MacOS/KeyPath' | tee "$artifact_dir/processes.txt"
+    /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
+    capture_app_identity "$artifact_dir/app-identity.txt"
+    record_scenario_result passed \
+      "The exact signed KeyPath application launched and remained running in the disposable guest." \
+      --evidence processes.txt --evidence app-identity.txt
     ;;
   repair-reinstall)
     require_installed_cli
     "$installed_cli" system repair --json | tee "$artifact_dir/repair.json"
     "$installed_cli" system inspect --json | tee "$artifact_dir/post-repair.json"
     ;;
+  repair-kanata-service)
+    require_installed_cli
+    state="$artifact_dir/run-state.json"
+    runner_result="$artifact_dir/runner-result.json"
+    plan="$PWD/Scripts/lab/scenarios/plans/repair-kanata-service.json"
+    if [[ ! -f "$state" ]]; then
+      assert_ready | tee "$artifact_dir/pre-damage-ready.tsv"
+      "$installed_cli" service status --json > "$artifact_dir/pre-damage-status.json"
+      Scripts/lab/damage-kanata-service | tee "$artifact_dir/damage.tsv"
+      "$installed_cli" service status --json > "$artifact_dir/damaged-status.json" || true
+      Scripts/lab/assert-runtime-state degraded | tee "$artifact_dir/damaged-state.tsv"
+    fi
+    Scripts/lab/scenario-runner --plan "$plan" --state "$state" --result "$runner_result"
+    "$installed_cli" service status --json > "$artifact_dir/post-repair-status.json"
+    assert_ready | tee "$artifact_dir/post-repair-ready.tsv"
+    record_scenario_result passed \
+      "A deliberate Kanata service failure was detected and repaired once to an independently ready runtime." \
+      --evidence pre-damage-ready.tsv --evidence pre-damage-status.json \
+      --evidence damage.tsv --evidence damaged-status.json --evidence damaged-state.tsv \
+      --evidence run-state.json \
+      --evidence post-repair-status.json --evidence post-repair-ready.tsv
+    ;;
+  upgrade-beta3-to-current)
+    plan="$PWD/Scripts/lab/scenarios/plans/upgrade-beta3-to-current.json"
+    state="$artifact_dir/run-state.json"
+    result="$artifact_dir/result.json"
+    Scripts/lab/scenario-runner --plan "$plan" --state "$state" --result "$result"
+    Scripts/lab/assert-app-version 1.0.0 | tee "$artifact_dir/final-version.tsv"
+    /usr/bin/codesign -dvvv /Applications/KeyPath.app > "$artifact_dir/final-signature.txt" 2>&1
+    ;;
+  upgrade-beta3-before)
+    Scripts/lab/assert-app-version 1.0.0-beta3 | tee "$artifact_dir/beta-version.tsv"
+    /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
+    capture_app_identity "$artifact_dir/beta-app-identity.txt"
+    record_scenario_result passed \
+      "The signed beta-3 fixture is installed before the controller-owned upgrade." \
+      --evidence beta-version.tsv --evidence beta-app-identity.txt
+    ;;
+  upgrade-beta3-after)
+    require_installed_cli
+    Scripts/lab/assert-app-version 1.0.0 | tee "$artifact_dir/current-version.tsv"
+    /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
+    capture_app_identity "$artifact_dir/current-app-identity.txt"
+    "$installed_cli" system inspect --json > "$artifact_dir/current-inspect.json"
+    install_state="$PWD/.keypath-lab/scenario-output/install-runtime/state.tsv"
+    install_boundary="$PWD/.keypath-lab/scenario-output/install-runtime/assert-state.json"
+    install_status=$(/usr/bin/awk -F '\t' '$1 == "status" {value=$2} END {print value}' "$install_state")
+    if [[ "$install_status" == "environment-limited-no-input-device" ]]; then
+      [[ -s "$install_boundary" ]] || {
+        record_scenario_result failed \
+          "The no-input upgrade boundary lacked its independent controller evidence." \
+          --classification harness-transport-failure --step no-input-boundary
+        exit 1
+      }
+      /bin/cp "$install_boundary" "$artifact_dir/install-boundary.json"
+      record_scenario_result passed \
+        "The exact current artifact upgraded beta-3 with preserved identity; runtime startup reached the independently proven Parallels no-input-device boundary." \
+        --evidence current-version.tsv --evidence current-app-identity.txt \
+        --evidence current-inspect.json --evidence install-boundary.json
+    else
+      assert_ready | tee "$artifact_dir/current-ready.tsv"
+      record_scenario_result passed \
+        "The exact current artifact upgraded beta-3 and converged to an independently ready runtime." \
+        --evidence current-version.tsv --evidence current-app-identity.txt \
+        --evidence current-ready.tsv --evidence current-inspect.json
+    fi
+    ;;
   reboot-persistence-before)
     require_installed_cli
+    if ! assert_ready | tee "$artifact_dir/ready.tsv"; then
+      record_scenario_result blocked \
+        "Reboot persistence requires an independently ready runtime baseline." \
+        --classification environment-precondition-failure --step pre-reboot-ready
+      exit 4
+    fi
+    "$installed_cli" service status --json > "$artifact_dir/service-status.json"
     "$installed_cli" system inspect --json > "$artifact_dir/before-reboot.json"
+    /usr/sbin/sysctl -n kern.boottime > "$artifact_dir/boot-time.txt"
+    /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
+    capture_app_identity "$artifact_dir/app-identity.txt"
+    record_scenario_result passed \
+      "Independent runtime, app identity, and boot marker captured before reboot." \
+      --evidence ready.tsv --evidence service-status.json \
+      --evidence before-reboot.json --evidence boot-time.txt \
+      --evidence app-identity.txt
     print "Run the host-approved guest reboot, then execute reboot-persistence-after on the same lease."
     ;;
   reboot-persistence-after)
     require_installed_cli
+    before_dir="$PWD/.keypath-lab/scenario-output/reboot-persistence-before"
+    if [[ ! -s "$before_dir/boot-time.txt" || ! -s "$before_dir/app-identity.txt" ]]; then
+      record_scenario_result blocked \
+        "The same lease must pass reboot-persistence-before before the post-reboot check." \
+        --classification environment-precondition-failure --step pre-reboot-evidence
+      exit 4
+    fi
+    /usr/sbin/sysctl -n kern.boottime > "$artifact_dir/boot-time.txt"
+    if /usr/bin/cmp -s "$before_dir/boot-time.txt" "$artifact_dir/boot-time.txt"; then
+      record_scenario_result blocked \
+        "The boot marker did not change; no guest reboot was proven." \
+        --classification environment-precondition-failure --step host-reboot
+      exit 4
+    fi
+    /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
+    capture_app_identity "$artifact_dir/app-identity.txt"
+    if ! /usr/bin/cmp -s "$before_dir/app-identity.txt" "$artifact_dir/app-identity.txt"; then
+      record_scenario_result failed \
+        "KeyPath app identity changed across the guest reboot." \
+        --classification keypath-product-failure --step app-identity-persistence \
+        --evidence app-identity.txt
+      exit 1
+    fi
+    if ! wait_for_runtime_ready \
+      "$artifact_dir/ready.tsv" \
+      "$artifact_dir/ready-attempts.tsv" \
+      "$artifact_dir/ready-attempts.log"; then
+      record_scenario_result failed \
+        "The independently ready KeyPath runtime did not converge after the bounded reboot recovery window." \
+        --classification keypath-product-failure --step post-reboot-ready \
+        --evidence ready.tsv --evidence ready-attempts.tsv \
+        --evidence ready-attempts.log
+      exit 1
+    fi
+    "$installed_cli" service status --json > "$artifact_dir/service-status.json"
     "$installed_cli" system inspect --json | tee "$artifact_dir/after-reboot.json"
     Scripts/lab/probe-kanata-tcp 2> "$artifact_dir/tcp-readiness.stderr" | tee "$artifact_dir/tcp-readiness.json"
+    record_scenario_result passed \
+      "App identity and independently ready runtime persisted across a proven guest reboot." \
+      --evidence boot-time.txt --evidence app-identity.txt \
+      --evidence ready.tsv --evidence ready-attempts.tsv \
+      --evidence ready-attempts.log --evidence service-status.json \
+      --evidence after-reboot.json --evidence tcp-readiness.json
     ;;
   uninstall)
     require_installed_cli
+    if ! assert_ready | tee "$artifact_dir/pre-uninstall-ready.tsv"; then
+      record_scenario_result blocked \
+        "Uninstall requires an independently ready runtime baseline." \
+        --classification environment-precondition-failure --step pre-uninstall-ready
+      exit 4
+    fi
+    "$installed_cli" service status --json > "$artifact_dir/pre-uninstall-status.json"
+    capture_app_identity "$artifact_dir/pre-uninstall-app-identity.txt"
+    config_sentinel="$HOME/.config/keypath/.keypath-lab-preserve"
+    mkdir -p "${config_sentinel:h}"
+    print -n 'keypath-lab-preserve-v1' > "$config_sentinel"
+    /usr/bin/shasum -a 256 "$config_sentinel" > "$artifact_dir/config-sentinel.sha256"
+    expected_config_sha=$(/usr/bin/awk '{print $1}' "$artifact_dir/config-sentinel.sha256")
     "$installed_cli" system uninstall --json | tee "$artifact_dir/uninstall.json"
-    test ! -e /Applications/KeyPath.app
+    Scripts/lab/assert-uninstalled-state \
+      --preserved-config "$config_sentinel" \
+      --expected-sha256 "$expected_config_sha" | tee "$artifact_dir/uninstalled-state.tsv"
+    record_scenario_result passed \
+      "KeyPath-owned app, helper, services, and transient user state were removed while configuration and the shared VirtualHID driver were preserved." \
+      --evidence pre-uninstall-ready.tsv --evidence pre-uninstall-status.json \
+      --evidence pre-uninstall-app-identity.txt --evidence uninstall.json \
+      --evidence config-sentinel.sha256 --evidence uninstalled-state.tsv
     ;;
-  cancellation-failure)
-    print "Use a disposable lease to cancel one approval flow and inject one non-destructive failure."
-    print "Record the visible recovery action, CLI result, and KeyPath logs; do not corrupt the base image."
+  reinstall)
+    uninstall_dir="$PWD/.keypath-lab/scenario-output/uninstall"
+    uninstall_result="$uninstall_dir/result.json"
+    if [[ ! -s "$uninstall_result" ]] || \
+       ! /usr/bin/python3 -c 'import json,sys; raise SystemExit(0 if json.load(open(sys.argv[1])).get("status") == "passed" else 1)' "$uninstall_result"; then
+      record_scenario_result blocked \
+        "Reinstall requires a passed M05 uninstall result from this same lease." \
+        --classification environment-precondition-failure --step same-lease-uninstall
+      exit 4
+    fi
+    require_installed_cli
+    /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
+    capture_app_identity "$artifact_dir/reinstalled-app-identity.txt"
+    config_sentinel="$HOME/.config/keypath/.keypath-lab-preserve"
+    expected_config_sha=$(/usr/bin/awk '{print $1}' "$uninstall_dir/config-sentinel.sha256")
+    actual_config_sha=$(/usr/bin/shasum -a 256 "$config_sentinel" | /usr/bin/awk '{print $1}')
+    if [[ "$actual_config_sha" != "$expected_config_sha" ]]; then
+      record_scenario_result failed \
+        "Preserved configuration did not survive the reinstall boundary." \
+        --classification keypath-product-failure --step configuration-preservation \
+        --evidence reinstalled-app-identity.txt
+      exit 1
+    fi
+    state="$artifact_dir/run-state.json"
+    result="$artifact_dir/runner-result.json"
+    plan="$PWD/Scripts/lab/scenarios/plans/reinstall-runtime.json"
+    Scripts/lab/scenario-runner --plan "$plan" --state "$state" --result "$result"
+    "$installed_cli" service status --json > "$artifact_dir/post-reinstall-status.json"
+    assert_ready | tee "$artifact_dir/post-reinstall-ready.tsv"
+    record_scenario_result passed \
+      "The exact candidate reinstalled after verified uninstall and converged once to an independently ready runtime without changing preserved configuration." \
+      --evidence reinstalled-app-identity.txt --evidence run-state.json \
+      --evidence post-reinstall-status.json --evidence post-reinstall-ready.tsv
+    ;;
+  cancellation-recovery-before)
+    require_installed_cli
+    if ! assert_ready | tee "$artifact_dir/ready.tsv"; then
+      record_scenario_result blocked \
+        "Cancellation recovery requires an independently ready runtime baseline." \
+        --classification environment-precondition-failure --step pre-cancellation-ready
+      exit 4
+    fi
+    "$installed_cli" service status --json > "$artifact_dir/service-status.json"
+    "$installed_cli" system inspect --json > "$artifact_dir/system-inspect.json"
+    /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
+    capture_app_identity "$artifact_dir/app-identity.txt"
+    /usr/bin/open -a KeyPath
+    gui_ready=0
+    for _ in {1..40}; do
+      if /usr/bin/pgrep -x KeyPath > "$artifact_dir/keypath-pid.txt"; then
+        gui_ready=1
+        break
+      fi
+      sleep 0.25
+    done
+    if (( gui_ready == 0 )); then
+      record_scenario_result failed \
+        "The installed KeyPath GUI did not launch for the cancellation checkpoint." \
+        --classification keypath-product-failure --step cancellation-gui-launch \
+        --evidence ready.tsv --evidence app-identity.txt
+      exit 1
+    fi
+    config_sentinel="$HOME/.config/keypath/.keypath-lab-preserve"
+    if [[ ! -f "$config_sentinel" ]]; then
+      mkdir -p "${config_sentinel:h}"
+      print -n 'keypath-lab-preserve-v1' > "$config_sentinel"
+    fi
+    /usr/bin/shasum -a 256 "$config_sentinel" > "$artifact_dir/config-sentinel.sha256"
+    record_scenario_result passed \
+      "Ready runtime, running GUI, app identity, and preserved configuration captured before the operator cancellation checkpoint." \
+      --evidence ready.tsv --evidence service-status.json \
+      --evidence system-inspect.json --evidence app-identity.txt \
+      --evidence keypath-pid.txt --evidence config-sentinel.sha256
+    print "Open KeyPath's real uninstall confirmation, capture it, click Cancel through the lease-owned desktop, then run cancellation-recovery-after."
+    ;;
+  cancellation-recovery-after)
+    before_dir="$PWD/.keypath-lab/scenario-output/cancellation-recovery-before"
+    before_result="$before_dir/result.json"
+    if [[ ! -s "$before_result" ]] || \
+       ! /usr/bin/python3 -c 'import json,sys; raise SystemExit(0 if json.load(open(sys.argv[1])).get("status") == "passed" else 1)' "$before_result"; then
+      record_scenario_result blocked \
+        "The same lease must pass cancellation-recovery-before before post-cancellation verification." \
+        --classification environment-precondition-failure --step cancellation-checkpoint
+      exit 4
+    fi
+    require_installed_cli
+    /usr/bin/codesign --verify --deep --strict /Applications/KeyPath.app
+    capture_app_identity "$artifact_dir/app-identity.txt"
+    if ! /usr/bin/cmp -s "$before_dir/app-identity.txt" "$artifact_dir/app-identity.txt"; then
+      record_scenario_result failed \
+        "KeyPath app identity changed across the cancellation checkpoint." \
+        --classification keypath-product-failure --step cancellation-preserved-app \
+        --evidence app-identity.txt
+      exit 1
+    fi
+    /usr/bin/pgrep -x KeyPath > "$artifact_dir/keypath-pid.txt"
+    config_sentinel="$HOME/.config/keypath/.keypath-lab-preserve"
+    expected_config_sha=$(/usr/bin/awk '{print $1}' "$before_dir/config-sentinel.sha256")
+    actual_config_sha=$(/usr/bin/shasum -a 256 "$config_sentinel" | /usr/bin/awk '{print $1}')
+    if [[ "$actual_config_sha" != "$expected_config_sha" ]]; then
+      record_scenario_result failed \
+        "Preserved configuration changed across the cancellation checkpoint." \
+        --classification keypath-product-failure --step cancellation-preserved-configuration
+      exit 1
+    fi
+    assert_ready | tee "$artifact_dir/post-cancel-ready.tsv"
+    "$installed_cli" service status --json > "$artifact_dir/post-cancel-status.json"
+    Scripts/lab/damage-kanata-service | tee "$artifact_dir/damage.tsv"
+    "$installed_cli" service status --json > "$artifact_dir/damaged-status.json" || true
+    Scripts/lab/assert-runtime-state degraded | tee "$artifact_dir/damaged-state.tsv"
+    state="$artifact_dir/run-state.json"
+    runner_result="$artifact_dir/runner-result.json"
+    plan="$PWD/Scripts/lab/scenarios/plans/repair-kanata-service.json"
+    Scripts/lab/scenario-runner --plan "$plan" --state "$state" --result "$runner_result"
+    "$installed_cli" service status --json > "$artifact_dir/post-repair-status.json"
+    assert_ready | tee "$artifact_dir/post-repair-ready.tsv"
+    Scripts/lab/probe-kanata-tcp 2> "$artifact_dir/tcp-readiness.stderr" | tee "$artifact_dir/tcp-readiness.json"
+    final_config_sha=$(/usr/bin/shasum -a 256 "$config_sentinel" | /usr/bin/awk '{print $1}')
+    if [[ "$final_config_sha" != "$expected_config_sha" ]]; then
+      record_scenario_result failed \
+        "Preserved configuration changed during recovery." \
+        --classification keypath-product-failure --step recovery-preserved-configuration
+      exit 1
+    fi
+    record_scenario_result passed \
+      "The real uninstall confirmation was cancelled without changing the app or configuration, then a non-destructive Kanata failure recovered once to an independently ready runtime." \
+      --evidence app-identity.txt --evidence keypath-pid.txt \
+      --evidence post-cancel-ready.tsv --evidence post-cancel-status.json \
+      --evidence damage.tsv --evidence damaged-state.tsv \
+      --evidence run-state.json --evidence post-repair-status.json \
+      --evidence post-repair-ready.tsv --evidence tcp-readiness.json
     ;;
   failure-ownership-self-test)
     "$result_tool" selector-self-test --output "$artifact_dir/result.json" --scenario "$name"
@@ -92,6 +444,12 @@ case "$name" in
     "$installed_cli" system inspect --json > "$artifact_dir/system-inspect.json" 2>/dev/null || true
     print "Scenario artifacts written to $artifact_dir; follow with keypath-lab artifacts <lease-id>."
     ;;
+  macos-26-selector-scenario)
+    Scripts/lab/macos-26-selector-scenario --output "$artifact_dir"
+    ;;
+  macos-27-selector-scenario)
+    Scripts/lab/macos-27-selector-scenario --output "$artifact_dir"
+    ;;
   macos-27-regression)
     require_installed_cli
     product_major=$(sw_vers -productVersion | cut -d. -f1)
@@ -101,7 +459,7 @@ case "$name" in
     ;;
   *)
     print -u2 "Unknown scenario: $name"
-    print -u2 "Available: clean-install approvals helper-daemon-health managed-capabilities launch repair-reinstall reboot-persistence-before reboot-persistence-after uninstall cancellation-failure failure-ownership-self-test artifact-capture macos-27-regression"
+    print -u2 "Available: clean-install approvals helper-daemon-health managed-capabilities launch repair-reinstall repair-kanata-service upgrade-beta3-to-current upgrade-beta3-before upgrade-beta3-after reboot-persistence-before reboot-persistence-after uninstall reinstall cancellation-recovery-before cancellation-recovery-after failure-ownership-self-test artifact-capture macos-26-selector-scenario macos-27-selector-scenario macos-27-regression"
     exit 2
     ;;
 esac

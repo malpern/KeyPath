@@ -257,6 +257,8 @@ final class CLIOutputContractTests: XCTestCase {
             canAutoFix: true
         )
         let result = CLIInspectResult(
+            planID: "plan-test",
+            snapshotID: "snapshot-test",
             macOSVersion: "26.5.0",
             driverCompatible: true,
             planStatus: "ready",
@@ -276,7 +278,7 @@ final class CLIOutputContractTests: XCTestCase {
         let keys = try jsonKeys(result)
         let required: Set = [
             "driverCompatible", "issues", "isOperational", "macOSVersion", "planIntent",
-            "planStatus", "plannedRecipes", "promptsNeeded", "stateMatrixPlan",
+            "planID", "planStatus", "plannedRecipes", "promptsNeeded", "snapshotID", "stateMatrixPlan",
             "stateMatrixRow", "userActionRequired",
         ]
         XCTAssertTrue(required.isSubset(of: keys), "Missing required keys: \(required.subtracting(keys))")
@@ -285,6 +287,8 @@ final class CLIOutputContractTests: XCTestCase {
         let decoded = try decoder.decode(CLIInspectResult.self, from: data)
         XCTAssertEqual(decoded.stateMatrixRow, InstallerStateMatrixRow.helperMissing.rawValue)
         XCTAssertEqual(decoded.stateMatrixPlan, [InstallerStateMatrixAction.installHelper.rawValue])
+        XCTAssertEqual(decoded.planID, "plan-test")
+        XCTAssertEqual(decoded.snapshotID, "snapshot-test")
     }
 
     func testPermissionIssuesPreserveTriModeSemantics() {

@@ -261,6 +261,8 @@ public struct CLIRepairTelemetryEvent: Codable, Sendable {
 }
 
 public struct CLIInspectResult: Codable, Sendable {
+    public let planID: String?
+    public let snapshotID: String?
     public let macOSVersion: String
     public let driverCompatible: Bool
     public let planStatus: String
@@ -275,6 +277,8 @@ public struct CLIInspectResult: Codable, Sendable {
     public let stateMatrixPlan: [String]?
 
     public init(
+        planID: String? = nil,
+        snapshotID: String? = nil,
         macOSVersion: String,
         driverCompatible: Bool,
         planStatus: String,
@@ -288,6 +292,8 @@ public struct CLIInspectResult: Codable, Sendable {
         stateMatrixRow: String? = nil,
         stateMatrixPlan: [String]? = nil
     ) {
+        self.planID = planID
+        self.snapshotID = snapshotID
         self.macOSVersion = macOSVersion
         self.driverCompatible = driverCompatible
         self.planStatus = planStatus

@@ -80,6 +80,7 @@ run-tests-automated.sh
 .tmp/
 output/
 test-results/
+.keypath-lab/
 
 # Generated coverage reports (produced in CI; never commit)
 coverage/

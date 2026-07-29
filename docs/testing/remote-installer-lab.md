@@ -73,10 +73,20 @@ that host resources and provider inventory remain isolated.
 
 ## Lifecycle
 
-Creation never syncs the current worktree. It exports the explicit commit with
-`git archive`, adds the installer and source metadata, uploads that immutable
-payload, and atomically initializes a clean synthetic archive on the external
-lab volume. Each lease receives its own clean checkout cloned from that archive.
+Creation never syncs the current worktree. It exports the explicit product
+commit plus the committed `Scripts/lab` tree from a separately recorded harness
+commit with `git archive`, adds the installer and source metadata, uploads that
+immutable payload, and atomically initializes a clean synthetic archive on the
+external lab volume. The archive key includes both commits, so a harness change
+cannot silently reuse or mutate an older product-and-installer cache. Each lease
+receives its own clean checkout cloned from that archive.
+
+When the exact product-and-installer archive already exists, a harness-only
+change is derived on the mini: the controller uploads only the committed
+`Scripts/lab` overlay (and regenerated exact managed policy when needed), while
+the mini clones the verified product cache without hard links and publishes a
+new harness-qualified archive atomically. This avoids retransferring the signed
+product payload while keeping every resulting archive immutable and auditable.
 CrabBox's claim therefore binds one disposable lease to one stable repository
 root, and every run, download, and destructive stop executes from that exact
 claimed checkout. The interface refuses to sync if Git reports tracked or
@@ -100,6 +110,7 @@ Scripts/lab/keypath-lab create \
 Scripts/lab/keypath-lab list
 Scripts/lab/keypath-lab status cbx_example
 Scripts/lab/keypath-lab install-app cbx_example
+Scripts/lab/keypath-lab install-runtime cbx_example
 Scripts/lab/keypath-lab nameplate cbx_example enable
 Scripts/lab/keypath-lab run cbx_example -- sw_vers
 Scripts/lab/keypath-lab secure-dialog-input cbx_example \
@@ -223,6 +234,43 @@ inter-key delay. Parallels can drop characters when a complete credential is
 sent as one unpaced event batch. The command deliberately reports credential
 transport only; the RFB probe is the required independent postcondition.
 
+When building a new versioned macOS 27 desktop base, an inherited login
+keychain can still use the source image's old password after the lab has
+aligned the disposable account password. Repair only that owned candidate:
+
+```bash
+Scripts/lab/keypath-lab reset-desktop-keychain cbx_example
+Scripts/lab/keypath-lab reboot-guest cbx_example
+```
+
+`reset-desktop-keychain` is admitted only for a macOS 27, Parallels,
+desktop-enabled lease with a verified console login. It creates a fresh login
+keychain using the encrypted guest credential and moves the previous keychain
+to a timestamped `.before-desktop-base-*` backup. Do not use it in ordinary
+scenario clones and do not delete the backup until the candidate has passed
+fresh-clone validation.
+
+`reboot-guest` is an owned provider transport, not proof that the desktop is
+ready. After it returns, independently verify the console user, privacy
+permissions, and whichever runtime postcondition the scenario requires.
+
+For non-secret navigation of an expected disposable-guest dialog, the
+controller can send one bounded Parallels key event:
+
+```bash
+Scripts/lab/keypath-lab console-key cbx_example --key 23
+Scripts/lab/keypath-lab console-key cbx_example --key 36
+```
+
+Parallels uses X11-style key codes; `23` is Tab and `36` is Return. An optional
+`--modifier CODE` holds that modifier only for the duration of the key event.
+The command is admitted only for an owned, desktop-enabled macOS 26 or 27
+Parallels lease. It records transport, not UI success. Use it only when the
+expected dialog is already visible, and verify the intended state through a
+fresh screenshot, accessibility snapshot, or runtime postcondition. Never use
+it for credentials; use `secure-console-submit` for the focused authorization
+field.
+
 On July 16, 2026, the supported UI flow enabled Remote Management and VNC
 control for `keypathqa`, and the probe moved the guest cursor from
 `684.703125 141.1875` to `80 60`. That proves event posting for this disposable
@@ -231,8 +279,43 @@ seed; do not infer delivery from the visible toggle alone.
 
 For a console-ready candidate base, run `desktop-bootstrap --install-tools`
 once before capturing its checkpoint. It installs Python 3 as well as
-Peekaboo and mcporter, then records the console-user and Peekaboo evidence.
-This is base provisioning, not a per-scenario setup step.
+Peekaboo and mcporter into the console user's `~/.local` tree from pinned
+release archives with checked SHA-256 digests; the clean source does not need
+Homebrew.
+
+The bootstrap also installs a stable, ad-hoc-signed
+`~/Applications/Peekaboo Lab Host.app` and a per-user login agent. macOS 27's
+Screen Recording picker accepts applications, not Peekaboo's standalone
+command-line executable. Approve Screen Recording and Accessibility for this
+lab-only host application through the real logged-in System Settings UI. The
+application owns the long-lived Peekaboo bridge, so SSH-driven tests use that
+approved desktop process instead of granting broad capture access to every
+remote shell. Preserve the same application path, identifier, and bytes when
+capturing the base; changing any of them invalidates the reusable TCC identity.
+
+The bootstrap then records the console-user and Peekaboo evidence. This is base
+provisioning, not a per-scenario setup step. A successful install or a visible
+toggle is not enough: require `peekaboo permissions status --json`, a real
+semantic capture, and a new disposable clone from the captured base.
+
+Register the promoted Parallels source under the distinct CrabBox template
+alias `keypath-macos-27-desktop`. The controller selects that alias only for
+macOS 27 leases created with `--desktop`; headless macOS 27 leases continue to
+clone `keypath-macos-27`, preserving the pristine loginwindow source. A desktop
+lease manifest must record `base_name=keypath-macos-27-desktop` before its
+fresh-clone evidence is accepted.
+
+On a fresh clone, admit the inherited console state without replaying
+credential-bearing setup:
+
+```bash
+Scripts/lab/keypath-lab verify-console-login cbx_example
+```
+
+This read-only check requires `/dev/console` to be owned by `keypathqa` and
+records `console_login_method=inherited-base`. Only then run the RFB pointer
+probe and desktop bootstrap. Use `console-login` for candidate construction or
+repair, not to make a fresh-base acceptance test pass.
 
 ### Disposable desktop identity with Nameplate
 
@@ -412,12 +495,23 @@ injection. The command proves delivery only; the scenario must separately
 observe its expected application or runtime postcondition. P01 used a captured
 key chip in KeyPath's Input Capture Experiment as that postcondition.
 
-`install-app` expands the staged ZIP into `/Applications` on the disposable
-guest. Tart uses the base image's noninteractive sudo contract. Parallels uses
-the same passwordless `prlctl exec` guest-control channel CrabBox already uses
-to prepare the disposable clone, scoped to the exact provider resource recorded
-in the owned lease manifest. Neither path changes the base image or stores a
-guest password.
+`install-app` only expands the staged ZIP into `/Applications` on the disposable
+guest; it does not prove KeyPath installation. Tart uses the base image's
+noninteractive sudo contract for that bundle-staging step. Parallels uses the
+same passwordless `prlctl exec` guest-control channel CrabBox already uses to
+prepare the disposable clone, scoped to the exact provider resource recorded in
+the owned lease manifest. Neither path changes the base image or stores a guest
+password.
+
+`install-runtime` is the reliability-test entry point. It stages the bundle once,
+captures `keypath-cli system inspect --json`, invokes the product-owned
+`keypath-cli system install --json` plan once, and records the preflight plan and
+snapshot IDs plus the install report's run, plan, and before/after snapshot IDs.
+It then compares KeyPath's claimed result with `assert-runtime-state` and a fresh
+product inspection. If macOS approval is required, it returns a waiting outcome
+and preserves the lease. Resuming after the visible approval verifies those
+postconditions without repeating the installer mutation. A controller
+interruption after mutation starts is fail-closed and requires artifact review.
 
 ## Installer scenarios
 
@@ -433,7 +527,9 @@ Scripts/lab/keypath-lab scenario cbx_example reboot-persistence-before
 # Reboot the disposable guest through the approved lab workflow.
 Scripts/lab/keypath-lab scenario cbx_example reboot-persistence-after
 Scripts/lab/keypath-lab scenario cbx_example uninstall
-Scripts/lab/keypath-lab scenario cbx_example cancellation-failure
+Scripts/lab/keypath-lab scenario cbx_example cancellation-recovery-before
+# Open and capture KeyPath's real uninstall confirmation, then click Cancel.
+Scripts/lab/keypath-lab scenario cbx_example cancellation-recovery-after
 Scripts/lab/keypath-lab scenario cbx_example artifact-capture
 Scripts/lab/keypath-lab scenario cbx_example macos-27-regression
 Scripts/lab/keypath-lab artifacts cbx_example
@@ -441,12 +537,98 @@ Scripts/lab/keypath-lab artifacts cbx_example
 
 The scenario set covers clean installation, every macOS approval gate,
 helper/daemon and TCP health, launch, repair/reinstall, reboot persistence,
-uninstall, cancellation/failure rendering, and final artifact capture. Approval
-and cancellation cases intentionally give an operator a controlled observation
-point rather than attempting to bypass macOS security UI. Never place Apple IDs,
+uninstall, cancellation/recovery, and final artifact capture. The cancellation
+pair captures a ready baseline, gives the operator a controlled observation point
+for the real uninstall confirmation, verifies that Cancel preserved the app and
+configuration, injects a non-destructive Kanata-service failure, and performs one
+checkpointed repair. Approval and cancellation cases intentionally retain that
+operator observation point rather than attempting to bypass macOS security UI.
+Never place Apple IDs,
 passwords, private keys, TCC databases, or other credentials in a scenario or
 artifact bundle. CrabBox does not redact collected files automatically; inspect
 every bundle before sharing or publishing it.
+
+## Nightly and weekly matrix plans
+
+Generate the unattended curated diagonal and the broader deterministic pairwise
+plan without creating a lease:
+
+```bash
+Scripts/lab/scenario-matrix --cadence nightly --output /tmp/keypath-nightly.json
+Scripts/lab/scenario-matrix --cadence weekly --output /tmp/keypath-weekly.json
+```
+
+The planner rejects a case whose predicted runtime exceeds the requested lease
+TTL, assigns work to waves within Tart and Parallels capacity, and serializes
+every job that uses the shared macOS 26 enrollment identity even if Parallels
+has spare compute capacity. Every VM job carries `destroy-owned-lease` as its
+mandatory finalizer. The generated JSON is deterministic apart from its
+timestamp and can be retained beside the consolidated scenario report.
+
+Operator-visible cancellation and physical-HID cases are excluded from
+unattended plans. They require separate explicit flags so a scheduled job can
+never silently treat a missing human observation or physical keypress as a
+pass:
+
+```bash
+Scripts/lab/scenario-matrix --cadence weekly --include-operator
+Scripts/lab/scenario-matrix --cadence weekly --include-physical
+```
+
+These flags change admission only; they do not bypass the operator or physical
+checkpoint. The executor must still stop at the named step and retain the same
+result, failure-ownership, artifact-sanitization, and owned-cleanup contracts.
+
+Execute a retained plan with the exact candidate and commit. The runner writes
+an owner-only checkpoint after every transition, runs jobs in each provider-safe
+wave concurrently, streams those transitions to the dashboard, downloads the
+sanitized evidence before cleanup, and refuses to call a VM job passed until its
+owned lease has been destroyed successfully:
+
+```bash
+campaign=.keypath-lab/matrix/weekly-$(date +%Y%m%d-%H%M%S)
+mkdir -p "$campaign"
+Scripts/lab/scenario-matrix \
+  --cadence weekly \
+  --include-operator \
+  --output "$campaign/plan.json"
+Scripts/lab/scenario-matrix-runner \
+  --plan "$campaign/plan.json" \
+  --state "$campaign/state.json" \
+  --artifacts "$campaign/artifacts" \
+  --commit "$(git rev-parse HEAD)" \
+  --installer dist/KeyPath.zip \
+  --fixture /path/to/KeyPath-beta3.zip \
+  --dashboard-updater ../keypath-lab-state-dashboard/Scripts/lab/update-matrix-dashboard \
+  --dashboard-state /tmp/keypath-matrix-state.json
+```
+
+The beta-to-current case makes `--fixture` mandatory before any lease starts.
+If an explicit checkpoint pauses a job, complete the named visible action and
+resume the same state file with, for example:
+
+```bash
+Scripts/lab/scenario-matrix-runner ... \
+  --ack-checkpoint macos15-cancellation-recovery:operator-cancel-visible-dialog
+```
+
+An acknowledgement is accepted only for a checkpoint already recorded as
+waiting; it cannot pre-authorize or bypass a future interaction. A process
+interruption never blindly repeats an uncertain mutation. Lease creation can be
+recovered only when both the durable command log and the owned controller status
+identify the same ready lease; any other uncertain mutation blocks for evidence
+review. The `install-exact-artifact` matrix step routes through `install-runtime`.
+The macOS 26 upgrade uses `install-upgrade-runtime`: it retains the same strict
+installer lineage and signature checks, but can record the exact, independently
+proven Parallels Apple-virtualization boundary where the registered Kanata
+service has zero guest-visible input devices. No other installer failure is
+accepted by that boundary. When an installer step waits for macOS approval,
+acknowledgement means “verify now,” not “assume
+the installer passed.” Failed jobs still collect available artifacts and destroy their owned
+leases, allowing independent later waves to continue. A waiting job retains its
+lease and pauses only subsequent work on that provider. `matrix-report.json`
+contains campaign/job outcomes and `scenario-report.json` consolidates validated
+scenario result files.
 
 ### macOS 27 beta regression capture
 
@@ -464,6 +646,25 @@ the app:
 Scripts/lab/keypath-lab scenario cbx_example macos-27-regression
 Scripts/lab/keypath-lab artifacts cbx_example
 ```
+
+Before an automated macOS 27 System Settings flow relies on selectors, capture
+fresh accessibility evidence in the guest:
+
+```bash
+Scripts/lab/macos-27-selector-scenario \
+  --output .keypath-lab/scenario-output/macos-27-selectors
+```
+
+The scenario reopens the macOS 27 Accessibility privacy pane, waits for its
+semantic UI contract, and then runs the fail-closed driver. The driver admits
+only macOS 27, requires Peekaboo's desktop permissions, and writes the exact OS
+version, build, preflight, accessibility snapshot, and expected selector
+contract. The contract uses the page identifier, explanatory copy, and the
+visible `Peekaboo Lab Host` row rather than relying on the private deep-link
+token to appear in the accessibility tree. Missing desktop permissions are an
+`environment-precondition-failure`; a missing expected selector is an
+`unsupported-os-selector`. Either result blocks the scenario instead of
+guessing coordinates or attributing a harness problem to KeyPath.
 
 The command records the exact OS build, canonical CLI system snapshot,
 VirtualHID extension state, KeyPath-owned launchd jobs, signatures, Gatekeeper

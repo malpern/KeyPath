@@ -1,0 +1,154 @@
+#!/bin/bash
+set -euo pipefail
+
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+package_dir="$script_dir/hid-capture-jig"
+client=${KEYPATH_CAPTURE_JIG_CLIENT:-"$script_dir/hid-capture-jig-client"}
+physical_runner=${KEYPATH_PHYSICAL_HID_RUNNER:-"$script_dir/physical-hid-capture-run"}
+build_app=${KEYPATH_CAPTURE_JIG_BUILD_APP:-"$package_dir/build-app.sh"}
+app_path=${KEYPATH_CAPTURE_JIG_APP:-"$HOME/.cache/keypath-hid-capture-jig/KeyPath HID Capture Jig.app"}
+
+usage() {
+    printf '%s\n' \
+        "Usage: Scripts/lab/hid-capture-jig-tool COMMAND" \
+        "" \
+        "Commands:" \
+        "  build   Build and ad-hoc sign the isolated capture app" \
+        "  test    Run capture-core and control-client tests" \
+        "  open    Open, focus, and verify the cached capture app" \
+        "  showroom  Run the zero-touch ESP32-to-Jig demo and preserve evidence" \
+        "  demo      Arm the offline top-power/touch demo and wait for its result" \
+        "  status  Query the running capture app" \
+        "  close   Ask the capture app to quit"
+}
+
+app_binary_hash() {
+    if [[ -f "$app_path/Contents/MacOS/HIDCaptureJig" ]]; then
+        shasum -a 256 "$app_path/Contents/MacOS/HIDCaptureJig" | awk '{print $1}'
+    fi
+}
+
+wait_for_app_exit() {
+    for _ in {1..50}; do
+        pgrep -x HIDCaptureJig >/dev/null || return 0
+        sleep 0.1
+    done
+    printf '%s\n' "hid-capture-jig-tool: existing capture app did not quit" >&2
+    return 1
+}
+
+open_app() {
+    force_restart=${1:-0}
+    was_running=0
+    pgrep -x HIDCaptureJig >/dev/null && was_running=1
+    before_hash=$(app_binary_hash)
+    "$build_app" >/dev/null
+    after_hash=$(app_binary_hash)
+
+    if [[ "$was_running" -eq 1 && "$before_hash" == "$after_hash" && "$force_restart" -eq 0 ]]; then
+        "$client" focus >/dev/null
+    else
+        if [[ "$was_running" -eq 1 ]]; then
+            "$client" quit >/dev/null 2>&1 || true
+            wait_for_app_exit
+        fi
+        open "$app_path"
+    fi
+
+    result=$(mktemp -t keypath-hid-capture-jig-status.XXXXXX)
+    for _ in {1..50}; do
+        if KEYPATH_CAPTURE_JIG_COMMAND_TIMEOUT=0.2 "$client" status >"$result" 2>/dev/null; then
+            cat "$result"
+            rm -f "$result"
+            return 0
+        fi
+        sleep 0.1
+    done
+    rm -f "$result"
+    printf '%s\n' "hid-capture-jig-tool: app opened but did not become controllable" >&2
+    return 1
+}
+
+case ${1:-} in
+    build)
+        [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+        "$package_dir/build-app.sh"
+        ;;
+    test)
+        [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+        swift test --package-path "$package_dir" --jobs "${KEYPATH_CAPTURE_JIG_BUILD_JOBS:-4}"
+        python3 "$script_dir/tests/hid-capture-jig-client-tests.py"
+        python3 "$script_dir/tests/hid-capture-jig-tool-tests.py"
+        ;;
+    open)
+        [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+        open_app
+        ;;
+    showroom)
+        [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+        # A separately rebuilt app may still have an older executable resident
+        # in memory. Always relaunch before real HID so the client and Jig use
+        # the exact same protocol and admission policy.
+        open_app 1 >/dev/null
+        run_id="showroom-$(date -u +%Y%m%dT%H%M%SZ)"
+        artifact="$HOME/.local/state/keypath-hid-capture-jig/artifacts/$run_id.json"
+        printf '%s\n' \
+            "showroom running  ESP32 -> real USB HID -> independent Jig" \
+            "duration          20 seconds of animated typing" \
+            "expected          14 exact KeyPath demo OK + Return cycles"
+        "$physical_runner" \
+            --run-id "$run_id" \
+            --text "$script_dir/tests/fixtures/showroom-demo.txt" \
+            --interval-ms 60 \
+            --hold-ms 16 \
+            --shift-lead-ms 5 \
+            --shift-release-lag-ms 5 \
+            --repeat 14 \
+            --cycle-gap-ms 469 \
+            --delay-ms 800 \
+            --settle-ms 300 \
+            --timeout-ms 35000 \
+            --demo-mode \
+            --output "$artifact"
+        ;;
+    demo)
+        [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+        open_app 1 >/dev/null
+        expected=$(mktemp -t keypath-hid-demo-expected.XXXXXX)
+        trap 'rm -f "$expected"' EXIT
+        for _ in {1..14}; do
+            printf 'KeyPath demo OK\n' >>"$expected"
+        done
+        "$client" reset >/dev/null
+        "$client" focus >/dev/null
+        "$client" arm --run-id offline-demo --expected "$expected" \
+            --timeout-ms 30000 --settle-ms 300 \
+            --demo-mode \
+            --instruction "PRESS TOP POWER, THEN TAP DEVICE" >/dev/null
+        printf '%s\n' \
+            "demo armed  PRESS TOP POWER, THEN TAP THE DEVICE SCREEN" \
+            "waiting     exact 20 second Jig result (30 second limit)"
+        "$client" wait --timeout-seconds 31 --poll-ms 50
+        ;;
+    status)
+        [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+        "$client" status
+        ;;
+    close)
+        [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+        "$client" quit
+        for _ in {1..50}; do
+            pgrep -x HIDCaptureJig >/dev/null || exit 0
+            sleep 0.1
+        done
+        printf '%s\n' "hid-capture-jig-tool: capture app did not quit" >&2
+        exit 1
+        ;;
+    help|-h|--help)
+        usage
+        ;;
+    *)
+        usage >&2
+        exit 2
+        ;;
+esac

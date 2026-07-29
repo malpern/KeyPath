@@ -1,0 +1,395 @@
+#!/usr/bin/env python3
+"""Run strict physical-HID repeat and duplicate-key cases across pace and CPU load."""
+
+from __future__ import annotations
+
+import argparse
+import datetime
+import difflib
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import time
+from typing import Any
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+RUNNER = pathlib.Path(os.environ.get(
+    "KEYPATH_PHYSICAL_HID_RUNNER", ROOT / "Scripts/lab/physical-hid-capture-run"
+))
+JIG_TOOL = pathlib.Path(os.environ.get(
+    "KEYPATH_CAPTURE_JIG_TOOL", ROOT / "Scripts/lab/hid-capture-jig-tool"
+))
+FIXTURES = ROOT / "Scripts/lab/pico-hid-fixture/tests/fixtures"
+DEFAULT_CORPORA = [
+    ("single", FIXTURES / "repeat-single.txt"),
+    ("alternating", FIXTURES / "repeat-alternating.txt"),
+    ("roll", FIXTURES / "repeat-roll.txt"),
+    ("shifted", FIXTURES / "burst.txt"),
+]
+
+
+def integer_list(value: str) -> list[int]:
+    try:
+        values = [int(part) for part in value.split(",")]
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("values must be comma-separated integers") from error
+    if not values or any(item < 0 for item in values) or len(set(values)) != len(values):
+        raise argparse.ArgumentTypeError("values must be unique non-negative integers")
+    return values
+
+
+def safe_name(value: str) -> str:
+    return "".join(character if character.isalnum() or character in "-_." else "_" for character in value)
+
+
+def case_run_id(prefix: str, corpus: str, interval_ms: int, workers: int, swift_compile: bool) -> str:
+    suffix = f"-{safe_name(corpus)[:4]}-i{interval_ms}-w{workers}-s{int(swift_compile)}"
+    prefix_budget = 48 - len(suffix)
+    return f"{safe_name(prefix)[:prefix_budget]}{suffix}"
+
+
+def edit_counts(expected: str, received: str) -> dict[str, int]:
+    counts = {"addedCharacters": 0, "deletedCharacters": 0, "substitutedCharacters": 0}
+    matcher = difflib.SequenceMatcher(a=expected, b=received, autojunk=False)
+    for tag, first_start, first_end, second_start, second_end in matcher.get_opcodes():
+        first_length = first_end - first_start
+        second_length = second_end - second_start
+        if tag == "insert":
+            counts["addedCharacters"] += second_length
+        elif tag == "delete":
+            counts["deletedCharacters"] += first_length
+        elif tag == "replace":
+            common = min(first_length, second_length)
+            counts["substitutedCharacters"] += common
+            counts["deletedCharacters"] += first_length - common
+            counts["addedCharacters"] += second_length - common
+    return counts
+
+
+def analyze_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
+    capture = artifact.get("capture", {})
+    fixture = artifact.get("fixture", {})
+    expected = str(capture.get("expected", ""))
+    received = str(capture.get("received", ""))
+    edits = edit_counts(expected, received)
+    wrong = sum(edits.values())
+    focus_valid = bool(capture.get("focused"))
+    all_keys_released = not capture.get("pressedKeyCodes")
+    all_modifiers_released = capture.get("activeModifiers", 0) == 0
+    fixture_complete = fixture.get("state") == "complete"
+    return {
+        "runID": artifact.get("runID"),
+        "runnerStatus": artifact.get("status"),
+        "admissionMode": artifact.get("admissionMode"),
+        "expectedCharacters": len(expected),
+        "receivedCharacters": len(received),
+        "wrongCharacters": wrong,
+        **edits,
+        "duplicateDownEvents": int(capture.get("duplicateDownEvents", 0)),
+        "repeatEvents": int(capture.get("repeatEvents", 0)),
+        "unmatchedUpEvents": int(capture.get("unmatchedUpEvents", 0)),
+        "focusValid": focus_valid,
+        "allKeysReleased": all_keys_released,
+        "allModifiersReleased": all_modifiers_released,
+        "fixtureComplete": fixture_complete,
+        "lateReports": fixture.get("lateReports"),
+        "maximumLatenessUs": fixture.get("maximumLatenessUs"),
+        "validEvidence": (
+            artifact.get("admissionMode") == "strict" and focus_valid and
+            all_keys_released and all_modifiers_released and fixture_complete
+        ),
+    }
+
+
+def classify(cases: list[dict[str, Any]]) -> str:
+    if not cases or any(not case["validEvidence"] for case in cases):
+        return "harness-invalid"
+    if any(
+        case["addedCharacters"] or case["duplicateDownEvents"] or case["repeatEvents"]
+        for case in cases
+    ):
+        return "repeated-input-observed"
+    if any(case["wrongCharacters"] for case in cases):
+        return "output-corruption-observed"
+    return "exact-output-observed"
+
+
+def ensure_jig_running() -> tuple[bool, str]:
+    status = subprocess.run([str(JIG_TOOL), "status"], text=True, capture_output=True)
+    if status.returncode == 0:
+        return True, status.stderr.strip() or status.stdout.strip() or "capture Jig is responsive"
+    opened = subprocess.run([str(JIG_TOOL), "open"], text=True, capture_output=True)
+    detail = opened.stderr.strip() or opened.stdout.strip() or f"exit {opened.returncode}"
+    return opened.returncode == 0, detail
+
+
+def wait_for_jig_readiness(timeout_seconds: float) -> tuple[bool, str]:
+    deadline = time.monotonic() + timeout_seconds
+    detail = "capture Jig readiness is unavailable"
+    while True:
+        result = subprocess.run([str(JIG_TOOL), "status"], text=True, capture_output=True)
+        if result.returncode == 0:
+            try:
+                readiness = json.loads(result.stdout).get("systemReadiness", {})
+                detail = str(readiness.get("detail", detail))
+                if readiness.get("canProceed"):
+                    return True, detail
+            except (json.JSONDecodeError, AttributeError):
+                detail = "capture Jig returned invalid readiness JSON"
+        else:
+            detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
+        if time.monotonic() >= deadline:
+            return False, detail
+        time.sleep(1)
+
+
+def write_json(path: pathlib.Path, value: dict[str, Any]) -> None:
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
+    temporary.chmod(0o600)
+    os.replace(temporary, path)
+
+
+def parser() -> argparse.ArgumentParser:
+    result = argparse.ArgumentParser(description=__doc__)
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    result.add_argument("--run-id-prefix", default=f"repeat-matrix-{stamp}")
+    result.add_argument("--interval-values", type=integer_list, default=integer_list("50,10,5"))
+    result.add_argument("--cpu-worker-values", type=integer_list, default=integer_list("0,2,6"))
+    result.add_argument(
+        "--swift-compile-worker-values", type=integer_list, default=integer_list("0,2")
+    )
+    result.add_argument("--no-swift-compile", action="store_true")
+    result.add_argument("--hold-ms", type=int, default=2)
+    result.add_argument("--repeat", type=int, default=4)
+    result.add_argument("--cycle-gap-ms", type=int, default=100)
+    result.add_argument("--delay-ms", type=int, default=800)
+    result.add_argument("--readiness-timeout-seconds", type=float, default=60)
+    result.add_argument("--stress-max-late-reports", type=int, default=5)
+    result.add_argument("--stress-max-lateness-us", type=int, default=5000)
+    result.add_argument("--fixture-host", default=os.environ.get(
+        "KEYPATH_FIXTURE_HOST", "keypath-hid-fixture.local"
+    ))
+    result.add_argument("--output-directory", type=pathlib.Path)
+    result.add_argument("--resume", action="store_true")
+    result.add_argument("--exclusive-desktop-confirmed", action="store_true")
+    result.add_argument("--continue-after-infrastructure-error", action="store_true")
+    return result
+
+
+def main() -> int:
+    arguments = parser().parse_args()
+    if not arguments.exclusive_desktop_confirmed:
+        print(
+            "physical-hid-repeat-matrix: --exclusive-desktop-confirmed is required; "
+            "real USB keyboard input owns the active desktop",
+            file=sys.stderr,
+        )
+        return 2
+    if arguments.hold_ms < 1 or arguments.repeat < 1 or arguments.cycle_gap_ms < 0:
+        print("physical-hid-repeat-matrix: hold/repeat must be positive and gap non-negative", file=sys.stderr)
+        return 2
+    if any(interval < 4 or arguments.hold_ms >= interval for interval in arguments.interval_values):
+        print("physical-hid-repeat-matrix: intervals must be >=4 ms and exceed hold-ms", file=sys.stderr)
+        return 2
+    if arguments.readiness_timeout_seconds < 0:
+        print("physical-hid-repeat-matrix: readiness timeout cannot be negative", file=sys.stderr)
+        return 2
+    logical_cpus = max(1, os.cpu_count() or 1)
+    all_worker_values = [
+        *arguments.cpu_worker_values,
+        *([] if arguments.no_swift_compile else arguments.swift_compile_worker_values),
+    ]
+    if any(workers > logical_cpus for workers in all_worker_values):
+        print(f"physical-hid-repeat-matrix: CPU workers cannot exceed {logical_cpus}", file=sys.stderr)
+        return 2
+    if arguments.stress_max_late_reports < 0 or arguments.stress_max_lateness_us < 0:
+        print("physical-hid-repeat-matrix: timing budgets cannot be negative", file=sys.stderr)
+        return 2
+    missing = [str(path) for _, path in DEFAULT_CORPORA if not path.is_file()]
+    if missing:
+        print(f"physical-hid-repeat-matrix: missing corpus: {', '.join(missing)}", file=sys.stderr)
+        return 2
+
+    output_directory = arguments.output_directory or (
+        pathlib.Path.home() / ".local/state/keypath-hid-capture-jig/repeat-matrix" /
+        safe_name(arguments.run_id_prefix)
+    )
+    output_directory.mkdir(parents=True, exist_ok=True)
+    output_directory.chmod(0o700)
+    load_profiles = [
+        {"name": f"cpu{workers}", "cpuWorkers": workers, "swiftCompile": False}
+        for workers in arguments.cpu_worker_values
+    ]
+    if not arguments.no_swift_compile:
+        load_profiles.extend([
+            {"name": f"swift-cpu{workers}", "cpuWorkers": workers, "swiftCompile": True}
+            for workers in arguments.swift_compile_worker_values
+        ])
+    plan = {
+        "schemaVersion": 1,
+        "runIDPrefix": arguments.run_id_prefix,
+        "corpora": [{"name": name, "path": str(path)} for name, path in DEFAULT_CORPORA],
+        "intervalValuesMs": arguments.interval_values,
+        "loadProfiles": load_profiles,
+        "holdMs": arguments.hold_ms,
+        "repeat": arguments.repeat,
+        "cycleGapMs": arguments.cycle_gap_ms,
+        "caseCount": len(DEFAULT_CORPORA) * len(arguments.interval_values) * len(load_profiles),
+        "admissionMode": "strict",
+        "exclusiveDesktopConfirmed": True,
+    }
+    plan_path = output_directory / "plan.json"
+    if plan_path.is_file():
+        if not arguments.resume:
+            print(
+                "physical-hid-repeat-matrix: output already contains a plan; use --resume or a new prefix",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            existing_plan = json.loads(plan_path.read_text())
+        except json.JSONDecodeError:
+            print("physical-hid-repeat-matrix: existing plan is invalid JSON", file=sys.stderr)
+            return 2
+        if existing_plan != plan:
+            print("physical-hid-repeat-matrix: existing plan differs; use a new prefix", file=sys.stderr)
+            return 2
+    else:
+        write_json(plan_path, plan)
+
+    jig_ready, detail = ensure_jig_running()
+    if not jig_ready:
+        print(f"physical-hid-repeat-matrix: could not open capture Jig: {detail}", file=sys.stderr)
+        return 2
+
+    cases: list[dict[str, Any]] = []
+    infrastructure_errors: list[dict[str, Any]] = []
+    stop = False
+    for corpus_name, corpus_path in DEFAULT_CORPORA:
+        for interval_ms in arguments.interval_values:
+            for profile in load_profiles:
+                workers = int(profile["cpuWorkers"])
+                swift_compile = bool(profile["swiftCompile"])
+                base_run_id = case_run_id(
+                    arguments.run_id_prefix, corpus_name, interval_ms, workers, swift_compile
+                )
+                run_id = base_run_id
+                artifact_path = output_directory / f"{run_id}.json"
+                if arguments.resume and artifact_path.is_file():
+                    case = analyze_artifact(json.loads(artifact_path.read_text()))
+                    if case["validEvidence"]:
+                        case.update({
+                            "corpus": corpus_name, "intervalMs": interval_ms,
+                            "loadProfile": profile["name"], "cpuWorkers": workers,
+                            "swiftCompile": swift_compile,
+                            "artifact": str(artifact_path), "resumed": True,
+                        })
+                        cases.append(case)
+                        continue
+                    retry = 2
+                    while True:
+                        run_id = f"{base_run_id[:40]}-retry{retry}"
+                        artifact_path = output_directory / f"{run_id}.json"
+                        if not artifact_path.exists():
+                            break
+                        retry += 1
+                jig_ready, detail = ensure_jig_running()
+                if not jig_ready:
+                    infrastructure_errors.append({
+                        "runID": run_id, "corpus": corpus_name, "intervalMs": interval_ms,
+                        "loadProfile": profile["name"], "cpuWorkers": workers,
+                        "swiftCompile": swift_compile, "returnCode": 2,
+                        "detail": f"capture Jig unavailable: {detail}",
+                    })
+                    if not arguments.continue_after_infrastructure_error:
+                        stop = True
+                        break
+                    continue
+                resource_ready, detail = wait_for_jig_readiness(arguments.readiness_timeout_seconds)
+                if not resource_ready:
+                    infrastructure_errors.append({
+                        "runID": run_id, "corpus": corpus_name, "intervalMs": interval_ms,
+                        "loadProfile": profile["name"], "cpuWorkers": workers,
+                        "swiftCompile": swift_compile, "returnCode": 2,
+                        "detail": f"capture Jig resource gate timed out: {detail}",
+                    })
+                    if not arguments.continue_after_infrastructure_error:
+                        stop = True
+                        break
+                    continue
+                command = [
+                    str(RUNNER), "--run-id", run_id, "--text", str(corpus_path),
+                    "--fixture-host", arguments.fixture_host,
+                    "--interval-ms", str(interval_ms), "--hold-ms", str(arguments.hold_ms),
+                    "--repeat", str(arguments.repeat), "--cycle-gap-ms", str(arguments.cycle_gap_ms),
+                    "--delay-ms", str(arguments.delay_ms), "--cpu-load-workers", str(workers),
+                    "--output", str(artifact_path),
+                ]
+                if swift_compile:
+                    command.append("--swift-compile-load")
+                if workers > 0 or swift_compile:
+                    command.extend([
+                        "--max-late-reports", str(arguments.stress_max_late_reports),
+                        "--max-lateness-us", str(arguments.stress_max_lateness_us),
+                    ])
+                result = subprocess.run(command, text=True, capture_output=True)
+                if result.returncode == 2 or not artifact_path.is_file():
+                    infrastructure_errors.append({
+                        "runID": run_id, "corpus": corpus_name, "intervalMs": interval_ms,
+                        "loadProfile": profile["name"], "cpuWorkers": workers,
+                        "swiftCompile": swift_compile, "returnCode": result.returncode,
+                        "detail": result.stderr.strip() or result.stdout.strip() or "artifact missing",
+                    })
+                    if not arguments.continue_after_infrastructure_error:
+                        stop = True
+                        break
+                    continue
+                case = analyze_artifact(json.loads(artifact_path.read_text()))
+                case.update({
+                    "corpus": corpus_name, "intervalMs": interval_ms,
+                    "loadProfile": profile["name"], "cpuWorkers": workers,
+                    "swiftCompile": swift_compile,
+                    "artifact": str(artifact_path), "resumed": False,
+                })
+                cases.append(case)
+                print(json.dumps({key: case[key] for key in (
+                    "runID", "corpus", "intervalMs", "loadProfile", "cpuWorkers",
+                    "swiftCompile", "wrongCharacters",
+                    "addedCharacters", "repeatEvents", "focusValid", "lateReports",
+                )}, sort_keys=True), flush=True)
+            if stop:
+                break
+        if stop:
+            break
+
+    classification = classify(cases)
+    status = "blocked" if infrastructure_errors or classification == "harness-invalid" else "completed"
+    summary = {
+        "schemaVersion": 1,
+        "status": status,
+        "classification": classification,
+        "plan": plan,
+        "completedCases": len(cases),
+        "infrastructureErrors": infrastructure_errors,
+        "cases": cases,
+    }
+    summary_path = output_directory / "summary.json"
+    write_json(summary_path, summary)
+    print(json.dumps({
+        "status": status,
+        "classification": classification,
+        "completedCases": len(cases),
+        "plannedCases": plan["caseCount"],
+        "summary": str(summary_path),
+    }, indent=2, sort_keys=True))
+    if status == "blocked":
+        return 2
+    return 0 if classification == "exact-output-observed" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

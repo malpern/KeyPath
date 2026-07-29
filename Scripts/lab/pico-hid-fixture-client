@@ -1,0 +1,295 @@
+#!/usr/bin/env python3
+"""Compile deterministic text into Pico HID reports and control the KeyPath fixture."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import hmac
+import json
+import os
+import pathlib
+import sys
+import time
+import urllib.error
+import urllib.request
+import zlib
+
+
+SHIFT = 0x02
+USAGE: dict[str, tuple[int, int]] = {}
+for offset, character in enumerate("abcdefghijklmnopqrstuvwxyz"):
+    USAGE[character] = (0x04 + offset, 0)
+    USAGE[character.upper()] = (0x04 + offset, SHIFT)
+for character, usage in zip("1234567890", range(0x1E, 0x28)):
+    USAGE[character] = (usage, 0)
+for character, shifted, usage in zip("1234567890", "!@#$%^&*()", range(0x1E, 0x28)):
+    USAGE[shifted] = (usage, SHIFT)
+USAGE.update({
+    "\n": (0x28, 0), "\t": (0x2B, 0), " ": (0x2C, 0),
+    "-": (0x2D, 0), "_": (0x2D, SHIFT), "=": (0x2E, 0), "+": (0x2E, SHIFT),
+    "[": (0x2F, 0), "{": (0x2F, SHIFT), "]": (0x30, 0), "}": (0x30, SHIFT),
+    "\\": (0x31, 0), "|": (0x31, SHIFT), ";": (0x33, 0), ":": (0x33, SHIFT),
+    "'": (0x34, 0), '"': (0x34, SHIFT), "`": (0x35, 0), "~": (0x35, SHIFT),
+    ",": (0x36, 0), "<": (0x36, SHIFT), ".": (0x37, 0), ">": (0x37, SHIFT),
+    "/": (0x38, 0), "?": (0x38, SHIFT),
+})
+
+
+def compile_text(run_id: str, text: str, interval_ms: int, hold_ms: int,
+                 repeat_count: int, cycle_gap_ms: int, shift_lead_ms: int = 0,
+                 shift_release_lag_ms: int = 0) -> str:
+    if not run_id or len(run_id) > 48 or any(not (ch.isalnum() or ch in "-_.") for ch in run_id):
+        raise ValueError("run id must contain 1-48 letters, digits, dots, underscores, or hyphens")
+    if not text:
+        raise ValueError("input text is empty")
+    if not 1 <= repeat_count <= 10_000:
+        raise ValueError("repeat count must be between 1 and 10000")
+    if interval_ms < 4:
+        raise ValueError("report interval must be at least 4 ms for deterministic full-speed USB delivery")
+    if not 2 <= hold_ms < interval_ms:
+        raise ValueError("hold duration must be at least 2 ms and shorter than the interval")
+    if shift_lead_ms < 0 or shift_release_lag_ms < 0:
+        raise ValueError("Shift lead and release lag cannot be negative")
+    if shift_lead_ms + hold_ms + shift_release_lag_ms >= interval_ms:
+        raise ValueError("Shift lead, hold, and release lag must fit inside the character interval")
+    events: list[str] = []
+    at_us = 0
+    for index, character in enumerate(text):
+        try:
+            usage, modifiers = USAGE[character]
+        except KeyError as error:
+            raise ValueError(f"unsupported US keyboard character at offset {index}: {character!r}") from error
+        key_down_us = at_us
+        if modifiers and shift_lead_ms:
+            events.append(f"{at_us} {modifiers} 0 0 0 0 0 0")
+            key_down_us += shift_lead_ms * 1000
+        events.append(f"{key_down_us} {modifiers} {usage} 0 0 0 0 0")
+        key_up_us = key_down_us + hold_ms * 1000
+        if modifiers and shift_release_lag_ms:
+            events.append(f"{key_up_us} {modifiers} 0 0 0 0 0 0")
+            events.append(f"{key_up_us + shift_release_lag_ms * 1000} 0 0 0 0 0 0 0")
+        else:
+            events.append(f"{key_up_us} 0 0 0 0 0 0 0")
+        at_us += interval_ms * 1000
+    cycle_us = at_us + cycle_gap_ms * 1000
+    event_payload = "\n".join(events) + "\n"
+    crc = zlib.crc32(event_payload.encode("ascii")) & 0xFFFFFFFF
+    return f"KPHID1 {run_id} {len(events)} {repeat_count} {cycle_us} {crc:08x}\n{event_payload}"
+
+
+class FixtureClient:
+    def __init__(self, host: str, token: str, port: int = 8080, timeout: float = 10.0):
+        if not token:
+            raise ValueError("fixture bearer token is empty")
+        if timeout <= 0:
+            raise ValueError("fixture timeout must be positive")
+        self.base_url = f"http://{host}:{port}"
+        self.token = token
+        self.timeout = timeout
+
+    def request(self, method: str, path: str, body: bytes | None = None,
+                content_type: str = "text/plain; charset=us-ascii",
+                headers: dict[str, str] | None = None) -> str:
+        request_headers = {"Authorization": f"Bearer {self.token}"}
+        if headers:
+            request_headers.update(headers)
+        request = urllib.request.Request(
+            self.base_url + path,
+            data=body,
+            method=method,
+            headers=request_headers,
+        )
+        if body is not None:
+            request.add_header("Content-Type", content_type)
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                return response.read().decode("utf-8")
+        except urllib.error.HTTPError as error:
+            detail = error.read().decode("utf-8", errors="replace").strip()
+            raise RuntimeError(f"fixture returned HTTP {error.code}: {detail}") from error
+
+    def status(self) -> dict[str, object]:
+        return json.loads(self.request("GET", "/v1/status"))
+
+    def load_script(self, script: str) -> dict[str, object]:
+        return json.loads(self.request("POST", "/v1/script", script.encode("ascii")))
+
+    def arm(self, run_id: str) -> dict[str, object]:
+        return json.loads(self.request("POST", "/v1/arm", run_id.encode("ascii")))
+
+    def start(self, run_id: str, delay_ms: int) -> dict[str, object]:
+        return json.loads(self.request("POST", "/v1/start", f"{run_id} {delay_ms}".encode("ascii")))
+
+    def abort(self) -> dict[str, object]:
+        return json.loads(self.request("POST", "/v1/abort", b""))
+
+    def present(self, presentation: dict[str, object]) -> dict[str, object]:
+        body = json.dumps(presentation, separators=(",", ":")).encode("ascii")
+        return json.loads(self.request("POST", "/v1/presentation", body, "application/json"))
+
+    def trace(self, start: int = 0, limit: int = 8) -> list[dict[str, object]]:
+        lines = self.request("GET", f"/v1/trace?from={start}&limit={limit}").splitlines()
+        return [json.loads(line) for line in lines]
+
+    def update_firmware(self, firmware: bytes, expected_build: str,
+                        wait_seconds: float = 90.0) -> dict[str, object]:
+        if not firmware:
+            raise ValueError("firmware image is empty")
+        if not expected_build or len(expected_build) > 32 or not expected_build.isalnum():
+            raise ValueError("expected build must contain 1-32 letters or digits")
+        if wait_seconds <= 0:
+            raise ValueError("update wait must be positive")
+        before = self.status()
+        if before.get("updateReady") is not True:
+            raise RuntimeError("fixture is not safely idle for a firmware update")
+        current_slot = before.get("otaSlot")
+        if current_slot not in ("ota_0", "ota_1"):
+            raise RuntimeError("fixture needs the one-time USB dual-slot migration before Wi-Fi updates")
+        target_slot = "ota_1" if current_slot == "ota_0" else "ota_0"
+        digest = hashlib.sha256(firmware).hexdigest()
+        signature = hmac.new(self.token.encode("utf-8"), firmware, hashlib.sha256).hexdigest()
+        try:
+            response = json.loads(self.request(
+                "POST", "/v1/firmware", firmware, "application/octet-stream",
+                {"X-KeyPath-SHA256": digest, "X-KeyPath-HMAC-SHA256": signature,
+                 "X-KeyPath-Expected-Build": expected_build},
+            ))
+        except (urllib.error.URLError, ConnectionError, TimeoutError):
+            # The board may close the socket while restarting. The build check below is authoritative.
+            response = {"ok": True, "message": "board disconnected while restarting", "rebooting": True}
+
+        deadline = time.monotonic() + wait_seconds
+        last_error = "fixture did not reconnect"
+        while time.monotonic() < deadline:
+            try:
+                status = self.status()
+                if (status.get("build") == expected_build and status.get("wifiConnected") is True and
+                        status.get("displayHealthy") is True and status.get("splashComplete") is True and
+                        status.get("otaSlot") == target_slot and status.get("otaState") == "valid"):
+                    return {"upload": response, "status": status, "verifiedBuild": expected_build,
+                            "previousSlot": current_slot, "verifiedSlot": target_slot}
+                last_error = (f"fixture reported build {status.get('build', 'unknown')!r}, "
+                              f"slot {status.get('otaSlot', 'unknown')!r}, "
+                              f"state {status.get('otaState', 'unknown')!r}")
+            except (urllib.error.URLError, ConnectionError, TimeoutError, RuntimeError, json.JSONDecodeError) as error:
+                last_error = str(error)
+            time.sleep(1.0)
+        raise RuntimeError(f"firmware update was not verified: {last_error}")
+
+
+def token_from_environment() -> str:
+    token = os.environ.get("KEYPATH_FIXTURE_TOKEN", "")
+    if not token:
+        raise SystemExit("KEYPATH_FIXTURE_TOKEN is required; do not put the token on the command line")
+    return token
+
+
+def parser() -> argparse.ArgumentParser:
+    root = argparse.ArgumentParser(description=__doc__)
+    root.add_argument("--host", default=os.environ.get("KEYPATH_FIXTURE_HOST", "keypath-hid-fixture.local"))
+    root.add_argument("--port", type=int, default=8080)
+    root.add_argument("--timeout", type=float, default=10.0)
+    commands = root.add_subparsers(dest="command", required=True)
+    commands.add_parser("status")
+    compile_command = commands.add_parser("compile-text")
+    compile_command.add_argument("--run-id", required=True)
+    compile_command.add_argument("--text", required=True, type=pathlib.Path)
+    compile_command.add_argument("--interval-ms", type=int, default=80)
+    compile_command.add_argument("--hold-ms", type=int, default=30)
+    compile_command.add_argument("--repeat", type=int, default=1)
+    compile_command.add_argument("--cycle-gap-ms", type=int, default=500)
+    compile_command.add_argument("--shift-lead-ms", type=int, default=0)
+    compile_command.add_argument("--shift-release-lag-ms", type=int, default=0)
+    compile_command.add_argument("--output", type=pathlib.Path)
+    load_command = commands.add_parser("load-script")
+    load_command.add_argument("script", type=pathlib.Path)
+    arm_command = commands.add_parser("arm")
+    arm_command.add_argument("run_id")
+    start_command = commands.add_parser("start")
+    start_command.add_argument("run_id")
+    start_command.add_argument("--delay-ms", type=int, default=2000)
+    commands.add_parser("abort")
+    update_command = commands.add_parser("update-firmware", help="install and verify an authenticated OTA image")
+    update_command.add_argument("firmware", type=pathlib.Path)
+    update_command.add_argument("--expected-build", required=True)
+    update_command.add_argument("--wait-seconds", type=float, default=90.0)
+    trace_command = commands.add_parser("trace")
+    trace_command.add_argument("--from", dest="start", type=int, default=0)
+    trace_command.add_argument("--limit", type=int, default=8)
+    present_command = commands.add_parser("present", help="drive the fixture's animated test narrative")
+    present_command.add_argument("--phase", required=True,
+                                 choices=("auto", "preparing", "countdown", "testing", "observing",
+                                          "resolving", "result", "next"))
+    present_command.add_argument("--result", choices=("none", "pass", "fail", "inconclusive"), default="none")
+    present_command.add_argument("--progress", type=int, choices=range(0, 1001), default=0, metavar="0..1000")
+    present_command.add_argument("--title", default="")
+    present_command.add_argument("--detail", default="")
+    present_command.add_argument("--next", default="")
+    present_command.add_argument("--reports-expected", type=int, default=0)
+    present_command.add_argument("--reports-observed", type=int, default=0)
+    present_command.add_argument("--dropped", type=int, default=0)
+    present_command.add_argument("--duplicated", type=int, default=0)
+    present_command.add_argument("--repeated", type=int, default=0)
+    present_command.add_argument("--latency-p95-us", type=int, default=0)
+    present_command.add_argument("--safe-release", action="store_true")
+    run_command = commands.add_parser("run-text")
+    run_command.add_argument("--run-id", required=True)
+    run_command.add_argument("--text", required=True, type=pathlib.Path)
+    run_command.add_argument("--interval-ms", type=int, default=80)
+    run_command.add_argument("--hold-ms", type=int, default=30)
+    run_command.add_argument("--repeat", type=int, default=1)
+    run_command.add_argument("--cycle-gap-ms", type=int, default=500)
+    run_command.add_argument("--shift-lead-ms", type=int, default=0)
+    run_command.add_argument("--shift-release-lag-ms", type=int, default=0)
+    run_command.add_argument("--delay-ms", type=int, default=2000)
+    return root
+
+
+def print_json(value: object) -> None:
+    print(json.dumps(value, indent=2, sort_keys=True))
+
+
+def main() -> int:
+    arguments = parser().parse_args()
+    if arguments.command == "compile-text":
+        script = compile_text(arguments.run_id, arguments.text.read_text(), arguments.interval_ms,
+                              arguments.hold_ms, arguments.repeat, arguments.cycle_gap_ms,
+                              arguments.shift_lead_ms, arguments.shift_release_lag_ms)
+        if arguments.output:
+            arguments.output.write_text(script)
+            print(arguments.output)
+        else:
+            sys.stdout.write(script)
+        return 0
+
+    client = FixtureClient(arguments.host, token_from_environment(), arguments.port, arguments.timeout)
+    if arguments.command == "status": print_json(client.status())
+    elif arguments.command == "load-script": print_json(client.load_script(arguments.script.read_text()))
+    elif arguments.command == "arm": print_json(client.arm(arguments.run_id))
+    elif arguments.command == "start": print_json(client.start(arguments.run_id, arguments.delay_ms))
+    elif arguments.command == "abort": print_json(client.abort())
+    elif arguments.command == "update-firmware":
+        print_json(client.update_firmware(arguments.firmware.read_bytes(), arguments.expected_build,
+                                          arguments.wait_seconds))
+    elif arguments.command == "trace": print_json(client.trace(arguments.start, arguments.limit))
+    elif arguments.command == "present":
+        print_json(client.present({
+            "phase": arguments.phase, "result": arguments.result, "progress": arguments.progress,
+            "title": arguments.title, "detail": arguments.detail, "next": arguments.next,
+            "reportsExpected": arguments.reports_expected, "reportsObserved": arguments.reports_observed,
+            "dropped": arguments.dropped, "duplicated": arguments.duplicated,
+            "repeated": arguments.repeated, "latencyP95Us": arguments.latency_p95_us,
+            "safeRelease": arguments.safe_release,
+        }))
+    elif arguments.command == "run-text":
+        script = compile_text(arguments.run_id, arguments.text.read_text(), arguments.interval_ms,
+                              arguments.hold_ms, arguments.repeat, arguments.cycle_gap_ms,
+                              arguments.shift_lead_ms, arguments.shift_release_lag_ms)
+        print_json({"load": client.load_script(script), "arm": client.arm(arguments.run_id),
+                    "start": client.start(arguments.run_id, arguments.delay_ms)})
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

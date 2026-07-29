@@ -12,22 +12,30 @@ Usage: Scripts/lab/keypath-lab [--host HOST] <command> [options]
 
 Commands:
   preflight
-  create --macos 15|26|27 --lane managed-functional|unmanaged-ui --commit SHA --installer PATH [--ttl 2h] [--desktop] [--tart-usb-passthrough]
+  create --macos 15|26|27 --lane managed-functional|unmanaged-ui --commit SHA --installer PATH [--fixture PATH] [--ttl 2h] [--desktop] [--tart-usb-passthrough]
   install-app LEASE_ID
+  install-runtime LEASE_ID
+  install-upgrade-runtime LEASE_ID
+  install-fixture LEASE_ID
   console-login LEASE_ID
+  verify-console-login LEASE_ID
   reset-guest-password LEASE_ID
+  reset-desktop-keychain LEASE_ID
+  reboot-guest LEASE_ID
   secure-console-submit LEASE_ID
+  console-key LEASE_ID --key PARALLELS_KEY_CODE [--modifier PARALLELS_KEY_CODE]
   rfb-pointer-probe LEASE_ID --x X --y Y
   desktop-bootstrap LEASE_ID [--install-tools]
   nameplate LEASE_ID enable|show|hide|status
   protected-click LEASE_ID --app APP --window TITLE (--x X --y Y | --ax-x X --ax-y Y) [--after-window TITLE] [--count 1|2]
+  approve-input-monitoring LEASE_ID
   desktop-type LEASE_ID --text TEXT
   secure-dialog-input LEASE_ID --app APP --field LABEL [--submit BUTTON] [--already-focused]
   resume-managed-policy LEASE_ID
   run LEASE_ID -- COMMAND [ARG...]
   status LEASE_ID
   list
-  artifacts LEASE_ID
+  artifacts LEASE_ID [--output DIRECTORY]
   scenario LEASE_ID NAME
   destroy LEASE_ID
   cleanup [--dry-run]
@@ -66,7 +74,8 @@ remote() {
         printf -v quoted '%q' "$argument"
         remote_command="$remote_command $quoted"
     done
-    ssh -o BatchMode=yes "$host" "$remote_command" < "$REMOTE_SCRIPT"
+    ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+        "$host" "$remote_command" < "$REMOTE_SCRIPT"
 }
 
 require_lease_id() {
@@ -83,6 +92,7 @@ case "$command" in
         lane=
         commit=
         installer=
+        fixture=
         ttl=2h
         desktop=0
         tart_usb_passthrough=0
@@ -92,6 +102,7 @@ case "$command" in
                 --lane) lane=${2:-}; shift 2 ;;
                 --commit) commit=${2:-}; shift 2 ;;
                 --installer) installer=${2:-}; shift 2 ;;
+                --fixture) fixture=${2:-}; shift 2 ;;
                 --ttl) ttl=${2:-}; shift 2 ;;
                 --desktop) desktop=1; shift ;;
                 --tart-usb-passthrough) tart_usb_passthrough=1; shift ;;
@@ -104,18 +115,93 @@ case "$command" in
         [[ $tart_usb_passthrough == "0" || $macos == "15" ]] || die "--tart-usb-passthrough requires --macos 15"
         [[ $commit =~ ^[0-9a-fA-F]{40}$ ]] || die "--commit must be a full 40-character SHA"
         [[ -f $installer ]] || die "installer not found: $installer"
+        [[ -z $fixture || -f $fixture ]] || die "fixture not found: $fixture"
         resolved=$(git -C "$REPO_ROOT" rev-parse --verify "$commit^{commit}")
         [[ $resolved == "$commit" ]] || die "commit does not resolve exactly: $commit"
+        harness_commit=$(git -C "$REPO_ROOT" rev-parse --verify HEAD^{commit})
+        [[ ${KEYPATH_LAB_ALLOW_DIRTY_HARNESS:-0} == 1 || -z $(git -C "$REPO_ROOT" status --short --untracked-files=no) ]] || die "committed lab harness is required before creating an archive"
 
         installer_sha=$(shasum -a 256 "$installer" | awk '{print $1}')
-        archive_key="${commit}-${installer_sha}"
-        temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/keypath-lab.XXXXXX")
-        trap 'rm -rf "$temp_dir"' EXIT
-        mkdir -p "$temp_dir/repo/.keypath-lab/installer"
-        git -C "$REPO_ROOT" archive "$commit" | tar -x -C "$temp_dir/repo"
         installer_name=$(basename "$installer")
         [[ $installer_name =~ ^[A-Za-z0-9._-]+$ ]] || die "installer filename must contain only letters, numbers, dots, underscores, and dashes"
+        base_product_archive_key="${commit}-${installer_sha}"
+        base_archive_key="$base_product_archive_key"
+        candidate_archive_key="${base_product_archive_key}-h${harness_commit}"
+        archive_key="$candidate_archive_key"
+        fixture_name=
+        fixture_sha=
+        if [[ -n $fixture ]]; then
+            fixture_name=$(basename "$fixture")
+            [[ $fixture_name =~ ^[A-Za-z0-9._-]+$ ]] || die "fixture filename must contain only letters, numbers, dots, underscores, and dashes"
+            fixture_sha=$(shasum -a 256 "$fixture" | awk '{print $1}')
+            base_archive_key="${base_archive_key}-${fixture_sha}"
+            archive_key="${archive_key}-${fixture_sha}"
+        fi
+        if remote archive-status "$archive_key" "$commit" "$installer_sha" "$installer_name"; then
+            remote create "$macos" "$lane" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$ttl" "$desktop" "$tart_usb_passthrough"
+            exit $?
+        fi
+        temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/keypath-lab.XXXXXX")
+        trap 'rm -rf "$temp_dir"' EXIT
+        if [[ -n $fixture ]] && ! remote archive-status "$candidate_archive_key" "$commit" "$installer_sha" "$installer_name" >/dev/null \
+                && remote archive-status "$base_product_archive_key" "$commit" "$installer_sha" "$installer_name" >/dev/null; then
+            mkdir -p "$temp_dir/candidate-overlay"
+            git -C "$REPO_ROOT" archive "$harness_commit" Scripts/lab | tar -x -C "$temp_dir/candidate-overlay"
+            if [[ $lane == "managed-functional" ]]; then
+                mkdir -p "$temp_dir/candidate-installer-extract"
+                /usr/bin/ditto -x -k "$installer" "$temp_dir/candidate-installer-extract"
+                [[ -d $temp_dir/candidate-installer-extract/KeyPath.app ]] || die "managed installer must contain KeyPath.app at its root"
+                "$SCRIPT_DIR/mdm/generate-keypath-profiles" \
+                    --app "$temp_dir/candidate-installer-extract/KeyPath.app" \
+                    --output "$temp_dir/candidate-overlay/.keypath-lab/managed-policy" >/dev/null
+            fi
+            tar -czf "$temp_dir/candidate-overlay.tgz" -C "$temp_dir/candidate-overlay" .
+            upload_ticket=$(remote prepare-upload "$candidate_archive_key")
+            [[ $upload_ticket == /tmp/keypath-lab.* ]] || die "host returned an invalid upload ticket"
+            scp -q "$temp_dir/candidate-overlay.tgz" "$host:$upload_ticket"
+            remote derive-archive "$upload_ticket" "$base_product_archive_key" "$candidate_archive_key" "$commit" "$installer_sha" "$installer_name" "$harness_commit"
+        fi
+        if [[ -n $fixture ]] && remote archive-status "$candidate_archive_key" "$commit" "$installer_sha" "$installer_name" >/dev/null; then
+            fixture_archive_output=$(remote find-fixture-archive "$fixture_sha" "$fixture_name" || true)
+            fixture_source_key=$(printf '%s\n' "$fixture_archive_output" | awk -F '\t' '$1 == "fixture_archive" {print $2; exit}')
+            if [[ $fixture_source_key =~ ^[A-Za-z0-9._-]+$ ]]; then
+                remote derive-fixture-archive "$candidate_archive_key" "$fixture_source_key" "$archive_key" \
+                    "$commit" "$installer_sha" "$installer_name" "$harness_commit" "$fixture_sha" "$fixture_name"
+                remote create "$macos" "$lane" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$ttl" "$desktop" "$tart_usb_passthrough"
+                exit $?
+            fi
+        fi
+        if remote archive-status "$base_archive_key" "$commit" "$installer_sha" "$installer_name"; then
+            mkdir -p "$temp_dir/overlay"
+            git -C "$REPO_ROOT" archive "$harness_commit" Scripts/lab | tar -x -C "$temp_dir/overlay"
+            if [[ $lane == "managed-functional" ]]; then
+                mkdir -p "$temp_dir/installer-extract"
+                /usr/bin/ditto -x -k "$installer" "$temp_dir/installer-extract"
+                [[ -d $temp_dir/installer-extract/KeyPath.app ]] || die "managed installer must contain KeyPath.app at its root"
+                "$SCRIPT_DIR/mdm/generate-keypath-profiles" \
+                    --app "$temp_dir/installer-extract/KeyPath.app" \
+                    --output "$temp_dir/overlay/.keypath-lab/managed-policy" >/dev/null
+            fi
+            tar -czf "$temp_dir/overlay.tgz" -C "$temp_dir/overlay" .
+            upload_ticket=$(remote prepare-upload "$archive_key")
+            [[ $upload_ticket == /tmp/keypath-lab.* ]] || die "host returned an invalid upload ticket"
+            scp -q "$temp_dir/overlay.tgz" "$host:$upload_ticket"
+            remote derive-archive "$upload_ticket" "$base_archive_key" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$harness_commit"
+            remote create "$macos" "$lane" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$ttl" "$desktop" "$tart_usb_passthrough"
+            exit $?
+        fi
+        mkdir -p "$temp_dir/repo/.keypath-lab/installer"
+        git -C "$REPO_ROOT" archive "$commit" | tar -x -C "$temp_dir/repo"
+        # Product identity remains pinned to `commit`, while lab-only execution
+        # comes from an independently recorded harness commit. Including both
+        # in the archive key makes the payload immutable without forcing a new
+        # signed product build for every harness correction.
+        git -C "$REPO_ROOT" archive "$harness_commit" Scripts/lab | tar -x -C "$temp_dir/repo"
         cp "$installer" "$temp_dir/repo/.keypath-lab/installer/$installer_name"
+        if [[ -n $fixture ]]; then
+            mkdir -p "$temp_dir/repo/.keypath-lab/fixtures"
+            cp "$fixture" "$temp_dir/repo/.keypath-lab/fixtures/$fixture_name"
+        fi
         if [[ $lane == "managed-functional" ]]; then
             mkdir -p "$temp_dir/installer-extract"
             /usr/bin/ditto -x -k "$installer" "$temp_dir/installer-extract"
@@ -126,8 +212,11 @@ case "$command" in
         fi
         cat > "$temp_dir/repo/.keypath-lab/source.tsv" <<EOF
 keypath_commit	$commit
+harness_commit	$harness_commit
 installer_name	$installer_name
 installer_sha256	$installer_sha
+fixture_name	$fixture_name
+fixture_sha256	$fixture_sha
 EOF
         tar -czf "$temp_dir/archive.tgz" -C "$temp_dir" repo
 
@@ -142,20 +231,65 @@ EOF
         require_lease_id "$1"
         remote install-app "$1"
         ;;
+    install-runtime)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote install-runtime "$1"
+        ;;
+    install-upgrade-runtime)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote install-upgrade-runtime "$1"
+        ;;
+    install-fixture)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote install-fixture "$1"
+        ;;
     console-login)
         [[ $# -eq 1 ]] || usage
         require_lease_id "$1"
         remote console-login "$1"
+        ;;
+    verify-console-login)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote verify-console-login "$1"
         ;;
     reset-guest-password)
         [[ $# -eq 1 ]] || usage
         require_lease_id "$1"
         remote reset-guest-password "$1"
         ;;
+    reset-desktop-keychain)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote reset-desktop-keychain "$1"
+        ;;
+    reboot-guest)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote reboot-guest "$1"
+        ;;
     secure-console-submit)
         [[ $# -eq 1 ]] || usage
         require_lease_id "$1"
         remote secure-console-submit "$1"
+        ;;
+    console-key)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        [[ ${1:-} == "--key" && ${2:-} =~ ^[0-9]+$ ]] || usage
+        key_code=$2
+        shift 2
+        modifier=0
+        if [[ $# -gt 0 ]]; then
+            [[ ${1:-} == "--modifier" && ${2:-} =~ ^[0-9]+$ && $# -eq 2 ]] || usage
+            modifier=$2
+        fi
+        remote console-key "$lease" "$key_code" "$modifier"
         ;;
     rfb-pointer-probe)
         lease=${1:-}
@@ -221,6 +355,12 @@ EOF
         [[ -n $after_window ]] || after_window=$window
         remote protected-click "$lease" "$app" "$window" "$after_window" "$coordinate_space" "$x" "$y" "$count"
         ;;
+    approve-input-monitoring)
+        lease=${1:-}
+        [[ -n $lease && $# -eq 1 ]] || usage
+        require_lease_id "$lease"
+        remote approve-input-monitoring "$lease"
+        ;;
     desktop-type)
         lease=${1:-}
         [[ -n $lease ]] || usage
@@ -275,9 +415,22 @@ EOF
         remote list
         ;;
     artifacts)
-        [[ $# -eq 1 ]] || usage
+        [[ $# -eq 1 || ($# -eq 3 && $2 == "--output") ]] || usage
         require_lease_id "$1"
-        remote artifacts "$1"
+        lease=$1
+        output=
+        [[ $# -eq 3 ]] && output=$3
+        artifact_result=$(remote artifacts "$lease")
+        printf '%s\n' "$artifact_result"
+        if [[ -n $output ]]; then
+            artifact_dir=$(printf '%s\n' "$artifact_result" | awk -F '\t' '$1 == "artifact_dir" {print $2}' | tail -1)
+            [[ $artifact_dir =~ ^/[A-Za-z0-9._/[:space:]-]+$ && $artifact_dir != *..* ]] || die "host returned an invalid artifact directory"
+            [[ ! -L $output ]] || die "artifact output must not be a symlink"
+            mkdir -p "$output"
+            scp -q -o BatchMode=yes -r "$host:$artifact_dir/." "$output/"
+            local_output=$(cd "$output" >/dev/null && pwd -P)
+            printf 'local_artifact_dir\t%s\n' "$local_output"
+        fi
         ;;
     scenario)
         [[ $# -eq 2 ]] || usage

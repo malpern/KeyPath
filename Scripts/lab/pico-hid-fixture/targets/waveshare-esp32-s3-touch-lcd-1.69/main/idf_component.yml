@@ -1,0 +1,6 @@
+dependencies:
+  idf: "==5.5.5"
+  espressif/esp_tinyusb: "^2.0.0"
+  espressif/mdns: "^1.0.3"
+  waveshare/esp32_s3_touch_lcd_1_69: "==2.0.0"
+  lvgl/lvgl: "^9.3.0"

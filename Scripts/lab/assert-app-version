@@ -1,0 +1,24 @@
+#!/bin/zsh
+set -euo pipefail
+
+expected=${1:-}
+[[ -n "$expected" ]] || {
+  print -u2 "Usage: $0 EXPECTED_VERSION"
+  exit 2
+}
+
+app=/Applications/KeyPath.app
+plist="$app/Contents/Info.plist"
+[[ -d "$app" && -f "$plist" ]] || {
+  print -u2 "app version assertion: KeyPath is not installed"
+  exit 1
+}
+
+/usr/bin/codesign --verify --deep --strict "$app"
+actual=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")
+[[ "$actual" == "$expected" ]] || {
+  print -u2 "app version assertion: expected $expected, found $actual"
+  exit 1
+}
+
+print "app_version\t$actual"
