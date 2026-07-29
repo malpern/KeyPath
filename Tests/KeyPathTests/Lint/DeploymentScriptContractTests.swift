@@ -92,6 +92,24 @@ final class DeploymentScriptContractTests: XCTestCase {
         )
     }
 
+    func testBuildAndSignSupportsNonDeployingCandidateBuilds() throws {
+        let buildAndSign = try contents(of: repositoryRoot().appendingPathComponent("Scripts/build-and-sign.sh"))
+        let guardText = #"if [ "${SKIP_DEPLOY:-0}" = "1" ]; then"#
+
+        guard let guardRange = buildAndSign.range(of: guardText),
+              let runtimeStopRange = buildAndSign.range(of: #"pgrep -x "KeyPath""#)
+        else {
+            return XCTFail("build-and-sign must expose SKIP_DEPLOY before touching the installed runtime")
+        }
+
+        XCTAssertLessThan(
+            buildAndSign.distance(from: buildAndSign.startIndex, to: guardRange.lowerBound),
+            buildAndSign.distance(from: buildAndSign.startIndex, to: runtimeStopRange.lowerBound),
+            "SKIP_DEPLOY must exit before stopping or replacing the installed app."
+        )
+        XCTAssertTrue(buildAndSign.contains("Candidate retained at: $APP_BUNDLE"))
+    }
+
     func testReleaseBuildReadsVersionMetadataFromPlistPaths() throws {
         let root = repositoryRoot()
         let buildAndSign = try contents(of: root.appendingPathComponent("Scripts/build-and-sign.sh"))

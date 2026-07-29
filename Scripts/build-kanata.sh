@@ -62,9 +62,9 @@ KANATA_FEATURES="tcp_server"
 # TCC-Safe Caching Logic
 function calculate_source_hash() {
     # Generate hash based on kanata source files (excluding build artifacts).
-    # Includes C/C++ sources: the fork vendors the karabiner-driverkit crate
-    # (driverkit/c_src), and a .cpp/.hpp-only change must invalidate the cache
-    # or a stale engine silently ships (bit MAL-57 Layer 3).
+    # Includes the Cargo manifests and lockfile that pin the external
+    # karabiner-driverkit revision. A DriverKit source update therefore changes
+    # the pin and invalidates the cache without requiring a sibling checkout.
     # Also folds in the cargo feature set: a feature change (e.g. dropping
     # `cmd`, #879) alters the binary without touching any source file.
     cd "$KANATA_SOURCE"

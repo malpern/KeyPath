@@ -1,3 +1,4 @@
+import Foundation
 @testable import KeyPathAppKit
 @testable import KeyPathCore
 @testable import KeyPathInstallationWizard
@@ -15,36 +16,28 @@ final class VHIDDeviceManagerTests: XCTestCase {
 
     // MARK: - Version Mismatch Tests
 
-    func testHasVersionMismatch_V5InstalledRequiresV6() {
-        // Simulate v5.0.0 installed when v6.2.0 is required
-        VHIDDeviceManager.testInstalledVersionProvider = { "5.0.0" }
+    func testHasVersionMismatch_V7InstalledRequiresV8() {
+        VHIDDeviceManager.testInstalledVersionProvider = { "7.0.0" }
         let mgr = VHIDDeviceManager()
-        XCTAssertTrue(mgr.hasVersionMismatch(), "v5 installed with v6 required should be a mismatch")
+        XCTAssertTrue(mgr.hasVersionMismatch(), "v7 installed with v8 required should be a mismatch")
     }
 
-    func testHasVersionMismatch_V6InstalledRequiresV6() {
-        // Simulate v6.2.0 installed when v6.2.0 is required
-        VHIDDeviceManager.testInstalledVersionProvider = { "6.2.0" }
+    func testHasVersionMismatch_V8InstalledRequiresV8() {
+        VHIDDeviceManager.testInstalledVersionProvider = { "8.0.0" }
         let mgr = VHIDDeviceManager()
-        XCTAssertFalse(mgr.hasVersionMismatch(), "v6 installed with v6 required should NOT be a mismatch")
+        XCTAssertFalse(mgr.hasVersionMismatch(), "v8 installed with v8 required should NOT be a mismatch")
     }
 
-    func testHasVersionMismatch_V6_1InstalledRequiresV6_2() {
-        VHIDDeviceManager.testInstalledVersionProvider = { "6.1.0" }
+    func testHasVersionMismatch_V9InstalledRequiresV8() {
+        VHIDDeviceManager.testInstalledVersionProvider = { "9.0.0" }
         let mgr = VHIDDeviceManager()
-        XCTAssertTrue(mgr.hasVersionMismatch(), "v6.1 installed with v6.2 required should be a mismatch")
+        XCTAssertTrue(mgr.hasVersionMismatch(), "a different major version should be a mismatch")
     }
 
-    func testHasVersionMismatch_V6_0InstalledRequiresV6_2() {
-        VHIDDeviceManager.testInstalledVersionProvider = { "6.0.0" }
+    func testHasVersionMismatch_NewerCompatibleV8Release() {
+        VHIDDeviceManager.testInstalledVersionProvider = { "8.1.0" }
         let mgr = VHIDDeviceManager()
-        XCTAssertTrue(mgr.hasVersionMismatch(), "v6.0 installed with v6.2 required should be a mismatch")
-    }
-
-    func testHasVersionMismatch_NewerCompatibleV6Release() {
-        VHIDDeviceManager.testInstalledVersionProvider = { "6.14.0" }
-        let mgr = VHIDDeviceManager()
-        XCTAssertFalse(mgr.hasVersionMismatch(), "a newer v6 release should remain compatible")
+        XCTAssertFalse(mgr.hasVersionMismatch(), "a newer v8 release should remain compatible")
     }
 
     func testHasVersionMismatch_NoVersionInstalled() {
@@ -55,16 +48,16 @@ final class VHIDDeviceManagerTests: XCTestCase {
     }
 
     func testGetVersionMismatchMessage_ReturnsMessageForMismatch() {
-        VHIDDeviceManager.testInstalledVersionProvider = { "5.0.0" }
+        VHIDDeviceManager.testInstalledVersionProvider = { "7.0.0" }
         let mgr = VHIDDeviceManager()
         let message = mgr.getVersionMismatchMessage()
         XCTAssertNotNil(message, "Should return message when version mismatch exists")
-        XCTAssertTrue(message?.contains("5.0.0") ?? false, "Message should mention installed version")
-        XCTAssertTrue(message?.contains("6.2.0") ?? false, "Message should mention required version")
+        XCTAssertTrue(message?.contains("7.0.0") ?? false, "Message should mention installed version")
+        XCTAssertTrue(message?.contains("8.0.0") ?? false, "Message should mention required version")
     }
 
     func testGetVersionMismatchMessage_ReturnsNilWhenCompatible() {
-        VHIDDeviceManager.testInstalledVersionProvider = { "6.2.0" }
+        VHIDDeviceManager.testInstalledVersionProvider = { "8.0.0" }
         let mgr = VHIDDeviceManager()
         let message = mgr.getVersionMismatchMessage()
         XCTAssertNil(message, "Should return nil when versions are compatible")
@@ -348,6 +341,25 @@ final class VHIDDeviceManagerTests: XCTestCase {
             VHIDDeviceManager.requiredDriverVersionString,
             WizardSystemPaths.bundledVHIDDriverVersion,
             "VHIDDeviceManager should use bundled version as single source of truth"
+        )
+    }
+
+    func testBundledDriverArtifactAndHelperFallbackMatchDeclaredVersion() throws {
+        let version = WizardSystemPaths.bundledVHIDDriverVersion
+        let resources = LintScanner.path("Sources/KeyPathApp/Resources")
+        let expectedPackage = "Karabiner-DriverKit-VirtualHIDDevice-\(version).pkg"
+        let bundledPackages = try FileManager.default.contentsOfDirectory(atPath: resources.path)
+            .filter { $0.hasPrefix("Karabiner-DriverKit-VirtualHIDDevice-") && $0.hasSuffix(".pkg") }
+
+        XCTAssertEqual(bundledPackages, [expectedPackage], "KeyPath must ship exactly the declared VHID package.")
+
+        let helper = try String(
+            contentsOf: LintScanner.path("Sources/KeyPathHelper/HelperService.swift"),
+            encoding: .utf8
+        )
+        XCTAssertTrue(
+            helper.contains(#"private static let requiredVHIDVersion = "\#(version)""#),
+            "The helper's deprecated download fallback must stay aligned with the bundled driver."
         )
     }
 }

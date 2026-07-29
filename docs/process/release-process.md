@@ -60,6 +60,16 @@ Then it delegates to `build-and-sign.sh` with fast release-candidate defaults:
 It deploys to `/Applications/KeyPath.app` and runs
 `./Scripts/verify-installed-app.sh` after the build.
 
+To assemble and sign a local candidate without stopping or replacing the
+installed KeyPath runtime, use:
+
+```bash
+SKIP_NOTARIZE=1 SKIP_SPARKLE=1 SKIP_SNAPSHOTS=1 SKIP_DEPLOY=1 ./Scripts/build-and-sign.sh
+```
+
+The candidate remains at `dist/KeyPath.app`. This is the safe build-only path
+for integration work that is not yet ready to control the active keyboard.
+
 Release-candidate and public release builds hold the shared deploy lock for the
 whole build/sign/notarize/deploy flow. Update old worktrees before running
 `quick-deploy.sh`; older scripts that do not use this lock can still overwrite

@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # KeyPath Build, Sign, and Notarize Script
-# Run this to create a production-ready, signed, and notarized app
+# Run this to create a production-ready, signed, and notarized app.
+# Set SKIP_DEPLOY=1 to leave the assembled candidate in dist/ without touching
+# the currently installed app or its running keyboard service.
 
 set -euo pipefail
 
@@ -527,6 +529,12 @@ else
 
     # Create Sparkle-compatible versioned archive
     create_sparkle_archive
+fi
+
+if [ "${SKIP_DEPLOY:-0}" = "1" ]; then
+    echo "⏭️  Skipping deployment (SKIP_DEPLOY=1)"
+    echo "📍 Candidate retained at: $APP_BUNDLE"
+    exit 0
 fi
 
 # Stop running KeyPath and kanata BEFORE replacing the app bundle.
