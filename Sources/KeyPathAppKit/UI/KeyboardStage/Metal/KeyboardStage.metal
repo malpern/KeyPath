@@ -9,6 +9,7 @@ struct KeyboardStageInstance {
     float4 parameters;    // pressure, glow, opacity, border strength
     float4 treatment;     // rotation, corner ratio, shadow margin in pixels, reserved
     float4 lighting;      // illumination, transient glow, shadow strength, interaction level
+    float4 material;      // wear level, stable per-key seed, reserved
 };
 
 struct KeyboardStageUniforms {
@@ -22,6 +23,7 @@ struct KeyboardStageUniforms {
     float4 tuningB;       // graze mask start, rim peak, rim power, emphasis rim floor
     float4 tuningC;       // well expansion, contact strength, cast strength, backlight
     float4 tuningD;       // legend emission min/max, legend base min/max
+    float4 tuningE;       // fill light, fill specular, wear strength, highlight jitter
 };
 
 struct KeyboardStageLegendInstance {
@@ -34,6 +36,7 @@ struct KeyboardStageLegendInstance {
 struct KeyboardStagePostUniforms {
     float4 sourceAndBloomSize;   // source width/height, bloom width/height
     float4 entranceAndDirection; // progress, Reduce Motion flag, light direction.xy
+    float4 vignette;             // strength, inner radius, stage windowX origin/width
 };
 
 struct KeyboardStageVertexOut {
@@ -48,6 +51,7 @@ struct KeyboardStageVertexOut {
     float cornerRadiusPixels;
     float2 stageUV;
     float materialKind;
+    float2 material;
 };
 
 struct KeyboardStageLegendVertexOut {
@@ -111,6 +115,7 @@ vertex KeyboardStageVertexOut keypath_keyboard_stage_vertex(
         0.5 - output.position.y * 0.5
     );
     output.materialKind = instance.treatment.w;
+    output.material = instance.material.xy;
     return output;
 }
 
@@ -321,6 +326,15 @@ fragment float4 keypath_keyboard_stage_fragment(
     // instead of a seated key's bevel-and-well treatment.
     bool isChip = input.materialKind >= 1.5;
     float keyPress = isKey ? saturate(input.lighting.w) : 0.0;
+    // Real keycaps are not uniform: fingers polish high-traffic caps and no
+    // two caps sit at exactly the same angle. Wear and a stable per-key seed
+    // drive gloss, grain, and highlight variation; both derive from the key
+    // code, so the pattern never shifts between moments or launches.
+    float wear = isKey
+        ? saturate(input.material.x) * saturate(uniforms.tuningE.z)
+        : 0.0;
+    float materialSeedA = keypath_hash(float2(input.material.y, 0.37));
+    float materialSeedB = keypath_hash(float2(input.material.y, 0.71));
     bool reduceMotion = uniforms.entrance.y > 0.5;
     float pixelExposure = keypath_cinematic_exposure(
         uniforms.entrance.x,
@@ -497,6 +511,13 @@ fragment float4 keypath_keyboard_stage_fragment(
     );
     float faceMask = isKey ? (1.0 - bevel) * surfaceAlpha : 0.0;
     float2 crownNormal = faceCoordinate * float2(0.055, 0.075) * faceMask;
+    // Each cap sits at a fractionally different angle, so its highlight lands
+    // slightly apart from its neighbors' — the variation that reads as
+    // photographed hardware instead of instanced geometry.
+    crownNormal += (float2(materialSeedA, materialSeedB) - 0.5)
+        * 0.055
+        * uniforms.tuningE.w
+        * faceMask;
     float3 normal = normalize(float3(
         distanceGradient.x * bevel * bevelDepth + crownNormal.x,
         distanceGradient.y * bevel * bevelDepth + crownNormal.y,
@@ -516,7 +537,7 @@ fragment float4 keypath_keyboard_stage_fragment(
         ? sin(materialPixels.y * 1.82 + keypath_value_noise(materialPixels * 0.012) * 4.0)
             * 0.0038
         : 0.0;
-    float microNormalStrength = isDeck ? 0.026 : 0.014;
+    float microNormalStrength = isDeck ? 0.026 : 0.014 * (1.0 - wear * 0.45);
     normal = normalize(normal + float3(
         microX * microNormalStrength,
         microY * microNormalStrength + brushedRidge,
@@ -541,7 +562,10 @@ fragment float4 keypath_keyboard_stage_fragment(
     float viewDotHalf = saturate(halfVector.z);
     float roughnessVariation = keypath_value_noise(materialPixels * (isDeck ? 0.032 : 0.058)) - 0.5;
     float roughness = clamp(
-        (isDeck ? 0.31 : 0.47) + roughnessVariation * (isDeck ? 0.055 : 0.035),
+        (isDeck ? 0.31 : 0.47)
+            + roughnessVariation * (isDeck ? 0.055 : 0.035)
+            - wear * 0.11
+            + (isKey ? (materialSeedA - 0.5) * 0.05 : 0.0),
         0.12,
         0.82
     );
@@ -560,7 +584,11 @@ fragment float4 keypath_keyboard_stage_fragment(
         * microfacetVisibility
         / max(0.04, 4.0 * normalDotView * normalDotLight);
     float specularPower = isDeck ? 88.0 : (isKey ? 42.0 : 34.0);
-    float specular = pow(saturate(dot(normal, halfVector)), specularPower);
+    float keySpecularGain = isKey
+        ? (0.85 + materialSeedB * 0.30) * (1.0 + wear * 0.55)
+        : 1.0;
+    float specular = pow(saturate(dot(normal, halfVector)), specularPower)
+        * keySpecularGain;
     float bevelSpecular = pow(
         saturate(dot(normal, halfVector)),
         isDeck ? 112.0 : 64.0
@@ -581,7 +609,9 @@ fragment float4 keypath_keyboard_stage_fragment(
     // legible even under a saturated accent fill.
     surfaceColor *= mix(1.0, mix(1.05, 0.80, verticalPosition), pressure);
     float crownHighlight = isKey
-        ? pow(saturate(1.0 - length(faceCoordinate) * 0.52), 2.2) * faceMask
+        ? pow(saturate(1.0 - length(faceCoordinate) * 0.52), 2.2)
+            * faceMask
+            * (1.0 + wear * 1.1)
         : 0.0;
     float lowerBevelCatch = isKey
         ? bevel * smoothstep(0.05, 0.82, distanceGradient.y)
@@ -613,6 +643,7 @@ fragment float4 keypath_keyboard_stage_fragment(
     surfaceColor += microfacetSpecular
         * neutralLight
         * normalDotLight
+        * keySpecularGain
         * mix(isDeck ? 0.032 : 0.018, isDeck ? 0.22 : 0.11, illumination);
     surfaceColor += neutralLight
         * crownHighlight
@@ -664,6 +695,25 @@ fragment float4 keypath_keyboard_stage_fragment(
         * rightGraze
         * grazePool
         * (warmMaterialResponse + warmBevelResponse);
+
+    // A dim cool fill from the lower left mirrors the second source of a
+    // studio rig: it lifts the shadow side just enough to give highlights a
+    // two-temperature complexity instead of a single clinical lobe.
+    float3 fillDirection = normalize(float3(-0.55, 0.35, 0.62));
+    float fillDiffuse = saturate(dot(normal, fillDirection));
+    float3 fillHalfVector = normalize(fillDirection + float3(0.0, 0.0, 1.0));
+    float fillSpecular = pow(
+        saturate(dot(normal, fillHalfVector)),
+        isDeck ? 60.0 : 40.0
+    );
+    // The dark room's materials sit near black in linear light, so the fill
+    // must stay a whisper there or it grays the whole scene; the settled
+    // light state can carry more of it invisibly.
+    float fillStrength = uniforms.tuningE.x * mix(0.10, 0.35, illumination);
+    surfaceColor += float3(0.52, 0.60, 0.76)
+        * fillStrength
+        * (fillDiffuse * (isDeck ? 0.050 : 0.034)
+            + fillSpecular * bevel * uniforms.tuningE.y);
 
     float edge = smoothstep(-2.2, -0.15, distance) * surfaceAlpha;
     float edgeIllumination = mix(0.10, 0.72, illumination) + grazingBand * 0.56;
@@ -1011,6 +1061,23 @@ fragment float4 keypath_keyboard_composite_fragment(
     float3 premultipliedRadiance = source.rgb + bloomContribution;
     float3 straightRadiance = premultipliedRadiance / finalAlpha;
     float3 mappedColor = keypath_highlight_shoulder(straightRadiance);
+
+    // The reference photograph sinks toward the frame corners. The falloff is
+    // computed in window space so it stays anchored to the dialog, and it
+    // relaxes as the light rises so the settled state keeps only a trace.
+    float2 windowUV = float2(
+        uniforms.vignette.z + input.uv.x * uniforms.vignette.w,
+        input.uv.y
+    );
+    float vignetteDistance = length((windowUV - float2(0.5)) * float2(1.25, 1.0));
+    float vignetteFalloff = smoothstep(
+        uniforms.vignette.y,
+        uniforms.vignette.y + 0.38,
+        vignetteDistance
+    )
+        * uniforms.vignette.x
+        * mix(1.0, 0.30, easedProgress);
+    mappedColor *= 1.0 - vignetteFalloff;
 
     // Static sub-LSB noise prevents banding in the dark-to-light shoulder. It
     // fades out before progress reaches one so the final light frame is clean.

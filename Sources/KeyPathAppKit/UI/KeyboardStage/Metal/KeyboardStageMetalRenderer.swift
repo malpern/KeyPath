@@ -10,6 +10,7 @@ private struct KeyboardStageGPUInstance {
     var parameters: SIMD4<Float>
     var treatment: SIMD4<Float>
     var lighting: SIMD4<Float>
+    var material: SIMD4<Float>
 }
 
 private struct KeyboardStageGPUUniforms {
@@ -21,6 +22,7 @@ private struct KeyboardStageGPUUniforms {
     var tuningB: SIMD4<Float>
     var tuningC: SIMD4<Float>
     var tuningD: SIMD4<Float>
+    var tuningE: SIMD4<Float>
 }
 
 private struct KeyboardStageGPULegendInstance {
@@ -33,6 +35,7 @@ private struct KeyboardStageGPULegendInstance {
 private struct KeyboardStageGPUPostUniforms {
     var sourceAndBloomSize: SIMD4<Float>
     var entranceAndDirection: SIMD4<Float>
+    var vignette: SIMD4<Float>
 }
 
 private struct KeyboardStageMetalRenderTargets {
@@ -199,7 +202,8 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
             tuningA: currentTuning.gpuVectorA,
             tuningB: currentTuning.gpuVectorB,
             tuningC: currentTuning.gpuVectorC,
-            tuningD: currentTuning.gpuVectorD
+            tuningD: currentTuning.gpuVectorD,
+            tuningE: currentTuning.gpuVectorE
         )
         var postUniforms = KeyboardStageGPUPostUniforms(
             sourceAndBloomSize: SIMD4(
@@ -213,6 +217,12 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
                 currentFrame.entrance.reduceMotion ? 1 : 0,
                 1,
                 0
+            ),
+            vignette: SIMD4(
+                currentTuning.vignetteVector.x,
+                currentTuning.vignetteVector.y,
+                currentWindowX.x,
+                currentWindowX.y
             )
         )
 
@@ -320,7 +330,8 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
             tuningA: capturedTuning.gpuVectorA,
             tuningB: capturedTuning.gpuVectorB,
             tuningC: capturedTuning.gpuVectorC,
-            tuningD: capturedTuning.gpuVectorD
+            tuningD: capturedTuning.gpuVectorD,
+            tuningE: capturedTuning.gpuVectorE
         )
         var postUniforms = KeyboardStageGPUPostUniforms(
             sourceAndBloomSize: SIMD4(
@@ -334,6 +345,12 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
                 frame.entrance.reduceMotion ? 1 : 0,
                 1,
                 0
+            ),
+            vignette: SIMD4(
+                capturedTuning.vignetteVector.x,
+                capturedTuning.vignetteVector.y,
+                windowX.x,
+                windowX.y
             )
         )
 
@@ -934,6 +951,8 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
                 lighting: lighting.lighting(for: key),
                 cornerRatio: 0.31,
                 materialKind: 1,
+                wear: Self.wearLevel(for: key.keyCode),
+                seed: Self.materialSeed(for: key.keyCode),
                 drawableSize: drawableSize
             )
         })
@@ -1018,6 +1037,8 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
         lighting: KeyboardStageSurfaceLighting,
         cornerRatio: Float,
         materialKind: Float,
+        wear: Float = 0,
+        seed: Float = 0.5,
         drawableSize: CGSize
     ) -> KeyboardStageGPUInstance {
         let width = max(1, Float(drawableSize.width))
@@ -1050,8 +1071,34 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
                 lighting.transientGlow,
                 lighting.shadowStrength,
                 interactionLevel
-            )
+            ),
+            material: SIMD4(wear, seed, 0, 0)
         )
+    }
+
+    /// Fingers polish real keycaps unevenly: home-row and thumb-cluster caps
+    /// go glossy first, common letters follow, and the number row keeps its
+    /// factory texture. Values are relative gloss, tuned by feel.
+    private static func wearLevel(for keyCode: UInt16) -> Float {
+        switch keyCode {
+        case 49: 0.85 // space
+        case 0, 1, 2, 3, 38, 40, 37, 41: 0.75 // a s d f j k l ;
+        case 57, 36, 51: 0.65 // caps lock, return, delete
+        case 56, 60, 55, 54, 58, 61, 59, 62, 63: 0.55 // shift, command, option, control, fn
+        case 14, 17, 31, 34, 45, 15, 32, 4: 0.5 // e t o i n r u h
+        case 12, 13, 16, 5, 35, 8, 9, 7, 6, 11, 46, 43, 47, 44: 0.35 // remaining letters/punct
+        case 18 ... 29, 50: 0.15 // number row
+        default: 0.3
+        }
+    }
+
+    /// A stable per-key seed so material variation and highlight jitter stay
+    /// fixed across moments, camera changes, and app launches.
+    private static func materialSeed(for keyCode: UInt16) -> Float {
+        var value = UInt32(keyCode) &* 2_654_435_761
+        value = (value ^ (value >> 16)) &* 2_246_822_519
+        value = value ^ (value >> 13)
+        return Float(value % 10000) / 10000
     }
 
     private func linearColor(_ color: KeyboardStageRGBA) -> SIMD4<Float> {
