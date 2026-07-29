@@ -38,6 +38,17 @@ private final class MutableHealthStatus {
     }
 }
 
+@MainActor
+private final class MutableRuntimeTransition {
+    var isTransitioning: Bool
+    var waitCount = 0
+    var reloadCount = 0
+
+    init(isTransitioning: Bool) {
+        self.isTransitioning = isTransitioning
+    }
+}
+
 /// Thread-safe boolean flag for use in notification observer closures.
 private final class NotificationFlag: @unchecked Sendable {
     private let lock = NSLock()
@@ -80,7 +91,12 @@ struct ConfigReloadCoordinatorTests {
         engineResult: EngineReloadResult = .success(response: "ok"),
         healthy: Bool = true,
         runtimeTransitioning: Bool = false,
-        tcpReloadResult: TCPReloadResult? = nil
+        runtimeTransitionState: MutableRuntimeTransition? = nil,
+        tcpReloadResult: TCPReloadResult? = nil,
+        transitionRetryMaximumPolls: Int = Int((RuntimeStartupTiming.uiGracePeriod / 0.5).rounded(.up)),
+        transitionRetryWait: @escaping @MainActor @Sendable () async -> Void = {
+            try? await Task.sleep(for: .milliseconds(500))
+        }
     ) -> (
         coordinator: ConfigReloadCoordinator,
         engine: MockEngineClient,
@@ -95,6 +111,8 @@ struct ConfigReloadCoordinatorTests {
 
         let safetyMonitor = ReloadSafetyMonitor()
         let processLifecycle = ProcessLifecycleManager()
+        let transitionState = runtimeTransitionState
+            ?? MutableRuntimeTransition(isTransitioning: runtimeTransitioning)
         let tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)? = if let tcpReloadResult {
             { tcpReloadResult }
         } else {
@@ -106,8 +124,10 @@ struct ConfigReloadCoordinatorTests {
             reloadSafetyMonitor: safetyMonitor,
             healthStatusProvider: { _ in healthStatus.value },
             processLifecycleManager: processLifecycle,
-            isRuntimeTransitioning: { runtimeTransitioning },
-            tcpReloadOverride: tcpReloadOverride
+            isRuntimeTransitioning: { transitionState.isTransitioning },
+            tcpReloadOverride: tcpReloadOverride,
+            transitionRetryMaximumPolls: transitionRetryMaximumPolls,
+            transitionRetryWait: transitionRetryWait
         )
 
         return (coordinator, engine, healthStatus)
@@ -197,7 +217,8 @@ struct ConfigReloadCoordinatorTests {
         let (coordinator, _, _) = Self.makeSUT(
             healthy: true,
             runtimeTransitioning: true,
-            tcpReloadResult: .networkError("Connection failed: Connection closed")
+            tcpReloadResult: .networkError("Connection failed: Connection closed"),
+            transitionRetryMaximumPolls: 0
         )
 
         let received = NotificationFlag()
@@ -214,6 +235,47 @@ struct ConfigReloadCoordinatorTests {
         #expect(result.disposition == .pending)
         #expect(result.errorMessage?.contains("restarting") == true)
         #expect(received.value == false)
+    }
+
+    @Test("transition retry waits for readiness and reloads once")
+    func transitionRetryWaitsForReadiness() async {
+        let transition = MutableRuntimeTransition(isTransitioning: true)
+        let (coordinator, _, _) = Self.makeSUT(
+            healthy: true,
+            runtimeTransitionState: transition,
+            tcpReloadResult: .success(response: "ok"),
+            transitionRetryMaximumPolls: 2,
+            transitionRetryWait: {
+                transition.waitCount += 1
+                transition.isTransitioning = false
+            }
+        )
+        coordinator.onReloadSuccess = { transition.reloadCount += 1 }
+
+        let didRetry = await coordinator.retryAfterRuntimeTransition()
+
+        #expect(didRetry == true)
+        #expect(transition.waitCount == 1)
+        #expect(transition.reloadCount == 1)
+    }
+
+    @Test("transition retry expires without reloading when runtime never settles")
+    func transitionRetryExpires() async {
+        let transition = MutableRuntimeTransition(isTransitioning: true)
+        let (coordinator, _, _) = Self.makeSUT(
+            healthy: true,
+            runtimeTransitionState: transition,
+            tcpReloadResult: .success(response: "ok"),
+            transitionRetryMaximumPolls: 2,
+            transitionRetryWait: { transition.waitCount += 1 }
+        )
+        coordinator.onReloadSuccess = { transition.reloadCount += 1 }
+
+        let didRetry = await coordinator.retryAfterRuntimeTransition()
+
+        #expect(didRetry == false)
+        #expect(transition.waitCount == 2)
+        #expect(transition.reloadCount == 0)
     }
 
     @Test("network failure outside runtime transition remains a visible failure")

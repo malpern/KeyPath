@@ -17,6 +17,8 @@ final class ConfigReloadCoordinator {
     private let processLifecycleManager: ProcessLifecycleManager
     private let isRuntimeTransitioning: @MainActor @Sendable () -> Bool
     private let tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)?
+    private let transitionRetryMaximumPolls: Int
+    private let transitionRetryWait: @MainActor @Sendable () async -> Void
 
     // MARK: - Callbacks (set by RuntimeCoordinator after init)
 
@@ -31,7 +33,11 @@ final class ConfigReloadCoordinator {
         healthStatusProvider: @escaping @MainActor @Sendable (Int) async -> ServiceHealthStatus,
         processLifecycleManager: ProcessLifecycleManager,
         isRuntimeTransitioning: @escaping @MainActor @Sendable () -> Bool = { false },
-        tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)? = nil
+        tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)? = nil,
+        transitionRetryMaximumPolls: Int = Int((RuntimeStartupTiming.uiGracePeriod / 0.5).rounded(.up)),
+        transitionRetryWait: @escaping @MainActor @Sendable () async -> Void = {
+            try? await Task.sleep(for: .milliseconds(500))
+        }
     ) {
         self.engineClient = engineClient
         self.reloadSafetyMonitor = reloadSafetyMonitor
@@ -39,6 +45,8 @@ final class ConfigReloadCoordinator {
         self.processLifecycleManager = processLifecycleManager
         self.isRuntimeTransitioning = isRuntimeTransitioning
         self.tcpReloadOverride = tcpReloadOverride
+        self.transitionRetryMaximumPolls = transitionRetryMaximumPolls
+        self.transitionRetryWait = transitionRetryWait
     }
 
     // MARK: - Reload Operations
@@ -179,10 +187,10 @@ final class ConfigReloadCoordinator {
 
     /// When a reload is blocked by the cooldown, we still want it to actually
     /// happen so the config file we just wrote reaches kanata. Schedule a
-    /// deferred retry once the cooldown expires; de-duped via a single
-    /// outstanding task so rapid edits coalesce into one final reload.
+    /// deferred retry once the cooldown expires. Cooldown and runtime-transition
+    /// retries share one task so rapid edits and overlapping recovery states
+    /// coalesce into one final reload.
     private var deferredReloadTask: Task<Void, Never>?
-    private var transitionReloadTask: Task<Void, Never>?
 
     private func scheduleDeferredReloadAfterCooldown() {
         deferredReloadTask?.cancel()
@@ -200,33 +208,40 @@ final class ConfigReloadCoordinator {
     /// config that was persisted while the old TCP connection was disappearing.
     /// Readiness is bounded by the same grace period used by user-facing startup UI.
     private func scheduleDeferredReloadAfterRuntimeTransition() {
-        if TestEnvironment.isRunningTests { return }
+        deferredReloadTask?.cancel()
+        deferredReloadTask = Task { [weak self] in
+            guard let self else { return }
+            let didRetry = await retryAfterRuntimeTransition()
+            if !didRetry, !Task.isCancelled {
+                AppLogger.shared.warn(
+                    "⚠️ [Reload] Runtime did not become ready before deferred reload grace expired"
+                )
+            }
+            deferredReloadTask = nil
+        }
+    }
 
-        transitionReloadTask?.cancel()
-        transitionReloadTask = Task { [weak self] in
-            let deadline = Date().addingTimeInterval(RuntimeStartupTiming.uiGracePeriod)
+    /// Poll the intentional transition and retry once the replacement runtime is healthy.
+    /// The injected poll bound and wait operation keep the production grace period bounded
+    /// while allowing deterministic tests without sleeping.
+    @discardableResult
+    func retryAfterRuntimeTransition() async -> Bool {
+        for _ in 0 ..< transitionRetryMaximumPolls {
+            guard !Task.isCancelled else { return false }
 
-            while !Task.isCancelled, Date() < deadline {
-                guard let self else { return }
-                if !isRuntimeTransitioning() {
-                    let health = await healthStatusProvider(PreferencesService.shared.tcpServerPort)
-                    if health.isHealthy {
-                        AppLogger.shared.log("🔁 [Reload] Retrying config reload after runtime transition")
-                        await triggerReload()
-                        transitionReloadTask = nil
-                        return
-                    }
+            if !isRuntimeTransitioning() {
+                let health = await healthStatusProvider(PreferencesService.shared.tcpServerPort)
+                if health.isHealthy {
+                    AppLogger.shared.log("🔁 [Reload] Retrying config reload after runtime transition")
+                    await triggerReload()
+                    return true
                 }
-
-                try? await Task.sleep(for: .milliseconds(500))
             }
 
-            guard let self, !Task.isCancelled else { return }
-            AppLogger.shared.warn(
-                "⚠️ [Reload] Runtime did not become ready before deferred reload grace expired"
-            )
-            transitionReloadTask = nil
+            await transitionRetryWait()
         }
+
+        return false
     }
 
     /// TCP-based config reload (no authentication required - see ADR-013)
