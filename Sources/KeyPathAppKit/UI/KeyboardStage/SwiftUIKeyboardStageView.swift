@@ -213,7 +213,8 @@ private struct KeyboardStageSwiftUIDecorationSurface: View {
         case .keyboardDeck:
             min(frame.height * 0.075, 24)
         case .applicationTarget, .launcherChoiceTarget, .handoffTarget:
-            min(frame.height * 0.34, 18)
+            // Full capsule: these are floating UI chips, not keycaps.
+            frame.height * 0.5
         case .capsEcho:
             min(frame.width, frame.height) * 0.16
         case .modifierToken:
@@ -254,15 +255,37 @@ private struct KeyboardStageSwiftUIDecorationSurface: View {
             .shadow(
                 color: Color(red: 0.18, green: 0.16, blue: 0.14)
                     .opacity(
-                        (decoration.kind == .keyboardDeck ? 0.18 : 0.10)
+                        (decoration.kind == .keyboardDeck ? 0.18 : shadowOpacity)
                             * Double(lighting.shadowStrength)
                     ),
-                radius: decoration.kind == .keyboardDeck ? 12 : 4,
-                y: decoration.kind == .keyboardDeck ? 7 : 2
+                radius: decoration.kind == .keyboardDeck ? 12 : shadowRadius,
+                y: decoration.kind == .keyboardDeck ? 7 : shadowOffsetY
             )
             .frame(width: frame.width, height: frame.height)
             .rotationEffect(.radians(Double(decoration.rotationRadians)))
             .position(x: frame.midX, y: frame.midY)
             .opacity(Double(decoration.opacity))
+    }
+
+    /// Floating chips carry a deeper, softer cast shadow than seated elements.
+    private var isFloatingChip: Bool {
+        switch decoration.kind {
+        case .applicationTarget, .launcherChoiceTarget, .handoffTarget:
+            true
+        case .keyboardDeck, .capsEcho, .modifierToken, .launcherCandidateMarker:
+            false
+        }
+    }
+
+    private var shadowOpacity: Double {
+        isFloatingChip ? 0.16 : 0.10
+    }
+
+    private var shadowRadius: CGFloat {
+        isFloatingChip ? 9 : 4
+    }
+
+    private var shadowOffsetY: CGFloat {
+        isFloatingChip ? 5 : 2
     }
 }

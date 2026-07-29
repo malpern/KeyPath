@@ -201,8 +201,17 @@ private struct KeyboardStageKeyLegendOverlay: View {
                 .opacity(Double(lighting.legendGlow) * 0.06),
             radius: 6.5
         )
-        .padding(.horizontal, max(2, frame.width * 0.08))
-        .frame(width: frame.width, height: frame.height)
+        .padding(
+            .horizontal,
+            key.legend.alignment == .center
+                ? max(2, frame.width * 0.08)
+                : max(2, frame.height * 0.16)
+        )
+        .frame(
+            width: frame.width,
+            height: frame.height,
+            alignment: overlayAlignment
+        )
         .rotationEffect(.radians(Double(key.rotationRadians)))
         .position(x: frame.midX, y: frame.midY)
         // Metal renders the visible glyph mask so its emissive light can take
@@ -223,6 +232,14 @@ private struct KeyboardStageKeyLegendOverlay: View {
 
     private var legendColor: Color {
         lighting.legendColor(settledColor: style.legend).color
+    }
+
+    private var overlayAlignment: Alignment {
+        switch key.legend.alignment {
+        case .leading: .leading
+        case .center: .center
+        case .trailing: .trailing
+        }
     }
 
     private var accessibilityLabel: Text {

@@ -11,18 +11,27 @@ struct KeyboardStageLegendAtlasDescriptor: Hashable, Sendable {
         case medium
     }
 
+    enum Alignment: Int, Hashable, Sendable {
+        case leading
+        case center
+        case trailing
+    }
+
     var primary: String
     var secondary: String?
     var weight: Weight
+    var alignment: Alignment
 
     init(
         primary: String,
         secondary: String? = nil,
-        weight: Weight = .regular
+        weight: Weight = .regular,
+        alignment: Alignment = .center
     ) {
         self.primary = primary
         self.secondary = secondary
         self.weight = weight
+        self.alignment = alignment
     }
 }
 
@@ -74,7 +83,10 @@ struct KeyboardStageLegendAtlasSignature: Hashable, Sendable {
                 break
             }
         }
-        return lhs.weight.rawValue < rhs.weight.rawValue
+        if lhs.weight != rhs.weight {
+            return lhs.weight.rawValue < rhs.weight.rawValue
+        }
+        return lhs.alignment.rawValue < rhs.alignment.rawValue
     }
 }
 
@@ -328,15 +340,24 @@ enum KeyboardStageLegendAtlasRasterizer {
                 descriptor.primary,
                 font: font(size: primaryFontSize, weight: descriptor.weight),
                 center: CGPoint(x: cell.midX, y: cell.midY),
+                alignment: descriptor.alignment,
+                cell: cell,
                 in: context
             )
         }
     }
 
+    /// Horizontal padding inside a cell for edge-aligned legends. The renderer
+    /// anchors the quad's matching edge to the keycap's inner margin, so this
+    /// stays small and fixed rather than proportional.
+    static let edgeAlignedCellPadding: CGFloat = 6
+
     private static func drawLine(
         _ string: String,
         font: CTFont,
         center: CGPoint,
+        alignment: KeyboardStageLegendAtlasDescriptor.Alignment = .center,
+        cell: CGRect? = nil,
         in context: CGContext
     ) {
         let attributes: [NSAttributedString.Key: Any] = [
@@ -347,8 +368,16 @@ enum KeyboardStageLegendAtlasRasterizer {
             NSAttributedString(string: string, attributes: attributes)
         )
         let bounds = CTLineGetBoundsWithOptions(line, [.useGlyphPathBounds])
+        let x: CGFloat = switch (alignment, cell) {
+        case let (.leading, .some(cell)):
+            cell.minX + edgeAlignedCellPadding - bounds.minX
+        case let (.trailing, .some(cell)):
+            cell.maxX - edgeAlignedCellPadding - bounds.maxX
+        default:
+            center.x - bounds.midX
+        }
         context.textPosition = CGPoint(
-            x: center.x - bounds.midX,
+            x: x,
             y: center.y - bounds.midY
         )
         CTLineDraw(line, context)

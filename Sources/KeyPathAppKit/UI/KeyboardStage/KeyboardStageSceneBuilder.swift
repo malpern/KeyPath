@@ -104,7 +104,7 @@ enum KeyboardStageSceneBuilder {
                 dim(keys: &keys, except: [keys[capsIndex].id], opacity: 0.86)
                 keys[capsIndex].role = .recommended
                 keys[capsIndex].glow = 0.28
-                keys[capsIndex].legend = KeyboardStageLegend(primary: "caps lock")
+                keys[capsIndex].legend = KeyboardStageLegend(primary: "caps lock", alignment: .leading)
                 viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 1.18)
             }
 
@@ -113,7 +113,7 @@ enum KeyboardStageSceneBuilder {
                 dim(keys: &keys, except: [capsKeyID], opacity: 0.88)
                 keys[capsIndex].role = .recommended
                 keys[capsIndex].glow = 0.72
-                keys[capsIndex].legend = KeyboardStageLegend(primary: "caps lock")
+                keys[capsIndex].legend = KeyboardStageLegend(primary: "caps lock", alignment: .leading)
                 keys[capsIndex].accessibilityRole = .capsToEscape
                 revealTarget = .capsToEscape(keyID: capsKeyID)
                 viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 1.18)
@@ -360,11 +360,19 @@ enum KeyboardStageSceneBuilder {
         keymap: LogicalKeymap,
         includePunctuation: Bool
     ) -> [KeyboardStageKey] {
-        layout.keys.enumerated().compactMap { index, key in
-            let legend = displayLegend(
+        let layoutMinX = layout.keys.map(\.visualX).min() ?? 0
+        let layoutMaxX = layout.keys.map { $0.visualX + $0.width }.max() ?? 0
+        return layout.keys.enumerated().compactMap { index, key in
+            var legend = displayLegend(
                 for: key,
                 keymap: keymap,
                 includePunctuation: includePunctuation
+            )
+            legend.alignment = edgeLegendAlignment(
+                for: key,
+                legend: legend,
+                layoutMinX: layoutMinX,
+                layoutMaxX: layoutMaxX
             )
 
             guard shouldShowInHero(key: key, label: legend.primary) else { return nil }
@@ -403,6 +411,30 @@ enum KeyboardStageSceneBuilder {
             return false
         }
         return true
+    }
+
+    /// MacBook hardware sets word legends on wide edge keys toward the outer
+    /// edge of the board; letters, symbols, and stacked legends stay centered.
+    private static func edgeLegendAlignment(
+        for key: PhysicalKey,
+        legend: KeyboardStageLegend,
+        layoutMinX: Double,
+        layoutMaxX: Double
+    ) -> KeyboardStageLegendAlignment {
+        guard legend.secondary == nil,
+              legend.primary.count > 1,
+              key.width >= 1.35
+        else {
+            return .center
+        }
+
+        if key.visualX <= layoutMinX + 0.05 {
+            return .leading
+        }
+        if key.visualX + key.width >= layoutMaxX - 0.05 {
+            return .trailing
+        }
+        return .center
     }
 
     private static func displayLegend(

@@ -310,6 +310,10 @@ fragment float4 keypath_keyboard_stage_fragment(
     float borderStrength = saturate(input.parameters.w);
     bool isDeck = input.materialKind < 0.5;
     bool isKey = input.materialKind >= 0.5 && input.materialKind < 1.5;
+    // Chips are floating UI affordances (launcher/Rules capsules, tokens),
+    // not keycaps: flatter edges, a soft top sheen, and an elevated shadow
+    // instead of a seated key's bevel-and-well treatment.
+    bool isChip = input.materialKind >= 1.5;
     float keyPress = isKey ? saturate(input.lighting.w) : 0.0;
     bool reduceMotion = uniforms.entrance.y > 0.5;
     float pixelExposure = keypath_cinematic_exposure(
@@ -388,11 +392,15 @@ fragment float4 keypath_keyboard_stage_fragment(
         input.halfSizePixels,
         input.cornerRadiusPixels,
         float2(
-            mix(isDeck ? -2.0 : -2.35, -0.35, pressure),
-            mix(isDeck ? 10.5 : 8.6, 2.0, pressure)
+            mix(isDeck ? -2.0 : (isChip ? -2.9 : -2.35), -0.35, pressure),
+            mix(isDeck ? 10.5 : (isChip ? 12.5 : 8.6), 2.0, pressure)
         ),
-        isDeck ? 18.0 : 10.5
-    ) * (1.0 - surfaceAlpha) * mix(isDeck ? 0.26 : 0.34, 0.09, pressure);
+        isDeck ? 18.0 : (isChip ? 16.0 : 10.5)
+    ) * (1.0 - surfaceAlpha) * mix(isDeck ? 0.26 : (isChip ? 0.44 : 0.34), 0.09, pressure);
+    if (isChip) {
+        // Hovering above the deck: almost no tight contact, all soft cast.
+        contactShadowAlpha *= 0.45;
+    }
     contactShadowAlpha *= mix(1.62, 0.48, illumination);
     castShadowAlpha *= mix(1.30, 0.72, illumination);
     float shadowAlpha = contactShadowAlpha
@@ -452,7 +460,9 @@ fragment float4 keypath_keyboard_stage_fragment(
 
     float bevelWidth = isDeck
         ? min(8.0, min(input.halfSizePixels.x, input.halfSizePixels.y) * 0.10)
-        : min(6.0, min(input.halfSizePixels.x, input.halfSizePixels.y) * 0.20);
+        : (isChip
+            ? min(3.0, min(input.halfSizePixels.x, input.halfSizePixels.y) * 0.12)
+            : min(6.0, min(input.halfSizePixels.x, input.halfSizePixels.y) * 0.20));
     float bevel = smoothstep(-bevelWidth, -0.20, distance) * surfaceAlpha;
     float2 distanceGradient = keypath_rounded_rect_gradient(
         input.localPixels,
@@ -468,7 +478,7 @@ fragment float4 keypath_keyboard_stage_fragment(
     float directionalRim = pow(edgeFacing, 1.7);
     float rimDirectionality = mix(directionalRim * 2.2, 1.0, illumination);
     float emphasisRimShape = mix(max(directionalRim, 0.30), 1.0, illumination);
-    float bevelDepth = isDeck ? 0.22 : 0.72;
+    float bevelDepth = isDeck ? 0.22 : (isChip ? 0.30 : 0.72);
     float2 faceCoordinate = clamp(
         input.localPixels / max(input.halfSizePixels, float2(1.0)),
         float2(-1.0),
@@ -684,6 +694,13 @@ fragment float4 keypath_keyboard_stage_fragment(
         * instructionalEmphasis
         * emphasisRimShape
         * mix(0.24, 0.065, illumination);
+
+    // A soft highlight along a chip's upper edge reads as light skimming a
+    // raised glass surface, separating it from the keycaps beneath.
+    float chipSheen = isChip
+        ? bevel * smoothstep(0.15, 0.90, -distanceGradient.y)
+        : 0.0;
+    surfaceColor += neutralLight * chipSheen * (0.05 + illumination * 0.07);
 
     // A narrow internal rim makes the translucent legend light feel seated in
     // a real cap even though semantic glyphs remain native and accessible.

@@ -79,10 +79,26 @@ Evidence (installed replay, window-server capture):
 - Front crossing keycaps: `/tmp/keypath-onboarding-directional-midcross.png`
 - Settled light endpoint (unchanged): `/tmp/keypath-onboarding-directional-light.png`
 
-Remaining follow-ups (deliberately out of scope for this pass): left-aligned
-legends on wide keys to match MacBook hardware, and moving the launcher/Rules
-capsule affordances out of the keycap metaphor into native chips above the
-deck.
+## Iteration 3 — legend alignment and floating chips
+
+The two follow-ups from the directional pass:
+
+- Wide-key legend alignment: the scene model now carries a legend alignment,
+  and MacBook conventions are applied from key geometry — `tab`, `caps lock`,
+  and left `shift` set leading, row-ending wide keys trailing, everything
+  else centered. The Metal legend atlas rasterizes edge-aligned cells flush
+  to a fixed padding and the renderer anchors the quad's matching edge at the
+  keycap's inner margin; the native overlay applies the same alignment for
+  the fallback and accessibility layers.
+- Floating chips: the launcher-choice and Rules-handoff affordances no longer
+  wear a keycap costume. They render as full capsules with flattened edges, a
+  top sheen, a reduced contact shadow, and a deeper, softer cast shadow in
+  both render paths, reading as UI chips hovering above the spacebar rather
+  than replacing it.
+
+Both changes verified in the re-recorded fallback snapshots (all seven
+states). Installed Metal-path capture is queued behind an idle-time guard so
+automation does not inject events while the machine is in active use.
 
 ## Validation
 

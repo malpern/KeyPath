@@ -198,22 +198,35 @@ enum KeyboardStageRevealTarget: Equatable, Sendable {
 
 // MARK: - Scene elements
 
+/// Horizontal placement of a legend within its keycap. MacBook hardware sets
+/// word legends on wide edge keys toward the outer edge (`tab`, `caps lock`,
+/// and left `shift` leading; `delete`, `return`, and right `shift` trailing)
+/// while letters, symbols, and stacked legends stay centered.
+enum KeyboardStageLegendAlignment: Equatable, Sendable {
+    case leading
+    case center
+    case trailing
+}
+
 struct KeyboardStageLegend: Equatable, Sendable {
     var primary: String
     var previous: String?
     var secondary: String?
     var transitionProgress: Float
+    var alignment: KeyboardStageLegendAlignment
 
     init(
         primary: String,
         previous: String? = nil,
         secondary: String? = nil,
-        transitionProgress: Float = 1
+        transitionProgress: Float = 1,
+        alignment: KeyboardStageLegendAlignment = .center
     ) {
         self.primary = primary
         self.previous = previous
         self.secondary = secondary
         self.transitionProgress = transitionProgress
+        self.alignment = alignment
     }
 
     static func interpolated(
@@ -226,7 +239,8 @@ struct KeyboardStageLegend: Equatable, Sendable {
                 primary: end.primary,
                 previous: start.primary,
                 secondary: progress < 0.5 ? start.secondary : end.secondary,
-                transitionProgress: progress
+                transitionProgress: progress,
+                alignment: progress < 0.5 ? start.alignment : end.alignment
             )
         }
 
@@ -238,7 +252,8 @@ struct KeyboardStageLegend: Equatable, Sendable {
                 start.transitionProgress,
                 end.transitionProgress,
                 progress
-            )
+            ),
+            alignment: end.alignment
         )
     }
 }
