@@ -95,6 +95,7 @@ struct KeyboardStageMetalView: NSViewRepresentable {
             view.windowMappingDidChange = { [weak renderer] windowX in
                 renderer?.update(windowX: windowX)
             }
+            context.coordinator.startTuningHarnessIfRequested(for: view)
             view.requestDraw()
         } catch {
             context.coordinator.report(error)
@@ -120,6 +121,7 @@ struct KeyboardStageMetalView: NSViewRepresentable {
         view.isPaused = true
         view.delegate = nil
         coordinator.renderer = nil
+        coordinator.stopTuningHarness()
         coordinator.invalidateRenderer()
         view.windowMappingDidChange = nil
         view.cancelPendingDraw()
@@ -174,6 +176,62 @@ struct KeyboardStageMetalView: NSViewRepresentable {
             Task { @MainActor in
                 handler(error)
             }
+        }
+
+        // MARK: - Developer tuning harness
+
+        private var tuningWatcher: (any DispatchSourceFileSystemObject)?
+
+        /// When `KEYPATH_STAGE_TUNING_FILE` names a JSON file, apply it and
+        /// redraw on every save so lighting constants can be tuned live
+        /// instead of through a build-deploy-replay loop. Inert in normal
+        /// launches: without the environment variable nothing is installed.
+        func startTuningHarnessIfRequested(for view: KeyboardStageMTKView) {
+            guard let url = KeyboardStageTuning.environmentFileURL else { return }
+            applyTuning(from: url, to: view)
+            armTuningWatcher(url: url, view: view)
+        }
+
+        func stopTuningHarness() {
+            tuningWatcher?.cancel()
+            tuningWatcher = nil
+        }
+
+        private func applyTuning(from url: URL, to view: KeyboardStageMTKView) {
+            guard let tuning = try? KeyboardStageTuning.load(from: url) else {
+                return
+            }
+            renderer?.update(tuning: tuning)
+            view.requestDraw()
+        }
+
+        private func armTuningWatcher(url: URL, view: KeyboardStageMTKView) {
+            stopTuningHarness()
+            let descriptor = open(url.path, O_EVTONLY)
+            guard descriptor >= 0 else { return }
+
+            let source = DispatchSource.makeFileSystemObjectSource(
+                fileDescriptor: descriptor,
+                eventMask: [.write, .extend, .rename, .delete],
+                queue: .main
+            )
+            source.setEventHandler { [weak self, weak view] in
+                let events = source.data
+                Task { @MainActor [weak self, weak view] in
+                    guard let self, let view else { return }
+                    applyTuning(from: url, to: view)
+                    // Editors save atomically by replacing the file; the old
+                    // descriptor then watches a dead inode, so re-arm.
+                    if events.contains(.rename) || events.contains(.delete) {
+                        armTuningWatcher(url: url, view: view)
+                    }
+                }
+            }
+            source.setCancelHandler {
+                close(descriptor)
+            }
+            source.resume()
+            tuningWatcher = source
         }
     }
 }
