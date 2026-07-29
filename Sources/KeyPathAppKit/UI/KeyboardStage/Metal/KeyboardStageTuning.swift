@@ -45,6 +45,13 @@ struct KeyboardStageTuning: Equatable, Sendable {
     /// Legend base-brightness range across the light axis in the dark hold.
     var legendBaseMin: Float = 0.84
     var legendBaseMax: Float = 1.05
+    /// Cool fill light from the lower left: overall and specular strength.
+    var fillLightStrength: Float = 0.8
+    var fillSpecularStrength: Float = 0.12
+    /// Per-key wear (polished crowns, calmer grain on high-traffic caps).
+    var wearStrength: Float = 1.0
+    /// Per-key highlight jitter (each cap catches the light slightly apart).
+    var highlightJitter: Float = 1.0
 
     static let `default` = KeyboardStageTuning()
 
@@ -70,6 +77,10 @@ struct KeyboardStageTuning: Equatable, Sendable {
     var gpuVectorD: SIMD4<Float> {
         SIMD4(legendEmissionMin, legendEmissionMax, legendBaseMin, legendBaseMax)
     }
+
+    var gpuVectorE: SIMD4<Float> {
+        SIMD4(fillLightStrength, fillSpecularStrength, wearStrength, highlightJitter)
+    }
 }
 
 extension KeyboardStageTuning: Codable {
@@ -90,6 +101,10 @@ extension KeyboardStageTuning: Codable {
         case legendEmissionMax
         case legendBaseMin
         case legendBaseMax
+        case fillLightStrength
+        case fillSpecularStrength
+        case wearStrength
+        case highlightJitter
     }
 
     init(from decoder: any Decoder) throws {
@@ -119,6 +134,10 @@ extension KeyboardStageTuning: Codable {
         legendEmissionMax = value(.legendEmissionMax, defaults.legendEmissionMax)
         legendBaseMin = value(.legendBaseMin, defaults.legendBaseMin)
         legendBaseMax = value(.legendBaseMax, defaults.legendBaseMax)
+        fillLightStrength = value(.fillLightStrength, defaults.fillLightStrength)
+        fillSpecularStrength = value(.fillSpecularStrength, defaults.fillSpecularStrength)
+        wearStrength = value(.wearStrength, defaults.wearStrength)
+        highlightJitter = value(.highlightJitter, defaults.highlightJitter)
     }
 
     /// Loads overrides from a JSON file; unknown keys are ignored and missing

@@ -31,6 +31,8 @@ final class KeyboardStageTuningTests: XCTestCase {
         XCTAssertEqual(tuning.gpuVectorB.y, tuning.rimDirectionalityPeak)
         XCTAssertEqual(tuning.gpuVectorC.w, tuning.backlightStrengthDark)
         XCTAssertEqual(tuning.gpuVectorD.y, tuning.legendEmissionMax)
+        XCTAssertEqual(tuning.gpuVectorE.x, tuning.fillLightStrength)
+        XCTAssertEqual(tuning.gpuVectorE.z, tuning.wearStrength)
     }
 
     func testEnvironmentFileURLExpandsTilde() {
