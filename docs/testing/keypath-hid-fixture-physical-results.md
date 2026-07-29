@@ -220,3 +220,19 @@ latency counters to this evidence.
 The USB-removal gate remains unproven on this board without a battery or other independent power:
 disconnecting its sole USB-C cable removes both data and power, so it cannot execute or report the
 reconnect safety path. Do not count a power-cycle as a USB-unmount acceptance result.
+
+### Post-update control soak
+
+Authenticated OTA installed build `f92209f3ea52` into valid slot `ota_1`; the fixture returned to
+idle with mounted USB, healthy display frames, completed splash, and an update-safe release state.
+The first diagnostic-bearing soak then passed 120/120 status requests with no failure, reset, build
+change, or HTTP server restart. Host-observed latency was 28.153 ms median, 93.715 ms p95, and
+105.845 ms maximum. Firmware handler latency peaked at 7.465 ms; the remaining time is host/network
+transport rather than response construction. Free heap remained 8.33 MB and minimum free heap was
+8.29 MB. The artifact is
+`~/.local/state/keypath-hid-fixture/control/control-soak-20260729T014347Z.json`.
+
+This validates the updated control plane under a 120-request idle soak. It does not yet validate
+the two-step offline demo's physical buttons/touch/output or control responsiveness concurrent with
+a high-rate HID run; those require an exclusive desktop window because the next action emits real
+keyboard reports.
