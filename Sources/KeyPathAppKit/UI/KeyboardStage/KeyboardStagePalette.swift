@@ -194,43 +194,43 @@ struct KeyboardStagePalette: Equatable, Sendable {
             )
         case .recommended:
             KeyboardStageSurfaceStyle(
-                fill: KeyboardStageRGBA(0.875, 0.91, 0.929),
+                fill: KeyboardStageRGBA(0.910, 0.918, 0.922),
                 accent: KeyboardStageRGBA(0.439, 0.561, 0.631),
                 glow: KeyboardStageRGBA(0.263, 0.655, 0.902),
-                legend: KeyboardStageRGBA(0.337, 0.416, 0.467),
-                borderStrength: 0.52
+                legend: KeyboardStageRGBA(0.285, 0.337, 0.369),
+                borderStrength: 0.62
             )
         case .escape:
             KeyboardStageSurfaceStyle(
-                fill: KeyboardStageRGBA(0.835, 0.882, 0.918),
+                fill: KeyboardStageRGBA(0.900, 0.914, 0.922),
                 accent: KeyboardStageRGBA(0.38, 0.50, 0.57),
                 glow: KeyboardStageRGBA(0.263, 0.655, 0.902),
-                legend: KeyboardStageRGBA(0.337, 0.416, 0.467),
-                borderStrength: 0.68
+                legend: KeyboardStageRGBA(0.268, 0.326, 0.360),
+                borderStrength: 0.78
             )
         case .hyper:
             KeyboardStageSurfaceStyle(
-                fill: KeyboardStageRGBA(0.855, 0.89, 0.929),
+                fill: KeyboardStageRGBA(0.906, 0.914, 0.925),
                 accent: KeyboardStageRGBA(0.455, 0.549, 0.663),
                 glow: KeyboardStageRGBA(0.302, 0.518, 0.847),
-                legend: KeyboardStageRGBA(0.306, 0.376, 0.463),
-                borderStrength: 0.56
+                legend: KeyboardStageRGBA(0.278, 0.326, 0.386),
+                borderStrength: 0.68
             )
         case .launcher:
             KeyboardStageSurfaceStyle(
-                fill: KeyboardStageRGBA(0.855, 0.914, 0.925),
+                fill: KeyboardStageRGBA(0.905, 0.921, 0.923),
                 accent: KeyboardStageRGBA(0.404, 0.60, 0.647),
                 glow: KeyboardStageRGBA(0.263, 0.655, 0.902),
-                legend: KeyboardStageRGBA(0.251, 0.373, 0.396),
-                borderStrength: 0.52
+                legend: KeyboardStageRGBA(0.251, 0.345, 0.365),
+                borderStrength: 0.64
             )
         case .installed:
             KeyboardStageSurfaceStyle(
-                fill: KeyboardStageRGBA(0.863, 0.91, 0.925),
+                fill: KeyboardStageRGBA(0.906, 0.918, 0.923),
                 accent: KeyboardStageRGBA(0.404, 0.576, 0.647),
                 glow: KeyboardStageRGBA(0.263, 0.655, 0.902),
-                legend: KeyboardStageRGBA(0.278, 0.376, 0.416),
-                borderStrength: 0.48
+                legend: KeyboardStageRGBA(0.265, 0.345, 0.377),
+                borderStrength: 0.60
             )
         case .dimmed:
             KeyboardStageSurfaceStyle(
@@ -267,38 +267,38 @@ struct KeyboardStagePalette: Equatable, Sendable {
             )
         case .recommended:
             KeyboardStageSurfaceStyle(
-                fill: KeyboardStageRGBA(0.15, 0.31, 0.54),
+                fill: KeyboardStageRGBA(0.115, 0.145, 0.190),
                 accent: KeyboardStageRGBA(0.34, 0.66, 1),
                 legend: KeyboardStageRGBA(0.94, 0.98, 1),
-                borderStrength: 0.52
+                borderStrength: 0.68
             )
         case .escape:
             KeyboardStageSurfaceStyle(
-                fill: KeyboardStageRGBA(0.12, 0.37, 0.66),
+                fill: KeyboardStageRGBA(0.095, 0.145, 0.205),
                 accent: KeyboardStageRGBA(0.39, 0.76, 1),
                 legend: KeyboardStageRGBA(0.96, 0.99, 1),
-                borderStrength: 0.58
+                borderStrength: 0.82
             )
         case .hyper:
             KeyboardStageSurfaceStyle(
-                fill: KeyboardStageRGBA(0.35, 0.23, 0.61),
+                fill: KeyboardStageRGBA(0.135, 0.125, 0.195),
                 accent: KeyboardStageRGBA(0.70, 0.55, 1),
                 legend: KeyboardStageRGBA(0.98, 0.97, 1),
-                borderStrength: 0.62
+                borderStrength: 0.76
             )
         case .launcher:
             KeyboardStageSurfaceStyle(
-                fill: KeyboardStageRGBA(0.12, 0.43, 0.45),
+                fill: KeyboardStageRGBA(0.095, 0.165, 0.175),
                 accent: KeyboardStageRGBA(0.32, 0.83, 0.79),
                 legend: KeyboardStageRGBA(0.94, 1, 0.99),
-                borderStrength: 0.58
+                borderStrength: 0.72
             )
         case .installed:
             KeyboardStageSurfaceStyle(
-                fill: KeyboardStageRGBA(0.15, 0.39, 0.30),
+                fill: KeyboardStageRGBA(0.105, 0.165, 0.145),
                 accent: KeyboardStageRGBA(0.38, 0.81, 0.59),
                 legend: KeyboardStageRGBA(0.95, 1, 0.97),
-                borderStrength: 0.5
+                borderStrength: 0.66
             )
         case .dimmed:
             KeyboardStageSurfaceStyle(

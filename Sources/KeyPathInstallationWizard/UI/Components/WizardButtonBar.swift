@@ -73,17 +73,23 @@ public struct WizardButtonBar: View {
     public let secondaryButton: SecondaryButton?
     public let primaryButton: PrimaryButton?
     public let secondaryPlacement: SecondaryPlacement
+    public let secondaryTint: Color
+    public let secondaryMinimumWidth: CGFloat
 
     public init(
         cancel: CancelButton? = nil,
         secondary: SecondaryButton? = nil,
         primary: PrimaryButton,
-        secondaryPlacement: SecondaryPlacement = .leading
+        secondaryPlacement: SecondaryPlacement = .leading,
+        secondaryTint: Color = WizardDesign.Colors.primaryAction,
+        secondaryMinimumWidth: CGFloat = 120
     ) {
         cancelButton = cancel
         secondaryButton = secondary
         primaryButton = primary
         self.secondaryPlacement = secondaryPlacement
+        self.secondaryTint = secondaryTint
+        self.secondaryMinimumWidth = secondaryMinimumWidth
     }
 
     public var body: some View {
@@ -93,7 +99,12 @@ public struct WizardButtonBar: View {
                 Button(cancelButton.title) {
                     cancelButton.action()
                 }
-                .buttonStyle(WizardDesign.Component.SecondaryButton())
+                .buttonStyle(
+                    WizardDesign.Component.SecondaryButton(
+                        tint: secondaryTint,
+                        minimumWidth: secondaryMinimumWidth
+                    )
+                )
                 .keyboardShortcut(cancelButton.usesCancelShortcut ? .cancelAction : nil)
                 .disabled(!cancelButton.isEnabled)
                 .accessibilityIdentifier("wizard-cancel-button")
@@ -104,7 +115,12 @@ public struct WizardButtonBar: View {
                 Button(secondaryButton.title) {
                     secondaryButton.action()
                 }
-                .buttonStyle(WizardDesign.Component.SecondaryButton())
+                .buttonStyle(
+                    WizardDesign.Component.SecondaryButton(
+                        tint: secondaryTint,
+                        minimumWidth: secondaryMinimumWidth
+                    )
+                )
                 .disabled(!secondaryButton.isEnabled)
                 .accessibilityIdentifier("wizard-secondary-button")
             }
@@ -115,7 +131,12 @@ public struct WizardButtonBar: View {
                 Button(secondaryButton.title) {
                     secondaryButton.action()
                 }
-                .buttonStyle(WizardDesign.Component.SecondaryButton())
+                .buttonStyle(
+                    WizardDesign.Component.SecondaryButton(
+                        tint: secondaryTint,
+                        minimumWidth: secondaryMinimumWidth
+                    )
+                )
                 .disabled(!secondaryButton.isEnabled)
                 .accessibilityIdentifier("wizard-secondary-button")
             }

@@ -372,9 +372,19 @@ public enum WizardDesign {
         /// Secondary button style
         public struct SecondaryButton: ButtonStyle {
             public let isLoading: Bool
+            public let tint: Color
+            public let minimumWidth: CGFloat
 
-            public init(isLoading: Bool = false) {
+            @Environment(\.isEnabled) private var isEnabled
+
+            public init(
+                isLoading: Bool = false,
+                tint: Color = WizardDesign.Colors.primaryAction,
+                minimumWidth: CGFloat = 120
+            ) {
                 self.isLoading = isLoading
+                self.tint = tint
+                self.minimumWidth = minimumWidth
             }
 
             public func makeBody(configuration: Configuration) -> some View {
@@ -383,20 +393,20 @@ public enum WizardDesign {
                     .foregroundColor(
                         configuration.isPressed
                             ? WizardDesign.Colors.wizardBackground // Invert for clear pressed feedback
-                            : WizardDesign.Colors.primaryAction
+                            : tint
                     )
-                    .frame(minWidth: 120, minHeight: 26) // Match primary button dimensions
+                    .frame(minWidth: minimumWidth, minHeight: 26)
                     .padding(.horizontal, WizardDesign.Spacing.buttonPadding)
                     .padding(.vertical, WizardDesign.Spacing.elementGap)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(configuration.isPressed ? WizardDesign.Colors.primaryAction : Color.clear)
+                            .fill(configuration.isPressed ? tint : Color.clear)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
-                            .stroke(WizardDesign.Colors.primaryAction, lineWidth: 1.5)
+                            .stroke(tint, lineWidth: 1.25)
                     )
-                    .opacity(isLoading ? 0.85 : 1.0)
+                    .opacity(isEnabled ? (isLoading ? 0.85 : 1.0) : 0.42)
                     .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
                     .animation(WizardDesign.Animation.buttonFeedback, value: configuration.isPressed)
                     .disabled(isLoading)

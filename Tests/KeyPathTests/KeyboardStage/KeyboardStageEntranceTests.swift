@@ -34,14 +34,14 @@ final class KeyboardStageEntranceTests: XCTestCase {
         XCTAssertTrue(presentation.isAnimating)
         XCTAssertEqual(presentation.startedAt, 11.5)
         XCTAssertEqual(
-            presentation.frame(at: 11.775, pendingReduceMotion: false).progress,
+            presentation.frame(at: 11.875, pendingReduceMotion: false).progress,
             0.5,
             accuracy: 0.001
         )
 
         presentation.advance(at: 12.0)
         XCTAssertTrue(presentation.isAnimating)
-        presentation.advance(at: 12.051)
+        presentation.advance(at: 12.251)
 
         presentation.beginIfNeeded(at: 20, reduceMotion: false)
 
@@ -118,8 +118,14 @@ final class KeyboardStageEntranceTests: XCTestCase {
         XCTAssertGreaterThan(middle.lighting(for: caps).transientGlow, 0)
         XCTAssertEqual(middle.lighting(for: caps).legendTransitionProgress, 0)
         XCTAssertGreaterThan(middle.lighting(for: farKey).legendTransitionProgress, 0)
+        // The eased front dwells on the keyboard, so the far key completes its
+        // legend transition later than the linear halfway point.
+        let late = KeyboardStageLightingResolver(
+            scene: scene,
+            entrance: KeyboardStageEntranceFrame(progress: 0.8, reduceMotion: false)
+        )
         XCTAssertEqual(
-            middle.lighting(for: farKey).legendTransitionProgress,
+            late.lighting(for: farKey).legendTransitionProgress,
             1,
             accuracy: 0.001
         )
@@ -169,7 +175,9 @@ final class KeyboardStageEntranceTests: XCTestCase {
             accuracy: 0.001
         )
 
-        let crossing = KeyboardStageEntranceFrame(progress: 0.5, reduceMotion: false)
+        // The eased front dwells on the keyboard, so it reaches mid-window
+        // later than the linear halfway point.
+        let crossing = KeyboardStageEntranceFrame(progress: 0.62, reduceMotion: false)
         XCTAssertGreaterThan(
             KeyboardStageCinematicLighting.exposure(
                 for: crossing,
@@ -194,7 +202,9 @@ final class KeyboardStageEntranceTests: XCTestCase {
         let end = KeyboardStageCinematicLighting.parameters(for: .settled)
 
         XCTAssertEqual(start.frontX, 1.08, accuracy: 0.001)
-        XCTAssertEqual(middle.frontX, 0.31, accuracy: 0.001)
+        // Ease-in travel: at half progress the front is still over the
+        // keyboard span rather than at the linear midpoint of 0.31.
+        XCTAssertEqual(middle.frontX, 0.6674, accuracy: 0.001)
         XCTAssertEqual(end.frontX, -0.46, accuracy: 0.001)
         XCTAssertEqual(end.feather, 0.40, accuracy: 0.001)
         XCTAssertEqual(end.verticalSkew, 0.06, accuracy: 0.001)
@@ -288,13 +298,13 @@ final class KeyboardStageEntranceTests: XCTestCase {
         XCTAssertEqual(presentation.startedAt, 11.5)
         XCTAssertEqual(
             presentation.frame(at: 11.75, pendingReduceMotion: false).progress,
-            Float(0.25 / 0.55),
+            Float(0.25 / 0.75),
             accuracy: 0.001
         )
 
         var veryLatePresentation = KeyboardStageEntrancePresentation()
         veryLatePresentation.beginIfNeeded(at: 10, reduceMotion: false)
-        veryLatePresentation.advance(at: 12.1)
+        veryLatePresentation.advance(at: 12.3)
         XCTAssertTrue(veryLatePresentation.isSettled)
     }
 

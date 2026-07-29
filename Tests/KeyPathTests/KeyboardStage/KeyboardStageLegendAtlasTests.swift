@@ -22,15 +22,16 @@ final class KeyboardStageLegendAtlasTests: XCTestCase {
     }
 
     func testSignatureSortIncludesSecondaryTextAndWeight() throws {
+        let light = descriptor("A", weight: .light)
         let regular = descriptor("A")
         let medium = descriptor("A", weight: .medium)
         let secondary = descriptor("A", secondary: "alternate")
 
         let signature = try KeyboardStageLegendAtlasSignature(
-            descriptors: [secondary, medium, regular]
+            descriptors: [secondary, medium, regular, light]
         )
 
-        XCTAssertEqual(signature.descriptors, [regular, medium, secondary])
+        XCTAssertEqual(signature.descriptors, [light, regular, medium, secondary])
     }
 
     func testCapacityCountsUniqueDescriptors() throws {
