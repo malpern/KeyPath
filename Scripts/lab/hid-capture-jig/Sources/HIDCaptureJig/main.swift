@@ -141,8 +141,8 @@ private final class CaptureCanvas: NSView {
     private let brandLight = NSColor(
         calibratedRed: 1.0, green: 0.96, blue: 0.83, alpha: 1
     )
-    private lazy var keyPathLogo: NSImage? = {
-        guard let url = Bundle.main.url(forResource: "KeyPathLogo", withExtension: "icns") else {
+    private lazy var jigLogo: NSImage? = {
+        guard let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns") else {
             return nil
         }
         return NSImage(contentsOf: url)
@@ -265,12 +265,12 @@ private final class CaptureCanvas: NSView {
             width: markSize,
             height: markSize
         )
-        drawKeyPathLogo(in: markFrame)
+        drawJigLogo(in: markFrame)
 
         let focusWidth: CGFloat = layout.mode == .tiny ? 72 : 130
         let titleX = markFrame.maxX + (layout.mode == .tiny ? 6 : 10)
         drawText(
-            layout.mode == .tiny ? "KEYPATH HID JIG" : "KEYPATH  /  HID CAPTURE JIG",
+            layout.mode == .tiny ? "HID JIG" : "HID CAPTURE JIG",
             rect: NSRect(
                 x: titleX,
                 y: header.midY - 10,
@@ -745,12 +745,12 @@ private final class CaptureCanvas: NSView {
         }
     }
 
-    private func drawKeyPathLogo(in frame: NSRect) {
-        guard let keyPathLogo else {
+    private func drawJigLogo(in frame: NSRect) {
+        guard let jigLogo else {
             drawText(
-                "KP",
+                "JIG",
                 rect: frame,
-                font: font(size: frame.height * 0.42, weight: .bold, monospaced: true),
+                font: font(size: frame.height * 0.30, weight: .bold, monospaced: true),
                 color: brandAmber,
                 alignment: .center
             )
@@ -758,7 +758,7 @@ private final class CaptureCanvas: NSView {
         }
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current?.imageInterpolation = .high
-        keyPathLogo.draw(
+        jigLogo.draw(
             in: frame,
             from: .zero,
             operation: .sourceOver,

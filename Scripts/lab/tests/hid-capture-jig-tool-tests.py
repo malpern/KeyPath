@@ -102,6 +102,24 @@ class HIDCaptureJigToolTests(unittest.TestCase):
             index for index, call in enumerate(calls) if call.startswith("open ")
         ))
 
+    def test_jig_uses_its_own_icon_and_does_not_bundle_the_keypath_logo(self) -> None:
+        source = (
+            ROOT / "Scripts/lab/hid-capture-jig/Sources/HIDCaptureJig/main.swift"
+        ).read_text()
+        build_script = (
+            ROOT / "Scripts/lab/hid-capture-jig/build-app.sh"
+        ).read_text()
+
+        self.assertIn('forResource: "AppIcon"', source)
+        self.assertIn("drawJigLogo", source)
+        self.assertNotIn("KeyPathLogo", source)
+        self.assertIn(
+            'rm -f "$app_path/Contents/Resources/KeyPathLogo.icns"',
+            build_script,
+        )
+        self.assertEqual(build_script.count("KeyPathLogo"), 1)
+        self.assertNotIn("Sources/KeyPathApp/Resources/AppIcon.icns", build_script)
+
 
 if __name__ == "__main__":
     unittest.main()
