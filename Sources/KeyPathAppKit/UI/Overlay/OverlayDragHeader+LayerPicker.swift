@@ -279,7 +279,7 @@ extension OverlayDragHeader {
             RoundedRectangle(cornerRadius: indicatorCornerRadius)
                 .fill(Color.secondary.opacity(isDark ? 0.12 : 0.1))
         )
-        .help("Kanata is starting")
+        .help(label == "Restarting…" ? "Kanata is restarting" : "Kanata is starting")
         .accessibilityIdentifier("overlay-kanata-transition-indicator")
         .accessibilityLabel(label)
     }

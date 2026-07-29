@@ -19,6 +19,7 @@ final class ConfigReloadCoordinator {
     private let tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)?
     private let transitionRetryMaximumPolls: Int
     private let transitionRetryWait: @MainActor @Sendable () async -> Void
+    private let automaticDeferredRetriesEnabled: Bool
 
     // MARK: - Callbacks (set by RuntimeCoordinator after init)
 
@@ -37,7 +38,8 @@ final class ConfigReloadCoordinator {
         transitionRetryMaximumPolls: Int = Int((RuntimeStartupTiming.uiGracePeriod / 0.5).rounded(.up)),
         transitionRetryWait: @escaping @MainActor @Sendable () async -> Void = {
             try? await Task.sleep(for: .milliseconds(500))
-        }
+        },
+        automaticDeferredRetriesEnabled: Bool = true
     ) {
         self.engineClient = engineClient
         self.reloadSafetyMonitor = reloadSafetyMonitor
@@ -47,6 +49,7 @@ final class ConfigReloadCoordinator {
         self.tcpReloadOverride = tcpReloadOverride
         self.transitionRetryMaximumPolls = transitionRetryMaximumPolls
         self.transitionRetryWait = transitionRetryWait
+        self.automaticDeferredRetriesEnabled = automaticDeferredRetriesEnabled
     }
 
     // MARK: - Reload Operations
@@ -208,6 +211,8 @@ final class ConfigReloadCoordinator {
     /// config that was persisted while the old TCP connection was disappearing.
     /// Readiness is bounded by the same grace period used by user-facing startup UI.
     private func scheduleDeferredReloadAfterRuntimeTransition() {
+        guard automaticDeferredRetriesEnabled else { return }
+
         deferredReloadTask?.cancel()
         deferredReloadTask = Task { [weak self] in
             guard let self else { return }
@@ -241,6 +246,13 @@ final class ConfigReloadCoordinator {
             await transitionRetryWait()
         }
 
+        guard !Task.isCancelled else { return false }
+        let message = "Kanata did not become ready after restarting; config reload was not applied"
+        NotificationCenter.default.post(
+            name: .configReloadFailed,
+            object: self,
+            userInfo: ["message": message, "response": ""]
+        )
         return false
     }
 

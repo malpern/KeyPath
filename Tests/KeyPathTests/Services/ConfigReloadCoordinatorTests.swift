@@ -96,7 +96,8 @@ struct ConfigReloadCoordinatorTests {
         transitionRetryMaximumPolls: Int = Int((RuntimeStartupTiming.uiGracePeriod / 0.5).rounded(.up)),
         transitionRetryWait: @escaping @MainActor @Sendable () async -> Void = {
             await Task.yield()
-        }
+        },
+        automaticDeferredRetriesEnabled: Bool = true
     ) -> (
         coordinator: ConfigReloadCoordinator,
         engine: MockEngineClient,
@@ -127,7 +128,8 @@ struct ConfigReloadCoordinatorTests {
             isRuntimeTransitioning: { transitionState.isTransitioning },
             tcpReloadOverride: tcpReloadOverride,
             transitionRetryMaximumPolls: transitionRetryMaximumPolls,
-            transitionRetryWait: transitionRetryWait
+            transitionRetryWait: transitionRetryWait,
+            automaticDeferredRetriesEnabled: automaticDeferredRetriesEnabled
         )
 
         return (coordinator, engine, healthStatus)
@@ -218,7 +220,7 @@ struct ConfigReloadCoordinatorTests {
             healthy: true,
             runtimeTransitioning: true,
             tcpReloadResult: .networkError("Connection failed: Connection closed"),
-            transitionRetryMaximumPolls: 0
+            automaticDeferredRetriesEnabled: false
         )
 
         let received = NotificationFlag()
@@ -270,12 +272,20 @@ struct ConfigReloadCoordinatorTests {
             transitionRetryWait: { transition.waitCount += 1 }
         )
         coordinator.onReloadSuccess = { transition.reloadCount += 1 }
+        let received = NotificationFlag()
+        let observer = NotificationCenter.default.addObserver(
+            forName: .configReloadFailed,
+            object: coordinator,
+            queue: nil
+        ) { _ in received.set() }
+        defer { NotificationCenter.default.removeObserver(observer) }
 
         let didRetry = await coordinator.retryAfterRuntimeTransition()
 
         #expect(didRetry == false)
         #expect(transition.waitCount == 2)
         #expect(transition.reloadCount == 0)
+        #expect(received.value == true)
     }
 
     @Test("network failure outside runtime transition remains a visible failure")
