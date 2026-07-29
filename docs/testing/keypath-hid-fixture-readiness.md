@@ -26,6 +26,22 @@ The command checks the Mac and encrypted credentials, runs all software tests, b
 firmware, finds an unambiguous serial device, flashes it, and verifies the authenticated status API.
 It does not ask the operator to copy credentials into a terminal.
 
+### Fast showroom proof
+
+When the Mac is exclusively available for real keyboard input, run:
+
+```bash
+cd /Users/malpern/local-code/keypath-pico-hid-fixture
+Scripts/lab/hid-capture-jig-tool showroom
+```
+
+This is the zero-touch path: it opens and focuses the source-hashed Jig, waits up to 30 seconds for
+three clean host-resource samples, then asks the ESP32 to type `KeyPath demo OK` plus Return over
+real USB HID. The Jig is the independent oracle and must capture the exact 16 characters with all
+keys and modifiers released. A timestamped combined artifact is retained under
+`~/.local/state/keypath-hid-capture-jig/artifacts/` whether the run passes or becomes inconclusive.
+Use `hid-capture-jig-tool demo` only to demonstrate the separate offline top-power-then-touch path.
+
 ### Cold-boot screen sequence
 
 | Approximate time | Display | Operator meaning |

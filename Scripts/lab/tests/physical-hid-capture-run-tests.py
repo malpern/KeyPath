@@ -16,6 +16,7 @@ from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 RUNNER = ROOT / "Scripts/lab/physical-hid-capture-run"
+SHOWROOM_TEXT = ROOT / "Scripts/lab/tests/fixtures/showroom-demo.txt"
 
 READY_PREFLIGHT = {
     "canProceed": True,
@@ -52,6 +53,9 @@ def action(command: list[str]) -> tuple[str, str]:
 class PhysicalHIDCaptureRunTests(unittest.TestCase):
     def setUp(self) -> None:
         self.runner = load_runner()
+
+    def test_showroom_payload_is_short_fixed_and_return_terminated(self) -> None:
+        self.assertEqual(SHOWROOM_TEXT.read_bytes(), b"KeyPath demo OK\n")
 
     @staticmethod
     def compile_script(command: list[str], environment: dict[str, str]) -> None:

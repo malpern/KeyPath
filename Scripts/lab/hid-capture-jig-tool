@@ -4,6 +4,7 @@ set -euo pipefail
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 package_dir="$script_dir/hid-capture-jig"
 client="$script_dir/hid-capture-jig-client"
+physical_runner="$script_dir/physical-hid-capture-run"
 app_path=${KEYPATH_CAPTURE_JIG_APP:-"$HOME/.cache/keypath-hid-capture-jig/KeyPath HID Capture Jig.app"}
 
 usage() {
@@ -14,7 +15,8 @@ usage() {
         "  build   Build and ad-hoc sign the isolated capture app" \
         "  test    Run capture-core and control-client tests" \
         "  open    Open, focus, and verify the cached capture app" \
-        "  demo    Arm the offline device demo and wait for its exact result" \
+        "  showroom  Run the zero-touch ESP32-to-Jig demo and preserve evidence" \
+        "  demo      Arm the offline top-power/touch demo and wait for its result" \
         "  status  Query the running capture app" \
         "  close   Ask the capture app to quit"
 }
@@ -65,6 +67,31 @@ open_app() {
     return 1
 }
 
+wait_for_readiness() {
+    readiness=$(mktemp -t keypath-hid-capture-jig-readiness.XXXXXX)
+    for attempt in {1..60}; do
+        if "$client" status >"$readiness" 2>/dev/null && \
+            /usr/bin/python3 -c \
+                'import json,sys; raise SystemExit(not json.load(open(sys.argv[1]))["systemReadiness"]["canProceed"])' \
+                "$readiness"; then
+            rm -f "$readiness"
+            return 0
+        fi
+        if (( attempt % 10 == 0 )); then
+            /usr/bin/python3 -c \
+                'import json,sys; r=json.load(open(sys.argv[1]))["systemReadiness"]; print("showroom waiting  " + str(r["detail"]))' \
+                "$readiness" 2>/dev/null || true
+        fi
+        sleep 0.5
+    done
+    printf '%s\n' "showroom blocked  host did not enter a stable capture window" >&2
+    /usr/bin/python3 -c \
+        'import json,sys; r=json.load(open(sys.argv[1]))["systemReadiness"]; print("reason            " + str(r["detail"]), file=sys.stderr); [print("next              " + str(s), file=sys.stderr) for s in r.get("suggestions", [])]' \
+        "$readiness" || true
+    rm -f "$readiness"
+    return 1
+}
+
 case ${1:-} in
     build)
         [[ $# -eq 1 ]] || { usage >&2; exit 2; }
@@ -78,6 +105,27 @@ case ${1:-} in
     open)
         [[ $# -eq 1 ]] || { usage >&2; exit 2; }
         open_app
+        ;;
+    showroom)
+        [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+        open_app >/dev/null
+        wait_for_readiness
+        run_id="showroom-$(date -u +%Y%m%dT%H%M%SZ)"
+        artifact="$HOME/.local/state/keypath-hid-capture-jig/artifacts/$run_id.json"
+        printf '%s\n' \
+            "showroom running  ESP32 -> real USB HID -> independent Jig" \
+            "expected          KeyPath demo OK + Return"
+        "$physical_runner" \
+            --run-id "$run_id" \
+            --text "$script_dir/tests/fixtures/showroom-demo.txt" \
+            --interval-ms 60 \
+            --hold-ms 16 \
+            --shift-lead-ms 5 \
+            --shift-release-lag-ms 5 \
+            --delay-ms 800 \
+            --settle-ms 300 \
+            --timeout-ms 10000 \
+            --output "$artifact"
         ;;
     demo)
         [[ $# -eq 1 ]] || { usage >&2; exit 2; }

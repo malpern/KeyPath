@@ -236,3 +236,22 @@ This validates the updated control plane under a 120-request idle soak. It does 
 the two-step offline demo's physical buttons/touch/output or control responsiveness concurrent with
 a high-rate HID run; those require an exclusive desktop window because the next action emits real
 keyboard reports.
+
+### Exact showroom proof
+
+With exclusive desktop ownership and the Jig's three-sample resource gate green, the authenticated
+showroom path passed end to end. ESP32 build `f92209f3ea52` submitted all 40 locally timed USB HID
+reports for `KeyPath demo OK` plus Return. The independent Jig captured all 16 expected characters,
+reported no capture issues, and observed every key and modifier released. The fixture trace also
+contained all 40 reports with no lateness beyond the configured zero-tolerance budget. Evidence is
+stored in `~/.local/state/keypath-hid-capture-jig/artifacts/showroom-live.json`.
+
+The packaged zero-touch command was then validated separately in 7.1 seconds with the same 40/40
+reports, 16/16 characters, clean release, and exact independent result. Its timestamped evidence is
+`~/.local/state/keypath-hid-capture-jig/artifacts/showroom-20260729T030744Z.json`.
+
+The preceding offline attempt is not counted as a product or fixture failure: the Jig remained
+focused and ready but received zero events, while the fixture recorded no top-power or touch event.
+That proves only that the physical two-step trigger was not completed during its 30-second window.
+The repeatable audience path is now `Scripts/lab/hid-capture-jig-tool showroom`; it requires no
+operator timing and retains the full combined artifact.
