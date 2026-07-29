@@ -110,6 +110,7 @@ final class ConfigReloadCoordinator {
 
         // Try TCP reload
         AppLogger.shared.debug("📡 [Reload] Attempting TCP reload")
+        let runtimeWasTransitioning = isRuntimeTransitioning()
         let tcpResult = await triggerTCPReload()
         if tcpResult.isSuccess {
             // Successful reload -> clear stale diagnostics
@@ -128,7 +129,9 @@ final class ConfigReloadCoordinator {
                 "📡 [Reload] TCP reload failed: \(tcpResult.errorMessage ?? "Unknown error")"
             )
             let errorMessage = tcpResult.errorMessage ?? "TCP reload failed"
-            if case .networkError = tcpResult, isRuntimeTransitioning() {
+            if case .networkError = tcpResult,
+               runtimeWasTransitioning || isRuntimeTransitioning()
+            {
                 AppLogger.shared.log(
                     "⏳ [Reload] Runtime transition closed the TCP reload connection; deferring until Kanata settles"
                 )
@@ -201,6 +204,7 @@ final class ConfigReloadCoordinator {
     /// retries share one task so rapid edits and overlapping recovery states
     /// coalesce into one final reload.
     private var deferredReloadTask: Task<Void, Never>?
+    private var deferredReloadGeneration: UInt = 0
 
     private enum TransitionRetryAttempt {
         case applied
@@ -210,10 +214,15 @@ final class ConfigReloadCoordinator {
 
     private func scheduleDeferredReloadAfterCooldown() {
         deferredReloadTask?.cancel()
+        deferredReloadGeneration &+= 1
+        let generation = deferredReloadGeneration
         deferredReloadTask = Task { [weak self] in
+            guard let self else { return }
+            defer { clearDeferredReloadTask(ifGeneration: generation) }
+
             // 3s cooldown + a little slop so the safety check passes.
             try? await Task.sleep(nanoseconds: 3_200_000_000)
-            guard let self, !Task.isCancelled else { return }
+            guard !Task.isCancelled else { return }
             AppLogger.shared.log("🔁 [Reload] Firing deferred reload after cooldown expiry")
             await triggerReload()
         }
@@ -226,10 +235,18 @@ final class ConfigReloadCoordinator {
         guard automaticDeferredRetriesEnabled else { return }
 
         deferredReloadTask?.cancel()
+        deferredReloadGeneration &+= 1
+        let generation = deferredReloadGeneration
         deferredReloadTask = Task { [weak self] in
             guard let self else { return }
+            defer { clearDeferredReloadTask(ifGeneration: generation) }
             await retryAfterRuntimeTransition()
         }
+    }
+
+    private func clearDeferredReloadTask(ifGeneration generation: UInt) {
+        guard deferredReloadGeneration == generation else { return }
+        deferredReloadTask = nil
     }
 
     /// Poll the intentional transition and retry once the replacement runtime is healthy.

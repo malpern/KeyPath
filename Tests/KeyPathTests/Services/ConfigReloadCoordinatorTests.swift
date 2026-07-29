@@ -243,6 +243,32 @@ struct ConfigReloadCoordinatorTests {
         #expect(received.value == false)
     }
 
+    @Test("network failure stays pending when transition finishes during TCP request")
+    func transitionEndingDuringTCPFailureStaysPending() async {
+        let transition = MutableRuntimeTransition(isTransitioning: true)
+        let (coordinator, _, _) = Self.makeSUT(
+            healthy: true,
+            runtimeTransitionState: transition,
+            tcpReloadOverride: {
+                transition.isTransitioning = false
+                return .networkError("Connection failed: Connection closed")
+            },
+            automaticDeferredRetriesEnabled: false
+        )
+        let received = NotificationFlag()
+        let observer = NotificationCenter.default.addObserver(
+            forName: .configReloadFailed,
+            object: coordinator,
+            queue: nil
+        ) { _ in received.set() }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        let result = await coordinator.triggerConfigReload()
+
+        #expect(result.disposition == .pending)
+        #expect(received.value == false)
+    }
+
     @Test("transition retry waits for readiness and reloads once")
     func transitionRetryWaitsForReadiness() async {
         let transition = MutableRuntimeTransition(isTransitioning: true)

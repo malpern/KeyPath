@@ -265,7 +265,11 @@ extension OverlayDragHeader {
         .accessibilityLabel("Not connected to Kanata TCP server")
     }
 
-    func kanataTransitionPill(_ label: String, indicatorCornerRadius: CGFloat) -> some View {
+    func kanataTransitionPill(
+        _ label: String,
+        helpText: String,
+        indicatorCornerRadius: CGFloat
+    ) -> some View {
         HStack(spacing: 4) {
             Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")
                 .font(.caption2.weight(.medium))
@@ -279,7 +283,7 @@ extension OverlayDragHeader {
             RoundedRectangle(cornerRadius: indicatorCornerRadius)
                 .fill(Color.secondary.opacity(isDark ? 0.12 : 0.1))
         )
-        .help(label == "Restarting…" ? "Kanata is restarting" : "Kanata is starting")
+        .help(helpText)
         .accessibilityIdentifier("overlay-kanata-transition-indicator")
         .accessibilityLabel(label)
     }

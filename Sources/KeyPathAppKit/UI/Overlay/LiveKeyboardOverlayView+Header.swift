@@ -449,9 +449,17 @@ struct OverlayDragHeader: View {
                     case .hidden:
                         EmptyView()
                     case .starting:
-                        kanataTransitionPill("Starting…", indicatorCornerRadius: indicatorCornerRadius)
+                        kanataTransitionPill(
+                            "Starting…",
+                            helpText: "Kanata is starting",
+                            indicatorCornerRadius: indicatorCornerRadius
+                        )
                     case .restarting:
-                        kanataTransitionPill("Restarting…", indicatorCornerRadius: indicatorCornerRadius)
+                        kanataTransitionPill(
+                            "Restarting…",
+                            helpText: "Kanata is restarting",
+                            indicatorCornerRadius: indicatorCornerRadius
+                        )
                     case .disconnected:
                         kanataDisconnectedPill(indicatorCornerRadius: indicatorCornerRadius)
                     }
