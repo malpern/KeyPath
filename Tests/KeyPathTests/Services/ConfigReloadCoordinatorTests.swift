@@ -295,6 +295,33 @@ struct ConfigReloadCoordinatorTests {
         #expect(transition.reloadCount == 1)
     }
 
+    @Test("transition retry surfaces a permanent reload rejection immediately")
+    func transitionRetrySurfacesPermanentRejection() async {
+        let transition = MutableRuntimeTransition(isTransitioning: false)
+        let (coordinator, _, _) = Self.makeSUT(
+            healthy: true,
+            runtimeTransitionState: transition,
+            tcpReloadResult: .failure(error: "validation error", response: "bad config"),
+            transitionRetryMaximumPolls: 2,
+            transitionRetryWait: { transition.waitCount += 1 }
+        )
+        let message = NotificationMessage()
+        let observer = NotificationCenter.default.addObserver(
+            forName: .configReloadFailed,
+            object: coordinator,
+            queue: nil
+        ) { notification in
+            message.set(notification.userInfo?["message"] as? String)
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        let didRetry = await coordinator.retryAfterRuntimeTransition()
+
+        #expect(didRetry == false)
+        #expect(transition.waitCount == 0)
+        #expect(message.value == "validation error")
+    }
+
     @Test("transition retry expires without reloading when runtime never settles")
     func transitionRetryExpires() async {
         let transition = MutableRuntimeTransition(isTransitioning: true)
