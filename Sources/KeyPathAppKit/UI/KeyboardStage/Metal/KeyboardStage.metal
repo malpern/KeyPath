@@ -331,7 +331,7 @@ fragment float4 keypath_keyboard_stage_fragment(
     // drive gloss, grain, and highlight variation; both derive from the key
     // code, so the pattern never shifts between moments or launches.
     float wear = isKey
-        ? saturate(input.material.x) * saturate(uniforms.tuningE.z)
+        ? saturate(input.material.x) * max(uniforms.tuningE.z, 0.0)
         : 0.0;
     float materialSeedA = keypath_hash(float2(input.material.y, 0.37));
     float materialSeedB = keypath_hash(float2(input.material.y, 0.71));
@@ -565,7 +565,9 @@ fragment float4 keypath_keyboard_stage_fragment(
         (isDeck ? 0.31 : 0.47)
             + roughnessVariation * (isDeck ? 0.055 : 0.035)
             - wear * 0.11
-            + (isKey ? (materialSeedA - 0.5) * 0.05 : 0.0),
+            + (isKey
+                ? (materialSeedA - 0.5) * 0.05 * min(uniforms.tuningE.w, 1.0)
+                : 0.0),
         0.12,
         0.82
     );
@@ -584,8 +586,12 @@ fragment float4 keypath_keyboard_stage_fragment(
         * microfacetVisibility
         / max(0.04, 4.0 * normalDotView * normalDotLight);
     float specularPower = isDeck ? 88.0 : (isKey ? 42.0 : 34.0);
+    // Seed-only gloss deviation collapses to 1.0 as highlightJitter
+    // approaches zero, so the tuning knobs can fully restore the uniform
+    // pre-wear material.
     float keySpecularGain = isKey
-        ? (0.85 + materialSeedB * 0.30) * (1.0 + wear * 0.55)
+        ? (1.0 + (materialSeedB - 0.5) * 0.30 * min(uniforms.tuningE.w, 1.0))
+            * (1.0 + wear * 0.55)
         : 1.0;
     float specular = pow(saturate(dot(normal, halfVector)), specularPower)
         * keySpecularGain;

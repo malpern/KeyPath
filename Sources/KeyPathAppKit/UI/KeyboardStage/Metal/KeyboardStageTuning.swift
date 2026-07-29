@@ -49,7 +49,8 @@ struct KeyboardStageTuning: Equatable, Sendable {
     var fillLightStrength: Float = 0.95
     var fillSpecularStrength: Float = 0.15
     /// Per-key wear (polished crowns, calmer grain on high-traffic caps).
-    var wearStrength: Float = 1.5
+    /// A plain multiplier: values above 1 amplify the per-key wear levels.
+    var wearStrength: Float = 1.0
     /// Per-key highlight jitter (each cap catches the light slightly apart).
     var highlightJitter: Float = 2.2
     /// Window-space corner falloff; relaxes to 30% at the settled light.
