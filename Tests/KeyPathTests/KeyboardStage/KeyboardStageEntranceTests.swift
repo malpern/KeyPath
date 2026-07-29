@@ -21,27 +21,27 @@ final class KeyboardStageEntranceTests: XCTestCase {
         XCTAssertTrue(presentation.hasPendingWork)
         XCTAssertFalse(presentation.isAnimating)
         XCTAssertEqual(
-            presentation.frame(at: 11.49, pendingReduceMotion: false).progress,
+            presentation.frame(at: 11.99, pendingReduceMotion: false).progress,
             0
         )
-        XCTAssertEqual(presentation.remainingDuration(at: 10), 1.5, accuracy: 0.001)
+        XCTAssertEqual(presentation.remainingDuration(at: 10), 2.0, accuracy: 0.001)
 
-        presentation.advance(at: 11.49)
+        presentation.advance(at: 11.99)
         XCTAssertEqual(presentation.revision, revision)
         XCTAssertFalse(presentation.isAnimating)
 
-        presentation.advance(at: 11.5)
+        presentation.advance(at: 12.0)
         XCTAssertTrue(presentation.isAnimating)
-        XCTAssertEqual(presentation.startedAt, 11.5)
+        XCTAssertEqual(presentation.startedAt, 12.0)
         XCTAssertEqual(
-            presentation.frame(at: 11.875, pendingReduceMotion: false).progress,
+            presentation.frame(at: 12.375, pendingReduceMotion: false).progress,
             0.5,
             accuracy: 0.001
         )
 
-        presentation.advance(at: 12.0)
+        presentation.advance(at: 12.5)
         XCTAssertTrue(presentation.isAnimating)
-        presentation.advance(at: 12.251)
+        presentation.advance(at: 12.751)
 
         presentation.beginIfNeeded(at: 20, reduceMotion: false)
 
@@ -65,10 +65,10 @@ final class KeyboardStageEntranceTests: XCTestCase {
 
         XCTAssertEqual(presentation.startedAt, 10)
         XCTAssertEqual(
-            presentation.frame(at: 11.49, pendingReduceMotion: false).progress,
+            presentation.frame(at: 11.99, pendingReduceMotion: false).progress,
             0
         )
-        XCTAssertEqual(presentation.remainingDuration(at: 10), 1.5, accuracy: 0.001)
+        XCTAssertEqual(presentation.remainingDuration(at: 10), 2.0, accuracy: 0.001)
     }
 
     func testRegularEntranceUsesDirectionalGraphiteSurfacesAndBacklitLegends() throws {
@@ -274,17 +274,17 @@ final class KeyboardStageEntranceTests: XCTestCase {
         var presentation = KeyboardStageEntrancePresentation()
 
         presentation.beginIfNeeded(at: 5, reduceMotion: true)
-        XCTAssertEqual(presentation.remainingDuration(at: 5), 1.5, accuracy: 0.001)
+        XCTAssertEqual(presentation.remainingDuration(at: 5), 2.0, accuracy: 0.001)
         XCTAssertEqual(
-            presentation.frame(at: 6.49, pendingReduceMotion: false).progress,
+            presentation.frame(at: 6.99, pendingReduceMotion: false).progress,
             0
         )
 
-        presentation.advance(at: 6.5)
+        presentation.advance(at: 7.0)
         XCTAssertTrue(presentation.isAnimating)
-        XCTAssertEqual(presentation.remainingDuration(at: 6.5), 0.25, accuracy: 0.001)
+        XCTAssertEqual(presentation.remainingDuration(at: 7.0), 0.25, accuracy: 0.001)
         XCTAssertTrue(
-            presentation.frame(at: 6.625, pendingReduceMotion: false).reduceMotion
+            presentation.frame(at: 7.125, pendingReduceMotion: false).reduceMotion
         )
     }
 
@@ -292,19 +292,19 @@ final class KeyboardStageEntranceTests: XCTestCase {
         var presentation = KeyboardStageEntrancePresentation()
 
         presentation.beginIfNeeded(at: 10, reduceMotion: false)
-        presentation.advance(at: 11.75)
+        presentation.advance(at: 12.25)
 
         XCTAssertTrue(presentation.isAnimating)
-        XCTAssertEqual(presentation.startedAt, 11.5)
+        XCTAssertEqual(presentation.startedAt, 12.0)
         XCTAssertEqual(
-            presentation.frame(at: 11.75, pendingReduceMotion: false).progress,
+            presentation.frame(at: 12.25, pendingReduceMotion: false).progress,
             Float(0.25 / 0.75),
             accuracy: 0.001
         )
 
         var veryLatePresentation = KeyboardStageEntrancePresentation()
         veryLatePresentation.beginIfNeeded(at: 10, reduceMotion: false)
-        veryLatePresentation.advance(at: 12.3)
+        veryLatePresentation.advance(at: 12.8)
         XCTAssertTrue(veryLatePresentation.isSettled)
     }
 

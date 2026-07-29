@@ -254,7 +254,7 @@ struct KeyboardStageEntrancePresentation: Equatable, Sendable {
         case settled
     }
 
-    static let holdDuration: TimeInterval = 1.50
+    static let holdDuration: TimeInterval = 2.00
     static let transitionDuration: TimeInterval = 0.75
     static let reducedMotionTransitionDuration: TimeInterval = 0.25
 

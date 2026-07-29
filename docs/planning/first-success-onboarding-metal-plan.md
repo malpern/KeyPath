@@ -65,7 +65,7 @@ Motion is tightly choreographed: immediate response at pointer/key down; roughly
 
 The keyboard's one-time entrance establishes that physical world before the
 first lesson: the dialog opens as a still, dark room with MacBook-like backlit
-legends, holds for 1.5 seconds after the first keyboard frame is actually
+legends, holds for 2 seconds after the first keyboard frame is actually
 presented, then a broad feathered light enters from the keyboard side and
 resolves the whole window into the reference-light design. The illumination is
 directional but never a hard UI wipe; Metal gives individual key surfaces a
@@ -75,7 +75,7 @@ traveling light front.
 
 The entrance is a bounded proof gate for Metal, not an open-ended visual-effects
 project. The forced-Metal installed-app capture must demonstrate all of the
-following in the 1.5-second dark hold and one approximately 0.75-second
+following in the 2-second dark hold and one approximately 0.75-second
 directional reveal:
 
 - convincing dark graphite key materials with neutral, MacBook-like emitted
