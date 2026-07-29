@@ -17,6 +17,10 @@ private struct KeyboardStageGPUUniforms {
     var entrance: SIMD2<Float>
     var windowX: SIMD2<Float>
     var cinematicLighting: SIMD4<Float>
+    var tuningA: SIMD4<Float>
+    var tuningB: SIMD4<Float>
+    var tuningC: SIMD4<Float>
+    var tuningD: SIMD4<Float>
 }
 
 private struct KeyboardStageGPULegendInstance {
@@ -51,6 +55,14 @@ private struct KeyboardStageLegendDrawItem {
     let alignment: KeyboardStageLegendAtlasDescriptor.Alignment
 }
 
+/// One offscreen render of the full keyboard-stage pipeline, used by the
+/// golden-image regression tests and for GPU cost measurement.
+struct KeyboardStageMetalFrameCapture {
+    let image: CGImage
+    /// GPU execution time for the complete frame (scene + bloom + composite).
+    let gpuDuration: TimeInterval
+}
+
 final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Sendable {
     private let device: any MTLDevice
     private let commandQueue: any MTLCommandQueue
@@ -59,6 +71,7 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
     private let stateLock = NSLock()
     private var frame: KeyboardStagePresentedFrame
     private var windowX = SIMD2<Float>(0, 1)
+    private var tuning = KeyboardStageTuning.default
     private var renderTargets: KeyboardStageMetalRenderTargets?
     private var didReportFailure = false
     private var didReportFirstFrame = false
@@ -96,6 +109,12 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
         stateLock.unlock()
     }
 
+    func update(tuning: KeyboardStageTuning) {
+        stateLock.lock()
+        self.tuning = tuning
+        stateLock.unlock()
+    }
+
     func draw(in view: MTKView) {
         guard view.drawableSize.width > 0,
               view.drawableSize.height > 0,
@@ -114,6 +133,7 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
         stateLock.lock()
         let currentFrame = frame
         let currentWindowX = windowX
+        let currentTuning = tuning
         stateLock.unlock()
 
         let instances = makeInstances(
@@ -175,7 +195,11 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
                 currentFrame.entrance.reduceMotion ? 1 : 0
             ),
             windowX: currentWindowX,
-            cinematicLighting: cinematicLighting.gpuVector
+            cinematicLighting: cinematicLighting.gpuVector,
+            tuningA: currentTuning.gpuVectorA,
+            tuningB: currentTuning.gpuVectorB,
+            tuningC: currentTuning.gpuVectorC,
+            tuningD: currentTuning.gpuVectorD
         )
         var postUniforms = KeyboardStageGPUPostUniforms(
             sourceAndBloomSize: SIMD4(
@@ -250,6 +274,182 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
         }
         commandBuffer.commit()
         (view as? KeyboardStageMTKView)?.markDrawSubmitted()
+    }
+
+    /// Renders one frame through the exact pipeline `draw(in:)` uses — HDR
+    /// scene, bright pass, separable blur, tone-map composite — into an
+    /// offscreen texture and reads it back. This is what lets the golden-image
+    /// tests guard the Metal path itself instead of only the SwiftUI fallback.
+    func captureFrame(
+        frame: KeyboardStagePresentedFrame,
+        drawableSize: CGSize,
+        windowX: SIMD2<Float>
+    ) throws -> KeyboardStageMetalFrameCapture {
+        stateLock.lock()
+        let capturedTuning = tuning
+        stateLock.unlock()
+        let instances = makeInstances(frame: frame, drawableSize: drawableSize)
+        let legendRenderData = try makeLegendRenderData(
+            frame: frame,
+            drawableSize: drawableSize
+        )
+        let targets = try renderTargets(for: drawableSize)
+        guard let instanceBuffer = makeBuffer(values: instances),
+              let legendBuffer = makeBuffer(values: legendRenderData.instances)
+        else {
+            throw KeyboardStageMetalError.bufferUnavailable
+        }
+        guard let commandBuffer = commandQueue.makeCommandBuffer() else {
+            throw KeyboardStageMetalError.commandBufferUnavailable
+        }
+
+        let cinematicLighting = KeyboardStageCinematicLighting.parameters(
+            for: frame.entrance
+        )
+        var uniforms = KeyboardStageGPUUniforms(
+            viewportSize: SIMD2(
+                Float(drawableSize.width),
+                Float(drawableSize.height)
+            ),
+            entrance: SIMD2(
+                frame.entrance.progress,
+                frame.entrance.reduceMotion ? 1 : 0
+            ),
+            windowX: windowX,
+            cinematicLighting: cinematicLighting.gpuVector,
+            tuningA: capturedTuning.gpuVectorA,
+            tuningB: capturedTuning.gpuVectorB,
+            tuningC: capturedTuning.gpuVectorC,
+            tuningD: capturedTuning.gpuVectorD
+        )
+        var postUniforms = KeyboardStageGPUPostUniforms(
+            sourceAndBloomSize: SIMD4(
+                Float(targets.width),
+                Float(targets.height),
+                Float(targets.bloomWidth),
+                Float(targets.bloomHeight)
+            ),
+            entranceAndDirection: SIMD4(
+                frame.entrance.progress,
+                frame.entrance.reduceMotion ? 1 : 0,
+                1,
+                0
+            )
+        )
+
+        let outputDescriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: KeyboardStageMetalLibrary.drawablePixelFormat,
+            width: targets.width,
+            height: targets.height,
+            mipmapped: false
+        )
+        outputDescriptor.storageMode = .shared
+        outputDescriptor.usage = [.renderTarget]
+        guard let output = device.makeTexture(descriptor: outputDescriptor) else {
+            throw KeyboardStageMetalError.textureUnavailable
+        }
+        output.label = "KeyPath keyboard offscreen capture"
+        let compositeDescriptor = renderPassDescriptor(
+            texture: output,
+            loadAction: .clear
+        )
+
+        guard encodeScene(
+            commandBuffer: commandBuffer,
+            target: targets.scene,
+            surfaceInstances: instances,
+            surfaceBuffer: instanceBuffer,
+            legendInstances: legendRenderData.instances,
+            legendBuffer: legendBuffer,
+            legendTexture: legendRenderData.snapshot.texture,
+            uniforms: &uniforms
+        ),
+            encodeFullscreenPass(
+                commandBuffer: commandBuffer,
+                label: "KeyPath keyboard bright pass",
+                pipeline: pipelines.brightPass,
+                source: targets.scene,
+                destination: targets.bloomA,
+                uniforms: &postUniforms
+            ),
+            encodeFullscreenPass(
+                commandBuffer: commandBuffer,
+                label: "KeyPath keyboard bloom horizontal",
+                pipeline: pipelines.blurHorizontal,
+                source: targets.bloomA,
+                destination: targets.bloomB,
+                uniforms: &postUniforms
+            ),
+            encodeFullscreenPass(
+                commandBuffer: commandBuffer,
+                label: "KeyPath keyboard bloom vertical",
+                pipeline: pipelines.blurVertical,
+                source: targets.bloomB,
+                destination: targets.bloomA,
+                uniforms: &postUniforms
+            ),
+            encodeComposite(
+                commandBuffer: commandBuffer,
+                descriptor: compositeDescriptor,
+                scene: targets.scene,
+                bloom: targets.bloomA,
+                uniforms: &postUniforms
+            )
+        else {
+            throw KeyboardStageMetalError.renderEncoderUnavailable
+        }
+
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+        guard commandBuffer.status == .completed else {
+            throw KeyboardStageMetalError.commandFailed(
+                commandBuffer.error?.localizedDescription ?? "Unknown Metal error"
+            )
+        }
+        let gpuDuration = max(
+            0,
+            commandBuffer.gpuEndTime - commandBuffer.gpuStartTime
+        )
+
+        let bytesPerRow = targets.width * 4
+        var pixels = [UInt8](repeating: 0, count: bytesPerRow * targets.height)
+        pixels.withUnsafeMutableBytes { bytes in
+            guard let baseAddress = bytes.baseAddress else { return }
+            output.getBytes(
+                baseAddress,
+                bytesPerRow: bytesPerRow,
+                from: MTLRegionMake2D(0, 0, targets.width, targets.height),
+                mipmapLevel: 0
+            )
+        }
+        guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+              let provider = CGDataProvider(
+                  data: Data(pixels) as CFData
+              ),
+              let image = CGImage(
+                  width: targets.width,
+                  height: targets.height,
+                  bitsPerComponent: 8,
+                  bitsPerPixel: 32,
+                  bytesPerRow: bytesPerRow,
+                  space: colorSpace,
+                  bitmapInfo: CGBitmapInfo(
+                      rawValue: CGBitmapInfo.byteOrder32Little.rawValue
+                          | CGImageAlphaInfo.premultipliedFirst.rawValue
+                  ),
+                  provider: provider,
+                  decode: nil,
+                  shouldInterpolate: false,
+                  intent: .defaultIntent
+              )
+        else {
+            throw KeyboardStageMetalError.textureUnavailable
+        }
+
+        return KeyboardStageMetalFrameCapture(
+            image: image,
+            gpuDuration: gpuDuration
+        )
     }
 
     private func encodeScene(

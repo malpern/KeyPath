@@ -16,6 +16,12 @@ struct KeyboardStageUniforms {
     float2 entrance;      // raw entrance progress, Reduce Motion flag
     float2 windowX;       // stage origin and width in normalized window coordinates
     float4 cinematicLighting; // current front, feather, vertical skew, reserved
+    // Runtime lighting tuning (see KeyboardStageTuning.swift for the shipped
+    // defaults and the developer harness that overrides them).
+    float4 tuningA;       // graze deck ambient/diffuse, graze key ambient/diffuse
+    float4 tuningB;       // graze mask start, rim peak, rim power, emphasis rim floor
+    float4 tuningC;       // well expansion, contact strength, cast strength, backlight
+    float4 tuningD;       // legend emission min/max, legend base min/max
 };
 
 struct KeyboardStageLegendInstance {
@@ -347,7 +353,8 @@ fragment float4 keypath_keyboard_stage_fragment(
     // light state keeps its original softer geometry.
     float wellDistance = keypath_rounded_rect_distance(
         input.localPixels,
-        input.halfSizePixels + float2(isKey ? mix(5.6, 3.6, illumination) : 0.0),
+        input.halfSizePixels
+            + float2(isKey ? mix(uniforms.tuningC.x, 3.6, illumination) : 0.0),
         input.cornerRadiusPixels + (isKey ? mix(3.4, 2.2, illumination) : 0.0)
     );
     float wellMask = isKey
@@ -401,8 +408,8 @@ fragment float4 keypath_keyboard_stage_fragment(
         // Hovering above the deck: almost no tight contact, all soft cast.
         contactShadowAlpha *= 0.45;
     }
-    contactShadowAlpha *= mix(1.62, 0.48, illumination);
-    castShadowAlpha *= mix(1.30, 0.72, illumination);
+    contactShadowAlpha *= mix(uniforms.tuningC.y, 0.48, illumination);
+    castShadowAlpha *= mix(uniforms.tuningC.z, 0.72, illumination);
     float shadowAlpha = contactShadowAlpha
         + castShadowAlpha * (1.0 - contactShadowAlpha);
     shadowAlpha = saturate(shadowAlpha * shadowStrength);
@@ -419,7 +426,7 @@ fragment float4 keypath_keyboard_stage_fragment(
     float diffuserExposure = wellMask
         * saturate(0.010 + edgeEscape * 0.42 + cornerEscape * 0.08);
     float backlightStrength = isKey
-        ? mix(0.10, 0.0, illumination) * (0.76 + transientGlow * 0.24)
+        ? mix(uniforms.tuningC.w, 0.0, illumination) * (0.76 + transientGlow * 0.24)
         : 0.0;
     float diffuserBacklight = diffuserExposure * backlightStrength * 0.58;
     float tightBacklight = exp(-outsideDistance * 0.62)
@@ -475,9 +482,13 @@ fragment float4 keypath_keyboard_stage_fragment(
     // light keeps the original even response.
     float2 rimLightDirection = normalize(float2(0.70, -0.62));
     float edgeFacing = saturate(dot(distanceGradient, rimLightDirection));
-    float directionalRim = pow(edgeFacing, 1.7);
-    float rimDirectionality = mix(directionalRim * 2.2, 1.0, illumination);
-    float emphasisRimShape = mix(max(directionalRim, 0.30), 1.0, illumination);
+    float directionalRim = pow(edgeFacing, uniforms.tuningB.z);
+    float rimDirectionality = mix(directionalRim * uniforms.tuningB.y, 1.0, illumination);
+    float emphasisRimShape = mix(
+        max(directionalRim, uniforms.tuningB.w),
+        1.0,
+        illumination
+    );
     float bevelDepth = isDeck ? 0.22 : (isChip ? 0.30 : 0.72);
     float2 faceCoordinate = clamp(
         input.localPixels / max(input.halfSizePixels, float2(1.0)),
@@ -629,7 +640,7 @@ fragment float4 keypath_keyboard_stage_fragment(
     // The graze reaches further left and pools unevenly across the deck so
     // the metal reads as a broad photographic sweep instead of a uniform
     // tint; the noise scale is large enough to read as light, not texture.
-    float rightGraze = smoothstep(0.44, 1.04, lightCoordinate)
+    float rightGraze = smoothstep(uniforms.tuningB.x, 1.04, lightCoordinate)
         * entranceDarkness
         * (1.0 - pixelExposure * 0.75);
     float grazePool = 0.55 + 0.90 * keypath_value_noise(materialPixels * 0.004);
@@ -641,8 +652,8 @@ fragment float4 keypath_keyboard_stage_fragment(
         isDeck ? 78.0 : 52.0
     );
     float warmMaterialResponse = isDeck
-        ? 0.19 + warmDiffuse * 0.115
-        : (isKey ? 0.040 + warmDiffuse * 0.066 : 0.0);
+        ? uniforms.tuningA.x + warmDiffuse * uniforms.tuningA.y
+        : (isKey ? uniforms.tuningA.z + warmDiffuse * uniforms.tuningA.w : 0.0);
     float warmBevelResponse = isDeck
         ? bevel * 0.042 + warmSpecular * bevel * 0.070
         : (isKey
@@ -792,7 +803,7 @@ fragment float4 keypath_keyboard_legend_fragment(
     // backlight reads as one panel lit from the side, not a uniform sheet.
     float lightAxis = saturate((input.stageUV.x - 0.30) / 0.70);
     float3 spatialDarkLegend = darkLegendColor
-        * mix(0.84, 1.05, lightAxis)
+        * mix(uniforms.tuningD.z, uniforms.tuningD.w, lightAxis)
         * mix(float3(1.0), float3(1.03, 0.99, 0.92), lightAxis);
     float3 legendColor = mix(
         spatialDarkLegend,
@@ -803,7 +814,7 @@ fragment float4 keypath_keyboard_legend_fragment(
     float roleEmission = saturate(input.parameters.z);
     float allowsBloom = saturate(input.parameters.w);
     float emission = entranceDarkness
-        * mix(0.74, 1.16, lightAxis)
+        * mix(uniforms.tuningD.x, uniforms.tuningD.y, lightAxis)
         * (1.08 + entranceEmission * 0.78 + roleEmission * 0.42)
         * allowsBloom;
     float3 radiance = legendColor * (1.0 + emission);

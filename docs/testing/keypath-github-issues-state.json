@@ -1,24 +1,42 @@
 {
   "repository": "malpern/KeyPath",
-  "updatedAt": "2026-07-13T14:08:53.524335+00:00",
+  "updatedAt": "2026-07-24T19:56:25.481101+00:00",
   "issueLimit": 200,
   "truncated": false,
   "counts": {
+    "next": 1,
     "human": 2,
-    "hold": 72,
-    "deferred": 2
+    "hold": 61,
+    "deferred": 1
   },
   "issues": [
+    {
+      "labels": [
+        "documentation",
+        "1.1 release",
+        "agent-ok",
+        "keypath",
+        "recommended-next"
+      ],
+      "number": 1199,
+      "title": "Document how KeyPath resolves rule conflicts and prerequisites",
+      "updatedAt": "2026-07-24T19:56:02Z",
+      "url": "https://github.com/malpern/KeyPath/issues/1199",
+      "dashboardStatus": "next",
+      "dashboardType": "docs",
+      "descriptionExcerpt": "Goal Give people one clear, illustrated guide to what KeyPath means by a conflict, what happens when one rule needs another, and how to choose safely among the resolution actions. Part of the closeout for #865. Content - Start with the user problem: two rules\u2026"
+    },
     {
       "labels": [
         "post-release",
         "wwdc26",
         "bug-risk",
-        "human-in-loop"
+        "human-in-loop",
+        "keypath"
       ],
       "number": 919,
       "title": "Regression-test permissions, daemon, and TCC behavior on macOS 27 betas",
-      "updatedAt": "2026-07-13T11:17:42Z",
+      "updatedAt": "2026-07-14T20:12:49Z",
       "url": "https://github.com/malpern/KeyPath/issues/919",
       "dashboardStatus": "human",
       "dashboardType": "bug",
@@ -29,15 +47,34 @@
         "launch-review",
         "testing",
         "post-release",
-        "human-in-loop"
+        "human-in-loop",
+        "keypath"
       ],
       "number": 747,
       "title": "Verify permission and setup UX on clean accounts and signed releases",
-      "updatedAt": "2026-07-13T11:17:42Z",
+      "updatedAt": "2026-07-14T20:25:24Z",
       "url": "https://github.com/malpern/KeyPath/issues/747",
       "dashboardStatus": "human",
       "dashboardType": "testing",
       "descriptionExcerpt": "Context KeyPath depends on macOS permissions and service-management state that can be confusing during first run and upgrade: Accessibility, Input Monitoring, Full Disk Access, Login Items, privileged helper registration, and the Kanata launch daemon. The\u2026"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "devux",
+        "tier-3",
+        "post-release",
+        "agent-ok",
+        "on-hold",
+        "keypath"
+      ],
+      "number": 1181,
+      "title": "Standardize permission-action vocabulary in the setup wizard",
+      "updatedAt": "2026-07-14T20:25:00Z",
+      "url": "https://github.com/malpern/KeyPath/issues/1181",
+      "dashboardStatus": "hold",
+      "dashboardType": "feature",
+      "descriptionExcerpt": "Current behavior The Accessibility and Input Monitoring pages use Turn On, Add in Settings, and Open Settings Manually for related permission actions. The underlying flows are now distinct and reliable, but the labels do not consistently explain which action\u2026"
     },
     {
       "labels": [
@@ -64,31 +101,16 @@
         "1.1 release",
         "needs-decision",
         "human-in-loop",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 954,
       "title": "Onboarding: post-setup first-success moment \u2014 starter collection + panel tour",
-      "updatedAt": "2026-07-13T11:17:44Z",
+      "updatedAt": "2026-07-14T20:12:44Z",
       "url": "https://github.com/malpern/KeyPath/issues/954",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
       "descriptionExcerpt": "Second half of the onboarding arc started in #932 (welcome page before the permission gauntlet). Once enough permissions are in place and setup completes, the arc should end in a working mapping, not a closed wizard \u2014 teach the core panel interaction and get\u2026"
-    },
-    {
-      "labels": [
-        "documentation",
-        "post-release",
-        "needs-decision",
-        "human-in-loop",
-        "on-hold"
-      ],
-      "number": 920,
-      "title": "[1.1 docs] Capture the 26 placeholder screenshots stripped for 1.0 ship",
-      "updatedAt": "2026-07-13T11:17:42Z",
-      "url": "https://github.com/malpern/KeyPath/issues/920",
-      "dashboardStatus": "hold",
-      "dashboardType": "docs",
-      "descriptionExcerpt": "Seven published guides reference placeholder-.png screenshots that were never captured. For the 1.0 public release these were stripped from the guide markdown (their ![...]() image lines removed) so they don't render as broken <img icons on the website \u2014 the\u2026"
     },
     {
       "labels": [
@@ -97,11 +119,12 @@
         "post-release",
         "needs-decision",
         "wwdc26",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 918,
       "title": "Swift Testing migration policy: use XCTest interop, port KeyPathTestCase guards to a trait",
-      "updatedAt": "2026-07-13T11:17:55Z",
+      "updatedAt": "2026-07-14T20:12:50Z",
       "url": "https://github.com/malpern/KeyPath/issues/918",
       "dashboardStatus": "hold",
       "dashboardType": "testing",
@@ -114,11 +137,12 @@
         "post-release",
         "needs-decision",
         "wwdc26",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 917,
       "title": "Build an eval suite for AI config repair using Apple's Evaluations framework",
-      "updatedAt": "2026-07-13T11:17:55Z",
+      "updatedAt": "2026-07-14T20:12:52Z",
       "url": "https://github.com/malpern/KeyPath/issues/917",
       "dashboardStatus": "hold",
       "dashboardType": "testing",
@@ -131,11 +155,12 @@
         "needs-decision",
         "wwdc26",
         "tooling",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 916,
       "title": "Upgrade toolchain to Xcode 27 / Swift 6.4",
-      "updatedAt": "2026-07-13T11:17:55Z",
+      "updatedAt": "2026-07-14T20:12:54Z",
       "url": "https://github.com/malpern/KeyPath/issues/916",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
@@ -144,31 +169,16 @@
     {
       "labels": [
         "enhancement",
-        "post-release",
-        "needs-decision",
-        "wwdc26",
-        "on-hold"
-      ],
-      "number": 915,
-      "title": "Adopt AppKit automatic @Observable tracking in draw/layout (back-deploys to macOS 15)",
-      "updatedAt": "2026-07-13T11:17:55Z",
-      "url": "https://github.com/malpern/KeyPath/issues/915",
-      "dashboardStatus": "hold",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Post-1.0. Not for the 1.0 launch. From the WWDC 2026 review \u2014 see docs/wwdc-2026-macos-27-opportunities.md (PR #911), opportunity #4. Why WWDC26: AppKit now automatically tracks @Observable property reads in draw, layout, updateConstraints, updateLayer (and\u2026"
-    },
-    {
-      "labels": [
-        "enhancement",
         "testing",
         "post-release",
         "needs-decision",
         "wwdc26",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 914,
       "title": "Adopt App Intents Testing Framework for intent coverage (macOS 27)",
-      "updatedAt": "2026-07-13T11:17:55Z",
+      "updatedAt": "2026-07-14T20:12:57Z",
       "url": "https://github.com/malpern/KeyPath/issues/914",
       "dashboardStatus": "hold",
       "dashboardType": "testing",
@@ -180,11 +190,12 @@
         "post-release",
         "needs-decision",
         "wwdc26",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 913,
       "title": "Expose rules/packs/layers as App Intents Entity Schemas for Siri AI & Spotlight (macOS 27)",
-      "updatedAt": "2026-07-13T11:17:53Z",
+      "updatedAt": "2026-07-14T20:12:58Z",
       "url": "https://github.com/malpern/KeyPath/issues/913",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
@@ -196,11 +207,12 @@
         "post-release",
         "needs-decision",
         "wwdc26",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 912,
       "title": "Adopt Foundation Models framework for AI config repair (on-device + Claude via LanguageModel protocol)",
-      "updatedAt": "2026-07-13T11:17:53Z",
+      "updatedAt": "2026-07-14T20:13:00Z",
       "url": "https://github.com/malpern/KeyPath/issues/912",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
@@ -212,11 +224,12 @@
         "post-release",
         "needs-decision",
         "human-in-loop",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 888,
       "title": "[Design] Post-1.0 copy + terminology cleanup across rule editors",
-      "updatedAt": "2026-07-13T11:17:53Z",
+      "updatedAt": "2026-07-14T20:13:01Z",
       "url": "https://github.com/malpern/KeyPath/issues/888",
       "dashboardStatus": "hold",
       "dashboardType": "docs",
@@ -225,99 +238,19 @@
     {
       "labels": [
         "enhancement",
-        "tier-1",
-        "1.1 release",
-        "agent-ok",
-        "on-hold"
-      ],
-      "number": 870,
-      "title": "[1.1] Define rule dependency graph data model and builder",
-      "updatedAt": "2026-07-13T11:17:42Z",
-      "url": "https://github.com/malpern/KeyPath/issues/870",
-      "dashboardStatus": "hold",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865) \u2014 the dependency-detection sprint epic. Start here; everything else in the sprint depends on this. Goal A pure-data RuleDependencyGraph value type that captures the provides and requires relations\u2026"
-    },
-    {
-      "labels": [
-        "enhancement",
-        "tier-2",
-        "1.1 release",
-        "agent-ok",
-        "on-hold"
-      ],
-      "number": 869,
-      "title": "[1.1] Forward prerequisite dialog: enable / config-edit user flow",
-      "updatedAt": "2026-07-13T11:17:42Z",
-      "url": "https://github.com/malpern/KeyPath/issues/869",
-      "dashboardStatus": "hold",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on the detector sub-issue. Goal User-facing dialog that surfaces forward-direction missing prerequisites at save time, with a single-click \"fix it for me\" action. User scenario Alex\u2026"
-    },
-    {
-      "labels": [
-        "enhancement",
-        "tier-2",
-        "1.1 release",
-        "human-in-loop",
-        "on-hold"
-      ],
-      "number": 868,
-      "title": "[1.1] Reverse prerequisite dialog: disable user flow",
-      "updatedAt": "2026-07-13T11:17:42Z",
-      "url": "https://github.com/malpern/KeyPath/issues/868",
-      "dashboardStatus": "hold",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on the detector sub-issue. Can run in parallel with the forward dialog sub-issue once the detector lands. Goal User-facing dialog that surfaces reverse-direction orphan warnings when a\u2026"
-    },
-    {
-      "labels": [
-        "enhancement",
-        "tier-1",
-        "1.1 release",
-        "agent-ok",
-        "on-hold"
-      ],
-      "number": 867,
-      "title": "[1.1] Encode per-family dependencies (HRL Toggles, Launcher, Leader-based, Custom)",
-      "updatedAt": "2026-07-13T11:17:42Z",
-      "url": "https://github.com/malpern/KeyPath/issues/867",
-      "dashboardStatus": "hold",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on the dependency-graph data model. Goal Concrete \"requires\" derivations for each family in the catalog. This is the per-family code that introspects a RuleCollectionConfiguration and\u2026"
-    },
-    {
-      "labels": [
-        "enhancement",
-        "tier-1",
-        "1.1 release",
-        "agent-ok",
-        "on-hold"
-      ],
-      "number": 866,
-      "title": "[1.1] Implement Prerequisite detector: forward + reverse queries on RuleCollectionsManager",
-      "updatedAt": "2026-07-13T11:17:42Z",
-      "url": "https://github.com/malpern/KeyPath/issues/866",
-      "dashboardStatus": "hold",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on the dependency-graph data model sub-issue. Goal Add RuleCollectionsManager+PrerequisiteDetection.swift as a sibling to the existing\u2026"
-    },
-    {
-      "labels": [
-        "enhancement",
         "1.1 release",
         "sprint-epic",
-        "human-in-loop",
         "tracking-only",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 865,
       "title": "[Sprint 1.1] Rule dependency awareness: bidirectional prerequisite detection",
-      "updatedAt": "2026-07-13T11:18:50Z",
+      "updatedAt": "2026-07-24T03:39:01Z",
       "url": "https://github.com/malpern/KeyPath/issues/865",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
-      "descriptionExcerpt": "Status: Sprint planning spike \u2014 high-level requirements only. Sub-issues fan out the work. Problem The existing conflict detector at\u2026"
+      "descriptionExcerpt": "Status Tracking-only epic for the KeyPath 1.1 configuration-coherence sequence. Implement through the focused child issues; never ship this epic as one PR. Core sequence: 1. [#870 \u2014 Dependency graph vocabulary and pure\u2026"
     },
     {
       "labels": [
@@ -327,11 +260,12 @@
         "post-release",
         "needs-decision",
         "tracking-only",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 855,
       "title": "InstallerEngine conflates provision and diagnose responsibilities",
-      "updatedAt": "2026-07-13T11:17:42Z",
+      "updatedAt": "2026-07-14T20:13:12Z",
       "url": "https://github.com/malpern/KeyPath/issues/855",
       "dashboardStatus": "hold",
       "dashboardType": "debt",
@@ -339,21 +273,21 @@
     },
     {
       "labels": [
-        "enhancement",
-        "feature-gap",
+        "tech-debt",
         "tier-3",
         "post-release",
         "needs-decision",
         "human-in-loop",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 688,
       "title": "Decide the future of deferred permission-flow feature flags",
-      "updatedAt": "2026-07-13T11:18:50Z",
+      "updatedAt": "2026-07-14T20:25:29Z",
       "url": "https://github.com/malpern/KeyPath/issues/688",
       "dashboardStatus": "hold",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Current state Two default-off feature flags remain: - useJustInTimePermissionRequests - allowOptionalWizard They are not dead declarations: current code has guarded call sites in keyboard capture, config reload, and setup-banner behavior. However, they are\u2026"
+      "dashboardType": "debt",
+      "descriptionExcerpt": "Verified current state Two default-off feature flags still guard live alternate paths: - useJustInTimePermissionRequests - gates permission prompting before keyboard capture in KeyboardCapture.startCapture - gates permission prompting before config reload in\u2026"
     },
     {
       "labels": [
@@ -361,11 +295,12 @@
         "post-release",
         "needs-decision",
         "human-in-loop",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 488,
       "title": "Accessibility: evaluate adaptive base sizing for the overlay keyboard",
-      "updatedAt": "2026-07-13T11:18:50Z",
+      "updatedAt": "2026-07-14T20:13:19Z",
       "url": "https://github.com/malpern/KeyPath/issues/488",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
@@ -376,11 +311,12 @@
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 468,
       "title": "Multi-pack collection ownership conflict resolution",
-      "updatedAt": "2026-07-13T11:17:50Z",
+      "updatedAt": "2026-07-14T20:13:20Z",
       "url": "https://github.com/malpern/KeyPath/issues/468",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
@@ -391,11 +327,12 @@
         "refactor",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 388,
       "title": "Shared keycap rendering + unified hero component across packs and collections",
-      "updatedAt": "2026-07-13T11:17:50Z",
+      "updatedAt": "2026-07-14T20:13:22Z",
       "url": "https://github.com/malpern/KeyPath/issues/388",
       "dashboardStatus": "hold",
       "dashboardType": "debt",
@@ -423,11 +360,12 @@
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 375,
       "title": "Pack conflict detection and resolution for multi-mechanism packs",
-      "updatedAt": "2026-07-13T11:17:50Z",
+      "updatedAt": "2026-07-14T20:13:23Z",
       "url": "https://github.com/malpern/KeyPath/issues/375",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
@@ -435,29 +373,15 @@
     },
     {
       "labels": [
-        "testing",
-        "post-release",
-        "needs-decision",
-        "on-hold"
-      ],
-      "number": 365,
-      "title": "Gradually migrate XCTest tests to Swift Testing",
-      "updatedAt": "2026-07-13T11:17:50Z",
-      "url": "https://github.com/malpern/KeyPath/issues/365",
-      "dashboardStatus": "hold",
-      "dashboardType": "testing",
-      "descriptionExcerpt": "Summary We're currently running both XCTest (~1541 tests) and Swift Testing (~505 tests) frameworks. Swift Testing is the future \u2014 better diagnostics, parameterized tests, cleaner syntax. Approach - Write all new tests in Swift Testing (@Test, #expect)\u2026"
-    },
-    {
-      "labels": [
         "enhancement",
         "post-release",
         "research",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 299,
       "title": "Research: host-to-keyboard display protocol for screen-equipped keyboards (Work Louder, etc.)",
-      "updatedAt": "2026-07-13T11:17:53Z",
+      "updatedAt": "2026-07-14T20:13:27Z",
       "url": "https://github.com/malpern/KeyPath/issues/299",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
@@ -468,11 +392,12 @@
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 293,
       "title": "feat: Option/AltGr layer labels in overlay",
-      "updatedAt": "2026-07-13T11:17:50Z",
+      "updatedAt": "2026-07-14T20:13:28Z",
       "url": "https://github.com/malpern/KeyPath/issues/293",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
@@ -480,32 +405,15 @@
     },
     {
       "labels": [
-        "kanata",
-        "driver-kit",
-        "upstream",
-        "post-release",
-        "research",
-        "human-in-loop",
-        "on-hold"
-      ],
-      "number": 254,
-      "title": "Remove fake device fixtures once macOS multi-device support lands",
-      "updatedAt": "2026-07-13T11:17:53Z",
-      "url": "https://github.com/malpern/KeyPath/issues/254",
-      "dashboardStatus": "hold",
-      "dashboardType": "upstream",
-      "descriptionExcerpt": "Context PreviewFixtures.connectedDevices provides fake device data for UI development of per-device key mappings. This was added because macOS multi-device support is blocked upstream \u2014 real multi-device enumeration isn't available yet. Upstream Blockers\u2026"
-    },
-    {
-      "labels": [
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 216,
       "title": "Karabiner parity: mouse-to-scroll (mouse_motion_to_scroll)",
-      "updatedAt": "2026-07-13T11:17:50Z",
+      "updatedAt": "2026-07-14T20:13:30Z",
       "url": "https://github.com/malpern/KeyPath/issues/216",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
@@ -516,11 +424,12 @@
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 215,
       "title": "Karabiner parity: mouse axis manipulation (mouse_basic)",
-      "updatedAt": "2026-07-13T11:17:50Z",
+      "updatedAt": "2026-07-14T20:13:32Z",
       "url": "https://github.com/malpern/KeyPath/issues/215",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
@@ -531,11 +440,12 @@
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 214,
       "title": "Karabiner parity: input source switching (select_input_source)",
-      "updatedAt": "2026-07-13T11:17:50Z",
+      "updatedAt": "2026-07-14T20:13:33Z",
       "url": "https://github.com/malpern/KeyPath/issues/214",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
@@ -546,11 +456,12 @@
         "enhancement",
         "post-release",
         "tracking-only",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 213,
       "title": "Tracking: 100% Karabiner conversion fidelity roadmap",
-      "updatedAt": "2026-07-13T11:17:44Z",
+      "updatedAt": "2026-07-14T20:13:35Z",
       "url": "https://github.com/malpern/KeyPath/issues/213",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
@@ -561,11 +472,12 @@
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 212,
       "title": "Karabiner converter: support GokuRakuJoudo (Goku) EDN format import",
-      "updatedAt": "2026-07-13T11:17:49Z",
+      "updatedAt": "2026-07-14T20:13:36Z",
       "url": "https://github.com/malpern/KeyPath/issues/212",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
@@ -576,11 +488,12 @@
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 211,
       "title": "Karabiner converter: AI-assisted Tier 2+ conversion for complex rules",
-      "updatedAt": "2026-07-13T11:17:49Z",
+      "updatedAt": "2026-07-14T20:13:38Z",
       "url": "https://github.com/malpern/KeyPath/issues/211",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
@@ -591,11 +504,12 @@
         "testing",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 204,
       "title": "Test KeyPathInsights feature end-to-end",
-      "updatedAt": "2026-07-13T11:17:48Z",
+      "updatedAt": "2026-07-14T20:13:40Z",
       "url": "https://github.com/malpern/KeyPath/issues/204",
       "dashboardStatus": "hold",
       "dashboardType": "testing",
@@ -894,6 +808,7 @@
     {
       "labels": [
         "enhancement",
+        "kanata",
         "mouse-control",
         "post-release",
         "needs-decision",
@@ -901,7 +816,7 @@
       ],
       "number": 181,
       "title": "Kanata: Add mouse key support (movement, clicks, scrolling)",
-      "updatedAt": "2026-07-13T11:17:46Z",
+      "updatedAt": "2026-07-14T20:12:42Z",
       "url": "https://github.com/malpern/KeyPath/issues/181",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
@@ -979,44 +894,6 @@
     {
       "labels": [
         "kanata",
-        "driver-kit",
-        "upstream",
-        "post-release",
-        "research",
-        "bug-risk",
-        "human-in-loop",
-        "on-hold"
-      ],
-      "number": 176,
-      "title": "Upstream: Bluetooth and Logitech mice disabled or stuck when Kanata runs",
-      "updatedAt": "2026-07-13T11:18:38Z",
-      "url": "https://github.com/malpern/KeyPath/issues/176",
-      "dashboardStatus": "hold",
-      "dashboardType": "bug",
-      "descriptionExcerpt": "[!NOTE] Status: upstream hardware-compatibility watch item; no confirmed current KeyPath reproduction. The two referenced upstream reports are closed, and the bundled Kanata contains the related macOS mouse event-tap fix (29c9366). Some combined Bluetooth\u2026"
-    },
-    {
-      "labels": [
-        "driver-kit",
-        "upstream",
-        "testing",
-        "post-release",
-        "research",
-        "bug-risk",
-        "human-in-loop",
-        "on-hold"
-      ],
-      "number": 175,
-      "title": "Upstream: Sidecar/external displays crash Kanata (null pointer in driverkit)",
-      "updatedAt": "2026-07-13T11:18:36Z",
-      "url": "https://github.com/malpern/KeyPath/issues/175",
-      "dashboardStatus": "hold",
-      "dashboardType": "bug",
-      "descriptionExcerpt": "[!NOTE] Status: upstream issue resolved and relevant fixes are bundled; no confirmed remaining KeyPath bug. The original null-product-string crash was fixed in the driverkit dependency, and the current bundled Kanata also contains later macOS\u2026"
-    },
-    {
-      "labels": [
-        "kanata",
         "upstream",
         "post-release",
         "research",
@@ -1034,6 +911,7 @@
     },
     {
       "labels": [
+        "kanata",
         "driver-kit",
         "upstream",
         "post-release",
@@ -1044,7 +922,7 @@
       ],
       "number": 172,
       "title": "Upstream: Virtual HID keyboard doesn't emit native media key usage pages (F-row)",
-      "updatedAt": "2026-07-13T11:17:53Z",
+      "updatedAt": "2026-07-14T20:12:42Z",
       "url": "https://github.com/malpern/KeyPath/issues/172",
       "dashboardStatus": "hold",
       "dashboardType": "bug",
@@ -1068,23 +946,6 @@
       "dashboardStatus": "hold",
       "dashboardType": "bug",
       "descriptionExcerpt": "[!NOTE] Status: upstream watch item; no confirmed current KeyPath reproduction. This affects a niche class of composite keyboard/pointing devices represented by upstream Kanata issue #708. Keep it for provenance and future affected-user reports, but do not\u2026"
-    },
-    {
-      "labels": [
-        "kanata",
-        "upstream",
-        "post-release",
-        "research",
-        "human-in-loop",
-        "on-hold"
-      ],
-      "number": 121,
-      "title": "Protocol: make TCP Hello framing deterministic (low priority)",
-      "updatedAt": "2026-07-13T11:17:50Z",
-      "url": "https://github.com/malpern/KeyPath/issues/121",
-      "dashboardStatus": "hold",
-      "dashboardType": "upstream",
-      "descriptionExcerpt": "Follow-up to the current client-only TCP handshake fix in KeyPath (Hello parsing now uses the initial response and only reads more lines if needed). Problem: Hello() can fail when broadcast lines (e.g., KeyInput) interleave with the HelloOk response, causing\u2026"
     },
     {
       "labels": [
@@ -1187,11 +1048,12 @@
         "enhancement",
         "post-release",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 77,
       "title": "Phase 3: Add chord/macro/sequence suppression to keyboard overlay",
-      "updatedAt": "2026-07-13T11:17:44Z",
+      "updatedAt": "2026-07-14T20:13:42Z",
       "url": "https://github.com/malpern/KeyPath/issues/77",
       "dashboardStatus": "hold",
       "dashboardType": "feature",
@@ -1220,11 +1082,12 @@
         "post-release",
         "research",
         "needs-decision",
-        "on-hold"
+        "on-hold",
+        "keypath"
       ],
       "number": 63,
       "title": "Per-keyboard rule targeting (Karabiner-like) \u2014 device-aware predicates for switch/actions",
-      "updatedAt": "2026-07-13T11:17:44Z",
+      "updatedAt": "2026-07-14T20:13:43Z",
       "url": "https://github.com/malpern/KeyPath/issues/63",
       "dashboardStatus": "hold",
       "dashboardType": "upstream",
@@ -1232,29 +1095,14 @@
     },
     {
       "labels": [
-        "enhancement",
-        "devux",
-        "post-release",
-        "human-in-loop",
-        "tracking-only"
-      ],
-      "number": 934,
-      "title": "Wizard polish batch: restart messaging, prompt wording, progress indicator, completion moment, error recovery, misc",
-      "updatedAt": "2026-07-13T11:18:50Z",
-      "url": "https://github.com/malpern/KeyPath/issues/934",
-      "dashboardStatus": "deferred",
-      "dashboardType": "feature",
-      "descriptionExcerpt": "Grouped polish items from the 2026-07-02 fresh-install QA review (log + code audit). Split out anything that grows. The moments that hurt (tier 1) - [ ] Restart-needed messaging: AX polled \"denied\" for 50s while the user was granting it; only read granted\u2026"
-    },
-    {
-      "labels": [
         "testing",
         "post-release",
-        "tracking-only"
+        "tracking-only",
+        "keypath"
       ],
       "number": 604,
       "title": "Tracking: targeted remaining test coverage and integration gaps",
-      "updatedAt": "2026-07-13T11:18:50Z",
+      "updatedAt": "2026-07-14T20:13:17Z",
       "url": "https://github.com/malpern/KeyPath/issues/604",
       "dashboardStatus": "deferred",
       "dashboardType": "testing",
@@ -1264,147 +1112,166 @@
   "recentlyClosed": [
     {
       "labels": [
-        "refactor",
-        "tech-debt",
-        "tier-3",
-        "post-release",
-        "agent-ok"
+        "enhancement",
+        "tier-2",
+        "1.1 release",
+        "human-in-loop",
+        "keypath"
       ],
-      "number": 737,
-      "title": "Post-1.0: move shipping mapper code out of UI/Experimental",
-      "updatedAt": "2026-07-13T14:08:41Z",
-      "url": "https://github.com/malpern/KeyPath/issues/737",
+      "number": 868,
+      "title": "[1.1] Reverse prerequisite dialog: disable user flow",
+      "updatedAt": "2026-07-24T18:54:51Z",
+      "url": "https://github.com/malpern/KeyPath/issues/868",
       "dashboardStatus": "completed",
-      "dashboardType": "debt",
-      "descriptionExcerpt": "Context Split out from #731 after the stable-1.0 release blockers were fixed. The mapper is a shipping feature, but some mapper implementation still lives under UI/Experimental, which makes ownership and navigation misleading. Evidence From #731\u2026"
-    },
-    {
-      "labels": [
-        "tech-debt",
-        "post-release"
-      ],
-      "number": 484,
-      "title": "Large computed property chains in RulesSummaryView (audit \u00a77.3)",
-      "updatedAt": "2026-07-13T11:16:26Z",
-      "url": "https://github.com/malpern/KeyPath/issues/484",
-      "dashboardStatus": "completed",
-      "dashboardType": "debt",
-      "descriptionExcerpt": "Code Audit Finding \u00a77.3 \u2014 Medium Problem: Five computed properties chain filtering and sorting on every render: allCollections \u2192 sortedCollections \u2192 filteredCollections \u2192 filteredCustomRules \u2192 filteredAppKeymaps. Scales poorly with large rule sets. Location\u2026"
+      "dashboardType": "feature",
+      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on #866. It can proceed alongside #869 after the detector lands. Goal Add the reverse prerequisite flow when disabling a rule would leave enabled rules without a required capability. User\u2026"
     },
     {
       "labels": [
         "enhancement",
-        "feature-gap",
-        "tier-3",
-        "post-release",
-        "model:haiku",
-        "agent-ok"
+        "tier-1",
+        "1.1 release",
+        "agent-ok",
+        "keypath"
       ],
-      "number": 694,
-      "title": "Deferred TODOs: QMK HID-descriptor mapping (unused) + device-enumeration workaround (#254)",
-      "updatedAt": "2026-07-13T11:16:26Z",
-      "url": "https://github.com/malpern/KeyPath/issues/694",
+      "number": 870,
+      "title": "[1.1] Define rule dependency graph data model and builder",
+      "updatedAt": "2026-07-24T17:37:48Z",
+      "url": "https://github.com/malpern/KeyPath/issues/870",
       "dashboardStatus": "completed",
       "dashboardType": "feature",
-      "descriptionExcerpt": "Tier: 3 (minor / deferred-by-design) From the pre-release feature-gap audit. Two unrelated deferred TODOs tracked together for cleanup. Items 1. QMK HID-descriptor key identification \u2014 declared but not used by the current keymap-based flow\u2026"
+      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865) \u2014 the dependency-awareness epic. Start here; the other child issues depend on this vocabulary. Goal Define a pure-data RuleDependencyGraph value type that records typed capabilities, requirements\u2026"
     },
     {
       "labels": [
-        "refactor",
-        "tech-debt",
-        "post-release"
+        "enhancement",
+        "tier-2",
+        "1.1 release",
+        "agent-ok",
+        "keypath"
       ],
-      "number": 487,
-      "title": "Large modifier chains in OverlayMapperSection (audit \u00a78.4)",
-      "updatedAt": "2026-07-13T11:16:26Z",
-      "url": "https://github.com/malpern/KeyPath/issues/487",
+      "number": 869,
+      "title": "[1.1] Forward prerequisite dialog: enable / config-edit user flow",
+      "updatedAt": "2026-07-24T17:37:46Z",
+      "url": "https://github.com/malpern/KeyPath/issues/869",
       "dashboardStatus": "completed",
-      "dashboardType": "debt",
-      "descriptionExcerpt": "Code Audit Finding \u00a78.4 \u2014 Medium Problem: Body view chains 16+ .onChange() modifiers using intermediate let bindings, spanning 750+ lines. Obscures core view hierarchy. Location: Sources/KeyPathAppKit/UI/Overlay/OverlayMapperSection.swift:62-120 Action\u2026"
+      "dashboardType": "feature",
+      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on #866. Goal Add the forward prerequisite flow for enabling a rule or saving a configuration edit. Explain the actual consequence and offer an atomic, one-click fix when provider\u2026"
     },
     {
       "labels": [
-        "refactor",
-        "tech-debt",
-        "post-release",
-        "model:sonnet",
-        "agent-ok"
+        "enhancement",
+        "tier-1",
+        "1.1 release",
+        "agent-ok",
+        "keypath"
       ],
-      "number": 852,
-      "title": "App.swift / AppDelegate is overloaded (879 lines, 16 MARK sections)",
-      "updatedAt": "2026-07-13T11:16:26Z",
-      "url": "https://github.com/malpern/KeyPath/issues/852",
+      "number": 867,
+      "title": "[1.1] Encode per-family dependencies (HRL Toggles, Launcher, Leader-based, Custom)",
+      "updatedAt": "2026-07-24T17:37:44Z",
+      "url": "https://github.com/malpern/KeyPath/issues/867",
       "dashboardStatus": "completed",
-      "dashboardType": "debt",
-      "descriptionExcerpt": "Problem App.swift owns: window creation, wizard presentation, keyboard-layout detection, emergency-stop handling, headless auto-start, first-activation flow, fresh-install detection, menu bar setup, and SMAppService dev utilities. The first-activation block\u2026"
+      "dashboardType": "feature",
+      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on the capability and graph model in #870. Goal Encode explicit per-family dependency contributions. This is product logic that inspects each RuleCollection and its current configuration\u2026"
     },
     {
       "labels": [
-        "post-release",
-        "research"
+        "enhancement",
+        "tier-1",
+        "1.1 release",
+        "agent-ok",
+        "keypath"
       ],
-      "number": 641,
-      "title": "Retrospective: stale-kanata detection (#638) reverted \u2014 revisit only via authoritative HelloOk build-stamp, else let go",
-      "updatedAt": "2026-07-13T11:16:26Z",
-      "url": "https://github.com/malpern/KeyPath/issues/641",
+      "number": 866,
+      "title": "[1.1] Implement Prerequisite detector: forward + reverse queries on RuleCollectionsManager",
+      "updatedAt": "2026-07-24T05:36:05Z",
+      "url": "https://github.com/malpern/KeyPath/issues/866",
+      "dashboardStatus": "completed",
+      "dashboardType": "feature",
+      "descriptionExcerpt": "Part of [#865](https://github.com/malpern/KeyPath/issues/865). Depends on #870 and the concrete contribution extraction in #867. Goal Add RuleCollectionsManager+PrerequisiteDetection.swift beside the existing conflict detector. It performs two single-hop\u2026"
+    },
+    {
+      "labels": [
+        "documentation",
+        "post-release",
+        "needs-decision",
+        "human-in-loop",
+        "on-hold",
+        "keypath"
+      ],
+      "number": 920,
+      "title": "[1.1 docs] Capture the 26 placeholder screenshots stripped for 1.0 ship",
+      "updatedAt": "2026-07-24T01:48:20Z",
+      "url": "https://github.com/malpern/KeyPath/issues/920",
+      "dashboardStatus": "completed",
+      "dashboardType": "docs",
+      "descriptionExcerpt": "Seven published guides reference placeholder-.png screenshots that were never captured. For the 1.0 public release these were stripped from the guide markdown (their ![...]() image lines removed) so they don't render as broken <img icons on the website \u2014 the\u2026"
+    },
+    {
+      "labels": [
+        "kanata",
+        "upstream",
+        "post-release",
+        "research",
+        "human-in-loop",
+        "on-hold"
+      ],
+      "number": 121,
+      "title": "Protocol: make TCP Hello framing deterministic (low priority)",
+      "updatedAt": "2026-07-24T01:48:19Z",
+      "url": "https://github.com/malpern/KeyPath/issues/121",
       "dashboardStatus": "completed",
       "dashboardType": "upstream",
-      "descriptionExcerpt": "Retrospective + go/no-go for #638 (KeyPath should detect a stale running kanata). We built it, found it doesn't work in practice, and reverted it (#640). Capturing why, and a recommendation. The goal (#638) A kanata daemon can outlive a KeyPath\u2026"
+      "descriptionExcerpt": "Follow-up to the current client-only TCP handshake fix in KeyPath (Hello parsing now uses the initial response and only reads more lines if needed). Problem: Hello() can fail when broadcast lines (e.g., KeyInput) interleave with the HelloOk response, causing\u2026"
     },
     {
       "labels": [
-        "refactor",
-        "post-release"
-      ],
-      "number": 149,
-      "title": "Define module boundaries and extraction plan for KeyPathAppKit",
-      "updatedAt": "2026-07-13T11:16:25Z",
-      "url": "https://github.com/malpern/KeyPath/issues/149",
-      "dashboardStatus": "completed",
-      "dashboardType": "debt",
-      "descriptionExcerpt": "KeyPathAppKit is a monolithic target (\\~121k Swift LOC). Directory structure exists but compile-time boundaries do not, so layering can drift. Baseline Findings (2026-02-06) Initial build benchmark for swift build --product KeyPath (debug): clean: 74s noop\u2026"
-    },
-    {
-      "labels": [
-        "refactor",
-        "tech-debt",
-        "post-release"
-      ],
-      "number": 495,
-      "title": "Large files could benefit from splitting (audit \u00a79.7)",
-      "updatedAt": "2026-07-13T11:16:25Z",
-      "url": "https://github.com/malpern/KeyPath/issues/495",
-      "dashboardStatus": "completed",
-      "dashboardType": "debt",
-      "descriptionExcerpt": "Code Audit Finding \u00a79.7 \u2014 Low Problem: 8 files exceed 1000 lines; several already use MARK sections indicating natural split points. Files: - \\RuntimeCoordinator.swift\\ (1487 lines) - \\WizardDesignSystem.swift\\ (1242) - \\LauncherCollectionView.swift\\ (1053)\u2026"
-    },
-    {
-      "labels": [
+        "testing",
         "post-release",
-        "model:haiku",
-        "human-in-loop"
+        "needs-decision",
+        "on-hold",
+        "keypath"
       ],
-      "number": 741,
-      "title": "Post-1.0: audit design-system token/style consolidation",
-      "updatedAt": "2026-07-13T11:16:25Z",
-      "url": "https://github.com/malpern/KeyPath/issues/741",
+      "number": 365,
+      "title": "Gradually migrate XCTest tests to Swift Testing",
+      "updatedAt": "2026-07-24T01:48:18Z",
+      "url": "https://github.com/malpern/KeyPath/issues/365",
       "dashboardStatus": "completed",
-      "dashboardType": "other",
-      "descriptionExcerpt": "Context Split out from #731 after the stable-1.0 release blockers were fixed. 731 noted multiple design token/style files may be noisy, but this was not a 1.0 stability issue unless it blocked specific UI fixes. Direction Audit design-system/style definitions\u2026"
+      "dashboardType": "testing",
+      "descriptionExcerpt": "Summary We're currently running both XCTest (~1541 tests) and Swift Testing (~505 tests) frameworks. Swift Testing is the future \u2014 better diagnostics, parameterized tests, cleaner syntax. Approach - Write all new tests in Swift Testing (@Test, #expect)\u2026"
     },
     {
       "labels": [
-        "refactor",
-        "tech-debt",
-        "post-release"
+        "enhancement",
+        "post-release",
+        "needs-decision",
+        "wwdc26",
+        "on-hold",
+        "keypath"
       ],
-      "number": 494,
-      "title": "RulesSummaryView state management cleanup (audit \u00a78.3, \u00a78.5)",
-      "updatedAt": "2026-07-13T11:16:25Z",
-      "url": "https://github.com/malpern/KeyPath/issues/494",
+      "number": 915,
+      "title": "Adopt AppKit automatic @Observable tracking in draw/layout (back-deploys to macOS 15)",
+      "updatedAt": "2026-07-24T01:48:17Z",
+      "url": "https://github.com/malpern/KeyPath/issues/915",
       "dashboardStatus": "completed",
-      "dashboardType": "debt",
-      "descriptionExcerpt": "Code Audit Findings \u00a78.3 + \u00a78.5 \u2014 Low Problem: - \u00a78.3: 21 separate \\@State\\ declarations including dictionaries, optionals, and sets. Harder to reason about state coherence. - \u00a78.5: \\@Bindable var kanataManager = kanataManager\\ declared inside body, recreated\u2026"
+      "dashboardType": "feature",
+      "descriptionExcerpt": "Post-1.0. Not for the 1.0 launch. From the WWDC 2026 review \u2014 see docs/wwdc-2026-macos-27-opportunities.md (PR #911), opportunity #4. Why WWDC26: AppKit now automatically tracks @Observable property reads in draw, layout, updateConstraints, updateLayer (and\u2026"
+    },
+    {
+      "labels": [
+        "enhancement",
+        "devux",
+        "post-release",
+        "tracking-only",
+        "keypath"
+      ],
+      "number": 934,
+      "title": "Wizard polish batch: restart messaging, prompt wording, progress indicator, completion moment, error recovery, misc",
+      "updatedAt": "2026-07-14T20:25:27Z",
+      "url": "https://github.com/malpern/KeyPath/issues/934",
+      "dashboardStatus": "completed",
+      "dashboardType": "feature",
+      "descriptionExcerpt": "This tracking batch was re-audited against current master on 2026-07-14. It should not remain open as a broad implementation target. Completed or no longer actionable - [x] Progress indicator, wizard-open flicker, cosmetic error severity, and validation-loop\u2026"
     }
   ]
 }
