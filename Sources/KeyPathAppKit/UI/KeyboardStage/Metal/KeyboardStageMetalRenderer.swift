@@ -48,6 +48,7 @@ private struct KeyboardStageLegendDrawItem {
     let opacity: Float
     let entranceEmission: Float
     let roleEmission: Float
+    let alignment: KeyboardStageLegendAtlasDescriptor.Alignment
 }
 
 final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Sendable {
@@ -508,7 +509,7 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
         items.reserveCapacity(scene.keys.count * 2)
 
         for key in scene.keys {
-            let keyFrame = projection.projectKey(key)
+            let keyFrame = materialKeyFrame(projection.projectKey(key))
             let visibility = legendVisibility(
                 keyFrame: keyFrame,
                 scene: scene,
@@ -519,6 +520,7 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
             guard baseOpacity > 0.001 else { continue }
 
             let weight = legendWeight(for: key.role)
+            let alignment = atlasAlignment(for: key.legend.alignment)
             let settledColor = palette.style(
                 for: key.role,
                 interactionLevel: key.interactionLevel
@@ -532,13 +534,15 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
                     descriptor: KeyboardStageLegendAtlasDescriptor(
                         primary: previous,
                         secondary: key.legend.secondary,
-                        weight: weight
+                        weight: weight,
+                        alignment: alignment
                     ),
                     frame: keyFrame,
                     settledColor: settledColor,
                     opacity: baseOpacity * (1 - progress),
                     entranceEmission: lighting.legendGlow,
-                    roleEmission: max(key.glow, key.interactionLevel)
+                    roleEmission: max(key.glow, key.interactionLevel),
+                    alignment: alignment
                 ))
             }
 
@@ -547,13 +551,15 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
                     descriptor: KeyboardStageLegendAtlasDescriptor(
                         primary: key.legend.primary,
                         secondary: key.legend.secondary,
-                        weight: weight
+                        weight: weight,
+                        alignment: alignment
                     ),
                     frame: keyFrame,
                     settledColor: settledColor,
                     opacity: baseOpacity * (key.legend.previous == nil ? 1 : progress),
                     entranceEmission: lighting.legendGlow,
-                    roleEmission: max(key.glow, key.interactionLevel)
+                    roleEmission: max(key.glow, key.interactionLevel),
+                    alignment: alignment
                 ))
             }
         }
@@ -578,6 +584,7 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
             return KeyboardStageGPULegendInstance(
                 geometry: legendGeometry(
                     keyFrame: item.frame,
+                    alignment: item.alignment,
                     drawableSize: drawableSize
                 ),
                 uvRect: atlasRect,
@@ -595,17 +602,35 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
 
     private func legendGeometry(
         keyFrame: CGRect,
+        alignment: KeyboardStageLegendAtlasDescriptor.Alignment,
         drawableSize: CGSize
     ) -> SIMD4<Float> {
         let width = max(1, Float(drawableSize.width))
         let height = max(1, Float(drawableSize.height))
-        // The native baseline used 34% of the cap height. A slightly smaller
-        // 28% optical size is closer to a real MacBook aperture and leaves the
-        // bloom room to breathe without making every legend look bold.
+        // The atlas includes its own vertical padding. This resolves regular
+        // legends to roughly 28% of the cap height, matching the proportions
+        // of the MacBook legends in the onboarding reference.
         let legendHeight = max(1, Float(keyFrame.height) * 0.84)
         let legendWidth = legendHeight * 2
+        // Edge-aligned atlas cells draw the glyphs flush to a small fixed cell
+        // padding, so anchoring the quad's matching edge at the keycap's inner
+        // margin puts the text where MacBook hardware prints it.
+        let cellPadding = legendWidth
+            * Float(
+                KeyboardStageLegendAtlasRasterizer.edgeAlignedCellPadding
+                    / CGFloat(KeyboardStageLegendAtlasLayout.cellWidth)
+            )
+        let edgeInset = Float(keyFrame.height) * 0.16
+        let centerX = switch alignment {
+        case .leading:
+            Float(keyFrame.minX) + edgeInset - cellPadding + legendWidth / 2
+        case .center:
+            Float(keyFrame.midX)
+        case .trailing:
+            Float(keyFrame.maxX) - edgeInset + cellPadding - legendWidth / 2
+        }
         return SIMD4(
-            Float(keyFrame.midX) / width * 2 - 1,
+            centerX / width * 2 - 1,
             1 - Float(keyFrame.midY) / height * 2,
             legendWidth / width * 2,
             legendHeight / height * 2
@@ -616,10 +641,20 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
         for role: KeyboardStageKeyRole
     ) -> KeyboardStageLegendAtlasDescriptor.Weight {
         switch role {
-        case .standard, .modifier, .dimmed:
-            .regular
-        case .deck, .recommended, .escape, .hyper, .launcher, .installed:
+        case .standard, .modifier, .recommended, .escape, .dimmed:
+            .light
+        case .deck, .hyper, .launcher, .installed:
             .medium
+        }
+    }
+
+    private func atlasAlignment(
+        for alignment: KeyboardStageLegendAlignment
+    ) -> KeyboardStageLegendAtlasDescriptor.Alignment {
+        switch alignment {
+        case .leading: .leading
+        case .center: .center
+        case .trailing: .trailing
         }
     }
 
@@ -686,7 +721,7 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
         instances.append(contentsOf: scene.keys.map { key in
             let visibleGlow = scene.displayMode.reduceTransparency ? 0 : key.glow
             return makeInstance(
-                frame: projection.projectKey(key),
+                frame: materialKeyFrame(projection.projectKey(key)),
                 rotationRadians: key.rotationRadians,
                 style: palette.style(
                     for: key.role,
@@ -718,6 +753,12 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
         return instances
     }
 
+    private func materialKeyFrame(_ frame: CGRect) -> CGRect {
+        let horizontalInset = min(3.2, frame.width * 0.045)
+        let verticalInset = min(3.0, frame.height * 0.045)
+        return frame.insetBy(dx: horizontalInset, dy: verticalInset)
+    }
+
     private func makeDecorationInstance(
         _ decoration: KeyboardStageDecoration,
         projection: KeyboardStageProjection,
@@ -729,7 +770,9 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
         case .keyboardDeck:
             0.14
         case .applicationTarget, .launcherChoiceTarget, .handoffTarget:
-            0.34
+            // Full capsule: these are floating UI chips above the deck, not
+            // keycaps, and their silhouette is the first thing that says so.
+            0.50
         case .capsEcho:
             0.31
         case .modifierToken:
@@ -784,7 +827,7 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
         } else if materialKind < 1.5 {
             24 + max(glow, lighting.transientGlow) * 14
         } else {
-            18 + max(glow, lighting.transientGlow) * 12
+            30 + max(glow, lighting.transientGlow) * 12
         }
         let centerX = Float(frame.midX) / width * 2 - 1
         let centerY = 1 - Float(frame.midY) / height * 2

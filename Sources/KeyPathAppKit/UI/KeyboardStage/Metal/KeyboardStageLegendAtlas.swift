@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import CoreText
 import Foundation
@@ -5,22 +6,32 @@ import Metal
 
 struct KeyboardStageLegendAtlasDescriptor: Hashable, Sendable {
     enum Weight: Int, Hashable, Sendable {
+        case light
         case regular
         case medium
+    }
+
+    enum Alignment: Int, Hashable, Sendable {
+        case leading
+        case center
+        case trailing
     }
 
     var primary: String
     var secondary: String?
     var weight: Weight
+    var alignment: Alignment
 
     init(
         primary: String,
         secondary: String? = nil,
-        weight: Weight = .regular
+        weight: Weight = .regular,
+        alignment: Alignment = .center
     ) {
         self.primary = primary
         self.secondary = secondary
         self.weight = weight
+        self.alignment = alignment
     }
 }
 
@@ -72,7 +83,10 @@ struct KeyboardStageLegendAtlasSignature: Hashable, Sendable {
                 break
             }
         }
-        return lhs.weight.rawValue < rhs.weight.rawValue
+        if lhs.weight != rhs.weight {
+            return lhs.weight.rawValue < rhs.weight.rawValue
+        }
+        return lhs.alignment.rawValue < rhs.alignment.rawValue
     }
 }
 
@@ -228,7 +242,8 @@ final class KeyboardStageLegendAtlasCache: @unchecked Sendable {
 
 enum KeyboardStageLegendAtlasRasterizer {
     private static let primaryFontSize = CGFloat(KeyboardStageLegendAtlasLayout.cellHeight) * 0.33
-    private static let secondaryFontSize = CGFloat(KeyboardStageLegendAtlasLayout.cellHeight) * 0.16
+    private static let secondaryFontSize = CGFloat(KeyboardStageLegendAtlasLayout.cellHeight) * 0.22
+    private static let numberRowFontSize = CGFloat(KeyboardStageLegendAtlasLayout.cellHeight) * 0.30
     private static let color = CGColor(gray: 1, alpha: 1)
 
     static func rasterize(
@@ -295,16 +310,29 @@ enum KeyboardStageLegendAtlasRasterizer {
         )
 
         if let secondary = descriptor.secondary, !secondary.isEmpty {
+            let usesNumberRowStack = descriptor.primary.count == 1 && secondary.count == 1
             drawLine(
                 descriptor.primary,
-                font: font(size: primaryFontSize, weight: descriptor.weight),
-                center: CGPoint(x: cell.midX, y: cell.minY + cell.height * 0.62),
+                font: font(
+                    size: usesNumberRowStack ? numberRowFontSize : primaryFontSize,
+                    weight: descriptor.weight
+                ),
+                center: CGPoint(
+                    x: cell.midX,
+                    y: cell.minY + cell.height * (usesNumberRowStack ? 0.68 : 0.62)
+                ),
                 in: context
             )
             drawLine(
                 secondary,
-                font: font(size: secondaryFontSize, weight: descriptor.weight),
-                center: CGPoint(x: cell.midX, y: cell.minY + cell.height * 0.27),
+                font: font(
+                    size: usesNumberRowStack ? numberRowFontSize : secondaryFontSize,
+                    weight: descriptor.weight
+                ),
+                center: CGPoint(
+                    x: cell.midX,
+                    y: cell.minY + cell.height * (usesNumberRowStack ? 0.32 : 0.27)
+                ),
                 in: context
             )
         } else {
@@ -312,15 +340,24 @@ enum KeyboardStageLegendAtlasRasterizer {
                 descriptor.primary,
                 font: font(size: primaryFontSize, weight: descriptor.weight),
                 center: CGPoint(x: cell.midX, y: cell.midY),
+                alignment: descriptor.alignment,
+                cell: cell,
                 in: context
             )
         }
     }
 
+    /// Horizontal padding inside a cell for edge-aligned legends. The renderer
+    /// anchors the quad's matching edge to the keycap's inner margin, so this
+    /// stays small and fixed rather than proportional.
+    static let edgeAlignedCellPadding: CGFloat = 6
+
     private static func drawLine(
         _ string: String,
         font: CTFont,
         center: CGPoint,
+        alignment: KeyboardStageLegendAtlasDescriptor.Alignment = .center,
+        cell: CGRect? = nil,
         in context: CGContext
     ) {
         let attributes: [NSAttributedString.Key: Any] = [
@@ -331,8 +368,16 @@ enum KeyboardStageLegendAtlasRasterizer {
             NSAttributedString(string: string, attributes: attributes)
         )
         let bounds = CTLineGetBoundsWithOptions(line, [.useGlyphPathBounds])
+        let x: CGFloat = switch (alignment, cell) {
+        case let (.leading, .some(cell)):
+            cell.minX + edgeAlignedCellPadding - bounds.minX
+        case let (.trailing, .some(cell)):
+            cell.maxX - edgeAlignedCellPadding - bounds.maxX
+        default:
+            center.x - bounds.midX
+        }
         context.textPosition = CGPoint(
-            x: center.x - bounds.midX,
+            x: x,
             y: center.y - bounds.midY
         )
         CTLineDraw(line, context)
@@ -342,20 +387,12 @@ enum KeyboardStageLegendAtlasRasterizer {
         size: CGFloat,
         weight: KeyboardStageLegendAtlasDescriptor.Weight
     ) -> CTFont {
-        let baseFont = CTFontCreateUIFontForLanguage(.system, size, nil)
-            ?? CTFontCreateWithName("Helvetica" as CFString, size, nil)
-        guard weight == .medium else { return baseFont }
-
-        let traits: [CFString: Any] = [
-            kCTFontWeightTrait: 0.23
-        ]
-        let attributes: [CFString: Any] = [
-            kCTFontTraitsAttribute: traits
-        ]
-        let descriptor = CTFontDescriptorCreateCopyWithAttributes(
-            CTFontCopyFontDescriptor(baseFont),
-            attributes as CFDictionary
-        )
-        return CTFontCreateWithFontDescriptor(descriptor, size, nil)
+        let appKitWeight: NSFont.Weight = switch weight {
+        case .light: .light
+        case .regular: .regular
+        case .medium: .medium
+        }
+        let systemFont = NSFont.systemFont(ofSize: size, weight: appKitWeight)
+        return CTFontCreateWithName(systemFont.fontName as CFString, size, nil)
     }
 }
