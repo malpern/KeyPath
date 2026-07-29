@@ -37,13 +37,14 @@ wait_for_app_exit() {
 }
 
 open_app() {
+    force_restart=${1:-0}
     was_running=0
     pgrep -x HIDCaptureJig >/dev/null && was_running=1
     before_hash=$(app_binary_hash)
     "$package_dir/build-app.sh" >/dev/null
     after_hash=$(app_binary_hash)
 
-    if [[ "$was_running" -eq 1 && "$before_hash" == "$after_hash" ]]; then
+    if [[ "$was_running" -eq 1 && "$before_hash" == "$after_hash" && "$force_restart" -eq 0 ]]; then
         "$client" focus >/dev/null
     else
         if [[ "$was_running" -eq 1 ]]; then
@@ -83,7 +84,10 @@ case ${1:-} in
         ;;
     showroom)
         [[ $# -eq 1 ]] || { usage >&2; exit 2; }
-        open_app >/dev/null
+        # A separately rebuilt app may still have an older executable resident
+        # in memory. Always relaunch before real HID so the client and Jig use
+        # the exact same protocol and admission policy.
+        open_app 1 >/dev/null
         run_id="showroom-$(date -u +%Y%m%dT%H%M%SZ)"
         artifact="$HOME/.local/state/keypath-hid-capture-jig/artifacts/$run_id.json"
         printf '%s\n' \
@@ -107,7 +111,7 @@ case ${1:-} in
         ;;
     demo)
         [[ $# -eq 1 ]] || { usage >&2; exit 2; }
-        open_app >/dev/null
+        open_app 1 >/dev/null
         expected=$(mktemp -t keypath-hid-demo-expected.XXXXXX)
         trap 'rm -f "$expected"' EXIT
         for _ in {1..14}; do
