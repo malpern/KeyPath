@@ -11,12 +11,10 @@ struct KeyboardStageProjection: Equatable, Sendable {
         let bounds = scene.layoutBounds
         let horizontalZoom = max(0.1, scene.viewport.zoom)
         // The keyboard hero is intentionally wider than it is tall. Above 1x,
-        // preserve most of the vertical context while letting the camera move
-        // closer horizontally; a uniform zoom crops the top and bottom rows
-        // before the composition reaches the reference's key size.
-        let verticalZoom = horizontalZoom > 1
-            ? 1 + (horizontalZoom - 1) * 0.56
-            : horizontalZoom
+        // only the horizontal camera moves closer; the vertical stays at 1 so
+        // the whole board — top edge through bottom apron — remains in frame.
+        // A vertical crop makes the keys read as sliding off the deck.
+        let verticalZoom = min(1, horizontalZoom)
 
         var visibleHeight = min(bounds.size.height, bounds.size.height / verticalZoom)
         var visibleWidth = visibleHeight * aspectRatio

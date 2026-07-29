@@ -97,8 +97,17 @@ The two follow-ups from the directional pass:
   than replacing it.
 
 Both changes verified in the re-recorded fallback snapshots (all seven
-states). Installed Metal-path capture is queued behind an idle-time guard so
-automation does not inject events while the machine is in active use.
+states) and in an installed Metal-path capture of the settled state, which
+confirms the edge-anchored legend quads render correctly on the GPU path.
+
+Additionally, per hands-on feedback that the board's bottom (and after the
+first fix, top) edge was cut off: the deck now carries a wider aluminum apron
+below the bottom row, and the projection's anisotropic camera no longer zooms
+vertically above 1x, so the complete board — top edge through bottom apron,
+with both rounded corners — stays in frame in every moment. The horizontal
+magnification that matches the reference key width is unchanged; the visible
+keyboard is slightly smaller vertically as an accepted tradeoff for never
+cropping the object.
 
 ## Validation
 

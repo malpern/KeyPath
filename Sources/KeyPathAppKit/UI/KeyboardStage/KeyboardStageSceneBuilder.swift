@@ -497,11 +497,14 @@ enum KeyboardStageSceneBuilder {
         KeyboardStageDecoration(
             id: "keyboard-deck",
             kind: .keyboardDeck,
+            // The reference keyboard rests on a visible aluminum apron below
+            // the bottom row; a flush bottom edge makes the keys read as if
+            // they are sliding off the board.
             frame: KeyboardStageRect(
                 x: bounds.minX - 0.22,
                 y: bounds.minY - 0.24,
                 width: bounds.size.width + 0.44,
-                height: bounds.size.height + 0.5
+                height: bounds.size.height + 0.76
             ),
             rotationRadians: 0,
             role: .deck,
@@ -712,7 +715,9 @@ enum KeyboardStageSceneBuilder {
                 y: min(bounds.maxY, capsFrame.midY + bounds.size.height * 0.04)
             ),
             zoom: zoom,
-            verticalBias: -0.055
+            // A mild downward bias keeps the aluminum apron below the bottom
+            // row visible, matching the reference's grounded composition.
+            verticalBias: 0.005
         )
     }
 
