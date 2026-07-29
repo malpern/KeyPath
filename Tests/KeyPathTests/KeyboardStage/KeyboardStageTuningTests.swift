@@ -32,6 +32,12 @@ final class KeyboardStageTuningTests: XCTestCase {
         XCTAssertEqual(tuning.gpuVectorC.w, tuning.backlightStrengthDark)
         XCTAssertEqual(tuning.gpuVectorD.y, tuning.legendEmissionMax)
         XCTAssertEqual(tuning.gpuVectorE.x, tuning.fillLightStrength)
+        XCTAssertEqual(tuning.gpuVectorE.y, tuning.fillSpecularStrength)
+        XCTAssertEqual(tuning.gpuVectorE.z, tuning.wearStrength)
+        XCTAssertEqual(tuning.gpuVectorE.w, tuning.highlightJitter)
+        XCTAssertEqual(tuning.vignetteVector.x, tuning.vignetteStrength)
+        XCTAssertEqual(tuning.vignetteVector.y, tuning.vignetteInnerRadius)
+        XCTAssertEqual(tuning.gpuVectorE.x, tuning.fillLightStrength)
         XCTAssertEqual(tuning.gpuVectorE.z, tuning.wearStrength)
     }
 
