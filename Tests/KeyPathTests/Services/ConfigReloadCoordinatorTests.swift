@@ -78,7 +78,9 @@ struct ConfigReloadCoordinatorTests {
     /// behaviour before invoking `triggerConfigReload()` etc.
     private static func makeSUT(
         engineResult: EngineReloadResult = .success(response: "ok"),
-        healthy: Bool = true
+        healthy: Bool = true,
+        runtimeTransitioning: Bool = false,
+        tcpReloadResult: TCPReloadResult? = nil
     ) -> (
         coordinator: ConfigReloadCoordinator,
         engine: MockEngineClient,
@@ -93,12 +95,19 @@ struct ConfigReloadCoordinatorTests {
 
         let safetyMonitor = ReloadSafetyMonitor()
         let processLifecycle = ProcessLifecycleManager()
+        let tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)? = if let tcpReloadResult {
+            { tcpReloadResult }
+        } else {
+            nil
+        }
 
         let coordinator = ConfigReloadCoordinator(
             engineClient: engine,
             reloadSafetyMonitor: safetyMonitor,
             healthStatusProvider: { _ in healthStatus.value },
-            processLifecycleManager: processLifecycle
+            processLifecycleManager: processLifecycle,
+            isRuntimeTransitioning: { runtimeTransitioning },
+            tcpReloadOverride: tcpReloadOverride
         )
 
         return (coordinator, engine, healthStatus)
@@ -162,7 +171,7 @@ struct ConfigReloadCoordinatorTests {
         let received = NotificationFlag()
         let observer = NotificationCenter.default.addObserver(
             forName: .configReloadRecovered,
-            object: nil,
+            object: coordinator,
             queue: .main
         ) { _ in received.set() }
         defer { NotificationCenter.default.removeObserver(observer) }
@@ -183,6 +192,52 @@ struct ConfigReloadCoordinatorTests {
 
     // MARK: - triggerConfigReload: notification on non-cooldown failure
 
+    @Test("network failure during runtime transition stays pending without failure notification")
+    func transitionNetworkFailureStaysPending() async {
+        let (coordinator, _, _) = Self.makeSUT(
+            healthy: true,
+            runtimeTransitioning: true,
+            tcpReloadResult: .networkError("Connection failed: Connection closed")
+        )
+
+        let received = NotificationFlag()
+        let observer = NotificationCenter.default.addObserver(
+            forName: .configReloadFailed,
+            object: coordinator,
+            queue: nil
+        ) { _ in received.set() }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        let result = await coordinator.triggerConfigReload()
+
+        #expect(result.isSuccess == false)
+        #expect(result.disposition == .pending)
+        #expect(result.errorMessage?.contains("restarting") == true)
+        #expect(received.value == false)
+    }
+
+    @Test("network failure outside runtime transition remains a visible failure")
+    func settledNetworkFailureStillNotifies() async {
+        let (coordinator, _, _) = Self.makeSUT(
+            healthy: true,
+            runtimeTransitioning: false,
+            tcpReloadResult: .networkError("Connection failed: Connection closed")
+        )
+
+        let received = NotificationFlag()
+        let observer = NotificationCenter.default.addObserver(
+            forName: .configReloadFailed,
+            object: coordinator,
+            queue: nil
+        ) { _ in received.set() }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        let result = await coordinator.triggerConfigReload()
+
+        #expect(result.disposition == .failed)
+        #expect(received.value == true)
+    }
+
     @Test("triggerConfigReload posts configReloadFailed on non-cooldown failure")
     func reloadPostsFailedNotification() async {
         let (coordinator, _, _) = Self.makeSUT(
@@ -194,7 +249,7 @@ struct ConfigReloadCoordinatorTests {
         let message = NotificationMessage()
         let observer = NotificationCenter.default.addObserver(
             forName: .configReloadFailed,
-            object: nil,
+            object: coordinator,
             queue: nil // deliver synchronously on posting thread
         ) { notification in
             received.set()

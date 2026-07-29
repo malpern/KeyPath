@@ -323,7 +323,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             healthStatusProvider: { [diagnosticsManager] tcpPort in
                 await diagnosticsManager.checkHealth(tcpPort: tcpPort)
             },
-            processLifecycleManager: lifecycleManager
+            processLifecycleManager: lifecycleManager,
+            isRuntimeTransitioning: { [serviceLifecycleCoordinator] in
+                serviceLifecycleCoordinator.isRuntimeTransitionInProgress
+            }
         )
 
         // Initialize RuleCollectionsCoordinator (after all managers, before Task captures self)

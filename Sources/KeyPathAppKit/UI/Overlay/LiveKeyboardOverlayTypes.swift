@@ -40,6 +40,25 @@ enum HealthIndicatorState: Equatable {
     case dismissed
 }
 
+enum OverlayTCPStatusPresentation: Equatable {
+    case hidden
+    case starting
+    case restarting
+    case disconnected
+
+    static func resolve(
+        isConnected: Bool,
+        hasSeenConnection: Bool,
+        isWithinStartupGrace: Bool
+    ) -> Self {
+        if isConnected { return .hidden }
+        if isWithinStartupGrace {
+            return hasSeenConnection ? .restarting : .starting
+        }
+        return .disconnected
+    }
+}
+
 @Observable
 @MainActor
 final class LiveKeyboardOverlayUIState {

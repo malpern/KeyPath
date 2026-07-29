@@ -15,6 +15,8 @@ final class ConfigReloadCoordinator {
     private let reloadSafetyMonitor: ReloadSafetyMonitor
     private let healthStatusProvider: @MainActor @Sendable (Int) async -> ServiceHealthStatus
     private let processLifecycleManager: ProcessLifecycleManager
+    private let isRuntimeTransitioning: @MainActor @Sendable () -> Bool
+    private let tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)?
 
     // MARK: - Callbacks (set by RuntimeCoordinator after init)
 
@@ -27,12 +29,16 @@ final class ConfigReloadCoordinator {
         engineClient: EngineClient,
         reloadSafetyMonitor: ReloadSafetyMonitor,
         healthStatusProvider: @escaping @MainActor @Sendable (Int) async -> ServiceHealthStatus,
-        processLifecycleManager: ProcessLifecycleManager
+        processLifecycleManager: ProcessLifecycleManager,
+        isRuntimeTransitioning: @escaping @MainActor @Sendable () -> Bool = { false },
+        tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)? = nil
     ) {
         self.engineClient = engineClient
         self.reloadSafetyMonitor = reloadSafetyMonitor
         self.healthStatusProvider = healthStatusProvider
         self.processLifecycleManager = processLifecycleManager
+        self.isRuntimeTransitioning = isRuntimeTransitioning
+        self.tcpReloadOverride = tcpReloadOverride
     }
 
     // MARK: - Reload Operations
@@ -95,7 +101,7 @@ final class ConfigReloadCoordinator {
             // Successful reload -> clear stale diagnostics
             onReloadSuccess?()
             // Notify UI that we recovered from a previous reload failure.
-            NotificationCenter.default.post(name: .configReloadRecovered, object: nil)
+            NotificationCenter.default.post(name: .configReloadRecovered, object: self)
             return ReloadResult(
                 success: true,
                 response: tcpResult.response ?? "",
@@ -108,6 +114,20 @@ final class ConfigReloadCoordinator {
                 "📡 [Reload] TCP reload failed: \(tcpResult.errorMessage ?? "Unknown error")"
             )
             let errorMessage = tcpResult.errorMessage ?? "TCP reload failed"
+            if case .networkError = tcpResult, isRuntimeTransitioning() {
+                AppLogger.shared.log(
+                    "⏳ [Reload] Runtime transition closed the TCP reload connection; deferring until Kanata settles"
+                )
+                scheduleDeferredReloadAfterRuntimeTransition()
+                return ReloadResult(
+                    success: false,
+                    response: tcpResult.response,
+                    errorMessage: "Kanata is restarting; reload will retry shortly",
+                    protocol: .tcp,
+                    disposition: .pending
+                )
+            }
+
             // Cooldown blocks are a deliberate throttle, not a real failure.
             // Schedule a deferred retry so the write we just persisted
             // actually reaches kanata, and suppress the user-facing toast/
@@ -119,7 +139,7 @@ final class ConfigReloadCoordinator {
             } else {
                 NotificationCenter.default.post(
                     name: .configReloadFailed,
-                    object: nil,
+                    object: self,
                     userInfo: [
                         "message": errorMessage,
                         "response": tcpResult.response ?? ""
@@ -162,6 +182,7 @@ final class ConfigReloadCoordinator {
     /// deferred retry once the cooldown expires; de-duped via a single
     /// outstanding task so rapid edits coalesce into one final reload.
     private var deferredReloadTask: Task<Void, Never>?
+    private var transitionReloadTask: Task<Void, Never>?
 
     private func scheduleDeferredReloadAfterCooldown() {
         deferredReloadTask?.cancel()
@@ -175,8 +196,45 @@ final class ConfigReloadCoordinator {
         }
     }
 
+    /// Wait for an intentional runtime replacement to finish, then deliver the
+    /// config that was persisted while the old TCP connection was disappearing.
+    /// Readiness is bounded by the same grace period used by user-facing startup UI.
+    private func scheduleDeferredReloadAfterRuntimeTransition() {
+        if TestEnvironment.isRunningTests { return }
+
+        transitionReloadTask?.cancel()
+        transitionReloadTask = Task { [weak self] in
+            let deadline = Date().addingTimeInterval(RuntimeStartupTiming.uiGracePeriod)
+
+            while !Task.isCancelled, Date() < deadline {
+                guard let self else { return }
+                if !isRuntimeTransitioning() {
+                    let health = await healthStatusProvider(PreferencesService.shared.tcpServerPort)
+                    if health.isHealthy {
+                        AppLogger.shared.log("🔁 [Reload] Retrying config reload after runtime transition")
+                        await triggerReload()
+                        transitionReloadTask = nil
+                        return
+                    }
+                }
+
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+
+            guard let self, !Task.isCancelled else { return }
+            AppLogger.shared.warn(
+                "⚠️ [Reload] Runtime did not become ready before deferred reload grace expired"
+            )
+            transitionReloadTask = nil
+        }
+    }
+
     /// TCP-based config reload (no authentication required - see ADR-013)
     func triggerTCPReload() async -> TCPReloadResult {
+        if let tcpReloadOverride {
+            return await tcpReloadOverride()
+        }
+
         if TestEnvironment.isRunningTests {
             AppLogger.shared.debug("🧪 [TCP Reload] Skipping TCP reload in test environment")
             return .networkError("Test environment - TCP disabled")
