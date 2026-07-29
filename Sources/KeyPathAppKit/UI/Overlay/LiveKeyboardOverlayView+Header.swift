@@ -180,6 +180,9 @@ struct OverlayDragHeader: View {
     @State var hoveredLayer: String?
     /// When the health indicator dismissed — used to suppress "No TCP" briefly at startup
     @State private var healthDismissedAt: Date?
+    @State private var headerAppearedAt: Date
+    @State private var hasSeenKanataConnection: Bool
+    @State private var tcpStartupGraceExpired = false
 
     /// Tracks whether the KindaVim Mode Display pack is installed, so the
     /// header can render its mode badge without polling on every redraw.
@@ -223,6 +226,8 @@ struct OverlayDragHeader: View {
         self.currentLayerName = currentLayerName
         self.isLauncherMode = isLauncherMode
         self.isKanataConnected = isKanataConnected
+        _headerAppearedAt = State(initialValue: Date())
+        _hasSeenKanataConnection = State(initialValue: isKanataConnected)
         self.healthIndicatorState = healthIndicatorState
         self.drawerButtonHighlighted = drawerButtonHighlighted
         self.layoutHasDrawerButtons = layoutHasDrawerButtons
@@ -322,6 +327,9 @@ struct OverlayDragHeader: View {
         .onAppear {
             refreshAvailableLayers()
             Task { await refreshKindaVimPackInstalled() }
+            if isKanataConnected {
+                hasSeenKanataConnection = true
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .ruleCollectionsChanged)) { _ in
             refreshAvailableLayers()
@@ -338,6 +346,14 @@ struct OverlayDragHeader: View {
             if newValue == .dismissed {
                 healthDismissedAt = Date()
             }
+        }
+        .onChange(of: isKanataConnected) { _, connected in
+            if connected {
+                hasSeenKanataConnection = true
+            }
+        }
+        .task(id: healthDismissedAt) {
+            await scheduleTCPStartupGraceExpiration()
         }
     }
 
@@ -391,11 +407,31 @@ struct OverlayDragHeader: View {
         Color.white.opacity(isDark ? 0.7 : 0.6)
     }
 
-    /// Whether the "No TCP" pill should be suppressed (grace period after health dismissal).
-    /// The EventListener takes a moment to connect after startup; avoid a brief flash of "No TCP".
-    private var isTcpGracePeriodActive: Bool {
-        guard let dismissedAt = healthDismissedAt else { return false }
-        return Date().timeIntervalSince(dismissedAt) < 5.0
+    private var tcpStatusPresentation: OverlayTCPStatusPresentation {
+        .resolve(
+            isConnected: isKanataConnected,
+            hasSeenConnection: hasSeenKanataConnection,
+            isWithinStartupGrace: !tcpStartupGraceExpired
+        )
+    }
+
+    private func scheduleTCPStartupGraceExpiration() async {
+        tcpStartupGraceExpired = false
+        let reference = healthDismissedAt ?? headerAppearedAt
+        let deadline = reference.addingTimeInterval(RuntimeStartupTiming.uiGracePeriod)
+        let remaining = deadline.timeIntervalSinceNow
+        guard remaining > 0 else {
+            tcpStartupGraceExpired = true
+            return
+        }
+
+        do {
+            try await Task.sleep(for: .seconds(remaining))
+        } catch {
+            return
+        }
+        guard !Task.isCancelled else { return }
+        tcpStartupGraceExpired = true
     }
 
     private func statusSlot(indicatorCornerRadius: CGFloat, buttonSize: CGFloat) -> some View {
@@ -409,7 +445,22 @@ struct OverlayDragHeader: View {
                 )
             } else {
                 HStack(spacing: 6) {
-                    if !isKanataConnected, !isTcpGracePeriodActive {
+                    switch tcpStatusPresentation {
+                    case .hidden:
+                        EmptyView()
+                    case .starting:
+                        kanataTransitionPill(
+                            "Starting…",
+                            helpText: "Kanata is starting",
+                            indicatorCornerRadius: indicatorCornerRadius
+                        )
+                    case .restarting:
+                        kanataTransitionPill(
+                            "Restarting…",
+                            helpText: "Kanata is restarting",
+                            indicatorCornerRadius: indicatorCornerRadius
+                        )
+                    case .disconnected:
                         kanataDisconnectedPill(indicatorCornerRadius: indicatorCornerRadius)
                     }
 

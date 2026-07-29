@@ -150,6 +150,14 @@ final class ServiceLifecycleCoordinator {
         return false
     }
 
+    /// True while the runtime is deliberately moving between executable instances.
+    /// Reload failures during this window are expected transport churn, not user-facing
+    /// configuration failures: the old TCP server can disappear while stale-runtime
+    /// recovery replaces it with the newly bundled process.
+    var isRuntimeTransitionInProgress: Bool {
+        isStartingKanata || isIntentionalTransitionInProgress
+    }
+
     private let windowEvaluator = TransientStartupWindowEvaluator(
         gracePeriod: RuntimeStartupTiming.uiGracePeriod,
         createdAt: Date()

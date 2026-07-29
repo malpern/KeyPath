@@ -38,6 +38,18 @@ private final class MutableHealthStatus {
     }
 }
 
+@MainActor
+private final class MutableRuntimeTransition {
+    var isTransitioning: Bool
+    var waitCount = 0
+    var reloadCount = 0
+    var tcpReloadCount = 0
+
+    init(isTransitioning: Bool) {
+        self.isTransitioning = isTransitioning
+    }
+}
+
 /// Thread-safe boolean flag for use in notification observer closures.
 private final class NotificationFlag: @unchecked Sendable {
     private let lock = NSLock()
@@ -78,7 +90,16 @@ struct ConfigReloadCoordinatorTests {
     /// behaviour before invoking `triggerConfigReload()` etc.
     private static func makeSUT(
         engineResult: EngineReloadResult = .success(response: "ok"),
-        healthy: Bool = true
+        healthy: Bool = true,
+        runtimeTransitioning: Bool = false,
+        runtimeTransitionState: MutableRuntimeTransition? = nil,
+        tcpReloadResult: TCPReloadResult? = nil,
+        tcpReloadOverride customTCPReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)? = nil,
+        transitionRetryMaximumPolls: Int = Int((RuntimeStartupTiming.uiGracePeriod / 0.5).rounded(.up)),
+        transitionRetryWait: @escaping @MainActor @Sendable () async -> Void = {
+            await Task.yield()
+        },
+        automaticDeferredRetriesEnabled: Bool = true
     ) -> (
         coordinator: ConfigReloadCoordinator,
         engine: MockEngineClient,
@@ -93,12 +114,26 @@ struct ConfigReloadCoordinatorTests {
 
         let safetyMonitor = ReloadSafetyMonitor()
         let processLifecycle = ProcessLifecycleManager()
+        let transitionState = runtimeTransitionState
+            ?? MutableRuntimeTransition(isTransitioning: runtimeTransitioning)
+        let tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)? = if let customTCPReloadOverride {
+            customTCPReloadOverride
+        } else if let tcpReloadResult {
+            { tcpReloadResult }
+        } else {
+            nil
+        }
 
         let coordinator = ConfigReloadCoordinator(
             engineClient: engine,
             reloadSafetyMonitor: safetyMonitor,
             healthStatusProvider: { _ in healthStatus.value },
-            processLifecycleManager: processLifecycle
+            processLifecycleManager: processLifecycle,
+            isRuntimeTransitioning: { transitionState.isTransitioning },
+            tcpReloadOverride: tcpReloadOverride,
+            transitionRetryMaximumPolls: transitionRetryMaximumPolls,
+            transitionRetryWait: transitionRetryWait,
+            automaticDeferredRetriesEnabled: automaticDeferredRetriesEnabled
         )
 
         return (coordinator, engine, healthStatus)
@@ -162,7 +197,7 @@ struct ConfigReloadCoordinatorTests {
         let received = NotificationFlag()
         let observer = NotificationCenter.default.addObserver(
             forName: .configReloadRecovered,
-            object: nil,
+            object: coordinator,
             queue: .main
         ) { _ in received.set() }
         defer { NotificationCenter.default.removeObserver(observer) }
@@ -183,6 +218,185 @@ struct ConfigReloadCoordinatorTests {
 
     // MARK: - triggerConfigReload: notification on non-cooldown failure
 
+    @Test("network failure during runtime transition stays pending without failure notification")
+    func transitionNetworkFailureStaysPending() async {
+        let (coordinator, _, _) = Self.makeSUT(
+            healthy: true,
+            runtimeTransitioning: true,
+            tcpReloadResult: .networkError("Connection failed: Connection closed"),
+            automaticDeferredRetriesEnabled: false
+        )
+
+        let received = NotificationFlag()
+        let observer = NotificationCenter.default.addObserver(
+            forName: .configReloadFailed,
+            object: coordinator,
+            queue: nil
+        ) { _ in received.set() }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        let result = await coordinator.triggerConfigReload()
+
+        #expect(result.isSuccess == false)
+        #expect(result.disposition == .pending)
+        #expect(result.errorMessage?.contains("restarting") == true)
+        #expect(received.value == false)
+    }
+
+    @Test("network failure stays pending when transition finishes during TCP request")
+    func transitionEndingDuringTCPFailureStaysPending() async {
+        let transition = MutableRuntimeTransition(isTransitioning: true)
+        let (coordinator, _, _) = Self.makeSUT(
+            healthy: true,
+            runtimeTransitionState: transition,
+            tcpReloadOverride: {
+                transition.isTransitioning = false
+                return .networkError("Connection failed: Connection closed")
+            },
+            automaticDeferredRetriesEnabled: false
+        )
+        let received = NotificationFlag()
+        let observer = NotificationCenter.default.addObserver(
+            forName: .configReloadFailed,
+            object: coordinator,
+            queue: nil
+        ) { _ in received.set() }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        let result = await coordinator.triggerConfigReload()
+
+        #expect(result.disposition == .pending)
+        #expect(received.value == false)
+    }
+
+    @Test("transition retry waits for readiness and reloads once")
+    func transitionRetryWaitsForReadiness() async {
+        let transition = MutableRuntimeTransition(isTransitioning: true)
+        let (coordinator, _, _) = Self.makeSUT(
+            healthy: true,
+            runtimeTransitionState: transition,
+            tcpReloadResult: .success(response: "ok"),
+            transitionRetryMaximumPolls: 1,
+            transitionRetryWait: {
+                transition.waitCount += 1
+                transition.isTransitioning = false
+            }
+        )
+        coordinator.onReloadSuccess = { transition.reloadCount += 1 }
+
+        let didRetry = await coordinator.retryAfterRuntimeTransition()
+
+        #expect(didRetry == true)
+        #expect(transition.waitCount == 1)
+        #expect(transition.reloadCount == 1)
+    }
+
+    @Test("transition retry checks reload outcome and retries a transient failure")
+    func transitionRetryChecksReloadOutcome() async {
+        let transition = MutableRuntimeTransition(isTransitioning: false)
+        let (coordinator, _, _) = Self.makeSUT(
+            healthy: true,
+            runtimeTransitionState: transition,
+            tcpReloadOverride: {
+                transition.tcpReloadCount += 1
+                if transition.tcpReloadCount == 1 {
+                    transition.isTransitioning = true
+                    return .networkError("Connection closed")
+                }
+                return .success(response: "ok")
+            },
+            transitionRetryMaximumPolls: 2,
+            transitionRetryWait: {
+                transition.waitCount += 1
+                transition.isTransitioning = false
+            }
+        )
+        coordinator.onReloadSuccess = { transition.reloadCount += 1 }
+
+        let didRetry = await coordinator.retryAfterRuntimeTransition()
+
+        #expect(didRetry == true)
+        #expect(transition.tcpReloadCount == 2)
+        #expect(transition.waitCount == 1)
+        #expect(transition.reloadCount == 1)
+    }
+
+    @Test("transition retry surfaces a permanent reload rejection immediately")
+    func transitionRetrySurfacesPermanentRejection() async {
+        let transition = MutableRuntimeTransition(isTransitioning: false)
+        let (coordinator, _, _) = Self.makeSUT(
+            healthy: true,
+            runtimeTransitionState: transition,
+            tcpReloadResult: .failure(error: "validation error", response: "bad config"),
+            transitionRetryMaximumPolls: 2,
+            transitionRetryWait: { transition.waitCount += 1 }
+        )
+        let message = NotificationMessage()
+        let observer = NotificationCenter.default.addObserver(
+            forName: .configReloadFailed,
+            object: coordinator,
+            queue: nil
+        ) { notification in
+            message.set(notification.userInfo?["message"] as? String)
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        let didRetry = await coordinator.retryAfterRuntimeTransition()
+
+        #expect(didRetry == false)
+        #expect(transition.waitCount == 0)
+        #expect(message.value == "validation error")
+    }
+
+    @Test("transition retry expires without reloading when runtime never settles")
+    func transitionRetryExpires() async {
+        let transition = MutableRuntimeTransition(isTransitioning: true)
+        let (coordinator, _, _) = Self.makeSUT(
+            healthy: true,
+            runtimeTransitionState: transition,
+            tcpReloadResult: .success(response: "ok"),
+            transitionRetryMaximumPolls: 2,
+            transitionRetryWait: { transition.waitCount += 1 }
+        )
+        coordinator.onReloadSuccess = { transition.reloadCount += 1 }
+        let received = NotificationFlag()
+        let observer = NotificationCenter.default.addObserver(
+            forName: .configReloadFailed,
+            object: coordinator,
+            queue: nil
+        ) { _ in received.set() }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        let didRetry = await coordinator.retryAfterRuntimeTransition()
+
+        #expect(didRetry == false)
+        #expect(transition.waitCount == 2)
+        #expect(transition.reloadCount == 0)
+        #expect(received.value == true)
+    }
+
+    @Test("network failure outside runtime transition remains a visible failure")
+    func settledNetworkFailureStillNotifies() async {
+        let (coordinator, _, _) = Self.makeSUT(
+            healthy: true,
+            runtimeTransitioning: false,
+            tcpReloadResult: .networkError("Connection failed: Connection closed")
+        )
+
+        let received = NotificationFlag()
+        let observer = NotificationCenter.default.addObserver(
+            forName: .configReloadFailed,
+            object: coordinator,
+            queue: nil
+        ) { _ in received.set() }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        let result = await coordinator.triggerConfigReload()
+
+        #expect(result.disposition == .failed)
+        #expect(received.value == true)
+    }
+
     @Test("triggerConfigReload posts configReloadFailed on non-cooldown failure")
     func reloadPostsFailedNotification() async {
         let (coordinator, _, _) = Self.makeSUT(
@@ -194,7 +408,7 @@ struct ConfigReloadCoordinatorTests {
         let message = NotificationMessage()
         let observer = NotificationCenter.default.addObserver(
             forName: .configReloadFailed,
-            object: nil,
+            object: coordinator,
             queue: nil // deliver synchronously on posting thread
         ) { notification in
             received.set()
