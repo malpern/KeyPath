@@ -189,3 +189,34 @@ The result is combined from these fail-closed artifacts:
 The Wi-Fi timeout and memory-pressure rejection are harness-infrastructure events, not product test
 outcomes. Neither submitted HID reports for its blocked cell, and only the completed, independently
 validated cells are included in the 25-cell result.
+
+## 2026-07-28 demo/control reliability evidence
+
+Two audience-demo attempts are excluded from KeyPath conclusions. The first capture expected 1,200
+characters and received 18; the second expected 120 and received 3 before the control request
+failed and the old runner finalized early. Both captures ended with no pressed keys or modifiers,
+but neither completed the synchronized protocol. Their artifacts are:
+
+- `~/.local/state/keypath-hid-capture-jig/artifacts/physical-usb-cycle-instructed-20260729T010245Z-failed.json`
+- `~/.local/state/keypath-hid-capture-jig/artifacts/physical-demo-immediate-20260729T011124Z-failed.json`
+
+These exposed harness defects: transient ESP control loss could discard later evidence, the runner
+could finalize before confirming release, the showroom path rebuilt/re-signed the Jig, and the demo
+depended on a live Wi-Fi start request. The runner now writes an atomic inconclusive artifact on
+every exception, retries bounded control operations, aborts best-effort, waits for the Jig to
+observe release, and records control degradation separately. The showroom path now reuses a
+source-hashed Jig app and starts a fixed on-device script with top-power then touch, so Wi-Fi is not
+on the critical start path.
+
+A read-only control soak against the still-installed pre-diagnostic firmware then completed 20/20
+status requests with a 206.745 ms p95, 219.339 ms maximum, no observed reboot, and no build change.
+The artifact is
+`~/.local/state/keypath-hid-fixture/control/control-soak-20260729T013236Z.json`. An earlier version
+of the soak measured 3.2–5.3 second calls because it repeated `.local` resolution for every request;
+that result is retained but superseded. Discovery and ESP endpoint latency are now measured
+separately. The next firmware install will add reset, heap, Wi-Fi, HTTP restart/request, and handler
+latency counters to this evidence.
+
+The USB-removal gate remains unproven on this board without a battery or other independent power:
+disconnecting its sole USB-C cable removes both data and power, so it cannot execute or report the
+reconnect safety path. Do not count a power-cycle as a USB-unmount acceptance result.

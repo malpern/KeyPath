@@ -71,6 +71,10 @@ uint32_t fixture_crc32(const void *bytes, size_t length);
 
 bool fixture_load_script(fixture_t *fixture, const char *body, size_t length,
                          char *error, size_t error_capacity);
+bool fixture_load_events(fixture_t *fixture, const char *run_id,
+                         const fixture_event_t *events, uint32_t event_count,
+                         uint32_t repeat_count, uint32_t cycle_us,
+                         char *error, size_t error_capacity);
 bool fixture_arm(fixture_t *fixture, const char *run_id, char *error, size_t error_capacity);
 bool fixture_start(fixture_t *fixture, const char *run_id, uint32_t delay_ms, uint64_t now_us,
                    char *error, size_t error_capacity);

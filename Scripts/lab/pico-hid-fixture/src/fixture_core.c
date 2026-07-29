@@ -40,6 +40,32 @@ static bool report_has_unique_keys(const fixture_event_t *event) {
     return true;
 }
 
+static void invalidate_script(fixture_t *fixture) {
+    fixture->state = FIXTURE_IDLE;
+    fixture->event_count = 0u;
+    fixture->run_id[0] = '\0';
+}
+
+static void finish_loading(fixture_t *fixture, const char *run_id, uint32_t script_crc32,
+                           uint32_t event_count, uint32_t repeat_count, uint32_t cycle_us) {
+    snprintf(fixture->run_id, sizeof(fixture->run_id), "%s", run_id);
+    fixture->script_crc32 = script_crc32;
+    fixture->event_count = event_count;
+    fixture->repeat_count = repeat_count;
+    fixture->cycle_us = cycle_us;
+    fixture->state = FIXTURE_LOADED;
+    fixture->next_event = 0u;
+    fixture->current_repeat = 0u;
+    fixture->reports_submitted = 0u;
+    fixture->transfers_completed = 0u;
+    fixture->late_reports = 0u;
+    fixture->maximum_lateness_us = 0;
+    fixture->submitted_crc32 = 0u;
+    fixture->trace_head = 0u;
+    fixture->trace_count = 0u;
+    fixture->error[0] = '\0';
+}
+
 void fixture_init(fixture_t *fixture) {
     memset(fixture, 0, sizeof(*fixture));
     fixture->state = FIXTURE_IDLE;
@@ -86,9 +112,7 @@ bool fixture_load_script(fixture_t *fixture, const char *body, size_t length,
     // Invalidate the previous script before parsing into the fixture's bounded
     // event storage. A malformed replacement must never leave a partly
     // overwritten script available to arm.
-    fixture->state = FIXTURE_IDLE;
-    fixture->event_count = 0u;
-    fixture->run_id[0] = '\0';
+    invalidate_script(fixture);
 
     const char *newline = memchr(body, '\n', length);
     if (!newline) {
@@ -190,22 +214,60 @@ bool fixture_load_script(fixture_t *fixture, const char *body, size_t length,
         return false;
     }
 
-    snprintf(fixture->run_id, sizeof(fixture->run_id), "%s", run_id);
-    fixture->script_crc32 = declared_crc;
-    fixture->event_count = event_count;
-    fixture->repeat_count = repeat_count;
-    fixture->cycle_us = cycle_us;
-    fixture->state = FIXTURE_LOADED;
-    fixture->next_event = 0u;
-    fixture->current_repeat = 0u;
-    fixture->reports_submitted = 0u;
-    fixture->transfers_completed = 0u;
-    fixture->late_reports = 0u;
-    fixture->maximum_lateness_us = 0;
-    fixture->submitted_crc32 = 0u;
-    fixture->trace_head = 0u;
-    fixture->trace_count = 0u;
-    fixture->error[0] = '\0';
+    finish_loading(fixture, run_id, declared_crc, event_count, repeat_count, cycle_us);
+    set_error(error, error_capacity, "");
+    return true;
+}
+
+bool fixture_load_events(fixture_t *fixture, const char *run_id,
+                         const fixture_event_t *events, uint32_t event_count,
+                         uint32_t repeat_count, uint32_t cycle_us,
+                         char *error, size_t error_capacity) {
+    if (!fixture || !events) {
+        set_error(error, error_capacity, "event list is empty");
+        return false;
+    }
+    if (fixture->state == FIXTURE_RUNNING || fixture->state == FIXTURE_ARMED) {
+        set_error(error, error_capacity, "fixture is armed or running");
+        return false;
+    }
+    invalidate_script(fixture);
+    if (!valid_run_id(run_id)) {
+        set_error(error, error_capacity, "run id contains unsupported characters");
+        return false;
+    }
+    if (event_count == 0u || event_count > FIXTURE_MAX_EVENTS) {
+        set_error(error, error_capacity, "event count is outside fixture limits");
+        return false;
+    }
+    if (repeat_count == 0u || repeat_count > FIXTURE_MAX_REPEATS ||
+        (uint64_t)event_count * repeat_count > FIXTURE_MAX_TOTAL_REPORTS) {
+        set_error(error, error_capacity, "repeat count is outside fixture limits");
+        return false;
+    }
+    if (cycle_us == 0u) {
+        set_error(error, error_capacity, "cycle duration must be positive");
+        return false;
+    }
+    uint32_t previous_at = 0u;
+    for (uint32_t index = 0u; index < event_count; ++index) {
+        if ((index > 0u && events[index].at_us <= previous_at) || events[index].at_us >= cycle_us) {
+            set_error(error, error_capacity, "event times must increase and remain inside the cycle");
+            return false;
+        }
+        if (!report_has_unique_keys(&events[index])) {
+            set_error(error, error_capacity, "a report contains duplicate nonzero key usages");
+            return false;
+        }
+        previous_at = events[index].at_us;
+    }
+    if (!report_is_empty(&events[event_count - 1u])) {
+        set_error(error, error_capacity, "each cycle must end with an all-keys-released report");
+        return false;
+    }
+    memcpy(fixture->events, events, event_count * sizeof(*events));
+    finish_loading(fixture, run_id, fixture_crc32(events, event_count * sizeof(*events)),
+                   event_count, repeat_count, cycle_us);
     set_error(error, error_capacity, "");
     return true;
 }

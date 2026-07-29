@@ -27,6 +27,7 @@ usage() {
         "  install [--port DEV] Run checks, tests, build, flash, and health check" \
         "  update             Build, install, and verify firmware over authenticated Wi-Fi OTA" \
         "  status             Query the running fixture over Wi-Fi" \
+        "  soak [OPTIONS]     Measure status reliability without sending HID reports" \
         "" \
         "The fixture token is read from the environment or sops; never pass it on the command line."
 }
@@ -171,6 +172,7 @@ command_test() {
     "$fixture_root/tests/run-tests.sh"
     python3 "$script_dir/tests/pico-hid-fixture-client-tests.py"
     python3 "$script_dir/tests/pico-hid-fixture-tool-tests.py"
+    python3 "$script_dir/tests/pico-hid-fixture-control-soak-tests.py"
     python3 "$script_dir/tests/scenario-matrix-runner-tests.py"
     python3 "$script_dir/tests/physical-hid-capture-run-tests.py"
     python3 "$script_dir/tests/physical-hid-shift-matrix-tests.py"
@@ -211,6 +213,11 @@ command_flash() {
 command_status() {
     validate_credentials
     "$fixture_client" status
+}
+
+command_soak() {
+    validate_credentials
+    "$script_dir/pico-hid-fixture-control-soak" "$@"
 }
 
 firmware_build_id() {
@@ -292,6 +299,7 @@ case "$command" in
     install) command_install "$@" ;;
     update) [[ $# -eq 0 ]] || fail "update takes no options"; command_update ;;
     status) [[ $# -eq 0 ]] || fail "status takes no options"; command_status ;;
+    soak) command_soak "$@" ;;
     help|-h|--help) usage ;;
     *) usage >&2; fail "unknown command: $command" ;;
 esac

@@ -46,7 +46,9 @@ primitives and runs on the display task. It must never postpone HID, USB, or net
 | `READY` | Wi-Fi is connected and no test is armed. | Safe to load a script. |
 | `SCRIPT LOADED` | Script passed admission and CRC validation. | Arm only after observers are ready. |
 | `ARMED` | Fixture is ready to emit reports. | Start the synchronized run or abort. |
+| `DEMO ARMED` | The fixed offline demo is loaded; no key has been sent. | Tap the screen only after the Jig says it is armed. |
 | `TYPING` or `SENDING KEYS` | Reports are being emitted from locally timed script data. | Avoid disconnecting USB unless testing removal. |
+| `HID SENT / CHECK JIG` | The offline demo finished sending reports. | Read the independent Jig result; this is not itself a pass. |
 | `HID PRIORITY` | Timing pressure was detected and display work was reduced to 8 FPS. | The test may continue; inspect trace timing afterward. |
 | Pass, fail, or inconclusive result | Campaign supplied a classified outcome and metrics. | Preserve the campaign evidence. |
 | `ATTENTION` | Safety or runtime error. | Record the detail, query `status` and `trace`, and do not blindly retry. |
@@ -55,8 +57,8 @@ primitives and runs on the display task. It must never postpone HID, USB, or net
 
 - **Core 1:** the priority-20 HID scheduler. It owns locally timed keyboard reports and uses a
   short polling loop only while a script is running.
-- **Core 0:** priority-18 TinyUSB service, priority-6 display, priority-5 button and buzzer work,
-  priority-4 HTTP control, and the ESP-IDF Wi-Fi task.
+- **Core 0:** priority-18 TinyUSB service, priority-8 HTTP control, priority-6 display, priority-5
+  button and buzzer work, and the ESP-IDF Wi-Fi task.
 - Animation quality automatically steps from showcase to active to `HID PRIORITY`; visual fidelity
   is expendable, report timing is not.
 
@@ -75,7 +77,8 @@ Record pass, fail, or notes for each item before calling the device finished:
 - `READY` shows a readable IP address and unambiguous USB status.
 - Color, icons, and motion distinguish loaded, armed, running, protected, complete, and error.
 - `HID PRIORITY` visibly calms the display without making it appear frozen.
-- Touch and the function button abort only armed or running tests.
+- Ordinary tests: touch and BOOT abort armed or running scripts. Offline demo: top power arms,
+  touch starts, and BOOT/touch during execution aborts.
 - Tones are audible but not distracting; current-board revision 2 uses GPIO42.
 - Pass, fail, and inconclusive remain understandable without reading the HTTP response.
 - At typical viewing distance, there is no clipping, tearing, unreadably small text, or excessive

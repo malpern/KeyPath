@@ -10,6 +10,7 @@ private struct ControlCommand: Codable {
     let expected: String?
     let timeoutMs: UInt64?
     let settleMs: UInt64?
+    let instruction: String?
 }
 
 private struct ControlResponse: Codable {
@@ -127,6 +128,7 @@ private final class CaptureCanvas: NSView {
     let session: CaptureSession
     var onFocusChange: ((Bool) -> Void)?
     var systemReadiness = SystemReadinessAssessment.calibrating
+    var operatorInstruction = ""
     private var fontCache: [String: NSFont] = [:]
     private var paragraphCache: [Int: NSParagraphStyle] = [:]
     private let brandAmber = NSColor(
@@ -410,6 +412,70 @@ private final class CaptureCanvas: NSView {
                 color: NSColor.tertiaryLabelColor
             )
         }
+
+        if !operatorInstruction.isEmpty,
+           snapshot.state == .armed || snapshot.state == .capturing
+        {
+            drawOperatorInstruction(
+                operatorInstruction,
+                in: inset,
+                mode: layout.mode,
+                pulse: motion.breath
+            )
+        }
+    }
+
+    private func drawOperatorInstruction(
+        _ instruction: String,
+        in bounds: NSRect,
+        mode: CaptureLayoutMode,
+        pulse: Double
+    ) {
+        let horizontalInset: CGFloat = mode == .tiny ? 6 : (mode == .compact ? 24 : 56)
+        let height: CGFloat = mode == .tiny ? 104 : (mode == .compact ? 132 : 164)
+        let frame = NSRect(
+            x: bounds.minX + horizontalInset,
+            y: bounds.midY - height / 2,
+            width: max(120, bounds.width - horizontalInset * 2),
+            height: height
+        )
+        let path = NSBezierPath(
+            roundedRect: frame,
+            xRadius: mode == .tiny ? 14 : 20,
+            yRadius: mode == .tiny ? 14 : 20
+        )
+        let background = NSColor.windowBackgroundColor.withAlphaComponent(0.97)
+        background.setFill()
+        path.fill()
+        brandOrange.withAlphaComponent(0.72 + 0.2 * pulse).setStroke()
+        path.lineWidth = mode == .tiny ? 2 : 3
+        path.stroke()
+
+        let labelHeight: CGFloat = mode == .tiny ? 18 : 24
+        drawText(
+            "ACTION REQUIRED",
+            rect: NSRect(
+                x: frame.minX + 16,
+                y: frame.maxY - labelHeight - (mode == .tiny ? 10 : 16),
+                width: frame.width - 32,
+                height: labelHeight
+            ),
+            font: font(size: mode == .tiny ? 12 : 16, weight: .bold, monospaced: true),
+            color: brandOrange,
+            alignment: .center
+        )
+        drawWrappedText(
+            instruction,
+            rect: NSRect(
+                x: frame.minX + (mode == .tiny ? 12 : 24),
+                y: frame.minY + (mode == .tiny ? 10 : 18),
+                width: frame.width - (mode == .tiny ? 24 : 48),
+                height: frame.height - labelHeight - (mode == .tiny ? 28 : 48)
+            ),
+            font: font(size: mode == .tiny ? 14 : 22, weight: .semibold),
+            color: NSColor.labelColor,
+            alignment: .center
+        )
     }
 
     private func drawField(
@@ -632,10 +698,17 @@ private final class CaptureCanvas: NSView {
         ])
     }
 
-    private func drawWrappedText(_ text: String, rect: NSRect, font: NSFont, color: NSColor) {
+    private func drawWrappedText(
+        _ text: String,
+        rect: NSRect,
+        font: NSFont,
+        color: NSColor,
+        alignment: NSTextAlignment = .left
+    ) {
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byWordWrapping
         paragraph.lineSpacing = 2
+        paragraph.alignment = alignment
         (text as NSString).draw(
             with: rect,
             options: [.usesLineFragmentOrigin, .usesFontLeading],
@@ -951,6 +1024,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             focused: focused,
             nowNs: monotonicNow()
         )
+        canvas.operatorInstruction = String((command.instruction ?? "").prefix(240))
         persistedTerminalKey = ""
         runActive = ok
         lastRenderedState = nil
@@ -978,12 +1052,14 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             break
         case "reset":
             session.reset()
+            canvas.operatorInstruction = ""
             persistedTerminalKey = ""
             runActive = false
             lastRenderedState = nil
             message = "capture session reset"
         case "finalize":
             session.finalize(nowNs: monotonicNow())
+            canvas.operatorInstruction = ""
             message = "capture finalized"
         case "quit":
             message = "capture jig quitting"

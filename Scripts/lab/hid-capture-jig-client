@@ -66,6 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
     arm.add_argument("--expected", required=True, type=pathlib.Path)
     arm.add_argument("--timeout-ms", type=int, default=10_000)
     arm.add_argument("--settle-ms", type=int, default=250)
+    arm.add_argument("--instruction")
 
     wait = commands.add_parser("wait")
     wait.add_argument("--timeout-seconds", type=float, default=15.0)
@@ -89,6 +90,7 @@ def main() -> int:
                 expected=arguments.expected.read_text(),
                 timeoutMs=arguments.timeout_ms,
                 settleMs=arguments.settle_ms,
+                instruction=arguments.instruction,
             )
         elif arguments.command == "wait":
             deadline = time.monotonic() + arguments.timeout_seconds

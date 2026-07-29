@@ -45,8 +45,9 @@ are in
 
 The Waveshare board needs no shield, speaker, external debugger, power supply, or second
 microcontroller. Its display presents the run state and timing pressure; touch or the physical
-button aborts an armed/running script, and its buzzer provides sparse transition cues. Pico 2 W
-uses its onboard green LED instead.
+button aborts an ordinary armed/running script, and its buzzer provides sparse transition cues.
+The top power button also arms a bounded offline demo while the fixture is terminal; tapping the
+screen is the separate confirmation that starts it. Pico 2 W uses its onboard green LED instead.
 
 On a cold boot, the display briefly presents the official Hacker Dojo torii mark before dissolving
 into the live KeyPath startup scene. The mark is rendered from lightweight LVGL vector primitives,
@@ -71,6 +72,9 @@ so the splash needs no image decoder and does not delay USB, Wi-Fi, or the HID e
   Wi-Fi; the bearer token is defense in depth, not a substitute for network isolation.
 - The fixture schedules every report locally. Wi-Fi jitter can shift the start acknowledgement but
   cannot alter inter-key timing after the script starts.
+- The built-in demo requires two deliberate actions—top power, then touch—and uses a fixed,
+  compiled-in `KeyPath demo OK` sequence. Once armed, it does not abort if Wi-Fi disconnects. It
+  reports `HID SENT / CHECK JIG`, never an invented pass; only the independent Jig can classify it.
 - The deterministic physical timing contract starts at a 4 ms character interval with a 2 ms key
   hold. That is already a 250 Hz key cadence. A physical 3 ms diagnostic preserved output but
   missed USB deadlines because its alternating 2 ms/1 ms press-release gaps leave no scheduling
@@ -84,7 +88,27 @@ so the splash needs no image decoder and does not delay USB, Wi-Fi, or the HID e
   and removes expensive particle layers before animation can compete with HID timing.
 - Production exposes HID only—no USB serial console—so the VM observes the same device shape used
   by the test. The screen reports Wi-Fi/IP/USB state, while authenticated `/v1/status` and
-  `/v1/trace` provide the deeper diagnostics and exact firmware build identifier.
+  `/v1/trace` provide the deeper diagnostics and exact firmware build identifier. Status also
+  reports uptime/reset, heap, Wi-Fi reconnect, HTTP restart/request, and handler-latency counters.
+
+## 30-second offline demo
+
+The showroom path does not compile the Jig or depend on Wi-Fi after arming. From the KeyPath
+worktree, run:
+
+```bash
+Scripts/lab/hid-capture-jig-tool demo
+```
+
+The command reuses the signed app when its source hash is unchanged, brings the Jig forward, arms
+the exact expected text, and puts `PRESS TOP POWER, THEN TAP DEVICE` in the Jig itself. Press the
+board's top power button once, then tap the display. The command returns the Jig's exact pass/fail
+within 30 seconds and the Jig writes its normal evidence artifact. BOOT or another screen tap while
+the demo is running remains a fail-closed abort.
+
+This is the presentation path, not a replacement for the strict matrix runner. It demonstrates a
+known physical HID sequence quickly; product conclusions still require correlated fixture trace,
+Jig, resource, Kanata, and VirtualHID evidence.
 
 ## Pico LED states
 
@@ -309,6 +333,17 @@ Scripts/lab/pico-hid-fixture-client present --phase result --result pass --progr
   --reports-expected 400 --reports-observed 400 --latency-p95-us 620 --safe-release
 ```
 
+Measure the control plane without emitting HID reports:
+
+```bash
+Scripts/lab/pico-hid-fixture-tool soak --requests 120
+```
+
+The soak resolves mDNS once, then measures the ESP endpoint by IP, stops after three consecutive
+failures, enforces a 750 ms p95 budget, and atomically writes an artifact under
+`~/.local/state/keypath-hid-fixture/control/`. Discovery time is recorded separately so slow mDNS
+cannot be mistaken for a slow firmware handler.
+
 `run-text` combines compile, load, arm, and start. Production scenarios should still perform each
 stage explicitly so the VM can prove USB admission, arm its independent observers, and verify the
 requested load threshold before `start`.
@@ -341,6 +376,7 @@ campaign classification. The fixture token remains environment-only.
 ```bash
 Scripts/lab/pico-hid-fixture/tests/run-tests.sh
 python3 Scripts/lab/tests/pico-hid-fixture-client-tests.py
+python3 Scripts/lab/tests/pico-hid-fixture-control-soak-tests.py
 Scripts/lab/pico-hid-fixture/tests/run-esp32-qemu-smoke.sh
 ```
 

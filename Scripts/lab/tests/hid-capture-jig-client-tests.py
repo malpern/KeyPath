@@ -76,6 +76,7 @@ class HIDCaptureJigClientTests(unittest.TestCase):
                 result = self.run_client(
                     directory, "arm", "--run-id", "physical-1", "--expected", str(expected),
                     "--timeout-ms", "7000", "--settle-ms", "300",
+                    "--instruction", "UNPLUG USB-C NOW",
                 )
             self.assertEqual(result.returncode, 0, result.stderr)
             response = json.loads(result.stdout)
@@ -83,6 +84,7 @@ class HIDCaptureJigClientTests(unittest.TestCase):
             self.assertEqual(jig.commands[0]["runID"], "physical-1")
             self.assertEqual(jig.commands[0]["timeoutMs"], 7000)
             self.assertEqual(jig.commands[0]["settleMs"], 300)
+            self.assertEqual(jig.commands[0]["instruction"], "UNPLUG USB-C NOW")
 
     def test_focus_uses_a_distinct_control_action(self):
         with tempfile.TemporaryDirectory() as temporary:

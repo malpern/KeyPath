@@ -146,7 +146,16 @@ static void touch_event(lv_event_t *event) {
     if (lv_event_get_code(event) != LV_EVENT_PRESSED) return;
     fixture_runtime_snapshot_t snapshot;
     fixture_runtime_snapshot(&snapshot);
-    if (snapshot.ui.state == FIXTURE_ARMED || snapshot.ui.state == FIXTURE_RUNNING) {
+    if (snapshot.ui.state == FIXTURE_ARMED) {
+        char error[128];
+        if (fixture_runtime_start_demo(error, sizeof(error))) {
+            fixture_board_tone(980u, 70u);
+            return;
+        }
+        lv_obj_set_style_bg_color(ui.screen, lv_color_hex(0x241323), 0);
+        fixture_runtime_abort("touch abort");
+        fixture_board_tone(220u, 90u);
+    } else if (snapshot.ui.state == FIXTURE_RUNNING) {
         lv_obj_set_style_bg_color(ui.screen, lv_color_hex(0x241323), 0);
         fixture_runtime_abort("touch abort");
         fixture_board_tone(220u, 90u);

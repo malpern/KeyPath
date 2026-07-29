@@ -7,6 +7,7 @@
 #include "esp_mac.h"
 #include "esp_rom_sys.h"
 #include "esp_timer.h"
+#include "fixture_demo.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -118,8 +119,25 @@ static void executor_task(void *context) {
         uint32_t wait_us;
         runtime_lock();
         uint64_t now_us = (uint64_t)esp_timer_get_time();
+        fixture_state_t previous_state = fixture.state;
         fixture_poll(&fixture, now_us, tud_mounted(), tud_hid_ready(),
                      send_keyboard_report, NULL);
+        bool offline_demo = strcmp(fixture.run_id, FIXTURE_DEMO_RUN_ID) == 0;
+        if (offline_demo && fixture.state == FIXTURE_RUNNING && fixture.event_count > 0u) {
+            uint64_t total_reports = (uint64_t)fixture.event_count * fixture.repeat_count;
+            presentation.progress_per_mille =
+                (uint16_t)((fixture.reports_submitted * 1000u) / total_reports);
+            presentation.reports_observed = (uint32_t)fixture.reports_submitted;
+        } else if (offline_demo && previous_state == FIXTURE_RUNNING &&
+                   fixture.state == FIXTURE_COMPLETE) {
+            presentation.phase = FIXTURE_PRESENT_RESULT;
+            presentation.result = FIXTURE_RESULT_INCONCLUSIVE;
+            presentation.progress_per_mille = 1000u;
+            presentation.reports_observed = (uint32_t)fixture.reports_submitted;
+            snprintf(presentation.title, sizeof(presentation.title), "HID SENT");
+            snprintf(presentation.detail, sizeof(presentation.detail), "CHECK JIG FOR RESULT");
+            snprintf(presentation.next, sizeof(presentation.next), "POWER TO RUN AGAIN");
+        }
         running = fixture.state == FIXTURE_RUNNING;
         wait_us = fixture_time_until_next_action_us(&fixture, now_us);
         runtime_unlock();
@@ -174,7 +192,8 @@ void fixture_runtime_start_executor(void) {
 
 void fixture_runtime_set_network(bool connected, const char *address) {
     runtime_lock();
-    if (network_connected && !connected) {
+    bool offline_demo = strcmp(fixture.run_id, FIXTURE_DEMO_RUN_ID) == 0;
+    if (network_connected && !connected && !offline_demo) {
         fixture_abort_if_active(&fixture, "Wi-Fi disconnected during active run");
     }
     network_connected = connected;
@@ -245,6 +264,48 @@ bool fixture_runtime_start(const char *run_id, uint32_t delay_ms, char *error, s
         snprintf(error, capacity, "firmware update in progress");
     } else {
         ok = fixture_start(&fixture, run_id, delay_ms, (uint64_t)esp_timer_get_time(), error, capacity);
+    }
+    runtime_unlock();
+    return ok;
+}
+
+bool fixture_runtime_prepare_demo(char *error, size_t capacity) {
+    runtime_lock();
+    bool terminal = fixture.state == FIXTURE_IDLE || fixture.state == FIXTURE_COMPLETE ||
+                    fixture.state == FIXTURE_ABORTED || fixture.state == FIXTURE_ERROR;
+    bool ok = false;
+    if (firmware_update_in_progress) {
+        snprintf(error, capacity, "firmware update in progress");
+    } else if (!terminal) {
+        snprintf(error, capacity, "fixture is busy");
+    } else if (fixture_demo_load(&fixture, error, capacity) &&
+               fixture_arm(&fixture, FIXTURE_DEMO_RUN_ID, error, capacity)) {
+        fixture_presentation_init(&presentation);
+        presentation.phase = FIXTURE_PRESENT_NEXT;
+        presentation.reports_expected = fixture.event_count;
+        snprintf(presentation.title, sizeof(presentation.title), "DEMO ARMED");
+        snprintf(presentation.detail, sizeof(presentation.detail), "TAP SCREEN TO TYPE");
+        snprintf(presentation.next, sizeof(presentation.next), "TAP SCREEN");
+        ok = true;
+    }
+    runtime_unlock();
+    return ok;
+}
+
+bool fixture_runtime_start_demo(char *error, size_t capacity) {
+    runtime_lock();
+    bool ok = false;
+    if (fixture.state != FIXTURE_ARMED || strcmp(fixture.run_id, FIXTURE_DEMO_RUN_ID) != 0) {
+        snprintf(error, capacity, "offline demo is not armed");
+    } else if (fixture_start(&fixture, FIXTURE_DEMO_RUN_ID, 500u,
+                             (uint64_t)esp_timer_get_time(), error, capacity)) {
+        presentation.phase = FIXTURE_PRESENT_TESTING;
+        presentation.result = FIXTURE_RESULT_NONE;
+        presentation.progress_per_mille = 0u;
+        snprintf(presentation.title, sizeof(presentation.title), "TYPING DEMO");
+        snprintf(presentation.detail, sizeof(presentation.detail), "KEYPATH HID IN MOTION");
+        snprintf(presentation.next, sizeof(presentation.next), "CHECK CAPTURE JIG");
+        ok = true;
     }
     runtime_unlock();
     return ok;

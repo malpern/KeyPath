@@ -43,7 +43,10 @@ def load_runner():
 def action(command: list[str]) -> tuple[str, str]:
     if "hid-capture-jig-client" in command[0]:
         return "capture", command[1]
-    return "fixture", command[3]
+    fixture_actions = {
+        "status", "load-script", "arm", "start", "abort", "trace", "present",
+    }
+    return "fixture", next(value for value in command[1:] if value in fixture_actions)
 
 
 class PhysicalHIDCaptureRunTests(unittest.TestCase):
@@ -73,6 +76,8 @@ class PhysicalHIDCaptureRunTests(unittest.TestCase):
                 fixture_status_calls += 1
                 if fixture_status_calls == 1:
                     return {"address": "10.0.0.47", "state": "idle"}
+                if fixture_status_calls == 2:
+                    raise RuntimeError("transient fixture status timeout")
                 return {
                     "state": "complete", "reportsSubmitted": 2,
                     "lateReports": 1, "maximumLatenessUs": 2_000,
@@ -121,11 +126,14 @@ class PhysicalHIDCaptureRunTests(unittest.TestCase):
             )
             self.assertIsNotNone(capture_arm_command)
             assert capture_arm_command is not None
+            self.assertNotIn("--instruction", capture_arm_command)
             self.assertEqual(capture_arm_command[capture_arm_command.index("--timeout-ms") + 1], "15000")
             artifact = json.loads(output_path.read_text())
             self.assertEqual(artifact["control"]["capturePreflight"]["snapshot"]["state"], "idle")
             self.assertTrue(artifact["checks"]["latenessWithinBudget"])
             self.assertEqual(artifact["timingBudget"]["maxLateReports"], 2)
+            self.assertTrue(artifact["controlPlane"]["degraded"])
+            self.assertIn("status timeout", artifact["controlPlane"]["errors"][0]["error"])
 
     def test_busy_capture_preflight_stops_before_fixture_mutation(self) -> None:
         calls: list[tuple[str, str]] = []
@@ -150,20 +158,24 @@ class PhysicalHIDCaptureRunTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             input_path = pathlib.Path(directory) / "input.txt"
+            output_path = pathlib.Path(directory) / "result.json"
             input_path.write_text("a")
             arguments = [
                 str(RUNNER), "--run-id", "busy-run", "--text", str(input_path),
-                "--fixture-host", "fixture.local",
+                "--fixture-host", "fixture.local", "--output", str(output_path),
             ]
             error = io.StringIO()
             with mock.patch.object(self.runner, "load_fixture_token", return_value="token"), \
                  mock.patch.object(self.runner, "run_json", side_effect=fake_run_json), \
                  mock.patch.object(self.runner.sys, "argv", arguments), \
-                 contextlib.redirect_stderr(error):
+                contextlib.redirect_stderr(error):
                 self.assertEqual(self.runner.main(), 2)
+
+            artifact = json.loads(output_path.read_text())
 
         self.assertIn("CPU 93%", error.getvalue())
         self.assertIn("Pause builds or VMs", error.getvalue())
+        self.assertEqual(artifact["failure"]["classification"], "host-resource-admission")
         self.assertNotIn(("fixture", "load-script"), calls)
         self.assertNotIn(("fixture", "arm"), calls)
 
@@ -253,10 +265,11 @@ class PhysicalHIDCaptureRunTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             input_path = pathlib.Path(directory) / "input.txt"
+            output_path = pathlib.Path(directory) / "result.json"
             input_path.write_text("a")
             arguments = [
                 str(RUNNER), "--run-id", "test-run", "--text", str(input_path),
-                "--fixture-host", "fixture.local",
+                "--fixture-host", "fixture.local", "--output", str(output_path),
             ]
             error = io.StringIO()
             with mock.patch.object(self.runner, "load_fixture_token", return_value="token"), \
@@ -266,8 +279,10 @@ class PhysicalHIDCaptureRunTests(unittest.TestCase):
                  contextlib.redirect_stderr(error):
                 self.assertEqual(self.runner.main(), 2)
 
+            artifact = json.loads(output_path.read_text())
         self.assertIn(("fixture", "abort"), calls)
-        self.assertIn("fixture aborted with all-keys-released queued", error.getvalue())
+        self.assertIn("fixture aborted with all-keys-released queued", artifact["cleanup"])
+        self.assertIn("capture-oracle", error.getvalue())
 
     def test_abort_mode_verifies_released_prefix(self) -> None:
         calls: list[tuple[str, str]] = []
@@ -328,14 +343,16 @@ class PhysicalHIDCaptureRunTests(unittest.TestCase):
             self.assertIn(("capture", "finalize"), calls)
 
     def test_late_report_allowance_requires_a_lateness_ceiling(self) -> None:
-        arguments = [
-            str(RUNNER), "--run-id", "invalid-budget", "--text", str(RUNNER),
-            "--max-late-reports", "1",
-        ]
-        error = io.StringIO()
-        with mock.patch.object(self.runner.sys, "argv", arguments), \
-             contextlib.redirect_stderr(error):
-            self.assertEqual(self.runner.main(), 2)
+        with tempfile.TemporaryDirectory() as directory:
+            arguments = [
+                str(RUNNER), "--run-id", "invalid-budget", "--text", str(RUNNER),
+                "--max-late-reports", "1", "--output",
+                str(pathlib.Path(directory) / "result.json"),
+            ]
+            error = io.StringIO()
+            with mock.patch.object(self.runner.sys, "argv", arguments), \
+                 contextlib.redirect_stderr(error), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(self.runner.main(), 2)
         self.assertIn("--max-lateness-us is required", error.getvalue())
 
     def test_external_abort_mode_waits_for_physical_abort(self) -> None:
@@ -363,6 +380,11 @@ class PhysicalHIDCaptureRunTests(unittest.TestCase):
                     "activeModifiers": 0, "duplicateDownEvents": 0,
                     "repeatEvents": 0, "unmatchedUpEvents": 0, "issues": [], "events": [],
                 }}
+            if (target, operation) == ("capture", "arm"):
+                self.assertEqual(
+                    command[command.index("--instruction") + 1],
+                    "PRESS BOOT OR TAP THE SCREEN NOW TO ABORT THE ACTIVE TEST",
+                )
             return {"ok": True}
 
         self._run_interruption_case(
@@ -402,6 +424,11 @@ class PhysicalHIDCaptureRunTests(unittest.TestCase):
                     "activeModifiers": 0, "duplicateDownEvents": 0,
                     "repeatEvents": 0, "unmatchedUpEvents": 0, "issues": [], "events": [],
                 }}
+            if (target, operation) == ("capture", "arm"):
+                self.assertEqual(
+                    command[command.index("--instruction") + 1],
+                    "UNPLUG USB-C NOW · WAIT 2 SECONDS · RECONNECT THE SAME CABLE",
+                )
             return {"ok": True}
 
         self._run_interruption_case(

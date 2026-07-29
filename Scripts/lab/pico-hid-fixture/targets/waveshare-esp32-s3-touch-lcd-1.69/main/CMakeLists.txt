@@ -29,6 +29,7 @@ set(fixture_sources
     "${component_dir}/fixture_runtime.c"
     "${shared_source}/fixture_button_feedback.c"
     "${shared_source}/fixture_core.c"
+    "${shared_source}/fixture_demo.c"
     "${shared_source}/fixture_presentation.c"
     "${shared_source}/fixture_splash_model.c"
     "${shared_source}/fixture_ui_model.c"

@@ -73,7 +73,12 @@ static void board_task(void *context) {
         }
         if (power_pressed && !previous_power_pressed) {
             publish_feedback(FIXTURE_BUTTON_POWER);
-            fixture_board_tone(520u, 55u);
+            char error[128];
+            if (!button_enabled && fixture_runtime_prepare_demo(error, sizeof(error))) {
+                fixture_board_tone(760u, 70u);
+            } else {
+                fixture_board_tone(520u, 55u);
+            }
         }
         previous_boot_pressed = boot_pressed;
         previous_power_pressed = power_pressed;

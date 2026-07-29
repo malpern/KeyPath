@@ -13,6 +13,7 @@
 #include "esp_netif.h"
 #include "esp_ota_ops.h"
 #include "esp_system.h"
+#include "esp_timer.h"
 #include "esp_wifi.h"
 #include "fixture_config.h"
 #include "fixture_display.h"
@@ -35,6 +36,15 @@ static char *script_buffer;
 static httpd_handle_t http_server;
 static fixture_wifi_model_t wifi_model;
 static volatile bool control_plane_ready;
+static uint32_t wifi_disconnect_count;
+static uint32_t wifi_connect_count;
+static uint32_t last_wifi_disconnect_reason;
+static uint32_t http_server_start_count;
+static uint32_t status_request_count;
+static uint32_t status_response_count;
+static uint32_t status_failure_count;
+static uint32_t last_status_latency_us;
+static uint32_t maximum_status_latency_us;
 
 typedef struct {
     const char *ssid;
@@ -60,6 +70,7 @@ static esp_err_t send_json(httpd_req_t *request, const char *status, const char 
     httpd_resp_set_status(request, status);
     httpd_resp_set_type(request, "application/json");
     httpd_resp_set_hdr(request, "Cache-Control", "no-store");
+    httpd_resp_set_hdr(request, "Connection", "close");
     return httpd_resp_sendstr(request, body);
 }
 
@@ -235,7 +246,12 @@ static esp_err_t firmware_handler(httpd_req_t *request) {
 }
 
 static esp_err_t status_handler(httpd_req_t *request) {
-    if (require_auth(request) != ESP_OK) return ESP_OK;
+    uint64_t started_us = (uint64_t)esp_timer_get_time();
+    ++status_request_count;
+    if (require_auth(request) != ESP_OK) {
+        ++status_failure_count;
+        return ESP_OK;
+    }
     fixture_runtime_snapshot_t snapshot;
     fixture_runtime_snapshot(&snapshot);
     fixture_display_health_t display_health;
@@ -247,8 +263,8 @@ static esp_err_t status_handler(httpd_req_t *request) {
     bool update_ready = !snapshot.pending_release && !snapshot.firmware_update_in_progress &&
                         (snapshot.ui.state == FIXTURE_IDLE || snapshot.ui.state == FIXTURE_COMPLETE ||
                          snapshot.ui.state == FIXTURE_ABORTED || snapshot.ui.state == FIXTURE_ERROR);
-    char body[2048];
-    snprintf(body, sizeof(body),
+    char body[3072];
+    int body_length = snprintf(body, sizeof(body),
              "{\"ok\":true,\"firmware\":\"%s\",\"build\":\"%s\","
              "\"platform\":\"waveshare-esp32-s3-touch-lcd-1.69\","
              "\"state\":\"%s\",\"runId\":\"%s\",\"scriptCRC32\":\"%08" PRIx32 "\","
@@ -264,7 +280,14 @@ static esp_err_t status_handler(httpd_req_t *request) {
              "\"title\":\"%s\",\"detail\":\"%s\",\"next\":\"%s\","
              "\"reportsExpected\":%" PRIu32 ",\"reportsObserved\":%" PRIu32 ","
              "\"dropped\":%" PRIu32 ",\"duplicated\":%" PRIu32 ",\"repeated\":%" PRIu32 ","
-             "\"latencyP95Us\":%" PRIu32 ",\"safeRelease\":%s}}\n",
+             "\"latencyP95Us\":%" PRIu32 ",\"safeRelease\":%s},"
+             "\"diagnostics\":{\"uptimeMs\":%" PRIu64 ",\"resetReason\":%d,"
+             "\"freeHeapBytes\":%" PRIu32 ",\"minimumFreeHeapBytes\":%" PRIu32 ","
+             "\"wifiConnects\":%" PRIu32 ",\"wifiDisconnects\":%" PRIu32 ","
+             "\"lastWifiDisconnectReason\":%" PRIu32 ",\"httpServerStarts\":%" PRIu32 ","
+             "\"statusRequests\":%" PRIu32 ",\"statusResponses\":%" PRIu32 ","
+             "\"statusFailures\":%" PRIu32 ",\"lastStatusLatencyUs\":%" PRIu32 ","
+             "\"maximumStatusLatencyUs\":%" PRIu32 "}}\n",
              KEYPATH_FIXTURE_FIRMWARE_VERSION, KEYPATH_FIXTURE_BUILD_ID,
              fixture_state_name(snapshot.ui.state), snapshot.run_id,
              snapshot.script_crc32, snapshot.ui.event_count, snapshot.ui.repeat_count,
@@ -282,8 +305,26 @@ static esp_err_t status_handler(httpd_req_t *request) {
              snapshot.presentation.title, snapshot.presentation.detail, snapshot.presentation.next,
              snapshot.presentation.reports_expected, snapshot.presentation.reports_observed,
              snapshot.presentation.dropped, snapshot.presentation.duplicated, snapshot.presentation.repeated,
-             snapshot.presentation.latency_p95_us, snapshot.presentation.safe_release ? "true" : "false");
-    return send_json(request, "200 OK", body);
+             snapshot.presentation.latency_p95_us, snapshot.presentation.safe_release ? "true" : "false",
+             (uint64_t)(esp_timer_get_time() / 1000), (int)esp_reset_reason(),
+             (uint32_t)esp_get_free_heap_size(), (uint32_t)esp_get_minimum_free_heap_size(),
+             wifi_connect_count, wifi_disconnect_count, last_wifi_disconnect_reason,
+             http_server_start_count, status_request_count, status_response_count,
+             status_failure_count, last_status_latency_us, maximum_status_latency_us);
+    if (body_length < 0 || (size_t)body_length >= sizeof(body)) {
+        ++status_failure_count;
+        return send_json(request, "500 Internal Server Error",
+                         "{\"ok\":false,\"error\":\"status response overflow\"}\n");
+    }
+    esp_err_t result = send_json(request, "200 OK", body);
+    uint64_t elapsed_us = (uint64_t)esp_timer_get_time() - started_us;
+    last_status_latency_us = elapsed_us > UINT32_MAX ? UINT32_MAX : (uint32_t)elapsed_us;
+    if (last_status_latency_us > maximum_status_latency_us) {
+        maximum_status_latency_us = last_status_latency_us;
+    }
+    if (result == ESP_OK) ++status_response_count;
+    else ++status_failure_count;
+    return result;
 }
 
 static esp_err_t receive_body(httpd_req_t *request, size_t maximum, size_t *length) {
@@ -471,8 +512,12 @@ static esp_err_t start_http_server(void) {
     config.max_uri_handlers = 8;
     config.stack_size = 8192;
     config.core_id = 0;
-    config.task_priority = 4;
+    config.task_priority = 8;
+    config.lru_purge_enable = true;
+    config.recv_wait_timeout = 3;
+    config.send_wait_timeout = 3;
     ESP_RETURN_ON_ERROR(httpd_start(&http_server, &config), TAG, "HTTP server start failed");
+    ++http_server_start_count;
     const httpd_uri_t handlers[] = {
         {.uri = "/v1/status", .method = HTTP_GET, .handler = status_handler},
         {.uri = "/v1/script", .method = HTTP_POST, .handler = script_handler},
@@ -489,6 +534,17 @@ static esp_err_t start_http_server(void) {
     }
     control_plane_ready = true;
     return ESP_OK;
+}
+
+static void stop_http_server(void) {
+    control_plane_ready = false;
+    if (!http_server) return;
+    httpd_handle_t server = http_server;
+    http_server = NULL;
+    esp_err_t result = httpd_stop(server);
+    if (result != ESP_OK) {
+        ESP_LOGW(TAG, "HTTP server stop failed: %s", esp_err_to_name(result));
+    }
 }
 
 bool fixture_network_control_ready(void) {
@@ -514,7 +570,11 @@ static void wifi_event(void *argument, esp_event_base_t base, int32_t id, void *
     if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
+        wifi_event_sta_disconnected_t *event = data;
+        ++wifi_disconnect_count;
+        last_wifi_disconnect_reason = event ? event->reason : 0u;
         fixture_runtime_set_network(false, "unassigned");
+        stop_http_server();
         if (fixture_wifi_model_note_disconnect(&wifi_model,
                                                sizeof(wifi_profiles) / sizeof(wifi_profiles[0]),
                                                2u)) {
@@ -522,6 +582,7 @@ static void wifi_event(void *argument, esp_event_base_t base, int32_t id, void *
         }
         esp_wifi_connect();
     } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
+        ++wifi_connect_count;
         ip_event_got_ip_t *event = data;
         char address[16];
         snprintf(address, sizeof(address), IPSTR, IP2STR(&event->ip_info.ip));
@@ -557,5 +618,6 @@ esp_err_t fixture_network_start(void) {
     ESP_ERROR_CHECK(mdns_instance_name_set("KeyPath HID fixture"));
     ESP_ERROR_CHECK(mdns_service_add("KeyPath HID fixture", "_http", "_tcp",
                                      CONFIG_KEYPATH_FIXTURE_HTTP_PORT, NULL, 0));
-    return esp_wifi_start();
+    ESP_RETURN_ON_ERROR(esp_wifi_start(), TAG, "Wi-Fi start failed");
+    return esp_wifi_set_ps(WIFI_PS_NONE);
 }

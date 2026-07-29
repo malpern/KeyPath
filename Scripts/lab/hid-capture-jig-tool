@@ -13,9 +13,56 @@ usage() {
         "Commands:" \
         "  build   Build and ad-hoc sign the isolated capture app" \
         "  test    Run capture-core and control-client tests" \
-        "  open    Build, open, focus, and verify the capture app" \
+        "  open    Open, focus, and verify the cached capture app" \
+        "  demo    Arm the offline device demo and wait for its exact result" \
         "  status  Query the running capture app" \
         "  close   Ask the capture app to quit"
+}
+
+app_binary_hash() {
+    if [[ -f "$app_path/Contents/MacOS/HIDCaptureJig" ]]; then
+        shasum -a 256 "$app_path/Contents/MacOS/HIDCaptureJig" | awk '{print $1}'
+    fi
+}
+
+wait_for_app_exit() {
+    for _ in {1..50}; do
+        pgrep -x HIDCaptureJig >/dev/null || return 0
+        sleep 0.1
+    done
+    printf '%s\n' "hid-capture-jig-tool: existing capture app did not quit" >&2
+    return 1
+}
+
+open_app() {
+    was_running=0
+    pgrep -x HIDCaptureJig >/dev/null && was_running=1
+    before_hash=$(app_binary_hash)
+    "$package_dir/build-app.sh" >/dev/null
+    after_hash=$(app_binary_hash)
+
+    if [[ "$was_running" -eq 1 && "$before_hash" == "$after_hash" ]]; then
+        "$client" focus >/dev/null
+    else
+        if [[ "$was_running" -eq 1 ]]; then
+            "$client" quit >/dev/null 2>&1 || true
+            wait_for_app_exit
+        fi
+        open "$app_path"
+    fi
+
+    result=$(mktemp -t keypath-hid-capture-jig-status.XXXXXX)
+    for _ in {1..50}; do
+        if KEYPATH_CAPTURE_JIG_COMMAND_TIMEOUT=0.2 "$client" status >"$result" 2>/dev/null; then
+            cat "$result"
+            rm -f "$result"
+            return 0
+        fi
+        sleep 0.1
+    done
+    rm -f "$result"
+    printf '%s\n' "hid-capture-jig-tool: app opened but did not become controllable" >&2
+    return 1
 }
 
 case ${1:-} in
@@ -30,30 +77,23 @@ case ${1:-} in
         ;;
     open)
         [[ $# -eq 1 ]] || { usage >&2; exit 2; }
-        if pgrep -x HIDCaptureJig >/dev/null; then
-            "$client" quit >/dev/null 2>&1 || true
-            for _ in {1..50}; do
-                pgrep -x HIDCaptureJig >/dev/null || break
-                sleep 0.1
-            done
-            if pgrep -x HIDCaptureJig >/dev/null; then
-                printf '%s\n' "hid-capture-jig-tool: existing capture app did not quit" >&2
-                exit 1
-            fi
-        fi
-        "$package_dir/build-app.sh"
-        open "$app_path"
-        result=$(mktemp -t keypath-hid-capture-jig-status.XXXXXX)
-        trap 'rm -f "$result"' EXIT
-        for _ in {1..50}; do
-            if KEYPATH_CAPTURE_JIG_COMMAND_TIMEOUT=0.2 "$client" status >"$result" 2>/dev/null; then
-                cat "$result"
-                exit 0
-            fi
-            sleep 0.1
-        done
-        printf '%s\n' "hid-capture-jig-tool: app opened but did not become controllable" >&2
-        exit 1
+        open_app
+        ;;
+    demo)
+        [[ $# -eq 1 ]] || { usage >&2; exit 2; }
+        open_app >/dev/null
+        expected=$(mktemp -t keypath-hid-demo-expected.XXXXXX)
+        trap 'rm -f "$expected"' EXIT
+        printf 'KeyPath demo OK\n' >"$expected"
+        "$client" reset >/dev/null
+        "$client" focus >/dev/null
+        "$client" arm --run-id offline-demo --expected "$expected" \
+            --timeout-ms 30000 --settle-ms 300 \
+            --instruction "PRESS TOP POWER, THEN TAP DEVICE" >/dev/null
+        printf '%s\n' \
+            "demo armed  PRESS TOP POWER, THEN TAP THE DEVICE SCREEN" \
+            "waiting     exact Jig result (30 second limit)"
+        "$client" wait --timeout-seconds 31 --poll-ms 50
         ;;
     status)
         [[ $# -eq 1 ]] || { usage >&2; exit 2; }

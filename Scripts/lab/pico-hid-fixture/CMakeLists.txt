@@ -34,7 +34,8 @@ endif()
 configure_file(src/fixture_config.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/fixture_config.h @ONLY)
 
 add_executable(keypath_pico_hid_fixture
-  src/fixture_core.c
+    src/fixture_core.c
+    src/fixture_demo.c
   src/http_server.c
   src/main.c
   src/usb_descriptors.c

@@ -1,5 +1,6 @@
 #include "fixture_button_feedback.h"
 #include "fixture_core.h"
+#include "fixture_demo.h"
 #include "fixture_presentation.h"
 #include "fixture_splash_model.h"
 #include "fixture_ui_model.h"
@@ -89,6 +90,46 @@ static void test_rejects_corrupt_and_unsafe_scripts(void) {
     make_script(script, sizeof(script), "duplicate", 1u, duplicate, 2u, 100000u);
     assert(!fixture_load_script(&fixture, script, strlen(script), error, sizeof(error)));
     assert(strstr(error, "duplicate"));
+}
+
+static void test_loads_compiled_in_events_with_the_same_safety_checks(void) {
+    fixture_t fixture;
+    fixture_init(&fixture);
+    char error[128];
+    const fixture_event_t events[] = {
+        {.at_us = 0u, .modifiers = 2u, .keys = {14u}},
+        {.at_us = 2000u, .modifiers = 2u},
+        {.at_us = 4000u},
+    };
+    assert(fixture_load_events(&fixture, "offline-demo", events, 3u, 1u, 12000u,
+                               error, sizeof(error)));
+    assert(fixture.state == FIXTURE_LOADED);
+    assert(fixture.event_count == 3u);
+    assert(fixture.events[0].keys[0] == 14u);
+    assert(fixture.script_crc32 != 0u);
+
+    fixture_event_t unsafe[] = {{.at_us = 0u, .keys = {4u}}};
+    assert(!fixture_load_events(&fixture, "unsafe", unsafe, 1u, 1u, 12000u,
+                                error, sizeof(error)));
+    assert(strstr(error, "all-keys-released"));
+    assert(fixture.state == FIXTURE_IDLE);
+}
+
+static void test_offline_demo_is_precompiled_with_safe_shift_timing(void) {
+    fixture_t fixture;
+    fixture_init(&fixture);
+    char error[128];
+    assert(fixture_demo_load(&fixture, error, sizeof(error)));
+    assert(strcmp(fixture.run_id, FIXTURE_DEMO_RUN_ID) == 0);
+    assert(fixture.repeat_count == 1u);
+    assert(fixture.event_count > strlen(FIXTURE_DEMO_TEXT) * 2u);
+    assert(fixture.events[0].modifiers == 2u);
+    assert(fixture.events[0].keys[0] == 0u);
+    assert(fixture.events[1].at_us == 5000u);
+    assert(fixture.events[1].keys[0] == 14u); /* K */
+    const fixture_event_t *release = &fixture.events[fixture.event_count - 1u];
+    assert(release->modifiers == 0u);
+    assert(release->keys[0] == 0u);
 }
 
 static void test_failed_replacement_invalidates_previous_script(void) {
@@ -421,6 +462,8 @@ static void test_button_feedback_identifies_physical_positions_and_expires(void)
 int main(void) {
     test_load_arm_run_and_repeat();
     test_rejects_corrupt_and_unsafe_scripts();
+    test_loads_compiled_in_events_with_the_same_safety_checks();
+    test_offline_demo_is_precompiled_with_safe_shift_timing();
     test_failed_replacement_invalidates_previous_script();
     test_abort_and_unmount_force_release();
     test_control_plane_disconnect_aborts_only_active_runs();
