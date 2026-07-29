@@ -27,4 +27,15 @@ final class WizardButtonBarTests: XCTestCase {
 
         XCTAssertEqual(bar.secondaryPlacement, .trailing)
     }
+
+    @MainActor
+    func testSecondaryButtonsCanUseACompactWidth() {
+        let bar = WizardButtonBar(
+            secondary: .init(title: "Back", action: {}),
+            primary: .init(title: "Continue", action: {}),
+            secondaryMinimumWidth: 72
+        )
+
+        XCTAssertEqual(bar.secondaryMinimumWidth, 72)
+    }
 }

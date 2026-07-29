@@ -218,6 +218,26 @@ private struct FirstSuccessCinematicLightWash: View {
     }
 }
 
+private struct FirstSuccessCinematicWarmGraze: View {
+    let progress: Float
+
+    var body: some View {
+        LinearGradient(
+            stops: [
+                .init(color: .clear, location: 0.48),
+                .init(color: Color(red: 0.34, green: 0.22, blue: 0.15).opacity(0.08), location: 0.72),
+                .init(color: Color(red: 0.52, green: 0.34, blue: 0.23).opacity(0.18), location: 1),
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+        .opacity(Double(1 - min(1, max(0, progress))))
+        .blendMode(.screen)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 @MainActor
 private final class FirstSuccessWindowBackgroundView: NSView {
     var backgroundColor: NSColor {
@@ -330,6 +350,9 @@ struct FirstSuccessOnboardingDialog: View {
                         )
 
                         if !entranceFrame.reduceMotion {
+                            FirstSuccessCinematicWarmGraze(
+                                progress: entranceFrame.progress
+                            )
                             FirstSuccessCinematicLightWash(
                                 progress: entranceFrame.progress
                             )
@@ -383,7 +406,7 @@ struct FirstSuccessOnboardingDialog: View {
             )
 
             FirstSuccessSeparator(horizontalInset: 14)
-            WizardButtonBar(
+            FirstSuccessActionBar(
                 cancel: .init(
                     title: String(
                         localized: "Skip tour",
@@ -554,6 +577,26 @@ struct FirstSuccessOnboardingDialog: View {
     }
 }
 
+private struct FirstSuccessActionBar: View {
+    let cancel: WizardButtonBar.CancelButton?
+    let secondary: WizardButtonBar.SecondaryButton?
+    let primary: WizardButtonBar.PrimaryButton
+    let secondaryPlacement: WizardButtonBar.SecondaryPlacement
+
+    @Environment(\.firstSuccessOnboardingPalette) private var palette
+
+    var body: some View {
+        WizardButtonBar(
+            cancel: cancel,
+            secondary: secondary,
+            primary: primary,
+            secondaryPlacement: secondaryPlacement,
+            secondaryTint: palette.mutedText.color,
+            secondaryMinimumWidth: 72
+        )
+    }
+}
+
 private struct FirstSuccessSeparator: View {
     let horizontalInset: CGFloat
     @Environment(\.firstSuccessOnboardingPalette) private var palette
@@ -679,11 +722,24 @@ private struct FirstSuccessJourneyContent: View {
     }
 }
 
+private struct FirstSuccessCopyScrollMetrics: Equatable {
+    var overflows = false
+    var nearBottom = true
+}
+
 private struct FirstSuccessLessonCopy: View {
     let session: FirstSuccessOnboardingSession
     let launcherChoice: FirstSuccessLauncherChoiceModel
     let capsTapRevision: UInt64
     @Environment(\.firstSuccessOnboardingPalette) private var palette
+    @State private var scrollMetrics = FirstSuccessCopyScrollMetrics()
+
+    /// Lesson copy can exceed the column on the launcher step. The scroll view
+    /// hides its indicators, so without a fade the overflow reads as text
+    /// clipped mid-sentence instead of more content below.
+    private var showsOverflowFade: Bool {
+        scrollMetrics.overflows && !scrollMetrics.nearBottom
+    }
 
     var body: some View {
         ScrollView {
@@ -718,6 +774,28 @@ private struct FirstSuccessLessonCopy: View {
             .padding(.trailing, 6)
         }
         .scrollIndicators(.hidden)
+        .onScrollGeometryChange(for: FirstSuccessCopyScrollMetrics.self) { geometry in
+            FirstSuccessCopyScrollMetrics(
+                overflows: geometry.contentSize.height
+                    > geometry.containerSize.height + 1,
+                nearBottom: geometry.contentOffset.y + geometry.containerSize.height
+                    >= geometry.contentSize.height - 8
+            )
+        } action: { _, metrics in
+            scrollMetrics = metrics
+        }
+        .mask {
+            LinearGradient(
+                stops: [
+                    .init(color: .black, location: 0),
+                    .init(color: .black, location: showsOverflowFade ? 0.90 : 1),
+                    .init(color: showsOverflowFade ? .clear : .black, location: 1),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        .animation(.easeOut(duration: 0.15), value: showsOverflowFade)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("first-success-onboarding-copy")
     }

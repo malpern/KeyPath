@@ -347,6 +347,83 @@ final class KeyboardStageSceneTests: XCTestCase {
         XCTAssertTrue(scene.keys.contains { $0.keyCode == 57 })
     }
 
+    func testKeyboardLegendsMatchMacBookCapitalizationAndNumberRowSymbols() throws {
+        let layout = PhysicalLayout(
+            id: "keyboard-stage-legend-test",
+            name: "Keyboard Stage Legend Test",
+            keys: [
+                PhysicalKey(keyCode: 50, label: "`", x: 0, y: 0),
+                PhysicalKey(keyCode: 18, label: "1", x: 1.05, y: 0),
+                PhysicalKey(keyCode: 19, label: "2", x: 2.1, y: 0),
+                PhysicalKey(keyCode: 48, label: "tab", x: 0, y: 1.05, width: 1.5),
+                PhysicalKey(keyCode: 12, label: "q", x: 1.55, y: 1.05),
+                PhysicalKey(keyCode: 57, label: "caps", x: 0, y: 2.1, width: 1.75),
+                PhysicalKey(keyCode: 56, label: "shift", x: 0, y: 3.15, width: 2),
+                PhysicalKey(keyCode: 59, label: "control", x: 2.05, y: 3.15),
+                PhysicalKey(keyCode: 58, label: "option", x: 3.1, y: 3.15),
+                PhysicalKey(keyCode: 55, label: "command", x: 4.15, y: 3.15),
+            ]
+        )
+        let scene = KeyboardStageSceneBuilder.make(
+            layout: layout,
+            keymap: .qwertyUS,
+            moment: .capsMotivation,
+            displayMode: .standard
+        )
+
+        func legend(_ keyCode: UInt16) throws -> KeyboardStageLegend {
+            try XCTUnwrap(scene.keys.first { $0.keyCode == keyCode }).legend
+        }
+
+        XCTAssertEqual(try legend(50), KeyboardStageLegend(primary: "~", secondary: "`"))
+        XCTAssertEqual(try legend(18), KeyboardStageLegend(primary: "!", secondary: "1"))
+        XCTAssertEqual(try legend(19), KeyboardStageLegend(primary: "@", secondary: "2"))
+        XCTAssertEqual(try legend(48).primary, "tab")
+        XCTAssertEqual(try legend(12).primary, "Q")
+        XCTAssertEqual(try legend(57).primary, "caps lock")
+        XCTAssertEqual(try legend(56).primary, "shift")
+        XCTAssertEqual(try legend(59).primary, "control")
+        XCTAssertEqual(try legend(58).primary, "option")
+        XCTAssertEqual(try legend(55), KeyboardStageLegend(primary: "⌘", secondary: "command"))
+    }
+
+    func testKeyboardNumberRowUsesShiftLegendsFromSelectedKeymap() throws {
+        let layout = PhysicalLayout(
+            id: "keyboard-stage-selected-keymap-legends",
+            name: "Keyboard Stage Selected Keymap Legends",
+            keys: [
+                PhysicalKey(keyCode: 18, label: "1", x: 0, y: 0),
+                PhysicalKey(keyCode: 19, label: "2", x: 1.05, y: 0),
+            ]
+        )
+        let keymap = LogicalKeymap(
+            id: "selected-keymap",
+            name: "Selected Keymap",
+            description: "Test keymap",
+            learnMoreURL: URL(string: "https://example.com")!,
+            iconFilename: "QWERTY",
+            coreLabels: [:],
+            extraLabels: [18: "&", 19: "é"],
+            shiftLabels: [18: "1", 19: "2"]
+        )
+
+        let scene = KeyboardStageSceneBuilder.make(
+            layout: layout,
+            keymap: keymap,
+            moment: .capsMotivation,
+            displayMode: .standard
+        )
+
+        XCTAssertEqual(
+            try XCTUnwrap(scene.keys.first { $0.keyCode == 18 }).legend,
+            KeyboardStageLegend(primary: "1", secondary: "&")
+        )
+        XCTAssertEqual(
+            try XCTUnwrap(scene.keys.first { $0.keyCode == 19 }).legend,
+            KeyboardStageLegend(primary: "2", secondary: "é")
+        )
+    }
+
     func testReducedMotionApplyingScenesKeepMeaningWithoutSpatialMotion() throws {
         var reducedMotion = KeyboardStageDisplayMode.standard
         reducedMotion.reduceMotion = true
@@ -519,6 +596,29 @@ final class KeyboardStageSceneTests: XCTestCase {
                         )
                     }
                 }
+            }
+        }
+    }
+
+    func testInstructionalRolesKeepAPhysicalKeyFaceAndUseTheRimForEmphasis() {
+        let roles: [KeyboardStageKeyRole] = [
+            .recommended, .escape, .hyper, .launcher, .installed,
+        ]
+
+        for appearance in [KeyboardStageDisplayMode.Appearance.light, .dark] {
+            var mode = KeyboardStageDisplayMode.standard
+            mode.appearance = appearance
+            let palette = KeyboardStagePalette(displayMode: mode)
+            let standard = palette.style(for: .standard)
+
+            for role in roles {
+                let style = palette.style(for: role)
+                let faceDistance = abs(style.fill.red - standard.fill.red)
+                    + abs(style.fill.green - standard.fill.green)
+                    + abs(style.fill.blue - standard.fill.blue)
+
+                XCTAssertLessThan(faceDistance, 0.16, "\(appearance) \(role)")
+                XCTAssertGreaterThan(style.borderStrength, standard.borderStrength)
             }
         }
     }
