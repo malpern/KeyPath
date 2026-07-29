@@ -36,16 +36,19 @@ Scripts/lab/hid-capture-jig-tool showroom
 ```
 
 This is the zero-touch path: it opens and focuses the source-hashed Jig, then immediately asks the
-ESP32 to type `KeyPath demo OK` plus Return over real USB HID. Demo mode deliberately bypasses the
-Mac CPU, load, memory-pressure, and thermal admission gate so an audience is never left waiting for
-the machine to become idle. It still requires exclusive keyboard focus, bounded execution, exact
-independent Jig capture of all 16 characters, and verified release of every key and modifier.
+ESP32 to run 14 lively `KeyPath demo OK` plus Return cycles over real USB HID. At the 60 ms key
+cadence and 469 ms cycle gap, the active sequence lasts 20.006 seconds and produces 224 expected
+characters from 560 reports. Demo mode deliberately bypasses the Mac CPU, load, memory-pressure,
+and thermal admission gate so an audience is never left waiting for the machine to become idle. It
+still requires exclusive keyboard focus, bounded execution, exact independent Jig capture of every
+character, and verified release of every key and modifier.
 
 The bypass makes this demonstration evidence only: it must never be used to accept or reject a
 KeyPath build. `physical-hid-capture-run` remains strict by default, and matrix/acceptance callers do
 not pass `--demo-mode`; they still require three clean host-resource samples. A timestamped combined
 artifact records `admissionMode: demo-bypass` or `strict`. Use `hid-capture-jig-tool demo` only for
-the separate offline top-power-then-touch presentation; it uses the same demo-only bypass.
+the separate offline top-power-then-touch presentation; it uses the same demo-only bypass and the
+same 14-cycle, 20.006-second active sequence.
 
 ### Cold-boot screen sequence
 

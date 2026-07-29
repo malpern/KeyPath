@@ -7,7 +7,8 @@
 #define DEMO_HOLD_US 20000u
 #define DEMO_SHIFT_LEAD_US 5000u
 #define DEMO_SHIFT_RELEASE_LAG_US 5000u
-#define DEMO_CYCLE_GAP_US 250000u
+#define DEMO_REPEAT_COUNT 14u
+#define DEMO_CYCLE_GAP_US 469000u
 
 static bool demo_usage(char character, uint8_t *usage, bool *shifted) {
     if (character >= 'a' && character <= 'z') {
@@ -62,6 +63,7 @@ bool fixture_demo_load(fixture_t *fixture, char *error, size_t error_capacity) {
         }
     }
     uint32_t cycle_us = character_index * DEMO_INTERVAL_US + DEMO_CYCLE_GAP_US;
-    return fixture_load_events(fixture, FIXTURE_DEMO_RUN_ID, events, event_count, 1u, cycle_us,
+    return fixture_load_events(fixture, FIXTURE_DEMO_RUN_ID, events, event_count,
+                               DEMO_REPEAT_COUNT, cycle_us,
                                error, error_capacity);
 }

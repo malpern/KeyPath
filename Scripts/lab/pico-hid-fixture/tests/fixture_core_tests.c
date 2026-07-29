@@ -121,7 +121,9 @@ static void test_offline_demo_is_precompiled_with_safe_shift_timing(void) {
     char error[128];
     assert(fixture_demo_load(&fixture, error, sizeof(error)));
     assert(strcmp(fixture.run_id, FIXTURE_DEMO_RUN_ID) == 0);
-    assert(fixture.repeat_count == 1u);
+    assert(fixture.repeat_count == 14u);
+    assert(fixture.cycle_us == 1429000u);
+    assert((uint64_t)fixture.repeat_count * fixture.cycle_us == 20006000u);
     assert(fixture.event_count > strlen(FIXTURE_DEMO_TEXT) * 2u);
     assert(fixture.events[0].modifiers == 2u);
     assert(fixture.events[0].keys[0] == 0u);

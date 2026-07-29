@@ -88,7 +88,8 @@ case ${1:-} in
         artifact="$HOME/.local/state/keypath-hid-capture-jig/artifacts/$run_id.json"
         printf '%s\n' \
             "showroom running  ESP32 -> real USB HID -> independent Jig" \
-            "expected          KeyPath demo OK + Return"
+            "duration          20 seconds of animated typing" \
+            "expected          14 exact KeyPath demo OK + Return cycles"
         "$physical_runner" \
             --run-id "$run_id" \
             --text "$script_dir/tests/fixtures/showroom-demo.txt" \
@@ -96,9 +97,11 @@ case ${1:-} in
             --hold-ms 16 \
             --shift-lead-ms 5 \
             --shift-release-lag-ms 5 \
+            --repeat 14 \
+            --cycle-gap-ms 469 \
             --delay-ms 800 \
             --settle-ms 300 \
-            --timeout-ms 10000 \
+            --timeout-ms 35000 \
             --demo-mode \
             --output "$artifact"
         ;;
@@ -107,7 +110,9 @@ case ${1:-} in
         open_app >/dev/null
         expected=$(mktemp -t keypath-hid-demo-expected.XXXXXX)
         trap 'rm -f "$expected"' EXIT
-        printf 'KeyPath demo OK\n' >"$expected"
+        for _ in {1..14}; do
+            printf 'KeyPath demo OK\n' >>"$expected"
+        done
         "$client" reset >/dev/null
         "$client" focus >/dev/null
         "$client" arm --run-id offline-demo --expected "$expected" \
@@ -116,7 +121,7 @@ case ${1:-} in
             --instruction "PRESS TOP POWER, THEN TAP DEVICE" >/dev/null
         printf '%s\n' \
             "demo armed  PRESS TOP POWER, THEN TAP THE DEVICE SCREEN" \
-            "waiting     exact Jig result (30 second limit)"
+            "waiting     exact 20 second Jig result (30 second limit)"
         "$client" wait --timeout-seconds 31 --poll-ms 50
         ;;
     status)
