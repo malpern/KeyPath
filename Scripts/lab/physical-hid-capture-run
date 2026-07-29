@@ -317,6 +317,10 @@ def parser() -> argparse.ArgumentParser:
     root.add_argument("--delay-ms", type=int, default=1200)
     root.add_argument("--settle-ms", type=int, default=300)
     root.add_argument("--timeout-ms", type=int)
+    root.add_argument(
+        "--demo-mode", action="store_true",
+        help="bypass host-resource admission; results are demonstration evidence only",
+    )
     root.add_argument("--max-late-reports", type=int, default=0)
     root.add_argument("--max-lateness-us", type=int, default=0)
     root.add_argument(
@@ -406,7 +410,7 @@ def main() -> int:
                 "capture Jig does not report system readiness; rebuild and reopen it before testing"
             )
         stage = "host-resource-admission"
-        if not readiness.get("canProceed"):
+        if not arguments.demo_mode and not readiness.get("canProceed"):
             detail = str(readiness.get("detail", "the Mac is not inside the capture resource envelope"))
             suggestions = readiness.get("suggestions", [])
             help_text = " ".join(str(value) for value in suggestions if value)
@@ -480,6 +484,7 @@ def main() -> int:
             capture_arm = run_json(capture_command(
                 "arm", "--run-id", arguments.run_id, "--expected", str(expected_path),
                 "--timeout-ms", str(timeout_ms), "--settle-ms", str(arguments.settle_ms),
+                *(["--demo-mode"] if arguments.demo_mode else []),
                 *(["--instruction", operator_instruction] if operator_instruction else []),
             ), environment)
             capture_armed = True
@@ -656,6 +661,7 @@ def main() -> int:
             "schemaVersion": 2,
             "runID": arguments.run_id,
             "status": "passed" if passed else "failed",
+            "admissionMode": "demo-bypass" if arguments.demo_mode else "strict",
             "fixtureHost": host,
             "expectedReports": expected_reports,
             "interruptionMode": interruption_mode,
@@ -697,6 +703,7 @@ def main() -> int:
         summary = {
             "runID": arguments.run_id,
             "status": artifact["status"],
+            "admissionMode": artifact["admissionMode"],
             "artifact": str(output),
             "fixtureHost": host,
             "expectedReports": expected_reports,
@@ -781,6 +788,7 @@ def main() -> int:
             "schemaVersion": 2,
             "runID": arguments.run_id,
             "status": "inconclusive",
+            "admissionMode": "demo-bypass" if arguments.demo_mode else "strict",
             "fixtureHost": fixture_host or arguments.fixture_host,
             "expectedReports": expected_reports,
             "interruptionMode": interruption_mode,
@@ -817,6 +825,7 @@ def main() -> int:
         summary = {
             "runID": arguments.run_id,
             "status": "inconclusive",
+            "admissionMode": artifact["admissionMode"],
             "classification": classification,
             "stage": stage,
             "artifact": str(output),

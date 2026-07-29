@@ -35,12 +35,17 @@ cd /Users/malpern/local-code/keypath-pico-hid-fixture
 Scripts/lab/hid-capture-jig-tool showroom
 ```
 
-This is the zero-touch path: it opens and focuses the source-hashed Jig, waits up to 30 seconds for
-three clean host-resource samples, then asks the ESP32 to type `KeyPath demo OK` plus Return over
-real USB HID. The Jig is the independent oracle and must capture the exact 16 characters with all
-keys and modifiers released. A timestamped combined artifact is retained under
-`~/.local/state/keypath-hid-capture-jig/artifacts/` whether the run passes or becomes inconclusive.
-Use `hid-capture-jig-tool demo` only to demonstrate the separate offline top-power-then-touch path.
+This is the zero-touch path: it opens and focuses the source-hashed Jig, then immediately asks the
+ESP32 to type `KeyPath demo OK` plus Return over real USB HID. Demo mode deliberately bypasses the
+Mac CPU, load, memory-pressure, and thermal admission gate so an audience is never left waiting for
+the machine to become idle. It still requires exclusive keyboard focus, bounded execution, exact
+independent Jig capture of all 16 characters, and verified release of every key and modifier.
+
+The bypass makes this demonstration evidence only: it must never be used to accept or reject a
+KeyPath build. `physical-hid-capture-run` remains strict by default, and matrix/acceptance callers do
+not pass `--demo-mode`; they still require three clean host-resource samples. A timestamped combined
+artifact records `admissionMode: demo-bypass` or `strict`. Use `hid-capture-jig-tool demo` only for
+the separate offline top-power-then-touch presentation; it uses the same demo-only bypass.
 
 ### Cold-boot screen sequence
 

@@ -67,31 +67,6 @@ open_app() {
     return 1
 }
 
-wait_for_readiness() {
-    readiness=$(mktemp -t keypath-hid-capture-jig-readiness.XXXXXX)
-    for attempt in {1..60}; do
-        if "$client" status >"$readiness" 2>/dev/null && \
-            /usr/bin/python3 -c \
-                'import json,sys; raise SystemExit(not json.load(open(sys.argv[1]))["systemReadiness"]["canProceed"])' \
-                "$readiness"; then
-            rm -f "$readiness"
-            return 0
-        fi
-        if (( attempt % 10 == 0 )); then
-            /usr/bin/python3 -c \
-                'import json,sys; r=json.load(open(sys.argv[1]))["systemReadiness"]; print("showroom waiting  " + str(r["detail"]))' \
-                "$readiness" 2>/dev/null || true
-        fi
-        sleep 0.5
-    done
-    printf '%s\n' "showroom blocked  host did not enter a stable capture window" >&2
-    /usr/bin/python3 -c \
-        'import json,sys; r=json.load(open(sys.argv[1]))["systemReadiness"]; print("reason            " + str(r["detail"]), file=sys.stderr); [print("next              " + str(s), file=sys.stderr) for s in r.get("suggestions", [])]' \
-        "$readiness" || true
-    rm -f "$readiness"
-    return 1
-}
-
 case ${1:-} in
     build)
         [[ $# -eq 1 ]] || { usage >&2; exit 2; }
@@ -109,7 +84,6 @@ case ${1:-} in
     showroom)
         [[ $# -eq 1 ]] || { usage >&2; exit 2; }
         open_app >/dev/null
-        wait_for_readiness
         run_id="showroom-$(date -u +%Y%m%dT%H%M%SZ)"
         artifact="$HOME/.local/state/keypath-hid-capture-jig/artifacts/$run_id.json"
         printf '%s\n' \
@@ -125,6 +99,7 @@ case ${1:-} in
             --delay-ms 800 \
             --settle-ms 300 \
             --timeout-ms 10000 \
+            --demo-mode \
             --output "$artifact"
         ;;
     demo)
@@ -137,6 +112,7 @@ case ${1:-} in
         "$client" focus >/dev/null
         "$client" arm --run-id offline-demo --expected "$expected" \
             --timeout-ms 30000 --settle-ms 300 \
+            --demo-mode \
             --instruction "PRESS TOP POWER, THEN TAP DEVICE" >/dev/null
         printf '%s\n' \
             "demo armed  PRESS TOP POWER, THEN TAP THE DEVICE SCREEN" \

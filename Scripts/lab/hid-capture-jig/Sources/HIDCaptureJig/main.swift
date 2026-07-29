@@ -11,6 +11,7 @@ private struct ControlCommand: Codable {
     let timeoutMs: UInt64?
     let settleMs: UInt64?
     let instruction: String?
+    let demoMode: Bool?
 }
 
 private struct ControlResponse: Codable {
@@ -991,7 +992,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     private func beginArm(_ command: ControlCommand, attempt: Int) {
         let readiness = resourceMonitor.assessment
-        guard readiness.canProceed else {
+        let demoMode = command.demoMode == true
+        guard demoMode || readiness.canProceed else {
             runActive = false
             canvas.systemReadiness = readiness
             canvas.needsDisplay = true
@@ -1032,7 +1034,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         write(ControlResponse(
             id: command.id,
             ok: ok,
-            message: ok ? "capture armed and focused" : "capture refused: focus or command bounds invalid",
+            message: ok
+                ? (demoMode
+                    ? "demo capture armed and focused; host resource admission bypassed"
+                    : "capture armed and focused")
+                : "capture refused: focus or command bounds invalid",
             processID: ProcessInfo.processInfo.processIdentifier,
             snapshot: session.snapshot(nowNs: monotonicNow()),
             systemReadiness: readiness

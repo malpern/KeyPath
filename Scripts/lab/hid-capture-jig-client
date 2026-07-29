@@ -67,6 +67,10 @@ def build_parser() -> argparse.ArgumentParser:
     arm.add_argument("--timeout-ms", type=int, default=10_000)
     arm.add_argument("--settle-ms", type=int, default=250)
     arm.add_argument("--instruction")
+    arm.add_argument(
+        "--demo-mode", action="store_true",
+        help="bypass host-resource admission for a non-acceptance demo",
+    )
 
     wait = commands.add_parser("wait")
     wait.add_argument("--timeout-seconds", type=float, default=15.0)
@@ -91,6 +95,7 @@ def main() -> int:
                 timeoutMs=arguments.timeout_ms,
                 settleMs=arguments.settle_ms,
                 instruction=arguments.instruction,
+                demoMode=arguments.demo_mode,
             )
         elif arguments.command == "wait":
             deadline = time.monotonic() + arguments.timeout_seconds

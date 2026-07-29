@@ -25,6 +25,13 @@ READY_PREFLIGHT = {
     "suggestions": [],
 }
 
+BUSY_PREFLIGHT = {
+    "canProceed": False,
+    "state": "waiting",
+    "detail": "CPU 93% (limit 80%)",
+    "suggestions": ["Pause builds or VMs."],
+}
+
 TRACE_BATCH = [
     {"runId": "test-run", "from": 0, "available": 2},
     {"sequence": 1, "modifiers": 0, "keys": [4, 0, 0, 0, 0, 0]},
@@ -63,7 +70,7 @@ class PhysicalHIDCaptureRunTests(unittest.TestCase):
         output = pathlib.Path(command[command.index("--output") + 1])
         output.write_text("KPHID1 test-run 2 1 100000 00000000\n0 0 4 0 0 0 0 0\n50000 0 0 0 0 0 0 0\n")
 
-    def test_capture_preflight_happens_before_fixture_mutation(self) -> None:
+    def test_demo_mode_records_busy_preflight_then_runs_with_explicit_bypass(self) -> None:
         calls: list[tuple[str, str]] = []
         fixture_status_calls = 0
         capture_status_calls = 0
@@ -95,7 +102,7 @@ class PhysicalHIDCaptureRunTests(unittest.TestCase):
                     }}
                 return {
                     "ok": True, "snapshot": {"state": "idle"},
-                    "systemReadiness": READY_PREFLIGHT,
+                    "systemReadiness": BUSY_PREFLIGHT,
                 }
             if (target, operation) == ("capture", "arm"):
                 capture_arm_command = command
@@ -114,6 +121,7 @@ class PhysicalHIDCaptureRunTests(unittest.TestCase):
             arguments = [
                 str(RUNNER), "--run-id", "test-run", "--text", str(input_path),
                 "--fixture-host", "fixture.local", "--output", str(output_path),
+                "--demo-mode",
                 "--max-late-reports", "2", "--max-lateness-us", "3000",
             ]
             with mock.patch.object(self.runner, "load_fixture_token", return_value="token"), \
@@ -130,9 +138,12 @@ class PhysicalHIDCaptureRunTests(unittest.TestCase):
             )
             self.assertIsNotNone(capture_arm_command)
             assert capture_arm_command is not None
+            self.assertIn("--demo-mode", capture_arm_command)
             self.assertNotIn("--instruction", capture_arm_command)
             self.assertEqual(capture_arm_command[capture_arm_command.index("--timeout-ms") + 1], "15000")
             artifact = json.loads(output_path.read_text())
+            self.assertEqual(artifact["admissionMode"], "demo-bypass")
+            self.assertFalse(artifact["control"]["capturePreflight"]["systemReadiness"]["canProceed"])
             self.assertEqual(artifact["control"]["capturePreflight"]["snapshot"]["state"], "idle")
             self.assertTrue(artifact["checks"]["latenessWithinBudget"])
             self.assertEqual(artifact["timingBudget"]["maxLateReports"], 2)
@@ -179,6 +190,7 @@ class PhysicalHIDCaptureRunTests(unittest.TestCase):
 
         self.assertIn("CPU 93%", error.getvalue())
         self.assertIn("Pause builds or VMs", error.getvalue())
+        self.assertEqual(artifact["admissionMode"], "strict")
         self.assertEqual(artifact["failure"]["classification"], "host-resource-admission")
         self.assertNotIn(("fixture", "load-script"), calls)
         self.assertNotIn(("fixture", "arm"), calls)
