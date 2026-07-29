@@ -36,6 +36,7 @@ struct KeyboardStageLegendInstance {
 struct KeyboardStagePostUniforms {
     float4 sourceAndBloomSize;   // source width/height, bloom width/height
     float4 entranceAndDirection; // progress, Reduce Motion flag, light direction.xy
+    float4 vignette;             // strength, inner radius, stage windowX origin/width
 };
 
 struct KeyboardStageVertexOut {
@@ -1060,6 +1061,23 @@ fragment float4 keypath_keyboard_composite_fragment(
     float3 premultipliedRadiance = source.rgb + bloomContribution;
     float3 straightRadiance = premultipliedRadiance / finalAlpha;
     float3 mappedColor = keypath_highlight_shoulder(straightRadiance);
+
+    // The reference photograph sinks toward the frame corners. The falloff is
+    // computed in window space so it stays anchored to the dialog, and it
+    // relaxes as the light rises so the settled state keeps only a trace.
+    float2 windowUV = float2(
+        uniforms.vignette.z + input.uv.x * uniforms.vignette.w,
+        input.uv.y
+    );
+    float vignetteDistance = length((windowUV - float2(0.5)) * float2(1.25, 1.0));
+    float vignetteFalloff = smoothstep(
+        uniforms.vignette.y,
+        uniforms.vignette.y + 0.38,
+        vignetteDistance
+    )
+        * uniforms.vignette.x
+        * mix(1.0, 0.30, easedProgress);
+    mappedColor *= 1.0 - vignetteFalloff;
 
     // Static sub-LSB noise prevents banding in the dark-to-light shoulder. It
     // fades out before progress reaches one so the final light frame is clean.

@@ -46,12 +46,15 @@ struct KeyboardStageTuning: Equatable, Sendable {
     var legendBaseMin: Float = 0.84
     var legendBaseMax: Float = 1.05
     /// Cool fill light from the lower left: overall and specular strength.
-    var fillLightStrength: Float = 0.8
-    var fillSpecularStrength: Float = 0.12
+    var fillLightStrength: Float = 0.95
+    var fillSpecularStrength: Float = 0.15
     /// Per-key wear (polished crowns, calmer grain on high-traffic caps).
-    var wearStrength: Float = 1.0
+    var wearStrength: Float = 1.5
     /// Per-key highlight jitter (each cap catches the light slightly apart).
-    var highlightJitter: Float = 1.0
+    var highlightJitter: Float = 2.2
+    /// Window-space corner falloff; relaxes to 30% at the settled light.
+    var vignetteStrength: Float = 0.58
+    var vignetteInnerRadius: Float = 0.33
 
     static let `default` = KeyboardStageTuning()
 
@@ -81,6 +84,12 @@ struct KeyboardStageTuning: Equatable, Sendable {
     var gpuVectorE: SIMD4<Float> {
         SIMD4(fillLightStrength, fillSpecularStrength, wearStrength, highlightJitter)
     }
+
+    /// Packed into the post-pass uniforms; the renderer appends the stage's
+    /// window mapping to the remaining two lanes.
+    var vignetteVector: SIMD2<Float> {
+        SIMD2(vignetteStrength, vignetteInnerRadius)
+    }
 }
 
 extension KeyboardStageTuning: Codable {
@@ -105,6 +114,8 @@ extension KeyboardStageTuning: Codable {
         case fillSpecularStrength
         case wearStrength
         case highlightJitter
+        case vignetteStrength
+        case vignetteInnerRadius
     }
 
     init(from decoder: any Decoder) throws {
@@ -138,6 +149,8 @@ extension KeyboardStageTuning: Codable {
         fillSpecularStrength = value(.fillSpecularStrength, defaults.fillSpecularStrength)
         wearStrength = value(.wearStrength, defaults.wearStrength)
         highlightJitter = value(.highlightJitter, defaults.highlightJitter)
+        vignetteStrength = value(.vignetteStrength, defaults.vignetteStrength)
+        vignetteInnerRadius = value(.vignetteInnerRadius, defaults.vignetteInnerRadius)
     }
 
     /// Loads overrides from a JSON file; unknown keys are ignored and missing

@@ -35,6 +35,7 @@ private struct KeyboardStageGPULegendInstance {
 private struct KeyboardStageGPUPostUniforms {
     var sourceAndBloomSize: SIMD4<Float>
     var entranceAndDirection: SIMD4<Float>
+    var vignette: SIMD4<Float>
 }
 
 private struct KeyboardStageMetalRenderTargets {
@@ -216,6 +217,12 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
                 currentFrame.entrance.reduceMotion ? 1 : 0,
                 1,
                 0
+            ),
+            vignette: SIMD4(
+                currentTuning.vignetteVector.x,
+                currentTuning.vignetteVector.y,
+                currentWindowX.x,
+                currentWindowX.y
             )
         )
 
@@ -338,6 +345,12 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
                 frame.entrance.reduceMotion ? 1 : 0,
                 1,
                 0
+            ),
+            vignette: SIMD4(
+                capturedTuning.vignetteVector.x,
+                capturedTuning.vignetteVector.y,
+                windowX.x,
+                windowX.y
             )
         )
 
