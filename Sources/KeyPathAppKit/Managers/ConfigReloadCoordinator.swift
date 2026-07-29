@@ -56,7 +56,10 @@ final class ConfigReloadCoordinator {
 
     /// Main reload method using TCP protocol.
     /// Checks service health, permission gates, and delegates to TCP reload.
-    func triggerConfigReload(notifyOnFailure: Bool = true) async -> ReloadResult {
+    func triggerConfigReload(
+        notifyOnFailure: Bool = true,
+        scheduleRetryOnPending: Bool = true
+    ) async -> ReloadResult {
         // Use the manager refresh path instead of the unbounded synchronous
         // currentManagementState cache; the underlying SMAppService provider
         // still coalesces IPC with a short TTL.
@@ -129,7 +132,9 @@ final class ConfigReloadCoordinator {
                 AppLogger.shared.log(
                     "⏳ [Reload] Runtime transition closed the TCP reload connection; deferring until Kanata settles"
                 )
-                scheduleDeferredReloadAfterRuntimeTransition()
+                if scheduleRetryOnPending {
+                    scheduleDeferredReloadAfterRuntimeTransition()
+                }
                 return ReloadResult(
                     success: false,
                     response: tcpResult.response,
@@ -146,7 +151,9 @@ final class ConfigReloadCoordinator {
             // expires. Real failures (validation, network, etc.) still
             // notify as before.
             if isCooldownBlockMessage(errorMessage) {
-                scheduleDeferredReloadAfterCooldown()
+                if scheduleRetryOnPending {
+                    scheduleDeferredReloadAfterCooldown()
+                }
             } else if notifyOnFailure {
                 NotificationCenter.default.post(
                     name: .configReloadFailed,
@@ -256,7 +263,10 @@ final class ConfigReloadCoordinator {
         guard health.isHealthy else { return nil }
 
         AppLogger.shared.log("🔁 [Reload] Retrying config reload after runtime transition")
-        let result = await triggerConfigReload(notifyOnFailure: false)
+        let result = await triggerConfigReload(
+            notifyOnFailure: false,
+            scheduleRetryOnPending: false
+        )
         return result.isSuccess
     }
 

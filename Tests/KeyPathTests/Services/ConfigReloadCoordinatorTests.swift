@@ -274,12 +274,16 @@ struct ConfigReloadCoordinatorTests {
             tcpReloadOverride: {
                 transition.tcpReloadCount += 1
                 if transition.tcpReloadCount == 1 {
+                    transition.isTransitioning = true
                     return .networkError("Connection closed")
                 }
                 return .success(response: "ok")
             },
             transitionRetryMaximumPolls: 2,
-            transitionRetryWait: { transition.waitCount += 1 }
+            transitionRetryWait: {
+                transition.waitCount += 1
+                transition.isTransitioning = false
+            }
         )
         coordinator.onReloadSuccess = { transition.reloadCount += 1 }
 
