@@ -246,7 +246,7 @@ struct ConfigReloadCoordinatorTests {
             healthy: true,
             runtimeTransitionState: transition,
             tcpReloadResult: .success(response: "ok"),
-            transitionRetryMaximumPolls: 2,
+            transitionRetryMaximumPolls: 1,
             transitionRetryWait: {
                 transition.waitCount += 1
                 transition.isTransitioning = false

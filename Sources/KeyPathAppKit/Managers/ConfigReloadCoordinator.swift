@@ -234,19 +234,14 @@ final class ConfigReloadCoordinator {
         for _ in 0 ..< transitionRetryMaximumPolls {
             guard !Task.isCancelled else { return false }
 
-            if !isRuntimeTransitioning() {
-                let health = await healthStatusProvider(PreferencesService.shared.tcpServerPort)
-                if health.isHealthy {
-                    AppLogger.shared.log("🔁 [Reload] Retrying config reload after runtime transition")
-                    await triggerReload()
-                    return true
-                }
-            }
+            if await retryReloadIfRuntimeReady() { return true }
 
             await transitionRetryWait()
         }
 
         guard !Task.isCancelled else { return false }
+        if await retryReloadIfRuntimeReady() { return true }
+
         let message = "Kanata did not become ready after restarting; config reload was not applied"
         NotificationCenter.default.post(
             name: .configReloadFailed,
@@ -254,6 +249,17 @@ final class ConfigReloadCoordinator {
             userInfo: ["message": message, "response": ""]
         )
         return false
+    }
+
+    private func retryReloadIfRuntimeReady() async -> Bool {
+        guard !isRuntimeTransitioning() else { return false }
+
+        let health = await healthStatusProvider(PreferencesService.shared.tcpServerPort)
+        guard health.isHealthy else { return false }
+
+        AppLogger.shared.log("🔁 [Reload] Retrying config reload after runtime transition")
+        await triggerReload()
+        return true
     }
 
     /// TCP-based config reload (no authentication required - see ADR-013)
