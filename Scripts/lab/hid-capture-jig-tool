@@ -3,8 +3,9 @@ set -euo pipefail
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 package_dir="$script_dir/hid-capture-jig"
-client="$script_dir/hid-capture-jig-client"
-physical_runner="$script_dir/physical-hid-capture-run"
+client=${KEYPATH_CAPTURE_JIG_CLIENT:-"$script_dir/hid-capture-jig-client"}
+physical_runner=${KEYPATH_PHYSICAL_HID_RUNNER:-"$script_dir/physical-hid-capture-run"}
+build_app=${KEYPATH_CAPTURE_JIG_BUILD_APP:-"$package_dir/build-app.sh"}
 app_path=${KEYPATH_CAPTURE_JIG_APP:-"$HOME/.cache/keypath-hid-capture-jig/KeyPath HID Capture Jig.app"}
 
 usage() {
@@ -41,7 +42,7 @@ open_app() {
     was_running=0
     pgrep -x HIDCaptureJig >/dev/null && was_running=1
     before_hash=$(app_binary_hash)
-    "$package_dir/build-app.sh" >/dev/null
+    "$build_app" >/dev/null
     after_hash=$(app_binary_hash)
 
     if [[ "$was_running" -eq 1 && "$before_hash" == "$after_hash" && "$force_restart" -eq 0 ]]; then
@@ -77,6 +78,7 @@ case ${1:-} in
         [[ $# -eq 1 ]] || { usage >&2; exit 2; }
         swift test --package-path "$package_dir" --jobs "${KEYPATH_CAPTURE_JIG_BUILD_JOBS:-4}"
         python3 "$script_dir/tests/hid-capture-jig-client-tests.py"
+        python3 "$script_dir/tests/hid-capture-jig-tool-tests.py"
         ;;
     open)
         [[ $# -eq 1 ]] || { usage >&2; exit 2; }

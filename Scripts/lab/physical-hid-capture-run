@@ -8,6 +8,7 @@ import ipaddress
 import json
 import os
 import pathlib
+import signal
 import subprocess
 import sys
 import tempfile
@@ -303,6 +304,80 @@ class ControlledCPULoad:
             self.stop_event.wait(self.sample_seconds)
 
 
+class ControlledSwiftCompileLoad:
+    """Bounded, generated Swift type-check pressure that never mutates the worktree."""
+
+    def __init__(self):
+        self.temporary: tempfile.TemporaryDirectory[str] | None = None
+        self.process: subprocess.Popen | None = None
+        self.started_at = 0.0
+        self.source_bytes = 0
+        self.compiler = ""
+
+    def start(self) -> None:
+        try:
+            result = subprocess.run(
+                ["/usr/bin/xcrun", "--find", "swiftc"], text=True,
+                capture_output=True, check=True, timeout=10,
+            )
+        except (OSError, subprocess.SubprocessError) as error:
+            raise RuntimeError("could not locate swiftc for the bounded compile load") from error
+        self.compiler = result.stdout.strip()
+        if not self.compiler:
+            raise RuntimeError("xcrun returned an empty swiftc path")
+        self.temporary = tempfile.TemporaryDirectory(prefix="keypath-swift-load-")
+        source = pathlib.Path(self.temporary.name) / "GeneratedLoad.swift"
+        lines = ["import Foundation", ""]
+        for index in range(700):
+            lines.extend([
+                f"@inline(never) func workload{index}<S: Sequence>(_ values: S) -> Int ",
+                "where S.Element == Int {",
+                f"    values.enumerated().reduce({index}) {{ partial, pair in",
+                f"        partial &+ ((pair.offset &+ pair.element &+ {index}) % 97)",
+                "    }",
+                "}",
+                "",
+            ])
+        source.write_text("\n".join(lines))
+        self.source_bytes = source.stat().st_size
+        self.started_at = time.time()
+        self.process = subprocess.Popen(
+            [
+                "/bin/bash", "-c",
+                'while :; do "$1" -typecheck "$2" >/dev/null 2>&1 || exit $?; done',
+                "keypath-swift-compile-load", self.compiler, str(source),
+            ],
+            start_new_session=True,
+        )
+
+    def stop(self) -> dict[str, Any]:
+        return_code: int | None = None
+        if self.process is not None:
+            try:
+                os.killpg(self.process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            try:
+                return_code = self.process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(self.process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                return_code = self.process.wait(timeout=2)
+        if self.temporary is not None:
+            self.temporary.cleanup()
+            self.temporary = None
+        return {
+            "enabled": True,
+            "compiler": self.compiler,
+            "sourceBytes": self.source_bytes,
+            "startedAtEpoch": self.started_at,
+            "durationMs": round(max(0, time.time() - self.started_at) * 1000),
+            "returnCode": return_code,
+        }
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description=__doc__)
     root.add_argument("--run-id", required=True)
@@ -328,6 +403,10 @@ def parser() -> argparse.ArgumentParser:
         help="start this many bounded CPU workers after capture preflight and record CPU samples",
     )
     root.add_argument("--cpu-sample-ms", type=int, default=250)
+    root.add_argument(
+        "--swift-compile-load", action="store_true",
+        help="run a bounded generated Swift type-check loop after strict admission",
+    )
     interruption = root.add_mutually_exclusive_group()
     interruption.add_argument(
         "--abort-after-ms", type=int,
@@ -360,6 +439,8 @@ def main() -> int:
     capture_armed = False
     cpu_load: ControlledCPULoad | None = None
     cpu_load_result: dict[str, Any] | None = None
+    swift_compile_load: ControlledSwiftCompileLoad | None = None
+    swift_compile_load_result: dict[str, Any] | None = None
     stage = "argument-validation"
     started_at_epoch = time.time()
     timeout_ms = 0
@@ -493,6 +574,9 @@ def main() -> int:
                     workers=arguments.cpu_load_workers, sample_ms=arguments.cpu_sample_ms
                 )
                 cpu_load.start()
+            if arguments.swift_compile_load:
+                swift_compile_load = ControlledSwiftCompileLoad()
+                swift_compile_load.start()
             stage = "fixture-start"
             start = run_fixture_json_with_retry(
                 host, "start", arguments.run_id, "--delay-ms", str(arguments.delay_ms),
@@ -591,6 +675,9 @@ def main() -> int:
         if cpu_load is not None:
             cpu_load_result = cpu_load.stop()
             cpu_load = None
+        if swift_compile_load is not None:
+            swift_compile_load_result = swift_compile_load.stop()
+            swift_compile_load = None
         stage = "evidence-collection"
         fixture_trace = fetch_fixture_trace(host, environment, control_errors)
         capture = capture_response["snapshot"]
@@ -692,6 +779,7 @@ def main() -> int:
             "fixtureTrace": fixture_trace,
             "capture": capture,
             "cpuLoad": cpu_load_result,
+            "swiftCompileLoad": swift_compile_load_result,
             "controlPlane": {
                 "degraded": bool(control_errors),
                 "errors": control_errors,
@@ -722,6 +810,10 @@ def main() -> int:
             cpu_load_result = cpu_load.stop()
             cpu_load = None
             cleanup.append("bounded CPU load stopped")
+        if swift_compile_load is not None:
+            swift_compile_load_result = swift_compile_load.stop()
+            swift_compile_load = None
+            cleanup.append("bounded Swift compile load stopped")
         if fixture_mutated and fixture_host:
             try:
                 abort_response = run_fixture_json_with_retry(
@@ -818,6 +910,7 @@ def main() -> int:
             "fixtureTrace": fixture_trace,
             "capture": capture,
             "cpuLoad": cpu_load_result,
+            "swiftCompileLoad": swift_compile_load_result,
             "startedAtEpoch": started_at_epoch,
             "finishedAtEpoch": time.time(),
         }
@@ -842,6 +935,8 @@ def main() -> int:
     finally:
         if cpu_load is not None:
             cpu_load.stop()
+        if swift_compile_load is not None:
+            swift_compile_load.stop()
 
 
 if __name__ == "__main__":

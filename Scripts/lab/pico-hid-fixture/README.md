@@ -252,6 +252,28 @@ logical CPUs, average/maximum CPU, and timestamped CPU/load samples. If capture 
 runner still waits for the fixture to finish and for the macOS event queue to settle, preserving the
 complete event ledger instead of a first-mismatch prefix.
 
+For the repeated-key regression, use the strict resumable campaign rather than an ad hoc typing
+script:
+
+```bash
+Scripts/lab/physical-hid-repeat-matrix --exclusive-desktop-confirmed
+```
+
+The default 60-case plan crosses four input shapes (one repeated key, alternating keys, a rolling
+home-row sequence, and shifted symbols), 50/10/5 ms pacing, and five load profiles: calm, two and
+six bounded CPU workers, generated Swift compilation, and generated Swift compilation plus two CPU
+workers. Every case still passes the normal calm admission gate before its bounded load begins; the
+campaign never uses demo mode. The generated compiler workload lives in a temporary directory and
+does not clean, touch, or build the KeyPath worktree.
+
+Each combined artifact distinguishes additions from deletions and substitutions and retains the
+Jig's duplicate-down, host-repeat, unmatched-up, focus, release, and event evidence alongside the
+ESP32 trace and timing. The summary classifies any inserted character or unexpected repeat event as
+`repeated-input-observed`, while focus loss or incomplete release fails closed as `harness-invalid`.
+Use the same `--run-id-prefix` and `--resume` after an infrastructure interruption to reuse completed
+case artifacts without repeating valid HID runs. The explicit desktop confirmation is mandatory
+because a real USB keyboard cannot safely target a background window while the operator is typing.
+
 ## Pico 2 W build
 
 Install CMake, an Arm embedded compiler, and the Raspberry Pi Pico SDK. Keep Wi-Fi credentials and

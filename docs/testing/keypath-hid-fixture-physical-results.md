@@ -70,6 +70,20 @@ The `physical-jig-button-abort-post-flash-1` attempt is excluded: its 30-second 
 window expired without a physical button event, after which the fixture completed normally. It is
 not evidence of either a passing or failing physical-button abort.
 
+## Open repeated-key research campaign
+
+The original report of repeated keypresses while compiling a large Swift program remains distinct
+from the Shift-demotion defect below. `Scripts/lab/physical-hid-repeat-matrix` now defines the strict,
+resumable campaign needed to investigate it. The plan covers repeated, alternating, rolling, and
+shifted corpora at 50, 10, and 5 ms pacing under calm CPU, bounded CPU saturation, generated Swift
+type-check pressure, and combined compiler/CPU pressure.
+
+The campaign starts every load only after the ordinary three-sample host admission and capture arm.
+It records exact output, inserted/deleted/substituted characters, AppKit duplicate-down/repeat/up
+counters, focus and release state, firmware timing, and the full bounded report trace. It contains
+no demo-mode bypass. This campaign is implemented and host-tested but has not yet emitted physical
+HID; do not claim a KeyPath result until its strict case artifacts exist.
+
 ## 2026-07-27 shifted-key CPU matrix
 
 Firmware build `ccd910cb18d9` ran the same 20-cycle shifted corpus

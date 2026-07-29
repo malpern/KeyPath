@@ -176,6 +176,8 @@ command_test() {
     python3 "$script_dir/tests/scenario-matrix-runner-tests.py"
     python3 "$script_dir/tests/physical-hid-capture-run-tests.py"
     python3 "$script_dir/tests/physical-hid-shift-matrix-tests.py"
+    python3 "$script_dir/tests/physical-hid-repeat-matrix-tests.py"
+    python3 "$script_dir/tests/hid-capture-jig-tool-tests.py"
     "$fixture_root/tests/run-esp32-qemu-smoke.sh"
 }
 

@@ -195,6 +195,78 @@ class PhysicalHIDCaptureRunTests(unittest.TestCase):
         self.assertNotIn(("fixture", "load-script"), calls)
         self.assertNotIn(("fixture", "arm"), calls)
 
+    def test_swift_compile_load_starts_after_capture_arm_and_is_recorded(self) -> None:
+        timeline: list[tuple[str, str]] = []
+        fixture_status_calls = 0
+        capture_status_calls = 0
+
+        def snapshot():
+            return {
+                "state": "passed", "received": "a", "focused": True,
+                "pressedKeyCodes": [], "activeModifiers": 0, "issues": [],
+                "events": [{}, {}],
+            }
+
+        def fake_run_json(command, environment, allowed_returncodes=(0,)):
+            del environment, allowed_returncodes
+            nonlocal fixture_status_calls, capture_status_calls
+            target, operation = action(command)
+            timeline.append((target, operation))
+            if (target, operation) == ("fixture", "trace"):
+                return TRACE_BATCH
+            if (target, operation) == ("fixture", "status"):
+                fixture_status_calls += 1
+                if fixture_status_calls == 1:
+                    return {"address": "10.0.0.47", "state": "idle"}
+                return {
+                    "state": "complete", "reportsSubmitted": 2,
+                    "transfersCompleted": 2, "lateReports": 0,
+                    "maximumLatenessUs": 0,
+                }
+            if (target, operation) == ("capture", "status"):
+                capture_status_calls += 1
+                if capture_status_calls == 1:
+                    return {
+                        "ok": True, "snapshot": {"state": "idle"},
+                        "systemReadiness": READY_PREFLIGHT,
+                    }
+                return {"ok": True, "snapshot": snapshot()}
+            if (target, operation) == ("capture", "wait"):
+                return {"snapshot": snapshot()}
+            return {"ok": True}
+
+        class FakeSwiftCompileLoad:
+            def start(self):
+                timeline.append(("load", "swift-start"))
+
+            def stop(self):
+                timeline.append(("load", "swift-stop"))
+                return {"enabled": True, "sourceBytes": 12345, "durationMs": 500}
+
+        with tempfile.TemporaryDirectory() as directory:
+            input_path = pathlib.Path(directory) / "input.txt"
+            output_path = pathlib.Path(directory) / "result.json"
+            input_path.write_text("a")
+            arguments = [
+                str(RUNNER), "--run-id", "swift-load-run", "--text", str(input_path),
+                "--fixture-host", "fixture.local", "--swift-compile-load",
+                "--output", str(output_path),
+            ]
+            with mock.patch.object(self.runner, "load_fixture_token", return_value="token"), \
+                 mock.patch.object(self.runner, "run_json", side_effect=fake_run_json), \
+                 mock.patch.object(self.runner, "run_checked", side_effect=self.compile_script), \
+                 mock.patch.object(self.runner, "ControlledSwiftCompileLoad", FakeSwiftCompileLoad), \
+                 mock.patch.object(self.runner.sys, "argv", arguments), \
+                 contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(self.runner.main(), 0)
+
+            artifact = json.loads(output_path.read_text())
+
+        self.assertLess(timeline.index(("capture", "arm")), timeline.index(("load", "swift-start")))
+        self.assertLess(timeline.index(("load", "swift-start")), timeline.index(("fixture", "start")))
+        self.assertEqual(artifact["swiftCompileLoad"]["sourceBytes"], 12345)
+        self.assertEqual(timeline.count(("load", "swift-stop")), 1)
+
     def test_failed_capture_waits_for_fixture_and_persists_complete_evidence(self) -> None:
         fixture_status_calls = 0
         capture_status_calls = 0
