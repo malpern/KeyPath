@@ -336,7 +336,7 @@ class ScreenshotTestCase: XCTestCase {
 /// filter. On current macOS/Xcode that filter can raise an Objective-C exception
 /// (`CGRectValue` sent to NSConcreteValue) and crash xctest. Keep rendering in
 /// AppKit, but compare decoded RGBA pixels without Core Image.
-private func appKitPNGStrategy(
+func appKitPNGStrategy(
     precision: Float,
     perceptualPrecision: Float
 ) -> Snapshotting<NSImage, Data> {
