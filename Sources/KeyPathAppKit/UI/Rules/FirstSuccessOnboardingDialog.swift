@@ -741,10 +741,10 @@ private struct FirstSuccessBenefits: View {
                 )
                 FirstSuccessBenefitRow(
                     icon: "shield",
-                    title: session.hyperPhase.isInstalled
+                    title: session.capsLockHasHyperHold
                         ? "Your hold shortcut stays Hyper"
                         : "Keep what you need",
-                    detail: session.hyperPhase.isInstalled
+                    detail: session.capsLockHasHyperHold
                         ? "Holding Caps Lock still prepares Hyper. You can change or turn off either action in Rules at any time."
                         : "Hold Caps Lock when you want its original action. You can change or turn this off in Rules at any time.",
                     tone: palette.accent.color
@@ -1150,7 +1150,7 @@ private struct FirstSuccessKeyboardHero: View {
         case .capsApplying:
             Text("Caps Lock is being changed to type Escape when tapped.", bundle: KeyPathAppKitResources.bundle)
         case .capsInstalled:
-            if session.hyperPhase.isInstalled {
+            if session.capsLockHasHyperHold {
                 Text("Caps Lock types Escape when tapped and prepares Hyper when held.", bundle: KeyPathAppKitResources.bundle)
             } else {
                 Text("Caps Lock now types Escape when tapped. Its hold action remains available and unchanged.", bundle: KeyPathAppKitResources.bundle)

@@ -269,7 +269,10 @@ struct AppMenuCommands: Commands {
     @MainActor
     private func replayFirstSuccessTour() {
         AppLogger.shared.log("🎓 [Menu] Replaying first-success tour")
-        FirstSuccessOnboardingWindowController.show(kanataViewModel: viewModel)
+        FirstSuccessOnboardingWindowController.show(
+            kanataViewModel: viewModel,
+            source: .replay
+        )
     }
 
     private func installCommandLineTool() {
