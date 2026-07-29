@@ -1110,11 +1110,20 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 private enum HIDCaptureJigMain {
     static func main() {
         let application = NSApplication.shared
+        installApplicationIcon(on: application)
         installMainMenu(on: application)
         let delegate = AppDelegate()
         application.delegate = delegate
         application.run()
         withExtendedLifetime(delegate) {}
+    }
+
+    private static func installApplicationIcon(on application: NSApplication) {
+        guard let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+              let image = NSImage(contentsOf: url)
+        else { return }
+        image.isTemplate = false
+        application.applicationIconImage = image
     }
 
     private static func installMainMenu(on application: NSApplication) {

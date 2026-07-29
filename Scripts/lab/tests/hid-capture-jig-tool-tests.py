@@ -112,6 +112,7 @@ class HIDCaptureJigToolTests(unittest.TestCase):
 
         self.assertIn('forResource: "AppIcon"', source)
         self.assertIn("drawJigLogo", source)
+        self.assertIn("application.applicationIconImage = image", source)
         self.assertNotIn("KeyPathLogo", source)
         self.assertIn(
             'rm -f "$app_path/Contents/Resources/KeyPathLogo.icns"',
