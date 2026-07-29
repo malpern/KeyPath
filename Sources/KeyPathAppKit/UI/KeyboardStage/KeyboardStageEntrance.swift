@@ -46,8 +46,15 @@ struct KeyboardStageCinematicLighting: Equatable, Sendable {
         )
     }
 
+    /// The front's travel is eased, not linear: the keyboard occupies the
+    /// trailing ~58% of the window, so a linear sweep crosses every keycap in
+    /// the first ~0.28 s of the reveal and spends the rest on flat copy. The
+    /// ease-in keeps roughly 60% of the duration on the keyboard span.
+    static let frontTravelExponent: Float = 1.9
+
     static func frontX(for entrance: KeyboardStageEntranceFrame) -> Float {
-        frontStart + (frontEnd - frontStart) * entrance.progress
+        let eased = pow(entrance.progress, frontTravelExponent)
+        return frontStart + (frontEnd - frontStart) * eased
     }
 
     static func exposure(

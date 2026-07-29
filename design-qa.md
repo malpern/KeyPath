@@ -41,6 +41,49 @@ No actionable P0, P1, or P2 mismatch remains in the reviewed state.
 - P3 — The generated reference uses slightly irregular, painterly highlights. The implementation stays deterministic and physically coherent, so exact per-pixel highlight placement differs while preserving the same lighting direction and depth hierarchy.
 - P3 — Window traffic-light state varies with focus during automated capture and is outside the onboarding content hierarchy.
 
+## Iteration 2 — directional-light pass
+
+An independent installed-app review against the source image found the remaining
+gap concentrated in one theme: the reference's light is directional while the
+implementation's was symmetric. This pass addressed that in the Metal fragment
+shader and the shared entrance model, verified from fresh installed replays.
+
+- Directional rims: every additive edge term (bevel specular, lower bevel
+  catch, inner rim, emphasis bevel, accent stroke) now follows a
+  light-facing mask during the dark hold, so keycap rims catch on the upper
+  right and fall away on the far side instead of outlining evenly. The lesson
+  key's dark-room rim resolves toward white with the blue halo outside,
+  matching the reference's bevel-catch grammar.
+- Deck graze: the warm sweep reaches further left, roughly doubles in
+  strength, and pools through a large-scale noise mask so the aluminum reads
+  as a photographed area light rather than a uniform tint.
+- Wells and shadows: dark-hold well envelopes widen and contact/cast shadows
+  deepen (entrance only — the settled light state keeps its original softer
+  weights), grounding each cap in a visible cavity.
+- Legend field response: aperture brightness and warmth now vary along the
+  light axis (a ±20% spatial emission scale in the legend fragment), replacing
+  the perfectly even backlight panel.
+- Physical press: a pressed cap now darkens toward its lower edge and catches
+  light on its top bevel instead of only swapping to a flat accent fill.
+- Reveal pacing: the light front's travel is eased (`pow(progress, 1.9)`), so
+  roughly 60% of the 0.75 s reveal crosses the keyboard span; a capture burst
+  now lands multiple frames of the feathered front crossing individual
+  keycaps, where the linear sweep previously crossed them in ~0.28 s.
+- Lesson copy overflow: the copy column shows a bottom fade whenever content
+  overflows and the reader is not at the bottom, so the launcher step's third
+  benefit row no longer appears clipped mid-sentence with no affordance.
+
+Evidence (installed replay, window-server capture):
+
+- Dark hold: `/tmp/keypath-onboarding-directional-dark.png`
+- Front crossing keycaps: `/tmp/keypath-onboarding-directional-midcross.png`
+- Settled light endpoint (unchanged): `/tmp/keypath-onboarding-directional-light.png`
+
+Remaining follow-ups (deliberately out of scope for this pass): left-aligned
+legends on wide keys to match MacBook hardware, and moving the launcher/Rules
+capsule affordances out of the keycap metaphor into native chips above the
+deck.
+
 ## Validation
 
 - `git diff --check`: passed.
