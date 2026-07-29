@@ -263,7 +263,7 @@ final class ConfigReloadCoordinator {
         }
 
         let message = "Kanata did not become ready after restarting; config reload was not applied"
-        AppLogger.shared.warn("⚠️ [Reload] \(message)")
+        AppLogger.shared.warnUnlessQuietTest("⚠️ [Reload] \(message)")
         NotificationCenter.default.post(
             name: .configReloadFailed,
             object: self,
@@ -290,7 +290,7 @@ final class ConfigReloadCoordinator {
             return .pending
         case .rejected:
             let message = result.errorMessage ?? "Config reload was rejected"
-            AppLogger.shared.warn("⚠️ [Reload] Deferred config reload rejected: \(message)")
+            AppLogger.shared.warnUnlessQuietTest("⚠️ [Reload] Deferred config reload rejected: \(message)")
             NotificationCenter.default.post(
                 name: .configReloadFailed,
                 object: self,
