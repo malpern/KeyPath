@@ -43,6 +43,7 @@ private final class MutableRuntimeTransition {
     var isTransitioning: Bool
     var waitCount = 0
     var reloadCount = 0
+    var tcpReloadCount = 0
 
     init(isTransitioning: Bool) {
         self.isTransitioning = isTransitioning
@@ -93,6 +94,7 @@ struct ConfigReloadCoordinatorTests {
         runtimeTransitioning: Bool = false,
         runtimeTransitionState: MutableRuntimeTransition? = nil,
         tcpReloadResult: TCPReloadResult? = nil,
+        tcpReloadOverride customTCPReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)? = nil,
         transitionRetryMaximumPolls: Int = Int((RuntimeStartupTiming.uiGracePeriod / 0.5).rounded(.up)),
         transitionRetryWait: @escaping @MainActor @Sendable () async -> Void = {
             await Task.yield()
@@ -114,7 +116,9 @@ struct ConfigReloadCoordinatorTests {
         let processLifecycle = ProcessLifecycleManager()
         let transitionState = runtimeTransitionState
             ?? MutableRuntimeTransition(isTransitioning: runtimeTransitioning)
-        let tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)? = if let tcpReloadResult {
+        let tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)? = if let customTCPReloadOverride {
+            customTCPReloadOverride
+        } else if let tcpReloadResult {
             { tcpReloadResult }
         } else {
             nil
@@ -257,6 +261,32 @@ struct ConfigReloadCoordinatorTests {
         let didRetry = await coordinator.retryAfterRuntimeTransition()
 
         #expect(didRetry == true)
+        #expect(transition.waitCount == 1)
+        #expect(transition.reloadCount == 1)
+    }
+
+    @Test("transition retry checks reload outcome and retries a transient failure")
+    func transitionRetryChecksReloadOutcome() async {
+        let transition = MutableRuntimeTransition(isTransitioning: false)
+        let (coordinator, _, _) = Self.makeSUT(
+            healthy: true,
+            runtimeTransitionState: transition,
+            tcpReloadOverride: {
+                transition.tcpReloadCount += 1
+                if transition.tcpReloadCount == 1 {
+                    return .networkError("Connection closed")
+                }
+                return .success(response: "ok")
+            },
+            transitionRetryMaximumPolls: 2,
+            transitionRetryWait: { transition.waitCount += 1 }
+        )
+        coordinator.onReloadSuccess = { transition.reloadCount += 1 }
+
+        let didRetry = await coordinator.retryAfterRuntimeTransition()
+
+        #expect(didRetry == true)
+        #expect(transition.tcpReloadCount == 2)
         #expect(transition.waitCount == 1)
         #expect(transition.reloadCount == 1)
     }

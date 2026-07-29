@@ -56,7 +56,7 @@ final class ConfigReloadCoordinator {
 
     /// Main reload method using TCP protocol.
     /// Checks service health, permission gates, and delegates to TCP reload.
-    func triggerConfigReload() async -> ReloadResult {
+    func triggerConfigReload(notifyOnFailure: Bool = true) async -> ReloadResult {
         // Use the manager refresh path instead of the unbounded synchronous
         // currentManagementState cache; the underlying SMAppService provider
         // still coalesces IPC with a short TTL.
@@ -147,7 +147,7 @@ final class ConfigReloadCoordinator {
             // notify as before.
             if isCooldownBlockMessage(errorMessage) {
                 scheduleDeferredReloadAfterCooldown()
-            } else {
+            } else if notifyOnFailure {
                 NotificationCenter.default.post(
                     name: .configReloadFailed,
                     object: self,
@@ -203,7 +203,6 @@ final class ConfigReloadCoordinator {
             guard let self, !Task.isCancelled else { return }
             AppLogger.shared.log("🔁 [Reload] Firing deferred reload after cooldown expiry")
             await triggerReload()
-            deferredReloadTask = nil
         }
     }
 
@@ -222,7 +221,6 @@ final class ConfigReloadCoordinator {
                     "⚠️ [Reload] Runtime did not become ready before deferred reload grace expired"
                 )
             }
-            deferredReloadTask = nil
         }
     }
 
@@ -234,13 +232,13 @@ final class ConfigReloadCoordinator {
         for _ in 0 ..< transitionRetryMaximumPolls {
             guard !Task.isCancelled else { return false }
 
-            if await retryReloadIfRuntimeReady() { return true }
+            if await retryReloadIfRuntimeReady() == true { return true }
 
             await transitionRetryWait()
         }
 
         guard !Task.isCancelled else { return false }
-        if await retryReloadIfRuntimeReady() { return true }
+        if await retryReloadIfRuntimeReady() == true { return true }
 
         let message = "Kanata did not become ready after restarting; config reload was not applied"
         NotificationCenter.default.post(
@@ -251,15 +249,15 @@ final class ConfigReloadCoordinator {
         return false
     }
 
-    private func retryReloadIfRuntimeReady() async -> Bool {
-        guard !isRuntimeTransitioning() else { return false }
+    private func retryReloadIfRuntimeReady() async -> Bool? {
+        guard !isRuntimeTransitioning() else { return nil }
 
         let health = await healthStatusProvider(PreferencesService.shared.tcpServerPort)
-        guard health.isHealthy else { return false }
+        guard health.isHealthy else { return nil }
 
         AppLogger.shared.log("🔁 [Reload] Retrying config reload after runtime transition")
-        await triggerReload()
-        return true
+        let result = await triggerConfigReload(notifyOnFailure: false)
+        return result.isSuccess
     }
 
     /// TCP-based config reload (no authentication required - see ADR-013)
