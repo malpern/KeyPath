@@ -250,6 +250,19 @@ The packaged zero-touch command was then validated separately in 7.1 seconds wit
 reports, 16/16 characters, clean release, and exact independent result. Its timestamped evidence is
 `~/.local/state/keypath-hid-capture-jig/artifacts/showroom-20260729T030744Z.json`.
 
+The saved showroom command now runs 14 cycles for a 20.006-second active presentation. Firmware
+build `612941a38ed8` submitted all 560 expected reports; the Jig captured all 224 expected
+characters exactly, observed no capture issues, and verified every key and modifier released. The
+run deliberately used `admissionMode: demo-bypass`, so it is presentation evidence rather than a
+strict KeyPath acceptance result. Its artifact is
+`~/.local/state/keypath-hid-capture-jig/artifacts/showroom-20260729T053642Z.json`.
+
+The immediately preceding attempt was rejected before HID emission because an older Jig executable
+was still resident after the app bundle had been rebuilt. Showroom and offline demo launches now
+restart the source-hashed Jig before arming, preventing an old in-memory protocol or admission policy
+from being mistaken for the current build. The rejected attempt retained an inconclusive artifact
+and confirmed all keys and modifiers released.
+
 The preceding offline attempt is not counted as a product or fixture failure: the Jig remained
 focused and ready but received zero events, while the fixture recorded no top-power or touch event.
 That proves only that the physical two-step trigger was not completed during its 30-second window.
