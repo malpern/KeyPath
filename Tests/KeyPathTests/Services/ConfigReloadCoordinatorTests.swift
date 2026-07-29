@@ -95,7 +95,7 @@ struct ConfigReloadCoordinatorTests {
         tcpReloadResult: TCPReloadResult? = nil,
         transitionRetryMaximumPolls: Int = Int((RuntimeStartupTiming.uiGracePeriod / 0.5).rounded(.up)),
         transitionRetryWait: @escaping @MainActor @Sendable () async -> Void = {
-            try? await Task.sleep(for: .milliseconds(500))
+            await Task.yield()
         }
     ) -> (
         coordinator: ConfigReloadCoordinator,
