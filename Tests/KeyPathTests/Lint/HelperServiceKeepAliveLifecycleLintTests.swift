@@ -6,16 +6,19 @@ final class HelperServiceKeepAliveLifecycleLintTests: XCTestCase {
         let source = try helperServiceSource()
         let stopBody = try functionBody(named: "stopKanataService", in: source)
 
+        let inspect = try XCTUnwrap(stopBody.range(of: "Self.serviceProcessID(Self.kanataServiceID)"))
         let disable = try XCTUnwrap(stopBody.range(of: "[\"disable\", Self.kanataServiceTarget]"))
-        let signal = try XCTUnwrap(stopBody.range(of: "[\"kill\", \"SIGTERM\", Self.kanataServiceTarget]"))
+        let signal = try XCTUnwrap(stopBody.range(of: "Self.run(\"/bin/kill\", [\"-TERM\", processID]"))
         let restore = try XCTUnwrap(
             stopBody.range(
                 of: "[\"enable\", Self.kanataServiceTarget]",
                 range: signal.upperBound ..< stopBody.endIndex
             )
         )
+        XCTAssertLessThan(inspect.lowerBound, disable.lowerBound)
         XCTAssertLessThan(disable.lowerBound, signal.lowerBound)
         XCTAssertLessThan(signal.lowerBound, restore.lowerBound)
+        XCTAssertFalse(stopBody.contains("[\"kill\", \"SIGTERM\", Self.kanataServiceTarget]"))
     }
 
     func testHelperReenablesServiceBeforeStartingOrRestartingIt() throws {

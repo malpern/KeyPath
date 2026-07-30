@@ -47,7 +47,13 @@ reported `Could not stop Kanata service`.
 
 The helper now disables `system/com.keypath.kanata` before signaling it. Start and restart
 explicitly re-enable the job before kickstart, and an unexpected signal failure restores the
-enabled state. The helper contract advanced to 1.3.1 so installations cannot retain the earlier
-behavior while reporting the helper as fresh. A lifecycle lint test preserves the required
-disable-before-kill and enable-before-kickstart ordering; installed-app acceptance verifies the
-real launchd transition.
+enabled state.
+
+A second installed-app acceptance run exposed a launchd ordering detail: after `launchctl
+disable`, `launchctl kill system/com.keypath.kanata` could no longer resolve the target even
+though its existing process was still alive. The helper now captures the registered service PID
+before disabling the job, then signals that exact PID after the disable succeeds. The helper
+contract advanced to 1.3.2 so installations cannot retain either earlier behavior while
+reporting the helper as fresh. A lifecycle lint test preserves the required
+inspect-before-disable-before-signal and enable-before-kickstart ordering; installed-app
+acceptance verifies the real launchd transition.
