@@ -73,7 +73,9 @@ final class KanataDaemonService {
         case unknown
 
         var isRunning: Bool {
-            if case .running = self { return true }
+            if case .running = self {
+                return true
+            }
             return false
         }
 
@@ -218,14 +220,14 @@ final class KanataDaemonService {
         // after the first unregister request. Verify the real postcondition,
         // retry the owning API once, then use the existing privileged bootout
         // path only if the stale job still survives.
-        if !(await waitForStoppedPostcondition()) {
+        if await !waitForStoppedPostcondition() {
             AppLogger.shared.warn(
                 "⚠️ [KanataDaemonService] Job survived unregister; retrying SMAppService removal"
             )
             try? await unregisterDaemon()
         }
 
-        if !(await waitForStoppedPostcondition()) {
+        if await !waitForStoppedPostcondition() {
             AppLogger.shared.warn(
                 "⚠️ [KanataDaemonService] Stale job survived SMAppService retry; using privileged cleanup"
             )
