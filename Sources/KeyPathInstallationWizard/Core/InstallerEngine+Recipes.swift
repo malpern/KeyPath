@@ -68,7 +68,10 @@ public extension InstallerEngine {
                 id: InstallerRecipeID.installPrivilegedHelper,
                 type: .repairPrivilegedHelper,
                 serviceID: KeyPathConstants.Bundle.helperID,
-                expectedPostconditions: [.helperFreshOrApprovalPending]
+                expectedPostconditions: [
+                    .helperReadyOrApprovalPending,
+                    .helperFreshOrApprovalPending
+                ]
             )
 
         case .reinstallPrivilegedHelper:
@@ -76,7 +79,10 @@ public extension InstallerEngine {
                 id: InstallerRecipeID.reinstallPrivilegedHelper,
                 type: .repairPrivilegedHelper,
                 serviceID: KeyPathConstants.Bundle.helperID,
-                expectedPostconditions: [.helperFreshOrApprovalPending]
+                expectedPostconditions: [
+                    .helperReadyOrApprovalPending,
+                    .helperFreshOrApprovalPending
+                ]
             )
 
         case .startKarabinerDaemon:

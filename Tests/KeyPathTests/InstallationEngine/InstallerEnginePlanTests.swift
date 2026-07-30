@@ -93,7 +93,10 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
             plan.recipes.first { $0.id == InstallerRecipeID.reinstallPrivilegedHelper }
         )
 
-        XCTAssertEqual(recipe.expectedPostconditions, [.helperFreshOrApprovalPending])
+        XCTAssertEqual(
+            recipe.expectedPostconditions,
+            [.helperReadyOrApprovalPending, .helperFreshOrApprovalPending]
+        )
     }
 
     func testInstallRefreshesWorkingButStaleHelperAfterAppUpdate() async {
@@ -137,6 +140,25 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
 
         XCTAssertTrue(InstallerPostcondition.helperFreshOrApprovalPending.isSatisfied(by: freshContext))
         XCTAssertTrue(InstallerPostcondition.helperFreshOrApprovalPending.isSatisfied(by: approvalContext))
+    }
+
+    func testHelperInstallPostconditionsRejectExactVersionWhenHelperIsNotWorking() async throws {
+        let context = SystemContextBuilder(
+            helperReady: false,
+            helperVersion: WizardHelperConstants.expectedHelperVersion,
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
+        let plan = await InstallerEngine().makePlan(for: .repair, context: context)
+        let recipe = try XCTUnwrap(
+            plan.recipes.first { $0.id == InstallerRecipeID.installPrivilegedHelper }
+        )
+
+        XCTAssertFalse(
+            recipe.expectedPostconditions.allSatisfy { $0.isSatisfied(by: context) }
+        )
+        XCTAssertFalse(InstallerPostcondition.helperReadyOrApprovalPending.isSatisfied(by: context))
+        XCTAssertFalse(InstallerPostcondition.helperFreshOrApprovalPending.isSatisfied(by: context))
     }
 
     func testRepairRefreshesHealthyButStaleKanataRuntimeAfterAppUpdate() async throws {
