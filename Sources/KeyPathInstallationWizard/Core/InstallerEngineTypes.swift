@@ -223,6 +223,8 @@ public enum InstallerPostcondition: String, Codable, Sendable, Equatable, CaseIt
     case vhidServicesHealthy = "vhid-services-healthy"
     case karabinerDaemonRunning = "karabiner-daemon-running"
     case helperReadyOrApprovalPending = "helper-ready-or-approval-pending"
+    case helperFreshOrApprovalPending = "helper-fresh-or-approval-pending"
+    case runtimeFreshOrApprovalPending = "runtime-fresh-or-approval-pending"
     case virtualHIDDriverInstalled = "virtualhid-driver-installed"
     case virtualHIDDeviceActivated = "virtualhid-device-activated"
     case conflictsResolved = "conflicts-resolved"
@@ -240,6 +242,13 @@ public enum InstallerPostcondition: String, Codable, Sendable, Equatable, CaseIt
             return context.services.karabinerDaemonRunning
         case .helperReadyOrApprovalPending:
             return context.helper.isReady || context.helper.requiresApproval
+        case .helperFreshOrApprovalPending:
+            return context.helper.freshness(
+                expectedVersion: WizardHelperConstants.expectedHelperVersion
+            ) == .fresh || context.helper.requiresApproval
+        case .runtimeFreshOrApprovalPending:
+            return context.services.kanataServiceFreshness == .fresh
+                || context.services.loginItemsApprovalRequired == true
         case .virtualHIDDriverInstalled:
             return context.components.karabinerDriverInstalled
         case .virtualHIDDeviceActivated:
