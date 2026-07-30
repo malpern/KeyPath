@@ -69,5 +69,7 @@ to emulate the owning app's SMAppService lifecycle with launchctl signals.
 
 Lifecycle verification keeps synchronous SMAppService status IPC out of polling loops: stop
 reads registration status once per bounded cleanup phase and polls launchd process evidence
-between phases. Start reports success only after registration is enabled and both process and
-TCP readiness are proven; pending approval and failed launch readiness are explicit failures.
+between phases. It allows normal shutdown slightly longer than launchd's five-second exit
+timeout before escalating to privileged cleanup. Start reports success only after registration
+is enabled and both process and TCP readiness are proven; pending approval and failed launch
+readiness are explicit failures.

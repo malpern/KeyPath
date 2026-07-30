@@ -183,7 +183,9 @@ final class KanataDaemonService {
     }
 
     private func waitForStoppedPostcondition(
-        maxAttempts: Int = 10,
+        // The launchd plist allows a five-second exit timeout. Give normal
+        // SMAppService shutdown slightly longer before escalating to the helper.
+        maxAttempts: Int = 60,
         delayMilliseconds: Int = 100
     ) async -> StoppedPostcondition {
         // Registration is correctness-critical but SMAppService.status is slow
