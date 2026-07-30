@@ -52,10 +52,10 @@ Post-update:
   for an explicit user action; relaunch-time detection remains read-only.
 - If everything is healthy, continue silently.
 
-Sparkle is the only client-side release detector. A KeyPath update replaces the
-signed app bundle containing KeyPath, Kanata, the host bridge, and the simulator
-as one tested unit. The client does not discover or install arbitrary upstream
-Kanata releases independently.
+Sparkle is the KeyPath app's release detector and installer. A KeyPath update
+replaces the signed app bundle containing KeyPath, Kanata, the host bridge, and
+the simulator as one tested unit. The app does not discover or install
+arbitrary upstream Kanata releases independently.
 
 ## Reason Code Logging
 
