@@ -115,10 +115,6 @@ final class KanataDaemonService {
             // Drop the centralized status cache so the next read re-fetches.
             await SystemStateProvider.shared.invalidateSMAppServiceStatus(plistName: Constants.daemonPlistName)
         } catch {
-            if TestEnvironment.isRunningTests {
-                AppLogger.shared.log("🧪 [KanataDaemonService] Ignoring unregister error in tests: \(error)")
-                return
-            }
             throw KanataDaemonServiceError.stopFailed(reason: error.localizedDescription)
         }
     }
@@ -320,7 +316,7 @@ final class KanataDaemonService {
             // A bootout can stop the process, but only the owning API can remove
             // a still-enabled registration and prevent a later KeepAlive respawn.
             if stoppedPostcondition == .registrationPresent {
-                try await unregisterDaemon()
+                try? await unregisterDaemon()
             }
             stoppedPostcondition = await waitForStoppedPostcondition(maxAttempts: 20)
         }

@@ -5,11 +5,16 @@ import ServiceManagement
 
 /// Mock implementation of SMAppServiceProtocol for testing
 private class MockSMAppService: SMAppServiceProtocol, @unchecked Sendable {
+    enum MockError: Error {
+        case unregisterFailed
+    }
+
     var status: SMAppService.Status
     var registerCalled = false
     var unregisterCalled = false
     var calls: [String] = []
     var statusesAfterUnregister: [SMAppService.Status] = []
+    var failingUnregisterCalls: Set<Int> = []
 
     init(status: SMAppService.Status = .notRegistered) {
         self.status = status
@@ -27,6 +32,9 @@ private class MockSMAppService: SMAppServiceProtocol, @unchecked Sendable {
     func unregister() async throws {
         unregisterCalled = true
         calls.append("unregister")
+        if failingUnregisterCalls.contains(calls.count(where: { $0 == "unregister" })) {
+            throw MockError.unregisterFailed
+        }
         status = statusesAfterUnregister.isEmpty
             ? .notRegistered
             : statusesAfterUnregister.removeFirst()
@@ -197,6 +205,23 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
 
         XCTAssertEqual(mock.calls, ["unregister"])
         XCTAssertEqual(privilegedStopCalls, 1)
+        XCTAssertEqual(mock.status, .notRegistered)
+    }
+
+    func testStopVerifiesFinalStateWhenPostFallbackUnregisterThrows() async throws {
+        let mock = MockSMAppService(status: .enabled)
+        mock.statusesAfterUnregister = [.enabled, .enabled]
+        mock.failingUnregisterCalls = [3]
+        useService(mock)
+
+        KanataDaemonService.privilegedStopOverride = {
+            mock.status = .notRegistered
+        }
+        service = KanataDaemonService()
+
+        try await service.stop()
+
+        XCTAssertEqual(mock.calls, ["unregister", "unregister", "unregister"])
         XCTAssertEqual(mock.status, .notRegistered)
     }
 
