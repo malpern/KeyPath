@@ -15,6 +15,49 @@ public enum ServiceProcessStatus: Equatable {
 /// Single source of truth for service status evaluation across all wizard pages
 /// Pure function approach - no side effects, consistent results
 public enum ServiceStatusEvaluator {
+    /// The service page rechecks only while the runtime is genuinely in a
+    /// transient startup state. The cap prevents a stale lifecycle signal from
+    /// leaving the wizard in an endless spinner.
+    public static let transientRefreshAttemptLimit = 30
+
+    public static func shouldRetryTransientStatus(
+        runtimeStatus: WizardRuntimeStatus,
+        isInTransientStartupWindow: Bool,
+        completedAttempts: Int
+    ) -> Bool {
+        guard completedAttempts < transientRefreshAttemptLimit else { return false }
+        return isTransientStartupStatus(
+            runtimeStatus: runtimeStatus,
+            isInTransientStartupWindow: isInTransientStartupWindow
+        )
+    }
+
+    public static func didExhaustTransientStatus(
+        runtimeStatus: WizardRuntimeStatus,
+        isInTransientStartupWindow: Bool,
+        completedAttempts: Int
+    ) -> Bool {
+        guard completedAttempts >= transientRefreshAttemptLimit else { return false }
+        return isTransientStartupStatus(
+            runtimeStatus: runtimeStatus,
+            isInTransientStartupWindow: isInTransientStartupWindow
+        )
+    }
+
+    private static func isTransientStartupStatus(
+        runtimeStatus: WizardRuntimeStatus,
+        isInTransientStartupWindow: Bool
+    ) -> Bool {
+        switch runtimeStatus {
+        case .starting:
+            true
+        case .stopped:
+            isInTransientStartupWindow
+        case .running, .failed, .unknown:
+            false
+        }
+    }
+
     /// Evaluates a fresh runtime observation after an explicit lifecycle action.
     ///
     /// A successful lifecycle operation has already verified runtime readiness, so

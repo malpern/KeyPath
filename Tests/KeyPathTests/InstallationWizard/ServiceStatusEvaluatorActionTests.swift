@@ -3,6 +3,71 @@ import KeyPathWizardCore
 import XCTest
 
 final class ServiceStatusEvaluatorActionTests: XCTestCase {
+    func testTransientStartingStatusRetriesUntilAttemptLimit() {
+        XCTAssertTrue(
+            ServiceStatusEvaluator.shouldRetryTransientStatus(
+                runtimeStatus: .starting,
+                isInTransientStartupWindow: false,
+                completedAttempts: 1
+            )
+        )
+        XCTAssertFalse(
+            ServiceStatusEvaluator.shouldRetryTransientStatus(
+                runtimeStatus: .starting,
+                isInTransientStartupWindow: false,
+                completedAttempts: ServiceStatusEvaluator.transientRefreshAttemptLimit
+            )
+        )
+    }
+
+    func testStoppedStatusRetriesOnlyInsideTransientStartupWindow() {
+        XCTAssertTrue(
+            ServiceStatusEvaluator.shouldRetryTransientStatus(
+                runtimeStatus: .stopped,
+                isInTransientStartupWindow: true,
+                completedAttempts: 1
+            )
+        )
+        XCTAssertFalse(
+            ServiceStatusEvaluator.shouldRetryTransientStatus(
+                runtimeStatus: .stopped,
+                isInTransientStartupWindow: false,
+                completedAttempts: 1
+            )
+        )
+        XCTAssertTrue(
+            ServiceStatusEvaluator.didExhaustTransientStatus(
+                runtimeStatus: .stopped,
+                isInTransientStartupWindow: true,
+                completedAttempts: ServiceStatusEvaluator.transientRefreshAttemptLimit
+            )
+        )
+    }
+
+    func testSettledRuntimeStatusDoesNotRetry() {
+        XCTAssertFalse(
+            ServiceStatusEvaluator.shouldRetryTransientStatus(
+                runtimeStatus: .running(pid: 42),
+                isInTransientStartupWindow: true,
+                completedAttempts: 1
+            )
+        )
+        XCTAssertFalse(
+            ServiceStatusEvaluator.shouldRetryTransientStatus(
+                runtimeStatus: .failed(reason: "boom"),
+                isInTransientStartupWindow: true,
+                completedAttempts: 1
+            )
+        )
+        XCTAssertFalse(
+            ServiceStatusEvaluator.didExhaustTransientStatus(
+                runtimeStatus: .running(pid: 42),
+                isInTransientStartupWindow: true,
+                completedAttempts: ServiceStatusEvaluator.transientRefreshAttemptLimit
+            )
+        )
+    }
+
     func testSuccessfulActionUsesFreshRunningObservationOverStaleIssue() {
         let status = ServiceStatusEvaluator.evaluateAfterAction(
             operationSucceeded: true,
