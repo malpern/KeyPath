@@ -8,7 +8,6 @@ public struct WizardKanataServicePage: View {
 
     @State private var isPerformingAction = false
     @State private var serviceStatus: ServiceStatus = .unknown
-    @State private var refreshTimer: Timer?
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
     @State private var refreshTask: Task<Void, Never>?
 
@@ -113,11 +112,9 @@ public struct WizardKanataServicePage: View {
         .background(WizardDesign.Colors.wizardBackground)
         .wizardDetailPage()
         .onAppear {
-            startAutoRefresh()
             refreshStatus()
         }
         .onDisappear {
-            stopAutoRefresh()
             refreshTask?.cancel()
             refreshTask = nil
         }
@@ -295,34 +292,62 @@ public struct WizardKanataServicePage: View {
             AppLogger.shared.log("⚠️ [WizardKanataServicePage] kanataManager not configured — skipping status refresh")
             return
         }
-        let runtimeStatus = await kanataManager.currentRuntimeStatus()
-        let isInTransientStartupWindow = await kanataManager.isInTransientRuntimeStartupWindow()
+        var completedAttempts = 0
 
-        let processStatus = if let actionSucceeded {
-            ServiceStatusEvaluator.evaluateAfterAction(
-                operationSucceeded: actionSucceeded,
-                kanataIsRunning: runtimeStatus.isRunning,
-                systemState: systemState,
-                issues: issues
-            )
-        } else {
-            ServiceStatusEvaluator.evaluate(
-                kanataIsRunning: runtimeStatus.isRunning,
-                systemState: systemState,
-                issues: issues
-            )
-        }
+        while !Task.isCancelled {
+            let runtimeStatus = await kanataManager.currentRuntimeStatus()
+            let isInTransientStartupWindow = await kanataManager.isInTransientRuntimeStartupWindow()
 
-        guard !Task.isCancelled else { return }
-
-        await MainActor.run {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                applyStatusUpdate(
-                    runtimeStatus: runtimeStatus,
-                    processStatus: processStatus,
-                    isInTransientStartupWindow: isInTransientStartupWindow
+            let processStatus = if let actionSucceeded {
+                ServiceStatusEvaluator.evaluateAfterAction(
+                    operationSucceeded: actionSucceeded,
+                    kanataIsRunning: runtimeStatus.isRunning,
+                    systemState: systemState,
+                    issues: issues
+                )
+            } else {
+                ServiceStatusEvaluator.evaluate(
+                    kanataIsRunning: runtimeStatus.isRunning,
+                    systemState: systemState,
+                    issues: issues
                 )
             }
+
+            guard !Task.isCancelled else { return }
+
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    applyStatusUpdate(
+                        runtimeStatus: runtimeStatus,
+                        processStatus: processStatus,
+                        isInTransientStartupWindow: isInTransientStartupWindow
+                    )
+                }
+            }
+
+            completedAttempts += 1
+            let shouldRetry = ServiceStatusEvaluator.shouldRetryTransientStatus(
+                runtimeStatus: runtimeStatus,
+                isInTransientStartupWindow: isInTransientStartupWindow,
+                completedAttempts: completedAttempts
+            )
+            guard shouldRetry else {
+                if completedAttempts >= ServiceStatusEvaluator.transientRefreshAttemptLimit,
+                   runtimeStatus == .starting
+                {
+                    await MainActor.run {
+                        serviceStatus = .failed(
+                            error: "Runtime startup did not finish. Click Restart to retry."
+                        )
+                    }
+                }
+                return
+            }
+
+            AppLogger.shared.log(
+                "⏳ [WizardKanataServicePage] Runtime is still starting; scheduling bounded status retry \(completedAttempts)/\(ServiceStatusEvaluator.transientRefreshAttemptLimit)"
+            )
+            guard await WizardSleep.seconds(1) else { return }
         }
     }
 
@@ -591,21 +616,5 @@ public struct WizardKanataServicePage: View {
         } else {
             "Check log file for details"
         }
-    }
-
-    // MARK: - Auto Refresh
-
-    private func startAutoRefresh() {
-        // DISABLED: This timer calls refreshStatus() which may trigger invasive permission checks
-        // that cause KeyPath to auto-add to Input Monitoring system preferences
-
-        AppLogger.shared.log(
-            "🔄 [WizardKanataServicePage] Auto-refresh timer DISABLED to prevent invasive permission checks"
-        )
-    }
-
-    private func stopAutoRefresh() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
     }
 }
