@@ -41,12 +41,16 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
     /// Point the centralized status provider (#853) at the same status the service's
     /// factory would report, with a zero TTL so each refresh re-reads. `evaluateStatus`
     /// now sources status from the provider rather than the service's own factory.
-    private func useStatus(_ status: SMAppService.Status) {
-        KanataDaemonService.smServiceFactory = { _ in MockSMAppService(status: status) }
+    private func useService(_ service: MockSMAppService) {
+        KanataDaemonService.smServiceFactory = { _ in service }
         SMAppServiceStatusProvider.shared = SMAppServiceStatusProvider(
             cacheTTL: 0,
-            serviceFactory: { _ in MockSMAppService(status: status) }
+            serviceFactory: { _ in service }
         )
+    }
+
+    private func useStatus(_ status: SMAppService.Status) {
+        useService(MockSMAppService(status: status))
     }
 
     override func setUp() async throws {
@@ -61,6 +65,7 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
         // runner is a dev Mac with a real kanata listening on the default port, which
         // would otherwise make the probe succeed and contaminate these status tests.
         KanataDaemonService.tcpProbeOverride = { _, _ in false }
+        KanataDaemonService.runningPostconditionOverride = { true }
         KanataDaemonService.stoppedPostconditionOverride = { true }
 
         // 2. Create Service under test
@@ -71,6 +76,7 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
         KanataDaemonService.smServiceFactory = originalFactory
         SMAppServiceStatusProvider.shared = originalStatusProvider
         KanataDaemonService.tcpProbeOverride = nil
+        KanataDaemonService.runningPostconditionOverride = nil
         KanataDaemonService.stoppedPostconditionOverride = nil
         KanataDaemonService.privilegedStopOverride = nil
         service = nil
@@ -96,7 +102,7 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
 
     func testStartServiceRegisters() async throws {
         let mock = MockSMAppService(status: .notRegistered)
-        KanataDaemonService.smServiceFactory = { _ in mock }
+        useService(mock)
         service = KanataDaemonService()
 
         try await service.start()
@@ -107,7 +113,7 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
 
     func testRestartServiceUnregistersBeforeRegistering() async throws {
         let mock = MockSMAppService(status: .enabled)
-        KanataDaemonService.smServiceFactory = { _ in mock }
+        useService(mock)
         service = KanataDaemonService()
 
         try await service.restart()
@@ -117,9 +123,45 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
         XCTAssertEqual(mock.calls, ["unregister", "register"])
     }
 
+    func testStartServiceFailsExplicitlyWhenApprovalIsRequired() async {
+        let mock = MockSMAppService(status: .requiresApproval)
+        useService(mock)
+        service = KanataDaemonService()
+
+        do {
+            try await service.start()
+            XCTFail("Expected approval-required failure")
+        } catch let error as KanataDaemonServiceError {
+            XCTAssertEqual(error, .approvalRequired)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertFalse(mock.registerCalled)
+    }
+
+    func testStartServiceFailsWhenRegisteredRuntimeDoesNotBecomeReady() async {
+        let mock = MockSMAppService(status: .notRegistered)
+        useService(mock)
+        KanataDaemonService.runningPostconditionOverride = { false }
+        service = KanataDaemonService()
+
+        do {
+            try await service.start()
+            XCTFail("Expected runtime-readiness failure")
+        } catch let error as KanataDaemonServiceError {
+            guard case let .startFailed(reason) = error else {
+                return XCTFail("Expected startFailed, got \(error)")
+            }
+            XCTAssertTrue(reason.contains("process and TCP readiness"))
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
     func testStopRetriesUnregisterThenUsesPrivilegedFallbackForStaleJob() async throws {
         let mock = MockSMAppService(status: .enabled)
-        KanataDaemonService.smServiceFactory = { _ in mock }
+        useService(mock)
 
         var postconditionChecks = 0
         KanataDaemonService.stoppedPostconditionOverride = {

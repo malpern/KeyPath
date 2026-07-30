@@ -66,3 +66,8 @@ performs those operations in order. If macOS leaves a stale job across an app re
 retries the owning API once before using the existing helper-backed privileged cleanup. The
 helper remains the privilege boundary for operations that require root, but it no longer tries
 to emulate the owning app's SMAppService lifecycle with launchctl signals.
+
+Lifecycle verification keeps synchronous SMAppService status IPC out of polling loops: stop
+reads registration status once per bounded cleanup phase and polls launchd process evidence
+between phases. Start reports success only after registration is enabled and both process and
+TCP readiness are proven; pending approval and failed launch readiness are explicit failures.

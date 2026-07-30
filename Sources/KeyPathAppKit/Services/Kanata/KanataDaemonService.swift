@@ -6,11 +6,14 @@ import ServiceManagement
 
 /// Errors related to recovery-daemon operations.
 enum KanataDaemonServiceError: LocalizedError, Equatable {
+    case approvalRequired
     case startFailed(reason: String)
     case stopFailed(reason: String)
 
     var errorDescription: String? {
         switch self {
+        case .approvalRequired:
+            "Starting Kanata requires approval in System Settings."
         case let .startFailed(reason):
             "Failed to start Kanata service: \(reason)"
         case let .stopFailed(reason):
@@ -51,6 +54,7 @@ final class KanataDaemonService {
     // whatever is listening on the machine. DEBUG-only — production always probes.
     #if DEBUG
         nonisolated(unsafe) static var tcpProbeOverride: ((Int, Int) -> Bool)?
+        nonisolated(unsafe) static var runningPostconditionOverride: (() async -> Bool)?
         nonisolated(unsafe) static var stoppedPostconditionOverride: (() async -> Bool)?
         nonisolated(unsafe) static var privilegedStopOverride: (() async throws -> Void)?
     #endif
@@ -129,27 +133,71 @@ final class KanataDaemonService {
         }
     }
 
-    private func stoppedPostconditionSatisfied() async -> Bool {
+    private func currentRegistrationStatus() async -> SMAppService.Status {
+        await SystemStateProvider.shared
+            .freshSMAppServiceStatus(for: Constants.daemonPlistName)
+    }
+
+    private func processIsRunning() async -> Bool {
+        await pidCache.invalidateCache()
+        let processState = await detectProcessState()
+        return processState.isRunning
+    }
+
+    private func waitForRunningPostcondition(
+        maxAttempts: Int = 80,
+        delayMilliseconds: Int = 250
+    ) async -> Bool {
         #if DEBUG
-            if let override = Self.stoppedPostconditionOverride {
+            if let override = Self.runningPostconditionOverride {
                 return await override()
             }
         #endif
 
-        let status = await SystemStateProvider.shared
-            .freshSMAppServiceStatus(for: Constants.daemonPlistName)
-        await pidCache.invalidateCache()
-        let processState = await detectProcessState()
-        let isUnregistered = status == .notRegistered || status == .notFound
-        return isUnregistered && !processState.isRunning
+        for attempt in 1 ... maxAttempts {
+            if await processIsRunning() {
+                let tcpPort = PreferencesService.shared.tcpServerPort
+                let tcpAlive = await SystemStateProvider.shared
+                    .isTCPPortResponding(port: tcpPort, timeoutMs: 300)
+                if tcpAlive {
+                    return true
+                }
+            }
+            if attempt < maxAttempts {
+                try? await Task.sleep(for: .milliseconds(delayMilliseconds))
+            }
+        }
+        return false
     }
 
     private func waitForStoppedPostcondition(
         maxAttempts: Int = 10,
         delayMilliseconds: Int = 100
     ) async -> Bool {
+        #if DEBUG
+            if let override = Self.stoppedPostconditionOverride {
+                for attempt in 1 ... maxAttempts {
+                    if await override() {
+                        return true
+                    }
+                    if attempt < maxAttempts {
+                        try? await Task.sleep(for: .milliseconds(delayMilliseconds))
+                    }
+                }
+                return false
+            }
+        #endif
+
+        // Registration is correctness-critical but SMAppService.status is slow
+        // synchronous IPC. Fetch it once per unregister phase, then poll only the
+        // inexpensive launchd-backed process evidence while removal settles.
+        let status = await currentRegistrationStatus()
+        guard status == .notRegistered || status == .notFound else {
+            return false
+        }
+
         for attempt in 1 ... maxAttempts {
-            if await stoppedPostconditionSatisfied() {
+            if await !processIsRunning() {
                 return true
             }
             if attempt < maxAttempts {
@@ -203,10 +251,40 @@ final class KanataDaemonService {
     /// Start the service through its owning SMAppService registration.
     func start() async throws {
         AppLogger.shared.log("▶️ [KanataDaemonService] Start requested")
-        try await registerDaemon()
+
+        let finalRegistrationStatus: SMAppService.Status
+        switch await currentRegistrationStatus() {
+        case .enabled:
+            finalRegistrationStatus = .enabled
+        case .requiresApproval:
+            throw KanataDaemonServiceError.approvalRequired
+        case .notRegistered, .notFound:
+            try await registerDaemon()
+            finalRegistrationStatus = await currentRegistrationStatus()
+        @unknown default:
+            throw KanataDaemonServiceError.startFailed(reason: "Unknown SMAppService registration state")
+        }
+
+        switch finalRegistrationStatus {
+        case .enabled:
+            break
+        case .requiresApproval:
+            throw KanataDaemonServiceError.approvalRequired
+        case .notRegistered, .notFound:
+            throw KanataDaemonServiceError.startFailed(reason: "Registration did not persist")
+        @unknown default:
+            throw KanataDaemonServiceError.startFailed(reason: "Unknown SMAppService registration state")
+        }
+
+        guard await waitForRunningPostcondition() else {
+            throw KanataDaemonServiceError.startFailed(
+                reason: "Service registered but did not reach process and TCP readiness"
+            )
+        }
+
         await pidCache.invalidateCache()
-        lastObservedState = .unknown
-        AppLogger.shared.info("✅ [KanataDaemonService] Start requested successfully")
+        lastObservedState = await refreshStatus()
+        AppLogger.shared.info("✅ [KanataDaemonService] Started successfully")
     }
 
     /// Stop the service
