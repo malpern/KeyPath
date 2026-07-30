@@ -625,7 +625,10 @@ fragment float4 keypath_keyboard_stage_fragment(
     // A press tilts the cap away from the area light: the face darkens toward
     // its lower edge while the top bevel catches more, so compression stays
     // legible even under a saturated accent fill.
-    surfaceColor *= mix(1.0, mix(1.05, 0.80, verticalPosition), pressure);
+    // A MacBook cap drops flat: pressing dims the face slightly and almost
+    // uniformly as it sinks into its well. A strong top-to-bottom gradient
+    // here reads as the face hinging away at the front instead of traveling.
+    surfaceColor *= mix(1.0, mix(0.93, 0.88, verticalPosition), pressure);
     float crownHighlight = isKey
         ? pow(saturate(1.0 - length(faceCoordinate) * 0.52), 2.2)
             * faceMask
@@ -683,7 +686,7 @@ fragment float4 keypath_keyboard_stage_fragment(
     float pressTopCatch = isKey
         ? bevel * smoothstep(0.10, 0.85, -distanceGradient.y) * pressure
         : 0.0;
-    surfaceColor += neutralLight * pressTopCatch * mix(0.10, 0.16, illumination);
+    surfaceColor += neutralLight * pressTopCatch * mix(0.03, 0.05, illumination);
     float broadSpecularStrength = isDeck ? 0.026 : (isKey ? 0.012 : 0.026);
     surfaceColor += neutralLight * (
         specular * (broadSpecularStrength + illumination * 0.13)
