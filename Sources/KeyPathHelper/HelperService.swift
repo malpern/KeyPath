@@ -141,6 +141,16 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "startKanataService",
             operation: {
+                let enableResult = Self.run(
+                    "/bin/launchctl",
+                    ["enable", Self.kanataServiceTarget],
+                    timeout: 15
+                )
+                guard enableResult.status == 0 else {
+                    throw HelperError.operationFailed(
+                        "Failed to enable KeyPath Kanata service: \(enableResult.out)"
+                    )
+                }
                 let result = Self.run(
                     "/bin/launchctl",
                     ["kickstart", Self.kanataServiceTarget],
@@ -161,6 +171,19 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "stopKanataService",
             operation: {
+                // com.keypath.kanata is KeepAlive. Disable it before signaling the
+                // process so launchd does not immediately respawn it while the CLI
+                // is waiting for the stopped postcondition.
+                let disableResult = Self.run(
+                    "/bin/launchctl",
+                    ["disable", Self.kanataServiceTarget],
+                    timeout: 15
+                )
+                guard disableResult.status == 0 else {
+                    throw HelperError.operationFailed(
+                        "Failed to disable KeyPath Kanata service: \(disableResult.out)"
+                    )
+                }
                 let result = Self.run(
                     "/bin/launchctl",
                     ["kill", "SIGTERM", Self.kanataServiceTarget],
@@ -175,6 +198,13 @@ class HelperService: NSObject, HelperProtocol {
                     return
                 }
                 guard result.status == 0 else {
+                    // Preserve the caller's pre-stop enabled state when the
+                    // signal itself fails for an unexpected reason.
+                    _ = Self.run(
+                        "/bin/launchctl",
+                        ["enable", Self.kanataServiceTarget],
+                        timeout: 15
+                    )
                     throw HelperError.operationFailed(
                         "Failed to stop KeyPath Kanata service: \(result.out)"
                     )
@@ -189,6 +219,16 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "restartKanataService",
             operation: {
+                let enableResult = Self.run(
+                    "/bin/launchctl",
+                    ["enable", Self.kanataServiceTarget],
+                    timeout: 15
+                )
+                guard enableResult.status == 0 else {
+                    throw HelperError.operationFailed(
+                        "Failed to enable KeyPath Kanata service: \(enableResult.out)"
+                    )
+                }
                 let result = Self.run(
                     "/bin/launchctl",
                     ["kickstart", "-k", Self.kanataServiceTarget],
