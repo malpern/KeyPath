@@ -285,7 +285,8 @@ final class ServiceBootstrapperTests: XCTestCase {
             repairVHIDServices: {
                 operations.append("repair-vhid")
             },
-            registerKanataService: {
+            registerKanataService: { refreshActiveRegistration in
+                XCTAssertFalse(refreshActiveRegistration)
                 operations.append("register-kanata")
                 return true
             }
@@ -306,7 +307,7 @@ final class ServiceBootstrapperTests: XCTestCase {
             repairVHIDServices: {
                 throw ExpectedFailure()
             },
-            registerKanataService: {
+            registerKanataService: { _ in
                 registrationCalled = true
                 return true
             }
@@ -314,6 +315,24 @@ final class ServiceBootstrapperTests: XCTestCase {
 
         XCTAssertFalse(result)
         XCTAssertFalse(registrationCalled)
+    }
+
+    func testInstallAllServicesForwardsActiveKanataRefreshRequest() async {
+        TestEnvironment.allowAdminOperationsInTests = true
+        defer { TestEnvironment.allowAdminOperationsInTests = false }
+
+        var receivedRefreshRequest: Bool?
+        let result = await ServiceBootstrapper.shared.installAllServices(
+            refreshActiveKanataRegistration: true,
+            repairVHIDServices: {},
+            registerKanataService: { refreshActiveRegistration in
+                receivedRefreshRequest = refreshActiveRegistration
+                return true
+            }
+        )
+
+        XCTAssertTrue(result)
+        XCTAssertEqual(receivedRefreshRequest, true)
     }
 
     func testStaleSMAppServiceBootoutCommandsTargetGuiAndSystemDomains() {

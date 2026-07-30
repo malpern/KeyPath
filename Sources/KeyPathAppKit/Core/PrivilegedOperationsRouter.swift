@@ -480,7 +480,14 @@ public final class PrivilegedOperationsRouter {
                 return
             }
         #endif
-        let success = await ServiceBootstrapper.shared.installAllServices()
+        // This operation is selected when the runtime is missing, stopped, or
+        // stale relative to the current app bundle. An active SMAppService job
+        // is not sufficient evidence: launchd may still be enforcing the
+        // previous bundle's launch constraint after a KeyPath update. Force a
+        // registration refresh so the running job is tied to this bundle.
+        let success = await ServiceBootstrapper.shared.installAllServices(
+            refreshActiveKanataRegistration: true
+        )
         if !success {
             throw PrivilegedOperationError.installationFailed("Required runtime service installation failed")
         }
