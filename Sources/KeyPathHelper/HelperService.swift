@@ -171,6 +171,13 @@ class HelperService: NSObject, HelperProtocol {
         executePrivilegedOperation(
             name: "stopKanataService",
             operation: {
+                // Capture the live process before disabling the service. Once a
+                // launchd job is disabled, `launchctl kill system/<label>` can no
+                // longer resolve the target even though its existing process is
+                // still alive. Signalling the captured PID closes that gap while
+                // keeping the disable-before-signal ordering that prevents a
+                // KeepAlive respawn.
+                let processID = Self.serviceProcessID(Self.kanataServiceID)
                 // com.keypath.kanata is KeepAlive. Disable it before signaling the
                 // process so launchd does not immediately respawn it while the CLI
                 // is waiting for the stopped postcondition.
@@ -184,17 +191,27 @@ class HelperService: NSObject, HelperProtocol {
                         "Failed to disable KeyPath Kanata service: \(disableResult.out)"
                     )
                 }
-                let result = Self.run(
-                    "/bin/launchctl",
-                    ["kill", "SIGTERM", Self.kanataServiceTarget],
-                    timeout: 15
-                )
-                if result.status != 0,
-                   result.out.localizedCaseInsensitiveContains("No process to signal"),
-                   !Self.isServiceHealthy(Self.kanataServiceID)
-                {
-                    // The registered KeepAlive job is already stopped or waiting
-                    // for launchd's throttle window. Stop is idempotently complete.
+                guard let processID else {
+                    if !Self.isServiceHealthy(Self.kanataServiceID) {
+                        // The registered KeepAlive job is already stopped or
+                        // waiting for launchd's throttle window. Stop is
+                        // idempotently complete.
+                        return
+                    }
+                    _ = Self.run(
+                        "/bin/launchctl",
+                        ["enable", Self.kanataServiceTarget],
+                        timeout: 15
+                    )
+                    throw HelperError.operationFailed(
+                        "Failed to identify the KeyPath Kanata service process"
+                    )
+                }
+                let result = Self.run("/bin/kill", ["-TERM", processID], timeout: 15)
+                if result.status != 0, !Self.isServiceHealthy(Self.kanataServiceID) {
+                    // The process exited between inspection and signaling. The
+                    // service remains disabled, so the stopped postcondition is
+                    // already satisfied.
                     return
                 }
                 guard result.status == 0 else {
@@ -902,6 +919,13 @@ extension HelperService {
     static func isServiceLoaded(_ serviceID: String) -> Bool {
         let r = run("/bin/launchctl", ["print", "system/\(serviceID)"])
         return r.status == 0
+    }
+
+    static func serviceProcessID(_ serviceID: String) -> String? {
+        let result = run("/bin/launchctl", ["print", "system/\(serviceID)"])
+        guard result.status == 0 else { return nil }
+        return firstMatch(#"\bpid\s*=\s*([0-9]+)"#, in: result.out)
+            ?? firstMatch(#""PID"\s*=\s*([0-9]+)"#, in: result.out)
     }
 
     static func isServiceHealthy(_ serviceID: String) -> Bool {
