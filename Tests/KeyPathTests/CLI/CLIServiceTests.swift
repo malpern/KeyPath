@@ -28,7 +28,7 @@ final class CLIServiceTests: XCTestCase {
 
     // MARK: - service lifecycle
 
-    func testStopServiceReturnsFalseWhenPrivilegedHelperFails() async {
+    func testStopServiceReturnsFalseWhenLifecycleOperationFails() async {
         let facade = SystemFacade(
             stopServiceOperation: { throw ServiceOperationError.failed },
             runtimeSnapshotProvider: { Self.runtimeSnapshot(running: true, responding: true) },
@@ -41,7 +41,7 @@ final class CLIServiceTests: XCTestCase {
         XCTAssertFalse(stopped)
     }
 
-    func testStopServiceWaitsForStoppedRuntimeAfterHelperSuccess() async {
+    func testStopServiceWaitsForStoppedRuntimeAfterLifecycleSuccess() async {
         let snapshots = RuntimeSnapshotSequence([
             Self.runtimeSnapshot(running: true, responding: true),
             Self.runtimeSnapshot(running: false, responding: false)
@@ -62,7 +62,7 @@ final class CLIServiceTests: XCTestCase {
         XCTAssertEqual(stopCount, 1)
     }
 
-    func testRestartServiceDoesNotReportSuccessWhenPrivilegedHelperFails() async {
+    func testRestartServiceDoesNotReportSuccessWhenLifecycleOperationFails() async {
         let operations = ServiceOperationRecorder()
         let facade = SystemFacade(
             restartServiceOperation: {
@@ -81,7 +81,7 @@ final class CLIServiceTests: XCTestCase {
         XCTAssertEqual(restartCount, 1)
     }
 
-    func testRestartServiceWaitsForHealthyRuntimeAfterHelperSuccess() async {
+    func testRestartServiceWaitsForHealthyRuntimeAfterLifecycleSuccess() async {
         let snapshots = RuntimeSnapshotSequence([
             Self.runtimeSnapshot(running: false, responding: false),
             Self.runtimeSnapshot(running: true, responding: true)
@@ -117,7 +117,7 @@ final class CLIServiceTests: XCTestCase {
         XCTAssertFalse(started)
     }
 
-    func testStartServiceWaitsForHealthyRuntimeAfterHelperSuccess() async {
+    func testStartServiceWaitsForHealthyRuntimeAfterLifecycleSuccess() async {
         let snapshots = RuntimeSnapshotSequence([
             Self.runtimeSnapshot(running: false, responding: false),
             Self.runtimeSnapshot(running: true, responding: true)

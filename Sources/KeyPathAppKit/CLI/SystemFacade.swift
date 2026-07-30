@@ -21,13 +21,13 @@ public struct SystemFacade: Sendable {
     public init() {
         self.init(
             startServiceOperation: {
-                try await HelperManager.shared.startKanataService()
+                try await KanataDaemonService.shared.start()
             },
             stopServiceOperation: {
-                try await HelperManager.shared.stopKanataService()
+                try await KanataDaemonService.shared.stop()
             },
             restartServiceOperation: {
-                try await HelperManager.shared.restartKanataService()
+                try await KanataDaemonService.shared.restart()
             },
             runtimeCacheInvalidator: {
                 await MainActor.run {
@@ -110,8 +110,8 @@ public struct SystemFacade: Sendable {
             try await restartServiceOperation()
             await runtimeCacheInvalidator()
 
-            // The helper performs one launchctl kickstart -k against the fixed
-            // launchd job. Verify the final healthy runtime, not a transient gap.
+            // The lifecycle operation verifies registration plus process/TCP
+            // readiness. Independently verify the facade's final runtime view.
             return await waitForRuntime(timeoutSeconds: runtimeTransitionTimeoutSeconds) { snapshot in
                 snapshot.isRunning && snapshot.isResponding
             }
