@@ -4,6 +4,8 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 PROJECT_DIR=$(cd "$SCRIPT_DIR/.." >/dev/null && pwd)
 source "$SCRIPT_DIR/lib/xcode.sh"
+source "$SCRIPT_DIR/lib/sparkle.sh"
+export KEYPATH_PROJECT_DIR="$PROJECT_DIR"
 keypath_use_stable_xcode
 
 MODE="release-candidate"
@@ -100,35 +102,6 @@ check_optional_command() {
 
 notarytool() {
     xcrun notarytool "$@"
-}
-
-resolve_sign_update() {
-    if [[ -n "${KP_SPARKLE_SIGN_CMD:-}" && -x "${KP_SPARKLE_SIGN_CMD:-}" ]]; then
-        echo "$KP_SPARKLE_SIGN_CMD"
-        return 0
-    fi
-
-    if command -v sign_update >/dev/null 2>&1; then
-        command -v sign_update
-        return 0
-    fi
-
-    local cask_version=""
-    cask_version="$(brew list --cask --versions sparkle 2>/dev/null | awk '{print $2}')" || cask_version=""
-    local cask_root candidate
-    for cask_root in /opt/homebrew/Caskroom/sparkle /usr/local/Caskroom/sparkle; do
-        if [[ -n "$cask_version" && -x "$cask_root/$cask_version/bin/sign_update" ]]; then
-            echo "$cask_root/$cask_version/bin/sign_update"
-            return 0
-        fi
-        candidate="$(ls -1dt "$cask_root"/*/bin/sign_update 2>/dev/null | head -n1 || true)"
-        if [[ -n "$candidate" && -x "$candidate" ]]; then
-            echo "$candidate"
-            return 0
-        fi
-    done
-
-    return 1
 }
 
 find_worktree_for_branch() {
@@ -254,12 +227,35 @@ fi
 if [[ "$effective_skip_sparkle" == "1" ]]; then
     pass "Sparkle archive checks skipped (SKIP_SPARKLE=1)"
 else
-    if sign_update_path=$(resolve_sign_update); then
+    keypath_load_sparkle_private_key || true
+    if sign_update_path=$(keypath_resolve_sparkle_tool sign_update); then
         pass "Sparkle sign_update found: $sign_update_path"
-    elif [[ "${ALLOW_UNSIGNED_SPARKLE:-0}" == "1" ]]; then
-        warn "Sparkle sign_update missing, but ALLOW_UNSIGNED_SPARKLE=1"
     else
         fail "Sparkle sign_update not found; public Sparkle archive signing would fail"
+    fi
+
+    if generate_appcast_path=$(keypath_resolve_sparkle_tool generate_appcast); then
+        pass "Sparkle generate_appcast found: $generate_appcast_path"
+    else
+        fail "Sparkle generate_appcast not found; public appcast generation would fail"
+    fi
+
+    if generate_keys_path=$(keypath_resolve_sparkle_tool generate_keys); then
+        pass "Sparkle generate_keys found: $generate_keys_path"
+    else
+        fail "Sparkle generate_keys not found; signing identity cannot be verified"
+    fi
+
+    if keypath_verify_sparkle_signing_identity "$PROJECT_DIR/Sources/KeyPathApp/Info.plist"; then
+        pass "Sparkle signing identity '$KEYPATH_SPARKLE_ACCOUNT' matches SUPublicEDKey"
+    else
+        fail "Sparkle signing identity '$KEYPATH_SPARKLE_ACCOUNT' does not match SUPublicEDKey"
+    fi
+
+    if keypath_verify_sparkle_feed "$PROJECT_DIR/appcast.xml" >/dev/null 2>&1; then
+        pass "Committed Sparkle appcast signature verified"
+    else
+        fail "Committed Sparkle appcast is unsigned or has an invalid signature"
     fi
 
     if command -v create-dmg >/dev/null 2>&1; then

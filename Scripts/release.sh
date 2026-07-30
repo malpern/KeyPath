@@ -44,7 +44,7 @@ find_worktree_for_branch() {
 }
 
 usage() {
-    echo "Usage: $0 [--dry-run] [--no-doctor] [--refresh-keyboard-data] [--skip-notarize dry-run only] [X.Y.Z]"
+    echo "Usage: $0 [--dry-run] [--no-doctor] [--refresh-keyboard-data] [--skip-notarize dry-run only] [X.Y.Z[-prerelease]]"
 }
 
 # Parse arguments
@@ -63,7 +63,7 @@ for arg in "$@"; do
             REFRESH_KEYBOARD_DATA=true
             ;;
         *)
-            if [[ $arg =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            if [[ $arg =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
                 NEW_VERSION="$arg"
             else
                 echo "❌ Invalid argument: $arg"
@@ -86,29 +86,47 @@ if [ "$SKIP_NOTARIZE" = true ] && [ "$DRY_RUN" = false ]; then
     exit 1
 fi
 
-# Get current version
-CURRENT_VERSION=$(defaults read "$INFO_PLIST" CFBundleShortVersionString 2>/dev/null || echo "0.0.0")
-echo "📌 Current version: $CURRENT_VERSION"
+# Get current version and monotonically increasing Sparkle build number.
+CURRENT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$INFO_PLIST" 2>/dev/null || echo "0.0.0")
+CURRENT_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$INFO_PLIST" 2>/dev/null || echo "0")
+echo "📌 Current version: $CURRENT_VERSION (build $CURRENT_BUILD)"
 
 # Bump version if specified
 if [ -n "$NEW_VERSION" ]; then
-    echo "📝 Bumping version to: $NEW_VERSION"
+    RELEASE_BUILD_NUMBER="${KEYPATH_RELEASE_BUILD_NUMBER:-}"
+    if [ -z "$RELEASE_BUILD_NUMBER" ]; then
+        if [[ "$CURRENT_BUILD" =~ ^[0-9]+$ ]]; then
+            RELEASE_BUILD_NUMBER=$((CURRENT_BUILD + 1))
+        else
+            echo "❌ Current CFBundleVersion is not numeric: $CURRENT_BUILD" >&2
+            echo "   Set KEYPATH_RELEASE_BUILD_NUMBER to the next numeric build." >&2
+            exit 1
+        fi
+    fi
+    if [[ ! "$RELEASE_BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
+        echo "❌ KEYPATH_RELEASE_BUILD_NUMBER must be numeric: $RELEASE_BUILD_NUMBER" >&2
+        exit 1
+    fi
+
+    echo "📝 Bumping version to: $NEW_VERSION (build $RELEASE_BUILD_NUMBER)"
     
     if [ "$DRY_RUN" = true ]; then
         echo "   [DRY RUN] Would update Info.plist"
     else
         /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW_VERSION" "$INFO_PLIST"
-        /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_VERSION" "$INFO_PLIST"
+        /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $RELEASE_BUILD_NUMBER" "$INFO_PLIST"
         echo "   ✅ Updated Info.plist"
     fi
     
     VERSION="$NEW_VERSION"
 else
     VERSION="$CURRENT_VERSION"
+    RELEASE_BUILD_NUMBER="$CURRENT_BUILD"
 fi
 
 echo ""
 echo "🎯 Release version: $VERSION"
+echo "🔢 Sparkle build: $RELEASE_BUILD_NUMBER"
 if [ "$SKIP_NOTARIZE" = true ]; then
     echo "⚠️  Notarization: skipped (--skip-notarize dry-run only)"
 fi
@@ -152,11 +170,9 @@ if [ "$DRY_RUN" = true ]; then
     STEP=$((STEP + 1))
     echo "   ${STEP}. Create Sparkle archive: dist/sparkle/KeyPath-${VERSION}.zip"
     STEP=$((STEP + 1))
-    echo "   ${STEP}. Sign Sparkle archive with EdDSA"
-    STEP=$((STEP + 1))
     echo "   ${STEP}. Create DMG: dist/sparkle/KeyPath-${VERSION}.dmg"
     STEP=$((STEP + 1))
-    echo "   ${STEP}. Generate appcast entry"
+    echo "   ${STEP}. Generate and verify the signed Sparkle appcast"
     STEP=$((STEP + 1))
     echo ""
     echo "   Then you would:"
@@ -164,7 +180,7 @@ if [ "$DRY_RUN" = true ]; then
     STEP=$((STEP + 1))
     echo "   ${STEP}. Create GitHub Release and upload ZIP + DMG"
     STEP=$((STEP + 1))
-    echo "   ${STEP}. Update appcast.xml with generated entry"
+    echo "   ${STEP}. Publish the generated signed appcast.xml"
     STEP=$((STEP + 1))
     echo "   ${STEP}. git add appcast.xml && git commit -m 'chore: update appcast for v${VERSION}'"
     STEP=$((STEP + 1))
@@ -204,7 +220,12 @@ if [ ! -f "$SPARKLE_ZIP" ]; then
 fi
 
 SPARKLE_DMG="dist/sparkle/KeyPath-${VERSION}.dmg"
-APPCAST_ENTRY="dist/sparkle/KeyPath-${VERSION}.zip.appcast-entry.xml"
+SPARKLE_APPCAST="dist/sparkle/appcast.xml"
+
+if [ ! -f "$SPARKLE_APPCAST" ]; then
+    echo "❌ ERROR: Signed Sparkle appcast not found: $SPARKLE_APPCAST"
+    exit 1
+fi
 
 echo ""
 echo "✅ Release build complete!"
@@ -213,7 +234,7 @@ echo "📦 Artifacts:"
 echo "   • dist/KeyPath.app"
 echo "   • $SPARKLE_ZIP"
 echo "   • $SPARKLE_DMG"
-echo "   • $APPCAST_ENTRY"
+echo "   • $SPARKLE_APPCAST"
 echo ""
 
 # --- Automated release steps ---
@@ -244,33 +265,10 @@ gh release create "v${VERSION}" \
     --notes "See [release notes](https://github.com/malpern/KeyPath/releases/tag/v${VERSION}) for details."
 
 echo "📝 Updating appcast.xml..."
-if [ -f "$APPCAST_ENTRY" ]; then
-    # Insert the new entry after the "Releases go here" comment
-    ENTRY_CONTENT=$(cat "$APPCAST_ENTRY" | grep -v "^<!--" | sed 's/^/        /')
-    # Use python for reliable XML insertion (sed struggles with multiline)
-    python3 -c "
-import sys
-appcast = open('appcast.xml').read()
-entry = open('$APPCAST_ENTRY').read()
-# Strip the comment line from the entry
-lines = [l for l in entry.splitlines() if not l.strip().startswith('<!--')]
-entry_clean = '\n'.join(lines)
-# Indent each line with 8 spaces for XML formatting
-indented = '\n'.join('        ' + l.lstrip() if l.strip() else '' for l in entry_clean.splitlines())
-marker = '<!-- Releases go here (newest first) -->'
-if marker in appcast:
-    appcast = appcast.replace(marker, marker + '\n\n' + indented.rstrip())
-    open('appcast.xml', 'w').write(appcast)
-    print('   ✅ Appcast updated')
-else:
-    print('   ⚠️  Could not find marker in appcast.xml — update manually')
-    sys.exit(1)
-"
-    git add appcast.xml
-    git commit -m "chore: update appcast for v${VERSION}"
-else
-    echo "   ⚠️  Appcast entry not found at $APPCAST_ENTRY — update manually"
-fi
+ditto "$SPARKLE_APPCAST" appcast.xml
+git add appcast.xml
+git commit -m "chore: update signed appcast for v${VERSION}"
+echo "   ✅ Signed appcast updated"
 
 echo "🌐 Updating gh-pages download link..."
 GHPAGES_WORKTREE=$(find_worktree_for_branch gh-pages)

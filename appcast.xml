@@ -1,39 +1,30 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0"
-     xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"
-     xmlns:dc="http://purl.org/dc/elements/1.1/">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><!-- sparkle-sign-warning:
+IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
+--><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
     <channel>
         <title>KeyPath Updates</title>
         <link>https://github.com/malpern/KeyPath</link>
         <description>KeyPath keyboard remapping for macOS - automatic updates feed</description>
         <language>en</language>
-
-        <!-- 
+        <!--
         =======================================================================
-        HOW TO ADD A NEW RELEASE:
-        
-        1. Run: ./build.sh (creates dist/sparkle/KeyPath-X.Y.Z.zip)
-        2. Upload the ZIP to GitHub Releases as vX.Y.Z
-        3. Copy the generated appcast entry from:
-           dist/sparkle/KeyPath-X.Y.Z.appcast-entry.xml
-        4. Paste it below (newest release first)
-        5. Commit and push this file
+        GENERATED RELEASE FEED:
+
+        Scripts/build-and-sign.sh runs Sparkle's generate_appcast against this
+        feed and the signed release archive. Scripts/release.sh publishes the
+        generated, signed result without hand-editing XML. Any manual change to
+        this file must be re-signed before it is published.
         =======================================================================
         -->
-
         <!-- Releases go here (newest first) -->
-
         <item>
             <title>Version 1.0.0-beta3</title>
+            <sparkle:channel>beta</sparkle:channel>
             <sparkle:version>3</sparkle:version>
             <sparkle:shortVersionString>1.0.0-beta3</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <sparkle:minimumSystemVersion>15.0.0</sparkle:minimumSystemVersion>
             <pubDate>Fri, 16 May 2026 07:21:00 -0700</pubDate>
-            <enclosure
-                url="https://github.com/malpern/KeyPath/releases/download/v1.0.0-beta3/KeyPath-1.0.0-beta3.zip"
-                sparkle:edSignature="eLCNwIGoc4wVcwMOHwaf5Ruuju48F7cUgMsD8FqJp50yy/XJ+rSM/iQYMUHxarwEDwaITKsSg0VB1nOKjSNaAA=="
-                length="102087728"
-                type="application/octet-stream"/>
+            <enclosure url="https://github.com/malpern/KeyPath/releases/download/v1.0.0-beta3/KeyPath-1.0.0-beta3.zip" sparkle:edSignature="eLCNwIGoc4wVcwMOHwaf5Ruuju48F7cUgMsD8FqJp50yy/XJ+rSM/iQYMUHxarwEDwaITKsSg0VB1nOKjSNaAA==" length="102087728" type="application/octet-stream"></enclosure>
             <description><![CDATA[
                 <style>
                     :root { color-scheme: light dark; }
@@ -106,6 +97,8 @@
                 <p style="margin-top: 16px;"><a href="https://github.com/malpern/KeyPath/releases/tag/v1.0.0-beta3">Full release notes →</a></p>
             ]]></description>
         </item>
-
     </channel>
-</rss>
+</rss><!-- sparkle-signatures:
+edSignature: Gt2p6AkbWTJc3L2ecuK217Mbwglg+O5/Dp/yokaxKynI9J0Fshc6FahBvwcm+zA+T9z6KNqKzKrBVvTIifU1Cg==
+length: 6741
+-->

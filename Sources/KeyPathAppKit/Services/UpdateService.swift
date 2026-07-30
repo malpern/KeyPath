@@ -52,6 +52,8 @@ public final class UpdateService: NSObject {
     public private(set) var canCheckForUpdates = false
     public private(set) var lastUpdateCheckDate: Date?
     public private(set) var automaticallyChecksForUpdates = true
+    public private(set) var automaticallyDownloadsUpdates = true
+    public private(set) var allowsAutomaticUpdates = true
     public private(set) var updateChannel: UpdateChannel = .stable
     public private(set) var currentFeedURL: String?
 
@@ -88,11 +90,13 @@ public final class UpdateService: NSObject {
             canCheckForUpdates = updater.canCheckForUpdates
             lastUpdateCheckDate = updater.lastUpdateCheckDate
             automaticallyChecksForUpdates = updater.automaticallyChecksForUpdates
+            automaticallyDownloadsUpdates = updater.automaticallyDownloadsUpdates
+            allowsAutomaticUpdates = updater.allowsAutomaticUpdates
             let persistedChannel = loadPersistedChannel()
             setUpdateChannel(persistedChannel)
 
             AppLogger.shared.log(
-                "✅ [UpdateService] Sparkle initialized - autoCheck: \(automaticallyChecksForUpdates), channel: \(updateChannel.rawValue)"
+                "✅ [UpdateService] Sparkle initialized - autoCheck: \(automaticallyChecksForUpdates), autoInstall: \(automaticallyDownloadsUpdates), channel: \(updateChannel.rawValue)"
             )
         }
     }
@@ -107,7 +111,25 @@ public final class UpdateService: NSObject {
     public func setAutomaticChecks(enabled: Bool) {
         updaterController?.updater.automaticallyChecksForUpdates = enabled
         automaticallyChecksForUpdates = enabled
+        allowsAutomaticUpdates = updaterController?.updater.allowsAutomaticUpdates ?? false
+        automaticallyDownloadsUpdates = updaterController?.updater.automaticallyDownloadsUpdates ?? false
         AppLogger.shared.log("⚙️ [UpdateService] Automatic checks set to: \(enabled)")
+    }
+
+    /// Enable or disable Sparkle's automatic background download/install path.
+    /// This is a user preference; Info.plist supplies only the initial default.
+    public func setAutomaticDownloads(enabled: Bool) {
+        guard let updater = updaterController?.updater, updater.allowsAutomaticUpdates else {
+            AppLogger.shared.warn("⚠️ [UpdateService] Automatic updates are unavailable while automatic checks are disabled")
+            automaticallyDownloadsUpdates = false
+            allowsAutomaticUpdates = false
+            return
+        }
+
+        updater.automaticallyDownloadsUpdates = enabled
+        automaticallyDownloadsUpdates = updater.automaticallyDownloadsUpdates
+        allowsAutomaticUpdates = updater.allowsAutomaticUpdates
+        AppLogger.shared.log("⚙️ [UpdateService] Automatic download/install set to: \(automaticallyDownloadsUpdates)")
     }
 
     public func setUpdateChannel(_ channel: UpdateChannel) {
