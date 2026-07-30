@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-30T08:13:02-07:00",
-  "currentTask": "Sparkle-bundled Kanata update acceptance proven",
-  "message": "A notarized build 8 candidate replaced build 7, detected an active build 6 Kanata runtime as stale, refreshed it without an administrator prompt, and independently converged to a fresh build 8 runtime.",
+  "updatedAt": "2026-07-30T09:47:30-07:00",
+  "currentTask": "Merged Sparkle and bundled-runtime update acceptance complete",
+  "message": "PR #1250 merged as e75ff72e5. Apple-notarized build 9 installed through a signed private Sparkle feed, detected the active build 8 Kanata runtime as stale, repaired it once without an administrator prompt, and independently converged to a fresh build 9 runtime.",
   "complete": false,
   "workingBlocks": [],
   "executionTracks": [
@@ -339,9 +339,9 @@
       "progress": 100,
       "health": "smooth",
       "trend": "forward",
-      "phase": "Upgrade proven",
-      "detail": "Protected managed macOS 26 lease cbx_f0e00e78cdd7 installed the exact signed beta3 fixture through host-controlled managed admission, upgraded to the exact 1.0.0 candidate, independently verified both versions, and passed strict deep signature verification.",
-      "attempt": 1,
+      "phase": "Sparkle update and bundled-runtime refresh proven from merged master",
+      "detail": "PR #1250 merged as e75ff72e5. Managed macOS 15 lease cbx_940aaa3ecba3 installed notarized build 9 through the signed private Sparkle feed, reported the active build 8 runtime as stale, completed install-required-runtime-services once, and converged to fresh build 9 with helper 1.3.0 and VirtualHID healthy and no administrator prompt.",
+      "attempt": 2,
       "completedSteps": 5,
       "totalSteps": 5,
       "nextTasks": [
@@ -755,11 +755,11 @@
   },
   "updates": [
     {
-      "time": "08:13",
+      "time": "09:47",
       "block": "M03",
       "tone": "success",
-      "title": "Bundled Kanata update and stale-runtime repair proven",
-      "message": "Notarized KeyPath 1.0.1 build 8 detected the active build 6 runtime as stale, completed install-required-runtime-services, passed its postcondition, and converged to a fresh running build 8 runtime without invoking administrator authentication. Helper 1.3.0 and VirtualHID remained healthy; the clone's only remaining issue is its intentionally ungranted Kanata Input Monitoring permission."
+      "title": "Merged Sparkle and bundled-runtime acceptance complete",
+      "message": "PR #1250 merged as e75ff72e5 after all CI and review gates passed. Apple accepted and stapled build 9; Sparkle installed it from the signed private feed, independent status proved build 8 stale before repair and build 9 fresh afterward, and install-required-runtime-services passed without an administrator prompt. Helper 1.3.0 and VirtualHID remained healthy."
     },
     {
       "time": "07:26",
@@ -974,8 +974,8 @@
   ],
   "activity": [
     {
-      "time": "08:13",
-      "message": "Build 8 passed the full suites, Apple notarization, signed private-feed verification, and managed macOS 15 stale-runtime acceptance on lease cbx_940aaa3ecba3. The rebased fix passed 3,998 XCTest cases and is in draft PR #1250."
+      "time": "09:47",
+      "message": "PR #1250 merged as e75ff72e5. Exact merged build 9 passed CI, Apple notarization d24f7a6e-abec-464e-af3c-5f33931c7e12, signed private Sparkle installation, and managed macOS 15 stale-runtime repair on lease cbx_940aaa3ecba3; evidence is retained at artifact capture 20260730T164730Z."
     },
     {
       "time": "17:56",

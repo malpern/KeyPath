@@ -639,3 +639,46 @@ next step.
   stale-runtime detection, forced refresh, then an unnecessary privilege
   fallback. Build 8 changed the behavior and crossed the previously failing
   postcondition in one managed-clone attempt.
+
+## 2026-07-30 09:47 PDT — Exact merged Sparkle acceptance complete
+
+- **Outcome:** advanced
+- **Completed milestone:** PR #1250 merged and the exact merged KeyPath 1.0.1
+  build 9 completed signed, notarized, private-feed Sparkle installation and
+  bundled Kanata runtime repair acceptance in the managed macOS 15 lab.
+- **Evidence:**
+  - Required GitHub checks passed and PR #1250 merged as
+    `e75ff72e5fda61f4e74318a1a239543bba8d4339`.
+  - The exact merge commit produced build 9 with bundled Kanata
+    1.12.1-prerelease-1. Apple accepted notarization submission
+    `d24f7a6e-abec-464e-af3c-5f33931c7e12`; stapling, strict deep code-sign
+    verification, and Gatekeeper assessment passed. The distribution archive
+    SHA-256 is
+    `a666162693bc0abe5aeea0b97dba4ebd8e84b5fbd668fbe2aacf19b6baa36a17`.
+  - The private signed appcast SHA-256 is
+    `b809b49c86e5ba8f9c4c203c9f2240eab197bb032dee06fcfa808adf67cc73a8`.
+    No public feed, release, or laptop application was modified.
+  - The preserved private-feed build 4 fixture was independently notarized as
+    submission `16258f42-8988-41ce-9bbb-51d691ea6c6b`, stapled, and accepted by
+    Gatekeeper before use as the older Sparkle source build.
+  - Sparkle installed build 9 in managed macOS 15.7.7 lease
+    `cbx_940aaa3ecba3`. Independent pre-repair status reported app build 9 at
+    commit `e75ff72e5`, active runtime build 8, and Kanata freshness `stale`.
+  - One `install-required-runtime-services` run completed in 18.61 seconds and
+    its structured postcondition succeeded. No `osascript` process appeared.
+    Independent final status reports active runtime build 9, freshness `fresh`,
+    helper 1.3.0 fresh and working, running Kanata, and healthy VirtualHID.
+  - Final evidence is retained at
+    `/Volumes/KeyPath Lab/CrabBox/KeyPathInstallerLab/artifacts/cbx_940aaa3ecba3/20260730T164730Z`.
+- **Current blocker:** none for the Sparkle or bundled-runtime update path. The
+  disposable clone still intentionally lacks Kanata Input Monitoring, so its
+  whole-system `isOperational` remains false despite the update recipe and
+  postconditions passing. P02-P04 still require the separate onsite physical
+  mWave event.
+- **Next action:** no further work is required for PR #1250 acceptance. Keep
+  build 9 private until a separately authorized public release. Resume the
+  capability map at the remaining onsite P02-P04 physical-input proof.
+- **Loop check:** not looping. The final run added new evidence at every gate:
+  merged-source CI, unique build identity, Apple notarization, genuine Sparkle
+  replacement, stale-runtime observation, one-pass repair, and independent
+  fresh-runtime verification.
