@@ -37,3 +37,17 @@ on the existing installer privilege broker.
   `{"restarted": true}`.
 - The installed app returns to an operational state with a fresh helper, running Kanata, and
   healthy VirtualHID.
+
+## KeepAlive follow-up
+
+Local release acceptance found that routing stop through the helper was necessary but not
+sufficient. The helper initially sent `SIGTERM` to the registered KeepAlive job. Launchd accepted
+the signal and immediately respawned Kanata, so the CLI's stopped postcondition timed out and
+reported `Could not stop Kanata service`.
+
+The helper now disables `system/com.keypath.kanata` before signaling it. Start and restart
+explicitly re-enable the job before kickstart, and an unexpected signal failure restores the
+enabled state. The helper contract advanced to 1.3.1 so installations cannot retain the earlier
+behavior while reporting the helper as fresh. A lifecycle lint test preserves the required
+disable-before-kill and enable-before-kickstart ordering; installed-app acceptance verifies the
+real launchd transition.
