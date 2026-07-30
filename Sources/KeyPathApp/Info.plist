@@ -56,8 +56,14 @@
 	<string>Jry+V9z0EbEysm5FWpbL8J3XfeFnzWqGI3Y3+CQiHgo=</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
+	<key>SUAutomaticallyUpdate</key>
+	<true/>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
+	<key>SURequireSignedFeed</key>
+	<true/>
 	<key>SUShowReleaseNotes</key>
 	<true/>
 	<key>SUEnableSystemProfiling</key>

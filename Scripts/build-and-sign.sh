@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # KeyPath Build, Sign, and Notarize Script
-# Run this to create a production-ready, signed, and notarized app
+# Run this to create a production-ready, signed, and notarized app.
+# Set SKIP_DEPLOY=1 to leave the assembled candidate in dist/ without touching
+# the currently installed app or its running keyboard service.
 
 set -euo pipefail
 
@@ -10,6 +12,8 @@ source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/signing.sh"
 source "$SCRIPT_DIR/lib/deploy-lock.sh"
 source "$SCRIPT_DIR/lib/submodules.sh"
+source "$SCRIPT_DIR/lib/sparkle.sh"
+export KEYPATH_PROJECT_DIR="$SCRIPT_DIR/.."
 keypath_use_stable_xcode
 keypath_acquire_deploy_lock "build-and-sign ($SCRIPT_DIR/..)" "${KEYPATH_RELEASE_DEPLOY_LOCK_TIMEOUT_SECONDS:-600}"
 trap keypath_release_deploy_lock EXIT
@@ -41,103 +45,35 @@ create_sparkle_archive() {
     ditto -c -k --keepParent "${APP_NAME}.app" "sparkle/${ARCHIVE_NAME}"
     cd ..
 
-    # Sign with EdDSA using Sparkle's sign_update tool.
-    # Resolve dynamically because Homebrew cask versions change frequently.
-    local SIGN_UPDATE=""
-    local SIGNATURE=""
-    if [ -n "${KP_SPARKLE_SIGN_CMD:-}" ]; then
-        # Explicit override (e.g. an unattended wrapper that signs in the GUI session).
-        SIGN_UPDATE="$KP_SPARKLE_SIGN_CMD"
-    elif command -v sign_update >/dev/null 2>&1; then
-        SIGN_UPDATE="$(command -v sign_update)"
+    local GENERATE_APPCAST
+    GENERATE_APPCAST="$(keypath_resolve_sparkle_tool generate_appcast)" || {
+        echo "❌ ERROR: Sparkle generate_appcast is unavailable." >&2
+        return 1
+    }
+    local FEED_WORK_DIR="${SPARKLE_DIR}/feed"
+    mkdir -p "$FEED_WORK_DIR"
+    ditto "$SCRIPT_DIR/../appcast.xml" "$FEED_WORK_DIR/appcast.xml"
+    ditto "${SPARKLE_DIR}/${ARCHIVE_NAME}" "$FEED_WORK_DIR/${ARCHIVE_NAME}"
+
+    local APPCAST_ARGS=(
+        --download-url-prefix "https://github.com/malpern/KeyPath/releases/download/v${VERSION}/"
+        --full-release-notes-url "https://github.com/malpern/KeyPath/releases/tag/v${VERSION}"
+        --link "https://keypath-app.com"
+        --versions "$BUILD"
+        --maximum-versions 0
+        --maximum-deltas 0
+    )
+    if [[ "$VERSION" == *-* ]]; then
+        APPCAST_ARGS+=(--channel beta)
     else
-        local CASK_VERSION=""
-        # `|| CASK_VERSION=""` keeps `set -euo pipefail` from aborting the whole build
-        # when the sparkle cask isn't installed (brew exits non-zero); fall through to
-        # the graceful "sign_update not found" handling below instead.
-        CASK_VERSION="$(brew list --cask --versions sparkle 2>/dev/null | awk '{print $2}')" || CASK_VERSION=""
-        for CASK_ROOT in /opt/homebrew/Caskroom/sparkle /usr/local/Caskroom/sparkle; do
-            if [ -n "$CASK_VERSION" ] && [ -x "$CASK_ROOT/$CASK_VERSION/bin/sign_update" ]; then
-                SIGN_UPDATE="$CASK_ROOT/$CASK_VERSION/bin/sign_update"
-                break
-            fi
-        done
-
-        # Fallback: pick the newest installed sign_update in known cask roots.
-        if [ -z "$SIGN_UPDATE" ]; then
-            local CANDIDATE=""
-            for CASK_ROOT in /opt/homebrew/Caskroom/sparkle /usr/local/Caskroom/sparkle; do
-                CANDIDATE="$(ls -1dt "$CASK_ROOT"/*/bin/sign_update 2>/dev/null | head -n1 || true)"
-                if [ -n "$CANDIDATE" ] && [ -x "$CANDIDATE" ]; then
-                    SIGN_UPDATE="$CANDIDATE"
-                    break
-                fi
-            done
-        fi
+        APPCAST_ARGS+=(--phased-rollout-interval 86400)
     fi
 
-    if [ -n "$SIGN_UPDATE" ] && [ -x "$SIGN_UPDATE" ]; then
-        echo "🔎 Using sign_update at: $SIGN_UPDATE"
-        echo "🔐 Signing archive with EdDSA..."
-
-        # sign_update typically prints: sparkle:edSignature="BASE64..."
-        # Normalize so SIGNATURE is just the base64 payload (not the full attribute string).
-        local SIGN_OUTPUT
-        SIGN_OUTPUT=$("$SIGN_UPDATE" "${SPARKLE_DIR}/${ARCHIVE_NAME}" 2>/dev/null || echo "")
-        SIGNATURE=$(echo "$SIGN_OUTPUT" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
-        if [ -z "$SIGNATURE" ]; then
-            # Some versions may print just the signature string; accept that form too.
-            SIGNATURE=$(echo "$SIGN_OUTPUT" | tr -d '\n' | tr -d '\r')
-        fi
-
-        if [ -n "$SIGNATURE" ]; then
-            echo "$SIGNATURE" > "${SPARKLE_DIR}/${ARCHIVE_NAME}.sig"
-            echo "✅ EdDSA signature generated"
-        else
-            echo "⚠️ WARNING: EdDSA signing failed - check Keychain for Sparkle key"
-        fi
-    else
-        echo "⚠️ WARNING: sign_update not found in PATH or Homebrew Caskroom"
-        echo "   Install Sparkle CLI tools and ensure sign_update is available on PATH."
-    fi
-
-    if [ -z "$SIGNATURE" ]; then
-        if [ "${ALLOW_UNSIGNED_SPARKLE:-0}" = "1" ]; then
-            echo "⚠️ WARNING: Continuing without Sparkle EdDSA signature (ALLOW_UNSIGNED_SPARKLE=1)"
-        else
-            echo "❌ ERROR: Missing Sparkle EdDSA signature; aborting release archive generation." >&2
-            echo "   Ensure sign_update is installed and your Sparkle private key is available in Keychain." >&2
-            echo "   Set ALLOW_UNSIGNED_SPARKLE=1 only for local testing." >&2
-            return 1
-        fi
-    fi
-
-    # Get file size
-    local SIZE
-    SIZE=$(stat -f '%z' "${SPARKLE_DIR}/${ARCHIVE_NAME}" 2>/dev/null || stat --format='%s' "${SPARKLE_DIR}/${ARCHIVE_NAME}" 2>/dev/null || echo "0")
-    local PUB_DATE
-    PUB_DATE=$(date -R 2>/dev/null || date '+%a, %d %b %Y %T %z')
-
-    # Generate appcast entry XML
-    echo "📝 Generating appcast entry..."
-    cat > "${SPARKLE_DIR}/${ARCHIVE_NAME}.appcast-entry.xml" <<EOF
-<!-- Add this item to appcast.xml -->
-<item>
-    <title>Version ${VERSION}</title>
-    <sparkle:version>${BUILD}</sparkle:version>
-    <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
-    <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-    <pubDate>${PUB_DATE}</pubDate>
-    <enclosure
-        url="https://github.com/malpern/KeyPath/releases/download/v${VERSION}/${ARCHIVE_NAME}"
-        sparkle:edSignature="${SIGNATURE}"
-        length="${SIZE}"
-        type="application/octet-stream"/>
-    <sparkle:releaseNotesLink>
-        https://github.com/malpern/KeyPath/releases/tag/v${VERSION}
-    </sparkle:releaseNotesLink>
-</item>
-EOF
+    echo "📝 Generating and signing complete appcast with Sparkle..."
+    keypath_run_generate_appcast "$GENERATE_APPCAST" "${APPCAST_ARGS[@]}" "$FEED_WORK_DIR"
+    keypath_verify_sparkle_feed "$FEED_WORK_DIR/appcast.xml"
+    ditto "$FEED_WORK_DIR/appcast.xml" "$SPARKLE_DIR/appcast.xml"
+    echo "✅ Sparkle archive and signed appcast verified"
 
     # Create styled DMG with background image and icon positioning
     local DMG_NAME="KeyPath-${VERSION}.dmg"
@@ -173,13 +109,17 @@ EOF
     echo ""
     echo "✅ Sparkle archive created:"
     echo "   📦 Archive: ${SPARKLE_DIR}/${ARCHIVE_NAME}"
-    echo "   🔐 Signature: ${SPARKLE_DIR}/${ARCHIVE_NAME}.sig"
-    echo "   📝 Appcast entry: ${SPARKLE_DIR}/${ARCHIVE_NAME}.appcast-entry.xml"
+    echo "   📝 Signed appcast: ${SPARKLE_DIR}/appcast.xml"
     echo "   💿 DMG: ${SPARKLE_DIR}/${DMG_NAME}"
 }
 
 keypath_ensure_kanata_submodule "$SCRIPT_DIR/.."
 "$SCRIPT_DIR/verify-release-signing-contract.sh" --source
+if [ "${SKIP_SPARKLE:-0}" != "1" ]; then
+    keypath_load_sparkle_private_key || true
+    keypath_verify_sparkle_signing_identity "$SCRIPT_DIR/../Sources/KeyPathApp/Info.plist"
+    echo "✅ Sparkle signing identity '$KEYPATH_SPARKLE_ACCOUNT' matches SUPublicEDKey"
+fi
 
 echo "🦀 Building Rust artifacts in parallel (kanata, simulator, host bridge)..."
 ./Scripts/build-kanata.sh &
@@ -525,8 +465,17 @@ else
 
     echo "✨ Ready for distribution!"
 
-    # Create Sparkle-compatible versioned archive
-    create_sparkle_archive
+fi
+
+# Sparkle generation is controlled independently from notarization. Public
+# releases still require notarization, while SKIP_NOTARIZE=1 + SKIP_DEPLOY=1
+# provides a safe way to exercise signing and appcast generation locally.
+create_sparkle_archive
+
+if [ "${SKIP_DEPLOY:-0}" = "1" ]; then
+    echo "⏭️  Skipping deployment (SKIP_DEPLOY=1)"
+    echo "📍 Candidate retained at: $APP_BUNDLE"
+    exit 0
 fi
 
 # Stop running KeyPath and kanata BEFORE replacing the app bundle.

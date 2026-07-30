@@ -6,7 +6,7 @@ import KeyPathWizardCore
 import XCTest
 
 final class UpdateServiceDecisionTests: XCTestCase {
-    func testPreUpdateDecisionAllowsAutomaticRepairDuringUpdateInstallWhenHelperPresent() {
+    func testPreUpdateDecisionRequiresRuntimeShutdownDuringUpdateInstallWhenHelperPresent() {
         let context = makeContext(
             keyPathStatus: .granted,
             kanataStatus: .granted,
@@ -16,7 +16,7 @@ final class UpdateServiceDecisionTests: XCTestCase {
         )
 
         let decision = UpdateService.preUpdateDecision(for: context)
-        XCTAssertEqual(decision, .automaticRepairAllowed(reason: "reason_code=services_or_helper_present"))
+        XCTAssertEqual(decision, .runtimeShutdownRequired(reason: "reason_code=services_or_helper_present"))
     }
 
     func testPreUpdateDecisionContinuesSilentlyWhenNothingRunning() {

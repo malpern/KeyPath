@@ -9,6 +9,36 @@ import Foundation
 /// `runSingleAction` automatically. Users start repair explicitly from the
 /// normal status/wizard/CLI surfaces.
 final class PostUpdateRepairLintTests: XCTestCase {
+    func testSparkleWaitsForRuntimeShutdownBeforeInstallingUpdate() throws {
+        let updateService = phase1W3RepositoryRoot()
+            .appendingPathComponent("Sources/KeyPathAppKit/Services/UpdateService.swift")
+        let contents = try String(contentsOf: updateService, encoding: .utf8)
+
+        guard let postponementBody = extractFunctionBody(
+            containing: "shouldPostponeRelaunchForUpdate item",
+            from: contents
+        ), let preparationBody = extractFunctionBody(
+            containing: "private func prepareForUpdate(version:",
+            from: contents
+        ), let willInstallBody = extractFunctionBody(
+            containing: "willInstallUpdate item",
+            from: contents
+        ) else {
+            return
+        }
+
+        XCTAssertTrue(postponementBody.contains("await prepareForUpdate(version: version)"))
+        XCTAssertTrue(postponementBody.contains("defer"))
+        XCTAssertTrue(postponementBody.contains("handler.invoke()"))
+        XCTAssertTrue(postponementBody.contains("return true"))
+        XCTAssertTrue(preparationBody.contains("runSingleAction(.terminateConflictingProcesses"))
+        XCTAssertFalse(preparationBody.contains("run(intent: .repair"))
+        XCTAssertFalse(
+            willInstallBody.contains("prepareForUpdate"),
+            "Sparkle does not await willInstallUpdate; preparation must happen in its postponement callback."
+        )
+    }
+
     func testPostUpdateFinalizeDoesNotRunAutomaticRepair() throws {
         let updateService = phase1W3RepositoryRoot()
             .appendingPathComponent("Sources/KeyPathAppKit/Services/UpdateService.swift")
@@ -46,6 +76,41 @@ final class PostUpdateRepairLintTests: XCTestCase {
             """
         )
     }
+}
+
+private func extractFunctionBody(
+    containing signatureFragment: String,
+    from contents: String,
+    file: StaticString = #filePath,
+    line: UInt = #line
+) -> String? {
+    guard let signatureRange = contents.range(of: signatureFragment) else {
+        XCTFail("Could not find function containing \(signatureFragment)", file: file, line: line)
+        return nil
+    }
+    guard let openBrace = contents[signatureRange.lowerBound...].firstIndex(of: "{") else {
+        XCTFail("Could not find opening brace for \(signatureFragment)", file: file, line: line)
+        return nil
+    }
+
+    var depth = 0
+    var cursor = openBrace
+    while cursor < contents.endIndex {
+        let char = contents[cursor]
+        if char == "{" {
+            depth += 1
+        } else if char == "}" {
+            depth -= 1
+            if depth == 0 {
+                let bodyStart = contents.index(after: openBrace)
+                return String(contents[bodyStart ..< cursor])
+            }
+        }
+        cursor = contents.index(after: cursor)
+    }
+
+    XCTFail("Could not find closing brace for \(signatureFragment)", file: file, line: line)
+    return nil
 }
 
 private func extractFunctionBody(

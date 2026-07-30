@@ -39,13 +39,23 @@ Unknown trust state (identity metadata unreadable):
 ## Upgrade Behavior
 
 Pre-update:
-- Run soft repair only when services/helper are currently active and need a controlled stop.
-- Otherwise continue silently.
+- Sparkle postpones installation at its supported pre-install callback while
+  KeyPath stops the app-bundled Kanata runtime through `InstallerEngine`.
+- KeyPath releases Sparkle's continuation after the preparation attempt;
+  failure is logged and handled by normal post-relaunch validation rather than
+  leaving the update permanently wedged.
+- If no runtime or helper is active, continue silently.
 
 Post-update:
 - If blocking permissions are detected (`PermissionOracle`), mark hard repair.
-- If helper/components/services are unhealthy, run soft repair.
+- If helper/components/services are unhealthy, surface the focused repair flow
+  for an explicit user action; relaunch-time detection remains read-only.
 - If everything is healthy, continue silently.
+
+Sparkle is the KeyPath app's release detector and installer. A KeyPath update
+replaces the signed app bundle containing KeyPath, Kanata, the host bridge, and
+the simulator as one tested unit. The app does not discover or install
+arbitrary upstream Kanata releases independently.
 
 ## Reason Code Logging
 

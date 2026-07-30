@@ -64,8 +64,8 @@ public final class VHIDDeviceManager: @unchecked Sendable {
     }
 
     /// Version compatibility for kanata - uses bundled driver as single source of truth
-    /// NOTE: Kanata v1.12.0 requires Karabiner-DriverKit-VirtualHIDDevice v6.2.0.
-    /// Updated July 2026 with the Kanata v1.12.0 runtime pairing.
+    /// NOTE: Kanata v1.12.1-prerelease-1 uses DriverKit protocol 7 and requires
+    /// Karabiner-DriverKit-VirtualHIDDevice v8.0.0.
     private static var requiredDriverVersionMajor: Int {
         WizardSystemPaths.bundledVHIDDriverMajorVersion
     }
@@ -74,7 +74,7 @@ public final class VHIDDeviceManager: @unchecked Sendable {
         WizardSystemPaths.bundledVHIDDriverVersion
     }
 
-    private static let currentKanataVersion = "1.12.0"
+    private static let currentKanataVersion = "1.12.1-prerelease-1"
 
     // Driver DriverKit extension identifiers
     private static let driverTeamID = "G43BCU2T37" // pqrs.org team ID

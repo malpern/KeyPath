@@ -82,7 +82,7 @@ let package = Package(
     ],
     dependencies: [
         // Sparkle for automatic updates
-        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.8.1"),
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.4"),
         // Snapshot testing for visual regression tests
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.17.0"),
         // ArgumentParser for CLI

@@ -13,6 +13,22 @@ public enum UpdateChannel: String, CaseIterable, Identifiable {
     }
 }
 
+/// Sparkle supplies its continuation as an Objective-C block without Sendable
+/// annotations. The updater invokes it exactly once on the main actor after
+/// runtime preparation, so this narrow wrapper documents that ownership
+/// transfer for Swift 6 concurrency checking.
+private final class SparkleInstallHandler: @unchecked Sendable {
+    private let block: () -> Void
+
+    init(_ block: @escaping () -> Void) {
+        self.block = block
+    }
+
+    func invoke() {
+        block()
+    }
+}
+
 /// Manages application updates via Sparkle framework
 ///
 /// This service handles:
@@ -36,6 +52,8 @@ public final class UpdateService: NSObject {
     public private(set) var canCheckForUpdates = false
     public private(set) var lastUpdateCheckDate: Date?
     public private(set) var automaticallyChecksForUpdates = true
+    public private(set) var automaticallyDownloadsUpdates = true
+    public private(set) var allowsAutomaticUpdates = true
     public private(set) var updateChannel: UpdateChannel = .stable
     public private(set) var currentFeedURL: String?
 
@@ -72,11 +90,13 @@ public final class UpdateService: NSObject {
             canCheckForUpdates = updater.canCheckForUpdates
             lastUpdateCheckDate = updater.lastUpdateCheckDate
             automaticallyChecksForUpdates = updater.automaticallyChecksForUpdates
+            automaticallyDownloadsUpdates = updater.automaticallyDownloadsUpdates
+            allowsAutomaticUpdates = updater.allowsAutomaticUpdates
             let persistedChannel = loadPersistedChannel()
             setUpdateChannel(persistedChannel)
 
             AppLogger.shared.log(
-                "✅ [UpdateService] Sparkle initialized - autoCheck: \(automaticallyChecksForUpdates), channel: \(updateChannel.rawValue)"
+                "✅ [UpdateService] Sparkle initialized - autoCheck: \(automaticallyChecksForUpdates), autoInstall: \(automaticallyDownloadsUpdates), channel: \(updateChannel.rawValue)"
             )
         }
     }
@@ -91,7 +111,25 @@ public final class UpdateService: NSObject {
     public func setAutomaticChecks(enabled: Bool) {
         updaterController?.updater.automaticallyChecksForUpdates = enabled
         automaticallyChecksForUpdates = enabled
+        allowsAutomaticUpdates = updaterController?.updater.allowsAutomaticUpdates ?? false
+        automaticallyDownloadsUpdates = updaterController?.updater.automaticallyDownloadsUpdates ?? false
         AppLogger.shared.log("⚙️ [UpdateService] Automatic checks set to: \(enabled)")
+    }
+
+    /// Enable or disable Sparkle's automatic background download/install path.
+    /// This is a user preference; Info.plist supplies only the initial default.
+    public func setAutomaticDownloads(enabled: Bool) {
+        guard let updater = updaterController?.updater, updater.allowsAutomaticUpdates else {
+            AppLogger.shared.warn("⚠️ [UpdateService] Automatic updates are unavailable while automatic checks are disabled")
+            automaticallyDownloadsUpdates = false
+            allowsAutomaticUpdates = false
+            return
+        }
+
+        updater.automaticallyDownloadsUpdates = enabled
+        automaticallyDownloadsUpdates = updater.automaticallyDownloadsUpdates
+        allowsAutomaticUpdates = updater.allowsAutomaticUpdates
+        AppLogger.shared.log("⚙️ [UpdateService] Automatic download/install set to: \(automaticallyDownloadsUpdates)")
     }
 
     public func setUpdateChannel(_ channel: UpdateChannel) {
@@ -131,27 +169,40 @@ extension UpdateService: SPUUpdaterDelegate {
         return channel == .beta ? ["beta"] : []
     }
 
-    /// Called before an update is about to be installed
-    /// We use this to stop kanata and helper services before Sparkle replaces the app bundle
+    /// Called immediately before Sparkle begins installation. Runtime shutdown
+    /// is completed by `shouldPostponeRelaunchForUpdate` before Sparkle reaches
+    /// this callback; do not launch asynchronous preparation from here because
+    /// Sparkle does not wait for this method to return.
     public nonisolated func updater(
         _: SPUUpdater,
         willInstallUpdate item: SUAppcastItem
     ) {
-        // Extract version string before crossing isolation boundary
         let version = item.displayVersionString
         Task { @MainActor in
-            await prepareForUpdate(version: version)
+            AppLogger.shared.log("📦 [UpdateService] Installing prepared KeyPath update v\(version)")
         }
     }
 
-    /// Provide custom appcast item comparison if needed
+    /// Hold Sparkle at its supported pre-install boundary while KeyPath stops
+    /// the app-bundled Kanata runtime. The handler is invoked even when shutdown
+    /// cannot be proven so an update never remains permanently wedged; the
+    /// failure is surfaced and the normal post-relaunch validation remains the
+    /// authority for recovery.
     public nonisolated func updater(
         _: SPUUpdater,
-        shouldPostponeRelaunchForUpdate _: SUAppcastItem,
-        untilInvokingBlock _: @escaping () -> Void
+        shouldPostponeRelaunchForUpdate item: SUAppcastItem,
+        untilInvokingBlock installHandler: @escaping () -> Void
     ) -> Bool {
-        // Don't postpone - let Sparkle handle the relaunch timing
-        false
+        let version = item.displayVersionString
+        let handler = SparkleInstallHandler(installHandler)
+        Task { @MainActor in
+            defer {
+                AppLogger.shared.log("▶️ [UpdateService] Runtime preparation finished; releasing Sparkle installer")
+                handler.invoke()
+            }
+            await prepareForUpdate(version: version)
+        }
+        return true
     }
 
     public nonisolated func updater(_: SPUUpdater, didAbortWithError error: Error) {
@@ -220,7 +271,7 @@ extension UpdateService: SPUUpdaterDelegate {
 extension UpdateService {
     enum UpdateRepairDecision: Equatable {
         case silentContinue(reason: String)
-        case automaticRepairAllowed(reason: String)
+        case runtimeShutdownRequired(reason: String)
         case userRepairRequired(reason: String)
         case manualAttentionRequired(reason: String)
     }
@@ -251,12 +302,16 @@ extension UpdateService {
         switch Self.preUpdateDecision(for: context) {
         case let .silentContinue(reason):
             AppLogger.shared.log("✅ [UpdateService] Pre-update: no preparation needed (\(reason))")
-        case let .automaticRepairAllowed(reason):
-            AppLogger.shared.log("🔧 [UpdateService] Pre-update: running repair (\(reason))")
-            let report = await engine.run(intent: .repair, using: broker)
-            AppLogger.shared.log(
-                "✅ [UpdateService] Services prepared for update - success: \(report.success)"
-            )
+        case let .runtimeShutdownRequired(reason):
+            AppLogger.shared.log("⏸️ [UpdateService] Pre-update: stopping bundled Kanata runtime (\(reason))")
+            let report = await engine.runSingleAction(.terminateConflictingProcesses, using: broker)
+            if report.success {
+                AppLogger.shared.log("✅ [UpdateService] Bundled Kanata runtime stopped before update")
+            } else {
+                AppLogger.shared.error(
+                    "⚠️ [UpdateService] Could not prove Kanata stopped before update: \(report.failureReason ?? "unknown error")"
+                )
+            }
         case let .userRepairRequired(reason), let .manualAttentionRequired(reason):
             AppLogger.shared.error(
                 "⚠️ [UpdateService] Pre-update repair not allowed for decision \(reason); continuing without mutation"
@@ -284,9 +339,9 @@ extension UpdateService {
             )
             MainAppStateController.shared.invalidateValidationCooldown()
             await MainAppStateController.shared.revalidate()
-        case let .automaticRepairAllowed(reason):
+        case let .runtimeShutdownRequired(reason):
             AppLogger.shared.error(
-                "⚠️ [UpdateService] Post-update automatic repair is disallowed by Phase 1 W3 (\(reason)); surfacing status instead"
+                "⚠️ [UpdateService] Unexpected post-update shutdown decision (\(reason)); surfacing status instead"
             )
             MainAppStateController.shared.invalidateValidationCooldown()
             await MainAppStateController.shared.revalidate()
@@ -295,7 +350,7 @@ extension UpdateService {
 
     nonisolated static func preUpdateDecision(for context: SystemContext) -> UpdateRepairDecision {
         if context.services.kanataRunning || context.services.karabinerDaemonRunning || context.helper.isInstalled {
-            return .automaticRepairAllowed(reason: "reason_code=services_or_helper_present")
+            return .runtimeShutdownRequired(reason: "reason_code=services_or_helper_present")
         }
         return .silentContinue(reason: "reason_code=nothing_running")
     }

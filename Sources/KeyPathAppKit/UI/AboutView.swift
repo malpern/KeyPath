@@ -182,6 +182,13 @@ struct AboutView: View {
             ))
             .accessibilityIdentifier("about-auto-update-toggle")
 
+            Toggle("Download and install updates automatically", isOn: Binding(
+                get: { updateService.automaticallyDownloadsUpdates },
+                set: { updateService.setAutomaticDownloads(enabled: $0) }
+            ))
+            .disabled(!updateService.allowsAutomaticUpdates)
+            .accessibilityIdentifier("about-auto-install-toggle")
+
             HStack(alignment: .center, spacing: 12) {
                 Text("Update Channel")
                     .font(.subheadline.weight(.medium))
