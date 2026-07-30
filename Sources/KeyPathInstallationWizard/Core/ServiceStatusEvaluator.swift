@@ -26,14 +26,35 @@ public enum ServiceStatusEvaluator {
         completedAttempts: Int
     ) -> Bool {
         guard completedAttempts < transientRefreshAttemptLimit else { return false }
+        return isTransientStartupStatus(
+            runtimeStatus: runtimeStatus,
+            isInTransientStartupWindow: isInTransientStartupWindow
+        )
+    }
 
+    public static func didExhaustTransientStatus(
+        runtimeStatus: WizardRuntimeStatus,
+        isInTransientStartupWindow: Bool,
+        completedAttempts: Int
+    ) -> Bool {
+        guard completedAttempts >= transientRefreshAttemptLimit else { return false }
+        return isTransientStartupStatus(
+            runtimeStatus: runtimeStatus,
+            isInTransientStartupWindow: isInTransientStartupWindow
+        )
+    }
+
+    private static func isTransientStartupStatus(
+        runtimeStatus: WizardRuntimeStatus,
+        isInTransientStartupWindow: Bool
+    ) -> Bool {
         switch runtimeStatus {
         case .starting:
-            return true
+            true
         case .stopped:
-            return isInTransientStartupWindow
+            isInTransientStartupWindow
         case .running, .failed, .unknown:
-            return false
+            false
         }
     }
 

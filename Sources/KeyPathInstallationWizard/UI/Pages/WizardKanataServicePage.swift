@@ -332,9 +332,11 @@ public struct WizardKanataServicePage: View {
                 completedAttempts: completedAttempts
             )
             guard shouldRetry else {
-                if completedAttempts >= ServiceStatusEvaluator.transientRefreshAttemptLimit,
-                   runtimeStatus == .starting
-                {
+                if ServiceStatusEvaluator.didExhaustTransientStatus(
+                    runtimeStatus: runtimeStatus,
+                    isInTransientStartupWindow: isInTransientStartupWindow,
+                    completedAttempts: completedAttempts
+                ) {
                     await MainActor.run {
                         serviceStatus = .failed(
                             error: "Runtime startup did not finish. Click Restart to retry."
