@@ -21,13 +21,13 @@ public struct SystemFacade: Sendable {
     public init() {
         self.init(
             startServiceOperation: {
-                try await HelperManager.shared.startKanataService()
+                try await KanataDaemonService.shared.start()
             },
             stopServiceOperation: {
-                try await HelperManager.shared.stopKanataService()
+                try await KanataDaemonService.shared.stop()
             },
             restartServiceOperation: {
-                try await HelperManager.shared.restartKanataService()
+                try await KanataDaemonService.shared.restart()
             },
             runtimeCacheInvalidator: {
                 await MainActor.run {

@@ -57,3 +57,12 @@ contract advanced to 1.3.2 so installations cannot retain either earlier behavio
 reporting the helper as fresh. A lifecycle lint test preserves the required
 inspect-before-disable-before-signal and enable-before-kickstart ordering; installed-app
 acceptance verifies the real launchd transition.
+
+The next acceptance run proved that even direct PID signaling is insufficient: launchd respawns
+an already loaded KeepAlive job after `launchctl disable`. The CLI lifecycle facade now uses the
+same `SMAppService` register/unregister ownership path as the KeyPath UI. Stop unregisters the
+daemon and verifies both registration and process removal, start registers it, and restart
+performs those operations in order. If macOS leaves a stale job across an app replacement, stop
+retries the owning API once before using the existing helper-backed privileged cleanup. The
+helper remains the privilege boundary for operations that require root, but it no longer tries
+to emulate the owning app's SMAppService lifecycle with launchctl signals.

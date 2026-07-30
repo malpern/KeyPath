@@ -8,6 +8,7 @@ private class MockSMAppService: SMAppServiceProtocol, @unchecked Sendable {
     var status: SMAppService.Status
     var registerCalled = false
     var unregisterCalled = false
+    var calls: [String] = []
 
     init(status: SMAppService.Status = .notRegistered) {
         self.status = status
@@ -15,6 +16,7 @@ private class MockSMAppService: SMAppServiceProtocol, @unchecked Sendable {
 
     func register() throws {
         registerCalled = true
+        calls.append("register")
         // Simulate successful registration transition
         if status == .notRegistered || status == .notFound {
             status = .enabled
@@ -23,6 +25,7 @@ private class MockSMAppService: SMAppServiceProtocol, @unchecked Sendable {
 
     func unregister() async throws {
         unregisterCalled = true
+        calls.append("unregister")
         status = .notRegistered
     }
 }
@@ -58,6 +61,7 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
         // runner is a dev Mac with a real kanata listening on the default port, which
         // would otherwise make the probe succeed and contaminate these status tests.
         KanataDaemonService.tcpProbeOverride = { _, _ in false }
+        KanataDaemonService.stoppedPostconditionOverride = { true }
 
         // 2. Create Service under test
         service = KanataDaemonService()
@@ -67,6 +71,8 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
         KanataDaemonService.smServiceFactory = originalFactory
         SMAppServiceStatusProvider.shared = originalStatusProvider
         KanataDaemonService.tcpProbeOverride = nil
+        KanataDaemonService.stoppedPostconditionOverride = nil
+        KanataDaemonService.privilegedStopOverride = nil
         service = nil
         try await super.tearDown()
     }
@@ -86,6 +92,51 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
         if case .running = status {
             XCTFail("Expected service to be stopped or unknown after stop, got \(status)")
         }
+    }
+
+    func testStartServiceRegisters() async throws {
+        let mock = MockSMAppService(status: .notRegistered)
+        KanataDaemonService.smServiceFactory = { _ in mock }
+        service = KanataDaemonService()
+
+        try await service.start()
+
+        XCTAssertTrue(mock.registerCalled)
+        XCTAssertEqual(mock.calls, ["register"])
+    }
+
+    func testRestartServiceUnregistersBeforeRegistering() async throws {
+        let mock = MockSMAppService(status: .enabled)
+        KanataDaemonService.smServiceFactory = { _ in mock }
+        service = KanataDaemonService()
+
+        try await service.restart()
+
+        XCTAssertTrue(mock.unregisterCalled)
+        XCTAssertTrue(mock.registerCalled)
+        XCTAssertEqual(mock.calls, ["unregister", "register"])
+    }
+
+    func testStopRetriesUnregisterThenUsesPrivilegedFallbackForStaleJob() async throws {
+        let mock = MockSMAppService(status: .enabled)
+        KanataDaemonService.smServiceFactory = { _ in mock }
+
+        var postconditionChecks = 0
+        KanataDaemonService.stoppedPostconditionOverride = {
+            postconditionChecks += 1
+            return postconditionChecks > 20
+        }
+        var privilegedStopCalls = 0
+        KanataDaemonService.privilegedStopOverride = {
+            privilegedStopCalls += 1
+        }
+        service = KanataDaemonService()
+
+        try await service.stop()
+
+        XCTAssertEqual(mock.calls, ["unregister", "unregister"])
+        XCTAssertEqual(privilegedStopCalls, 1)
+        XCTAssertGreaterThanOrEqual(postconditionChecks, 21)
     }
 
     func testStatusRefresh_ShouldDetectChanges() async {
