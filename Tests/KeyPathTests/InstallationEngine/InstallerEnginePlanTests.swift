@@ -114,6 +114,31 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
         )
     }
 
+    func testHelperFreshPostconditionRejectsWorkingHelperWithUnknownVersion() {
+        let context = SystemContextBuilder(
+            helperReady: true,
+            helperVersion: nil
+        ).build()
+
+        XCTAssertTrue(InstallerPostcondition.helperReadyOrApprovalPending.isSatisfied(by: context))
+        XCTAssertFalse(InstallerPostcondition.helperFreshOrApprovalPending.isSatisfied(by: context))
+    }
+
+    func testHelperFreshPostconditionAcceptsExactVersionOrPendingApproval() {
+        let freshContext = SystemContextBuilder(
+            helperReady: true,
+            helperVersion: WizardHelperConstants.expectedHelperVersion
+        ).build()
+        let approvalContext = SystemContextBuilder(
+            helperReady: false,
+            helperRequiresApproval: true,
+            helperVersion: nil
+        ).build()
+
+        XCTAssertTrue(InstallerPostcondition.helperFreshOrApprovalPending.isSatisfied(by: freshContext))
+        XCTAssertTrue(InstallerPostcondition.helperFreshOrApprovalPending.isSatisfied(by: approvalContext))
+    }
+
     func testRepairRefreshesHealthyButStaleKanataRuntimeAfterAppUpdate() async throws {
         let context = SystemContextBuilder(
             servicesHealthy: true,
