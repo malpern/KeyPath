@@ -513,7 +513,9 @@ final class KeyboardStageSceneTests: XCTestCase {
         let originalOtherKey = try XCTUnwrap(scene.keys.first { $0.id == otherKey.id })
 
         XCTAssertGreaterThan(caps.pressure, try capsKey(in: scene).pressure)
-        XCTAssertLessThan(caps.scale, 1)
+        // A press travels down inside its well; the footprint never shrinks.
+        XCTAssertGreaterThan(caps.translation.y, try capsKey(in: scene).translation.y)
+        XCTAssertEqual(caps.scale, 1)
         XCTAssertGreaterThanOrEqual(caps.glow, try capsKey(in: scene).glow)
         XCTAssertEqual(caps.interactionLevel, 1)
         XCTAssertEqual(otherKey, originalOtherKey)
@@ -564,6 +566,7 @@ final class KeyboardStageSceneTests: XCTestCase {
 
         XCTAssertEqual(caps.pressure, 0)
         XCTAssertEqual(caps.scale, 1)
+        XCTAssertEqual(caps.translation, try capsKey(in: scene).translation)
         XCTAssertEqual(caps.interactionLevel, 1)
         XCTAssertGreaterThan(caps.glow, try capsKey(in: scene).glow)
     }

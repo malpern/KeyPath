@@ -56,6 +56,9 @@ struct KeyboardStageTuning: Equatable, Sendable {
     /// Window-space corner falloff; relaxes to 30% at the settled light.
     var vignetteStrength: Float = 0.58
     var vignetteInnerRadius: Float = 0.33
+    /// Press ripple prototype: light escaping the well as a released cap
+    /// rises, expanding one key-pitch and dying. Zero disables it entirely.
+    var pressRippleStrength: Float = 0.6
 
     static let `default` = KeyboardStageTuning()
 
@@ -117,6 +120,7 @@ extension KeyboardStageTuning: Codable {
         case highlightJitter
         case vignetteStrength
         case vignetteInnerRadius
+        case pressRippleStrength
     }
 
     init(from decoder: any Decoder) throws {
@@ -152,6 +156,7 @@ extension KeyboardStageTuning: Codable {
         highlightJitter = value(.highlightJitter, defaults.highlightJitter)
         vignetteStrength = value(.vignetteStrength, defaults.vignetteStrength)
         vignetteInnerRadius = value(.vignetteInnerRadius, defaults.vignetteInnerRadius)
+        pressRippleStrength = value(.pressRippleStrength, defaults.pressRippleStrength)
     }
 
     /// Loads overrides from a JSON file; unknown keys are ignored and missing

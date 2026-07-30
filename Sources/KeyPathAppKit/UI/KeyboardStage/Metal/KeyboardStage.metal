@@ -24,6 +24,7 @@ struct KeyboardStageUniforms {
     float4 tuningC;       // well expansion, contact strength, cast strength, backlight
     float4 tuningD;       // legend emission min/max, legend base min/max
     float4 tuningE;       // fill light, fill specular, wear strength, highlight jitter
+    float4 pressRipple;   // view-normalized center.xy, ring phase, strength
 };
 
 struct KeyboardStageLegendInstance {
@@ -639,7 +640,7 @@ fragment float4 keypath_keyboard_stage_fragment(
     surfaceColor = mix(
         surfaceColor,
         input.glowColor.rgb,
-        keyPress * mix(0.12, 0.055, illumination)
+        keyPress * mix(0.10, 0.022, illumination)
     );
 
     // Stable, sub-pixel material variation prevents the aluminum deck and
@@ -741,6 +742,31 @@ fragment float4 keypath_keyboard_stage_fragment(
         * fillStrength
         * (fillDiffuse * (isDeck ? 0.050 : 0.034)
             + fillSpecular * bevel * uniforms.tuningE.y);
+
+    // Press ripple prototype: as a released cap rises, the light trapped in
+    // its well escapes across the deck as one fast, dying ring. Strictly one
+    // event per user action; pressRippleStrength zero removes it.
+    if (isDeck && uniforms.pressRipple.w > 0.0 && uniforms.pressRipple.z > 0.001) {
+        float viewLocalX = (input.stageUV.x - uniforms.windowX.x)
+            / max(0.0001, uniforms.windowX.y);
+        float2 positionPixels = float2(viewLocalX, input.stageUV.y)
+            * uniforms.viewportSize;
+        float2 centerPixels = uniforms.pressRipple.xy * uniforms.viewportSize;
+        float ringPhase = uniforms.pressRipple.z;
+        float ringRadius = ringPhase * 175.0;
+        float ring = exp(-pow(
+            (length(positionPixels - centerPixels) - ringRadius) / 24.0,
+            2.0
+        ));
+        float ringStrength = uniforms.pressRipple.w
+            * ringPhase
+            * (1.0 - ringPhase)
+            * 4.0;
+        surfaceColor += neutralLight
+            * ring
+            * ringStrength
+            * mix(0.055, 0.030, illumination);
+    }
 
     // A photo-studio sweep: the settled deck keeps a faint exposure gradient
     // toward the light instead of flattening into a uniform card.

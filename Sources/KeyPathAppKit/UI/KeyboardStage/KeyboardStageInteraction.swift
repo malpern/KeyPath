@@ -57,7 +57,9 @@ struct KeyboardStageInteractionLevels: Equatable, Sendable {
         return Dictionary(uniqueKeysWithValues: keyCodes.compactMap { keyCode in
             let level = (start[keyCode] ?? 0)
                 + ((end[keyCode] ?? 0) - (start[keyCode] ?? 0)) * progress
-            guard level > 0.001 else { return nil }
+            // Keep small negative levels: the release spring overshoots so
+            // the cap rebounds a hair above rest before settling.
+            guard abs(level) > 0.001 else { return nil }
             return (keyCode, level)
         })
     }
@@ -80,13 +82,13 @@ private struct KeyboardStageInteractionTransition: Equatable, Sendable {
         return .interpolated(
             from: start,
             to: target,
-            progress: KeyboardStageTransition.criticallyDampedProgress(linearProgress)
+            progress: KeyboardStageTransition.underdampedReleaseProgress(linearProgress)
         )
     }
 }
 
 struct KeyboardStageInteractionPresentation: Equatable, Sendable {
-    static let releaseDuration: TimeInterval = 0.12
+    static let releaseDuration: TimeInterval = 0.19
 
     private(set) var settledLevels: KeyboardStageInteractionLevels
     private(set) var revision: Int
@@ -156,22 +158,30 @@ extension KeyboardStageScene {
             let pressLevel = interaction.pressed[key.keyCode] ?? 0
             let holdLevel = interaction.held[key.keyCode] ?? 0
             let level = max(pressLevel, holdLevel)
-            guard level > 0 else { return key }
+            guard abs(level) > 0.001 else { return key }
 
             var responsiveKey = key
             responsiveKey.opacity = max(responsiveKey.opacity, 0.98)
-            responsiveKey.interactionLevel = level
+            responsiveKey.interactionLevel = max(0, level)
+            let positivePress = max(0, pressLevel)
+            let positiveHold = max(0, holdLevel)
+            // The sub-linear press term makes the glow linger behind the
+            // mechanical release — a short phosphor tail that reads as
+            // "registered" without adding an event.
             responsiveKey.glow = max(
                 responsiveKey.glow,
-                0.72 * pressLevel + 0.22 * holdLevel
+                0.72 * pow(positivePress, 0.55) + 0.22 * positiveHold
             )
 
             guard !displayMode.reduceMotion else { return responsiveKey }
             responsiveKey.pressure = max(
                 responsiveKey.pressure,
-                0.88 * pressLevel + 0.10 * holdLevel
+                0.88 * positivePress + 0.10 * positiveHold
             )
-            responsiveKey.scale = min(responsiveKey.scale, 1 - 0.045 * level)
+            // A press travels: the cap moves down inside its fixed well (and
+            // the signed spring level lets it rebound just above rest). The
+            // footprint never shrinks.
+            responsiveKey.translation.y += 0.020 * pressLevel + 0.004 * positiveHold
             return responsiveKey
         }
         return copy

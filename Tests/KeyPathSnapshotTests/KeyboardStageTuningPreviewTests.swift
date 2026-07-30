@@ -34,6 +34,7 @@ final class KeyboardStageTuningPreviewTests: XCTestCase {
 
         let moments: [(String, KeyboardStageMoment)] = [
             ("caps", .capsMotivation),
+            ("pressing", .capsApplying),
             ("launcher", .launcher),
             ("handoff", .handoff),
         ]
