@@ -54,8 +54,8 @@ final class KanataDaemonService {
     // whatever is listening on the machine. DEBUG-only — production always probes.
     #if DEBUG
         nonisolated(unsafe) static var tcpProbeOverride: ((Int, Int) -> Bool)?
+        nonisolated(unsafe) static var processRunningOverride: (() async -> Bool)?
         nonisolated(unsafe) static var runningPostconditionOverride: (() async -> Bool)?
-        nonisolated(unsafe) static var stoppedPostconditionOverride: (() async -> Bool)?
         nonisolated(unsafe) static var privilegedStopOverride: (() async throws -> Void)?
     #endif
 
@@ -139,6 +139,12 @@ final class KanataDaemonService {
     }
 
     private func processIsRunning() async -> Bool {
+        #if DEBUG
+            if let override = Self.processRunningOverride {
+                return await override()
+            }
+        #endif
+
         await pidCache.invalidateCache()
         let processState = await detectProcessState()
         return processState.isRunning
@@ -170,41 +176,33 @@ final class KanataDaemonService {
         return false
     }
 
+    private enum StoppedPostcondition: Equatable {
+        case satisfied
+        case registrationPresent
+        case processRunning
+    }
+
     private func waitForStoppedPostcondition(
         maxAttempts: Int = 10,
         delayMilliseconds: Int = 100
-    ) async -> Bool {
-        #if DEBUG
-            if let override = Self.stoppedPostconditionOverride {
-                for attempt in 1 ... maxAttempts {
-                    if await override() {
-                        return true
-                    }
-                    if attempt < maxAttempts {
-                        try? await Task.sleep(for: .milliseconds(delayMilliseconds))
-                    }
-                }
-                return false
-            }
-        #endif
-
+    ) async -> StoppedPostcondition {
         // Registration is correctness-critical but SMAppService.status is slow
         // synchronous IPC. Fetch it once per unregister phase, then poll only the
         // inexpensive launchd-backed process evidence while removal settles.
         let status = await currentRegistrationStatus()
         guard status == .notRegistered || status == .notFound else {
-            return false
+            return .registrationPresent
         }
 
         for attempt in 1 ... maxAttempts {
             if await !processIsRunning() {
-                return true
+                return .satisfied
             }
             if attempt < maxAttempts {
                 try? await Task.sleep(for: .milliseconds(delayMilliseconds))
             }
         }
-        return false
+        return .processRunning
     }
 
     private func forceStopStaleDaemon() async throws {
@@ -298,14 +296,16 @@ final class KanataDaemonService {
         // after the first unregister request. Verify the real postcondition,
         // retry the owning API once, then use the existing privileged bootout
         // path only if the stale job still survives.
-        if await !waitForStoppedPostcondition() {
+        var stoppedPostcondition = await waitForStoppedPostcondition()
+        if stoppedPostcondition == .registrationPresent {
             AppLogger.shared.warn(
                 "⚠️ [KanataDaemonService] Job survived unregister; retrying SMAppService removal"
             )
             try? await unregisterDaemon()
+            stoppedPostcondition = await waitForStoppedPostcondition()
         }
 
-        if await !waitForStoppedPostcondition() {
+        if stoppedPostcondition != .satisfied {
             AppLogger.shared.warn(
                 "⚠️ [KanataDaemonService] Stale job survived SMAppService retry; using privileged cleanup"
             )
@@ -314,9 +314,16 @@ final class KanataDaemonService {
             } catch {
                 throw KanataDaemonServiceError.stopFailed(reason: error.localizedDescription)
             }
+
+            // A bootout can stop the process, but only the owning API can remove
+            // a still-enabled registration and prevent a later KeepAlive respawn.
+            if stoppedPostcondition == .registrationPresent {
+                try await unregisterDaemon()
+            }
+            stoppedPostcondition = await waitForStoppedPostcondition(maxAttempts: 20)
         }
 
-        guard await waitForStoppedPostcondition(maxAttempts: 20) else {
+        guard stoppedPostcondition == .satisfied else {
             throw KanataDaemonServiceError.stopFailed(
                 reason: "Service remained registered or running after stale-job cleanup"
             )
