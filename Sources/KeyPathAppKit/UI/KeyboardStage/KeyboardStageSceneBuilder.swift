@@ -124,11 +124,15 @@ enum KeyboardStageSceneBuilder {
                 dim(keys: &keys, except: [capsKeyID], opacity: 0.88)
                 keys[capsIndex].role = .escape
                 keys[capsIndex].pressure = 0.12
-                keys[capsIndex].translation.y = 0.12 * 0.023
                 keys[capsIndex].glow = 0.85
                 keys[capsIndex].opacity = 1
                 keys[capsIndex].scale = 0.78
-                keys[capsIndex].translation = KeyboardStagePoint(x: -0.48, y: -0.52)
+                // The authored transform pose owns the base translation; the
+                // physical press travel is applied on top of it.
+                keys[capsIndex].translation = KeyboardStagePoint(
+                    x: -0.48,
+                    y: -0.52 + 0.12 * 0.023
+                )
                 keys[capsIndex].legend = KeyboardStageLegend(
                     primary: "esc",
                     previous: "caps lock",

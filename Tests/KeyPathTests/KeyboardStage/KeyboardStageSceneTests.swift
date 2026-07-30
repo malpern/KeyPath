@@ -521,6 +521,21 @@ final class KeyboardStageSceneTests: XCTestCase {
         XCTAssertEqual(otherKey, originalOtherKey)
     }
 
+    func testReleaseReboundLiftsTheCapAboveRest() throws {
+        let scene = makeScene(moment: .capsInstalled)
+        let responsiveScene = scene.applyingInteraction(
+            KeyboardStageInteractionLevels(pressed: [57: -0.025], held: [:])
+        )
+        let caps = try capsKey(in: responsiveScene)
+        let baseCaps = try capsKey(in: scene)
+
+        // The underdamped release dips slightly negative; the cap must rise
+        // a hair above its rest position, with no residual press styling.
+        XCTAssertLessThan(caps.translation.y, baseCaps.translation.y)
+        XCTAssertEqual(caps.interactionLevel, 0)
+        XCTAssertEqual(caps.pressure, baseCaps.pressure)
+    }
+
     func testLivePressRespondsOnANeutralNonCapsKey() throws {
         let scene = makeScene(moment: .capsInstalled)
         let neutral = try XCTUnwrap(scene.keys.first { key in

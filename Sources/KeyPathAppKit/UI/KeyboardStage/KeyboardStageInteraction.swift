@@ -157,12 +157,17 @@ extension KeyboardStageScene {
         copy.keys = keys.map { key in
             let pressLevel = interaction.pressed[key.keyCode] ?? 0
             let holdLevel = interaction.held[key.keyCode] ?? 0
-            let level = max(pressLevel, holdLevel)
-            guard abs(level) > 0.001 else { return key }
+            // Gate on the signed components, not their collapsed max: during
+            // the rebound a plain tap has pressLevel slightly negative and no
+            // hold level, and max(negative, 0) would discard exactly the
+            // frames the above-rest lift exists for.
+            guard abs(pressLevel) > 0.001 || abs(holdLevel) > 0.001 else {
+                return key
+            }
 
             var responsiveKey = key
             responsiveKey.opacity = max(responsiveKey.opacity, 0.98)
-            responsiveKey.interactionLevel = max(0, level)
+            responsiveKey.interactionLevel = max(0, max(pressLevel, holdLevel))
             let positivePress = max(0, pressLevel)
             let positiveHold = max(0, holdLevel)
             // The sub-linear press term makes the glow linger behind the
