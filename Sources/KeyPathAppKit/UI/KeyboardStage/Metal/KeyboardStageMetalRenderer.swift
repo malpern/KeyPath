@@ -953,6 +953,7 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
                 materialKind: 1,
                 wear: Self.wearLevel(for: key.keyCode),
                 seed: Self.materialSeed(for: key.keyCode),
+                homingBar: key.keyCode == 3 || key.keyCode == 38 ? 1 : 0,
                 drawableSize: drawableSize
             )
         })
@@ -1039,6 +1040,7 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
         materialKind: Float,
         wear: Float = 0,
         seed: Float = 0.5,
+        homingBar: Float = 0,
         drawableSize: CGSize
     ) -> KeyboardStageGPUInstance {
         let width = max(1, Float(drawableSize.width))
@@ -1072,7 +1074,7 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
                 lighting.shadowStrength,
                 interactionLevel
             ),
-            material: SIMD4(wear, seed, 0, 0)
+            material: SIMD4(wear, seed, homingBar, 0)
         )
     }
 

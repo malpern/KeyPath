@@ -51,7 +51,7 @@ struct KeyboardStageVertexOut {
     float cornerRadiusPixels;
     float2 stageUV;
     float materialKind;
-    float2 material;
+    float3 material;
 };
 
 struct KeyboardStageLegendVertexOut {
@@ -115,7 +115,7 @@ vertex KeyboardStageVertexOut keypath_keyboard_stage_vertex(
         0.5 - output.position.y * 0.5
     );
     output.materialKind = instance.treatment.w;
-    output.material = instance.material.xy;
+    output.material = instance.material.xyz;
     return output;
 }
 
@@ -390,13 +390,13 @@ fragment float4 keypath_keyboard_stage_fragment(
             mix(0.45, 0.10, pressure),
             mix(2.45, 0.55, pressure)
         ),
-        input.halfSizePixels + float2(isKey ? 2.15 : 0.0),
-        input.cornerRadiusPixels + (isKey ? 1.05 : 0.0)
+        input.halfSizePixels + float2(isKey ? 2.7 : 0.0),
+        input.cornerRadiusPixels + (isKey ? 1.3 : 0.0)
     );
     float skirtAlpha = isKey
         ? (1.0 - smoothstep(-0.35, 2.1, skirtDistance)) * (1.0 - surfaceAlpha)
         : 0.0;
-    skirtAlpha *= mix(0.92, 0.52, illumination);
+    skirtAlpha *= mix(1.0, 0.60, illumination);
 
     float contactShadowAlpha = keypath_area_shadow(
         input.localPixels,
@@ -517,7 +517,7 @@ fragment float4 keypath_keyboard_stage_fragment(
         float2(1.0)
     );
     float faceMask = isKey ? (1.0 - bevel) * surfaceAlpha : 0.0;
-    float2 crownNormal = faceCoordinate * float2(0.055, 0.075) * faceMask;
+    float2 crownNormal = faceCoordinate * float2(0.10, 0.12) * faceMask;
     // Each cap sits at a fractionally different angle, so its highlight lands
     // slightly apart from its neighbors' — the variation that reads as
     // photographed hardware instead of instanced geometry.
@@ -535,16 +535,16 @@ fragment float4 keypath_keyboard_stage_fragment(
     // and brushed aluminum microfacets. Deriving the normal in the shader keeps
     // the detail scale stable and avoids a visibly tiled photographic texture.
     float2 materialPixels = input.stageUV * uniforms.viewportSize;
-    float microScale = isDeck ? 0.085 : 0.16;
+    float microScale = isDeck ? 0.11 : 0.16;
     float2 microCoordinate = materialPixels * microScale;
     float microCenter = keypath_value_noise(microCoordinate);
     float microX = keypath_value_noise(microCoordinate + float2(0.55, 0.0)) - microCenter;
     float microY = keypath_value_noise(microCoordinate + float2(0.0, 0.55)) - microCenter;
     float brushedRidge = isDeck
         ? sin(materialPixels.y * 1.82 + keypath_value_noise(materialPixels * 0.012) * 4.0)
-            * 0.0038
+            * 0.0012
         : 0.0;
-    float microNormalStrength = isDeck ? 0.026 : 0.014 * (1.0 - wear * 0.45);
+    float microNormalStrength = isDeck ? 0.034 : 0.014 * (1.0 - wear * 0.45);
     normal = normalize(normal + float3(
         microX * microNormalStrength,
         microY * microNormalStrength + brushedRidge,
@@ -651,9 +651,19 @@ fragment float4 keypath_keyboard_stage_fragment(
         floor(input.stageUV.x * 37.0)
     )) - 0.5;
     surfaceColor += (
-        materialNoise * (isDeck ? 0.015 : 0.0050)
-        + brushedNoise * (isDeck ? 0.009 : 0.0)
+        materialNoise * (isDeck ? 0.022 : 0.0050)
+        + brushedNoise * (isDeck ? 0.004 : 0.0)
     ) * mix(0.38, 1.45, illumination);
+    // Molded plastic carries a second, blotchier scale of variation beneath
+    // the fine speckle; without it a zoomed cap face reads as flat shading.
+    float mottle = keypath_value_noise(
+        materialPixels * (isDeck ? 0.011 : 0.017)
+        + float2(input.material.y * 31.0, 0.0)
+    );
+    surfaceColor *= 1.0
+        + (mottle - 0.5)
+            * (isDeck ? 0.024 : 0.050)
+            * mix(0.72, 1.0, illumination);
 
     float3 neutralLight = mix(float3(0.62, 0.72, 0.86), float3(1.0), illumination);
     surfaceColor *= mix(0.58, 1.04, illumination) + diffuse * illumination * 0.12;
@@ -792,6 +802,35 @@ fragment float4 keypath_keyboard_stage_fragment(
             * surfaceAlpha
         : 0.0;
     surfaceColor += neutralLight * chipTopLine * (0.07 + illumination * 0.05);
+
+    // The F and J homing bars: a shallow molded recess low on the cap face.
+    // The interior falls into shadow while the lower inner wall catches the
+    // area light, exactly like the tactile ridge on MacBook hardware.
+    float homingBar = isKey ? saturate(input.material.z) : 0.0;
+    if (homingBar > 0.0) {
+        float2 barHalf = float2(
+            input.halfSizePixels.x * 0.24,
+            max(1.2, input.halfSizePixels.y * 0.055)
+        );
+        float2 barCenter = float2(0.0, input.halfSizePixels.y * 0.42);
+        float barDistance = keypath_rounded_rect_distance(
+            input.localPixels - barCenter,
+            barHalf,
+            barHalf.y
+        );
+        float barMask = (1.0 - smoothstep(-0.9, 0.9, barDistance)) * surfaceAlpha;
+        float barBelow = saturate(
+            (input.localPixels.y - barCenter.y) / (barHalf.y + 2.2)
+        );
+        float barLip = exp(-pow(barDistance - 1.3, 2.0) * 0.55)
+            * barBelow
+            * surfaceAlpha;
+        surfaceColor *= 1.0 - barMask * homingBar * mix(0.16, 0.20, illumination);
+        surfaceColor += neutralLight
+            * barLip
+            * homingBar
+            * (0.050 + illumination * 0.075);
+    }
 
     // A narrow internal rim makes the translucent legend light feel seated in
     // a real cap even though semantic glyphs remain native and accessible.
