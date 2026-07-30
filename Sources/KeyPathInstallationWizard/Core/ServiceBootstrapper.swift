@@ -718,7 +718,18 @@ public final class ServiceBootstrapper {
                 AppLogger.shared.log("🔄 Attempt \(attempt)/\(maxRetries)")
 
                 try await daemonManager.unregister()
-                let bootedOut = await bootOutStaleKanataSMAppServiceJob(attempt: attempt)
+                // A successful SMAppService unregister normally removes the
+                // launchd job asynchronously. Give that normal path a brief
+                // chance to settle before asking for administrator privileges
+                // to force a bootout. The privileged fallback is only needed
+                // when macOS actually leaves a stale registration behind.
+                let removedByUnregister = await waitForKanataSMAppServiceRemoval()
+                let bootedOut: Bool
+                if removedByUnregister {
+                    bootedOut = true
+                } else {
+                    bootedOut = await bootOutStaleKanataSMAppServiceJob(attempt: attempt)
+                }
                 if !bootedOut {
                     AppLogger.shared.log("❌ Attempt \(attempt) failed: stale launchd job could not be booted out")
                     continue
@@ -754,6 +765,32 @@ public final class ServiceBootstrapper {
             }
         }
         AppLogger.shared.log("⚠️ [ServiceBootstrapper] Could not fix SMAppService state - user may need to reboot")
+        return false
+    }
+
+    @MainActor
+    private func waitForKanataSMAppServiceRemoval(
+        maxAttempts: Int = 10,
+        delayMilliseconds: Int = 100
+    ) async -> Bool {
+        guard let daemonManager else { return false }
+
+        for attempt in 1 ... maxAttempts {
+            let state = await daemonManager.refreshManagementState()
+            if state == .uninstalled {
+                AppLogger.shared.log(
+                    "✅ [ServiceBootstrapper] SMAppService unregister removed the Kanata job"
+                )
+                return true
+            }
+            if attempt < maxAttempts {
+                _ = await WizardSleep.ms(delayMilliseconds)
+            }
+        }
+
+        AppLogger.shared.log(
+            "⚠️ [ServiceBootstrapper] Kanata job remained after SMAppService unregister; using privileged bootout fallback"
+        )
         return false
     }
 
@@ -796,6 +833,16 @@ public final class ServiceBootstrapper {
     #if DEBUG
         func _testBootOutStaleKanataSMAppServiceJob(attempt: Int = 1) async -> Bool {
             await bootOutStaleKanataSMAppServiceJob(attempt: attempt)
+        }
+
+        func _testWaitForKanataSMAppServiceRemoval(
+            maxAttempts: Int,
+            delayMilliseconds: Int = 0
+        ) async -> Bool {
+            await waitForKanataSMAppServiceRemoval(
+                maxAttempts: maxAttempts,
+                delayMilliseconds: delayMilliseconds
+            )
         }
     #endif
 

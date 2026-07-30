@@ -2,6 +2,7 @@ import Foundation
 @testable import KeyPathAppKit
 @testable import KeyPathCore
 @testable import KeyPathInstallationWizard
+@testable import KeyPathWizardCore
 @preconcurrency import XCTest
 
 /// Unit tests for ServiceBootstrapper service.
@@ -360,6 +361,36 @@ final class ServiceBootstrapperTests: XCTestCase {
         XCTAssertEqual(calls, 1)
     }
 
+    func testSuccessfulUnregisterSettlesBeforePrivilegedBootoutFallback() async {
+        let originalDaemonManager = WizardDependencies.daemonManager
+        let daemonManager = SequencedWizardDaemonManager(
+            states: [.unknown, .uninstalled]
+        )
+        WizardDependencies.daemonManager = daemonManager
+        defer { WizardDependencies.daemonManager = originalDaemonManager }
+
+        let result = await ServiceBootstrapper.shared
+            ._testWaitForKanataSMAppServiceRemoval(maxAttempts: 3)
+
+        XCTAssertTrue(result)
+        XCTAssertEqual(daemonManager.refreshCount, 2)
+    }
+
+    func testPersistentRegistrationRequiresPrivilegedBootoutFallback() async {
+        let originalDaemonManager = WizardDependencies.daemonManager
+        let daemonManager = SequencedWizardDaemonManager(
+            states: [.smappserviceActive]
+        )
+        WizardDependencies.daemonManager = daemonManager
+        defer { WizardDependencies.daemonManager = originalDaemonManager }
+
+        let result = await ServiceBootstrapper.shared
+            ._testWaitForKanataSMAppServiceRemoval(maxAttempts: 3)
+
+        XCTAssertFalse(result)
+        XCTAssertEqual(daemonManager.refreshCount, 3)
+    }
+
     func testRepairVHIDDaemonServicesInTestModeSetsOutput() async {
         let bootstrapper = ServiceBootstrapper.shared
         let result = await withAdminOperationsSkippedForTesting {
@@ -401,4 +432,32 @@ final class ServiceBootstrapperTests: XCTestCase {
         }
         return await body()
     }
+}
+
+@MainActor
+private final class SequencedWizardDaemonManager: WizardDaemonManaging {
+    private let states: [WizardServiceManagementState]
+    private var index = 0
+    private(set) var refreshCount = 0
+
+    init(states: [WizardServiceManagementState]) {
+        self.states = states
+    }
+
+    func refreshManagementState() async -> WizardServiceManagementState {
+        refreshCount += 1
+        guard !states.isEmpty else { return .unknown }
+        let state = states[min(index, states.count - 1)]
+        index += 1
+        return state
+    }
+
+    func isRegisteredButNotLoaded() async -> Bool { false }
+    func register() async throws {}
+    func unregister() async throws {}
+
+    nonisolated let kanataServiceID = "com.keypath.kanata"
+    nonisolated let legacyPlistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"
+
+    func preferredLaunchctlTargets(for _: WizardServiceManagementState) -> [String] { [] }
 }
