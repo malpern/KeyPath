@@ -19,11 +19,11 @@ import Foundation
 /// are uploaded and no file monitoring is installed.
 struct KeyboardStageTuning: Equatable, Sendable {
     /// Warm right-side graze: deck ambient and diffuse amplitudes.
-    var grazeAmplitudeDeck: Float = 0.19
-    var grazeDiffuseDeck: Float = 0.115
+    var grazeAmplitudeDeck: Float = 0.24
+    var grazeDiffuseDeck: Float = 0.14
     /// Warm right-side graze: keycap ambient and diffuse amplitudes.
-    var grazeAmplitudeKey: Float = 0.040
-    var grazeDiffuseKey: Float = 0.066
+    var grazeAmplitudeKey: Float = 0.026
+    var grazeDiffuseKey: Float = 0.048
     /// Window-space coordinate where the warm graze begins.
     var grazeMaskStart: Float = 0.44
     /// Peak gain applied to light-facing rims during the dark hold.
@@ -41,7 +41,7 @@ struct KeyboardStageTuning: Equatable, Sendable {
     var backlightStrengthDark: Float = 0.10
     /// Legend emission range across the light axis (far side, light side).
     var legendEmissionMin: Float = 0.74
-    var legendEmissionMax: Float = 1.16
+    var legendEmissionMax: Float = 1.24
     /// Legend base-brightness range across the light axis in the dark hold.
     var legendBaseMin: Float = 0.84
     var legendBaseMax: Float = 1.05
