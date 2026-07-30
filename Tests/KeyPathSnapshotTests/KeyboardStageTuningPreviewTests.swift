@@ -32,12 +32,20 @@ final class KeyboardStageTuningPreviewTests: XCTestCase {
             withIntermediateDirectories: true
         )
 
-        let scene = KeyboardStageSceneBuilder.make(
-            layout: .macBookUS,
-            keymap: .qwertyUS,
-            moment: .capsMotivation,
-            displayMode: .standard
-        )
+        let moments: [(String, KeyboardStageMoment)] = [
+            ("caps", .capsMotivation),
+            ("launcher", .launcher),
+            ("handoff", .handoff),
+        ]
+        let scenes = moments.map { name, moment in
+            (name, KeyboardStageSceneBuilder.make(
+                layout: .macBookUS,
+                keymap: .qwertyUS,
+                moment: moment,
+                displayMode: .standard
+            ))
+        }
+        let scene = scenes[0].1
         let renderer = try KeyboardStageMetalRenderer(
             device: device,
             frame: KeyboardStagePresentedFrame(
@@ -51,25 +59,28 @@ final class KeyboardStageTuningPreviewTests: XCTestCase {
             try renderer.update(tuning: KeyboardStageTuning.load(from: tuningURL))
         }
 
-        for (name, progress) in [("dark", Float(0)), ("mid", 0.5), ("settled", 1)] {
-            let capture = try renderer.captureFrame(
-                frame: KeyboardStagePresentedFrame(
-                    scene: scene,
-                    entrance: KeyboardStageEntranceFrame(
-                        progress: progress,
-                        reduceMotion: false
-                    )
-                ),
-                drawableSize: CGSize(width: 1800, height: 1040),
-                windowX: SIMD2<Float>(0.42, 0.58)
-            )
-            let destination = outputDirectory.appendingPathComponent("preview-\(name).png")
-            let representation = NSBitmapImageRep(cgImage: capture.image)
-            let data = try XCTUnwrap(representation.representation(
-                using: .png,
-                properties: [:]
-            ))
-            try data.write(to: destination)
+        for (sceneName, momentScene) in scenes {
+            for (name, progress) in [("dark", Float(0)), ("mid", 0.5), ("settled", 1)] {
+                let capture = try renderer.captureFrame(
+                    frame: KeyboardStagePresentedFrame(
+                        scene: momentScene,
+                        entrance: KeyboardStageEntranceFrame(
+                            progress: progress,
+                            reduceMotion: false
+                        )
+                    ),
+                    drawableSize: CGSize(width: 1800, height: 1040),
+                    windowX: SIMD2<Float>(0.42, 0.58)
+                )
+                let destination = outputDirectory
+                    .appendingPathComponent("preview-\(sceneName)-\(name).png")
+                let representation = NSBitmapImageRep(cgImage: capture.image)
+                let data = try XCTUnwrap(representation.representation(
+                    using: .png,
+                    properties: [:]
+                ))
+                try data.write(to: destination)
+            }
         }
     }
 }

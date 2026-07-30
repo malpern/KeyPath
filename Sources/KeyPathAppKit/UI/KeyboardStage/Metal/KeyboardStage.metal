@@ -466,6 +466,13 @@ fragment float4 keypath_keyboard_stage_fragment(
         * (1.0 - surfaceAlpha);
     roleGlowAlpha = roleGlowAlpha
         + roleHaloAlpha * (1.0 - roleGlowAlpha);
+    float chipHaloAlpha = isChip
+        ? exp(-outsideDistance * 0.16)
+            * (1.0 - surfaceAlpha)
+            * mix(0.085, 0.028, illumination)
+        : 0.0;
+    roleGlowAlpha = roleGlowAlpha
+        + chipHaloAlpha * (1.0 - roleGlowAlpha);
     float pressGlowAlpha = exp(-outsideDistance * 0.46)
         * diffuserExposure
         * keyPress
@@ -610,6 +617,10 @@ fragment float4 keypath_keyboard_stage_fragment(
         input.localPixels.y / max(1.0, input.halfSizePixels.y) * 0.5 + 0.5
     );
     surfaceColor *= mix(1.025, 0.94, verticalPosition * (isDeck ? 0.28 : 1.0));
+    // Glass chips carry a stronger top-lit gradient than molded keycaps.
+    surfaceColor *= isChip
+        ? mix(1.09, 0.91, verticalPosition)
+        : 1.0;
     // A press tilts the cap away from the area light: the face darkens toward
     // its lower edge while the top bevel catches more, so compression stays
     // legible even under a saturated accent fill.
@@ -642,7 +653,7 @@ fragment float4 keypath_keyboard_stage_fragment(
     surfaceColor += (
         materialNoise * (isDeck ? 0.015 : 0.0050)
         + brushedNoise * (isDeck ? 0.009 : 0.0)
-    ) * mix(0.38, 1.0, illumination);
+    ) * mix(0.38, 1.45, illumination);
 
     float3 neutralLight = mix(float3(0.62, 0.72, 0.86), float3(1.0), illumination);
     surfaceColor *= mix(0.58, 1.04, illumination) + diffuse * illumination * 0.12;
@@ -653,11 +664,11 @@ fragment float4 keypath_keyboard_stage_fragment(
         * mix(isDeck ? 0.032 : 0.018, isDeck ? 0.22 : 0.11, illumination);
     surfaceColor += neutralLight
         * crownHighlight
-        * mix(0.0045, 0.018, illumination);
+        * mix(0.0045, 0.026, illumination);
     surfaceColor += neutralLight
         * lowerBevelCatch
         * rimDirectionality
-        * mix(0.018, 0.050, illumination);
+        * mix(0.018, 0.064, illumination);
     float pressTopCatch = isKey
         ? bevel * smoothstep(0.10, 0.85, -distanceGradient.y) * pressure
         : 0.0;
@@ -665,7 +676,7 @@ fragment float4 keypath_keyboard_stage_fragment(
     float broadSpecularStrength = isDeck ? 0.026 : (isKey ? 0.012 : 0.026);
     surfaceColor += neutralLight * (
         specular * (broadSpecularStrength + illumination * 0.13)
-        + bevelSpecular * rimDirectionality * (0.035 + illumination * 0.16)
+        + bevelSpecular * rimDirectionality * (0.035 + illumination * 0.19)
     );
     surfaceColor += float3(1.0, 0.82, 0.64) * grazingBand
         * (specular * 0.32 + fresnel * 0.08 + bevel * 0.04);
@@ -721,6 +732,11 @@ fragment float4 keypath_keyboard_stage_fragment(
         * (fillDiffuse * (isDeck ? 0.050 : 0.034)
             + fillSpecular * bevel * uniforms.tuningE.y);
 
+    // A photo-studio sweep: the settled deck keeps a faint exposure gradient
+    // toward the light instead of flattening into a uniform card.
+    float settledSweep = (lightCoordinate - 0.5) * (isDeck ? 0.05 : 0.018);
+    surfaceColor *= 1.0 + settledSweep * illumination;
+
     float edge = smoothstep(-2.2, -0.15, distance) * surfaceAlpha;
     float edgeIllumination = mix(0.10, 0.72, illumination) + grazingBand * 0.56;
     // In the dark room the lesson key's rim reads as a white bevel catching
@@ -767,7 +783,15 @@ fragment float4 keypath_keyboard_stage_fragment(
     float chipSheen = isChip
         ? bevel * smoothstep(0.15, 0.90, -distanceGradient.y)
         : 0.0;
-    surfaceColor += neutralLight * chipSheen * (0.05 + illumination * 0.07);
+    surfaceColor += neutralLight * chipSheen * (0.09 + illumination * 0.10);
+    // A tight bright line just inside the upper edge: the signature cue of a
+    // polished glass slab under an area light.
+    float chipTopLine = isChip
+        ? exp(-abs(distance + 1.6) * 1.8)
+            * smoothstep(0.30, 0.95, -distanceGradient.y)
+            * surfaceAlpha
+        : 0.0;
+    surfaceColor += neutralLight * chipTopLine * (0.07 + illumination * 0.05);
 
     // A narrow internal rim makes the translucent legend light feel seated in
     // a real cap even though semantic glyphs remain native and accessible.
