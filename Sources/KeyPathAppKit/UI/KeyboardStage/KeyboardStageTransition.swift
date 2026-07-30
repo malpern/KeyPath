@@ -42,6 +42,14 @@ struct KeyboardStageTransition: Equatable, Sendable {
         return Self.criticallyDampedProgress(linearProgress)
     }
 
+    /// Underdamped release: overshoots ~2.5% around 60% of the duration —
+    /// the dome rebound of a physical keycap — then settles cleanly.
+    static func underdampedReleaseProgress(_ rawProgress: Float) -> Float {
+        let progress = min(1, max(0, rawProgress))
+        guard progress > 0, progress < 1 else { return progress }
+        return 1 - exp(-6 * progress) * cos(4.712 * progress)
+    }
+
     static func criticallyDampedProgress(_ rawProgress: Float) -> Float {
         let progress = min(1, max(0, rawProgress))
         guard progress > 0, progress < 1 else { return progress }

@@ -23,6 +23,7 @@ private struct KeyboardStageGPUUniforms {
     var tuningC: SIMD4<Float>
     var tuningD: SIMD4<Float>
     var tuningE: SIMD4<Float>
+    var pressRipple: SIMD4<Float>
 }
 
 private struct KeyboardStageGPULegendInstance {
@@ -203,7 +204,16 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
             tuningB: currentTuning.gpuVectorB,
             tuningC: currentTuning.gpuVectorC,
             tuningD: currentTuning.gpuVectorD,
-            tuningE: currentTuning.gpuVectorE
+            tuningE: currentTuning.gpuVectorE,
+            pressRipple: pressRipple(
+                scene: currentFrame.scene,
+                projection: KeyboardStageProjection(
+                    scene: currentFrame.scene,
+                    size: view.drawableSize
+                ),
+                drawableSize: view.drawableSize,
+                strength: currentTuning.pressRippleStrength
+            )
         )
         var postUniforms = KeyboardStageGPUPostUniforms(
             sourceAndBloomSize: SIMD4(
@@ -331,7 +341,16 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
             tuningB: capturedTuning.gpuVectorB,
             tuningC: capturedTuning.gpuVectorC,
             tuningD: capturedTuning.gpuVectorD,
-            tuningE: capturedTuning.gpuVectorE
+            tuningE: capturedTuning.gpuVectorE,
+            pressRipple: pressRipple(
+                scene: frame.scene,
+                projection: KeyboardStageProjection(
+                    scene: frame.scene,
+                    size: drawableSize
+                ),
+                drawableSize: drawableSize,
+                strength: capturedTuning.pressRippleStrength
+            )
         )
         var postUniforms = KeyboardStageGPUPostUniforms(
             sourceAndBloomSize: SIMD4(
@@ -971,6 +990,33 @@ final class KeyboardStageMetalRenderer: NSObject, MTKViewDelegate, @unchecked Se
             return nil
         })
         return instances
+    }
+
+    /// The most recently released key drives one expanding ripple of light
+    /// across the deck: interaction levels between 0 and ~1 only occur while
+    /// the release spring is running, so authored moment poses never ripple.
+    private func pressRipple(
+        scene: KeyboardStageScene,
+        projection: KeyboardStageProjection,
+        drawableSize: CGSize,
+        strength: Float
+    ) -> SIMD4<Float> {
+        guard strength > 0 else { return SIMD4(0, 0, 0, 0) }
+        var best: (level: Float, center: CGPoint)?
+        for key in scene.keys {
+            let level = key.interactionLevel
+            guard level > 0.02, level < 0.96 else { continue }
+            if best == nil || level > best!.level {
+                best = (level, projection.project(key.frame.center))
+            }
+        }
+        guard let best else { return SIMD4(0, 0, 0, 0) }
+        return SIMD4(
+            Float(best.center.x / max(1, drawableSize.width)),
+            Float(best.center.y / max(1, drawableSize.height)),
+            min(1, max(0, 1 - best.level)),
+            strength
+        )
     }
 
     private func materialKeyFrame(_ frame: CGRect) -> CGRect {

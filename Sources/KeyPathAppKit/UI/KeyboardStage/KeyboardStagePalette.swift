@@ -132,17 +132,13 @@ struct KeyboardStagePalette: Equatable, Sendable {
             resolved.glow
         }
 
-        // Presses should read as light entering a physical keycap, not as a
-        // translucent pale wash. Darkening the face lets a white legend remain
-        // crisp at the settled endpoint while the glow retains the role hue.
-        let pressedFace = pressColor.interpolated(
-            to: KeyboardStageRGBA(0.012, 0.075, 0.19),
-            progress: 0.42
-        )
-
+        // Travel and lighting carry the pressed state; the accent moves to
+        // the rim, halo, and legend. The face keeps its own material with a
+        // shallow shadow-side darkening instead of repainting into an accent
+        // slab that flattens the cap.
         resolved.fill = resolved.fill.interpolated(
-            to: pressedFace,
-            progress: level
+            to: KeyboardStageRGBA(0.010, 0.022, 0.048),
+            progress: 0.16 * level
         )
         resolved.accent = resolved.accent.interpolated(
             to: pressColor,

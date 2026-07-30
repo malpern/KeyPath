@@ -124,6 +124,7 @@ enum KeyboardStageSceneBuilder {
                 dim(keys: &keys, except: [capsKeyID], opacity: 0.88)
                 keys[capsIndex].role = .escape
                 keys[capsIndex].pressure = 0.12
+                keys[capsIndex].translation.y = 0.12 * 0.023
                 keys[capsIndex].glow = 0.85
                 keys[capsIndex].opacity = 1
                 keys[capsIndex].scale = 0.78
@@ -174,6 +175,7 @@ enum KeyboardStageSceneBuilder {
                 emphasizeModifiers(in: &keys, glow: 0)
                 keys[capsIndex].role = .hyper
                 keys[capsIndex].pressure = 0.68
+                keys[capsIndex].translation.y = 0.68 * 0.023
                 keys[capsIndex].glow = 0.93
                 keys[capsIndex].scale = 0.96
                 keys[capsIndex].legend = KeyboardStageLegend(
@@ -290,6 +292,7 @@ enum KeyboardStageSceneBuilder {
             if let capsIndex {
                 keys[capsIndex].role = .hyper
                 keys[capsIndex].pressure = 0.42
+                keys[capsIndex].translation.y = 0.42 * 0.023
                 keys[capsIndex].glow = 0.7
                 keys[capsIndex].opacity = 1
                 keys[capsIndex].legend = KeyboardStageLegend(
@@ -315,6 +318,7 @@ enum KeyboardStageSceneBuilder {
             if let capsIndex {
                 keys[capsIndex].role = .hyper
                 keys[capsIndex].pressure = 0.28
+                keys[capsIndex].translation.y = 0.28 * 0.023
                 keys[capsIndex].glow = 0.48
                 keys[capsIndex].opacity = 1
                 keys[capsIndex].legend = KeyboardStageLegend(

@@ -17,7 +17,7 @@ final class KeyboardStageInteractionTests: XCTestCase {
         XCTAssertEqual(presentation.levels(at: 10).pressed[57], 1)
     }
 
-    func testKeyReleaseUsesABoundedCriticallyDampedReturn() {
+    func testKeyReleaseRunsABoundedUnderdampedSpring() {
         let pressed = KeyboardStageInteractionState(
             pressedKeyCodes: [57],
             heldKeyCodes: [],
@@ -46,7 +46,18 @@ final class KeyboardStageInteractionTests: XCTestCase {
         )
         XCTAssertGreaterThan(middleLevel ?? 0, 0)
         XCTAssertLessThan(middleLevel ?? 1, 1)
-        XCTAssertNil(presentation.levels(at: 10.12).pressed[57])
+        // The spring overshoots: shortly before settling the level dips a
+        // few percent below rest — the cap rebounding above its home — and
+        // never beyond the bounded envelope.
+        let reboundLevel = presentation.levels(at: 10.13).pressed[57] ?? 0
+        XCTAssertLessThan(reboundLevel, 0)
+        XCTAssertGreaterThan(reboundLevel, -0.04)
+        // Fully settled after the transition window: no residual level.
+        XCTAssertNil(
+            presentation.levels(
+                at: 10 + KeyboardStageInteractionPresentation.releaseDuration
+            ).pressed[57]
+        )
     }
 
     func testReducedMotionReleaseSettlesWithoutSpatialAnimation() {
