@@ -80,6 +80,103 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
         )
     }
 
+    func testRepairRefreshesWorkingButStaleHelperAfterAppUpdate() async throws {
+        let context = SystemContextBuilder(
+            helperReady: true,
+            helperVersion: "1.1.0",
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
+
+        let plan = await InstallerEngine().makePlan(for: .repair, context: context)
+        let recipe = try XCTUnwrap(
+            plan.recipes.first { $0.id == InstallerRecipeID.reinstallPrivilegedHelper }
+        )
+
+        XCTAssertEqual(
+            recipe.expectedPostconditions,
+            [.helperReadyOrApprovalPending, .helperFreshOrApprovalPending]
+        )
+    }
+
+    func testInstallRefreshesWorkingButStaleHelperAfterAppUpdate() async {
+        let context = SystemContextBuilder(
+            helperReady: true,
+            helperVersion: "1.1.0",
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
+
+        let plan = await InstallerEngine().makePlan(for: .install, context: context)
+
+        XCTAssertTrue(
+            plan.recipes.contains { $0.id == InstallerRecipeID.reinstallPrivilegedHelper }
+        )
+        XCTAssertFalse(
+            plan.recipes.contains { $0.id == InstallerRecipeID.installPrivilegedHelper }
+        )
+    }
+
+    func testHelperFreshPostconditionRejectsWorkingHelperWithUnknownVersion() {
+        let context = SystemContextBuilder(
+            helperReady: true,
+            helperVersion: nil
+        ).build()
+
+        XCTAssertTrue(InstallerPostcondition.helperReadyOrApprovalPending.isSatisfied(by: context))
+        XCTAssertFalse(InstallerPostcondition.helperFreshOrApprovalPending.isSatisfied(by: context))
+    }
+
+    func testHelperFreshPostconditionAcceptsExactVersionOrPendingApproval() {
+        let freshContext = SystemContextBuilder(
+            helperReady: true,
+            helperVersion: WizardHelperConstants.expectedHelperVersion
+        ).build()
+        let approvalContext = SystemContextBuilder(
+            helperReady: false,
+            helperRequiresApproval: true,
+            helperVersion: nil
+        ).build()
+
+        XCTAssertTrue(InstallerPostcondition.helperFreshOrApprovalPending.isSatisfied(by: freshContext))
+        XCTAssertTrue(InstallerPostcondition.helperFreshOrApprovalPending.isSatisfied(by: approvalContext))
+    }
+
+    func testHelperInstallPostconditionsRejectExactVersionWhenHelperIsNotWorking() async throws {
+        let context = SystemContextBuilder(
+            helperReady: false,
+            helperVersion: WizardHelperConstants.expectedHelperVersion,
+            servicesHealthy: true,
+            componentsInstalled: true
+        ).build()
+        let plan = await InstallerEngine().makePlan(for: .repair, context: context)
+        let recipe = try XCTUnwrap(
+            plan.recipes.first { $0.id == InstallerRecipeID.installPrivilegedHelper }
+        )
+
+        XCTAssertFalse(
+            recipe.expectedPostconditions.allSatisfy { $0.isSatisfied(by: context) }
+        )
+        XCTAssertFalse(InstallerPostcondition.helperReadyOrApprovalPending.isSatisfied(by: context))
+        XCTAssertFalse(InstallerPostcondition.helperFreshOrApprovalPending.isSatisfied(by: context))
+    }
+
+    func testRepairRefreshesHealthyButStaleKanataRuntimeAfterAppUpdate() async throws {
+        let context = SystemContextBuilder(
+            servicesHealthy: true,
+            kanataServiceFreshness: .stale,
+            componentsInstalled: true
+        ).build()
+
+        let plan = await InstallerEngine().makePlan(for: .repair, context: context)
+        let recipe = try XCTUnwrap(
+            plan.recipes.first { $0.id == InstallerRecipeID.installRequiredRuntimeServices }
+        )
+
+        XCTAssertTrue(recipe.expectedPostconditions.contains(.runtimeReadyOrApprovalPending))
+        XCTAssertTrue(recipe.expectedPostconditions.contains(.runtimeFreshOrApprovalPending))
+    }
+
     func testMissingVHIDDeviceProducesExplicitActivationBeforeServiceWork() async throws {
         let base = SystemContextBuilder(
             servicesHealthy: false,

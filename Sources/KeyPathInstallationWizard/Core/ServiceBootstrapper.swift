@@ -718,7 +718,17 @@ public final class ServiceBootstrapper {
                 AppLogger.shared.log("🔄 Attempt \(attempt)/\(maxRetries)")
 
                 try await daemonManager.unregister()
-                let bootedOut = await bootOutStaleKanataSMAppServiceJob(attempt: attempt)
+                // A successful SMAppService unregister normally removes the
+                // launchd job asynchronously. Give that normal path a brief
+                // chance to settle before asking for administrator privileges
+                // to force a bootout. The privileged fallback is only needed
+                // when macOS actually leaves a stale registration behind.
+                let removedByUnregister = await waitForKanataSMAppServiceRemoval()
+                let bootedOut: Bool = if removedByUnregister {
+                    true
+                } else {
+                    await bootOutStaleKanataSMAppServiceJob(attempt: attempt)
+                }
                 if !bootedOut {
                     AppLogger.shared.log("❌ Attempt \(attempt) failed: stale launchd job could not be booted out")
                     continue
@@ -754,6 +764,32 @@ public final class ServiceBootstrapper {
             }
         }
         AppLogger.shared.log("⚠️ [ServiceBootstrapper] Could not fix SMAppService state - user may need to reboot")
+        return false
+    }
+
+    @MainActor
+    private func waitForKanataSMAppServiceRemoval(
+        maxAttempts: Int = 10,
+        delayMilliseconds: Int = 100
+    ) async -> Bool {
+        guard let daemonManager else { return false }
+
+        for attempt in 1 ... maxAttempts {
+            let state = await daemonManager.refreshManagementState()
+            if state == .uninstalled {
+                AppLogger.shared.log(
+                    "✅ [ServiceBootstrapper] SMAppService unregister removed the Kanata job"
+                )
+                return true
+            }
+            if attempt < maxAttempts {
+                _ = await WizardSleep.ms(delayMilliseconds)
+            }
+        }
+
+        AppLogger.shared.log(
+            "⚠️ [ServiceBootstrapper] Kanata job remained after SMAppService unregister; using privileged bootout fallback"
+        )
         return false
     }
 
@@ -796,6 +832,24 @@ public final class ServiceBootstrapper {
     #if DEBUG
         func _testBootOutStaleKanataSMAppServiceJob(attempt: Int = 1) async -> Bool {
             await bootOutStaleKanataSMAppServiceJob(attempt: attempt)
+        }
+
+        func _testWaitForKanataSMAppServiceRemoval(
+            maxAttempts: Int,
+            delayMilliseconds: Int = 0
+        ) async -> Bool {
+            await waitForKanataSMAppServiceRemoval(
+                maxAttempts: maxAttempts,
+                delayMilliseconds: delayMilliseconds
+            )
+        }
+
+        func _testRegisterKanataWithSMAppService(
+            refreshActiveRegistration: Bool
+        ) async -> Bool {
+            await registerKanataWithSMAppService(
+                refreshActiveRegistration: refreshActiveRegistration
+            )
         }
     #endif
 
@@ -907,7 +961,9 @@ public final class ServiceBootstrapper {
             ServiceHealthChecker.shared.invalidateHealthCache()
             daemonLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
             managerLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidManagerServiceID)
-            if daemonLoaded, managerLoaded { break }
+            if daemonLoaded, managerLoaded {
+                break
+            }
             _ = await WizardSleep.ms(500)
         }
         let configured = ServiceHealthChecker.shared.isVHIDDaemonConfiguredCorrectly()
@@ -966,21 +1022,27 @@ public final class ServiceBootstrapper {
     ///
     /// - Returns: `true` if all services were installed successfully
     @MainActor
-    public func installAllServices() async -> Bool {
+    public func installAllServices(
+        refreshActiveKanataRegistration: Bool = false
+    ) async -> Bool {
         await installAllServices(
+            refreshActiveKanataRegistration: refreshActiveKanataRegistration,
             repairVHIDServices: {
                 try await PrivilegeBroker().repairVHIDDaemonServices()
             },
-            registerKanataService: {
-                await self.registerKanataWithSMAppService()
+            registerKanataService: { refreshActiveRegistration in
+                await self.registerKanataWithSMAppService(
+                    refreshActiveRegistration: refreshActiveRegistration
+                )
             }
         )
     }
 
     @MainActor
     func installAllServices(
+        refreshActiveKanataRegistration: Bool = false,
         repairVHIDServices: () async throws -> Void,
-        registerKanataService: () async -> Bool
+        registerKanataService: (Bool) async -> Bool
     ) async -> Bool {
         AppLogger.shared.log("🔧 [ServiceBootstrapper] Installing all services (VHID + Kanata)")
 
@@ -1009,7 +1071,7 @@ public final class ServiceBootstrapper {
 
         // Step 2: Install Kanata via SMAppService
         AppLogger.shared.log("📱 [ServiceBootstrapper] Step 2: Installing Kanata via SMAppService")
-        let kanataSuccess = await registerKanataService()
+        let kanataSuccess = await registerKanataService(refreshActiveKanataRegistration)
 
         if !kanataSuccess {
             AppLogger.shared.log("⚠️ [ServiceBootstrapper] SMAppService registration failed")
@@ -1033,7 +1095,9 @@ public final class ServiceBootstrapper {
     ///
     /// - Returns: `true` if registration succeeded or already registered
     @MainActor
-    private func registerKanataWithSMAppService() async -> Bool {
+    private func registerKanataWithSMAppService(
+        refreshActiveRegistration: Bool
+    ) async -> Bool {
         AppLogger.shared.log("📱 [ServiceBootstrapper] Registering Kanata daemon via SMAppService")
 
         guard #available(macOS 13, *) else {
@@ -1096,6 +1160,30 @@ public final class ServiceBootstrapper {
                 }
                 AppLogger.shared.log("✅ [ServiceBootstrapper] Recovered active-but-not-loaded SMAppService state")
                 return true
+            }
+
+            if refreshActiveRegistration {
+                let runtimeFreshness = await daemonManager.activeRuntimeFreshness()
+                if runtimeFreshness == .stale {
+                    AppLogger.shared.log(
+                        "🔄 [ServiceBootstrapper] Refreshing stale active SMAppService registration for the current KeyPath bundle"
+                    )
+                    let refreshed = await fixBrokenSMAppServiceState()
+                    if !refreshed {
+                        AppLogger.shared.log(
+                            "❌ [ServiceBootstrapper] Active SMAppService registration refresh failed"
+                        )
+                        return false
+                    }
+                    AppLogger.shared.log(
+                        "✅ [ServiceBootstrapper] Active SMAppService registration refreshed"
+                    )
+                    return true
+                }
+
+                AppLogger.shared.log(
+                    "✅ [ServiceBootstrapper] Active SMAppService registration does not require refresh (freshness: \(runtimeFreshness.rawValue))"
+                )
             }
             AppLogger.shared.log("✅ [ServiceBootstrapper] Already managed by SMAppService - healthy")
             return true

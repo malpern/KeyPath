@@ -41,7 +41,11 @@ public extension InstallerEngine {
                 id: InstallerRecipeID.installRequiredRuntimeServices,
                 type: .installComponent,
                 serviceID: nil,
-                expectedPostconditions: [.runtimeReadyOrApprovalPending, .vhidServicesHealthy]
+                expectedPostconditions: [
+                    .runtimeReadyOrApprovalPending,
+                    .runtimeFreshOrApprovalPending,
+                    .vhidServicesHealthy,
+                ]
             )
 
         case .installCorrectVHIDDriver:
@@ -64,7 +68,10 @@ public extension InstallerEngine {
                 id: InstallerRecipeID.installPrivilegedHelper,
                 type: .repairPrivilegedHelper,
                 serviceID: KeyPathConstants.Bundle.helperID,
-                expectedPostconditions: [.helperReadyOrApprovalPending]
+                expectedPostconditions: [
+                    .helperReadyOrApprovalPending,
+                    .helperFreshOrApprovalPending
+                ]
             )
 
         case .reinstallPrivilegedHelper:
@@ -72,7 +79,10 @@ public extension InstallerEngine {
                 id: InstallerRecipeID.reinstallPrivilegedHelper,
                 type: .repairPrivilegedHelper,
                 serviceID: KeyPathConstants.Bundle.helperID,
-                expectedPostconditions: [.helperReadyOrApprovalPending]
+                expectedPostconditions: [
+                    .helperReadyOrApprovalPending,
+                    .helperFreshOrApprovalPending
+                ]
             )
 
         case .startKarabinerDaemon:

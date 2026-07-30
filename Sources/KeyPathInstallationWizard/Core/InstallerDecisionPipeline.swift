@@ -67,7 +67,9 @@ public enum InstallerDecisionPipeline {
 
         // Every repair action below may need privileged XPC. Establish a working
         // helper before planning any operation that routes through the broker.
-        if !context.helper.isReady {
+        if !context.helper.isReady ||
+            context.helper.freshness(expectedVersion: WizardHelperConstants.expectedHelperVersion) != .fresh
+        {
             actions.append(
                 context.helper.isInstalled ? .reinstallPrivilegedHelper : .installPrivilegedHelper
             )
@@ -109,6 +111,16 @@ public enum InstallerDecisionPipeline {
             actions.append(.installRequiredRuntimeServices)
         }
 
+        // A Sparkle update can leave the previous app bundle's already-running
+        // Kanata service healthy but stale. Refresh the managed runtime even
+        // when it still responds so the installed app and active executable
+        // identities converge after an update.
+        if context.services.kanataServiceFreshness == .stale,
+           !actions.contains(.installRequiredRuntimeServices)
+        {
+            actions.append(.installRequiredRuntimeServices)
+        }
+
         appendVHIDActivationRepairIfNeeded(context: context, actions: &actions)
 
         // Matrix row: stopped Kanata plus non-approval stale input-capture
@@ -141,6 +153,10 @@ public enum InstallerDecisionPipeline {
         // component, activation, or service recipe attempts privileged work.
         if !context.helper.isReady {
             actions.append(.installPrivilegedHelper)
+        } else if context.helper.freshness(
+            expectedVersion: WizardHelperConstants.expectedHelperVersion
+        ) != .fresh {
+            actions.append(.reinstallPrivilegedHelper)
         }
 
         // Check conflicts first
@@ -186,6 +202,12 @@ public enum InstallerDecisionPipeline {
         }
 
         if context.components.vhidRuntimeServicesNeedRepair {
+            actions.append(.installRequiredRuntimeServices)
+        }
+
+        if context.services.kanataServiceFreshness == .stale,
+           !actions.contains(.installRequiredRuntimeServices)
+        {
             actions.append(.installRequiredRuntimeServices)
         }
 
