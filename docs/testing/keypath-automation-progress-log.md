@@ -593,3 +593,49 @@ next step.
 - **Loop check:** not looping. The source audit tested a distinct hot-attach
   hypothesis and ruled it out without consuming another VM. Further remote
   USB boot attempts would repeat a proven failure mode and are retired.
+
+## 2026-07-30 08:13 PDT — Sparkle-bundled Kanata update acceptance proven
+
+- **Outcome:** advanced
+- **Completed milestone:** notarized KeyPath 1.0.1 build 8 now proves that a
+  KeyPath update can replace its bundled Kanata runtime without leaving the
+  prior SMAppService registration active or opening a redundant administrator
+  authentication prompt.
+- **Evidence:**
+  - Commits `fcb2cbfd4`, `543fb0a2b`, and `762e9dace` add stale bundled-service
+    repair planning, force refresh of an active stale Kanata registration, and
+    wait for normal asynchronous SMAppService removal before using the
+    privileged bootout fallback.
+  - The focused regression set passed 34 tests, and the complete suite passed
+    3,997 XCTest cases with zero failures plus all executed Swift Testing
+    suites.
+  - Apple accepted notarization submission
+    `b2f5e259-e792-4b12-b4d8-a0efbf2957af`; stapling and Gatekeeper validation
+    passed. The stapled private archive SHA-256 is
+    `d689c3e0340a55ccad3231733ac722df2bc98ca9b500e4c6a66ca1f785d2ee33`.
+  - Managed macOS 15.7.7 lease `cbx_940aaa3ecba3` first registered a genuine
+    build 6 bundled runtime and reported it fresh. After the app bundle changed
+    to build 8, independent status reported the active build 6 runtime as
+    `Stale runtime` with freshness `stale`.
+  - Build 8 executed `install-required-runtime-services` once and its structured
+    recipe postcondition succeeded. macOS logged unregister success, management
+    state 0, register success, and management state 1. No `osascript` or
+    administrator-authentication event appeared in the repair window.
+  - Final independent status reports active runtime
+    `com.keypath.KeyPath build 8`, freshness `fresh`, Kanata running, helper
+    1.3.0 fresh and working, VirtualHID healthy, strict code-sign verification
+    passing, Gatekeeper notarization accepted, and bundled Kanata
+    1.12.1-prerelease-1.
+- **Current blocker:** none for the bundled-runtime update path. The disposable
+  clone still lacks Kanata Input Monitoring by construction, so whole-system
+  operational status remains false even though the update recipe and its
+  postcondition passed. Existing P02-P04 physical-input blockers are unchanged.
+- **Next action:** review draft PR #1250, merge it when approved, then repeat
+  the release validation from merged master before publishing any public
+  Sparkle feed or release. The rebased branch equivalents are `7260ed4eb`,
+  `d0adf7eb7`, and `10e9737b1`; its post-rebase full suite passed 3,998 XCTest
+  cases with zero failures plus all executed Swift Testing suites.
+- **Loop check:** not looping. Each candidate exposed a different boundary:
+  stale-runtime detection, forced refresh, then an unnecessary privilege
+  fallback. Build 8 changed the behavior and crossed the previously failing
+  postcondition in one managed-clone attempt.

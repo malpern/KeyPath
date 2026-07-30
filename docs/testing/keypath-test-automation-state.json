@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-07-26T07:26:50-07:00",
-  "currentTask": "R02 unattended approval and repair proven",
-  "message": "A fresh randomized macOS 15 Tart clone completed genuine Input Monitoring approval, runtime convergence, Kanata damage/repair, evidence capture, and cleanup without operator input.",
+  "updatedAt": "2026-07-30T08:13:02-07:00",
+  "currentTask": "Sparkle-bundled Kanata update acceptance proven",
+  "message": "A notarized build 8 candidate replaced build 7, detected an active build 6 Kanata runtime as stale, refreshed it without an administrator prompt, and independently converged to a fresh build 8 runtime.",
   "complete": false,
   "workingBlocks": [],
   "executionTracks": [
@@ -755,6 +755,13 @@
   },
   "updates": [
     {
+      "time": "08:13",
+      "block": "M03",
+      "tone": "success",
+      "title": "Bundled Kanata update and stale-runtime repair proven",
+      "message": "Notarized KeyPath 1.0.1 build 8 detected the active build 6 runtime as stale, completed install-required-runtime-services, passed its postcondition, and converged to a fresh running build 8 runtime without invoking administrator authentication. Helper 1.3.0 and VirtualHID remained healthy; the clone's only remaining issue is its intentionally ungranted Kanata Input Monitoring permission."
+    },
+    {
       "time": "07:26",
       "block": "R02",
       "tone": "success",
@@ -966,6 +973,10 @@
     }
   ],
   "activity": [
+    {
+      "time": "08:13",
+      "message": "Build 8 passed the full suites, Apple notarization, signed private-feed verification, and managed macOS 15 stale-runtime acceptance on lease cbx_940aaa3ecba3. The rebased fix passed 3,998 XCTest cases and is in draft PR #1250."
+    },
     {
       "time": "17:56",
       "message": "PR #1189 merged and master advanced; the macOS 15.7.7 managed-base staging image is ready at MDM enrollment confirmation."
