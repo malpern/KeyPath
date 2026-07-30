@@ -255,7 +255,9 @@ final class KanataDaemonService {
         case .requiresApproval:
             throw KanataDaemonServiceError.approvalRequired
         case .notRegistered, .notFound:
-            try await registerDaemon()
+            // Registration can race with an IPC error. The fresh status below
+            // is authoritative, so do not fail before observing the result.
+            try? await registerDaemon()
             finalRegistrationStatus = await currentRegistrationStatus()
         @unknown default:
             throw KanataDaemonServiceError.startFailed(reason: "Unknown SMAppService registration state")
@@ -287,7 +289,10 @@ final class KanataDaemonService {
     func stop() async throws {
         AppLogger.shared.log("🛑 [KanataDaemonService] Stop requested")
 
-        try await unregisterDaemon()
+        // Treat the mutation result as evidence, not the verdict. A transient
+        // SMAppService error can race with a successful state change; the real
+        // registration/process postcondition below decides whether to retry.
+        try? await unregisterDaemon()
 
         // SMAppService removes its launchd job asynchronously. Across an app
         // replacement, macOS can leave the prior bundle's registration alive
@@ -307,11 +312,9 @@ final class KanataDaemonService {
             AppLogger.shared.warn(
                 "⚠️ [KanataDaemonService] Stale job survived SMAppService retry; using privileged cleanup"
             )
-            do {
-                try await forceStopStaleDaemon()
-            } catch {
-                throw KanataDaemonServiceError.stopFailed(reason: error.localizedDescription)
-            }
+            // Like SMAppService mutations, helper delivery can report an error
+            // after changing state. The final postcondition remains authoritative.
+            try? await forceStopStaleDaemon()
 
             // A bootout can stop the process, but only the owning API can remove
             // a still-enabled registration and prevent a later KeepAlive respawn.
