@@ -96,7 +96,7 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
         XCTAssertEqual(recipe.expectedPostconditions, [.helperFreshOrApprovalPending])
     }
 
-    func testInstallRefreshesWorkingButStaleHelperAfterAppUpdate() async throws {
+    func testInstallRefreshesWorkingButStaleHelperAfterAppUpdate() async {
         let context = SystemContextBuilder(
             helperReady: true,
             helperVersion: "1.1.0",

@@ -452,12 +452,17 @@ private final class SequencedWizardDaemonManager: WizardDaemonManaging {
         return state
     }
 
-    func isRegisteredButNotLoaded() async -> Bool { false }
+    func isRegisteredButNotLoaded() async -> Bool {
+        false
+    }
+
     func register() async throws {}
     func unregister() async throws {}
 
     nonisolated let kanataServiceID = "com.keypath.kanata"
     nonisolated let legacyPlistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"
 
-    func preferredLaunchctlTargets(for _: WizardServiceManagementState) -> [String] { [] }
+    func preferredLaunchctlTargets(for _: WizardServiceManagementState) -> [String] {
+        []
+    }
 }

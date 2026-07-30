@@ -724,11 +724,10 @@ public final class ServiceBootstrapper {
                 // to force a bootout. The privileged fallback is only needed
                 // when macOS actually leaves a stale registration behind.
                 let removedByUnregister = await waitForKanataSMAppServiceRemoval()
-                let bootedOut: Bool
-                if removedByUnregister {
-                    bootedOut = true
+                let bootedOut: Bool = if removedByUnregister {
+                    true
                 } else {
-                    bootedOut = await bootOutStaleKanataSMAppServiceJob(attempt: attempt)
+                    await bootOutStaleKanataSMAppServiceJob(attempt: attempt)
                 }
                 if !bootedOut {
                     AppLogger.shared.log("❌ Attempt \(attempt) failed: stale launchd job could not be booted out")
@@ -954,7 +953,9 @@ public final class ServiceBootstrapper {
             ServiceHealthChecker.shared.invalidateHealthCache()
             daemonLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidDaemonServiceID)
             managerLoaded = await ServiceHealthChecker.shared.isServiceLoaded(serviceID: Self.vhidManagerServiceID)
-            if daemonLoaded, managerLoaded { break }
+            if daemonLoaded, managerLoaded {
+                break
+            }
             _ = await WizardSleep.ms(500)
         }
         let configured = ServiceHealthChecker.shared.isVHIDDaemonConfiguredCorrectly()
