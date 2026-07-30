@@ -1,6 +1,8 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><!-- sparkle-sign-warning:
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<!-- sparkle-sign-warning:
 IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
---><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+-->
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
     <channel>
         <title>KeyPath Updates</title>
         <link>https://github.com/malpern/KeyPath</link>
@@ -18,13 +20,25 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
         -->
         <!-- Releases go here (newest first) -->
         <item>
+            <title>1.0.1</title>
+            <pubDate>Thu, 30 Jul 2026 14:28:27 -0700</pubDate>
+            <link>https://keypath-app.com</link>
+            <sparkle:fullReleaseNotesLink>https://github.com/malpern/KeyPath/releases/tag/v1.0.1</sparkle:fullReleaseNotesLink>
+            <sparkle:phasedRolloutInterval>86400</sparkle:phasedRolloutInterval>
+            <sparkle:version>12</sparkle:version>
+            <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://github.com/malpern/KeyPath/releases/download/v1.0.1/KeyPath-1.0.1.zip" length="88800268" type="application/octet-stream" sparkle:edSignature="gIQACmslMCtT2mvtLHabN1c6yHxFDBDwoKstQpj3B0kuiI/GYTk5dxJTaIkAFcVHvNMrDYFCgLustPqtarsdBQ=="/>
+        </item>
+        <item>
             <title>Version 1.0.0-beta3</title>
             <sparkle:channel>beta</sparkle:channel>
             <sparkle:version>3</sparkle:version>
             <sparkle:shortVersionString>1.0.0-beta3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0.0</sparkle:minimumSystemVersion>
             <pubDate>Fri, 16 May 2026 07:21:00 -0700</pubDate>
-            <enclosure url="https://github.com/malpern/KeyPath/releases/download/v1.0.0-beta3/KeyPath-1.0.0-beta3.zip" sparkle:edSignature="eLCNwIGoc4wVcwMOHwaf5Ruuju48F7cUgMsD8FqJp50yy/XJ+rSM/iQYMUHxarwEDwaITKsSg0VB1nOKjSNaAA==" length="102087728" type="application/octet-stream"></enclosure>
+            <enclosure url="https://github.com/malpern/KeyPath/releases/download/v1.0.0-beta3/KeyPath-1.0.0-beta3.zip" sparkle:edSignature="eLCNwIGoc4wVcwMOHwaf5Ruuju48F7cUgMsD8FqJp50yy/XJ+rSM/iQYMUHxarwEDwaITKsSg0VB1nOKjSNaAA==" length="102087728" type="application/octet-stream"/>
             <description><![CDATA[
                 <style>
                     :root { color-scheme: light dark; }
@@ -98,7 +112,8 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
             ]]></description>
         </item>
     </channel>
-</rss><!-- sparkle-signatures:
-edSignature: Gt2p6AkbWTJc3L2ecuK217Mbwglg+O5/Dp/yokaxKynI9J0Fshc6FahBvwcm+zA+T9z6KNqKzKrBVvTIifU1Cg==
-length: 6741
+</rss>
+<!-- sparkle-signatures:
+edSignature: TTHEVFvwa8UTSUhmj+viPmiV5sOU23n4Y+pJAKYxM6Q3GftG1GxQsud7szALfAADnYD40lmSKxaA21k4QsHcCQ==
+length: 7670
 -->
