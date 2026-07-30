@@ -65,6 +65,21 @@ extension KanataDaemonManager: WizardDaemonManaging {
         await WizardServiceManagementState(refreshManagementStateInternal())
     }
 
+    public func activeRuntimeFreshness() async -> RuntimeFreshness {
+        let snapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshotFresh()
+        let actualIdentity = snapshot.activeProgramIdentity.map {
+            RuntimeIdentity(
+                programIdentifier: $0.programIdentifier,
+                parentBundleIdentifier: $0.parentBundleIdentifier,
+                parentBundleVersion: $0.parentBundleVersion
+            )
+        }
+        return RuntimeFreshness.classify(
+            actual: actualIdentity,
+            expected: RuntimeIdentity.expectedKeyPathKanata()
+        )
+    }
+
     public nonisolated var kanataServiceID: String {
         Self.kanataServiceID
     }

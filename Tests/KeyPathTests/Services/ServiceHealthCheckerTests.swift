@@ -112,6 +112,10 @@ final class ServiceHealthCheckerTests: XCTestCase {
             registeredButNotLoaded
         }
 
+        func activeRuntimeFreshness() async -> RuntimeFreshness {
+            .unknown
+        }
+
         func register() async throws {}
 
         func unregister() async throws {}

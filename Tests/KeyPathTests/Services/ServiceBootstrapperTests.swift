@@ -391,6 +391,42 @@ final class ServiceBootstrapperTests: XCTestCase {
         XCTAssertEqual(daemonManager.refreshCount, 3)
     }
 
+    func testFreshActiveRegistrationIsNotRefreshedForCompositeRuntimeRepair() async {
+        let originalDaemonManager = WizardDependencies.daemonManager
+        let daemonManager = SequencedWizardDaemonManager(
+            states: [.smappserviceActive],
+            runtimeFreshness: .fresh
+        )
+        WizardDependencies.daemonManager = daemonManager
+        defer { WizardDependencies.daemonManager = originalDaemonManager }
+
+        let result = await ServiceBootstrapper.shared
+            ._testRegisterKanataWithSMAppService(refreshActiveRegistration: true)
+
+        XCTAssertTrue(result)
+        XCTAssertEqual(daemonManager.freshnessProbeCount, 1)
+        XCTAssertEqual(daemonManager.unregisterCount, 0)
+        XCTAssertEqual(daemonManager.registerCount, 0)
+    }
+
+    func testStaleActiveRegistrationIsRefreshedForRuntimeUpdate() async {
+        let originalDaemonManager = WizardDependencies.daemonManager
+        let daemonManager = SequencedWizardDaemonManager(
+            states: [.smappserviceActive, .uninstalled],
+            runtimeFreshness: .stale
+        )
+        WizardDependencies.daemonManager = daemonManager
+        defer { WizardDependencies.daemonManager = originalDaemonManager }
+
+        let result = await ServiceBootstrapper.shared
+            ._testRegisterKanataWithSMAppService(refreshActiveRegistration: true)
+
+        XCTAssertTrue(result)
+        XCTAssertEqual(daemonManager.freshnessProbeCount, 1)
+        XCTAssertEqual(daemonManager.unregisterCount, 1)
+        XCTAssertEqual(daemonManager.registerCount, 1)
+    }
+
     func testRepairVHIDDaemonServicesInTestModeSetsOutput() async {
         let bootstrapper = ServiceBootstrapper.shared
         let result = await withAdminOperationsSkippedForTesting {
@@ -437,11 +473,19 @@ final class ServiceBootstrapperTests: XCTestCase {
 @MainActor
 private final class SequencedWizardDaemonManager: WizardDaemonManaging {
     private let states: [WizardServiceManagementState]
+    private let runtimeFreshness: RuntimeFreshness
     private var index = 0
     private(set) var refreshCount = 0
+    private(set) var freshnessProbeCount = 0
+    private(set) var registerCount = 0
+    private(set) var unregisterCount = 0
 
-    init(states: [WizardServiceManagementState]) {
+    init(
+        states: [WizardServiceManagementState],
+        runtimeFreshness: RuntimeFreshness = .unknown
+    ) {
         self.states = states
+        self.runtimeFreshness = runtimeFreshness
     }
 
     func refreshManagementState() async -> WizardServiceManagementState {
@@ -456,8 +500,18 @@ private final class SequencedWizardDaemonManager: WizardDaemonManaging {
         false
     }
 
-    func register() async throws {}
-    func unregister() async throws {}
+    func activeRuntimeFreshness() async -> RuntimeFreshness {
+        freshnessProbeCount += 1
+        return runtimeFreshness
+    }
+
+    func register() async throws {
+        registerCount += 1
+    }
+
+    func unregister() async throws {
+        unregisterCount += 1
+    }
 
     nonisolated let kanataServiceID = "com.keypath.kanata"
     nonisolated let legacyPlistPath = "/Library/LaunchDaemons/com.keypath.kanata.plist"

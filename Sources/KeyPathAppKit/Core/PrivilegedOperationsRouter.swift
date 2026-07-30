@@ -483,8 +483,9 @@ public final class PrivilegedOperationsRouter {
         // This operation is selected when the runtime is missing, stopped, or
         // stale relative to the current app bundle. An active SMAppService job
         // is not sufficient evidence: launchd may still be enforcing the
-        // previous bundle's launch constraint after a KeyPath update. Force a
-        // registration refresh so the running job is tied to this bundle.
+        // previous bundle's launch constraint after a KeyPath update. Request
+        // a refresh; ServiceBootstrapper independently rechecks the active
+        // runtime identity and leaves an already-fresh registration alone.
         let success = await ServiceBootstrapper.shared.installAllServices(
             refreshActiveKanataRegistration: true
         )

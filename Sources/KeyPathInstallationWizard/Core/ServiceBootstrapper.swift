@@ -843,6 +843,14 @@ public final class ServiceBootstrapper {
                 delayMilliseconds: delayMilliseconds
             )
         }
+
+        func _testRegisterKanataWithSMAppService(
+            refreshActiveRegistration: Bool
+        ) async -> Bool {
+            await registerKanataWithSMAppService(
+                refreshActiveRegistration: refreshActiveRegistration
+            )
+        }
     #endif
 
     // MARK: - VHID Service Repair
@@ -1138,23 +1146,6 @@ public final class ServiceBootstrapper {
 
         // If actively managed by SMAppService, validate that launchd can actually load it.
         if state == .smappserviceActive {
-            if refreshActiveRegistration {
-                AppLogger.shared.log(
-                    "🔄 [ServiceBootstrapper] Refreshing active SMAppService registration for the current KeyPath bundle"
-                )
-                let refreshed = await fixBrokenSMAppServiceState()
-                if !refreshed {
-                    AppLogger.shared.log(
-                        "❌ [ServiceBootstrapper] Active SMAppService registration refresh failed"
-                    )
-                    return false
-                }
-                AppLogger.shared.log(
-                    "✅ [ServiceBootstrapper] Active SMAppService registration refreshed"
-                )
-                return true
-            }
-
             let isRegisteredButBroken = await daemonManager.isRegisteredButNotLoaded()
             if isRegisteredButBroken {
                 AppLogger.shared.log(
@@ -1169,6 +1160,30 @@ public final class ServiceBootstrapper {
                 }
                 AppLogger.shared.log("✅ [ServiceBootstrapper] Recovered active-but-not-loaded SMAppService state")
                 return true
+            }
+
+            if refreshActiveRegistration {
+                let runtimeFreshness = await daemonManager.activeRuntimeFreshness()
+                if runtimeFreshness == .stale {
+                    AppLogger.shared.log(
+                        "🔄 [ServiceBootstrapper] Refreshing stale active SMAppService registration for the current KeyPath bundle"
+                    )
+                    let refreshed = await fixBrokenSMAppServiceState()
+                    if !refreshed {
+                        AppLogger.shared.log(
+                            "❌ [ServiceBootstrapper] Active SMAppService registration refresh failed"
+                        )
+                        return false
+                    }
+                    AppLogger.shared.log(
+                        "✅ [ServiceBootstrapper] Active SMAppService registration refreshed"
+                    )
+                    return true
+                }
+
+                AppLogger.shared.log(
+                    "✅ [ServiceBootstrapper] Active SMAppService registration does not require refresh (freshness: \(runtimeFreshness.rawValue))"
+                )
             }
             AppLogger.shared.log("✅ [ServiceBootstrapper] Already managed by SMAppService - healthy")
             return true
