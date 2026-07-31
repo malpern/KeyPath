@@ -348,8 +348,18 @@ static void test_visual_model_resolves_automatic_and_campaign_states(void) {
     presentation.result = FIXTURE_RESULT_FAIL;
     fixture_visual_resolve(&ui, &presentation, &visual);
     assert(visual.icon == FIXTURE_ICON_CLOSE);
-    assert(visual.accent_rgb == 0xff5c72u);
+    assert(visual.accent_rgb == 0x9b8afbu);
     assert(strcmp(visual.title, "TEST FAILED") == 0);
+
+    presentation.result = FIXTURE_RESULT_INCONCLUSIVE;
+    fixture_visual_resolve(&ui, &presentation, &visual);
+    assert(visual.icon == FIXTURE_ICON_WARNING);
+    assert(visual.accent_rgb == 0xf2b84bu);
+
+    presentation.result = FIXTURE_RESULT_PASS;
+    fixture_visual_resolve(&ui, &presentation, &visual);
+    assert(visual.icon == FIXTURE_ICON_OK);
+    assert(visual.accent_rgb == 0x66c9a3u);
 
     ui.quality = FIXTURE_UI_PROTECTED;
     fixture_visual_resolve(&ui, &presentation, &visual);

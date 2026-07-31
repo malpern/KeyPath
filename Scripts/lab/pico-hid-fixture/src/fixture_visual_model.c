@@ -111,6 +111,24 @@ static void apply_result(fixture_result_t result, fixture_visual_output_t *visua
     }
 }
 
+static void apply_bear_palette(fixture_result_t result,
+                               fixture_visual_output_t *visual) {
+    switch (result) {
+        case FIXTURE_RESULT_PASS:
+            visual->accent_rgb = 0x66c9a3u;
+            break;
+        case FIXTURE_RESULT_FAIL:
+            visual->accent_rgb = 0x9b8afbu;
+            break;
+        case FIXTURE_RESULT_INCONCLUSIVE:
+            visual->accent_rgb = 0xf2b84bu;
+            break;
+        case FIXTURE_RESULT_NONE:
+            visual->accent_rgb = 0xe34c42u;
+            break;
+    }
+}
+
 void fixture_visual_resolve(const fixture_ui_output_t *ui,
                             const fixture_presentation_t *presentation,
                             fixture_visual_output_t *visual) {
@@ -138,11 +156,10 @@ void fixture_visual_resolve(const fixture_ui_output_t *ui,
         visual->accent_rgb = 0xf3a128u;
         visual->angular_speed_milliradians = 2500u;
     }
-    if (presentation->brand == FIXTURE_BRAND_BEAR &&
-        presentation->result == FIXTURE_RESULT_NONE) {
-        visual->accent_rgb = 0xe34c42u;
-    }
     apply_result(presentation->result, visual, &title);
+    if (presentation->brand == FIXTURE_BRAND_BEAR) {
+        apply_bear_palette(presentation->result, visual);
+    }
     if (ui->quality == FIXTURE_UI_PROTECTED) visual->angular_speed_milliradians = 480u;
     snprintf(visual->title, sizeof(visual->title), "%s", title);
 }

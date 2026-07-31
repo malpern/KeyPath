@@ -157,6 +157,25 @@ private final class CaptureCanvas: NSView {
     private let bearCoral = NSColor(
         calibratedRed: 0.88, green: 0.25, blue: 0.18, alpha: 1
     )
+    private let bearMint = NSColor(
+        calibratedRed: 0.40, green: 0.79, blue: 0.64, alpha: 1
+    )
+    private let bearAmber = NSColor(
+        calibratedRed: 0.95, green: 0.72, blue: 0.29, alpha: 1
+    )
+    private let bearViolet = NSColor(
+        calibratedRed: 0.61, green: 0.54, blue: 0.98, alpha: 1
+    )
+    private let bearCream = NSColor(
+        calibratedRed: 1.0, green: 0.94, blue: 0.88, alpha: 1
+    )
+    private let bearCanvasBackground = NSColor(name: nil) { appearance in
+        let match = appearance.bestMatch(from: [.darkAqua, .aqua])
+        return match == .darkAqua
+            ? NSColor(calibratedRed: 0.086, green: 0.059, blue: 0.071, alpha: 1)
+            : NSColor(calibratedRed: 1.0, green: 0.976, blue: 0.961, alpha: 1)
+    }
+
     private lazy var jigLogo: NSImage? = {
         guard let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns") else {
             return nil
@@ -477,14 +496,16 @@ private final class CaptureCanvas: NSView {
             reduceMotion: reduceMotion
         )
         let accent: NSColor = switch snapshot.phase {
-        case .passed: .systemGreen
-        case .safeMisses: .systemOrange
-        case .failed: .systemRed
-        default: brandAmber
+        case .passed: bearMint
+        case .safeMisses: bearAmber
+        case .failed: bearViolet
+        default: bearCoral
         }
         let cycleNs: UInt64 = snapshot.phase == .typing ? 1_900_000_000 : 3_800_000_000
         let cycle = Double(nowNs % cycleNs) / Double(cycleNs)
         let breath = reduceMotion ? 0.5 : (sin(cycle * .pi * 2 - .pi / 2) + 1) / 2
+        bearCanvasBackground.setFill()
+        bounds.fill()
         let headerHeight = CGFloat(layout.headerHeight)
         let header = NSRect(
             x: inset.minX, y: inset.maxY - headerHeight,
@@ -540,6 +561,13 @@ private final class CaptureCanvas: NSView {
         } else {
             "FOCUS LOST"
         }
+        let focusColor = if snapshot.bearFocused {
+            bearCoral
+        } else if snapshot.phase == .waitingForBear || snapshot.phase == .preparing {
+            bearAmber
+        } else {
+            bearViolet
+        }
         drawText(
             focusLabel,
             rect: NSRect(
@@ -551,7 +579,7 @@ private final class CaptureCanvas: NSView {
                 weight: .bold,
                 monospaced: true
             ),
-            color: snapshot.bearFocused ? .systemGreen : .systemRed,
+            color: focusColor,
             alignment: .right
         )
         drawActivityRail(
@@ -630,9 +658,9 @@ private final class CaptureCanvas: NSView {
             "Waiting for exact Bear text + Typover log evidence"
         }
         let resultColor: NSColor = switch snapshot.phase {
-        case .passed: .systemGreen
-        case .safeMisses: .systemOrange
-        case .failed: .systemRed
+        case .passed: bearMint
+        case .safeMisses: bearAmber
+        case .failed: bearViolet
         default: .labelColor
         }
         drawField(
@@ -652,6 +680,14 @@ private final class CaptureCanvas: NSView {
         let detail = snapshot.message.isEmpty
             ? "The monitor is presentation-only; Bear owns the physical keyboard."
             : snapshot.message
+        let detailColor = if snapshot.bearFocused
+            || snapshot.phase == .waitingForBear
+            || snapshot.phase == .preparing
+        {
+            NSColor.secondaryLabelColor
+        } else {
+            bearViolet
+        }
         drawText(
             detail,
             rect: NSRect(
@@ -662,7 +698,7 @@ private final class CaptureCanvas: NSView {
                 size: layout.mode == .tiny ? 9 : 13,
                 weight: .medium
             ),
-            color: snapshot.bearFocused ? .secondaryLabelColor : .systemRed
+            color: detailColor
         )
         cursor -= issueHeight + (layout.mode == .regular ? 12 : 6)
 
@@ -686,7 +722,8 @@ private final class CaptureCanvas: NSView {
             title: layout.mode == .tiny ? "ESP32 KEYS" : "SCHEDULED ESP32 KEYCAP STACK",
             evidence: keyEvidence,
             frame: burstFrame,
-            mode: layout.mode
+            mode: layout.mode,
+            bearMode: true
         )
 
         if layout.showsFooter {
@@ -837,8 +874,11 @@ private final class CaptureCanvas: NSView {
         title: String,
         evidence: String,
         frame: NSRect,
-        mode: CaptureLayoutMode
+        mode: CaptureLayoutMode,
+        bearMode: Bool = false
     ) {
+        let primary = bearMode ? bearCoral : brandAmber
+        let secondary = bearMode ? bearAmber : brandOrange
         let panel = NSBezierPath(
             roundedRect: frame,
             xRadius: mode == .tiny ? 10 : 16,
@@ -846,7 +886,7 @@ private final class CaptureCanvas: NSView {
         )
         NSColor.controlBackgroundColor.withAlphaComponent(0.62).setFill()
         panel.fill()
-        brandAmber.withAlphaComponent(0.12 + 0.13 * output.intensity).setStroke()
+        primary.withAlphaComponent(0.12 + 0.13 * output.intensity).setStroke()
         panel.lineWidth = 1
         panel.stroke()
 
@@ -872,7 +912,7 @@ private final class CaptureCanvas: NSView {
                 height: titleHeight
             ),
             font: font(size: mode == .tiny ? 8 : 10, weight: .medium, monospaced: true),
-            color: output.recentPresses > 0 ? brandOrange : NSColor.tertiaryLabelColor,
+            color: output.recentPresses > 0 ? secondary : NSColor.tertiaryLabelColor,
             alignment: .right
         )
 
@@ -885,7 +925,7 @@ private final class CaptureCanvas: NSView {
         )
 
         guard !output.items.isEmpty else {
-            drawEmptyKeycapStack(in: stage, mode: mode)
+            drawEmptyKeycapStack(in: stage, mode: mode, bearMode: bearMode)
             return
         }
 
@@ -897,11 +937,21 @@ private final class CaptureCanvas: NSView {
         )
         let center = NSPoint(x: stage.midX, y: stage.midY - capHeight * 0.08)
         for item in output.items {
-            drawKeycap(item, center: center, size: NSSize(width: capWidth, height: capHeight))
+            drawKeycap(
+                item,
+                center: center,
+                size: NSSize(width: capWidth, height: capHeight),
+                bearMode: bearMode
+            )
         }
     }
 
-    private func drawEmptyKeycapStack(in frame: NSRect, mode: CaptureLayoutMode) {
+    private func drawEmptyKeycapStack(
+        in frame: NSRect,
+        mode: CaptureLayoutMode,
+        bearMode: Bool
+    ) {
+        let primary = bearMode ? bearCoral : brandAmber
         let capWidth = min(mode == .tiny ? 54 : 82, frame.width * 0.28)
         let capHeight = capWidth * 0.64
         for index in 0 ..< 3 {
@@ -912,9 +962,9 @@ private final class CaptureCanvas: NSView {
                 height: capHeight
             )
             let path = NSBezierPath(roundedRect: cap, xRadius: 11, yRadius: 11)
-            brandAmber.withAlphaComponent(0.08 + CGFloat(index) * 0.035).setFill()
+            primary.withAlphaComponent(0.08 + CGFloat(index) * 0.035).setFill()
             path.fill()
-            brandAmber.withAlphaComponent(0.18).setStroke()
+            primary.withAlphaComponent(0.18).setStroke()
             path.lineWidth = 1
             path.stroke()
         }
@@ -934,7 +984,16 @@ private final class CaptureCanvas: NSView {
         }
     }
 
-    private func drawKeycap(_ item: KeycapBurstItem, center: NSPoint, size: NSSize) {
+    private func drawKeycap(
+        _ item: KeycapBurstItem,
+        center: NSPoint,
+        size: NSSize,
+        bearMode: Bool
+    ) {
+        let primary = bearMode ? bearCoral : brandAmber
+        let secondary = bearMode ? bearAmber : brandOrange
+        let light = bearMode ? bearCream : brandLight
+        let repeatColor = bearMode ? bearViolet : NSColor.systemRed
         let width = size.width * CGFloat(item.scale)
         let height = size.height * CGFloat(item.scale)
         let x = center.x - width / 2 + CGFloat(item.xOffset)
@@ -945,7 +1004,7 @@ private final class CaptureCanvas: NSView {
 
         let base = NSRect(x: x, y: y, width: width, height: height)
         let basePath = NSBezierPath(roundedRect: base, xRadius: radius, yRadius: radius)
-        (item.isRepeat ? NSColor.systemRed : brandOrange).withAlphaComponent(opacity * 0.88).setFill()
+        (item.isRepeat ? repeatColor : secondary).withAlphaComponent(opacity * 0.88).setFill()
         basePath.fill()
 
         let compression = CGFloat(item.pressDepth) * baseDepth * 0.76
@@ -962,11 +1021,11 @@ private final class CaptureCanvas: NSView {
         )
         let pressedGlow = item.isPressed || item.pressDepth > 0.15
         let faceColor = pressedGlow
-            ? brandLight.blended(withFraction: 0.16, of: brandAmber) ?? brandLight
-            : brandLight
+            ? light.blended(withFraction: 0.16, of: primary) ?? light
+            : light
         faceColor.withAlphaComponent(opacity).setFill()
         facePath.fill()
-        brandAmber.withAlphaComponent(opacity * (pressedGlow ? 0.95 : 0.60)).setStroke()
+        primary.withAlphaComponent(opacity * (pressedGlow ? 0.95 : 0.60)).setStroke()
         facePath.lineWidth = pressedGlow ? 2 : 1
         facePath.stroke()
 

@@ -248,6 +248,11 @@ and result titles. The brand value is also returned in the fixture status JSON s
 which presentation mode was active. A firmware build verifies the LVGL scene compiles, but the physical
 LCD color, alignment, and legibility must still be checked on the connected board.
 
+Bear mode uses its own semantic palette on both displays: coral means Bear identity, focus, and active
+testing; mint means verified pass; amber means safe misses or review; and violet means failure or lost
+focus. Red is deliberately reserved for Bear's identity rather than reused as an error signal. Every
+non-active state also has an explicit text label and result icon so color is never the only evidence.
+
 The local file-RPC client exposes the monitor independently of a physical run:
 
 ```bash
