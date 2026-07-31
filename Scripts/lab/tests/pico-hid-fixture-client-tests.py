@@ -138,14 +138,23 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(trace[1]["sequence"], 1)
 
     def test_presentation_uses_bounded_json_channel(self):
-        self.client.present({"phase": "result", "result": "pass", "progress": 1000,
+        self.client.present({"phase": "result", "result": "pass", "brand": "bear", "progress": 1000,
                              "title": "Swift stress", "reportsExpected": 40,
                              "reportsObserved": 40, "safeRelease": True})
         method, path, auth, body = RecordingHandler.requests[-1]
         self.assertEqual((method, path, auth), ("POST", "/v1/presentation", "Bearer test-token"))
         payload = json.loads(body)
         self.assertEqual(payload["result"], "pass")
+        self.assertEqual(payload["brand"], "bear")
         self.assertEqual(payload["reportsObserved"], 40)
+
+    def test_presentation_parser_accepts_explicit_bear_brand(self):
+        arguments = CLIENT.parser().parse_args([
+            "present", "--phase", "testing", "--brand", "bear",
+            "--title", "TYPING IN BEAR",
+        ])
+        self.assertEqual(arguments.brand, "bear")
+        self.assertEqual(arguments.title, "TYPING IN BEAR")
 
     def test_firmware_update_authenticates_image_and_verifies_reconnected_build(self):
         firmware = b"esp32-application-image"

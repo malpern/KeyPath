@@ -287,9 +287,13 @@ static void test_presentation_contract(void) {
     assert(presentation.phase == FIXTURE_PRESENT_OBSERVING);
     assert(fixture_presentation_parse_result("inconclusive", &presentation.result));
     assert(presentation.result == FIXTURE_RESULT_INCONCLUSIVE);
+    assert(fixture_presentation_parse_brand("bear", &presentation.brand));
+    assert(presentation.brand == FIXTURE_BRAND_BEAR);
+    assert(strcmp(fixture_presentation_brand_name(presentation.brand), "bear") == 0);
     assert(fixture_presentation_text_valid("Swift stress / pass 2", 32u));
     assert(!fixture_presentation_text_valid("unsafe \"label\"", 32u));
     assert(!fixture_presentation_parse_phase("dancing", &presentation.phase));
+    assert(!fixture_presentation_parse_brand("unknown", &presentation.brand));
 }
 
 static void test_visual_model_resolves_automatic_and_campaign_states(void) {
@@ -330,6 +334,16 @@ static void test_visual_model_resolves_automatic_and_campaign_states(void) {
     assert(visual.progress_per_mille == 420u);
     assert(visual.angular_speed_milliradians == 2500u);
     assert(strcmp(visual.title, "FIRMWARE UPDATE") == 0);
+
+    fixture_presentation_init(&presentation);
+    presentation.phase = FIXTURE_PRESENT_TESTING;
+    presentation.brand = FIXTURE_BRAND_BEAR;
+    snprintf(presentation.title, sizeof(presentation.title), "TYPING IN BEAR");
+    fixture_visual_resolve(&ui, &presentation, &visual);
+    assert(visual.variant == FIXTURE_VISUAL_BEAR_TEST);
+    assert(visual.icon == FIXTURE_ICON_KEYBOARD);
+    assert(visual.accent_rgb == 0xe34c42u);
+    assert(strcmp(visual.title, "TYPING IN BEAR") == 0);
 
     presentation.result = FIXTURE_RESULT_FAIL;
     fixture_visual_resolve(&ui, &presentation, &visual);

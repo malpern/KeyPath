@@ -26,6 +26,7 @@ typedef enum {
 typedef enum {
     FIXTURE_VISUAL_STANDARD = 0,
     FIXTURE_VISUAL_KEYPATH_UPDATE,
+    FIXTURE_VISUAL_BEAR_TEST,
 } fixture_visual_variant_t;
 
 typedef struct {

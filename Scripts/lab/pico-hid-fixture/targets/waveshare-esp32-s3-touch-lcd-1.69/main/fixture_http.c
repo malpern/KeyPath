@@ -276,7 +276,7 @@ static esp_err_t status_handler(httpd_req_t *request) {
              "\"displayLastFrameMs\":%" PRIu64 ",\"splashEnabled\":%s,\"splashComplete\":%s,"
              "\"updateReady\":%s,\"updateInProgress\":%s,\"otaSlot\":\"%s\",\"otaState\":\"%s\","
              "\"wifiConnected\":%s,\"address\":\"%s\",\"network\":\"%s\",\"error\":\"%s\","
-             "\"presentation\":{\"phase\":\"%s\",\"result\":\"%s\",\"progress\":%u,"
+             "\"presentation\":{\"phase\":\"%s\",\"result\":\"%s\",\"brand\":\"%s\",\"progress\":%u,"
              "\"title\":\"%s\",\"detail\":\"%s\",\"next\":\"%s\","
              "\"reportsExpected\":%" PRIu32 ",\"reportsObserved\":%" PRIu32 ","
              "\"dropped\":%" PRIu32 ",\"duplicated\":%" PRIu32 ",\"repeated\":%" PRIu32 ","
@@ -301,7 +301,9 @@ static esp_err_t status_handler(httpd_req_t *request) {
              ota_state_value, snapshot.ui.wifi_connected ? "true" : "false",
              snapshot.network_address, snapshot.network_name, snapshot.error,
              fixture_presentation_phase_name(snapshot.presentation.phase),
-             fixture_result_name(snapshot.presentation.result), snapshot.presentation.progress_per_mille,
+             fixture_result_name(snapshot.presentation.result),
+             fixture_presentation_brand_name(snapshot.presentation.brand),
+             snapshot.presentation.progress_per_mille,
              snapshot.presentation.title, snapshot.presentation.detail, snapshot.presentation.next,
              snapshot.presentation.reports_expected, snapshot.presentation.reports_observed,
              snapshot.presentation.dropped, snapshot.presentation.duplicated, snapshot.presentation.repeated,
@@ -439,12 +441,15 @@ static esp_err_t presentation_handler(httpd_req_t *request) {
     fixture_presentation_init(&presentation);
     cJSON *phase = root ? cJSON_GetObjectItemCaseSensitive(root, "phase") : NULL;
     cJSON *result = root ? cJSON_GetObjectItemCaseSensitive(root, "result") : NULL;
+    cJSON *brand = root ? cJSON_GetObjectItemCaseSensitive(root, "brand") : NULL;
     uint32_t progress = 0u;
     cJSON *safe_release = root ? cJSON_GetObjectItemCaseSensitive(root, "safeRelease") : NULL;
     bool valid = root && cJSON_IsObject(root) && cJSON_IsString(phase) &&
                  fixture_presentation_parse_phase(phase->valuestring, &presentation.phase) &&
                  (!result || (cJSON_IsString(result) &&
                               fixture_presentation_parse_result(result->valuestring, &presentation.result))) &&
+                 (!brand || (cJSON_IsString(brand) &&
+                             fixture_presentation_parse_brand(brand->valuestring, &presentation.brand))) &&
                  json_u32(root, "progress", 1000u, &progress) &&
                  json_u32(root, "reportsExpected", UINT32_MAX, &presentation.reports_expected) &&
                  json_u32(root, "reportsObserved", UINT32_MAX, &presentation.reports_observed) &&
@@ -464,7 +469,7 @@ static esp_err_t presentation_handler(httpd_req_t *request) {
     cJSON_Delete(root);
     if (!valid) {
         return send_json(request, "400 Bad Request",
-                         "{\"ok\":false,\"message\":\"invalid phase, result, metric, or display text\"}\n");
+                         "{\"ok\":false,\"message\":\"invalid phase, result, brand, metric, or display text\"}\n");
     }
     return send_json(request, "200 OK", "{\"ok\":true,\"message\":\"presentation updated\"}\n");
 }

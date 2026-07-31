@@ -154,11 +154,23 @@ private final class CaptureCanvas: NSView {
     private let brandLight = NSColor(
         calibratedRed: 1.0, green: 0.96, blue: 0.83, alpha: 1
     )
+    private let bearCoral = NSColor(
+        calibratedRed: 0.88, green: 0.25, blue: 0.18, alpha: 1
+    )
     private lazy var jigLogo: NSImage? = {
         guard let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns") else {
             return nil
         }
         return NSImage(contentsOf: url)
+    }()
+
+    private lazy var bearLogo: NSImage? = {
+        guard let url = NSWorkspace.shared.urlForApplication(
+            withBundleIdentifier: "net.shinyfrog.bear"
+        ) else {
+            return nil
+        }
+        return NSWorkspace.shared.icon(forFile: url.path)
     }()
 
     init(session: CaptureSession, bearMonitor: TypoverBearMonitorSession) {
@@ -483,35 +495,44 @@ private final class CaptureCanvas: NSView {
             xRadius: layout.mode == .tiny ? 10 : 14,
             yRadius: layout.mode == .tiny ? 10 : 14
         )
-        accent.withAlphaComponent(0.08 + breath * 0.025).setFill()
+        bearCoral.withAlphaComponent(0.09 + breath * 0.025).setFill()
         headerPath.fill()
-        accent.withAlphaComponent(0.24).setStroke()
+        bearCoral.withAlphaComponent(0.30).setStroke()
         headerPath.lineWidth = 1
         headerPath.stroke()
 
-        let markSize: CGFloat = layout.mode == .tiny ? 22 : 34
+        let markSize: CGFloat = layout.mode == .tiny ? 24 : 36
         let markFrame = NSRect(
             x: header.minX + (layout.mode == .tiny ? 8 : 14),
             y: header.midY - markSize / 2,
             width: markSize,
             height: markSize
         )
-        drawJigLogo(in: markFrame)
-        let focusWidth: CGFloat = layout.mode == .tiny ? 88 : 160
+        drawBearLogo(in: markFrame)
+        let focusWidth: CGFloat = layout.mode == .tiny ? 88 : 142
         let titleX = markFrame.maxX + (layout.mode == .tiny ? 6 : 10)
-        drawText(
-            layout.mode == .tiny ? "TYPOVER · BEAR" : "TYPOVER · BEAR PHYSICAL HID",
-            rect: NSRect(
-                x: titleX, y: header.midY - 10,
-                width: max(40, header.maxX - focusWidth - titleX - 14), height: 22
-            ),
-            font: font(
-                size: layout.mode == .tiny ? 10 : 14,
-                weight: .semibold,
-                monospaced: true
-            ),
-            color: accent
-        )
+        let titleWidth = max(40, header.maxX - focusWidth - titleX - 14)
+        if layout.mode == .tiny {
+            drawText(
+                "BEAR · TYPOVER",
+                rect: NSRect(x: titleX, y: header.midY - 9, width: titleWidth, height: 20),
+                font: font(size: 10, weight: .bold),
+                color: bearCoral
+            )
+        } else {
+            drawText(
+                "BEAR",
+                rect: NSRect(x: titleX, y: header.midY - 2, width: titleWidth, height: 22),
+                font: font(size: 17, weight: .bold),
+                color: bearCoral
+            )
+            drawText(
+                "TYPOVER · PHYSICAL HID TEST",
+                rect: NSRect(x: titleX, y: header.midY - 17, width: titleWidth, height: 15),
+                font: font(size: 9, weight: .semibold, monospaced: true),
+                color: NSColor.secondaryLabelColor
+            )
+        }
         let focusLabel = if snapshot.bearFocused {
             "BEAR FOCUSED"
         } else if snapshot.phase == .waitingForBear || snapshot.phase == .preparing {
@@ -1048,6 +1069,42 @@ private final class CaptureCanvas: NSView {
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current?.imageInterpolation = .high
         jigLogo.draw(
+            in: frame,
+            from: .zero,
+            operation: .sourceOver,
+            fraction: 1,
+            respectFlipped: true,
+            hints: [.interpolation: NSImageInterpolation.high]
+        )
+        NSGraphicsContext.restoreGraphicsState()
+    }
+
+    private func drawBearLogo(in frame: NSRect) {
+        guard let bearLogo else {
+            let badge = NSBezierPath(
+                roundedRect: frame,
+                xRadius: frame.width * 0.24,
+                yRadius: frame.height * 0.24
+            )
+            bearCoral.setFill()
+            badge.fill()
+            drawText(
+                "B",
+                rect: NSRect(
+                    x: frame.minX,
+                    y: frame.midY - frame.height * 0.27,
+                    width: frame.width,
+                    height: frame.height * 0.58
+                ),
+                font: font(size: frame.height * 0.48, weight: .heavy),
+                color: .white,
+                alignment: .center
+            )
+            return
+        }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current?.imageInterpolation = .high
+        bearLogo.draw(
             in: frame,
             from: .zero,
             operation: .sourceOver,

@@ -240,6 +240,14 @@ instead animates the ESP32 schedule supplied by the Typover harness and labels t
 Bear range against Typover's unified-log evidence. This keeps the useful rapid-keypress visualization
 without presenting scheduled input as captured input.
 
+Bear tests use explicit identity on both displays. The AppKit monitor loads Bear's installed macOS app
+icon and gives the Bear wordmark primary placement above `TYPOVER · PHYSICAL HID TEST`. The fixture
+presentation protocol carries `brand: bear`; the ESP32 then switches from its generic HID-oracle scene
+to a coral Bear face, `BEAR / TYPOVER TEST` header, and Bear-specific preparation, typing, verification,
+and result titles. The brand value is also returned in the fixture status JSON so artifacts can prove
+which presentation mode was active. A firmware build verifies the LVGL scene compiles, but the physical
+LCD color, alignment, and legibility must still be checked on the connected board.
+
 The local file-RPC client exposes the monitor independently of a physical run:
 
 ```bash

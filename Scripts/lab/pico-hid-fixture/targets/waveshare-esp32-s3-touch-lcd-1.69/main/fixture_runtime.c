@@ -339,6 +339,7 @@ bool fixture_runtime_begin_firmware_update(char *error, size_t capacity) {
     } else {
         firmware_update_in_progress = true;
         fixture_presentation_init(&presentation);
+        presentation.brand = FIXTURE_BRAND_KEYPATH;
         presentation.branded_firmware_update = true;
         presentation.phase = FIXTURE_PRESENT_PREPARING;
         snprintf(presentation.title, sizeof(presentation.title), "FIRMWARE UPDATE");

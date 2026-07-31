@@ -36,6 +36,13 @@ typedef struct {
     lv_obj_t *brand_glint_vertical;
     lv_obj_t *icon_front;
     lv_obj_t *icon_back;
+    lv_obj_t *bear_ear_left;
+    lv_obj_t *bear_ear_right;
+    lv_obj_t *bear_head;
+    lv_obj_t *bear_muzzle;
+    lv_obj_t *bear_eye_left;
+    lv_obj_t *bear_eye_right;
+    lv_obj_t *bear_nose;
     lv_obj_t *keys[KEY_COUNT];
     lv_obj_t *particles[PARTICLE_COUNT];
     lv_obj_t *eyebrow;
@@ -221,6 +228,41 @@ static void build_ui(void) {
     lv_label_set_text_static(ui.icon_front, LV_SYMBOL_POWER);
     lv_obj_set_style_text_font(ui.icon_front, &lv_font_montserrat_20, 0);
     lv_obj_align(ui.icon_front, LV_ALIGN_CENTER, 0, -2);
+
+    /* Display-native Bear identity for Typover's app-specific physical tests. */
+    ui.bear_ear_left = make_circle(ui.screen, 27, lv_color_hex(0xe34c42), LV_OPA_COVER);
+    lv_obj_align(ui.bear_ear_left, LV_ALIGN_CENTER, -27, -28);
+    ui.bear_ear_right = make_circle(ui.screen, 27, lv_color_hex(0xe34c42), LV_OPA_COVER);
+    lv_obj_align(ui.bear_ear_right, LV_ALIGN_CENTER, 27, -28);
+    ui.bear_head = make_circle(ui.screen, 78, lv_color_hex(0xe34c42), LV_OPA_COVER);
+    lv_obj_set_style_shadow_color(ui.bear_head, lv_color_hex(0xf18c49), 0);
+    lv_obj_set_style_shadow_width(ui.bear_head, 18, 0);
+    lv_obj_set_style_shadow_opa(ui.bear_head, LV_OPA_20, 0);
+    lv_obj_align(ui.bear_head, LV_ALIGN_CENTER, 0, -2);
+
+    ui.bear_muzzle = lv_obj_create(ui.screen);
+    lv_obj_remove_style_all(ui.bear_muzzle);
+    lv_obj_set_size(ui.bear_muzzle, 45, 29);
+    lv_obj_set_style_radius(ui.bear_muzzle, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(ui.bear_muzzle, lv_color_hex(0xffeee0), 0);
+    lv_obj_set_style_bg_opa(ui.bear_muzzle, LV_OPA_COVER, 0);
+    lv_obj_align(ui.bear_muzzle, LV_ALIGN_CENTER, 0, 11);
+    lv_obj_clear_flag(ui.bear_muzzle, LV_OBJ_FLAG_CLICKABLE);
+
+    ui.bear_eye_left = make_circle(ui.screen, 6, lv_color_hex(0x421f20), LV_OPA_COVER);
+    lv_obj_align(ui.bear_eye_left, LV_ALIGN_CENTER, -14, -10);
+    ui.bear_eye_right = make_circle(ui.screen, 6, lv_color_hex(0x421f20), LV_OPA_COVER);
+    lv_obj_align(ui.bear_eye_right, LV_ALIGN_CENTER, 14, -10);
+    ui.bear_nose = make_circle(ui.screen, 10, lv_color_hex(0x421f20), LV_OPA_COVER);
+    lv_obj_align(ui.bear_nose, LV_ALIGN_CENTER, 0, 6);
+
+    set_hidden(ui.bear_ear_left, true);
+    set_hidden(ui.bear_ear_right, true);
+    set_hidden(ui.bear_head, true);
+    set_hidden(ui.bear_muzzle, true);
+    set_hidden(ui.bear_eye_left, true);
+    set_hidden(ui.bear_eye_right, true);
+    set_hidden(ui.bear_nose, true);
 
     for (size_t index = 0; index < KEY_COUNT; ++index) {
         ui.keys[index] = lv_obj_create(ui.core);
@@ -537,16 +579,38 @@ static void render(const fixture_ui_output_t *output,
     lv_arc_set_value(ui.progress, visual.progress_per_mille);
 
     bool branded_update = visual.variant == FIXTURE_VISUAL_KEYPATH_UPDATE;
+    bool bear_test = visual.variant == FIXTURE_VISUAL_BEAR_TEST;
     lv_label_set_text_static(
-        ui.eyebrow, branded_update ? "KEYPATH  /  SECURE UPDATE" : "KEYPATH  /  HID ORACLE");
-    set_hidden(ui.core, branded_update);
-    set_hidden(ui.icon_front, branded_update);
-    set_hidden(ui.icon_back, branded_update);
+        ui.eyebrow, branded_update ? "KEYPATH  /  SECURE UPDATE" :
+                    bear_test ? "BEAR  /  TYPOVER TEST" : "KEYPATH  /  HID ORACLE");
+    lv_obj_set_style_text_color(ui.eyebrow,
+                                bear_test ? lv_color_hex(0xe34c42) : lv_color_hex(0x71909d), 0);
+    set_hidden(ui.core, branded_update || bear_test);
+    set_hidden(ui.icon_front, branded_update || bear_test);
+    set_hidden(ui.icon_back, branded_update || bear_test);
     set_hidden(ui.brand_keycap, !branded_update);
     set_hidden(ui.brand_light, !branded_update);
     set_hidden(ui.brand_lid, !branded_update);
     set_hidden(ui.brand_glint_horizontal, !branded_update);
     set_hidden(ui.brand_glint_vertical, !branded_update);
+    set_hidden(ui.bear_ear_left, !bear_test);
+    set_hidden(ui.bear_ear_right, !bear_test);
+    set_hidden(ui.bear_head, !bear_test);
+    set_hidden(ui.bear_muzzle, !bear_test);
+    set_hidden(ui.bear_eye_left, !bear_test);
+    set_hidden(ui.bear_eye_right, !bear_test);
+    set_hidden(ui.bear_nose, !bear_test);
+
+    if (bear_test) {
+        lv_obj_set_style_bg_color(ui.screen, lv_color_hex(0x160f12), 0);
+        int bear_pulse = (int)((sinf(ui.phase * 1.6f) + 1.0f) * 6.0f);
+#if CONFIG_KEYPATH_FIXTURE_REDUCED_MOTION
+        bear_pulse = 4;
+#endif
+        lv_obj_set_style_shadow_opa(ui.bear_head, (lv_opa_t)(24 + bear_pulse), 0);
+        lv_obj_set_style_transform_scale(ui.bear_head, 256 + bear_pulse, 0);
+        lv_obj_set_style_transform_scale(ui.bear_muzzle, 256 + bear_pulse, 0);
+    }
 
     if (branded_update) {
         int fill_height = 2 + (int)(visual.progress_per_mille * 34u / 1000u);

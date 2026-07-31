@@ -222,6 +222,7 @@ def parser() -> argparse.ArgumentParser:
                                  choices=("auto", "preparing", "countdown", "testing", "observing",
                                           "resolving", "result", "next"))
     present_command.add_argument("--result", choices=("none", "pass", "fail", "inconclusive"), default="none")
+    present_command.add_argument("--brand", choices=("none", "keypath", "bear"), default="none")
     present_command.add_argument("--progress", type=int, choices=range(0, 1001), default=0, metavar="0..1000")
     present_command.add_argument("--title", default="")
     present_command.add_argument("--detail", default="")
@@ -275,7 +276,8 @@ def main() -> int:
     elif arguments.command == "trace": print_json(client.trace(arguments.start, arguments.limit))
     elif arguments.command == "present":
         print_json(client.present({
-            "phase": arguments.phase, "result": arguments.result, "progress": arguments.progress,
+            "phase": arguments.phase, "result": arguments.result, "brand": arguments.brand,
+            "progress": arguments.progress,
             "title": arguments.title, "detail": arguments.detail, "next": arguments.next,
             "reportsExpected": arguments.reports_expected, "reportsObserved": arguments.reports_observed,
             "dropped": arguments.dropped, "duplicated": arguments.duplicated,

@@ -32,6 +32,15 @@ const char *fixture_result_name(fixture_result_t result) {
     return "none";
 }
 
+const char *fixture_presentation_brand_name(fixture_presentation_brand_t brand) {
+    switch (brand) {
+        case FIXTURE_BRAND_NONE: return "none";
+        case FIXTURE_BRAND_KEYPATH: return "keypath";
+        case FIXTURE_BRAND_BEAR: return "bear";
+    }
+    return "none";
+}
+
 bool fixture_presentation_parse_phase(const char *value, fixture_presentation_phase_t *phase) {
     if (!value || !phase) return false;
     for (int candidate = FIXTURE_PRESENT_AUTO; candidate <= FIXTURE_PRESENT_NEXT; ++candidate) {
@@ -48,6 +57,17 @@ bool fixture_presentation_parse_result(const char *value, fixture_result_t *resu
     for (int candidate = FIXTURE_RESULT_NONE; candidate <= FIXTURE_RESULT_INCONCLUSIVE; ++candidate) {
         if (strcmp(value, fixture_result_name((fixture_result_t)candidate)) == 0) {
             *result = (fixture_result_t)candidate;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool fixture_presentation_parse_brand(const char *value, fixture_presentation_brand_t *brand) {
+    if (!value || !brand) return false;
+    for (int candidate = FIXTURE_BRAND_NONE; candidate <= FIXTURE_BRAND_BEAR; ++candidate) {
+        if (strcmp(value, fixture_presentation_brand_name((fixture_presentation_brand_t)candidate)) == 0) {
+            *brand = (fixture_presentation_brand_t)candidate;
             return true;
         }
     }

@@ -116,9 +116,14 @@ void fixture_visual_resolve(const fixture_ui_output_t *ui,
                             fixture_visual_output_t *visual) {
     const char *title = scene_title(ui->scene);
     visual->icon = scene_icon(ui->scene);
-    visual->variant = presentation->branded_firmware_update
-                          ? FIXTURE_VISUAL_KEYPATH_UPDATE
-                          : FIXTURE_VISUAL_STANDARD;
+    if (presentation->branded_firmware_update ||
+        presentation->brand == FIXTURE_BRAND_KEYPATH) {
+        visual->variant = FIXTURE_VISUAL_KEYPATH_UPDATE;
+    } else if (presentation->brand == FIXTURE_BRAND_BEAR) {
+        visual->variant = FIXTURE_VISUAL_BEAR_TEST;
+    } else {
+        visual->variant = FIXTURE_VISUAL_STANDARD;
+    }
     visual->accent_rgb = scene_accent(ui->scene);
     visual->progress_per_mille = ui->progress_per_mille;
     visual->angular_speed_milliradians = ui->scene == FIXTURE_UI_RUNNING ? 4200u : 1550u;
@@ -132,6 +137,10 @@ void fixture_visual_resolve(const fixture_ui_output_t *ui,
         visual->icon = FIXTURE_ICON_DOWNLOAD;
         visual->accent_rgb = 0xf3a128u;
         visual->angular_speed_milliradians = 2500u;
+    }
+    if (presentation->brand == FIXTURE_BRAND_BEAR &&
+        presentation->result == FIXTURE_RESULT_NONE) {
+        visual->accent_rgb = 0xe34c42u;
     }
     apply_result(presentation->result, visual, &title);
     if (ui->quality == FIXTURE_UI_PROTECTED) visual->angular_speed_milliradians = 480u;
