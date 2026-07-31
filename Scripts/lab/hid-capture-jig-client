@@ -60,6 +60,39 @@ def build_parser() -> argparse.ArgumentParser:
     commands.add_parser("reset")
     commands.add_parser("finalize")
     commands.add_parser("quit")
+    commands.add_parser("bear-reset")
+
+    bear_prepare = commands.add_parser(
+        "bear-prepare", help="show the Typover Bear focus gate without scheduling keys"
+    )
+    bear_prepare.add_argument("--run-id", required=True)
+    bear_prepare.add_argument("--case-count", required=True, type=int)
+    bear_prepare.add_argument("--message", required=True)
+
+    bear_begin = commands.add_parser(
+        "bear-begin", help="show the nonactivating Typover Bear monitor"
+    )
+    bear_begin.add_argument("--run-id", required=True)
+    bear_begin.add_argument("--case-index", required=True, type=int)
+    bear_begin.add_argument("--case-count", required=True, type=int)
+    bear_begin.add_argument("--interval-ms", required=True, type=int)
+    bear_begin.add_argument("--word-count", required=True, type=int)
+    bear_begin.add_argument("--scheduled-text", required=True, type=pathlib.Path)
+    bear_begin.add_argument("--start-delay-ms", required=True, type=int)
+    bear_begin.add_argument("--bear-focused", action="store_true")
+
+    bear_update = commands.add_parser(
+        "bear-update", help="update Typover Bear progress or verified results"
+    )
+    bear_update.add_argument(
+        "--phase", required=True,
+        choices=("preparing", "waitingForBear", "countdown", "typing", "analyzing",
+                 "passed", "safeMisses", "failed"),
+    )
+    bear_update.add_argument("--corrected-words", type=int)
+    bear_update.add_argument("--missed-words", type=int)
+    bear_update.add_argument("--message")
+    bear_update.add_argument("--bear-focused", action=argparse.BooleanOptionalAction)
 
     arm = commands.add_parser("arm")
     arm.add_argument("--run-id", required=True)
@@ -97,6 +130,40 @@ def main() -> int:
                 instruction=arguments.instruction,
                 demoMode=arguments.demo_mode,
             )
+        elif arguments.command == "bear-prepare":
+            response = send(
+                "bear-monitor-prepare",
+                runID=arguments.run_id,
+                caseCount=arguments.case_count,
+                message=arguments.message,
+            )
+        elif arguments.command == "bear-begin":
+            if not arguments.scheduled_text.is_file():
+                raise RuntimeError(
+                    f"scheduled-text file does not exist: {arguments.scheduled_text}"
+                )
+            response = send(
+                "bear-monitor-begin",
+                runID=arguments.run_id,
+                caseIndex=arguments.case_index,
+                caseCount=arguments.case_count,
+                intervalMs=arguments.interval_ms,
+                wordCount=arguments.word_count,
+                scheduledText=arguments.scheduled_text.read_text(),
+                startDelayMs=arguments.start_delay_ms,
+                bearFocused=arguments.bear_focused,
+            )
+        elif arguments.command == "bear-update":
+            response = send(
+                "bear-monitor-update",
+                phase=arguments.phase,
+                correctedWords=arguments.corrected_words,
+                missedWords=arguments.missed_words,
+                message=arguments.message,
+                bearFocused=arguments.bear_focused,
+            )
+        elif arguments.command == "bear-reset":
+            response = send("bear-monitor-reset")
         elif arguments.command == "wait":
             deadline = time.monotonic() + arguments.timeout_seconds
             response = send("status")

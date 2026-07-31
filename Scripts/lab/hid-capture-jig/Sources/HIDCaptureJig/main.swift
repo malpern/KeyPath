@@ -12,6 +12,17 @@ private struct ControlCommand: Codable {
     let settleMs: UInt64?
     let instruction: String?
     let demoMode: Bool?
+    let phase: String?
+    let caseIndex: Int?
+    let caseCount: Int?
+    let intervalMs: Int?
+    let wordCount: Int?
+    let scheduledText: String?
+    let startDelayMs: Int?
+    let correctedWords: Int?
+    let missedWords: Int?
+    let message: String?
+    let bearFocused: Bool?
 }
 
 private struct ControlResponse: Codable {
@@ -21,6 +32,7 @@ private struct ControlResponse: Codable {
     let processID: Int32
     let snapshot: CaptureSnapshot
     let systemReadiness: SystemReadinessAssessment
+    let bearMonitor: TypoverBearMonitorSnapshot
 }
 
 private func monotonicNow() -> UInt64 {
@@ -127,6 +139,7 @@ private final class SystemResourceMonitor {
 
 private final class CaptureCanvas: NSView {
     let session: CaptureSession
+    let bearMonitor: TypoverBearMonitorSession
     var onFocusChange: ((Bool) -> Void)?
     var systemReadiness = SystemReadinessAssessment.calibrating
     var operatorInstruction = ""
@@ -148,8 +161,9 @@ private final class CaptureCanvas: NSView {
         return NSImage(contentsOf: url)
     }()
 
-    init(session: CaptureSession) {
+    init(session: CaptureSession, bearMonitor: TypoverBearMonitorSession) {
         self.session = session
+        self.bearMonitor = bearMonitor
         super.init(frame: .zero)
         wantsLayer = true
     }
@@ -239,6 +253,17 @@ private final class CaptureCanvas: NSView {
         ).withAlphaComponent(1)
         opaqueBackground.setFill()
         bounds.fill()
+
+        let bearSnapshot = bearMonitor.snapshot(nowNs: nowNs)
+        if bearSnapshot.isActive {
+            drawBearMonitor(
+                bearSnapshot,
+                nowNs: nowNs,
+                layout: layout,
+                inset: inset
+            )
+            return
+        }
 
         let accent = systemReadiness.state == .waiting && snapshot.state == .idle
             ? brandOrange : color(for: snapshot.state)
@@ -426,6 +451,254 @@ private final class CaptureCanvas: NSView {
         }
     }
 
+    private func drawBearMonitor(
+        _ snapshot: TypoverBearMonitorSnapshot,
+        nowNs: UInt64,
+        layout: CaptureLayoutMetrics,
+        inset: NSRect
+    ) {
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let output = KeycapBurstModel.resolve(
+            events: snapshot.scheduledEvents,
+            pressedKeyCodes: [],
+            nowNs: nowNs,
+            reduceMotion: reduceMotion
+        )
+        let accent: NSColor = switch snapshot.phase {
+        case .passed: .systemGreen
+        case .safeMisses: .systemOrange
+        case .failed: .systemRed
+        default: brandAmber
+        }
+        let cycleNs: UInt64 = snapshot.phase == .typing ? 1_900_000_000 : 3_800_000_000
+        let cycle = Double(nowNs % cycleNs) / Double(cycleNs)
+        let breath = reduceMotion ? 0.5 : (sin(cycle * .pi * 2 - .pi / 2) + 1) / 2
+        let headerHeight = CGFloat(layout.headerHeight)
+        let header = NSRect(
+            x: inset.minX, y: inset.maxY - headerHeight,
+            width: inset.width, height: headerHeight
+        )
+        let headerPath = NSBezierPath(
+            roundedRect: header,
+            xRadius: layout.mode == .tiny ? 10 : 14,
+            yRadius: layout.mode == .tiny ? 10 : 14
+        )
+        accent.withAlphaComponent(0.08 + breath * 0.025).setFill()
+        headerPath.fill()
+        accent.withAlphaComponent(0.24).setStroke()
+        headerPath.lineWidth = 1
+        headerPath.stroke()
+
+        let markSize: CGFloat = layout.mode == .tiny ? 22 : 34
+        let markFrame = NSRect(
+            x: header.minX + (layout.mode == .tiny ? 8 : 14),
+            y: header.midY - markSize / 2,
+            width: markSize,
+            height: markSize
+        )
+        drawJigLogo(in: markFrame)
+        let focusWidth: CGFloat = layout.mode == .tiny ? 88 : 160
+        let titleX = markFrame.maxX + (layout.mode == .tiny ? 6 : 10)
+        drawText(
+            layout.mode == .tiny ? "TYPOVER · BEAR" : "TYPOVER · BEAR PHYSICAL HID",
+            rect: NSRect(
+                x: titleX, y: header.midY - 10,
+                width: max(40, header.maxX - focusWidth - titleX - 14), height: 22
+            ),
+            font: font(
+                size: layout.mode == .tiny ? 10 : 14,
+                weight: .semibold,
+                monospaced: true
+            ),
+            color: accent
+        )
+        let focusLabel = if snapshot.bearFocused {
+            "BEAR FOCUSED"
+        } else if snapshot.phase == .waitingForBear || snapshot.phase == .preparing {
+            "FOCUS BEAR"
+        } else {
+            "FOCUS LOST"
+        }
+        drawText(
+            focusLabel,
+            rect: NSRect(
+                x: header.maxX - focusWidth - (layout.mode == .tiny ? 10 : 18),
+                y: header.midY - 10, width: focusWidth, height: 22
+            ),
+            font: font(
+                size: layout.mode == .tiny ? 9 : 12,
+                weight: .bold,
+                monospaced: true
+            ),
+            color: snapshot.bearFocused ? .systemGreen : .systemRed,
+            alignment: .right
+        )
+        drawActivityRail(
+            in: header,
+            completion: snapshot.completion,
+            breath: breath,
+            eventPulse: output.recentPresses > 0 ? min(1, output.intensity + 0.25) : 0,
+            glintPosition: cycle,
+            stateAccent: accent
+        )
+
+        var cursor = header.minY - (layout.mode == .tiny ? 5 : 12)
+        let stateHeight: CGFloat = layout.mode == .tiny ? 28 : 48
+        drawText(
+            bearPhaseTitle(snapshot, nowNs: nowNs),
+            rect: NSRect(
+                x: inset.minX, y: cursor - stateHeight,
+                width: inset.width, height: stateHeight
+            ),
+            font: font(size: CGFloat(layout.stateFontSize), weight: .bold),
+            color: accent
+        )
+        cursor -= stateHeight
+        let runHeight: CGFloat = layout.mode == .tiny ? 14 : 22
+        let caseSummary = if snapshot.caseIndex == 0 {
+            "\(snapshot.caseCount) CASE MATRIX  ·  WAITING FOR BEAR"
+        } else {
+            String(
+                format: "CASE %d OF %d  ·  %d MS / KEY  ·  %.1f KEYS / SEC",
+                snapshot.caseIndex,
+                snapshot.caseCount,
+                snapshot.intervalMs,
+                snapshot.keysPerSecond
+            )
+        }
+        drawText(
+            caseSummary,
+            rect: NSRect(
+                x: inset.minX, y: cursor - runHeight,
+                width: inset.width, height: runHeight
+            ),
+            font: font(
+                size: layout.mode == .tiny ? 9 : 14,
+                weight: .regular,
+                monospaced: true
+            ),
+            color: .secondaryLabelColor
+        )
+        cursor -= runHeight + (layout.mode == .tiny ? 4 : 10)
+
+        let labelHeight: CGFloat = layout.mode == .tiny ? 11 : 16
+        let fieldHeight = CGFloat(layout.fieldHeight)
+        let fieldBlockHeight = labelHeight + fieldHeight + (layout.mode == .tiny ? 4 : 8)
+        let inputSummary = snapshot.wordCount == 0
+            ? "Continuous \"teh\" bursts · \(snapshot.caseCount) repeatable timing cases"
+            : "\"teh\" × \(snapshot.wordCount) · \(snapshot.totalKeyPresses) scheduled key presses"
+        drawField(
+            label: "PHYSICAL TEST INPUT",
+            value: inputSummary,
+            frame: NSRect(
+                x: inset.minX, y: cursor - labelHeight - fieldHeight,
+                width: inset.width, height: fieldHeight
+            ),
+            labelHeight: labelHeight,
+            compact: layout.mode != .regular
+        )
+        cursor -= fieldBlockHeight
+        let resultText = switch snapshot.phase {
+        case .passed:
+            "\(snapshot.correctedWords) corrected · no safe misses"
+        case .safeMisses:
+            "\(snapshot.correctedWords) corrected · \(snapshot.missedWords) safe misses"
+        case .failed:
+            "Evidence invalid · no result credited"
+        default:
+            "Waiting for exact Bear text + Typover log evidence"
+        }
+        let resultColor: NSColor = switch snapshot.phase {
+        case .passed: .systemGreen
+        case .safeMisses: .systemOrange
+        case .failed: .systemRed
+        default: .labelColor
+        }
+        drawField(
+            label: "VERIFIED TYPOVER RESULT",
+            value: resultText,
+            frame: NSRect(
+                x: inset.minX, y: cursor - labelHeight - fieldHeight,
+                width: inset.width, height: fieldHeight
+            ),
+            labelHeight: labelHeight,
+            compact: layout.mode != .regular,
+            valueColor: resultColor
+        )
+        cursor -= fieldBlockHeight
+
+        let issueHeight: CGFloat = layout.mode == .tiny ? 18 : 28
+        let detail = snapshot.message.isEmpty
+            ? "The monitor is presentation-only; Bear owns the physical keyboard."
+            : snapshot.message
+        drawText(
+            detail,
+            rect: NSRect(
+                x: inset.minX, y: cursor - issueHeight,
+                width: inset.width, height: issueHeight
+            ),
+            font: font(
+                size: layout.mode == .tiny ? 9 : 13,
+                weight: .medium
+            ),
+            color: snapshot.bearFocused ? .secondaryLabelColor : .systemRed
+        )
+        cursor -= issueHeight + (layout.mode == .regular ? 12 : 6)
+
+        let footerClearance: CGFloat = layout.showsFooter ? 28 : 0
+        let burstFrame = NSRect(
+            x: inset.minX,
+            y: inset.minY + footerClearance,
+            width: inset.width,
+            height: max(54, cursor - inset.minY - footerClearance)
+        )
+        let keyEvidence: String = if output.totalPresses == 0 {
+            snapshot.phase == .countdown
+                ? "WAITING FOR ESP32 START" : "NO SCHEDULED KEYS YET"
+        } else if output.presentedPresses < snapshot.totalKeyPresses {
+            "SCHEDULED \(output.presentedPresses)/\(snapshot.totalKeyPresses)  ·  BURST \(output.recentPresses)"
+        } else {
+            "\(snapshot.totalKeyPresses) PHYSICAL PRESSES SCHEDULED"
+        }
+        drawKeycapBurst(
+            output: output,
+            title: layout.mode == .tiny ? "ESP32 KEYS" : "SCHEDULED ESP32 KEYCAP STACK",
+            evidence: keyEvidence,
+            frame: burstFrame,
+            mode: layout.mode
+        )
+
+        if layout.showsFooter {
+            drawText(
+                "Presentation only · Bear remains frontmost · results require Bear text and Typover logs",
+                rect: NSRect(x: inset.minX, y: inset.minY, width: inset.width, height: 20),
+                font: font(size: layout.mode == .regular ? 12 : 10, weight: .regular),
+                color: .tertiaryLabelColor
+            )
+        }
+    }
+
+    private func bearPhaseTitle(
+        _ snapshot: TypoverBearMonitorSnapshot,
+        nowNs: UInt64
+    ) -> String {
+        switch snapshot.phase {
+        case .inactive: return "READY"
+        case .preparing: return "PREPARING FIXTURE"
+        case .waitingForBear: return "FOCUS THE BEAR NOTE"
+        case .countdown:
+            guard let start = snapshot.scheduledStartAtNs, start > nowNs else {
+                return "RAPID TYPING"
+            }
+            return String(format: "STARTING IN %.1F S", Double(start - nowNs) / 1_000_000_000)
+        case .typing: return "RAPID TYPING"
+        case .analyzing: return "VERIFYING IN BEAR"
+        case .passed: return "ALL CORRECTIONS OBSERVED"
+        case .safeMisses: return "SAFE MISSES OBSERVED"
+        case .failed: return "EVIDENCE INVALID"
+        }
+    }
+
     private func drawOperatorInstruction(
         _ instruction: String,
         in bounds: NSRect,
@@ -520,6 +793,31 @@ private final class CaptureCanvas: NSView {
             nowNs: nowNs,
             reduceMotion: reduceMotion
         )
+        let evidence = if output.totalPresses == 0 {
+            "WAITING FOR KEY-DOWN"
+        } else if output.presentedPresses < output.totalPresses {
+            "PLAYING \(output.presentedPresses)/\(output.totalPresses)  ·  BURST \(output.recentPresses)"
+        } else if output.recentPresses > 0 {
+            "\(output.recentPresses) NOW  ·  \(output.totalPresses) TOTAL"
+        } else {
+            "\(output.totalPresses) PRESSES CAPTURED"
+        }
+        drawKeycapBurst(
+            output: output,
+            title: mode == .tiny ? "LIVE KEYS" : "LIVE KEYCAP STACK",
+            evidence: evidence,
+            frame: frame,
+            mode: mode
+        )
+    }
+
+    private func drawKeycapBurst(
+        output: KeycapBurstOutput,
+        title: String,
+        evidence: String,
+        frame: NSRect,
+        mode: CaptureLayoutMode
+    ) {
         let panel = NSBezierPath(
             roundedRect: frame,
             xRadius: mode == .tiny ? 10 : 16,
@@ -534,7 +832,7 @@ private final class CaptureCanvas: NSView {
         let titleHeight: CGFloat = mode == .tiny ? 14 : 20
         let titleInset: CGFloat = mode == .tiny ? 9 : 14
         drawText(
-            mode == .tiny ? "LIVE KEYS" : "LIVE KEYCAP STACK",
+            title,
             rect: NSRect(
                 x: frame.minX + titleInset,
                 y: frame.maxY - titleHeight - (mode == .tiny ? 5 : 9),
@@ -544,15 +842,6 @@ private final class CaptureCanvas: NSView {
             font: font(size: mode == .tiny ? 8 : 11, weight: .semibold, monospaced: true),
             color: NSColor.tertiaryLabelColor
         )
-        let evidence = if output.totalPresses == 0 {
-            "WAITING FOR KEY-DOWN"
-        } else if output.presentedPresses < output.totalPresses {
-            "PLAYING \(output.presentedPresses)/\(output.totalPresses)  ·  BURST \(output.recentPresses)"
-        } else if output.recentPresses > 0 {
-            "\(output.recentPresses) NOW  ·  \(output.totalPresses) TOTAL"
-        } else {
-            "\(output.totalPresses) PRESSES CAPTURED"
-        }
         drawText(
             evidence,
             rect: NSRect(
@@ -774,24 +1063,42 @@ private final class CaptureCanvas: NSView {
         motion: CaptureBrandMotion,
         stateAccent: NSColor
     ) {
+        drawActivityRail(
+            in: header,
+            completion: motion.completion,
+            breath: motion.breath,
+            eventPulse: motion.eventPulse,
+            glintPosition: motion.glintPosition,
+            stateAccent: stateAccent
+        )
+    }
+
+    private func drawActivityRail(
+        in header: NSRect,
+        completion: Double,
+        breath _: Double,
+        eventPulse: Double,
+        glintPosition: Double,
+        stateAccent: NSColor
+    ) {
         let rail = NSRect(x: header.minX + 12, y: header.minY + 3, width: header.width - 24, height: 2)
         NSColor.labelColor.withAlphaComponent(0.07).setFill()
         NSBezierPath(roundedRect: rail, xRadius: 1, yRadius: 1).fill()
 
-        if motion.completion > 0 {
+        if completion > 0 {
             let fill = NSRect(
                 x: rail.minX, y: rail.minY,
-                width: max(2, rail.width * CGFloat(motion.completion)), height: rail.height
+                width: max(2, rail.width * CGFloat(completion)), height: rail.height
             )
             stateAccent.withAlphaComponent(0.72).setFill()
             NSBezierPath(roundedRect: fill, xRadius: 1, yRadius: 1).fill()
         }
 
-        let travel = rail.minX + rail.width * CGFloat(motion.glintPosition)
+        let travel = rail.minX + rail.width * CGFloat(glintPosition)
         drawGlint(
             center: NSPoint(x: travel, y: rail.midY),
-            size: 5 + CGFloat(motion.eventPulse * 4),
-            color: brandLight.withAlphaComponent(0.55 + motion.eventPulse * 0.4)
+            size: 5 + CGFloat(eventPulse * 4),
+            color: brandLight.withAlphaComponent(0.55 + eventPulse * 0.4)
         )
     }
 
@@ -815,6 +1122,7 @@ private final class CaptureCanvas: NSView {
 
 private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let session = CaptureSession()
+    private let bearMonitor = TypoverBearMonitorSession()
     private let resourceMonitor = SystemResourceMonitor()
     private var window: NSWindow!
     private var canvas: CaptureCanvas!
@@ -870,7 +1178,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     private func buildWindow() {
-        canvas = CaptureCanvas(session: session)
+        canvas = CaptureCanvas(session: session, bearMonitor: bearMonitor)
         canvas.onFocusChange = { [weak self] focused in
             self?.session.noteFocus(focused, nowNs: monotonicNow())
         }
@@ -917,6 +1225,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             canvas.needsDisplay = true
         }
         let snapshot = session.snapshot(nowNs: nowNs)
+        let bearSnapshot = bearMonitor.snapshot(nowNs: nowNs)
+        if bearSnapshot.isActive {
+            canvas.needsDisplay = true
+            return
+        }
         let burstAnimating = KeycapBurstModel.resolve(
             events: snapshot.events,
             pressedKeyCodes: snapshot.pressedKeyCodes,
@@ -970,6 +1283,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     private func beginFocus(_ command: ControlCommand, attempt: Int) {
+        leaveBearMonitorMode()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         window.makeFirstResponder(canvas)
@@ -986,11 +1300,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             message: focused ? "capture jig focused" : "capture jig could not acquire keyboard focus",
             processID: ProcessInfo.processInfo.processIdentifier,
             snapshot: session.snapshot(nowNs: monotonicNow()),
-            systemReadiness: resourceMonitor.assessment
+            systemReadiness: resourceMonitor.assessment,
+            bearMonitor: bearMonitor.snapshot(nowNs: monotonicNow())
         ))
     }
 
     private func beginArm(_ command: ControlCommand, attempt: Int) {
+        leaveBearMonitorMode()
         let readiness = resourceMonitor.assessment
         let demoMode = command.demoMode == true
         guard demoMode || readiness.canProceed else {
@@ -1004,7 +1320,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
                 message: "capture paused: \(readiness.detail)\(guidance)",
                 processID: ProcessInfo.processInfo.processIdentifier,
                 snapshot: session.snapshot(nowNs: monotonicNow()),
-                systemReadiness: readiness
+                systemReadiness: readiness,
+                bearMonitor: bearMonitor.snapshot(nowNs: monotonicNow())
             ))
             return
         }
@@ -1041,7 +1358,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
                 : "capture refused: focus or command bounds invalid",
             processID: ProcessInfo.processInfo.processIdentifier,
             snapshot: session.snapshot(nowNs: monotonicNow()),
-            systemReadiness: readiness
+            systemReadiness: readiness,
+            bearMonitor: bearMonitor.snapshot(nowNs: monotonicNow())
         ))
     }
 
@@ -1056,8 +1374,65 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         switch command.action {
         case "status":
             break
+        case "bear-monitor-prepare":
+            session.reset()
+            ok = bearMonitor.prepare(
+                runID: command.runID ?? "",
+                caseCount: command.caseCount ?? 0,
+                message: command.message ?? "Focus the disposable Bear note",
+                nowNs: monotonicNow()
+            )
+            if ok {
+                enterBearMonitorMode()
+                message = "Typover Bear focus gate visible without taking keyboard focus"
+            } else {
+                bearMonitor.reset()
+                message = "Typover Bear focus gate refused invalid matrix bounds"
+            }
+        case "bear-monitor-begin":
+            session.reset()
+            ok = bearMonitor.begin(
+                runID: command.runID ?? "",
+                caseIndex: command.caseIndex ?? 0,
+                caseCount: command.caseCount ?? 0,
+                intervalMs: command.intervalMs ?? 0,
+                wordCount: command.wordCount ?? 0,
+                scheduledText: command.scheduledText ?? "",
+                startDelayMs: command.startDelayMs ?? 0,
+                bearFocused: command.bearFocused == true,
+                nowNs: monotonicNow()
+            )
+            if ok {
+                enterBearMonitorMode()
+                message = "Typover Bear monitor visible without taking keyboard focus"
+            } else {
+                bearMonitor.reset()
+                message = "Typover Bear monitor refused invalid case bounds"
+            }
+        case "bear-monitor-update":
+            guard let rawPhase = command.phase,
+                  let phase = TypoverBearMonitorPhase(rawValue: rawPhase)
+            else {
+                ok = false
+                message = "Typover Bear monitor update needs a valid phase"
+                break
+            }
+            ok = bearMonitor.update(
+                phase: phase,
+                correctedWords: command.correctedWords,
+                missedWords: command.missedWords,
+                message: command.message,
+                bearFocused: command.bearFocused
+            )
+            message = ok
+                ? "Typover Bear monitor updated"
+                : "Typover Bear monitor refused inconsistent evidence"
+        case "bear-monitor-reset":
+            leaveBearMonitorMode()
+            message = "Typover Bear monitor reset"
         case "reset":
             session.reset()
+            leaveBearMonitorMode()
             canvas.operatorInstruction = ""
             persistedTerminalKey = ""
             runActive = false
@@ -1082,8 +1457,28 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             message: message,
             processID: ProcessInfo.processInfo.processIdentifier,
             snapshot: snapshot,
-            systemReadiness: resourceMonitor.assessment
+            systemReadiness: resourceMonitor.assessment,
+            bearMonitor: bearMonitor.snapshot(nowNs: monotonicNow())
         )
+    }
+
+    private func enterBearMonitorMode() {
+        runActive = false
+        canvas.operatorInstruction = ""
+        window.title = "Typover · Bear Physical HID Monitor"
+        window.level = .floating
+        window.hidesOnDeactivate = false
+        window.ignoresMouseEvents = true
+        window.orderFrontRegardless()
+        canvas.needsDisplay = true
+    }
+
+    private func leaveBearMonitorMode() {
+        bearMonitor.reset()
+        window?.ignoresMouseEvents = false
+        window?.level = .normal
+        window?.title = "KeyPath HID Capture Jig"
+        canvas?.needsDisplay = true
     }
 
     private func persistTerminalResultIfNeeded(_ snapshot: CaptureSnapshot) {

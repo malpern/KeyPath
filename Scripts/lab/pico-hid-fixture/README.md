@@ -233,6 +233,27 @@ uses capture timestamps, caps the visible stack at ten keycaps, and gives faster
 ages out in 900 ms, while the complete, unmodified event ledger remains in the JSON artifact. Reduce
 Motion removes travel, compression, and paced playback while preserving live labels and evidence.
 
+The same AppKit app also has a nonactivating **Typover · Bear Physical HID** monitor mode. In this
+mode Bear—not the Jig—must remain frontmost, so the Jig cannot observe keyboard events directly. It
+instead animates the ESP32 schedule supplied by the Typover harness and labels that animation
+`SCHEDULED ESP32 KEYCAP STACK`. Corrections and misses appear only after the harness verifies the exact
+Bear range against Typover's unified-log evidence. This keeps the useful rapid-keypress visualization
+without presenting scheduled input as captured input.
+
+The local file-RPC client exposes the monitor independently of a physical run:
+
+```bash
+Scripts/lab/hid-capture-jig-tool open
+Scripts/lab/hid-capture-jig-client bear-prepare \
+  --run-id preview --case-count 4 --message "Focus the disposable Bear note"
+```
+
+`bear-begin` starts a scheduled-key presentation, `bear-update` supplies verified progress or results,
+and `bear-reset` returns to the normal capture UI. Monitor commands order the floating window without
+activating it, ignore mouse events while monitoring, and therefore do not take keyboard focus from
+Bear. Normal `focus` or `arm` commands leave monitor mode and restore the Jig's interactive capture
+behavior.
+
 This is the baseline reliability policy. Deliberate load-matrix cases use the runner's bounded CPU
 envelope rather than bypassing the gate with an unstructured "ignore busy" switch. The runner
 performs the normal calm preflight first, then starts the requested number of tracked CPU workers

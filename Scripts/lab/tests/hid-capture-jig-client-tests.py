@@ -96,6 +96,33 @@ class HIDCaptureJigClientTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(jig.commands[0]["action"], "focus")
 
+    def test_bear_monitor_transports_schedule_without_claiming_capture(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            scheduled = directory / "scheduled.txt"
+            scheduled.write_text("teh teh \n")
+            with FakeJig(directory) as jig:
+                begin = self.run_client(
+                    directory, "bear-begin", "--run-id", "typover-1",
+                    "--case-index", "2", "--case-count", "4",
+                    "--interval-ms", "60", "--word-count", "2",
+                    "--scheduled-text", str(scheduled), "--start-delay-ms", "1500",
+                    "--bear-focused",
+                )
+                update = self.run_client(
+                    directory, "bear-update", "--phase", "safeMisses",
+                    "--corrected-words", "1", "--missed-words", "1",
+                    "--message", "one safe miss", "--bear-focused",
+                )
+            self.assertEqual(begin.returncode, 0, begin.stderr)
+            self.assertEqual(update.returncode, 0, update.stderr)
+            self.assertEqual(jig.commands[0]["action"], "bear-monitor-begin")
+            self.assertEqual(jig.commands[0]["scheduledText"], "teh teh \n")
+            self.assertEqual(jig.commands[0]["intervalMs"], 60)
+            self.assertEqual(jig.commands[1]["action"], "bear-monitor-update")
+            self.assertEqual(jig.commands[1]["phase"], "safeMisses")
+            self.assertEqual(jig.commands[1]["correctedWords"], 1)
+
     def test_missing_app_fails_with_actionable_message(self):
         with tempfile.TemporaryDirectory() as temporary:
             result = self.run_client(pathlib.Path(temporary), "status", timeout="0.1")
