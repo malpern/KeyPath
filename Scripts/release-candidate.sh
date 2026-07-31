@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 PROJECT_DIR="$SCRIPT_DIR/.."
 source "$SCRIPT_DIR/lib/signing.sh"
+source "$SCRIPT_DIR/lib/release-cleanliness.sh"
 
 VERIFY=1
 DOCTOR=1
@@ -106,6 +107,11 @@ if [[ "$RESUME" == "1" ]]; then
         echo "⏭️  Skipping installed-app verification (--no-verify)"
     fi
     exit 0
+fi
+
+if ! kp_release_require_clean_source "$PROJECT_DIR"; then
+    echo "❌ Release candidate preflight refused a dirty or mismatched source tree." >&2
+    exit 1
 fi
 
 echo "🚢 Building release candidate"

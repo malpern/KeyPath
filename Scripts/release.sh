@@ -15,6 +15,7 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 REPO_ROOT="${SCRIPT_DIR%/Scripts}"
 INFO_PLIST="$REPO_ROOT/Sources/KeyPathApp/Info.plist"
+source "$SCRIPT_DIR/lib/release-cleanliness.sh"
 
 DRY_RUN=false
 SKIP_NOTARIZE=false
@@ -86,6 +87,16 @@ if [ "$SKIP_NOTARIZE" = true ] && [ "$DRY_RUN" = false ]; then
     exit 1
 fi
 
+if ! kp_release_require_clean_source "$REPO_ROOT"; then
+    echo "❌ Public release preflight refused a dirty or mismatched source tree." >&2
+    exit 1
+fi
+
+if [ "$RUN_DOCTOR" = true ] && [ "${SKIP_RELEASE_DOCTOR:-0}" != "1" ]; then
+    echo "🩺 Running release preflight..."
+    ./Scripts/release-doctor.sh --ship
+fi
+
 # Get current version and monotonically increasing Sparkle build number.
 CURRENT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$INFO_PLIST" 2>/dev/null || echo "0.0.0")
 CURRENT_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$INFO_PLIST" 2>/dev/null || echo "0")
@@ -135,21 +146,6 @@ if [ "$REFRESH_KEYBOARD_DATA" = true ]; then
 fi
 echo ""
 
-# Check for uncommitted changes
-if ! git diff --quiet HEAD -- 2>/dev/null; then
-    echo "⚠️  Warning: You have uncommitted changes"
-    git status --short
-    echo ""
-    
-    if [ "$DRY_RUN" = false ]; then
-        read -p "Continue anyway? [y/N] " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
-        fi
-    fi
-fi
-
 if [ "$DRY_RUN" = true ]; then
     echo "🔍 [DRY RUN] Would perform the following steps:"
     echo ""
@@ -191,11 +187,6 @@ if [ "$DRY_RUN" = true ]; then
     echo "   ${STEP}. Push appcast commit and tag: git push origin master --tags"
     echo ""
     exit 0
-fi
-
-if [ "$RUN_DOCTOR" = true ] && [ "${SKIP_RELEASE_DOCTOR:-0}" != "1" ]; then
-    echo "🩺 Running release preflight..."
-    ./Scripts/release-doctor.sh --ship
 fi
 
 if [ "$REFRESH_KEYBOARD_DATA" = true ]; then

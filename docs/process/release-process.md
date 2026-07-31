@@ -209,7 +209,10 @@ public distribution; unnotarized apps trigger Gatekeeper warnings.
 the expensive build starts:
 
 - required tools (`swift`, `xcrun`, `codesign`, `security`, `git`, `gh`, `nc`)
-- current git branch, dirty state, and master worktree ownership
+- current git branch and master worktree ownership
+- a mandatory clean-source gate: the repository and lockfiles must match
+  `HEAD`, every recursive submodule must be initialized at its recorded
+  revision, and every submodule worktree must be clean
 - Developer ID signing identity
 - notarytool keychain profile
 - Sparkle `sign_update` when Sparkle artifacts are enabled
@@ -220,7 +223,15 @@ the expensive build starts:
 - currently installed KeyPath/Kanata runtime state
 - whether Poltergeist is running
 
-Warnings are informational by default. Use `--strict` when warnings should block:
+Source cleanliness failures always block release-candidate and public release
+builds, including when `--no-doctor` or `SKIP_RELEASE_DOCTOR=1` is used for
+script debugging. Those options skip environment diagnostics; they do not
+permit unattributable artifacts. Initialize a missing checkout with
+`git submodule update --init --recursive`, and commit intentional source or
+lockfile changes before building.
+
+Other warnings are informational by default. Use `--strict` when those warnings
+should block:
 
 ```bash
 ./Scripts/release-doctor.sh --ship --strict

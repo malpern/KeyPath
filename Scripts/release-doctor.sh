@@ -6,6 +6,7 @@ PROJECT_DIR=$(cd "$SCRIPT_DIR/.." >/dev/null && pwd)
 source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/signing.sh"
 source "$SCRIPT_DIR/lib/sparkle.sh"
+source "$SCRIPT_DIR/lib/release-cleanliness.sh"
 export KEYPATH_PROJECT_DIR="$PROJECT_DIR"
 keypath_use_stable_xcode
 
@@ -161,14 +162,10 @@ else
     warn "Detached HEAD"
 fi
 
-if git diff --quiet && git diff --cached --quiet; then
-    pass "Working tree has no tracked changes"
+if kp_release_require_clean_source "$PROJECT_DIR"; then
+    pass "Repository, lockfiles, and recursive submodules match HEAD"
 else
-    warn "Working tree has tracked changes; release builds should normally run from clean master"
-fi
-
-if [[ -n "$(git status --porcelain --untracked-files=normal)" ]]; then
-    warn "Working tree has untracked files"
+    fail "Release source is not reproducible"
 fi
 
 master_worktree=$(find_worktree_for_branch master)
