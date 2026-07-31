@@ -138,6 +138,9 @@ require_contains "$build_script" 'kp_sign "$CONTENTS/Library/KeyPath/libkeypath_
 require_contains "$build_script" 'kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --sign "$SIGNING_IDENTITY"' "Kanata simulator is hardened-runtime signed"
 require_contains "$build_script" '"$SCRIPT_DIR/verify-identity-contract.sh" --app "$APP_BUNDLE"' "build-and-sign runs installed-app identity verification"
 require_contains "$build_script" '"$SCRIPT_DIR/verify-release-signing-contract.sh" --source' "build-and-sign runs source signing-contract verification"
+require_contains "$build_script" 'kp_staple_validate "$APP_BUNDLE"' "build-and-sign refuses to deploy without a stapled notarization ticket"
+require_contains "$build_script" 'kp_deploy_bundle_to_applications' "build-and-sign deploys the stapled bundle verbatim (no re-sign on deploy)"
+require_contains "Scripts/notarize-resume.sh" 'kp_deploy_bundle_to_applications' "notarize-resume deploys the stapled bundle verbatim (no re-sign on deploy)"
 require_contains "$doctor_script" 'verify-release-signing-contract.sh" --source' "release-doctor runs source signing-contract verification"
 
 if (( failures > 0 )); then

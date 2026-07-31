@@ -11,6 +11,7 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/signing.sh"
 source "$SCRIPT_DIR/lib/deploy-lock.sh"
+source "$SCRIPT_DIR/lib/deploy-app.sh"
 source "$SCRIPT_DIR/lib/submodules.sh"
 source "$SCRIPT_DIR/lib/sparkle.sh"
 export KEYPATH_PROJECT_DIR="$SCRIPT_DIR/.."
@@ -451,6 +452,9 @@ else
 
     echo "📋 Submitting for notarization..."
     NOTARY_PROFILE="${NOTARY_PROFILE:-KeyPath-Profile}"
+    # Prefer the file-based App Store Connect API key when present: keychain
+    # profiles become unreadable if the session locks mid-build.
+    kp_notary_default_auth_from_environment
     kp_notarize_zip "${DIST_DIR}/${APP_NAME}.zip" "$NOTARY_PROFILE"
 
     echo "🔖 Stapling notarization..."
@@ -478,70 +482,20 @@ if [ "${SKIP_DEPLOY:-0}" = "1" ]; then
     exit 0
 fi
 
-# Stop running KeyPath and kanata BEFORE replacing the app bundle.
-# Replacing binaries while the process is live causes macOS to detect
-# code page mismatches and kill the process with:
-#   SIGKILL (Code Signature Invalid) / CODESIGNING / Invalid Page
-# If kanata is killed mid-keystroke, the virtual HID holds the key down
-# and the character repeats infinitely.
-if pgrep -x "KeyPath" > /dev/null; then
-    echo "🛑 Stopping running KeyPath before deploy..."
-    killall KeyPath 2>/dev/null || true
-
-    # Wait up to 5 seconds for graceful shutdown
-    for i in {1..10}; do
-        if ! pgrep -x "KeyPath" > /dev/null; then
-            break
-        fi
-        sleep 0.5
-    done
-
-    # Force kill if still running
-    if pgrep -x "KeyPath" > /dev/null; then
-        echo "   ⚠️  Process still running, force killing..."
-        killall -9 KeyPath 2>/dev/null || true
-        sleep 1
+# A build that was submitted for notarization must never reach /Applications
+# without its stapled ticket: Gatekeeper rejects the installed copy, and any
+# later local re-sign changes the cdhash so the eventual ticket can no longer
+# be stapled in place (2026-07-30 RC incident).
+if [ "${SKIP_NOTARIZE:-}" != "1" ]; then
+    echo "🔎 Verifying stapled ticket before deploy..."
+    if ! kp_staple_validate "$APP_BUNDLE"; then
+        echo "❌ $APP_BUNDLE has no valid stapled notarization ticket; refusing to deploy." >&2
+        echo "   Resume without rebuilding: Scripts/release-candidate.sh --resume-notarization" >&2
+        exit 1
     fi
 fi
 
-# Verify no KeyPath process remains
-if pgrep -x "KeyPath" > /dev/null; then
-    echo "   ❌ ERROR: Failed to stop KeyPath process" >&2
-    echo "   Please manually quit KeyPath and run the deploy manually." >&2
-    exit 1
-fi
-
-# Stop kanata so it doesn't get killed by the bundle replacement.
-if pgrep -x "kanata" > /dev/null; then
-    echo "🛑 Stopping kanata service..."
-    KANATA_PID=$(pgrep -x "kanata")
-    sudo kill "$KANATA_PID" 2>/dev/null || true
-    sleep 1
-fi
-
-echo "📂 Deploying to /Applications..."
-SYSTEM_APPS_DIR="/Applications"
-APP_DEST="$SYSTEM_APPS_DIR/${APP_NAME}.app"
-rm -rf "$APP_DEST"
-if ditto "$APP_BUNDLE" "$APP_DEST"; then
-    echo "✅ Deployed latest $APP_NAME to $APP_DEST"
-else
-    echo "⚠️ WARNING: Failed to copy $APP_NAME to $APP_DEST" >&2
-    echo "💡 TIP: You may need to manually copy dist/${APP_NAME}.app to /Applications/" >&2
-fi
-
-echo "🚪 Restarting app..."
-echo "   Starting new KeyPath..."
-open "$APP_DEST"
-
-# Wait for new process to start and verify
-sleep 2
-if pgrep -x "KeyPath" > /dev/null; then
-    NEW_PID=$(pgrep -x "KeyPath")
-    echo "   ✅ KeyPath restarted successfully (PID: $NEW_PID)"
-else
-    echo "   ⚠️  WARNING: KeyPath may not have started. Run manually: open $APP_DEST" >&2
-fi
+kp_deploy_bundle_to_applications "$APP_BUNDLE" "$APP_NAME"
 
 # ─────────────────────────────────────────────────────────────────────
 # Publish help content to website

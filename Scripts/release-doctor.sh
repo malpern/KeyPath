@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 PROJECT_DIR=$(cd "$SCRIPT_DIR/.." >/dev/null && pwd)
 source "$SCRIPT_DIR/lib/xcode.sh"
+source "$SCRIPT_DIR/lib/signing.sh"
 source "$SCRIPT_DIR/lib/sparkle.sh"
 export KEYPATH_PROJECT_DIR="$PROJECT_DIR"
 keypath_use_stable_xcode
@@ -31,6 +32,9 @@ Environment checked:
   CODESIGN_IDENTITY    Developer ID Application identity override.
   NOTARY_PROFILE       notarytool keychain profile override.
   KP_NOTARY_KEYCHAIN   Optional notarytool keychain override.
+  KP_NOTARY_KEY_PATH / KP_NOTARY_KEY_ID / KP_NOTARY_ISSUER
+                       App Store Connect API key for notarytool (defaults to
+                       the AuthKey under ~/.appstoreconnect when present).
   SKIP_SPARKLE         If 1, skip Sparkle checks.
   SKIP_WEBSITE         If 1, skip gh-pages website checks.
 EOF
@@ -190,16 +194,26 @@ else
     echo "   Set CODESIGN_IDENTITY or install the Developer ID Application certificate."
 fi
 
-notary_args=(history --keychain-profile "$notary_profile" --output-format json)
-if [[ -n "${KP_NOTARY_KEYCHAIN:-}" ]]; then
-    notary_args+=(--keychain "$KP_NOTARY_KEYCHAIN")
-fi
-
-if notarytool "${notary_args[@]}" >/dev/null 2>&1; then
-    pass "notarytool profile validated: $notary_profile"
+# Validate the same auth path build-and-sign.sh will use. The API key is
+# preferred because keychain profiles become unreadable if the session locks
+# mid-build (data-protection keychain).
+kp_notary_default_auth_from_environment
+if ! kp_notary_resolve_auth "$notary_profile"; then
+    fail "notarytool auth configuration is invalid (KP_NOTARY_KEY_* incomplete or key file missing)"
+elif notarytool history "${KP_NOTARY_AUTH_ARGS[@]}" --output-format json >/dev/null 2>&1; then
+    if [[ -n "${KP_NOTARY_KEY_PATH:-}" ]]; then
+        pass "notarytool App Store Connect API key validated: ${KP_NOTARY_KEY_ID:-?} (no keychain dependency)"
+    else
+        pass "notarytool profile validated: $notary_profile"
+        echo "   Note: keychain-profile auth fails if the session locks mid-build; prefer an App Store Connect API key (KP_NOTARY_KEY_PATH)."
+    fi
 else
-    fail "notarytool profile failed validation: $notary_profile"
-    echo "   Set NOTARY_PROFILE or run: xcrun notarytool store-credentials"
+    if [[ -n "${KP_NOTARY_KEY_PATH:-}" ]]; then
+        fail "notarytool App Store Connect API key failed validation: $KP_NOTARY_KEY_PATH"
+    else
+        fail "notarytool profile failed validation: $notary_profile"
+        echo "   Set NOTARY_PROFILE or run: xcrun notarytool store-credentials"
+    fi
 fi
 
 print_section "Identity Contract"
