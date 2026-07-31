@@ -95,6 +95,29 @@ when Apple still reports `In Progress`, reserving a distinct transient result
 for automation even though the current release entry points stop on any
 nonzero result. Permanent statuses such as `Invalid` return exit 1.
 
+To finish an interrupted run without rebuilding, use the resume path:
+
+```bash
+./Scripts/release-candidate.sh --resume-notarization
+```
+
+It re-reads the recovery state, verifies `dist/KeyPath.zip` still has the
+recorded checksum, waits on the recorded submission (or resubmits that exact
+archive when nothing reached Apple; set `KP_NOTARY_SUBMISSION_ID` to pick one
+of several recorded candidates), staples `dist/KeyPath.app`, and deploys that
+stapled bundle verbatim. Deploys never re-sign: a post-notarization re-sign
+changes the cdhash and permanently detaches the installed app from its ticket.
+`build-and-sign.sh` also refuses to deploy a bundle without a stapled ticket
+whenever notarization was requested.
+
+Notarization credentials: the scripts prefer the file-based App Store Connect
+API key (`~/.appstoreconnect/private_keys/AuthKey_XQ4565NYZ7.p8`, overridable
+via `KP_NOTARY_KEY_PATH`/`KP_NOTARY_KEY_ID`/`KP_NOTARY_ISSUER`) over the
+`KeyPath-Profile` keychain profile. notarytool stores profiles in the
+data-protection keychain, which becomes unreadable when the login session
+locks mid-build; the API key file has no lock-state dependency. Set
+`KP_NOTARY_AUTH=keychain-profile` to force profile auth.
+
 Opt into slower work only when needed:
 
 ```bash

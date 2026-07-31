@@ -93,21 +93,34 @@ final class DeploymentScriptContractTests: XCTestCase {
     }
 
     func testBuildAndSignSupportsNonDeployingCandidateBuilds() throws {
-        let buildAndSign = try contents(of: repositoryRoot().appendingPathComponent("Scripts/build-and-sign.sh"))
+        let root = repositoryRoot()
+        let buildAndSign = try contents(of: root.appendingPathComponent("Scripts/build-and-sign.sh"))
         let guardText = #"if [ "${SKIP_DEPLOY:-0}" = "1" ]; then"#
 
         guard let guardRange = buildAndSign.range(of: guardText),
-              let runtimeStopRange = buildAndSign.range(of: #"pgrep -x "KeyPath""#)
+              let deployCallRange = buildAndSign.range(of: "kp_deploy_bundle_to_applications")
         else {
             return XCTFail("build-and-sign must expose SKIP_DEPLOY before touching the installed runtime")
         }
 
         XCTAssertLessThan(
             buildAndSign.distance(from: buildAndSign.startIndex, to: guardRange.lowerBound),
-            buildAndSign.distance(from: buildAndSign.startIndex, to: runtimeStopRange.lowerBound),
+            buildAndSign.distance(from: buildAndSign.startIndex, to: deployCallRange.lowerBound),
             "SKIP_DEPLOY must exit before stopping or replacing the installed app."
         )
         XCTAssertTrue(buildAndSign.contains("Candidate retained at: $APP_BUNDLE"))
+
+        // The runtime stop/replace sequence lives in the shared deploy lib that
+        // runs only after the SKIP_DEPLOY guard.
+        let deployLib = try contents(of: root.appendingPathComponent("Scripts/lib/deploy-app.sh"))
+        XCTAssertTrue(
+            deployLib.contains(#"pgrep -x "$app_name""#),
+            "deploy lib must stop the running app before replacing the bundle."
+        )
+        XCTAssertFalse(
+            deployLib.contains("codesign"),
+            "deploy lib must never re-sign; that detaches the app from its notarization ticket."
+        )
     }
 
     func testReleaseBuildReadsVersionMetadataFromPlistPaths() throws {
