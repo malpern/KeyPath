@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 PROJECT_DIR="$SCRIPT_DIR/.."
+source "$SCRIPT_DIR/lib/signing.sh"
 
 VERIFY=1
 DOCTOR=1
@@ -125,7 +126,11 @@ if [[ "$build_status" -ne 0 ]]; then
     echo "" >&2
     echo "❌ Release candidate failed (build-and-sign exit $build_status)." >&2
     state_file="${KP_NOTARY_STATE_FILE:-dist/KeyPath.notary-submission.json}"
-    if [[ -f "$state_file" ]] && ! grep -q '"status": "accepted"' "$state_file"; then
+    notary_status=""
+    if [[ -f "$state_file" ]]; then
+        notary_status=$(kp_notary_json_field status < "$state_file" 2>/dev/null) || notary_status=""
+    fi
+    if [[ -f "$state_file" && "$notary_status" != "accepted" ]]; then
         echo "   Notarization did not complete; the app was NOT deployed to /Applications." >&2
         echo "   Recovery state: $state_file" >&2
         echo "   Resume without rebuilding once credentials/Apple are sorted:" >&2

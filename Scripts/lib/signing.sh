@@ -44,10 +44,12 @@ kp_notary_default_auth_from_environment() {
 # Resolve the notarytool auth flags once per operation into the globals
 # KP_NOTARY_AUTH_ARGS (array) and KP_NOTARY_AUTH_DISPLAY (string for printed
 # recovery commands). Explicit KP_NOTARY_KEY_PATH wins over the keychain
-# profile; the library never auto-detects on its own.
+# profile — unless KP_NOTARY_AUTH=keychain-profile, which forces profile auth
+# even when a key path is populated (recovers from a stale or unwanted key).
+# The library never auto-detects on its own.
 kp_notary_resolve_auth() {
     local profile=$1
-    if [ -n "${KP_NOTARY_KEY_PATH:-}" ]; then
+    if [ -n "${KP_NOTARY_KEY_PATH:-}" ] && [ "${KP_NOTARY_AUTH:-auto}" != "keychain-profile" ]; then
         if [ -z "${KP_NOTARY_KEY_ID:-}" ] || [ -z "${KP_NOTARY_ISSUER:-}" ]; then
             echo "❌ KP_NOTARY_KEY_PATH is set but KP_NOTARY_KEY_ID or KP_NOTARY_ISSUER is missing." >&2
             return 1

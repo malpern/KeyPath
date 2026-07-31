@@ -35,7 +35,6 @@ DIST_DIR="dist"
 APP_BUNDLE="${DIST_DIR}/${APP_NAME}.app"
 ZIP_PATH="${DIST_DIR}/${APP_NAME}.zip"
 STATE_FILE=${KP_NOTARY_STATE_FILE:-"${ZIP_PATH%.zip}.notary-submission.json"}
-NOTARY_PROFILE="${NOTARY_PROFILE:-KeyPath-Profile}"
 
 for required in "$APP_BUNDLE" "$ZIP_PATH" "$STATE_FILE"; do
     if [ ! -e "$required" ]; then
@@ -47,6 +46,11 @@ done
 recorded_sha=$(kp_notary_json_field archiveSHA256 < "$STATE_FILE" 2>/dev/null) || recorded_sha=""
 recorded_status=$(kp_notary_json_field status < "$STATE_FILE" 2>/dev/null) || recorded_status=""
 recorded_submission_id=$(kp_notary_json_field submissionId < "$STATE_FILE" 2>/dev/null) || recorded_submission_id=""
+recorded_profile=$(kp_notary_json_field profile < "$STATE_FILE" 2>/dev/null) || recorded_profile=""
+
+# Fall back to the profile the failed release actually used, so a resume
+# without the original NOTARY_PROFILE override still authenticates.
+NOTARY_PROFILE="${NOTARY_PROFILE:-${recorded_profile:-KeyPath-Profile}}"
 
 current_sha=$(/usr/bin/shasum -a 256 "$ZIP_PATH" | /usr/bin/awk '{print $1}')
 if [ -z "$recorded_sha" ] || [ "$current_sha" != "$recorded_sha" ]; then
@@ -74,6 +78,43 @@ import json, sys
 for candidate in json.load(sys.stdin).get("candidateSubmissions") or []:
     print("   {}  {}  {}".format(candidate.get("id"), candidate.get("status"), candidate.get("createdDate")))
 ' < "$STATE_FILE" >&2
+        echo "   Re-run with KP_NOTARY_SUBMISSION_ID=<id> to wait on one of them." >&2
+        exit 1
+    fi
+    # An empty recorded candidate list is not proof nothing reached Apple: the
+    # original history lookup may itself have failed or lagged the upload.
+    # Require a successful, authoritative history check now before resubmitting.
+    echo "🔎 Checking Apple submission history before resubmitting..."
+    kp_notary_resolve_auth "$NOTARY_PROFILE"
+    history_output=""
+    if ! history_output=$($KP_NOTARY_CMD history "${KP_NOTARY_AUTH_ARGS[@]}" --output-format json 2>/dev/null); then
+        echo "❌ notarytool history is unavailable; refusing to resubmit without positive evidence" >&2
+        echo "   that the failed upload never reached Apple (a blind retry can create duplicates)." >&2
+        echo "   Fix credentials/connectivity and re-run, or wait on a known submission with" >&2
+        echo "   KP_NOTARY_SUBMISSION_ID=<id>." >&2
+        exit 1
+    fi
+    failure_epoch=$(/usr/bin/python3 - "$STATE_FILE" <<'PY'
+import datetime
+import json
+import sys
+
+try:
+    updated_at = json.load(open(sys.argv[1])).get("updatedAt")
+    print(int(datetime.datetime.fromisoformat(updated_at.replace("Z", "+00:00")).timestamp()))
+except Exception:
+    print(0)  # unparseable -> widest window, which can only add caution
+PY
+)
+    fresh_candidates=$(kp_notary_recent_history_candidates "$history_output" "$(basename "$ZIP_PATH")" "$failure_epoch") || fresh_candidates="[]"
+    fresh_count=$(printf '%s' "$fresh_candidates" | /usr/bin/python3 -c 'import json, sys; print(len(json.load(sys.stdin)))') || fresh_count=0
+    if [ "$fresh_count" -gt 0 ]; then
+        echo "❌ Apple history shows submissions of $(basename "$ZIP_PATH") around the failed run; refusing to resubmit." >&2
+        printf '%s' "$fresh_candidates" | /usr/bin/python3 -c '
+import json, sys
+for candidate in json.load(sys.stdin):
+    print("   {}  {}  {}".format(candidate.get("id"), candidate.get("status"), candidate.get("createdDate")))
+' >&2
         echo "   Re-run with KP_NOTARY_SUBMISSION_ID=<id> to wait on one of them." >&2
         exit 1
     fi

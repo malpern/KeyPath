@@ -423,6 +423,30 @@ final class SigningPipelineTests: XCTestCase {
         XCTAssertEqual(state["submissionId"] as? String, submissionID)
     }
 
+    func testNotaryForcedKeychainProfileBeatsPopulatedKeyPath() throws {
+        let fixture = try makeNotaryFixture(waitExit: 0, waitStatus: "Accepted", infoStatus: nil)
+        let keyFile = fixture.archive.deletingLastPathComponent().appendingPathComponent("AuthKey_STALE.p8")
+        try Data("stale key".utf8).write(to: keyFile)
+
+        let script = """
+        unset KP_SIGN_DRY_RUN
+        source \(signingLibPath)
+        KP_NOTARY_CMD="\(fixture.stub.path)"
+        KP_NOTARY_STATE_FILE="\(fixture.state.path)"
+        KP_NOTARY_KEY_PATH="\(keyFile.path)"
+        KP_NOTARY_KEY_ID="STALE"
+        KP_NOTARY_ISSUER="00000000-0000-0000-0000-000000000000"
+        KP_NOTARY_AUTH=keychain-profile
+        kp_notarize_zip "\(fixture.archive.path)" "KeyPath-Profile"
+        """
+        let result = runScript(script, env: ["KP_NOTARY_TEST_LOG": fixture.log.path])
+
+        XCTAssertEqual(result.code, 0, result.stderr)
+        let invocations = try String(contentsOf: fixture.log, encoding: .utf8)
+        XCTAssertTrue(invocations.contains("--keychain-profile KeyPath-Profile"))
+        XCTAssertFalse(invocations.contains("--key "), "forced keychain-profile auth must ignore a populated key path")
+    }
+
     func testNotaryDefaultAuthPrefersApiKeyFileAndRespectsOptOut() throws {
         let directory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
