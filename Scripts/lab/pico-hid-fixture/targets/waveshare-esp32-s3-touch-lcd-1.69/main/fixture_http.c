@@ -17,6 +17,7 @@
 #include "esp_timer.h"
 #include "esp_wifi.h"
 #include "fixture_config.h"
+#include "fixture_board.h"
 #include "fixture_display.h"
 #include "fixture_runtime.h"
 #include "fixture_wifi_model.h"
@@ -282,7 +283,7 @@ static esp_err_t status_handler(httpd_req_t *request) {
              "\"eventCount\":%" PRIu32 ",\"repeatCount\":%" PRIu32 ",\"currentRepeat\":%" PRIu32 ","
              "\"reportsSubmitted\":%" PRIu64 ",\"transfersCompleted\":%" PRIu64 ","
              "\"lateReports\":%" PRIu64 ",\"maximumLatenessUs\":%" PRId64 ","
-             "\"submittedCRC32\":\"%08" PRIx32 "\",\"usbMounted\":%s,"
+             "\"submittedCRC32\":\"%08" PRIx32 "\",\"usbMounted\":%s,\"silent\":%s,"
              "\"displayHealthy\":%s,\"displayFrame\":%" PRIu64 ","
              "\"displayLastFrameMs\":%" PRIu64 ",\"splashEnabled\":%s,\"splashComplete\":%s,"
              "\"updateReady\":%s,\"updateInProgress\":%s,\"otaSlot\":\"%s\",\"otaState\":\"%s\","
@@ -305,6 +306,7 @@ static esp_err_t status_handler(httpd_req_t *request) {
              snapshot.ui.current_repeat, snapshot.ui.reports_submitted, snapshot.transfers_completed,
              snapshot.ui.late_reports, snapshot.ui.maximum_lateness_us, snapshot.submitted_crc32,
              snapshot.ui.usb_mounted ? "true" : "false",
+             fixture_board_is_silent() ? "true" : "false",
              fixture_display_is_healthy() ? "true" : "false", display_health.frame_sequence,
              display_health.last_frame_ms, display_health.splash_enabled ? "true" : "false",
              display_health.splash_complete ? "true" : "false", update_ready ? "true" : "false",

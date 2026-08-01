@@ -49,6 +49,7 @@ typedef struct {
     lv_obj_t *state;
     lv_obj_t *detail;
     lv_obj_t *quality;
+    lv_obj_t *sound;
     fixture_ui_scene_t previous_scene;
     fixture_result_t previous_result;
     int visual_stage;
@@ -59,6 +60,8 @@ typedef struct {
     uint64_t button_feedback_started_ms;
     uint32_t button_feedback_sequence;
     fixture_button_event_t button_feedback_event;
+    uint64_t sound_feedback_started_ms;
+    bool sound_feedback_silent;
 } display_ui_t;
 
 typedef struct {
@@ -166,6 +169,10 @@ static void touch_event(lv_event_t *event) {
         lv_obj_set_style_bg_color(ui.screen, lv_color_hex(0x241323), 0);
         fixture_runtime_abort("touch abort");
         fixture_board_tone(220u, 90u);
+    } else {
+        ui.sound_feedback_silent = fixture_board_toggle_silent();
+        ui.sound_feedback_started_ms = (uint64_t)(esp_timer_get_time() / 1000);
+        if (!ui.sound_feedback_silent) fixture_board_tone(1040u, 65u);
     }
 }
 
@@ -361,6 +368,13 @@ static void build_ui(void) {
     lv_obj_set_style_text_color(ui.quality, lv_color_hex(0x52727e), 0);
     lv_obj_set_style_text_letter_space(ui.quality, 1, 0);
     lv_obj_align(ui.quality, LV_ALIGN_TOP_RIGHT, -10, 38);
+
+    ui.sound = lv_label_create(ui.screen);
+    lv_label_set_text_static(ui.sound, "SILENT");
+    lv_obj_set_style_text_font(ui.sound, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(ui.sound, lv_color_hex(0x78909a), 0);
+    lv_obj_set_style_text_letter_space(ui.sound, 1, 0);
+    lv_obj_align(ui.sound, LV_ALIGN_TOP_LEFT, 10, 38);
     ui.previous_scene = FIXTURE_UI_BOOT;
     ui.visual_stage = -1;
 }
@@ -539,6 +553,30 @@ static void render_button_feedback(uint64_t now_ms) {
                             (lv_opa_t)(12u + output.pulse_per_mille * 24u / 1000u), 0);
     lv_obj_set_style_transform_scale(ui.state,
                                      256 + (int)(output.pulse_per_mille * 10u / 1000u), 0);
+}
+
+static void render_sound_feedback(uint64_t now_ms) {
+    bool silent = fixture_board_is_silent();
+    lv_label_set_text_static(ui.sound, silent ? "SILENT" : "SOUND ON");
+    lv_obj_set_style_text_color(
+        ui.sound, silent ? lv_color_hex(0x78909a) : lv_color_hex(0xffb454), 0);
+
+    uint64_t elapsed_ms = now_ms >= ui.sound_feedback_started_ms
+                              ? now_ms - ui.sound_feedback_started_ms : UINT64_MAX;
+    if (ui.sound_feedback_started_ms == 0u || elapsed_ms >= 1400u) return;
+
+    lv_color_t accent = ui.sound_feedback_silent
+                            ? lv_color_hex(0x9aadb5) : lv_color_hex(0xffb454);
+    lv_label_set_text_static(ui.state,
+                             ui.sound_feedback_silent ? "SILENT MODE" : "SOUND ON");
+    lv_label_set_text_static(
+        ui.detail, ui.sound_feedback_silent ? "Tap again to enable sound" : "Tap again to mute");
+    lv_label_set_text_static(ui.quality, "AUDIO SETTING");
+    lv_obj_set_style_text_color(ui.state, accent, 0);
+    lv_obj_set_style_text_color(ui.quality, accent, 0);
+    lv_obj_set_style_arc_color(ui.orbit, accent, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(ui.progress, accent, LV_PART_INDICATOR);
+    lv_obj_set_style_border_color(ui.core, accent, 0);
 }
 
 static void render(const fixture_ui_output_t *output,
@@ -742,6 +780,7 @@ static void render(const fixture_ui_output_t *output,
         lv_obj_set_style_text_color(ui.quality, lv_color_hex(0x52727e), 0);
     }
     render_button_feedback(now_ms);
+    render_sound_feedback(now_ms);
 }
 
 static void display_task(void *context) {

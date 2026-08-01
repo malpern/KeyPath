@@ -45,7 +45,10 @@ are in
 
 The Waveshare board needs no shield, speaker, external debugger, power supply, or second
 microcontroller. Its display presents the run state and timing pressure; touch or the physical
-button aborts an ordinary armed/running script, and its buzzer provides sparse transition cues.
+button aborts an ordinary armed/running script. Its buzzer starts silent on every boot. Tap the
+display while the fixture is not armed or running to toggle sound; the persistent badge and a
+transient confirmation show the new mode. Taps retain their safety role while a script is armed or
+running, so they never change audio mode during a test.
 The top power button also arms a bounded offline demo while the fixture is terminal; tapping the
 screen is the separate confirmation that starts it. Pico 2 W uses its onboard green LED instead.
 

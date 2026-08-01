@@ -12,6 +12,7 @@ cc -std=c11 -Wall -Wextra -Werror -pedantic \
   "$fixture_root/src/fixture_demo.c" \
   "$fixture_root/src/fixture_presentation.c" \
   "$fixture_root/src/fixture_splash_model.c" \
+  "$fixture_root/src/fixture_sound_model.c" \
   "$fixture_root/src/fixture_ui_model.c" \
   "$fixture_root/src/fixture_visual_model.c" \
   "$fixture_root/src/fixture_wifi_model.c" \

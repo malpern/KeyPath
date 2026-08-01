@@ -3,6 +3,7 @@
 #include "fixture_demo.h"
 #include "fixture_presentation.h"
 #include "fixture_splash_model.h"
+#include "fixture_sound_model.h"
 #include "fixture_ui_model.h"
 #include "fixture_visual_model.h"
 #include "fixture_wifi_model.h"
@@ -494,6 +495,16 @@ static void test_button_feedback_identifies_physical_positions_and_expires(void)
     assert(!feedback.active);
 }
 
+static void test_sound_mode_defaults_silent_and_toggles(void) {
+    fixture_sound_model_t sound = {.silent = false};
+    fixture_sound_model_init(&sound);
+    assert(sound.silent);
+    assert(!fixture_sound_model_toggle(&sound));
+    assert(!sound.silent);
+    assert(fixture_sound_model_toggle(&sound));
+    assert(sound.silent);
+}
+
 int main(void) {
     test_load_arm_run_and_repeat();
     test_rejects_corrupt_and_unsafe_scripts();
@@ -511,6 +522,7 @@ int main(void) {
     test_wifi_profiles_retry_in_priority_order_and_wrap();
     test_splash_reveals_holds_and_fades_without_blocking_boot();
     test_button_feedback_identifies_physical_positions_and_expires();
+    test_sound_mode_defaults_silent_and_toggles();
     puts("physical HID fixture core tests passed");
     return 0;
 }

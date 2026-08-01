@@ -32,6 +32,7 @@ set(fixture_sources
     "${shared_source}/fixture_demo.c"
     "${shared_source}/fixture_presentation.c"
     "${shared_source}/fixture_splash_model.c"
+    "${shared_source}/fixture_sound_model.c"
     "${shared_source}/fixture_ui_model.c"
     "${shared_source}/fixture_visual_model.c"
     "${shared_source}/fixture_wifi_model.c"

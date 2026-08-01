@@ -14,6 +14,8 @@ typedef struct {
 } fixture_board_feedback_t;
 
 void fixture_board_init(void);
+bool fixture_board_is_silent(void);
+bool fixture_board_toggle_silent(void);
 void fixture_board_tone(unsigned int frequency_hz, unsigned int duration_ms);
 void fixture_board_update(bool armed_or_running);
 void fixture_board_feedback_snapshot(fixture_board_feedback_t *feedback);

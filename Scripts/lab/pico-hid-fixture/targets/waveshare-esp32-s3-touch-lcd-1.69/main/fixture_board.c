@@ -5,6 +5,7 @@
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 #include "fixture_runtime.h"
+#include "fixture_sound_model.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
@@ -25,6 +26,7 @@ typedef struct {
 
 static QueueHandle_t tone_queue;
 static volatile bool button_enabled;
+static fixture_sound_model_t sound_model;
 static portMUX_TYPE feedback_lock = portMUX_INITIALIZER_UNLOCKED;
 static fixture_board_feedback_t latest_feedback;
 
@@ -50,11 +52,13 @@ static void board_task(void *context) {
         tone_request_t tone;
         if (xQueueReceive(tone_queue, &tone, pdMS_TO_TICKS(10)) == pdTRUE) {
 #if CONFIG_KEYPATH_FIXTURE_SOUND
-            ledc_set_freq(LEDC_LOW_SPEED_MODE, LEDC_TIMER_2, tone.frequency_hz);
-            ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, 128u);
-            ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2);
-            vTaskDelay(pdMS_TO_TICKS(tone.duration_ms));
-            ledc_stop(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, 0u);
+            if (!fixture_board_is_silent()) {
+                ledc_set_freq(LEDC_LOW_SPEED_MODE, LEDC_TIMER_2, tone.frequency_hz);
+                ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, 128u);
+                ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2);
+                vTaskDelay(pdMS_TO_TICKS(tone.duration_ms));
+                ledc_stop(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, 0u);
+            }
 #endif
         }
         bool boot_pressed = gpio_get_level(FIXTURE_BOOT_BUTTON) == 0;
@@ -86,6 +90,7 @@ static void board_task(void *context) {
 }
 
 void fixture_board_init(void) {
+    fixture_sound_model_init(&sound_model);
     gpio_config_t button = {
         .pin_bit_mask = (1ULL << FIXTURE_BOOT_BUTTON) | (1ULL << FIXTURE_POWER_BUTTON),
         .mode = GPIO_MODE_INPUT,
@@ -121,8 +126,29 @@ void fixture_board_init(void) {
     configASSERT(xTaskCreatePinnedToCore(board_task, "fixture_board", 3072, NULL, 5, NULL, 0) == pdPASS);
 }
 
+bool fixture_board_is_silent(void) {
+    taskENTER_CRITICAL(&feedback_lock);
+    bool silent = sound_model.silent;
+    taskEXIT_CRITICAL(&feedback_lock);
+    return silent;
+}
+
+bool fixture_board_toggle_silent(void) {
+    taskENTER_CRITICAL(&feedback_lock);
+    bool silent = fixture_sound_model_toggle(&sound_model);
+    taskEXIT_CRITICAL(&feedback_lock);
+    if (silent && tone_queue) {
+        xQueueReset(tone_queue);
+#if CONFIG_KEYPATH_FIXTURE_SOUND
+        ledc_stop(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, 0u);
+#endif
+    }
+    return silent;
+}
+
 void fixture_board_tone(unsigned int frequency_hz, unsigned int duration_ms) {
-    if (!tone_queue || frequency_hz > UINT16_MAX || duration_ms > UINT16_MAX) return;
+    if (!tone_queue || fixture_board_is_silent() ||
+        frequency_hz > UINT16_MAX || duration_ms > UINT16_MAX) return;
     tone_request_t request = {(uint16_t)frequency_hz, (uint16_t)duration_ms};
     xQueueSend(tone_queue, &request, 0u);
 }
