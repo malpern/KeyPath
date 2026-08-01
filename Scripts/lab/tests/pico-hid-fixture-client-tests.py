@@ -137,6 +137,11 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(trace[0]["available"], 1)
         self.assertEqual(trace[1]["sequence"], 1)
 
+    def test_trace_all_returns_complete_trace(self):
+        trace = self.client.trace_all()
+        self.assertEqual(trace, [{"sequence": 1}])
+        self.assertEqual(RecordingHandler.requests[-1][1], "/v1/trace?from=0&limit=8")
+
     def test_presentation_uses_bounded_json_channel(self):
         self.client.present({"phase": "result", "result": "pass", "brand": "bear", "progress": 1000,
                              "title": "Swift stress", "reportsExpected": 40,

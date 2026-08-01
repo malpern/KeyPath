@@ -16,8 +16,9 @@ CLIENT = ROOT / "lab/hid-capture-jig-client"
 
 
 class FakeJig:
-    def __init__(self, directory: pathlib.Path):
+    def __init__(self, directory: pathlib.Path, response_delay: float = 0):
         self.directory = directory
+        self.response_delay = response_delay
         self.commands: list[dict[str, object]] = []
         self.stop = False
         self.thread = threading.Thread(target=self.run, daemon=True)
@@ -43,6 +44,7 @@ class FakeJig:
                 continue
             last_id = command["id"]
             self.commands.append(command)
+            time.sleep(self.response_delay)
             snapshot = {
                 "state": "armed" if command["action"] == "arm" else "idle",
                 "expected": command.get("expected", ""),
@@ -122,6 +124,25 @@ class HIDCaptureJigClientTests(unittest.TestCase):
             self.assertEqual(jig.commands[1]["action"], "bear-monitor-update")
             self.assertEqual(jig.commands[1]["phase"], "safeMisses")
             self.assertEqual(jig.commands[1]["correctedWords"], 1)
+
+    def test_concurrent_clients_are_serialized_across_the_single_command_slot(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            environment = os.environ.copy()
+            environment["KEYPATH_CAPTURE_JIG_STATE_DIR"] = str(directory)
+            environment["KEYPATH_CAPTURE_JIG_COMMAND_TIMEOUT"] = "1"
+            with FakeJig(directory, response_delay=0.1) as jig:
+                clients = [
+                    subprocess.Popen(
+                        [str(CLIENT), command], text=True, stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE, env=environment,
+                    )
+                    for command in ("status", "focus")
+                ]
+                results = [client.communicate(timeout=3) for client in clients]
+
+            self.assertEqual([client.returncode for client in clients], [0, 0], results)
+            self.assertEqual(sorted(command["action"] for command in jig.commands), ["focus", "status"])
 
     def test_missing_app_fails_with_actionable_message(self):
         with tempfile.TemporaryDirectory() as temporary:

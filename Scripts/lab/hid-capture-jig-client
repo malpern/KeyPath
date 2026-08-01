@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import pathlib
@@ -29,23 +30,31 @@ def atomic_json_write(path: pathlib.Path, value: dict[str, object]) -> None:
 
 def send(action: str, **fields: object) -> dict[str, object]:
     directory = state_directory()
-    request_id = str(uuid.uuid4())
-    command = {"id": request_id, "action": action}
-    command.update({key: value for key, value in fields.items() if value is not None})
-    atomic_json_write(directory / "command.json", command)
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    lock_path = directory / "command.lock"
+    with lock_path.open("a+") as lock:
+        lock_path.chmod(0o600)
+        # The Jig intentionally exposes one command/response slot. Serialize every
+        # client for the entire request so a readiness probe cannot overwrite Focus,
+        # Arm, Finalize, or another status request before its response arrives.
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        request_id = str(uuid.uuid4())
+        command = {"id": request_id, "action": action}
+        command.update({key: value for key, value in fields.items() if value is not None})
+        atomic_json_write(directory / "command.json", command)
 
-    timeout = float(os.environ.get("KEYPATH_CAPTURE_JIG_COMMAND_TIMEOUT", "5"))
-    deadline = time.monotonic() + timeout
-    response_path = directory / "response.json"
-    while time.monotonic() < deadline:
-        try:
-            response = json.loads(response_path.read_text())
-        except (FileNotFoundError, json.JSONDecodeError):
+        timeout = float(os.environ.get("KEYPATH_CAPTURE_JIG_COMMAND_TIMEOUT", "5"))
+        deadline = time.monotonic() + timeout
+        response_path = directory / "response.json"
+        while time.monotonic() < deadline:
+            try:
+                response = json.loads(response_path.read_text())
+            except (FileNotFoundError, json.JSONDecodeError):
+                time.sleep(0.025)
+                continue
+            if response.get("id") == request_id:
+                return response
             time.sleep(0.025)
-            continue
-        if response.get("id") == request_id:
-            return response
-        time.sleep(0.025)
     raise RuntimeError(
         f"HID Capture Jig did not answer within {timeout:g}s; launch it with "
         "Scripts/lab/hid-capture-jig-tool open"

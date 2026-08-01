@@ -114,6 +114,60 @@ def run_fixture_json_with_retry(
             time.sleep(0.25)
 
 
+def run_fixture_state_change_with_confirmation(
+    host: str,
+    action: str,
+    run_id: str,
+    *arguments: str,
+    include_run_id_argument: bool = True,
+    expected_states: set[str],
+    environment: dict[str, str],
+    retry_seconds: float,
+    errors: list[dict[str, Any]],
+    action_request_timeout: float = 10,
+    status_request_timeout: float = 10,
+    require_run_id_match: bool = True,
+) -> dict[str, Any]:
+    """Retry an idempotent intent, confirming a lost response from fixture status."""
+    deadline = time.monotonic() + max(0, retry_seconds)
+    latest_error: BaseException | None = None
+    while True:
+        try:
+            command_arguments = (
+                (run_id, *arguments) if include_run_id_argument else arguments
+            )
+            return run_json(
+                fixture_command(
+                    host, action, *command_arguments, timeout=action_request_timeout
+                ),
+                environment,
+            )
+        except (OSError, ValueError, RuntimeError, KeyError) as error:
+            latest_error = error
+            record_control_error(errors, action, error)
+        try:
+            status = run_json(
+                fixture_command(host, "status", timeout=status_request_timeout), environment
+            )
+            observed_run_id = status.get("runId", status.get("runID"))
+            run_id_matches = observed_run_id == run_id or not require_run_id_match
+            if run_id_matches and status.get("state") in expected_states:
+                return {
+                    "ok": True,
+                    "message": f"{action} confirmed from fixture status after response loss",
+                    "confirmedByStatus": True,
+                    "status": status,
+                }
+        except (OSError, ValueError, RuntimeError, KeyError) as error:
+            latest_error = error
+            record_control_error(errors, "status", error)
+        if time.monotonic() >= deadline:
+            raise RuntimeError(
+                f"fixture {action} unavailable after {retry_seconds:g}s: {latest_error}"
+            ) from latest_error
+        time.sleep(0.25)
+
+
 def resolve_fixture_host(
     initial_host: str,
     environment: dict[str, str],
@@ -122,7 +176,9 @@ def resolve_fixture_host(
     control_errors = errors if errors is not None else []
     status = run_fixture_json_with_retry(
         initial_host, "status", environment=environment,
-        retry_seconds=10, errors=control_errors,
+        # The firmware intentionally owns a bounded 60-second Wi-Fi reconnect
+        # window. Wait through it before declaring a hands-off campaign blocked.
+        retry_seconds=60, errors=control_errors,
     )
     address = str(status.get("address", ""))
     try:
@@ -188,25 +244,20 @@ def fetch_fixture_trace(
     host: str, environment: dict[str, str], errors: list[dict[str, Any]] | None = None
 ) -> list[dict[str, Any]]:
     """Fetch the fixture's bounded trace in chronological order after a run."""
-    traces: list[dict[str, Any]] = []
-    start = 0
-    available: int | None = None
-    while available is None or start < available:
-        control_errors = errors if errors is not None else []
-        response = run_fixture_json_with_retry(
-            host, "trace", "--from", str(start), "--limit", "8",
-            environment=environment, retry_seconds=10, errors=control_errors,
+    control_errors = errors if errors is not None else []
+    try:
+        response = run_json(
+            fixture_command(
+                host, "trace-all", "--limit", "8", "--retry-seconds", "60", timeout=10
+            ),
+            environment,
         )
-        if not isinstance(response, list) or not response or not isinstance(response[0], dict):
-            raise RuntimeError("fixture trace returned an invalid batch")
-        header = response[0]
-        available = int(header.get("available", 0))
-        batch = [entry for entry in response[1:] if isinstance(entry, dict)]
-        traces.extend(batch)
-        if not batch:
-            break
-        start += len(batch)
-    return traces
+    except (OSError, ValueError, RuntimeError, KeyError) as error:
+        record_control_error(control_errors, "trace-all", error)
+        raise
+    if not isinstance(response, list) or any(not isinstance(entry, dict) for entry in response):
+        raise RuntimeError("fixture trace-all returned invalid JSON")
+    return response
 
 
 def wait_for_capture_release(
@@ -313,6 +364,7 @@ class ControlledSwiftCompileLoad:
         self.started_at = 0.0
         self.source_bytes = 0
         self.compiler = ""
+        self.sdk = ""
 
     def start(self) -> None:
         try:
@@ -325,6 +377,16 @@ class ControlledSwiftCompileLoad:
         self.compiler = result.stdout.strip()
         if not self.compiler:
             raise RuntimeError("xcrun returned an empty swiftc path")
+        try:
+            result = subprocess.run(
+                ["/usr/bin/xcrun", "--sdk", "macosx", "--show-sdk-path"], text=True,
+                capture_output=True, check=True, timeout=10,
+            )
+        except (OSError, subprocess.SubprocessError) as error:
+            raise RuntimeError("could not locate the macOS SDK for the bounded compile load") from error
+        self.sdk = result.stdout.strip()
+        if not self.sdk:
+            raise RuntimeError("xcrun returned an empty macOS SDK path")
         self.temporary = tempfile.TemporaryDirectory(prefix="keypath-swift-load-")
         source = pathlib.Path(self.temporary.name) / "GeneratedLoad.swift"
         lines = ["import Foundation", ""]
@@ -344,33 +406,59 @@ class ControlledSwiftCompileLoad:
         self.process = subprocess.Popen(
             [
                 "/bin/bash", "-c",
-                'while :; do "$1" -typecheck "$2" >/dev/null 2>&1 || exit $?; done',
-                "keypath-swift-compile-load", self.compiler, str(source),
+                'while :; do "$1" -sdk "$2" -typecheck "$3" >/dev/null 2>&1 || exit $?; done',
+                "keypath-swift-compile-load", self.compiler, self.sdk, str(source),
             ],
             start_new_session=True,
         )
+        time.sleep(0.2)
+        early_return_code = self.process.poll()
+        if early_return_code is not None:
+            self.process = None
+            self.temporary.cleanup()
+            self.temporary = None
+            raise RuntimeError(
+                f"bounded Swift compile load exited during startup ({early_return_code})"
+            )
 
     def stop(self) -> dict[str, Any]:
         return_code: int | None = None
-        if self.process is not None:
-            try:
-                os.killpg(self.process.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            try:
-                return_code = self.process.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                try:
-                    os.killpg(self.process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                return_code = self.process.wait(timeout=2)
-        if self.temporary is not None:
-            self.temporary.cleanup()
-            self.temporary = None
+        process = self.process
+        self.process = None
+        try:
+            if process is not None:
+                return_code = process.poll()
+                if return_code is None:
+                    try:
+                        os.killpg(process.pid, signal.SIGTERM)
+                    except (ProcessLookupError, PermissionError):
+                        # The short-lived group leader may exit between poll() and
+                        # killpg(). Never signal a recycled process-group ID.
+                        if process.poll() is None:
+                            try:
+                                process.terminate()
+                            except (ProcessLookupError, PermissionError):
+                                pass
+                    try:
+                        return_code = process.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        try:
+                            os.killpg(process.pid, signal.SIGKILL)
+                        except (ProcessLookupError, PermissionError):
+                            if process.poll() is None:
+                                try:
+                                    process.kill()
+                                except (ProcessLookupError, PermissionError):
+                                    pass
+                        return_code = process.wait(timeout=2)
+        finally:
+            if self.temporary is not None:
+                self.temporary.cleanup()
+                self.temporary = None
         return {
             "enabled": True,
             "compiler": self.compiler,
+            "sdk": self.sdk,
             "sourceBytes": self.source_bytes,
             "startedAtEpoch": self.started_at,
             "durationMs": round(max(0, time.time() - self.started_at) * 1000),
@@ -453,6 +541,7 @@ def main() -> int:
     expected_reports = 0
     interruption_mode = "unknown"
     initial_status: dict[str, Any] | None = None
+    stale_abort_response: dict[str, Any] | None = None
     capture_preflight: dict[str, Any] | None = None
     load: dict[str, Any] | None = None
     fixture_arm: dict[str, Any] | None = None
@@ -487,6 +576,14 @@ def main() -> int:
             arguments.fixture_host, environment, control_errors
         )
         fixture_host = host
+        if initial_status.get("state") in {"loaded", "armed", "running"}:
+            stage = "fixture-stale-run-abort"
+            stale_abort_response = run_fixture_state_change_with_confirmation(
+                host, "abort", arguments.run_id,
+                include_run_id_argument=False, expected_states={"aborted"},
+                environment=environment, retry_seconds=60, errors=control_errors,
+                require_run_id_match=False,
+            )
         stage = "capture-preflight"
         capture_preflight = run_json(capture_command("status"), environment)
         readiness = capture_preflight.get("systemReadiness")
@@ -502,14 +599,22 @@ def main() -> int:
             raise RuntimeError(f"capture Jig paused the run: {detail}. {help_text}".strip())
         text = arguments.text.read_text()
         expected = text * arguments.repeat
-        estimated_ms = arguments.delay_ms + arguments.repeat * (
+        load_requested = (
+            arguments.cpu_load_workers is not None or arguments.swift_compile_load
+        )
+        effective_delay_ms = max(arguments.delay_ms, 10_000) if load_requested else arguments.delay_ms
+        estimated_ms = effective_delay_ms + arguments.repeat * (
             len(text) * arguments.interval_ms + arguments.cycle_gap_ms
         )
         # WindowServer can queue valid HID events while the capture app is starved by a
         # concurrent compile. Preserve enough wall-clock margin to drain that queue before
         # the fail-closed capture timeout freezes the evidence snapshot.
         timeout_margin_ms = max(10_000, estimated_ms // 2)
-        timeout_ms = arguments.timeout_ms or max(15_000, estimated_ms + timeout_margin_ms)
+        # Capture is armed before the authenticated Start request. The ESP32 can
+        # accept Start while its Wi-Fi reply is delayed, so the oracle window must
+        # cover the same bounded 60-second control-plane recovery period or valid
+        # HID can arrive after a false 15-second timeout.
+        timeout_ms = arguments.timeout_ms or max(90_000, estimated_ms + timeout_margin_ms)
         interruption_mode = (
             "remote-abort" if arguments.abort_after_ms is not None else
             "external-abort" if arguments.expect_external_abort_ms is not None else
@@ -543,25 +648,34 @@ def main() -> int:
             expected_reports = int(header[2]) * int(header[3])
 
             stage = "fixture-load"
-            load = run_fixture_json_with_retry(
-                host, "load-script", str(script), environment=environment,
-                retry_seconds=8, errors=control_errors,
+            load = run_fixture_state_change_with_confirmation(
+                host, "load-script", arguments.run_id, str(script),
+                include_run_id_argument=False,
+                expected_states={"loaded", "armed", "running", "complete"},
+                environment=environment, retry_seconds=60, errors=control_errors,
             )
             fixture_mutated = True
             stage = "fixture-arm"
-            fixture_arm = run_fixture_json_with_retry(
-                host, "arm", arguments.run_id, environment=environment,
-                retry_seconds=8, errors=control_errors,
+            fixture_arm = run_fixture_state_change_with_confirmation(
+                host, "arm", arguments.run_id, expected_states={"armed", "running", "complete"},
+                environment=environment, retry_seconds=60, errors=control_errors,
             )
             stage = "fixture-presentation"
-            presentation_testing = run_fixture_json_with_retry(
-                host, "present", "--phase", "testing", "--result", "none",
-                "--brand", arguments.brand,
-                "--progress", "0", "--title", arguments.run_id[:32],
-                "--detail", fixture_detail, "--next", fixture_next,
-                "--reports-expected", str(expected_reports), "--reports-observed", "0",
-                environment=environment, retry_seconds=5, errors=control_errors,
-            )
+            try:
+                presentation_testing = run_fixture_json_with_retry(
+                    host, "present", "--phase", "testing", "--result", "none",
+                    "--brand", arguments.brand,
+                    "--progress", "0", "--title", arguments.run_id[:32],
+                    "--detail", fixture_detail, "--next", fixture_next,
+                    "--reports-expected", str(expected_reports), "--reports-observed", "0",
+                    environment=environment, retry_seconds=20, errors=control_errors,
+                    request_timeout=10,
+                )
+            except RuntimeError as presentation_error:
+                # Presentation is operator feedback, not part of HID correctness.
+                # Preserve the degraded-control-plane evidence and continue only
+                # because arm, focus, capture and release all have independent gates.
+                presentation_testing = {"ok": False, "error": str(presentation_error)}
             # Acquire focus at the last possible moment. Keeping the Jig focused while
             # readiness checks or compilation run would steal the user's own typing.
             stage = "capture-focus"
@@ -574,6 +688,16 @@ def main() -> int:
                 *(["--instruction", operator_instruction] if operator_instruction else []),
             ), environment)
             capture_armed = True
+            stage = "fixture-start"
+            start = run_fixture_state_change_with_confirmation(
+                host, "start", arguments.run_id, "--delay-ms", str(effective_delay_ms),
+                expected_states={"running", "complete"},
+                environment=environment, retry_seconds=60, errors=control_errors,
+            )
+            # Schedule and confirm Start before applying host pressure. This keeps
+            # Swift/CPU load from starving the Wi-Fi request that begins the run,
+            # while the 10-second lead ensures the load is active before USB HID.
+            stage = "load-start"
             if arguments.cpu_load_workers is not None:
                 cpu_load = ControlledCPULoad(
                     workers=arguments.cpu_load_workers, sample_ms=arguments.cpu_sample_ms
@@ -582,11 +706,6 @@ def main() -> int:
             if arguments.swift_compile_load:
                 swift_compile_load = ControlledSwiftCompileLoad()
                 swift_compile_load.start()
-            stage = "fixture-start"
-            start = run_fixture_json_with_retry(
-                host, "start", arguments.run_id, "--delay-ms", str(arguments.delay_ms),
-                environment=environment, retry_seconds=5, errors=control_errors,
-            )
             stage = "active-capture"
             saw_usb_unmounted = False
             if interruption_mode == "completion":
@@ -768,9 +887,15 @@ def main() -> int:
                 "keyHoldMs": arguments.hold_ms,
                 "shiftReleaseLagMs": arguments.shift_release_lag_ms,
             },
+            "scheduling": {
+                "requestedDelayMs": arguments.delay_ms,
+                "effectiveDelayMs": effective_delay_ms,
+                "loadStartedAfterStartConfirmation": load_requested,
+            },
             "checks": checks,
             "control": {
                 "initialFixtureStatus": initial_status,
+                "staleRunAbort": stale_abort_response,
                 "capturePreflight": capture_preflight,
                 "load": load,
                 "fixtureArm": fixture_arm,
@@ -823,9 +948,11 @@ def main() -> int:
             cleanup.append("bounded Swift compile load stopped")
         if fixture_mutated and fixture_host:
             try:
-                abort_response = run_fixture_json_with_retry(
-                    fixture_host, "abort", environment=environment,
-                    retry_seconds=5, errors=control_errors,
+                abort_response = run_fixture_state_change_with_confirmation(
+                    fixture_host, "abort", arguments.run_id,
+                    include_run_id_argument=False, expected_states={"aborted"},
+                    environment=environment, retry_seconds=60, errors=control_errors,
+                    require_run_id_match=False,
                 )
                 abort_confirmed = True
                 cleanup.append("fixture aborted with all-keys-released queued")

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import hmac
+import http.client
 import json
 import os
 import pathlib
@@ -85,6 +86,8 @@ class FixtureClient:
         if timeout <= 0:
             raise ValueError("fixture timeout must be positive")
         self.base_url = f"http://{host}:{port}"
+        self.host = host
+        self.port = port
         self.token = token
         self.timeout = timeout
 
@@ -131,6 +134,68 @@ class FixtureClient:
     def trace(self, start: int = 0, limit: int = 8) -> list[dict[str, object]]:
         lines = self.request("GET", f"/v1/trace?from={start}&limit={limit}").splitlines()
         return [json.loads(line) for line in lines]
+
+    def trace_all(self, limit: int = 8, retry_seconds: float = 60.0) -> list[dict[str, object]]:
+        """Fetch the bounded trace over one persistent authenticated connection."""
+        if not 1 <= limit <= 8:
+            raise ValueError("trace page limit must be between 1 and 8")
+        if retry_seconds <= 0:
+            raise ValueError("trace retry window must be positive")
+        connection: http.client.HTTPConnection | None = None
+        traces: list[dict[str, object]] = []
+        start = 0
+        available: int | None = None
+        run_id: str | None = None
+        try:
+            while available is None or start < available:
+                deadline = time.monotonic() + retry_seconds
+                while True:
+                    try:
+                        if connection is None:
+                            connection = http.client.HTTPConnection(
+                                self.host, self.port, timeout=self.timeout
+                            )
+                        connection.request(
+                            "GET", f"/v1/trace?from={start}&limit={limit}",
+                            headers={"Authorization": f"Bearer {self.token}",
+                                     "Connection": "keep-alive"},
+                        )
+                        response = connection.getresponse()
+                        body = response.read().decode("utf-8")
+                        if response.status != 200:
+                            raise RuntimeError(
+                                f"fixture returned HTTP {response.status}: {body.strip()}"
+                            )
+                        lines = [json.loads(line) for line in body.splitlines()]
+                        break
+                    except (OSError, TimeoutError, http.client.HTTPException,
+                            json.JSONDecodeError) as error:
+                        if connection is not None:
+                            connection.close()
+                            connection = None
+                        if time.monotonic() >= deadline:
+                            raise RuntimeError(
+                                f"trace page {start} unavailable after {retry_seconds:g}s: {error}"
+                            ) from error
+                        time.sleep(0.25)
+                if not lines or not isinstance(lines[0], dict):
+                    raise RuntimeError("fixture trace returned an invalid page")
+                header = lines[0]
+                page_run_id = str(header.get("runId", ""))
+                if run_id is None:
+                    run_id = page_run_id
+                elif page_run_id != run_id:
+                    raise RuntimeError("fixture run id changed while fetching trace")
+                available = int(header.get("available", 0))
+                batch = [entry for entry in lines[1:] if isinstance(entry, dict)]
+                if not batch and start < available:
+                    raise RuntimeError("fixture trace page did not advance")
+                traces.extend(batch)
+                start += len(batch)
+            return traces
+        finally:
+            if connection is not None:
+                connection.close()
 
     def update_firmware(self, firmware: bytes, expected_build: str,
                         wait_seconds: float = 90.0) -> dict[str, object]:
@@ -217,6 +282,9 @@ def parser() -> argparse.ArgumentParser:
     trace_command = commands.add_parser("trace")
     trace_command.add_argument("--from", dest="start", type=int, default=0)
     trace_command.add_argument("--limit", type=int, default=8)
+    trace_all_command = commands.add_parser("trace-all")
+    trace_all_command.add_argument("--limit", type=int, default=8)
+    trace_all_command.add_argument("--retry-seconds", type=float, default=60.0)
     present_command = commands.add_parser("present", help="drive the fixture's animated test narrative")
     present_command.add_argument("--phase", required=True,
                                  choices=("auto", "preparing", "countdown", "testing", "observing",
@@ -274,6 +342,8 @@ def main() -> int:
         print_json(client.update_firmware(arguments.firmware.read_bytes(), arguments.expected_build,
                                           arguments.wait_seconds))
     elif arguments.command == "trace": print_json(client.trace(arguments.start, arguments.limit))
+    elif arguments.command == "trace-all":
+        print_json(client.trace_all(arguments.limit, arguments.retry_seconds))
     elif arguments.command == "present":
         print_json(client.present({
             "phase": arguments.phase, "result": arguments.result, "brand": arguments.brand,

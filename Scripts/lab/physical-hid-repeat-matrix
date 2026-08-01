@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import difflib
+import hashlib
 import json
 import os
 import pathlib
@@ -49,6 +50,37 @@ def case_run_id(prefix: str, corpus: str, interval_ms: int, workers: int, swift_
     suffix = f"-{safe_name(corpus)[:4]}-i{interval_ms}-w{workers}-s{int(swift_compile)}"
     prefix_budget = 48 - len(suffix)
     return f"{safe_name(prefix)[:prefix_budget]}{suffix}"
+
+
+def retry_run_id(base_run_id: str, retry: int) -> str:
+    """Keep retries unique even when long base IDs share a truncated prefix."""
+    suffix = f"-{hashlib.sha256(base_run_id.encode()).hexdigest()[:8]}-retry{retry}"
+    return f"{base_run_id[:48 - len(suffix)]}{suffix}"
+
+
+def valid_resume_artifact(
+    output_directory: pathlib.Path, base_run_id: str
+) -> tuple[pathlib.Path | None, int]:
+    """Return the newest valid base/retry artifact and the next retry number."""
+    base_path = output_directory / f"{base_run_id}.json"
+    if not base_path.is_file():
+        return None, 2
+    candidates = [base_path]
+    retry = 2
+    while True:
+        candidate = output_directory / f"{retry_run_id(base_run_id, retry)}.json"
+        if not candidate.is_file():
+            break
+        candidates.append(candidate)
+        retry += 1
+    for candidate in reversed(candidates):
+        try:
+            case = analyze_artifact(json.loads(candidate.read_text()))
+        except (OSError, json.JSONDecodeError, AttributeError, TypeError, ValueError):
+            continue
+        if case["validEvidence"]:
+            return candidate, retry
+    return None, retry
 
 
 def edit_counts(expected: str, received: str) -> dict[str, int]:
@@ -98,6 +130,7 @@ def analyze_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
         "lateReports": fixture.get("lateReports"),
         "maximumLatenessUs": fixture.get("maximumLatenessUs"),
         "validEvidence": (
+            artifact.get("status") in {"passed", "failed"} and
             artifact.get("admissionMode") == "strict" and focus_valid and
             all_keys_released and all_modifiers_released and fixture_complete
         ),
@@ -280,8 +313,10 @@ def main() -> int:
                 run_id = base_run_id
                 artifact_path = output_directory / f"{run_id}.json"
                 if arguments.resume and artifact_path.is_file():
-                    case = analyze_artifact(json.loads(artifact_path.read_text()))
-                    if case["validEvidence"]:
+                    valid_artifact, retry = valid_resume_artifact(output_directory, base_run_id)
+                    if valid_artifact is not None:
+                        artifact_path = valid_artifact
+                        case = analyze_artifact(json.loads(artifact_path.read_text()))
                         case.update({
                             "corpus": corpus_name, "intervalMs": interval_ms,
                             "loadProfile": profile["name"], "cpuWorkers": workers,
@@ -290,13 +325,8 @@ def main() -> int:
                         })
                         cases.append(case)
                         continue
-                    retry = 2
-                    while True:
-                        run_id = f"{base_run_id[:40]}-retry{retry}"
-                        artifact_path = output_directory / f"{run_id}.json"
-                        if not artifact_path.exists():
-                            break
-                        retry += 1
+                    run_id = retry_run_id(base_run_id, retry)
+                    artifact_path = output_directory / f"{run_id}.json"
                 jig_ready, detail = ensure_jig_running()
                 if not jig_ready:
                     infrastructure_errors.append({

@@ -51,6 +51,29 @@ class PhysicalHIDRepeatMatrixTests(unittest.TestCase):
         self.assertEqual(len(identifiers), 4)
         self.assertTrue(all(len(identifier) <= 48 for identifier in identifiers))
 
+    def test_retry_ids_fit_firmware_limit_and_do_not_collide_after_truncation(self) -> None:
+        first = MODULE.case_run_id("campaign-with-a-very-long-prefix", "single", 5, 0, True)
+        second = MODULE.case_run_id("campaign-with-a-very-long-prefix", "single", 5, 2, True)
+        retries = {MODULE.retry_run_id(first, 2), MODULE.retry_run_id(second, 2)}
+
+        self.assertEqual(len(retries), 2)
+        self.assertTrue(all(len(identifier) <= 48 for identifier in retries))
+
+    def test_resume_reuses_a_valid_retry_instead_of_repeating_hid(self) -> None:
+        base = MODULE.case_run_id("campaign", "single", 5, 0, True)
+        with tempfile.TemporaryDirectory() as directory:
+            output = pathlib.Path(directory)
+            inconclusive = artifact("abcd", "abcd")
+            inconclusive["status"] = "inconclusive"
+            (output / f"{base}.json").write_text(json.dumps(inconclusive))
+            retry_path = output / f"{MODULE.retry_run_id(base, 2)}.json"
+            retry_path.write_text(json.dumps(artifact("abcd", "abcd")))
+
+            resumed, next_retry = MODULE.valid_resume_artifact(output, base)
+
+        self.assertEqual(resumed, retry_path)
+        self.assertEqual(next_retry, 3)
+
     def test_campaign_requires_explicit_exclusive_desktop_confirmation(self) -> None:
         with mock.patch.object(MODULE.sys, "argv", [str(SCRIPT)]):
             self.assertEqual(MODULE.main(), 2)
@@ -70,6 +93,14 @@ class PhysicalHIDRepeatMatrixTests(unittest.TestCase):
 
     def test_classification_fails_closed_when_focus_is_lost(self) -> None:
         case = MODULE.analyze_artifact(artifact("abcd", "abcd", focused=False))
+        self.assertEqual(MODULE.classify([case]), "harness-invalid")
+
+    def test_inconclusive_runner_artifact_is_not_valid_resume_evidence(self) -> None:
+        result = artifact("abcd", "abcd")
+        result["status"] = "inconclusive"
+        case = MODULE.analyze_artifact(result)
+
+        self.assertFalse(case["validEvidence"])
         self.assertEqual(MODULE.classify([case]), "harness-invalid")
 
     def test_campaign_uses_strict_runner_and_load_budget_only_for_loaded_case(self) -> None:
