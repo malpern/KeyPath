@@ -27,12 +27,12 @@ fi
 source "$idf_path/export.sh" >/dev/null
 export KEYPATH_WIFI_SSID_1=fixture-qemu-primary
 export KEYPATH_WIFI_PASSWORD_1=fixture-qemu-placeholder
-export KEYPATH_WIFI_SSID_2=fixture-qemu-fallback-one
-export KEYPATH_WIFI_PASSWORD_2=fixture-qemu-placeholder
 export KEYPATH_WIFI_SSID_3=fixture-qemu-fallback-two
 export KEYPATH_WIFI_PASSWORD_3=fixture-qemu-placeholder
 export KEYPATH_WIFI_SSID_4=fixture-qemu-current-location
 export KEYPATH_WIFI_PASSWORD_4=fixture-qemu-placeholder
+export KEYPATH_HACKER_DOJO_USERNAME=fixture-qemu-enterprise-user
+export KEYPATH_HACKER_DOJO_PASSWORD=fixture-qemu-enterprise-password
 export KEYPATH_FIXTURE_TOKEN=fixture-qemu-token-placeholder
 export KEYPATH_QEMU_SMOKE=1
 

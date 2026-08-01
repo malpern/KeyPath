@@ -130,17 +130,23 @@ Build credentials are supplied only through the environment:
 
 ```bash
 source ~/.cache/keypath-esp32/esp-idf/export.sh
-export KEYPATH_WIFI_SSID_1='primary-network'
+export KEYPATH_WIFI_SSID_1='Alpern-Home-5G'
 export KEYPATH_WIFI_PASSWORD_1='...'
-export KEYPATH_WIFI_SSID_2='fallback-network-one'
-export KEYPATH_WIFI_PASSWORD_2='...'
-export KEYPATH_WIFI_SSID_3='fallback-network-two'
+export KEYPATH_WIFI_SSID_3='iPhone'
 export KEYPATH_WIFI_PASSWORD_3='...'
-export KEYPATH_WIFI_SSID_4='current-location-network'
+export KEYPATH_WIFI_SSID_4='beachFi'
 export KEYPATH_WIFI_PASSWORD_4='...'
+export KEYPATH_HACKER_DOJO_USERNAME='...'
+export KEYPATH_HACKER_DOJO_PASSWORD='...'
 export KEYPATH_FIXTURE_TOKEN='at-least-16-random-characters'
 idf.py -C Scripts/lab/pico-hid-fixture/targets/waveshare-esp32-s3-touch-lcd-1.69 build
 ```
+
+The fixture tries `Alpern-Home-5G` first, `Hacker Dojo` second, `beachFi` third, and `iPhone` fourth.
+`Hacker Dojo` is a WPA2-Enterprise PEAP profile; the other three use WPA2-Personal. The enterprise
+username and password must be stored through Add Secret rather than checked into the repository.
+This personal-fixture prototype does not yet pin the enterprise authentication server's CA
+certificate; add certificate validation before distributing the fixture or its credentials.
 
 The board revision defaults to 2, whose buzzer is on GPIO42. Revision 1 used GPIO33; change
 `KeyPath fixture → Waveshare board revision` with `idf.py menuconfig` if the delivered board is an

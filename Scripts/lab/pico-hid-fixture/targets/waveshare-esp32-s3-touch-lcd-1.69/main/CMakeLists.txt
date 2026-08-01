@@ -1,8 +1,8 @@
 foreach(secret_name
         KEYPATH_WIFI_SSID_1 KEYPATH_WIFI_PASSWORD_1
-        KEYPATH_WIFI_SSID_2 KEYPATH_WIFI_PASSWORD_2
         KEYPATH_WIFI_SSID_3 KEYPATH_WIFI_PASSWORD_3
         KEYPATH_WIFI_SSID_4 KEYPATH_WIFI_PASSWORD_4
+        KEYPATH_HACKER_DOJO_USERNAME KEYPATH_HACKER_DOJO_PASSWORD
         KEYPATH_FIXTURE_TOKEN)
     if(NOT DEFINED ENV{${secret_name}} OR "$ENV{${secret_name}}" STREQUAL "")
         message(FATAL_ERROR "${secret_name} must be supplied in the build environment")
@@ -92,6 +92,7 @@ idf_component_register(
         mbedtls
         mdns
         nvs_flash
+        wpa_supplicant
 )
 
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wall -Wextra -Werror)

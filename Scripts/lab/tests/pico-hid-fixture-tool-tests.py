@@ -36,12 +36,12 @@ class FixtureToolTests(unittest.TestCase):
             "KEYPATH_FIXTURE_SECRETS_FILE": str(self.directory / "missing-secrets.env"),
             "KEYPATH_WIFI_SSID_1": "fixture-primary",
             "KEYPATH_WIFI_PASSWORD_1": "fixture-password-one",
-            "KEYPATH_WIFI_SSID_2": "fixture-fallback-one",
-            "KEYPATH_WIFI_PASSWORD_2": "fixture-password-two",
             "KEYPATH_WIFI_SSID_3": "fixture-fallback-two",
             "KEYPATH_WIFI_PASSWORD_3": "fixture-password-three",
             "KEYPATH_WIFI_SSID_4": "fixture-current-location",
             "KEYPATH_WIFI_PASSWORD_4": "fixture-password-four",
+            "KEYPATH_HACKER_DOJO_USERNAME": "fixture-enterprise-user",
+            "KEYPATH_HACKER_DOJO_PASSWORD": "fixture-enterprise-password",
             "KEYPATH_FIXTURE_TOKEN": "fixture-test-token-value",
         })
 
@@ -64,6 +64,8 @@ class FixtureToolTests(unittest.TestCase):
         self.assertIn("production credentials (values hidden)", result.stdout)
         self.assertIn("board not connected", result.stdout)
         self.assertNotIn(self.environment["KEYPATH_WIFI_PASSWORD_1"], result.stdout + result.stderr)
+        self.assertNotIn(self.environment["KEYPATH_HACKER_DOJO_PASSWORD"],
+                         result.stdout + result.stderr)
         self.assertNotIn(self.environment["KEYPATH_FIXTURE_TOKEN"], result.stdout + result.stderr)
 
     def test_doctor_rejects_missing_or_placeholder_credentials(self) -> None:

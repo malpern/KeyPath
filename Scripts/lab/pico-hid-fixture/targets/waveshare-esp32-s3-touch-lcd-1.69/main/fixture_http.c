@@ -7,6 +7,7 @@
 #include "cJSON.h"
 #include "esp_event.h"
 #include "esp_check.h"
+#include "esp_eap_client.h"
 #include "esp_heap_caps.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
@@ -45,17 +46,27 @@ static uint32_t status_response_count;
 static uint32_t status_failure_count;
 static uint32_t last_status_latency_us;
 static uint32_t maximum_status_latency_us;
+static bool enterprise_wifi_enabled;
+
+typedef enum {
+    WIFI_PROFILE_PERSONAL,
+    WIFI_PROFILE_ENTERPRISE,
+} wifi_profile_authentication_t;
 
 typedef struct {
     const char *ssid;
+    const char *username;
     const char *password;
+    wifi_profile_authentication_t authentication;
 } wifi_profile_t;
 
 static const wifi_profile_t wifi_profiles[] = {
-    {KEYPATH_WIFI_SSID_4, KEYPATH_WIFI_PASSWORD_4},
-    {KEYPATH_WIFI_SSID_1, KEYPATH_WIFI_PASSWORD_1},
-    {KEYPATH_WIFI_SSID_3, KEYPATH_WIFI_PASSWORD_3},
-    {KEYPATH_WIFI_SSID_2, KEYPATH_WIFI_PASSWORD_2},
+    /* Expected location order: home, Hacker Dojo, beach, phone hotspot. */
+    {KEYPATH_WIFI_SSID_1, NULL, KEYPATH_WIFI_PASSWORD_1, WIFI_PROFILE_PERSONAL},
+    {KEYPATH_HACKER_DOJO_SSID, KEYPATH_HACKER_DOJO_USERNAME,
+     KEYPATH_HACKER_DOJO_PASSWORD, WIFI_PROFILE_ENTERPRISE},
+    {KEYPATH_WIFI_SSID_4, NULL, KEYPATH_WIFI_PASSWORD_4, WIFI_PROFILE_PERSONAL},
+    {KEYPATH_WIFI_SSID_3, NULL, KEYPATH_WIFI_PASSWORD_3, WIFI_PROFILE_PERSONAL},
 };
 
 static bool authorized(httpd_req_t *request) {
@@ -559,15 +570,50 @@ bool fixture_network_control_ready(void) {
 static esp_err_t select_wifi_profile(size_t index) {
     wifi_model.profile_index = index % (sizeof(wifi_profiles) / sizeof(wifi_profiles[0]));
     const wifi_profile_t *profile = &wifi_profiles[wifi_model.profile_index];
+
+    if (enterprise_wifi_enabled) {
+        ESP_RETURN_ON_ERROR(esp_wifi_sta_enterprise_disable(), TAG,
+                            "could not disable the previous enterprise profile");
+        enterprise_wifi_enabled = false;
+    }
+
     wifi_config_t wifi = {0};
     snprintf((char *)wifi.sta.ssid, sizeof(wifi.sta.ssid), "%s", profile->ssid);
-    snprintf((char *)wifi.sta.password, sizeof(wifi.sta.password), "%s", profile->password);
-    wifi.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
     wifi.sta.pmf_cfg.capable = true;
     wifi.sta.pmf_cfg.required = false;
+    if (profile->authentication == WIFI_PROFILE_ENTERPRISE) {
+        wifi.sta.threshold.authmode = WIFI_AUTH_WPA2_ENTERPRISE;
+    } else {
+        snprintf((char *)wifi.sta.password, sizeof(wifi.sta.password), "%s", profile->password);
+        wifi.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    }
     fixture_runtime_set_network_name(profile->ssid);
     ESP_LOGI(TAG, "selecting Wi-Fi profile %u", (unsigned int)(wifi_model.profile_index + 1u));
-    return esp_wifi_set_config(WIFI_IF_STA, &wifi);
+    ESP_RETURN_ON_ERROR(esp_wifi_set_config(WIFI_IF_STA, &wifi), TAG,
+                        "could not configure the selected Wi-Fi profile");
+
+    if (profile->authentication == WIFI_PROFILE_ENTERPRISE) {
+        size_t username_length = strlen(profile->username);
+        size_t password_length = strlen(profile->password);
+        ESP_RETURN_ON_ERROR(
+            esp_eap_client_set_identity((const unsigned char *)profile->username,
+                                        (int)username_length),
+            TAG, "could not configure enterprise identity");
+        ESP_RETURN_ON_ERROR(
+            esp_eap_client_set_username((const unsigned char *)profile->username,
+                                        (int)username_length),
+            TAG, "could not configure enterprise username");
+        ESP_RETURN_ON_ERROR(
+            esp_eap_client_set_password((const unsigned char *)profile->password,
+                                        (int)password_length),
+            TAG, "could not configure enterprise password");
+        ESP_RETURN_ON_ERROR(esp_eap_client_set_eap_methods(ESP_EAP_TYPE_PEAP), TAG,
+                            "could not select PEAP authentication");
+        ESP_RETURN_ON_ERROR(esp_wifi_sta_enterprise_enable(), TAG,
+                            "could not enable enterprise authentication");
+        enterprise_wifi_enabled = true;
+    }
+    return ESP_OK;
 }
 
 static void wifi_event(void *argument, esp_event_base_t base, int32_t id, void *data) {
