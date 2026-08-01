@@ -337,6 +337,15 @@ static void test_visual_model_resolves_automatic_and_campaign_states(void) {
 
     fixture_presentation_init(&presentation);
     presentation.phase = FIXTURE_PRESENT_TESTING;
+    presentation.brand = FIXTURE_BRAND_KEYPATH;
+    snprintf(presentation.title, sizeof(presentation.title), "KEYPATH HID TEST");
+    fixture_visual_resolve(&ui, &presentation, &visual);
+    assert(visual.variant == FIXTURE_VISUAL_KEYPATH_UPDATE);
+    assert(visual.icon == FIXTURE_ICON_KEYBOARD);
+    assert(strcmp(visual.title, "KEYPATH HID TEST") == 0);
+
+    fixture_presentation_init(&presentation);
+    presentation.phase = FIXTURE_PRESENT_TESTING;
     presentation.brand = FIXTURE_BRAND_BEAR;
     snprintf(presentation.title, sizeof(presentation.title), "TYPING IN BEAR");
     fixture_visual_resolve(&ui, &presentation, &visual);

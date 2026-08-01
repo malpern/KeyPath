@@ -64,6 +64,14 @@ class PhysicalHIDCaptureRunTests(unittest.TestCase):
     def test_showroom_payload_is_short_fixed_and_return_terminated(self) -> None:
         self.assertEqual(SHOWROOM_TEXT.read_bytes(), b"KeyPath demo OK\n")
 
+    def test_presentation_brand_defaults_to_keypath_and_accepts_bear(self) -> None:
+        required = ["--run-id", "brand-test", "--text", str(RUNNER)]
+        self.assertEqual(self.runner.parser().parse_args(required).brand, "keypath")
+        self.assertEqual(
+            self.runner.parser().parse_args([*required, "--brand", "bear"]).brand,
+            "bear",
+        )
+
     @staticmethod
     def compile_script(command: list[str], environment: dict[str, str]) -> None:
         del environment

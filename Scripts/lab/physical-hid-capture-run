@@ -383,6 +383,10 @@ def parser() -> argparse.ArgumentParser:
     root.add_argument("--run-id", required=True)
     root.add_argument("--text", required=True, type=pathlib.Path)
     root.add_argument("--fixture-host", default=os.environ.get("KEYPATH_FIXTURE_HOST", "keypath-hid-fixture.local"))
+    root.add_argument(
+        "--brand", choices=("keypath", "bear"), default="keypath",
+        help="select the centered app logo and presentation palette on the ESP32",
+    )
     root.add_argument("--interval-ms", type=int, default=50)
     root.add_argument("--hold-ms", type=int, default=12)
     root.add_argument("--shift-lead-ms", type=int, default=0)
@@ -552,6 +556,7 @@ def main() -> int:
             stage = "fixture-presentation"
             presentation_testing = run_fixture_json_with_retry(
                 host, "present", "--phase", "testing", "--result", "none",
+                "--brand", arguments.brand,
                 "--progress", "0", "--title", arguments.run_id[:32],
                 "--detail", fixture_detail, "--next", fixture_next,
                 "--reports-expected", str(expected_reports), "--reports-observed", "0",
@@ -734,6 +739,7 @@ def main() -> int:
         try:
             presentation_result = run_fixture_json_with_retry(
                 host, "present", "--phase", "result", "--result", "pass" if passed else "fail",
+                "--brand", arguments.brand,
                 "--progress", "1000", "--title", arguments.run_id[:32],
                 "--detail", f"{len(capture.get('received', ''))} / {len(expected)} CHARS",
                 "--next", "NEXT MATRIX CASE", "--reports-expected", str(expected_reports),
@@ -750,6 +756,7 @@ def main() -> int:
             "status": "passed" if passed else "failed",
             "admissionMode": "demo-bypass" if arguments.demo_mode else "strict",
             "fixtureHost": host,
+            "presentationBrand": arguments.brand,
             "expectedReports": expected_reports,
             "interruptionMode": interruption_mode,
             "timingBudget": {
@@ -882,6 +889,7 @@ def main() -> int:
             "status": "inconclusive",
             "admissionMode": "demo-bypass" if arguments.demo_mode else "strict",
             "fixtureHost": fixture_host or arguments.fixture_host,
+            "presentationBrand": arguments.brand,
             "expectedReports": expected_reports,
             "interruptionMode": interruption_mode,
             "failure": {

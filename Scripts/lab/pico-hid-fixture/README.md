@@ -254,6 +254,11 @@ and result titles. The brand value is also returned in the fixture status JSON s
 which presentation mode was active. A firmware build verifies the LVGL scene compiles, but the physical
 LCD color, alignment, and legibility must still be checked on the connected board.
 
+KeyPath physical HID runs likewise send `brand: keypath` by default. The ESP32 keeps the rotating
+orbit and progress arcs visible while placing KeyPath's opened, illuminated orange keycap mark in
+their center. The shared runner accepts `--brand keypath|bear` for explicit target selection and
+records the chosen value as `presentationBrand` in each evidence artifact.
+
 Bear mode uses its own semantic palette on both displays: coral means Bear identity, focus, and active
 testing; mint means verified pass; amber means safe misses or review; and violet means failure or lost
 focus. Red is deliberately reserved for Bear's identity rather than reused as an error signal. Every
