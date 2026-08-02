@@ -404,23 +404,23 @@ static void test_ui_model_connection_error_and_counter_reset(void) {
 static void test_wifi_profiles_retry_in_priority_order_and_wrap(void) {
     fixture_wifi_model_t model;
     fixture_wifi_model_init(&model);
-    assert(model.profile_index == 0u); /* 529beach */
+    assert(model.profile_index == 0u); /* first profile */
 
     assert(!fixture_wifi_model_note_disconnect(&model, 3u, 2u));
     assert(model.profile_index == 0u);
     assert(fixture_wifi_model_note_disconnect(&model, 3u, 2u));
-    assert(model.profile_index == 1u); /* Alpern-Home */
+    assert(model.profile_index == 1u); /* second profile */
 
     assert(!fixture_wifi_model_note_disconnect(&model, 3u, 2u));
     fixture_wifi_model_note_connected(&model);
     assert(model.failed_attempts == 0u);
     assert(!fixture_wifi_model_note_disconnect(&model, 3u, 2u));
     assert(fixture_wifi_model_note_disconnect(&model, 3u, 2u));
-    assert(model.profile_index == 2u); /* iPhone */
+    assert(model.profile_index == 2u); /* third profile */
 
     assert(!fixture_wifi_model_note_disconnect(&model, 3u, 2u));
     assert(fixture_wifi_model_note_disconnect(&model, 3u, 2u));
-    assert(model.profile_index == 0u); /* wrap back to 529beach */
+    assert(model.profile_index == 0u); /* wrap back to first profile */
 }
 
 static void test_splash_reveals_holds_and_fades_without_blocking_boot(void) {

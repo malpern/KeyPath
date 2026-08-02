@@ -10,13 +10,13 @@ Scripts/lab/pico-hid-fixture-tool configure
 Scripts/lab/pico-hid-fixture-tool doctor
 ```
 
-The secure setup stores four SSID/password pairs plus the control token. Connection priority is
-the current-location network first, followed by the established `1, 3, 2` fallback order:
+The secure setup stores three WPA2-Personal SSID/password pairs, the Hacker Dojo enterprise
+username/password, and the control token. Connection priority is:
 
-- Profile 4: `beachFi`, attempted first at the current location.
-- Profile 1: `529beach`, the primary lab fallback.
-- Profile 3: `iPhone`, used when its hotspot has **Maximize Compatibility** enabled.
-- Profile 2: `Alpern-Home`, the non-5 GHz home fallback.
+- Profile 1: the configured home network.
+- Hacker Dojo: the configured WPA2-Enterprise PEAP profile.
+- Profile 4: the configured secondary-location network.
+- Profile 3: the configured phone hotspot, used with **Maximize Compatibility** enabled.
 - `KEYPATH_FIXTURE_TOKEN`: a random value of at least 16 characters.
 
 Enter values only in Add Secret.app. Do not paste them into chat or pass them as command-line

@@ -3,7 +3,8 @@
 ## 2026-07-27 first-board session
 
 Hardware: Waveshare ESP32-S3-Touch-LCD-1.69 revision 2. The fixture reported firmware
-`0.3.0-esp32s3`, build `f24be33f2d7b`, Wi-Fi `529beach`, and a mounted native USB HID interface.
+`0.3.0-esp32s3`, build `f24be33f2d7b`, a configured lab Wi-Fi network, and a mounted native USB
+HID interface.
 The host oracle was the isolated AppKit HID Capture Jig on macOS 27.0.
 
 Combined artifacts are stored with mode `0600` under
@@ -131,9 +132,9 @@ and 68 / 68 reports with all keys and modifiers released.
 ## 2026-07-28 Shift-matrix readiness and smoke result
 
 Firmware build `4d1cb1cb54c4` is running from a valid OTA slot and rotated successfully from its stale
-`192.168.4.21` address to `529beach` at `10.0.0.47`. Authenticated status reports mounted USB,
-healthy live display frames, and a completed boot splash. The complete host, core, client, and QEMU
-suite passes.
+`192.168.4.21` address to the configured lab network at `10.0.0.47`. Authenticated status reports
+mounted USB, healthy live display frames, and a completed boot splash. The complete host, core,
+client, and QEMU suite passes.
 
 The diagnostic compiler now independently varies Shift lead and release lag around a fixed key hold.
 The combined runner persists the firmware's exact report trace alongside Jig focus, event, output,
