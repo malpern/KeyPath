@@ -588,6 +588,7 @@ static esp_err_t select_wifi_profile(size_t index) {
     } else {
         snprintf((char *)wifi.sta.password, sizeof(wifi.sta.password), "%s", profile->password);
         wifi.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+        wifi.sta.sae_pwe_h2e = WPA3_SAE_PWE_BOTH;
     }
     fixture_runtime_set_network_name(profile->ssid);
     ESP_LOGI(TAG, "selecting Wi-Fi profile %u", (unsigned int)(wifi_model.profile_index + 1u));
@@ -626,6 +627,7 @@ static void wifi_event(void *argument, esp_event_base_t base, int32_t id, void *
         wifi_event_sta_disconnected_t *event = data;
         ++wifi_disconnect_count;
         last_wifi_disconnect_reason = event ? event->reason : 0u;
+        fixture_runtime_set_wifi_disconnect_reason(last_wifi_disconnect_reason);
         fixture_runtime_set_network(false, "unassigned");
         stop_http_server();
         if (fixture_wifi_model_note_disconnect(&wifi_model,
@@ -640,6 +642,7 @@ static void wifi_event(void *argument, esp_event_base_t base, int32_t id, void *
         char address[16];
         snprintf(address, sizeof(address), IPSTR, IP2STR(&event->ip_info.ip));
         fixture_runtime_set_network(true, address);
+        fixture_runtime_set_wifi_disconnect_reason(0u);
         fixture_wifi_model_note_connected(&wifi_model);
         start_http_server();
     }

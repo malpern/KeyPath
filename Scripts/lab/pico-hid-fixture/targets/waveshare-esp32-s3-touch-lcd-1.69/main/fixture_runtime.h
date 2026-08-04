@@ -16,6 +16,7 @@ typedef struct {
     char error[128];
     char network_address[48];
     char network_name[33];
+    uint32_t wifi_disconnect_reason;
     uint32_t script_crc32;
     uint32_t next_event;
     uint64_t transfers_completed;
@@ -30,6 +31,7 @@ esp_err_t fixture_runtime_start_usb(void);
 void fixture_runtime_start_executor(void);
 void fixture_runtime_set_network(bool connected, const char *address);
 void fixture_runtime_set_network_name(const char *name);
+void fixture_runtime_set_wifi_disconnect_reason(uint32_t reason);
 void fixture_runtime_snapshot(fixture_runtime_snapshot_t *snapshot);
 bool fixture_runtime_load(const char *body, size_t length, char *error, size_t capacity);
 bool fixture_runtime_arm(const char *run_id, char *error, size_t capacity);

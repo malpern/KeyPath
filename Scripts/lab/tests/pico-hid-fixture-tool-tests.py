@@ -33,6 +33,8 @@ class FixtureToolTests(unittest.TestCase):
             "KEYPATH_FIXTURE_SDKCONFIG": str(self.sdkconfig),
             "KEYPATH_FIXTURE_DEVICE_DIR": str(self.device_dir),
             "KEYPATH_FIXTURE_CLIENT": str(self.directory / "fixture-client"),
+            "KEYPATH_FIXTURE_RUNTIME_WAIT_ATTEMPTS": "1",
+            "KEYPATH_FIXTURE_RUNTIME_WAIT_DELAY": "0",
             "KEYPATH_FIXTURE_SECRETS_FILE": str(self.directory / "missing-secrets.env"),
             "KEYPATH_WIFI_SSID_1": "fixture-primary",
             "KEYPATH_WIFI_PASSWORD_1": "fixture-password-one",
@@ -145,6 +147,74 @@ class FixtureToolTests(unittest.TestCase):
         self.assertIn("--timeout 120", invocation)
         self.assertIn("--expected-build a1b2c3d4e5f6", invocation)
         self.assertNotIn(self.environment["KEYPATH_FIXTURE_TOKEN"], result.stdout + result.stderr + invocation)
+
+    def test_flash_uses_watchdog_reset_and_verifies_runtime_usb_identity(self) -> None:
+        state = self.directory / "runtime-ready"
+        idf_log = self.directory / "idf.log"
+        fake_idf = self.fake_bin / "idf.py"
+        fake_idf.write_text(textwrap.dedent(f"""\
+            #!/bin/bash
+            set -eu
+            printf '%s\\n' "$*" >> {str(idf_log)!r}
+            build_dir=
+            while [[ $# -gt 0 ]]; do
+                if [[ "$1" == -B ]]; then build_dir=$2; shift 2; else shift; fi
+            done
+            mkdir -p "$build_dir"
+            : > "$build_dir/keypath_esp32_s3_hid_fixture.bin"
+        """))
+        fake_idf.chmod(0o755)
+        esptool_log = self.directory / "esptool.log"
+        fake_esptool = self.fake_bin / "esptool.py"
+        fake_esptool.write_text(textwrap.dedent(f"""\
+            #!/bin/bash
+            set -eu
+            printf '%s\\n' "$*" >> {str(esptool_log)!r}
+            : > {str(state)!r}
+        """))
+        fake_esptool.chmod(0o755)
+        fake_ioreg = self.fake_bin / "ioreg"
+        fake_ioreg.write_text(textwrap.dedent(f"""\
+            #!/bin/bash
+            set -eu
+            if [[ -f {str(state)!r} ]]; then
+                printf '%s\\n' 'KeyPath Physical HID Fixture'
+            else
+                printf '%s\\n' 'USB JTAG/serial debug unit'
+            fi
+        """))
+        fake_ioreg.chmod(0o755)
+
+        result = self.run_tool("flash", "--port", "/dev/null")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("verified  application restarted", result.stdout)
+        self.assertIn("--after watchdog_reset run", esptool_log.read_text())
+
+    def test_flash_fails_when_runtime_usb_identity_never_appears(self) -> None:
+        fake_idf = self.fake_bin / "idf.py"
+        fake_idf.write_text(textwrap.dedent("""\
+            #!/bin/bash
+            set -eu
+            build_dir=
+            while [[ $# -gt 0 ]]; do
+                if [[ "$1" == -B ]]; then build_dir=$2; shift 2; else shift; fi
+            done
+            mkdir -p "$build_dir"
+            : > "$build_dir/keypath_esp32_s3_hid_fixture.bin"
+        """))
+        fake_idf.chmod(0o755)
+        fake_esptool = self.fake_bin / "esptool.py"
+        fake_esptool.write_text("#!/bin/bash\nexit 0\n")
+        fake_esptool.chmod(0o755)
+        fake_ioreg = self.fake_bin / "ioreg"
+        fake_ioreg.write_text("#!/bin/bash\nprintf '%s\\n' 'USB JTAG/serial debug unit'\n")
+        fake_ioreg.chmod(0o755)
+
+        result = self.run_tool("flash", "--port", "/dev/null")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("did not restart as KeyPath Physical HID Fixture", result.stderr)
 
 
 if __name__ == "__main__":

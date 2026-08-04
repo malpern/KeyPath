@@ -11,6 +11,9 @@ secrets_file=${KEYPATH_FIXTURE_SECRETS_FILE:-"$HOME/dotfiles/secrets.env"}
 device_dir=${KEYPATH_FIXTURE_DEVICE_DIR:-/dev}
 add_secret_app=${KEYPATH_FIXTURE_ADD_SECRET_APP:-"/Applications/Add Secret.app"}
 fixture_client=${KEYPATH_FIXTURE_CLIENT:-"$script_dir/pico-hid-fixture-client"}
+runtime_usb_name=${KEYPATH_FIXTURE_RUNTIME_USB_NAME:-"KeyPath Physical HID Fixture"}
+runtime_wait_attempts=${KEYPATH_FIXTURE_RUNTIME_WAIT_ATTEMPTS:-12}
+runtime_wait_delay=${KEYPATH_FIXTURE_RUNTIME_WAIT_DELAY:-1}
 
 required_secrets="KEYPATH_WIFI_SSID_1 KEYPATH_WIFI_PASSWORD_1 KEYPATH_WIFI_SSID_3 KEYPATH_WIFI_PASSWORD_3 KEYPATH_WIFI_SSID_4 KEYPATH_WIFI_PASSWORD_4 KEYPATH_HACKER_DOJO_USERNAME KEYPATH_HACKER_DOJO_PASSWORD KEYPATH_FIXTURE_TOKEN"
 
@@ -118,6 +121,30 @@ detect_port() {
     printf '%s\n' "$candidates"
 }
 
+runtime_usb_present() {
+    command -v ioreg >/dev/null 2>&1 || return 1
+    ioreg -p IOUSB -l -w0 2>/dev/null | grep -Fq "$runtime_usb_name"
+}
+
+wait_for_runtime_usb() {
+    attempt=0
+    while [[ "$attempt" -lt "$runtime_wait_attempts" ]]; do
+        if runtime_usb_present; then
+            return 0
+        fi
+        sleep "$runtime_wait_delay"
+        attempt=$((attempt + 1))
+    done
+    return 1
+}
+
+restart_from_bootloader() {
+    port=$1
+    command -v esptool.py >/dev/null 2>&1 || fail "esptool.py is missing after ESP-IDF activation"
+    printf 'restarting  application with watchdog reset\n'
+    esptool.py --chip esp32s3 --port "$port" --after watchdog_reset run
+}
+
 configure_secret() {
     secret_name=$1
     [[ -d "$add_secret_app" ]] || fail "Add Secret.app is missing: $add_secret_app"
@@ -209,6 +236,14 @@ command_flash() {
     port=$(detect_port "$selected_port")
     idf.py -C "$target" -B "$build_dir" -p "$port" flash
     printf 'flashed  %s\n' "$port"
+    if ! runtime_usb_present; then
+        if [[ ! -c "$port" ]]; then
+            port=$(detect_port)
+        fi
+        restart_from_bootloader "$port"
+    fi
+    wait_for_runtime_usb || fail "firmware was written but the board did not restart as $runtime_usb_name"
+    printf 'verified  application restarted as %s\n' "$runtime_usb_name"
     printf 'next  watch the display for JOINING LAB, then READY\n'
 }
 

@@ -24,6 +24,7 @@ static SemaphoreHandle_t fixture_mutex;
 static bool network_connected;
 static char network_address[48] = "unassigned";
 static char network_name[33] = "unassigned";
+static uint32_t wifi_disconnect_reason;
 static fixture_presentation_t presentation;
 static bool firmware_update_in_progress;
 
@@ -207,6 +208,12 @@ void fixture_runtime_set_network_name(const char *name) {
     runtime_unlock();
 }
 
+void fixture_runtime_set_wifi_disconnect_reason(uint32_t reason) {
+    runtime_lock();
+    wifi_disconnect_reason = reason;
+    runtime_unlock();
+}
+
 void fixture_runtime_snapshot(fixture_runtime_snapshot_t *snapshot) {
     memset(snapshot, 0, sizeof(*snapshot));
     runtime_lock();
@@ -223,6 +230,7 @@ void fixture_runtime_snapshot(fixture_runtime_snapshot_t *snapshot) {
     snprintf(snapshot->error, sizeof(snapshot->error), "%s", fixture.error);
     snprintf(snapshot->network_address, sizeof(snapshot->network_address), "%s", network_address);
     snprintf(snapshot->network_name, sizeof(snapshot->network_name), "%s", network_name);
+    snapshot->wifi_disconnect_reason = wifi_disconnect_reason;
     snapshot->script_crc32 = fixture.script_crc32;
     snapshot->next_event = fixture.next_event;
     snapshot->transfers_completed = fixture.transfers_completed;

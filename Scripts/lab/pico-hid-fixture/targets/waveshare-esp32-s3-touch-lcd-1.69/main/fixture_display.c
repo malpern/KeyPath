@@ -6,7 +6,9 @@
 
 #include "bsp/esp32_s3_touch_lcd_1_69.h"
 #include "esp_timer.h"
+#include "esp_wifi_types.h"
 #include "fixture_board.h"
+#include "fixture_config.h"
 #include "fixture_runtime.h"
 #include "fixture_splash_model.h"
 #include "fixture_visual_model.h"
@@ -72,6 +74,7 @@ typedef struct {
     lv_obj_t *bars[DOJO_BAR_COUNT];
     lv_obj_t *wordmark;
     lv_obj_t *location;
+    lv_obj_t *version;
 } display_splash_t;
 
 static display_ui_t ui;
@@ -358,12 +361,13 @@ static void build_ui(void) {
     lv_obj_set_style_text_font(ui.detail, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(ui.detail, lv_color_hex(0x78909a), 0);
     lv_obj_set_width(ui.detail, 220);
+    lv_obj_set_height(ui.detail, 18);
     lv_label_set_long_mode(ui.detail, LV_LABEL_LONG_DOT);
     lv_obj_set_style_text_align(ui.detail, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(ui.detail, LV_ALIGN_BOTTOM_MID, 0, -20);
 
     ui.quality = lv_label_create(ui.screen);
-    lv_label_set_text_static(ui.quality, "CINEMATIC");
+    lv_label_set_text_static(ui.quality, "v" KEYPATH_FIXTURE_SHORT_VERSION);
     lv_obj_set_style_text_font(ui.quality, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(ui.quality, lv_color_hex(0x52727e), 0);
     lv_obj_set_style_text_letter_space(ui.quality, 1, 0);
@@ -434,6 +438,16 @@ static void build_splash(void) {
     lv_obj_set_style_text_letter_space(splash.location, 1, 0);
     lv_obj_set_style_text_opa(splash.location, LV_OPA_TRANSP, 0);
     lv_obj_align(splash.location, LV_ALIGN_CENTER, 0, 74);
+
+    splash.version = lv_label_create(splash.root);
+    lv_label_set_text_static(splash.version,
+                             "v" KEYPATH_FIXTURE_FIRMWARE_VERSION
+                             " / " KEYPATH_FIXTURE_BUILD_ID);
+    lv_obj_set_style_text_font(splash.version, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(splash.version, lv_color_hex(0x627078), 0);
+    lv_obj_set_style_text_letter_space(splash.version, 1, 0);
+    lv_obj_set_style_text_opa(splash.version, LV_OPA_TRANSP, 0);
+    lv_obj_align(splash.version, LV_ALIGN_BOTTOM_MID, 0, -8);
 }
 
 static void render_splash(const fixture_splash_output_t *output, uint64_t elapsed_ms) {
@@ -452,6 +466,8 @@ static void render_splash(const fixture_splash_output_t *output, uint64_t elapse
     lv_obj_set_style_text_opa(splash.wordmark, (lv_opa_t)output->wordmark_opacity, 0);
     lv_obj_set_style_text_opa(splash.location,
                               (lv_opa_t)(output->wordmark_opacity * 3u / 4u), 0);
+    lv_obj_set_style_text_opa(splash.version,
+                              (lv_opa_t)(output->wordmark_opacity * 2u / 3u), 0);
     int wordmark_offset = 5 - (int)(output->wordmark_opacity * 5u / 255u);
     lv_obj_set_style_translate_y(splash.wordmark, wordmark_offset, 0);
     lv_obj_set_style_translate_y(splash.location, wordmark_offset, 0);
@@ -776,7 +792,7 @@ static void render(const fixture_ui_output_t *output,
         lv_label_set_text_static(ui.quality, "LIVE 20 FPS");
         lv_obj_set_style_text_color(ui.quality, lv_color_hex(0x55c7ff), 0);
     } else {
-        lv_label_set_text_static(ui.quality, "CINEMATIC");
+        lv_label_set_text_static(ui.quality, "v" KEYPATH_FIXTURE_SHORT_VERSION);
         lv_obj_set_style_text_color(ui.quality, lv_color_hex(0x52727e), 0);
     }
     render_button_feedback(now_ms);
@@ -820,7 +836,50 @@ static void display_task(void *context) {
         if (snapshot.ui.state == FIXTURE_ERROR && snapshot.error[0]) {
             snprintf(automatic_detail, sizeof(automatic_detail), "%.63s", snapshot.error);
         } else if (!snapshot.ui.wifi_connected) {
-            snprintf(automatic_detail, sizeof(automatic_detail), "Trying %.32s", snapshot.network_name);
+            const char *reason = NULL;
+            switch (snapshot.wifi_disconnect_reason) {
+                case WIFI_REASON_NO_AP_FOUND:
+                    reason = "missing";
+                    break;
+                case WIFI_REASON_AUTH_FAIL:
+                    reason = "auth failed";
+                    break;
+                case WIFI_REASON_802_1X_AUTH_FAILED:
+                    reason = "EAP failed";
+                    break;
+                case WIFI_REASON_ASSOC_FAIL:
+                    reason = "join failed";
+                    break;
+                case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+                case WIFI_REASON_HANDSHAKE_TIMEOUT:
+                    reason = "WPA timeout";
+                    break;
+                case WIFI_REASON_NO_AP_FOUND_W_COMPATIBLE_SECURITY:
+                case WIFI_REASON_NO_AP_FOUND_IN_AUTHMODE_THRESHOLD:
+                    reason = "bad security";
+                    break;
+                case WIFI_REASON_NO_AP_FOUND_IN_RSSI_THRESHOLD:
+                    reason = "weak signal";
+                    break;
+                case WIFI_REASON_NOT_AUTHORIZED_THIS_LOCATION:
+                    reason = "denied";
+                    break;
+                case WIFI_REASON_DISASSOC_SUPCHAN_BAD:
+                    reason = "bad channel";
+                    break;
+                default:
+                    break;
+            }
+            if (reason) {
+                snprintf(automatic_detail, sizeof(automatic_detail), "%.16s: %.12s",
+                         snapshot.network_name, reason);
+            } else if (snapshot.wifi_disconnect_reason != 0u) {
+                snprintf(automatic_detail, sizeof(automatic_detail), "%.16s: Wi-Fi %" PRIu32,
+                         snapshot.network_name, snapshot.wifi_disconnect_reason);
+            } else {
+                snprintf(automatic_detail, sizeof(automatic_detail), "Trying %.20s",
+                         snapshot.network_name);
+            }
         } else {
             snprintf(automatic_detail, sizeof(automatic_detail), "%s  USB %s",
                      snapshot.network_address,
