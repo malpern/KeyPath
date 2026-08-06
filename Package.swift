@@ -38,6 +38,10 @@ let package = Package(
             targets: ["KeyPathInstallationWizard"]
         ),
         .library(
+            name: "KeyPathWindowSnappingUI",
+            targets: ["KeyPathWindowSnappingUI"]
+        ),
+        .library(
             name: "KeyPathAppKit",
             targets: ["KeyPathAppKit"]
         ),
@@ -166,6 +170,16 @@ let package = Package(
                 .swiftLanguageMode(.v6)
             ]
         ),
+        .target(
+            name: "KeyPathWindowSnappingUI",
+            dependencies: [
+                "KeyPathRulesCore"
+            ],
+            path: "Sources/KeyPathAppKit/UI/WindowSnapping",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
         // Main app library with UI and business logic
         .target(
             name: "KeyPathAppKit",
@@ -176,13 +190,15 @@ let package = Package(
                 "KeyPathRulesCore",
                 "KeyPathWizardCore",
                 "KeyPathInstallationWizard",
+                "KeyPathWindowSnappingUI",
                 "KeyPathPluginKit",
                 "KeyPathCLISupport",
                 .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/KeyPathAppKit",
             exclude: [
-                "InstallationWizard/README.md"
+                "InstallationWizard/README.md",
+                "UI/WindowSnapping"
             ],
             resources: [
                 .process("Resources")
