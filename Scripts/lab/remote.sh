@@ -1,6 +1,18 @@
 #!/bin/zsh
 set -euo pipefail
 
+# This script runs over a non-interactive SSH shell, which does not source the
+# login profile and therefore does not have Homebrew on PATH. That matters
+# because the repository configures core.hookspath, and those hooks call
+# git-lfs. A missing git-lfs makes the hook exit non-zero, and `set -e` then
+# aborts mid-command with no diagnostic: `create` died after staging its
+# archive, reporting only exit 2. Set the environment this script needs rather
+# than depending on how it was launched.
+for candidate in /opt/homebrew/bin /usr/local/bin; do
+  [[ -d "$candidate" && ":$PATH:" != *":$candidate:"* ]] && PATH="$candidate:$PATH"
+done
+export PATH
+
 PRODUCTION_ROOT="/Volumes/KeyPath Lab/CrabBox"
 OWNER="keypath-installer-lab-v1"
 NAMEPLATE_VERSION="0.2.5"
@@ -65,10 +77,19 @@ configure_tart_path() {
   export PATH="${usb_prefix}$LAB_ROOT/CompatTools/bin:$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 }
 
+# Desktop leases need the provisioned desktop base, which already carries the
+# console session, Python, and the approved Peekaboo Lab Host. Without this the
+# --desktop flag still produced a plain base, so desktop-bootstrap failed on a
+# missing Homebrew and semantic UI automation could never run. Managed lanes are
+# excluded: their base carries MDM enrollment that the desktop base does not, so
+# a managed desktop lease keeps the managed base and gains desktop capability
+# from the launcher instead.
 base_for() {
-  local macos=$1 lane=$2
+  local macos=$1 lane=$2 desktop=${3:-0}
   if [[ "$macos" == "15" ]]; then
     [[ "$lane" == "managed-functional" ]] && print keypath-macos-15-managed || print ghcr.io/cirruslabs/macos-sequoia-base:latest
+  elif [[ ("$macos" == "26" || "$macos" == "27") && "$desktop" == "1" && "$lane" != "managed-functional" ]]; then
+    print "keypath-macos-$macos-desktop"
   else
     [[ "$lane" == "managed-functional" ]] && print "keypath-macos-$macos-managed" || print "keypath-macos-$macos"
   fi
@@ -483,13 +504,13 @@ warmup_desktop() {
     if [[ "${USER:-}" == "clawd" ]]; then export TART_HOME="$LAB_ROOT/TartHome-clawd"; else export TART_HOME="$LAB_ROOT/TartHome"; fi
     configure_tart_path
     "$CRABBOX" warmup --provider tart --target macos --desktop \
-      --tart-image "$(base_for "$macos" "$lane")" \
+      --tart-image "$(base_for "$macos" "$lane" 1)" \
       --tart-user admin --tart-cpu 4 --tart-memory 8192 --tart-random-serial --ssh-port 22 \
       --slug "$slug" --ttl 2h
   else
     export PATH="$LAB_ROOT/SharedTools/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     "$CRABBOX" warmup --provider parallels --target macos --desktop \
-      --parallels-template "$(base_for "$macos" "$lane")" --parallels-user keypathqa \
+      --parallels-template "$(base_for "$macos" "$lane" 1)" --parallels-user keypathqa \
       --parallels-work-root /Users/keypathqa/crabbox --ssh-port 22 \
       --slug "$slug" --ttl 2h
   fi
@@ -628,7 +649,7 @@ write_provisional_lease_manifest() {
     print "slug\t$slug"
     print "macos\t$macos"
     print "test_lane\t$lane"
-    print "base_name\t$(base_for "$macos" "$lane")"
+    print "base_name\t$(base_for "$macos" "$lane" "$desktop")"
     print "managed_identity_scope\t$identity_scope"
     print "provider\t$provider"
     print "archive_key\t$archive_key"
@@ -731,7 +752,7 @@ create_lease() {
     print "slug\t$slug"
     print "macos\t$macos"
     print "test_lane\t$lane"
-    print "base_name\t$(base_for "$macos" "$lane")"
+    print "base_name\t$(base_for "$macos" "$lane" "$desktop")"
     print "managed_identity_scope\t$identity_scope"
     print "provider\t$provider"
     print "archive_key\t$archive_key"
