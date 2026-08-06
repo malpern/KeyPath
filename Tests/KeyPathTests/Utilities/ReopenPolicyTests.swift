@@ -26,13 +26,13 @@ struct ReopenPolicyTests {
     }
 
     @Test("Existing config does not show overlay before initial wizard completes")
-    func configBeforeInitialWizardCompletionShowsSplash() {
+    func configBeforeInitialWizardCompletionShowsSetupWizard() {
         let surface = ReopenPolicy.surface(
             hasExistingConfig: true,
             hasCompletedInitialWizard: false,
             overlayVisible: false
         )
-        #expect(surface == .showSplash)
+        #expect(surface == .showSetupWizard)
     }
 
     @Test("Initial wizard completion is required even if overlay is somehow visible")
@@ -42,26 +42,26 @@ struct ReopenPolicyTests {
             hasCompletedInitialWizard: false,
             overlayVisible: true
         )
-        #expect(surface == .showSplash)
+        #expect(surface == .showSetupWizard)
     }
 
-    @Test("First run (no config) shows the splash onboarding surface")
-    func firstRunShowsSplash() {
+    @Test("First run (no config) shows the actionable setup wizard")
+    func firstRunShowsSetupWizard() {
         let surface = ReopenPolicy.surface(
             hasExistingConfig: false,
             hasCompletedInitialWizard: false,
             overlayVisible: false
         )
-        #expect(surface == .showSplash)
+        #expect(surface == .showSetupWizard)
     }
 
-    @Test("No config always means splash, even if the overlay is somehow visible")
-    func noConfigOverridesOverlayVisibility() {
+    @Test("No config always means setup wizard, even if the overlay is somehow visible")
+    func noConfigShowsSetupWizardDespiteOverlayVisibility() {
         let surface = ReopenPolicy.surface(
             hasExistingConfig: false,
             hasCompletedInitialWizard: true,
             overlayVisible: true
         )
-        #expect(surface == .showSplash)
+        #expect(surface == .showSetupWizard)
     }
 }

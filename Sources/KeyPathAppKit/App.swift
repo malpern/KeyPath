@@ -382,14 +382,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             LiveKeyboardOverlayController.shared.clearExplicitHideFlag()
             LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
 
-        case .showSplash:
+        case .showSetupWizard:
             AppLogger.shared.info("🪟 [AppDelegate] \(trigger): setup incomplete — showing wizard")
             showSetupWizardSurface()
         }
     }
 
-    /// Show the splash/main window and keep it up (no auto-hide). Only valid as the
-    /// first-run onboarding surface or as a host for menu-action sheets.
+    /// Show the splash/main window and keep it up until the caller dismisses it.
+    /// Used for the brief launch beat, as the fallback when setup presentation
+    /// fails, and as a host for menu-action sheets.
     private func showSplashWindow() {
         if mainWindowController == nil {
             if NSApplication.shared.activationPolicy() != .regular {
@@ -424,12 +425,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
     }
 
-    /// Show the setup host window and bring the installer wizard forward. The
-    /// splash alone has no controls, so incomplete setup must always hand off to
-    /// the actionable wizard surface.
+    /// Show the actionable setup wizard and dismiss the control-less splash once
+    /// the wizard is visible. Keep the splash only as a fallback if presentation
+    /// fails, so the app never vanishes without a surface.
     private func showSetupWizardSurface(targetPage: WizardPage? = nil) {
-        showSplashWindow()
         showWizard(targetPage: targetPage)
+        if WizardWindowController.shared.isVisible {
+            mainWindowController?.window?.orderOut(nil)
+            AppLogger.shared.info("🪟 [AppDelegate] Setup wizard visible — dismissed launch splash")
+        } else {
+            AppLogger.shared.warn("⚠️ [AppDelegate] Setup wizard unavailable — keeping splash fallback visible")
+            showSplashWindow()
+        }
     }
 
     /// Preserve the branded launch beat, then hand off to the actionable wizard.
@@ -439,7 +446,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let splashDelayMs = launchSplashDelayMs
         AppLogger.shared.info("[AppDelegate] Launch splash delay: \(splashDelayMs)ms")
         try? await Task.sleep(for: .milliseconds(splashDelayMs))
-        showWizard(targetPage: targetPage)
+        showSetupWizardSurface(targetPage: targetPage)
     }
 
     // MARK: - Public Window Access
