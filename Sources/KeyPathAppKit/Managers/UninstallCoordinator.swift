@@ -14,13 +14,16 @@ public final class UninstallCoordinator {
 
     @ObservationIgnored private let resolveUninstallerURLClosure: () -> URL?
     @ObservationIgnored private let runWithAdminPrivilegesClosure: (URL, Bool) async -> AppleScriptResult
+    @ObservationIgnored private let remainingArtifactPathsClosure: () -> [String]
 
     init(
         resolveUninstallerURL: @escaping () -> URL?,
-        runWithAdminPrivileges: @escaping (URL, Bool) async -> AppleScriptResult
+        runWithAdminPrivileges: @escaping (URL, Bool) async -> AppleScriptResult,
+        remainingArtifactPaths: (() -> [String])? = nil
     ) {
         resolveUninstallerURLClosure = resolveUninstallerURL
         runWithAdminPrivilegesClosure = runWithAdminPrivileges
+        remainingArtifactPathsClosure = remainingArtifactPaths ?? Self.defaultRemainingArtifactPaths
     }
 
     convenience init() {
@@ -95,6 +98,9 @@ public final class UninstallCoordinator {
     /// Fallback uninstall using the shell script with admin privileges
     private func uninstallViaScript(deleteConfig: Bool) async -> Bool {
         guard let scriptURL = resolveUninstallerURLClosure() else {
+            if completeAlreadyIfNoArtifactsRemain(deleteConfig: deleteConfig) {
+                return true
+            }
             let message = "Uninstaller script wasn't found in this build."
             logLines.append("❌ \(message)")
             lastError = message
@@ -127,9 +133,24 @@ public final class UninstallCoordinator {
                 logLines.append("❌ Uninstall failed (error code \(result.exitStatus))")
                 lastError = "Uninstall failed with exit code \(result.exitStatus)"
             }
+            if completeAlreadyIfNoArtifactsRemain(deleteConfig: deleteConfig) {
+                return true
+            }
         }
 
         return result.success
+    }
+
+    private func completeAlreadyIfNoArtifactsRemain(deleteConfig: Bool) -> Bool {
+        guard !deleteConfig else { return false }
+
+        let remaining = remainingArtifactPathsClosure()
+        guard remaining.isEmpty else { return false }
+
+        didSucceed = true
+        lastError = nil
+        logLines.append("✅ KeyPath already removed; no remaining app, helper, or service artifacts found")
+        return true
     }
 
     func copyTerminalCommand() {
@@ -244,6 +265,24 @@ public final class UninstallCoordinator {
         }
 
         return nil
+    }
+
+    nonisolated private static func defaultRemainingArtifactPaths() -> [String] {
+        let paths = [
+            "/Applications/KeyPath.app",
+            "/Library/LaunchDaemons/com.keypath.kanata.plist",
+            "/Library/LaunchDaemons/com.keypath.karabiner-vhiddaemon.plist",
+            "/Library/LaunchDaemons/com.keypath.karabiner-vhidmanager.plist",
+            "/Library/LaunchDaemons/com.keypath.helper.plist",
+            "/Library/PrivilegedHelperTools/com.keypath.helper",
+            "/usr/local/etc/kanata",
+            "/Library/KeyPath",
+            "/etc/newsyslog.d/com.keypath.conf",
+            "/usr/local/bin/keypath-logrotate.sh",
+            "/Library/LaunchDaemons/com.keypath.logrotate.plist",
+        ]
+
+        return paths.filter { Foundation.FileManager.default.fileExists(atPath: $0) }
     }
 
     private static func defaultRunWithAdminPrivileges(scriptURL: URL, deleteConfig: Bool) async

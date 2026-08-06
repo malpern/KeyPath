@@ -90,7 +90,8 @@ final class UninstallCoordinatorTests: XCTestCase {
             resolveUninstallerURL: { nil },
             runWithAdminPrivileges: { _, _ in
                 AppleScriptResult(success: false, output: "", error: "", exitStatus: -1)
-            }
+            },
+            remainingArtifactPaths: { ["/Applications/KeyPath.app"] }
         )
 
         let success = await coordinator.uninstall()
@@ -101,6 +102,39 @@ final class UninstallCoordinatorTests: XCTestCase {
         XCTAssertTrue(coordinator.logLines.contains { $0.contains("Uninstaller script wasn't found") })
     }
 
+    func testUninstallSucceedsWhenScriptMissingButArtifactsAlreadyRemoved() async {
+        let coordinator = UninstallCoordinator(
+            resolveUninstallerURL: { nil },
+            runWithAdminPrivileges: { _, _ in
+                AppleScriptResult(success: false, output: "", error: "", exitStatus: -1)
+            },
+            remainingArtifactPaths: { [] }
+        )
+
+        let success = await coordinator.uninstall()
+
+        XCTAssertTrue(success)
+        XCTAssertTrue(coordinator.didSucceed)
+        XCTAssertNil(coordinator.lastError)
+        XCTAssertTrue(coordinator.logLines.contains { $0.contains("already removed") })
+    }
+
+    func testUninstallDoesNotTreatDeletedConfigRequestAsCompleteWhenScriptMissing() async {
+        let coordinator = UninstallCoordinator(
+            resolveUninstallerURL: { nil },
+            runWithAdminPrivileges: { _, _ in
+                AppleScriptResult(success: false, output: "", error: "", exitStatus: -1)
+            },
+            remainingArtifactPaths: { [] }
+        )
+
+        let success = await coordinator.uninstall(deleteConfig: true)
+
+        XCTAssertFalse(success)
+        XCTAssertFalse(coordinator.didSucceed)
+        XCTAssertEqual(coordinator.lastError, "Uninstaller script wasn't found in this build.")
+    }
+
     func testUninstallLogsAdminError() async {
         let errorURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent(
             "uninstall-fail.sh"
@@ -109,7 +143,8 @@ final class UninstallCoordinatorTests: XCTestCase {
             resolveUninstallerURL: { errorURL },
             runWithAdminPrivileges: { _, _ in
                 AppleScriptResult(success: false, output: "", error: "Permission denied", exitStatus: 1)
-            }
+            },
+            remainingArtifactPaths: { ["/Applications/KeyPath.app"] }
         )
 
         let success = await coordinator.uninstall()
@@ -128,7 +163,8 @@ final class UninstallCoordinatorTests: XCTestCase {
             resolveUninstallerURL: { errorURL },
             runWithAdminPrivileges: { _, _ in
                 AppleScriptResult(success: false, output: "", error: "", exitStatus: 42)
-            }
+            },
+            remainingArtifactPaths: { ["/Applications/KeyPath.app"] }
         )
 
         let success = await coordinator.uninstall()
