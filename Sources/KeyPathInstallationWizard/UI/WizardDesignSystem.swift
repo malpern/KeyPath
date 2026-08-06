@@ -857,6 +857,8 @@ public struct MiniCheckmarkBurst: View {
 // MARK: - Availability-safe symbol effect helper
 
 public struct AvailabilitySymbolBounce: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     public let repeating: Bool
 
     public init(repeating: Bool = false) {
@@ -864,7 +866,9 @@ public struct AvailabilitySymbolBounce: ViewModifier {
     }
 
     public func body(content: Content) -> some View {
-        if #available(macOS 15.0, *) {
+        if reduceMotion {
+            content
+        } else if #available(macOS 15.0, *) {
             if repeating {
                 content.symbolEffect(.bounce, options: .repeating)
             } else {
@@ -905,33 +909,49 @@ public struct WizardButton: View {
     public var body: some View {
         switch style {
         case .primary:
-            Button(title) {
+            Button {
                 Task {
                     await action()
                 }
+            } label: {
+                buttonLabel
             }
-            .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isLoading))
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.roundedRectangle(radius: WizardDesign.Layout.cornerRadius))
+            .controlSize(.large)
+            .disabled(isLoading)
             .accessibilityIdentifier("wizard-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
             .accessibilityLabel(isLoading ? "Loading, \(title)" : title)
             .accessibilityHint(isLoading ? "Operation in progress" : "Tap to \(title.lowercased())")
             .if(isDefaultAction) { $0.keyboardShortcut(.defaultAction) }
         case .secondary:
-            Button(title) {
+            Button {
                 Task {
                     await action()
                 }
+            } label: {
+                buttonLabel
             }
-            .buttonStyle(WizardDesign.Component.SecondaryButton(isLoading: isLoading))
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.roundedRectangle(radius: WizardDesign.Layout.cornerRadius))
+            .controlSize(.large)
+            .disabled(isLoading)
             .accessibilityIdentifier("wizard-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
             .accessibilityLabel(isLoading ? "Loading, \(title)" : title)
             .accessibilityHint(isLoading ? "Operation in progress" : "Tap to \(title.lowercased())")
         case .destructive:
-            Button(title) {
+            Button(role: .destructive) {
                 Task {
                     await action()
                 }
+            } label: {
+                buttonLabel
             }
-            .buttonStyle(WizardDesign.Component.DestructiveButton(isLoading: isLoading))
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.roundedRectangle(radius: WizardDesign.Layout.cornerRadius))
+            .controlSize(.large)
+            .tint(WizardDesign.Colors.error)
+            .disabled(isLoading)
             .accessibilityIdentifier("wizard-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
             .accessibilityLabel(isLoading ? "Loading, \(title)" : title)
             .accessibilityHint(
@@ -940,6 +960,12 @@ public struct WizardButton: View {
                     : "Tap to \(title.lowercased()). This action may cause data loss."
             )
         }
+    }
+
+    private var buttonLabel: some View {
+        Text(title)
+            .font(WizardDesign.Typography.button)
+            .frame(minWidth: 120, minHeight: 26)
     }
 }
 

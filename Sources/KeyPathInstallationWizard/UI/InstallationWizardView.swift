@@ -16,6 +16,8 @@ public struct WizardContentHeightKey: PreferenceKey {
 public struct InstallationWizardView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.runtimeCoordinator) var kanataManager
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     @MainActor
     public func showStatusBanner(_ message: String) {
@@ -142,6 +144,11 @@ public struct InstallationWizardView: View {
         .onChange(of: showingBackgroundApprovalPrompt) { _, isShowing in
             if isShowing { startLoginItemsApprovalPolling() }
         }
+        .transaction { transaction in
+            if reduceMotion {
+                transaction.animation = nil
+            }
+        }
     }
 
     // MARK: - Body Sections
@@ -158,7 +165,13 @@ public struct InstallationWizardView: View {
                     Spacer()
                 }
                 .padding(10)
-                .background(.thinMaterial)
+                .background {
+                    if reduceTransparency {
+                        Color(NSColor.controlBackgroundColor)
+                    } else {
+                        Rectangle().fill(.thinMaterial)
+                    }
+                }
                 .overlay(
                     Rectangle()
                         .frame(height: 1)
@@ -167,7 +180,7 @@ public struct InstallationWizardView: View {
                 )
                 Spacer()
             }
-            .transition(.move(edge: .top).combined(with: .opacity))
+            .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
             .zIndex(2)
         }
     }

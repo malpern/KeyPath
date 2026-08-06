@@ -1,4 +1,3 @@
-import AppKit
 import KeyPathWizardCore
 import SwiftUI
 
@@ -9,6 +8,8 @@ import SwiftUI
 /// The setup work ahead is compressed into a single reassuring line above the
 /// CTA — the wizard's own pages explain each step when it happens.
 struct WizardWelcomePage: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let onGetStarted: () -> Void
 
     @State private var keycapsVisible = false
@@ -47,6 +48,7 @@ struct WizardWelcomePage: View {
                 yOffset: 8,
                 caption: "Supercharge\nCaps Lock",
                 visible: keycapsVisible,
+                reduceMotion: reduceMotion,
                 delay: 0.0
             ) {
                 VStack(spacing: 3) {
@@ -63,6 +65,7 @@ struct WizardWelcomePage: View {
                 yOffset: -6,
                 caption: "Arrows on\nhome row",
                 visible: keycapsVisible,
+                reduceMotion: reduceMotion,
                 delay: 0.08
             ) {
                 Image(systemName: "arrowkeys.fill")
@@ -74,6 +77,7 @@ struct WizardWelcomePage: View {
                 yOffset: 4,
                 caption: "Tile\nwindows",
                 visible: keycapsVisible,
+                reduceMotion: reduceMotion,
                 delay: 0.16
             ) {
                 Image(systemName: "rectangle.split.2x1.fill")
@@ -85,6 +89,7 @@ struct WizardWelcomePage: View {
                 yOffset: -4,
                 caption: "Launch\nanything",
                 visible: keycapsVisible,
+                reduceMotion: reduceMotion,
                 delay: 0.24
             ) {
                 Image(systemName: "paperplane.fill")
@@ -151,7 +156,7 @@ struct WizardWelcomePage: View {
     // MARK: - Entrance
 
     private func animateKeycapsIn() {
-        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+        if reduceMotion {
             keycapsVisible = true
         } else {
             withAnimation(.spring(response: 0.55, dampingFraction: 0.75)) {
@@ -171,6 +176,7 @@ private struct HeroKeycap<Glyph: View>: View {
     let yOffset: CGFloat
     let caption: String
     let visible: Bool
+    let reduceMotion: Bool
     let delay: Double
     @ViewBuilder let glyph: () -> Glyph
 
@@ -214,9 +220,7 @@ private struct HeroKeycap<Glyph: View>: View {
         .scaleEffect(visible ? 1 : 0.6)
         .opacity(visible ? 1 : 0)
         .animation(
-            NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-                ? nil
-                : .spring(response: 0.55, dampingFraction: 0.72).delay(delay),
+            reduceMotion ? nil : .spring(response: 0.55, dampingFraction: 0.82).delay(delay),
             value: visible
         )
         .accessibilityHidden(true) // Combined label on the hero container

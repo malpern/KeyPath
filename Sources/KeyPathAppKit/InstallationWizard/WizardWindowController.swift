@@ -168,7 +168,7 @@ final class WizardWindowController {
         newFrame.size.height = newWindowHeight
         newFrame.origin.y -= heightDelta // Move origin down to keep top fixed
 
-        if animated {
+        if animated, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = 0.2
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
