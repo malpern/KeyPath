@@ -120,11 +120,17 @@ struct SplashView: View {
                     Spacer()
                     Text("v\(buildInfo.version) (\(buildInfo.build))")
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(.black.opacity(0.18))
+                        .background(.black.opacity(0.58))
                         .clipShape(Capsule())
+                        .overlay {
+                            Capsule()
+                                .stroke(.white.opacity(0.18), lineWidth: 1)
+                        }
+                        .shadow(color: .black.opacity(0.35), radius: 5, x: 0, y: 2)
                         .accessibilityIdentifier("main-window-splash-build")
                 }
                 .padding(12)

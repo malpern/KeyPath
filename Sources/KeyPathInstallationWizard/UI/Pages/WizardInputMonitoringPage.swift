@@ -141,11 +141,11 @@ public struct WizardInputMonitoringPage: View {
                 } else {
                     // Use hero design for error state too, with blue links below
                     VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        WizardHeroSection.warning(
+                        WizardHeroSection.setup(
                             icon: "eye",
-                            title: "Input Monitoring Required",
+                            title: "Enable Keyboard Remapping",
                             subtitle:
-                            "KeyPath needs Input Monitoring permission to capture keyboard events for remapping",
+                            "Allow KeyPath to read keyboard events locally so your remaps, layers, and shortcuts can run.",
                             iconTapAction: {
                                 Task {
                                     await onRefresh()

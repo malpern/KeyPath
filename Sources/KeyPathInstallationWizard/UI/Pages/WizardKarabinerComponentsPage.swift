@@ -110,11 +110,11 @@ public struct WizardKarabinerComponentsPage: View {
             } else {
                 // Simplified error state: hero + centered Fix button
                 VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                    WizardHeroSection.error(
+                    WizardHeroSection.setup(
                         icon: "keyboard.macwindow",
-                        title: "Karabiner Driver Required",
+                        title: "Enable the Virtual Keyboard Driver",
                         subtitle:
-                        "Karabiner virtual keyboard driver needs to be installed & configured for input capture",
+                        "KeyPath uses this driver to send remapped keys back to macOS safely.",
                         iconTapAction: {
                             Task {
                                 onRefresh()

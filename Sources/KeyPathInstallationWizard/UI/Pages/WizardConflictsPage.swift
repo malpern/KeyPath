@@ -59,10 +59,10 @@ public struct WizardConflictsPage: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                    WizardHeroSection.error(
+                    WizardHeroSection.warning(
                         icon: "exclamationmark.triangle.fill",
-                        title: "Conflicts Detected",
-                        subtitle: "\(issues.count) conflicting process\(issues.count == 1 ? "" : "es") found that must be resolved",
+                        title: "Pause Other Remappers",
+                        subtitle: "\(issues.count) keyboard remapper\(issues.count == 1 ? "" : "s") may intercept the same keys. Pause them so KeyPath can take over cleanly.",
                         iconTapAction: { onRefresh() }
                     )
 

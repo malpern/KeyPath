@@ -45,8 +45,18 @@ Notes:
   ./Scripts/run-tests-safe.sh` over full-suite reruns after every edit.
 - Run `./Scripts/quick-deploy.sh` only when you need to inspect installed app
   behavior. It is not required for model/parser/service-only changes.
+- For visual SwiftUI/AppKit iteration, prefer `./Scripts/ui-deploy.sh`. It
+  builds only the KeyPath app product, deploys to `/Applications/KeyPath.app`,
+  signs locally, and restarts the app if needed. It intentionally does not
+  notarize and does not refresh the CLI, helper, or Rust host bridge.
 - `quick-deploy.sh` updates `/Applications/KeyPath.app`, re-signs locally, and
-  restarts KeyPath only if it was running.
+  restarts KeyPath only if it was running. Its default scope is app-only; set
+  `KEYPATH_QUICK_DEPLOY_BUILD_SCOPE=full` when you need the older broad package
+  deploy that refreshes companion binaries.
+- Fast deploy scripts default to the stable Xcode at
+  `/Applications/Xcode-26.6.0.app/Contents/Developer` when `DEVELOPER_DIR` is
+  unset. Override with `KEYPATH_DEV_XCODE_DEVELOPER_DIR` only when intentionally
+  testing another toolchain.
 - It intentionally does **not** redeploy the privileged helper unless
   `KEYPATH_DEPLOY_HELPER=1` is set. Avoid helper redeploys during UI work.
 - Use Poltergeist only for focused single-agent Swift/UI iteration:

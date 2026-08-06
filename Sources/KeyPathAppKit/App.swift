@@ -383,8 +383,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
 
         case .showSplash:
-            AppLogger.shared.info("🪟 [AppDelegate] \(trigger): first-run — showing splash window")
-            showSplashWindow()
+            AppLogger.shared.info("🪟 [AppDelegate] \(trigger): setup incomplete — showing wizard")
+            showSetupWizardSurface()
         }
     }
 
@@ -414,6 +414,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         suppressLaunchSplashAutoHide = true
         mainWindowController?.show(focus: true)
         initialMainWindowShown = true
+    }
+
+    private var launchSplashDelayMs: Int {
+        #if DEBUG
+            Int(ProcessInfo.processInfo.environment["KEYPATH_SPLASH_DELAY_MS"] ?? "") ?? 650
+        #else
+            1200
+        #endif
+    }
+
+    /// Show the setup host window and bring the installer wizard forward. The
+    /// splash alone has no controls, so incomplete setup must always hand off to
+    /// the actionable wizard surface.
+    private func showSetupWizardSurface(targetPage: WizardPage? = nil) {
+        showSplashWindow()
+        showWizard(targetPage: targetPage)
+    }
+
+    /// Preserve the branded launch beat, then hand off to the actionable wizard.
+    /// Reopen/subsequent activation paths intentionally skip this delay.
+    private func showSetupWizardAfterLaunchSplash(targetPage: WizardPage? = nil) async {
+        showSplashWindow()
+        let splashDelayMs = launchSplashDelayMs
+        AppLogger.shared.info("[AppDelegate] Launch splash delay: \(splashDelayMs)ms")
+        try? await Task.sleep(for: .milliseconds(splashDelayMs))
+        showWizard(targetPage: targetPage)
     }
 
     // MARK: - Public Window Access
@@ -465,8 +491,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     AppLogger.shared.info("🪟 [AppDelegate] Relaunch detected — skipping splash, restoring overlay directly")
                     LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
                 } else {
-                    AppLogger.shared.info("🪟 [AppDelegate] Initial wizard incomplete — showing setup surface, not overlay")
-                    showSplashWindow()
+                    AppLogger.shared.info("🪟 [AppDelegate] Initial wizard incomplete — showing launch splash before setup wizard")
+                    await showSetupWizardAfterLaunchSplash()
                 }
             }
             return
@@ -475,12 +501,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         mainWindowController?.show(focus: true)
 
         Task { @MainActor in
-            #if DEBUG
-                let splashDelayMs = Int(ProcessInfo.processInfo.environment["KEYPATH_SPLASH_DELAY_MS"] ?? "")
-                    ?? 650
-            #else
-                let splashDelayMs = 420
-            #endif
+            let splashDelayMs = launchSplashDelayMs
             AppLogger.shared.info("[AppDelegate] Launch splash delay: \(splashDelayMs)ms")
             try? await Task.sleep(for: .milliseconds(splashDelayMs))
 
@@ -495,7 +516,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     AppLogger.shared.info("🪟 [AppDelegate] Splash auto-hide suppressed (user re-opened during launch)")
                 }
             } else {
-                AppLogger.shared.info("🪟 [AppDelegate] Initial wizard incomplete — keeping splash visible, not showing overlay")
+                AppLogger.shared.info("🪟 [AppDelegate] Initial wizard incomplete — showing setup wizard, not overlay")
+                self.showSetupWizardSurface()
             }
         }
 
@@ -511,8 +533,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     LiveKeyboardOverlayController.shared.showForStartup()
                     AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - showing overlay")
                 } else {
-                    AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - initial wizard incomplete, not showing overlay")
-                    showSplashWindow()
+                    AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - initial wizard incomplete, showing setup wizard")
+                    showSetupWizardSurface()
                 }
             }
         } else if !LiveKeyboardOverlayController.shared.isVisible {
