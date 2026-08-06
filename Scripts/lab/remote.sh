@@ -411,6 +411,25 @@ write_provisional_lease_manifest() {
   } > "$manifest"
 }
 
+write_operation_request() {
+  local operation=$1 slug=$2 macos=$3 lane=$4 provider=$5 archive_key=$6 commit=$7 installer_sha=$8 installer_name=$9 repo=${10} created=${11} expires=${12} desktop=${13}
+  {
+    print "owner\t$OWNER"
+    print "slug\t$slug"
+    print "macos\t$macos"
+    print "test_lane\t$lane"
+    print "provider\t$provider"
+    print "archive_key\t$archive_key"
+    print "keypath_commit\t$commit"
+    print "installer_sha256\t$installer_sha"
+    print "installer_name\t$installer_name"
+    print "worktree\t$repo"
+    print "created_epoch\t$created"
+    print "expires_epoch\t$expires"
+    print "desktop_enabled\t$([[ "$desktop" == "1" ]] && print true || print false)"
+  } > "$operation/request.tsv"
+}
+
 lease_candidate_from_line() {
   print -r -- "$1" | awk '
     $1 == "leased" && $2 ~ /^cbx_[A-Za-z0-9]+$/ {print $2; exit}
@@ -451,6 +470,7 @@ create_lease() {
   git clone -q --local "$archive/repo" "$operation/repo"
   repo="$operation/repo"
   prepare_worktree "$repo"
+  write_operation_request "$operation" "$slug" "$macos" "$lane" "$provider" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$repo" "$created" "$expires" "$desktop"
   create_log="$operation/create.log"
   candidate_file="$operation/lease-candidate.tsv"
   : > "$create_log"
@@ -519,6 +539,78 @@ create_lease() {
   release_admission_lock
   trap - EXIT INT TERM HUP
   print "lease_id\t$lease"
+  print "manifest\t$manifest"
+}
+
+recover_lease() {
+  local lease=$1 requested_macos=$2 requested_lane=$3 requested_desktop=$4 operation candidate request manifest
+  local macos lane provider archive_key commit installer_sha installer_name repo created expires desktop slug output launcher guest_output product build
+  valid_id "$lease"
+  [[ ! -e "$(manifest_path "$lease")" ]] || die "lease already has an ownership manifest: $lease"
+  local -a candidates
+  candidates=()
+  for candidate in "$OPERATIONS"/*/lease-candidate.tsv(N); do
+    [[ "$(<"$candidate")" == "$lease" ]] && candidates+=("$candidate")
+  done
+  (( $#candidates == 1 )) || die "interrupted lease recovery requires exactly one controller operation candidate"
+  candidate=$candidates[1]
+  operation=${candidate:h}
+  request="$operation/request.tsv"
+  if [[ ! -f "$request" ]]; then
+    [[ -n "$requested_macos" && -n "$requested_lane" ]] || die "legacy interrupted operation requires --macos and --lane"
+    repo="$operation/repo"
+    [[ -f "$repo/.keypath-lab/source.tsv" ]] || die "legacy interrupted operation is missing source metadata"
+    commit=$(field "$repo/.keypath-lab/source.tsv" keypath_commit)
+    installer_sha=$(field "$repo/.keypath-lab/source.tsv" installer_sha256)
+    installer_name=$(field "$repo/.keypath-lab/source.tsv" installer_name)
+    [[ "$operation:t" == keypath$requested_macos-$commit[1,8]-* ]] || die "legacy operation does not match the requested macOS and commit"
+    grep -Fq "lease=$lease" "$operation/create.log" || die "legacy operation does not prove the requested lease"
+    grep -Fq "image=$(base_for "$requested_macos" "$requested_lane")" "$operation/create.log" || die "legacy operation does not prove the requested lane"
+    if [[ "$requested_desktop" == "1" ]]; then
+      grep -Fq 'port 5900' "$operation/create.log" || die "legacy operation does not prove desktop provisioning"
+    fi
+    created=$(now_epoch)
+    expires=$((created + 7200))
+    provider=$(provider_for "$requested_macos")
+    write_operation_request "$operation" "$operation:t" "$requested_macos" "$requested_lane" "$provider" "legacy-recovered" "$commit" "$installer_sha" "$installer_name" "$repo" "$created" "$expires" "$requested_desktop"
+  fi
+  [[ "$(field "$request" owner)" == "$OWNER" ]] || die "operation ownership marker mismatch"
+  macos=$(field "$request" macos)
+  lane=$(field "$request" test_lane)
+  provider=$(field "$request" provider)
+  archive_key=$(field "$request" archive_key)
+  commit=$(field "$request" keypath_commit)
+  installer_sha=$(field "$request" installer_sha256)
+  installer_name=$(field "$request" installer_name)
+  repo=$(field "$request" worktree)
+  created=$(field "$request" created_epoch)
+  expires=$(field "$request" expires_epoch)
+  desktop=$([[ "$(field "$request" desktop_enabled)" == true ]] && print 1 || print 0)
+  slug=$(field "$request" slug)
+  [[ "$macos" == 15 || "$macos" == 26 || "$macos" == 27 ]] || die "operation macOS is invalid"
+  [[ "$lane" == managed-functional || "$lane" == unmanaged-ui ]] || die "operation lane is invalid"
+  [[ "$provider" == "$(provider_for "$macos")" ]] || die "operation provider does not match macOS"
+  [[ "$commit" =~ '^[0-9a-f]{40}$' && "$installer_sha" =~ '^[0-9a-f]{64}$' ]] || die "operation source identity is invalid"
+  [[ -d "$repo/.git" ]] || die "operation checkout is unavailable"
+  launcher=$(launcher_for "$macos")
+  output=$("$launcher" list)
+  print -r -- "$output" | grep -Eo 'cbx_[A-Za-z0-9]+' | grep -Fxq "$lease" || die "provider inventory does not contain the interrupted lease"
+  write_provisional_lease_manifest "$lease" "$slug" "$macos" "$lane" "$provider" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$repo" "$created" "$expires" "$desktop"
+  manifest=$(manifest_path "$lease")
+  set_field "$manifest" status recovery-verifying
+  guest_output=$(cd "$repo" && "$launcher" run "$lease" -- /bin/zsh -lc 'printf "product=%s\n" "$(sw_vers -productVersion)"; printf "build=%s\n" "$(sw_vers -buildVersion)"' 2>&1) || {
+    print -r -- "$guest_output" > "$LOGS/$lease/recovery-guest-version.log"
+    set_field "$manifest" status recovery-failed
+    die "recovered ownership but guest verification failed: $lease"
+  }
+  print -r -- "$guest_output" > "$LOGS/$lease/recovery-guest-version.log"
+  product=$(print -r -- "$guest_output" | sed -n 's/^product=//p' | tail -1)
+  build=$(print -r -- "$guest_output" | sed -n 's/^build=//p' | tail -1)
+  set_field "$manifest" macos_product_version "${product:-unknown}"
+  set_field "$manifest" macos_build "${build:-unknown}"
+  set_field "$manifest" status ready
+  record_command "$lease" passed recover
+  print "recovered_lease\t$lease"
   print "manifest\t$manifest"
 }
 
@@ -931,6 +1023,7 @@ case "$action" in
   prepare-upload) [[ $# -eq 1 ]] || die "prepare-upload requires archive key"; prepare_upload "$1" ;;
   install-archive) [[ $# -eq 5 ]] || die "install-archive requires ticket, key, commit, checksum, and name"; install_archive "$@" ;;
   create) [[ $# -eq 8 ]] || die "create requires macOS, test lane, archive, commit, checksum, name, ttl, desktop"; create_lease "$@" ;;
+  recover) [[ $# -eq 4 ]] || die "recover requires lease, optional macOS, optional lane, and desktop flag"; recover_lease "$@" ;;
   install-app) [[ $# -eq 1 ]] || die "install-app requires lease"; install_app "$1" ;;
   secure-dialog-input) [[ $# -eq 5 ]] || die "secure-dialog-input requires lease, app, field, optional submit value, and focus mode"; secure_dialog_input "$@" ;;
   protected-click) [[ $# -eq 7 ]] || die "protected-click requires lease, app, before window, after window, coordinate space, x, and y"; protected_click "$@" ;;

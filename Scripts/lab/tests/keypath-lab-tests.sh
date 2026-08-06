@@ -18,7 +18,7 @@ case "\$1" in
  warmup) echo cbx_test15 ;;
  run) echo product=15.7.7; echo build=24G720 ;;
  stop) echo "stop-15 \$2" >> "$CALLS" ;;
- list) echo cbx_test15 ;;
+ list) printf 'cbx_test15\ncbx_recover15\n' ;;
 esac
 EOF
 cat > "$ROOT/bin/launcher26" <<EOF
@@ -227,6 +227,33 @@ fi
 run_remote destroy cbx_test15 >/dev/null
 grep -q 'stop-15 cbx_test15' "$CALLS"
 grep -q $'cleanup_status\tcomplete' "$manifest"
+
+recover_slug="keypath15-${commit:0:8}-recovery"
+recover_operation="$ROOT/KeyPathInstallerLab/operations/$recover_slug"
+mkdir -p "$recover_operation"
+cp -R "$repo" "$recover_operation/repo"
+printf 'cbx_recover15\n' > "$recover_operation/lease-candidate.tsv"
+cat > "$recover_operation/request.tsv" <<EOF
+owner	keypath-installer-lab-v1
+slug	$recover_slug
+macos	15
+test_lane	unmanaged-ui
+provider	tart
+archive_key	$archive_key
+keypath_commit	$commit
+installer_sha256	$checksum
+installer_name	KeyPath.zip
+worktree	$recover_operation/repo
+created_epoch	1
+expires_epoch	9999999999
+desktop_enabled	false
+EOF
+recovered=$(run_remote recover cbx_recover15 "" "" 0)
+assert_contains "$recovered" $'recovered_lease\tcbx_recover15'
+recover_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_recover15/manifest.tsv"
+grep -q $'status\tready' "$recover_manifest"
+grep -q $'macos_build\t24G720' "$recover_manifest"
+run_remote destroy cbx_recover15 >/dev/null
 
 printf 'pid\t%s\nprovider\ttart\n' "$$" > "$ROOT/KeyPathInstallerLab/provider-admission-tart.lock"
 parallel_provider_create=$(run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0)

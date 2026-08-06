@@ -23,6 +23,7 @@ Commands:
   list
   artifacts LEASE_ID
   scenario LEASE_ID NAME
+  recover LEASE_ID [--macos 15|26|27 --lane managed-functional|unmanaged-ui --desktop]
   destroy LEASE_ID
   cleanup [--dry-run]
 
@@ -220,6 +221,27 @@ EOF
         require_lease_id "$1"
         [[ $2 =~ ^[a-z0-9-]+$ ]] || die "invalid scenario name: $2"
         remote scenario "$1" "$2"
+        ;;
+    recover)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        macos=
+        lane=
+        desktop=0
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --macos) macos=${2:-}; shift 2 ;;
+                --lane) lane=${2:-}; shift 2 ;;
+                --desktop) desktop=1; shift ;;
+                *) usage ;;
+            esac
+        done
+        [[ -z $macos || $macos == 15 || $macos == 26 || $macos == 27 ]] || usage
+        [[ -z $lane || $lane == managed-functional || $lane == unmanaged-ui ]] || usage
+        [[ -z $macos || -n $lane ]] || usage
+        remote recover "$lease" "$macos" "$lane" "$desktop"
         ;;
     destroy)
         [[ $# -eq 1 ]] || usage
