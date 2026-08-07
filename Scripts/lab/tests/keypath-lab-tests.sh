@@ -426,6 +426,7 @@ managed_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_test26/manifest.tsv"
 grep -q $'managed_policy_result\t0' "$managed_manifest"
 grep -q $'managed_identity_scope\tshared:26262626-2626-2626-2626-262626262626' "$managed_manifest"
 grep -q $'managed-policy-rehydration' "$ROOT/KeyPathInstallerLab/leases/cbx_test26/commands.tsv"
+grep -q $'base_name\tkeypath-macos-26-managed' "$managed_manifest"
 set +e
 managed_busy_output=$(run_remote create 26 managed-functional "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 0 2>&1)
 managed_busy_exit=$?
@@ -565,6 +566,12 @@ grep -q 'stop-27 cbx_test27' "$CALLS"
 
 desktop27_create=$(run_remote create 27 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
 assert_contains "$desktop27_create" $'lease_id\tcbx_desktop27'
+# A desktop lease must land on the provisioned desktop base. Asserting only the
+# lease id let the base silently regress to the plain template, which has no
+# Homebrew, no console session, and no approved Peekaboo Lab Host. The recorded
+# base_name is the assertable signal here: in test mode warmup_desktop calls the
+# stub launcher without --parallels-template, so the calls log cannot show it.
+grep -q $'base_name\tkeypath-macos-27-desktop' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
 test_known_hosts="$TMP/known hosts/known_hosts"
 mkdir -p "$(dirname "$test_known_hosts")"
 touch "$test_known_hosts"
@@ -672,6 +679,7 @@ run_remote destroy cbx_desktop27 >/dev/null
 
 desktop26_create=$(run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
 assert_contains "$desktop26_create" $'lease_id\tcbx_desktop26'
+grep -q $'base_name\tkeypath-macos-26-desktop' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop26/manifest.tsv"
 rfb_probe26=$(KEYPATH_LAB_TEST_SSH_KEY="$TMP/test-ssh-key" KEYPATH_LAB_TEST_CURSOR_BEFORE='10 10' KEYPATH_LAB_TEST_CURSOR_AFTER='170 130' KEYPATH_LAB_RFB_POINTER_SETTLE_SECONDS=0 run_remote rfb-pointer-probe cbx_desktop26 170 130)
 assert_contains "$rfb_probe26" $'rfb_pointer_probe\tpassed'
 assert_contains "$rfb_probe26" $'cursor_before\t10 10'
@@ -691,6 +699,16 @@ set -e
 [[ $invalid_resource_exit -eq 1 ]]
 assert_contains "$invalid_resource_output" 'invalid Parallels resource id'
 [[ $(grep -c '^prlctl capture ' "$CALLS") -eq $prlctl_calls_before ]]
+run_remote destroy cbx_desktop26 >/dev/null
+
+# A managed lease that also asks for a desktop must keep the managed base: only
+# that base carries MDM enrollment. Desktop capability comes from the launcher,
+# not from swapping to the unenrolled desktop base.
+managed_desktop_create=$(run_remote create 26 managed-functional "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
+assert_contains "$managed_desktop_create" $'lease_id\tcbx_desktop26'
+managed_desktop_manifest="$ROOT/KeyPathInstallerLab/leases/cbx_desktop26/manifest.tsv"
+grep -q $'base_name\tkeypath-macos-26-managed' "$managed_desktop_manifest"
+grep -q $'desktop_enabled\ttrue' "$managed_desktop_manifest"
 run_remote destroy cbx_desktop26 >/dev/null
 
 desktop_create=$(run_remote create 15 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
