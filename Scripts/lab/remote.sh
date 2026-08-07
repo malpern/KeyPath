@@ -9,7 +9,9 @@ set -euo pipefail
 # archive, reporting only exit 2. Set the environment this script needs rather
 # than depending on how it was launched.
 for candidate in /opt/homebrew/bin /usr/local/bin; do
-  [[ -d "$candidate" && ":$PATH:" != *":$candidate:"* ]] && PATH="$candidate:$PATH"
+  if [[ -d "$candidate" && ":$PATH:" != *":$candidate:"* ]]; then
+    PATH="$candidate:$PATH"
+  fi
 done
 export PATH
 
@@ -144,23 +146,36 @@ provider_capacity() {
   esac
 }
 
+# The path whose free space gates provisioning. This must be the filesystem the
+# provider actually writes clones to, which is not necessarily the boot disk:
+# Parallels stores clones under its configured VM folder, which on this host is
+# an external volume. Measuring the boot disk while clones land elsewhere let a
+# full clone pass admission and then exhaust the volume it was really using.
+disk_reserve_path() {
+  print -r -- "${KEYPATH_LAB_DISK_RESERVE_PATH:-/System/Volumes/Data}"
+}
+
 host_free_kib() {
   if [[ -n "${KEYPATH_LAB_TEST_FREE_KIB:-}" ]]; then
     print -r -- "$KEYPATH_LAB_TEST_FREE_KIB"
   else
-    df -Pk /System/Volumes/Data | awk 'NR == 2 {print $4}'
+    # Absolute paths: this guard must not depend on PATH being well-formed.
+    /bin/df -Pk "$(disk_reserve_path)" | /usr/bin/awk 'NR == 2 {print $4}'
   fi
 }
 
 assert_internal_disk_reserve() {
-  local minimum_gib=${KEYPATH_LAB_MIN_FREE_DISK_GIB:-100} free_kib minimum_kib
+  local minimum_gib=${KEYPATH_LAB_MIN_FREE_DISK_GIB:-100} free_kib minimum_kib path
   [[ "$minimum_gib" == <-> && "$minimum_gib" -gt 0 ]] || die "invalid disk reserve: $minimum_gib GiB"
+  path=$(disk_reserve_path)
   free_kib=$(host_free_kib)
-  [[ "$free_kib" == <-> ]] || die "could not determine internal free space"
+  [[ "$free_kib" == <-> ]] || die "could not determine free space for $path"
   minimum_kib=$((minimum_gib * 1024 * 1024))
-  print -u2 "disk_reserve\tfree_gib=$((free_kib / 1024 / 1024))\tminimum_gib=$minimum_gib"
+  # Report the measured path so a guard pointed at the wrong filesystem is
+  # visible in the log rather than silently passing.
+  print -u2 "disk_reserve\tfree_gib=$((free_kib / 1024 / 1024))\tminimum_gib=$minimum_gib\tpath=$path"
   if (( free_kib < minimum_kib )); then
-    print -u2 "disk_reserve_busy\tfree_gib=$((free_kib / 1024 / 1024))\tminimum_gib=$minimum_gib"
+    print -u2 "disk_reserve_busy\tfree_gib=$((free_kib / 1024 / 1024))\tminimum_gib=$minimum_gib\tpath=$path"
     return 75
   fi
 }
