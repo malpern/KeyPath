@@ -1,6 +1,6 @@
 # Remote KeyPath Installer Lab
 
-`Scripts/lab/keypath-lab` is the supported controller for disposable installer
+`vm-lab keypath` is the supported controller for disposable installer
 testing on the existing Mac mini lab. It defaults to
 `clawd@keypath-lab-mini`; use `--host` or `KEYPATH_LAB_HOST` for another SSH
 alias that exposes the same lab contract.
@@ -42,7 +42,7 @@ the same 100 GiB threshold is not met.
 Check the non-mutating host/provider contract:
 
 ```bash
-Scripts/lab/keypath-lab preflight
+vm-lab keypath preflight
 ```
 
 ## Concurrent agents and provider admission
@@ -89,7 +89,7 @@ the completed archive.
 
 ```bash
 SHA=$(git rev-parse HEAD)
-Scripts/lab/keypath-lab create \
+vm-lab keypath create \
   --macos 27 \
   --lane unmanaged-ui \
   --commit "$SHA" \
@@ -97,17 +97,17 @@ Scripts/lab/keypath-lab create \
   --ttl 2h \
   --desktop
 
-Scripts/lab/keypath-lab list
-Scripts/lab/keypath-lab status cbx_example
-Scripts/lab/keypath-lab install-app cbx_example
-Scripts/lab/keypath-lab nameplate cbx_example enable
-Scripts/lab/keypath-lab run cbx_example -- sw_vers
-Scripts/lab/keypath-lab secure-dialog-input cbx_example \
+vm-lab keypath list
+vm-lab keypath status cbx_example
+vm-lab keypath install-app cbx_example
+vm-lab keypath nameplate cbx_example enable
+vm-lab keypath run cbx_example -- sw_vers
+vm-lab keypath secure-dialog-input cbx_example \
   --app 'System Settings' --field Password --submit 'Modify Settings'
-Scripts/lab/keypath-lab artifacts cbx_example
-Scripts/lab/keypath-lab destroy cbx_example
-Scripts/lab/keypath-lab cleanup --dry-run
-Scripts/lab/keypath-lab cleanup
+vm-lab keypath artifacts cbx_example
+vm-lab keypath destroy cbx_example
+vm-lab keypath cleanup --dry-run
+vm-lab keypath cleanup
 ```
 
 Every manifest records the source commit, macOS product version and build,
@@ -134,9 +134,14 @@ records an explicit unavailable status otherwise.
 the guest is ready for semantic UI automation. Before a scenario relies on
 System Settings, admit the base through these postconditions:
 
+> `peekaboo-ui` moved to the vm-lab repository and is no longer shipped into
+> the guest with this repo. The desktop base provides `peekaboo` itself at
+> `/usr/local/bin/peekaboo`; call it directly, or see vm-lab's
+> `docs/ui-automation.md` for the targeting contract.
+
 - a real console user is logged in (not merely an SSH account);
 - the guest has a Python runtime for the scenario drivers; and
-- `Scripts/lab/peekaboo-ui preflight` succeeds for that console session.
+- `peekaboo-ui preflight` succeeds for that console session.
 
 If any condition is absent, record an `environment-precondition-failure`,
 collect artifacts, and destroy the lease. Do not fall back to raw provider
@@ -150,7 +155,7 @@ running `desktop-bootstrap`, establish its disposable clone's console session
 through the owned controller:
 
 ```bash
-Scripts/lab/keypath-lab console-login cbx_example
+vm-lab keypath console-login cbx_example
 ```
 
 This command is macOS-27/Parallels-only. It streams
@@ -195,7 +200,7 @@ After console login, verify that the RFB path delivers input instead of merely
 acknowledging the protocol write:
 
 ```bash
-Scripts/lab/keypath-lab rfb-pointer-probe cbx_example --x 160 --y 120
+vm-lab keypath rfb-pointer-probe cbx_example --x 160 --y 120
 ```
 
 The probe reads the guest cursor location, sends one CrabBox RFB click, and
@@ -214,8 +219,8 @@ focused, submit the encrypted guest credential without exposing it to argv,
 logs, screenshots, or the pasteboard:
 
 ```bash
-Scripts/lab/keypath-lab secure-console-submit cbx_example
-Scripts/lab/keypath-lab rfb-pointer-probe cbx_example --x 160 --y 120
+vm-lab keypath secure-console-submit cbx_example
+vm-lab keypath rfb-pointer-probe cbx_example --x 160 --y 120
 ```
 
 `secure-console-submit` emits one Parallels key event at a time with a bounded
@@ -239,10 +244,10 @@ This is base provisioning, not a per-scenario setup step.
 Nameplate can label an owned desktop lease without modifying its base image:
 
 ```bash
-Scripts/lab/keypath-lab nameplate cbx_example enable
-Scripts/lab/keypath-lab nameplate cbx_example status
-Scripts/lab/keypath-lab nameplate cbx_example hide
-Scripts/lab/keypath-lab nameplate cbx_example show
+vm-lab keypath nameplate cbx_example enable
+vm-lab keypath nameplate cbx_example status
+vm-lab keypath nameplate cbx_example hide
+vm-lab keypath nameplate cbx_example show
 ```
 
 `enable` is accepted only for a desktop-enabled lease. It downloads the pinned
@@ -271,7 +276,7 @@ For the current capability matrix, security boundaries, and agent handoff
 sequence, see
 [`installer-gui-automation-capabilities.md`](installer-gui-automation-capabilities.md).
 
-Desktop guests can use `Scripts/lab/peekaboo-ui` to discover and operate
+Desktop guests can use `peekaboo-ui` to discover and operate
 KeyPath and System Settings without framebuffer coordinate assumptions. The
 adapter provides typed commands for snapshots, semantic clicks, dialog
 inspection, file selection, and Retina screenshots. Every command writes JSON
@@ -280,13 +285,13 @@ evidence alongside the scenario output so it is included by `artifacts`.
 ```bash
 OUT=.keypath-lab/scenario-output/approvals/peekaboo
 
-Scripts/lab/keypath-lab run cbx_example -- \
-  Scripts/lab/peekaboo-ui preflight
-Scripts/lab/keypath-lab run cbx_example -- \
-  Scripts/lab/peekaboo-ui snapshot \
+vm-lab keypath run cbx_example -- \
+  peekaboo-ui preflight
+vm-lab keypath run cbx_example -- \
+  peekaboo-ui snapshot \
   --app 'System Settings' --output "$OUT/input-monitoring.json"
-Scripts/lab/keypath-lab run cbx_example -- \
-  Scripts/lab/permission-drag \
+vm-lab keypath run cbx_example -- \
+  permission-drag \
   --path /Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher \
   --target-identifier KeyPath_Title \
   --output "$OUT/permission-drag.json"
@@ -340,7 +345,7 @@ On macOS 15 authentication sheets, use an explicit submit selector when the
 button is available:
 
 ```bash
-Scripts/lab/keypath-lab secure-dialog-input cbx_example \
+vm-lab keypath secure-dialog-input cbx_example \
   --app 'System Settings' --field Password --submit 'Modify Settings'
 ```
 
@@ -358,7 +363,7 @@ proves that its password field is already focused, use the constrained focused
 mode without a submit selector:
 
 ```bash
-Scripts/lab/keypath-lab secure-dialog-input cbx_example \
+vm-lab keypath secure-dialog-input cbx_example \
   --app SecurityAgent --field Password --already-focused
 ```
 
@@ -382,7 +387,7 @@ For a protected control that requires native RFB delivery, use the lease-owned
 guard instead of invoking CrabBox directly:
 
 ```bash
-Scripts/lab/keypath-lab protected-click cbx_example \
+vm-lab keypath protected-click cbx_example \
   --app 'System Settings' \
   --window Accessibility \
   --ax-x 402 --ax-y 247
@@ -402,7 +407,7 @@ For ordinary text or single-key input on a macOS 15 desktop lease, use the
 lease-owned VNC path rather than calling CrabBox directly:
 
 ```bash
-Scripts/lab/keypath-lab desktop-type cbx_example --text q
+vm-lab keypath desktop-type cbx_example --text q
 ```
 
 The controller verifies ownership, desktop capability, OS lane, and the exact
@@ -424,19 +429,19 @@ guest password.
 Run a named scenario after creating a lease:
 
 ```bash
-Scripts/lab/keypath-lab scenario cbx_example clean-install
-Scripts/lab/keypath-lab scenario cbx_example approvals
-Scripts/lab/keypath-lab scenario cbx_example helper-daemon-health
-Scripts/lab/keypath-lab scenario cbx_example launch
-Scripts/lab/keypath-lab scenario cbx_example repair-reinstall
-Scripts/lab/keypath-lab scenario cbx_example reboot-persistence-before
+vm-lab keypath scenario cbx_example clean-install
+vm-lab keypath scenario cbx_example approvals
+vm-lab keypath scenario cbx_example helper-daemon-health
+vm-lab keypath scenario cbx_example launch
+vm-lab keypath scenario cbx_example repair-reinstall
+vm-lab keypath scenario cbx_example reboot-persistence-before
 # Reboot the disposable guest through the approved lab workflow.
-Scripts/lab/keypath-lab scenario cbx_example reboot-persistence-after
-Scripts/lab/keypath-lab scenario cbx_example uninstall
-Scripts/lab/keypath-lab scenario cbx_example cancellation-failure
-Scripts/lab/keypath-lab scenario cbx_example artifact-capture
-Scripts/lab/keypath-lab scenario cbx_example macos-27-regression
-Scripts/lab/keypath-lab artifacts cbx_example
+vm-lab keypath scenario cbx_example reboot-persistence-after
+vm-lab keypath scenario cbx_example uninstall
+vm-lab keypath scenario cbx_example cancellation-failure
+vm-lab keypath scenario cbx_example artifact-capture
+vm-lab keypath scenario cbx_example macos-27-regression
+vm-lab keypath artifacts cbx_example
 ```
 
 The scenario set covers clean installation, every macOS approval gate,
@@ -461,8 +466,8 @@ For a disposable macOS 27 desktop lease, run the same capture after installing
 the app:
 
 ```bash
-Scripts/lab/keypath-lab scenario cbx_example macos-27-regression
-Scripts/lab/keypath-lab artifacts cbx_example
+vm-lab keypath scenario cbx_example macos-27-regression
+vm-lab keypath artifacts cbx_example
 ```
 
 The command records the exact OS build, canonical CLI system snapshot,
