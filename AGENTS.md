@@ -99,12 +99,18 @@ Notes:
 
 ### VM Lab Concurrency (mandatory admission path)
 
-- All disposable KeyPath VM work must go through `Scripts/lab/keypath-lab` from
-  current `master`. Do not create installer-test VMs with raw `crabbox`, `tart`,
-  `prlctl`, `keypath15`, `keypath26`, or `keypath27` commands; those bypass the
-  shared provider admission contract.
-- Before requesting a VM, run `Scripts/lab/keypath-lab list`. Create it with the
-  explicit commit, signed installer, lane, and desktop requirement documented in
+- The lab now lives in its own repository and serves several projects. All
+  disposable KeyPath VM work must go through the installed `vm-lab` CLI, which
+  takes the tenant first: `vm-lab keypath <command>`. Do not create
+  installer-test VMs with raw `crabbox`, `tart`, `prlctl`, `keypath15`,
+  `keypath26`, or `keypath27` commands; those bypass the shared provider
+  admission contract.
+- KeyPath declares itself to the lab in `.vm-lab.tsv` at the repository root:
+  the artifact its installer must contain, the command that admits a lane, and
+  the managed-policy generator and verifier. The lab knows nothing about KeyPath
+  beyond that file, so a change there is how KeyPath changes lab behaviour.
+- Before requesting a VM, run `vm-lab keypath list`. Create it with the explicit
+  commit, signed installer, lane, and desktop requirement documented in
   `docs/testing/remote-installer-lab.md`.
 - Provider capacity is centrally enforced on the mini: one Tart lease and two
   Parallels leases by default. `create` exits 75 with `capacity_busy` and the
@@ -112,8 +118,11 @@ Notes:
   failure: continue non-VM work or retry after the owning lease is destroyed or
   expires. Never stop, adopt, or mutate another agent's lease.
 - A successful lease manifest is the reservation. Always collect artifacts and
-  call `Scripts/lab/keypath-lab destroy <lease>` when finished; do not leave a VM
+  call `vm-lab keypath destroy <lease>` when finished; do not leave a VM
   running for another agent to infer ownership.
+- What stays in `Scripts/lab` is KeyPath's own: scenarios, MDM policy, the
+  dashboards, and `host-disk-reserve`, which CI calls directly so that CI does
+  not depend on the lab being installed on the runner.
 
 ### PR Workflow & Git Safety
 
