@@ -1432,6 +1432,32 @@ for ch in value: print(json.dumps([{"key":codes[ch]}],separators=(",",":")))' "$
   print "credential_transport\tparallels-key-events"
 }
 
+console_key() {
+  local lease=$1 key_code=$2 modifier_code=${3:-0} manifest macos resource parallels_cli
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$macos" == "26" || "$macos" == "27" ]] || die "console key requires a macOS 26 or 27 Parallels lane"
+  [[ "$(field "$manifest" provider)" == "parallels" ]] || die "console key requires a Parallels lease"
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "console key requires a desktop-enabled lease"
+  [[ "$key_code" == <-> && "$key_code" -ge 1 && "$key_code" -le 255 ]] || die "invalid Parallels key code"
+  [[ "$modifier_code" == <-> && "$modifier_code" -ge 0 && "$modifier_code" -le 255 ]] || die "invalid Parallels modifier key code"
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$' ]] || die "invalid Parallels resource id"
+  parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+  [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+  if (( modifier_code > 0 )); then
+    "$parallels_cli" send-key-event "$resource" --key "$modifier_code" --event press >/dev/null
+  fi
+  "$parallels_cli" send-key-event "$resource" --key "$key_code" >/dev/null
+  if (( modifier_code > 0 )); then
+    "$parallels_cli" send-key-event "$resource" --key "$modifier_code" --event release >/dev/null
+  fi
+  record_command "$lease" passed console-key --key "$key_code" --modifier "$modifier_code"
+  print "console_key\tpassed"
+  print "parallels_key_code\t$key_code"
+  print "parallels_modifier_code\t$modifier_code"
+}
+
 reset_guest_password() {
   local lease=$1 manifest resource parallels_cli secret_file key known_hosts known_hosts_option guest_ip
   local fifo account_file guest_command reset_pid fifo_ready attempt stream_exit reset_exit enrollment_account
@@ -1668,6 +1694,7 @@ case "$action" in
   console-login) [[ $# -eq 1 ]] || die "console-login requires lease"; console_login "$1" ;;
   reset-guest-password) [[ $# -eq 1 ]] || die "reset-guest-password requires lease"; reset_guest_password "$1" ;;
   secure-console-submit) [[ $# -eq 1 ]] || die "secure-console-submit requires lease"; secure_console_submit "$1" ;;
+  console-key) [[ $# -eq 3 ]] || die "console-key requires lease, Parallels key code, and modifier code"; console_key "$1" "$2" "$3" ;;
   rfb-pointer-probe) [[ $# -eq 3 ]] || die "rfb-pointer-probe requires lease, x, and y"; rfb_pointer_probe "$@" ;;
   nameplate) [[ $# -eq 2 ]] || die "nameplate requires lease and action"; nameplate_control "$@" ;;
   destroy) [[ $# -eq 1 ]] || die "destroy requires lease"; destroy_lease "$1" ;;

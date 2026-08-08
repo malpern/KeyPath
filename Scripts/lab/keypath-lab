@@ -17,6 +17,7 @@ Commands:
   console-login LEASE_ID
   reset-guest-password LEASE_ID
   secure-console-submit LEASE_ID
+  console-key LEASE_ID --key PARALLELS_KEY_CODE [--modifier PARALLELS_KEY_CODE]
   rfb-pointer-probe LEASE_ID --x X --y Y
   desktop-bootstrap LEASE_ID [--install-tools]
   nameplate LEASE_ID enable|show|hide|status
@@ -156,6 +157,21 @@ EOF
         [[ $# -eq 1 ]] || usage
         require_lease_id "$1"
         remote secure-console-submit "$1"
+        ;;
+    console-key)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        [[ ${1:-} == "--key" && ${2:-} =~ ^[0-9]+$ ]] || usage
+        key_code=$2
+        shift 2
+        modifier=0
+        if [[ $# -gt 0 ]]; then
+            [[ ${1:-} == "--modifier" && ${2:-} =~ ^[0-9]+$ && $# -eq 2 ]] || usage
+            modifier=$2
+        fi
+        remote console-key "$lease" "$key_code" "$modifier"
         ;;
     rfb-pointer-probe)
         lease=${1:-}

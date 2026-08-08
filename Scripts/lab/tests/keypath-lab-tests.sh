@@ -592,6 +592,13 @@ expected=[[{"key":codes[ch]}] for ch in open(sys.argv[2]).read()]
 assert events == expected' "$TMP/secure-console-key-events.jsonl" "$TMP/secure-input"
 ! grep -Fq 'fixture-password-that-must-not-leak' "$TMP/secure-console-key-events.jsonl"
 grep -q 'prlctl send-key-event 11111111-1111-1111-1111-111111111111 --key 36' "$CALLS"
+console_key=$(run_remote console-key cbx_desktop27 73 37)
+assert_contains "$console_key" $'console_key\tpassed'
+assert_contains "$console_key" $'parallels_key_code\t73'
+assert_contains "$console_key" $'parallels_modifier_code\t37'
+grep -q 'prlctl send-key-event 11111111-1111-1111-1111-111111111111 --key 37 --event press' "$CALLS"
+grep -q 'prlctl send-key-event 11111111-1111-1111-1111-111111111111 --key 73' "$CALLS"
+grep -q 'prlctl send-key-event 11111111-1111-1111-1111-111111111111 --key 37 --event release' "$CALLS"
 if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" "$CALLS" "$TMP/guest-ssh-args"; then
     echo "secure console submit leaked its secret into controller logs or arguments" >&2
     exit 1
