@@ -882,12 +882,110 @@ run_command() {
   return "$exit_code"
 }
 
+# Run peekaboo inside a Parallels guest as the console user. The base installs
+# it at a stable path because the guest has no Homebrew, and AX queries only see
+# the session when they run as the console user rather than as root.
+parallels_guest_peekaboo() {
+  local resource=$1 parallels_cli=$2
+  shift 2
+  local guest_peekaboo=${KEYPATH_LAB_GUEST_PEEKABOO:-/usr/local/bin/peekaboo}
+  local quoted
+  printf -v quoted '%q ' "$@"
+  # prlctl exec mangles the arguments of the first command in the string, so
+  # lead with a no-op before the command that matters.
+  "$parallels_cli" exec "$resource" /bin/zsh -lc \
+    "true; sudo -u keypathqa $guest_peekaboo $quoted"
+}
+
+# macOS 26 and 27 run on Parallels, whose guests carry neither the peekaboo nor
+# the mcporter paths under /opt/homebrew that the Tart lane depends on. Deliver
+# the credential with the same Parallels key-event transport secure_console_submit
+# uses -- it requires nothing inside the guest -- and verify the sheet closed
+# using the peekaboo the base installs at a stable path.
+secure_dialog_input_parallels() {
+  local lease=$1 app=$2 field_label=$3 submit_button=$4 already_focused=$5
+  local manifest macos resource parallels_cli secret_file attempt closed
+  manifest=$(owned_manifest "$lease")
+  macos=$(field "$manifest" macos)
+  [[ "$(field "$manifest" provider)" == "parallels" ]] || die "secure dialog input on macOS $macos requires a Parallels lease"
+  [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "secure dialog input requires a desktop-enabled lease"
+  [[ -n "$submit_button" ]] || die "secure dialog input requires a submit button so the sheet closing can be verified"
+  resource=$(field "$manifest" provider_resource)
+  [[ "$resource" =~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$' ]] || die "invalid Parallels resource id"
+  parallels_cli=${KEYPATH_LAB_PRLCTL:-"/Applications/Parallels Desktop.app/Contents/MacOS/prlctl"}
+  [[ -x "$parallels_cli" ]] || die "Parallels CLI is unavailable"
+
+  if [[ "${KEYPATH_LAB_TESTING:-0}" == "1" ]]; then
+    secret_file="${KEYPATH_LAB_TEST_SECRET_FILE:?test secret file is required}"
+  else
+    secret_file=$(mktemp "$STATE_ROOT/.secure-input.XXXXXXXX")
+    chmod 600 "$secret_file"
+    typeset -g KEYPATH_LAB_SECURE_TEMP="$secret_file"
+    trap '[[ -z ${KEYPATH_LAB_SECURE_TEMP:-} ]] || rm -f "$KEYPATH_LAB_SECURE_TEMP"' EXIT
+    /opt/homebrew/bin/sops -d "$HOME/dotfiles/secrets.env" | awk -F= '$1 == "KEYPATH_LAB_GUEST_PASSWORD" {sub(/^[^=]*=/, ""); printf "%s", $0; found=1} END {if (!found) exit 1}' > "$secret_file" || die "KEYPATH_LAB_GUEST_PASSWORD is unavailable"
+  fi
+  [[ -s "$secret_file" ]] || die "secure input secret is empty"
+
+  # An authentication sheet focuses its password field on presentation, so the
+  # common case needs no click. Focus explicitly only when asked to.
+  if [[ "$already_focused" == "0" ]]; then
+    parallels_guest_peekaboo "$resource" "$parallels_cli" \
+      click "$field_label" --app "$app" --foreground --json >/dev/null 2>&1 \
+      || die "secure dialog input failed while focusing the field"
+  fi
+
+  # Identical transport to secure_console_submit: the plaintext is read only
+  # from the owner-only temp file and never enters argv, logs, the guest
+  # pasteboard, or an artifact. The alphabet stays deliberately narrow;
+  # widening it requires an explicit key-map review.
+  python3 -c 'import json,sys
+codes={"a":38,"b":56,"c":54,"d":40,"e":26,"f":41,"g":42,"h":43,"i":31,"j":44,"k":45,"l":46,"m":58,"n":57,"o":32,"p":33,"q":24,"r":27,"s":39,"t":28,"u":30,"v":55,"w":25,"x":53,"y":29,"z":52,"1":10,"2":11,"3":12,"4":13,"5":14,"6":15,"7":16,"8":17,"9":18,"0":19,"-":20}
+value=open(sys.argv[1],"r",encoding="utf-8").read()
+if not value or any(ch not in codes for ch in value): raise SystemExit(64)
+for ch in value: print(json.dumps([{"key":codes[ch]}],separators=(",",":")))' "$secret_file" 3<&- | \
+    while IFS= read -r key_event <&3; do
+      printf '%s\n' "$key_event" | "$parallels_cli" send-key-event "$resource" --json >/dev/null || exit 1
+      sleep "${KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS:-0.2}"
+  done 3<&0 || die "secure dialog input failed while delivering the credential"
+  sleep "${KEYPATH_LAB_SECURE_CONSOLE_SETTLE_SECONDS:-0.25}"
+  "$parallels_cli" send-key-event "$resource" --key 36 >/dev/null || die "secure dialog input failed while submitting the dialog"
+
+  if [[ "${KEYPATH_LAB_TESTING:-0}" != "1" ]]; then
+    rm -f "$secret_file"
+    KEYPATH_LAB_SECURE_TEMP=
+    trap - EXIT
+  fi
+
+  # Delivery is not success. Require the submit control to disappear before
+  # reporting a pass, the same postcondition the Tart lane enforces.
+  closed=0
+  for attempt in {1..150}; do
+    if ! parallels_guest_peekaboo "$resource" "$parallels_cli" \
+      inspect-ui --app "$app" --json 2>/dev/null | grep -Fq "$submit_button"; then
+      closed=1
+      break
+    fi
+    sleep 0.1
+  done
+  if (( closed != 1 )); then
+    record_command "$lease" "failed:79" secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+    die "secure dialog input was submitted but the authentication sheet did not close"
+  fi
+  record_command "$lease" passed secure-dialog-input --app "$app" --field "$field_label" --submit "$submit_button"
+  print "secure_dialog_input\tpassed"
+  print "credential_transport\tparallels-key-events"
+}
+
 secure_dialog_input() {
   local lease=$1 app=$2 field_label=$3 submit_button=$4 already_focused=$5
   local manifest macos resource key ip secret_file guest_command exit_code
   manifest=$(owned_manifest "$lease")
   macos=$(field "$manifest" macos)
-  [[ "$macos" == "15" ]] || die "secure dialog input currently supports only the Tart macOS 15 lane"
+  if [[ "$macos" == "26" || "$macos" == "27" ]]; then
+    secure_dialog_input_parallels "$@"
+    return
+  fi
+  [[ "$macos" == "15" ]] || die "secure dialog input supports the Tart macOS 15 lane and the Parallels macOS 26/27 lanes"
   [[ "$(field "$manifest" desktop_enabled)" == "true" ]] || die "secure dialog input requires a desktop-enabled lease"
   resource=$(field "$manifest" provider_resource)
   [[ "$resource" =~ '^[A-Za-z0-9._-]+$' && "$resource" != "unknown" ]] || die "invalid Tart resource id"

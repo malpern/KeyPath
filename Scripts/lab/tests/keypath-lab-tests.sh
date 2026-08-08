@@ -169,6 +169,14 @@ fi
 if [[ \$1 == send-key-event && " \$* " == *" --json "* ]]; then
   cat >> "$TMP/secure-console-key-events.jsonl"
 fi
+if [[ \$1 == exec && " \$* " == *" inspect-ui "* ]]; then
+  # Stands in for the guest UI query behind the sheet-closed postcondition.
+  # Echo the submit control only when a test asks for a sheet that stays up.
+  if [[ \${KEYPATH_LAB_TEST_DIALOG_STAYS_OPEN:-0} == 1 ]]; then
+    echo 'Modify Settings'
+  fi
+  exit 0
+fi
 if [[ \$1 == exec && " \$* " == *" /usr/sbin/sysadminctl -autologin status "* ]]; then
   echo 'Automatic login is ON.'
 fi
@@ -675,6 +683,37 @@ set -e
 [[ $console_login_bad_credential_status -ne 0 ]]
 assert_contains "$console_login_bad_credential" 'KEYPATH_LAB_GUEST_PASSWORD does not authenticate the keypathqa guest account'
 grep -q $'console_login_status\tcredential-mismatch' "$ROOT/KeyPathInstallerLab/leases/cbx_desktop27/manifest.tsv"
+
+# secure-dialog-input on the Parallels macOS 27 lane. The guest has no Homebrew,
+# so this path uses the same key-event transport as secure-console-submit rather
+# than the Tart lane's peekaboo/mcporter chain.
+: > "$TMP/secure-console-key-events.jsonl"
+secure_dialog_parallels=$(KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS=0 KEYPATH_LAB_SECURE_CONSOLE_SETTLE_SECONDS=0 \
+  run_remote secure-dialog-input cbx_desktop27 'System Settings' Password 'Modify Settings' 1)
+assert_contains "$secure_dialog_parallels" $'secure_dialog_input\tpassed'
+assert_contains "$secure_dialog_parallels" $'credential_transport\tparallels-key-events'
+# The credential must arrive as key codes, never as text.
+python3 -c 'import json,sys
+codes={"a":38,"b":56,"c":54,"d":40,"e":26,"f":41,"g":42,"h":43,"i":31,"j":44,"k":45,"l":46,"m":58,"n":57,"o":32,"p":33,"q":24,"r":27,"s":39,"t":28,"u":30,"v":55,"w":25,"x":53,"y":29,"z":52,"1":10,"2":11,"3":12,"4":13,"5":14,"6":15,"7":16,"8":17,"9":18,"0":19,"-":20}
+events=[json.loads(line) for line in open(sys.argv[1]) if line.strip()]
+expected=[[{"key":codes[ch]}] for ch in open(sys.argv[2]).read()]
+assert events == expected' "$TMP/secure-console-key-events.jsonl" "$TMP/secure-input"
+grep -q 'prlctl send-key-event 11111111-1111-1111-1111-111111111111 --key 36' "$CALLS"
+if grep -R -F 'fixture-password-that-must-not-leak' "$ROOT/KeyPathInstallerLab" "$CALLS"; then
+    echo "parallels secure dialog input leaked its secret into logs or arguments" >&2
+    exit 1
+fi
+
+# Delivery is not success: if the submit control is still present the command
+# must fail rather than report a pass.
+set +e
+secure_dialog_stuck=$(KEYPATH_LAB_TEST_DIALOG_STAYS_OPEN=1 KEYPATH_LAB_SECURE_CONSOLE_KEY_DELAY_SECONDS=0 KEYPATH_LAB_SECURE_CONSOLE_SETTLE_SECONDS=0 \
+  run_remote secure-dialog-input cbx_desktop27 'System Settings' Password 'Modify Settings' 1 2>&1)
+secure_dialog_stuck_status=$?
+set -e
+[[ $secure_dialog_stuck_status -ne 0 ]]
+assert_contains "$secure_dialog_stuck" 'authentication sheet did not close'
+
 run_remote destroy cbx_desktop27 >/dev/null
 
 desktop26_create=$(run_remote create 26 unmanaged-ui "$archive_key" "$commit" "$checksum" KeyPath.zip 2h 1)
