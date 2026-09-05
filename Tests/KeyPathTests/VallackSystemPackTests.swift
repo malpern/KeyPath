@@ -4,6 +4,15 @@ import KeyPathRulesCore
 import XCTest
 
 final class VallackSystemPackTests: XCTestCase {
+    func testSnapshotWritesStayInsideTestSandbox() throws {
+        let id = "sandbox-\(UUID().uuidString)"
+        let url = PackCollectionSnapshot.snapshotURL(for: id)
+        XCTAssertTrue(url.path.hasPrefix(AppPaths.testSandboxDirectory.path + "/"))
+        defer { PackCollectionSnapshot.remove(for: id) }
+        try PackCollectionSnapshot.save(PackCollectionSnapshot(packID: id, entries: []))
+        XCTAssertNotNil(PackCollectionSnapshot.load(for: id))
+    }
+
     private var originalInstalledPacks: [InstalledPackRecord] = []
 
     override func setUp() async throws {
@@ -273,8 +282,7 @@ final class VallackSystemPackTests: XCTestCase {
             manager: manager
         )
 
-        let snapshotURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/keypath/pack-snapshots/com.keypath.pack.vallack-system.json")
+        let snapshotURL = PackCollectionSnapshot.snapshotURL(for: PackRegistry.vallackSystem.id)
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: snapshotURL.path),
             "Snapshot file should exist after install"
@@ -295,8 +303,7 @@ final class VallackSystemPackTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: tempDir) }
         manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
 
-        let snapshotURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/keypath/pack-snapshots/com.keypath.pack.vallack-system.json")
+        let snapshotURL = PackCollectionSnapshot.snapshotURL(for: PackRegistry.vallackSystem.id)
         defer { try? FileManager.default.removeItem(at: snapshotURL) }
 
         // Capture pre-install state
@@ -357,8 +364,7 @@ final class VallackSystemPackTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: tempDir) }
         manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
 
-        let snapshotURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/keypath/pack-snapshots/com.keypath.pack.vallack-system.json")
+        let snapshotURL = PackCollectionSnapshot.snapshotURL(for: PackRegistry.vallackSystem.id)
         defer { try? FileManager.default.removeItem(at: snapshotURL) }
 
         guard let modsIndex = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowMods }),
@@ -413,8 +419,10 @@ final class VallackSystemPackTests: XCTestCase {
             PackCollectionSnapshot.remove(for: PackRegistry.vallackSystem.id)
         }
 
-        let blockedConfigDirectory = tempDir.appendingPathComponent("not-a-directory")
-        try "file blocks config directory".write(to: blockedConfigDirectory, atomically: true, encoding: .utf8)
+        // Keep admission/recovery usable; fail the later source-write stage so
+        // this still exercises managed-default snapshot rollback and cleanup.
+        let blockedSource = tempDir.appendingPathComponent("CustomRules.json")
+        try FileManager.default.createDirectory(at: blockedSource, withIntermediateDirectories: true)
 
         let manager = RuleCollectionsManager(
             ruleCollectionStore: RuleCollectionStore(
@@ -423,7 +431,7 @@ final class VallackSystemPackTests: XCTestCase {
             customRulesStore: CustomRulesStore(
                 fileURL: tempDir.appendingPathComponent("CustomRules.json")
             ),
-            configurationService: ConfigurationService(configDirectory: blockedConfigDirectory.path),
+            configurationService: ConfigurationService(configDirectory: tempDir.path),
             eventListener: KanataEventListener()
         )
         manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
@@ -462,8 +470,7 @@ final class VallackSystemPackTests: XCTestCase {
 
         let packID = PackRegistry.vallackSystem.id
         let modernSnapshotURL = PackCollectionSnapshot.snapshotURL(for: packID)
-        let legacySnapshotURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/keypath/vallack-system-snapshot.json")
+        let legacySnapshotURL = AppPaths.configDirectory.appendingPathComponent("vallack-system-snapshot.json")
         let originalModernSnapshotData = try? Data(contentsOf: modernSnapshotURL)
         let originalLegacySnapshotData = try? Data(contentsOf: legacySnapshotURL)
         defer {
@@ -518,12 +525,11 @@ final class VallackSystemPackTests: XCTestCase {
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        let blockedConfigDirectory = tempDir.appendingPathComponent("not-a-directory")
-        try "file blocks config directory".write(
-            to: blockedConfigDirectory,
-            atomically: true,
-            encoding: .utf8
-        )
+        // Keep admission/recovery usable; fail the later source-write stage so
+        // this still exercises managed-default snapshot rollback and cleanup.
+        let blockedSource = tempDir.appendingPathComponent("CustomRules.json")
+        try FileManager.default.createDirectory(at: blockedSource, withIntermediateDirectories: true)
+
         let manager = RuleCollectionsManager(
             ruleCollectionStore: RuleCollectionStore(
                 fileURL: tempDir.appendingPathComponent("RuleCollections.json")
@@ -531,7 +537,7 @@ final class VallackSystemPackTests: XCTestCase {
             customRulesStore: CustomRulesStore(
                 fileURL: tempDir.appendingPathComponent("CustomRules.json")
             ),
-            configurationService: ConfigurationService(configDirectory: blockedConfigDirectory.path),
+            configurationService: ConfigurationService(configDirectory: tempDir.path),
             eventListener: KanataEventListener()
         )
         manager.ruleCollections = catalog
@@ -548,7 +554,7 @@ final class VallackSystemPackTests: XCTestCase {
             )
             XCTFail("Install should fail when managed defaults cannot be applied")
         } catch {
-            // Expected: the config directory is deliberately blocked.
+            // Expected: the custom-rule source is deliberately unreadable.
         }
 
         XCTAssertEqual(manager.ruleCollections, originalRuleState.collections)
@@ -594,8 +600,7 @@ final class VallackSystemPackTests: XCTestCase {
         ))
 
         // Ensure no snapshot file exists
-        let snapshotURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/keypath/pack-snapshots/com.keypath.pack.vallack-system.json")
+        let snapshotURL = PackCollectionSnapshot.snapshotURL(for: PackRegistry.vallackSystem.id)
         try? FileManager.default.removeItem(at: snapshotURL)
 
         // Uninstall should not crash — just skip the revert

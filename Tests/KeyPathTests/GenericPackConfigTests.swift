@@ -633,10 +633,7 @@ final class GenericPackConfigTests: XCTestCase {
             guard case let .saveFailed(reason) = error else {
                 return XCTFail("Expected saveFailed, got \(error)")
             }
-            XCTAssertEqual(
-                reason,
-                "installed-pack record could not be saved and the previous state could not be fully restored"
-            )
+            XCTAssertTrue(reason.contains("prior files were restored"), "Journal recovery should restore the complete original revision: \(reason)")
         } catch {
             XCTFail("Expected full-restore saveFailed, got \(error)")
         }
@@ -1736,8 +1733,7 @@ final class GenericPackConfigTests: XCTestCase {
     // MARK: - Legacy Vallack Migration
 
     func testLegacyVallackSnapshotMigration() throws {
-        let legacyURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/keypath/vallack-system-snapshot.json")
+        let legacyURL = AppPaths.configDirectory.appendingPathComponent("vallack-system-snapshot.json")
 
         let legacySnapshot: [String: Any] = [
             "homeRowModsEnabled": true,

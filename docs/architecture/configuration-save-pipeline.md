@@ -271,3 +271,20 @@ Other collection mutators still use their existing immediate-commit compatibilit
 path. Their snapshot regeneration, pack-wide preferences/metadata recovery,
 stale manager caches, revision-aware watching, and raw-file runtime recovery
 remain separate migrations. This mapper change does not claim those are complete.
+
+## Custom-rule pack installation
+
+PackInstaller prepares all custom-rule bindings in memory, then invokes the same
+SaveCoordinator rule operation with an installed-record change. ConfigurationService
+stages the config, collections, custom rules, and installed metadata under the
+`.packRules` journal scope. Both configuration and tracker observers are notified
+after commit. Failed preparation makes no file changes; failed apply or persistence
+restores the prior revision, preserving external edits if restoration conflicts.
+The old per-binding persistence loop and pack-ID-based partial cleanup are removed.
+
+Rule startup recovery resolves the installed-packs.json path from the configuration
+directory by default. Tests or integrations using a nonstandard metadata path must
+supply their tracker explicitly to recovery, just as custom rule stores must be
+supplied; journal contents cannot select restoration targets. System packs,
+collection-backed packs, settings updates, removal, and pack collection snapshots
+still have their existing separate commit boundaries.

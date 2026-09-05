@@ -296,7 +296,7 @@ public struct PacksFacade: Sendable {
     ) async throws -> Result {
         let manager = await makePackManager()
         return try await manager.configurationService.operationGate.withOperation(using: self.operation?.permit) { @MainActor permit in
-            try await installedPackTracker.validateForMutation()
+            try await PackInstaller.shared.recoverAndValidateState(manager: manager, tracker: installedPackTracker, permit: permit)
             return try await operation(manager, permit)
         }
     }

@@ -336,6 +336,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     struct RuleWrite: Sendable {
         let pending: RecoverableRuleWrite.PendingWrite
         let configuration: KanataConfiguration
+        let packUpdate: InstalledPackTracker.PreparedRecordUpdate?
     }
 
     /// Stage the generated configuration and both source stores without notifying
@@ -343,26 +344,40 @@ public final class ConfigurationService: FileConfigurationProviding {
     func stageRuleState(
         ruleCollections: [RuleCollection], customRules: [CustomRule],
         collectionStore: RuleCollectionStore, customStore: CustomRulesStore,
-        mutationPermit: ConfigurationOperationGate.Permit
+        mutationPermit: ConfigurationOperationGate.Permit,
+        packRecord: InstalledPackTracker.RecordChange? = nil
     ) async throws -> RuleWrite {
         try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
-            try await recoverPendingRuleWrite(collectionStore: collectionStore, customStore: customStore, mutationPermit: permit)
+            try await recoverPendingRuleWrite(collectionStore: collectionStore, customStore: customStore, mutationPermit: permit, installedPackTracker: packRecord?.tracker)
             try await recoverPendingAppKeymapWrite(mutationPermit: permit)
-            let files = await ruleWriteFiles(collectionStore: collectionStore, customStore: customStore)
+            var targets = await ruleWriteFiles(collectionStore: collectionStore, customStore: customStore)
+            if let packRecord { targets["installedPacks"] = await packRecord.tracker.persistenceURL }
+            let files = targets
             let before = try await snapshotRuleFiles(files)
+            let packUpdate: InstalledPackTracker.PreparedRecordUpdate?
+            if let packRecord {
+                packUpdate = try await packRecord.tracker.prepareUpsert(packRecord.record)
+                guard packUpdate?.before == before["installedPacks"] else { throw RecoverableRuleWrite.Failure.changedFile("installedPacks") }
+            } else { packUpdate = nil }
             let newConfig = try await preparedConfiguration(ruleCollections: ruleCollections, customRules: customRules)
-            let contents = try await [
+            var payload = try await [
                 "config": Data(newConfig.content.utf8),
                 "collections": collectionStore.encodedCollections(ruleCollections),
                 "customRules": customStore.encodedRules(customRules)
             ]
+            if let packUpdate { payload["installedPacks"] = packUpdate.contents }
+            let contents = payload
             try Task.checkCancellation()
             let directory = URL(fileURLWithPath: configDirectory)
             let pending = try await performRuleFileOperation {
                 try RecoverableRuleWrite.stage(files: files, contents: contents, directory: directory,
-                                               scope: .rules, expectedBefore: before)
+                                               scope: packUpdate == nil ? .rules : .packRules, expectedBefore: before)
+                { data, url in
+                    if let packUpdate, url == packUpdate.fileURL { try packUpdate.writeFile(data, url) }
+                    else { try RecoverableRuleWrite.durableWrite(data, url) }
+                }
             }
-            return RuleWrite(pending: pending, configuration: newConfig)
+            return RuleWrite(pending: pending, configuration: newConfig, packUpdate: packUpdate)
         }
     }
 
@@ -372,8 +387,13 @@ public final class ConfigurationService: FileConfigurationProviding {
                 if commit { try RecoverableRuleWrite.commit(write.pending) }
                 else { try RecoverableRuleWrite.rollback(write.pending) }
             }
-            if commit { await publishSavedConfiguration(write.configuration) }
-            else { stateLock.withLock { currentConfiguration = nil } }
+            if commit {
+                await publishSavedConfiguration(write.configuration)
+                if let update = write.packUpdate { await update.tracker.publishCommittedUpdate(update) }
+            } else {
+                stateLock.withLock { currentConfiguration = nil }
+                if let update = write.packUpdate { await update.tracker.restorePublishedUpdate(update) }
+            }
         }
     }
 
@@ -390,16 +410,32 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     /// Run before loading source stores on startup. Refuse further rule writes
     /// when recovery detects a corrupt journal or an unrelated external edit.
-    func recoverPendingRuleWrite(collectionStore: RuleCollectionStore, customStore: CustomRulesStore, mutationPermit: ConfigurationOperationGate.Permit? = nil) async throws {
+    @discardableResult
+    func recoverPendingRuleWrite(
+        collectionStore: RuleCollectionStore,
+        customStore: CustomRulesStore,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil,
+        installedPackTracker: InstalledPackTracker? = nil
+    ) async throws -> Bool {
         try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
             let files = await ruleWriteFiles(collectionStore: collectionStore, customStore: customStore)
             let directory = URL(fileURLWithPath: configDirectory)
+            var packTargets = files
+            if let installedPackTracker {
+                packTargets["installedPacks"] = await installedPackTracker.persistenceURL
+            } else {
+                packTargets["installedPacks"] = directory.appendingPathComponent("installed-packs.json")
+            }
+            let packFiles = packTargets
             let recovered = try await performRuleFileOperation {
-                try RecoverableRuleWrite.recover(files: files, directory: directory)
+                let packRecovered = try RecoverableRuleWrite.recover(files: packFiles, directory: directory, scope: .packRules)
+                let rulesRecovered = try RecoverableRuleWrite.recover(files: files, directory: directory)
+                return packRecovered || rulesRecovered
             }
             if recovered {
                 stateLock.withLock { currentConfiguration = nil }
             }
+            return recovered
         }
     }
 

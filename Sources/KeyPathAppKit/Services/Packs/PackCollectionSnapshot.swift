@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 import KeyPathRulesCore
 
 /// Snapshot of managed collections' state before a pack was installed.
@@ -23,9 +24,7 @@ public struct PackCollectionSnapshot: Codable {
     // MARK: - Persistence
 
     private static var snapshotsDirectory: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config", isDirectory: true)
-            .appendingPathComponent("keypath", isDirectory: true)
+        AppPaths.configDirectory
             .appendingPathComponent("pack-snapshots", isDirectory: true)
     }
 
@@ -53,9 +52,7 @@ public struct PackCollectionSnapshot: Codable {
     // MARK: - Legacy Vallack Migration
 
     private static var legacyVallackURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config", isDirectory: true)
-            .appendingPathComponent("keypath", isDirectory: true)
+        AppPaths.configDirectory
             .appendingPathComponent("vallack-system-snapshot.json")
     }
 
