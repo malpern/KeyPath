@@ -76,6 +76,7 @@ final class RuleCollectionsManager {
     let customRulesStore: CustomRulesStore
     let configurationService: ConfigurationService
     let eventListener: KanataEventListener
+    let keymapPreferences: UserDefaults
 
     /// Apply already-persisted rules and retain the runtime disposition.
     var onRulesChanged: (() async -> ReloadResult)?
@@ -122,12 +123,14 @@ final class RuleCollectionsManager {
         ruleCollectionStore: RuleCollectionStore = .shared,
         customRulesStore: CustomRulesStore = .shared,
         configurationService: ConfigurationService,
-        eventListener: KanataEventListener = KanataEventListener()
+        eventListener: KanataEventListener = KanataEventListener(),
+        keymapPreferences: UserDefaults = .standard
     ) {
         self.ruleCollectionStore = ruleCollectionStore
         self.customRulesStore = customRulesStore
         self.configurationService = configurationService
         self.eventListener = eventListener
+        self.keymapPreferences = keymapPreferences
     }
 
     deinit {

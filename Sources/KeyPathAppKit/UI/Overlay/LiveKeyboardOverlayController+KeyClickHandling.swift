@@ -13,6 +13,11 @@ extension LiveKeyboardOverlayController {
         AppLogger.shared.log("⌨️ [OverlayController] Keymap changed to '\(keymapId)' (punctuation: \(includePunctuation))")
 
         Task { @MainActor in
+            // AppStorage observes rollback too. Do not turn restoration of the
+            // already-active selection into another save/reload attempt.
+            guard ruleCollectionsManager.activeKeymapId != keymapId
+                || ruleCollectionsManager.keymapIncludesPunctuation != includePunctuation
+            else { return }
             let conflicts = await ruleCollectionsManager.setActiveKeymap(keymapId, includePunctuation: includePunctuation)
 
             if !conflicts.isEmpty {

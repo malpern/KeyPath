@@ -360,6 +360,28 @@ enum KeymapPreferences {
         return encodeIncludeMap(map)
     }
 
+    static func restoreFailedSelection(
+        attemptedID: String, attemptedPunctuation: Bool,
+        previousID: String, previousPunctuation: Bool,
+        userDefaults: UserDefaults
+    ) {
+        guard includePunctuation(for: attemptedID, userDefaults: userDefaults) == attemptedPunctuation
+        else { return }
+        // Keep remembered settings for all other layouts. A layout switch does
+        // not itself edit the destination layout's punctuation preference.
+        if attemptedID == previousID {
+            let store = userDefaults.string(forKey: includePunctuationStoreKey) ?? "{}"
+            userDefaults.set(updatedIncludePunctuationStore(
+                from: store, keymapId: previousID, includePunctuation: previousPunctuation
+            ), forKey: includePunctuationStoreKey)
+        }
+        // A failed punctuation edit still belongs to its original layout even
+        // if another layout has since been selected. Preserve that newer choice.
+        if userDefaults.string(forKey: keymapIdKey) == attemptedID {
+            userDefaults.set(previousID, forKey: keymapIdKey)
+        }
+    }
+
     private static func decodeIncludeMap(from store: String) -> [String: Bool] {
         let normalized = store.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty,
