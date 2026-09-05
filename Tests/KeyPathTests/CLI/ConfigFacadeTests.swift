@@ -18,7 +18,7 @@ final class ConfigFacadeTests: XCTestCase {
         tempRoot = nil
     }
 
-    func testBackupConfigSnapshotsResolvedSymlinkDirectory() throws {
+    func testBackupConfigSnapshotsResolvedSymlinkDirectory() async throws {
         let liveTarget = tempRoot.appendingPathComponent("dotfiles-keypath", isDirectory: true)
         let configLink = tempRoot.appendingPathComponent(".config/keypath", isDirectory: true)
         let backup = tempRoot.appendingPathComponent("backup", isDirectory: true)
@@ -27,7 +27,7 @@ final class ConfigFacadeTests: XCTestCase {
         try "original".write(to: liveTarget.appendingPathComponent("RuleCollections.json"), atomically: true, encoding: .utf8)
 
         let facade = ConfigFacade(configDirectory: configLink.path)
-        let result = try facade.backupConfig(outputPath: backup.path)
+        let result = try await facade.backupConfig(outputPath: backup.path)
 
         XCTAssertEqual(result.sourcePath, configLink.path)
         XCTAssertEqual(result.backupPath, backup.path)
@@ -48,7 +48,7 @@ final class ConfigFacadeTests: XCTestCase {
         try "original".write(to: liveTarget.appendingPathComponent("RuleCollections.json"), atomically: true, encoding: .utf8)
 
         let facade = ConfigFacade(configDirectory: configLink.path)
-        _ = try facade.backupConfig(outputPath: backup.path)
+        _ = try await facade.backupConfig(outputPath: backup.path)
 
         try "mutated".write(to: liveTarget.appendingPathComponent("RuleCollections.json"), atomically: true, encoding: .utf8)
         _ = try await facade.restoreConfig(from: backup.path, reload: false)
@@ -69,7 +69,7 @@ final class ConfigFacadeTests: XCTestCase {
         try "kbd".write(to: configDir.appendingPathComponent("keypath.kbd"), atomically: true, encoding: .utf8)
 
         let facade = ConfigFacade(configDirectory: configDir.path)
-        _ = try facade.backupConfig(outputPath: backup.path)
+        _ = try await facade.backupConfig(outputPath: backup.path)
 
         // Post-backup drift: one mutation, one new file that isn't in the backup.
         try "mutated".write(to: configDir.appendingPathComponent("RuleCollections.json"), atomically: true, encoding: .utf8)
@@ -94,7 +94,7 @@ final class ConfigFacadeTests: XCTestCase {
         try "rules".write(to: configDir.appendingPathComponent("RuleCollections.json"), atomically: true, encoding: .utf8)
 
         let facade = ConfigFacade(configDirectory: configDir.path)
-        _ = try facade.backupConfig(outputPath: backup.path)
+        _ = try await facade.backupConfig(outputPath: backup.path)
 
         // The #881 trigger: a transient validation temp file appears in the
         // config dir before restore. The restore must neither fail on it nor
@@ -112,7 +112,7 @@ final class ConfigFacadeTests: XCTestCase {
         )
     }
 
-    func testBackupConfigSkipsTransientValidationArtifacts() throws {
+    func testBackupConfigSkipsTransientValidationArtifacts() async throws {
         let configDir = tempRoot.appendingPathComponent("config", isDirectory: true)
         let backup = tempRoot.appendingPathComponent("backup", isDirectory: true)
         try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
@@ -121,7 +121,7 @@ final class ConfigFacadeTests: XCTestCase {
         try "tmp".write(to: configDir.appendingPathComponent("temp_validation_AB12.kbd"), atomically: true, encoding: .utf8)
 
         let facade = ConfigFacade(configDirectory: configDir.path)
-        let result = try facade.backupConfig(outputPath: backup.path)
+        let result = try await facade.backupConfig(outputPath: backup.path)
 
         XCTAssertEqual(result.copiedItems, ["RuleCollections.json"], "Backups should not capture transient validation temp files")
     }
