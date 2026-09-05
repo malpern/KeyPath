@@ -265,12 +265,13 @@ Implemented slices (the table describes the merged state of this checkpoint):
 | #1270 | Direct service writes, journal recovery, trusted restoration and missing-file self-healing share admission. | CLI ownership, feature-specific writers, source/cache freshness and complete recovery remain. |
 | #1271 | Per-user directory leases exclude cooperating services/processes, with cancellation, alias reentry protection and off-actor sentinel I/O. | CLI operation scope, cached state, external editors and cross-UID writers remain distinct boundaries. |
 | #1272 | CLI apply admits before source loading through reload; backup/restore share admission; custom-directory source loading is corrected. | CLI collection/pack commands, cached state and complete recovery remain. |
+| #1273 | CLI rule, collection and pack commands hold admission through optional apply; pack sources refresh after admission and strict metadata reads precede mutations. | Direct UI metadata writers, feature-specific writes and complete recovery remain. |
 
 Admission now also holds a cooperative OS lease across service instances and
 processes for the same directory. CLI configuration apply now holds admission
-from source loading through reload; backup/restore also participate. CLI pack and
-collection operations, external edits and stale cached app state remain separate
-boundaries.
+from source loading through reload; backup/restore and CLI pack/collection
+operations also participate. External edits and stale cached app state remain
+separate boundaries.
 The first migrated persistence journey now has interruption and failure tests.
 This is a useful foundation, not completion of Phase 1 or the program.
 
@@ -313,3 +314,24 @@ Runner storage: PR #1261 remains separate and unmerged until the actual CI
 process has removable-volume permission and completes validation. Existing CI
 can run above the disk reserve; do not lower that reserve or claim that external
 storage migration is complete.
+
+### App-specific operation under implementation
+
+App edits now use SaveCoordinator to retain a three-file journal (AppKeymaps.json,
+keypath-apps.kbd and keypath.kbd) through runtime classification. Applied or pending
+results commit; rejection, failure or cancellation restore the prior files and
+attempt a recovery reload when runtime application was attempted. Recovery refuses
+to overwrite a file changed by an external editor, retaining the journal instead.
+The mapper, per-row removals and app imports use this owner. Combined global/app
+imports and reset-all remain multiple operations; they are not wholly atomic.
+
+Micah approved preserving hand-written files and explaining the editing limit on
+September 5. Before an app edit, current main/include content must match what the
+stored rules generate, ignoring only the old include's generated timestamp. A
+header alone is insufficient. Differences, including manual formatting or stale
+source/generated pairs, conservatively block the edit before any write. No
+implicit conversion is performed; an explicit backed-up conversion remains future
+work. Startup include generation also preserves existing differing content.
+
+This is work in progress until review, CI, merge and installed-app verification.
+Global rule/source/preferences/pack recovery and revision-aware watching remain.

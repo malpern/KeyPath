@@ -349,6 +349,120 @@ public final class ConfigurationService: FileConfigurationProviding {
         }
     }
 
+    struct AppKeymapWrite: Sendable {
+        let pending: RecoverableRuleWrite.PendingWrite
+        let previousKeymaps: [AppKeymap]
+        let keymaps: [AppKeymap]
+        let configuration: KanataConfiguration
+        let store: AppKeymapStore
+    }
+
+    /// Called inside the existing save owner. No observers see the staged revision.
+    @MainActor
+    func stageAppKeymapChange(
+        store: AppKeymapStore,
+        mutationPermit: ConfigurationOperationGate.Permit,
+        mutate: @MainActor @Sendable (inout [AppKeymap]) throws -> Void
+    ) async throws -> AppKeymapWrite {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            try await recoverPendingRuleWrite(collectionStore: ruleCollectionStore, customStore: customRulesStore, mutationPermit: permit)
+            try await recoverPendingAppKeymapWrite(store: store, mutationPermit: permit)
+            let files = await appKeymapWriteFiles(store: store)
+            let before = try await performRuleFileOperation {
+                var snapshot: [String: Data] = [:]
+                for (role, url) in files {
+                    do { snapshot[role] = try Data(contentsOf: url) }
+                    catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError {}
+                }
+                return snapshot
+            }
+            let previous = try await store.loadForMutation()
+            var keymaps = previous
+            try mutate(&keymaps)
+            let duplicates = AppConfigGenerator.detectDuplicateKeys(in: keymaps)
+            guard duplicates.isEmpty else { throw AppConfigError.duplicateKeys(duplicates: duplicates) }
+            let appContent = AppConfigGenerator.generate(from: keymaps)
+            let appKeys = Set(keymaps.filter(\.mapping.isEnabled).flatMap { $0.overrides.map { $0.inputKey.lowercased() } })
+            let collections = await ruleCollectionStore.loadCollectionsDetailed()
+            guard !collections.wasFullReset, collections.failedCollectionNames.isEmpty else {
+                throw AppConfigError.validationFailed(errors: ["Rule collections could not be read completely; repair them before saving app-specific rules"])
+            }
+            let rules = try await customRulesStore.loadForMutation()
+            // Refuse a lossy regeneration, including manual edits to a generated file.
+            // A generated header alone does not prove that the visual editor owns it.
+            let previousKeys = Set(previous.filter(\.mapping.isEnabled).flatMap { $0.overrides.map { $0.inputKey.lowercased() } })
+            let expected = try await generateConfiguration(ruleCollections: collections.collections, customRules: rules, appSpecificKeys: previousKeys)
+            for (name, content) in [("keypath.kbd", expected.content), ("keypath-apps.kbd", AppConfigGenerator.generate(from: previous))] {
+                let url = URL(fileURLWithPath: configDirectory).appendingPathComponent(name)
+                if FileManager.default.fileExists(atPath: url.path), try !AppConfigGenerator.matchesManagedContent(String(contentsOf: url, encoding: .utf8), expected: content) {
+                    throw AppConfigError
+                        .validationFailed(
+                            errors: ["Your configuration was preserved. The visual editor cannot safely reproduce \(name). App-specific editing requires an explicit conversion with a backup first."]
+                        )
+                }
+            }
+            let configuration = try await generateConfiguration(ruleCollections: collections.collections, customRules: rules, appSpecificKeys: appKeys)
+            // Validate the exact new include with the new main config before either
+            // replaces its committed file. The engine receives the normal include.
+            guard appKeys.isEmpty || configuration.content.contains("(include keypath-apps.kbd)") else {
+                throw AppConfigError.validationFailed(errors: ["Generated app-specific include is missing; no files were changed"])
+            }
+            let validationContent = configuration.content.replacingOccurrences(of: "(include keypath-apps.kbd)", with: appContent)
+            let validation = await validateConfiguration(validationContent)
+            guard validation.isValid else { throw AppConfigError.validationFailed(errors: validation.errors) }
+            let contents = try await ["config": Data(configuration.content.utf8),
+                                      "appKeymaps": store.encodedKeymaps(keymaps),
+                                      "appInclude": Data(appContent.utf8)]
+            try Task.checkCancellation()
+            let directory = URL(fileURLWithPath: configDirectory)
+            let pending = try await performRuleFileOperation {
+                try RecoverableRuleWrite.stage(files: files, contents: contents, directory: directory, scope: .appKeymaps, expectedBefore: before)
+            }
+            return AppKeymapWrite(pending: pending, previousKeymaps: previous, keymaps: keymaps,
+                                  configuration: configuration, store: store)
+        }
+    }
+
+    func settleAppKeymapWrite(_ write: AppKeymapWrite, commit: Bool, mutationPermit: ConfigurationOperationGate.Permit) async throws {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            try await performRuleFileOperation {
+                if commit { try RecoverableRuleWrite.commit(write.pending) }
+                else { try RecoverableRuleWrite.rollback(write.pending) }
+            }
+            if commit {
+                await write.store.publishCommittedKeymaps(write.keymaps)
+                await publishSavedConfiguration(write.configuration)
+            } else {
+                stateLock.withLock { currentConfiguration = nil }
+                await write.store.publishCommittedKeymaps(write.previousKeymaps)
+            }
+        }
+    }
+
+    func recoverPendingAppKeymapWrite(store: AppKeymapStore? = nil, mutationPermit: ConfigurationOperationGate.Permit? = nil) async throws {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            let resolvedStore = store ?? AppKeymapStore(fileURL: URL(fileURLWithPath: configDirectory).appendingPathComponent("AppKeymaps.json"))
+            let files = await appKeymapWriteFiles(store: resolvedStore)
+            let directory = URL(fileURLWithPath: configDirectory)
+            let recovered = try await performRuleFileOperation {
+                try RecoverableRuleWrite.recover(files: files, directory: directory, scope: .appKeymaps)
+            }
+            if recovered {
+                stateLock.withLock { currentConfiguration = nil }
+                await resolvedStore.invalidateCache()
+                if await AppKeymapStore.shared.persistenceURL.standardizedFileURL == resolvedStore.persistenceURL.standardizedFileURL {
+                    await AppKeymapStore.shared.invalidateCache()
+                }
+            }
+        }
+    }
+
+    private func appKeymapWriteFiles(store: AppKeymapStore) async -> [String: URL] {
+        await ["config": URL(fileURLWithPath: configurationPath),
+               "appKeymaps": store.persistenceURL,
+               "appInclude": URL(fileURLWithPath: configDirectory).appendingPathComponent("keypath-apps.kbd")]
+    }
+
     private func ruleWriteFiles(collectionStore: RuleCollectionStore, customStore: CustomRulesStore) async -> [String: URL] {
         await [
             "config": URL(fileURLWithPath: configurationPath),
@@ -390,7 +504,8 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Generate a Kanata configuration from rule stores without writing it.
     public func generateConfiguration(
         ruleCollections: [RuleCollection],
-        customRules: [CustomRule] = []
+        customRules: [CustomRule] = [],
+        appSpecificKeys: Set<String>? = nil
     ) async throws -> KanataConfiguration {
         // Custom rules come first so they take priority over preset collections
         let customRuleCollections = customRules.asRuleCollections()
@@ -445,7 +560,8 @@ public final class ConfigurationService: FileConfigurationProviding {
             navActivationMode: triggerMode,
             navHoldDelayMs: holdDelayMs,
             chordGroups: preservedChordGroups,
-            sequences: preservedSequences
+            sequences: preservedSequences,
+            appSpecificKeys: appSpecificKeys
         )
 
         return KanataConfiguration(

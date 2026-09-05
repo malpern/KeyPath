@@ -301,19 +301,12 @@ extension OverlayMapperSection {
 
             // Also delete ALL app-specific rules
             do {
-                let keymaps = await services.appKeymapStore.loadKeymaps()
-                for keymap in keymaps {
-                    try await services.appKeymapStore.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
-                }
-
-                // Regenerate config and restart Kanata if we deleted any app rules
-                if !keymaps.isEmpty {
-                    try await AppConfigGenerator.regenerateFromStore()
-                    await AppContextService.shared.reloadMappings()
-                    _ = await manager.restartKanata(reason: "All app rules reset")
-                }
+                try await manager.mutateAppKeymaps(store: services.appKeymapStore) { $0.removeAll() }
             } catch {
                 AppLogger.shared.log("⚠️ [OverlayMapper] Failed to clear app rules: \(error)")
+                viewModel.statusMessage = error.localizedDescription
+                viewModel.statusIsError = true
+                return
             }
 
             // Update UI state on main thread

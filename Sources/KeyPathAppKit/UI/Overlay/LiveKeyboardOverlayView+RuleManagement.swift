@@ -29,27 +29,13 @@ extension LiveKeyboardOverlayView {
     /// Delete an app-specific rule override
     func deleteAppRule(keymap: AppKeymap, override: AppKeyOverride) {
         Task {
-            // Remove the override from the keymap
-            var updatedKeymap = keymap
-            updatedKeymap.overrides.removeAll { $0.id == override.id }
-
+            guard let manager = kanataViewModel?.underlyingManager else { return }
             do {
-                if updatedKeymap.overrides.isEmpty {
-                    // No more overrides - remove entire keymap
-                    try await services.appKeymapStore.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
-                } else {
-                    // Update keymap with remaining overrides
-                    try await services.appKeymapStore.upsertKeymap(updatedKeymap)
-                }
-
-                // Regenerate config and reload
-                try await AppConfigGenerator.regenerateFromStore()
-                await AppContextService.shared.reloadMappings()
-
-                // Restart Kanata to pick up changes
-                if let kanataVM = kanataViewModel {
-                    _ = await kanataVM.underlyingManager.restartKanata(reason: "App rule deleted")
-                }
+                try await manager.removeAppRule(
+                    bundleIdentifier: keymap.mapping.bundleIdentifier,
+                    overrideID: override.id,
+                    store: services.appKeymapStore
+                )
             } catch {
                 AppLogger.shared.log("⚠️ [Overlay] Failed to delete app rule: \(error)")
                 await MainActor.run {
@@ -67,19 +53,12 @@ extension LiveKeyboardOverlayView {
             // Clear all global custom rules atomically (uses clearAllCustomRules which saves to disk)
             await manager.clearAllCustomRules()
 
-            // Remove all app-specific keymaps
-            let keymapsToRemove = appKeymaps
-            for keymap in keymapsToRemove {
-                try? await services.appKeymapStore.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
-            }
-
-            // Regenerate app config and restart Kanata to apply all changes
             do {
-                try await AppConfigGenerator.regenerateFromStore()
-                await AppContextService.shared.reloadMappings()
-                _ = await manager.restartKanata(reason: "All custom rules reset")
+                try await manager.mutateAppKeymaps(store: services.appKeymapStore) { $0.removeAll() }
             } catch {
-                AppLogger.shared.log("⚠️ [LiveKeyboardOverlay] Failed to regenerate config after reset: \(error)")
+                AppLogger.shared.log("⚠️ [LiveKeyboardOverlay] Failed to clear app rules: \(error)")
+                appRuleDeleteError = "Failed to clear app rules: \(error.localizedDescription)"
+                return
             }
 
             // Reload UI state

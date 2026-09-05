@@ -9,10 +9,12 @@ protocol SaveCoordinatorDelegate: AnyObject {
     func configDidUpdate(mappings: [KeyMapping])
 }
 
-/// File recovery only: this does not claim that source stores or the running
-/// engine were restored. Preserve both failures when fallback also fails.
+/// App-keymap recovery includes its source files and an explicit reload result.
+/// Legacy config-only recovery does not claim source or runtime restoration.
 enum SaveRecoveryResult {
     case notAttempted
+    case restoredPreviousAppKeymapState(reloadResult: ReloadResult?)
+    case appKeymapRecoveryFailed(Error)
     case restoredPreviousConfig
     case wroteMinimalSafeConfig(backupError: Error?)
     case failed(backupError: Error?, fallbackError: Error)
@@ -104,6 +106,69 @@ final class SaveCoordinator {
     }
 
     // MARK: - Public Save API
+
+    /// Persist app metadata, its include, and the main config as one revision.
+    /// Keep the journal open through reload; rejected/cancelled edits restore all
+    /// three files. Restoration gets an explicit reload attempt when necessary.
+    func saveAppKeymaps(
+        store: AppKeymapStore = .shared,
+        mutate: @escaping @MainActor @Sendable (inout [AppKeymap]) throws -> Void,
+        runtimeDidApply: @escaping @MainActor @Sendable () async -> Void = {},
+        reloadHandler: @escaping @MainActor @Sendable () async -> ReloadResult
+    ) async -> SaveResult {
+        do {
+            return try await configurationService.operationGate.withOperation { @MainActor [self] permit in
+                saveStatus = .saving
+                var staged: ConfigurationService.AppKeymapWrite?
+                var reload: ReloadResult?
+                do {
+                    configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal app-specific save")
+                    staged = try await configurationService.stageAppKeymapChange(store: store, mutationPermit: permit, mutate: mutate)
+                    try Task.checkCancellation()
+                    let result = await reloadHandler()
+                    reload = result
+                    try Task.checkCancellation()
+                    guard result.disposition == .applied || result.disposition == .pending else {
+                        throw KeyPathError.configuration(.loadFailed(reason: result.errorMessage ?? "App-specific configuration could not be applied"))
+                    }
+                    guard let staged else { throw AppConfigError.validationUnavailable }
+                    try await configurationService.settleAppKeymapWrite(staged, commit: true, mutationPermit: permit)
+                    if result.disposition == .applied {
+                        await Task { @MainActor in await runtimeDidApply() }.value
+                    }
+                    saveStatus = .success
+                    scheduleStatusReset()
+                    return .success(mappings: staged.configuration.keyMappings, reloadResult: result)
+                } catch {
+                    var recovery: SaveRecoveryResult = .notAttempted
+                    var reportedError: Error = error
+                    if let staged {
+                        do {
+                            try await configurationService.settleAppKeymapWrite(staged, commit: false, mutationPermit: permit)
+                            // Unstructured recovery deliberately does not inherit cancellation.
+                            // Await it while retaining admission; TCP must be allowed to finish.
+                            let recoveryReload = reload == nil ? nil : await Task { @MainActor in
+                                let result = await reloadHandler()
+                                if result.disposition == .applied { await runtimeDidApply() }
+                                return result
+                            }.value
+                            recovery = .restoredPreviousAppKeymapState(reloadResult: recoveryReload)
+                            if let recoveryReload, recoveryReload.disposition == .failed || recoveryReload.disposition == .rejected {
+                                reportedError = AppKeymapSaveError(cause: error, recovery: recoveryReload.errorMessage ?? "The prior files were restored, but runtime recovery failed")
+                            }
+                        } catch let recoveryError {
+                            recovery = .appKeymapRecoveryFailed(recoveryError)
+                            reportedError = AppKeymapSaveError(cause: error, recovery: recoveryError.localizedDescription)
+                        }
+                    }
+                    saveStatus = .failed(reportedError.localizedDescription)
+                    return .failure(reportedError, reloadResult: reload, recoveryResult: recovery)
+                }
+            }
+        } catch {
+            return .failure(error)
+        }
+    }
 
     /// Save a custom rule with input/output mapping
     ///
@@ -468,5 +533,13 @@ final class SaveCoordinator {
             AppLogger.shared.warn("⚠️ [SaveCoordinator] Failed to parse config: \(error)")
             return []
         }
+    }
+}
+
+private struct AppKeymapSaveError: LocalizedError {
+    let cause: Error
+    let recovery: String
+    var errorDescription: String? {
+        "\(cause.localizedDescription). Recovery needs attention: \(recovery)"
     }
 }

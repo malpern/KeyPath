@@ -45,7 +45,8 @@ public struct KanataConfiguration: Sendable {
         navActivationMode: ContextHUDTriggerMode = .tapToToggle,
         navHoldDelayMs: Int = 200,
         chordGroups: [ChordGroupConfig] = [],
-        sequences: [KanataDefseqParser.ParsedSequence] = []
+        sequences: [KanataDefseqParser.ParsedSequence] = [],
+        appSpecificKeys: Set<String>? = nil
     ) -> String {
         var resolvedCollections = collections.isEmpty ? defaultSystemCollections : collections
         if !resolvedCollections.contains(where: { $0.id == RuleCollectionIdentifier.macFunctionKeys }) {
@@ -148,7 +149,7 @@ public struct KanataConfiguration: Sendable {
         let sourceBlock = renderDefsrcBlock(blocks)
 
         // Load app-specific keys to use @kp-{key} aliases in base layer
-        let appSpecificKeys = loadAppSpecificKeys()
+        let appSpecificKeys = appSpecificKeys ?? loadAppSpecificKeys()
 
         let baseLayerBlock = renderLayerBlock(name: RuleCollectionLayer.base.kanataName, blocks: blocks) { entry in
             // If this key has app-specific overrides, use the alias instead of the plain key

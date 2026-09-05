@@ -10,6 +10,7 @@ extension RuleCollectionsManager {
     func bootstrap() async {
         await withRuleMutation(failure: ()) { [self] permit in
             do {
+                try await configurationService.recoverPendingAppKeymapWrite(mutationPermit: permit)
                 try await configurationService.recoverPendingRuleWrite(
                     collectionStore: ruleCollectionStore, customStore: customRulesStore, mutationPermit: permit
                 )

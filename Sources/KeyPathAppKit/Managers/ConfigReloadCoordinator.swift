@@ -25,6 +25,8 @@ final class ConfigReloadCoordinator {
 
     /// Called to clear stale diagnostics after a successful reload.
     var onReloadSuccess: (() -> Void)?
+    var onDeferredReloadSuccess: (@MainActor @Sendable () async -> Void)?
+    var configurationOperationGate: ConfigurationOperationGate?
 
     // MARK: - Init
 
@@ -216,16 +218,18 @@ final class ConfigReloadCoordinator {
         deferredReloadTask?.cancel()
         deferredReloadGeneration &+= 1
         let generation = deferredReloadGeneration
-        deferredReloadTask = Task { [weak self] in
+        deferredReloadTask = Task.detached { [weak self] in
             guard let self else { return }
-            defer { clearDeferredReloadTask(ifGeneration: generation) }
-
-            // 3s cooldown + a little slop so the safety check passes.
-            try? await Task.sleep(nanoseconds: 3_200_000_000)
-            guard !Task.isCancelled else { return }
-            AppLogger.shared.log("🔁 [Reload] Firing deferred reload after cooldown expiry")
-            await triggerReload()
+            await runDeferredCooldown(generation: generation)
         }
+    }
+
+    private func runDeferredCooldown(generation: UInt) async {
+        defer { clearDeferredReloadTask(ifGeneration: generation) }
+        try? await Task.sleep(nanoseconds: 3_200_000_000)
+        guard !Task.isCancelled else { return }
+        AppLogger.shared.log("🔁 [Reload] Firing deferred reload after cooldown expiry")
+        _ = await performDeferredReload(notifyOnFailure: true, scheduleRetryOnPending: true)
     }
 
     /// Wait for an intentional runtime replacement to finish, then deliver the
@@ -237,11 +241,15 @@ final class ConfigReloadCoordinator {
         deferredReloadTask?.cancel()
         deferredReloadGeneration &+= 1
         let generation = deferredReloadGeneration
-        deferredReloadTask = Task { [weak self] in
+        deferredReloadTask = Task.detached { [weak self] in
             guard let self else { return }
-            defer { clearDeferredReloadTask(ifGeneration: generation) }
-            await retryAfterRuntimeTransition()
+            await runDeferredTransition(generation: generation)
         }
+    }
+
+    private func runDeferredTransition(generation: UInt) async {
+        defer { clearDeferredReloadTask(ifGeneration: generation) }
+        await retryAfterRuntimeTransition()
     }
 
     private func clearDeferredReloadTask(ifGeneration generation: UInt) {
@@ -296,10 +304,7 @@ final class ConfigReloadCoordinator {
         guard health.isHealthy else { return .pending }
 
         AppLogger.shared.log("🔁 [Reload] Retrying config reload after runtime transition")
-        let result = await triggerConfigReload(
-            notifyOnFailure: false,
-            scheduleRetryOnPending: false
-        )
+        let result = await performDeferredReload(notifyOnFailure: false, scheduleRetryOnPending: false)
         switch result.disposition {
         case .applied:
             return .applied
@@ -317,6 +322,22 @@ final class ConfigReloadCoordinator {
                 ]
             )
             return .rejected
+        }
+    }
+
+    /// Deferred work starts independently of the original task and waits for
+    /// source settlement before reloading and reasserting current app context.
+    func performDeferredReload(notifyOnFailure: Bool = true, scheduleRetryOnPending: Bool = true) async -> ReloadResult {
+        let operation: @MainActor @Sendable () async -> ReloadResult = { [self] in
+            let result = await triggerConfigReload(notifyOnFailure: notifyOnFailure, scheduleRetryOnPending: scheduleRetryOnPending)
+            if result.disposition == .applied { await onDeferredReloadSuccess?() }
+            return result
+        }
+        guard let configurationOperationGate else { return await operation() }
+        do {
+            return try await configurationOperationGate.withOperation { _ in await operation() }
+        } catch {
+            return ReloadResult(success: false, response: nil, errorMessage: error.localizedDescription, protocol: nil, disposition: .failed)
         }
     }
 

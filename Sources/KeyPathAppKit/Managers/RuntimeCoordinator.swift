@@ -382,6 +382,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         configReloadCoordinator.onReloadSuccess = { [weak self] in
             self?.clearDiagnostics()
         }
+        configReloadCoordinator.configurationOperationGate = configurationService.operationGate
+        configReloadCoordinator.onDeferredReloadSuccess = {
+            await AppContextService.shared.reloadMappings(afterRuntimeReload: true)
+        }
 
         // Configure RuleCollectionsCoordinator callbacks (after all initialization)
         ruleCollectionsCoordinator.configure(
@@ -1444,6 +1448,38 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     /// Restore last known good config in case of validation failure
     func restoreLastGoodConfig() async throws {
         try await saveCoordinator.restoreLastGoodConfig()
+    }
+
+    /// Shared app-specific edit path used by mapper, settings, and overlay.
+    func mutateAppKeymaps(
+        store: AppKeymapStore = .shared,
+        _ mutate: @escaping @MainActor @Sendable (inout [AppKeymap]) throws -> Void
+    ) async throws {
+        let result = await saveCoordinator.saveAppKeymaps(store: store, mutate: mutate, runtimeDidApply: {
+            await AppContextService.shared.reloadMappings(afterRuntimeReload: true)
+        }) { [weak self] in
+            guard let self else {
+                return ReloadResult(success: false, response: nil, errorMessage: "Coordinator deallocated", protocol: nil, disposition: .failed)
+            }
+            return await triggerConfigReload()
+        }
+        saveStatus = saveCoordinator.saveStatus
+        guard result.success else {
+            throw result.error ?? AppConfigError.validationUnavailable
+        }
+        if let mappings = result.mappings {
+            applyKeyMappings(mappings, persistCollections: false)
+        }
+        lastConfigUpdate = Date()
+        notifyStateChanged()
+    }
+
+    func removeAppRule(bundleIdentifier: String, overrideID: UUID, store: AppKeymapStore = .shared) async throws {
+        try await mutateAppKeymaps(store: store) { keymaps in
+            guard let index = keymaps.firstIndex(where: { $0.mapping.bundleIdentifier == bundleIdentifier }) else { return }
+            keymaps[index].overrides.removeAll { $0.id == overrideID }
+            if keymaps[index].overrides.isEmpty { keymaps.remove(at: index) }
+        }
     }
 
     /// Save a complete generated configuration (for Claude API generated configs)
