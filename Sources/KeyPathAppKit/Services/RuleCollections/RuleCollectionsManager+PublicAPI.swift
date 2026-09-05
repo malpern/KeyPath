@@ -50,9 +50,10 @@ extension RuleCollectionsManager {
         bypassOwnershipCheck: Bool = false,
         configurationOverride: RuleCollectionConfiguration? = nil,
         additionalCollectionIDsToDisable: Set<UUID> = [],
-        skipReload: Bool = false
+        skipReload: Bool = false,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async -> Bool {
-        await withRuleMutation(failure: false) { [self] _ in
+        await withRuleMutation(using: mutationPermit, failure: false) { [self] _ in
             AppLogger.shared.log("🔀 [RuleCollections] toggleCollection called: id=\(id), isEnabled=\(isEnabled)")
 
             if !bypassOwnershipCheck {
@@ -1069,8 +1070,8 @@ extension RuleCollectionsManager {
     }
 
     /// Remove a custom rule
-    func removeCustomRule(id: UUID) async {
-        await withRuleMutation(failure: ()) { [self] _ in
+    func removeCustomRule(id: UUID, mutationPermit: ConfigurationOperationGate.Permit? = nil) async {
+        await withRuleMutation(using: mutationPermit, failure: ()) { [self] _ in
             let beforeCount = customRules.count
             AppLogger.shared.log("🗑️ [CustomRules] removeCustomRule called: id=\(id), beforeCount=\(beforeCount)")
             customRules.removeAll { $0.id == id }
