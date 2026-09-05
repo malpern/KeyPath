@@ -125,8 +125,10 @@ jobs:
 
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
+          # Leave room to post the assessment and finish the result turn. A
+          # six-turn limit repeatedly aborted completed reviews with error_max_turns.
           claude_args: >-
-            --max-turns 6
+            --max-turns 12
             --allowed-tools "Bash(gh pr comment:*)"
 
       - name: Skip Claude review for workflow-file changes
