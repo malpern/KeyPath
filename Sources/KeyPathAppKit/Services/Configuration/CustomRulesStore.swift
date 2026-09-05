@@ -49,6 +49,14 @@ actor CustomRulesStore {
         }
     }
 
+    func encodedRules(_ rules: [CustomRule]) throws -> Data {
+        try encoder.encode(rules)
+    }
+
+    var persistenceURL: URL {
+        fileURL
+    }
+
     func saveRules(_ rules: [CustomRule]) throws {
         AppLogger.shared.log("💾 [CustomRulesStore] saveRules: \(rules.count) rules to \(fileURL.path)")
         for rule in rules {
@@ -56,7 +64,7 @@ actor CustomRulesStore {
         }
         let directory = fileURL.deletingLastPathComponent()
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        let data = try encoder.encode(rules)
+        let data = try encodedRules(rules)
         try data.write(to: fileURL, options: .atomic)
         AppLogger.shared.log("💾 [CustomRulesStore] Saved \(data.count) bytes")
     }
