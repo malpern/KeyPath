@@ -38,12 +38,12 @@ their behavior: applied and pending are successful saves. `success` alone does
 not mean the runtime applied the configuration.
 
 The retained reload result describes the application attempt. The separate
-`SaveResult.recoveryResult` describes file recovery: `notAttempted`,
+For raw/generated saves, `SaveResult.recoveryResult` describes file recovery: `notAttempted`,
 `restoredPreviousConfig`, `wroteMinimalSafeConfig(backupError:)`, or
 `failed(backupError:fallbackError:)`. A minimal safe file is not restoration of
 the prior revision. Both recovery errors are retained if neither write succeeds;
 the original reload result and save error remain available. Applied/pending saves
-and failures before reload report no recovery attempt.
+and failures before a write report no recovery attempt. Staged rule/app edits cancelled before reload can still require file recovery.
 
 Explicit restoration returns the same successful recovery outcomes and retains
 its throwing contract when even the fallback cannot be written. These outcomes
@@ -248,3 +248,26 @@ Pack detail's missing-record repair uses PackInstaller.reconcileInstallRecord.
 It reads persisted collection state after admission, refuses incomplete reads,
 and propagates persistence failure instead of reporting installed unconditionally.
 It preserves the existing backfill policy; it does not decide new pack ownership.
+
+## Mapper rule-state recovery
+
+`SaveCoordinator.saveMapping` uses the manager's conflict resolution and in-memory
+rule preparation, then retains the configuration and both source stores in one
+journal until reload classification. Applied/pending commits; rejected, failed,
+or cancelled application restores the exact previous files (including absence or
+an empty file), then attempts a compensating reload if application was attempted.
+The result keeps the original reload and a separate `restoredPreviousRuleState`
+recovery reload, or `ruleStateRecoveryFailed`. Restoring files does not imply
+that the recovery reload succeeded.
+
+Only a committed revision notifies configuration/collection observers. On failure,
+the manager's optimistic snapshot is restored without generating or writing again.
+External edits after staging stop commit and rollback, preserving the files and
+journal for attention. The staged writer also compares the captured pre-validation
+revision before writing. SaveCoordinator's unused engine-client dependency is
+removed; runtime work continues through the injected reload callback.
+
+Other collection mutators still use their existing immediate-commit compatibility
+path. Their snapshot regeneration, pack-wide preferences/metadata recovery,
+stale manager caches, revision-aware watching, and raw-file runtime recovery
+remain separate migrations. This mapper change does not claim those are complete.

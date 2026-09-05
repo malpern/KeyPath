@@ -268,6 +268,7 @@ Implemented slices (the table describes the merged state of this checkpoint):
 | #1273 | CLI rule, collection and pack commands hold admission through optional apply; pack sources refresh after admission and strict metadata reads precede mutations. | Direct UI metadata writers, feature-specific writes and complete recovery remain. |
 | #1274 | App-specific edits retain a three-file journal through runtime apply/recovery, preserve hand-written files, and refresh app context after immediate/deferred reload. | Global/pack recovery, mixed app/global operations and revision-aware watching remain. |
 | #1275 | Simple Modifications transforms captured revisions through SaveCoordinator, preserves external edits, retains reload/recovery outcomes and serializes debounce settlement. | Legacy raw syntax/ownership limitations and full runtime recovery remain. |
+| #1277 | Pack metadata writes share PackInstaller admission; deferred repair reads durable state without inheriting a live operation lease. | Full pack transaction/recovery and ownership policy remain. |
 
 Admission now also holds a cooperative OS lease across service instances and
 processes for the same directory. CLI configuration apply now holds admission
@@ -351,7 +352,7 @@ Raw-file recovery still has the existing file-only boundary. External deflayerma
 ownership, status presentation, full runtime recovery and crash recovery remain
 separate work; this slice does not claim those are complete.
 
-### Pack metadata consolidation
+### Pack metadata consolidation merged in #1277
 
 The remaining Rules-toggle and detail-view repair writes now enter PackInstaller
 under the directory operation gate. Repair reads persisted collection state,
@@ -365,3 +366,13 @@ remain separate work.
 CI maintenance: #1276 increased the review action's turn allowance after repeated
 `error_max_turns` failures. It was merged separately; #1275 then passed actual
 review under that workflow. Both are included in the signed/notarized #1275 deploy.
+
+### Mapper rule-state recovery in progress
+
+The mapper now keeps the configuration and both source stores recoverable through
+runtime classification in SaveCoordinator. Failure restores the exact file set
+and optimistic manager snapshot, with a separate compensating reload outcome.
+Existing rule and collection conflict choices are shared as in-memory preparation;
+the mapper no longer invokes the legacy immediate-commit save before reloading.
+External revision conflicts preserve files and the journal rather than regenerating
+a snapshot over them. Other collection mutators and pack-wide recovery remain open.

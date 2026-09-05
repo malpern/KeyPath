@@ -282,7 +282,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         // Initialize extracted coordinators
         saveCoordinator = SaveCoordinator(
             configurationService: configurationService,
-            engineClient: engineClient ?? TCPEngineClient(),
             configFileWatcher: configFileWatcher
         )
         installationCoordinator = InstallationCoordinator()

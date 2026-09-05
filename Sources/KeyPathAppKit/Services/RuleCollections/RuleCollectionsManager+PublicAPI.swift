@@ -962,6 +962,28 @@ extension RuleCollectionsManager {
             AppLogger.shared.log("💾 [CustomRules] saveCustomRule called: id=\(rule.id), input='\(rule.input)', action='\(rule.action.displayName)'")
             let snapshot = snapshotRuleState()
 
+            guard await updateCustomRuleInMemory(rule, autoResolveConflicts: autoResolveConflicts, mutationPermit: permit) else { return false }
+
+            let success = await regenerateConfigFromCollections(skipReload: skipReload, mutationPermit: permit)
+
+            if success {
+                AppLogger.shared.log("💾 [CustomRules] Save complete, customRules.count = \(customRules.count)")
+            } else {
+                AppLogger.shared.log("💾 [CustomRules] Save failed - rolling back to snapshot")
+                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.", mutationPermit: permit)
+                AppLogger.shared.log("💾 [CustomRules] Rollback complete, customRules.count = \(customRules.count)")
+            }
+
+            return success
+        }
+    }
+
+    /// Prepare the intended rule state under admission. Persistence belongs to the
+    /// caller so the mapper can retain its transaction through runtime recovery.
+    func updateCustomRuleInMemory(_ rule: CustomRule, autoResolveConflicts: Bool = false,
+                                  mutationPermit: ConfigurationOperationGate.Permit) async -> Bool
+    {
+        await withRuleMutation(using: mutationPermit, failure: false) { [self] _ in
             if rule.isEnabled,
                let conflict = conflictInfo(for: rule)
             {
@@ -1004,17 +1026,7 @@ extension RuleCollectionsManager {
                 customRules.append(rule)
             }
 
-            let success = await regenerateConfigFromCollections(skipReload: skipReload, mutationPermit: permit)
-
-            if success {
-                AppLogger.shared.log("💾 [CustomRules] Save complete, customRules.count = \(customRules.count)")
-            } else {
-                AppLogger.shared.log("💾 [CustomRules] Save failed - rolling back to snapshot")
-                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.", mutationPermit: permit)
-                AppLogger.shared.log("💾 [CustomRules] Rollback complete, customRules.count = \(customRules.count)")
-            }
-
-            return success
+            return true
         }
     }
 

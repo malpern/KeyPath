@@ -243,7 +243,7 @@ final class AppKeymapSaveTests: KeyPathTestCase {
         for name in ["AppKeymaps.json", "keypath.kbd", "keypath-apps.kbd"] {
             before[name] = try Data(contentsOf: directory.appendingPathComponent(name))
         }
-        let coordinator = SaveCoordinator(configurationService: service, engineClient: TCPEngineClient())
+        let coordinator = SaveCoordinator(configurationService: service)
         try await body(Fixture(directory: directory, service: service, store: store, coordinator: coordinator, before: before))
     }
 }

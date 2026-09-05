@@ -47,6 +47,21 @@ extension RuleCollectionsManager {
     ///   mapping conflict or the user cancelled (caller falls back to its error path).
     func tryResolveMappingConflict(_ error: Error, skipReload: Bool, depth: Int, mutationPermit: ConfigurationOperationGate.Permit? = nil) async -> RulePersistenceResult? {
         await withRuleMutation(using: mutationPermit, failure: nil) { [self] permit in
+            let snapshot = ruleCollections
+            guard await resolveMappingConflictInMemory(error, depth: depth, mutationPermit: permit) else { return nil }
+            let saved = await persistRules(skipReload: skipReload, conflictResolutionDepth: depth + 1, mutationPermit: permit)
+            if !saved.didPersist {
+                ruleCollections = snapshot
+                refreshLayerIndicatorState()
+            }
+            return saved
+        }
+    }
+
+    /// Resolve the same existing conflict choice without choosing a persistence
+    /// owner. The caller retains the original snapshot until its save settles.
+    func resolveMappingConflictInMemory(_ error: Error, depth: Int, mutationPermit: ConfigurationOperationGate.Permit) async -> Bool {
+        await withRuleMutation(using: mutationPermit, failure: false) { [self] _ in
             // Bound retries: each resolution disables one collection (strictly shrinking
             // the enabled set), so this terminates, but the guard prevents pathological loops.
             guard depth < 5,
@@ -57,7 +72,7 @@ extension RuleCollectionsManager {
                   let resolvable = Self.resolvableCollectionConflict(
                       conflicts: conflicts, collections: ruleCollections
                   )
-            else { return nil }
+            else { return false }
 
             let context = MappingConflictContext(
                 explanation: conflicts.map(\.userExplanation).joined(separator: "\n\n"),
@@ -68,24 +83,14 @@ extension RuleCollectionsManager {
 
             guard let chosenID = await callback(context),
                   let index = ruleCollections.firstIndex(where: { $0.id == chosenID })
-            else { return nil } // cancelled → fall back to explanation
+            else { return false } // cancelled → fall back to explanation
 
             AppLogger.shared.log(
                 "🔧 [RuleCollections] Resolving mapping conflict by disabling '\(ruleCollections[index].name)' (#460)"
             )
-            // Make the disable atomic: snapshot first, disable in-memory, retry the full
-            // save. If the retry still fails (another conflict, depth guard, validation),
-            // restore so in-memory state never diverges from what was actually persisted —
-            // callers that ignore the `false` return must not see an unsaved disable.
-            let snapshot = ruleCollections
             ruleCollections[index].isEnabled = false
             refreshLayerIndicatorState()
-            let saved = await persistRules(skipReload: skipReload, conflictResolutionDepth: depth + 1, mutationPermit: permit)
-            if !saved.didPersist {
-                ruleCollections = snapshot
-                refreshLayerIndicatorState()
-            }
-            return saved
+            return true
         }
     }
 

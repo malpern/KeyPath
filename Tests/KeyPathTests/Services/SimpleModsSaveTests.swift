@@ -186,6 +186,6 @@ final class SimpleModsSaveTests: KeyPathTestCase {
         let service = ConfigurationService(configDirectory: directory.path,
                                            ruleCollectionStore: .testStore(at: directory.appendingPathComponent("RuleCollections.json")),
                                            customRulesStore: .testStore(at: directory.appendingPathComponent("CustomRules.json")))
-        try await body(Fixture(url: url, original: original, coordinator: SaveCoordinator(configurationService: service, engineClient: TCPEngineClient())))
+        try await body(Fixture(url: url, original: original, coordinator: SaveCoordinator(configurationService: service)))
     }
 }
