@@ -33,7 +33,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     private let ruleCollectionStore: RuleCollectionStore
     private let customRulesStore: CustomRulesStore
 
-    let operationGate = ConfigurationOperationGate()
+    let operationGate: ConfigurationOperationGate
 
     /// Perform blocking file I/O off the main actor
     private let ioQueue = DispatchQueue(label: "com.keypath.configservice.io", qos: .utility)
@@ -65,6 +65,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             self.configDirectory = KeyPathConstants.Config.directory
         }
         configurationPath = "\(self.configDirectory)/\(configFileName)"
+        operationGate = ConfigurationOperationGate(configurationDirectory: URL(fileURLWithPath: self.configDirectory, isDirectory: true))
     }
 
     // MARK: - ConfigurationProviding Protocol

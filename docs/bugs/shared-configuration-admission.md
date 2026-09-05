@@ -34,7 +34,9 @@ Trusted restore and missing-file self-healing calls forward the permit. Tests
 exercise direct writer attempts from reload callbacks, observer-held saves and
 restoring persisted rules after a rejected save with a missing initial file.
 
-CLI operation ownership and cross-instance/process concurrency still require
-migration. The durable journal and runtime
+Services now hold a cooperative OS directory lease as well. A child-process
+probe verifies exclusion/release; tests cover independent services, alias
+callbacks, directory replacement, cancellation and inherited expired contexts.
+CLI operation ownership and source/cache freshness still require migration. The durable journal and runtime
 rollback also remain distinct boundaries. Do not treat this queue as proof of
 whole-operation rollback or protection against external editors.

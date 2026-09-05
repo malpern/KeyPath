@@ -81,14 +81,15 @@ same service fail instead of deadlocking. Permits expire with their operation.
 Queued cancellation is observed at admission before mutation. Once admitted,
 existing completion/recovery behavior remains unchanged.
 
-This is admission for one service instance, not a global or cross-process lock.
-Callers that compose a coordinator and collection manager must share the same
-service. Direct service writers now acquire this gate too: collection/raw/repaired saves,
+Each service retains its FIFO queue. Services targeting the same configuration
+directory also acquire a cooperative OS file lock, held through the admitted
+operation. Cross-process ordering is exclusive but not globally FIFO. Callers
+that compose trusted nested work still share the same service/permit owner. Direct service writers now acquire this gate too: collection/raw/repaired saves,
 initial creation, backup/fallback and journal recovery. Public signatures remain
 unchanged; trusted coordinator restoration and collection persistence forward
 permits through internal overloads. Missing-file backup reads carry the permit
 through self-healing creation so the backup retains stored rules. CLI operation
-ownership, separate service instances, external edits and feature-specific writers
+ownership, source/cache freshness, external edits and feature-specific writers
 (such as SimpleModsService and AppConfigGenerator include-file saves) still need
 migration. Those callers using this service only for validation do not acquire
 write admission merely by validating. Pack operations hold admission while staging
@@ -122,3 +123,26 @@ It journals the generated file and both source stores, recovers before bootstrap
 loads them, and defers configuration observers until the file set commits. This
 does not yet change the collection Boolean's persistence-only meaning or couple
 engine rejection to source-store recovery.
+
+## Directory lease
+
+The gate opens a persistent SHA-256-named sentinel under the current user’s
+`Library/Application Support/KeyPath/ConfigurationLocks`. The key is the canonical
+configuration path, folded on case-insensitive volumes. This avoids requiring a
+writable configuration parent and survives replacement of the configuration directory.
+Do not unlink the sentinel after an operation: existing waiters may already hold
+handles to it. Its presence alone does not mean an operation is running.
+
+Path inspection, sentinel creation and opening run on a utility dispatch queue.
+`flock(LOCK_EX | LOCK_NB)` retries asynchronously and observes cancellation while
+waiting; it never blocks the main actor or the serial file-I/O queue. As with the
+service FIFO, a hung owner can keep a caller waiting until cancellation or release. The handle
+is close-on-exec and released after completion or failure; process exit releases
+the OS lock. File identity detects recursive callbacks through another service
+or a directory alias. Inherited contexts carry a lease that becomes inactive
+on release, allowing a child that outlives its operation to write later.
+
+This is cooperation between migrated writers, not protection against external
+editors. It also does not refresh cached source/pack state or hold admission over
+CLI work performed outside service calls. Those remaining ownership/freshness
+changes are necessary before claiming whole-operation cross-process safety.
