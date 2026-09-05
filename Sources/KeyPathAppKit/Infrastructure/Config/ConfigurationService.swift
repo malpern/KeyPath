@@ -33,6 +33,8 @@ public final class ConfigurationService: FileConfigurationProviding {
     private let ruleCollectionStore: RuleCollectionStore
     private let customRulesStore: CustomRulesStore
 
+    let operationGate = ConfigurationOperationGate()
+
     /// Perform blocking file I/O off the main actor
     private let ioQueue = DispatchQueue(label: "com.keypath.configservice.io", qos: .utility)
     /// Protect shared state when accessed from multiple threads

@@ -61,18 +61,31 @@ sites. They performed direct file writes outside the supported ownership model,
 which could bypass current-configuration updates and rollback classification if
 they were reused later.
 
-## Coordinator-local operation isolation
+## Shared operation admission
 
-Mapping saves, generated saves, and explicit backup restoration now share a FIFO
-admission gate in `SaveCoordinator`. The slot is held across async reload and file
-recovery. Each save snapshots the file itself; it does not use the possibly stale
-parsed cache or read a mutable shared backup at rollback time. Queued cancellation
-is observed at admission without a write or reload; after mutation begins the
-existing completion/recovery path runs to completion.
+`ConfigurationService.operationGate` provides FIFO admission for generated and
+mapping saves, explicit restoration, and the collection manager's public async
+mutation APIs (including keymap selection). Admission happens before staging
+in-memory collection state and remains held through persistence, reload and
+recovery. Two coordinators using the same service share that admission queue.
+Each save snapshots the file itself rather than using the parsed cache or a
+mutable backup captured by another save.
 
-This gate covers this coordinator only. Collection/pack/CLI operation ownership and external edits still need migration.
-The collection file journal below provides a separate durable recovery boundary.
-See [the reproduced rollback race](../bugs/save-coordinator-overlapping-rollback.md).
+Trusted nested calls pass the active permit explicitly: mapping saves enter the
+custom-rule API, and collection helpers can enter another public mutation without
+waiting on themselves. Callbacks receive no permit; recursive saves through the
+same service fail instead of deadlocking. Permits expire with their operation.
+Queued cancellation is observed at admission before mutation. Once admitted,
+existing completion/recovery behavior remains unchanged.
+
+This is admission for one service instance, not a global or cross-process lock.
+Callers that compose a coordinator and collection manager must share the same
+service. Direct service writes, bootstrap/regeneration entry points, pack code
+that stages arrays directly, CLI writers and external edits still need migration.
+The collection journal below provides a separate durable file recovery boundary;
+admission alone does not restore source stores or preferences after engine
+rejection. See [the original coordinator race](../bugs/save-coordinator-overlapping-rollback.md)
+and [shared mutation admission](../bugs/shared-configuration-admission.md).
 
 Explicit-restore failure throws `SaveRecoveryError`, retaining both causes while
 preserving the fallback error description used by existing presentation.
