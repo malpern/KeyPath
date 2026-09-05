@@ -262,15 +262,17 @@ Implemented slices (the table describes the merged state of this checkpoint):
 | #1267 | Shared service admission before public collection/keymap mutation and across coordinator save/recovery, with explicit nested permits and callback rejection. | Pack/bootstrap admission was added by #1268; CLI operation ownership and external writers remain. |
 | #1268 | Pack install/uninstall/settings and bootstrap hold shared admission across nested mutations, metadata and recovery. | CLI operation ownership and external writers still require migration; pack commits remain separate. |
 | #1269 | Standalone regeneration, conflict retries, prerequisite application and snapshot restoration share admission with explicit nested permits. | Cross-instance/process ownership and whole-operation recovery remain. |
+| #1270 | Direct service writes, journal recovery, trusted restoration and missing-file self-healing share admission. | CLI ownership, feature-specific writers, source/cache freshness and complete recovery remain. |
 
-Direct service writers and trusted self-healing/restore paths now participate
-in shared admission as well.
+Admission now also holds a cooperative OS lease across service instances and
+processes for the same directory; external edits and stale cached state remain
+separate boundaries.
 The first migrated persistence journey now has interruption and failure tests.
 This is a useful foundation, not completion of Phase 1 or the program.
 
 Next implementation sequence:
 
-1. Complete feature-specific writers, CLI operation ownership and cross-instance/process admission before mutation;
+1. Complete feature-specific writers and CLI operation ownership, loading/reconciling current source and metadata state after admission;
    preserve explicit ownership through trusted nested calls, and reject recursive
    callback writes rather than allowing stale rollback or deadlock.
 2. Keep the prior source revision through runtime classification and restore
