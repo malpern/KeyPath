@@ -90,9 +90,11 @@ public final class PackInstaller {
         additionalCollectionIDsToDisable: Set<UUID> = [],
         manager: RuleCollectionsManager,
         skipFinalReload: Bool = false,
-        installedPackTracker: InstalledPackTracker = .shared
+        installedPackTracker: InstalledPackTracker = .shared,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async throws -> InstalledPackRecord {
-        try await manager.configurationService.operationGate.withOperation { @MainActor [self] permit in
+        try await manager.configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            try await installedPackTracker.validateForMutation()
             AppLogger.shared.log(
                 "📦 [PackInstaller] Installing pack '\(pack.name)' (id=\(pack.id), v\(pack.version))"
             )
@@ -341,15 +343,18 @@ public final class PackInstaller {
     /// id, regenerates the config, and drops the install record.
     func uninstall(
         packID: String,
-        manager: RuleCollectionsManager
+        manager: RuleCollectionsManager,
+        installedPackTracker: InstalledPackTracker = .shared,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async throws {
-        try await manager.configurationService.operationGate.withOperation { @MainActor [self] permit in
+        try await manager.configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            try await installedPackTracker.validateForMutation()
             AppLogger.shared.log("📦 [PackInstaller] Uninstalling pack '\(packID)'")
 
             // Visual-only packs just clear the tracker record; no kanata
             // changes to revert.
             if let pack = PackRegistry.pack(id: packID), pack.visualOnly {
-                try await InstalledPackTracker.shared.remove(packID: packID)
+                try await installedPackTracker.remove(packID: packID)
                 AppLogger.shared.log(
                     "✅ [PackInstaller] Uninstalled visual-only pack '\(packID)'"
                 )
@@ -379,7 +384,7 @@ public final class PackInstaller {
                     throw InstallError.saveFailed("could not apply managed collection restore")
                 }
                 removeManagedSnapshot(for: pack)
-                try await InstalledPackTracker.shared.remove(packID: packID)
+                try await installedPackTracker.remove(packID: packID)
                 AppLogger.shared.log(
                     "✅ [PackInstaller] Uninstalled system pack '\(packID)' (restored=\(didRestore))"
                 )
@@ -396,7 +401,7 @@ public final class PackInstaller {
                 guard ok else {
                     throw InstallError.saveFailed("could not disable associated rule collection")
                 }
-                try await InstalledPackTracker.shared.remove(packID: packID)
+                try await installedPackTracker.remove(packID: packID)
                 AppLogger.shared.log(
                     "✅ [PackInstaller] Uninstalled pack '\(packID)' via collection toggle off (id=\(collectionID))"
                 )
@@ -410,7 +415,7 @@ public final class PackInstaller {
             guard !packRules.isEmpty else {
                 // Nothing to remove from rules, but still clear the tracker
                 // record in case it drifted out of sync.
-                try await InstalledPackTracker.shared.remove(packID: packID)
+                try await installedPackTracker.remove(packID: packID)
                 AppLogger.shared.log(
                     "ℹ️ [PackInstaller] No rules tagged with pack '\(packID)'; cleared tracker record"
                 )
@@ -426,7 +431,7 @@ public final class PackInstaller {
                 await manager.removeCustomRule(id: rule.id, mutationPermit: permit)
             }
 
-            try await InstalledPackTracker.shared.remove(packID: packID)
+            try await installedPackTracker.remove(packID: packID)
 
             AppLogger.shared.log(
                 "✅ [PackInstaller] Uninstalled pack '\(packID)': removed \(packRules.count) rule(s)"
@@ -528,13 +533,16 @@ public final class PackInstaller {
     func updateQuickSettings(
         packID: String,
         newValues: [String: Int],
-        manager: RuleCollectionsManager
+        manager: RuleCollectionsManager,
+        installedPackTracker: InstalledPackTracker = .shared,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async throws {
-        try await manager.configurationService.operationGate.withOperation { @MainActor [self] permit in
+        try await manager.configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            try await installedPackTracker.validateForMutation()
             guard let pack = PackRegistry.pack(id: packID) else {
                 throw InstallError.saveFailed("pack not found in registry: \(packID)")
             }
-            guard var record = await InstalledPackTracker.shared.record(for: packID) else {
+            guard var record = await installedPackTracker.record(for: packID) else {
                 throw InstallError.saveFailed("pack is not installed: \(packID)")
             }
 
@@ -574,7 +582,7 @@ public final class PackInstaller {
 
             // Persist updated record
             record.quickSettingValues = resolved
-            try await InstalledPackTracker.shared.upsert(record)
+            try await installedPackTracker.upsert(record)
 
             AppLogger.shared.log(
                 "✅ [PackInstaller] Updated quick settings for '\(pack.name)': \(resolved)"
@@ -696,9 +704,8 @@ public final class PackInstaller {
             return true
         } catch {
             // A failed atomic write leaves the prior on-disk record intact.
-            // InstalledPackTracker mutates its in-memory dictionary before
-            // writing, so the compensating call above is still required even
-            // when its persistence attempt reports the same underlying error.
+            // The tracker reads committed disk state, so no speculative cache
+            // can claim the compensating write succeeded.
             AppLogger.shared.errorUnlessQuietTest(
                 "❌ [PackInstaller] Could not persist tracker rollback for '\(packID)': \(error)"
             )

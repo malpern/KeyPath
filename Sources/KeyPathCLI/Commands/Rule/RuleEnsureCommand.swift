@@ -29,11 +29,18 @@ struct RuleEnsure: AsyncParsableCommand {
     var apply: Bool = false
 
     mutating func run() async throws {
+        let command = self
+        try await CLIConfigurationOperation.run { operation in
+            try await command.run(operation: operation)
+        }
+    }
+
+    private func run(operation: CLIConfigurationOperation) async throws {
         let ctx = globals.outputContext
-        let facade = RulesFacade()
+        let facade = operation.rules
 
         if let fromFile {
-            try await runBatch(file: fromFile, facade: facade, ctx: ctx)
+            try await runBatch(file: fromFile, facade: facade, ctx: ctx, operation: operation)
         } else {
             guard let input, let output else {
                 let error = CLIError.validation(
@@ -64,12 +71,12 @@ struct RuleEnsure: AsyncParsableCommand {
             }
 
             if result.action == "created" || result.action == "updated" {
-                try await applyConfigurationOrHint(apply: apply, context: ctx)
+                try await applyConfigurationOrHint(apply: apply, context: ctx, facade: operation.config)
             }
         }
     }
 
-    private func runBatch(file: String, facade: RulesFacade, ctx: OutputContext) async throws {
+    private func runBatch(file: String, facade: RulesFacade, ctx: OutputContext, operation: CLIConfigurationOperation) async throws {
         let path = (file as NSString).expandingTildeInPath
         guard let data = FileManager.default.contents(atPath: path) else {
             let error = CLIError.validation("Cannot read file: '\(file)'")
@@ -121,7 +128,7 @@ struct RuleEnsure: AsyncParsableCommand {
 
         let hadChanges = results.contains { $0.action == "created" || $0.action == "updated" }
         if hadChanges {
-            try await applyConfigurationOrHint(apply: apply, context: ctx)
+            try await applyConfigurationOrHint(apply: apply, context: ctx, facade: operation.config)
         }
     }
 

@@ -3,10 +3,40 @@ import KeyPathCore
 import KeyPathRulesCore
 
 public struct RulesFacade: Sendable {
-    public init() {}
+    private let store: CustomRulesStore
+    private let operation: CLIConfigurationOperation?
+
+    public init() {
+        store = .shared
+        operation = nil
+    }
+
+    init(operation: CLIConfigurationOperation) {
+        store = CustomRulesStore(fileURL: URL(fileURLWithPath: operation.directory)
+            .appendingPathComponent("CustomRules.json"))
+        self.operation = operation
+    }
+
+    init(store: CustomRulesStore) {
+        self.store = store
+        operation = nil
+    }
+
+    private func withMutation<Result: Sendable>(
+        _ body: @Sendable () async throws -> Result
+    ) async throws -> Result {
+        if let operation {
+            return try await operation.service.operationGate.withOperation(using: operation.permit) { _ in
+                try await body()
+            }
+        }
+        let directory = await store.persistenceURL.deletingLastPathComponent()
+        let gate = ConfigurationOperationGate(configurationDirectory: directory)
+        return try await gate.withOperation { _ in try await body() }
+    }
 
     public func loadCustomRules() async -> [CLICustomRule] {
-        let rules = await CustomRulesStore.shared.loadRules()
+        let rules = await store.loadRules()
         return rules.map { CLICustomRule(input: $0.input, output: $0.action.outputString, behavior: $0.behavior.map(Self.describeBehavior)) }
     }
 
@@ -27,32 +57,36 @@ public struct RulesFacade: Sendable {
 
     @discardableResult
     public func addSimpleRemap(input: String, output: String) async throws -> Bool {
-        var rules = await CustomRulesStore.shared.loadRules()
-        let hadExisting = rules.contains { $0.input == input }
-        rules.removeAll { $0.input == input }
-        let rule = CustomRule(input: input, action: .keystroke(key: output))
-        rules.append(rule)
-        try await CustomRulesStore.shared.saveRules(rules)
-        return hadExisting
+        try await withMutation {
+            var rules = await store.loadRules()
+            let hadExisting = rules.contains { $0.input == input }
+            rules.removeAll { $0.input == input }
+            let rule = CustomRule(input: input, action: .keystroke(key: output))
+            rules.append(rule)
+            try await store.saveRules(rules)
+            return hadExisting
+        }
     }
 
     @discardableResult
     public func addTapHoldRemap(input: String, tap: String, hold: String, timeout: Int = 200) async throws -> Bool {
-        var rules = await CustomRulesStore.shared.loadRules()
-        let hadExisting = rules.contains { $0.input == input }
-        rules.removeAll { $0.input == input }
-        let rule = CustomRule(
-            input: input,
-            action: .keystroke(key: tap),
-            behavior: .dualRole(DualRoleBehavior(
-                tapAction: .keystroke(key: tap),
-                holdAction: .keystroke(key: hold),
-                tapTimeout: timeout
-            ))
-        )
-        rules.append(rule)
-        try await CustomRulesStore.shared.saveRules(rules)
-        return hadExisting
+        try await withMutation {
+            var rules = await store.loadRules()
+            let hadExisting = rules.contains { $0.input == input }
+            rules.removeAll { $0.input == input }
+            let rule = CustomRule(
+                input: input,
+                action: .keystroke(key: tap),
+                behavior: .dualRole(DualRoleBehavior(
+                    tapAction: .keystroke(key: tap),
+                    holdAction: .keystroke(key: hold),
+                    tapTimeout: timeout
+                ))
+            )
+            rules.append(rule)
+            try await store.saveRules(rules)
+            return hadExisting
+        }
     }
 
     public func addRule(
@@ -66,88 +100,96 @@ public struct RulesFacade: Sendable {
         deviceOverrides: [DeviceKeyOverride]? = nil,
         onConflict: CLIConflictStrategy = .fail
     ) async throws -> RuleAddResult {
-        var rules = await CustomRulesStore.shared.loadRules()
-        let existingIndex = rules.firstIndex(where: { $0.input == input })
+        try await withMutation {
+            var rules = await store.loadRules()
+            let existingIndex = rules.firstIndex(where: { $0.input == input })
 
-        if let existingIndex {
-            switch onConflict {
-            case .fail:
-                throw CLIConflictError(input: input)
-            case .skip:
-                return .skipped
-            case .replace:
-                rules.removeAll { $0.input == input }
-            case .merge:
-                let existing = rules[existingIndex]
-                let merged = try Self.mergeRules(existing: existing, newAction: action, newBehavior: behavior)
-                rules[existingIndex] = merged
-                try await CustomRulesStore.shared.saveRules(rules)
-                return .merged(CLIRuleDetail(from: merged))
+            if let existingIndex {
+                switch onConflict {
+                case .fail:
+                    throw CLIConflictError(input: input)
+                case .skip:
+                    return .skipped
+                case .replace:
+                    rules.removeAll { $0.input == input }
+                case .merge:
+                    let existing = rules[existingIndex]
+                    let merged = try Self.mergeRules(existing: existing, newAction: action, newBehavior: behavior)
+                    rules[existingIndex] = merged
+                    try await store.saveRules(rules)
+                    return .merged(CLIRuleDetail(from: merged))
+                }
             }
+
+            let layer: RuleCollectionLayer = if let targetLayer {
+                Self.parseLayer(targetLayer)
+            } else {
+                .base
+            }
+
+            let rule = CustomRule(
+                title: title ?? "",
+                input: input,
+                action: action,
+                shiftedOutput: shiftedOutput,
+                notes: notes,
+                behavior: behavior,
+                targetLayer: layer,
+                deviceOverrides: deviceOverrides
+            )
+            rules.append(rule)
+            try await store.saveRules(rules)
+
+            let detail = CLIRuleDetail(from: rule)
+            return existingIndex != nil ? .replaced(detail) : .created(detail)
         }
-
-        let layer: RuleCollectionLayer = if let targetLayer {
-            Self.parseLayer(targetLayer)
-        } else {
-            .base
-        }
-
-        let rule = CustomRule(
-            title: title ?? "",
-            input: input,
-            action: action,
-            shiftedOutput: shiftedOutput,
-            notes: notes,
-            behavior: behavior,
-            targetLayer: layer,
-            deviceOverrides: deviceOverrides
-        )
-        rules.append(rule)
-        try await CustomRulesStore.shared.saveRules(rules)
-
-        let detail = CLIRuleDetail(from: rule)
-        return existingIndex != nil ? .replaced(detail) : .created(detail)
     }
 
     public func listRules(enabledOnly: Bool = false) async -> [CLIRuleDetail] {
-        let rules = await CustomRulesStore.shared.loadRules()
+        let rules = await store.loadRules()
         let filtered = enabledOnly ? rules.filter(\.isEnabled) : rules
         return filtered.map { CLIRuleDetail(from: $0) }
     }
 
     public func showRule(input: String) async -> CLIRuleDetail? {
-        let rules = await CustomRulesStore.shared.loadRules()
+        let rules = await store.loadRules()
         guard let rule = rules.first(where: { $0.input == input }) else { return nil }
         return CLIRuleDetail(from: rule)
     }
 
     public func removeRemap(input: String) async throws -> Bool {
-        var rules = await CustomRulesStore.shared.loadRules()
-        let before = rules.count
-        rules.removeAll { $0.input == input }
-        if rules.count == before { return false }
-        try await CustomRulesStore.shared.saveRules(rules)
-        return true
+        try await withMutation {
+            var rules = await store.loadRules()
+            let before = rules.count
+            rules.removeAll { $0.input == input }
+            if rules.count == before { return false }
+            try await store.saveRules(rules)
+            return true
+        }
     }
 
     public func enableRule(input: String) async throws -> String? {
-        var rules = await CustomRulesStore.shared.loadRules()
-        guard let index = rules.firstIndex(where: { $0.input.caseInsensitiveCompare(input) == .orderedSame }) else {
-            return nil
+        try await withMutation {
+            var rules = await store.loadRules()
+            guard let index = rules.firstIndex(where: { $0.input.caseInsensitiveCompare(input) == .orderedSame }) else {
+                return nil
+            }
+            rules[index].isEnabled = true
+            try await store.saveRules(rules)
+            return rules[index].displayTitle
         }
-        rules[index].isEnabled = true
-        try await CustomRulesStore.shared.saveRules(rules)
-        return rules[index].displayTitle
     }
 
     public func disableRule(input: String) async throws -> String? {
-        var rules = await CustomRulesStore.shared.loadRules()
-        guard let index = rules.firstIndex(where: { $0.input.caseInsensitiveCompare(input) == .orderedSame }) else {
-            return nil
+        try await withMutation {
+            var rules = await store.loadRules()
+            guard let index = rules.firstIndex(where: { $0.input.caseInsensitiveCompare(input) == .orderedSame }) else {
+                return nil
+            }
+            rules[index].isEnabled = false
+            try await store.saveRules(rules)
+            return rules[index].displayTitle
         }
-        rules[index].isEnabled = false
-        try await CustomRulesStore.shared.saveRules(rules)
-        return rules[index].displayTitle
     }
 
     static func parseLayer(_ name: String) -> RuleCollectionLayer {

@@ -17,8 +17,15 @@ struct RuleRemove: AsyncParsableCommand {
     var apply: Bool = false
 
     mutating func run() async throws {
+        let command = self
+        try await CLIConfigurationOperation.run { operation in
+            try await command.run(operation: operation)
+        }
+    }
+
+    private func run(operation: CLIConfigurationOperation) async throws {
         let ctx = globals.outputContext
-        let facade = RulesFacade()
+        let facade = operation.rules
 
         if globals.dryRun {
             let rule = await facade.showRule(input: input)
@@ -45,6 +52,6 @@ struct RuleRemove: AsyncParsableCommand {
             "Removed mapping for '\(input)'"
         }
 
-        try await applyConfigurationOrHint(apply: apply, context: ctx)
+        try await applyConfigurationOrHint(apply: apply, context: ctx, facade: operation.config)
     }
 }

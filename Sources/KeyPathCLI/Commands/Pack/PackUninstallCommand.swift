@@ -17,8 +17,15 @@ struct PackUninstall: AsyncParsableCommand {
     var apply: Bool = false
 
     mutating func run() async throws {
+        let command = self
+        try await CLIConfigurationOperation.run { operation in
+            try await command.run(operation: operation)
+        }
+    }
+
+    private func run(operation: CLIConfigurationOperation) async throws {
         let ctx = globals.outputContext
-        let facade = PacksFacade()
+        let facade = operation.packs
 
         let spinner = CLISpinner(context: ctx)
 
@@ -53,7 +60,7 @@ struct PackUninstall: AsyncParsableCommand {
             }
 
             if result.action == "uninstalled" {
-                try await applyConfigurationOrHint(apply: apply, context: ctx)
+                try await applyConfigurationOrHint(apply: apply, context: ctx, facade: operation.config)
             }
         } catch let notFound as CLIPackNotFound {
             spinner.fail("Pack not found: '\(notFound.query)'")

@@ -3,6 +3,7 @@ import KeyPathCore
 import KeyPathRulesCore
 
 public struct ConfigFacade: Sendable {
+    private var operation: CLIConfigurationOperation?
     private let configDirectory: String
     private let ruleCollectionLoader: @Sendable () async -> [RuleCollection]
     private let customRuleLoader: @Sendable () async -> [CustomRule]
@@ -28,6 +29,11 @@ public struct ConfigFacade: Sendable {
         self.ruleCollectionLoader = ruleCollectionLoader
         self.customRuleLoader = customRuleLoader
         self.reloadHandler = reloadHandler
+    }
+
+    init(operation: CLIConfigurationOperation) {
+        self.init(configDirectory: operation.directory)
+        self.operation = operation
     }
 
     // MARK: - Configuration
@@ -58,8 +64,9 @@ public struct ConfigFacade: Sendable {
     // MARK: - Apply
 
     public func applyConfiguration(dryRun: Bool = false) async throws -> CLIApplyResult {
-        let service = await MainActor.run { ConfigurationService(configDirectory: configDirectory) }
-        return try await service.operationGate.withOperation { permit in
+        let service: ConfigurationService = if let operation { operation.service }
+        else { await MainActor.run { ConfigurationService(configDirectory: configDirectory) } }
+        return try await service.operationGate.withOperation(using: operation?.permit) { permit in
             try await applyConfiguration(dryRun: dryRun, service: service, permit: permit)
         }
     }

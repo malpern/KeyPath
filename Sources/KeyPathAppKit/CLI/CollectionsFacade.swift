@@ -3,51 +3,89 @@ import KeyPathCore
 import KeyPathRulesCore
 
 public struct CollectionsFacade: Sendable {
-    public init() {}
+    private let store: RuleCollectionStore
+    private let operation: CLIConfigurationOperation?
+
+    public init() {
+        store = .shared
+        operation = nil
+    }
+
+    init(operation: CLIConfigurationOperation) {
+        store = RuleCollectionStore(fileURL: URL(fileURLWithPath: operation.directory)
+            .appendingPathComponent("RuleCollections.json"))
+        self.operation = operation
+    }
+
+    init(store: RuleCollectionStore) {
+        self.store = store
+        operation = nil
+    }
+
+    private func withMutation<Result: Sendable>(
+        _ body: @Sendable () async throws -> Result
+    ) async throws -> Result {
+        if let operation {
+            return try await operation.service.operationGate.withOperation(using: operation.permit) { _ in
+                try await body()
+            }
+        }
+        let directory = await store.persistenceURL.deletingLastPathComponent()
+        let gate = ConfigurationOperationGate(configurationDirectory: directory)
+        return try await gate.withOperation { _ in try await body() }
+    }
 
     // MARK: - Collection CRUD
 
     public func loadRuleCollections() async -> [CLIRuleCollection] {
-        let collections = await RuleCollectionStore.shared.loadCollections()
+        let collections = await store.loadCollections()
         return collections.map { CLIRuleCollection(from: $0) }
     }
 
     public func enableCollection(nameOrId: String) async throws -> String? {
-        var collections = await RuleCollectionStore.shared.loadCollections()
-        guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
-            return nil
+        try await withMutation {
+            var collections = await store.loadCollections()
+            guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
+                return nil
+            }
+            let tracker = operation?.installedPackTracker ?? InstalledPackTracker.shared
+            try await tracker.validateForMutation()
+            if let owner = await tracker.packManagingCollection(collections[index].id) {
+                throw PackManagedCollectionError(
+                    collectionName: collections[index].name,
+                    packName: owner.packName,
+                    packID: owner.packID
+                )
+            }
+            collections[index].isEnabled = true
+            try await store.saveCollections(collections)
+            return collections[index].name
         }
-        if let owner = await InstalledPackTracker.shared.packManagingCollection(collections[index].id) {
-            throw PackManagedCollectionError(
-                collectionName: collections[index].name,
-                packName: owner.packName,
-                packID: owner.packID
-            )
-        }
-        collections[index].isEnabled = true
-        try await RuleCollectionStore.shared.saveCollections(collections)
-        return collections[index].name
     }
 
     public func disableCollection(nameOrId: String) async throws -> String? {
-        var collections = await RuleCollectionStore.shared.loadCollections()
-        guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
-            return nil
+        try await withMutation {
+            var collections = await store.loadCollections()
+            guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
+                return nil
+            }
+            let tracker = operation?.installedPackTracker ?? InstalledPackTracker.shared
+            try await tracker.validateForMutation()
+            if let owner = await tracker.packManagingCollection(collections[index].id) {
+                throw PackManagedCollectionError(
+                    collectionName: collections[index].name,
+                    packName: owner.packName,
+                    packID: owner.packID
+                )
+            }
+            collections[index].isEnabled = false
+            try await store.saveCollections(collections)
+            return collections[index].name
         }
-        if let owner = await InstalledPackTracker.shared.packManagingCollection(collections[index].id) {
-            throw PackManagedCollectionError(
-                collectionName: collections[index].name,
-                packName: owner.packName,
-                packID: owner.packID
-            )
-        }
-        collections[index].isEnabled = false
-        try await RuleCollectionStore.shared.saveCollections(collections)
-        return collections[index].name
     }
 
     public func showCollection(nameOrId: String) async throws -> CLIRuleCollection? {
-        let collections = await RuleCollectionStore.shared.loadCollections()
+        let collections = await store.loadCollections()
         guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
             return nil
         }
@@ -55,7 +93,7 @@ public struct CollectionsFacade: Sendable {
     }
 
     public func showCollectionDetail(nameOrId: String) async throws -> CLIRuleCollectionDetail? {
-        let collections = await RuleCollectionStore.shared.loadCollections()
+        let collections = await store.loadCollections()
         guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
             return nil
         }
@@ -63,78 +101,88 @@ public struct CollectionsFacade: Sendable {
     }
 
     public func createCollection(name: String, category: String?, summary: String?) async throws -> CLIRuleCollection {
-        var collections = await RuleCollectionStore.shared.loadCollections()
-        let cat: RuleCollectionCategory = if let category {
-            RuleCollectionCategory(rawValue: category) ?? .custom
-        } else {
-            .custom
+        try await withMutation {
+            var collections = await store.loadCollections()
+            let cat: RuleCollectionCategory = if let category {
+                RuleCollectionCategory(rawValue: category) ?? .custom
+            } else {
+                .custom
+            }
+            let collection = RuleCollection(
+                name: name,
+                summary: summary ?? "",
+                category: cat,
+                mappings: []
+            )
+            collections.append(collection)
+            try await store.saveCollections(collections)
+            return CLIRuleCollection(from: collection)
         }
-        let collection = RuleCollection(
-            name: name,
-            summary: summary ?? "",
-            category: cat,
-            mappings: []
-        )
-        collections.append(collection)
-        try await RuleCollectionStore.shared.saveCollections(collections)
-        return CLIRuleCollection(from: collection)
     }
 
     public func renameCollection(nameOrId: String, newName: String) async throws -> String? {
-        var collections = await RuleCollectionStore.shared.loadCollections()
-        guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
-            return nil
+        try await withMutation {
+            var collections = await store.loadCollections()
+            guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
+                return nil
+            }
+            let oldName = collections[index].name
+            collections[index].name = newName
+            try await store.saveCollections(collections)
+            return oldName
         }
-        let oldName = collections[index].name
-        collections[index].name = newName
-        try await RuleCollectionStore.shared.saveCollections(collections)
-        return oldName
     }
 
     public func deleteCollection(nameOrId: String) async throws -> Bool {
-        var collections = await RuleCollectionStore.shared.loadCollections()
-        guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
-            return false
+        try await withMutation {
+            var collections = await store.loadCollections()
+            guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
+                return false
+            }
+            collections.remove(at: index)
+            try await store.saveCollections(collections)
+            return true
         }
-        collections.remove(at: index)
-        try await RuleCollectionStore.shared.saveCollections(collections)
-        return true
     }
 
     public func duplicateCollection(nameOrId: String, newName: String?) async throws -> CLIRuleCollection? {
-        var collections = await RuleCollectionStore.shared.loadCollections()
-        guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
-            return nil
+        try await withMutation {
+            var collections = await store.loadCollections()
+            guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
+                return nil
+            }
+            var duplicate = collections[index]
+            duplicate = RuleCollection(
+                name: newName ?? "\(duplicate.name) (Copy)",
+                summary: duplicate.summary,
+                category: duplicate.category,
+                mappings: duplicate.mappings,
+                isEnabled: false
+            )
+            collections.insert(duplicate, at: index + 1)
+            try await store.saveCollections(collections)
+            return CLIRuleCollection(from: duplicate)
         }
-        var duplicate = collections[index]
-        duplicate = RuleCollection(
-            name: newName ?? "\(duplicate.name) (Copy)",
-            summary: duplicate.summary,
-            category: duplicate.category,
-            mappings: duplicate.mappings,
-            isEnabled: false
-        )
-        collections.insert(duplicate, at: index + 1)
-        try await RuleCollectionStore.shared.saveCollections(collections)
-        return CLIRuleCollection(from: duplicate)
     }
 
     public func reorderCollection(nameOrId: String, position: Int) async throws -> Bool {
-        var collections = await RuleCollectionStore.shared.loadCollections()
-        guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
-            return false
+        try await withMutation {
+            var collections = await store.loadCollections()
+            guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
+                return false
+            }
+            let collection = collections.remove(at: index)
+            let targetIndex = min(max(0, position), collections.count)
+            collections.insert(collection, at: targetIndex)
+            try await store.saveCollections(collections)
+            return true
         }
-        let collection = collections.remove(at: index)
-        let targetIndex = min(max(0, position), collections.count)
-        collections.insert(collection, at: targetIndex)
-        try await RuleCollectionStore.shared.saveCollections(collections)
-        return true
     }
 
     // MARK: - Export / Import
 
     public func exportCollection(nameOrId: String) async throws -> CLIExportedCollection? {
-        let collections = await RuleCollectionStore.shared.loadCollections()
+        let collections = await store.loadCollections()
         guard let index = try resolveCollectionIndex(nameOrId: nameOrId, in: collections) else {
             return nil
         }
@@ -142,33 +190,35 @@ public struct CollectionsFacade: Sendable {
     }
 
     public func exportAllCollections() async -> [CLIExportedCollection] {
-        let collections = await RuleCollectionStore.shared.loadCollections()
+        let collections = await store.loadCollections()
         return collections.map { CLIExportedCollection(from: $0) }
     }
 
     public func importCollection(_ exported: CLIExportedCollection, onConflict: CLIConflictStrategy = .fail) async throws -> CLIRuleCollection {
-        var collections = await RuleCollectionStore.shared.loadCollections()
-        let existingIndex = collections.firstIndex(where: { $0.name == exported.name })
+        try await withMutation {
+            var collections = await store.loadCollections()
+            let existingIndex = collections.firstIndex(where: { $0.name == exported.name })
 
-        if let existingIndex {
-            switch onConflict {
-            case .fail:
-                throw AmbiguousCollectionMatch(
-                    query: exported.name,
-                    matches: [.init(name: collections[existingIndex].name, id: collections[existingIndex].id.uuidString)],
-                    hint: "Use --on-conflict=replace to overwrite or --on-conflict=skip to no-op"
-                )
-            case .skip:
-                return CLIRuleCollection(from: collections[existingIndex])
-            case .replace, .merge:
-                collections.remove(at: existingIndex)
+            if let existingIndex {
+                switch onConflict {
+                case .fail:
+                    throw AmbiguousCollectionMatch(
+                        query: exported.name,
+                        matches: [.init(name: collections[existingIndex].name, id: collections[existingIndex].id.uuidString)],
+                        hint: "Use --on-conflict=replace to overwrite or --on-conflict=skip to no-op"
+                    )
+                case .skip:
+                    return CLIRuleCollection(from: collections[existingIndex])
+                case .replace, .merge:
+                    collections.remove(at: existingIndex)
+                }
             }
-        }
 
-        let collection = exported.toRuleCollection()
-        collections.append(collection)
-        try await RuleCollectionStore.shared.saveCollections(collections)
-        return CLIRuleCollection(from: collection)
+            let collection = exported.toRuleCollection()
+            collections.append(collection)
+            try await store.saveCollections(collections)
+            return CLIRuleCollection(from: collection)
+        }
     }
 
     // MARK: - Karabiner Import
@@ -260,7 +310,7 @@ public struct CollectionsFacade: Sendable {
     // MARK: - Layer CRUD
 
     public func listDefinedLayers() async -> [String] {
-        let collections = await RuleCollectionStore.shared.loadCollections()
+        let collections = await store.loadCollections()
         var layers = Set<String>()
         layers.insert("base")
         for collection in collections {
@@ -270,47 +320,54 @@ public struct CollectionsFacade: Sendable {
     }
 
     public func createLayer(name: String) async throws -> CLIRuleCollection {
-        var collections = await RuleCollectionStore.shared.loadCollections()
-        let layer = Self.parseLayer(name)
-        let collection = RuleCollection(
-            name: "\(name) Layer",
-            summary: "Rules for the \(name) layer",
-            category: .layers,
-            mappings: [],
-            targetLayer: layer
-        )
-        collections.append(collection)
-        try await RuleCollectionStore.shared.saveCollections(collections)
-        return CLIRuleCollection(from: collection)
+        try await withMutation {
+            var collections = await store.loadCollections()
+            let layer = Self.parseLayer(name)
+            let collection = RuleCollection(
+                name: "\(name) Layer",
+                summary: "Rules for the \(name) layer",
+                category: .layers,
+                mappings: [],
+                targetLayer: layer
+            )
+            collections.append(collection)
+            try await store.saveCollections(collections)
+            return CLIRuleCollection(from: collection)
+        }
     }
 
     public func deleteLayer(name: String) async throws -> Int {
-        var collections = await RuleCollectionStore.shared.loadCollections()
-        let targetName = Self.parseLayer(name).kanataName
-        let before = collections.count
-        collections.removeAll { $0.targetLayer.kanataName == targetName }
-        let removed = before - collections.count
-        if removed > 0 {
-            try await RuleCollectionStore.shared.saveCollections(collections)
+        try await withMutation {
+            var collections = await store.loadCollections()
+            let targetName = Self.parseLayer(name).kanataName
+            let before = collections.count
+            collections.removeAll { $0.targetLayer.kanataName == targetName }
+            let removed = before - collections.count
+            if removed > 0 {
+                try await store.saveCollections(collections)
+            }
+            return removed
         }
-        return removed
     }
 
     public func renameLayer(oldName: String, newName: String) async throws -> Int {
-        var collections = await RuleCollectionStore.shared.loadCollections()
-        let oldLayerName = Self.parseLayer(oldName).kanataName
-        let newLayer = Self.parseLayer(newName)
-        var updated = 0
-        for i in collections.indices {
-            if collections[i].targetLayer.kanataName == oldLayerName {
-                collections[i].targetLayer = newLayer
-                updated += 1
+        try await withMutation {
+
+            var collections = await store.loadCollections()
+            let oldLayerName = Self.parseLayer(oldName).kanataName
+            let newLayer = Self.parseLayer(newName)
+            var updated = 0
+            for i in collections.indices {
+                if collections[i].targetLayer.kanataName == oldLayerName {
+                    collections[i].targetLayer = newLayer
+                    updated += 1
+                }
             }
+            if updated > 0 {
+                try await store.saveCollections(collections)
+            }
+            return updated
         }
-        if updated > 0 {
-            try await RuleCollectionStore.shared.saveCollections(collections)
-        }
-        return updated
     }
 
     // MARK: - Helpers

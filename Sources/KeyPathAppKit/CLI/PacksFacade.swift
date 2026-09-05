@@ -10,7 +10,19 @@ public struct PacksFacade: Sendable {
 
     /// Test seam: overrides the manager used by install/uninstall/configure so tests
     /// can inject temp-backed stores instead of the shared persistent ones (#953).
+    /// Construct only; source hydration happens after admission.
     private let managerFactory: (@Sendable @MainActor () async -> RuleCollectionsManager)?
+
+    private var installedPackTracker: InstalledPackTracker {
+        operation?.installedPackTracker ?? .shared
+    }
+
+    private var operation: CLIConfigurationOperation?
+
+    init(operation: CLIConfigurationOperation) {
+        self.init()
+        self.operation = operation
+    }
 
     public init() {
         managerFactory = nil
@@ -24,7 +36,7 @@ public struct PacksFacade: Sendable {
 
     public func listPacks() async -> [CLIPack] {
         let allPacks = PackRegistry.starterKit
-        let installed = await InstalledPackTracker.shared.allInstalled()
+        let installed = await installedPackTracker.allInstalled()
         let installedMap = Dictionary(uniqueKeysWithValues: installed.map { ($0.packID, $0) })
 
         return allPacks.map { pack in
@@ -43,7 +55,7 @@ public struct PacksFacade: Sendable {
 
     public func showPack(nameOrId: String) async throws -> CLIPackDetail? {
         guard let pack = try resolvePack(nameOrId: nameOrId) else { return nil }
-        let record = await InstalledPackTracker.shared.record(for: pack.id)
+        let record = await installedPackTracker.record(for: pack.id)
         return CLIPackDetail(from: pack, record: record)
     }
 
@@ -53,62 +65,66 @@ public struct PacksFacade: Sendable {
         settingValues: [String: Int] = [:],
         dryRun: Bool = false
     ) async throws -> CLIPackInstallResult {
-        guard let pack = try resolvePack(nameOrId: nameOrId) else {
-            throw CLIPackNotFound(query: nameOrId)
-        }
+        try await withPackOperation { manager, permit in
+            guard let pack = try resolvePack(nameOrId: nameOrId) else {
+                throw CLIPackNotFound(query: nameOrId)
+            }
 
-        let isAlready = await InstalledPackTracker.shared.isInstalled(packID: pack.id)
-        if isAlready {
-            return CLIPackInstallResult(
-                packID: pack.id,
-                packName: pack.name,
-                action: "already-installed",
-                warnings: [],
-                quickSettingValues: [:]
+            let isAlready = await installedPackTracker.isInstalled(packID: pack.id)
+            if isAlready {
+                return CLIPackInstallResult(
+                    packID: pack.id,
+                    packName: pack.name,
+                    action: "already-installed",
+                    warnings: [],
+                    quickSettingValues: [:]
+                )
+            }
+
+            try validateQuickSettings(settingValues, for: pack)
+
+            if dryRun {
+                var warnings: [String] = []
+                let installedIDs = await Set(installedPackTracker.allInstalled().map(\.packID))
+                let suggestions = PackDependencyChecker.suggestions(for: pack.id, installedPackIDs: installedIDs)
+                for dep in suggestions {
+                    let depName = PackRegistry.pack(id: dep.packID)?.name ?? dep.packID
+                    warnings.append("Enhanced by '\(depName)' — install it for best results")
+                }
+                return CLIPackInstallResult(
+                    packID: pack.id,
+                    packName: pack.name,
+                    action: "would-install",
+                    warnings: warnings,
+                    quickSettingValues: settingValues
+                )
+            }
+
+            await loadPackSources(into: manager)
+            let record = try await PackInstaller.shared.install(
+                pack,
+                quickSettingValues: settingValues,
+                manager: manager,
+                installedPackTracker: installedPackTracker,
+                mutationPermit: permit
             )
-        }
 
-        try validateQuickSettings(settingValues, for: pack)
-
-        if dryRun {
             var warnings: [String] = []
-            let installedIDs = await Set(InstalledPackTracker.shared.allInstalled().map(\.packID))
+            let installedIDs = await Set(installedPackTracker.allInstalled().map(\.packID))
             let suggestions = PackDependencyChecker.suggestions(for: pack.id, installedPackIDs: installedIDs)
             for dep in suggestions {
                 let depName = PackRegistry.pack(id: dep.packID)?.name ?? dep.packID
                 warnings.append("Enhanced by '\(depName)' — install it for best results")
             }
+
             return CLIPackInstallResult(
                 packID: pack.id,
                 packName: pack.name,
-                action: "would-install",
+                action: "installed",
                 warnings: warnings,
-                quickSettingValues: settingValues
+                quickSettingValues: record.quickSettingValues
             )
         }
-
-        let manager = await makePackManager()
-        let record = try await PackInstaller.shared.install(
-            pack,
-            quickSettingValues: settingValues,
-            manager: manager
-        )
-
-        var warnings: [String] = []
-        let installedIDs = await Set(InstalledPackTracker.shared.allInstalled().map(\.packID))
-        let suggestions = PackDependencyChecker.suggestions(for: pack.id, installedPackIDs: installedIDs)
-        for dep in suggestions {
-            let depName = PackRegistry.pack(id: dep.packID)?.name ?? dep.packID
-            warnings.append("Enhanced by '\(depName)' — install it for best results")
-        }
-
-        return CLIPackInstallResult(
-            packID: pack.id,
-            packName: pack.name,
-            action: "installed",
-            warnings: warnings,
-            quickSettingValues: record.quickSettingValues
-        )
     }
 
     @MainActor
@@ -116,41 +132,43 @@ public struct PacksFacade: Sendable {
         nameOrId: String,
         dryRun: Bool = false
     ) async throws -> CLIPackInstallResult {
-        guard let pack = try resolvePack(nameOrId: nameOrId) else {
-            throw CLIPackNotFound(query: nameOrId)
-        }
+        try await withPackOperation { manager, permit in
+            guard let pack = try resolvePack(nameOrId: nameOrId) else {
+                throw CLIPackNotFound(query: nameOrId)
+            }
 
-        let isInstalled = await InstalledPackTracker.shared.isInstalled(packID: pack.id)
-        guard isInstalled else {
+            let isInstalled = await installedPackTracker.isInstalled(packID: pack.id)
+            guard isInstalled else {
+                return CLIPackInstallResult(
+                    packID: pack.id,
+                    packName: pack.name,
+                    action: "not-installed",
+                    warnings: [],
+                    quickSettingValues: [:]
+                )
+            }
+
+            if dryRun {
+                return CLIPackInstallResult(
+                    packID: pack.id,
+                    packName: pack.name,
+                    action: "would-uninstall",
+                    warnings: [],
+                    quickSettingValues: [:]
+                )
+            }
+
+            await loadPackSources(into: manager)
+            try await PackInstaller.shared.uninstall(packID: pack.id, manager: manager, installedPackTracker: installedPackTracker, mutationPermit: permit)
+
             return CLIPackInstallResult(
                 packID: pack.id,
                 packName: pack.name,
-                action: "not-installed",
+                action: "uninstalled",
                 warnings: [],
                 quickSettingValues: [:]
             )
         }
-
-        if dryRun {
-            return CLIPackInstallResult(
-                packID: pack.id,
-                packName: pack.name,
-                action: "would-uninstall",
-                warnings: [],
-                quickSettingValues: [:]
-            )
-        }
-
-        let manager = await makePackManager()
-        try await PackInstaller.shared.uninstall(packID: pack.id, manager: manager)
-
-        return CLIPackInstallResult(
-            packID: pack.id,
-            packName: pack.name,
-            action: "uninstalled",
-            warnings: [],
-            quickSettingValues: [:]
-        )
     }
 
     @MainActor
@@ -159,62 +177,66 @@ public struct PacksFacade: Sendable {
         settingValues: [String: Int],
         dryRun: Bool = false
     ) async throws -> CLIPackInstallResult {
-        guard let pack = try resolvePack(nameOrId: nameOrId) else {
-            throw CLIPackNotFound(query: nameOrId)
-        }
-
-        let isInstalled = await InstalledPackTracker.shared.isInstalled(packID: pack.id)
-        guard isInstalled else {
-            return CLIPackInstallResult(
-                packID: pack.id,
-                packName: pack.name,
-                action: "not-installed",
-                warnings: ["Pack must be installed before configuring settings."],
-                quickSettingValues: [:]
-            )
-        }
-
-        guard !pack.quickSettings.isEmpty else {
-            throw CLIPackSettingError(
-                packName: pack.name,
-                settingKey: settingValues.keys.first ?? "",
-                validKeys: []
-            )
-        }
-
-        try validateQuickSettings(settingValues, for: pack)
-
-        if dryRun {
-            let current = await PackInstaller.shared.quickSettings(for: pack.id)
-            var merged = current
-            for (k, v) in settingValues {
-                merged[k] = v
+        try await withPackOperation { manager, permit in
+            guard let pack = try resolvePack(nameOrId: nameOrId) else {
+                throw CLIPackNotFound(query: nameOrId)
             }
+
+            let isInstalled = await installedPackTracker.isInstalled(packID: pack.id)
+            guard isInstalled else {
+                return CLIPackInstallResult(
+                    packID: pack.id,
+                    packName: pack.name,
+                    action: "not-installed",
+                    warnings: ["Pack must be installed before configuring settings."],
+                    quickSettingValues: [:]
+                )
+            }
+
+            guard !pack.quickSettings.isEmpty else {
+                throw CLIPackSettingError(
+                    packName: pack.name,
+                    settingKey: settingValues.keys.first ?? "",
+                    validKeys: []
+                )
+            }
+
+            try validateQuickSettings(settingValues, for: pack)
+
+            if dryRun {
+                let current = await installedPackTracker.record(for: pack.id)?.quickSettingValues ?? [:]
+                var merged = current
+                for (k, v) in settingValues {
+                    merged[k] = v
+                }
+                return CLIPackInstallResult(
+                    packID: pack.id,
+                    packName: pack.name,
+                    action: "would-configure",
+                    warnings: [],
+                    quickSettingValues: merged
+                )
+            }
+
+            await loadPackSources(into: manager)
+            try await PackInstaller.shared.updateQuickSettings(
+                packID: pack.id,
+                newValues: settingValues,
+                manager: manager,
+                installedPackTracker: installedPackTracker,
+                mutationPermit: permit
+            )
+
+            let updatedSettings = await installedPackTracker.record(for: pack.id)?.quickSettingValues ?? [:]
+
             return CLIPackInstallResult(
                 packID: pack.id,
                 packName: pack.name,
-                action: "would-configure",
+                action: "configured",
                 warnings: [],
-                quickSettingValues: merged
+                quickSettingValues: updatedSettings
             )
         }
-
-        let manager = await makePackManager()
-        try await PackInstaller.shared.updateQuickSettings(
-            packID: pack.id,
-            newValues: settingValues,
-            manager: manager
-        )
-
-        let updatedSettings = await PackInstaller.shared.quickSettings(for: pack.id)
-
-        return CLIPackInstallResult(
-            packID: pack.id,
-            packName: pack.name,
-            action: "configured",
-            warnings: [],
-            quickSettingValues: updatedSettings
-        )
     }
 
     func resolvePack(nameOrId: String) throws -> Pack? {
@@ -269,22 +291,44 @@ public struct PacksFacade: Sendable {
     }
 
     @MainActor
+    private func withPackOperation<Result: Sendable>(
+        _ operation: @MainActor @Sendable (RuleCollectionsManager, ConfigurationOperationGate.Permit) async throws -> Result
+    ) async throws -> Result {
+        let manager = await makePackManager()
+        return try await manager.configurationService.operationGate.withOperation(using: self.operation?.permit) { @MainActor permit in
+            try await installedPackTracker.validateForMutation()
+            return try await operation(manager, permit)
+        }
+    }
+
+    /// Load source state only after admission, immediately before a real mutation.
+    /// Dry-run and already-installed/not-installed exits do not hydrate or write sources.
+    @MainActor
+    private func loadPackSources(into manager: RuleCollectionsManager) async {
+        manager.ruleCollections = await RuleCollectionDeduplicator.dedupe(manager.ruleCollectionStore.loadCollections())
+        manager.customRules = await manager.customRulesStore.loadRules()
+    }
+
+    @MainActor
     func makePackManager() async -> RuleCollectionsManager {
         if let managerFactory {
             return await managerFactory()
         }
 
+        if let operation {
+            let directory = URL(fileURLWithPath: operation.directory)
+            return RuleCollectionsManager(
+                ruleCollectionStore: RuleCollectionStore(fileURL: directory.appendingPathComponent("RuleCollections.json")),
+                customRulesStore: CustomRulesStore(fileURL: directory.appendingPathComponent("CustomRules.json")),
+                configurationService: operation.service
+            )
+        }
         let configService = ConfigurationService()
-        let manager = RuleCollectionsManager(
+        return RuleCollectionsManager(
             ruleCollectionStore: .shared,
             customRulesStore: .shared,
             configurationService: configService
         )
-        let collections = await RuleCollectionStore.shared.loadCollections()
-        let customRules = await CustomRulesStore.shared.loadRules()
-        manager.ruleCollections = RuleCollectionDeduplicator.dedupe(collections)
-        manager.customRules = customRules
-        return manager
     }
 
     private func validateQuickSettings(_ values: [String: Int], for pack: Pack) throws {

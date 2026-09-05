@@ -17,8 +17,15 @@ struct CollectionDisable: AsyncParsableCommand {
     var apply: Bool = false
 
     mutating func run() async throws {
+        let command = self
+        try await CLIConfigurationOperation.run { operation in
+            try await command.run(operation: operation)
+        }
+    }
+
+    private func run(operation: CLIConfigurationOperation) async throws {
         let ctx = globals.outputContext
-        let facade = CollectionsFacade()
+        let facade = operation.collections
 
         do {
             guard let name = try await facade.disableCollection(nameOrId: nameOrId) else {
@@ -47,6 +54,6 @@ struct CollectionDisable: AsyncParsableCommand {
             throw error.code.exitCode
         }
 
-        try await applyConfigurationOrHint(apply: apply, context: ctx)
+        try await applyConfigurationOrHint(apply: apply, context: ctx, facade: operation.config)
     }
 }
