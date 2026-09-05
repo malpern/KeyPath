@@ -20,6 +20,9 @@ extension RuleCollectionsManager {
         AppLogger.shared.log("⌨️ [RuleCollections] Setting active keymap to '\(keymapId)' (punctuation: \(includePunctuation))")
 
         let previousKeymapId = activeKeymapId
+        let previousPunctuation = keymapIncludesPunctuation
+        let previousKeymapIndex = ruleCollections.firstIndex { $0.id == RuleCollectionIdentifier.keymapLayout }
+        let previousKeymapCollection = previousKeymapIndex.map { ruleCollections[$0] }
         activeKeymapId = keymapId
         keymapIncludesPunctuation = includePunctuation
 
@@ -49,22 +52,25 @@ extension RuleCollectionsManager {
             AppLogger.shared.log("⌨️ [RuleCollections] QWERTY selected - no keymap collection needed")
         }
 
-        // Persist keymap state
-        await persistKeymapState()
-
-        // Regenerate config
+        // Persist preferences only after the config/source-store write succeeds.
         let success = await regenerateConfigFromCollections()
-
-        if !success {
-            // Rollback on failure
+        if success {
+            await persistKeymapState()
+        } else {
             AppLogger.shared.log("⌨️ [RuleCollections] Keymap change failed - rolling back")
             activeKeymapId = previousKeymapId
+            keymapIncludesPunctuation = previousPunctuation
+            // The overlay optimistically updates its shared display preferences
+            // before invoking this operation. Revert only this attempted selection;
+            // a newer UI choice must survive an older failed completion.
+            KeymapPreferences.restoreFailedSelection(
+                attemptedID: keymapId, attemptedPunctuation: includePunctuation,
+                previousID: previousKeymapId, previousPunctuation: previousPunctuation,
+                userDefaults: keymapPreferences
+            )
             ruleCollections.removeAll { $0.id == RuleCollectionIdentifier.keymapLayout }
-            if let previousCollection = KeymapMappingGenerator.generateCollection(
-                for: previousKeymapId,
-                includePunctuation: keymapIncludesPunctuation
-            ) {
-                ruleCollections.insert(previousCollection, at: 0)
+            if let previousKeymapCollection, let previousKeymapIndex {
+                ruleCollections.insert(previousKeymapCollection, at: min(previousKeymapIndex, ruleCollections.count))
             }
         }
 
@@ -103,17 +109,17 @@ extension RuleCollectionsManager {
 
     /// Persist the current keymap state to UserDefaults
     func persistKeymapState() async {
-        UserDefaults.standard.set(activeKeymapId, forKey: "activeKeymapId")
-        UserDefaults.standard.set(keymapIncludesPunctuation, forKey: "keymapIncludesPunctuation")
+        keymapPreferences.set(activeKeymapId, forKey: "activeKeymapId")
+        keymapPreferences.set(keymapIncludesPunctuation, forKey: "keymapIncludesPunctuation")
         AppLogger.shared.log("💾 [RuleCollections] Persisted keymap state: \(activeKeymapId)")
     }
 
     /// Restore keymap state from UserDefaults (called during bootstrap)
     func restoreKeymapState() {
-        if let storedKeymapId = UserDefaults.standard.string(forKey: "activeKeymapId") {
+        if let storedKeymapId = keymapPreferences.string(forKey: "activeKeymapId") {
             activeKeymapId = storedKeymapId
         }
-        keymapIncludesPunctuation = UserDefaults.standard.bool(forKey: "keymapIncludesPunctuation")
+        keymapIncludesPunctuation = keymapPreferences.bool(forKey: "keymapIncludesPunctuation")
         AppLogger.shared.log("📂 [RuleCollections] Restored keymap state: \(activeKeymapId) (punctuation: \(keymapIncludesPunctuation))")
     }
 }

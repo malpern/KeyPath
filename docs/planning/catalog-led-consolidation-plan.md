@@ -1,7 +1,7 @@
 # KeyPath: catalog-led consolidation execution plan
 
 Date: 2026-09-04
-Status: approved direction; Phase 0 inventory recorded, Phase 1 internal save/recovery contract in progress.
+Status: approved direction; Phase 0 inventory recorded; Phase 1 persistence/recovery foundation implemented, operation migration still open.
 Baseline: `master` at `a12bb07d5`; recheck code, branches, and issues before implementation.
 
 ## Outcome
@@ -109,11 +109,10 @@ gaps are named. No claim that the entire app is healthy based on test counts.
 
 First implementation milestone; do this before a broad module split.
 
-Current evidence to verify: `RuleCollectionsManager.onRulesChanged` returns Void;
-the callback in `RuntimeCoordinator` discards `applyPersistedRuleChanges()`'s
-result. `SaveCoordinator` separately handles reload dispositions. This is a
-structural inconsistency, not a reproduced end-user failure. The save-pipeline
-document also needs reconciliation with current source ordering.
+Initial evidence: the collection callback discarded reload results while
+`SaveCoordinator` classified them. PR #1264 now retains the original result
+through that boundary. The compatibility Boolean still means persisted, not
+applied; changing it awaits recovery across the entire operation.
 
 Proposed PR sequence:
 
@@ -248,14 +247,55 @@ them. Suggested mappings, not automatic closure instructions:
 - #213, #212, #211: conversion expansion remains deferred; no parity commitment.
 - #204: inventory Insights and decide disposition, not an automatic completion task.
 
-Completed internal slices: #1260 retains reload dispositions; #1262 serializes
-coordinator saves and uses operation-local file snapshots. The next slice exposes
-file recovery outcomes and failure fixtures. These do not yet migrate collection
-source stores into the same transaction.
+## Implementation checkpoint — September 5
 
-Next work packet: carry collection regeneration results through the callback
-boundary, then design multi-store commit/recovery before changing its Boolean
-callers or presenting new status in the UI. Stop for assessment after the first migrated configuration
-journey: verify that ownership and failure behavior improved before extending the
-pattern. Estimate remaining work from that evidence; this plan makes no calendar
-commitment based on source-line counts.
+Implemented slices (the table describes the merged state of this checkpoint):
+
+| PR | Result | Remaining boundary |
+| --- | --- | --- |
+| #1260 | Mutation inventory and retained save reload results; unused alternative writer methods removed. | Other mutation surfaces still need migration. |
+| #1262 | FIFO coordinator saves, operation-local file snapshots, queued cancellation and recursive callback protection. | Admission is coordinator-local, not shared by every collection/pack mutation. |
+| #1263 | Explicit previous-file, minimal-safe-file, and failed recovery outcomes retaining both errors. | File recovery does not assert source-store or engine restoration. |
+| #1264 | Collection persistence and retry callbacks retain applied/pending/rejected/failed outcomes. | Compatibility Boolean continues to mean persisted. |
+| #1265 | Durable journal for config plus both rule stores, startup recovery, external-change checks, and observers after file-set commit. | Preferences, pack metadata, in-memory mutation ordering and runtime rollback remain outside this file transaction. |
+| #1266 | Failed keymap writes restore the prior collection, manager preferences and attempted overlay selection, preserving unrelated layout preferences and newer display choices. | UserDefaults is not crash-atomic with the journal; admission still needs to precede every mutation. |
+
+The first migrated persistence journey now has interruption and failure tests.
+This is a useful foundation, not completion of Phase 1 or the program.
+
+Next implementation sequence:
+
+1. Admit collection, mapper and pack operations before in-memory mutation;
+   preserve explicit ownership through trusted nested calls, and reject recursive
+   callback writes rather than allowing stale rollback or deadlock.
+2. Keep the prior source revision through runtime classification and restore
+   sources/preferences/metadata consistently after rejection or failure.
+3. Replace time-only watcher suppression with recognition of actual internal
+   revisions. Buffer during the write operation and reconcile external changes
+   afterward. Cover atomic replacement, directory creation, overlapping edits,
+   cancellation and stop/restart; do not use a longer blind suppression window.
+4. Migrate remaining CLI/raw/pack paths, then move stable pure generation out of
+   app dependencies. Do not start a broad module move while save ownership is
+   still changing.
+
+UI decisions awaiting Micah's discussion: consistent conflict confirmation with
+an affected-key preview; saved/pending/recovery status wording in the existing
+status area; and explicit pack ownership behavior. No navigation redesign,
+feature removal or public release is authorized by this checkpoint.
+
+Validation limits: supported-runner CI has passed the merged internal slices.
+The local macOS 27 host retains four independently reproduced baseline snapshot
+failures (three HomeRowTiming variants and RepairSettingsTabView). Signed,
+notarized installation has passed. Earlier local checks encountered incomplete
+Kanata setup; subsequent installed-CLI inspection reported `isOperational: true`
+with no issues and a responding runtime. This is readiness evidence, not a
+physical remap test. A managed macOS 15 lab guest installed the signed
+#1265 artifact and opened the first-run screen; helper registration was denied,
+and its newer Peekaboo bridge could read but could not advance setup reliably.
+Artifacts were collected and the lease destroyed. This is not successful
+first-remap, unmanaged-permission or physical-HID verification.
+
+Runner storage: PR #1261 remains separate and unmerged until the actual CI
+process has removable-volume permission and completes validation. Existing CI
+can run above the disk reserve; do not lower that reserve or claim that external
+storage migration is complete.

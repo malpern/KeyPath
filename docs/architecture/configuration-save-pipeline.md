@@ -70,8 +70,8 @@ parsed cache or read a mutable shared backup at rollback time. Queued cancellati
 is observed at admission without a write or reload; after mutation begins the
 existing completion/recovery path runs to completion.
 
-This gate covers this coordinator only. Collection/pack/CLI writers, source-store
-transactions, external edits, and durable crash recovery still need migration.
+This gate covers this coordinator only. Collection/pack/CLI operation ownership and external edits still need migration.
+The collection file journal below provides a separate durable recovery boundary.
 See [the reproduced rollback race](../bugs/save-coordinator-overlapping-rollback.md).
 
 Explicit-restore failure throws `SaveRecoveryError`, retaining both causes while
@@ -89,8 +89,8 @@ back to the original caller without another reload.
 `regenerateConfigFromCollections()` remains a compatibility adapter returning
 `didPersist`. Do not reinterpret its Boolean as live application: callers perform
 their own partial rollback on false, so changing it on reload rejection before
-migrating multi-store recovery would create inconsistent state. This stage does
-not change notification timing or claim recovery after a partial store write.
+migrating multi-store recovery would create inconsistent state. Notifications follow the file-set commit; recovery from a partial store write is
+provided by the journal below, separately from runtime rejection recovery.
 
 Collection file persistence now uses [recoverable rule writes](recoverable-rule-writes.md).
 It journals the generated file and both source stores, recovers before bootstrap
