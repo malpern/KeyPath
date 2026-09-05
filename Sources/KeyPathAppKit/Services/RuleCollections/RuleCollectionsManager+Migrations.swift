@@ -35,9 +35,16 @@ extension RuleCollectionsManager {
     }
 
     /// Regenerates the Kanata configuration from collections and custom rules.
-    /// Returns `true` on success, `false` if validation or saving fails.
+    /// Compatibility API: `true` means persistence completed, not engine application.
+    /// Keep this meaning until callers participate in the multi-store transaction.
     @discardableResult
     func regenerateConfigFromCollections(skipReload: Bool = false, conflictResolutionDepth: Int = 0) async -> Bool {
+        await persistRules(skipReload: skipReload, conflictResolutionDepth: conflictResolutionDepth).didPersist
+    }
+
+    /// Returns persistence failure or the actual reload result after persistence.
+    /// Nil reload means explicitly skipped or no callback, never presumed applied.
+    func persistRules(skipReload: Bool = false, conflictResolutionDepth: Int = 0) async -> RulePersistenceResult {
         dedupeRuleCollectionsInPlace()
 
         AppLogger.shared.log("🔄 [RuleCollections] regenerateConfigFromCollections: \(ruleCollections.count) collections, \(customRules.count) custom rules")
@@ -82,16 +89,13 @@ extension RuleCollectionsManager {
                 SoundManager.shared.playTinkSound()
             }
 
-            if !skipReload {
-                await onRulesChanged?()
-            }
-
-            return true
-        } catch is CancellationError {
+            let reloadResult = skipReload ? nil : await onRulesChanged?()
+            return .persisted(reloadResult: reloadResult)
+        } catch let error as CancellationError {
             // Task was cancelled (e.g., view disappeared mid-save) — silently ignore
             // rather than showing a misleading "validation failed" dialog
             AppLogger.shared.log("⚠️ [RuleCollections] Config save cancelled (task cancellation)")
-            return false
+            return .failed(error)
         } catch {
             // #460: if the failure is a mapping conflict between real collections,
             // offer to disable one inline and retry, instead of just showing an error.
@@ -111,7 +115,7 @@ extension RuleCollectionsManager {
                errors.contains(where: { $0.contains("cancelled") })
             {
                 AppLogger.shared.log("⚠️ [RuleCollections] Config validation was cancelled — not showing error dialog")
-                return false
+                return .failed(error)
             }
 
             // Extract user-friendly error message
@@ -138,7 +142,7 @@ extension RuleCollectionsManager {
                 SoundManager.shared.playErrorSound()
             }
 
-            return false
+            return .failed(error)
         }
     }
 }

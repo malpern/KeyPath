@@ -182,7 +182,10 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
         var regenerationCount = 0
         var reloadCount = 0
         manager.onBeforeSave = { regenerationCount += 1 }
-        manager.onRulesChanged = { reloadCount += 1 }
+        manager.onRulesChanged = {
+            reloadCount += 1
+            return ReloadResult(success: true, response: "ok", errorMessage: nil, protocol: nil)
+        }
 
         let applied = await manager.applyLauncherConfig(
             id: RuleCollectionIdentifier.launcher,
@@ -223,7 +226,10 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
         var regenerationCount = 0
         var reloadCount = 0
         manager.onBeforeSave = { regenerationCount += 1 }
-        manager.onRulesChanged = { reloadCount += 1 }
+        manager.onRulesChanged = {
+            reloadCount += 1
+            return ReloadResult(success: true, response: "ok", errorMessage: nil, protocol: nil)
+        }
 
         let applied = await manager.applyLauncherConfig(
             id: capsLock.id,
@@ -270,7 +276,10 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
         var regenerationCount = 0
         var reloadCount = 0
         manager.onBeforeSave = { regenerationCount += 1 }
-        manager.onRulesChanged = { reloadCount += 1 }
+        manager.onRulesChanged = {
+            reloadCount += 1
+            return ReloadResult(success: true, response: "ok", errorMessage: nil, protocol: nil)
+        }
 
         var proposed = try XCTUnwrap(
             originalState.collections[id: RuleCollectionIdentifier.launcher]?

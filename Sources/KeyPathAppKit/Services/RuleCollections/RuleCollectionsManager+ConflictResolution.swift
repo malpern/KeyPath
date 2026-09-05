@@ -45,7 +45,7 @@ extension RuleCollectionsManager {
     /// real collections, prompt the user to disable one and retry the save (#460).
     /// - Returns: the retry result, or nil when the failure wasn't a resolvable
     ///   mapping conflict or the user cancelled (caller falls back to its error path).
-    func tryResolveMappingConflict(_ error: Error, skipReload: Bool, depth: Int) async -> Bool? {
+    func tryResolveMappingConflict(_ error: Error, skipReload: Bool, depth: Int) async -> RulePersistenceResult? {
         // Bound retries: each resolution disables one collection (strictly shrinking
         // the enabled set), so this terminates, but the guard prevents pathological loops.
         guard depth < 5,
@@ -79,8 +79,8 @@ extension RuleCollectionsManager {
         let snapshot = ruleCollections
         ruleCollections[index].isEnabled = false
         refreshLayerIndicatorState()
-        let saved = await regenerateConfigFromCollections(skipReload: skipReload, conflictResolutionDepth: depth + 1)
-        if !saved {
+        let saved = await persistRules(skipReload: skipReload, conflictResolutionDepth: depth + 1)
+        if !saved.didPersist {
             ruleCollections = snapshot
             refreshLayerIndicatorState()
         }

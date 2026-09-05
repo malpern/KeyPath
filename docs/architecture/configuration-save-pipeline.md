@@ -3,8 +3,9 @@
 KeyPath has two principal app configuration-write paths. Reload execution uses
 the dispositions introduced by #732: `applied`, `pending`, `rejected`, and
 `failed`. Propagation is currently uneven: `SaveCoordinator` preserves the reload
-result, but collection regeneration still returns a Boolean and its runtime
-callback discards the reload outcome. CLI apply/restore are separate paths.
+result. Collection persistence now retains that same `ReloadResult` through
+its runtime callback, while its compatibility Boolean still means persistence
+completed. CLI apply/restore remain separate paths.
 
 | Responsibility | Owner | Notes |
 | --- | --- | --- |
@@ -75,3 +76,18 @@ See [the reproduced rollback race](../bugs/save-coordinator-overlapping-rollback
 
 Explicit-restore failure throws `SaveRecoveryError`, retaining both causes while
 preserving the fallback error description used by existing presentation.
+
+## Collection persistence boundary
+
+`RuleCollectionsManager.persistRules()` returns `RulePersistenceResult`: either
+`persisted(reloadResult:)` after configuration and both source-store writes, or
+`failed(Error)`. The callback returns the original `ReloadResult`; applied,
+pending, rejected, and failed remain distinct. Nil means the callback was absent
+or intentionally skipped. Conflict-resolution retries carry the final result
+back to the original caller without another reload.
+
+`regenerateConfigFromCollections()` remains a compatibility adapter returning
+`didPersist`. Do not reinterpret its Boolean as live application: callers perform
+their own partial rollback on false, so changing it on reload rejection before
+migrating multi-store recovery would create inconsistent state. This stage does
+not change notification timing or claim recovery after a partial store write.
