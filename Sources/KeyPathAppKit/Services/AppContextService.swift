@@ -43,6 +43,7 @@ public final class AppContextService {
 
     @ObservationIgnored private let preferences: PreferencesService
     @ObservationIgnored private let appKeymapStore: AppKeymapStore
+    @ObservationIgnored private let actionSender: ((String, KanataTCPClient.FakeKeyAction) async -> Void)?
 
     // MARK: - Private State
 
@@ -56,10 +57,12 @@ public final class AppContextService {
 
     init(
         preferences: PreferencesService = .shared,
-        appKeymapStore: AppKeymapStore = .shared
+        appKeymapStore: AppKeymapStore = .shared,
+        actionSender: ((String, KanataTCPClient.FakeKeyAction) async -> Void)? = nil
     ) {
         self.preferences = preferences
         self.appKeymapStore = appKeymapStore
+        self.actionSender = actionSender
     }
 
     // MARK: - Lifecycle
@@ -121,7 +124,10 @@ public final class AppContextService {
 
     /// Reload mappings from the store.
     /// Call this after modifying app keymaps to pick up changes.
-    public func reloadMappings() async {
+    public func reloadMappings(afterRuntimeReload: Bool = false) async {
+        // Kanata replaces its layout on reload, clearing held virtual keys even
+        // when the current application's virtual-key name did not change.
+        if afterRuntimeReload { currentVirtualKey = nil }
         bundleToVKMapping = await appKeymapStore.getBundleToVKMapping()
         AppLogger.shared.log("🔄 [AppContextService] Reloaded \(bundleToVKMapping.count) app mappings")
 
@@ -199,6 +205,10 @@ public final class AppContextService {
     }
 
     private func sendFakeKeyAction(name: String, action: KanataTCPClient.FakeKeyAction) async {
+        if let actionSender {
+            await actionSender(name, action)
+            return
+        }
         guard let client = tcpClient else {
             AppLogger.shared.warn("⚠️ [AppContextService] No TCP client, skipping \(action.rawValue) for \(name)")
             return

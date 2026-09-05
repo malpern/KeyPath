@@ -49,6 +49,13 @@ actor CustomRulesStore {
         }
     }
 
+    func loadForMutation() throws -> [CustomRule] {
+        let data: Data
+        do { data = try Data(contentsOf: fileURL) }
+        catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError { return [] }
+        return try decoder.decode([CustomRule].self, from: data)
+    }
+
     func encodedRules(_ rules: [CustomRule]) throws -> Data {
         try encoder.encode(rules)
     }

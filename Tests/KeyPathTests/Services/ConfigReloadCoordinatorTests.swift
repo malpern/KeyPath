@@ -269,6 +269,29 @@ struct ConfigReloadCoordinatorTests {
         #expect(received.value == false)
     }
 
+    @Test("deferred success refreshes context inside configuration admission")
+    func deferredSuccessRefreshesContextUnderAdmission() async {
+        let state = MutableRuntimeTransition(isTransitioning: false)
+        let (coordinator, _, _) = Self.makeSUT(healthy: true, tcpReloadResult: .success(response: "ok"))
+        let gate = ConfigurationOperationGate()
+        coordinator.configurationOperationGate = gate
+        coordinator.onDeferredReloadSuccess = {
+            state.reloadCount += 1
+            do {
+                try await gate.withOperation { _ in }
+                Issue.record("Context refresh must retain configuration admission")
+            } catch {
+                if case ConfigurationOperationGate.Failure.recursiveOperation = error {}
+                else { Issue.record("Unexpected admission error: \(error)") }
+            }
+        }
+        _ = await coordinator.triggerConfigReload()
+        #expect(state.reloadCount == 0, "Immediate reload settlement belongs to the save owner")
+        let result = await coordinator.performDeferredReload()
+        #expect(result.disposition == .applied)
+        #expect(state.reloadCount == 1)
+    }
+
     @Test("transition retry waits for readiness and reloads once")
     func transitionRetryWaitsForReadiness() async {
         let transition = MutableRuntimeTransition(isTransitioning: true)
@@ -283,12 +306,14 @@ struct ConfigReloadCoordinatorTests {
             }
         )
         coordinator.onReloadSuccess = { transition.reloadCount += 1 }
+        coordinator.onDeferredReloadSuccess = { transition.tcpReloadCount += 1 }
 
         let didRetry = await coordinator.retryAfterRuntimeTransition()
 
         #expect(didRetry == true)
         #expect(transition.waitCount == 1)
         #expect(transition.reloadCount == 1)
+        #expect(transition.tcpReloadCount == 1)
     }
 
     @Test("transition retry checks reload outcome and retries a transient failure")

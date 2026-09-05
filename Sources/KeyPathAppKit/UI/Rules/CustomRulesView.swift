@@ -201,22 +201,15 @@ struct CustomRulesView: View {
 
     private func deleteAppRule(keymap: AppKeymap, override: AppKeyOverride) {
         Task {
-            var updatedKeymap = keymap
-            updatedKeymap.overrides.removeAll { $0.id == override.id }
-
             do {
-                if updatedKeymap.overrides.isEmpty {
-                    try await services.appKeymapStore.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
-                } else {
-                    try await services.appKeymapStore.upsertKeymap(updatedKeymap)
-                }
-
-                try await AppConfigGenerator.regenerateFromStore()
-                await AppContextService.shared.reloadMappings()
-
-                _ = await kanataManager.underlyingManager.restartKanata(reason: "App rule deleted from Settings")
+                try await kanataManager.underlyingManager.removeAppRule(
+                    bundleIdentifier: keymap.mapping.bundleIdentifier,
+                    overrideID: override.id,
+                    store: services.appKeymapStore
+                )
             } catch {
                 AppLogger.shared.log("⚠️ [CustomRulesView] Failed to delete app rule: \(error)")
+                inlineError = error.localizedDescription
             }
         }
     }

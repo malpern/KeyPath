@@ -34,6 +34,30 @@ final class RecoverableRuleWriteTests: XCTestCase {
         try JSONEncoder().encode(journal).write(to: RecoverableRuleWrite.journalURL(directory), options: .atomic)
     }
 
+    func testStagingRefusesARevisionChangedAfterSourceLoading() throws {
+        try fixture { directory, files, old, new in
+            let external = Data("external edit".utf8)
+            try external.write(to: files["config"]!)
+            XCTAssertThrowsError(try RecoverableRuleWrite.stage(files: files, contents: new, directory: directory, scope: .rules, expectedBefore: old))
+            var expected = old
+            expected["config"] = external
+            try assertFiles(files, equal: expected)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory).path))
+        }
+    }
+
+    func testCommittedReceiptCannotLaterRollBackAnotherRevision() throws {
+        try fixture { directory, files, old, new in
+            let first = try RecoverableRuleWrite.stage(files: files, contents: new, directory: directory, scope: .rules)
+            try RecoverableRuleWrite.commit(first)
+            let second = try RecoverableRuleWrite.stage(files: files, contents: old, directory: directory, scope: .rules)
+            XCTAssertThrowsError(try RecoverableRuleWrite.rollback(first))
+            try assertFiles(files, equal: old)
+            try RecoverableRuleWrite.rollback(second)
+            try assertFiles(files, equal: new)
+        }
+    }
+
     func testSuccessfulCommitWritesAllFilesAndRemovesJournal() throws {
         try fixture { directory, files, _, new in
             try RecoverableRuleWrite.apply(files: files, contents: new, directory: directory)

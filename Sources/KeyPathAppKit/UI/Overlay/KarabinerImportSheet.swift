@@ -547,11 +547,16 @@ struct KarabinerImportSheet: View {
         }
 
         // Import selected app keymaps
-        for keymap in result.appKeymaps where selectedAppKeymapIds.contains(keymap.id) {
+        let appKeymaps = result.appKeymaps.filter { selectedAppKeymapIds.contains($0.id) }
+        if !appKeymaps.isEmpty {
             do {
-                try await services.appKeymapStore.upsertKeymap(keymap)
+                try await kanataManager.underlyingManager.mutateAppKeymaps(store: services.appKeymapStore) { current in
+                    for keymap in appKeymaps {
+                        AppKeymapStore.upsert(keymap, in: &current)
+                    }
+                }
             } catch {
-                errors.append("App keymap '\(keymap.mapping.displayName)': \(error.localizedDescription)")
+                errors.append("App keymaps: \(error.localizedDescription)")
             }
         }
 

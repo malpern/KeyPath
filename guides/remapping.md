@@ -216,3 +216,15 @@ keypath rule list                  # See all active rules
 | Right Control | `right_control` |
 | Right Command | `right_command` |
 | Backtick | `grave_accent` |
+
+## App-specific edits and hand-written configurations
+
+If KeyPath says your configuration was preserved, it could not safely reproduce
+your current configuration from the rules in the visual editor. The attempted
+app-specific edit has not been saved. Your configuration files remain unchanged.
+
+This can happen with hand-written configurations, manual changes to generated
+files, or stored rules that differ from the generated configuration. App-specific
+editing requires an explicit conversion with a backup first. KeyPath does not
+perform that conversion automatically. Keep using your existing configuration;
+this editing limit does not stop it from running.

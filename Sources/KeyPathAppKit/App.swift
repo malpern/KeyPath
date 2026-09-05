@@ -637,11 +637,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Sequential startup: regenerate config, auto-launch, validate, auto-wizard
         Task { @MainActor in
             do {
-                try await AppConfigGenerator.regenerateFromStore()
-                AppLogger.shared.log("✅ [AppDelegate] App-specific config regenerated")
+                try await AppConfigGenerator.ensureIncludeFromStore()
+                AppLogger.shared.log("✅ [AppDelegate] App-specific config verified")
             } catch {
                 AppLogger.shared.error(
-                    "❌ [AppDelegate] Failed to regenerate app-specific config: \(error)"
+                    "❌ [AppDelegate] Could not verify app-specific config: \(error)"
                 )
             }
 
