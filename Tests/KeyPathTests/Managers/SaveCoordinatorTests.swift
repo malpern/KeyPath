@@ -1,6 +1,7 @@
 import Foundation
 @testable import KeyPathAppKit
 @testable import KeyPathCore
+import KeyPathRulesCore
 @preconcurrency import XCTest
 
 @MainActor
@@ -159,6 +160,161 @@ final class SaveCoordinatorTests: KeyPathTestCase {
         XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), saved ? updated : original, file: file, line: line)
     }
 
+    // MARK: - Save Isolation
+
+    func testOverlappingGeneratedSavesWaitForPreviousReloadAndRollback() async throws {
+        try await assertQueuedSave()
+    }
+
+    func testMappingSaveWaitsForGeneratedSaveRecovery() async throws {
+        try await assertQueuedSave(mappingSecond: true)
+    }
+
+    func testCancelledQueuedSaveDoesNotWriteReloadOrBlockLaterSaves() async throws {
+        try await assertQueuedSave(cancelSecond: true)
+    }
+
+    private func assertQueuedSave(mappingSecond: Bool = false, cancelSecond: Bool = false) async throws {
+        let original = "(defcfg)\n(defsrc a)\n(deflayer base b)"
+        let firstContent = "(defcfg)\n(defsrc a)\n(deflayer base c)"
+        let secondContent = "(defcfg)\n(defsrc a)\n(deflayer base d)"
+        let url = URL(fileURLWithPath: configService.configurationPath)
+        try original.write(to: url, atomically: true, encoding: .utf8)
+        let firstReloadStarted = expectation(description: "first reload suspended")
+        let secondStarted = expectation(description: "second save requested")
+        let recorder = SaveStatusRecorder()
+        coordinator.delegate = recorder
+        var releaseFirst: CheckedContinuation<Void, Never>?
+        let coordinator = try XCTUnwrap(coordinator)
+
+        let first = Task { @MainActor in
+            await coordinator.saveGeneratedConfig(content: firstContent) {
+                await withCheckedContinuation { continuation in
+                    releaseFirst = continuation
+                    firstReloadStarted.fulfill()
+                }
+                return ReloadResult(success: false, response: nil, errorMessage: "rejected", protocol: nil, disposition: .rejected)
+            }
+        }
+        await fulfillment(of: [firstReloadStarted], timeout: 5)
+        let manager = RuleCollectionsManager(
+            ruleCollectionStore: .testStore(at: tempDir.appendingPathComponent("RuleCollections.json")),
+            customRulesStore: .testStore(at: tempDir.appendingPathComponent("CustomRules.json")),
+            configurationService: configService
+        )
+        var secondReloadCount = 0
+        let second = Task { @MainActor in
+            secondStarted.fulfill()
+            let reload = {
+                secondReloadCount += 1
+                return ReloadResult(success: true, response: "ok", errorMessage: nil, protocol: nil)
+            }
+            if mappingSecond {
+                return await coordinator.saveMapping(input: "a", output: "d", ruleCollectionsManager: manager, reloadHandler: reload)
+            }
+            return await coordinator.saveGeneratedConfig(content: secondContent, reloadHandler: reload)
+        }
+        await fulfillment(of: [secondStarted], timeout: 5)
+        XCTAssertEqual(recorder.savingCount, 1, "Queued saves must not begin validation, backup, or status updates")
+        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), firstContent)
+        if cancelSecond { second.cancel() }
+        releaseFirst?.resume()
+        let firstResult = await first.value
+        let secondResult = await second.value
+        XCTAssertFalse(firstResult.success)
+        if cancelSecond {
+            XCTAssertFalse(secondResult.success)
+            XCTAssertTrue(secondResult.error is CancellationError)
+            XCTAssertNil(secondResult.reloadResult)
+            XCTAssertEqual(secondReloadCount, 0)
+            XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), original)
+            let nextResult = await coordinator.saveGeneratedConfig(content: secondContent) {
+                ReloadResult(success: true, response: "ok", errorMessage: nil, protocol: nil)
+            }
+            XCTAssertTrue(nextResult.success, "Cancellation must release the operation slot")
+        } else {
+            XCTAssertTrue(secondResult.success)
+            XCTAssertEqual(secondReloadCount, 1)
+        }
+        if mappingSecond {
+            let savedRule = try XCTUnwrap(manager.customRules.first { $0.input == "a" })
+            XCTAssertEqual(savedRule.action, .keystroke(key: "d"))
+            XCTAssertNotEqual(try String(contentsOf: url, encoding: .utf8), original)
+        } else {
+            XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), secondContent)
+        }
+        // The second save must have backed up the restored original, not the
+        // uncommitted first edit. Exercise that backup through the public API.
+        try await coordinator.restoreLastGoodConfig()
+        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), original)
+    }
+
+    func testRejectedSaveRestoresLatestFileRatherThanStaleParsedCache() async throws {
+        let original = "(defcfg)\n(defsrc a)\n(deflayer base b)"
+        let accepted = "(defcfg)\n(defsrc a)\n(deflayer base c)"
+        let rejected = "(defcfg)\n(defsrc a)\n(deflayer base d)"
+        let url = URL(fileURLWithPath: configService.configurationPath)
+        try original.write(to: url, atomically: true, encoding: .utf8)
+        _ = await configService.current() // Deliberately prime the older parsed cache.
+        let first = await coordinator.saveGeneratedConfig(content: accepted) {
+            ReloadResult(success: true, response: "ok", errorMessage: nil, protocol: nil)
+        }
+        XCTAssertTrue(first.success)
+        let second = await coordinator.saveGeneratedConfig(content: rejected) {
+            // A separate backup request must not replace this save's snapshot.
+            self.coordinator.backupCurrentConfig("unrelated backup")
+            return ReloadResult(success: false, response: nil, errorMessage: "rejected", protocol: nil, disposition: .rejected)
+        }
+        XCTAssertFalse(second.success)
+        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), accepted)
+    }
+
+    func testReentrantReloadSaveAndRestoreFailWithoutBlockingOuterSave() async throws {
+        let original = "(defcfg)\n(defsrc a)\n(deflayer base b)"
+        let updated = "(defcfg)\n(defsrc a)\n(deflayer base c)"
+        let url = URL(fileURLWithPath: configService.configurationPath)
+        try original.write(to: url, atomically: true, encoding: .utf8)
+        let coordinator = try XCTUnwrap(coordinator)
+        let outer = await coordinator.saveGeneratedConfig(content: updated) {
+            let nested = await coordinator.saveGeneratedConfig(content: original) {
+                XCTFail("Recursive save must not reach reload")
+                return ReloadResult(success: true, response: "ok", errorMessage: nil, protocol: nil)
+            }
+            XCTAssertFalse(nested.success)
+            XCTAssertNil(nested.reloadResult)
+            XCTAssertTrue(nested.error?.localizedDescription.contains("recursively") == true)
+            do {
+                try await coordinator.restoreLastGoodConfig()
+                XCTFail("Recursive restoration must fail rather than queue behind itself")
+            } catch {
+                XCTAssertTrue(error.localizedDescription.contains("recursively"))
+            }
+            return ReloadResult(success: true, response: "ok", errorMessage: nil, protocol: nil)
+        }
+        XCTAssertTrue(outer.success)
+        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), updated)
+        try await coordinator.restoreLastGoodConfig()
+        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), original)
+    }
+
+    func testMissingConfigInitializesBackupBeforeGeneratedSave() async throws {
+        let updated = "(defcfg)\n(defsrc a)\n(deflayer base c)"
+        let url = URL(fileURLWithPath: configService.configurationPath)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+        var initializedContent: String?
+        let result = await coordinator.saveGeneratedConfig(content: updated) {
+            initializedContent = await self.configService.current().content
+            XCTAssertEqual(try? String(contentsOf: url, encoding: .utf8), updated)
+            return ReloadResult(success: false, response: nil, errorMessage: "rejected", protocol: nil, disposition: .rejected)
+        }
+        XCTAssertFalse(result.success)
+        XCTAssertEqual(result.reloadResult?.disposition, .rejected)
+        let backup = try XCTUnwrap(initializedContent)
+        XCTAssertFalse(backup.isEmpty)
+        XCTAssertNotEqual(backup, updated)
+        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), backup)
+    }
+
     // MARK: - Rollback Fallback Tests
 
     func testRestoreLastGoodConfig_WritesMinimalSafeConfig_WhenNoBackupExists() async throws {
@@ -210,4 +366,15 @@ final class SaveCoordinatorTests: KeyPathTestCase {
 
         XCTAssertTrue(coordinator.hasBackup(), "Should have backup after ensureBackupExists")
     }
+}
+
+@MainActor
+private final class SaveStatusRecorder: SaveCoordinatorDelegate {
+    var savingCount = 0
+
+    func saveStatusDidChange(_ status: SaveStatus) {
+        if case .saving = status { savingCount += 1 }
+    }
+
+    func configDidUpdate(mappings _: [KeyMapping]) {}
 }
