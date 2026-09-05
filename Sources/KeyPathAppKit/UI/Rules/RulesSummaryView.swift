@@ -28,6 +28,8 @@ struct RulesTabView: View {
     @State var appKeymaps: [AppKeymap] = []
     @State var isKindaVimInstalled = false
     @State var isKeystrokeHistoryInstalled = false
+    @State var kindaVimMutationID: UUID?
+    @State var keystrokeHistoryMutationID: UUID?
     @State var pendingEnablePack: Pack?
     @State var pendingEnableUnmetDeps: [UnmetDependency] = []
     @State var pendingDisablePack: Pack?

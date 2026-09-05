@@ -235,3 +235,16 @@ it does not yet provide the app-specific journal or compensating reload. The old
 opt-in smoke test that mutated the user's real file without restoration is replaced
 by temporary-directory save/reload tests. Physical engine acceptance remains a
 separate installed-app QA obligation.
+
+## Pack metadata ownership
+
+Rules visual-only toggles now use PackInstaller.setVisualPackEnabled. It admits
+before strict tracker reads, preserves existing quick settings unless supplied,
+and commits the record before settling the app's visual capability. Catalog
+install still runs its existing dependency/conflict gates first; this internal
+consolidation does not standardize the two entry points' product policy.
+
+Pack detail's missing-record repair uses PackInstaller.reconcileInstallRecord.
+It reads persisted collection state after admission, refuses incomplete reads,
+and propagates persistence failure instead of reporting installed unconditionally.
+It preserves the existing backfill policy; it does not decide new pack ownership.
