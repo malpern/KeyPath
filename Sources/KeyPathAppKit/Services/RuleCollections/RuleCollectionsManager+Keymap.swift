@@ -17,64 +17,66 @@ extension RuleCollectionsManager {
     /// - Returns: Array of conflicting custom rules, if any
     @discardableResult
     func setActiveKeymap(_ keymapId: String, includePunctuation: Bool) async -> [RuleConflictInfo] {
-        AppLogger.shared.log("⌨️ [RuleCollections] Setting active keymap to '\(keymapId)' (punctuation: \(includePunctuation))")
+        await withRuleMutation(failure: []) { [self] _ in
+            AppLogger.shared.log("⌨️ [RuleCollections] Setting active keymap to '\(keymapId)' (punctuation: \(includePunctuation))")
 
-        let previousKeymapId = activeKeymapId
-        let previousPunctuation = keymapIncludesPunctuation
-        let previousKeymapIndex = ruleCollections.firstIndex { $0.id == RuleCollectionIdentifier.keymapLayout }
-        let previousKeymapCollection = previousKeymapIndex.map { ruleCollections[$0] }
-        activeKeymapId = keymapId
-        keymapIncludesPunctuation = includePunctuation
+            let previousKeymapId = activeKeymapId
+            let previousPunctuation = keymapIncludesPunctuation
+            let previousKeymapIndex = ruleCollections.firstIndex { $0.id == RuleCollectionIdentifier.keymapLayout }
+            let previousKeymapCollection = previousKeymapIndex.map { ruleCollections[$0] }
+            activeKeymapId = keymapId
+            keymapIncludesPunctuation = includePunctuation
 
-        // Check for conflicts with custom rules
-        let conflicts = detectKeymapConflicts(keymapId: keymapId, includePunctuation: includePunctuation)
+            // Check for conflicts with custom rules
+            let conflicts = detectKeymapConflicts(keymapId: keymapId, includePunctuation: includePunctuation)
 
-        if !conflicts.isEmpty {
-            let conflictKeys = conflicts.flatMap(\.keys).joined(separator: ", ")
-            onWarning?(
-                "⚠️ Layout change affects custom rules on: \(conflictKeys). Custom rules will override layout mappings for those keys."
-            )
-            AppLogger.shared.log("⚠️ [RuleCollections] Keymap conflicts with custom rules on: \(conflictKeys)")
-        }
-
-        // Remove any existing keymap collection
-        ruleCollections.removeAll { $0.id == RuleCollectionIdentifier.keymapLayout }
-
-        // Add new keymap collection if not QWERTY
-        if let keymapCollection = KeymapMappingGenerator.generateCollection(
-            for: keymapId,
-            includePunctuation: includePunctuation
-        ) {
-            // Insert at the beginning so custom rules take priority
-            ruleCollections.insert(keymapCollection, at: 0)
-            AppLogger.shared.log("⌨️ [RuleCollections] Added keymap collection with \(keymapCollection.mappings.count) mappings")
-        } else if keymapId == LogicalKeymap.defaultId {
-            AppLogger.shared.log("⌨️ [RuleCollections] QWERTY selected - no keymap collection needed")
-        }
-
-        // Persist preferences only after the config/source-store write succeeds.
-        let success = await regenerateConfigFromCollections()
-        if success {
-            await persistKeymapState()
-        } else {
-            AppLogger.shared.log("⌨️ [RuleCollections] Keymap change failed - rolling back")
-            activeKeymapId = previousKeymapId
-            keymapIncludesPunctuation = previousPunctuation
-            // The overlay optimistically updates its shared display preferences
-            // before invoking this operation. Revert only this attempted selection;
-            // a newer UI choice must survive an older failed completion.
-            KeymapPreferences.restoreFailedSelection(
-                attemptedID: keymapId, attemptedPunctuation: includePunctuation,
-                previousID: previousKeymapId, previousPunctuation: previousPunctuation,
-                userDefaults: keymapPreferences
-            )
-            ruleCollections.removeAll { $0.id == RuleCollectionIdentifier.keymapLayout }
-            if let previousKeymapCollection, let previousKeymapIndex {
-                ruleCollections.insert(previousKeymapCollection, at: min(previousKeymapIndex, ruleCollections.count))
+            if !conflicts.isEmpty {
+                let conflictKeys = conflicts.flatMap(\.keys).joined(separator: ", ")
+                onWarning?(
+                    "⚠️ Layout change affects custom rules on: \(conflictKeys). Custom rules will override layout mappings for those keys."
+                )
+                AppLogger.shared.log("⚠️ [RuleCollections] Keymap conflicts with custom rules on: \(conflictKeys)")
             }
-        }
 
-        return conflicts
+            // Remove any existing keymap collection
+            ruleCollections.removeAll { $0.id == RuleCollectionIdentifier.keymapLayout }
+
+            // Add new keymap collection if not QWERTY
+            if let keymapCollection = KeymapMappingGenerator.generateCollection(
+                for: keymapId,
+                includePunctuation: includePunctuation
+            ) {
+                // Insert at the beginning so custom rules take priority
+                ruleCollections.insert(keymapCollection, at: 0)
+                AppLogger.shared.log("⌨️ [RuleCollections] Added keymap collection with \(keymapCollection.mappings.count) mappings")
+            } else if keymapId == LogicalKeymap.defaultId {
+                AppLogger.shared.log("⌨️ [RuleCollections] QWERTY selected - no keymap collection needed")
+            }
+
+            // Persist preferences only after the config/source-store write succeeds.
+            let success = await regenerateConfigFromCollections()
+            if success {
+                await persistKeymapState()
+            } else {
+                AppLogger.shared.log("⌨️ [RuleCollections] Keymap change failed - rolling back")
+                activeKeymapId = previousKeymapId
+                keymapIncludesPunctuation = previousPunctuation
+                // The overlay optimistically updates its shared display preferences
+                // before invoking this operation. Revert only this attempted selection;
+                // a newer UI choice must survive an older failed completion.
+                KeymapPreferences.restoreFailedSelection(
+                    attemptedID: keymapId, attemptedPunctuation: includePunctuation,
+                    previousID: previousKeymapId, previousPunctuation: previousPunctuation,
+                    userDefaults: keymapPreferences
+                )
+                ruleCollections.removeAll { $0.id == RuleCollectionIdentifier.keymapLayout }
+                if let previousKeymapCollection, let previousKeymapIndex {
+                    ruleCollections.insert(previousKeymapCollection, at: min(previousKeymapIndex, ruleCollections.count))
+                }
+            }
+
+            return conflicts
+        }
     }
 
     /// Detect conflicts between the keymap layout and existing custom rules.

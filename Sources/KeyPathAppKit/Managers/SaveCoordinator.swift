@@ -2,13 +2,6 @@ import Foundation
 import KeyPathCore
 import KeyPathRulesCore
 
-/// Task-local scope is intentionally shared: nested callbacks can cross coordinator
-/// instances. Unique rotating operation tokens distinguish their ownership, while
-/// carrying the full set lets an A -> B -> A callback cycle fail instead of hang.
-private enum SaveOperationContext {
-    @TaskLocal static var activeOperations: Set<UUID> = []
-}
-
 /// Callback interface for save status updates
 @MainActor
 protocol SaveCoordinatorDelegate: AnyObject {
@@ -91,12 +84,6 @@ final class SaveCoordinator {
     /// In-memory backup of last known good config
     private var lastGoodConfig: String?
 
-    // MainActor methods can interleave at every await. Keep the entire save,
-    // including reload and recovery, exclusive within this coordinator.
-    private var operationInProgress = false
-    private var operationID = UUID()
-    private var operationWaiters: [CheckedContinuation<Void, Never>] = []
-
     // MARK: - Initialization
 
     init(
@@ -134,83 +121,82 @@ final class SaveCoordinator {
         reloadHandler: @escaping () async -> ReloadResult
     ) async -> SaveResult {
         do {
-            try await beginOperation()
-        } catch {
-            return .failure(error)
-        }
-        defer { endOperation() }
+            return try await configurationService.operationGate.withOperation { @MainActor [self] permit in
+                // Suppress file watcher to prevent double reload
+                configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveConfiguration")
+                saveStatus = .saving
 
-        // Suppress file watcher to prevent double reload
-        configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveConfiguration")
-        saveStatus = .saving
+                do {
+                    // Step 1: Validate input/output
+                    let (sanitizedInput, sanitizedOutput) = try validateInputOutput(
+                        input: input, output: output
+                    )
 
-        do {
-            // Step 1: Validate input/output
-            let (sanitizedInput, sanitizedOutput) = try validateInputOutput(
-                input: input, output: output
-            )
+                    // Step 2: Backup current config
+                    let previousContent = try await snapshotCurrentConfig()
+                    try Task.checkCancellation()
+                    backupCurrentConfig(previousContent)
 
-            // Step 2: Backup current config
-            let previousContent = try await snapshotCurrentConfig()
-            try Task.checkCancellation()
-            backupCurrentConfig(previousContent)
+                    // Step 3: Create and save custom rule
+                    let rule = ruleCollectionsManager.makeCustomRule(
+                        input: sanitizedInput, output: sanitizedOutput
+                    )
+                    let didSave = await ruleCollectionsManager.saveCustomRule(rule, skipReload: true, mutationPermit: permit)
 
-            // Step 3: Create and save custom rule
-            let rule = ruleCollectionsManager.makeCustomRule(
-                input: sanitizedInput, output: sanitizedOutput
-            )
-            let didSave = await ruleCollectionsManager.saveCustomRule(rule, skipReload: true)
+                    guard didSave else {
+                        let message = "Failed to save custom rule (possible conflict)"
+                        saveStatus = .failed(message)
+                        return .failure(KeyPathError.configuration(.validationFailed(errors: [message])))
+                    }
 
-            guard didSave else {
-                let message = "Failed to save custom rule (possible conflict)"
-                saveStatus = .failed(message)
-                return .failure(KeyPathError.configuration(.validationFailed(errors: [message])))
-            }
+                    // Step 4: Play write sound
+                    playWriteSound()
 
-            // Step 4: Play write sound
-            playWriteSound()
+                    // Step 5: Trigger reload for validation
+                    AppLogger.shared.debug("📡 [SaveCoordinator] Triggering TCP reload for validation")
+                    let reloadResult = await reloadHandler()
 
-            // Step 5: Trigger reload for validation
-            AppLogger.shared.debug("📡 [SaveCoordinator] Triggering TCP reload for validation")
-            let reloadResult = await reloadWithinOperation(reloadHandler)
+                    if reloadResult.disposition == .applied || reloadResult.disposition == .pending {
+                        // Success!
+                        if reloadResult.disposition == .applied {
+                            AppLogger.shared.info("✅ [SaveCoordinator] Reload successful, config is valid")
+                        } else {
+                            AppLogger.shared.info("ℹ️ [SaveCoordinator] Config saved; reload pending: \(reloadResult.errorMessage ?? "service unavailable")")
+                        }
+                        playSuccessSound()
+                        saveStatus = .success
+                        scheduleStatusReset()
 
-            if reloadResult.disposition == .applied || reloadResult.disposition == .pending {
-                // Success!
-                if reloadResult.disposition == .applied {
-                    AppLogger.shared.info("✅ [SaveCoordinator] Reload successful, config is valid")
-                } else {
-                    AppLogger.shared.info("ℹ️ [SaveCoordinator] Config saved; reload pending: \(reloadResult.errorMessage ?? "service unavailable")")
-                }
-                playSuccessSound()
-                saveStatus = .success
-                scheduleStatusReset()
+                        let mappings = ruleCollectionsManager.enabledMappings()
+                        return .success(mappings: mappings, reloadResult: reloadResult)
+                    } else {
+                        // Reload failed - restore backup
+                        let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
+                        AppLogger.shared.error("❌ [SaveCoordinator] TCP reload FAILED: \(errorMessage)")
+                        AppLogger.shared.error("❌ [SaveCoordinator] Restoring backup")
 
-                let mappings = ruleCollectionsManager.enabledMappings()
-                return .success(mappings: mappings, reloadResult: reloadResult)
-            } else {
-                // Reload failed - restore backup
-                let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
-                AppLogger.shared.error("❌ [SaveCoordinator] TCP reload FAILED: \(errorMessage)")
-                AppLogger.shared.error("❌ [SaveCoordinator] Restoring backup")
+                        playErrorSound()
+                        let recoveryResult = await restoreConfig(previousContent)
 
-                playErrorSound()
-                let recoveryResult = await restoreConfig(previousContent)
-
-                saveStatus = .failed("TCP server reload failed: \(errorMessage)")
-                return .failure(
-                    KeyPathError.configuration(
-                        .loadFailed(
-                            reason:
-                            "TCP server required for validation-on-demand failed: \(errorMessage)"
+                        saveStatus = .failed("TCP server reload failed: \(errorMessage)")
+                        return .failure(
+                            KeyPathError.configuration(
+                                .loadFailed(
+                                    reason:
+                                    "TCP server required for validation-on-demand failed: \(errorMessage)"
+                                )
+                            ),
+                            reloadResult: reloadResult,
+                            recoveryResult: recoveryResult
                         )
-                    ),
-                    reloadResult: reloadResult,
-                    recoveryResult: recoveryResult
-                )
-            }
+                    }
 
+                } catch {
+                    saveStatus = .failed(error.localizedDescription)
+                    return .failure(error)
+                }
+            }
         } catch {
-            saveStatus = .failed(error.localizedDescription)
             return .failure(error)
         }
     }
@@ -226,103 +212,102 @@ final class SaveCoordinator {
         reloadHandler: @escaping () async -> ReloadResult
     ) async -> SaveResult {
         do {
-            try await beginOperation()
-        } catch {
-            return .failure(error)
-        }
-        defer { endOperation() }
+            return try await configurationService.operationGate.withOperation { @MainActor [self] _ in
+                // Suppress file watcher to prevent double reload
+                configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveGeneratedConfiguration")
+                saveStatus = .saving
 
-        // Suppress file watcher to prevent double reload
-        configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveGeneratedConfiguration")
-        saveStatus = .saving
-
-        do {
-            // Step 1: Validate generated config before saving
-            AppLogger.shared.debug(
-                "🔍 [SaveCoordinator] Validating generated config before save..."
-            )
-            let validation = await configurationService.validateConfiguration(content)
-
-            if !validation.isValid {
-                AppLogger.shared.error(
-                    "❌ [SaveCoordinator] Generated config validation failed: \(validation.errors.joined(separator: ", "))"
-                )
-                saveStatus = .failed(
-                    "Invalid config: \(validation.errors.first ?? "Unknown error")"
-                )
-                return .failure(
-                    KeyPathError.configuration(.validationFailed(errors: validation.errors))
-                )
-            }
-
-            AppLogger.shared.info("✅ [SaveCoordinator] Generated config validation passed")
-
-            // Step 2: Backup current config
-            let previousContent = try await snapshotCurrentConfig()
-            try Task.checkCancellation()
-            backupCurrentConfig(previousContent)
-
-            // Step 3: Write the configuration file
-            let configPath = configurationService.configurationPath
-            let configDir = configurationService.configDirectory
-
-            let configDirURL = URL(fileURLWithPath: configDir)
-            try Foundation.FileManager().createDirectory(
-                at: configDirURL, withIntermediateDirectories: true
-            )
-
-            let configURL = URL(fileURLWithPath: configPath)
-            try content.write(to: configURL, atomically: true, encoding: .utf8)
-
-            AppLogger.shared.info(
-                "✅ [SaveCoordinator] Generated configuration saved to \(configPath)"
-            )
-
-            // Step 4: Parse saved config to extract mappings
-            let parsedMappings = parseConfig(content)
-
-            // Step 5: Play write sound
-            playWriteSound()
-
-            // Step 6: Trigger reload for validation
-            let reloadResult = await reloadWithinOperation(reloadHandler)
-
-            if reloadResult.disposition == .applied || reloadResult.disposition == .pending {
-                if reloadResult.disposition == .applied {
-                    AppLogger.shared.info(
-                        "✅ [SaveCoordinator] TCP reload successful, config is active"
+                do {
+                    // Step 1: Validate generated config before saving
+                    AppLogger.shared.debug(
+                        "🔍 [SaveCoordinator] Validating generated config before save..."
                     )
-                } else {
-                    AppLogger.shared.info(
-                        "ℹ️ [SaveCoordinator] Config saved; reload pending: \(reloadResult.errorMessage ?? "service unavailable")"
+                    let validation = await configurationService.validateConfiguration(content)
+
+                    if !validation.isValid {
+                        AppLogger.shared.error(
+                            "❌ [SaveCoordinator] Generated config validation failed: \(validation.errors.joined(separator: ", "))"
+                        )
+                        saveStatus = .failed(
+                            "Invalid config: \(validation.errors.first ?? "Unknown error")"
+                        )
+                        return .failure(
+                            KeyPathError.configuration(.validationFailed(errors: validation.errors))
+                        )
+                    }
+
+                    AppLogger.shared.info("✅ [SaveCoordinator] Generated config validation passed")
+
+                    // Step 2: Backup current config
+                    let previousContent = try await snapshotCurrentConfig()
+                    try Task.checkCancellation()
+                    backupCurrentConfig(previousContent)
+
+                    // Step 3: Write the configuration file
+                    let configPath = configurationService.configurationPath
+                    let configDir = configurationService.configDirectory
+
+                    let configDirURL = URL(fileURLWithPath: configDir)
+                    try Foundation.FileManager().createDirectory(
+                        at: configDirURL, withIntermediateDirectories: true
                     )
+
+                    let configURL = URL(fileURLWithPath: configPath)
+                    try content.write(to: configURL, atomically: true, encoding: .utf8)
+
+                    AppLogger.shared.info(
+                        "✅ [SaveCoordinator] Generated configuration saved to \(configPath)"
+                    )
+
+                    // Step 4: Parse saved config to extract mappings
+                    let parsedMappings = parseConfig(content)
+
+                    // Step 5: Play write sound
+                    playWriteSound()
+
+                    // Step 6: Trigger reload for validation
+                    let reloadResult = await reloadHandler()
+
+                    if reloadResult.disposition == .applied || reloadResult.disposition == .pending {
+                        if reloadResult.disposition == .applied {
+                            AppLogger.shared.info(
+                                "✅ [SaveCoordinator] TCP reload successful, config is active"
+                            )
+                        } else {
+                            AppLogger.shared.info(
+                                "ℹ️ [SaveCoordinator] Config saved; reload pending: \(reloadResult.errorMessage ?? "service unavailable")"
+                            )
+                        }
+                        playSuccessSound()
+                        saveStatus = .success
+                        scheduleStatusReset()
+                        return .success(mappings: parsedMappings, reloadResult: reloadResult)
+                    } else {
+                        // TCP reload failed - restore backup
+                        let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
+                        AppLogger.shared.error("❌ [SaveCoordinator] TCP reload FAILED: \(errorMessage)")
+
+                        playErrorSound()
+                        let recoveryResult = await restoreConfig(previousContent)
+
+                        saveStatus = .failed("Config reload failed: \(errorMessage)")
+                        return .failure(
+                            KeyPathError.configuration(
+                                .loadFailed(reason: "Hot reload failed: \(errorMessage)")
+                            ),
+                            reloadResult: reloadResult,
+                            recoveryResult: recoveryResult
+                        )
+                    }
+
+                } catch {
+                    saveStatus = .failed(
+                        "Failed to save generated configuration: \(error.localizedDescription)"
+                    )
+                    return .failure(error)
                 }
-                playSuccessSound()
-                saveStatus = .success
-                scheduleStatusReset()
-                return .success(mappings: parsedMappings, reloadResult: reloadResult)
-            } else {
-                // TCP reload failed - restore backup
-                let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
-                AppLogger.shared.error("❌ [SaveCoordinator] TCP reload FAILED: \(errorMessage)")
-
-                playErrorSound()
-                let recoveryResult = await restoreConfig(previousContent)
-
-                saveStatus = .failed("Config reload failed: \(errorMessage)")
-                return .failure(
-                    KeyPathError.configuration(
-                        .loadFailed(reason: "Hot reload failed: \(errorMessage)")
-                    ),
-                    reloadResult: reloadResult,
-                    recoveryResult: recoveryResult
-                )
             }
-
         } catch {
-            saveStatus = .failed(
-                "Failed to save generated configuration: \(error.localizedDescription)"
-            )
             return .failure(error)
         }
     }
@@ -347,14 +332,14 @@ final class SaveCoordinator {
 
     @discardableResult
     func restoreLastGoodConfig() async throws -> SaveRecoveryResult {
-        try await beginOperation()
-        defer { endOperation() }
-        let result = await restoreConfig(lastGoodConfig)
-        // Preserve the throwing contract for existing explicit-restore callers.
-        if case let .failed(backupError, fallbackError) = result {
-            throw SaveRecoveryError(backupError: backupError, fallbackError: fallbackError)
+        try await configurationService.operationGate.withOperation { @MainActor [self] _ in
+            let result = await restoreConfig(lastGoodConfig)
+            // Preserve the throwing contract for existing explicit-restore callers.
+            if case let .failed(backupError, fallbackError) = result {
+                throw SaveRecoveryError(backupError: backupError, fallbackError: fallbackError)
+            }
+            return result
         }
-        return result
     }
 
     private func restoreConfig(_ content: String?) async -> SaveRecoveryResult {
@@ -457,50 +442,6 @@ final class SaveCoordinator {
     }
 
     // MARK: - Private Helpers
-
-    /// Cancellation before admission never writes or changes the active status.
-    /// A queued cancellation is observed when its FIFO turn arrives. Once a write
-    /// starts, finish reload/recovery rather than abandoning a half-applied edit.
-    private func beginOperation() async throws {
-        try Task.checkCancellation()
-        if operationInProgress, SaveOperationContext.activeOperations.contains(operationID) {
-            throw KeyPathError.configuration(.loadFailed(
-                reason: "A reload callback cannot recursively save or restore through the same coordinator."
-            ))
-        }
-        if operationInProgress {
-            await withCheckedContinuation { operationWaiters.append($0) }
-        } else {
-            operationInProgress = true
-        }
-        do {
-            try Task.checkCancellation()
-        } catch {
-            endOperation()
-            throw error
-        }
-    }
-
-    private func endOperation() {
-        // Inherited task-local context from a finished reload must not reject
-        // a later independent operation (including child tasks that outlive it).
-        operationID = UUID()
-        if operationWaiters.isEmpty {
-            operationInProgress = false
-        } else {
-            // Transfer ownership directly; do not leave a gap for a new caller
-            // to overtake an already queued save.
-            operationWaiters.removeFirst().resume()
-        }
-    }
-
-    private func reloadWithinOperation(_ reloadHandler: () async -> ReloadResult) async -> ReloadResult {
-        var activeOperations = SaveOperationContext.activeOperations
-        activeOperations.insert(operationID)
-        return await SaveOperationContext.$activeOperations.withValue(activeOperations) {
-            await reloadHandler()
-        }
-    }
 
     private func snapshotCurrentConfig() async throws -> String {
         let path = configurationService.configurationPath
