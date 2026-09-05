@@ -18,7 +18,12 @@ before collection mutation, callback reentry and expired nested permits. Existin
 SaveCoordinator tests retain coverage of FIFO ordering, recovery and callback
 cycles.
 
-This change does not make every writer exclusive: direct service, bootstrap,
-pack and CLI paths still require migration. The durable journal and runtime
+Pack install/uninstall/settings operations and bootstrap now acquire the same
+queue before staging state. Their nested toggle/save/remove calls pass the
+active permit explicitly. Regression tests cover callback attempts to install
+visual-only metadata or bootstrap, and cancellation before pack metadata writes.
+
+This does not make every writer exclusive: direct service, standalone
+regeneration and CLI paths still require migration. The durable journal and runtime
 rollback also remain distinct boundaries. Do not treat this queue as proof of
 whole-operation rollback or protection against external editors.

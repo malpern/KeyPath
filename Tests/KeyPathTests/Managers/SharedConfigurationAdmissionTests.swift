@@ -142,6 +142,79 @@ final class SharedConfigurationAdmissionTests: KeyPathTestCase {
         XCTAssertEqual(next, 9)
     }
 
+    func testReloadCallbackCannotInstallVisualOnlyPackMetadata() async throws {
+        try await withFixture { service, manager, coordinator in
+            let pack = Pack(id: "test.admission.visual", version: "1", name: "Visual",
+                            tagline: "", shortDescription: "", longDescription: "",
+                            category: "Test", iconSymbol: "testtube.2", bindings: [], visualOnly: true)
+            let tracker = InstalledPackTracker(fileURL: URL(fileURLWithPath: service.configurationPath)
+                .deletingLastPathComponent().appendingPathComponent("installed-packs.json"))
+            let result = await coordinator.saveGeneratedConfig(content: "(defcfg)\n(defsrc a)\n(deflayer base b)") {
+                do {
+                    _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
+                    XCTFail("A callback must not mutate pack metadata inside another save")
+                } catch ConfigurationOperationGate.Failure.recursiveOperation {
+                    // Expected before any tracker mutation.
+                } catch {
+                    XCTFail("Unexpected failure: \(error)")
+                }
+                return ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil)
+            }
+            XCTAssertTrue(result.success)
+            let record = await tracker.record(for: pack.id)
+            XCTAssertNil(record)
+        }
+    }
+
+    func testReloadCallbackCannotReplaceManagerStateThroughBootstrap() async throws {
+        try await withFixture { _, manager, coordinator in
+            var errors: [String] = []
+            manager.onError = { errors.append($0) }
+            let result = await coordinator.saveGeneratedConfig(content: "(defcfg)\n(defsrc a)\n(deflayer base b)") {
+                await manager.bootstrap()
+                return ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil)
+            }
+            XCTAssertTrue(result.success)
+            XCTAssertTrue(manager.ruleCollections.isEmpty)
+            XCTAssertTrue(errors.contains { $0.contains("recursively") })
+        }
+    }
+
+    func testCancelledPackInstallDoesNotWriteMetadata() async throws {
+        try await withFixture { service, manager, _ in
+            let pack = Pack(id: "test.admission.cancelled", version: "1", name: "Cancelled",
+                            tagline: "", shortDescription: "", longDescription: "",
+                            category: "Test", iconSymbol: "testtube.2", bindings: [], visualOnly: true)
+            let tracker = InstalledPackTracker(fileURL: URL(fileURLWithPath: service.configurationPath)
+                .deletingLastPathComponent().appendingPathComponent("installed-packs.json"))
+            let entered = self.expectation(description: "gate occupied")
+            var resume: CheckedContinuation<Void, Never>?
+            let holder = Task { @MainActor in
+                try await service.operationGate.withOperation { @MainActor _ in
+                    await withCheckedContinuation { continuation in
+                        resume = continuation
+                        entered.fulfill()
+                    }
+                }
+            }
+            await self.fulfillment(of: [entered], timeout: 5)
+            let install = Task { @MainActor in
+                try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
+            }
+            install.cancel()
+            resume?.resume()
+            try await holder.value
+            do {
+                _ = try await install.value
+                XCTFail("Cancelled admission must not install a pack")
+            } catch is CancellationError {
+                // Expected.
+            }
+            let record = await tracker.record(for: pack.id)
+            XCTAssertNil(record)
+        }
+    }
+
     private func withFixture(
         _ body: @MainActor (ConfigurationService, RuleCollectionsManager, SaveCoordinator) async throws -> Void
     ) async throws {
